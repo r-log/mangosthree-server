@@ -37,9 +37,11 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}\.ccache
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPRESS: 1
-      # Required for units that consume a precompiled header; content check because the
-      # compiler's mtime depends on the Visual Studio installation time on the runner.
-      CCACHE_SLOPPINESS: pch_defines,time_macros
+      # pch_defines,time_macros: required for units that consume a precompiled header.
+      # include_file_mtime,include_file_ctime: every checkout gives the headers a fresh
+      # mtime, which would otherwise make ccache distrust its direct-mode manifests and fall
+      # back to preprocessing each file on every hit (what makes sccache hits slow here).
+      CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
       CCACHE_COMPILERCHECK: content
 
     steps:
