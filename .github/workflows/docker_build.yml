@@ -112,7 +112,7 @@ jobs:
       # Sequential on one builder with one cache scope: the second target reuses the
       # `build` stage the first one just compiled.
       - name: Build mangosd image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: extra/docker/Dockerfile
@@ -126,7 +126,7 @@ jobs:
           cache-to: type=gha,scope=server,mode=max
 
       - name: Build realmd image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: extra/docker/Dockerfile
