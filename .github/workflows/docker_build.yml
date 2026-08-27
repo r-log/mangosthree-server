@@ -83,7 +83,7 @@ jobs:
 
       - name: Tags for mangosd
         id: meta-mangosd
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ steps.names.outputs.mangosd }}
           flavor: latest=false
@@ -97,7 +97,7 @@ jobs:
 
       - name: Tags for realmd
         id: meta-realmd
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ steps.names.outputs.realmd }}
           flavor: latest=false
