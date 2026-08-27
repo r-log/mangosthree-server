@@ -1,0 +1,13 @@
+# Override: build the server images from this checkout instead of pulling them.
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  realmd:
+    build:
+      context: ../..
+      dockerfile: extra/docker/Dockerfile
+      target: realmd
+  mangosd:
+    build:
+      context: ../..
+      dockerfile: extra/docker/Dockerfile
+      target: mangosd
