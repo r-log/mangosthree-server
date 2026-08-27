@@ -42,6 +42,10 @@ jobs:
       # mtime, which would otherwise make ccache distrust its direct-mode manifests and fall
       # back to preprocessing each file on every hit (what makes sccache hits slow here).
       CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
+      # Depend mode: on a miss ccache compiles once with /showIncludes instead of running the
+      # preprocessor first and the compiler second; a changed header still invalidates its
+      # dependents (the PCH file itself is an input of every unit that uses it).
+      CCACHE_DEPEND: 1
       CCACHE_COMPILERCHECK: content
 
     steps:
