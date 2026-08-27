@@ -41,6 +41,8 @@ Write-Step "Copy install tree from $InstallDir"
 Copy-Item -Path (Join-Path $InstallDir '*') -Destination $staging -Recurse -Force
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 Copy-Item -Path (Join-Path $repoRoot 'LICENSE') -Destination $staging
+# Import libraries and export files are build-time artefacts the install tree drags along.
+Get-ChildItem -Path $staging -Recurse -Include *.lib, *.exp | Remove-Item -Force
 
 # ---------------------------------------------------------------- DLL search dirs
 $cacheLines = Get-Content (Join-Path $BuildDir 'CMakeCache.txt')
