@@ -31,6 +31,13 @@ jobs:
 
     env:
       BUILD_DIR: ${{ github.workspace }}\..\build-msvc
+      CCACHE_DIR: ${{ github.workspace }}\..\ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPRESS: 1
+      # Required for units that consume a precompiled header; content check because the
+      # compiler's mtime depends on the Visual Studio installation time on the runner.
+      CCACHE_SLOPPINESS: pch_defines,time_macros
+      CCACHE_COMPILERCHECK: content
 
     steps:
       - name: Checkout repository
@@ -108,13 +115,30 @@ jobs:
         with:
           arch: x64
 
-      - name: Compiler cache
-        uses: hendrikmuhs/ccache-action@v1.2
+      # ccache instead of sccache: sccache refuses MSVC compiles that use a precompiled
+      # header (/Yu, /Fp) -- 885 of 1347 units here -- while ccache >= 4.13 caches them
+      # ("Caching MSVC compilations is now officially supported"). Pinned release binary,
+      # verified by hash; the cache directory is restored/saved with actions/cache so a
+      # failed build still keeps what it compiled.
+      - name: Install ccache 4.14
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'ccache.zip'
+          curl.exe --fail --location --retry 3 --output $zip https://github.com/ccache/ccache/releases/download/v4.14/ccache-4.14-windows-x86_64.zip
+          if ($LASTEXITCODE -ne 0) { throw "ccache download failed with exit code $LASTEXITCODE" }
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          if ($hash -ne '2568347a697e103ca1b073981c704ad76fb2507d066c38dba038dd73399d968f') { throw "ccache checksum mismatch: $hash" }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $dir = Join-Path $env:RUNNER_TEMP 'ccache-4.14-windows-x86_64'
+          Add-Content -Path $env:GITHUB_PATH -Value $dir
+          & (Join-Path $dir 'ccache.exe') --version | Select-Object -First 1
+
+      - name: Restore compiler cache
+        uses: actions/cache/restore@v4
         with:
-          variant: sccache
-          key: windows-msvc
-          # 1347 objects with embedded debug info; 500M would evict constantly.
-          max-size: 2G
+          path: ${{ github.workspace }}\..\ccache
+          key: windows-msvc-ccache-${{ github.sha }}
+          restore-keys: windows-msvc-ccache-
 
       - name: Compute version
         id: version
@@ -136,9 +160,8 @@ jobs:
       # form sccache can cache, unlike -Zi) and the linker's -DEBUG writes the PDBs that
       # ship in the zip; -OPT:REF -OPT:ICF keep the binaries at Release size. Dash form on
       # purpose: Git's bash rewrites "/O2"-style arguments into C:/Program Files/Git/O2.
-      # PCH is OFF so sccache can cache every translation unit: it refuses anything compiled
-      # with /Yc or /Fp, which with PCH=1 was 885 of 1347 compiles -- the whole game/shared
-      # code rebuilt from scratch every run. Same include-hygiene rule as the Linux job.
+      # PCH is ON: ccache (unlike sccache) caches units compiled against the precompiled
+      # header, so cold builds get PCH speed and warm builds get cache hits.
       # Never the socket tests: they bind real listeners and dominate the
       # suite's wall-clock. A human asks for them, CI does not.
       - name: Configure
@@ -151,8 +174,8 @@ jobs:
           -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
           -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
           -DCMAKE_INSTALL_PREFIX="$BUILD_DIR/install"
-          -DCMAKE_C_COMPILER_LAUNCHER=sccache
-          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR"
           -DBUILD_TOOLS=1
           -DBUILD_MANGOSD=1
@@ -163,11 +186,23 @@ jobs:
           -DSCRIPT_LIB_ELUNA=1
           -DSCRIPT_LIB_SD3=1
           -DPLAYERBOTS=0
-          -DPCH=0
+          -DPCH=1
 
       - name: Build
         shell: bash
         run: cmake --build "$BUILD_DIR" --parallel
+
+      - name: Compiler cache statistics
+        if: always()
+        shell: bash
+        run: ccache --show-stats --verbose
+
+      - name: Save compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}\..\ccache
+          key: windows-msvc-ccache-${{ github.sha }}
 
       - name: Test
         shell: bash
