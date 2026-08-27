@@ -113,7 +113,8 @@ jobs:
         with:
           variant: sccache
           key: windows-msvc
-          max-size: 500M
+          # 1347 objects with embedded debug info; 500M would evict constantly.
+          max-size: 2G
 
       - name: Compute version
         id: version
@@ -135,6 +136,9 @@ jobs:
       # form sccache can cache, unlike -Zi) and the linker's -DEBUG writes the PDBs that
       # ship in the zip; -OPT:REF -OPT:ICF keep the binaries at Release size. Dash form on
       # purpose: Git's bash rewrites "/O2"-style arguments into C:/Program Files/Git/O2.
+      # PCH is OFF so sccache can cache every translation unit: it refuses anything compiled
+      # with /Yc or /Fp, which with PCH=1 was 885 of 1347 compiles -- the whole game/shared
+      # code rebuilt from scratch every run. Same include-hygiene rule as the Linux job.
       # Never the socket tests: they bind real listeners and dominate the
       # suite's wall-clock. A human asks for them, CI does not.
       - name: Configure
@@ -159,7 +163,7 @@ jobs:
           -DSCRIPT_LIB_ELUNA=1
           -DSCRIPT_LIB_SD3=1
           -DPLAYERBOTS=0
-          -DPCH=1
+          -DPCH=0
 
       - name: Build
         shell: bash
