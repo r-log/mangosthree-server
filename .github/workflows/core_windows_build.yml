@@ -31,7 +31,9 @@ jobs:
 
     env:
       BUILD_DIR: ${{ github.workspace }}\..\build-msvc
-      CCACHE_DIR: ${{ github.workspace }}\..\ccache
+      # No '..' in this path: actions/cache resolves paths with a glob that drops such segments
+      # and then silently saves nothing.
+      CCACHE_DIR: ${{ runner.temp }}\ccache
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPRESS: 1
       # Required for units that consume a precompiled header; content check because the
@@ -136,7 +138,7 @@ jobs:
       - name: Restore compiler cache
         uses: actions/cache/restore@v4
         with:
-          path: ${{ github.workspace }}\..\ccache
+          path: ${{ runner.temp }}\ccache
           key: windows-msvc-ccache-${{ github.sha }}
           restore-keys: windows-msvc-ccache-
 
@@ -195,13 +197,13 @@ jobs:
       - name: Compiler cache statistics
         if: always()
         shell: bash
-        run: ccache --show-stats --verbose
+        run: ccache --show-config | grep -E '^\(env\) (cache_dir|max_size|sloppiness|compiler_check)' ; ccache --show-stats --verbose
 
       - name: Save compiler cache
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: ${{ github.workspace }}\..\ccache
+          path: ${{ runner.temp }}\ccache
           key: windows-msvc-ccache-${{ github.sha }}
 
       - name: Test
