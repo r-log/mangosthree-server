@@ -9,7 +9,7 @@
 # index and the packages are fetched together, so a mirror mid-sync cannot break the
 # build later from a stale cached index (which is what took the old images down).
 
-FROM ubuntu:22.04 AS build
+FROM ubuntu:26.04 AS build
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential clang cmake ninja-build ca-certificates \
@@ -29,7 +29,7 @@ RUN cmake -S . -B build -G Ninja \
     && cmake --build build --parallel \
     && cmake --install build
 
-FROM ubuntu:22.04 AS runtime-base
+FROM ubuntu:26.04 AS runtime-base
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libmysqlclient21 libssl3 libreadline8 libbz2-1.0 zlib1g ca-certificates tzdata gosu \
