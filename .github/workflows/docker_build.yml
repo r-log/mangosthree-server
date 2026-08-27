@@ -120,6 +120,7 @@ jobs:
           target: mangosd
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           provenance: false
           tags: ${{ steps.meta-mangosd.outputs.tags }}
           labels: ${{ steps.meta-mangosd.outputs.labels }}
@@ -134,8 +135,30 @@ jobs:
           target: realmd
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           provenance: false
           tags: ${{ steps.meta-realmd.outputs.tags }}
           labels: ${{ steps.meta-realmd.outputs.labels }}
           cache-from: type=gha,scope=server
           cache-to: type=gha,scope=server,mode=max
+
+      # A green build proves nothing about the runtime image. Start each one through its
+      # entrypoint (config seeding, gosu drop, shared libraries) and ask for the version.
+      # On pull requests the images are loaded into the local daemon; on pushes they are
+      # pulled back from the registry, so the published artefact is what gets exercised.
+      - name: Smoke-test images
+        env:
+          MANGOSD_IMAGE: ${{ fromJSON(steps.meta-mangosd.outputs.json).tags[0] }}
+          REALMD_IMAGE: ${{ fromJSON(steps.meta-realmd.outputs.json).tags[0] }}
+        run: |
+          set -euo pipefail
+          check() {
+            echo "== $1: $2 --version"
+            if ! out=$(docker run --rm "$1" "$2" --version 2>&1); then
+              echo "$out"; echo "::error::$2 failed to start from $1"; exit 1
+            fi
+            echo "$out"
+            echo "$out" | grep -qE '^[0-9]+$' || { echo "::error::$2 --version printed no revision"; exit 1; }
+          }
+          check "$MANGOSD_IMAGE" mangosd
+          check "$REALMD_IMAGE" realmd
