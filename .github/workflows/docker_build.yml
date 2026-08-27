@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 1
@@ -84,7 +84,7 @@ jobs:
 
       - name: Tags for mangosd
         id: meta-mangosd
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ steps.names.outputs.mangosd }}
           flavor: latest=false
@@ -98,7 +98,7 @@ jobs:
 
       - name: Tags for realmd
         id: meta-realmd
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ steps.names.outputs.realmd }}
           flavor: latest=false
@@ -113,7 +113,7 @@ jobs:
       # Sequential on one builder with one cache scope: the second target reuses the
       # `build` stage the first one just compiled.
       - name: Build mangosd image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: extra/docker/Dockerfile
@@ -127,7 +127,7 @@ jobs:
           cache-to: type=gha,scope=server,mode=max
 
       - name: Build realmd image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: extra/docker/Dockerfile
