@@ -24,7 +24,7 @@ target is **4.3.4 only**; do **not** introduce 5.x/MoP or later-expansion assump
 (Linux/macOS/BSD) or MSVC ≥ 2015 (Windows). The exact flags CI builds with:
 
 ```sh
-git clone --recursive https://github.com/mangosthree/server.git && cd server
+git clone --recursive https://github.com/r-log/mangosthree-server.git && cd mangosthree-server
 sudo apt-get install -y git cmake make build-essential \
   libssl-dev libbz2-dev default-libmysqlclient-dev libreadline-dev   # Debian/Ubuntu deps
 mkdir -p _build _install && cd _build
@@ -36,7 +36,7 @@ make -j"$(nproc)" && make install -j"$(nproc)"
 ```
 
 Windows: use the EasyBuild helper. **A PR MUST keep CI green:** the Linux build compiles with **both** GCC and
-Clang, Windows builds on AppVeyor, and Codacy/CodeFactor gate quality. `PLAYERBOTS` defaults **OFF**; only
+Clang, Windows builds with MSVC on GitHub Actions (and packages the release zip), and the Docker images must build. `PLAYERBOTS` defaults **OFF**; only
 enable it deliberately. A full `make install` also installs the map/vmap/mmap extractor tools, so `BUILD_TOOLS`
 targets must build before installing.
 
@@ -72,6 +72,6 @@ logging is opt-in via `PacketLoggingEnabled` (off by default).
 
 Prioritise: **(1)** correctness/safety in `src/game/` handlers and anything touching live world/DB state;
 **(2)** coding-standard conformance above (including the Windows-1252 byte-preservation rule); **(3)** build/CI
-impact (GCC *and* Clang, Windows/AppVeyor); **(4)** DB-migration correctness (use the `mangosthree/database`
+impact (GCC *and* Clang, MSVC on Actions, Docker); **(4)** DB-migration correctness (use the `mangosthree/database`
 pattern). Keep feedback concrete and minimal-diff; flag correctness/standard issues, not style preferences
 the standard doesn't cover.
