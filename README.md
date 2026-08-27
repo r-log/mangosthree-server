@@ -1,16 +1,16 @@
 [<img src='https://www.getmangos.eu/!assets_mangos/currentlogo.gif' width="48" border=0>][8]
 [<img src='https://www.getmangos.eu/!assets_mangos/logo2.png' border=0>][3]
-[<img alt="Latest GitHub release" src="https://img.shields.io/github/release/mangosthree/server.svg?style=flat-square" border=0 valign="top"/>][60]
-[<img src="https://img.shields.io/github/last-commit/mangosthree/server.svg?style=flat-square&logo=github&logoColor=white"
-alt="GitHub last commit" border=0 valign="top"/>][61]
-[<img alt="Downloads on GitHub" src="https://img.shields.io/github/downloads/mangosthree/server/total.svg?style=flat-square" border=0 valign="top"/>][61]
+[<img alt="Latest GitHub release" src="https://img.shields.io/github/v/release/r-log/mangosthree-server?style=flat-square" border=0 valign="top"/>][60]
+[<img src="https://img.shields.io/github/last-commit/r-log/mangosthree-server.svg?style=flat-square&logo=github&logoColor=white"
+alt="GitHub last commit" border=0 valign="top"/>][62]
+[<img alt="Downloads on GitHub" src="https://img.shields.io/github/downloads/r-log/mangosthree-server/total.svg?style=flat-square" border=0 valign="top"/>][61]
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<B>Build Status:</b>
- Linux/MAC: [<img src='https://github.com/mangosthree/server/actions/workflows/core_linux_build.yml/badge.svg' border=0 valign="middle">][10]
- Windows: [<img src='https://ci.appveyor.com/api/projects/status/github/mangosthree/server?branch=master&svg=true' border=0 valign="middle">][11]
- <br><b>Repository Status:</b>
-[<img src='https://api.codacy.com/project/badge/Grade/d54b4c8fec4746498fd05f84a4e7e5d4' border=0 valign="middle"/>][12]
-[<img src='https://www.codefactor.io/repository/github/mangosthree/server/badge' border=0 valign="middle"/>][13]
+ Linux: [<img src='https://github.com/r-log/mangosthree-server/actions/workflows/core_linux_build.yml/badge.svg' border=0 valign="middle">][10]
+ Windows: [<img src='https://github.com/r-log/mangosthree-server/actions/workflows/core_windows_build.yml/badge.svg' border=0 valign="middle">][11]
+ Docker: [<img src='https://github.com/r-log/mangosthree-server/actions/workflows/docker_build.yml/badge.svg' border=0 valign="middle">][12]
+ Codestyle: [<img src='https://github.com/r-log/mangosthree-server/actions/workflows/core_codestyle.yml/badge.svg' border=0 valign="middle">][13]
+ <br><b>Community:</b>
 [<img src='https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat' border=0 valign="middle"/>][14]
 [<img src='https://img.shields.io/discord/286167585270005763.svg' border=0 valign="middle"/>][9]
 
@@ -33,10 +33,27 @@ namely [patch 4.3.4][4].
 
 The code is **C++17**, built strictly (GNU extensions off; the C parts are C11).
 
-Every push is built by [GitHub Actions][10] with **both GCC and Clang** on Linux, and by
-[AppVeyor][11] with MSVC on Windows, as the badges above show. The two compilers are not
+Every push is built by GitHub Actions with **both GCC and Clang** on Linux, with **MSVC** on
+Windows, and as Docker images, as the badges above show. The two compilers are not
 redundant: their standard libraries do not leak the same headers, so a missing `#include`
 can pass on one and fail on the other. We do love green builds, and working things.
+
+Downloads
+---------
+* **Nightly** — every successful `master` build replaces the [nightly pre-release][63]; the
+  Windows zip is always at
+  `https://github.com/r-log/mangosthree-server/releases/download/nightly/MangosThree-nightly-win64.zip`.
+* **Releases** — version tags (`v0.22.x`) publish a [release][61] with generated notes.
+
+The Windows zip is self-contained (server, tools, OpenSSL, MySQL client, VC++ runtime and the
+debug symbols that make crash logs readable); no redistributable install is needed.
+
+Docker
+------
+Images `ghcr.io/r-log/mangosthree-mangosd` and `ghcr.io/r-log/mangosthree-realmd` are published
+with the tags `nightly`, `sha-<commit>`, and the version numbers of releases (`0.22.0`, `0.22`,
+`latest`). `extra/docker/` holds a compose stack that runs them with MariaDB; see
+[`extra/docker/README.md`](extra/docker/README.md).
 
 Requirements
 ------------
@@ -186,10 +203,10 @@ World of Warcraft, and all related art, images, and lore are copyright [Blizzard
 [7]: http://www.cppreference.com/ "C / C++ reference"
 [8]: https://github.com/mangos/MaNGOS/blob/master/mangosFamily.md "The MaNGOS family of Icons"
 [9]: https://discord.gg/fPxMjHS8xs "Our community hub on Discord"
-[10]: https://github.com/mangosthree/server/actions/workflows/core_linux_build.yml "Github Actions - Linux/MAC build status"
-[11]: https://ci.appveyor.com/project/MaNGOS/server-wtbhv/history "AppVeyor Scan - Windows build status"
-[12]: https://app.codacy.com/gh/mangosthree/server/dashboard "Codacy Code Status"
-[13]: https://www.codefactor.io/repository/github/mangosthree/server "Codefactor Code Status"
+[10]: https://github.com/r-log/mangosthree-server/actions/workflows/core_linux_build.yml "GitHub Actions - Linux build status"
+[11]: https://github.com/r-log/mangosthree-server/actions/workflows/core_windows_build.yml "GitHub Actions - Windows build status"
+[12]: https://github.com/r-log/mangosthree-server/actions/workflows/docker_build.yml "GitHub Actions - Docker build status"
+[13]: https://github.com/r-log/mangosthree-server/actions/workflows/core_codestyle.yml "GitHub Actions - Codestyle checks"
 [14]: http://makeapullrequest.com "Show PR's Welcome Icon"
 [15]: https://www.getmangos.eu/wiki "Mangos Wiki"
 [16]: https://www.getmangos.eu/bug-tracker/mangos-three/ "Mangos Online tracker"
@@ -220,6 +237,7 @@ World of Warcraft, and all related art, images, and lore are copyright [Blizzard
 [53]: http://www.zlib.net/ "Zlib"
 [54]: http://www.bzip.org/ "Bzip2"
 [55]: http://slproweb.com/products/Win32OpenSSL.html "OpenSSL for Windows"
-[60]: https://github.com/mangosthree/server/releases/latest
-[61]: https://github.com/mangosthree/server/releases
-[62]: https://github.com/mangosthree/server/commits/master
+[60]: https://github.com/r-log/mangosthree-server/releases/latest
+[61]: https://github.com/r-log/mangosthree-server/releases
+[62]: https://github.com/r-log/mangosthree-server/commits/master
+[63]: https://github.com/r-log/mangosthree-server/releases/tag/nightly
