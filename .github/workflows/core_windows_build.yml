@@ -139,7 +139,7 @@ jobs:
           & (Join-Path $dir 'ccache.exe') --version | Select-Object -First 1
 
       - name: Restore compiler cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}\.ccache
           key: windows-msvc-ccache-${{ github.sha }}
@@ -206,7 +206,7 @@ jobs:
 
       - name: Save compiler cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}\.ccache
           key: windows-msvc-ccache-${{ github.sha }}
