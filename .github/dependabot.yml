@@ -12,7 +12,7 @@ updates:
     directory: /extra/docker
     schedule:
       interval: weekly
-    # A new Ubuntu LTS base is a deliberate migration (package names, compiler), not a bot PR.
+    # The base image moves only by hand: a new Ubuntu LTS is a migration (package names,
+    # compiler), and the in-between releases (22.10, 23.04, ...) are short-lived non-LTS.
     ignore:
       - dependency-name: ubuntu
-        update-types: ["version-update:semver-major"]
