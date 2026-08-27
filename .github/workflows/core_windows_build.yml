@@ -131,9 +131,10 @@ jobs:
           echo "Version: $version"
 
       # CMakeLists.txt forces the build type to Release (Debug only with -DDEBUG=1), so the
-      # symbols come from the flags instead: /Z7 embeds the debug info in the objects (the
-      # form sccache can cache, unlike /Zi) and the linker's /DEBUG writes the PDBs that
-      # ship in the zip; /OPT:REF /OPT:ICF keep the binaries at Release size.
+      # symbols come from the flags instead: -Z7 embeds the debug info in the objects (the
+      # form sccache can cache, unlike -Zi) and the linker's -DEBUG writes the PDBs that
+      # ship in the zip; -OPT:REF -OPT:ICF keep the binaries at Release size. Dash form on
+      # purpose: Git's bash rewrites "/O2"-style arguments into C:/Program Files/Git/O2.
       # Never the socket tests: they bind real listeners and dominate the
       # suite's wall-clock. A human asks for them, CI does not.
       - name: Configure
@@ -141,10 +142,10 @@ jobs:
         run: >
           cmake -S . -B "$BUILD_DIR" -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_C_FLAGS_RELEASE="/O2 /Ob2 /DNDEBUG /Z7"
-          -DCMAKE_CXX_FLAGS_RELEASE="/O2 /Ob2 /DNDEBUG /Z7"
-          -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF"
-          -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF"
+          -DCMAKE_C_FLAGS_RELEASE="-O2 -Ob2 -DNDEBUG -Z7"
+          -DCMAKE_CXX_FLAGS_RELEASE="-O2 -Ob2 -DNDEBUG -Z7"
+          -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
+          -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
           -DCMAKE_INSTALL_PREFIX="$BUILD_DIR/install"
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
