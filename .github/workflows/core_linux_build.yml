@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
           fetch-depth: 1
@@ -48,7 +48,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libssl-dev libbz2-dev default-libmysqlclient-dev libreadline-dev             ${{ matrix.pkg }}
 
       - name: Compiler cache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
         with:
           key: linux-${{ matrix.name }}
           max-size: 500M
