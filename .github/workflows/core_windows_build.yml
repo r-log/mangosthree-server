@@ -143,11 +143,17 @@ jobs:
           & (Join-Path $dir 'ccache.exe') --version | Select-Object -First 1
 
       - name: Restore compiler cache
+        id: ccache-restore
         uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}\.ccache
           key: windows-msvc-ccache-${{ github.sha }}
           restore-keys: windows-msvc-ccache-
+
+      # Counters are per cache directory and would otherwise accumulate across restored runs.
+      - name: Reset compiler cache statistics
+        shell: bash
+        run: ccache --zero-stats > /dev/null
 
       - name: Compute version
         id: version
@@ -204,9 +210,28 @@ jobs:
       - name: Compiler cache statistics
         if: always()
         shell: bash
+        env:
+          EXACT_RESTORE: ${{ steps.ccache-restore.outputs.cache-hit }}
         run: |
           ccache --show-config | grep -iE 'cache_dir|max_size|sloppiness|compiler_check|direct_mode|depend_mode' || true
           ccache --show-stats --verbose
+          {
+            echo '### ccache (this build)'
+            echo '```'
+            ccache --show-stats
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # A rerun of the same commit restores that commit's own cache, so nearly every unit
+          # should be a direct hit; a low rate there means the cache is silently broken again.
+          if [ "$EXACT_RESTORE" = "true" ]; then
+            direct=$(ccache --print-stats | awk -F'\t' '$1 == "direct_cache_hit" {print $2}')
+            pre=$(ccache --print-stats | awk -F'\t' '$1 == "preprocessed_cache_hit" {print $2}')
+            miss=$(ccache --print-stats | awk -F'\t' '$1 == "cache_miss" {print $2}')
+            total=$(( ${direct:-0} + ${pre:-0} + ${miss:-0} ))
+            if [ "$total" -gt 0 ] && [ $(( ${direct:-0} * 100 / total )) -lt 50 ]; then
+              echo "::warning::ccache direct-hit rate below 50% on an exact cache restore (direct=${direct:-0} preprocessed=${pre:-0} miss=${miss:-0}) -- the cache may be broken"
+            fi
+          fi
 
       - name: Save compiler cache
         if: always()
@@ -376,5 +401,19 @@ jobs:
 
           flags=(--verify-tag --title "MangosThree $tag" --notes-file notes.md "--latest=$latest")
           [ "$prerelease" = true ] && flags+=(--prerelease)
-          gh release create "$tag" "${flags[@]}" "$zip"
-          echo "Published $tag (latest=$latest, prerelease=$prerelease)"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            # A rerun after a partial publish: the release exists -- refresh it instead of
+            # failing on "already exists", but only if the tag still names this commit.
+            target=$(gh api "repos/$GH_REPO/commits/$tag" --jq .sha)
+            if [ "$target" != "$GITHUB_SHA" ]; then
+              echo "::error::release $tag exists for ${target::7}, not for ${GITHUB_SHA::7}"; exit 1
+            fi
+            gh release upload "$tag" "$zip" --clobber
+            editflags=(--title "MangosThree $tag" --notes-file notes.md "--latest=$latest")
+            [ "$prerelease" = true ] && editflags+=(--prerelease)
+            gh release edit "$tag" "${editflags[@]}"
+            echo "Refreshed existing release $tag"
+          else
+            gh release create "$tag" "${flags[@]}" "$zip"
+            echo "Published $tag (latest=$latest, prerelease=$prerelease)"
+          fi
