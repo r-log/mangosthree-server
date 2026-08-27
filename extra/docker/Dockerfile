@@ -53,12 +53,14 @@ COPY --from=build --chown=mangos:mangos /mangos/bin/mangosd /mangos/bin/
 COPY --from=build --chown=mangos:mangos /mangos/bin/lua_scripts /mangos/bin/lua_scripts
 COPY --from=build /mangos/lib/liblua*.so* /mangos/lib/
 COPY --from=build /mangos/etc/mangosd.conf.dist /mangos/etc/ahbot.conf.dist /mangos/dist/
-RUN echo /mangos/lib > /etc/ld.so.conf.d/mangos.conf && ldconfig
+RUN echo /mangos/lib > /etc/ld.so.conf.d/mangos.conf && ldconfig \
+    && if ldd /mangos/bin/mangosd | grep 'not found'; then echo 'mangosd: unresolved shared libraries' >&2; exit 1; fi
 EXPOSE 8085
 CMD ["mangosd"]
 
 FROM runtime-base AS realmd
 COPY --from=build --chown=mangos:mangos /mangos/bin/realmd /mangos/bin/
 COPY --from=build /mangos/etc/realmd.conf.dist /mangos/dist/
+RUN if ldd /mangos/bin/realmd | grep 'not found'; then echo 'realmd: unresolved shared libraries' >&2; exit 1; fi
 EXPOSE 3724
 CMD ["realmd"]
