@@ -3,12 +3,10 @@ name: Docker Build
 on:
   push:
     branches: [ master, united, devel ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ master, united ]
 
-# Builds images and pushes nothing, so read is all the token ever needs -- at the
-# workflow level and again on the job, because a job may widen what the workflow grants
-# but never the other way round.
 permissions:
   contents: read
 
@@ -16,11 +14,20 @@ concurrency:
   group: docker-build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  REGISTRY: ghcr.io
+  # Pinned so the sha-<n> tags never change length under us (the action's default is 7).
+  DOCKER_METADATA_SHORT_SHA_LENGTH: 7
+
 jobs:
   build:
+    name: Build and publish images
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout repository
@@ -29,25 +36,105 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Image names
+        id: names
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "mangosd=$REGISTRY/$owner/mangosthree-mangosd" >> "$GITHUB_OUTPUT"
+          echo "realmd=$REGISTRY/$owner/mangosthree-realmd" >> "$GITHUB_OUTPUT"
+
+      # `latest` and `<major>.<minor>` are moved only by the newest release of this
+      # repository, so re-running an older tag's workflow can never roll them back.
+      # Compared against releases, not tags: the tree carries upstream's v22.03.* tags.
+      - name: Decide mutable version tags
+        id: guard
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          is_latest=false; minor_latest=false
+          case "$tag" in
+            *-*) ;;   # pre-release: immutable version tag only
+            *)
+              latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)
+              if [ -z "$latest" ] || [ "$(printf '%s\n' "$latest" "$tag" | sort -V | tail -n1)" = "$tag" ]; then
+                is_latest=true
+              fi
+              prefix="${tag%.*}."
+              top=$( { gh release list --exclude-pre-releases --exclude-drafts --limit 200 --json tagName --jq '.[].tagName' 2>/dev/null || true; echo "$tag"; } \
+                     | grep -F "$prefix" | sort -V | tail -n1 )
+              [ "$top" = "$tag" ] && minor_latest=true
+              ;;
+          esac
+          echo "is_latest=$is_latest" >> "$GITHUB_OUTPUT"
+          echo "minor_latest=$minor_latest" >> "$GITHUB_OUTPUT"
+          echo "latest=$is_latest minor=$minor_latest"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags for mangosd
+        id: meta-mangosd
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.names.outputs.mangosd }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=nightly,enable={{is_default_branch}}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master' }}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ steps.guard.outputs.minor_latest == 'true' }}
+            type=raw,value=latest,enable=${{ steps.guard.outputs.is_latest == 'true' }}
+
+      - name: Tags for realmd
+        id: meta-realmd
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.names.outputs.realmd }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=nightly,enable={{is_default_branch}}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master' }}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ steps.guard.outputs.minor_latest == 'true' }}
+            type=raw,value=latest,enable=${{ steps.guard.outputs.is_latest == 'true' }}
+
+      # Sequential on one builder with one cache scope: the second target reuses the
+      # `build` stage the first one just compiled.
       - name: Build mangosd image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: extra/docker/DockerFile-mangosd
-          tags: mangosd:latest
-          push: false
-          cache-from: type=gha,scope=mangosd
-          cache-to: type=gha,scope=mangosd,mode=max
+          file: extra/docker/Dockerfile
+          target: mangosd
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          provenance: false
+          tags: ${{ steps.meta-mangosd.outputs.tags }}
+          labels: ${{ steps.meta-mangosd.outputs.labels }}
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
 
       - name: Build realmd image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: extra/docker/DockerFile-realmd
-          tags: realmd:latest
-          push: false
-          cache-from: type=gha,scope=realmd
-          cache-to: type=gha,scope=realmd,mode=max
+          file: extra/docker/Dockerfile
+          target: realmd
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          provenance: false
+          tags: ${{ steps.meta-realmd.outputs.tags }}
+          labels: ${{ steps.meta-realmd.outputs.labels }}
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
