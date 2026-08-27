@@ -31,9 +31,10 @@ jobs:
 
     env:
       BUILD_DIR: ${{ github.workspace }}\..\build-msvc
-      # No '..' in this path: actions/cache resolves paths with a glob that drops such segments
-      # and then silently saves nothing.
-      CCACHE_DIR: ${{ runner.temp }}\ccache
+      # No '..' in this path (actions/cache rejects it and silently saves nothing) and no
+      # runner context (not allowed in job env). .ccache/ is git-ignored, so the clean-tree
+      # check does not see it.
+      CCACHE_DIR: ${{ github.workspace }}\.ccache
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPRESS: 1
       # Required for units that consume a precompiled header; content check because the
@@ -138,7 +139,7 @@ jobs:
       - name: Restore compiler cache
         uses: actions/cache/restore@v4
         with:
-          path: ${{ runner.temp }}\ccache
+          path: ${{ github.workspace }}\.ccache
           key: windows-msvc-ccache-${{ github.sha }}
           restore-keys: windows-msvc-ccache-
 
@@ -203,7 +204,7 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: ${{ runner.temp }}\ccache
+          path: ${{ github.workspace }}\.ccache
           key: windows-msvc-ccache-${{ github.sha }}
 
       - name: Test
