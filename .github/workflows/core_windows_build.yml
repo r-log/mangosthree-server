@@ -200,7 +200,9 @@ jobs:
       - name: Compiler cache statistics
         if: always()
         shell: bash
-        run: ccache --show-config | grep -E '^\(env\) (cache_dir|max_size|sloppiness|compiler_check)' ; ccache --show-stats --verbose
+        run: |
+          ccache --show-config | grep -iE 'cache_dir|max_size|sloppiness|compiler_check|direct_mode|depend_mode' || true
+          ccache --show-stats --verbose
 
       - name: Save compiler cache
         if: always()
