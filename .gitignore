@@ -103,3 +103,9 @@ docs/superpowers/
 .ccache/
 .sccache/
 src/shared/revision_data.h
+
+# Docker compose runtime state (extra/docker): configs, client data, logs, secrets
+/extra/docker/etc/
+/extra/docker/data/
+/extra/docker/logs/
+/extra/docker/.env
