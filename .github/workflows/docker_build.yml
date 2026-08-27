@@ -56,7 +56,8 @@ jobs:
           case "$tag" in
             *-*) ;;   # pre-release: immutable version tag only
             *)
-              latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)
+              latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null) || latest=""
+              [[ "$latest" =~ ^v[0-9] ]] || latest=""
               if [ -z "$latest" ] || [ "$(printf '%s\n' "$latest" "$tag" | sort -V | tail -n1)" = "$tag" ]; then
                 is_latest=true
               fi

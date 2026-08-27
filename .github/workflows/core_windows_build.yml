@@ -237,7 +237,9 @@ jobs:
           stamp=$(date -u '+%Y-%m-%d %H:%M UTC')
 
           # Forward-only: publish unless a newer master commit already owns the nightly tag.
-          current=$(gh api "repos/$GH_REPO/git/ref/tags/nightly" --jq .object.sha 2>/dev/null || true)
+          # gh api prints the 404 body on stdout, so discard the output when the call fails.
+          current=$(gh api "repos/$GH_REPO/git/ref/tags/nightly" --jq .object.sha 2>/dev/null) || current=""
+          [[ "$current" =~ ^[0-9a-f]{40}$ ]] || current=""
           if [ -n "$current" ]; then
             status=$(gh api "repos/$GH_REPO/compare/$current...$GITHUB_SHA" --jq .status)
             case "$status" in
@@ -298,7 +300,8 @@ jobs:
           images="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mangosthree"
 
           # Previous release of THIS repository (the upstream v22.03.* tags have none here).
-          prev=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)
+          prev=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2>/dev/null) || prev=""
+          [[ "$prev" =~ ^v[0-9] ]] || prev=""
           prerelease=false; case "$tag" in *-*) prerelease=true ;; esac
           latest=false
           if [ "$prerelease" = false ]; then
