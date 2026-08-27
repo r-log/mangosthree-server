@@ -1,1 +1,15 @@
+# Keep the build context to what the build consumes: src/, dep/, cmake/, CMakeLists.txt
+# and extra/docker (the entrypoint is copied from there).
+.git
 **/.git
+_build*
+/build*/
+/bin/
+/install/
+/database/
+*.zip
+/win/
+/extra/doc/
+/extra/linux/
+/.github/
+/Doxyfile.in

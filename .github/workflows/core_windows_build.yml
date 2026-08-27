@@ -3,15 +3,13 @@ name: Windows Build (MSVC)
 on:
   push:
     branches: [ master, united, devel ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ master, united ]
 
+# Read-only by default; only the two publishing jobs widen to contents: write.
 permissions:
   contents: read
-
-concurrency:
-  group: windows-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   OPENSSL_VERSION: 3.6.4
@@ -19,7 +17,17 @@ env:
 
 jobs:
   build:
+    name: Build, test and package
     runs-on: windows-2022
+    # Job-level on purpose: a workflow-level group would also cancel a nightly publish that
+    # is half-way through. Only the newest commit of a ref gets built.
+    concurrency:
+      group: windows-build-${{ github.ref }}
+      cancel-in-progress: true
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact: ${{ steps.version.outputs.artifact }}
+      sha256: ${{ steps.package.outputs.sha256 }}
 
     env:
       BUILD_DIR: ${{ github.workspace }}\..\build-msvc
@@ -85,8 +93,6 @@ jobs:
           if [ -d "$root/lib/VC" ]; then
             echo "OPENSSL_ROOT_DIR=$root" >> "$GITHUB_ENV"
             echo "OPENSSL_INCLUDE_DIR=$root/include" >> "$GITHUB_ENV"
-            echo "OPENSSL_CRYPTO_LIBRARY=$root/lib/VC/libcrypto64MT.lib" >> "$GITHUB_ENV"
-            echo "OPENSSL_SSL_LIBRARY=$root/lib/VC/libssl64MT.lib" >> "$GITHUB_ENV"
             # SlProWeb installs provider DLLs beside openssl.exe, while its
             # compiled MODULESDIR still names the default installation path.
             echo "OPENSSL_MODULES=$root/bin" >> "$GITHUB_ENV"
@@ -96,8 +102,7 @@ jobs:
             exit 1
           fi
 
-      # Supplies the toolchain and the Windows SDK together, which is why there
-      # is no separate setup-windows10-sdk step.
+      # Supplies the toolchain and the Windows SDK together (and dumpbin for packaging).
       - name: Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -110,6 +115,26 @@ jobs:
           key: windows-msvc
           max-size: 500M
 
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          sha7=${GITHUB_SHA::7}
+          case "$GITHUB_EVENT_NAME:$GITHUB_REF" in
+            push:refs/tags/*)       version="$GITHUB_REF_NAME" ;;
+            push:refs/heads/master) version="nightly-$(date -u +%Y%m%d)-g$sha7" ;;
+            pull_request:*)         version="pr${{ github.event.pull_request.number }}-g$sha7" ;;
+            *)                      version="${GITHUB_REF_NAME//\//-}-g$sha7" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "artifact=MangosThree-$version-win64" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
+      # CMakeLists.txt forces the build type to Release (Debug only with -DDEBUG=1), so the
+      # symbols come from the flags instead: -Z7 embeds the debug info in the objects (the
+      # form sccache can cache, unlike -Zi) and the linker's -DEBUG writes the PDBs that
+      # ship in the zip; -OPT:REF -OPT:ICF keep the binaries at Release size. Dash form on
+      # purpose: Git's bash rewrites "/O2"-style arguments into C:/Program Files/Git/O2.
       # Never the socket tests: they bind real listeners and dominate the
       # suite's wall-clock. A human asks for them, CI does not.
       - name: Configure
@@ -117,6 +142,10 @@ jobs:
         run: >
           cmake -S . -B "$BUILD_DIR" -G Ninja
           -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_FLAGS_RELEASE="-O2 -Ob2 -DNDEBUG -Z7"
+          -DCMAKE_CXX_FLAGS_RELEASE="-O2 -Ob2 -DNDEBUG -Z7"
+          -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
+          -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
           -DCMAKE_INSTALL_PREFIX="$BUILD_DIR/install"
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
@@ -140,6 +169,28 @@ jobs:
         shell: bash
         run: ctest --test-dir "$BUILD_DIR" --output-on-failure
 
+      - name: Install
+        shell: bash
+        run: cmake --install "$BUILD_DIR"
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: >
+          ./.github/apps/ci/package-windows.ps1
+          -InstallDir "$env:BUILD_DIR\install"
+          -BuildDir "$env:BUILD_DIR"
+          -Version "${{ steps.version.outputs.version }}"
+          -OutDir "$env:RUNNER_TEMP\pkg"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.artifact }}
+          path: ${{ steps.package.outputs.zip }}
+          if-no-files-found: error
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 90 || 14 }}
+
       - name: Verify the working tree is clean
         shell: bash
         run: |
@@ -148,3 +199,129 @@ jobs:
             git status --porcelain
             exit 1
           fi
+
+  nightly:
+    name: Publish nightly
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Serialised and never cancelled: a publish is atomic from the outside. Ordering
+    # inside a group is not guaranteed, so the job also refuses to move `nightly`
+    # backwards (see the compare check below).
+    concurrency:
+      group: nightly-publish
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: dist
+
+      - name: Publish rolling nightly release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ needs.build.outputs.version }}'
+          zip=MangosThree-nightly-win64.zip
+          mv "dist/MangosThree-$version-win64.zip" "dist/$zip"
+          sha=$(sha256sum "dist/$zip" | cut -d' ' -f1)
+          sha7=${GITHUB_SHA::7}
+          images="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mangosthree"
+          stamp=$(date -u '+%Y-%m-%d %H:%M UTC')
+
+          # Forward-only: publish unless a newer master commit already owns the nightly tag.
+          current=$(gh api "repos/$GH_REPO/git/ref/tags/nightly" --jq .object.sha 2>/dev/null || true)
+          if [ -n "$current" ]; then
+            status=$(gh api "repos/$GH_REPO/compare/$current...$GITHUB_SHA" --jq .status)
+            case "$status" in
+              ahead|identical) ;;
+              *) echo "::notice::nightly already points at ${current::7} ($status of this commit); nothing to do"; exit 0 ;;
+            esac
+            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/nightly" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+          else
+            gh api -X POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/nightly -f sha="$GITHUB_SHA" > /dev/null
+          fi
+
+          cat > body.md <<BODY
+          Rolling build of \`master\` at [\`$sha7\`](https://github.com/$GH_REPO/commit/$GITHUB_SHA) — $stamp. Replaced on every successful master build; the download URL never changes.
+
+          | Asset | SHA-256 |
+          |---|---|
+          | \`$zip\` | \`$sha\` |
+
+          **Docker images for this commit** (present once its Docker workflow has finished): \`$images-mangosd:sha-$sha7\`, \`$images-realmd:sha-$sha7\`. The \`:nightly\` tags follow the latest successful master Docker build independently of this zip.
+
+          **Windows:** extract, copy \`mangosd.conf.dist\` to \`mangosd.conf\` and \`realmd.conf.dist\` to \`realmd.conf\`, set the \`*DatabaseInfo\` lines, run \`realmd.exe\` and \`mangosd.exe\`. No Visual C++ redistributable needed; crash logs (with symbols) land in the Crashes folder.
+          BODY
+
+          if gh release view nightly > /dev/null 2>&1; then
+            gh release edit nightly --prerelease --latest=false --title "Nightly build" --notes-file body.md
+            gh release upload nightly "dist/$zip" --clobber
+          else
+            gh release create nightly --prerelease --latest=false --title "Nightly build" --notes-file body.md "dist/$zip"
+          fi
+          echo "Published nightly for $sha7"
+
+  release:
+    name: Publish release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: dist
+
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          zip="dist/MangosThree-$tag-win64.zip"
+          sha=$(sha256sum "$zip" | cut -d' ' -f1)
+          version="${tag#v}"
+          images="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mangosthree"
+
+          # Previous release of THIS repository (the upstream v22.03.* tags have none here).
+          prev=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)
+          prerelease=false; case "$tag" in *-*) prerelease=true ;; esac
+          latest=false
+          if [ "$prerelease" = false ]; then
+            if [ -z "$prev" ] || [ "$(printf '%s\n' "$prev" "$tag" | sort -V | tail -n1)" = "$tag" ]; then
+              latest=true
+            fi
+          fi
+
+          args=(-f tag_name="$tag")
+          [ -n "$prev" ] && args+=(-f previous_tag_name="$prev")
+          gh api -X POST "repos/$GH_REPO/releases/generate-notes" "${args[@]}" --jq .body > notes.md
+          extra=""
+          [ "$latest" = true ] && extra=' (also `:latest`)'
+          cat >> notes.md <<NOTES
+
+          | Asset | SHA-256 |
+          |---|---|
+          | \`MangosThree-$tag-win64.zip\` | \`$sha\` |
+
+          Docker images: \`$images-mangosd:$version\`, \`$images-realmd:$version\`$extra
+          NOTES
+
+          flags=(--verify-tag --title "MangosThree $tag" --notes-file notes.md "--latest=$latest")
+          [ "$prerelease" = true ] && flags+=(--prerelease)
+          gh release create "$tag" "${flags[@]}" "$zip"
+          echo "Published $tag (latest=$latest, prerelease=$prerelease)"

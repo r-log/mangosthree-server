@@ -3,6 +3,7 @@ name: Linux Build (GCC + Clang)
 on:
   push:
     branches: [ master, united, devel ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ master, united ]
 

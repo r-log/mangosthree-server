@@ -1,48 +1,66 @@
-#To start the server from this docker-compose file you can run the command "docker-compose up"
-#Configure the location of the configuration file and the data folder
-#The connection to mysql should match the name of the service in this case "mysqldb"
-version: "2.4"
+# MaNGOS Three: realmd + mangosd + MariaDB.
+#
+#   cp .env.example .env         # pick the image tag, passwords and ports
+#   docker compose up -d db      # then populate the databases (see README.md)
+#   docker compose up -d
+#
+# The server images are pulled from GHCR. To build them locally instead:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+name: mangosthree
+
 services:
-  mangosd:
-    build:
-      context: ..
-      dockerfile: docker/DockerFile-mangosd
-    depends_on:
-      - mysqldb
-    restart: always
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-mangos}
     ports:
-      - "8085:8085"
-    stdin_open: true
-    tty: true
+      # Exposed so the database installer can be run from the host.
+      - "${DB_PORT:-3306}:3306"
     volumes:
-#      - ./local/path/to/etc:/mangos/etc
-#      - ./local/path/to/data:/mangos/data
-      - ../../etc:/mangos/etc
-      - ../../data:/mangos/data
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   realmd:
-    build:
-      context: ..
-      dockerfile: docker/DockerFile-realmd
+    image: ghcr.io/r-log/mangosthree-realmd:${MANGOS_TAG:-nightly}
+    restart: unless-stopped
     depends_on:
-      - mysqldb
-    restart: always
+      db:
+        condition: service_healthy
     ports:
-      - "3724:3724"
-    volumes:
-#      - ./local/path/to/etc:/mangos/etc
-      - ../../etc:/mangos/etc
-
-  mysqldb:
-    image: mysql:5.6
-    restart: always
+      - "${REALMD_PORT:-3724}:3724"
     environment:
-      - MYSQL_USER=mangos
-      - MYSQL_PASSWORD=mangos
-      - MYSQL_ROOT_PASSWORD=mangos
-      - MYSQL_ROOT_HOST=%
-    ports:
-      - "3306:3306"
+      MANGOS_LOGIN_DB: "db;3306;${DB_USER:-mangos};${DB_PASSWORD:-mangos};realmd"
     volumes:
-#      - ./local/path/to/mysqldatabase:/var/lib/mysql
-      - ../../dbdata:/var/lib/mysql
+      - ./etc:/mangos/etc
+      - ./logs:/mangos/logs
+
+  mangosd:
+    image: ghcr.io/r-log/mangosthree-mangosd:${MANGOS_TAG:-nightly}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      realmd:
+        condition: service_started
+    ports:
+      - "${MANGOSD_PORT:-8085}:8085"
+    # The world server has an interactive console on stdin.
+    stdin_open: true
+    tty: true
+    environment:
+      MANGOS_LOGIN_DB: "db;3306;${DB_USER:-mangos};${DB_PASSWORD:-mangos};realmd"
+      MANGOS_WORLD_DB: "db;3306;${DB_USER:-mangos};${DB_PASSWORD:-mangos};mangos3"
+      MANGOS_CHAR_DB: "db;3306;${DB_USER:-mangos};${DB_PASSWORD:-mangos};character3"
+    volumes:
+      - ./etc:/mangos/etc
+      - ./data:/mangos/data
+      - ./logs:/mangos/logs
+
+volumes:
+  dbdata:
