@@ -4,7 +4,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # One PR with every action bump instead of one PR (and one CI run) per action.
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: docker
     directory: /extra/docker
     schedule:
       interval: weekly
+    # A new Ubuntu LTS base is a deliberate migration (package names, compiler), not a bot PR.
+    ignore:
+      - dependency-name: ubuntu
+        update-types: ["version-update:semver-major"]
