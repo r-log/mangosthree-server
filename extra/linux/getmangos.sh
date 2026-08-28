@@ -956,7 +956,10 @@
             releases=$(curl -s 'https://api.github.com/repos/mangostwo/server/branches' | grep "name" | awk 'BEGIN{FS="\""}{print $4}' | tr '\n' ' ')
             ;;
           3)
-            releases=$(curl -s 'https://api.github.com/repos/mangosthree/server/branches' | grep "name" | awk 'BEGIN{FS="\""}{print $4}' | tr '\n' ' ')
+            # Only branches that exist in both repositories: the chosen branch is cloned from each.
+            releases=$(comm -12 \
+              <(curl -s 'https://api.github.com/repos/r-log/mangosthree-server/branches' | grep "name" | awk 'BEGIN{FS="\""}{print $4}' | sort) \
+              <(curl -s 'https://api.github.com/repos/r-log/mangosthree-database/branches' | grep "name" | awk 'BEGIN{FS="\""}{print $4}' | sort) | tr '\n' ' ')
             ;;
           4)
             releases=$(curl -s 'https://api.github.com/repos/mangosfour/server/branches' | grep "name" | awk 'BEGIN{FS="\""}{print $4}' | tr '\n' ' ')
@@ -1026,8 +1029,8 @@
 
           3)
             Log "Cloning Three branch: $BRANCH" 1
-            git clone http://github.com/mangosthree/server.git "$SRCPATH/server" -b $BRANCH --recursive
-            git clone http://github.com/mangosthree/database.git "$SRCPATH/database" -b $BRANCH --recursive
+            git clone https://github.com/r-log/mangosthree-server.git "$SRCPATH/server" -b $BRANCH
+            git clone https://github.com/r-log/mangosthree-database.git "$SRCPATH/database" -b $BRANCH
             ;;
 
           4)
