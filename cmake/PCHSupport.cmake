@@ -43,10 +43,10 @@ function(ADD_CXX_PCH TARGET_NAME PRECOMPILED_HEADER)
 		message(FATAL_ERROR "ADD_CXX_PCH: '${TARGET_NAME}' is not a target.")
 	endif()
 
-	# Guard, because the failure this catches is invisible. ADD_CXX_PCH(Bots ${bots_PCH}) with
-	# bots_PCH unset collapses to ADD_CXX_PCH(Bots), which used to reach
-	# target_precompile_headers with an EMPTY header list -- a silent no-op. Bots' 277 sources
-	# went years without the precompiled header they all textually include anyway. Fail loudly.
+	# Guard, because the failure this catches is invisible. ADD_CXX_PCH(<target> ${<var>}) with
+	# the variable unset collapses to ADD_CXX_PCH(<target>), which used to reach
+	# target_precompile_headers with an EMPTY header list -- a silent no-op that left a whole
+	# target without the precompiled header its sources textually include anyway. Fail loudly.
 	if(NOT PRECOMPILED_HEADER)
 		message(FATAL_ERROR "ADD_CXX_PCH(${TARGET_NAME}): no precompiled header given.")
 	endif()
