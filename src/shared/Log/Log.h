@@ -276,18 +276,6 @@ class Log : public MaNGOS::Singleton<Log>
         /**
          * @brief any log level
          *
-         * @param str...
-         */
-        void outErrorEluna();
-        /**
-         * @brief any log level
-         *
-         * @param str...
-         */
-        void outErrorEluna(const char* str, ...)        ATTR_PRINTF(2, 3);
-        /**
-         * @brief any log level
-         *
          */
         void outErrorEventAI();
         /**

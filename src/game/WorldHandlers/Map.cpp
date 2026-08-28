@@ -81,7 +81,6 @@
  * @brief Map destructor
  *
  * Cleans up all resources associated with the map:
- * - Triggers Eluna OnDestroy callback if enabled
  * - Unloads all grids and objects
  * - Cleans up scheduled scripts
  * - Releases persistent state reference
@@ -106,11 +105,6 @@ Map::~Map()
     {
         m_persistentState->SetUsedByMapState(NULL);          // field pointer can be deleted after this
     }
-
-//#ifdef ENABLE_ELUNA
-//    if (Instanceable())
-//        sEluna->FreeInstanceId(GetInstanceId());
-//#endif /* ENABLE_ELUNA */
 
     delete i_data;
     i_data = NULL;
@@ -164,7 +158,6 @@ void Map::LoadMapAndVMap(int gx, int gy)
  * - Terrain data loading
  * - Grid state initialization
  * - GUID generators for temporary objects
- * - Eluna Lua state (if enabled)
  *
  * @note This constructor is used for both continents and instanced maps
  */

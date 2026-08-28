@@ -594,7 +594,6 @@ void Spell::EffectSummonType(SpellEffectEntry const* effect)
                 ((Creature*)m_originalCaster)->AI()->JustSummoned(itr->creature);
             }
 
-            // used by eluna
         }
     }
 }

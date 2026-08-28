@@ -655,16 +655,6 @@ void Spell::EffectApplyGlyph(SpellEffectEntry const* effect)
             player->SendTalentsInfoData(false);
         }
     }
-// TODO: ELUNAFIX NEEDED
-//#ifdef ENABLE_ELUNA
-//    if (Unit* summoner = m_originalCaster->ToUnit())
-//    {
-//        if (Eluna* e = player->GetEluna())
-//        {
-//            e->OnSummoned(spawnCreature, summoner);
-//        }
-//    }
-//#endif /* ENABLE_ELUNA */
 
 }
 

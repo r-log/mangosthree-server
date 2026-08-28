@@ -34,8 +34,8 @@ file(GLOB PROTO_SOURCES
     "${PROTO_DIR}/*.cpp" "${PROTO_DIR}/*.cc")
 
 set(FORBIDDEN_PATTERNS
-    "#[ \t]*include[ \t]*[\"<](Database/|World\\.h|WorldSession\\.h|AddonHandler\\.h|LuaEngine\\.h|Warden)"
-    "(^|[^A-Za-z0-9_])(WorldSession|sWorld|LoginDatabase|CharacterDatabase|WorldDatabase|sAddOnHandler|LuaEngine|Warden)([^A-Za-z0-9_]|$)")
+    "#[ \t]*include[ \t]*[\"<](Database/|World\\.h|WorldSession\\.h|AddonHandler\\.h|Warden)"
+    "(^|[^A-Za-z0-9_])(WorldSession|sWorld|LoginDatabase|CharacterDatabase|WorldDatabase|sAddOnHandler|Warden)([^A-Za-z0-9_]|$)")
 
 set(VIOLATIONS "")
 

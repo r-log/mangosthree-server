@@ -26,7 +26,7 @@
 /**
  * @file ScriptMgrHooks.cpp
  * @brief Cohesion split of ScriptMgr.cpp -- the On* scripting-hook dispatchers
- *   (gossip/quest/use/effect/aura forwarders to SD3 + Eluna) and AI/instance factories.
+ *   (gossip/quest/use/effect/aura forwarders to SD3) and AI/instance factories.
  *
  * Same ScriptMgr class; no behaviour change. CMake file(GLOB WorldHandlers/*.cpp)
  * picks this file up automatically; ScriptMgr.h is unchanged.
@@ -64,7 +64,6 @@ CreatureAI* ScriptMgr::GetCreatureAI(Creature* pCreature)
  */
 GameObjectAI* ScriptMgr::GetGameObjectAI(GameObject* pGo)
 {
-    // TODO - expose in ELuna
     #ifdef ENABLE_SD3
         return SD3::GetGameObjectAI(pGo);
     #else
@@ -357,8 +356,6 @@ bool ScriptMgr::OnGameObjectUse(Player* pPlayer, GameObject* pGameObject)
  */
 bool ScriptMgr::OnGameObjectUse(Unit* pUnit, GameObject* pGameObject)
 {
-    // TODO Add Eluna support
-
 #ifdef ENABLE_SD3
     return SD3::GOUse(pUnit, pGameObject);
 #else

@@ -75,8 +75,6 @@ WorldObject::WorldObject() :
 
 /**
  * @brief WorldObject destructor
- *
- * Cleans up Eluna events if enabled.
  */
 WorldObject::~WorldObject()
 {
@@ -97,9 +95,9 @@ void WorldObject::CleanupsBeforeDelete()
  * @param update_diff Time since last update
  * @param time_diff Time parameter (unused)
  *
- * Updates Eluna events if enabled.
+ * Nothing to do at this level; subclasses override.
  */
-void WorldObject::Update(uint32 update_diff, uint32 time_diff)
+void WorldObject::Update(uint32 /*update_diff*/, uint32 /*time_diff*/)
 {
 }
 

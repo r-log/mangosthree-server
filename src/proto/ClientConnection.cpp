@@ -237,14 +237,6 @@ namespace proto
                                   m_address.c_str());
                     return false;
                 }
-                // Scripting veto, ahead of any parsing -- matches
-                // WorldSocket.cpp:896-904's ordering exactly. A veto is not a
-                // protocol error: the peer stays connected, the packet is
-                // simply dropped (mirrors the old code's `return 0`).
-                if (!m_gateway.OnAuthPacketReceived(packet))
-                {
-                    return true;
-                }
                 return HandleAuthSession(packet);
 
             default:

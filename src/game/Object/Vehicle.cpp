@@ -194,10 +194,6 @@ void VehicleInfo::Initialize()
     }
 
     m_isInitialized = true;
-
-//#ifdef ENABLE_ELUNA
-//    sEluna->OnInstall(this);
-//#endif
 }
 
 /*

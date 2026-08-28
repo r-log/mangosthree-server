@@ -374,11 +374,3 @@ void WorldGateway::Detach(proto::SessionId session)
     // out and returns false, and World::UpdateSessions reaps the session. That
     // is the only thread allowed to save a player and take them off the map.
 }
-
-bool WorldGateway::OnAuthPacketReceived(WorldPacket& packet)
-{
-    // WorldSocket.cpp:896-904. No session exists yet at this point -- the
-    // socket-era code passed its own (necessarily still-null) m_Session here
-    // too, and Eluna::OnPacketReceive already null-checks it.
-    return true;
-}

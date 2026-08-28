@@ -115,7 +115,6 @@ LogFilterData logFilterData[LOG_FILTER_COUNT] =
  */
 Log::Log() :
     raLogfile(NULL), logfile(NULL), gmLogfile(NULL), charLogfile(NULL), dberLogfile(NULL),
-
     eventAiErLogfile(NULL), scriptErrLogFile(NULL), worldLogfile(NULL),
     m_consoleBody(NULL), m_consoleThread(NULL), m_consoleAsync(false), m_colored(false),
     m_includeTime(false), m_gmlog_per_account(false), m_scriptLibName(NULL)
