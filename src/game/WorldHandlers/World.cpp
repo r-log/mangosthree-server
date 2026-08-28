@@ -827,30 +827,6 @@ void World::showFooter()
     modules_.insert("      ScriptDev3 (SD3) : Enabled");
 #endif
 
-    // Remote Access can be activated / deactivated via mangos.conf
-    bool raActive = sConfig.GetBoolDefault("Ra.Enable", false);
-    if (raActive)
-    {
-        modules_.insert("    Remote Access (RA) : Enabled");
-    }
-    else
-    {
-        modules_.insert("    Remote Access (RA) : Disabled");
-    }
-
-    // SOAP can be included or excluded but also disabled via mangos.conf
-#ifdef ENABLE_SOAP
-    bool soapActive = sConfig.GetBoolDefault("SOAP.Enabled", false);
-    if (soapActive)
-    {
-        modules_.insert("                  SOAP : Enabled");
-    }
-    else
-    {
-        modules_.insert("                  SOAP : Disabled");
-    }
-#endif
-
     std::string thisClientVersion (EXPECTED_MANGOSD_CLIENT_VERSION);
     std::string thisClientBuilds = AcceptableClientBuildsListStr();
 
@@ -1551,7 +1527,7 @@ void World::ProcessCliCommands()
         DEBUG_LOG("CLI command under processing...");
         CliCommandHolder::Print* zprint = command->m_print;
         void* callbackArg = command->m_callbackArg;
-        CliHandler handler(command->m_cliAccountId, command->m_cliAccessLevel, callbackArg, zprint);
+        CliHandler handler(callbackArg, zprint);
         handler.ParseCommands(command->m_command);
 
         if (command->m_commandFinished)

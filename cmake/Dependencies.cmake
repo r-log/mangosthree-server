@@ -55,12 +55,6 @@ endif()
 
 add_subdirectory(${MANGOS_DEP_DIR}/utf8cpp dep/utf8cpp)
 
-if(BUILD_MANGOSD)
-    if(SOAP)
-        add_subdirectory(${MANGOS_DEP_DIR}/gsoap dep/gsoap)
-    endif()
-endif()
-
 # Recast and Detour are needed by the server's pathfinder AND by the baker's navmesh
 # stage, and the baker always builds, so this is not gated either.
 add_subdirectory(${MANGOS_DEP_DIR}/recastnavigation dep/recastnavigation)

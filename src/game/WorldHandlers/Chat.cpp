@@ -899,7 +899,6 @@ ChatCommand* ChatHandler::getCommandTable()
         { "waterwalk",      SEC_GAMEMASTER,     false, &ChatHandler::HandleWaterwalkCommand,           "", NULL },
         { "freezeplayer",   SEC_GAMEMASTER,     false, &ChatHandler::HandleFreezePlayerCommand,        "", NULL },
         { "unfreezeplayer", SEC_GAMEMASTER,     false, &ChatHandler::HandleUnfreezePlayerCommand,      "", NULL },
-        { "quit",           SEC_CONSOLE,        true,  &ChatHandler::HandleQuitCommand,                "", NULL },
         { "gearscore",      SEC_ADMINISTRATOR,  false, &ChatHandler::HandleShowGearScoreCommand,       "", NULL },
         { "mmap",           SEC_GAMEMASTER,     false, NULL,                                           "", mmapCommandTable },
 
@@ -1641,7 +1640,7 @@ const char* CliHandler::GetMangosString(int32 entry) const
  */
 uint32 CliHandler::GetAccountId() const
 {
-    return m_accountId;
+    return 0;   // the console has no account
 }
 
 /**
@@ -1651,7 +1650,7 @@ uint32 CliHandler::GetAccountId() const
  */
 AccountTypes CliHandler::GetAccessLevel() const
 {
-    return m_loginAccessLevel;
+    return SEC_CONSOLE;
 }
 
 /**
@@ -1836,8 +1835,8 @@ void ChatHandler::LogCommand(char const* fullcmd)
     }
     else                                        // 0 account -> console
     {
-        sLog.outCommand(GetAccountId(), "Command: %s [Account: %u from %s]",
-                        fullcmd, GetAccountId(), GetAccountId() ? "RA-connection" : "Console");
+        sLog.outCommand(GetAccountId(), "Command: %s [Account: %u from Console]",
+                        fullcmd, GetAccountId());
     }
 }
 

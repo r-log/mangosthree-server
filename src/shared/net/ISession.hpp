@@ -27,7 +27,7 @@
 
 // Protocol-agnostic per-connection contract used by every backend. The transport owns the
 // sockets and the byte plumbing; a concrete ISession owns the protocol -- which is what
-// lets one transport serve world clients and remote access alike, each supplying its own
+// lets one transport serve the world and the realm server alike, each supplying its own
 // ISession and factory.
 
 #include <cstddef>

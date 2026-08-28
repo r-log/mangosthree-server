@@ -32,11 +32,10 @@
 /**
  * @brief A background activity that runs alongside the world loop.
  *
- * The console reader, remote administration, SOAP and the freeze watchdog were
- * four separate classes with four different shapes -- one ACE_Task_Base, one
- * reactor handler, one raw std::thread, and one more ACE task -- each started
- * and stopped by hand from main(), in an order that had to be remembered rather
- * than expressed. This is the one shape they all share.
+ * The background services used to be separate classes with different shapes --
+ * an ACE_Task_Base, a reactor handler, a raw std::thread, one more ACE task --
+ * each started and stopped by hand from main(), in an order that had to be
+ * remembered rather than expressed. This is the one shape they all share.
  *
  * The contract is deliberately three calls, because shutdown needs all three
  * separated: RequestStop() must be able to run for every service before any of

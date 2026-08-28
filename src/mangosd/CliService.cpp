@@ -176,7 +176,7 @@ void CliService::RunManaged()
         }
 
         sWorld.QueueCliCommand(
-            new CliCommandHolder(0, SEC_CONSOLE, nullptr, line.c_str(),
+            new CliCommandHolder(nullptr, line.c_str(),
                                  &utf8print, &Prompt));
     }
 }
@@ -237,7 +237,7 @@ void CliService::RunLineBased()
 
         // Queued, never executed here: game state belongs to the world thread.
         sWorld.QueueCliCommand(
-            new CliCommandHolder(0, SEC_CONSOLE, nullptr, command.c_str(),
+            new CliCommandHolder(nullptr, command.c_str(),
                                  &utf8print, &Prompt));
     }
 }

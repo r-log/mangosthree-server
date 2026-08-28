@@ -66,15 +66,15 @@ bool ChatHandler::HandleAccountCommand(char* args)
 /**
  * @brief Changes the account password after verifying the old password.
  *
- * This command is only available through remote administration (RA) and requires
- * the old password to be correct before the new password is accepted.
+ * Needs a logged-in account (the console has none) and requires the old
+ * password to be correct before the new password is accepted.
  *
  * @param args Command arguments: old_password new_password new_password_confirm.
  * @returns True if the password was changed successfully, false otherwise.
  */
 bool ChatHandler::HandleAccountPasswordCommand(char* args)
 {
-    // allow use from RA, but not from console (not have associated account id)
+    // needs an account id; the console has none
     if (!GetAccountId())
     {
         SendSysMessage(LANG_RA_ONLY_COMMAND);
@@ -137,14 +137,14 @@ bool ChatHandler::HandleAccountPasswordCommand(char* args)
 /**
  * @brief Locks or unlocks the current account to prevent or allow logins.
  *
- * This command is only available through remote administration (RA).
+ * Needs a logged-in account; not available from the console.
  *
  * @param args Command arguments: on/off value to lock or unlock the account.
  * @returns True if the lock state was changed successfully, false otherwise.
  */
 bool ChatHandler::HandleAccountLockCommand(char* args)
 {
-    // allow use from RA, but not from console (not have associated account id)
+    // needs an account id; the console has none
     if (!GetAccountId())
     {
         SendSysMessage(LANG_RA_ONLY_COMMAND);

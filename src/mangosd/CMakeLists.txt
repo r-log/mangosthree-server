@@ -32,19 +32,10 @@ set(SRC_GRP_MAIN
   CliService.h
   Master.cpp
   Master.h
-  RASession.cpp
-  RASession.h
   Service.h
   mangosd.cpp
 )
 source_group("Main" FILES ${SRC_GRP_MAIN})
-
-set(SRC_GRP_SOAP
-  SOAP/SoapThread.cpp
-  SOAP/SoapThread.h
-  SOAP/SoapService.h
-)
-source_group("SOAP" FILES ${SRC_GRP_SOAP})
 
 if(WIN32)
     set(PRODUCT_NAME "mangosd.exe")
@@ -56,7 +47,6 @@ endif()
 
 add_executable(mangosd
     ${SRC_GRP_MAIN}
-    $<$<BOOL:${SOAP}>:${SRC_GRP_SOAP}>
     $<$<BOOL:${WIN32}>:
         ${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.h
         ${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.rc
@@ -73,7 +63,6 @@ target_link_libraries(mangosd
     PRIVATE
         game
         proto
-        $<$<BOOL:${SOAP}>:gsoap>
         Threads::Threads
         mangos_openssl
         mangos_openssl_strict
