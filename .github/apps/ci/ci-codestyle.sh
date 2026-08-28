@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# The submodules are upstream's code and upstream's style. Checking them here fails this
-# repo's CI for a commit made in another one, and the fix would have to be a local commit
-# inside a submodule -- which is the one thing Rule zero forbids.
+# SD3 and realmd are vendored upstream code in upstream's style. They are ours to edit now,
+# but they have not been restyled, so the style check skips them until that happens.
 exclude=(
     # dirs
     "SD3"

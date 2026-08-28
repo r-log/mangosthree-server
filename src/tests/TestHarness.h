@@ -39,7 +39,7 @@
  * Deliberately not GoogleTest or Catch2. The whole point of these tests is that
  * they can be built and run anywhere the server itself builds -- three
  * toolchains, one of them FreeBSD -- without adding a package to install or a
- * submodule to vendor. There is nothing here a real framework would give us that
+ * dependency to vendor. There is nothing here a real framework would give us that
  * these cases need: they are pure functions over bytes.
  */
 namespace testing

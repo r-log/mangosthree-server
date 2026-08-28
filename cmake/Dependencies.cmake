@@ -19,30 +19,21 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # =============================================================================
-# Which vendored dependencies this fork builds.
+# Which vendored dependencies this tree builds.
 #
-# `dep` is a submodule and is never modified here, so the choice cannot live in
-# its own CMakeLists. Adding the subdirectories from the outside is how the
-# selection is attached without touching the submodule -- the same mechanism as
-# cmake/SubmoduleCompat.cmake.
+# dep/ holds plain copies of the third-party libraries the core uses (see
+# dep/README.md for versions and origins); it has no CMakeLists of its own.
+# This file is the single place that lists what is built and when, so a
+# library that is not named here is simply never configured.
 #
-# It is also what decides the GATING. The submodule builds StormLib only when
-# BUILD_TOOLS is on, which was true when the extractor was an optional extra; it
-# is not, because the extractor is what produces the tiles the server reads. A
-# core without this file inherits the submodule's answer and fails to compile the
-# MPQ reader.
-#
-# Add a dependency here rather than in dep/CMakeLists.txt. Anything left out is
-# simply never configured, so a library the fork has dropped costs no build time
-# and cannot be linked back in by accident.
+# StormLib is built for the extractor tools whenever BUILD_TOOLS is on: the
+# extractor is what produces the tiles the server reads, not an optional extra.
 # =============================================================================
 
 set(MANGOS_DEP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dep")
 
 if(NOT EXISTS "${MANGOS_DEP_DIR}")
-    message(FATAL_ERROR
-        "The 'dep' submodule is missing. Clone recursively, or run "
-        "'git submodule update --init --recursive'.")
+    message(FATAL_ERROR "dep/ is missing: the checkout is incomplete.")
 endif()
 
 if(NOT TARGET "ZLIB::ZLIB")

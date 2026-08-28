@@ -23,6 +23,4 @@
 # configure does not try to build it.
 if(BUILD_MANGOSD AND SCRIPT_LIB_SD3)
     add_subdirectory(SD3)
-    mangos_submodule_compat(mangosscript
-        "${CMAKE_SOURCE_DIR}/src/shared/Compat/sd3")
 endif()
