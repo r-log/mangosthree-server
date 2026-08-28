@@ -683,7 +683,6 @@ class ChatHandler
         bool HandleRepairitemsCommand(char* args);
         bool HandleStableCommand(char* args);
         bool HandleWaterwalkCommand(char* args);
-        bool HandleQuitCommand(char* args);
         bool HandleShowGearScoreCommand(char* args);
 
         bool HandleDebugLosCommand(char* args);
@@ -820,8 +819,8 @@ class CliHandler : public ChatHandler
 {
     public:
         typedef void Print(void*, char const*);
-        explicit CliHandler(uint32 accountId, AccountTypes accessLevel, void* callbackArg, Print* zprint)
-            : m_accountId(accountId), m_loginAccessLevel(accessLevel), m_callbackArg(callbackArg), m_print(zprint) {}
+        explicit CliHandler(void* callbackArg, Print* zprint)
+            : m_callbackArg(callbackArg), m_print(zprint) {}
 
         // overwrite functions
         const char* GetMangosString(int32 entry) const override;
@@ -835,8 +834,6 @@ class CliHandler : public ChatHandler
         int GetSessionDbLocaleIndex() const override;
 
     private:
-        uint32 m_accountId;
-        AccountTypes m_loginAccessLevel;
         void* m_callbackArg;
         Print* m_print;
 };

@@ -762,7 +762,6 @@ Faction Template: %u. */
     LANG_ACCOUNT_LIST_BAR                                     = 1012,    /* ======================================================================================== */
     LANG_ACCOUNT_LIST_LINE_CONSOLE                            = 1013,    /* | %10u |%15s| %20s | %15s |%4d| %9d | */
     LANG_ACCOUNT_LIST_EMPTY                                   = 1014,    /* No online players. */
-    LANG_QUIT_WRONG_USE_ERROR                                 = 1015,    /* Can only quit from a Remote Admin console or the quit command was not entered in full (quit). */
     LANG_CHARACTER_DELETED_LIST_HEADER                        = 1016,    /* | GUID       | Name                 | Account                      | Delete Date         | */
     LANG_CHARACTER_DELETED_LIST_LINE_CONSOLE                  = 1017,    /* | %10u | %20s | %15s (%10u) | %19s | */
     LANG_CHARACTER_DELETED_LIST_BAR                           = 1018,    /* ========================================================================================== */
