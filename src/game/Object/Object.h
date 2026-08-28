@@ -809,10 +809,6 @@ class WorldObject : public Object
         LuaVal lua_data = LuaVal({});
 #endif /* ENABLE_ELUNA */
 
-#ifdef MANGOS_SCRIPT_COMPAT
-#include "ScriptApiCompat.inl"
-#endif
-
     protected:
         explicit WorldObject();
 
