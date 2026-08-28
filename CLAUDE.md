@@ -12,7 +12,7 @@ target is **4.3.4 only**; do **not** introduce 5.x/MoP or later-expansion assump
   `Rel##_##_###_*.sql` migrations that chain via `db_version`.
 - Clone/update **recursively**: `src/modules/SD3` and `src/modules/Eluna` are submodules. Never shallow-update
   a submodule to a non-tip pinned SHA.
-- Less-obvious locations: scripting in `src/modules/` (Eluna = Lua, SD3 = C++, Bots = playerbots). The
+- Less-obvious locations: scripting in `src/modules/` (Eluna = Lua, SD3 = C++). The
   `src/game/` tree is under an ongoing **decomp cohesion-split** (large classes like `Player`/`Unit`/`SpellEffects`
   are being broken into topical `*.cpp` files, e.g. `UnitCombat.cpp`, `UnitAura.cpp`,
   `SpellEffectSkillEnchantPet.cpp`, `ObjectMgrCreatures.cpp`); locate code by symbol/string, not a fixed file,
@@ -30,14 +30,13 @@ sudo apt-get install -y git cmake make build-essential \
 mkdir -p _build _install && cd _build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../_install \
   -DBUILD_TOOLS=1 -DBUILD_MANGOSD=1 -DBUILD_REALMD=1 -DSOAP=1 \
-  -DSCRIPT_LIB_ELUNA=1 -DSCRIPT_LIB_SD3=1 -DPLAYERBOTS=0 \
+  -DSCRIPT_LIB_ELUNA=1 -DSCRIPT_LIB_SD3=1 \
   -DPCH=0
 make -j"$(nproc)" && make install -j"$(nproc)"
 ```
 
 Windows: use the EasyBuild helper. **A PR MUST keep CI green:** the Linux build compiles with **both** GCC and
-Clang, Windows builds with MSVC on GitHub Actions (and packages the release zip), and the Docker images must build. `PLAYERBOTS` defaults **OFF**; only
-enable it deliberately. A full `make install` also installs the map/vmap/mmap extractor tools, so `BUILD_TOOLS`
+Clang, Windows builds with MSVC on GitHub Actions (and packages the release zip), and the Docker images must build. A full `make install` also installs the map/vmap/mmap extractor tools, so `BUILD_TOOLS`
 targets must build before installing.
 
 ## Code style

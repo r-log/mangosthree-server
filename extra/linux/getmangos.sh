@@ -63,7 +63,6 @@
 
     P_ELUNA="1"
     P_SD3="1"
-    P_BOTS="0"
     P_SOAP="0"
 
     P_DEBUG="0"
@@ -1100,7 +1099,6 @@
             echo '1 Build Client Tools'                     ;
             echo '2 Use Eluna'                              ;
             echo '3 Use SD3'                                ;
-            echo '4 Use Player Bots AI'                     ;
             echo '5 Use SOAP'                               ;
             echo '6 Enable Debug'                           ;
           } \
@@ -1120,7 +1118,6 @@
           6 "Use SD3" On \
           7 "Use Eluna" On \
           8 "Use SOAP" Off \
-          9 "Use Player Bots AI" Off \
           3>&2 2>&1 1>&3
         )
       fi
@@ -1149,12 +1146,6 @@
         P_SD3="1"
       else
         P_SD3="0"
-      fi
-
-      if [[ $OPTIONS == *4* ]]; then
-        P_BOTS="1"
-      else
-        P_BOTS="0"
       fi
 
       # See if SOAP will be used
@@ -1238,7 +1229,6 @@
                                             \
         -DSCRIPT_LIB_ELUNA=$P_ELUNA         \
         -DSCRIPT_LIB_SD3=$P_SD3             \
-        -DPLAYERBOTS=$P_BOTS                \
         -DSOAP=$P_SOAP                      \
                                             \
         -DDEBUG=$P_DEBUG                    \
