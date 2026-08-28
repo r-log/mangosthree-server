@@ -1114,12 +1114,6 @@ class Player : public Unit
             return m_isInWater;
         }
         bool IsUnderWater() const override; // Check if the player is underwater
-        bool IsDrowning() const; // Check if the player is drowning (breath timer expired)
-
-        /// True if zoneId is one of the Vashj'ir sub-zones.
-        static bool IsVashjirZone(uint32 zoneId);
-        /// True if this player is currently in a Vashj'ir sub-zone.
-        bool IsInVashjir() const;
 
         bool IsFalling() // Check if the player is falling
         {

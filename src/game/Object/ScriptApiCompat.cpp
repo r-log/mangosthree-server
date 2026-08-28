@@ -234,9 +234,9 @@ void WorldObject::GetRandomPoint(float x, float y, float z, float distance,
 
 uint32 WorldObject::GetZoneId() const
 {
-    // No current map -> no terrain to resolve against (a bot a quest reward spell
-    // teleported off its map mid-randomize, or one whose login never completed
-    // Map::Add). Report no zone rather than dereferencing a NULL map and crashing.
+    // No current map -> no terrain to resolve against (a player a quest reward
+    // spell teleported off its map, or one whose login never completed Map::Add).
+    // Report no zone rather than dereferencing a NULL map and crashing.
     if (!FindMap())
     {
         return 0;
