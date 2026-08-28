@@ -162,8 +162,8 @@ target_link_libraries(mangos-extractor
 # into the build tree.
 if(WIN32)
     target_include_directories(mangos-extractor PRIVATE ${CMAKE_BINARY_DIR}/src/shared)
-    if(TARGET revision_data.h)
-        add_dependencies(mangos-extractor revision_data.h)
+    if(TARGET revision_data)
+        add_dependencies(mangos-extractor revision_data)
     endif()
 endif()
 
@@ -195,8 +195,8 @@ if(WIN32)
     target_link_libraries(mangos-extractor-gui PRIVATE shell32 ole32 oleaut32 comctl32 comdlg32)
     # The .rc includes revision_data.h, which genrev writes into the build tree.
     target_include_directories(mangos-extractor-gui PRIVATE ${CMAKE_BINARY_DIR}/src/shared)
-    if(TARGET revision_data.h)
-        add_dependencies(mangos-extractor-gui revision_data.h)
+    if(TARGET revision_data)
+        add_dependencies(mangos-extractor-gui revision_data)
     endif()
     target_compile_definitions(mangos-extractor-gui
         PRIVATE MANGOS_CLIENT_NAME="${MANGOS_CLIENT_NAME}")

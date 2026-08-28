@@ -45,7 +45,6 @@
 #include "UpdateTime.h"
 #include "MapPersistentStateMgr.h"
 #include "CorpseManager.h"
-#include "revision_data.h"
 
 /**
  * @brief Handler for HandleServerInfoCommand command.
