@@ -298,7 +298,7 @@ PartyResult Player::CanUninviteFromGroup(ObjectGuid guidMember) const
         for (GroupReference const* itr = grp->GetFirstMember(); itr != NULL; itr = itr->next())
         {
             Player* pMember = itr->getSource();
-            if (pMember && pMember->IsInMap(this) && pMember->IsInCombat())
+            if (pMember && pMember->Where().ShareFrame(Where()) && pMember->IsInCombat())
             {
                 return ERR_PARTY_LFG_BOOT_IN_COMBAT;
             }

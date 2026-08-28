@@ -269,10 +269,10 @@ bool ScriptMgr::OnQuestAccept(Player* pPlayer, Item* pItem, Quest const* pQuest)
  * @param pPlayer The player receiving the reward.
  * @param pCreature The quest giver creature.
  * @param pQuest The rewarded quest.
- * @param reward The selected reward index or identifier.
+ * @param reward The selected reward index or identifier (not consumed by SD3).
  * @return true if a script handled the event; otherwise false.
  */
-bool ScriptMgr::OnQuestRewarded(Player* pPlayer, Creature* pCreature, Quest const* pQuest, uint32 reward)
+bool ScriptMgr::OnQuestRewarded(Player* pPlayer, Creature* pCreature, Quest const* pQuest, uint32 /*reward*/)
 {
 #ifdef ENABLE_SD3
     return SD3::QuestRewarded(pPlayer, pCreature, pQuest);
@@ -287,10 +287,10 @@ bool ScriptMgr::OnQuestRewarded(Player* pPlayer, Creature* pCreature, Quest cons
  * @param pPlayer The player receiving the reward.
  * @param pGameObject The quest giver game object.
  * @param pQuest The rewarded quest.
- * @param reward The selected reward index or identifier.
+ * @param reward The selected reward index or identifier (not consumed by SD3).
  * @return true if a script handled the event; otherwise false.
  */
-bool ScriptMgr::OnQuestRewarded(Player* pPlayer, GameObject* pGameObject, Quest const* pQuest, uint32 reward)
+bool ScriptMgr::OnQuestRewarded(Player* pPlayer, GameObject* pGameObject, Quest const* pQuest, uint32 /*reward*/)
 {
 #ifdef ENABLE_SD3
     return SD3::GOQuestRewarded(pPlayer, pGameObject, pQuest);

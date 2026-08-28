@@ -195,7 +195,7 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
     // compute a huge fall (baseline - currentZ) and deal lethal fall damage,
     // instantly re-killing the player. RepopAtGraveyard already resets this via
     // TeleportTo; the corpse/spell resurrect path did not.
-    SetFallInformation(0, GetPositionZ());
+    SetFallInformation(0, Where().Z());
 
     // set health/powers (0- will be set in caller)
     if (restore_percent > 0.0f)
