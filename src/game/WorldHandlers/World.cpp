@@ -1513,7 +1513,7 @@ void World::UpdateSessions(uint32 /*diff*/)
     }
 }
 
-// This handles the issued and queued CLI/RA commands
+// This handles the issued and queued CLI commands
 void World::ProcessCliCommands()
 {
     std::lock_guard<std::mutex> guard(m_cliCommandQueueLock);

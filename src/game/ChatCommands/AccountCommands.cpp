@@ -77,7 +77,7 @@ bool ChatHandler::HandleAccountPasswordCommand(char* args)
     // needs an account id; the console has none
     if (!GetAccountId())
     {
-        SendSysMessage(LANG_RA_ONLY_COMMAND);
+        SendSysMessage(LANG_COMMAND_NEEDS_ACCOUNT);
         SetSentErrorMessage(true);
         return false;
     }
@@ -147,7 +147,7 @@ bool ChatHandler::HandleAccountLockCommand(char* args)
     // needs an account id; the console has none
     if (!GetAccountId())
     {
-        SendSysMessage(LANG_RA_ONLY_COMMAND);
+        SendSysMessage(LANG_COMMAND_NEEDS_ACCOUNT);
         SetSentErrorMessage(true);
         return false;
     }

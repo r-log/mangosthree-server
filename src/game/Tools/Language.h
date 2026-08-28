@@ -87,9 +87,6 @@ enum MangosStrings
     LANG_USING_WORLD_DB                                       = 57,    /* Using World DB: %s */
     LANG_USING_SCRIPT_LIB                                     = 58,    /* Using script library */
     LANG_USING_EVENT_AI                                       = 59,    /* Using creature EventAI: %s */
-    // LANG_RA_BUSY                      = 60, not used
-    LANG_RA_USER                                              = 61,    /* Username:  */
-    LANG_RA_PASS                                              = 62,    /* Password:  */
     LANG_GM_ACCEPTS_WHISPER                                   = 63,    /* Accepts whispers */
     LANG_GM_NO_WHISPER                                        = 64,    /* Doesn't accept whispers */
     LANG_USING_SCRIPT_LIB_UNKNOWN                             = 65,    /* Using script library: <Unknown Script Library> */
@@ -775,7 +772,7 @@ Faction Template: %u. */
     LANG_CHARACTER_DELETED_LIST_LINE_CHAT                     = 1026,    /* GUID: %u Name: %s Account: %s (%u) Date: %s */
     LANG_LOG_FILTERS_STATE_HEADER                             = 1027,    /* Log filters state: */
     LANG_ALL_LOG_FILTERS_SET_TO_S                             = 1028,    /* All log filters set to: %s */
-    LANG_RA_ONLY_COMMAND                                      = 1029,    /* Command can only be called from a Remote Admin console. */
+    LANG_COMMAND_NEEDS_ACCOUNT                                = 1029,    /* This command needs a logged-in account and cannot be used from the server console. */
     LANG_ACCOUNT_SETADDON                                     = 1100,    /* Account %s (Id: %u) has been granted %u expansion rights. */
     LANG_MOTD_NEW                                             = 1101,    /* Message of the day changed to:%s */
     LANG_SENDMESSAGE                                          = 1102,    /* Message sent to %s: %s */
