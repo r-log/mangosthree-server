@@ -82,12 +82,6 @@
 #include "UpdateTime.h"
 #include "GameTime.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaLoader.h"
-#endif /* ENABLE_ELUNA */
-
 #include <iostream>
 #include <sstream>
 
@@ -683,15 +677,6 @@ void World::LoadConfigSettings(bool reload)
 
     setConfig(CONFIG_BOOL_MOVEMENT_ARBITER_SHADOW, "Movement.ArbiterShadow", false);
 
-#ifdef ENABLE_ELUNA
-    if (reload)
-    {
-        if (Eluna* e = GetEluna())
-        {
-            e->OnConfigLoad(reload);
-        }
-    }
-#endif /* ENABLE_ELUNA */
     sLog.outString();
 }
 

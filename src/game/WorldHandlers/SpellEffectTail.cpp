@@ -73,10 +73,6 @@
 #include "LootMgr.h"
 #include <random>
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @brief Removes auras from the target that match the specified mechanic.
  *

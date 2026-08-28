@@ -57,9 +57,6 @@
 #include "GameObjectAI.h"
 #include <memory>
 #include "PlayerRegistry.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @file GameObjectUse.cpp

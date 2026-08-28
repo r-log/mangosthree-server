@@ -10,9 +10,9 @@ target is **4.3.4 only**; do **not** introduce 5.x/MoP or later-expansion assump
 
 - **Database changes go in the separate `mangosthree/database` repo**, not here — as transactional, idempotent
   `Rel##_##_###_*.sql` migrations that chain via `db_version`.
-- Clone/update **recursively**: `src/modules/SD3` and `src/modules/Eluna` are submodules. Never shallow-update
+- Clone/update **recursively**: `src/modules/SD3` is a submodule. Never shallow-update
   a submodule to a non-tip pinned SHA.
-- Less-obvious locations: scripting in `src/modules/` (Eluna = Lua, SD3 = C++). The
+- Less-obvious locations: scripting in `src/modules/` (SD3 = C++). The
   `src/game/` tree is under an ongoing **decomp cohesion-split** (large classes like `Player`/`Unit`/`SpellEffects`
   are being broken into topical `*.cpp` files, e.g. `UnitCombat.cpp`, `UnitAura.cpp`,
   `SpellEffectSkillEnchantPet.cpp`, `ObjectMgrCreatures.cpp`); locate code by symbol/string, not a fixed file,
@@ -26,16 +26,16 @@ target is **4.3.4 only**; do **not** introduce 5.x/MoP or later-expansion assump
 ```sh
 git clone --recursive https://github.com/r-log/mangosthree-server.git && cd mangosthree-server
 sudo apt-get install -y git cmake make build-essential \
-  libssl-dev libbz2-dev default-libmysqlclient-dev libreadline-dev   # Debian/Ubuntu deps
+  libssl-dev libbz2-dev default-libmysqlclient-dev   # Debian/Ubuntu deps
 mkdir -p _build _install && cd _build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../_install \
   -DBUILD_TOOLS=1 -DBUILD_MANGOSD=1 -DBUILD_REALMD=1 -DSOAP=1 \
-  -DSCRIPT_LIB_ELUNA=1 -DSCRIPT_LIB_SD3=1 \
+  -DSCRIPT_LIB_SD3=1 \
   -DPCH=0
 make -j"$(nproc)" && make install -j"$(nproc)"
 ```
 
-Windows: use the EasyBuild helper. **A PR MUST keep CI green:** the Linux build compiles with **both** GCC and
+Windows: configure with CMake for Visual Studio 17 2022 x64, as `core_windows_build.yml` does. **A PR MUST keep CI green:** the Linux build compiles with **both** GCC and
 Clang, Windows builds with MSVC on GitHub Actions (and packages the release zip), and the Docker images must build. A full `make install` also installs the map/vmap/mmap extractor tools, so `BUILD_TOOLS`
 targets must build before installing.
 

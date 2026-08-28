@@ -70,10 +70,6 @@
 #include "LootMgr.h"
 #include <random>
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @brief Opens or sends loot for the specified object guid.
  *
@@ -598,26 +594,6 @@ void Spell::EffectSummonType(SpellEffectEntry const* effect)
                 ((Creature*)m_originalCaster)->AI()->JustSummoned(itr->creature);
             }
 
-            // used by eluna
-#ifdef ENABLE_ELUNA
-            if (Unit* summoner = m_caster->ToUnit())
-            {
-                if (Eluna* e = summoner->GetEluna())
-                {
-                    e->OnSummoned(itr->creature, summoner);
-                }
-            }
-            else if (m_originalCaster)
-            {
-                if (Unit* summoner = m_originalCaster->ToUnit())
-                {
-                    if (Eluna* e = summoner->GetEluna())
-                    {
-                        e->OnSummoned(itr->creature, summoner);
-                    }
-                }
-            }
-#endif
         }
     }
 }
@@ -651,15 +627,6 @@ bool Spell::DoSummonWild(CreatureSummonPositions& list, SummonPropertiesEntry co
             if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
             {
                 ((Creature*)m_originalCaster)->AI()->JustSummoned(summon);
-#ifdef ENABLE_ELUNA
-                if (Unit* summoner = m_originalCaster->ToUnit())
-                {
-                    if (Eluna* e = summoner->GetEluna())
-                    {
-                        e->OnSummoned(summon, summoner);
-                    }
-                }
-#endif
             }
         }
         else
@@ -735,24 +702,6 @@ bool Spell::DoSummonCritter(CreatureSummonPositions& list, SummonPropertiesEntry
     }
 
     m_caster->SetMiniPet(critter);
-
-#ifdef ENABLE_ELUNA
-    if (Unit* summoner = m_caster->ToUnit())
-    {
-        if (Eluna* e = summoner->GetEluna())
-        {
-            e->OnSummoned(critter, summoner);
-        }
-    }
-    if (m_originalCaster)
-        if (Unit* summoner = m_originalCaster->ToUnit())
-        {
-            if (Eluna* e = summoner->GetEluna())
-            {
-                e->OnSummoned(critter, summoner);
-            }
-        }
-#endif
 
     return true;
 }
@@ -851,26 +800,6 @@ bool Spell::DoSummonGuardian(CreatureSummonPositions& list, SummonPropertiesEntr
         }
 
         m_caster->AddGuardian(spawnCreature);
-
-#ifdef ENABLE_ELUNA
-        if (Unit* summoner = m_caster->ToUnit())
-        {
-            if (Eluna* e = summoner->GetEluna())
-            {
-                e->OnSummoned(spawnCreature, summoner);
-            }
-        }
-        if (m_originalCaster)
-        {
-            if (Unit* summoner = m_originalCaster->ToUnit())
-            {
-                if (Eluna* e = summoner->GetEluna())
-                {
-                    e->OnSummoned(spawnCreature, summoner);
-                }
-            }
-        }
-#endif
     }
 
     return true;
@@ -980,16 +909,6 @@ bool Spell::DoSummonPossessed(CreatureSummonPositions& list, SummonPropertiesEnt
     if (m_originalCaster && m_originalCaster != m_caster && m_originalCaster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_originalCaster)->AI())
     {
         ((Creature*)m_originalCaster)->AI()->JustSummoned(list[0].creature);
-
-#ifdef ENABLE_ELUNA
-        if (Unit* summoner = m_originalCaster->ToUnit())
-        {
-            if (Eluna* e = summoner->GetEluna())
-            {
-                e->OnSummoned(list[0].creature, summoner);
-            }
-        }
-#endif
     }
 
     return true;
@@ -1112,25 +1031,6 @@ bool Spell::DoSummonPet(SpellEffectEntry const* effect)
         }
     }
 
-#ifdef ENABLE_ELUNA
-    if (Unit* summoner = m_caster->ToUnit())
-    {
-        if (Eluna* e = summoner->GetEluna())
-        {
-            e->OnSummoned(spawnCreature, summoner);
-        }
-    }
-    if (m_originalCaster)
-    {
-        if (Unit* summoner = m_originalCaster->ToUnit())
-        {
-            if (Eluna* e = summoner->GetEluna())
-            {
-                e->OnSummoned(spawnCreature, summoner);
-            }
-        }
-    }
-#endif
     return true;
 }
 
@@ -1185,22 +1085,5 @@ bool Spell::DoSummonVehicle(CreatureSummonPositions& list, SummonPropertiesEntry
     {
         ((Creature*)m_originalCaster)->AI()->JustSummoned(spawnCreature);
     }
-#ifdef ENABLE_ELUNA
-    if (Unit* summoner = m_caster->ToUnit())
-    {
-        if (Eluna* e = summoner->GetEluna())
-        {
-            e->OnSummoned(spawnCreature, summoner);
-        }
-    }
-    else if (m_originalCaster)
-        if (Unit* summoner = m_originalCaster->ToUnit())
-        {
-            if (Eluna* e = summoner->GetEluna())
-            {
-                e->OnSummoned(spawnCreature, summoner);
-            }
-        }
-#endif /* ENABLE_ELUNA */
     return true;
 }

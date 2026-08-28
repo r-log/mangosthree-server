@@ -58,7 +58,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(BUILD_MANGOSD        "Build the main server"                         ON)
 option(BUILD_REALMD         "Build the login server"                        ON)
 option(BUILD_TOOLS          "Build the client-data extractor"               ON)
-option(SCRIPT_LIB_ELUNA     "Compile with support for Eluna scripts"        ON)
 option(SCRIPT_LIB_SD3       "Compile with support for ScriptDev3 scripts"   ON)
 option(SOAP                 "Enable remote access via SOAP"                 OFF)
 option(PCH                  "Enable precompiled headers"                    ON)
@@ -87,7 +86,6 @@ message(
                             real sockets and dominate the suite's wall-clock time.
     DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
    Scripting engines:
-    SCRIPT_LIB_ELUNA        Compile with support for Eluna scripts
     SCRIPT_LIB_SD3          Compile with support for ScriptDev3 scripts
 
   To set an option simply type -D<OPTION>=<VALUE> after 'cmake <srcs>'.
@@ -131,16 +129,6 @@ find_package(MySQL   REQUIRED)
 
 find_package(ZLIB  QUIET)
 find_package(BZip2 QUIET)
-
-# dep/lualib (the Lua build used by Eluna) links against readline by its bare
-# library name and is not itself touched here; find_package(Readline) declares a
-# GLOBAL IMPORTED target literally named `readline` (see cmake/FindReadline.cmake)
-# before that subdirectory is added, so its existing bare-name references resolve
-# to a properly-detected library instead of an unqualified linker search -- which
-# is what fails on FreeBSD, where readline lives in /usr/local/lib.
-if(NOT WIN32 AND SCRIPT_LIB_ELUNA)
-  find_package(Readline REQUIRED)
-endif()
 
 find_package(OpenSSL 3.0 REQUIRED)
 

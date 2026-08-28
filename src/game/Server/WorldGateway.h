@@ -70,8 +70,6 @@ class WorldGateway : public proto::IWorldGateway
 
         void Detach(proto::SessionId session) override;
 
-        bool OnAuthPacketReceived(WorldPacket& packet) override;
-
     private:
 
         mutable std::mutex m_lock;

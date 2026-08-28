@@ -75,9 +75,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 // Used in triggers for check "Only to targets that grant experience or honor" req

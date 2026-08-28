@@ -75,9 +75,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 // If players are too far way of duel flag... then player loose the duel
@@ -166,14 +163,6 @@ void Player::DuelComplete(DuelCompleteType type)
         data << GetName();
         SendMessageToSet(&data, true);
     }
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnDuelEnd(opponent, this, type);
-    }
-#endif /* ENABLE_ELUNA */
 
     if (type == DUEL_WON)
     {

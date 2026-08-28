@@ -105,10 +105,8 @@ their systems package management instead of source packages.**
 
 * **[utf8cpp][56]**: UTF-8 handling for names and chat, where a wrong answer is a
   disconnect rather than a crash.
-* **[Lua][57]**: the runtime the optional Eluna scripting engine is built on. On Unix it
-  links [GNU Readline][58]; that dependency exists only when Eluna is enabled.
 
-**Recast**, **Stormlib**, **utf8cpp**, **Lua**, **Zlib** and **Bzip2** are included in the standard
+**Recast**, **Stormlib**, **utf8cpp**, **Zlib** and **Bzip2** are included in the standard
 distribution as we rely on specific versions. **ACE and G3D are gone** -- the networking is
 the C++ standard library, and the geometry is our own.
 
@@ -228,8 +226,6 @@ World of Warcraft, and all related art, images, and lore are copyright [Blizzard
 [44]: http://github.com/memononen/recastnavigation "Recast - Navigation-mesh Toolset for Games"
 [46]: http://zezula.net/en/mpq/stormlib.html "Stormlib - A library for reading data from MPQ archives"
 [56]: https://github.com/nemtrif/utfcpp "utfcpp - UTF-8 with C++ in a portable way"
-[57]: https://www.lua.org/ "Lua - a powerful, efficient, embeddable scripting language"
-[58]: https://tiswww.case.edu/php/chet/readline/rltop.html "GNU Readline"
 [48]: http://www.openssl.org/ "OpenSSL - The Open Source toolkit for SSL/TLS"
 [49]: https://www.doxygen.nl/download.html "Doxygen - API documentation generator"
 [51]: http://gnuwin32.sourceforge.net/packages/zlib.htm "Zlib for Windows"

@@ -67,11 +67,6 @@
 #include "movement/MoveSpline.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
 
 #include <math.h>
 #include <stdarg.h>

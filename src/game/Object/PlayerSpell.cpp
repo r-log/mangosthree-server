@@ -75,9 +75,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 
@@ -935,14 +932,6 @@ uint32 Player::resetTalentsCost() const
  */
 bool Player::resetTalents(bool no_cost, bool all_specs)
 {
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnTalentsReset(this, no_cost);
-    }
-#endif /* ENABLE_ELUNA */
-
     // not need after this call
     if (HasAtLoginFlag(AT_LOGIN_RESET_TALENTS) && all_specs)
     {

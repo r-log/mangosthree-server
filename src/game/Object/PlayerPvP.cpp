@@ -74,9 +74,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 /// checks the 15 afk reports per 5 minutes limit
@@ -135,14 +132,6 @@ void Player::UpdateDuelFlag(time_t currTime)
     {
         return;
     }
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnDuelStart(this, duel->opponent);
-    }
-#endif /* ENABLE_ELUNA */
 
     SetUInt32Value(PLAYER_DUEL_TEAM, 1);
     duel->opponent->SetUInt32Value(PLAYER_DUEL_TEAM, 2);

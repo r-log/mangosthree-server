@@ -82,9 +82,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 
@@ -1232,13 +1229,6 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         if (update_diff >= m_nextSave)
         {
             // m_nextSave reset in SaveToDB call
-            // Used by Eluna
-#ifdef ENABLE_ELUNA
-            if (Eluna* e = GetEluna())
-            {
-                e->OnSave(this);
-            }
-#endif /* ENABLE_ELUNA */
             SaveToDB();
             DETAIL_LOG("Player '%s' (GUID: %u) saved", GetName(), GetGUIDLow());
         }
@@ -2441,14 +2431,6 @@ void Player::GiveXP(uint32 xp, Unit* victim)
 
     uint32 level = getLevel();
 
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnGiveXP(this, xp, victim);
-    }
-#endif /* ENABLE_ELUNA */
-
     // XP to money conversion processed in Player::RewardQuest
     if (level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
@@ -2581,14 +2563,6 @@ void Player::GiveLevel(uint32 level)
     {
         pet->SynchronizeLevelWithOwner();
     }
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnLevelChanged(this, getLevel());
-    }
-#endif /* ENABLE_ELUNA */
 
     if (MailLevelReward const* mailReward = sObjectMgr.GetMailLevelReward(level, getRaceMask()))
     {

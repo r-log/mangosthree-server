@@ -8,7 +8,6 @@ _build*
 /install/
 /database/
 *.zip
-/win/
 /extra/doc/
 /extra/linux/
 /.github/

@@ -60,9 +60,6 @@
 #include "Util.h"
 #include "Unit.h"
 #include "DBCStores.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
 {
@@ -214,13 +211,6 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
 
         player->SendNewItem(newitem, uint32(item->count), false, false, true);
 
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = player->GetEluna())
-        {
-            e->OnLootItem(player, newitem, item->count, lguid);
-        }
-#endif /* ENABLE_ELUNA */
-
         player->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_ITEM, item->itemid, item->count);
         player->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_TYPE, loot->loot_type, item->count);
         player->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_EPIC_ITEM, item->itemid, item->count);
@@ -273,14 +263,6 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket & /*recv_data*/)
             {
                 pLoot = &bones->loot;
                 shareMoney = false;
-
-                // Used by Eluna
-                #ifdef ENABLE_ELUNA
-                if (Eluna* e = player->GetEluna())
-                {
-                    e->OnLootMoney(player, pLoot->gold);
-                }
-                #endif /* ENABLE_ELUNA */
             }
 
             break;
@@ -375,14 +357,6 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket & /*recv_data*/)
             data << uint8(1); // 1 is "you loot..."
             SendPacket(&data);
         }
-
-        // Used by Eluna
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = player->GetEluna())
-        {
-            e->OnLootMoney(player, pLoot->gold);
-        }
-#endif /* ENABLE_ELUNA */
 
         pLoot->gold = 0;
 
@@ -703,14 +677,6 @@ void WorldSession::HandleLootMasterGiveOpcode(WorldPacket& recv_data)
     target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_ITEM, item.itemid, item.count);
     target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_TYPE, pLoot->loot_type, item.count);
     target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_EPIC_ITEM, item.itemid, item.count);
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = target->GetEluna())
-    {
-        e->OnLootItem(target, newitem, item.count, lootguid);
-    }
-#endif /* ENABLE_ELUNA */
 
     // mark as looted
     item.count = 0;

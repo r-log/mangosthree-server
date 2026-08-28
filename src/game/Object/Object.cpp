@@ -70,12 +70,6 @@
 #include "Chat.h"
 #include "GameTime.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @brief Construct a new Object
  *

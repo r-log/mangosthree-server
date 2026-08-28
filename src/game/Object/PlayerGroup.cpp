@@ -78,9 +78,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 /**
@@ -301,7 +298,7 @@ PartyResult Player::CanUninviteFromGroup(ObjectGuid guidMember) const
         for (GroupReference const* itr = grp->GetFirstMember(); itr != NULL; itr = itr->next())
         {
             Player* pMember = itr->getSource();
-            if (pMember && pMember->IsInMap(this) && pMember->IsInCombat())
+            if (pMember && pMember->Where().ShareFrame(Where()) && pMember->IsInCombat())
             {
                 return ERR_PARTY_LFG_BOOT_IN_COMBAT;
             }

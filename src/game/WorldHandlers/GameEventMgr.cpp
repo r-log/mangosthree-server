@@ -58,10 +58,6 @@
 #include "SpellMgr.h"
 #include "Policies/Singleton.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 
 /**
  * @brief Checks whether a specific game event is active at the given time.
@@ -146,15 +142,6 @@ void GameEventMgr::StartEvent(uint16 event_id, bool overwrite /*=false*/, bool r
             mGameEvent[event_id].end = mGameEvent[event_id].start + mGameEvent[event_id].length;
         }
     }
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        if (IsActiveEvent(event_id))
-        {
-            e->OnGameEventStart(event_id);
-        }
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /**
@@ -174,15 +161,6 @@ void GameEventMgr::StopEvent(uint16 event_id, bool overwrite)
             mGameEvent[event_id].end = mGameEvent[event_id].start + mGameEvent[event_id].length;
         }
     }
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        if (!IsActiveEvent(event_id))
-        {
-            e->OnGameEventStop(event_id);
-        }
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /**

@@ -39,10 +39,6 @@
 #include "World.h"
 #include "WorldSession.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif
-
 #include <string>
 
 namespace
@@ -377,21 +373,4 @@ void WorldGateway::Detach(proto::SessionId session)
     // WorldSession::Update observes that on the world thread, logs the player
     // out and returns false, and World::UpdateSessions reaps the session. That
     // is the only thread allowed to save a player and take them off the map.
-}
-
-bool WorldGateway::OnAuthPacketReceived(WorldPacket& packet)
-{
-    // WorldSocket.cpp:896-904. No session exists yet at this point -- the
-    // socket-era code passed its own (necessarily still-null) m_Session here
-    // too, and Eluna::OnPacketReceive already null-checks it.
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        if (!e->OnPacketReceive(NULL, packet))
-        {
-            return false;
-        }
-    }
-#endif
-    return true;
 }

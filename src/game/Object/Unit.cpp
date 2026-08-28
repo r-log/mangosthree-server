@@ -67,11 +67,6 @@
 #include "movement/MovementStructures.h"
 #include "Transports.h"
 #include "TransportMap.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
 
 #include <math.h>
 #include <stdarg.h>
@@ -1503,16 +1498,6 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
 
         if (Creature* killer = ToCreature())
         {
-            // Used by Eluna
-#ifdef ENABLE_ELUNA
-            if (Eluna* e = killer->GetEluna())
-            {
-                if (Player* killed = pVictim->ToPlayer())
-                {
-                    e->OnPlayerKilledByCreature(killer, killed);
-                }
-            }
-#endif /* ENABLE_ELUNA */
         }
 
         // Call AI OwnerKilledUnit (for any current summoned minipet/guardian/protector)
@@ -1588,14 +1573,6 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
                         outdoorPvP->HandlePlayerKill(player_tap, playerVictim);
                     }
                 }
-
-                // Used by Eluna
-#ifdef ENABLE_ELUNA
-                if (Eluna* e = player_tap->GetEluna())
-                {
-                    e->OnPVPKill(player_tap, playerVictim);
-                }
-#endif /* ENABLE_ELUNA */
             }
         }
         else                                                // Killed creature
@@ -1829,14 +1806,6 @@ void Unit::JustKilledCreature(Creature* victim, Player* responsiblePlayer)
         {
             bg->HandleKillUnit(victim, responsiblePlayer);
         }
-
-       // Used by Eluna
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = responsiblePlayer->GetEluna())
-        {
-            e->OnCreatureKill(responsiblePlayer, victim);
-        }
-#endif /* ENABLE_ELUNA */
     }
 
     // Notify the outdoor pvp script
@@ -4625,17 +4594,6 @@ void Unit::SetInCombatState(bool PvP, Unit* enemy)
             GetMap()->GetCreatureLinkingHolder()->DoCreatureLinkingEvent(LINKING_EVENT_AGGRO, pCreature, enemy);
         }
     }
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        if (GetTypeId() == TYPEID_PLAYER)
-        {
-            e->OnPlayerEnterCombat(ToPlayer(), enemy);
-        }
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /**
@@ -4650,17 +4608,6 @@ void Unit::ClearInCombat()
     {
         RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
     }
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        if (GetTypeId() == TYPEID_PLAYER)
-        {
-            e->OnPlayerLeaveCombat(ToPlayer());
-        }
-    }
-#endif /* ENABLE_ELUNA */
 
     // Player's state will be cleared in Player::UpdateContestedPvP
     if (GetTypeId() == TYPEID_UNIT)
@@ -5267,16 +5214,6 @@ void Unit::AddToWorld()
 {
     Object::AddToWorld();
     ScheduleAINotify(0);
-
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        if (!elunaEvents)
-        {
-            elunaEvents = new ElunaEventProcessor(e->eventMgr.get(), this);
-        }
-    }
-#endif
 }
 
 /**
@@ -5297,16 +5234,6 @@ void Unit::RemoveFromWorld()
         CleanupDeletedAuras();
         GetViewPoint().Event_RemovedFromWorld();
     }
-
-#ifdef ENABLE_ELUNA
-    // if multistate, delete elunaEvents and set to nullptr. events shouldn't move across states.
-    // in single state, the timed events should move across maps
-    if (!sElunaConfig->IsElunaCompatibilityMode())
-    {
-        delete elunaEvents;
-        elunaEvents = nullptr; // set to null in case map doesn't use eluna
-    }
-#endif
 
     Object::RemoveFromWorld();
 }

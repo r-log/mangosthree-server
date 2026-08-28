@@ -41,10 +41,6 @@
 #include "Geometry/Placement.h"
 #include "Util.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaValue.h"
-#endif /* ENABLE_ELUNA */
-
 #include <set>
 #include <string>
 
@@ -113,11 +109,6 @@ class Map;
 class UpdateMask;
 class InstanceData;
 class TerrainInfo;
-#ifdef ENABLE_ELUNA
-class Eluna;
-class ElunaEventProcessor;
-class LuaVal;
-#endif /* ENABLE_ELUNA */
 class TransportInfo;
 struct MangosStringLocale;
 
@@ -784,7 +775,6 @@ class WorldObject : public Object
         GameObject* SummonGameObject(uint32 id, float x, float y, float z, float angle, uint32 despwtime);
 
         bool IsActiveObject() const { return m_isActiveObject || m_viewPoint.hasViewers(); }
-        bool isActiveObject() const { return IsActiveObject(); } // This is for Eluna to build. Should be removed in the future!
 
         void SetActiveObjectState(bool active);
 
@@ -800,18 +790,6 @@ class WorldObject : public Object
         bool PrintCoordinatesError(float x, float y, float z, char const* descr) const;
 
         virtual void StartGroupLoot(Group* /*group*/, uint32 /*timer*/) { }
-
-#ifdef ENABLE_ELUNA
-        ElunaEventProcessor* elunaEvents;
-
-        Eluna* GetEluna() const;
-
-        LuaVal lua_data = LuaVal({});
-#endif /* ENABLE_ELUNA */
-
-#ifdef MANGOS_SCRIPT_COMPAT
-#include "ScriptApiCompat.inl"
-#endif
 
     protected:
         explicit WorldObject();

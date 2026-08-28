@@ -291,8 +291,7 @@ enum UnitPVPStateFlags
     UNIT_BYTE2_FLAG_AURAS       = 0x10,                       // show possitive auras as positive, and allow its dispel
     UNIT_BYTE2_FLAG_UNK5        = 0x20,                       // show negative auras as positive, *not* allowing dispel (at least for pets)
     UNIT_BYTE2_FLAG_UNK6        = 0x40,
-    UNIT_BYTE2_FLAG_UNK7        = 0x80,
-    UNIT_BYTE2_FLAG_SANCTUARY   = UNIT_BYTE2_FLAG_SUPPORTABLE // Make Eluna Happy
+    UNIT_BYTE2_FLAG_UNK7        = 0x80
 };
 
 // byte flags value (UNIT_FIELD_BYTES_2,2)
@@ -1853,12 +1852,7 @@ class Unit : public WorldObject
          */
         int32 ModifyHealth(int32 val);
 
-        // Eluna-related health functions
-        bool HealthAbovePctHealed(int32 pct, uint32 heal) const { return uint64(GetHealth()) + uint64(heal) > CountPctFromMaxHealth(pct); }
-        bool IsFullHealth() const { return GetHealth() == GetMaxHealth(); }
-        bool HealthBelowPct(int32 pct) const { return GetHealth() < CountPctFromMaxHealth(pct); }
         bool HealthBelowPctDamaged(int32 pct, uint32 damage) const { return int64(GetHealth()) - int64(damage) < int64(CountPctFromMaxHealth(pct)); }
-        bool HealthAbovePct(int32 pct) const { return GetHealth() > CountPctFromMaxHealth(pct); }
 
         /**
          * Gets the power type for this Unit

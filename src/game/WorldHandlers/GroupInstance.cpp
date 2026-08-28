@@ -41,10 +41,6 @@
 #include "Util.h"
 #include "LootMgr.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @file GroupInstance.cpp
  * @brief Cohesion split of Group.cpp -- instances and rewards: group skill, looter rotation, battleground-queue eligibility, dungeon/raid difficulty, instance binding/reset and group kill rewards. Same Group class; no behaviour change. CMake file(GLOB) picks this file up automatically; Group.h is unchanged.

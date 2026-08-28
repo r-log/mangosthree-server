@@ -30,9 +30,6 @@
 #include "Database/DatabaseEnv.h"
 #include "ItemEnchantmentMgr.h"
 #include "SQLStorages.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @file ItemPersistence.cpp
@@ -135,14 +132,6 @@ void Item::UpdateDuration(Player* owner, uint32 diff)
 
     if (GetUInt32Value(ITEM_FIELD_DURATION) <= diff)
     {
-        // Used by Eluna
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = owner->GetEluna())
-        {
-            e->OnExpire(owner, GetProto());
-        }
-#endif /* ENABLE_ELUNA */
-
         if (uint32 newItemId = sObjectMgr.GetItemExpireConvert(GetEntry()))
         {
             owner->ConvertItem(this, newItemId);

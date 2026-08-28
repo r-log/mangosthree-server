@@ -55,12 +55,6 @@
 #include "Chat.h"
 #include "GameTime.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @file WorldObjectSummon.cpp
  * @brief Cohesion split of Object.cpp -- WorldObject map binding, creature/gameobject summoning, near-point selection, visibility refresh and sound/music playback. Same WorldObject class; no behaviour change. CMake file(GLOB Object/*.cpp) picks this file up automatically; Object.h is unchanged.
@@ -186,16 +180,6 @@ Creature* WorldObject::SummonCreature(uint32 id, float x, float y, float z, floa
     {
         ((Creature*)this)->AI()->JustSummoned(pCreature);
     }
-
-#ifdef ENABLE_ELUNA
-    if (Unit* summoner = ToUnit())
-    {
-        if (Eluna* e = GetEluna())
-        {
-            e->OnSummoned(pCreature, summoner);
-        }
-    }
-#endif /* ENABLE_ELUNA */
 
     // Creature Linking, Initial load is handled like respawn
     if (pCreature->IsLinkingEventTrigger())
@@ -808,20 +792,3 @@ void WorldObject::SetActiveObjectState(bool active)
     m_isActiveObject = active;
 }
 
-#ifdef ENABLE_ELUNA
-/**
- * @brief Get Eluna instance
- * @return Eluna instance pointer or nullptr
- *
- * Returns the Eluna scripting engine instance for this object's map.
- */
-Eluna* WorldObject::GetEluna() const
-{
-    if (IsInWorld())
-    {
-        return GetMap()->GetEluna();
-    }
-
-    return nullptr;
-}
-#endif /* ENABLE_ELUNA */

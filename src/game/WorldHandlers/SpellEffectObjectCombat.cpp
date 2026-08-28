@@ -70,10 +70,6 @@
 #include "LootMgr.h"
 #include <random>
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @brief Adds flat threat from the caster to the unit target.
  *
@@ -367,14 +363,6 @@ void Spell::EffectDuel(SpellEffectEntry const* effect)
 
     caster->SetGuidValue(PLAYER_DUEL_ARBITER, pGameObj->GetObjectGuid());
     target->SetGuidValue(PLAYER_DUEL_ARBITER, pGameObj->GetObjectGuid());
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = caster->GetEluna())
-    {
-        e->OnDuelRequest(target, caster);
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /**
@@ -667,16 +655,6 @@ void Spell::EffectApplyGlyph(SpellEffectEntry const* effect)
             player->SendTalentsInfoData(false);
         }
     }
-// TODO: ELUNAFIX NEEDED
-//#ifdef ENABLE_ELUNA
-//    if (Unit* summoner = m_originalCaster->ToUnit())
-//    {
-//        if (Eluna* e = player->GetEluna())
-//        {
-//            e->OnSummoned(spawnCreature, summoner);
-//        }
-//    }
-//#endif /* ENABLE_ELUNA */
 
 }
 

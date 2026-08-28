@@ -57,11 +57,6 @@
 #include "CellImpl.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @file UnitMeleeDamage.cpp

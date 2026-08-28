@@ -78,9 +78,6 @@
 #include "TemporarySummon.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @brief Checks whether a spell matches the quest tame spell pattern.

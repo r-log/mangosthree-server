@@ -55,12 +55,6 @@
 #include "Chat.h"
 #include "GameTime.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @file ObjectUpdate.cpp
  * @brief Cohesion split of Object.cpp -- Object update-data serialization: create/values update-block building, movement-block packing, update masks and value (de)serialization. Same Object class; no behaviour change. CMake file(GLOB Object/*.cpp) picks this file up automatically; Object.h is unchanged.

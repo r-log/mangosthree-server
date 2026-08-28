@@ -75,9 +75,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 
@@ -248,12 +245,6 @@ bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
         UpdateArmorSpecializations();
     }
 
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnLearnTalents(this, talentId, talentRank, spellid);
-    }
-#endif /*ENABLE_ELUNA*/
     return true;
 }
 
@@ -418,12 +409,6 @@ void Player::LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRa
     // learn! (other talent ranks will unlearned at learning)
     pet->learnSpell(spellid);
     DETAIL_LOG("PetTalentID: %u Rank: %u Spell: %u\n", talentId, talentRank, spellid);
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = pet->GetEluna())
-    {
-        e->OnLearnTalents(this, talentId, talentRank, spellid);
-    }
-#endif /*ENABLE_ELUNA*/
 }
 
 /**

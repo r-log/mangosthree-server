@@ -68,10 +68,6 @@
 #include "LFGPackets.h"
 #include "GameTime.h"
 #include "Timer.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "PlayerRegistry.h"
-#endif /* ENABLE_ELUNA */
 
 // config option SkipCinematics supported values
 enum CinematicsSkipMode
@@ -627,14 +623,6 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recv_data)
     BASIC_LOG("Account: %d (IP: %s) Create Character:[%s] (guid: %u)", GetAccountId(), IP_str.c_str(), name.c_str(), pNewChar->GetGUIDLow());
     sLog.outChar("Account: %d (IP: %s) Create Character:[%s] (guid: %u)", GetAccountId(), IP_str.c_str(), name.c_str(), pNewChar->GetGUIDLow());
 
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnCreate(pNewChar);
-    }
-#endif /* ENABLE_ELUNA */
-
     delete pNewChar;                                        // created only to call SaveToDB()
 }
 
@@ -695,14 +683,6 @@ void WorldSession::HandleCharDeleteOpcode(WorldPacket& recv_data)
     std::string IP_str = GetRemoteAddress();
     BASIC_LOG("Account: %d (IP: %s) Delete Character:[%s] (guid: %u)", GetAccountId(), IP_str.c_str(), name.c_str(), lowguid);
     sLog.outChar("Account: %d (IP: %s) Delete Character:[%s] (guid: %u)", GetAccountId(), IP_str.c_str(), name.c_str(), lowguid);
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnDelete(lowguid);
-    }
-#endif /* ENABLE_ELUNA */
 
     if (sLog.IsOutCharDump())                               // optimize GetPlayerDump call
     {
@@ -1103,17 +1083,6 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
         SendNotification(LANG_RESET_TALENTS);               // we can use SMSG_TALENTS_INVOLUNTARILY_RESET here
     }
 
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = pCurrChar->GetEluna())
-    {
-        if (pCurrChar->HasAtLoginFlag(AT_LOGIN_FIRST))
-        {
-            e->OnFirstLogin(pCurrChar);
-        }
-    }
-#endif /* ENABLE_ELUNA */
-
 
     /* We've done what we need to, remove the flag */
     if (pCurrChar->HasAtLoginFlag(AT_LOGIN_FIRST))
@@ -1160,14 +1129,6 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     }
 
     m_playerLoading = false;
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnLogin(pCurrChar);
-    }
-#endif /* ENABLE_ELUNA */
 
     // Handle Login-Achievements (should be handled after loading)
     pCurrChar->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_ON_LOGIN, 1);

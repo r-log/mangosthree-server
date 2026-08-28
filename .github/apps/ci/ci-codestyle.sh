@@ -5,7 +5,6 @@
 # inside a submodule -- which is the one thing Rule zero forbids.
 exclude=(
     # dirs
-    "Eluna"
     "SD3"
     "realmd"
 )

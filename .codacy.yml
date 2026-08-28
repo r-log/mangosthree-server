@@ -19,5 +19,3 @@ exclude_paths:
   - "dep/**"
   - "src/realmd/**"
   - "src/modules/SD3/**"
-  - "src/modules/Eluna/**"
-  - "win/**"

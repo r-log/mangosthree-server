@@ -48,9 +48,6 @@
 #include "Calendar.h"
 #include "GameTime.h"
 #include "Timer.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @file CharacterHandlerCustomize.cpp

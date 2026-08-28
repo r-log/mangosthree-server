@@ -88,9 +88,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 // corpse reclaim times -- file-local in Player.cpp; mirrored here so
 // LoadFromDB can clamp m_deathExpireTime.
@@ -1462,13 +1459,6 @@ InstancePlayerBind* Player::BindToInstance(DungeonPersistentState* state, bool p
             DEBUG_LOG("Player::BindToInstance: %s(%d) is now bound to map %d, instance %d, difficulty %d",
                       GetName(), GetGUIDLow(), state->GetMapId(), state->GetInstanceId(), state->GetDifficulty());
         }
-        // Used by Eluna
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = GetEluna())
-        {
-            e->OnBindToInstance(this, (Difficulty)0, state->GetMapId(), permanent);
-        }
-#endif /* ENABLE_ELUNA */
         return &bind;
     }
     else

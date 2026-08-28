@@ -54,12 +54,6 @@
 #include "Transports.h"
 #include "TransportMap.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @file WorldObjectPosition.cpp
  * @brief Cohesion split of Object.cpp -- WorldObject lifecycle and geometry: relocation, zone/area lookup, distance/range/angle math, line-of-sight and position validation. Same WorldObject class; no behaviour change. CMake file(GLOB Object/*.cpp) picks this file up automatically; Object.h is unchanged.
@@ -71,9 +65,6 @@
  * Initializes a new WorldObject with default values.
  */
 WorldObject::WorldObject() :
-#ifdef ENABLE_ELUNA
-    elunaEvents(nullptr),
-#endif /* ENABLE_ELUNA */
     m_transportInfo(NULL),
     m_currMap(NULL),
     m_mapId(0), m_InstanceId(0), m_phaseMask(PHASEMASK_NORMAL),
@@ -84,15 +75,9 @@ WorldObject::WorldObject() :
 
 /**
  * @brief WorldObject destructor
- *
- * Cleans up Eluna events if enabled.
  */
 WorldObject::~WorldObject()
 {
-#ifdef ENABLE_ELUNA
-    delete elunaEvents;
-    elunaEvents = nullptr;
-#endif /* ENABLE_ELUNA */
 }
 
 /**
@@ -110,16 +95,10 @@ void WorldObject::CleanupsBeforeDelete()
  * @param update_diff Time since last update
  * @param time_diff Time parameter (unused)
  *
- * Updates Eluna events if enabled.
+ * Nothing to do at this level; subclasses override.
  */
-void WorldObject::Update(uint32 update_diff, uint32 time_diff)
+void WorldObject::Update(uint32 /*update_diff*/, uint32 /*time_diff*/)
 {
-#ifdef ENABLE_ELUNA
-    if (elunaEvents) // can be null on maps without eluna
-    {
-        elunaEvents->Update(update_diff);
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /**

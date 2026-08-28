@@ -71,10 +71,6 @@
 #include "LootMgr.h"
 #include <random>
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @brief Executes script-driven spell effect behavior for special cases.
  *
