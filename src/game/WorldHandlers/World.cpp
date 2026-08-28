@@ -114,12 +114,6 @@
 #include "ElunaLoader.h"
 #endif /* ENABLE_ELUNA */
 
-#ifdef ENABLE_PLAYERBOTS
-#include "playerbot.h"
-#include "PlayerbotAIConfig.h"
-#include "RandomPlayerbotMgr.h"
-#endif
-
 #include <iostream>
 #include <sstream>
 
@@ -862,45 +856,11 @@ void World::SetInitialWorldSettings()
     }
 #endif
 
-#ifdef ENABLE_PLAYERBOTS
-    sPlayerbotAIConfig.Initialize();
-#endif
-
     showFooter();
 
     uint32 startupDuration = GetMSTimeDiffToNow(startupBegin);
     sLog.outString("SERVER STARTUP TIME: %i minutes %i seconds", (startupDuration / 60000), ((startupDuration % 60000) / 1000));
     sLog.outString();
-}
-
-uint32 World::GetBotCount() const
-{
-#ifdef ENABLE_PLAYERBOTS
-    // Two homes to count: random bots belong to the one manager, while a bot
-    // a player summoned belongs to that player's own. Bots hold no entry in
-    // m_sessions, which is why the session counts never include them.
-    uint32 count = uint32(std::distance(sRandomPlayerbotMgr.GetPlayerBotsBegin(),
-                                        sRandomPlayerbotMgr.GetPlayerBotsEnd()));
-
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
-    {
-        Player* player = itr->second ? itr->second->GetPlayer() : NULL;
-        if (!player)
-        {
-            continue;
-        }
-
-        if (PlayerbotMgr* mgr = player->GetPlayerbotMgr())
-        {
-            count += uint32(std::distance(mgr->GetPlayerBotsBegin(),
-                                          mgr->GetPlayerBotsEnd()));
-        }
-    }
-
-    return count;
-#else
-    return 0;
-#endif
 }
 
 /**
@@ -918,19 +878,6 @@ void World::showFooter()
     // SD3 is either included or disabled
 #ifdef ENABLE_SD3
     modules_.insert("      ScriptDev3 (SD3) : Enabled");
-#endif
-
-    // PLAYERBOTS is included at build time and switched at runtime by
-    // AiPlayerbot.Enabled in aiplayerbot.conf
-#ifdef ENABLE_PLAYERBOTS
-    if (sPlayerbotAIConfig.enabled)
-    {
-        modules_.insert("            PlayerBots : Enabled");
-    }
-    else
-    {
-        modules_.insert("            PlayerBots : Disabled");
-    }
 #endif
 
     // Remote Access can be activated / deactivated via mangos.conf
@@ -1164,11 +1111,6 @@ void World::Update(uint32 diff)
 
         DEBUG_FILTER_LOG(LOG_FILTER_LFG, "WORLD: LFGMgr::Update tick");
     }
-
-#ifdef ENABLE_PLAYERBOTS
-    sRandomPlayerbotMgr.UpdateAI(diff);
-    sRandomPlayerbotMgr.UpdateSessions(diff);
-#endif
 
     /// <li> Handle session updates
     UpdateSessions(diff);

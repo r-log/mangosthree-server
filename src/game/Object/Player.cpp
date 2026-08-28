@@ -59,10 +59,6 @@
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Pet.h"
-#ifdef ENABLE_PLAYERBOTS
-#include "playerbot.h"
-#include "PlayerbotMgr.h"
-#endif
 #include "Util.h"
 #include "Transports.h"
 #include "TransportMap.h"
@@ -420,10 +416,6 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), m_camera(this), m_
     m_drunkTimer = 0;
     m_restTime = 0;
     m_deathTimer = 0;
-#ifdef ENABLE_PLAYERBOTS
-    m_playerbotAI = NULL;
-    m_playerbotMgr = NULL;
-#endif
     // Initialize death expire time to 0
     m_deathExpireTime = 0;
 
@@ -1157,16 +1149,6 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         }
     }
 
-#ifdef ENABLE_PLAYERBOTS
-    // bots have no client heartbeats: refresh liquid state while stationary,
-    // mirroring Creature::Update's UpdateSwimmingState cadence
-    if (GetPlayerbotAI() && !m_positionStatusUpdateTimer && IsInWorld())
-    {
-        m_positionStatusUpdateTimer = 100;
-        UpdateUnderwaterState(GetMap(), GetPositionX(), GetPositionY(), GetPositionZ());
-    }
-#endif
-
     // Update weapon change timer
     if (m_weaponChangeTimer > 0)
     {
@@ -1338,18 +1320,6 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     {
         TeleportTo(m_teleport_dest, m_teleport_options);
     }
-
-#ifdef ENABLE_PLAYERBOTS
-    // Update player bot AI (drives obey/follow/combat for bots and the master's bot manager)
-    if (m_playerbotAI)
-    {
-        m_playerbotAI->UpdateAI(p_time);
-    }
-    if (m_playerbotMgr)
-    {
-        m_playerbotMgr->UpdateAI(p_time);
-    }
-#endif
 }
 
 /**
@@ -5321,47 +5291,6 @@ void Player::UpdateUnderwaterState(Map* m, float x, float y, float z)
 {
     GridMapLiquidData liquid_status;
     GridMapLiquidStatus res = m->GetTerrain()->getLiquidStatus(x, y, z, MAP_ALL_LIQUIDS, &liquid_status);
-
-#ifdef ENABLE_PLAYERBOTS
-    // Bots have no client to report their swim state (real players toggle
-    // MOVEFLAG_SWIMMING and the in-water cache via movement packets), so
-    // sync both server-side here, mirroring Creature::UpdateSwimmingState.
-    if (GetPlayerbotAI())
-    {
-        bool swimming = (res & (LIQUID_MAP_IN_WATER | LIQUID_MAP_UNDER_WATER)) &&
-                        liquid_status.level - liquid_status.depth_level > GetObjectBoundingRadius();
-        SetInWater(swimming);
-        if (swimming != m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING))
-        {
-            if (swimming)
-            {
-                m_movementInfo.AddMovementFlag(MOVEFLAG_SWIMMING);
-            }
-            else
-            {
-                m_movementInfo.RemoveMovementFlag(MOVEFLAG_SWIMMING);
-            }
-
-            // broadcast the toggle or observers keep the land pose (mirrors Creature::SetSwim)
-            if (IsInWorld())
-            {
-                WorldPacket data(swimming ? SMSG_SPLINE_MOVE_START_SWIM : SMSG_SPLINE_MOVE_STOP_SWIM, 9);
-                if (swimming)
-                {
-                    data.WriteGuidMask<1, 6, 0, 7, 3, 5, 2, 4>(GetObjectGuid());
-                    data.WriteGuidBytes<3, 7, 2, 5, 6, 4, 1, 0>(GetObjectGuid());
-                }
-                else
-                {
-                    data.WriteGuidMask<4, 1, 5, 3, 0, 7, 2, 6>(GetObjectGuid());
-                    data.WriteGuidBytes<6, 0, 7, 2, 3, 1, 5, 4>(GetObjectGuid());
-                }
-
-                SendMessageToSet(&data, true);
-            }
-        }
-    }
-#endif
 
     if (!res)
     {

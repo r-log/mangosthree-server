@@ -52,10 +52,6 @@
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Pet.h"
-#ifdef ENABLE_PLAYERBOTS
-#include "playerbot.h"
-#include "PlayerbotMgr.h"
-#endif
 #include "Util.h"
 #include "Transports.h"
 #include "Weather.h"
@@ -272,10 +268,6 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea)
         // handle outdoor pvp zones
         sOutdoorPvPMgr.HandlePlayerLeaveZone(this, m_zoneUpdateId);
         sOutdoorPvPMgr.HandlePlayerEnterZone(this, newZone);
-
-#ifdef ENABLE_PLAYERBOTS
-        sRandomPlayerbotMgr.OnPlayerZoneChange(this, newZone);
-#endif
 
         SendInitWorldStates(newZone, newArea);              // only if really enters to new zone, not just area change, works strange...
 
