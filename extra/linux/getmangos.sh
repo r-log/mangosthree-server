@@ -62,7 +62,6 @@
     P_TOOLS="0"
 
     P_SD3="1"
-    P_SOAP="0"
 
     P_DEBUG="0"
   }
@@ -1097,7 +1096,6 @@
           {
             echo '1 Build Client Tools'                     ;
             echo '3 Use SD3'                                ;
-            echo '5 Use SOAP'                               ;
             echo '6 Enable Debug'                           ;
           } \
           | $DLGAPPFZF -m --header 'Please select your build options'
@@ -1107,10 +1105,9 @@
           $DLGAPP \
           --backtitle "MaNGOS Linux Build Configuration" \
           --title "Build Options" \
-          --checklist "Please select your build options" 0 56 4 \
+          --checklist "Please select your build options" 0 56 3 \
           1 "Build Client Tools" On \
           3 "Use SD3" On \
-          5 "Use SOAP" Off \
           6 "Enable Debug" Off \
           3>&2 2>&1 1>&3
         )
@@ -1133,13 +1130,6 @@
         P_SD3="1"
       else
         P_SD3="0"
-      fi
-
-      # See if SOAP will be used
-      if [[ $OPTIONS == *5* ]]; then
-        P_SOAP="1"
-      else
-        P_SOAP="0"
       fi
 
       # See if debug was selected
@@ -1209,7 +1199,6 @@
         -DBUILD_TOOLS=$P_TOOLS              \
                                             \
         -DSCRIPT_LIB_SD3=$P_SD3             \
-        -DSOAP=$P_SOAP                      \
                                             \
         -DDEBUG=$P_DEBUG                    \
                                             \

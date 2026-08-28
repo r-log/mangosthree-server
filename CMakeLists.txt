@@ -59,7 +59,6 @@ option(BUILD_MANGOSD        "Build the main server"                         ON)
 option(BUILD_REALMD         "Build the login server"                        ON)
 option(BUILD_TOOLS          "Build the client-data extractor"               ON)
 option(SCRIPT_LIB_SD3       "Compile with support for ScriptDev3 scripts"   ON)
-option(SOAP                 "Enable remote access via SOAP"                 OFF)
 option(PCH                  "Enable precompiled headers"                    ON)
 option(WITH_IO_URING        "Use the io_uring network backend (Linux, needs liburing)" OFF)
 option(WITH_TESTS           "Build the unit tests"                          OFF)
@@ -76,7 +75,6 @@ message(
     BUILD_MANGOSD           Build the main server
     BUILD_REALMD            Build the login server
     BUILD_TOOLS             Build the client-data extractor
-    SOAP                    Enable remote access via SOAP
     PCH                     Enable use of precompiled headers
     WITH_IO_URING           Use the io_uring network backend instead of epoll (Linux only,
                             requires liburing headers; falls back to epoll if absent)

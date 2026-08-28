@@ -838,19 +838,6 @@ void World::showFooter()
         modules_.insert("    Remote Access (RA) : Disabled");
     }
 
-    // SOAP can be included or excluded but also disabled via mangos.conf
-#ifdef ENABLE_SOAP
-    bool soapActive = sConfig.GetBoolDefault("SOAP.Enabled", false);
-    if (soapActive)
-    {
-        modules_.insert("                  SOAP : Enabled");
-    }
-    else
-    {
-        modules_.insert("                  SOAP : Disabled");
-    }
-#endif
-
     std::string thisClientVersion (EXPECTED_MANGOSD_CLIENT_VERSION);
     std::string thisClientBuilds = AcceptableClientBuildsListStr();
 
