@@ -13,7 +13,7 @@ FROM ubuntu:22.04 AS build
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential clang cmake ninja-build ca-certificates \
-        libssl-dev libbz2-dev libmysqlclient-dev libreadline-dev zlib1g-dev \
+        libssl-dev libbz2-dev libmysqlclient-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
@@ -25,14 +25,14 @@ RUN cmake -S . -B build -G Ninja \
         -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_INSTALL_PREFIX=/mangos -DCONF_INSTALL_DIR=/mangos/etc -DWITHOUT_GIT=1 \
         -DBUILD_MANGOSD=1 -DBUILD_REALMD=1 -DBUILD_TOOLS=0 \
-        -DSOAP=1 -DSCRIPT_LIB_ELUNA=1 -DSCRIPT_LIB_SD3=1 -DPCH=1 \
+        -DSOAP=1 -DSCRIPT_LIB_SD3=1 -DPCH=1 \
     && cmake --build build --parallel \
     && cmake --install build
 
 FROM ubuntu:22.04 AS runtime-base
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libmysqlclient21 libssl3 libreadline8 libbz2-1.0 zlib1g ca-certificates tzdata gosu \
+        libmysqlclient21 libssl3 libbz2-1.0 zlib1g ca-certificates tzdata gosu \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 1000 mangos \
     && useradd -u 1000 -g mangos -d /mangos -s /usr/sbin/nologin mangos \
@@ -47,14 +47,9 @@ WORKDIR /mangos/bin
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 FROM runtime-base AS mangosd
-# Lua is built as a shared library by default (dep/lualib/lua/CMakeLists.txt) and mangosd
-# links it; realmd does not.
 COPY --from=build --chown=mangos:mangos /mangos/bin/mangosd /mangos/bin/
-COPY --from=build --chown=mangos:mangos /mangos/bin/lua_scripts /mangos/bin/lua_scripts
-COPY --from=build /mangos/lib/liblua*.so* /mangos/lib/
 COPY --from=build /mangos/etc/mangosd.conf.dist /mangos/etc/ahbot.conf.dist /mangos/dist/
-RUN echo /mangos/lib > /etc/ld.so.conf.d/mangos.conf && ldconfig \
-    && if ldd /mangos/bin/mangosd | grep 'not found'; then echo 'mangosd: unresolved shared libraries' >&2; exit 1; fi
+RUN if ldd /mangos/bin/mangosd | grep 'not found'; then echo 'mangosd: unresolved shared libraries' >&2; exit 1; fi
 EXPOSE 8085
 CMD ["mangosd"]
 

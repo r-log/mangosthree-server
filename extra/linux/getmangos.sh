@@ -61,7 +61,6 @@
   {
     P_TOOLS="0"
 
-    P_ELUNA="1"
     P_SD3="1"
     P_SOAP="0"
 
@@ -1097,7 +1096,6 @@
         OPTIONS=$(
           {
             echo '1 Build Client Tools'                     ;
-            echo '2 Use Eluna'                              ;
             echo '3 Use SD3'                                ;
             echo '5 Use SOAP'                               ;
             echo '6 Enable Debug'                           ;
@@ -1109,15 +1107,11 @@
           $DLGAPP \
           --backtitle "MaNGOS Linux Build Configuration" \
           --title "Build Options" \
-          --checklist "Please select your build options" 0 56 7 \
-          1 "Enable Debug" Off \
-          2 "Use Standard Malloc" On \
-          3 "Use External ACE Libraries" On \
-          4 "Use PostgreSQL Instead Of MySQL/MariaDB" Off \
-          5 "Build Client Tools" On \
-          6 "Use SD3" On \
-          7 "Use Eluna" On \
-          8 "Use SOAP" Off \
+          --checklist "Please select your build options" 0 56 4 \
+          1 "Build Client Tools" On \
+          3 "Use SD3" On \
+          5 "Use SOAP" Off \
+          6 "Enable Debug" Off \
           3>&2 2>&1 1>&3
         )
       fi
@@ -1132,13 +1126,6 @@
         P_TOOLS="1"
       else
         P_TOOLS="0"
-      fi
-
-      # See if Eluna will be used
-      if [[ $OPTIONS == *2* ]]; then
-        P_ELUNA="1"
-      else
-        P_ELUNA="0"
       fi
 
       # See if SD3 will be used
@@ -1160,12 +1147,6 @@
         P_DEBUG="1"
       else
         P_DEBUG="0"
-      fi
-
-      # Verify that at least one scripting library is enabled
-      if [ $P_SD3 -eq 0 ] && [ $P_ELUNA -eq 0 ]; then
-        Log "Error: You must enable either SD3, Eluna, or both to build MaNGOS!" 1
-        exit 1
       fi
     }
 
@@ -1227,7 +1208,6 @@
       $CMAKE_CMD "$SRCPATH"                 \
         -DBUILD_TOOLS=$P_TOOLS              \
                                             \
-        -DSCRIPT_LIB_ELUNA=$P_ELUNA         \
         -DSCRIPT_LIB_SD3=$P_SD3             \
         -DSOAP=$P_SOAP                      \
                                             \
