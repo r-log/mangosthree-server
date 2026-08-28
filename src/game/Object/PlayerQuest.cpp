@@ -3102,9 +3102,9 @@ void Player::UpdateForQuestWorldObjects()
     }
 
     // Resolves each visible GUID through GetMap(); a player with no current map
-    // (e.g. a bot displaced off its map mid-randomize by a quest reward spell, or
-    // one whose login never completed Map::Add) would null-deref. With no map there
-    // are no visible world objects to refresh.
+    // (e.g. one a quest reward spell teleported off its map, or one whose login
+    // never completed Map::Add) would null-deref. With no map there are no visible
+    // world objects to refresh.
     if (!FindMap())
     {
         return;

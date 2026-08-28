@@ -88,7 +88,7 @@ bool TargetedMovementGenerator::RequiresNewPosition(Unit& owner,
     // A flier cares about height too; anything on the ground does not.
     // Swimmers likewise move in the 3D water column, so their destination must
     // track the target's depth; MOVEFLAG_SWIMMING covers creatures (IsSwimming)
-    // and swimming players (client-set for real ones, server-synced for bots).
+    // and swimming players (set by the client's movement packets).
     if ((owner.GetTypeId() == TYPEID_UNIT && static_cast<Creature&>(owner).CanFly()) ||
         owner.m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING))
     {

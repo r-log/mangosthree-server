@@ -25,7 +25,7 @@ RUN cmake -S . -B build -G Ninja \
         -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_INSTALL_PREFIX=/mangos -DCONF_INSTALL_DIR=/mangos/etc -DWITHOUT_GIT=1 \
         -DBUILD_MANGOSD=1 -DBUILD_REALMD=1 -DBUILD_TOOLS=0 \
-        -DSOAP=1 -DSCRIPT_LIB_ELUNA=1 -DSCRIPT_LIB_SD3=1 -DPLAYERBOTS=0 -DPCH=1 \
+        -DSOAP=1 -DSCRIPT_LIB_ELUNA=1 -DSCRIPT_LIB_SD3=1 -DPCH=1 \
     && cmake --build build --parallel \
     && cmake --install build
 
