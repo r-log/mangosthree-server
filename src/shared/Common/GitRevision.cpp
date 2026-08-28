@@ -24,6 +24,7 @@
  */
 
 #include "GitRevision.h"
+#include "revision_data.h"
 
 char const* GitRevision::GetHash()
 {
