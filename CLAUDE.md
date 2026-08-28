@@ -10,8 +10,8 @@ target is **4.3.4 only**; do **not** introduce 5.x/MoP or later-expansion assump
 
 - **Database changes go in the separate `mangosthree/database` repo**, not here — as transactional, idempotent
   `Rel##_##_###_*.sql` migrations that chain via `db_version`.
-- Clone/update **recursively**: `src/modules/SD3` is a submodule. Never shallow-update
-  a submodule to a non-tip pinned SHA.
+- No submodules: `src/modules/SD3`, `src/realmd` and `dep/` are vendored in-tree (their origin and
+  pinned upstream commits are recorded in the import commits and `dep/README.md`). A plain `git clone` is enough.
 - Less-obvious locations: scripting in `src/modules/` (SD3 = C++). The
   `src/game/` tree is under an ongoing **decomp cohesion-split** (large classes like `Player`/`Unit`/`SpellEffects`
   are being broken into topical `*.cpp` files, e.g. `UnitCombat.cpp`, `UnitAura.cpp`,
@@ -24,7 +24,7 @@ target is **4.3.4 only**; do **not** introduce 5.x/MoP or later-expansion assump
 (Linux/macOS/BSD) or MSVC ≥ 2015 (Windows). The exact flags CI builds with:
 
 ```sh
-git clone --recursive https://github.com/r-log/mangosthree-server.git && cd mangosthree-server
+git clone https://github.com/r-log/mangosthree-server.git && cd mangosthree-server
 sudo apt-get install -y git cmake make build-essential \
   libssl-dev libbz2-dev default-libmysqlclient-dev   # Debian/Ubuntu deps
 mkdir -p _build _install && cd _build

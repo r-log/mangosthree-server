@@ -40,21 +40,6 @@ char const* GitRevision::GetBranch()
     return REVISION_BRANCH;
 }
 
-char const* GitRevision::GetDepSD3Hash()
-{
-    return DEP_SD3_REVISION_HASH;
-}
-
-char const* GitRevision::GetDepSD3Date()
-{
-    return DEP_SD3_REVISION_DATE;
-}
-
-char const* GitRevision::GetDepSD3Branch()
-{
-    return DEP_SD3_REVISION_BRANCH;
-}
-
 
 char const* GitRevision::GetCMakeVersion()
 {
@@ -152,16 +137,6 @@ char const* GitRevision::GetWorldDBUpdateDescription()
 char const* GitRevision::GetFullRevision()
 {
     return "Mangos revision: " VER_PRODUCTVERSION_STR;
-}
-
-char const* GitRevision::GetDepSD3FullRevision()
-{
-    return DEP_SD3_REVISION_STR;
-}
-
-char const* GitRevision::GetDepSD3FullRevisionStr()
-{
-    return "SD3 submodule revision: " DEP_SD3_REVISION_STR;
 }
 
 char const* GitRevision::GetRunningSystem()
