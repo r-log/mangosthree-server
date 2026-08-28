@@ -40,6 +40,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <cstdlib>
 
 #define MIN_CONNECTION_POOL_SIZE 1
 #define MAX_CONNECTION_POOL_SIZE 16
@@ -719,7 +720,8 @@ bool Database::CheckDatabaseVersion(DatabaseTypes database)
     //  CHAR_DB_CONTENT_NR
     //  REALMD_DB_CONTENT_NR
     // for more information.
-    if (current_db_content < core_db_requirements.minimal_expected_content)
+    // Numeric: the column is an INT read back as text, and "10" sorts before "2" as a string.
+    if (atoi(current_db_content.c_str()) < atoi(core_db_requirements.minimal_expected_content.c_str()))
     {
         // TODO : Should not display with error color but warning (e.g YELLOW) => Create a sLog.outWarningDb() and sLog.outWarning()
         sLog.outErrorDb("You have not updated the core for few DB [%s] updates!", core_db_requirements.dbname.c_str());
