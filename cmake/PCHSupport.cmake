@@ -63,4 +63,13 @@ function(ADD_CXX_PCH TARGET_NAME PRECOMPILED_HEADER)
 	if(HAVE_FPCH_INSTANTIATE_TEMPLATES)
 		target_compile_options(${TARGET_NAME} PRIVATE -fpch-instantiate-templates)
 	endif()
+
+	# Clang records the mtime of every header in the PCH and refuses the PCH when they differ
+	# ("file has been modified since the precompiled header was built"). A compiler cache
+	# restores the PCH into a fresh checkout, where every mtime is new, so the PCH is built
+	# without timestamps: its validity is then a matter of content, which is also what lets
+	# ccache hash it as an input of every unit that uses it. GCC and MSVC have no such check.
+	if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		target_compile_options(${TARGET_NAME} PRIVATE -Xclang -fno-pch-timestamp)
+	endif()
 endfunction()

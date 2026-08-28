@@ -49,8 +49,20 @@ jobs:
       - name: Compiler cache
         uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
         with:
-          key: linux-${{ matrix.name }}
-          max-size: 500M
+          key: linux-${{ matrix.name }}-pch
+          max-size: 2G
+
+      # The same settings the Windows job runs with. pch_defines,time_macros: required for
+      # units that consume a precompiled header. include_file_mtime,include_file_ctime: every
+      # checkout gives the headers a fresh mtime, which would otherwise make ccache distrust
+      # its direct-mode manifests. Depend mode: a miss is compiled once (the -MD output names
+      # the includes) instead of being preprocessed first and compiled second; a changed
+      # header still invalidates its dependents, and a header inside the PCH still does too,
+      # because the PCH file itself is hashed as an input of every unit that uses it.
+      - name: Configure the compiler cache
+        run: |
+          ccache --set-config=sloppiness=pch_defines,time_macros,include_file_mtime,include_file_ctime
+          ccache --set-config=depend_mode=true
 
       # Never the socket tests: they bind real listeners and dominate the
       # suite's wall-clock. A human asks for them, CI does not.
@@ -69,7 +81,7 @@ jobs:
           -DWITH_TESTS=1
           -DWITH_NET_TESTS=0
           -DSCRIPT_LIB_SD3=1
-          -DPCH=0
+          -DPCH=1
 
       - name: Build
         run: cmake --build "$BUILD_DIR" --parallel
