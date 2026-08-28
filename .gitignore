@@ -82,10 +82,6 @@ CMakeCache.txt
 CMakeFiles
 ipch
 
-# EasyBuild created debug files
-cmake.cmd
-msbuild.cmd
-
 # recastnavigation directory needs exception
 !/dep/recastnavigation/RecastDemo/Build/
 
