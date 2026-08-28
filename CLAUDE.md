@@ -21,7 +21,8 @@ target is **4.3.4 only**; do **not** introduce 5.x/MoP or later-expansion assump
 ## Build & test
 
 **C++17** — strict (`-std=c++17`, GNU extensions off); C code is C11. CMake ≥ 3.18; GCC/Clang
-(Linux/macOS/BSD) or MSVC ≥ 2015 (Windows). The exact flags CI builds with:
+(Linux/macOS/BSD) or MSVC ≥ 2015 (Windows). The build options CI uses (CI itself builds with Ninja and ccache and adds
+`-DWITH_TESTS=1 -DWITH_NET_TESTS=0`; see `.github/workflows/core_linux_build.yml`):
 
 ```sh
 git clone https://github.com/r-log/mangosthree-server.git && cd mangosthree-server
@@ -30,8 +31,7 @@ sudo apt-get install -y git cmake make build-essential \
 mkdir -p _build _install && cd _build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../_install \
   -DBUILD_TOOLS=1 -DBUILD_MANGOSD=1 -DBUILD_REALMD=1 \
-  -DSCRIPT_LIB_SD3=1 \
-  -DPCH=0
+  -DSCRIPT_LIB_SD3=1
 make -j"$(nproc)" && make install -j"$(nproc)"
 ```
 
