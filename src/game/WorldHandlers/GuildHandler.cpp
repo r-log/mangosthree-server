@@ -65,9 +65,6 @@
 #include "SocialMgr.h"
 #include "Calendar.h"
 #include "PlayerRegistry.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 void WorldSession::HandleGuildQueryOpcode(WorldPacket& recvPacket)
 {
@@ -1359,14 +1356,6 @@ void WorldSession::HandleGuildBankDepositMoney(WorldPacket& recv_data)
 
     // log
     pGuild->LogBankEvent(GUILD_BANK_LOG_DEPOSIT_MONEY, uint8(0), GetPlayer()->GetGUIDLow(), money);
-
-#ifdef ENABLE_ELUNA
-    // TODO: ELUNAFIX NEEDED
-    //if (Eluna* e = xxx->GetEluna())
-    //{
-    //    e->OnMemberDepositMoney(pGuild, GetPlayer(), money);
-    //}
-#endif
 
     pGuild->DisplayGuildBankTabsInfo(this);
     pGuild->DisplayGuildBankContent(this, 0);

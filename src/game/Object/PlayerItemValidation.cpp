@@ -36,9 +36,6 @@
 #include "ObjectMgr.h"
 #include "WorldSession.h"
 #include "DBCStores.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @brief Checks whether the player can carry more copies of a limited item.
@@ -1636,17 +1633,6 @@ InventoryResult Player::CanUseItem(ItemPrototype const* pProto) const
         {
             return EQUIP_ERR_CANT_EQUIP_LEVEL_I;
         }
-
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = GetEluna())
-        {
-            InventoryResult eres = e->OnCanUseItem(this, pProto->ItemId);
-            if (eres != EQUIP_ERR_OK)
-            {
-                return eres;
-            }
-        }
-#endif
 
         return EQUIP_ERR_OK;
     }

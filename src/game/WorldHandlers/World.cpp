@@ -108,12 +108,6 @@
 #include "GameTime.h"
 #include <cstdarg>
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaLoader.h"
-#endif /* ENABLE_ELUNA */
-
 #include <iostream>
 #include <sstream>
 
@@ -203,11 +197,6 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
 World::~World()
 {
     // it is assumed that no other thread is accessing this data when the destructor is called.  therefore, no locks are necessary
-#ifdef ENABLE_ELUNA
-    // Delete world Eluna state
-    delete eluna;
-    eluna = nullptr;
-#endif /* ENABLE_ELUNA */
 
     ///- Empty the kicked session set
     for (auto const session : m_sessions)
@@ -331,23 +320,6 @@ void World::SetInitialWorldSettings()
     ///- Init highest guids before any guid using table loading to prevent using not initialized guids in some code.
     sObjectMgr.SetHighestGuids();                           // must be after packing instances
     sLog.outString();
-
-#ifdef ENABLE_ELUNA
-    ///- Initialize Lua Engine
-
-    // lua state begins uninitialized
-    eluna = nullptr;
-
-    sLog.outString("Loading Eluna config...");
-    sElunaConfig->Initialize();
-
-    if (sElunaConfig->IsElunaEnabled())
-    {
-        ///- Initialize Lua Engine
-        sLog.outString("Loading Lua scripts...");
-        sElunaLoader->LoadScripts();
-    }
-#endif /* ENABLE_ELUNA */
 
     sLog.outString("Loading Page Texts...");
     sObjectMgr.LoadPageTexts();
@@ -670,17 +642,6 @@ void World::SetInitialWorldSettings()
     sLog.outString("Returning old mails...");
     sObjectMgr.ReturnOrDeleteOldMails(false);
 
-#ifdef ENABLE_ELUNA
-    if (sElunaConfig->IsElunaEnabled())
-    {
-        ///- Run eluna scripts.
-        sLog.outString("Starting Eluna world state...");
-        // use map id -1 for the global Eluna state
-        eluna = new Eluna(nullptr);
-        sLog.outString();
-    }
-#endif /*ENABLE_ELUNA*/
-
     ///- Load and initialize DBScripts Engine
     sLog.outString("Loading DB-Scripts Engine...");
     sScriptMgr.LoadDbScripts(DBS_ON_QUEST_START);           // must be after load Creature/Gameobject(Template/Data) and QuestTemplate
@@ -847,15 +808,6 @@ void World::SetInitialWorldSettings()
     sAuctionBot.Initialize();
     sLog.outString();
 
-#ifdef ENABLE_ELUNA
-    ///- Run eluna scripts.
-    // in multithread foreach: run scripts
-    if (Eluna* e = GetEluna())
-    {
-        e->OnConfigLoad(false); // Must be done after Eluna is initialized and scripts have run.
-    }
-#endif
-
     showFooter();
 
     uint32 startupDuration = GetMSTimeDiffToNow(startupBegin);
@@ -871,9 +823,6 @@ void World::showFooter()
     std::set<std::string> modules_;
 
     // ELUNA is either included or disabled
-#ifdef ENABLE_ELUNA
-    modules_.insert("                 Eluna : Enabled");
-#endif
 
     // SD3 is either included or disabled
 #ifdef ENABLE_SD3
@@ -1130,15 +1079,6 @@ void World::Update(uint32 diff)
     sMapMgr.Update(diff);
     sBattleGroundMgr.Update(diff);
     sOutdoorPvPMgr.Update(diff);
-
-    ///- Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->UpdateEluna(diff);
-        e->OnWorldUpdate(diff);
-    }
-#endif /* ENABLE_ELUNA */
 
     ///- Delete all characters which have been deleted X days before
     if (m_timers[WUPDATE_DELETECHARS].Passed())
@@ -1520,14 +1460,6 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         m_ShutdownTimer = time;
         ShutdownMsg(true);
     }
-
-    ///- Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnShutdownInitiate(ShutdownExitCode(exitcode), ShutdownMask(options));
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /// Display a shutdown message to the user(s)
@@ -1573,14 +1505,6 @@ void World::ShutdownCancel()
     SendServerMessage(msgid);
 
     DEBUG_LOG("Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART) ? "restart" : "shutdown");
-
-    ///- Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnShutdownCancel();
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /**

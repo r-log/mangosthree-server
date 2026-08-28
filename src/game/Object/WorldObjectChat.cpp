@@ -56,12 +56,6 @@
 #include "TransportMap.h"
 #include "MapManager.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @file WorldObjectChat.cpp
  * @brief Cohesion split of Object.cpp -- WorldObject chat/messaging: monster say/yell/emote/whisper, localized text broadcast, message-to-set delivery and despawn/custom-anim packets. Same WorldObject class; no behaviour change. CMake file(GLOB Object/*.cpp) picks this file up automatically; Object.h is unchanged.

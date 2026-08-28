@@ -550,9 +550,6 @@ class Log : public MaNGOS::Singleton<Log>
         FILE* gmLogfile; /**< TODO */
         FILE* charLogfile; /**< TODO */
         FILE* dberLogfile; /**< TODO */
-#ifdef ENABLE_ELUNA
-        FILE* elunaErrLogfile; /**< TODO */
-#endif /* ENABLE_ELUNA */
 
         FILE* eventAiErLogfile; /**< TODO */
         FILE* scriptErrLogFile; /**< TODO */

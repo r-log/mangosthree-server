@@ -70,10 +70,6 @@
 #include "LootMgr.h"
 #include <random>
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @brief Sends a resurrection request to a dead player target.
  *

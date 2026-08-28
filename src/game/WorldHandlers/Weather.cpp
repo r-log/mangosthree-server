@@ -35,9 +35,6 @@
 #include "WorldPacket.h"
 #include "Log.h"
 #include "Util.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /*ENABLE_ELUNA*/
 
 /// Create the Weather object
 Weather::Weather(uint32 zone, WeatherZoneChances const* weatherChances) :
@@ -255,12 +252,6 @@ bool Weather::SendWeatherForPlayersInZone(Map const* _map)
 
     ///- Log the event
     LogWeatherState(state);
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnChange(this, m_zone, GetWeatherState(), m_grade);
-    }
-#endif /* ENABLE_ELUNA */
 
     return true;
 }

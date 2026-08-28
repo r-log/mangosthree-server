@@ -80,9 +80,6 @@
 #include "Calendar.h"
 #include "DisableMgr.h"
 #include <cmath>
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @file PlayerLoadFromDB.cpp

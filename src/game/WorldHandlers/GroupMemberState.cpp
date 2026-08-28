@@ -39,10 +39,6 @@
 #include "Util.h"
 #include "LootMgr.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @file GroupMemberState.cpp
  * @brief Cohesion split of Group.cpp -- private member-state internals: _addMember/_removeMember, leader/assistant/main-tank flags, subgroup assignment and ChangeMembersGroup. Same Group class; no behaviour change. CMake file(GLOB) picks this file up automatically; Group.h is unchanged.

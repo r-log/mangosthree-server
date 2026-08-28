@@ -50,9 +50,6 @@
 #include "Pet.h"
 #include "SocialMgr.h"
 #include "DBCEnums.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @file MiscHandlerInstance.cpp

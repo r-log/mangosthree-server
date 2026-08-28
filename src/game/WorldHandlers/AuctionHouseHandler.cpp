@@ -54,9 +54,6 @@
 #include "Mail.h"
 #include "Util.h"
 #include "Chat.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /** \addtogroup auctionhouse
  * @{
@@ -435,14 +432,6 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
         SendAuctionCommandResult(AH, AUCTION_STARTED, AUCTION_OK);
 
         GetPlayer()->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CREATE_AUCTION, 1);
-
-        // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnAdd(auctionHouse, AH);
-    }
-#endif /* ENABLE_ELUNA */
     }
 }
 
@@ -618,13 +607,6 @@ void WorldSession::HandleAuctionRemoveItem(WorldPacket& recv_data)
     sAuctionMgr.RemoveAItem(auction->itemGuidLow);
     auctionHouse->RemoveAuction(auction->Id);
 
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnRemove(auctionHouse, auction);
-    }
-#endif /* ENABLE_ELUNA */
     delete auction;
 }
 

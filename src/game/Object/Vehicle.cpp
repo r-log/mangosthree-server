@@ -49,9 +49,6 @@
 #include "movement/MoveSpline.h"
 #include "MapManager.h"
 #include "TemporarySummon.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /*ENABLE_ELUNA*/
 
 void ObjectMgr::LoadVehicleAccessory()
 {
@@ -154,12 +151,6 @@ void VehicleInfo::Initialize()
             m_accessoryGuids.insert(summoned->GetObjectGuid());
             int32 basepoint0 = itr->seatId + 1;
             summoned->CastCustomSpell((Unit*)m_owner, SPELL_RIDE_VEHICLE_HARDCODED, &basepoint0, NULL, NULL, true);
-#ifdef ENABLE_ELUNA
-            if (Eluna* e = summoned->GetEluna())
-            {
-                e->OnInstallAccessory(this, summoned);
-            }
-#endif
         }
     }
 
@@ -410,13 +401,6 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
 
     // Apply passenger modifications
     ApplySeatMods(passenger, seatEntry->Flags);
-
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = passenger->GetEluna())
-    {
-        e->OnAddPassenger(this, passenger, seat);
-    }
-#endif
 }
 
 /*
@@ -540,12 +524,6 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
             m_accessoryGuids.erase(passenger->GetObjectGuid());
         }
     }
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = passenger->GetEluna())
-    {
-        e->OnRemovePassenger(this, passenger);
-    }
-#endif
 
     // Some creature vehicles get despawned after passenger unboarding
     if (m_owner->GetTypeId() == TYPEID_UNIT)

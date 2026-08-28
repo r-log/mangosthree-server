@@ -77,12 +77,6 @@
 #include "Weather.h"
 #include "LivingWorldCellEnvelope.h"
 
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaLoader.h"
-#endif /* ENABLE_ELUNA */
-
 /**
  * @brief Map destructor
  *
@@ -101,24 +95,6 @@
  */
 Map::~Map()
 {
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnDestroy(this);
-    }
-
-    if (Eluna* e = GetEluna())
-    {
-        if (Instanceable())
-        {
-            e->FreeInstanceId(GetInstanceId());
-        }
-    }
-
-    delete eluna;
-    eluna = nullptr;
-#endif /* ENABLE_ELUNA */
-
     UnloadAll(true);
 
     if (!m_scriptSchedule.empty())
@@ -202,16 +178,6 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
       i_gridExpiry(expiry), m_TerrainData(sTerrainMgr.LoadTerrain(id)),
       i_data(NULL)
 {
-#ifdef ENABLE_ELUNA
-    // lua state begins uninitialized
-    eluna = nullptr;
-
-    if (sElunaConfig->IsElunaEnabled() && !sElunaConfig->IsElunaCompatibilityMode() && sElunaConfig->ShouldMapLoadEluna(id))
-    {
-        eluna = new Eluna(this);
-    }
-#endif
-
     m_CreatureGuids.Set(sObjectMgr.GetFirstTemporaryCreatureLowGuid());
     m_GameObjectGuids.Set(sObjectMgr.GetFirstTemporaryGameObjectLowGuid());
 
@@ -235,12 +201,6 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
     m_persistentState->SetUsedByMapState(this);
 
     m_weatherSystem = new WeatherSystem(this);
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnCreate(this);
-    }
-#endif /* ENABLE_ELUNA */
 }
 
 /**
@@ -740,14 +700,6 @@ bool Map::Add(Player* player)
     player->GetViewPoint().Event_AddedToWorld(&(*grid)(cell.CellX(), cell.CellY()));
     UpdateObjectVisibility(player, cell, p);
 
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnMapChanged(player);
-        e->OnPlayerEnter(this, player);
-    }
-#endif /* ENABLE_ELUNA */
-
     if (i_data)
     {
         i_data->OnPlayerEnter(player);
@@ -1082,18 +1034,6 @@ void Map::Update(const uint32& t_diff)
         ScriptsProcess();
     }
 
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        if (!sElunaConfig->IsElunaCompatibilityMode())
-        {
-            e->UpdateEluna(t_diff);
-        }
-
-        e->OnMapUpdate(this, t_diff);
-    }
-#endif /* ENABLE_ELUNA */
-
     if (i_data)
     {
         i_data->Update(t_diff);
@@ -1133,13 +1073,6 @@ void Map::Update(const uint32& t_diff)
  */
 void Map::Remove(Player* player, bool remove)
 {
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnPlayerLeave(this, player);
-    }
-#endif /* ENABLE_ELUNA */
-
     if (i_data)
     {
         i_data->OnPlayerLeave(player);
@@ -2037,20 +1970,6 @@ void Map::AddObjectToRemoveList(WorldObject* obj)
 {
     MANGOS_ASSERT(obj->GetMapId() == GetId() && obj->GetInstanceId() == GetInstanceId());
 
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        if (Creature* creature = obj->ToCreature())
-        {
-            e->OnRemove(creature);
-        }
-        else if (GameObject* gameobject = obj->ToGameObject())
-        {
-            e->OnRemove(gameobject);
-        }
-    }
-#endif /* ENABLE_ELUNA */
-
     obj->CleanupsBeforeDelete();                            // remove or simplify at least cross referenced links
 
     i_objectsToRemove.insert(obj);
@@ -2308,13 +2227,6 @@ void Map::CreateInstanceData(bool load)
     {
         return;
     }
-
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        i_data = e->GetInstanceData(this);
-    }
-#endif /* ENABLE_ELUNA */
 
     uint32 i_script_id = GetScriptId();
 
@@ -3699,19 +3611,3 @@ bool Map::GetReachableRandomPosition(Unit* unit, float& x, float& y, float& z, f
     return false;
 }
 
-#ifdef ENABLE_ELUNA
-/**
- * @brief Returns the Eluna engine associated with this map.
- *
- * @return Eluna* The active Eluna instance.
- */
-Eluna* Map::GetEluna() const
-{
-    if (sElunaConfig->IsElunaCompatibilityMode())
-    {
-        return sWorld.GetEluna();
-    }
-
-    return eluna;
-}
-#endif /* ENABLE_ELUNA */

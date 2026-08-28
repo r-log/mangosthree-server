@@ -39,9 +39,6 @@
 #include "ObjectMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 // Return stored item (if stored to stack, it can diff. from pItem). And pItem ca be deleted in this case.
 Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update, int32 randomPropertyId)
@@ -344,15 +341,6 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
 
         ApplyEquipCooldown(pItem2);
 
-        // Used by Eluna
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = GetEluna())
-        {
-            e->OnEquip(this, pItem2, bag, slot); // This is depricated and will be removed in the future
-            e->OnItemEquip(this, pItem2, slot);
-        }
-#endif /* ENABLE_ELUNA */
-
         return pItem2;
     }
     // Apply Titan's Grip damage penalty if necessary
@@ -364,14 +352,6 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
     // only for full equip instead adding to stack
     GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM, pItem->GetEntry());
     GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM, slot + 1);
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnEquip(this, pItem, bag, slot); // This is depricated and will be removed in the future
-        e->OnItemEquip(this, pItem, slot);
-    }
-#endif /* ENABLE_ELUNA */
 
     return pItem;
 }
@@ -624,12 +604,6 @@ void Player::DestroyItem(uint8 bag, uint8 slot, bool update)
         }
 
         ItemRemovedQuestCheck(pItem->GetEntry(), pItem->GetCount());
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = GetEluna())
-        {
-            e->OnRemove(this, pItem);
-        }
-#endif /* ENABLE_ELUNA */
 
         if (bag == INVENTORY_SLOT_BAG_0)
         {

@@ -60,11 +60,6 @@
 #include "GameTime.h"
 // NOTE: movement/MovementStructures.h intentionally NOT included here - it defines
 // the MovementStatusElements sequence arrays at file scope (one-TU-only), owned by Unit.cpp.
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#include "ElunaConfig.h"
-#include "ElunaEventMgr.h"
-#endif /* ENABLE_ELUNA */
 
 #include <math.h>
 #include <stdarg.h>

@@ -51,9 +51,6 @@
 #include <mutex>
 #include <atomic>
 
-#ifdef ENABLE_ELUNA
-class Eluna;
-#endif /* ENABLE_ELUNA */
 class Object;
 class ObjectGuid;
 class WorldPacket;
@@ -707,11 +704,6 @@ class World
         * Access: public
         **/
         void InvalidatePlayerDataToAllClient(ObjectGuid guid);
-
-#ifdef ENABLE_ELUNA
-        Eluna* GetEluna() const { return eluna; }
-        Eluna* eluna;
-#endif /* ENABLE_ELUNA */
 
     protected:
         void _UpdateGameTime();

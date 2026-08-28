@@ -36,9 +36,6 @@
 #include "Opcodes.h"
 #include "Util.h"
 #include "Log.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @file GuildBank.cpp
@@ -431,14 +428,6 @@ bool Guild::MemberMoneyWithdraw(uint64 amount, uint32 LowGuid)
         CharacterDatabase.PExecute("UPDATE `guild_member` SET `BankRemMoney`='%u' WHERE `guildid`='%u' AND `guid`='%u'",
                                    itr->second.BankRemMoney, m_Id, LowGuid);
     }
-
-#ifdef ENABLE_ELUNA
-    Player* player = sObjectMgr.GetPlayer(ObjectGuid(HIGHGUID_PLAYER, LowGuid));
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnMemberWitdrawMoney(this, player, amount, false); // IsRepair not a part of Mangos, implement?
-    }
-#endif
 
     return true;
 }
@@ -862,13 +851,6 @@ void Guild::LogBankEvent(uint8 EventType, uint8 TabId, uint32 PlayerGuidLow, uin
 
         m_GuildBankEventLog_Item[TabId].push_back(NewEvent);
     }
-
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = sWorld.GetEluna())
-    {
-        e->OnBankEvent(this, EventType, TabId, PlayerGuidLow, ItemOrMoney, ItemStackCount, DestTabId);
-    }
-#endif
 
     // save event to database
     CharacterDatabase.PExecute("DELETE FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `LogGuid`='%u' AND `TabId`='%u'", m_Id, currentLogGuid, currentTabId);

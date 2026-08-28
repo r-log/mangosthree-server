@@ -77,9 +77,6 @@
 #include "TemporarySummon.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 /**
  * @brief Prepares the spell cast, validates conditions, and starts cast processing.
@@ -612,17 +609,6 @@ void Spell::cast(bool skipCheck)
 
         ((Player*)m_caster)->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL, m_spellInfo->ID);
     }
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = m_caster->GetEluna())
-    {
-        if (m_caster->GetTypeId() == TYPEID_PLAYER)
-        {
-            e->OnSpellCast(m_caster->ToPlayer(), this, skipCheck);
-        }
-    }
-#endif /* ENABLE_ELUNA */
 
     FillTargetMap();
 

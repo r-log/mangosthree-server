@@ -74,9 +74,6 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
-#ifdef ENABLE_ELUNA
-#include "LuaEngine.h"
-#endif /* ENABLE_ELUNA */
 
 #include <cmath>
 
@@ -277,14 +274,6 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea)
             wth->SendWeatherUpdateToPlayer(this);
         }
     }
-
-    // Used by Eluna
-#ifdef ENABLE_ELUNA
-    if (Eluna* e = GetEluna())
-    {
-        e->OnUpdateZone(this, newZone, newArea);
-    }
-#endif /* ENABLE_ELUNA */
 
     m_zoneUpdateId    = newZone;
     m_zoneUpdateTimer = ZONE_UPDATE_INTERVAL;
