@@ -113,6 +113,18 @@ target_link_libraries(mangos_tests
 
 add_test(NAME mangos_tests COMMAND mangos_tests)
 
+# The golden-vector generator. Run on the OpenSSL build, its stdout is CryptoGoldenVectors.h
+# and its stderr the timing baseline the in-house kernel is measured against:
+#   cmake --build <build> --config Release --target crypto_golden_capture
+#   <build>/src/tests/[Release/]crypto_golden_capture > src/tests/CryptoGoldenVectors.h 2> baseline.md
+# Not built by default. It captures what OpenSSL computes, so it leaves the tree with OpenSSL.
+add_executable(crypto_golden_capture EXCLUDE_FROM_ALL
+    tools/CryptoGoldenCapture.cpp
+    ${CMAKE_SOURCE_DIR}/src/realmd/Auth/Srp6.cpp)
+target_include_directories(crypto_golden_capture PRIVATE ${CMAKE_SOURCE_DIR}/src/realmd)
+target_link_libraries(crypto_golden_capture PRIVATE shared Threads::Threads mangos_openssl mangos_openssl_strict)
+set_target_properties(crypto_golden_capture PROPERTIES FOLDER "tests")
+
 add_test(NAME proto_boundary
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
