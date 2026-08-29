@@ -99,12 +99,22 @@ namespace MaNGOS
             return available;
         }
 
+        bool AssemblyTierCompiledIn()
+        {
+            return true;
+        }
+
         void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
         {
             mangos_montmul_adx(z, x, y, m, n0inv, k);
         }
 #else
         bool HasAsmTier()
+        {
+            return false;
+        }
+
+        bool AssemblyTierCompiledIn()
         {
             return false;
         }
@@ -196,6 +206,11 @@ namespace MaNGOS
         }
 
         bool HasAsmTier()
+        {
+            return false;
+        }
+
+        bool AssemblyTierCompiledIn()
         {
             return false;
         }

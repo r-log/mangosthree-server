@@ -62,6 +62,9 @@ namespace MaNGOS
         /// ADX -- ask HasAsmTier(); MontMulFor() routes other widths down a tier.
         void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k);
         bool HasAsmTier();
+        /// Whether this build carries the assembly tier at all (x86-64 Linux and MSVC
+        /// builds do); with it compiled in and the CPU able, the active tier must be `asm`.
+        bool AssemblyTierCompiledIn();
 
         /// The kernel selected on first use (CPUID: asm, then mulx, then portable;
         /// `MANGOS_CRYPTO_TIER=portable|mulx|asm` forces one that is available) and its

@@ -143,11 +143,18 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
             std::vector<Limb> m = OddModulus(k);
             m[k - 1] = top;
             m[0] |= 1;
-            for (int i = 0; i < 200; ++i)
+            std::vector<MontMulFn> kernels = { &MontMulPortable };
+            if (HasMulxTier()) kernels.push_back(&MontMulMulx);
+            if (HasAsmTier() && k % 4 == 0) kernels.push_back(&MontMulAsm);
+            for (MontMulFn kernel : kernels)
             {
-                CompareMontMul(&MontMulPortable, m, Below(m), Below(m));
+                for (int i = 0; i < 200; ++i)
+                {
+                    CompareMontMul(kernel, m, Below(m), Below(m));
+                }
+                CompareMontMul(kernel, m, MinusOne(m), MinusOne(m));
+                CompareMontMul(kernel, m, MinusOne(m), Below(m));
             }
-            CompareMontMul(&MontMulPortable, m, MinusOne(m), MinusOne(m));
         }
     }
 }

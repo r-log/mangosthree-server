@@ -19,6 +19,8 @@
 #include "Crypto/ModExp.h"
 #include "Crypto/Montgomery.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <random>
 #include <stdexcept>
@@ -194,6 +196,30 @@ TEST(CryptoMontgomery_portable_kernel_matches_the_definition)
             CheckKernel(&MontMulPortable, ctx, m - BigInt(1), m - BigInt(1));
             CheckKernel(&MontMulPortable, ctx, RandomBits(m.BitLength()) % m, RandomBits(m.BitLength()) % m);
         }
+    }
+}
+
+TEST(CryptoMontgomery_assembly_tier_runs_where_it_was_built)
+{
+    // Which kernel this run exercised is part of the test output, so a log shows it;
+    // and where the assembly tier was compiled in and the CPU can run it, it must be
+    // the active one -- a silent fall-back to a C++ tier is a wiring bug, not a pass.
+    const bool forced = std::getenv("MANGOS_CRYPTO_TIER") != nullptr;
+    std::printf("    tier: %s (assembly compiled in: %s; cpu bmi2+adx: %s; forced by environment: %s)\n",
+                ActiveTierName(), AssemblyTierCompiledIn() ? "yes" : "no", HasAsmTier() ? "yes" : "no", forced ? "yes" : "no");
+    if (AssemblyTierCompiledIn() && !HasAsmTier())
+    {
+        std::printf("    the assembly tier was built but this CPU cannot run it: not exercised in this run\n");
+    }
+    if (AssemblyTierCompiledIn() && HasAsmTier() && !forced)
+    {
+        CHECK_STR(ActiveTierName(), "asm");
+        CHECK(ActiveMontMul() == &MontMulAsm);
+    }
+    if (!AssemblyTierCompiledIn())
+    {
+        CHECK(!HasAsmTier());
+        CHECK(ActiveMontMul() != &MontMulAsm);
     }
 }
 

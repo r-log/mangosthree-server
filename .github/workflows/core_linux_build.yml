@@ -86,6 +86,13 @@ jobs:
       - name: Test
         run: ctest --test-dir "$BUILD_DIR" --output-on-failure
 
+      # The assembly tier of the Montgomery kernel must be the one that ran here: a
+      # silent fall-back to a C++ tier (a CPU without ADX, a wiring mistake) would pass
+      # every test without executing the listing. The runners have BMI2 and ADX.
+      - name: Check the assembly tier ran
+        run: |
+          "$BUILD_DIR/src/tests/mangos_tests" -only CryptoMontgomery_assembly_tier | tee /dev/stderr | grep -q "tier: asm"
+
       - name: Install
         run: cmake --install "$BUILD_DIR"
 

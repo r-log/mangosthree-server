@@ -248,6 +248,13 @@ jobs:
         shell: bash
         run: ctest --test-dir "$BUILD_DIR" --output-on-failure
 
+      # The assembly tier of the Montgomery kernel must be the one that ran here (see the
+      # Linux workflow); the ml64-assembled twin is what this job exercises.
+      - name: Check the assembly tier ran
+        shell: bash
+        run: |
+          "$BUILD_DIR/src/tests/mangos_tests.exe" -only CryptoMontgomery_assembly_tier | tee /dev/stderr | grep -q "tier: asm"
+
       - name: Install
         shell: bash
         run: cmake --install "$BUILD_DIR"
