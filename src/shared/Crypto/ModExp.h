@@ -34,6 +34,21 @@ namespace MaNGOS
     namespace Crypto
     {
         /**
+         * @brief Whether the exponent is a secret.
+         *
+         * Secret (the private exponent, SRP6's b and x): the exponent is padded to the
+         * modulus width and every window is processed, so the work depends on the widths
+         * alone. Public (65537 in RSA, the client's side of the protocol): the exponent's
+         * own bit length is used -- 17 bits cost 17 squarings, not 2048. Nothing else
+         * differs; the two give the same result.
+         */
+        enum class ExponentKind
+        {
+            Secret,
+            Public
+        };
+
+        /**
          * @brief base^exponent mod m over a Montgomery context: the constant-time path.
          *
          * Fixed windows (5 bits for 16 limbs and up, 4 below), the exponent copied into
@@ -42,7 +57,8 @@ namespace MaNGOS
          * fetched by a masked pass over the whole table -- no secret decides a branch or
          * an address. The base may be any width; it is reduced on the way in.
          */
-        BigInt ModExp(const BigInt& base, const BigInt& exponent, const MontgomeryContext& context);
+        BigInt ModExp(const BigInt& base, const BigInt& exponent, const MontgomeryContext& context,
+                      ExponentKind kind = ExponentKind::Secret);
 
         /**
          * @brief base^exponent mod m for any modulus.
@@ -52,7 +68,8 @@ namespace MaNGOS
          * multiply with division -- the protocols never exponentiate under such a
          * modulus, so that path is never secret-dependent. m = 0 is fatal; m = 1 gives 0.
          */
-        BigInt ModExp(const BigInt& base, const BigInt& exponent, const BigInt& m);
+        BigInt ModExp(const BigInt& base, const BigInt& exponent, const BigInt& m,
+                      ExponentKind kind = ExponentKind::Secret);
 
         /// a^-1 mod m, or zero when gcd(a, m) != 1 or m < 2. Extended Euclid: variable
         /// time, for public or fresh random operands (the blinding factor, key generation).

@@ -87,6 +87,8 @@ set(SRC_GRP_TESTS
     CryptoMontgomeryTest.cpp
     CryptoRsaTest.cpp
     RsaTestKey.h
+    CryptoOracleTest.cpp
+    CryptoBench.cpp
     BigIntVectors.h
     CryptoGoldenVectors.h
     ${CMAKE_SOURCE_DIR}/src/realmd/Auth/Srp6.cpp
@@ -119,6 +121,15 @@ target_link_libraries(mangos_tests
         Threads::Threads
         mangos_openssl_strict
 )
+
+# The big-integer oracle (src/tests/oracle): s2n-bignum's proved routines, assembled where
+# their GAS sources build -- Linux x86-64, GCC or Clang -- and compared with the in-house
+# kernels in CryptoOracleTest. Elsewhere the same comparisons run against the Python vectors.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64" AND NOT MSVC)
+    add_subdirectory(oracle)
+    target_link_libraries(mangos_tests PRIVATE s2n_bignum_oracle)
+    target_compile_definitions(mangos_tests PRIVATE MANGOS_CRYPTO_ORACLE=1)
+endif()
 
 add_test(NAME mangos_tests COMMAND mangos_tests)
 

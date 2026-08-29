@@ -222,10 +222,12 @@ TEST(CryptoModExp_matches_python)
     {
         const BigInt base = FromHex(v.base), e = FromHex(v.exp), m = FromHex(v.mod);
         CHECK_STR(ModExp(base, e, m).ToHex(), v.result);
+        CHECK_STR(ModExp(base, e, m, ExponentKind::Public).ToHex(), v.result);
         if (m.IsOdd() && m.LimbCount() >= 2)
         {
             MontgomeryContext ctx(m);
             CHECK_STR(ModExp(base, e, ctx).ToHex(), v.result);
+            CHECK_STR(ModExp(base, e, ctx, ExponentKind::Public).ToHex(), v.result);
         }
     }
 }

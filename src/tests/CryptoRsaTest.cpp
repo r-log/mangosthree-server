@@ -140,6 +140,26 @@ TEST(CryptoRsa_random_messages_round_trip_and_both_paths_agree)
     CHECK(recovered == big);
 }
 
+TEST(CryptoRsa_blinding_pair_stays_consistent_across_refreshes)
+{
+    // The pair (r^e, r^-1) is squared after every use and drawn afresh every 32
+    // signatures: across 70 signatures of the same message -- two refreshes and every
+    // squaring in between -- the result must be the golden signature every time.
+    RsaPrivateKey key;
+    REQUIRE(LoadCrt(key));
+    std::vector<uint8_t> message, signature;
+    REQUIRE(FromHex(golden::kRsa[0].message, message));
+    for (int i = 0; i < 70; ++i)
+    {
+        CHECK(key.SignRaw(message.data(), message.size(), signature, SystemRandom::Instance()));
+        CHECK_HEX(signature.data(), signature.size(), Lower(golden::kRsa[0].signature));
+    }
+    // reloading resets the pair; the signature is unchanged
+    REQUIRE(LoadPlain(key));
+    CHECK(key.SignRaw(message.data(), message.size(), signature, SystemRandom::Instance()));
+    CHECK_HEX(signature.data(), signature.size(), Lower(golden::kRsa[0].signature));
+}
+
 TEST(CryptoRsa_refuses_wrong_widths_and_messages_not_below_n)
 {
     RsaPrivateKey key;

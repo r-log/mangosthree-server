@@ -46,6 +46,8 @@ namespace MaNGOS
 
         RsaPrivateKey::~RsaPrivateKey()
         {
+            m_blindingFactor.SecureClear();
+            m_blindingInverse.SecureClear();
             m_d.SecureClear();
             m_p.SecureClear();
             m_q.SecureClear();
@@ -63,6 +65,12 @@ namespace MaNGOS
             m_crt = false;
             m_pContext.reset();
             m_qContext.reset();
+            {
+                std::lock_guard<std::mutex> guard(m_blindingLock);
+                m_blindingFactor.SecureClear();
+                m_blindingInverse.SecureClear();
+                m_blindingUses = 0;
+            }
             if (!m_public.Load(n, e) || d.IsZero() || d >= n)
             {
                 return false;
@@ -163,6 +171,42 @@ namespace MaNGOS
             return ModExp(m, m_d, m_public.Context());
         }
 
+        void RsaPrivateKey::NextBlinding(BigInt& factor, BigInt& inverse, SystemRandom& random) const
+        {
+            // Called with the lock held. Every 32 uses: a fresh r, invertible, with
+            // r^e and r^-1. Otherwise: square both -- they stay a matching pair for r^2.
+            const BigInt& n = m_public.Modulus();
+            if (m_blindingUses == 0 || m_blindingUses >= BlindingRefreshInterval || m_blindingInverse.IsZero())
+            {
+                for (;;)
+                {
+                    BigInt r = random.Below(n);
+                    if (r < BigInt(2))
+                    {
+                        continue;
+                    }
+                    BigInt rInverse = ModInverse(r, n);
+                    if (rInverse.IsZero())
+                    {
+                        continue;
+                    }
+                    m_blindingFactor = ModExp(r, m_public.Exponent(), m_public.Context(), ExponentKind::Public);
+                    m_blindingInverse = rInverse;
+                    r.SecureClear();
+                    break;
+                }
+                m_blindingUses = 0;
+            }
+            else
+            {
+                m_blindingFactor = (m_blindingFactor * m_blindingFactor) % n;
+                m_blindingInverse = (m_blindingInverse * m_blindingInverse) % n;
+            }
+            ++m_blindingUses;
+            factor = m_blindingFactor;
+            inverse = m_blindingInverse;
+        }
+
         bool RsaPrivateKey::SignRaw(const uint8_t* message, size_t length, std::vector<uint8_t>& signature, SystemRandom& random) const
         {
             if (!Loaded() || length != Bytes())
@@ -176,27 +220,18 @@ namespace MaNGOS
                 return false;
             }
 
-            // Blinding: r fresh and invertible, m' = m * r^e, s = (m')^d * r^-1.
-            BigInt r, rInverse;
-            for (;;)
+            // Blinding: m' = m * r^e, s = (m')^d * r^-1 = m^d.
+            BigInt factor, inverse;
             {
-                r = random.Below(n);
-                if (r < BigInt(2))
-                {
-                    continue;
-                }
-                rInverse = ModInverse(r, n);
-                if (!rInverse.IsZero())
-                {
-                    break;
-                }
+                std::lock_guard<std::mutex> guard(m_blindingLock);
+                NextBlinding(factor, inverse, random);
             }
-            BigInt blinded = (m * ModExp(r, m_public.Exponent(), m_public.Context())) % n;
-            BigInt s = (PrivateOperation(blinded) * rInverse) % n;
+            BigInt blinded = (m * factor) % n;
+            BigInt s = (PrivateOperation(blinded) * inverse) % n;
             signature = s.ToBytesBE(length);
 
-            r.SecureClear();
-            rInverse.SecureClear();
+            factor.SecureClear();
+            inverse.SecureClear();
             blinded.SecureClear();
             s.SecureClear();
             m.SecureClear();
@@ -214,7 +249,7 @@ namespace MaNGOS
             {
                 return false;
             }
-            const BigInt m = ModExp(s, key.Exponent(), key.Context());
+            const BigInt m = ModExp(s, key.Exponent(), key.Context(), ExponentKind::Public);
             message = m.ToBytesBE(length);
             return !message.empty();
         }

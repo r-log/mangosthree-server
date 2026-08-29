@@ -78,6 +78,11 @@ jobs:
       - name: Build
         run: cmake --build "$BUILD_DIR" --parallel
 
+      # The s2n-bignum oracle must exist on these jobs: if it silently vanished, the kernel
+      # comparisons in CryptoOracleTest would vanish with it.
+      - name: Check the big-integer oracle was built
+        run: cmake --build "$BUILD_DIR" --target s2n_bignum_oracle
+
       - name: Test
         run: ctest --test-dir "$BUILD_DIR" --output-on-failure
 

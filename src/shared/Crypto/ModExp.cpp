@@ -52,10 +52,13 @@ namespace MaNGOS
             }
         }
 
-        BigInt ModExp(const BigInt& base, const BigInt& exponent, const MontgomeryContext& context)
+        BigInt ModExp(const BigInt& base, const BigInt& exponent, const MontgomeryContext& context, ExponentKind kind)
         {
             const size_t k = context.Limbs();
-            const unsigned w = k >= 16 ? 5 : 4;
+            // A short public exponent (65537) is cheapest with no table at all: one
+            // squaring per bit and a multiplication only where a bit is set.
+            const bool shortPublic = kind == ExponentKind::Public && exponent.BitLength() <= 64;
+            const unsigned w = shortPublic ? 1 : (k >= 16 ? 5 : 4);
             const size_t tableSize = size_t(1) << w;
 
             // The table of base^0 .. base^(2^w - 1) in Montgomery form.
@@ -71,14 +74,16 @@ namespace MaNGOS
             }
 
             // The exponent, zero-padded to a fixed width: k limbs, or its own limb count
-            // if that is larger (a public quantity either way).
-            const size_t exponentLimbs = std::max(k, exponent.LimbCount());
+            // if that is larger (a public quantity either way). A public exponent is
+            // walked over its own bit length instead.
+            const size_t exponentLimbs = std::max<size_t>(1, std::max(k, exponent.LimbCount()));
             std::vector<Limb> e(exponentLimbs, 0);
             for (size_t j = 0; j < exponent.LimbCount(); ++j)
             {
                 e[j] = exponent.Limbs()[j];
             }
-            const size_t windows = (exponentLimbs * LimbBits + w - 1) / w;
+            const size_t bits = kind == ExponentKind::Public ? exponent.BitLength() : exponentLimbs * LimbBits;
+            const size_t windows = (bits + w - 1) / w;
 
             std::vector<Limb> acc(k), selected(k);
             for (size_t j = 0; j < k; ++j)
@@ -92,6 +97,15 @@ namespace MaNGOS
                     context.Sqr(acc.data(), acc.data());
                 }
                 const Limb index = Window(e.data(), exponentLimbs, win * w, w);
+                if (shortPublic)
+                {
+                    // The exponent is public: a zero window costs nothing.
+                    if (index)
+                    {
+                        context.Mul(acc.data(), acc.data(), &table[k]);
+                    }
+                    continue;
+                }
                 // Fetch table[index] by touching every entry: no address depends on the exponent.
                 for (size_t j = 0; j < k; ++j)
                 {
@@ -117,7 +131,7 @@ namespace MaNGOS
             return result;
         }
 
-        BigInt ModExp(const BigInt& base, const BigInt& exponent, const BigInt& m)
+        BigInt ModExp(const BigInt& base, const BigInt& exponent, const BigInt& m, ExponentKind kind)
         {
             if (m.IsZero())
             {
@@ -130,7 +144,7 @@ namespace MaNGOS
             if (m.IsOdd() && m.LimbCount() >= 2)
             {
                 MontgomeryContext context(m);
-                return ModExp(base, exponent, context);
+                return ModExp(base, exponent, context, kind);
             }
             // Plain square-and-multiply with division: the public, non-Montgomery path.
             BigInt result(1);

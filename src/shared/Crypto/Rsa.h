@@ -32,6 +32,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <optional>
 #include <vector>
 
@@ -94,17 +95,24 @@ namespace MaNGOS
              * @brief signature = message^d mod n, big-endian at the modulus width.
              *
              * `length` must equal Bytes() and the message must be below n (false
-             * otherwise). Blinded: a fresh random r masks the message before the
-             * private operation and is removed after it, so the exponentiation's timing
-             * is decorrelated from the message; the exponentiation itself is the
-             * constant-time ModExp. The result is not verified here -- the caller does
-             * that with the public key, which also catches a faulty CRT computation.
+             * otherwise). Blinded: a random factor masks the message before the private
+             * operation and is removed after it, so the exponentiation's timing is
+             * decorrelated from the message; the exponentiation itself is the
+             * constant-time ModExp. The blinding pair (r^e, r^-1) is kept and squared
+             * after every use, and drawn afresh every 32 signatures -- the scheme of
+             * OpenSSL's BN_BLINDING; an inversion per signature would cost as much as a
+             * CRT half. The result is not verified here -- the caller does that with the
+             * public key, which also catches a faulty CRT computation. Thread-safe.
              */
             bool SignRaw(const uint8_t* message, size_t length, std::vector<uint8_t>& signature, SystemRandom& random) const;
+
+            /// How many signatures a blinding pair serves before it is drawn afresh.
+            static constexpr unsigned BlindingRefreshInterval = 32;
 
         private:
             BigInt PrivateOperation(const BigInt& m) const;
             BigInt CrtOperation(const BigInt& m) const;
+            void NextBlinding(BigInt& factor, BigInt& inverse, SystemRandom& random) const;
 
             RsaPublicKey m_public;
             BigInt m_d;
@@ -112,6 +120,11 @@ namespace MaNGOS
             BigInt m_p, m_q, m_dP, m_dQ, m_qInv;
             std::optional<MontgomeryContext> m_pContext, m_qContext;
             std::vector<Limb> m_qInvMont;   // qInv in Montgomery form modulo p
+
+            mutable std::mutex m_blindingLock;
+            mutable BigInt m_blindingFactor;    // r^e mod n
+            mutable BigInt m_blindingInverse;   // r^-1 mod n
+            mutable unsigned m_blindingUses = 0;
         };
 
         /// message = signature^e mod n, big-endian at the modulus width. `length` must
