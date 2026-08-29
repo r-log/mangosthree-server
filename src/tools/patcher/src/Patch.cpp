@@ -56,7 +56,14 @@ SiteReport InspectCodeSite(const ClientFile& file, const CodeSite& site) {
     r.name = site.name;
     r.va = site.va;
 
-    const std::optional<std::size_t> off = file.pe().FileOffsetOf(site.va);
+    std::optional<std::size_t> off;
+    if (site.by_file_offset) {
+        off = site.file_offset;
+        const std::optional<std::uint64_t> va = file.pe().VirtualAddressOf(site.file_offset);
+        r.va = va.value_or(0);
+    } else {
+        off = file.pe().FileOffsetOf(site.va);
+    }
     if (!off.has_value()) {
         r.state = SiteState::Missing;
         r.detail = "address not backed by file bytes";
@@ -65,10 +72,13 @@ SiteReport InspectCodeSite(const ClientFile& file, const CodeSite& site) {
     r.file_offset = *off;
 
     std::vector<std::uint8_t> now;
-    if (!file.ReadAtVa(site.va, site.expect.size(), now)) {
+    if (*off > file.size() || file.size() - *off < site.expect.size()) {
         r.state = SiteState::Missing;
+        r.detail = "offset not backed by file bytes";
         return r;
     }
+    now.assign(file.bytes().begin() + static_cast<std::ptrdiff_t>(*off),
+               file.bytes().begin() + static_cast<std::ptrdiff_t>(*off + site.expect.size()));
 
     if (now == site.expect) {
         r.state = SiteState::Stock;
@@ -164,10 +174,29 @@ ApplyResult Apply(ClientFile& file, const ClientReport& report,
         result.error = "unknown client: no target for machine " + report.machine;
         return result;
     }
+    if (!report.target->forbidden_sites_known) {
+        result.error =
+            "refusing: the MaNGOSPatcher edit sites are not verified for " +
+            report.target->label +
+            " yet, so a collapsed-stream client cannot be told from a stock one. "
+            "Patch the 32-bit client.";
+        return result;
+    }
     if (report.HasForbiddenEdits()) {
         result.error =
             "refusing: a MaNGOSPatcher-style edit is present. That client forces "
             "every opcode onto stream 0 and cannot run the dual-stream protocol.";
+        return result;
+    }
+    // Only an image whose layout is known is written into: the stock client (by
+    // hash), or one this tool already patched (its own launcher bytes are there).
+    // Anything else is some other build or somebody else's edit.
+    if (!report.sha256_is_stock && report.launcher.state != SiteState::Applied &&
+        !options.allow_modified) {
+        result.error =
+            "refusing: this is not the stock " + report.target->label +
+            " (SHA-256 differs) and it does not carry this tool's launcher patch, so "
+            "its layout is unknown. Pass --allow-modified to patch it anyway.";
         return result;
     }
 
@@ -189,7 +218,10 @@ ApplyResult Apply(ClientFile& file, const ClientReport& report,
             result.actions.push_back("modulus already current");
         } else {
             if (!options.dry_run) {
-                file.WriteAtOffset(report.modulus.file_offset, options.modulus_le);
+                if (!file.WriteAtOffset(report.modulus.file_offset, options.modulus_le)) {
+                    result.error = "write outside the image";
+                    return result;
+                }
             }
             result.changed = true;
             result.actions.push_back("modulus written (256 B)");
@@ -213,7 +245,10 @@ ApplyResult Apply(ClientFile& file, const ClientReport& report,
             result.actions.push_back("DIGEST20 already current");
         } else {
             if (!options.dry_run) {
-                file.WriteAtOffset(report.digest.file_offset, options.digest20);
+                if (!file.WriteAtOffset(report.digest.file_offset, options.digest20)) {
+                    result.error = "write outside the image";
+                    return result;
+                }
             }
             result.changed = true;
             result.actions.push_back("DIGEST20 written (20 B)");
@@ -227,8 +262,11 @@ ApplyResult Apply(ClientFile& file, const ClientReport& report,
                 break;
             case SiteState::Stock: {
                 if (!options.dry_run) {
-                    file.WriteAtOffset(report.launcher.file_offset,
-                                       report.target->launcher.patch);
+                    if (!file.WriteAtOffset(report.launcher.file_offset,
+                                       report.target->launcher.patch)) {
+                        result.error = "write outside the image";
+                        return result;
+                    }
                 }
                 result.changed = true;
                 result.actions.push_back("launcher bypass written (mov eax,1)");

@@ -15,6 +15,12 @@ struct CodeSite {
     std::uint64_t va = 0;
     std::vector<std::uint8_t> expect;
     std::vector<std::uint8_t> patch;
+    // Some sites are known by file offset rather than by address: the
+    // MaNGOSPatcher table (mangosthree/tools) records what it rewrites that
+    // way. When set, `file_offset` locates the site and `va` is derived from
+    // the section table for the report.
+    bool by_file_offset = false;
+    std::size_t file_offset = 0;
 };
 
 // A blob located by its stock content, then cross-checked against the virtual
@@ -39,6 +45,11 @@ struct Target {
     // MaNGOSPatcher client: the recv gate is dead and every opcode is forced
     // onto stream 0, which disables the dual-stream architecture.
     std::vector<CodeSite> forbidden;
+    // False until the MaNGOSPatcher edit sites of this image have been verified.
+    // Without them a collapsed-stream client cannot be told from a stock one, so
+    // the tool refuses to patch the image at all rather than claim a check it
+    // does not make.
+    bool forbidden_sites_known = false;
 };
 
 const std::vector<Target>& KnownTargets();

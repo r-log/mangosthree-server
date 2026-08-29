@@ -31,6 +31,7 @@ const char* kUsage =
     "  --no-launcher               leave the manifest/Launcher check alone\n"
     "  --no-backup                 do not write <exe>.bak\n"
     "  --dry-run                   report what would change, write nothing\n"
+    "  --allow-modified            patch an image that is neither stock nor already ours\n"
     "\n"
     "The three patches are modulus, DIGEST20 and the launcher bypass. This tool\n"
     "refuses to touch a client whose recv gate or send-slot routing has been\n"
@@ -119,8 +120,8 @@ int PrintReport(const ClientFile& file, const ClientReport& report) {
     for (const SiteReport& s : report.forbidden) {
         PrintSite(s);
     }
-    if (report.forbidden.empty()) {
-        std::cout << "  (no verified MaNGOSPatcher sites for this machine; not checked)\n";
+    if (!report.target->forbidden_sites_known) {
+        std::cout << "  (no verified MaNGOSPatcher sites for this machine; cannot be certified)\n";
     }
 
     if (report.HasForbiddenEdits()) {
@@ -129,7 +130,11 @@ int PrintReport(const ClientFile& file, const ClientReport& report) {
         return 3;
     }
 
-    const bool ready = report.modulus.state == SiteState::Applied &&
+    // All three sites, or the client passes every check here and is still refused
+    // by the realm: a stock DIGEST20 rejects any auth blob but the stock one.
+    const bool ready = report.target->forbidden_sites_known &&
+                       report.modulus.state == SiteState::Applied &&
+                       report.digest.state == SiteState::Applied &&
                        report.launcher.state == SiteState::Applied;
     std::cout << "\nVERDICT    " << (ready ? "patched for MaNGOS" : "not fully patched")
               << "\n";
@@ -178,6 +183,8 @@ int CommandApply(const std::string& path, const std::vector<std::string>& args) 
             options.backup = false;
         } else if (a == "--dry-run") {
             options.dry_run = true;
+        } else if (a == "--allow-modified") {
+            options.allow_modified = true;
         } else {
             std::cerr << "error: unknown option " << a << "\n";
             return 4;

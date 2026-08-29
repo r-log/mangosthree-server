@@ -47,6 +47,9 @@ struct ApplyOptions {
     bool launcher = true;
     bool backup = true;
     bool dry_run = false;
+    // Patch an image that is neither the stock client nor one this tool patched
+    // before. Its layout is then a guess.
+    bool allow_modified = false;
 };
 
 struct ApplyResult {

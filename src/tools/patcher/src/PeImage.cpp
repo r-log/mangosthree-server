@@ -12,7 +12,7 @@ constexpr std::uint16_t kOptionalPe32Plus = 0x020B;
 constexpr std::size_t kSectionHeaderSize = 40;
 
 bool Read16(const std::vector<std::uint8_t>& f, std::size_t off, std::uint16_t& out) {
-    if (off + 2 > f.size()) {
+    if (off > f.size() || f.size() - off < 2) {
         return false;
     }
     out = static_cast<std::uint16_t>(f[off]) |
@@ -21,7 +21,7 @@ bool Read16(const std::vector<std::uint8_t>& f, std::size_t off, std::uint16_t& 
 }
 
 bool Read32(const std::vector<std::uint8_t>& f, std::size_t off, std::uint32_t& out) {
-    if (off + 4 > f.size()) {
+    if (off > f.size() || f.size() - off < 4) {
         return false;
     }
     out = static_cast<std::uint32_t>(f[off]) |
@@ -100,13 +100,14 @@ std::optional<PeImage> PeImage::Parse(const std::vector<std::uint8_t>& file,
         return std::nullopt;
     }
 
-    const std::size_t table = optional + optional_size;
+    const std::uint64_t table = static_cast<std::uint64_t>(optional) + optional_size;
     for (std::uint16_t i = 0; i < section_count; ++i) {
-        const std::size_t off = table + static_cast<std::size_t>(i) * kSectionHeaderSize;
-        if (off + kSectionHeaderSize > file.size()) {
+        const std::uint64_t off64 = table + static_cast<std::uint64_t>(i) * kSectionHeaderSize;
+        if (off64 > file.size() || file.size() - off64 < kSectionHeaderSize) {
             error = "truncated section table";
             return std::nullopt;
         }
+        const std::size_t off = static_cast<std::size_t>(off64);
         Section s;
         const char* raw_name = reinterpret_cast<const char*>(file.data() + off);
         s.name.assign(raw_name, ::strnlen(raw_name, 8));
@@ -133,7 +134,7 @@ std::optional<std::uint64_t> PeImage::VirtualAddressOf(std::size_t file_offset) 
             continue;
         }
         if (file_offset >= s.raw_pointer &&
-            file_offset < static_cast<std::size_t>(s.raw_pointer) + s.raw_size) {
+            file_offset < static_cast<std::uint64_t>(s.raw_pointer) + s.raw_size) {
             const std::uint64_t delta = file_offset - s.raw_pointer;
             return image_base_ + s.virtual_address + delta;
         }
@@ -153,7 +154,7 @@ std::optional<std::size_t> PeImage::FileOffsetOf(std::uint64_t va) const {
             if (delta >= s.raw_size) {
                 return std::nullopt;  // in the zero-fill tail, not in the file
             }
-            return static_cast<std::size_t>(s.raw_pointer + delta);
+            return static_cast<std::size_t>(static_cast<std::uint64_t>(s.raw_pointer) + delta);
         }
     }
     return std::nullopt;
