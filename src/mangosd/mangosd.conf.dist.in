@@ -101,7 +101,8 @@ ConfVersion=@MANGOS_WORLD_VER@
 #
 #    Redirect.Timeout
 #        Milliseconds to wait for a client to come back on the second port before
-#        the pending redirect is discarded and reissued.
+#        the pending redirect is discarded and reissued. The same value paces the
+#        session's redirect attempts (three, then the client is kicked).
 #        Default: 15000
 #
 #    Redirect.Stream1Crypt

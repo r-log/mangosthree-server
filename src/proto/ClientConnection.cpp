@@ -153,6 +153,7 @@ namespace proto
         m_traceSession.store(ticket.session, std::memory_order_relaxed);
         m_links       = ticket.links;
         m_redirectKey = ticket.sessionKey;
+        m_redirectGeneration = ticket.generation;
         return true;
     }
 
@@ -219,8 +220,16 @@ namespace proto
             return false;
         }
 
+        if (!links->AttachSlotOne(std::static_pointer_cast<ClientConnection>(shared_from_this()),
+                                  m_redirectGeneration))
+        {
+            // A redirect issued after this one superseded it; the live stream is
+            // the newer socket's. This one answered too late to be anything.
+            sLog.outError("proto: stream 1 from %s answers a superseded redirect for "
+                          "session %u; refusing it", m_address.c_str(), m_session);
+            return false;
+        }
         m_role = ConnRole::Live1;
-        links->AttachSlotOne(std::static_pointer_cast<ClientConnection>(shared_from_this()));
 
         DEBUG_LOG("proto: stream 1 live for session %u from %s",
                   m_session, m_address.c_str());
@@ -570,7 +579,7 @@ namespace proto
         {
             if (const std::shared_ptr<SessionLinks> links = m_links.lock())
             {
-                links->DetachSlotOne();
+                links->DetachSlotOne(this);
             }
             m_links.reset();
 

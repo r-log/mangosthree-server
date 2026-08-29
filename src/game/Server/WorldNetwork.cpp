@@ -61,8 +61,8 @@ namespace
 WorldNetwork::WorldNetwork()
     : m_streamPort(0),
       m_gateway(),
-      m_redirects(std::chrono::milliseconds(
-          sConfig.GetIntDefault("Redirect.Timeout", DEFAULT_REDIRECT_TIMEOUT_MS))),
+      m_redirectTimeout(sConfig.GetIntDefault("Redirect.Timeout", DEFAULT_REDIRECT_TIMEOUT_MS)),
+      m_redirects(m_redirectTimeout),
       m_listener(m_gateway, m_redirects, MakePolicy(proto::ConnRole::Live0)),
       m_streamListener(m_gateway, m_redirects, MakePolicy(proto::ConnRole::Staging1))
 {
@@ -183,11 +183,11 @@ uint32 WorldNetwork::GetOpenConnectionCount() const
     return proto::ClientConnection::GetOpenConnectionCount();
 }
 
-bool WorldNetwork::RequestSecondStream(const proto::RedirectTicket& ticket)
+RedirectRequest WorldNetwork::RequestSecondStream(const proto::RedirectTicket& ticket)
 {
     if (!m_signer.IsLoaded() || !ticket.links)
     {
-        return false;
+        return RedirectRequest::Failed;
     }
 
     // The client refuses a redirect while one is already staged for that stream,
@@ -195,7 +195,7 @@ bool WorldNetwork::RequestSecondStream(const proto::RedirectTicket& ticket)
     // back. Both cases are the registry declining to open a second ticket.
     if (!m_redirects.Open(ticket))
     {
-        return false;
+        return RedirectRequest::Busy;
     }
 
     WorldPacket packet;
@@ -203,13 +203,16 @@ bool WorldNetwork::RequestSecondStream(const proto::RedirectTicket& ticket)
                                  m_streamPort, proto::LinkSlot::One, packet))
     {
         m_redirects.Cancel(ticket.session);
-        return false;
+        return RedirectRequest::Failed;
     }
+
+    // From here on only a socket answering this generation may become stream 1.
+    ticket.links->ExpectSlotOne(ticket.generation);
 
     // On the stream the client already has -- the redirect is what creates the
     // other one, so it cannot travel on it.
     ticket.links->SendOn(proto::LinkSlot::Zero, packet);
-    return true;
+    return RedirectRequest::Sent;
 }
 
 void WorldNetwork::CancelSecondStream(proto::SessionId session)

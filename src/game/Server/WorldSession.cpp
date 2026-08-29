@@ -84,11 +84,6 @@
 
 namespace
 {
-    /// How long to wait for a client to come back on its second stream before
-    /// asking again. One TCP connect plus the client's own promotion, with room
-    /// for a slow link.
-    const std::chrono::seconds SECOND_STREAM_RETRY_DELAY(10);
-
     /// Redirects to send before giving up on a session. A client that has
     /// refused this many is not going to accept the next one either -- its
     /// modulus is not ours -- and leaving it sitting at the loading screen tells
@@ -1369,20 +1364,49 @@ void WorldSession::BeginSecondStream(std::unique_ptr<WorldPacket> deferredLogin)
 
 void WorldSession::UpdateSecondStream()
 {
-    if (!m_deferredLogin)
+    if (!m_Socket)
     {
         return;
     }
 
-    // The client came back. Put the login back in the queue rather than running
-    // it here: this method is reached from Map::Update as well as from
-    // World::UpdateSessions, and CMSG_PLAYER_LOGIN is thread-unsafe. Requeued,
-    // it is dispatched in the context the opcode table asks for, and the
-    // interception above lets it through now that the second stream is live.
-    if (HasSecondStream())
+    const bool live = HasSecondStream();
+
+    if (!m_deferredLogin)
     {
+        // Before login nothing is expected on stream 1. After it, losing the
+        // stream is a fault to recover from: the player is still in the world on
+        // stream 0, and everything routed to slot 1 is queueing behind a socket
+        // that is gone. Ask the client to open it again, on the same budget a
+        // login gets; a client that will not is kicked with a line in the log,
+        // not left with half its traffic silently dropped.
+        if (!m_secondStreamWanted || m_Socket->IsClosed())
+        {
+            return;
+        }
+        if (live)
+        {
+            m_secondStreamRecovering = false;
+            return;
+        }
+        if (!m_secondStreamRecovering)
+        {
+            sLog.outError("WorldSession: account %u lost its second world stream; "
+                          "asking the client to open it again", GetAccountId());
+            m_secondStreamRecovering = true;
+            m_secondStreamAttempts = 0;
+            m_secondStreamDeadline = std::chrono::steady_clock::time_point();
+        }
+    }
+    else if (live)
+    {
+        // The client came back. Put the login back in the queue rather than running
+        // it here: this method is reached from Map::Update as well as from
+        // World::UpdateSessions, and CMSG_PLAYER_LOGIN is thread-unsafe. Requeued,
+        // it is dispatched in the context the opcode table asks for, and the
+        // interception above lets it through now that the second stream is live.
         sWorldNetwork.CancelSecondStream(GetSessionId());
         QueuePacket(m_deferredLogin.release());
+        m_secondStreamWanted = true;
         return;
     }
 
@@ -1395,9 +1419,11 @@ void WorldSession::UpdateSecondStream()
 
     if (m_secondStreamAttempts >= MAX_SECOND_STREAM_ATTEMPTS)
     {
-        sLog.outError("WorldSession: account %u never opened its second world stream "
+        sLog.outError("WorldSession: account %u %s its second world stream "
                       "after %u attempts; its client is not running our redirect key",
-                      GetAccountId(), m_secondStreamAttempts);
+                      GetAccountId(),
+                      m_secondStreamRecovering ? "did not reopen" : "never opened",
+                      m_secondStreamAttempts);
         m_deferredLogin.reset();
         KickPlayer();
         return;
@@ -1413,16 +1439,31 @@ void WorldSession::UpdateSecondStream()
     ticket.session       = GetSessionId();
     ticket.sessionKey    = m_sessionKey;
     ticket.links         = m_Socket;
+    ticket.generation    = ++m_secondStreamGeneration;
 
-    m_secondStreamDeadline = now + SECOND_STREAM_RETRY_DELAY;
+    // The same setting bounds the registry's ticket and this wait, so the two
+    // never disagree about how long a redirect is worth waiting for.
+    m_secondStreamDeadline = now + sWorldNetwork.GetRedirectTimeout();
 
-    // Only an emitted redirect counts against the budget. A refusal here means
-    // another client behind the same address is mid-redirect, which is queueing
-    // rather than failing, and burning the budget on it would kick whoever
-    // happens to log in second from a shared address.
-    if (sWorldNetwork.RequestSecondStream(ticket))
+    switch (sWorldNetwork.RequestSecondStream(ticket))
     {
-        ++m_secondStreamAttempts;
+        case RedirectRequest::Sent:
+            ++m_secondStreamAttempts;
+            break;
+        case RedirectRequest::Busy:
+            // Another client behind the same address is mid-redirect. That is
+            // queueing rather than failing; burning the budget on it would kick
+            // whoever happens to log in second from a shared address.
+            break;
+        case RedirectRequest::Failed:
+            // No redirect could be produced: a fault of this server, not of the
+            // client, and a permanent one. It counts, so it ends in a kick and a
+            // log line instead of a player parked at the loading screen forever.
+            sLog.outError("WorldSession: could not issue a redirect for account %u "
+                          "(attempt %u); check Redirect.SecretFile",
+                          GetAccountId(), m_secondStreamAttempts + 1);
+            ++m_secondStreamAttempts;
+            break;
     }
 }
 

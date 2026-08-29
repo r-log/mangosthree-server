@@ -1193,6 +1193,17 @@ class WorldSession
         /// is one whose modulus does not match ours and never will.
         uint32 m_secondStreamAttempts;
 
+        /// Counts the redirects issued for this session. A staging socket that
+        /// answers an older one than the latest is refused (see SessionLinks).
+        uint32 m_secondStreamGeneration = 0;
+
+        /// Set once the client has opened stream 1. From then on losing it is a
+        /// fault to recover from, not a state to sit in.
+        bool m_secondStreamWanted = false;
+
+        /// A recovery is in progress: stream 1 was lost after login.
+        bool m_secondStreamRecovering = false;
+
         proto::SessionId m_sessionId;
 
         AccountTypes _security;

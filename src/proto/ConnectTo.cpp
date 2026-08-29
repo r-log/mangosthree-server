@@ -333,9 +333,31 @@ namespace proto
             std::copy(blob.begin(), blob.end(), m_authBlob.begin());
         }
 
+        if (!(modulus[0] & 0x80))
+        {
+            sLog.outError("proto: redirect modulus is not a 2048-bit value (its top bit is clear)");
+            return false;
+        }
         SetBigEndian(m_modulus, modulus.data(), modulus.size());
         SetBigEndian(m_privateExponent, exponent.data(), exponent.size());
 
+        // A key is only as good as its pair. Sign a fixed block and recover it with
+        // the client's own public operation now, so a mismatched Modulus and
+        // PrivateExponent refuse to load -- and refuse startup -- instead of being
+        // discovered one redirect at a time with every player parked at login.
+        std::array<uint8, RSA_FIELD_LEN> probe;
+        probe.fill(0x5A);
+        probe[0] = 0x00;    // below any 2048-bit modulus
+        BigNumber message;
+        SetBigEndian(message, probe.data(), probe.size());
+        BigNumber signature = message.ModExp(m_privateExponent, m_modulus);
+        BigNumber recovered = signature.ModExp(BigNumber(65537), m_modulus);
+        if (std::memcmp(recovered.AsByteArray(int(RSA_FIELD_LEN), false), probe.data(), RSA_FIELD_LEN) != 0)
+        {
+            sLog.outError("proto: redirect Modulus and PrivateExponent are not a pair: a signed "
+                          "probe does not recover with the client's exponent (65537)");
+            return false;
+        }
         m_loaded = true;
         return true;
     }

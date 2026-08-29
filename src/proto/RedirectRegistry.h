@@ -54,6 +54,10 @@ namespace proto
         std::string clientAddress;
 
         SessionId session = INVALID_SESSION_ID;
+        /// Which redirect of this session the ticket belongs to. A staging socket
+        /// that answers an older one than the session's latest is a straggler and
+        /// must not become the live stream.
+        uint32 generation = 0;
 
         BigNumber sessionKey;
 

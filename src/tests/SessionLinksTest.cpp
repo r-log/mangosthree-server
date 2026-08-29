@@ -84,7 +84,7 @@ TEST(SessionLinks_routes_by_opcode)
     auto one  = std::make_shared<RecordingLink>("198.51.100.4");
 
     proto::SessionLinks links(zero);
-    links.AttachSlotOne(one);
+    links.AttachSlotOne(one, 0);
 
     links.SendPacket(Packet(ON_STREAM_ZERO_BULK));
     links.SendPacket(Packet(ON_STREAM_ONE));
@@ -113,7 +113,7 @@ TEST(SessionLinks_holds_stream_one_traffic_until_it_is_live)
     CHECK_EQ(links.GetCounters().emittedBeforeLive, uint32(2));
 
     auto one = std::make_shared<RecordingLink>("198.51.100.4");
-    links.AttachSlotOne(one);
+    links.AttachSlotOne(one, 0);
 
     CHECK_EQ(one->sent.size(), size_t(2));
     CHECK_EQ(uint32(one->sent[0]), uint32(ON_STREAM_ONE));
@@ -126,7 +126,7 @@ TEST(SessionLinks_refuses_a_gated_opcode_on_stream_zero)
     auto one  = std::make_shared<RecordingLink>("198.51.100.4");
 
     proto::SessionLinks links(zero);
-    links.AttachSlotOne(one);
+    links.AttachSlotOne(one, 0);
 
     links.SendOn(LinkSlot::Zero, Packet(ON_STREAM_ONE_GATED));
 
@@ -145,8 +145,8 @@ TEST(SessionLinks_losing_stream_one_does_not_fall_back)
     auto one  = std::make_shared<RecordingLink>("198.51.100.4");
 
     proto::SessionLinks links(zero);
-    links.AttachSlotOne(one);
-    links.DetachSlotOne();
+    links.AttachSlotOne(one, 0);
+    links.DetachSlotOne(one.get());
 
     CHECK(!links.IsSlotLive(LinkSlot::One));
 
@@ -158,7 +158,7 @@ TEST(SessionLinks_losing_stream_one_does_not_fall_back)
     CHECK_EQ(one->sent.size(), size_t(0));
 
     auto reopened = std::make_shared<RecordingLink>("198.51.100.4");
-    links.AttachSlotOne(reopened);
+    links.AttachSlotOne(reopened, 0);
     CHECK_EQ(reopened->sent.size(), size_t(1));
 }
 
@@ -168,7 +168,7 @@ TEST(SessionLinks_session_lifetime_follows_stream_zero)
     auto one  = std::make_shared<RecordingLink>("198.51.100.4");
 
     proto::SessionLinks links(zero);
-    links.AttachSlotOne(one);
+    links.AttachSlotOne(one, 0);
 
     one->Close();
     CHECK(!links.IsClosed());
@@ -183,9 +183,33 @@ TEST(SessionLinks_close_tears_down_both)
     auto one  = std::make_shared<RecordingLink>("198.51.100.4");
 
     proto::SessionLinks links(zero);
-    links.AttachSlotOne(one);
+    links.AttachSlotOne(one, 0);
     links.Close();
 
     CHECK(zero->IsClosed());
     CHECK(one->IsClosed());
+}
+
+TEST(SessionLinks_refuses_a_stream_one_that_answers_a_superseded_redirect)
+{
+    // Two redirects went out (the first client socket stalled, the session
+    // reissued). The socket answering the first must not become the live stream
+    // over the one answering the second, and its late close must not take the
+    // live stream down.
+    std::shared_ptr<RecordingLink> zero   = std::make_shared<RecordingLink>("198.51.100.1");
+    std::shared_ptr<RecordingLink> first  = std::make_shared<RecordingLink>("198.51.100.1");
+    std::shared_ptr<RecordingLink> second = std::make_shared<RecordingLink>("198.51.100.1");
+    proto::SessionLinks links(zero);
+
+    links.ExpectSlotOne(1);
+    links.ExpectSlotOne(2);                              // reissued
+    CHECK(!links.AttachSlotOne(first, 1));               // the straggler
+    CHECK(!links.IsSlotLive(proto::LinkSlot::One));
+    CHECK(links.AttachSlotOne(second, 2));
+    CHECK(links.IsSlotLive(proto::LinkSlot::One));
+
+    links.DetachSlotOne(first.get());                    // the straggler closes late
+    CHECK(links.IsSlotLive(proto::LinkSlot::One));
+    links.DetachSlotOne(second.get());
+    CHECK(!links.IsSlotLive(proto::LinkSlot::One));
 }
