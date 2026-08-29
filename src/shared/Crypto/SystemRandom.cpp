@@ -67,23 +67,26 @@ namespace MaNGOS
                 return true;
             }
 #elif defined(__linux__)
+            int OpenUrandom()
+            {
+                int fd;
+                do
+                {
+                    fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+                }
+                while (fd < 0 && errno == EINTR);
+                return fd;
+            }
+
             bool ReadUrandom(uint8_t* out, size_t want, size_t& got)
             {
                 got = 0;
-                static int fd = -1;
+                // Opened once, by the first caller, under the language's thread-safe
+                // initialisation of a function-local static.
+                static const int fd = OpenUrandom();
                 if (fd < 0)
                 {
-                    int opened;
-                    do
-                    {
-                        opened = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
-                    }
-                    while (opened < 0 && errno == EINTR);
-                    if (opened < 0)
-                    {
-                        return false;
-                    }
-                    fd = opened;
+                    return false;
                 }
                 ssize_t n;
                 do

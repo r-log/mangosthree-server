@@ -72,7 +72,7 @@ namespace MaNGOS
         class MontgomeryContext
         {
         public:
-            /// modulus must be odd and non-zero (CryptoFatal otherwise).
+            /// modulus must be odd and above 1 (CryptoFatal otherwise).
             explicit MontgomeryContext(const BigInt& modulus);
             /// The modulus may be an RSA prime: the limbs are erased.
             ~MontgomeryContext();
@@ -105,6 +105,7 @@ namespace MaNGOS
             std::vector<Limb> m_r2;
             std::vector<Limb> m_one;
             Limb m_n0inv;
+            MontMulFn m_kernel;   // the tier, taken once at construction
         };
     }
 }

@@ -195,11 +195,38 @@ TEST(CryptoRsa_load_rejects_what_is_not_a_key)
     CHECK(!key.Load(BigInt(0xFFFFFFFFFFFFFFFFull), e, BigInt(3)));          // a single-limb modulus
     CHECK(!key.Load(n, e, d, p, q, dP, dQ, qInv + BigInt(1)));              // wrong coefficient
     CHECK(!key.Load(n, e, d, p, p, dP, dQ, qInv));                          // p * p != n
-    CHECK(!key.Load(n, e, d, q, p, dQ, dP, qInv));                          // swapped primes: the coefficient no longer fits
+    CHECK(!key.Load(n, e, d, q, p, dQ, dP, qInv));                          // swapped primes: p > q is required (the recombination relies on m2 < q < p)
     CHECK(!key.Load(n, e, d, p, q, p, dQ, qInv));                           // dP >= p
     CHECK(key.Load(n, e, d, p, q, dP, dQ, qInv));                           // and the real set loads
     CHECK(key.HasCrt());
     // reloading without the primes drops the CRT path
     CHECK(key.Load(n, e, d));
     CHECK(!key.HasCrt());
+}
+
+TEST(CryptoRsa_a_failed_load_leaves_nothing_loaded)
+{
+    // A load that returns false must not leave a half-installed key: the review found
+    // the public half committed before the private exponent was checked.
+    RsaPrivateKey key;
+    REQUIRE(LoadCrt(key));
+    const BigInt n = H(testkey::kModulus), e = H(testkey::kPublicExponent), d = H(testkey::kPrivateExponent);
+    const BigInt p = H(testkey::kPrime1), q = H(testkey::kPrime2), dP = H(testkey::kExponent1), dQ = H(testkey::kExponent2), qInv = H(testkey::kCoefficient);
+    std::vector<uint8_t> message(256, 0x5A), signature;
+    message[0] = 0;
+
+    CHECK(!key.Load(n, e, BigInt()));                                       // d = 0 after a good key
+    CHECK(!key.Loaded());
+    CHECK(!key.HasCrt());
+    CHECK(!key.SignRaw(message.data(), message.size(), signature, SystemRandom::Instance()));
+
+    REQUIRE(LoadCrt(key));
+    CHECK(!key.Load(n, e, d, p, q, dP, dQ, qInv + BigInt(1)));              // a bad CRT set after a good key
+    CHECK(!key.Loaded());
+    CHECK(!key.SignRaw(message.data(), message.size(), signature, SystemRandom::Instance()));
+
+    REQUIRE(LoadCrt(key));                                                  // and it loads again afterwards
+    CHECK(key.SignRaw(message.data(), message.size(), signature, SystemRandom::Instance()));
+    key.Unload();
+    CHECK(!key.Loaded());
 }

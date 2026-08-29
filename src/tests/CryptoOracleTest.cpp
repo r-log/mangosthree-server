@@ -128,6 +128,10 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
         // a modulus whose top limb is 0x8000000000000000, and one whose top limb is 1
         for (Limb top : { Limb(1) << 63, Limb(1) })
         {
+            if (k == 1 && top == 1)
+            {
+                continue;   // that would be the modulus 1, which no context accepts
+            }
             std::vector<Limb> m = OddModulus(k);
             m[k - 1] = top;
             m[0] |= 1;

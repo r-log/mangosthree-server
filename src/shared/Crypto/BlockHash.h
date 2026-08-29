@@ -26,6 +26,8 @@
 #ifndef MANGOS_H_CRYPTO_BLOCK_HASH
 #define MANGOS_H_CRYPTO_BLOCK_HASH
 
+#include "Crypto/SecureZero.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -56,9 +58,18 @@ namespace MaNGOS
 
             BlockHash() { Reset(); }
 
+            /// What was hashed may have been a key: the state and the buffered bytes are
+            /// erased, not just dropped.
+            ~BlockHash()
+            {
+                SecureZero(m_state, sizeof m_state);
+                SecureZero(m_buffer, sizeof m_buffer);
+            }
+
             void Reset()
             {
                 Traits::Init(m_state);
+                SecureZero(m_buffer, sizeof m_buffer);
                 m_buffered = 0;
                 m_total = 0;
             }

@@ -142,28 +142,30 @@ namespace MaNGOS
                 }
                 return &MontMulPortable;
             }
-
-            const MontMulFn g_kernel = SelectKernel();
         }
 
         MontMulFn ActiveMontMul()
         {
-            return g_kernel;
+            // A function-local static: selected on first use, whichever translation
+            // unit's initialisation asks first, so a context built during static
+            // initialisation cannot see an unselected kernel.
+            static const MontMulFn kernel = SelectKernel();
+            return kernel;
         }
 
         const char* ActiveTierName()
         {
-            return g_kernel == &MontMulPortable ? "portable" : "mulx";
+            return ActiveMontMul() == &MontMulPortable ? "portable" : "mulx";
         }
 
         // ------------------------------------------------------------------ the context
 
         MontgomeryContext::MontgomeryContext(const BigInt& modulus)
-            : m_k(modulus.LimbCount()), m_n0inv(0)
+            : m_k(modulus.LimbCount()), m_n0inv(0), m_kernel(ActiveMontMul())
         {
-            if (modulus.IsZero() || !modulus.IsOdd())
+            if (modulus.IsZero() || !modulus.IsOdd() || modulus.IsOne())
             {
-                CryptoFatal("MontgomeryContext: the modulus must be odd and non-zero");
+                CryptoFatal("MontgomeryContext: the modulus must be odd and above 1");
             }
             if (m_k > MaxMontgomeryLimbs)
             {
@@ -227,7 +229,7 @@ namespace MaNGOS
 
         void MontgomeryContext::Mul(Limb* z, const Limb* x, const Limb* y) const
         {
-            g_kernel(z, x, y, m_m.data(), m_n0inv, m_k);
+            m_kernel(z, x, y, m_m.data(), m_n0inv, m_k);
         }
 
         void MontgomeryContext::ToMont(Limb* z, const BigInt& x) const

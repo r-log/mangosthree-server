@@ -79,6 +79,7 @@ namespace MaNGOS
             m_core.Update(m_outer, sizeof m_outer);
             m_core.Update(inner, sizeof inner);
             m_core.Finish(out);
+            SecureZero(inner, sizeof inner);
             Start();
         }
     }

@@ -126,6 +126,27 @@ TEST(CryptoMontgomery_even_or_zero_modulus_is_fatal)
     const BigInt zero;
     try { MontgomeryContext ctx(zero); (void)ctx; } catch (const std::runtime_error&) { threw = true; }
     CHECK(threw);
+    threw = false;
+    const BigInt one(1);
+    try { MontgomeryContext ctx(one); (void)ctx; } catch (const std::runtime_error&) { threw = true; }
+    CHECK(threw);   // R^2 mod 1 has no Montgomery form worth building
+}
+
+namespace
+{
+    // A context built during static initialisation, before main: the kernel it
+    // captures must already be selected (a review found the dispatch pointer used to
+    // be a dynamically-initialised global).
+    const BigInt g_staticModulus = [] { BigInt n; n.FromHex("894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7"); return n; }();
+    const MontgomeryContext g_staticContext(g_staticModulus);
+}
+
+TEST(CryptoMontgomery_a_context_built_before_main_works)
+{
+    CHECK_EQ(g_staticContext.Limbs(), size_t(4));
+    CHECK_STR(ModExp(BigInt(7), BigInt(2), g_staticContext).ToHex(), "31");
+    const BigInt R = BigInt(1) << 256;
+    CHECK_STR(BigInt::FromLimbs(g_staticContext.One(), 4).ToHex(), (R % g_staticModulus).ToHex());
 }
 
 TEST(CryptoMontgomery_portable_kernel_matches_the_definition)
@@ -226,8 +247,15 @@ TEST(CryptoModExp_matches_python)
         if (m.IsOdd() && m.LimbCount() >= 2)
         {
             MontgomeryContext ctx(m);
-            CHECK_STR(ModExp(base, e, ctx).ToHex(), v.result);
+            // the secret path with the field width declared (the vectors have exponents wider than the modulus)
+            const size_t width = std::max(ctx.Limbs(), e.LimbCount());
+            CHECK_STR(ModExp(base, e, ctx, ExponentKind::Secret, width).ToHex(), v.result);
+            CHECK_STR(ModExp(base, e, ctx, ExponentKind::Secret, width + 3).ToHex(), v.result);   // a wider declared width changes nothing but the work
             CHECK_STR(ModExp(base, e, ctx, ExponentKind::Public).ToHex(), v.result);
+            if (e.LimbCount() <= ctx.Limbs())
+            {
+                CHECK_STR(ModExp(base, e, ctx).ToHex(), v.result);   // the default width: the modulus width
+            }
         }
     }
 }
@@ -243,9 +271,17 @@ TEST(CryptoModExp_special_exponents_and_moduli)
     CHECK_STR(ModExp(BigInt(0), BigInt(5), ctx).ToHex(), "0");
     CHECK_STR(ModExp(N, BigInt(5), ctx).ToHex(), "0");          // base = modulus reduces to zero
     CHECK_STR(ModExp(N + BigInt(7), BigInt(3), ctx).ToHex(), ModExp(g, BigInt(3), ctx).ToHex());
-    // an exponent wider than the modulus
+    // an exponent wider than the modulus: through the general API, and through the
+    // context with its width declared; without a width the secret path refuses it
     const BigInt wideExp = RandomBits(600);
-    CHECK_STR(ModExp(g, wideExp, ctx).ToHex(), ModExp(g, wideExp, N).ToHex());
+    CHECK_STR(ModExp(g, wideExp, ctx, ExponentKind::Secret, 10).ToHex(), ModExp(g, wideExp, N).ToHex());
+    CHECK_STR(ModExp(g, wideExp, ctx, ExponentKind::Public).ToHex(), ModExp(g, wideExp, N).ToHex());
+    {
+        FatalScope wide;
+        bool threw = false;
+        try { BigInt r = ModExp(g, wideExp, ctx); (void)r; } catch (const std::runtime_error&) { threw = true; }
+        CHECK(threw);
+    }
     // a two-limb, an even, a single-limb and the unit modulus through the general API
     CHECK_STR(ModExp(BigInt(3), BigInt(4), BigInt(100)).ToHex(), "51");        // 81 mod 100
     CHECK_STR(ModExp(BigInt(3), BigInt(100), BigInt(1)).ToHex(), "0");

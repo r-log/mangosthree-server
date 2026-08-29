@@ -52,13 +52,20 @@ namespace MaNGOS
          * @brief base^exponent mod m over a Montgomery context: the constant-time path.
          *
          * Fixed windows (5 bits for 16 limbs and up, 4 below), the exponent copied into
-         * a zero-padded buffer so the number of windows depends on the widths alone,
-         * a multiplication in every window including the zero ones, and the table entry
-         * fetched by a masked pass over the whole table -- no secret decides a branch or
-         * an address. The base may be any width; it is reduced on the way in.
+         * a zero-padded buffer of a public width so the number of windows depends on
+         * that width alone, a multiplication in every window including the zero ones,
+         * and the table entry fetched by a masked pass over the whole table -- no secret
+         * decides a branch or an address. The base may be any width; it is reduced on
+         * the way in.
+         *
+         * `exponentLimbs` is that public width. For a secret exponent it defaults to
+         * the modulus width, which every protocol exponent fits (d < n, SRP6's b and x
+         * below N); a secret wider than the declared width is fatal, because deriving
+         * the width from the value would make the work follow the secret. For a public
+         * exponent the width is its own bit length.
          */
         BigInt ModExp(const BigInt& base, const BigInt& exponent, const MontgomeryContext& context,
-                      ExponentKind kind = ExponentKind::Secret);
+                      ExponentKind kind = ExponentKind::Secret, size_t exponentLimbs = 0);
 
         /**
          * @brief base^exponent mod m for any modulus.
@@ -67,6 +74,11 @@ namespace MaNGOS
          * built for the call); an even or single-limb modulus takes plain square-and-
          * multiply with division -- the protocols never exponentiate under such a
          * modulus, so that path is never secret-dependent. m = 0 is fatal; m = 1 gives 0.
+         *
+         * The exponent width passed to the Montgomery path is the larger of the modulus
+         * width and the exponent's own limb count -- an exponent wider than the modulus
+         * therefore sets the amount of work by its width. A secret wider than its
+         * modulus must go through the context overload with the field's width.
          */
         BigInt ModExp(const BigInt& base, const BigInt& exponent, const BigInt& m,
                       ExponentKind kind = ExponentKind::Secret);

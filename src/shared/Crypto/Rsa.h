@@ -78,13 +78,17 @@ namespace MaNGOS
             /// through the full 2048-bit exponentiation.
             bool Load(const BigInt& n, const BigInt& e, const BigInt& d);
 
-            /// With the primes: n = p * q, dP = d mod (p - 1), dQ = d mod (q - 1),
+            /// With the primes: n = p * q with p > q, dP = d mod (p - 1), dQ = d mod (q - 1),
             /// qInv = q^-1 mod p (PKCS#1 names). Signatures use the Chinese remainder
             /// theorem -- two exponentiations of half the width, about four times faster.
             /// The structural relations are checked here; a pair that is not a pair is
-            /// caught by the caller's signed probe.
+            /// caught by the caller's signed probe. Either Load commits only when every
+            /// check passed; on failure nothing is loaded.
             bool Load(const BigInt& n, const BigInt& e, const BigInt& d,
                       const BigInt& p, const BigInt& q, const BigInt& dP, const BigInt& dQ, const BigInt& qInv);
+
+            /// Erase everything; Loaded() is false afterwards.
+            void Unload();
 
             bool Loaded() const { return m_public.Loaded(); }
             bool HasCrt() const { return m_crt; }

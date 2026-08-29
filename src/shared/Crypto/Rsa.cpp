@@ -46,35 +46,44 @@ namespace MaNGOS
 
         RsaPrivateKey::~RsaPrivateKey()
         {
-            m_blindingFactor.SecureClear();
-            m_blindingInverse.SecureClear();
-            m_d.SecureClear();
-            m_p.SecureClear();
-            m_q.SecureClear();
-            m_dP.SecureClear();
-            m_dQ.SecureClear();
-            m_qInv.SecureClear();
-            if (!m_qInvMont.empty())
-            {
-                SecureZero(m_qInvMont.data(), m_qInvMont.size() * LimbBytes);
-            }
+            Unload();
         }
 
-        bool RsaPrivateKey::Load(const BigInt& n, const BigInt& e, const BigInt& d)
+        void RsaPrivateKey::Unload()
         {
-            m_crt = false;
-            m_pContext.reset();
-            m_qContext.reset();
             {
                 std::lock_guard<std::mutex> guard(m_blindingLock);
                 m_blindingFactor.SecureClear();
                 m_blindingInverse.SecureClear();
                 m_blindingUses = 0;
             }
-            if (!m_public.Load(n, e) || d.IsZero() || d >= n)
+            m_public = RsaPublicKey();
+            m_d.SecureClear();
+            m_crt = false;
+            m_p.SecureClear();
+            m_q.SecureClear();
+            m_dP.SecureClear();
+            m_dQ.SecureClear();
+            m_qInv.SecureClear();
+            m_pContext.reset();
+            m_qContext.reset();
+            if (!m_qInvMont.empty())
+            {
+                SecureZero(m_qInvMont.data(), m_qInvMont.size() * LimbBytes);
+                m_qInvMont.clear();
+            }
+        }
+
+        bool RsaPrivateKey::Load(const BigInt& n, const BigInt& e, const BigInt& d)
+        {
+            // Validate first, commit last: a Load that returns false leaves no key.
+            Unload();
+            RsaPublicKey publicKey;
+            if (!publicKey.Load(n, e) || d.IsZero() || d >= n)
             {
                 return false;
             }
+            m_public = publicKey;
             m_d = d;
             return true;
         }
@@ -82,14 +91,16 @@ namespace MaNGOS
         bool RsaPrivateKey::Load(const BigInt& n, const BigInt& e, const BigInt& d,
                                  const BigInt& p, const BigInt& q, const BigInt& dP, const BigInt& dQ, const BigInt& qInv)
         {
-            if (!Load(n, e, d))
+            Unload();
+            RsaPublicKey publicKey;
+            if (!publicKey.Load(n, e) || d.IsZero() || d >= n)
             {
                 return false;
             }
-            // Structural checks: odd primes of at least two limbs, n = p * q, the CRT
-            // exponents below their primes, qInv the inverse of q modulo p, and p at
-            // least as wide as q so the recombination's m2 (< q) is below 2p.
-            if (!p.IsOdd() || !q.IsOdd() || p.LimbCount() < 2 || q.LimbCount() < 2 || p * q != n)
+            // Structural checks: odd primes of at least two limbs, n = p * q, p > q (so
+            // the recombination's m2 < q is already below p), the CRT exponents below
+            // their primes, qInv the inverse of q modulo p.
+            if (!p.IsOdd() || !q.IsOdd() || p.LimbCount() < 2 || q.LimbCount() < 2 || p <= q || p * q != n)
             {
                 return false;
             }
@@ -97,19 +108,25 @@ namespace MaNGOS
             {
                 return false;
             }
-            if ((q * qInv) % p != BigInt(1) || p.LimbCount() < q.LimbCount())
+            if ((q * qInv) % p != BigInt(1))
             {
                 return false;
             }
+            // Everything checked: build the contexts, then commit.
+            MontgomeryContext pContext(p), qContext(q);
+            std::vector<Limb> qInvMont(pContext.Limbs(), 0);
+            pContext.ToMont(qInvMont.data(), qInv);
+
+            m_public = publicKey;
+            m_d = d;
             m_p = p;
             m_q = q;
             m_dP = dP;
             m_dQ = dQ;
             m_qInv = qInv;
-            m_pContext.emplace(p);
-            m_qContext.emplace(q);
-            m_qInvMont.assign(m_pContext->Limbs(), 0);
-            m_pContext->ToMont(m_qInvMont.data(), qInv);
+            m_pContext.emplace(pContext);
+            m_qContext.emplace(qContext);
+            m_qInvMont.swap(qInvMont);
             m_crt = true;
             return true;
         }
@@ -122,19 +139,12 @@ namespace MaNGOS
             BigInt m2 = ModExp(m, m_dQ, *m_qContext);
 
             // h = qInv * (m1 - m2) mod p, in modular arithmetic on kp limbs and with
-            // masks, never an unsigned subtraction: m2 < q <= 2^(64 kp), and since p has
-            // at least q's limbs, one conditional subtraction of p brings m2 below p.
+            // masks, never an unsigned subtraction. Load guarantees p > q, so m2 < q < p
+            // is already canonical modulo p and fits kp limbs.
             std::vector<Limb> a(kp, 0), b(kp, 0), t(kp, 0), tmp(kp, 0);
             for (size_t j = 0; j < m1.LimbCount(); ++j) a[j] = m1.Limbs()[j];
             for (size_t j = 0; j < m2.LimbCount(); ++j) b[j] = m2.Limbs()[j];
             const Limb* p = m_pContext->Modulus();
-            {
-                // b = m2 mod p: subtract p, keep the difference unless it went negative.
-                Limb borrow = 0;
-                for (size_t j = 0; j < kp; ++j) tmp[j] = SubBorrow(b[j], p[j], borrow);
-                const Limb keep = CtMask(borrow == 0);
-                for (size_t j = 0; j < kp; ++j) b[j] = CtSelect(keep, tmp[j], b[j]);
-            }
             {
                 // t = a - b mod p: both a - b and a + p - b, selected by the borrow.
                 Limb borrow = 0;

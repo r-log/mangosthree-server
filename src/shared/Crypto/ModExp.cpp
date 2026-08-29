@@ -52,9 +52,21 @@ namespace MaNGOS
             }
         }
 
-        BigInt ModExp(const BigInt& base, const BigInt& exponent, const MontgomeryContext& context, ExponentKind kind)
+        BigInt ModExp(const BigInt& base, const BigInt& exponent, const MontgomeryContext& context, ExponentKind kind, size_t exponentLimbs)
         {
             const size_t k = context.Limbs();
+            if (exponentLimbs == 0)
+            {
+                exponentLimbs = kind == ExponentKind::Public ? std::max<size_t>(1, exponent.LimbCount()) : k;
+            }
+            if (exponent.LimbCount() > exponentLimbs)
+            {
+                if (kind == ExponentKind::Secret)
+                {
+                    CryptoFatal("ModExp: a secret exponent wider than its declared width");
+                }
+                exponentLimbs = exponent.LimbCount();
+            }
             // A short public exponent (65537) is cheapest with no table at all: one
             // squaring per bit and a multiplication only where a bit is set.
             const bool shortPublic = kind == ExponentKind::Public && exponent.BitLength() <= 64;
@@ -73,10 +85,8 @@ namespace MaNGOS
                 context.Mul(&table[i * k], &table[(i - 1) * k], &table[k]);
             }
 
-            // The exponent, zero-padded to a fixed width: k limbs, or its own limb count
-            // if that is larger (a public quantity either way). A public exponent is
+            // The exponent, zero-padded to the declared width. A public exponent is
             // walked over its own bit length instead.
-            const size_t exponentLimbs = std::max<size_t>(1, std::max(k, exponent.LimbCount()));
             std::vector<Limb> e(exponentLimbs, 0);
             for (size_t j = 0; j < exponent.LimbCount(); ++j)
             {
@@ -144,7 +154,7 @@ namespace MaNGOS
             if (m.IsOdd() && m.LimbCount() >= 2)
             {
                 MontgomeryContext context(m);
-                return ModExp(base, exponent, context, kind);
+                return ModExp(base, exponent, context, kind, std::max(m.LimbCount(), exponent.LimbCount()));
             }
             // Plain square-and-multiply with division: the public, non-Montgomery path.
             BigInt result(1);
