@@ -42,13 +42,18 @@ namespace MaNGOS
         constexpr size_t LimbBits  = 64;
         constexpr size_t LimbBytes = 8;
 
+#if defined(__SIZEOF_INT128__)
+        // GCC/Clang: the 128-bit type is an extension; say so, or -Wpedantic objects.
+        __extension__ typedef unsigned __int128 DoubleLimb;
+#endif
+
         /// a * b as a 128-bit product: returns the low limb, stores the high one.
         inline Limb MulWide(Limb a, Limb b, Limb& hi)
         {
 #if defined(_MSC_VER) && defined(_M_X64)
             return _umul128(a, b, &hi);
 #elif defined(__SIZEOF_INT128__)
-            const unsigned __int128 p = static_cast<unsigned __int128>(a) * b;
+            const DoubleLimb p = static_cast<DoubleLimb>(a) * b;
             hi = static_cast<Limb>(p >> 64);
             return static_cast<Limb>(p);
 #else
@@ -66,7 +71,7 @@ namespace MaNGOS
 #if defined(_MSC_VER) && defined(_M_X64)
             return _udiv128(hi, lo, d, &remainder);
 #elif defined(__SIZEOF_INT128__)
-            const unsigned __int128 n = (static_cast<unsigned __int128>(hi) << 64) | lo;
+            const DoubleLimb n = (static_cast<DoubleLimb>(hi) << 64) | lo;
             remainder = static_cast<Limb>(n % d);
             return static_cast<Limb>(n / d);
 #else
