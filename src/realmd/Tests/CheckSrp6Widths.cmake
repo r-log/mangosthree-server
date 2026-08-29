@@ -1,4 +1,6 @@
 file(READ "${REALMD_SOURCE}/Auth/AuthSocket.cpp" AUTH_SOCKET)
+file(READ "${REALMD_SOURCE}/Auth/Srp6.cpp" SRP6_UNIT)
+string(APPEND AUTH_SOCKET "${SRP6_UNIT}")
 
 # Every SRP6 quantity has a width the protocol fixes, and the client reads and hashes it
 # at that width. Asking a BigNumber how long it happens to be answers with the minimal
@@ -19,7 +21,7 @@ endforeach()
 # whatever length the number serialised to reads past the end of that buffer, and the
 # comparison is wrong on top of it.
 string(FIND "${AUTH_SOCKET}"
-  "memcmp(M.AsByteArray(SHA_DIGEST_LENGTH), lp.M1, SHA_DIGEST_LENGTH)" PROOF_COMPARE)
+  "memcmp(M1, lp.M1, SHA_DIGEST_LENGTH)" PROOF_COMPARE)
 if(PROOF_COMPARE EQUAL -1)
   message(FATAL_ERROR "The client proof is not compared at the full digest width")
 endif()

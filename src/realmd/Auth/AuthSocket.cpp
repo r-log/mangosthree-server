@@ -54,6 +54,7 @@
 #include "Realm/ClientBuildPolicy.h"
 #include "Realm/RealmList.h"
 #include "AuthSocket.h"
+#include "Auth/Srp6.h"
 #include "AuthCodes.h"
 #include "AuthProtocolGuard.h"
 #include "AuthResultPolicy.h"
@@ -99,10 +100,6 @@ namespace
     const int SRP_GENERATOR_WIDTH = 1;                  // g
     const int SRP_RECONNECT_WIDTH = 16;
 
-    void UpdateFixed(Sha1Hash& sha, BigNumber& value, int width)
-    {
-        sha.UpdateData(value.AsByteArray(width), width);
-    }
 }
 
 // GCC have alternative #pragma pack(N) syntax and old gcc version not support pack(push,N), also any gcc version not support it at some paltform
@@ -214,8 +211,8 @@ AuthSocket::AuthSocket(
       _build(0),
       _accountSecurityLevel(SEC_PLAYER)
 {
-    N.SetHexStr("894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7");
-    g.SetDword(7);
+    N = Srp6::Modulus();
+    g = Srp6::Generator();
     s_connections.fetch_add(1, std::memory_order_relaxed);
 }
 
@@ -463,31 +460,7 @@ void AuthSocket::_SetVSFields(const std::string& rI)
 {
     s.SetRand(s_BYTE_SIZE * 8);
 
-    BigNumber I;
-    I.SetHexStr(rI.c_str());
-
-    // In case of leading zeros in the rI hash, restore them: asking for the full digest
-    // width pads at the front, where a copy of the minimal encoding used to rely on the
-    // zeroed tail of this buffer landing in the right place after the reverse below.
-    uint8 mDigest[SHA_DIGEST_LENGTH];
-    memset(mDigest, 0, SHA_DIGEST_LENGTH);
-    if (I.GetNumBytes() <= SHA_DIGEST_LENGTH)
-    {
-        memcpy(mDigest, I.AsByteArray(SHA_DIGEST_LENGTH), SHA_DIGEST_LENGTH);
-    }
-
-    std::reverse(mDigest, mDigest + SHA_DIGEST_LENGTH);
-
-    // x = H(s | H(USER:PASS)) over the whole salt. A short one here is not a failed
-    // login but a verifier stored against a byte string the client will never produce,
-    // so that account is broken for good rather than until the next attempt.
-    Sha1Hash sha;
-    sha.UpdateData(s.AsByteArray(s_BYTE_SIZE), s_BYTE_SIZE);
-    sha.UpdateData(mDigest, SHA_DIGEST_LENGTH);
-    sha.Finalize();
-    BigNumber x;
-    x.SetBinary(sha.GetDigest(), sha.GetLength());
-    v = g.ModExp(x, N);
+    v = Srp6::Verifier(s, rI);
     // No SQL injection (username escaped)
     const char* v_hex, *s_hex;
     v_hex = v.AsHexStr();
@@ -497,7 +470,7 @@ void AuthSocket::_SetVSFields(const std::string& rI)
     OPENSSL_free((void*)s_hex);
 }
 
-void AuthSocket::SendProof(Sha1Hash sha)
+void AuthSocket::SendProof(const uint8* M2)
 {
     switch (_build)
     {
@@ -506,7 +479,7 @@ void AuthSocket::SendProof(Sha1Hash sha)
         case 6141:                                          // 1.12.3
         {
             sAuthLogonProof_S_BUILD_6005 proof;
-            memcpy(proof.M2, sha.GetDigest(), 20);
+            memcpy(proof.M2, M2, 20);
             proof.cmd = CMD_AUTH_LOGON_PROOF;
             proof.error = 0;
             proof.unk2 = 0x00;
@@ -526,7 +499,7 @@ void AuthSocket::SendProof(Sha1Hash sha)
         default:                                            // or later
         {
             sAuthLogonProof_S proof;
-            memcpy(proof.M2, sha.GetDigest(), 20);
+            memcpy(proof.M2, M2, 20);
             proof.cmd = CMD_AUTH_LOGON_PROOF;
             proof.error = 0;
             proof.accountFlags = ACCOUNT_FLAG_PROPASS;
@@ -700,10 +673,7 @@ bool AuthSocket::_HandleLogonChallenge()
                     }
 
                     b.SetRand(19 * 8);
-                    BigNumber gmod = g.ModExp(b, N);
-                    B = ((v * 3) + gmod) % N;
-
-                    MANGOS_ASSERT(gmod.GetNumBytes() <= 32);
+                    B = Srp6::ServerEphemeral(v, b);
 
                     BigNumber unk3;
                     unk3.SetRand(16 * 8);
@@ -784,89 +754,21 @@ bool AuthSocket::_HandleLogonProof()
 
     ///- Continue the SRP6 calculation based on data received from the client
     BigNumber A;
+    A.SetBinary(lp.A, SRP_EPHEMERAL_WIDTH);
 
-    A.SetBinary(lp.A, 32);
-
-    // SRP safeguard: abort if A==0
-    if ((A % N).isZero())
+    // SRP safeguard: abort the auth if A mod N is zero
+    if (!Srp6::IsAcceptableClientEphemeral(A))
     {
         return false;
     }
 
-    Sha1Hash sha;
-    UpdateFixed(sha, A, SRP_EPHEMERAL_WIDTH);
-    UpdateFixed(sha, B, SRP_EPHEMERAL_WIDTH);
-    sha.Finalize();
-    BigNumber u;
-    u.SetBinary(sha.GetDigest(), 20);
-    BigNumber S = (A * (v.ModExp(u, N))).ModExp(b, N);
+    BigNumber u = Srp6::Scrambler(A, B);
+    K = Srp6::SessionKey(A, v, u, b);
 
-    uint8 t[32];
-    uint8 t1[16];
-    uint8 vK[40];
-    memcpy(t, S.AsByteArray(SRP_EPHEMERAL_WIDTH), SRP_EPHEMERAL_WIDTH);
-    for (int i = 0; i < 16; ++i)
-    {
-        t1[i] = t[i * 2];
-    }
-    sha.Initialize();
-    sha.UpdateData(t1, 16);
-    sha.Finalize();
-    for (int i = 0; i < 20; ++i)
-    {
-        vK[i * 2] = sha.GetDigest()[i];
-    }
-    for (int i = 0; i < 16; ++i)
-    {
-        t1[i] = t[i * 2 + 1];
-    }
-    sha.Initialize();
-    sha.UpdateData(t1, 16);
-    sha.Finalize();
-    for (int i = 0; i < 20; ++i)
-    {
-        vK[i * 2 + 1] = sha.GetDigest()[i];
-    }
-    K.SetBinary(vK, 40);
+    uint8 M1[SHA_DIGEST_LENGTH];
+    Srp6::ClientProof(_login, s, A, B, K, M1);
 
-    uint8 hash[20];
-
-    sha.Initialize();
-    UpdateFixed(sha, N, SRP_EPHEMERAL_WIDTH);
-    sha.Finalize();
-    memcpy(hash, sha.GetDigest(), SHA_DIGEST_LENGTH);
-    sha.Initialize();
-    UpdateFixed(sha, g, SRP_GENERATOR_WIDTH);
-    sha.Finalize();
-    for (int i = 0; i < 20; ++i)
-    {
-        hash[i] ^= sha.GetDigest()[i];
-    }
-    BigNumber t3;
-    t3.SetBinary(hash, 20);
-
-    sha.Initialize();
-    sha.UpdateData(_login);
-    sha.Finalize();
-    uint8 t4[SHA_DIGEST_LENGTH];
-    memcpy(t4, sha.GetDigest(), SHA_DIGEST_LENGTH);
-
-    sha.Initialize();
-    UpdateFixed(sha, t3, SHA_DIGEST_LENGTH);
-    sha.UpdateData(t4, SHA_DIGEST_LENGTH);
-    UpdateFixed(sha, s, s_BYTE_SIZE);
-    UpdateFixed(sha, A, SRP_EPHEMERAL_WIDTH);
-    UpdateFixed(sha, B, SRP_EPHEMERAL_WIDTH);
-    UpdateFixed(sha, K, SRP_SESSION_KEY_WIDTH);
-    sha.Finalize();
-    BigNumber M;
-    M.SetBinary(sha.GetDigest(), SHA_DIGEST_LENGTH);
-
-    ///- Check if SRP6 results match (password is correct), else send an error
-    // The width matters twice here. A proof whose top byte is zero used to serialise as
-    // nineteen bytes, so this read one byte past the end of that buffer and compared
-    // whatever followed it -- a heap over-read that also rejected a correct password.
-    if (!memcmp(M.AsByteArray(SHA_DIGEST_LENGTH), lp.M1, SHA_DIGEST_LENGTH))
+    if (!memcmp(M1, lp.M1, SHA_DIGEST_LENGTH))
     {
         BASIC_LOG("User '%s' successfully authenticated", _login.c_str());
 
@@ -913,13 +815,9 @@ bool AuthSocket::_HandleLogonProof()
         OPENSSL_free(const_cast<char*>(K_hex));
 
         ///- Finish SRP6 and send the final result to the client
-        sha.Initialize();
-        UpdateFixed(sha, A, SRP_EPHEMERAL_WIDTH);
-        UpdateFixed(sha, M, SHA_DIGEST_LENGTH);
-        UpdateFixed(sha, K, SRP_SESSION_KEY_WIDTH);
-        sha.Finalize();
-
-        SendProof(sha);
+        uint8 M2[SHA_DIGEST_LENGTH];
+        Srp6::ServerProof(A, lp.M1, K, M2);
+        SendProof(M2);
 
         ///- Set _status to authenticated
         _status = STATUS_AUTHED;
@@ -1085,18 +983,10 @@ bool AuthSocket::_HandleReconnectProof()
         return false;
     }
 
-    BigNumber t1;
-    t1.SetBinary(lp.R1, 16);
+    uint8 R2[SHA_DIGEST_LENGTH];
+    Srp6::ReconnectProof(_login, lp.R1, _reconnectProof, K, R2);
 
-    Sha1Hash sha;
-    sha.Initialize();
-    sha.UpdateData(_login);
-    UpdateFixed(sha, t1, SRP_RECONNECT_WIDTH);
-    UpdateFixed(sha, _reconnectProof, SRP_RECONNECT_WIDTH);
-    UpdateFixed(sha, K, SRP_SESSION_KEY_WIDTH);
-    sha.Finalize();
-
-    if (!memcmp(sha.GetDigest(), lp.R2, SHA_DIGEST_LENGTH))
+    if (!memcmp(R2, lp.R2, SHA_DIGEST_LENGTH))
     {
         std::string safeLocale = _localizationName;
         std::string safeOs = _os;
