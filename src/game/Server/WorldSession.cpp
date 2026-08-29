@@ -679,6 +679,10 @@ void WorldSession::LogoutPlayer(bool Save)
         }
 
         SetPlayer(NULL);                                    // deleted in Remove/DeleteFromWorld call
+        // The second stream belongs to the character, not the account: nothing to
+        // recover until the next login opens one.
+        m_secondStreamWanted = false;
+        m_secondStreamRecovering = false;
 
         ///- Send the 'logout complete' packet to the client
         WorldPacket data(SMSG_LOGOUT_COMPLETE, 0);
@@ -1379,7 +1383,11 @@ void WorldSession::UpdateSecondStream()
         // that is gone. Ask the client to open it again, on the same budget a
         // login gets; a client that will not is kicked with a line in the log,
         // not left with half its traffic silently dropped.
-        if (!m_secondStreamWanted || m_Socket->IsClosed())
+        // Only a session with a player in the world has anything to recover: a
+        // login that failed, or a character that logged out to the selection
+        // screen, has no stream-1 traffic and must not be kicked for the lack of
+        // a socket it does not need.
+        if (!m_secondStreamWanted || !GetPlayer() || m_Socket->IsClosed())
         {
             return;
         }
@@ -1429,17 +1437,22 @@ void WorldSession::UpdateSecondStream()
         return;
     }
 
-    // A retry has to withdraw the pending ticket first: the registry allows one
-    // in flight per client address, and the client refuses a second redirect
-    // while one is still staged.
-    sWorldNetwork.CancelSecondStream(GetSessionId());
-
     proto::RedirectTicket ticket;
     ticket.clientAddress = GetRemoteAddress();
     ticket.session       = GetSessionId();
     ticket.sessionKey    = m_sessionKey;
     ticket.links         = m_Socket;
     ticket.generation    = ++m_secondStreamGeneration;
+
+    // Announce the new generation before anything else: from this point a socket
+    // that claimed the previous ticket is refused promotion, whatever it does
+    // while the replacement is being withdrawn and reissued below.
+    m_Socket->ExpectSlotOne(ticket.generation);
+
+    // A retry has to withdraw the pending ticket first: the registry allows one
+    // in flight per client address, and the client refuses a second redirect
+    // while one is still staged.
+    sWorldNetwork.CancelSecondStream(GetSessionId());
 
     // The same setting bounds the registry's ticket and this wait, so the two
     // never disagree about how long a redirect is worth waiting for.

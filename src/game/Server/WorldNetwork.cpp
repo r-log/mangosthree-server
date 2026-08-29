@@ -206,9 +206,6 @@ RedirectRequest WorldNetwork::RequestSecondStream(const proto::RedirectTicket& t
         return RedirectRequest::Failed;
     }
 
-    // From here on only a socket answering this generation may become stream 1.
-    ticket.links->ExpectSlotOne(ticket.generation);
-
     // On the stream the client already has -- the redirect is what creates the
     // other one, so it cannot travel on it.
     ticket.links->SendOn(proto::LinkSlot::Zero, packet);
