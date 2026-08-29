@@ -57,31 +57,73 @@ namespace MaNGOS
 #define MANGOS_TARGET_BMI2
 #endif
 
-        bool HasMulxTier()
+        namespace
         {
-            static const bool available = []
+            /// EBX of CPUID leaf 7: bit 8 BMI2 (mulx), bit 19 ADX (adcx/adox).
+            unsigned Leaf7Ebx()
             {
 #if defined(_MSC_VER)
                 int regs[4] = { 0, 0, 0, 0 };
                 __cpuid(regs, 0);
                 if (regs[0] < 7)
                 {
-                    return false;
+                    return 0;
                 }
                 __cpuidex(regs, 7, 0);
-                return (regs[1] & (1 << 8)) != 0;   // EBX bit 8: BMI2
+                return unsigned(regs[1]);
 #else
                 unsigned eax = 0, ebx = 0, ecx = 0, edx = 0;
                 if (__get_cpuid_max(0, nullptr) < 7)
                 {
-                    return false;
+                    return 0;
                 }
                 __cpuid_count(7, 0, eax, ebx, ecx, edx);
-                return (ebx & (1u << 8)) != 0;
+                return ebx;
 #endif
-            }();
+            }
+        }
+
+        bool HasMulxTier()
+        {
+            static const bool available = (Leaf7Ebx() & (1u << 8)) != 0;
             return available;
         }
+
+#if defined(MANGOS_CRYPTO_HAVE_ASM)
+        extern "C" void mangos_montmul_adx(uint64_t* z, const uint64_t* x, const uint64_t* y,
+                                           const uint64_t* m, uint64_t n0inv, uint64_t k);
+
+        bool HasAsmTier()
+        {
+            static const bool available = (Leaf7Ebx() & ((1u << 8) | (1u << 19))) == ((1u << 8) | (1u << 19));
+            return available;
+        }
+
+        bool AssemblyTierCompiledIn()
+        {
+            return true;
+        }
+
+        void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
+        {
+            mangos_montmul_adx(z, x, y, m, n0inv, k);
+        }
+#else
+        bool HasAsmTier()
+        {
+            return false;
+        }
+
+        bool AssemblyTierCompiledIn()
+        {
+            return false;
+        }
+
+        void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulMulx(z, x, y, m, n0inv, k);
+        }
+#endif
 
         MANGOS_TARGET_BMI2
         void MontMulMulx(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
@@ -163,7 +205,22 @@ namespace MaNGOS
             return false;
         }
 
+        bool HasAsmTier()
+        {
+            return false;
+        }
+
+        bool AssemblyTierCompiledIn()
+        {
+            return false;
+        }
+
         void MontMulMulx(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulPortable(z, x, y, m, n0inv, k);
+        }
+
+        void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
         {
             MontMulPortable(z, x, y, m, n0inv, k);
         }

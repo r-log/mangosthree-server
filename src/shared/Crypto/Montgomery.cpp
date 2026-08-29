@@ -136,6 +136,14 @@ namespace MaNGOS
                 {
                     return &MontMulPortable;
                 }
+                if (forced && std::strcmp(forced, "mulx") == 0)
+                {
+                    return HasMulxTier() ? &MontMulMulx : &MontMulPortable;
+                }
+                if (HasAsmTier())
+                {
+                    return &MontMulAsm;
+                }
                 if (HasMulxTier())
                 {
                     return &MontMulMulx;
@@ -155,13 +163,24 @@ namespace MaNGOS
 
         const char* ActiveTierName()
         {
-            return ActiveMontMul() == &MontMulPortable ? "portable" : "mulx";
+            const MontMulFn kernel = ActiveMontMul();
+            return kernel == &MontMulAsm ? "asm" : kernel == &MontMulMulx ? "mulx" : "portable";
+        }
+
+        MontMulFn MontMulFor(size_t k)
+        {
+            const MontMulFn kernel = ActiveMontMul();
+            if (kernel == &MontMulAsm && (k == 0 || k % 4 != 0))
+            {
+                return HasMulxTier() ? &MontMulMulx : &MontMulPortable;
+            }
+            return kernel;
         }
 
         // ------------------------------------------------------------------ the context
 
         MontgomeryContext::MontgomeryContext(const BigInt& modulus)
-            : m_k(modulus.LimbCount()), m_n0inv(0), m_kernel(ActiveMontMul())
+            : m_k(modulus.LimbCount()), m_n0inv(0), m_kernel(MontMulFor(modulus.LimbCount()))
         {
             if (modulus.IsZero() || !modulus.IsOdd() || modulus.IsOne())
             {

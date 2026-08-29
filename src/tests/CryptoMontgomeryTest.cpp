@@ -19,6 +19,8 @@
 #include "Crypto/ModExp.h"
 #include "Crypto/Montgomery.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <random>
 #include <stdexcept>
@@ -197,31 +199,81 @@ TEST(CryptoMontgomery_portable_kernel_matches_the_definition)
     }
 }
 
+TEST(CryptoMontgomery_assembly_tier_runs_where_it_was_built)
+{
+    // Which kernel this run exercised is part of the test output, so a log shows it;
+    // and where the assembly tier was compiled in and the CPU can run it, it must be
+    // the active one -- a silent fall-back to a C++ tier is a wiring bug, not a pass.
+    const bool forced = std::getenv("MANGOS_CRYPTO_TIER") != nullptr;
+    std::printf("    tier: %s (assembly compiled in: %s; cpu bmi2+adx: %s; forced by environment: %s)\n",
+                ActiveTierName(), AssemblyTierCompiledIn() ? "yes" : "no", HasAsmTier() ? "yes" : "no", forced ? "yes" : "no");
+    if (AssemblyTierCompiledIn() && !HasAsmTier())
+    {
+        std::printf("    the assembly tier was built but this CPU cannot run it: not exercised in this run\n");
+    }
+    if (AssemblyTierCompiledIn() && HasAsmTier() && !forced)
+    {
+        CHECK_STR(ActiveTierName(), "asm");
+        CHECK(ActiveMontMul() == &MontMulAsm);
+    }
+    if (!AssemblyTierCompiledIn())
+    {
+        CHECK(!HasAsmTier());
+        CHECK(ActiveMontMul() != &MontMulAsm);
+    }
+}
+
 TEST(CryptoMontgomery_tiers_agree)
 {
-    CHECK(ActiveMontMul() == &MontMulPortable || ActiveMontMul() == &MontMulMulx);
-    CHECK(std::strcmp(ActiveTierName(), "portable") == 0 || std::strcmp(ActiveTierName(), "mulx") == 0);
-    if (!HasMulxTier())
+    const MontMulFn active = ActiveMontMul();
+    CHECK(active == &MontMulPortable || active == &MontMulMulx || active == &MontMulAsm);
+    const char* name = ActiveTierName();
+    CHECK(std::strcmp(name, "portable") == 0 || std::strcmp(name, "mulx") == 0 || std::strcmp(name, "asm") == 0);
+    CHECK((active == &MontMulAsm) == (std::strcmp(name, "asm") == 0));
+    if (HasAsmTier())
+    {
+        // the assembly tier takes multiples of 4 limbs; other widths go down a tier
+        CHECK(MontMulFor(16) == active);
+        CHECK(MontMulFor(3) != &MontMulAsm);
+        CHECK(MontMulFor(1) != &MontMulAsm);
+    }
+    std::vector<MontMulFn> others;
+    if (HasMulxTier()) others.push_back(&MontMulMulx);
+    if (HasAsmTier()) others.push_back(&MontMulAsm);
+    if (others.empty())
     {
         return;
     }
-    for (size_t k : { size_t(1), size_t(4), size_t(16), size_t(32), size_t(64) })
+    for (size_t k : { size_t(1), size_t(4), size_t(8), size_t(16), size_t(32), size_t(64) })
     {
         const size_t bits = LimbBits * k;
         for (int round = 0; round < 4; ++round)
         {
             const BigInt m = OddModulus(round == 0 ? bits : bits - size_t(g_rng() % 60));
             MontgomeryContext ctx(m);
-            for (int i = 0; i < 16; ++i)
+            for (MontMulFn other : others)
             {
-                const BigInt x = RandomBits(m.BitLength()) % m, y = RandomBits(m.BitLength()) % m;
-                std::vector<Limb> xl = Padded(x, k), yl = Padded(y, k), a(k), b(k);
-                MontMulPortable(a.data(), xl.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
-                MontMulMulx(b.data(), xl.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
-                CHECK(std::memcmp(a.data(), b.data(), k * LimbBytes) == 0);
-                CheckKernel(&MontMulMulx, ctx, x, y);
+                if (other == &MontMulAsm && k % 4 != 0)
+                {
+                    continue;
+                }
+                for (int i = 0; i < 16; ++i)
+                {
+                    const BigInt x = RandomBits(m.BitLength()) % m, y = RandomBits(m.BitLength()) % m;
+                    std::vector<Limb> xl = Padded(x, k), yl = Padded(y, k), a(k), b(k);
+                    MontMulPortable(a.data(), xl.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
+                    other(b.data(), xl.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
+                    CHECK(std::memcmp(a.data(), b.data(), k * LimbBytes) == 0);
+                    CheckKernel(other, ctx, x, y);
+                }
+                CheckKernel(other, ctx, m - BigInt(1), m - BigInt(1));
+                CheckKernel(other, ctx, BigInt(0), BigInt(0));
+                CheckKernel(other, ctx, BigInt(1), m - BigInt(1));
+                if (m > BigInt(0x10000))
+                {
+                    CheckKernel(other, ctx, m - BigInt(0x1234), m - BigInt(0x5678));
+                }
             }
-            CheckKernel(&MontMulMulx, ctx, m - BigInt(1), m - BigInt(1));
         }
     }
 }

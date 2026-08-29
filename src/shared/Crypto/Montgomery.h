@@ -52,15 +52,29 @@ namespace MaNGOS
         /// The portable tier: plain C++ on the Limb primitives. Always available.
         void MontMulPortable(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k);
 
-        /// The x86-64 tier (`mulx`, BMI2). Present only where it compiles; may not run
-        /// on this CPU -- ask HasMulxTier().
+        /// The x86-64 intrinsic tier (`mulx`, BMI2). Present only where it compiles; may
+        /// not run on this CPU -- ask HasMulxTier().
         void MontMulMulx(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k);
         bool HasMulxTier();
 
-        /// The kernel selected at start-up (CPUID; `MANGOS_CRYPTO_TIER=portable` forces
-        /// the portable one) and its name for reports.
+        /// The assembly tier (`mulx/adcx/adox`, BMI2 + ADX; MontgomeryAsm.S): k must be a
+        /// positive multiple of 4. Present only where it was assembled and the CPU has
+        /// ADX -- ask HasAsmTier(); MontMulFor() routes other widths down a tier.
+        void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k);
+        bool HasAsmTier();
+        /// Whether this build carries the assembly tier at all (x86-64 Linux and MSVC
+        /// builds do); with it compiled in and the CPU able, the active tier must be `asm`.
+        bool AssemblyTierCompiledIn();
+
+        /// The kernel selected on first use (CPUID: asm, then mulx, then portable;
+        /// `MANGOS_CRYPTO_TIER=portable|mulx|asm` forces one that is available) and its
+        /// name for reports.
         MontMulFn ActiveMontMul();
         const char* ActiveTierName();
+
+        /// The kernel a context of k limbs uses: the active one, or the next tier down
+        /// when the assembly tier cannot take k.
+        MontMulFn MontMulFor(size_t k);
 
         /**
          * @brief Everything Montgomery arithmetic needs about one odd modulus.
