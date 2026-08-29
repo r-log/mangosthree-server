@@ -33,9 +33,12 @@
 // No argument runs everything, which is what CI does and what the ctest entry does.
 // -only/-skip are for iterating: the network and crypto stress cases cost minutes and
 // have nothing to say about a change elsewhere.
+/// CryptoBench.cpp: the in-house primitives timed the way the OpenSSL baseline was.
+void RunCryptoBench();
+
 static void Usage()
 {
-    std::printf("usage: mangos_tests [-only <substr>]... [-skip <substr>]...\n");
+    std::printf("usage: mangos_tests [-only <substr>]... [-skip <substr>]... | --bench crypto\n");
 }
 
 int main(int argc, char** argv)
@@ -53,6 +56,11 @@ int main(int argc, char** argv)
         else if (std::strcmp(argv[i], "-skip") == 0 && hasValue)
         {
             skip.push_back(argv[++i]);
+        }
+        else if (std::strcmp(argv[i], "--bench") == 0 && hasValue && std::strcmp(argv[i + 1], "crypto") == 0)
+        {
+            RunCryptoBench();
+            return 0;
         }
         else
         {
