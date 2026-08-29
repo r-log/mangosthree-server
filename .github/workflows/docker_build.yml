@@ -156,8 +156,12 @@ jobs:
 
             revision=$(docker image inspect "$image" \
                        --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
-            if [ "$revision" != "$EXPECTED_REVISION" ]; then
-              echo "::error::$image was built from '$revision', expected $EXPECTED_REVISION"
+            # On a pull request the checkout is the synthetic merge commit (github.sha)
+            # while the PR's own head is what the operator recognises; the image
+            # carries whichever the metadata action labelled it with. Either is
+            # this PR; anything else is a stale or foreign image.
+            if [ "$revision" != "$EXPECTED_REVISION" ] && [ "$revision" != "$GITHUB_SHA" ]; then
+              echo "::error::$image was built from '$revision', expected $EXPECTED_REVISION (or the merge commit $GITHUB_SHA)"
               exit 1
             fi
 
