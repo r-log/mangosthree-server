@@ -7,6 +7,17 @@
 namespace mangos::patcher {
 namespace {
 
+CodeSite OffsetSite(const char* name, std::size_t file_offset,
+                    std::vector<std::uint8_t> stock, std::vector<std::uint8_t> rewritten) {
+    CodeSite s;
+    s.name = name;
+    s.expect = std::move(stock);
+    s.patch = std::move(rewritten);
+    s.by_file_offset = true;
+    s.file_offset = file_offset;
+    return s;
+}
+
 std::vector<std::uint8_t> Hex(const std::string& text) {
     std::vector<std::uint8_t> out;
     if (!FromHex(text, out)) {
@@ -79,7 +90,19 @@ std::vector<Target> BuildTargets() {
         // VA and only then checked against `expect`.
         t.launcher = {"manifest check", 0x14000A0E5ull, Hex("E826E5FFFF85C075"),
                       Hex(kMovEax1)};
-
+        // The MaNGOSPatcher edits for the 64-bit client, as that tool's own table
+        // records them (mangosthree/tools, MaNGOSPatcher/Patcher/Patches.cs,
+        // Patch434Win64: file offsets, stock bytes, rewritten bytes). Its x86
+        // table maps onto the three x86 sites above at a constant delta, which
+        // is the evidence the two tables describe the same edits. Any of these
+        // rewritten collapses both streams onto slot 0.
+        t.forbidden.push_back(OffsetSite("send: je skipping the type-0 path", 0xAAB6Fu,
+                                         Hex("7408"), Hex("9090")));
+        t.forbidden.push_back(OffsetSite("send: forced type 0", 0xAAB71u,
+                                         Hex("418BD5"), Hex("31D290")));
+        t.forbidden.push_back(OffsetSite("NetClient: forced connection[0]", 0xA9AD3u,
+                                         Hex("7410"), Hex("EB10")));
+        t.forbidden_sites_known = true;
         targets.push_back(std::move(t));
     }
 

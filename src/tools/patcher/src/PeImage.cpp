@@ -100,13 +100,14 @@ std::optional<PeImage> PeImage::Parse(const std::vector<std::uint8_t>& file,
         return std::nullopt;
     }
 
-    const std::size_t table = optional + optional_size;
+    const std::uint64_t table = static_cast<std::uint64_t>(optional) + optional_size;
     for (std::uint16_t i = 0; i < section_count; ++i) {
-        const std::size_t off = table + static_cast<std::size_t>(i) * kSectionHeaderSize;
-        if (off > file.size() || file.size() - off < kSectionHeaderSize) {
+        const std::uint64_t off64 = table + static_cast<std::uint64_t>(i) * kSectionHeaderSize;
+        if (off64 > file.size() || file.size() - off64 < kSectionHeaderSize) {
             error = "truncated section table";
             return std::nullopt;
         }
+        const std::size_t off = static_cast<std::size_t>(off64);
         Section s;
         const char* raw_name = reinterpret_cast<const char*>(file.data() + off);
         s.name.assign(raw_name, ::strnlen(raw_name, 8));

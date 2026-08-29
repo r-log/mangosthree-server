@@ -15,6 +15,12 @@ struct CodeSite {
     std::uint64_t va = 0;
     std::vector<std::uint8_t> expect;
     std::vector<std::uint8_t> patch;
+    // Some sites are known by file offset rather than by address: the
+    // MaNGOSPatcher table (mangosthree/tools) records what it rewrites that
+    // way. When set, `file_offset` locates the site and `va` is derived from
+    // the section table for the report.
+    bool by_file_offset = false;
+    std::size_t file_offset = 0;
 };
 
 // A blob located by its stock content, then cross-checked against the virtual

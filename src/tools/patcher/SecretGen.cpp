@@ -202,11 +202,15 @@ namespace
     bool WriteFile(const std::string& path, const std::string& body, bool privateFile)
     {
         const std::string tmp = path + ".tmp";
+        std::error_code ec;
+        std::filesystem::remove(tmp, ec);   // a stale temporary is never reused
         bool written = false;
 #ifndef _WIN32
         if (privateFile)
         {
-            const int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+            // Exclusive creation with the final mode: an existing file, or a
+            // symlink planted at this name, fails here instead of being written through.
+            const int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
             if (fd >= 0)
             {
                 size_t done = 0;
@@ -233,7 +237,6 @@ namespace
                 written = file.good();
             }
         }
-        std::error_code ec;
         if (!written)
         {
             std::fprintf(stderr, "secret-gen: cannot write %s\n", tmp.c_str());
@@ -383,17 +386,44 @@ int main(int argc, char** argv)
         "PrivateExponent = " + keypair.privateExponentHex + "\n"
         "AuthBlob = " + authBlobHex + "\n";
 
+    // Under --force a working key may be in place. Keep it aside until both new
+    // files are installed, so a failure half-way leaves the old pair, not nothing.
+    std::error_code ec;
+    const std::string previousServer = serverPath + ".previous";
+    const bool hadServer = std::filesystem::exists(serverPath, ec);
+    if (hadServer)
+    {
+        std::filesystem::remove(previousServer, ec);
+        std::filesystem::rename(serverPath, previousServer, ec);
+        if (ec)
+        {
+            std::fprintf(stderr, "secret-gen: cannot set the existing %s aside: %s\n",
+                         serverPath.c_str(), ec.message().c_str());
+            return 1;
+        }
+    }
     // The private half first: if it cannot be written there is no point in
     // publishing a client key for it.
     if (!WriteFile(serverPath, serverBody, true))
     {
+        if (hadServer)
+        {
+            std::filesystem::rename(previousServer, serverPath, ec);
+        }
         return 1;
     }
     if (!WriteFile(clientPath, clientBody, false))
     {
-        std::error_code ec;
         std::filesystem::remove(serverPath, ec);
+        if (hadServer)
+        {
+            std::filesystem::rename(previousServer, serverPath, ec);
+        }
         return 1;
+    }
+    if (hadServer)
+    {
+        std::filesystem::remove(previousServer, ec);
     }
 
     std::printf("secret-gen: wrote %s and %s\n", clientPath.c_str(), serverPath.c_str());

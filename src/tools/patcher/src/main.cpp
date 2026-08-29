@@ -120,8 +120,8 @@ int PrintReport(const ClientFile& file, const ClientReport& report) {
     for (const SiteReport& s : report.forbidden) {
         PrintSite(s);
     }
-    if (report.forbidden.empty()) {
-        std::cout << "  (no verified MaNGOSPatcher sites for this machine; not checked)\n";
+    if (!report.target->forbidden_sites_known) {
+        std::cout << "  (no verified MaNGOSPatcher sites for this machine; cannot be certified)\n";
     }
 
     if (report.HasForbiddenEdits()) {
@@ -132,7 +132,8 @@ int PrintReport(const ClientFile& file, const ClientReport& report) {
 
     // All three sites, or the client passes every check here and is still refused
     // by the realm: a stock DIGEST20 rejects any auth blob but the stock one.
-    const bool ready = report.modulus.state == SiteState::Applied &&
+    const bool ready = report.target->forbidden_sites_known &&
+                       report.modulus.state == SiteState::Applied &&
                        report.digest.state == SiteState::Applied &&
                        report.launcher.state == SiteState::Applied;
     std::cout << "\nVERDICT    " << (ready ? "patched for MaNGOS" : "not fully patched")

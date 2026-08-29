@@ -56,7 +56,14 @@ SiteReport InspectCodeSite(const ClientFile& file, const CodeSite& site) {
     r.name = site.name;
     r.va = site.va;
 
-    const std::optional<std::size_t> off = file.pe().FileOffsetOf(site.va);
+    std::optional<std::size_t> off;
+    if (site.by_file_offset) {
+        off = site.file_offset;
+        const std::optional<std::uint64_t> va = file.pe().VirtualAddressOf(site.file_offset);
+        r.va = va.value_or(0);
+    } else {
+        off = file.pe().FileOffsetOf(site.va);
+    }
     if (!off.has_value()) {
         r.state = SiteState::Missing;
         r.detail = "address not backed by file bytes";
@@ -65,10 +72,13 @@ SiteReport InspectCodeSite(const ClientFile& file, const CodeSite& site) {
     r.file_offset = *off;
 
     std::vector<std::uint8_t> now;
-    if (!file.ReadAtVa(site.va, site.expect.size(), now)) {
+    if (*off > file.size() || file.size() - *off < site.expect.size()) {
         r.state = SiteState::Missing;
+        r.detail = "offset not backed by file bytes";
         return r;
     }
+    now.assign(file.bytes().begin() + static_cast<std::ptrdiff_t>(*off),
+               file.bytes().begin() + static_cast<std::ptrdiff_t>(*off + site.expect.size()));
 
     if (now == site.expect) {
         r.state = SiteState::Stock;

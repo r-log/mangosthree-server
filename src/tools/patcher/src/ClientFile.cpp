@@ -75,6 +75,15 @@ bool ClientFile::Save(const std::string& path, bool backup, std::string& error) 
         fs::remove(tmp, ec);
         return false;
     }
+    // The new file must be the executable the old one was: carry its permission
+    // bits over before it takes the old name (on POSIX a fresh file is not 0755).
+    {
+        std::error_code pec;
+        const fs::file_status original = fs::status(path, pec);
+        if (!pec) {
+            fs::permissions(tmp, original.permissions(), pec);
+        }
+    }
     fs::rename(tmp, path, ec);
     if (ec) {
         error = "cannot replace " + path + ": " + ec.message();
