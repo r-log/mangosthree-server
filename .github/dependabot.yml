@@ -4,7 +4,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    # One PR with every action bump instead of one PR (and one CI run) per action.
     groups:
       actions:
         patterns: ["*"]
@@ -12,7 +11,5 @@ updates:
     directory: /extra/docker
     schedule:
       interval: weekly
-    # The base image moves only by hand: a new Ubuntu LTS is a migration (package names,
-    # compiler), and the in-between releases (22.10, 23.04, ...) are short-lived non-LTS.
     ignore:
       - dependency-name: ubuntu

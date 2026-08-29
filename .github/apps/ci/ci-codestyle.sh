@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# SD3 and realmd are vendored upstream code in upstream's style. They are ours to edit now,
-# but they have not been restyled, so the style check skips them until that happens.
 exclude=(
-    # dirs
     "SD3"
     "realmd"
 )
@@ -26,11 +23,6 @@ declare -A singleLineRegexChecks=(
 for check in "${!singleLineRegexChecks[@]}"; do
     echo "  Checking RegEx: '${check}'"
 
-    # grep's three exit codes are three different answers and only two of them are
-    # "the check ran": 0 found something, 1 found nothing, anything else FAILED to
-    # look -- an unreadable file, a locale it cannot use for -P. Written as
-    # `if grep ...; then` an error reads the same as a clean pass, and the gate
-    # reports success without having checked a single line.
     set +e
     grep -P -r -I -n ${exclude_dirs} "${check}" src
     status=$?

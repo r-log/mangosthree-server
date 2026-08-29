@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 1
 
@@ -47,25 +47,16 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libssl-dev libbz2-dev default-libmysqlclient-dev             ${{ matrix.pkg }}
 
       - name: Compiler cache
-        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639
         with:
           key: linux-${{ matrix.name }}-pch
           max-size: 2G
 
-      # The same settings the Windows job runs with. pch_defines,time_macros: required for
-      # units that consume a precompiled header. include_file_mtime,include_file_ctime: every
-      # checkout gives the headers a fresh mtime, which would otherwise make ccache distrust
-      # its direct-mode manifests. Depend mode: a miss is compiled once (the -MD output names
-      # the includes) instead of being preprocessed first and compiled second; a changed
-      # header still invalidates its dependents, and a header inside the PCH still does too,
-      # because the PCH file itself is hashed as an input of every unit that uses it.
       - name: Configure the compiler cache
         run: |
           ccache --set-config=sloppiness=pch_defines,time_macros,include_file_mtime,include_file_ctime
           ccache --set-config=depend_mode=true
 
-      # Never the socket tests: they bind real listeners and dominate the
-      # suite's wall-clock. A human asks for them, CI does not.
       - name: Configure
         run: >
           cmake -S . -B "$BUILD_DIR" -G Ninja
