@@ -39,6 +39,11 @@ struct Target {
     // MaNGOSPatcher client: the recv gate is dead and every opcode is forced
     // onto stream 0, which disables the dual-stream architecture.
     std::vector<CodeSite> forbidden;
+    // False until the MaNGOSPatcher edit sites of this image have been verified.
+    // Without them a collapsed-stream client cannot be told from a stock one, so
+    // the tool refuses to patch the image at all rather than claim a check it
+    // does not make.
+    bool forbidden_sites_known = false;
 };
 
 const std::vector<Target>& KnownTargets();

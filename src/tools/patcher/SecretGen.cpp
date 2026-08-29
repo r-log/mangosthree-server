@@ -62,9 +62,16 @@
 
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
+
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <sys/stat.h>
+#  include <unistd.h>
+#endif
 
 namespace
 {
@@ -158,41 +165,86 @@ namespace
     }
 
     /**
-     * @brief Write a file, refusing to replace one that is already there.
+     * @brief Refuse to replace a file that is already there.
      *
      * Overwriting a server.secret silently would lock every already-patched
      * client out of the realm, with the only copy of the key that admits them
      * gone. Making the operator move the old one out of the way first is the
-     * cheapest possible guard against that.
+     * cheapest possible guard against that. Checked for both files before
+     * anything is generated, so a refusal never leaves half a pair behind.
      */
-    bool WriteFile(const std::string& path, const std::string& body, bool force)
+    bool Preflight(const std::string& path, bool force)
     {
-        if (!force)
+        if (force)
         {
-            std::ifstream existing(path.c_str());
-            if (existing.good())
-            {
-                std::fprintf(stderr,
-                    "secret-gen: %s already exists. Move it aside first, or pass "
-                    "--force if you mean to replace it -- every client patched "
-                    "with the old key stops being able to log in.\n", path.c_str());
-                return false;
-            }
+            return true;
         }
-
-        std::ofstream file(path.c_str(), std::ios::binary | std::ios::trunc);
-        if (!file.good())
+        std::ifstream existing(path.c_str());
+        if (existing.good())
         {
-            std::fprintf(stderr, "secret-gen: cannot write %s\n", path.c_str());
+            std::fprintf(stderr,
+                "secret-gen: %s already exists. Move it aside first, or pass "
+                "--force if you mean to replace it -- every client patched "
+                "with the old key stops being able to log in.\n", path.c_str());
             return false;
         }
+        return true;
+    }
 
-        file << body;
-        file.flush();
-
-        if (!file.good())
+    /**
+     * @brief Write a file through a temporary beside it, then rename into place.
+     *
+     * A private file is created readable by its owner only, from the first byte:
+     * the private exponent must never sit on disk with the process's umask
+     * permissions, even briefly. On Windows the file inherits the directory's
+     * ACL, which is the operator's to restrict.
+     */
+    bool WriteFile(const std::string& path, const std::string& body, bool privateFile)
+    {
+        const std::string tmp = path + ".tmp";
+        bool written = false;
+#ifndef _WIN32
+        if (privateFile)
         {
-            std::fprintf(stderr, "secret-gen: failed while writing %s\n", path.c_str());
+            const int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+            if (fd >= 0)
+            {
+                size_t done = 0;
+                while (done < body.size())
+                {
+                    const ssize_t n = ::write(fd, body.data() + done, body.size() - done);
+                    if (n <= 0)
+                    {
+                        break;
+                    }
+                    done += size_t(n);
+                }
+                written = (done == body.size()) && (::close(fd) == 0);
+            }
+        }
+        else
+#endif
+        {
+            std::ofstream file(tmp.c_str(), std::ios::binary | std::ios::trunc);
+            if (file.good())
+            {
+                file << body;
+                file.flush();
+                written = file.good();
+            }
+        }
+        std::error_code ec;
+        if (!written)
+        {
+            std::fprintf(stderr, "secret-gen: cannot write %s\n", tmp.c_str());
+            std::filesystem::remove(tmp, ec);
+            return false;
+        }
+        std::filesystem::rename(tmp, path, ec);
+        if (ec)
+        {
+            std::fprintf(stderr, "secret-gen: cannot replace %s: %s\n", path.c_str(), ec.message().c_str());
+            std::filesystem::remove(tmp, ec);
             return false;
         }
         return true;
@@ -264,9 +316,15 @@ int main(int argc, char** argv)
         outDir += '/';
     }
 
+    const std::string clientPath = outDir + "client.secret";
+    const std::string serverPath = outDir + "server.secret";
+    if (!Preflight(clientPath, force) || !Preflight(serverPath, force))
+    {
+        return 1;
+    }
+
     Keypair     keypair;
     std::string authBlobHex;
-
     if (!GenerateKeypair(keypair) || !GenerateAuthBlob(authBlobHex))
     {
         return 1;
@@ -299,9 +357,6 @@ int main(int argc, char** argv)
 
     const std::string digest = signer.ExpectedClientDigest();
 
-    const std::string clientPath = outDir + "client.secret";
-    const std::string serverPath = outDir + "server.secret";
-
     const std::string clientBody =
         "# Generated by secret-gen. Feed this to the client patcher.\n"
         "#\n"
@@ -328,12 +383,16 @@ int main(int argc, char** argv)
         "PrivateExponent = " + keypair.privateExponentHex + "\n"
         "AuthBlob = " + authBlobHex + "\n";
 
-    if (!WriteFile(clientPath, clientBody, force))
+    // The private half first: if it cannot be written there is no point in
+    // publishing a client key for it.
+    if (!WriteFile(serverPath, serverBody, true))
     {
         return 1;
     }
-    if (!WriteFile(serverPath, serverBody, force))
+    if (!WriteFile(clientPath, clientBody, false))
     {
+        std::error_code ec;
+        std::filesystem::remove(serverPath, ec);
         return 1;
     }
 

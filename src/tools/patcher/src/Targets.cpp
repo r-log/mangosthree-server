@@ -59,7 +59,7 @@ std::vector<Target> BuildTargets() {
         t.forbidden.push_back({"recv gate (site B)", 0x00488FAEu, Hex("74"), {}});
         // .text:004895CA mov edx,[ebp+arg_4] — send-slot selection in sub_489590.
         t.forbidden.push_back({"send slot routing", 0x004895CAu, Hex("8B550C"), {}});
-
+        t.forbidden_sites_known = true;
         targets.push_back(std::move(t));
     }
 

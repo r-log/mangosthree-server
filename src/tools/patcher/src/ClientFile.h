@@ -28,7 +28,7 @@ public:
 
     bool ReadAtVa(std::uint64_t va, std::size_t len, std::vector<std::uint8_t>& out) const;
     bool WriteAtVa(std::uint64_t va, const std::vector<std::uint8_t>& data, std::string& error);
-    void WriteAtOffset(std::size_t offset, const std::vector<std::uint8_t>& data);
+    bool WriteAtOffset(std::size_t offset, const std::vector<std::uint8_t>& data);
 
 private:
     std::vector<std::uint8_t> bytes_;
