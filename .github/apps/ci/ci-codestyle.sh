@@ -1,12 +1,9 @@
 #!/bin/bash
 
-exclude=(
-    "SD3"
-    "realmd"
-)
+. "$(dirname "${BASH_SOURCE[0]}")/codestyle-scope.sh"
 
 exclude_dirs=""
-for dir in "${exclude[@]}"; do
+for dir in "${codestyle_excludes[@]}"; do
     exclude_dirs+="--exclude-dir=$dir "
 done
 
@@ -24,7 +21,7 @@ for check in "${!singleLineRegexChecks[@]}"; do
     echo "  Checking RegEx: '${check}'"
 
     set +e
-    grep -P -r -I -n ${exclude_dirs} "${check}" src
+    grep -P -r -I -n ${exclude_dirs} "${check}" "${codestyle_root}"
     status=$?
     set -e
 

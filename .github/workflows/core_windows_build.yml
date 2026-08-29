@@ -5,7 +5,7 @@ on:
     branches: [ master, united, devel ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ master, united ]
+    branches: [ master, united, devel ]
 
 permissions:
   contents: read
@@ -18,6 +18,7 @@ jobs:
   build:
     name: Build, test and package
     runs-on: windows-2022
+    timeout-minutes: 120
     concurrency:
       group: windows-build-${{ github.ref }}
       cancel-in-progress: true
@@ -101,9 +102,39 @@ jobs:
           fi
 
       - name: Setup MSVC environment
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
-        with:
-          arch: x64
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) { throw "vswhere.exe not found at $vswhere" }
+          $install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $install) { throw 'no Visual Studio installation carrying the C++ x64 toolset was found' }
+          $vcvars = Join-Path $install 'VC\Auxiliary\Build\vcvars64.bat'
+          if (-not (Test-Path $vcvars)) { throw "vcvars64.bat not found at $vcvars" }
+
+          $before = @{}
+          foreach ($item in Get-ChildItem Env:) { $before[$item.Name] = $item.Value }
+
+          $captured = @{}
+          $output = & "$env:ComSpec" /s /c "`"$vcvars`" && set"
+          if ($LASTEXITCODE -ne 0) { throw "vcvars64.bat failed with exit code $LASTEXITCODE" }
+          foreach ($line in $output) {
+            if ($line -notmatch '^([A-Za-z_][A-Za-z0-9_()]*)=(.*)$') { continue }
+            $name = $matches[1]
+            $value = $matches[2]
+            if ($before[$name] -ne $value) { $captured[$name] = $value }
+          }
+
+          foreach ($required in 'VCToolsRedistDir', 'INCLUDE', 'LIB') {
+            if (-not $captured.ContainsKey($required)) { throw "vcvars64.bat did not set $required" }
+          }
+          $toolset = ($captured['Path'] -split ';' | Where-Object { $_ -and (Test-Path (Join-Path $_ 'link.exe')) } | Select-Object -First 1)
+          if (-not $toolset) { throw 'link.exe is not on the environment vcvars64.bat produced' }
+
+          foreach ($name in $captured.Keys | Sort-Object) {
+            Add-Content -Path $env:GITHUB_ENV -Value "$name=$($captured[$name])"
+          }
+          Write-Host "MSVC $($captured['VCToolsVersion']) from $install"
+          Write-Host "link.exe from $toolset"
 
       - name: Install ccache 4.14
         shell: pwsh
@@ -135,40 +166,52 @@ jobs:
         shell: bash
         run: |
           sha7=${GITHUB_SHA::7}
+          default_branch='${{ github.event.repository.default_branch }}'
           case "$GITHUB_EVENT_NAME:$GITHUB_REF" in
-            push:refs/tags/*)       version="$GITHUB_REF_NAME" ;;
-            push:refs/heads/master) version="nightly-$(date -u +%Y%m%d)-g$sha7" ;;
-            pull_request:*)         version="pr${{ github.event.pull_request.number }}-g$sha7" ;;
-            *)                      version="${GITHUB_REF_NAME//\//-}-g$sha7" ;;
+            push:refs/tags/*) version="$GITHUB_REF_NAME" ;;
+            pull_request:*)   version="pr${{ github.event.pull_request.number }}-g$sha7" ;;
+            push:refs/heads/*)
+              if [ "$GITHUB_REF_NAME" = "$default_branch" ]; then
+                version="nightly-$(date -u +%Y%m%d)-g$sha7"
+              else
+                version="${GITHUB_REF_NAME//\//-}-g$sha7"
+              fi ;;
+            *)                version="${GITHUB_REF_NAME//\//-}-g$sha7" ;;
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "artifact=MangosThree-$version-win64" >> "$GITHUB_OUTPUT"
           echo "Version: $version"
 
       - name: Configure
-        shell: bash
-        run: >
-          cmake -S . -B "$BUILD_DIR" -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_C_FLAGS_RELEASE="-O2 -Ob2 -DNDEBUG -Z7"
-          -DCMAKE_CXX_FLAGS_RELEASE="-O2 -Ob2 -DNDEBUG -Z7"
-          -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
-          -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="-DEBUG -INCREMENTAL:NO -OPT:REF -OPT:ICF"
-          -DCMAKE_INSTALL_PREFIX="$BUILD_DIR/install"
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR"
-          -DBUILD_TOOLS=1
-          -DBUILD_MANGOSD=1
-          -DBUILD_REALMD=1
-          -DWITH_TESTS=1
-          -DWITH_NET_TESTS=0
-          -DSCRIPT_LIB_SD3=1
-          -DPCH=1
+        shell: pwsh
+        run: |
+          $arguments = @(
+            '-S', '.', '-B', $env:BUILD_DIR, '-G', 'Ninja',
+            '-DCMAKE_BUILD_TYPE=Release',
+            '-DCMAKE_C_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Z7',
+            '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Z7',
+            '-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF',
+            '-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF',
+            "-DCMAKE_INSTALL_PREFIX=$env:BUILD_DIR/install",
+            '-DCMAKE_C_COMPILER_LAUNCHER=ccache',
+            '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache',
+            "-DOPENSSL_ROOT_DIR=$env:OPENSSL_ROOT_DIR",
+            '-DBUILD_TOOLS=1',
+            '-DBUILD_MANGOSD=1',
+            '-DBUILD_REALMD=1',
+            '-DWITH_TESTS=1',
+            '-DWITH_NET_TESTS=0',
+            '-DSCRIPT_LIB_SD3=1',
+            '-DPCH=1'
+          )
+          cmake @arguments
+          if ($LASTEXITCODE -ne 0) { throw "cmake configure failed with exit code $LASTEXITCODE" }
 
       - name: Build
-        shell: bash
-        run: cmake --build "$BUILD_DIR" --parallel
+        shell: pwsh
+        run: |
+          cmake --build $env:BUILD_DIR --parallel
+          if ($LASTEXITCODE -ne 0) { throw "build failed with exit code $LASTEXITCODE" }
 
       - name: Compiler cache statistics
         if: always()
@@ -195,7 +238,7 @@ jobs:
           fi
 
       - name: Save compiler cache
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ github.workspace }}\.ccache
@@ -239,8 +282,9 @@ jobs:
   nightly:
     name: Publish nightly
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     concurrency:
@@ -268,6 +312,7 @@ jobs:
           sha7=${GITHUB_SHA::7}
           images="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mangosthree"
           stamp=$(date -u '+%Y-%m-%d %H:%M UTC')
+          branch='${{ github.event.repository.default_branch }}'
 
           current=$(gh api "repos/$GH_REPO/git/ref/tags/nightly" --jq .object.sha 2>/dev/null) || current=""
           [[ "$current" =~ ^[0-9a-f]{40}$ ]] || current=""
@@ -283,13 +328,13 @@ jobs:
           fi
 
           cat > body.md <<BODY
-          Rolling build of \`master\` at [\`$sha7\`](https://github.com/$GH_REPO/commit/$GITHUB_SHA) — $stamp. Replaced on every successful master build; the download URL never changes.
+          Rolling build of \`$branch\` at [\`$sha7\`](https://github.com/$GH_REPO/commit/$GITHUB_SHA) — $stamp. Replaced on every successful \`$branch\` build; the download URL never changes.
 
           | Asset | SHA-256 |
           |---|---|
           | \`$zip\` | \`$sha\` |
 
-          **Docker images for this commit** (present once its Docker workflow has finished): \`$images-mangosd:sha-$sha7\`, \`$images-realmd:sha-$sha7\`. The \`:nightly\` tags follow the latest successful master Docker build independently of this zip.
+          **Docker images for this commit** (present once its Docker workflow has finished): \`$images-mangosd:sha-$sha7\`, \`$images-realmd:sha-$sha7\`. The \`:nightly\` tags follow the latest successful \`$branch\` Docker build independently of this zip.
 
           **Windows:** extract, copy \`mangosd.conf.dist\` to \`mangosd.conf\` and \`realmd.conf.dist\` to \`realmd.conf\`, set the \`*DatabaseInfo\` lines, run \`realmd.exe\` and \`mangosd.exe\`. No Visual C++ redistributable needed; crash logs (with symbols) land in the Crashes folder.
           BODY
@@ -307,6 +352,7 @@ jobs:
     needs: build
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     env:

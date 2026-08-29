@@ -64,29 +64,22 @@ if (_MYSQL_USE_PKGCONFIG)
 endif ()
 
 if(NOT MySQL_FOUND)
-  set(_MySQL_versions 5.4 5.5 5.6 5.7 8.0)
   set(_MySQL_paths)
 
-  # MariaDB ships a new minor/major version regularly, and its registry key
-  # and default install directory both embed the version number (e.g.
-  # "MariaDB 10.11"), so hardcoding every version ever released requires
-  # updating this file on every release. Instead, glob the default install
-  # directories for any "MariaDB *" folder, which finds whatever is actually
-  # installed regardless of version.
-  file(GLOB _MySQL_mariadb_install_dirs
+  # Both MariaDB and MySQL embed the version in their default install directory
+  # ("MariaDB 10.11", "MySQL Server 8.0"), so a hardcoded list of versions has to
+  # be edited on every release -- and silently stops finding anything when a
+  # runner image or a developer moves on to the next one. The list that used to
+  # sit here ended at 8.0, which would have broken the day a CI image shipped 8.4.
+  # Glob the install roots instead: whatever is actually installed is found,
+  # regardless of version.
+  file(GLOB _MySQL_install_dirs
     "C:/Program Files/MariaDB */"
-    "C:/Program Files (x86)/MariaDB */")
-  list(APPEND _MySQL_paths ${_MySQL_mariadb_install_dirs})
-  unset(_MySQL_mariadb_install_dirs)
-
-  foreach (_MySQL_version IN LISTS _MySQL_versions)
-    list(APPEND _MySQL_paths
-      "C:/Program Files/MySQL/MySQL Server ${_MySQL_version}/lib/opt"
-      "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MySQL AB\\MySQL Server ${_MySQL_version};Location]"
-      "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\MySQL AB\\MySQL Server ${_MySQL_version};Location]")
-  endforeach ()
-  unset(_MySQL_version)
-  unset(_MySQL_versions)
+    "C:/Program Files (x86)/MariaDB */"
+    "C:/Program Files/MySQL/MySQL Server */"
+    "C:/Program Files (x86)/MySQL/MySQL Server */")
+  list(APPEND _MySQL_paths ${_MySQL_install_dirs})
+  unset(_MySQL_install_dirs)
 
   find_path(MySQL_INCLUDE_DIR
     NAMES mysql.h

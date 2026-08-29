@@ -7,7 +7,7 @@ on:
   push:
     branches: [master, united, devel]
   pull_request:
-    branches: [master, united]
+    branches: [master, united, devel]
 
 concurrency:
   group: codestyle-${{ github.ref }}
@@ -15,10 +15,8 @@ concurrency:
 
 jobs:
   check-codestyle:
-    strategy:
-      fail-fast: false
-
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     name: Check Codestyling
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

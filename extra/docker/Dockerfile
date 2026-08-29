@@ -17,9 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
-# Same feature set as the Linux CI build. WITHOUT_GIT because .dockerignore excludes .git;
-# the OCI revision label carries the commit instead. CONF_INSTALL_DIR is explicit because
-# its default `../etc` resolves to /etc when the prefix is /mangos.
+# The two servers only -- deliberately NOT the same feature set as the Linux CI build,
+# which additionally builds the tools (BUILD_TOOLS=1) and the test suite (WITH_TESTS=1).
+# Neither belongs in a runtime image: the extractor runs against a game client, not a
+# server, and the tests are CI's business. CI is what proves this source tree compiles
+# and passes; this stage only has to produce the two daemons.
+# WITHOUT_GIT because .dockerignore excludes .git; the OCI revision label carries the
+# commit instead. CONF_INSTALL_DIR is explicit because its default `../etc` resolves to
+# /etc when the prefix is /mangos.
 RUN cmake -S . -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \

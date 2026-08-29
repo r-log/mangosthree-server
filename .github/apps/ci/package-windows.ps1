@@ -32,9 +32,21 @@ function Get-CacheValue([string] $Key) {
     return $null
 }
 $mysqlLib = Get-CacheValue 'MySQL_LIBRARY'
-$mysqlDir = if ($mysqlLib) { Split-Path -Parent $mysqlLib } else { $null }
+$mysqlDirs = @()
+if ($mysqlLib) {
+    $libDir = Split-Path -Parent $mysqlLib
+    $mysqlDirs += $libDir
+    $probe = $libDir
+    while ($probe) {
+        $candidate = Join-Path $probe 'bin'
+        if (Test-Path $candidate) { $mysqlDirs += $candidate; break }
+        $parent = Split-Path -Parent $probe
+        if ($parent -eq $probe) { break }
+        $probe = $parent
+    }
+}
 $vcRedist = if ($env:VCToolsRedistDir) { Join-Path $env:VCToolsRedistDir 'x64\Microsoft.VC143.CRT' } else { $null }
-$searchDirs = @($OpenSslBin, $mysqlDir, $vcRedist) | Where-Object { $_ -and (Test-Path $_) }
+$searchDirs = @($OpenSslBin) + $mysqlDirs + @($vcRedist) | Where-Object { $_ -and (Test-Path $_) }
 $system32 = Join-Path $env:SystemRoot 'System32'
 Write-Step "DLL search directories: $($searchDirs -join ' ; ')"
 

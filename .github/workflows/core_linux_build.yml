@@ -5,7 +5,7 @@ on:
     branches: [ master, united, devel ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ master, united ]
+    branches: [ master, united, devel ]
 
 permissions:
   contents: read
@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -47,7 +48,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libssl-dev libbz2-dev default-libmysqlclient-dev             ${{ matrix.pkg }}
 
       - name: Compiler cache
-        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03
         with:
           key: linux-${{ matrix.name }}-pch
           max-size: 2G
