@@ -97,6 +97,10 @@ namespace MaNGOS
             {
                 CryptoFatal("IsProbablePrime: n must be odd and above 3");
             }
+            if (rounds == 0)
+            {
+                CryptoFatal("IsProbablePrime: at least one round -- zero rounds would call everything prime");
+            }
             // n - 1 = 2^s * d with d odd
             const BigInt nMinusOne = n - BigInt(1);
             BigInt d = nMinusOne;
@@ -143,6 +147,10 @@ namespace MaNGOS
             if (bits < 64)
             {
                 CryptoFatal("GeneratePrime: at least 64 bits");
+            }
+            if (rounds == 0)
+            {
+                CryptoFatal("GeneratePrime: at least one Miller-Rabin round");
             }
             const std::vector<uint32_t>& primes = SmallPrimes();
             std::vector<uint32_t> residues(primes.size());

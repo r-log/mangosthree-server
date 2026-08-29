@@ -223,6 +223,11 @@ TEST(ConnectTo_refuses_crt_parameters_that_do_not_match_the_pair)
     // a partial set (some of the five) is refused rather than half-used
     CHECK(!signer.Load(testkey::kModulus, testkey::kPrivateExponent, "", testkey::kPrime1, "", "", "", ""));
     CHECK(!signer.IsLoaded());
+    // a PrivateExponent that is not the key's, next to CRT parameters that are: the
+    // fast path never uses d, so the loader ties it to the primes rather than trusting it
+    CHECK(!signer.Load(testkey::kModulus, "01", "", testkey::kPrime1, testkey::kPrime2,
+                       testkey::kExponent1, testkey::kExponent2, testkey::kCoefficient));
+    CHECK(!signer.IsLoaded());
 }
 
 TEST(ConnectTo_rejects_a_client_secret_given_where_a_server_secret_belongs)

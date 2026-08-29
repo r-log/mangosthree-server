@@ -51,8 +51,9 @@ namespace MaNGOS
         bool PassesSmallPrimeSieve(const BigInt& n);
 
         /// Miller-Rabin with `rounds` bases drawn uniformly from [2, n - 2] by the
-        /// CSPRNG. n must be odd and above 3. A single witness is final; a survivor
-        /// of 64 rounds is composite with probability below 4^-64.
+        /// CSPRNG. n must be odd and above 3, rounds at least 1 (CryptoFatal otherwise).
+        /// A single witness is final; a survivor of 64 rounds is composite with
+        /// probability below 4^-64.
         bool IsProbablePrime(const BigInt& n, unsigned rounds, SystemRandom& random);
 
         /**

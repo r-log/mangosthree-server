@@ -113,6 +113,13 @@ namespace MaNGOS
             {
                 return false;
             }
+            // With the primes present the private operation never touches d, so d has
+            // to be tied to them here: the CRT exponents must be d reduced modulo p - 1
+            // and q - 1, or a file could advertise a private exponent that is not its key.
+            if (dP != d % (p - BigInt(1)) || dQ != d % (q - BigInt(1)))
+            {
+                return false;
+            }
             // Everything checked: build the contexts, then commit.
             MontgomeryContext pContext(p), qContext(q);
             std::vector<Limb> qInvMont(pContext.Limbs(), 0);
@@ -259,18 +266,37 @@ namespace MaNGOS
             qInv.SecureClear();
         }
 
+        namespace
+        {
+            /// Erases the generator's working values on every exit -- a retry or a return.
+            struct EraseOnExit
+            {
+                std::vector<BigInt*> values;
+                ~EraseOnExit()
+                {
+                    for (BigInt* v : values)
+                    {
+                        v->SecureClear();
+                    }
+                }
+            };
+        }
+
         bool RsaGenerateKey(size_t bits, const BigInt& e, SystemRandom& random, RsaKeyPair& out, unsigned millerRabinRounds)
         {
-            if (bits < 1024 || bits % 512 != 0 || !e.IsOdd() || e <= BigInt(2))
+            if (bits < 1024 || bits % 512 != 0 || !e.IsOdd() || e <= BigInt(2) || millerRabinRounds == 0)
             {
                 return false;
             }
             const size_t half = bits / 2;
             const BigInt one(1);
+            const BigInt minimumDistance = one << (half - 100);
             for (int attempt = 0; attempt < 16; ++attempt)
             {
-                BigInt p = GeneratePrime(half, e, random, millerRabinRounds);
-                BigInt q = GeneratePrime(half, e, random, millerRabinRounds);
+                BigInt p, q, n, pMinusOne, qMinusOne, lambda, d, dP, dQ, qInv;
+                EraseOnExit erase{ { &p, &q, &pMinusOne, &qMinusOne, &lambda, &d, &dP, &dQ, &qInv } };
+                p = GeneratePrime(half, e, random, millerRabinRounds);
+                q = GeneratePrime(half, e, random, millerRabinRounds);
                 if (p == q)
                 {
                     continue;
@@ -279,24 +305,27 @@ namespace MaNGOS
                 {
                     std::swap(p, q);
                 }
-                // |p - q| > 2^(half - 100): primes too close make n easy to factor
-                if ((p - q).BitLength() <= half - 100)
+                // |p - q| > 2^(half - 100), strictly: primes too close make n easy to factor
+                if (p - q <= minimumDistance)
                 {
                     continue;
                 }
-                const BigInt n = p * q;
+                n = p * q;
                 if (n.BitLength() != bits)
                 {
                     continue;
                 }
-                const BigInt pMinusOne = p - one, qMinusOne = q - one;
-                const BigInt lambda = (pMinusOne * qMinusOne) / Gcd(pMinusOne, qMinusOne);
-                const BigInt d = ModInverse(e, lambda);
+                pMinusOne = p - one;
+                qMinusOne = q - one;
+                lambda = (pMinusOne * qMinusOne) / Gcd(pMinusOne, qMinusOne);
+                d = ModInverse(e, lambda);
                 if (d.IsZero() || d.BitLength() <= half)
                 {
                     continue;   // d too small (FIPS: d > 2^(nlen/2)): both primes again
                 }
-                const BigInt dP = d % pMinusOne, dQ = d % qMinusOne, qInv = ModInverse(q, p);
+                dP = d % pMinusOne;
+                dQ = d % qMinusOne;
+                qInv = ModInverse(q, p);
                 if (dP.IsZero() || dQ.IsZero() || qInv.IsZero())
                 {
                     continue;

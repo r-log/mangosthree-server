@@ -131,7 +131,7 @@ TEST(CryptoRsa_generated_keys_are_consistent_and_sign)
         CHECK_EQ(pair.q.BitLength(), bits / 2);
         CHECK(pair.p > pair.q);
         CHECK(pair.p * pair.q == pair.n);
-        CHECK((pair.p - pair.q).BitLength() > bits / 2 - 100);
+        CHECK(pair.p - pair.q > (BigInt(1) << (bits / 2 - 100)));
         CHECK(pair.d.BitLength() > bits / 2);
         const BigInt pm1 = pair.p - BigInt(1), qm1 = pair.q - BigInt(1);
         const BigInt lambda = (pm1 * qm1) / Gcd(pm1, qm1);
@@ -166,4 +166,19 @@ TEST(CryptoRsa_generated_keys_are_consistent_and_sign)
     CHECK(!RsaGenerateKey(512, e, SystemRandom::Instance(), bad));        // below 1024
     CHECK(!RsaGenerateKey(1280, e, SystemRandom::Instance(), bad));       // not a multiple of 512
     CHECK(!RsaGenerateKey(1024, BigInt(4), SystemRandom::Instance(), bad));   // even e
+    CHECK(!RsaGenerateKey(1024, e, SystemRandom::Instance(), bad, 0));        // zero rounds would test nothing
+}
+
+TEST(CryptoPrime_zero_rounds_is_a_contract_violation)
+{
+    // Zero Miller-Rabin rounds would call every odd number prime; the functions refuse
+    // rather than answer.
+    FatalHandler previous = SetFatalHandler(+[](const char* what) { throw std::runtime_error(what ? what : ""); });
+    bool threw = false;
+    try { IsProbablePrime(BigInt(9), 0, SystemRandom::Instance()); } catch (const std::runtime_error&) { threw = true; }
+    CHECK(threw);
+    threw = false;
+    try { GeneratePrime(128, BigInt(65537), SystemRandom::Instance(), 0); } catch (const std::runtime_error&) { threw = true; }
+    CHECK(threw);
+    SetFatalHandler(previous);
 }
