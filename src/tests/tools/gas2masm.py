@@ -76,14 +76,18 @@ def translate(lines):
             if m:
                 out.append(f"L{m.group(1)}:")
                 continue
+            # the MASM unwind directives of the Windows branch pass through as they are
+            if re.match(r"\.(pushreg\s+\w+|setframe\s+\w+,\s*\d+|endprolog)$", code):
+                out.append(f"        {code}")
+                continue
             raise SystemExit(f"unhandled directive: {code}")
-        # global label -> PROC
+        # global label -> PROC FRAME (the Windows branch carries the unwind directives)
         m = re.match(r"(\w+):$", code)
         if m:
             if proc:
                 raise SystemExit("nested procedure")
             proc = m.group(1)
-            out.append(f"{proc} PROC")
+            out.append(f"{proc} PROC FRAME")
             continue
         # instruction
         parts = code.split(None, 1)

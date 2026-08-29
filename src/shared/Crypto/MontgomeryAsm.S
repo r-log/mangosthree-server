@@ -36,13 +36,20 @@
 //
 // Register use (System V):
 //   rdi z   rsi x   r10 y   r11 m   r8 n0inv   r9 k*8
-//   rbp accumulator base (t[j] at [rbp + 8 + 8j], a scratch slot at [rbp])
+//   rbp frame pointer (the stack as it was after the pushes, for unwinding)
+//   rsp accumulator base: a scratch slot at [rsp], t[j] at [rsp + 8 + 8j]
 //   rdx multiplier   rax:rbx product   r12 carry   r13 zero
 //   r14 i*8   r15 j*8   rcx loop counter
 //
-// The GAS source is the one source; MontgomeryAsm.asm is generated from it by
-// src/tests/tools/gas2masm.py for MSVC (the WINDOWS_ABI branch selected), and a
-// test checks the twin is current.
+// Both ABIs are in this one source under WINDOWS_ABI, each with its unwind
+// metadata: CFI for the ELF build, the MASM FRAME directives for ml64 (the
+// translator src/tests/tools/gas2masm.py copies the Windows branch through;
+// GAS never sees it). The frame pointer is set before the k-dependent
+// allocation, so an unwinder recovers the caller from rbp, and the frame is
+// padded so rsp is 16-byte aligned inside the body.
+//
+// The GAS source is the one source; MontgomeryAsm.asm is generated from it,
+// and a test checks the twin is current.
 // ---------------------------------------------------------------------------
 
         .intel_syntax noprefix
@@ -53,39 +60,72 @@
         .type mangos_montmul_adx, @function
 #endif
 mangos_montmul_adx:
-        push rbp
-        push rbx
-        push r12
-        push r13
-        push r14
-        push r15
 #if WINDOWS_ABI
+        push rbp
+        .pushreg rbp
+        push rbx
+        .pushreg rbx
+        push r12
+        .pushreg r12
+        push r13
+        .pushreg r13
+        push r14
+        .pushreg r14
+        push r15
+        .pushreg r15
         push rdi
+        .pushreg rdi
         push rsi
+        .pushreg rsi
+        mov rbp, rsp
+        .setframe rbp, 0
+        .endprolog
         mov rdi, rcx
         mov rsi, rdx
         mov r10, r8
         mov r11, r9
-        mov r8, qword ptr [rsp + 104]
-        mov r9, qword ptr [rsp + 112]
+        mov r8, qword ptr [rbp + 104]
+        mov r9, qword ptr [rbp + 112]
 #else
+        .cfi_startproc
+        push rbp
+        .cfi_adjust_cfa_offset 8
+        .cfi_rel_offset rbp, 0
+        push rbx
+        .cfi_adjust_cfa_offset 8
+        .cfi_rel_offset rbx, 0
+        push r12
+        .cfi_adjust_cfa_offset 8
+        .cfi_rel_offset r12, 0
+        push r13
+        .cfi_adjust_cfa_offset 8
+        .cfi_rel_offset r13, 0
+        push r14
+        .cfi_adjust_cfa_offset 8
+        .cfi_rel_offset r14, 0
+        push r15
+        .cfi_adjust_cfa_offset 8
+        .cfi_rel_offset r15, 0
+        mov rbp, rsp
+        .cfi_def_cfa_register rbp
         mov r10, rdx
         mov r11, rcx
 #endif
         shl r9, 3
         xor r13d, r13d
 
-        // frame: scratch (8) + t[0 .. k+1] ((k+2)*8), rounded up to 16
+        // frame: scratch (8) + t[0 .. k+1] ((k+2)*8), rounded up to 16, plus 8 so
+        // that rsp -- 8 mod 16 after the pushes in both ABIs -- is aligned inside
         lea rax, [r9 + 39]
         and rax, -16
+        add rax, 8
         sub rsp, rax
-        mov rbp, rsp
 
         // t[0 .. k+1] = 0
         xor eax, eax
         lea rcx, [r9 + 16]
 .Lzero:
-        mov qword ptr [rbp + rcx], rax
+        mov qword ptr [rsp + rcx], rax
         sub rcx, 8
         jnz .Lzero
 
@@ -100,41 +140,41 @@ mangos_montmul_adx:
 .Lrow1:
         jrcxz .Lrow1_done
         mulx rbx, rax, qword ptr [r10 + r15]
-        adcx rax, qword ptr [rbp + r15 + 8]
+        adcx rax, qword ptr [rsp + r15 + 8]
         adox rax, r12
-        mov qword ptr [rbp + r15 + 8], rax
+        mov qword ptr [rsp + r15 + 8], rax
         mov r12, rbx
         mulx rbx, rax, qword ptr [r10 + r15 + 8]
-        adcx rax, qword ptr [rbp + r15 + 16]
+        adcx rax, qword ptr [rsp + r15 + 16]
         adox rax, r12
-        mov qword ptr [rbp + r15 + 16], rax
+        mov qword ptr [rsp + r15 + 16], rax
         mov r12, rbx
         mulx rbx, rax, qword ptr [r10 + r15 + 16]
-        adcx rax, qword ptr [rbp + r15 + 24]
+        adcx rax, qword ptr [rsp + r15 + 24]
         adox rax, r12
-        mov qword ptr [rbp + r15 + 24], rax
+        mov qword ptr [rsp + r15 + 24], rax
         mov r12, rbx
         mulx rbx, rax, qword ptr [r10 + r15 + 24]
-        adcx rax, qword ptr [rbp + r15 + 32]
+        adcx rax, qword ptr [rsp + r15 + 32]
         adox rax, r12
-        mov qword ptr [rbp + r15 + 32], rax
+        mov qword ptr [rsp + r15 + 32], rax
         mov r12, rbx
         lea r15, [r15 + 32]
         lea rcx, [rcx - 1]
         jmp .Lrow1
 .Lrow1_done:
         // t[k] += carry + CF + OF; t[k+1] = what overflows
-        mov rax, qword ptr [rbp + r9 + 8]
+        mov rax, qword ptr [rsp + r9 + 8]
         adcx rax, r12
         adox rax, r13
-        mov qword ptr [rbp + r9 + 8], rax
+        mov qword ptr [rsp + r9 + 8], rax
         mov rax, r13
         adcx rax, r13
         adox rax, r13
-        mov qword ptr [rbp + r9 + 16], rax
+        mov qword ptr [rsp + r9 + 16], rax
 
         // ---- t = (t + u * m) / 2^64, u = t[0] * n0inv --------------------
-        mov rdx, qword ptr [rbp + 8]
+        mov rdx, qword ptr [rsp + 8]
         imul rdx, r8
         mov rcx, r9
         shr rcx, 5
@@ -143,38 +183,38 @@ mangos_montmul_adx:
 .Lrow2:
         jrcxz .Lrow2_done
         mulx rbx, rax, qword ptr [r11 + r15]
-        adcx rax, qword ptr [rbp + r15 + 8]
+        adcx rax, qword ptr [rsp + r15 + 8]
         adox rax, r12
-        mov qword ptr [rbp + r15], rax
+        mov qword ptr [rsp + r15], rax
         mov r12, rbx
         mulx rbx, rax, qword ptr [r11 + r15 + 8]
-        adcx rax, qword ptr [rbp + r15 + 16]
+        adcx rax, qword ptr [rsp + r15 + 16]
         adox rax, r12
-        mov qword ptr [rbp + r15 + 8], rax
+        mov qword ptr [rsp + r15 + 8], rax
         mov r12, rbx
         mulx rbx, rax, qword ptr [r11 + r15 + 16]
-        adcx rax, qword ptr [rbp + r15 + 24]
+        adcx rax, qword ptr [rsp + r15 + 24]
         adox rax, r12
-        mov qword ptr [rbp + r15 + 16], rax
+        mov qword ptr [rsp + r15 + 16], rax
         mov r12, rbx
         mulx rbx, rax, qword ptr [r11 + r15 + 24]
-        adcx rax, qword ptr [rbp + r15 + 32]
+        adcx rax, qword ptr [rsp + r15 + 32]
         adox rax, r12
-        mov qword ptr [rbp + r15 + 24], rax
+        mov qword ptr [rsp + r15 + 24], rax
         mov r12, rbx
         lea r15, [r15 + 32]
         lea rcx, [rcx - 1]
         jmp .Lrow2
 .Lrow2_done:
         // t[k-1] = t[k] + carry + CF + OF; t[k] = t[k+1] + what overflows
-        mov rax, qword ptr [rbp + r9 + 8]
+        mov rax, qword ptr [rsp + r9 + 8]
         adcx rax, r12
         adox rax, r13
-        mov qword ptr [rbp + r9], rax
-        mov rax, qword ptr [rbp + r9 + 16]
+        mov qword ptr [rsp + r9], rax
+        mov rax, qword ptr [rsp + r9 + 16]
         adcx rax, r13
         adox rax, r13
-        mov qword ptr [rbp + r9 + 8], rax
+        mov qword ptr [rsp + r9 + 8], rax
 
         lea r14, [r14 + 8]
         cmp r14, r9
@@ -186,16 +226,16 @@ mangos_montmul_adx:
         xor r15d, r15d
 .Lsub:
         jrcxz .Lsub_done
-        mov rax, qword ptr [rbp + r15 + 8]
+        mov rax, qword ptr [rsp + r15 + 8]
         sbb rax, qword ptr [r11 + r15]
         mov qword ptr [rdi + r15], rax
-        mov rax, qword ptr [rbp + r15 + 16]
+        mov rax, qword ptr [rsp + r15 + 16]
         sbb rax, qword ptr [r11 + r15 + 8]
         mov qword ptr [rdi + r15 + 8], rax
-        mov rax, qword ptr [rbp + r15 + 24]
+        mov rax, qword ptr [rsp + r15 + 24]
         sbb rax, qword ptr [r11 + r15 + 16]
         mov qword ptr [rdi + r15 + 16], rax
-        mov rax, qword ptr [rbp + r15 + 32]
+        mov rax, qword ptr [rsp + r15 + 32]
         sbb rax, qword ptr [r11 + r15 + 24]
         mov qword ptr [rdi + r15 + 24], rax
         lea r15, [r15 + 32]
@@ -203,7 +243,7 @@ mangos_montmul_adx:
         jmp .Lsub
 .Lsub_done:
         sbb rbx, rbx
-        mov rax, qword ptr [rbp + r9 + 8]
+        mov rax, qword ptr [rsp + r9 + 8]
         neg rax
         sbb rax, rax
         not rbx
@@ -214,7 +254,7 @@ mangos_montmul_adx:
 .Lblend:
         mov rcx, qword ptr [rdi + r15]
         and rcx, rax
-        mov rdx, qword ptr [rbp + r15 + 8]
+        mov rdx, qword ptr [rsp + r15 + 8]
         and rdx, rbx
         or rcx, rdx
         mov qword ptr [rdi + r15], rcx
@@ -226,17 +266,14 @@ mangos_montmul_adx:
         xor eax, eax
         lea rcx, [r9 + 16]
 .Lerase:
-        mov qword ptr [rbp + rcx], rax
+        mov qword ptr [rsp + rcx], rax
         sub rcx, 8
         jnz .Lerase
-        mov qword ptr [rbp], rax
-        lea rax, [r9 + 39]
-        and rax, -16
-        add rsp, rax
+        mov qword ptr [rsp], rax
+        lea rsp, [rbp]
 #if WINDOWS_ABI
         pop rsi
         pop rdi
-#endif
         pop r15
         pop r14
         pop r13
@@ -244,7 +281,22 @@ mangos_montmul_adx:
         pop rbx
         pop rbp
         ret
-#if !WINDOWS_ABI
+#else
+        .cfi_def_cfa_register rsp
+        pop r15
+        .cfi_adjust_cfa_offset -8
+        pop r14
+        .cfi_adjust_cfa_offset -8
+        pop r13
+        .cfi_adjust_cfa_offset -8
+        pop r12
+        .cfi_adjust_cfa_offset -8
+        pop rbx
+        .cfi_adjust_cfa_offset -8
+        pop rbp
+        .cfi_adjust_cfa_offset -8
+        ret
+        .cfi_endproc
         .size mangos_montmul_adx, .-mangos_montmul_adx
         .section .note.GNU-stack,"",@progbits
 #endif
