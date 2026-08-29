@@ -31,6 +31,7 @@
 #include "RedirectRegistry.h"
 #include "WorldGateway.h"
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -51,6 +52,14 @@
  * worker threads, buffering, backpressure and teardown all belong to the shared
  * engine underneath (src/shared/net/).
  */
+/// What came of asking for a second stream.
+enum class RedirectRequest
+{
+    Sent,     ///< a signed redirect went out on stream 0
+    Busy,     ///< the registry already holds one for that client address: queueing, not failing
+    Failed    ///< no redirect could be produced -- a permanent fault of this server's key or session
+};
+
 class WorldNetwork : public MaNGOS::Singleton<WorldNetwork>
 {
         friend class MaNGOS::Singleton<WorldNetwork>;
@@ -85,7 +94,7 @@ class WorldNetwork : public MaNGOS::Singleton<WorldNetwork>
          * @return false if no redirect was sent, in which case the caller decides
          *         whether to retry later or give up on the session.
          */
-        bool RequestSecondStream(const proto::RedirectTicket& ticket);
+        RedirectRequest RequestSecondStream(const proto::RedirectTicket& ticket);
 
         /// Withdraw a pending redirect, on retry or on the session going away.
         void CancelSecondStream(proto::SessionId session);
@@ -96,6 +105,9 @@ class WorldNetwork : public MaNGOS::Singleton<WorldNetwork>
         /// True once a usable keypair is configured. Without one the second
         /// stream cannot be opened at all and no client can enter the world.
         bool CanRedirect() const { return m_signer.IsLoaded(); }
+        /// Redirect.Timeout: how long a pending redirect is honoured, and how long a
+        /// session waits before issuing the next one. One setting, one meaning.
+        std::chrono::milliseconds GetRedirectTimeout() const { return m_redirectTimeout; }
 
     private:
 
@@ -118,6 +130,7 @@ class WorldNetwork : public MaNGOS::Singleton<WorldNetwork>
         // Declaration order matters: the listeners hold references to the gateway
         // and the registry, so both must be constructed first and destroyed last.
         WorldGateway            m_gateway;
+        std::chrono::milliseconds m_redirectTimeout;
         proto::RedirectRegistry m_redirects;
         proto::Listener         m_listener;
         proto::Listener         m_streamListener;

@@ -116,27 +116,38 @@ namespace proto
         m_held.push_back(packet);
     }
 
-    void SessionLinks::AttachSlotOne(const std::shared_ptr<IClientLink>& link)
+    bool SessionLinks::AttachSlotOne(const std::shared_ptr<IClientLink>& link, uint32 generation)
     {
         std::deque<WorldPacket> release;
         {
             std::lock_guard<std::mutex> lock(m_lock);
+            if (generation != m_expectedGeneration)
+            {
+                return false;
+            }
             m_one = link;
             release.swap(m_held);
         }
-
-        // Outside the lock: a link's send path is its own business and may block,
-        // and the world thread must stay able to queue while this drains.
         for (const WorldPacket& packet : release)
         {
             link->SendPacket(packet);
         }
+        return true;
     }
 
-    void SessionLinks::DetachSlotOne()
+    void SessionLinks::ExpectSlotOne(uint32 generation)
     {
         std::lock_guard<std::mutex> lock(m_lock);
-        m_one.reset();
+        m_expectedGeneration = generation;
+    }
+
+    void SessionLinks::DetachSlotOne(const IClientLink* link)
+    {
+        std::lock_guard<std::mutex> lock(m_lock);
+        if (m_one.get() == link)
+        {
+            m_one.reset();
+        }
     }
 
     void SessionLinks::Close()

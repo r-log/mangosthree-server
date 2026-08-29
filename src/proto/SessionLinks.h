@@ -100,11 +100,18 @@ namespace proto
              * it does by framing a packet on it -- not by completing the banner,
              * which happens while the stream is still held.
              */
-            void AttachSlotOne(const std::shared_ptr<IClientLink>& link);
+            /// Attach the client's second stream. Refused (false) when `generation`
+            /// is not the one last announced with ExpectSlotOne: the socket answers a
+            /// redirect that has since been reissued.
+            bool AttachSlotOne(const std::shared_ptr<IClientLink>& link, uint32 generation);
+            /// The generation of the redirect currently in flight; older sockets are refused.
+            void ExpectSlotOne(uint32 generation);
 
             /// Stream 1 died. Anything routed there queues again rather than
             /// falling back onto stream 0, which the client would discard.
-            void DetachSlotOne();
+            /// Detach the second stream -- only if `link` is the one attached, so a
+            /// stale socket closing late cannot take the live stream down with it.
+            void DetachSlotOne(const IClientLink* link);
 
             struct Counters
             {
@@ -124,6 +131,7 @@ namespace proto
 
             std::shared_ptr<IClientLink> m_zero;
             std::shared_ptr<IClientLink> m_one;
+            uint32 m_expectedGeneration = 0;
 
             std::deque<WorldPacket> m_held;
 

@@ -227,6 +227,8 @@ namespace proto
             /// The session key of the session being rejoined. Meaningful on a
             /// redirected connection only.
             BigNumber m_redirectKey;
+            /// The generation of the redirect this staging socket answers.
+            uint32 m_redirectGeneration = 0;
 
             /// Whether the banner exchange on this connection has completed.
             bool m_bannerDone;

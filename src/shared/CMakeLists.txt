@@ -254,7 +254,7 @@ add_library(shared STATIC
     ${SRC_GRP_POLICIES}
     ${SRC_GRP_SVC}
     ${SRC_GRP_UTILITIES}
-    ${CMAKE_CURRENT_BINARY_DIR/BuildInfo.h}
+    ${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.h
 )
 
 target_include_directories(shared
