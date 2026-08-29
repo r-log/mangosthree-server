@@ -91,7 +91,9 @@ jobs:
       # every test without executing the listing. The runners have BMI2 and ADX.
       - name: Check the assembly tier ran
         run: |
-          "$BUILD_DIR/src/tests/mangos_tests" -only CryptoMontgomery_assembly_tier | tee /dev/stderr | grep -q "tier: asm"
+          out=$("$BUILD_DIR/src/tests/mangos_tests" -only CryptoMontgomery_assembly_tier)
+          echo "$out"
+          echo "$out" | grep -q "tier: asm"
 
       - name: Install
         run: cmake --install "$BUILD_DIR"
