@@ -32,7 +32,7 @@
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "AuctionHouseMgr.h"
-#include "SystemConfig.h"
+#include "BuildInfo.h"
 #include "SQLStorages.h"
 #include "World.h"
 
@@ -42,12 +42,7 @@
  */
 
 
-/**
- * Format is YYYYMMDDRR where RR is the change in the conf file
- * for that day.
- */
-#define AUCTIONHOUSEBOT_CONF_VERSION    2010102201
-
+#include "Common/GitRevision.h"
 #include "Policies/Singleton.h"
 
   /**
@@ -591,8 +586,10 @@ void AuctionBotConfig::setConfig(AuctionBotConfigBoolValues index, char const* f
  */
 void AuctionBotConfig::GetConfigFromFile()
 {
-    // Check config file version
-    if (m_AhBotCfg.GetIntDefault("ConfVersion", 0) != AUCTIONHOUSEBOT_CONF_VERSION)
+    // Check config file version. AHBOT_CONFIG_VERSION is generated from
+    // cmake/MangosVersions.cmake into the same ahbot.conf.dist this compares
+    // against, so a bump reaches both sides.
+    if (m_AhBotCfg.GetIntDefault("ConfVersion", 0) != int32(GitRevision::GetAhbotConfigVersion()))
     {
         sLog.outError("AHBot: Configuration file version doesn't match expected version. Some config variables may be wrong or missing.");
     }

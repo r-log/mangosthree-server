@@ -62,7 +62,7 @@ enum ObjectUpdateFlags
 class UpdateData
 {
     public:
-        UpdateData(uint16 mapId);
+        UpdateData(uint32 mapId);
 
         void AddOutOfRangeGUID(GuidSet& guids);
         void AddOutOfRangeGUID(ObjectGuid const& guid);
@@ -74,10 +74,26 @@ class UpdateData
 
         GuidSet const& GetOutOfRangeGUIDs() const { return m_outOfRangeGUIDs; }
 
-        void SetMapId(uint16 mapId) { m_map = mapId; }
+        void SetMapId(uint32 mapId) { m_map = mapId; }
 
     protected:
-        uint16 m_map;
+
+        /**
+         * @brief The map this update belongs to.
+         *
+         * uint32, because that is what a map id IS everywhere else in the tree:
+         * Object::GetMapId(), GridMap, BattleGround and MapPersistentState all
+         * return uint32, and every caller here passes one straight through. This
+         * used to be uint16, so every one of those calls narrowed silently at
+         * the constructor -- an implicit conversion the compiler is not required
+         * to say anything about.
+         *
+         * The narrowing that remains is the one on the wire, in BuildPacket, and
+         * it is deliberate, visible and checked. See the note there: what the
+         * 15595 client actually reads for this field is NOT pinned, and it has
+         * to be before any map id above 65535 exists.
+         */
+        uint32 m_map;
         uint32 m_blockCount;
         GuidSet m_outOfRangeGUIDs;
         ByteBuffer m_data;

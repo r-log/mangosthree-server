@@ -534,7 +534,7 @@ bool ChatHandler::HandleGameObjectTargetCommand(char* args)
     bool found = false;
     float x, y, z, o;
     uint32 lowguid, id;
-    uint16 mapid, pool_id;
+    uint32 mapid, pool_id;
 
     do
     {

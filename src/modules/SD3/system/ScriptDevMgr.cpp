@@ -26,7 +26,6 @@
 
 #include "precompiled.h"
 #include "Config/Config.h"
-#include "SystemConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "ObjectMgr.h"

@@ -28,11 +28,22 @@
 
 #include "Define.h"
 
-// The generated revision_data.h (the git hash and date of the checkout, the
-// database versions this core requires) is included by GitRevision.cpp only.
-// Everything else reads the values through the accessors below, so a new
-// commit recompiles one translation unit instead of every unit that wants a
-// version string. Do not include revision_data.h anywhere else.
+#include <string>
+#include <vector>
+
+// Every version this build declares, behind functions.
+//
+// BuildInfo.h -- the one generated header, written from BuildInfo.h.in with the
+// values in cmake/MangosVersions.cmake -- is rewritten whenever any of them
+// changes, so everything that includes it is rebuilt with it. Reaching a
+// version macro from a widely included header therefore turns a config-version
+// bump into a rebuild of the server; behind these functions it recompiles one
+// translation unit and relinks.
+//
+// So no HEADER includes BuildInfo.h, and nothing reaches a version through it.
+// A .cpp may include it for the install paths, config file names and defaults it
+// also carries -- those change when the install layout does, not when a version
+// does. src/tests/CheckVersionSources.cmake enforces both halves.
 
 namespace GitRevision
 {
@@ -62,6 +73,24 @@ namespace GitRevision
     char const* GetWorldDBStructure();
     char const* GetWorldDBContent();
     char const* GetWorldDBUpdateDescription();
+
+    // configuration files
+    //
+    // What each server compares against the ConfVersion in the .conf it loaded.
+    // Format YYYYMMDDRR; declared in cmake/MangosVersions.cmake.
+    uint32 GetWorldConfigVersion();
+    uint32 GetRealmConfigVersion();
+    uint32 GetAhbotConfigVersion();
+
+    // client
+    //
+    // The builds this server speaks. One entry today, and a list rather than a
+    // scalar because both call sites want to name every accepted build when
+    // they refuse one.
+    const std::vector<uint32>& GetAcceptedClientBuilds();
+    std::string GetAcceptedClientBuildsStr();
+    bool IsAcceptedClientBuild(uint32 build);
+    char const* GetClientVersion();
 
     // application data
     char const* GetFullRevision();

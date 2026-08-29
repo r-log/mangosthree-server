@@ -19,7 +19,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # =============================================================================
-# revision_data.h -- the git revision baked into the binaries.
+# BuildInfo.h -- the git revision baked into the binaries.
 #
 # The header is produced at configure time by cmake/GenRevision.cmake, which the
 # top-level CMakeLists.txt includes. This target exists only to refresh it when
@@ -27,7 +27,7 @@
 #
 # What it replaces:
 #
-#   add_custom_target(revision_data.h ALL COMMAND cmake -P GenRevision.cmake)
+#   add_custom_target(BuildInfo.h ALL COMMAND cmake -P GenRevision.cmake)
 #
 # That ran on *every* build -- forking a second CMake process and half a dozen
 # git processes each time -- to recompute a value that changes only when someone
@@ -50,7 +50,7 @@ if(WITHOUT_GIT OR NOT IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
     return()
 endif()
 
-set(REVISION_HEADER "${CMAKE_BINARY_DIR}/src/shared/revision_data.h")
+set(REVISION_HEADER "${CMAKE_BINARY_DIR}/src/shared/BuildInfo.h")
 
 set(GIT_STATE_FILES)
 foreach(state HEAD index)
@@ -65,15 +65,25 @@ endif()
 
 add_custom_command(
     OUTPUT "${REVISION_HEADER}"
+    # Script mode starts with an empty cache, so everything BuildInfo.h.in
+    # substitutes and the script cannot derive has to be handed over. The
+    # versions are not among them: the script includes MangosVersions.cmake,
+    # which is the point of that file being one place.
     COMMAND "${CMAKE_COMMAND}"
             -DBUILDDIR=${CMAKE_BINARY_DIR}
             -DCMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
             -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
-            -P "${CMAKE_SOURCE_DIR}/cmake/GenRevision.cmake"
+            -DPROJECT_VERSION=${PROJECT_VERSION}
+            -DPROJECT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+            -DPROJECT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+            -DPROJECT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+            -DCONF_INSTALL_DIR=${CONF_INSTALL_DIR}
+            -DMANGOS_PKG=${MANGOS_PKG}
+            -P "${CMAKE_SOURCE_DIR}/cmake/MangosRevision.cmake"
     DEPENDS ${GIT_STATE_FILES}
-            "${CMAKE_SOURCE_DIR}/src/shared/revision_data.h.in"
+            "${CMAKE_SOURCE_DIR}/src/shared/BuildInfo.h.in"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Refreshing revision_data.h (repository HEAD moved)"
+    COMMENT "Refreshing BuildInfo.h (repository HEAD moved)"
     VERBATIM
 )
 

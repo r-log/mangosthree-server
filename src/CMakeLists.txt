@@ -59,6 +59,12 @@ add_subdirectory(tools/extractor)
 # A clean parse is not correct geometry; this is what says whether it is.
 add_subdirectory(tools/height-check)
 
+# Mints the realm's redirect keypair and writes its public half into clients.
+# Unconditional, and deliberately so: without a keypair the server refuses to
+# start, so gating the only tool that produces one on BUILD_TOOLS would make a
+# server-only build unable to configure itself.
+add_subdirectory(tools/patcher)
+
 if (BUILD_MANGOSD OR BUILD_REALMD)
     if(WIN32)
         get_filename_component(MYSQL_LIB_DIR ${MySQL_LIBRARIES} DIRECTORY)

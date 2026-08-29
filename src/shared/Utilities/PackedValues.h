@@ -35,12 +35,23 @@
  * Used for composite keys -- map/zone, entry/index -- where the database and the
  * client both expect the halves fused into a single integer.
  *
- * The 64-bit MAKE_PAIR64 / PAIR64_HIPART / PAIR64_LOPART variants that used to
- * live alongside these had no callers left anywhere in the tree and are gone.
+ * MIND THE uint16 IN MAKE_PAIR32. Both halves are truncated to sixteen bits, so
+ * a key built from a value that does not fit does not overflow into the high
+ * half -- it wraps, and lands on a bucket that belongs to some other pair. The
+ * lookup then succeeds and returns the wrong thing.
+ *
+ * A map id is uint32 everywhere in this tree, and `creature`.`map` and
+ * `gameobject`.`map` are `int(10) unsigned` in the world database, so a map id
+ * above 65535 is something the schema already permits and this macro already
+ * silently mangles. Key on the 64-bit pair when either half can exceed 16 bits.
  */
 
 #define MAKE_PAIR32(l, h)  uint32(uint16(l) | (uint32(h) << 16))
 #define PAIR32_HIPART(x)   uint16((uint32(x) >> 16) & 0x0000FFFF)
 #define PAIR32_LOPART(x)   uint16(uint32(x)         & 0x0000FFFF)
+
+#define MAKE_PAIR64(l, h)  uint64(uint32(l) | (uint64(h) << 32))
+#define PAIR64_HIPART(x)   uint32((uint64(x) >> 32) & UI64LIT(0x00000000FFFFFFFF))
+#define PAIR64_LOPART(x)   uint32(uint64(x)         & UI64LIT(0x00000000FFFFFFFF))
 
 #endif

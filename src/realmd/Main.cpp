@@ -55,7 +55,7 @@
 #include "Auth/PatchPolicy.h"
 #include "Auth/AuthSocket.h"
 #include "Auth/AuthServer.h"
-#include "SystemConfig.h"
+#include "BuildInfo.h"
 #include "ScheduledExit.h"
 #include "Util.h"
 
@@ -410,7 +410,7 @@ extern int main(int argc, char** argv)
 
     ///- Check the version of the configuration file
     uint32 confVersion = sConfig.GetIntDefault("ConfVersion", 0);
-    if (confVersion < REALMD_CONFIG_VERSION)
+    if (confVersion < GitRevision::GetRealmConfigVersion())
     {
         sLog.outError("*****************************************************************************");
         sLog.outError(" WARNING: Your realmd.conf version indicates your conf file is out of date!");

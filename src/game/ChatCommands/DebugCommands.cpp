@@ -1510,7 +1510,13 @@ bool ChatHandler::HandlerDebugModValueHelper(Object* target, uint32 field, char*
         }
 
         uint32 value = target->GetUInt32Value(field);
-        const char* guidString = guid.GetString().c_str();
+        // Hold the string, not a pointer into it. GetString() returns by value,
+        // so taking .c_str() off the temporary left every use below reading
+        // freed memory -- nine of them, all in log lines, which is where a
+        // use-after-free is least likely to be noticed and most likely to print
+        // something plausible.
+        const std::string guidText = guid.GetString();
+        const char* guidString = guidText.c_str();
 
         switch (type)
         {

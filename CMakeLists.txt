@@ -130,17 +130,14 @@ find_package(BZip2 QUIET)
 
 find_package(OpenSSL 3.0 REQUIRED)
 
-# OpenSSL 4.x support is intentionally deferred until the OpenSSL 4.2 LTS migration.
-if(OPENSSL_VERSION VERSION_GREATER_EQUAL "4.0.0")
-  message(FATAL_ERROR
-    "Unsupported OpenSSL ${OPENSSL_VERSION}: MaNGOS currently requires >=3.0.0 and <4.0.0")
-endif()
-
 # =============================================================================
 # OpenSSL policy
 #
-# OpenSSL 3.x is the baseline: there are no version conditionals left in src/.
-# Every OpenSSL decision lives here, in two interface targets:
+# Two interface targets, no version conditionals, and no upper bound. What this
+# tree asks of OpenSSL is SHA-1, HMAC, bignums and the RNG through EVP, which is
+# the part that does not move. RC4 was the one thing that did -- it is a run-time
+# module in 3.x, not code in libcrypto -- and it is now ours, in
+# src/shared/Auth/ARC4.cpp.
 #
 #   mangos_openssl        - what to link against and where the headers live.
 #                           Linked by anything that touches OpenSSL types so
@@ -194,17 +191,13 @@ if(WITH_IO_URING AND UNIX AND NOT APPLE)
     endif()
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/GenRevision.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/EnsureVersion.cmake)
-
-include(${CMAKE_SOURCE_DIR}/cmake/MangosParams.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/SetDefinitions.cmake)
-
-if(PCH)
-    include(${CMAKE_SOURCE_DIR}/cmake/PCHSupport.cmake)
-endif()
-
-include(${CMAKE_SOURCE_DIR}/cmake/Dependencies.cmake)
+# Order matters: the versions have to be declared before anything substitutes
+# them into a generated header, and the revision has to be derived before the
+# build summary prints it.
+include(${CMAKE_SOURCE_DIR}/cmake/MangosVersions.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/MangosRevision.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/MangosPlatform.cmake)
+add_subdirectory(dep)
 
 if(WITH_TESTS OR WITH_NET_TESTS)
     set(BUILD_TESTING ON)
@@ -213,4 +206,4 @@ endif()
 
 add_subdirectory(src)
 
-include(${CMAKE_SOURCE_DIR}/cmake/StatusInfo.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/MangosStatus.cmake)

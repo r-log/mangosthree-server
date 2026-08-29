@@ -83,7 +83,7 @@ void Unit::CalculateMeleeDamage(Unit* pVictim, CalcDamageInfo* damageInfo, Weapo
     damageInfo->procEx           = PROC_EX_NONE;
     damageInfo->hitOutCome       = MELEE_HIT_EVADE;
 
-    if (!this || !pVictim)
+    if (!pVictim)
     {
         return;
     }
@@ -332,7 +332,7 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
     }
     Unit* pVictim = damageInfo->target;
 
-    if (!this || !pVictim)
+    if (!pVictim)
     {
         return;
     }

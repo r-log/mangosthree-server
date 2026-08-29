@@ -2144,8 +2144,9 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             if (classOptions2 && classOptions2->SpellClassSet == SPELLFAMILY_MAGE )
             {
                 // Blizzard & Chilled (and some other stacked with blizzard spells
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x80)) && (classOptions2->SpellClassMask & UI64LIT(0x100000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x80)) && (classOptions1->SpellClassMask & UI64LIT(0x100000)) )
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x80)) && (classOptions2->SpellClassMask & UI64LIT(0x100000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x80)) && (classOptions1->SpellClassMask & UI64LIT(0x100000)))))
                 {
                     return false;
                 }
@@ -2164,13 +2165,15 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                 }
 
                 // Living Bomb & Ignite (Dots)
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x2000000000000)) && (classOptions2->SpellClassMask & UI64LIT(0x8000000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x2000000000000)) && (classOptions1->SpellClassMask & UI64LIT(0x8000000)) )
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x2000000000000)) && (classOptions2->SpellClassMask & UI64LIT(0x8000000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x2000000000000)) && (classOptions1->SpellClassMask & UI64LIT(0x8000000)))))
                     return false;
 
                 // Fireball & Pyroblast (Dots)
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x1)) && (classOptions2->SpellClassMask & UI64LIT(0x400000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x1)) && (classOptions1->SpellClassMask & UI64LIT(0x400000)) )
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x1)) && (classOptions2->SpellClassMask & UI64LIT(0x400000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x1)) && (classOptions1->SpellClassMask & UI64LIT(0x400000)))))
                 {
                     return false;
                 }
@@ -2256,8 +2259,9 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             if (classOptions2 && classOptions1->SpellClassSet == SPELLFAMILY_WARRIOR )
             {
                 // Rend and Deep Wound
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x20)) && (classOptions2->SpellClassMask & UI64LIT(0x1000000000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x20)) && (classOptions1->SpellClassMask & UI64LIT(0x1000000000)) )
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x20)) && (classOptions2->SpellClassMask & UI64LIT(0x1000000000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x20)) && (classOptions1->SpellClassMask & UI64LIT(0x1000000000)))))
                 {
                     return false;
                 }
@@ -2307,15 +2311,17 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             if (classOptions2 && classOptions2->SpellClassSet == SPELLFAMILY_PRIEST )
             {
                 // Devouring Plague and Shadow Vulnerability
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x2000000)) && (classOptions2->SpellClassMask & UI64LIT(0x800000000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x2000000)) && (classOptions1->SpellClassMask & UI64LIT(0x800000000)))
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x2000000)) && (classOptions2->SpellClassMask & UI64LIT(0x800000000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x2000000)) && (classOptions1->SpellClassMask & UI64LIT(0x800000000)))))
                 {
                     return false;
                 }
 
                 // StarShards and Shadow Word: Pain
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x200000)) && (classOptions2->SpellClassMask & UI64LIT(0x8000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x200000)) && (classOptions1->SpellClassMask & UI64LIT(0x8000)))
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x200000)) && (classOptions2->SpellClassMask & UI64LIT(0x8000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x200000)) && (classOptions1->SpellClassMask & UI64LIT(0x8000)))))
                 {
                     return false;
                 }
@@ -2448,15 +2454,17 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             if (classOptions2 && classOptions2->SpellClassSet == SPELLFAMILY_HUNTER )
             {
                 // Rapid Fire & Quick Shots
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x20)) && (classOptions2->SpellClassMask & UI64LIT(0x20000000000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x20)) && (classOptions1->SpellClassMask & UI64LIT(0x20000000000)) )
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x20)) && (classOptions2->SpellClassMask & UI64LIT(0x20000000000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x20)) && (classOptions1->SpellClassMask & UI64LIT(0x20000000000)))))
                 {
                     return false;
                 }
 
                 // Serpent Sting & (Immolation/Explosive Trap Effect)
-                if (classOptions1 && (classOptions1->SpellClassMask & UI64LIT(0x4)) && (classOptions2->SpellClassMask & UI64LIT(0x00000004000)) ||
-                    (classOptions2->SpellClassMask & UI64LIT(0x4)) && (classOptions1->SpellClassMask & UI64LIT(0x00000004000)) )
+                if (classOptions1 &&
+                    (((classOptions1->SpellClassMask & UI64LIT(0x4)) && (classOptions2->SpellClassMask & UI64LIT(0x00000004000))) ||
+                     ((classOptions2->SpellClassMask & UI64LIT(0x4)) && (classOptions1->SpellClassMask & UI64LIT(0x00000004000)))))
                 {
                     return false;
                 }

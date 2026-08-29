@@ -272,10 +272,14 @@ TEST(Crypto_bignumber_fixed_width_output_is_always_that_width)
 
 TEST(Crypto_arc4_matches_the_published_vector)
 {
-    // The provider test next door asserts that RC4 can be FETCHED. That is not the same
-    // as producing the right keystream: a cipher that initialises and encrypts to
-    // something else still fetches perfectly, and the symptom is a client that connects
-    // and then fails to decode a single packet.
+    // This vector is what says the in-house ARCFOUR is the cipher it replaced.
+    // It predates that swap and was not touched by it: the same three-byte key
+    // and the same nine bytes of plaintext that OpenSSL's RC4 turned into these
+    // bytes, so equivalence is demonstrated rather than asserted.
+    //
+    // A cipher that initialises cleanly and encrypts to something else passes
+    // every other check there is, and the symptom is a client that connects and
+    // then fails to decode a single packet.
     uint8 key[] = {'K', 'e', 'y'};
     uint8 data[] = {'P', 'l', 'a', 'i', 'n', 't', 'e', 'x', 't'};
 

@@ -49,8 +49,11 @@ set(SRC_GRP_TESTS
     LFGCallToArmsLogicTest.cpp
     SessionMailboxTest.cpp
     SessionProtocolPolicyTest.cpp
+    OpcodeSlotsTest.cpp
+    SessionLinksTest.cpp
+    RedirectRegistryTest.cpp
+    ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
-    OpenSSLProviderTest.cpp
     AuthCryptTest.cpp
     ClientParserTest.cpp
     TerrainModelTest.cpp
@@ -124,6 +127,11 @@ add_test(NAME spatial_boundary
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckSpatialBoundary.cmake)
 
+add_test(NAME version_sources
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckVersionSources.cmake)
+
 # Put the runtime DLLs beside the test binary so it can be run from the build tree.
 # A convenience, never a gate: the search is derived from the library that was actually
 # found, and a miss warns rather than failing the configure.
@@ -156,27 +164,5 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${MANGOS_TEST_MYSQL_DLL_DIR}/${MANGOS_TEST_MYSQL_DLL_NAME}"
                 "$<TARGET_FILE_DIR:mangos_tests>")
-    endif()
-    set_tests_properties(mangos_tests PROPERTIES
-        ENVIRONMENT "OPENSSL_MODULES=")
-
-    # Match the release layout and leave OPENSSL_MODULES empty: provider discovery
-    # must work from ossl-modules beside the executable, not from the build host.
-    find_file(MANGOS_TEST_OPENSSL_LEGACY_DLL
-        NAMES legacy.dll
-        HINTS "${MANGOS_SSL_ROOT}" "${OPENSSL_ROOT_DIR}"
-        PATH_SUFFIXES bin/ossl-modules bin ossl-modules lib/ossl-modules ""
-        NO_DEFAULT_PATH)
-
-    if(MANGOS_TEST_OPENSSL_LEGACY_DLL)
-        add_custom_command(TARGET mangos_tests POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:mangos_tests>/ossl-modules"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${MANGOS_TEST_OPENSSL_LEGACY_DLL}"
-                "$<TARGET_FILE_DIR:mangos_tests>/ossl-modules/legacy.dll")
-    else()
-        message(WARNING
-            "OpenSSL legacy provider (legacy.dll) not found; mangos_tests may fail its RC4 cases.")
     endif()
 endif()

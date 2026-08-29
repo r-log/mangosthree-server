@@ -37,16 +37,6 @@
 #include <list>
 
 /**
- * Checks whether the specified client build is supported by the server.
- */
-bool IsAcceptableClientBuild(uint32 build);
-
-/**
- * Returns a formatted list of supported client builds.
- */
-std::string AcceptableClientBuildsListStr();
-
-/**
  * Returns the client build of the DBC files loaded at startup,
  * or 0 before LoadDBCStores has run.
  */

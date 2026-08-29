@@ -51,13 +51,65 @@ ConfVersion=@MANGOS_WORLD_VER@
 #        Settings for maximum database-ping interval (minutes between pings)
 #
 #    WorldServerPort
-#        Port on which the server will listen
+#        Port on which the server will listen. This is the port that goes in the
+#        realm list; it carries the first of the client's two world streams.
+#
+#    WorldServerStreamPort
+#        Port carrying the second world stream. A 4.3.4 client holds two world
+#        connections and decides for itself which opcodes travel on which; 19 of
+#        them it will not even look at unless they arrive on the second. It
+#        reaches this port only after the server sends it a signed instruction
+#        to, so it is deliberately NOT in the realm list -- but it does have to
+#        be reachable from the client, through any firewall or NAT in between.
+#        Default: 8086
 #
 #    BindIP
 #        Bind World Server to IP/hostname
 #        This option is useful for running multiple worldd/realmd instances
 #        on different IP addresses using default ports.
 #        DO NOT CHANGE THIS UNLESS YOU _REALLY_ KNOW WHAT YOU'RE DOING
+#
+################################################################################
+#
+# SECOND WORLD STREAM
+#
+#    The client will not open its second world stream on request alone. It holds
+#    an RSA-2048 public key and checks the redirect against it, so the server has
+#    to hold the matching private half -- and the client has to be patched to
+#    carry a modulus we own, because nobody holds Blizzard's. A client running
+#    the stock modulus cannot enter the world on this server, and there is no
+#    fallback: without the second stream it silently discards a fifth of what the
+#    server sends it and never transmits most of what it should.
+#
+#    Run 'secret-gen' once per realm. It writes two files from one generation:
+#
+#        server.secret   goes here, via Redirect.SecretFile below
+#        client.secret   goes to 'mangos-patch apply <Wow.exe> --secret client.secret'
+#
+#    Redirect.SecretFile
+#        Path to the server.secret secret-gen wrote. SECRET -- anyone holding it
+#        can redirect this realm's players to an address of their choosing. Keep
+#        it readable only by the account the server runs as, and out of backups
+#        that travel. The server refuses to start without it.
+#        Default: server.secret
+#
+#    Redirect.Address
+#        The address the client is told to connect to for the second stream.
+#        Required when BindIP is a wildcard, because the server cannot know which
+#        of its addresses the client reached it on. This is the SERVER's address,
+#        externally reachable -- never the client's.
+#
+#    Redirect.Timeout
+#        Milliseconds to wait for a client to come back on the second port before
+#        the pending redirect is discarded and reissued.
+#        Default: 15000
+#
+#    Redirect.Stream1Crypt
+#        Whether the second stream is encrypted. The client re-derives a cipher
+#        pair for it from the session key it already holds, and this sends the
+#        challenge that prompts it to. Turn it off only if the second stream goes
+#        quiet right after its opening banner.
+#        Default: 1
 #
 ################################################################################
 
@@ -72,7 +124,13 @@ WorldDatabaseConnections     = 1
 CharacterDatabaseConnections = 1
 MaxPingTime                  = 5
 WorldServerPort              = 8085
+WorldServerStreamPort        = 8086
 BindIP                       = "0.0.0.0"
+
+Redirect.SecretFile          = "server.secret"
+Redirect.Address             = ""
+Redirect.Timeout             = 15000
+Redirect.Stream1Crypt        = 1
 
 ################################################################################
 # PERFORMANCE SETINGS

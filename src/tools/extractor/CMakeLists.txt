@@ -32,7 +32,7 @@
 # =============================================================================
 
 # =============================================================================
-# WHICH CLIENT THIS BAKER IS FOR. MANGOS_EXP (cmake/MangosParams.cmake) is the one
+# WHICH CLIENT THIS BAKER IS FOR. MANGOS_EXP (cmake/MangosVersions.cmake) is the one
 # place the expansion is named; this maps it to something a person reads, so the
 # window and the --help banner cannot drift from what the tool actually parses.
 # =============================================================================
@@ -158,7 +158,7 @@ target_link_libraries(mangos-extractor
         $<$<BOOL:${WIN32}>:ole32>
 )
 
-# The icon and version block are compiled from revision_data.h, which genrev writes
+# The icon and version block are compiled from BuildInfo.h, which genrev writes
 # into the build tree.
 if(WIN32)
     target_include_directories(mangos-extractor PRIVATE ${CMAKE_BINARY_DIR}/src/shared)
@@ -193,7 +193,7 @@ if(WIN32)
         ExtractorGui.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mangos-extractor-gui.rc)
     target_link_libraries(mangos-extractor-gui PRIVATE shell32 ole32 oleaut32 comctl32 comdlg32)
-    # The .rc includes revision_data.h, which genrev writes into the build tree.
+    # The .rc includes BuildInfo.h, which genrev writes into the build tree.
     target_include_directories(mangos-extractor-gui PRIVATE ${CMAKE_BINARY_DIR}/src/shared)
     if(TARGET revision_data)
         add_dependencies(mangos-extractor-gui revision_data)

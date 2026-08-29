@@ -65,7 +65,7 @@
  * Initializes an empty update data accumulator with zero blocks.
  * Data buffers are allocated as needed during block accumulation.
  */
-UpdateData::UpdateData(uint16 map) : m_blockCount(0), m_map(map)
+UpdateData::UpdateData(uint32 map) : m_map(map), m_blockCount(0)
 {
 }
 
@@ -192,6 +192,25 @@ bool UpdateData::BuildPacket(WorldPacket* packet)
     MANGOS_ASSERT(packet->empty());                         // shouldn't happen
 
     ByteBuffer buf(4 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + m_data.wpos());
+
+    // Sixteen bits for a map id, while a map id is uint32 everywhere else this
+    // tree touches one. The width here is NOT pinned against the 15595 client:
+    // no capture and no read of the binary in refactor/RESEARCH.md says whether
+    // the client takes two bytes or four at this offset. It is carried over
+    // from the code that came before, and it has never been exercised above
+    // 65535 because every id has come from Map.dbc.
+    //
+    // That stops being true the moment a map id is MINTED rather than read from
+    // the DBC -- a vessel that is its own map is the case in hand. So say so
+    // rather than truncating in silence: a wrong map id here does not fail, it
+    // puts the client's whole update block on another map.
+    if (m_map > 0xFFFF)
+    {
+        sLog.outError("UpdateData::BuildPacket: map id %u does not fit the 16-bit "
+                      "field this packet writes. Pin the field's real width against "
+                      "the client before minting ids above 65535.", m_map);
+        return false;
+    }
 
     buf << uint16(m_map);
     buf << uint32(!m_outOfRangeGUIDs.empty() ? m_blockCount + 1 : m_blockCount);

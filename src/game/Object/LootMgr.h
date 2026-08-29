@@ -106,7 +106,7 @@ struct LootStoreItem
     // displayid is filled in IsValid() which must be called after
     LootStoreItem(uint32 _itemid, uint8 _type, float _chanceOrQuestChance, int8 _group, uint16 _conditionId, int32 _mincountOrRef, uint32 _maxcount)
         : itemid(_itemid), type(_type), chance(fabs(_chanceOrQuestChance)), mincountOrRef(_mincountOrRef),
-          group(_group), needs_quest(_chanceOrQuestChance < 0), maxcount(_maxcount), conditionId(_conditionId)
+          maxcount(_maxcount), group(_group), needs_quest(_chanceOrQuestChance < 0), conditionId(_conditionId)
     {}
 
     bool Roll(bool rate) const;                             // Checks if the entry takes it's chance (at loot generation)

@@ -23,6 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "Common/GitRevision.h"
 #include "Utilities/MathDefines.h"
 #include "Common/Locales.h"
 #include <cmath>
@@ -269,40 +270,6 @@ DBCStorage <WorldPvPAreaEntry>  sWorldPvPAreaStore(WorldPvPAreaEnrtyfmt);
 
 typedef std::list<std::string> StoreProblemList;
 
-/**
- * @brief Checks whether a client build is supported by the server.
- *
- * @param build The client build number.
- * @return true if the build is accepted; otherwise false.
- */
-bool IsAcceptableClientBuild(uint32 build)
-{
-    int accepted_versions[] = EXPECTED_MANGOSD_CLIENT_BUILD;
-    for (int i = 0; accepted_versions[i]; ++i)
-        if (int(build) == accepted_versions[i])
-        {
-            return true;
-        }
-
-    return false;
-}
-
-/**
- * @brief Builds a space-separated list of supported client builds.
- *
- * @return std::string The formatted build list.
- */
-std::string AcceptableClientBuildsListStr()
-{
-    std::ostringstream data;
-    int accepted_versions[] = EXPECTED_MANGOSD_CLIENT_BUILD;
-    for (int i = 0; accepted_versions[i]; ++i)
-    {
-        data << accepted_versions[i] << " ";
-    }
-    return data.str();
-}
-
 static uint32 sDBCLoadedBuild = 0;                          ///< Client build of the DBC files loaded at startup
 
 /**
@@ -520,13 +487,13 @@ void LoadDBCStores(const std::string& dataPath)
     uint32 build = ReadDBCBuild(dbcPath,defaultLocaleNameStr);
 
     // Check the expected DBC version
-    if (!IsAcceptableClientBuild(build))
+    if (!GitRevision::IsAcceptedClientBuild(build))
     {
         if (build)
-            sLog.outError("Found DBC files for build %u but mangosd expected DBC for one from builds: %s Please extract correct DBC files.", build, AcceptableClientBuildsListStr().c_str());
+            sLog.outError("Found DBC files for build %u but mangosd expected DBC for one from builds: %s Please extract correct DBC files.", build, GitRevision::GetAcceptedClientBuildsStr().c_str());
         else
         {
-            sLog.outError("Incorrect DataDir value in mangosd.conf or not found build info (outdated DBC files). Required one from builds: %s Please extract correct DBC files.", AcceptableClientBuildsListStr().c_str());
+            sLog.outError("Incorrect DataDir value in mangosd.conf or not found build info (outdated DBC files). Required one from builds: %s Please extract correct DBC files.", GitRevision::GetAcceptedClientBuildsStr().c_str());
         }
         Log::WaitBeforeContinueIfNeed();
         exit(1);
@@ -1066,7 +1033,7 @@ void LoadDBCStores(const std::string& dataPath)
         !sMapStore.LookupEntry(980)                ||       // last map added in 4.3.4
         !sSpellStore.LookupEntry(121820)           )        // last added spell in 4.3.4
     {
-        sLog.outError("\nYou have mixed version DBC files. Please re-extract DBC files for one from client build: %s", AcceptableClientBuildsListStr().c_str());
+        sLog.outError("\nYou have mixed version DBC files. Please re-extract DBC files for one from client build: %s", GitRevision::GetAcceptedClientBuildsStr().c_str());
         Log::WaitBeforeContinueIfNeed();
         exit(1);
     }

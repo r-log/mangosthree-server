@@ -24,6 +24,7 @@
  */
 
 #include <memory>
+#include "Common/GitRevision.h"
 #include "Master.h"
 
 #include "AntiFreezeService.h"
@@ -36,7 +37,7 @@
 #include "Log.h"
 #include "MapManager.h"
 #include "Server/WorldNetwork.h"
-#include "SystemConfig.h"
+#include "BuildInfo.h"
 #include "Timer.h"
 #include "World.h"
 
@@ -366,7 +367,7 @@ int Master::Run()
         sWorld.getConfig(CONFIG_BOOL_REALM_RECOMMENDED_OR_NEW_ENABLED)
             ? recommendedOrNew : uint8(REALM_FLAG_NONE);
 
-    std::string builds = AcceptableClientBuildsListStr();
+    std::string builds = GitRevision::GetAcceptedClientBuildsStr();
     LoginDatabase.escape_string(builds);
     LoginDatabase.DirectPExecute(
         "UPDATE `realmlist` SET `realmflags` = %u, `population` = 0, "
@@ -381,6 +382,7 @@ int Master::Run()
     LoginDatabase.AllowAsyncTransactions();
 
     if (!sWorldNetwork.Start(uint16(sWorld.getConfig(CONFIG_UINT32_PORT_WORLD)),
+                             uint16(sConfig.GetIntDefault("WorldServerStreamPort", DEFAULT_WORLDSERVER_STREAM_PORT)),
                              sConfig.GetStringDefault("BindIP", "0.0.0.0")))
     {
         StopDatabases();

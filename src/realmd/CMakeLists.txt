@@ -33,22 +33,21 @@ source_group("Realmlist" FILES ${SRC_GRP_REALM})
 
 configure_file(realmd.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/realmd.conf.dist)
 
-if(WIN32)
-    set(PRODUCT_NAME "realmd.exe")
-    set(PRODUCT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/realmd.ico)
-    set(PRODUCT_DESCRIPTION "MaNGOS Authentication Daemon")
-    configure_file(${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.h.in ${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.h)
-endif()
-
 add_executable(realmd
     ${SRC_GRP_AUTH}
     ${SRC_GRP_REALM}
     Main.cpp
-    $<$<BOOL:${WIN32}>:
-        ${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.h
-        ${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.rc
-    >
+    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.rc>
 )
+
+# See the note in src/mangosd/CMakeLists.txt: only the strings that name this
+# executable are per-target, and they reach the resource compiler directly.
+if(WIN32)
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.rc
+        TARGET_DIRECTORY realmd
+        PROPERTIES COMPILE_DEFINITIONS
+            "PRODUCT_ICON=\"${CMAKE_CURRENT_SOURCE_DIR}/realmd.ico\";PRODUCT_BUNDLE=\"realmd.exe\\0\";PRODUCT_FILE_DESCRIPTION=\"MaNGOS Authentication Daemon\\0\"")
+endif()
 
 target_compile_features(realmd PUBLIC cxx_std_17)
 set_target_properties(realmd PROPERTIES CXX_EXTENSIONS OFF)

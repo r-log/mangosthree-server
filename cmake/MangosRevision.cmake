@@ -69,27 +69,24 @@ set(rev_year  ${CMAKE_MATCH_1})
 set(rev_month ${CMAKE_MATCH_2})
 set(rev_day   ${CMAKE_MATCH_3})
 
-# message("rev_hash_cached            : ${rev_hash_cached}"             )
-# message("rev_hash                   : ${rev_hash}"                    )
-# message("rev_branch_cached          : ${rev_branch_cached}"           )
-# message("rev_branch                 : ${rev_branch}"                  )
-# message("CMAKE_CURRENT_BINARY_DIR   : ${CMAKE_CURRENT_BINARY_DIR}"    )
-# if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/src/shared/revision_data.h")
-#   message("revision_data.h exists.")
-# else()
-#   message("revision_data.h does not exist.")
-# endif()
-# Create the actual revision_data.h file from the above params
-if(
-     NOT "${rev_hash_cached}"             MATCHES "${rev_hash}"
-  OR NOT "${rev_branch_cached}"           MATCHES "${rev_branch}"
-  OR NOT EXISTS "${BUILDDIR}/src/shared/revision_data.h"
-)
-  configure_file(
-    "${CMAKE_SOURCE_DIR}/src/shared/revision_data.h.in"
-    "${BUILDDIR}/src/shared/revision_data.h"
-    @ONLY
-  )
-  set(rev_hash_cached             "${rev_hash}"             CACHE INTERNAL "Cached commit-hash"       )
-  set(rev_branch_cached           "${rev_branch}"           CACHE INTERNAL "Cached branch name"       )
+# --- Writing the header ------------------------------------------------------
+#
+# Two callers, two phases, one template.
+#
+# At CONFIGURE time this file is include()d for its side effect: the rev_* values
+# above, which the build summary prints and which src/shared/CMakeLists.txt
+# substitutes into BuildInfo.h along with everything else CMake knows.
+#
+# At BUILD time the genrev target runs this same file with `cmake -P`, because a
+# new commit must change the reported hash without anyone re-running configure.
+# Script mode has no cache, so the values it cannot derive arrive as -D; the
+# versions it pulls in itself, from the one file that declares them.
+if(CMAKE_SCRIPT_MODE_FILE)
+    include("${CMAKE_SOURCE_DIR}/cmake/MangosVersions.cmake")
+
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/src/shared/BuildInfo.h.in"
+        "${BUILDDIR}/src/shared/BuildInfo.h"
+        @ONLY
+    )
 endif()

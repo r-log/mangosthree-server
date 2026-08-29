@@ -34,6 +34,7 @@
 #include "Auth/BigNumber.h"
 #include "Auth/Sha1.h"
 #include "Log/Log.h"
+#include "SessionLinks.h"
 #include "Utilities/ByteBuffer.h"
 
 #include <cstring>
@@ -83,8 +84,13 @@ namespace proto
 
     std::atomic<uint32> ClientConnection::s_openConnections{0};
 
-    ClientConnection::ClientConnection(IWorldGateway& gateway)
+    ClientConnection::ClientConnection(IWorldGateway& gateway, RedirectRegistry& redirects,
+                                       const EndpointPolicy& policy)
         : m_gateway(gateway),
+          m_redirects(redirects),
+          m_policy(policy),
+          m_role(policy.role),
+          m_bannerDone(false),
           m_codec(),
           m_seed(MakeAuthSeed()),
           m_session(INVALID_SESSION_ID),
@@ -99,25 +105,25 @@ namespace proto
         s_openConnections.fetch_sub(1, std::memory_order_relaxed);
     }
 
-    std::vector<uint8_t> ClientConnection::onConnect()
+    void ClientConnection::AppendBanner(std::vector<uint8_t>& wire)
     {
-        // Fire-and-continue: WorldSocket::open() sends both packets below back
-        // to back and does not wait for the client's own MSG_WOW_CONNECTION in
-        // between (WorldSocket.cpp:360-383). This is Cata-only transport
-        // scaffolding with no equivalent in any sibling fork; reproduce it
-        // byte-for-byte or the 15595 client hangs at "Connecting".
-        std::vector<uint8_t> wire;
-
         // MSG_WOW_CONNECTION (WorldSocket.cpp:360-363). The string looks
-        // truncated -- it is the shipped byte sequence. Do not "fix" it.
+        // truncated -- it is the shipped byte sequence, and it is only missing
+        // its first two letters because those two letters ARE the opcode: 0x4F57
+        // is "WO", so the framed packet reads as the whole sentence on the wire.
+        // Do not "fix" it.
         WorldPacket connection(MSG_WOW_CONNECTION, 46);
         connection << std::string("RLD OF WARCRAFT CONNECTION - SERVER TO CLIENT");
 
-        m_gateway.TracePacket(INVALID_SESSION_ID, connection, false);
-        const std::vector<uint8> connectionWire =
+        m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed),
+                              connection, false);
+        const std::vector<uint8> encoded =
             PacketCodec::Encode(connection, PacketCodec::HeaderEncryptor());
-        wire.insert(wire.end(), connectionWire.begin(), connectionWire.end());
+        wire.insert(wire.end(), encoded.begin(), encoded.end());
+    }
 
+    void ClientConnection::AppendAuthChallenge(std::vector<uint8_t>& wire)
+    {
         // SMSG_AUTH_CHALLENGE (37-byte payload, WorldSocket.cpp:371-378): eight
         // zero uint32s, then the server seed, then a trailing uint8(1).
         WorldPacket challenge(SMSG_AUTH_CHALLENGE, 37);
@@ -128,14 +134,97 @@ namespace proto
         challenge << m_seed;
         challenge << uint8(1);
 
-        // Neither packet is encrypted: the crypt is not armed yet, and the
-        // client cannot key its own cipher until it has the challenge.
-        m_gateway.TracePacket(INVALID_SESSION_ID, challenge, false);
-        const std::vector<uint8> challengeWire =
+        m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed),
+                              challenge, false);
+        const std::vector<uint8> encoded =
             PacketCodec::Encode(challenge, PacketCodec::HeaderEncryptor());
-        wire.insert(wire.end(), challengeWire.begin(), challengeWire.end());
+        wire.insert(wire.end(), encoded.begin(), encoded.end());
+    }
+
+    bool ClientConnection::ClaimRedirect()
+    {
+        RedirectTicket ticket;
+        if (!m_redirects.Claim(m_address, ticket))
+        {
+            return false;
+        }
+
+        m_session = ticket.session;
+        m_traceSession.store(ticket.session, std::memory_order_relaxed);
+        m_links       = ticket.links;
+        m_redirectKey = ticket.sessionKey;
+        return true;
+    }
+
+    std::vector<uint8_t> ClientConnection::onConnect()
+    {
+        std::vector<uint8_t> wire;
+
+        if (m_role == ConnRole::Staging1)
+        {
+            // Nothing identifies this socket but the address it came from, and
+            // the ticket that address matches was opened when the redirect went
+            // out. No ticket means nobody asked this client for a second stream.
+            if (!ClaimRedirect())
+            {
+                sLog.outError("proto: unexpected connection on the stream-1 port from %s, "
+                              "no redirect is in flight for that address",
+                              m_address.c_str());
+                Close();
+                return wire;
+            }
+
+            AppendBanner(wire);
+
+            if (m_policy.armRedirectedCrypto)
+            {
+                AppendAuthChallenge(wire);
+            }
+
+            return wire;
+        }
+
+        // Fire-and-continue: WorldSocket::open() sends both packets back to back
+        // and does not wait for the client's own MSG_WOW_CONNECTION in between
+        // (WorldSocket.cpp:360-383). This is Cata-only transport scaffolding with
+        // no equivalent in any sibling fork; reproduce it byte-for-byte or the
+        // 15595 client hangs at "Connecting". Neither packet is encrypted: the
+        // crypt is not armed yet, and the client cannot key its own cipher until
+        // it has the challenge.
+        AppendBanner(wire);
+        AppendAuthChallenge(wire);
 
         return wire;
+    }
+
+    void ClientConnection::ArmRedirectedCrypto()
+    {
+        BigNumber key = m_redirectKey;
+
+        std::lock_guard<std::mutex> lock(m_cryptSendLock);
+        m_crypt.Init(&key);
+        m_codec.SetHeaderDecryptor(
+            [this](uint8* header, size_t len) { m_crypt.DecryptRecv(header, len); });
+    }
+
+    bool ClientConnection::PromoteToSlotOne()
+    {
+        const std::shared_ptr<SessionLinks> links = m_links.lock();
+        if (!links)
+        {
+            // The session went away while its redirect was in flight. There is
+            // nothing for this connection to become.
+            sLog.outError("proto: stream 1 arrived from %s for a session that is gone",
+                          m_address.c_str());
+            return false;
+        }
+
+        m_role = ConnRole::Live1;
+        links->AttachSlotOne(std::static_pointer_cast<ClientConnection>(shared_from_this()));
+
+        DEBUG_LOG("proto: stream 1 live for session %u from %s",
+                  m_session, m_address.c_str());
+        return true;
     }
 
     std::vector<uint8_t> ClientConnection::onData(const uint8_t* data, size_t len)
@@ -224,23 +313,52 @@ namespace proto
     {
         const uint16 opcode = uint16(packet.GetOpcode());
 
-        switch (opcode)
+        if (opcode == MSG_WOW_CONNECTION)
         {
-            case MSG_WOW_CONNECTION:
-                HandleWowConnection(packet);
-                return true;
+            HandleWowConnection(packet);
 
-            case CMSG_AUTH_SESSION:
-                if (m_session != INVALID_SESSION_ID)
+            if (!m_bannerDone)
+            {
+                m_bannerDone = true;
+
+                // Both directions of the banner are plain text, so the ciphers
+                // cannot be armed any earlier than this.
+                if (m_role == ConnRole::Staging1 && m_policy.armRedirectedCrypto)
                 {
-                    sLog.outError("proto: repeated CMSG_AUTH_SESSION from %s",
-                                  m_address.c_str());
-                    return false;
+                    ArmRedirectedCrypto();
                 }
-                return HandleAuthSession(packet);
+            }
 
-            default:
-                break;
+            return true;
+        }
+
+        if (m_role == ConnRole::Staging1)
+        {
+            // The client frames packets on this socket only once it has adopted
+            // it as a stream, so this packet is the promotion happening.
+            if (!PromoteToSlotOne())
+            {
+                return false;
+            }
+        }
+
+        if (opcode == CMSG_AUTH_SESSION)
+        {
+            if (m_role != ConnRole::Live0)
+            {
+                sLog.outError("proto: CMSG_AUTH_SESSION on a redirected connection from %s",
+                              m_address.c_str());
+                return false;
+            }
+
+            if (m_session != INVALID_SESSION_ID)
+            {
+                sLog.outError("proto: repeated CMSG_AUTH_SESSION from %s",
+                              m_address.c_str());
+                return false;
+            }
+
+            return HandleAuthSession(packet);
         }
 
         if (m_session == INVALID_SESSION_ID)
@@ -443,6 +561,29 @@ namespace proto
     void ClientConnection::onClose()
     {
         m_closed.store(true, std::memory_order_release);
+
+        // Losing the second stream is a fault to recover from, not the end of the
+        // session: the player is still connected, still in the world, and still
+        // talking on stream 0. Detaching here would log them out for a broken
+        // socket that the session is about to ask the client to re-open.
+        if (m_role != ConnRole::Live0)
+        {
+            if (const std::shared_ptr<SessionLinks> links = m_links.lock())
+            {
+                links->DetachSlotOne();
+            }
+            m_links.reset();
+
+            if (m_role == ConnRole::Live1)
+            {
+                sLog.outError("proto: stream 1 lost for session %u (%s)",
+                              m_session, m_address.c_str());
+            }
+
+            m_session = INVALID_SESSION_ID;
+            m_traceSession.store(INVALID_SESSION_ID, std::memory_order_relaxed);
+            return;
+        }
 
         if (m_session != INVALID_SESSION_ID)
         {

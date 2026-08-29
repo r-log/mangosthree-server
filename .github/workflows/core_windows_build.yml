@@ -108,9 +108,6 @@ jobs:
           if [ -d "$root/lib/VC" ]; then
             echo "OPENSSL_ROOT_DIR=$root" >> "$GITHUB_ENV"
             echo "OPENSSL_INCLUDE_DIR=$root/include" >> "$GITHUB_ENV"
-            # SlProWeb installs provider DLLs beside openssl.exe, while its
-            # compiled MODULESDIR still names the default installation path.
-            echo "OPENSSL_MODULES=$root/bin" >> "$GITHUB_ENV"
             echo "$root/bin" >> "$GITHUB_PATH"
           else
             echo "::error::OpenSSL developer libraries not found"

@@ -10,6 +10,14 @@ message("+-- operating system  : ${CMAKE_HOST_SYSTEM}")
 message("+-- cmake version     : ${CMAKE_VERSION}")
 message("")
 
+# Printed because these are what an operator has to match on the outside: the
+# client build their players run, and the ConfVersion in the .conf files they
+# already have deployed. All of them come from cmake/MangosVersions.cmake.
+message("Client build          : ${MANGOS_CLIENT_BUILD} (${MANGOS_CLIENT_VERSION})")
+message("Config versions       : world ${MANGOS_WORLD_VER}, realm ${MANGOS_REALM_VER}, ahbot ${MANGOS_AHBOT_VER}")
+message("Database versions     : world ${MANGOS_WORLD_DB_VERSION}.${MANGOS_WORLD_DB_STRUCTURE}.${MANGOS_WORLD_DB_CONTENT}, char ${MANGOS_CHAR_DB_VERSION}.${MANGOS_CHAR_DB_STRUCTURE}.${MANGOS_CHAR_DB_CONTENT}, realm ${MANGOS_REALMD_DB_VERSION}.${MANGOS_REALMD_DB_STRUCTURE}.${MANGOS_REALMD_DB_CONTENT}")
+message("")
+
 # Which network backend the configure step actually resolved. Printed because
 # WITH_IO_URING can be asked for and silently not granted (liburing missing), and
 # the difference is invisible at runtime until something misbehaves under load.

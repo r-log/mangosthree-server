@@ -56,7 +56,6 @@
 #include "PointMovementGenerator.h"
 #include "PathFinder.h"
 #include "TargetedMovementGenerator.h"
-#include "SystemConfig.h"
 #include "Config/Config.h"
 #include "Mail.h"
 #include "Util.h"

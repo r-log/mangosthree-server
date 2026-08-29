@@ -30,9 +30,12 @@
 #include <utility>
 #include "IClientLink.h"
 #include "IWorldGateway.h"
+#include "LinkSlot.h"
 #include "PacketCodec.h"
+#include "RedirectRegistry.h"
 
 #include "Auth/AuthCrypt.h"
+#include "Auth/BigNumber.h"
 #include "net/ISession.hpp"
 
 #include <atomic>
@@ -44,6 +47,38 @@
 
 namespace proto
 {
+    class SessionLinks;
+
+    /**
+     * @brief What one acceptor makes of the connections it takes.
+     *
+     * The two world ports differ in what a connection arriving on them means,
+     * not in how it is framed: one is a client arriving to log in, the other is a
+     * client the server has already told to come back on a second socket.
+     */
+    struct EndpointPolicy
+    {
+        ConnRole role = ConnRole::Live0;
+
+        /**
+         * @brief Whether the redirected connection gets its own ciphers.
+         *
+         * The client re-derives a fresh cipher pair for the second stream from
+         * the session key it already holds -- it does not authenticate again --
+         * but what prompts it to do so is not settled. The only candidate among
+         * the packets a server may write to a connection that is not yet a
+         * stream is SMSG_AUTH_CHALLENGE, which the client accepts on any
+         * connection and dispatches ahead of everything else.
+         *
+         * So this sends that challenge and arms both directions once the client
+         * answers the banner. Turn it off to leave the second stream in plain
+         * text, which is what a client that does not arm on the challenge will
+         * expect -- the symptom of getting this wrong is a stream-1 socket that
+         * goes quiet immediately after the banner.
+         */
+        bool armRedirectedCrypto = true;
+    };
+
     /**
      * @brief One client connection, speaking the 4.3.4 world protocol.
      *
@@ -65,7 +100,8 @@ namespace proto
     {
         public:
 
-            explicit ClientConnection(IWorldGateway& gateway);
+            ClientConnection(IWorldGateway& gateway, RedirectRegistry& redirects,
+                             const EndpointPolicy& policy);
             ~ClientConnection() override;
 
             // --- net::ISession ------------------------------------------------
@@ -126,6 +162,42 @@ namespace proto
 
             bool HandleAuthSession(WorldPacket& packet);
 
+            /// The 47-byte greeting every world connection opens with, on either
+            /// port. It is a packet whose opcode happens to spell two of its own
+            /// letters, so it goes through the codec like anything else.
+            void AppendBanner(std::vector<uint8_t>& wire);
+
+            void AppendAuthChallenge(std::vector<uint8_t>& wire);
+
+            /// Find the session this redirected connection belongs to. Returns
+            /// false if nothing is expecting a second stream from this client.
+            bool ClaimRedirect();
+
+            /**
+             * @brief Derive this connection's ciphers from the session key.
+             *
+             * The redirected socket never sees a login, so it has nothing of its
+             * own to key from; it re-uses the key the session already agreed on
+             * and starts fresh cipher state, exactly as the client does. Called
+             * once the banner reply is in, because the banner itself is plain
+             * text in both directions.
+             */
+            void ArmRedirectedCrypto();
+
+            /**
+             * @brief Take this connection to be the session's stream 1.
+             *
+             * The signal is the client framing anything at all on this socket
+             * after the banner. Nothing weaker will do: the banner exchange
+             * happens while the connection is still staged, so a completed banner
+             * says the TCP works, not that the client has adopted it. Only after
+             * promotion does the client route packets here, so a packet arriving
+             * here is the promotion, observed rather than assumed.
+             *
+             * @return false if the session is gone, in which case drop the peer.
+             */
+            bool PromoteToSlotOne();
+
             /// Send a bare, bit-packed SMSG_AUTH_RESPONSE carrying only a status
             /// byte. Cata's failure response is `WriteBit(false); WriteBit(false);
             /// << uint8(status)` (WorldSocket.cpp:1038-1041 and three further call
@@ -133,7 +205,31 @@ namespace proto
             /// cannot be copied even though the AuthStatus values coincide.
             void SendAuthStatus(AuthStatus status);
 
-            IWorldGateway& m_gateway;
+            IWorldGateway&    m_gateway;
+            RedirectRegistry& m_redirects;
+
+            EndpointPolicy m_policy;
+
+            /// Starts at the policy's role and advances to Live1 on promotion.
+            ConnRole m_role;
+
+            /**
+             * @brief Set on a redirected connection: the session's pair of streams.
+             *
+             * Weak, and both halves of that matter. Once promoted, the streams
+             * hold this connection, so holding them back would be a cycle that
+             * outlives the session. And a session that goes away while its
+             * redirect is in flight should leave this connection with nothing to
+             * join -- which is exactly what a expired weak reference says.
+             */
+            std::weak_ptr<SessionLinks> m_links;
+
+            /// The session key of the session being rejoined. Meaningful on a
+            /// redirected connection only.
+            BigNumber m_redirectKey;
+
+            /// Whether the banner exchange on this connection has completed.
+            bool m_bannerDone;
 
             std::string m_address;
 

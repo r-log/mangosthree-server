@@ -1,5 +1,10 @@
 #include "winres.h"
-#include "VersionInfo.h"
+#include "BuildInfo.h"
+
+// PRODUCT_ICON, PRODUCT_BUNDLE and PRODUCT_FILE_DESCRIPTION differ per
+// executable, so they arrive as resource-compiler definitions from each
+// target's CMakeLists rather than from BuildInfo.h, which is one generated
+// file shared by the whole build.
 
 IDI_ICON1               ICON                    PRODUCT_ICON
 

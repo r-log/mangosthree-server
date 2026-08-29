@@ -37,21 +37,21 @@ set(SRC_GRP_MAIN
 )
 source_group("Main" FILES ${SRC_GRP_MAIN})
 
-if(WIN32)
-    set(PRODUCT_NAME "mangosd.exe")
-    set(PRODUCT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/mangosd.ico)
-    set(PRODUCT_DESCRIPTION "${MANGOS_PKG} World Server")
-    configure_file(${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.h.in ${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.h)
-endif()
-
-
 add_executable(mangosd
     ${SRC_GRP_MAIN}
-    $<$<BOOL:${WIN32}>:
-        ${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.h
-        ${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.rc
-    >
+    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.rc>
 )
+
+# The three strings that name THIS executable. Everything else the resource
+# needs comes from the generated BuildInfo.h, which is shared; these are not,
+# so they are handed to the resource compiler per target instead of being
+# baked into a per-target copy of a generated header.
+if(WIN32)
+    set_source_files_properties(${CMAKE_SOURCE_DIR}/cmake/win/VersionInfo.rc
+        TARGET_DIRECTORY mangosd
+        PROPERTIES COMPILE_DEFINITIONS
+            "PRODUCT_ICON=\"${CMAKE_CURRENT_SOURCE_DIR}/mangosd.ico\";PRODUCT_BUNDLE=\"mangosd.exe\\0\";PRODUCT_FILE_DESCRIPTION=\"${MANGOS_PKG} World Server\\0\"")
+endif()
 
 target_include_directories(mangosd
     PRIVATE

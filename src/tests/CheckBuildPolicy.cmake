@@ -15,32 +15,10 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-file(READ "${SOURCE_ROOT}/CMakeLists.txt" ROOT_CMAKE)
-file(READ "${SOURCE_ROOT}/src/mangosd/mangosd.cpp" MANGOSD_SOURCE)
 file(READ "${SOURCE_ROOT}/src/CMakeLists.txt" SRC_CMAKE)
 file(READ "${SOURCE_ROOT}/.github/workflows/core_linux_build.yml" LINUX_CI)
 file(READ "${SOURCE_ROOT}/.github/workflows/core_windows_build.yml" WINDOWS_CI)
 
-foreach(REQUIRED_TEXT
-    "find_package(OpenSSL 3.0 REQUIRED)"
-    "OPENSSL_VERSION VERSION_GREATER_EQUAL \"4.0.0\""
-    "OpenSSL 4.x support is intentionally deferred until the OpenSSL 4.2 LTS migration")
-  string(FIND "${ROOT_CMAKE}" "${REQUIRED_TEXT}" POSITION)
-  if(POSITION EQUAL -1)
-    message(FATAL_ERROR "Missing OpenSSL build policy: ${REQUIRED_TEXT}")
-  endif()
-endforeach()
-
-# The provider manager is a Meyers singleton in mangos_two and an RAII local in
-# the other three cores. Either spelling is accepted; what is not negotiable is
-# that a failed crypto init leaves through `return 1`. Returning 0 tells a
-# supervisor the process exited cleanly, so nothing restarts it.
-string(REGEX MATCH
-  "if \\(![A-Za-z_:.()]*IsInitialized\\(\\)\\)[^\n]*[\r\n]+[^\n]*\\{[\r\n]+[^\n]*Log::WaitBeforeContinueIfNeed\\(\\);[\r\n]+[^\n]*return 1;"
-  PROVIDER_FAILURE "${MANGOSD_SOURCE}")
-if(NOT PROVIDER_FAILURE)
-  message(FATAL_ERROR "mangosd provider failure must return 1")
-endif()
 
 string(FIND "${SRC_CMAKE}" "Upstream realmd passes the *file*" POSITION)
 if(NOT POSITION EQUAL -1)
@@ -56,8 +34,3 @@ foreach(CI_TEXT IN ITEMS "${LINUX_CI}" "${WINDOWS_CI}")
   endforeach()
 endforeach()
 
-string(REGEX MATCH "OPENSSL_VERSION: 3\\.[0-9]+\\.[0-9]+"
-  OPENSSL_PIN "${WINDOWS_CI}")
-if(NOT OPENSSL_PIN)
-  message(FATAL_ERROR "Windows CI is not pinned to OpenSSL 3.x")
-endif()

@@ -71,8 +71,8 @@ enum
 GameObject::GameObject() : WorldObject(),
     loot(this),
     m_model(NULL),
-    m_displayInfo(NULL),
     m_goInfo(NULL),
+    m_displayInfo(NULL),
     m_AI_locked(false)
 {
     m_objectType |= TYPEMASK_GAMEOBJECT;
@@ -101,7 +101,6 @@ GameObject::GameObject() : WorldObject(),
     m_rearmTimer = 0;
     m_despawnTimer = 0;
 
-    m_AI_locked;
 }
 
 /**

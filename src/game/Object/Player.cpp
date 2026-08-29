@@ -308,7 +308,12 @@ UpdateMask Player::updateVisualBits;
  *
  * @param session The owning world session.
  */
-Player::Player(WorldSession* session): Unit(), m_mover(this), m_camera(this), m_petMgr(this), m_achievementMgr(this), m_reputationMgr(this), m_glyphMgr(this), m_honorMgr(this), m_currencyMgr(this), m_runeMgr(this), m_spellCooldownMgr(this)
+// Ordered as the members are DECLARED, which is the order they are actually
+// constructed in regardless of what this list says. Every one of them takes
+// `this` and nothing else, so the previous order was harmless -- but a member
+// added here that reads another would have been constructed against whichever
+// one the declaration order happened to put first.
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_mover(this), m_camera(this), m_petMgr(this), m_achievementMgr(this), m_reputationMgr(this)
 {
     m_transport = 0;
 

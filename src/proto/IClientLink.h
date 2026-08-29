@@ -26,6 +26,7 @@
 #ifndef MANGOS_PROTO_ICLIENTLINK_H
 #define MANGOS_PROTO_ICLIENTLINK_H
 
+#include "LinkSlot.h"
 #include "WorldPacket.h"
 
 #include <string>
@@ -71,6 +72,21 @@ namespace proto
 
             /// True once the connection is dead and sends are being discarded.
             virtual bool IsClosed() const = 0;
+
+            /**
+             * @brief Whether one of the two world streams is usable right now.
+             *
+             * A single connection is only ever stream 0, so the default answers
+             * for that case; SessionLinks overrides it once it holds both. The
+             * world asks before it does anything that has to reach the client
+             * over stream 1 -- entering the world, most of all, whose first
+             * packet the client would otherwise hold in a queue it has not yet
+             * been told to flush.
+             */
+            virtual bool IsSlotLive(LinkSlot slot) const
+            {
+                return slot == LinkSlot::Zero && !IsClosed();
+            }
     };
 }
 

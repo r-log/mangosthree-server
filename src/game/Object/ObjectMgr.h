@@ -136,7 +136,11 @@ struct CellObjectGuids
     CellCorpseSet corpses;
 };
 typedef std::unordered_map < uint32/*cell_id*/, CellObjectGuids > CellObjectGuidsMap;
-typedef std::unordered_map < uint32/*(mapid,spawnMode) pair*/, CellObjectGuidsMap > MapObjectGuids;
+// Keyed on the 64-bit pair, not the 32-bit one: a map id is uint32 and the
+// world database stores `creature`.`map` as int(10) unsigned, so packing it
+// into sixteen bits wraps a large id onto another map's bucket instead of
+// missing. See the warning above MAKE_PAIR32 in PackedValues.h.
+typedef std::unordered_map < uint64/*(mapid,spawnMode) pair*/, CellObjectGuidsMap > MapObjectGuids;
 
 // mangos string ranges
 #define MIN_MANGOS_STRING_ID           1                    // 'mangos_string'
@@ -1210,9 +1214,9 @@ class ObjectMgr
         void SetDBCLocaleIndex(uint32 lang) { DBCLocaleIndex = GetIndexForLocale(LocaleConstant(lang)); }
 
         // global grid objects state (static DB spawns, global spawn mods from gameevent system)
-        CellObjectGuids const& GetCellObjectGuids(uint16 mapid, uint8 spawnMode, uint32 cell_id)
+        CellObjectGuids const& GetCellObjectGuids(uint32 mapid, uint8 spawnMode, uint32 cell_id)
         {
-            return mMapObjectGuids[MAKE_PAIR32(mapid, spawnMode)][cell_id];
+            return mMapObjectGuids[MAKE_PAIR64(mapid, spawnMode)][cell_id];
         }
 
         // Read-only per-cell spawn lookup for diagnostics. Unlike
@@ -1220,9 +1224,13 @@ class ObjectMgr
         // inserts an empty entry on miss, so scanning many cells (e.g. a
         // whole grid) does not mutate mMapObjectGuids. Returns NULL when
         // the cell has no static DB spawn definitions.
-        CellObjectGuids const* GetCellObjectGuidsReadOnly(uint16 mapid, uint32 cell_id) const
+        //
+        // spawnMode is part of the key and always was; this used to look up on
+        // the bare map id, which is the key only for spawn mode 0, so it
+        // reported "no spawns" for every other difficulty.
+        CellObjectGuids const* GetCellObjectGuidsReadOnly(uint32 mapid, uint8 spawnMode, uint32 cell_id) const
         {
-            MapObjectGuids::const_iterator mapItr = mMapObjectGuids.find(mapid);
+            MapObjectGuids::const_iterator mapItr = mMapObjectGuids.find(MAKE_PAIR64(mapid, spawnMode));
             if (mapItr == mMapObjectGuids.end())
             {
                 return NULL;

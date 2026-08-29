@@ -151,7 +151,7 @@ class ByteBuffer
          * @param buf Source ByteBuffer to copy from
          */
         ByteBuffer(const ByteBuffer &buf) : _rpos(buf._rpos), _wpos(buf._wpos),
-            _storage(buf._storage), _bitpos(buf._bitpos), _curbitval(buf._curbitval)
+            _bitpos(buf._bitpos), _curbitval(buf._curbitval), _storage(buf._storage)
         {
         }
 

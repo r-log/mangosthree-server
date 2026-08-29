@@ -3791,12 +3791,10 @@ enum TrackedAuraType
     MAX_TRACKED_AURA_TYPES
 };
 
-// we need to stick to 1 version or half of the stuff will work for someone
-// others will not and opposite
-// will only support WoW, WoW:TBC, WoW:WotLK and WoW:Cataclysm 4.3.4 client build 15595...
-
-#define EXPECTED_MANGOSD_CLIENT_BUILD        {15595, 0}
-#define EXPECTED_MANGOSD_CLIENT_VERSION      "4.3.4"
+// The accepted client build and version are GitRevision::GetAcceptedClientBuilds()
+// and GetClientVersion(), generated from cmake/MangosVersions.cmake. They used to
+// be macros written out here, three thousand lines into a header 81 files include
+// -- which put every one of them on the dependency of a generated header.
 
 // max supported expansion level in mangosd
 // NOTE: not set it more that supported by targeted client version with all expansions installed

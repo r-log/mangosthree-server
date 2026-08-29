@@ -54,9 +54,10 @@
 #include "Database/DatabaseEnv.h"
 #include "Config/Config.h"
 #include "Platform/Define.h"
-#include "SystemConfig.h"
+#include "BuildInfo.h"
 #include "Log.h"
 #include "Opcodes.h"
+#include "WorldNetwork.h"
 #include "WorldSession.h"
 #include "WorldPacket.h"
 #include "Player.h"
@@ -827,8 +828,8 @@ void World::showFooter()
     modules_.insert("      ScriptDev3 (SD3) : Enabled");
 #endif
 
-    std::string thisClientVersion (EXPECTED_MANGOSD_CLIENT_VERSION);
-    std::string thisClientBuilds = AcceptableClientBuildsListStr();
+    std::string thisClientVersion (GitRevision::GetClientVersion());
+    std::string thisClientBuilds = GitRevision::GetAcceptedClientBuildsStr();
 
     std::string sModules;
     for (std::set<std::string>::const_iterator it = modules_.begin(); it != modules_.end(); ++it)
@@ -1035,6 +1036,12 @@ void World::Update(uint32 diff)
 
     /// <li> Handle session updates
     UpdateSessions(diff);
+
+    /// <li> Drop redirects whose client never opened its second world stream.
+    /// Sessions withdraw their own on retry and on logout, so this only ever
+    /// collects after an abrupt end; it is what keeps the registry bounded
+    /// rather than merely usually empty.
+    sWorldNetwork.ExpirePendingRedirects();
 
     /// <li> Update uptime table
     if (m_timers[WUPDATE_UPTIME].Passed())

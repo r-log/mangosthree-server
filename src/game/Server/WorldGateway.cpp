@@ -23,6 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "Common/GitRevision.h"
 #include "Common/Locales.h"
 #include <cmath>
 #include <utility>
@@ -35,6 +36,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Log/Log.h"
 #include "OpcodeTable.h"
+#include "SessionLinks.h"
 #include "SharedDefines.h"
 #include "World.h"
 #include "WorldSession.h"
@@ -58,14 +60,11 @@ namespace
         uint8          expansion = 0;
         time_t         muteTime  = 0;
         LocaleConstant locale    = LOCALE_enUS;
-        BigNumber      sessionKey; ///< `sessionkey` column (K) -- arms proto's cipher and its SHA-1 proof.
 
-        /// `s` column (SRP6 salt) -- WorldSocket kept this in a field it called
-        /// m_s and exposed as GetSessionKey(), which SendRedirectClient() uses
-        /// as an HMAC seed. That naming predates this refactor and is preserved
-        /// here, not corrected: this is a byte-for-byte port of what the socket
-        /// already sent, not a cryptography review.
-        BigNumber      sessionSalt;
+        /// `sessionkey` column (K). It arms proto's cipher and its SHA-1 proof
+        /// on the first stream, and the second stream re-derives its own ciphers
+        /// from the same value rather than authenticating again.
+        BigNumber      sessionKey;
     };
 
     /**
@@ -107,7 +106,7 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
 
     // ---- Client build ------------------------------------------------------
     // WorldSocket.cpp:1036.
-    if (!IsAcceptableClientBuild(request.build))
+    if (!GitRevision::IsAcceptedClientBuild(request.build))
     {
         result.status = proto::AuthStatus::VersionMismatch;
         return result;
@@ -127,11 +126,10 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
                              "`sessionkey`, "  // 2
                              "`last_ip`, "     // 3
                              "`locked`, "      // 4
-                             "`s`, "           // 5
-                             "`expansion`, "   // 6
-                             "`mutetime`, "    // 7
-                             "`locale`, "      // 8
-                             "`os` "           // 9
+                             "`expansion`, "   // 5
+                             "`mutetime`, "    // 6
+                             "`locale`, "      // 7
+                             "`os` "           // 8
                              "FROM `account` WHERE `username` = '%s'",
                              safeAccount.c_str());
 
@@ -161,16 +159,14 @@ proto::AuthLookup WorldGateway::LookupAccount(const proto::AuthRequest& request)
     const std::string lastIp = fields[3].GetString();
     const bool        locked = fields[4].GetUInt8() == 1;
 
-    row->sessionSalt.SetHexStr(fields[5].GetString());
-
     row->expansion = uint8(std::min<uint32>(sWorld.getConfig(CONFIG_UINT32_EXPANSION),
-                                            fields[6].GetUInt8()));
-    row->muteTime  = time_t(fields[7].GetUInt64());
+                                            fields[5].GetUInt8()));
+    row->muteTime  = time_t(fields[6].GetUInt64());
 
-    const uint8 rawLocale = fields[8].GetUInt8();
+    const uint8 rawLocale = fields[7].GetUInt8();
     row->locale = rawLocale >= MAX_LOCALE ? LOCALE_enUS : LocaleConstant(rawLocale);
 
-    const std::string clientOs = fields[9].GetString();
+    const std::string clientOs = fields[8].GetString();
 
     delete queryResult;
 
@@ -254,10 +250,18 @@ proto::SessionId WorldGateway::Attach(const proto::AuthRequest& request,
 
     std::shared_ptr<SessionMailbox> mailbox =
         std::make_shared<SessionMailbox>();
+
+    // The connection that just authenticated is the first of the client's two
+    // world streams. Wrapping it here, rather than handing it to the session
+    // bare, is what lets the second one be added later without a single caller
+    // in the game learning that sending is a routing decision.
+    std::shared_ptr<proto::SessionLinks> links =
+        std::make_shared<proto::SessionLinks>(link);
+
     std::unique_ptr<WorldSession> session =
         std::make_unique<WorldSession>(
-            row->id, link, mailbox, row->security, row->expansion,
-            row->muteTime, row->locale, row->sessionSalt);
+            row->id, links, mailbox, row->security, row->expansion,
+            row->muteTime, row->locale, row->sessionKey);
 
     session->LoadGlobalAccountData();
     session->LoadTutorialsData();
@@ -287,6 +291,10 @@ proto::SessionId WorldGateway::Attach(const proto::AuthRequest& request,
         while (m_routes.find(id) != m_routes.end());
         m_routes.emplace(id, mailbox);
     }
+
+    // Before AddSession, which is where the session starts answering the client
+    // and may ask for its second stream.
+    session->SetSessionId(id);
 
     // AddSession answers the client itself, with either AUTH_OK or a queue
     // position (WorldSession::SendAuthWaitQue). The cipher was armed by proto

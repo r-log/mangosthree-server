@@ -73,16 +73,28 @@
 #include "MapManager.h"
 #include "SocialMgr.h"
 #include "Auth/AuthCrypt.h"
-#include "Auth/HMACSHA1.h"
+#include "SessionLinks.h"
+#include "WorldNetwork.h"
 #include "zlib.h"
 
+#include <chrono>
 #include <mutex>
 #include <utility>
 #include <cstdarg>
 
-#ifndef _WIN32
-#  include <arpa/inet.h>                                    ///< inet_addr
-#endif
+namespace
+{
+    /// How long to wait for a client to come back on its second stream before
+    /// asking again. One TCP connect plus the client's own promotion, with room
+    /// for a slow link.
+    const std::chrono::seconds SECOND_STREAM_RETRY_DELAY(10);
+
+    /// Redirects to send before giving up on a session. A client that has
+    /// refused this many is not going to accept the next one either -- its
+    /// modulus is not ours -- and leaving it sitting at the loading screen tells
+    /// its owner nothing.
+    const uint32 MAX_SECOND_STREAM_ATTEMPTS = 3;
+}
 
 /**
  * @brief Helper for Map session filtering
@@ -156,13 +168,14 @@ bool WorldSessionFilter::Process(WorldPacket* packet)
 }
 
 /// WorldSession constructor
-WorldSession::WorldSession(uint32 id, std::shared_ptr<proto::IClientLink> link,
+WorldSession::WorldSession(uint32 id, std::shared_ptr<proto::SessionLinks> links,
                            std::shared_ptr<SessionMailbox> mailbox,
                            AccountTypes sec, uint8 expansion, time_t mute_time,
-                           LocaleConstant locale, const BigNumber& sessionKeySalt) :
-    m_muteTime(mute_time), _player(NULL), m_Socket(std::move(link)),
+                           LocaleConstant locale, const BigNumber& sessionKey) :
+    m_muteTime(mute_time), _player(NULL), m_Socket(std::move(links)),
     m_mailbox(mailbox ? std::move(mailbox) : std::make_shared<SessionMailbox>()),
-    m_sessionKeySalt(sessionKeySalt),
+    m_sessionKey(sessionKey), m_secondStreamAttempts(0),
+    m_sessionId(proto::INVALID_SESSION_ID),
     _security(sec), _accountId(id), m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
     m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
@@ -182,6 +195,10 @@ WorldSession::~WorldSession()
     {
         LogoutPlayer(true);
     }
+
+    // A ticket left in the registry would keep the next client behind the same
+    // address waiting for a redirect that is never coming back.
+    sWorldNetwork.CancelSecondStream(m_sessionId);
 
     /// - If the connection is still up, close it. Dropping the shared_ptr is
     /// all the bookkeeping there is now: the transport owns the socket, and
@@ -314,6 +331,20 @@ bool WorldSession::Update(PacketFilter& updater)
                         packet->GetOpcode());
         #endif*/
 
+        // Entering the world is the first thing that needs the client's second
+        // stream, and it is also what opens it. So the login does not run when
+        // it arrives -- it is held, the redirect goes out, and it runs once the
+        // client is back on both connections. Everything it replies with, from
+        // SMSG_LOGIN_VERIFY_WORLD onward, then has somewhere to go.
+        // Still queued means not entitled to enter the world yet, so the login
+        // falls through to the gate below that says so. Redirecting first would
+        // hand a queued client a second stream and hold a redirect slot for it.
+        if (packet->GetOpcode() == CMSG_PLAYER_LOGIN && !m_inQueue && !HasSecondStream())
+        {
+            BeginSecondStream(std::unique_ptr<WorldPacket>(packet));
+            continue;
+        }
+
         OpcodeHandler const& opHandle = opcodeTable[packet->GetOpcode()];
         try
         {
@@ -421,6 +452,8 @@ bool WorldSession::Update(PacketFilter& updater)
 
         delete packet;
     }
+
+    UpdateSecondStream();
 
     ///- Cleanup socket pointer if need
     if (m_Socket && m_Socket->IsClosed())
@@ -787,7 +820,7 @@ void WorldSession::SendNotification(int32 string_id, ...)
     }
 }
 
-void WorldSession::SendSetPhaseShift(uint32 phaseMask, uint16 mapId)
+void WorldSession::SendSetPhaseShift(uint32 phaseMask, uint32 mapId)
 {
     ObjectGuid guid = _player->GetObjectGuid();
 
@@ -1319,23 +1352,89 @@ void WorldSession::SendAddonsInfo()
     SendPacket(&data);
 }
 
-void WorldSession::SendRedirectClient(std::string& ip, uint16 port)
+bool WorldSession::HasSecondStream() const
 {
-    uint32 ip2 = inet_addr(ip.c_str());
-    WorldPacket pkt(SMSG_CONNECT_TO, 4 + 2 + 4 + 20);
+    return m_Socket && m_Socket->IsSlotLive(proto::LinkSlot::One);
+}
 
-    pkt << uint32(ip2);                                     // inet_addr(ipstr)
-    pkt << uint16(port);                                    // port
+void WorldSession::BeginSecondStream(std::unique_ptr<WorldPacket> deferredLogin)
+{
+    m_deferredLogin = std::move(deferredLogin);
+    m_secondStreamAttempts = 0;
+    m_secondStreamDeadline = std::chrono::steady_clock::time_point();
 
-    pkt << uint32(0);                                       // unknown
+    // Nothing more to do here: UpdateSecondStream drives the request, its
+    // retries and its deadline from one place, and it runs on the next tick.
+}
 
-    HMACSHA1 sha1(40, GetSessionKey().AsByteArray());
-    sha1.UpdateData((uint8*)&ip2, 4);
-    sha1.UpdateData((uint8*)&port, 2);
-    sha1.Finalize();
-    pkt.append(sha1.GetDigest(), 20);                       // hmacsha1(ip+port) w/ sessionkey as seed
+void WorldSession::UpdateSecondStream()
+{
+    if (!m_deferredLogin)
+    {
+        return;
+    }
 
-    SendPacket(&pkt);
+    // The client came back. Put the login back in the queue rather than running
+    // it here: this method is reached from Map::Update as well as from
+    // World::UpdateSessions, and CMSG_PLAYER_LOGIN is thread-unsafe. Requeued,
+    // it is dispatched in the context the opcode table asks for, and the
+    // interception above lets it through now that the second stream is live.
+    if (HasSecondStream())
+    {
+        sWorldNetwork.CancelSecondStream(GetSessionId());
+        QueuePacket(m_deferredLogin.release());
+        return;
+    }
+
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    if (m_secondStreamDeadline != std::chrono::steady_clock::time_point() &&
+        now < m_secondStreamDeadline)
+    {
+        return;
+    }
+
+    if (m_secondStreamAttempts >= MAX_SECOND_STREAM_ATTEMPTS)
+    {
+        sLog.outError("WorldSession: account %u never opened its second world stream "
+                      "after %u attempts; its client is not running our redirect key",
+                      GetAccountId(), m_secondStreamAttempts);
+        m_deferredLogin.reset();
+        KickPlayer();
+        return;
+    }
+
+    // A retry has to withdraw the pending ticket first: the registry allows one
+    // in flight per client address, and the client refuses a second redirect
+    // while one is still staged.
+    sWorldNetwork.CancelSecondStream(GetSessionId());
+
+    proto::RedirectTicket ticket;
+    ticket.clientAddress = GetRemoteAddress();
+    ticket.session       = GetSessionId();
+    ticket.sessionKey    = m_sessionKey;
+    ticket.links         = m_Socket;
+
+    m_secondStreamDeadline = now + SECOND_STREAM_RETRY_DELAY;
+
+    // Only an emitted redirect counts against the budget. A refusal here means
+    // another client behind the same address is mid-redirect, which is queueing
+    // rather than failing, and burning the budget on it would kick whoever
+    // happens to log in second from a shared address.
+    if (sWorldNetwork.RequestSecondStream(ticket))
+    {
+        ++m_secondStreamAttempts;
+    }
+}
+
+void WorldSession::HandleConnectToFailed(WorldPacket& /*recvPacket*/)
+{
+    // The client tells us it could not act on the redirect. Retrying at once is
+    // right when the cause was transient and harmless when it was not -- the
+    // attempt counter still bounds it.
+    sLog.outError("WorldSession: account %u refused the second-stream redirect",
+                  GetAccountId());
+
+    m_secondStreamDeadline = std::chrono::steady_clock::time_point();
 }
 
 /**

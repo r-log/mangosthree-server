@@ -2216,7 +2216,7 @@ void Unit::CalculateSpellDamage(SpellNonMeleeDamage* damageInfo, int32 damage, S
         return;
     }
 
-    if (!this || !pVictim)
+    if (!pVictim)
     {
         return;
     }
@@ -2310,7 +2310,7 @@ void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss)
 
     Unit* pVictim = damageInfo->target;
 
-    if (!this || !pVictim)
+    if (!pVictim)
     {
         return;
     }
@@ -2347,7 +2347,7 @@ void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss)
  */
 void Unit::HandleEmoteCommand(uint32 emote_id)
 {
-    DEBUG_LOG("SMSG_EMOTE %u");
+    DEBUG_LOG("SMSG_EMOTE %u", emote_id);
     WorldPacket data(SMSG_EMOTE, 4 + 8);
     data << uint32(emote_id);
     data << GetObjectGuid();

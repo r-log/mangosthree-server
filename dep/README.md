@@ -4,8 +4,14 @@ Plain in-tree copies of the third-party libraries the core builds. They were imp
 the `mangos/mangosDeps` repository at commit `e3156dcba0bfb6b199327529f7c032fedc359d44`
 (2026-08-04) when this tree stopped using git submodules. Nothing here is modified
 relative to that commit except line endings: this repository normalises text files to LF
-(`.gitattributes`), which touched the CRLF sources StormLib ships. `cmake/Dependencies.cmake` is the single place that decides which
-of them is configured and when — there is no `CMakeLists.txt` in this directory.
+(`.gitattributes`), which touched the CRLF sources StormLib ships.
+
+`CMakeLists.txt` in this directory is the single place that decides which of
+these is configured and when. The `CMakeLists.txt` inside each subdirectory is
+ours as well, not upstream's: each exposes one target under the name the rest of
+the build links against, out of a trimmed copy of the upstream sources. That is
+why these cannot simply be pointed at an upstream checkout — replacing a
+directory with upstream's tree takes our build file with it.
 
 | Directory | Library | Version | Upstream | Used by |
 |---|---|---|---|---|

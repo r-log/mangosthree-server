@@ -40,7 +40,7 @@
 #include "World.h"
 #include "Config.h"
 #include "GitRevision.h"
-#include "SystemConfig.h"
+#include "BuildInfo.h"
 #include "BattleGroundMgr.h"
 #include "UpdateTime.h"
 #include "MapPersistentStateMgr.h"

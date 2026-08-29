@@ -809,8 +809,9 @@ uint32 FlightPathMovementGenerator::GetPathAtMapEnd() const
  * @brief Initializes the FlightPathMovementGenerator.
  * @param player Reference to the player.
  */
-void FlightPathMovementGenerator::Initialize(Player& player)
+void FlightPathMovementGenerator::Initialize(Unit& u)
 {
+    Player& player = static_cast<Player&>(u);
     Reset(player);
 }
 
@@ -818,8 +819,9 @@ void FlightPathMovementGenerator::Initialize(Player& player)
  * @brief Finalizes the FlightPathMovementGenerator.
  * @param player Reference to the player.
  */
-void FlightPathMovementGenerator::Finalize(Player& player)
+void FlightPathMovementGenerator::Finalize(Unit& u)
 {
+    Player& player = static_cast<Player&>(u);
     // Remove flag to prevent send object build movement packets for flight state and crash (movement generator already not at top of stack)
     player.clearUnitState(UNIT_STAT_TAXI_FLIGHT);
 
@@ -845,8 +847,9 @@ void FlightPathMovementGenerator::Finalize(Player& player)
  * @brief Interrupts the FlightPathMovementGenerator.
  * @param player Reference to the player.
  */
-void FlightPathMovementGenerator::Interrupt(Player& player)
+void FlightPathMovementGenerator::Interrupt(Unit& u)
 {
+    Player& player = static_cast<Player&>(u);
     player.clearUnitState(UNIT_STAT_TAXI_FLIGHT);
 }
 
@@ -856,8 +859,9 @@ void FlightPathMovementGenerator::Interrupt(Player& player)
  * @brief Resets the FlightPathMovementGenerator.
  * @param player Reference to the player.
  */
-void FlightPathMovementGenerator::Reset(Player& player)
+void FlightPathMovementGenerator::Reset(Unit& u)
 {
+    Player& player = static_cast<Player&>(u);
     // Set the player to offline state for hostile references
     player.GetHostileRefManager().setOnlineOfflineState(false);
     // Add the taxi flight state to the player
@@ -889,8 +893,9 @@ void FlightPathMovementGenerator::Reset(Player& player)
  * @param diff Time difference.
  * @return True if the update was successful, false otherwise.
  */
-bool FlightPathMovementGenerator::Update(Player& player, const uint32& /*diff*/)
+bool FlightPathMovementGenerator::Update(Unit& u, const uint32& /*diff*/)
 {
+    Player& player = static_cast<Player&>(u);
     uint32 pointId = (uint32)player.movespline->currentPathIdx();
     if (pointId > i_currentNode)
     {
@@ -951,7 +956,7 @@ void FlightPathMovementGenerator::DoEventIfAny(Player& player, TaxiPathNodeEntry
  * @param o Reference to the orientation.
  * @return True if the reset position was successfully obtained, false otherwise.
  */
-bool FlightPathMovementGenerator::GetResetPosition(Player&, float& x, float& y, float& z, float& o) const
+bool FlightPathMovementGenerator::GetResetPosition(Unit& /*u*/, float& x, float& y, float& z, float& o) const
 {
     const TaxiPathNodeEntry& node = (*i_path)[i_currentNode];
     x = node.Loc_0;

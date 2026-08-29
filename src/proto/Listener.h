@@ -26,7 +26,9 @@
 #ifndef MANGOS_PROTO_LISTENER_H
 #define MANGOS_PROTO_LISTENER_H
 
+#include "ClientConnection.h"
 #include "IWorldGateway.h"
+#include "RedirectRegistry.h"
 
 #include "net/Server.hpp"
 
@@ -52,7 +54,8 @@ namespace proto
     {
         public:
 
-            explicit Listener(IWorldGateway& gateway);
+            Listener(IWorldGateway& gateway, RedirectRegistry& redirects,
+                     const EndpointPolicy& policy);
             ~Listener();
 
             Listener(const Listener&) = delete;
@@ -72,9 +75,11 @@ namespace proto
 
         private:
 
-            IWorldGateway& m_gateway;
-            net::Server    m_server;
-            bool           m_running;
+            IWorldGateway&    m_gateway;
+            RedirectRegistry& m_redirects;
+            EndpointPolicy    m_policy;
+            net::Server       m_server;
+            bool              m_running;
     };
 }
 

@@ -24,7 +24,10 @@
  */
 
 #include "GitRevision.h"
-#include "revision_data.h"
+#include "BuildInfo.h"
+#include "BuildInfo.h"
+
+#include <sstream>
 
 char const* GitRevision::GetHash()
 {
@@ -163,4 +166,69 @@ char const* GitRevision::GetFileVersionStr()
 char const* GitRevision::GetProductVersionStr()
 {
     return VER_PRODUCTVERSION_STR;
+}
+
+// --- Configuration files ---------------------------------------------------
+
+uint32 GitRevision::GetWorldConfigVersion()
+{
+    return MANGOSD_CONFIG_VERSION;
+}
+
+uint32 GitRevision::GetRealmConfigVersion()
+{
+    return REALMD_CONFIG_VERSION;
+}
+
+uint32 GitRevision::GetAhbotConfigVersion()
+{
+    return AHBOT_CONFIG_VERSION;
+}
+
+// --- Client ----------------------------------------------------------------
+
+const std::vector<uint32>& GitRevision::GetAcceptedClientBuilds()
+{
+    // The generated macro is a brace-init list terminated by a zero, which is
+    // how the two call sites used to walk it. Unpack it once, here, so that
+    // neither of them has to know the terminator exists.
+    static const std::vector<uint32> builds = []
+    {
+        const int declared[] = EXPECTED_MANGOSD_CLIENT_BUILD;
+        std::vector<uint32> out;
+        for (size_t i = 0; declared[i]; ++i)
+        {
+            out.push_back(uint32(declared[i]));
+        }
+        return out;
+    }();
+
+    return builds;
+}
+
+std::string GitRevision::GetAcceptedClientBuildsStr()
+{
+    std::ostringstream text;
+    for (uint32 build : GetAcceptedClientBuilds())
+    {
+        text << build << " ";
+    }
+    return text.str();
+}
+
+bool GitRevision::IsAcceptedClientBuild(uint32 build)
+{
+    for (uint32 accepted : GetAcceptedClientBuilds())
+    {
+        if (accepted == build)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+char const* GitRevision::GetClientVersion()
+{
+    return EXPECTED_MANGOSD_CLIENT_VERSION;
 }

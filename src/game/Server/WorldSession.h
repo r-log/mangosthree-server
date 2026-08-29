@@ -45,7 +45,9 @@
 #include "LFGMgr.h"
 #include "SessionMailbox.h"
 #include "SessionProtocolPolicy.h"
+#include "IWorldGateway.h"
 
+#include <chrono>
 #include <memory>
 #include <mutex>
 
@@ -68,7 +70,7 @@ class GMTicket;
 class MovementInfo;
 class WorldSession;
 
-namespace proto { class IClientLink; }
+namespace proto { class SessionLinks; }
 
 struct OpcodeHandler;
 
@@ -322,19 +324,21 @@ class WorldSession
         /**
          * @brief Constructor
          * @param id Session ID
-         * @param link How to talk back to this client (proto::IClientLink; the
-         *             transport underneath is opaque to WorldSession)
+         * @param links The client's two world streams. Sending through them is
+         *             ordinary IClientLink; which of the two a packet takes is
+         *             decided underneath, and the transport stays opaque.
          * @param sec Account security level
          * @param mute_time Mute time
          * @param locale Locale
-         * @param sessionKeySalt The account's `s` (SRP6 salt) column, carried in
-         *             rather than re-read: SendRedirectClient() uses it as an
-         *             HMAC seed, exactly as WorldSocket::GetSessionKey() did.
+         * @param sessionKey The account's session key (K), carried in rather than
+         *             re-read: the second stream re-derives its ciphers from it,
+         *             and it is what the redirect ticket carries to the socket
+         *             that will become that stream.
          */
-        WorldSession(uint32 id, std::shared_ptr<proto::IClientLink> link,
+        WorldSession(uint32 id, std::shared_ptr<proto::SessionLinks> links,
                      std::shared_ptr<SessionMailbox> mailbox,
                      AccountTypes sec, uint8 expansion, time_t mute_time,
-                     LocaleConstant locale, const BigNumber& sessionKeySalt);
+                     LocaleConstant locale, const BigNumber& sessionKey);
 
         /**
          * @brief Destructor
@@ -400,14 +404,48 @@ class WorldSession
         void SendGuildInvite(Player* player, bool alreadyInGuild = false);
         void SendAreaTriggerMessage(const char* Text, ...) ATTR_PRINTF(2, 3);
         void SendTransferAborted(uint32 mapid, uint8 reason, uint8 arg = 0);
-        void SendSetPhaseShift(uint32 phaseMask, uint16 mapId = 0);
+        void SendSetPhaseShift(uint32 phaseMask, uint32 mapId = 0);
         void SendQueryTimeResponse();
-        void SendRedirectClient(std::string& ip, uint16 port);
 
-        /// The account's `s` (SRP6 salt) column -- see m_sessionKeySalt's doc
-        /// comment. Name preserved from WorldSocket::GetSessionKey(), which
-        /// this replaces.
-        BigNumber& GetSessionKey() { return m_sessionKeySalt; }
+        /// The account's session key (K), as agreed at login.
+        BigNumber& GetSessionKey() { return m_sessionKey; }
+
+        /**
+         * @brief The handle the protocol layer knows this session by.
+         *
+         * Distinct from the account id: it is minted per connection, so a stale
+         * handle from a torn-down connection cannot resolve onto the session of
+         * a player who has since logged back in. Set once, by the gateway, at
+         * the moment the session is registered.
+         */
+        proto::SessionId GetSessionId() const { return m_sessionId; }
+        void SetSessionId(proto::SessionId id) { m_sessionId = id; }
+
+        // --- The client's second world stream -------------------------------
+
+        /**
+         * @brief Whether both of the client's world streams are usable.
+         *
+         * Nineteen opcodes and the whole of entering the world need the second
+         * one, and the client discards them if they arrive anywhere else.
+         */
+        bool HasSecondStream() const;
+
+        /**
+         * @brief Ask the client to open its second stream, and wait for it.
+         *
+         * Called when the player picks a character. Everything about entering the
+         * world travels on the stream this opens, so the login is held until the
+         * client comes back on it -- which is a round trip, not a handshake the
+         * server drives.
+         */
+        void BeginSecondStream(std::unique_ptr<WorldPacket> deferredLogin);
+
+        /// Drive the retry and give-up clock for a redirect that is in flight.
+        void UpdateSecondStream();
+
+        /// The client refused or failed to act on the redirect we sent.
+        void HandleConnectToFailed(WorldPacket& recvPacket);
 
         AccountTypes GetSecurity() const
         {
@@ -1132,14 +1170,30 @@ class WorldSession
 
         uint32 m_GUIDLow;                                   // set logged or recently logout player (while m_playerRecentlyLogout set)
         Player* _player;
-        std::shared_ptr<proto::IClientLink> m_Socket;
+        std::shared_ptr<proto::SessionLinks> m_Socket;
         std::shared_ptr<SessionMailbox> m_mailbox;
         std::string m_Address;
 
-        /// `s` (SRP6 salt), not the session key `K` -- see the constructor's
-        /// doc comment. Named GetSessionKey() for source compatibility with
-        /// the one caller (SendRedirectClient), which predates this move.
-        BigNumber m_sessionKeySalt;
+        /// The session key (K) realmd agreed with this client. The second world
+        /// stream re-derives its ciphers from it instead of logging in again.
+        BigNumber m_sessionKey;
+
+        /// CMSG_PLAYER_LOGIN, held from the moment the redirect goes out until
+        /// the client's second stream is live. Its first reply is one of the
+        /// opcodes that only travels on that stream, so running it any earlier
+        /// puts the whole of entering the world into a client-side queue that
+        /// has not been told to flush.
+        std::unique_ptr<WorldPacket> m_deferredLogin;
+
+        /// When the redirect currently in flight stops being worth waiting for.
+        std::chrono::steady_clock::time_point m_secondStreamDeadline;
+
+        /// Redirects sent for this session. The client can refuse one, and a
+        /// signed packet is cheap to reissue, but a client that refuses several
+        /// is one whose modulus does not match ours and never will.
+        uint32 m_secondStreamAttempts;
+
+        proto::SessionId m_sessionId;
 
         AccountTypes _security;
         uint32 _accountId;

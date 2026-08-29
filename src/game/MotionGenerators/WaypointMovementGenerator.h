@@ -212,8 +212,18 @@ class WaypointMovementGenerator final : public IntentMovementGenerator
  * Generates movement of the player along taxi flight paths.
  * Handles ground and activities for the player during flight.
  */
+// Derives from MovementGenerator directly, like every other generator in this
+// tree. It used to go through MovementGeneratorMedium<Player, ...>, a CRTP
+// forwarder that overrode Initialize(Unit&) and re-dispatched to a typed
+// Initialize(Player&) here -- which meant this class hid the base's virtual at
+// six methods, and did the Unit-to-Player conversion with an unchecked C-style
+// cast whose accompanying AssertIsType<T>() was commented out.
+//
+// Every sibling had already been migrated off that template; this was the last
+// user of it, and the only source of 84 of the tree's 98 -Woverloaded-virtual
+// warnings. The downcast is now explicit and in one place per method.
 class FlightPathMovementGenerator
-    : public MovementGeneratorMedium< Player, FlightPathMovementGenerator >,
+    : public MovementGenerator,
   public PathMovementBase<Player, TaxiPathNodeList const*>
 {
     public:
@@ -232,25 +242,25 @@ class FlightPathMovementGenerator
          * @brief Initialize the movement generator
          * @param player Reference to the player
          */
-        void Initialize(Player&);
+        void Initialize(Unit& u) override;
 
         /**
          * @brief Finalize the movement generator
          * @param player Reference to the player
          */
-        void Finalize(Player&);
+        void Finalize(Unit& u) override;
 
         /**
          * @brief Interrupt the movement generator
          * @param player Reference to the player
          */
-        void Interrupt(Player&);
+        void Interrupt(Unit& u) override;
 
         /**
          * @brief Reset the movement generator
          * @param player Reference to the player
          */
-        void Reset(Player&);
+        void Reset(Unit& u) override;
 
         /**
          * @brief Update the movement generator
@@ -258,7 +268,7 @@ class FlightPathMovementGenerator
          * @param diff Time difference in milliseconds
          * @return True if update successful
          */
-        bool Update(Player&, const uint32&);
+        bool Update(Unit& u, const uint32& diff) override;
 
         /**
          * @brief Get movement generator type
@@ -304,7 +314,7 @@ class FlightPathMovementGenerator
          * @param o Orientation output
          * @return True if reset position obtained
          */
-        bool GetResetPosition(Player&, float& /*x*/, float& /*y*/, float& /*z*/, float& /*o*/) const;
+        bool GetResetPosition(Unit& u, float& x, float& y, float& z, float& o) const override;
 };
 
 #endif // MANGOS_WAYPOINTMOVEMENTGENERATOR_H

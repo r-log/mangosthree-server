@@ -34,11 +34,21 @@
 set(SRC_GRP_PROTO
     ClientConnection.cpp
     ClientConnection.h
+    ConnectTo.cpp
+    ConnectTo.h
     IClientLink.h
     IWorldGateway.h
+    LinkSlot.h
     Listener.cpp
     Listener.h
+    OpcodeSlots.cpp
+    OpcodeSlots.h
+    OpcodeSlots.inc
     Opcodes.h
+    RedirectRegistry.cpp
+    RedirectRegistry.h
+    SessionLinks.cpp
+    SessionLinks.h
     WorldPacket.h
     PacketCodec.cpp
     PacketCodec.h

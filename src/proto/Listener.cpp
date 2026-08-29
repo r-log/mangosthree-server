@@ -33,8 +33,11 @@
 
 namespace proto
 {
-    Listener::Listener(IWorldGateway& gateway)
+    Listener::Listener(IWorldGateway& gateway, RedirectRegistry& redirects,
+                       const EndpointPolicy& policy)
         : m_gateway(gateway),
+          m_redirects(redirects),
+          m_policy(policy),
           m_running(false)
     {
     }
@@ -51,12 +54,14 @@ namespace proto
             return true;
         }
 
-        IWorldGateway* gateway = &m_gateway;
+        IWorldGateway*       gateway   = &m_gateway;
+        RedirectRegistry*    redirects = &m_redirects;
+        const EndpointPolicy policy    = m_policy;
 
         m_running = m_server.start(port,
-            [gateway]() -> std::shared_ptr<net::ISession>
+            [gateway, redirects, policy]() -> std::shared_ptr<net::ISession>
             {
-                return std::make_shared<ClientConnection>(*gateway);
+                return std::make_shared<ClientConnection>(*gateway, *redirects, policy);
             },
             bindIp);
 

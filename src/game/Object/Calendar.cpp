@@ -196,7 +196,7 @@ void CalendarEvent::RemoveAllInvite(ObjectGuid const& removerGuid)
 //////////////////////////////////////////////////////////////////////////
 
 CalendarInvite::CalendarInvite(CalendarEvent* event, uint64 inviteId, ObjectGuid senderGuid, ObjectGuid inviteeGuid, time_t statusTime, CalendarInviteStatus status, CalendarModerationRank rank, std::string text) :
-    m_calendarEvent(event), InviteId(inviteId), SenderGuid(senderGuid), InviteeGuid(inviteeGuid), LastUpdateTime(statusTime), Status(status), Rank(rank), Text(text)
+    InviteId(inviteId), InviteeGuid(inviteeGuid), SenderGuid(senderGuid), LastUpdateTime(statusTime), Status(status), Rank(rank), Text(text), m_calendarEvent(event)
 {
     // only for pre invite case
     if (!event)

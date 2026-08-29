@@ -29,7 +29,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Config/Config.h"
 #include "Platform/Define.h"
-#include "SystemConfig.h"
+#include "BuildInfo.h"
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldSession.h"
@@ -114,7 +114,7 @@ void World::LoadConfigSettings(bool reload)
     }
     else
     {
-        if (confVersion < MANGOSD_CONFIG_VERSION)
+        if (confVersion < GitRevision::GetWorldConfigVersion())
         {
             sLog.outError("*****************************************************************************");
             sLog.outError(" WARNING: Your mangosd.conf version indicates your conf file is out of date!");

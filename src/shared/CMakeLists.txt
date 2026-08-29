@@ -30,8 +30,6 @@ set(SRC_GRP_AUTH
   Auth/HMACSHA1.cpp
   Auth/HMACSHA1.h
   Auth/Md5.h
-  Auth/OpenSSLProvider.cpp
-  Auth/OpenSSLProvider.h
   Auth/Sha1.cpp
   Auth/Sha1.h
 )
@@ -235,8 +233,7 @@ set(TGT_INCL
   Policies
 )
 
-configure_file(revision_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/revision_data.h)
-configure_file(SystemConfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/SystemConfig.h)
+configure_file(BuildInfo.h.in ${CMAKE_CURRENT_BINARY_DIR}/BuildInfo.h @ONLY)
 
 TEST_BIG_ENDIAN(ENDIAN_VALUE)
 
@@ -257,8 +254,7 @@ add_library(shared STATIC
     ${SRC_GRP_POLICIES}
     ${SRC_GRP_SVC}
     ${SRC_GRP_UTILITIES}
-    ${CMAKE_CURRENT_BINARY_DIR/revision_data.h}
-    ${CMAKE_CURRENT_BINARY_DIR/SystemConfig.h}
+    ${CMAKE_CURRENT_BINARY_DIR/BuildInfo.h}
 )
 
 target_include_directories(shared
