@@ -101,6 +101,7 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
         {
             const std::vector<Limb> m = OddModulus(k);
             const int cases = k >= 32 ? 400 : 2000;
+            const bool asmHere = HasAsmTier() && k % 4 == 0;
             for (int i = 0; i < cases; ++i)
             {
                 const std::vector<Limb> x = Below(m), y = Below(m);
@@ -109,12 +110,19 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
                 {
                     CompareMontMul(&MontMulMulx, m, x, y);
                 }
+                if (asmHere)
+                {
+                    CompareMontMul(&MontMulAsm, m, x, y);
+                }
             }
             // the edge patterns
             const std::vector<Limb> mm1 = MinusOne(m);
             std::vector<Limb> one(k, 0), zero(k, 0);
             one[0] = 1;
-            for (MontMulFn kernel : { &MontMulPortable, HasMulxTier() ? &MontMulMulx : &MontMulPortable })
+            std::vector<MontMulFn> kernels = { &MontMulPortable };
+            if (HasMulxTier()) kernels.push_back(&MontMulMulx);
+            if (asmHere) kernels.push_back(&MontMulAsm);
+            for (MontMulFn kernel : kernels)
             {
                 CompareMontMul(kernel, m, mm1, mm1);
                 CompareMontMul(kernel, m, mm1, one);

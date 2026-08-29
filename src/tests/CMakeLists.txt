@@ -145,6 +145,11 @@ target_include_directories(crypto_golden_capture PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_link_libraries(crypto_golden_capture PRIVATE shared Threads::Threads mangos_openssl mangos_openssl_strict)
 set_target_properties(crypto_golden_capture PROPERTIES FOLDER "tests")
 
+add_test(NAME crypto_asm_twin
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAsmTwin.cmake)
+
 add_test(NAME proto_boundary
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
