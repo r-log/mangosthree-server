@@ -20,6 +20,7 @@
 
 # Geometry is header-only and sits below everything else: it knows nothing
 # about WoW, any client version, or the server.
+add_subdirectory(shared/Crypto)
 add_subdirectory(shared/Geometry)
 add_subdirectory(shared/terrain)
 

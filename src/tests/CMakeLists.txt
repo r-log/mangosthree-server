@@ -80,6 +80,14 @@ set(SRC_GRP_TESTS
     # The SRP6 unit realmd calls and the vectors captured on the OpenSSL build.
     Srp6Test.cpp
     CryptoGoldenTest.cpp
+    # The in-house primitives (src/shared/Crypto), checked against the vectors above.
+    CryptoHashTest.cpp
+    CryptoRandomTest.cpp
+    CryptoBigIntTest.cpp
+    CryptoMontgomeryTest.cpp
+    CryptoRsaTest.cpp
+    RsaTestKey.h
+    BigIntVectors.h
     CryptoGoldenVectors.h
     ${CMAKE_SOURCE_DIR}/src/realmd/Auth/Srp6.cpp
 )
@@ -105,6 +113,7 @@ target_link_libraries(mangos_tests
     PRIVATE
         proto
         shared
+        mangos_crypto
         extractor_client
         extractor_data
         Threads::Threads
