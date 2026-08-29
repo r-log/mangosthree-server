@@ -97,7 +97,7 @@ class AuthSocket: public net::ISession
          *
          * @param sha
          */
-        void SendProof(Sha1Hash sha);
+        void SendProof(const uint8* M2);
 
         /**
          * @brief

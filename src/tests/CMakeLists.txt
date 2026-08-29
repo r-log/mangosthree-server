@@ -77,6 +77,11 @@ set(SRC_GRP_TESTS
     CodecStressTest.cpp
     CryptoStressTest.cpp
     PacketCodecTest.cpp
+    # The SRP6 unit realmd calls and the vectors captured on the OpenSSL build.
+    Srp6Test.cpp
+    CryptoGoldenTest.cpp
+    CryptoGoldenVectors.h
+    ${CMAKE_SOURCE_DIR}/src/realmd/Auth/Srp6.cpp
 )
 
 # The socket tests. Off unless asked for -- see the note above.
@@ -93,7 +98,8 @@ target_include_directories(mangos_tests
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers
         ${CMAKE_SOURCE_DIR}/src/game/Server
-        ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators)
+        ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators
+        ${CMAKE_SOURCE_DIR}/src/realmd)
 
 target_link_libraries(mangos_tests
     PRIVATE
