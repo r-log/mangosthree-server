@@ -26,6 +26,9 @@
 #include "ConnectTo.h"
 
 #include "Auth/HMACSHA1.h"
+#include "Crypto/BigInt.h"
+#include "Crypto/Rsa.h"
+#include "Crypto/SystemRandom.h"
 #include "Log/Log.h"
 
 #include <algorithm>
@@ -226,13 +229,6 @@ namespace proto
             return text.substr(first, text.find_last_not_of(space) - first + 1);
         }
 
-        /// BigNumber::SetBinary reads little-endian; every quantity here is big.
-        void SetBigEndian(BigNumber& number, const uint8* data, size_t length)
-        {
-            std::vector<uint8> reversed(data, data + length);
-            std::reverse(reversed.begin(), reversed.end());
-            number.SetBinary(reversed.data(), int(reversed.size()));
-        }
     }
 
     RedirectSigner::RedirectSigner()
@@ -257,6 +253,11 @@ namespace proto
         std::string modulus;
         std::string exponent;
         std::string authBlob;
+        std::string prime1;
+        std::string prime2;
+        std::string exponent1;
+        std::string exponent2;
+        std::string coefficient;
 
         std::string line;
         while (std::getline(file, line))
@@ -276,9 +277,14 @@ namespace proto
             const std::string key   = Trim(line.substr(0, equals));
             const std::string value = Trim(line.substr(equals + 1));
 
-            if (key == "Modulus")              { modulus  = value; }
-            else if (key == "PrivateExponent") { exponent = value; }
-            else if (key == "AuthBlob")        { authBlob = value; }
+            if (key == "Modulus")              { modulus     = value; }
+            else if (key == "PrivateExponent") { exponent    = value; }
+            else if (key == "AuthBlob")        { authBlob    = value; }
+            else if (key == "Prime1")          { prime1      = value; }
+            else if (key == "Prime2")          { prime2      = value; }
+            else if (key == "Exponent1")       { exponent1   = value; }
+            else if (key == "Exponent2")       { exponent2   = value; }
+            else if (key == "Coefficient")     { coefficient = value; }
         }
 
         if (modulus.empty() || exponent.empty())
@@ -289,14 +295,27 @@ namespace proto
             return false;
         }
 
-        return Load(modulus, exponent, authBlob);
+        return Load(modulus, exponent, authBlob, prime1, prime2, exponent1, exponent2, coefficient);
     }
 
     bool RedirectSigner::Load(const std::string& modulusHex,
                               const std::string& privateExponentHex,
                               const std::string& authBlobHex)
     {
+        return Load(modulusHex, privateExponentHex, authBlobHex, "", "", "", "", "");
+    }
+
+    bool RedirectSigner::Load(const std::string& modulusHex,
+                              const std::string& privateExponentHex,
+                              const std::string& authBlobHex,
+                              const std::string& prime1Hex,
+                              const std::string& prime2Hex,
+                              const std::string& exponent1Hex,
+                              const std::string& exponent2Hex,
+                              const std::string& coefficientHex)
+    {
         m_loaded = false;
+        m_key.Unload();
 
         if (modulusHex.empty() || privateExponentHex.empty())
         {
@@ -338,25 +357,75 @@ namespace proto
             sLog.outError("proto: redirect modulus is not a 2048-bit value (its top bit is clear)");
             return false;
         }
-        SetBigEndian(m_modulus, modulus.data(), modulus.size());
-        SetBigEndian(m_privateExponent, exponent.data(), exponent.size());
+
+        using MaNGOS::Crypto::BigInt;
+        const BigInt n = BigInt::FromBytesBE(modulus.data(), modulus.size());
+        const BigInt d = BigInt::FromBytesBE(exponent.data(), exponent.size());
+        const BigInt e(65537);
+
+        // The five CRT parameters come together or not at all: a partial set is a
+        // hand-edited file, and half a fast path is no path.
+        const bool anyCrt = !prime1Hex.empty() || !prime2Hex.empty() || !exponent1Hex.empty() ||
+                            !exponent2Hex.empty() || !coefficientHex.empty();
+        const bool allCrt = !prime1Hex.empty() && !prime2Hex.empty() && !exponent1Hex.empty() &&
+                            !exponent2Hex.empty() && !coefficientHex.empty();
+        if (anyCrt && !allCrt)
+        {
+            sLog.outError("proto: the redirect key carries some of Prime1, Prime2, Exponent1, "
+                          "Exponent2 and Coefficient but not all five; give all of them or none");
+            return false;
+        }
+
+        if (allCrt)
+        {
+            std::vector<uint8> p, q, dP, dQ, qInv;
+            if (!DecodeHex(prime1Hex, p) || !DecodeHex(prime2Hex, q) || !DecodeHex(exponent1Hex, dP) ||
+                !DecodeHex(exponent2Hex, dQ) || !DecodeHex(coefficientHex, qInv))
+            {
+                sLog.outError("proto: the redirect key's CRT parameters are not valid hex");
+                return false;
+            }
+            if (!m_key.Load(n, e, d,
+                            BigInt::FromBytesBE(p.data(), p.size()), BigInt::FromBytesBE(q.data(), q.size()),
+                            BigInt::FromBytesBE(dP.data(), dP.size()), BigInt::FromBytesBE(dQ.data(), dQ.size()),
+                            BigInt::FromBytesBE(qInv.data(), qInv.size())))
+            {
+                sLog.outError("proto: the redirect key's CRT parameters do not fit its modulus "
+                              "(Prime1 * Prime2 must be the Modulus with Prime1 > Prime2, and "
+                              "Exponent1, Exponent2, Coefficient must belong to them)");
+                return false;
+            }
+        }
+        else if (!m_key.Load(n, e, d))
+        {
+            sLog.outError("proto: redirect PrivateExponent is out of range for its Modulus");
+            return false;
+        }
 
         // A key is only as good as its pair. Sign a fixed block and recover it with
         // the client's own public operation now, so a mismatched Modulus and
-        // PrivateExponent refuse to load -- and refuse startup -- instead of being
-        // discovered one redirect at a time with every player parked at login.
+        // PrivateExponent -- or a wrong CRT parameter -- refuse to load, and refuse
+        // startup, instead of being discovered one redirect at a time with every
+        // player parked at login.
         std::array<uint8, RSA_FIELD_LEN> probe;
         probe.fill(0x5A);
         probe[0] = 0x00;    // below any 2048-bit modulus
-        BigNumber message;
-        SetBigEndian(message, probe.data(), probe.size());
-        BigNumber signature = message.ModExp(m_privateExponent, m_modulus);
-        BigNumber recovered = signature.ModExp(BigNumber(65537), m_modulus);
-        if (std::memcmp(recovered.AsByteArray(int(RSA_FIELD_LEN), false), probe.data(), RSA_FIELD_LEN) != 0)
+        std::vector<uint8> signature;
+        std::vector<uint8> recovered;
+        if (!m_key.SignRaw(probe.data(), probe.size(), signature, MaNGOS::Crypto::SystemRandom::Instance()) ||
+            !MaNGOS::Crypto::RsaVerifyRaw(m_key.Public(), signature.data(), signature.size(), recovered) ||
+            recovered.size() != probe.size() || std::memcmp(recovered.data(), probe.data(), probe.size()) != 0)
         {
             sLog.outError("proto: redirect Modulus and PrivateExponent are not a pair: a signed "
                           "probe does not recover with the client's exponent (65537)");
+            m_key.Unload();
             return false;
+        }
+        if (!m_key.HasCrt())
+        {
+            sLog.outString("proto: the redirect key has no CRT parameters (Prime1 .. Coefficient); "
+                           "redirects are signed on the slower path. Regenerate server.secret "
+                           "with secret-gen for the fast one.");
         }
         m_loaded = true;
         return true;
@@ -441,29 +510,29 @@ namespace proto
 
         const std::array<uint8, 256> plaintext = BlockToPlaintext(d);
 
-        BigNumber message;
-        SetBigEndian(message, plaintext.data(), plaintext.size());
-
-        BigNumber signature = message.ModExp(m_privateExponent, m_modulus);
+        // The private operation: blinded, and through the CRT halves when the key
+        // file carries the primes (src/shared/Crypto/Rsa). It refuses a plaintext
+        // that is not below the modulus rather than wrapping it.
+        std::vector<uint8> signature;
+        if (!m_key.SignRaw(plaintext.data(), plaintext.size(), signature, MaNGOS::Crypto::SystemRandom::Instance()))
+        {
+            sLog.outError("proto: the redirect plaintext could not be signed: it is not below the modulus");
+            return false;
+        }
 
         // Run the client's own side of the operation before trusting the result.
-        // Two failures land here and nowhere else: a modulus and private exponent
-        // that are not a pair, and a plaintext that is not below the modulus --
-        // the latter wraps, so the client recovers 256 bytes that were never
-        // signed. Both would otherwise present as a client that silently ignores
+        // A modulus and private exponent that are not a pair, or a faulty CRT
+        // computation, would otherwise present as a client that silently ignores
         // the redirect, which is the same symptom as a dozen unrelated faults.
-        BigNumber recovered = signature.ModExp(BigNumber(65537), m_modulus);
-
-        uint8* recoveredBytes = recovered.AsByteArray(int(RSA_FIELD_LEN), false);
-        if (std::memcmp(recoveredBytes, plaintext.data(), RSA_FIELD_LEN) != 0)
+        std::vector<uint8> recovered;
+        if (!MaNGOS::Crypto::RsaVerifyRaw(m_key.Public(), signature.data(), signature.size(), recovered) ||
+            recovered.size() != RSA_FIELD_LEN || std::memcmp(recovered.data(), plaintext.data(), RSA_FIELD_LEN) != 0)
         {
             sLog.outError("proto: signed redirect does not recover to its plaintext; "
                           "check that Redirect.Modulus and Redirect.PrivateExponent "
                           "are the same keypair");
             return false;
         }
-
-        uint8* signatureBytes = signature.AsByteArray(int(RSA_FIELD_LEN), false);
 
         // The wrapper the client reads: three dwords of its own bookkeeping,
         // which it stores and never sends back, then the signed field, then the
@@ -472,7 +541,7 @@ namespace proto
         out << uint32(0);
         out << uint32(0);
         out << uint32(0);
-        out.append(signatureBytes, RSA_FIELD_LEN);
+        out.append(signature.data(), RSA_FIELD_LEN);
         out << uint8(target);
 
         return true;

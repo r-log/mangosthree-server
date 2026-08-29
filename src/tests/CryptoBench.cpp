@@ -127,6 +127,13 @@ void RunCryptoBench()
         std::printf("| the same through `ModExp(base, exp, modulus)` (a context per call) | %.1f us | 500 |\n", t);
     }
 
+    // key generation (offline, once per realm)
+    {
+        RsaKeyPair pair;
+        t = MedianMicros(3, [&] { RsaGenerateKey(2048, BigInt(65537), random, pair); });
+        std::printf("| RSA-2048 key generation (`RsaGenerateKey`, 64 Miller-Rabin rounds) | %.0f ms | 3 |\n", t / 1000.0);
+    }
+
     // hashes
     {
         std::vector<uint8_t> buf(1 << 16, 0xA5);

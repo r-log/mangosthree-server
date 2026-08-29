@@ -91,6 +91,10 @@ ConfVersion=@MANGOS_WORLD_VER@
 #        can redirect this realm's players to an address of their choosing. Keep
 #        it readable only by the account the server runs as, and out of backups
 #        that travel. The server refuses to start without it.
+#        secret-gen also writes the key's primes and CRT parameters (Prime1,
+#        Prime2, Exponent1, Exponent2, Coefficient) into it; with them each
+#        redirect is signed about four times faster. A file from an older
+#        secret-gen without them still loads, on the slower path.
 #        Default: server.secret
 #
 #    Redirect.Address

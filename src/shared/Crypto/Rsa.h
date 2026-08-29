@@ -134,6 +134,26 @@ namespace MaNGOS
         /// message = signature^e mod n, big-endian at the modulus width. `length` must
         /// equal the key's width and the signature must be below n (false otherwise).
         bool RsaVerifyRaw(const RsaPublicKey& key, const uint8_t* signature, size_t length, std::vector<uint8_t>& message);
+
+        /// A generated pair with its CRT parameters (PKCS#1 names), p > q.
+        struct RsaKeyPair
+        {
+            BigInt n, e, d, p, q, dP, dQ, qInv;
+            ~RsaKeyPair();
+        };
+
+        /**
+         * @brief Generate an RSA pair -- FIPS 186-4 B.3.3 conditions, run offline.
+         *
+         * p and q are `bits / 2`-bit primes from GeneratePrime (the sqrt(2) interval,
+         * so n has exactly `bits` bits; gcd(p - 1, e) = gcd(q - 1, e) = 1), with
+         * |p - q| > 2^(bits/2 - 100) and p > q; d = e^-1 mod lcm(p - 1, q - 1) with
+         * d > 2^(bits/2), otherwise both primes are drawn again; dP, dQ, qInv follow.
+         * The pair is loaded into an RsaPrivateKey and a probe is signed and verified
+         * before it is handed back. `bits` must be a multiple of 512 from 1024 up; e
+         * must be odd and above 2 (65537 is what the client expects).
+         */
+        bool RsaGenerateKey(size_t bits, const BigInt& e, SystemRandom& random, RsaKeyPair& out, unsigned millerRabinRounds = 64);
     }
 }
 

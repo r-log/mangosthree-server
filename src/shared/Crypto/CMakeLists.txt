@@ -33,6 +33,8 @@ set(CRYPTO_SOURCES
     ModExp.h
     Rsa.cpp
     Rsa.h
+    Prime.cpp
+    Prime.h
 )
 
 # The assembly tier of the Montgomery kernel (x86-64, BMI2 + ADX; MontgomeryAsm.S).

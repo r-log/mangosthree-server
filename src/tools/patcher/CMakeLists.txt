@@ -38,7 +38,7 @@ target_link_libraries(secret-gen
     PRIVATE
         proto
         shared
-        mangos_openssl_strict
+        mangos_crypto
 )
 
 set_target_properties(secret-gen PROPERTIES FOLDER "tools")
@@ -49,7 +49,6 @@ install(TARGETS secret-gen DESTINATION ${BIN_DIR}/tools)
 # links nothing of the server.
 add_executable(mangos-patch
     src/main.cpp
-    src/Hash.cpp
     src/PeImage.cpp
     src/ClientFile.cpp
     src/Patch.cpp
@@ -57,6 +56,8 @@ add_executable(mangos-patch
 )
 
 target_include_directories(mangos-patch PRIVATE src)
+# The hashes are the tree's own (src/shared/Crypto) -- and nothing else: no shared, no proto, no OpenSSL.
+target_link_libraries(mangos-patch PRIVATE mangos_crypto)
 
 if(MSVC)
     target_compile_options(mangos-patch PRIVATE /W4 /permissive-)

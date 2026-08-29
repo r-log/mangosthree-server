@@ -26,6 +26,7 @@
 #pragma once
 
 #include "Auth/BigNumber.h"
+#include "Crypto/Rsa.h"
 #include "LinkSlot.h"
 #include "Platform/Define.h"
 #include "WorldPacket.h"
@@ -106,7 +107,28 @@ namespace proto
                       const std::string& privateExponentHex,
                       const std::string& authBlobHex);
 
+            /**
+             * @brief Install the keypair with its CRT parameters (PKCS#1 names).
+             *
+             * With the five present the server signs each redirect with two
+             * half-size exponentiations (about four times faster); all five empty
+             * means the plain path. Either way a probe is signed and recovered
+             * before the key is accepted, so a wrong Coefficient is refused the
+             * same way as a wrong PrivateExponent.
+             */
+            bool Load(const std::string& modulusHex,
+                      const std::string& privateExponentHex,
+                      const std::string& authBlobHex,
+                      const std::string& prime1Hex,
+                      const std::string& prime2Hex,
+                      const std::string& exponent1Hex,
+                      const std::string& exponent2Hex,
+                      const std::string& coefficientHex);
+
             bool IsLoaded() const { return m_loaded; }
+
+            /// Whether the loaded key carries its primes (the fast path).
+            bool HasCrtParameters() const { return m_loaded && m_key.HasCrt(); }
 
             /**
              * @brief The 20-byte reference digest this auth blob requires.
@@ -146,8 +168,9 @@ namespace proto
             static std::array<uint8, 256> BlockToPlaintext(const Block& d);
             static Block PlaintextToBlock(const std::array<uint8, 256>& pt);
 
-            BigNumber m_modulus;
-            BigNumber m_privateExponent;
+            /// The realm's key (src/shared/Crypto): raw RSA-2048, blinded, CRT when
+            /// the file carries the primes. Not copyable -- neither is this class.
+            MaNGOS::Crypto::RsaPrivateKey m_key;
 
             std::array<uint8, 73> m_authBlob;
 

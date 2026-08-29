@@ -26,7 +26,9 @@
 #include "TestHarness.h"
 
 #include "ConnectTo.h"
+#include "RsaTestKey.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -170,6 +172,57 @@ TEST(ConnectTo_reads_a_server_secret_file)
     CHECK_STR(signer.ExpectedClientDigest(), ZERO_BLOB_DIGEST);
 
     std::remove(path.c_str());
+}
+
+TEST(ConnectTo_reads_a_server_secret_file_with_the_crt_parameters)
+{
+    // The shape secret-gen writes now: the primes and the CRT parameters after the
+    // pair. They are the test key's own (recovered from n, e, d), so the fast path
+    // must sign exactly what the plain path signs.
+    const std::string path = "connectto_test_server_crt.secret";
+    {
+        std::ofstream file(path.c_str());
+        file << "Modulus = " << testkey::kModulus << "\n"
+             << "PrivateExponent = " << testkey::kPrivateExponent << "\n"
+             << "AuthBlob = " << std::string(146, '0') << "\n"
+             << "Prime1 = " << testkey::kPrime1 << "\n"
+             << "Prime2 = " << testkey::kPrime2 << "\n"
+             << "Exponent1 = " << testkey::kExponent1 << "\n"
+             << "Exponent2 = " << testkey::kExponent2 << "\n"
+             << "Coefficient = " << testkey::kCoefficient << "\n";
+    }
+    proto::RedirectSigner crt;
+    CHECK(crt.LoadFromFile(path));
+    CHECK(crt.IsLoaded());
+    CHECK(crt.HasCrtParameters());
+    std::remove(path.c_str());
+
+    proto::RedirectSigner plain;
+    REQUIRE(plain.Load(TEST_MODULUS, TEST_PRIVATE_EXPONENT, ""));
+    CHECK(!plain.HasCrtParameters());
+
+    WorldPacket a, b;
+    CHECK(crt.BuildConnectTo(Ipv4(203, 0, 113, 7), proto::RedirectFamily::IPv4, 8086, proto::LinkSlot::One, a));
+    CHECK(plain.BuildConnectTo(Ipv4(203, 0, 113, 7), proto::RedirectFamily::IPv4, 8086, proto::LinkSlot::One, b));
+    CHECK_EQ(a.size(), size_t(4 + 4 + 4 + 256 + 1));
+    CHECK(a.size() == b.size() && std::equal(a.contents(), a.contents() + a.size(), b.contents()));
+}
+
+TEST(ConnectTo_refuses_crt_parameters_that_do_not_match_the_pair)
+{
+    // A wrong Coefficient is caught by the same signed probe as a wrong exponent.
+    std::string wrongCoefficient = testkey::kCoefficient;
+    wrongCoefficient[wrongCoefficient.size() - 1] = wrongCoefficient.back() == '0' ? '1' : '0';
+    proto::RedirectSigner signer;
+    CHECK(!signer.Load(testkey::kModulus, testkey::kPrivateExponent, "", testkey::kPrime1, testkey::kPrime2,
+                       testkey::kExponent1, testkey::kExponent2, wrongCoefficient));
+    CHECK(!signer.IsLoaded());
+    // swapped primes: the fast path needs p > q, and the loader says so by refusing
+    CHECK(!signer.Load(testkey::kModulus, testkey::kPrivateExponent, "", testkey::kPrime2, testkey::kPrime1,
+                       testkey::kExponent2, testkey::kExponent1, testkey::kCoefficient));
+    // a partial set (some of the five) is refused rather than half-used
+    CHECK(!signer.Load(testkey::kModulus, testkey::kPrivateExponent, "", testkey::kPrime1, "", "", "", ""));
+    CHECK(!signer.IsLoaded());
 }
 
 TEST(ConnectTo_rejects_a_client_secret_given_where_a_server_secret_belongs)
