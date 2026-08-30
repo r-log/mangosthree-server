@@ -132,6 +132,12 @@ namespace world::terrain
 
     FusedTerrain::TilePtr FusedTerrain::GlobalWmo() const
     {
+        // Stamped on every query, hit or miss, so the sweep in Update() can tell an
+        // idle map from a busy one. A map with no global WMO stamps too and costs
+        // nothing: the probe memo below keeps the miss, and the sweep skips a null.
+        m_globalWmoLastUse.store(m_clockMs.load(std::memory_order_relaxed),
+                                 std::memory_order_relaxed);
+
         {
             std::shared_lock<std::shared_mutex> lock(m_mutex);
             if (m_globalWmoProbed)
@@ -200,6 +206,42 @@ namespace world::terrain
                     continue;
                 }
                 EvictTile(tx, ty);
+            }
+        }
+
+        // The global WMO, which the loop above cannot reach: it belongs to no cell, so
+        // it has no (tx, ty) to be swept under. Left out, it is the one piece of terrain
+        // this cache never releases -- and on a server running GridUnload = 0 that is
+        // permanent, because the map-level path that would otherwise free it
+        // (TerrainManager::UnloadTerrain) returns early under that setting while this
+        // sweep keeps running. 68 such maps ship with the client, 80 MB in total.
+        //
+        // Idle alone is not enough to drop it. A tile is evicted when idle AND unpinned,
+        // and pinning is per cell; this tile has no cell of its own, so it stands in for
+        // the whole map and may only go when nothing anywhere on the map is pinned.
+        if (m_globalWmo && now - m_globalWmoLastUse.load(std::memory_order_relaxed) >=
+                               TILE_IDLE_MS)
+        {
+            bool anyPinned = false;
+            for (int tx = 0; tx < GRID_COUNT && !anyPinned; ++tx)
+            {
+                for (int ty = 0; ty < GRID_COUNT; ++ty)
+                {
+                    if (m_cellRef[tx][ty] > 0)
+                    {
+                        anyPinned = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!anyPinned)
+            {
+                // The probe memo goes with it: unlike an absent tile, this file plainly
+                // exists, so the next query should re-read rather than remember a miss.
+                m_globalWmo.reset();
+                m_globalWmoProbed = 0;
+                m_globalWmoLastUse.store(0, std::memory_order_relaxed);
             }
         }
     }
