@@ -173,12 +173,6 @@
     # Function to detect the repos
     function DetectLocalRepo()
     {
-      # First see if the Windows stuff is in place
-      if [ ! -d "$CUR_DIR/../win" ]; then
-        Log "Windows files directory does not exist, assuming repo has not been cloned." 0
-        return 0
-      fi
-
       # See if the sources directory exists
       if [ ! -d "$CUR_DIR/../../src" ]; then
         Log "Source files directory does not exist, assuming repo has not been cloned." 0
@@ -1014,7 +1008,7 @@
         done
 
         if [[ $DLGAPP == 'fzf' ]]; then
-          read -p "Select Branch (Default: $BRANCH): " TMPBRANCH;
+          read -p "Select Branch, by name or number (Default: $BRANCH): " TMPBRANCH;
         else
           TMPBRANCH=$(
             $DLGAPP \
@@ -1032,7 +1026,13 @@
           exit 0
         fi
 
-        BRANCH=$(echo $releases | awk '{print $'$TMPBRANCH'}')
+        # A number selects from the list (the dialog answers so); anything else is
+        # the branch name itself; nothing keeps the default.
+        if [[ "$TMPBRANCH" =~ ^[0-9]+$ ]]; then
+          BRANCH=$(echo $releases | awk '{print $'$TMPBRANCH'}')
+        elif [ ! -z "$TMPBRANCH" ]; then
+          BRANCH="$TMPBRANCH"
+        fi
 
         # Set the branch
         if [ -z "$BRANCH" ]; then
@@ -2249,7 +2249,7 @@
       cd $BUILDPATH
       # make sure we are using the cmake3
       UseCmake3
-      $CMAKE_CMD .. -G "CodeBlocks - Unix Makefiles"
+      $CMAKE_CMD "$SRCPATH" -G "CodeBlocks - Unix Makefiles"
     }
   }
 }
