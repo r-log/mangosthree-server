@@ -25,6 +25,7 @@
 
 #include "Common/Locales.h"
 #include "Utilities/Errors.h"
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -1472,9 +1473,24 @@ struct SQLSpellLoader : public SQLStorageLoaderBase<SQLSpellLoader, SQLHashStora
 
     void default_fill_to_str(uint32 field_pos, char const* /*src*/, char*& dst)
     {
+        // Every string field of a record belongs to the storage, which deletes
+        // all of them in SQLStorageBase::Free (SQLStorage.cpp:193). Handing it
+        // the address of SERVER_SIDE_SPELL instead of a copy meant that free ran
+        // delete[] over a static array -- once for each server-side spell -- and
+        // the heap it corrupted took the process down at exit, after the log had
+        // already said Bye!. Nothing caught it: the heap manager reports this
+        // through __fastfail, which no SEH handler, including ours, can see.
+        //
+        //   AddressSanitizer: attempting free on address which was not
+        //   malloc()-ed ... 'SERVER_SIDE_SPELL' ... of size 25
+        //     #1 SQLStorageBase::Free  SQLStorage.cpp:193
+        //     #4 dynamic atexit destructor for 'sSpellTemplate'
+        //
+        // So the name is copied, and the storage owns every byte it frees.
         if (field_pos == LOADED_SPELLDBC_FIELD_POS_SPELLNAME_0)
         {
-            dst = SERVER_SIDE_SPELL;
+            dst = new char[sizeof(SERVER_SIDE_SPELL)];
+            std::memcpy(dst, SERVER_SIDE_SPELL, sizeof(SERVER_SIDE_SPELL));
         }
         else
         {
