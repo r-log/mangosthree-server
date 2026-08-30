@@ -375,6 +375,67 @@ TEST(RedirectStream_answers_the_handshake_with_resume_comms)
     CHECK(proto::IsTransportPlane(WIRE_RESUME_COMMS));
 }
 
+TEST(RedirectStream_a_superseded_socket_is_never_announced_to_the_client)
+{
+    // Review finding F1. SMSG_RESUME_COMMS is not a courtesy: it makes the
+    // client adopt the socket, clear its stream-1 pending flag and flush
+    // everything it had queued for that stream. Sending it to a socket whose
+    // redirect has since been reissued means the client flushes that backlog
+    // onto a connection the server closes an instant later, and those packets
+    // are lost. The generation guard exists to stop exactly that, and it has to
+    // be consulted BEFORE the client is told anything.
+    Fixture fixture;
+    fixture.OpenAndReadChallengeSeed();
+    fixture.Feed(ClientBanner());
+
+    // The session gave up on this redirect and issued another one.
+    fixture.links->ExpectSlotOne(2);
+
+    fixture.sent.clear();
+    fixture.Feed(ContinuedSession());
+
+    // Refused, and silently: nothing was written to a socket that is not going
+    // to be the stream.
+    CHECK_EQ(int(fixture.sent.size()), 0);
+    CHECK(fixture.closed);
+    CHECK_EQ(int(fixture.gateway.delivered.size()), 0);
+}
+
+TEST(RedirectStream_the_staging_socket_takes_the_handshake_and_nothing_else)
+{
+    // Review finding F2. The client sends CMSG_AUTH_CONTINUED_SESSION and
+    // nothing else on a socket it holds in staging -- its own router cannot
+    // reach that socket until the promotion. A peer framing anything else is not
+    // the client we redirected, and arming the cipher for it would leave a
+    // genuine continued session arriving later to be decrypted as noise.
+    Fixture fixture;
+    fixture.OpenAndReadChallengeSeed();
+    fixture.Feed(ClientBanner());
+    fixture.sent.clear();
+
+    fixture.Feed(Frame(WIRE_PING, std::vector<uint8>(8, 0)));
+
+    CHECK(fixture.closed);
+    CHECK_EQ(int(fixture.sent.size()), 0);          // no resume for a stranger
+    CHECK_EQ(int(fixture.gateway.delivered.size()), 0);  // and the world is not told
+}
+
+TEST(RedirectStream_the_handshake_must_be_the_right_size)
+{
+    // The same guard on the length. Checked rather than parsed: proto reads none
+    // of that payload, so all it can say is that the shape is wrong.
+    Fixture fixture;
+    fixture.OpenAndReadChallengeSeed();
+    fixture.Feed(ClientBanner());
+    fixture.sent.clear();
+
+    fixture.Feed(Frame(WIRE_AUTH_CONTINUED_SESSION, std::vector<uint8>(12, 0)));
+
+    CHECK(fixture.closed);
+    CHECK_EQ(int(fixture.sent.size()), 0);
+    CHECK_EQ(int(fixture.gateway.delivered.size()), 0);
+}
+
 TEST(RedirectStream_challenge_seed_differs_per_connection)
 {
     // Both streams of one session share a session key, so the seed is what keeps

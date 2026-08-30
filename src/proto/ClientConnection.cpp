@@ -73,6 +73,12 @@ namespace proto
         // value in the client's connection-control set, the eight opcodes it
         // dispatches ahead of every gate. Opcodes.h now agrees.
         const uint16 SMSG_RESUME_COMMS   = 0x0140;
+
+        /// What the client puts in CMSG_AUTH_CONTINUED_SESSION: the connect-to
+        /// key it was redirected with, the proof-of-work counter it searched for,
+        /// and a 20-byte SHA-1 (Wow-64.exe 15595, sub_1400AA560). Checked, not
+        /// parsed -- proto reads none of it.
+        const size_t CONTINUED_SESSION_SIZE = 8 + 8 + 20;
         const uint16 SMSG_AUTH_RESPONSE  = 0x5DB6;
         const uint16 CMSG_PING           = 0x444D;
         const uint16 SMSG_PONG           = 0x4D42;
@@ -272,8 +278,16 @@ namespace proto
             return false;
         }
 
+        // SendResumeComms runs inside the attach, after the generation is known
+        // good and before the slot goes live. Announcing any earlier hands the
+        // client a socket it may adopt and we then close: the promotion clears
+        // its pending flag and flushes everything it had queued for stream 1
+        // onto a connection that is about to die, and those packets are gone.
+        // Announcing any later lets the world's held traffic reach a socket the
+        // client still parks in staging, where it refuses all of it.
         if (!links->AttachSlotOne(std::static_pointer_cast<ClientConnection>(shared_from_this()),
-                                  m_redirectGeneration))
+                                  m_redirectGeneration,
+                                  [this]() { SendResumeComms(); }))
         {
             // A redirect issued after this one superseded it; the live stream is
             // the newer socket's. This one answered too late to be anything.
@@ -401,36 +415,47 @@ namespace proto
             // Arm before promoting, not after: promotion hands the session its
             // second stream, and the world may write to it from its own thread
             // the moment it has one.
+            // This packet is the handshake or it is nothing. The client sends
+            // CMSG_AUTH_CONTINUED_SESSION and nothing else on a socket it still
+            // holds in staging -- its own router cannot even reach the socket
+            // until the promotion below moves it out. So a peer framing anything
+            // else here is not the client we redirected, and letting it through
+            // would arm the cipher early: the genuine continued session would
+            // then be decrypted as noise and the stream lost, which is the exact
+            // failure this handshake was built to end. A redirect ticket is
+            // claimed by address alone, so this is reachable by a second peer
+            // behind one address, not only by a broken client.
+            if (opcode != CMSG_AUTH_CONTINUED_SESSION ||
+                packet.size() != CONTINUED_SESSION_SIZE)
+            {
+                sLog.outError("proto: opcode 0x%.4X (%u bytes) on the staging stream from %s, "
+                              "expected CMSG_AUTH_CONTINUED_SESSION; dropping",
+                              opcode, uint32(packet.size()), m_address.c_str());
+                return false;
+            }
+
             if (m_policy.armRedirectedCrypto)
             {
                 ArmRedirectedCrypto();
             }
 
-            // Before the promotion, not after: promoting attaches this socket to
-            // the session, and the world's queued stream-1 traffic flushes onto
-            // it the moment it does. Every one of those packets would arrive
-            // while the client still holds this connection in a staging slot,
-            // where it refuses anything but the eight control opcodes.
-            SendResumeComms();
-
+            // The resume rides inside the promotion, between the generation
+            // check and the moment the slot goes live -- see PromoteToSlotOne.
             if (!PromoteToSlotOne())
             {
                 return false;
             }
 
-            if (opcode == CMSG_AUTH_CONTINUED_SESSION)
-            {
-                // Transport, not game: the payload is the connect-to key we
-                // signed into the redirect, the client's proof-of-work counter,
-                // and SHA-1(account || session key || server seed). The world has
-                // no handler for it and needs none -- the ticket the socket
-                // claimed already bound it to a session and a key.
-                //
-                // The digest is not checked here because proto does not know the
-                // account name; carrying it on the ticket would let this verify
-                // the client rather than trust the address it came from.
-                return true;
-            }
+            // Transport, not game: the payload is the connect-to key we signed
+            // into the redirect, the client's proof-of-work counter, and
+            // SHA-1(account || session key || server seed). The world has no
+            // handler for it and needs none -- the ticket the socket claimed
+            // already bound it to a session and a key.
+            //
+            // The digest is not checked here because proto does not know the
+            // account name; carrying it on the ticket would let this verify the
+            // client rather than trust the address it came from.
+            return true;
         }
 
         if (opcode == CMSG_AUTH_SESSION)

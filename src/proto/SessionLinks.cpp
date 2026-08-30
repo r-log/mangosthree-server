@@ -121,7 +121,8 @@ namespace proto
         m_held.push_back(packet);
     }
 
-    bool SessionLinks::AttachSlotOne(const std::shared_ptr<IClientLink>& link, uint32 generation)
+    bool SessionLinks::AttachSlotOne(const std::shared_ptr<IClientLink>& link, uint32 generation,
+                                     const std::function<void()>& announce)
     {
         std::deque<WorldPacket> release;
         {
@@ -130,6 +131,17 @@ namespace proto
             {
                 return false;
             }
+
+            // The generation is good, so this socket is going to be the stream;
+            // tell the client so before it can receive anything else. Under the
+            // lock, because publishing m_one below is what lets other threads
+            // send here, and the client will refuse ordinary traffic until this
+            // has arrived.
+            if (announce)
+            {
+                announce();
+            }
+
             m_one = link;
             release.swap(m_held);
         }
