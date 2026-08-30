@@ -164,28 +164,35 @@ void UpdateData::Compress(void* dst, uint32* dst_size, void* src, int src_size)
 }
 
 /**
- * @brief Build final update packet from accumulated data
- * @param packet Output packet to build (must be empty)
- * @param hasTransport If true, packet contains transport position data
- * @return true on success, false on compression failure
+ * @brief Build the final update packet from the accumulated blocks.
  *
- * Builds the final network packet from accumulated update blocks:
- * 1. Calculates buffer size (block count + transport flag + OOR data + blocks)
- * 2. Writes header (block count, transport flag)
- * 3. Writes out-of-range GUID list (if any)
- * 4. Appends accumulated update blocks
- * 5. Compresses if size > 100 bytes
+ * @param packet Output packet, which must be empty (assertion-checked).
+ * @return false when the map id does not fit the field this packet writes; the
+ *         packet is then not worth sending and the caller must not send it.
  *
- * Packet format:
- * - uint32: Block count
- * - uint8: Transport flag (1 if transport in update, 0 otherwise)
- * - (Optional) Out-of-range section:
- *   - uint8: Update type (UPDATETYPE_OUT_OF_RANGE_OBJECTS)
- *   - uint32: Count
- *   - PackedGUID[]: GUIDs to remove
- * - Byte[]: Update blocks data
+ * Packet format, as the 15595 client parses it (Wow-64.exe, sub_1400B5A70):
  *
- * @note Packet must be empty before calling (assertion-checked)
+ *   uint16  map id            read with the client's 16-bit reader
+ *   uint32  block count       read with its 32-bit reader
+ *   (optional) out-of-range section, counted as one of the blocks above:
+ *     uint8       UPDATETYPE_OUT_OF_RANGE_OBJECTS
+ *     uint32      count
+ *     PackedGUID  the guids leaving range
+ *   byte[]  the accumulated update blocks
+ *
+ * The map id is not decoration. The client compares it against the map it
+ * currently has loaded and, when they differ, runs the world load -- the same
+ * routine SMSG_LOGIN_VERIFY_WORLD reaches -- and then re-parses this packet
+ * from the beginning. A wrong id here does not corrupt anything; it throws the
+ * player a loading screen.
+ *
+ * What this does NOT write, whatever an older version of this comment said:
+ * there is no transport flag between the count and the blocks, and nothing is
+ * compressed. The compression branch below is commented out, so every update
+ * goes as SMSG_UPDATE_OBJECT -- a busy login is several kilobytes in the clear.
+ * Reviving it needs the real value of SMSG_COMPRESSED_UPDATE_OBJECT first: the
+ * one in Opcodes.h is not annotated as read from this client and does not
+ * appear in its dispatch table.
  */
 bool UpdateData::BuildPacket(WorldPacket* packet)
 {
@@ -194,11 +201,11 @@ bool UpdateData::BuildPacket(WorldPacket* packet)
     ByteBuffer buf(4 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + m_data.wpos());
 
     // Sixteen bits for a map id, while a map id is uint32 everywhere else this
-    // tree touches one. The width here is NOT pinned against the 15595 client:
-    // no capture and no read of the binary in refactor/RESEARCH.md says whether
-    // the client takes two bytes or four at this offset. It is carried over
-    // from the code that came before, and it has never been exercised above
-    // 65535 because every id has come from Map.dbc.
+    // tree touches one. That width IS the client's, pinned on 2026-08-30 against
+    // Wow-64.exe 15595: sub_1400B5A70 opens SMSG_UPDATE_OBJECT with its 16-bit
+    // reader (sub_1405A7D30) for this field and its 32-bit one (sub_1405A7DD0)
+    // for the block count that follows. Two bytes is right; four would put every
+    // block on the floor.
     //
     // That stops being true the moment a map id is MINTED rather than read from
     // the DBC -- a vessel that is its own map is the case in hand. So say so
