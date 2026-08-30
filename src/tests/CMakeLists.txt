@@ -53,6 +53,11 @@ set(SRC_GRP_TESTS
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp
     RedirectStreamTest.cpp
+    ClientFramingTest.cpp
+    # The load-test client's framing, compiled in so the test can check it against
+    # proto's own codec rather than against a copy of itself. Its asymmetry with
+    # the server's framing has misled this project twice.
+    ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Framing.cpp
     GlobalWmoEvictionTest.cpp
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
@@ -113,7 +118,8 @@ target_include_directories(mangos_tests
         ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers
         ${CMAKE_SOURCE_DIR}/src/game/Server
         ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators
-        ${CMAKE_SOURCE_DIR}/src/realmd)
+        ${CMAKE_SOURCE_DIR}/src/realmd
+        ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src)
 
 target_link_libraries(mangos_tests
     PRIVATE

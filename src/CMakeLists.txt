@@ -66,6 +66,12 @@ add_subdirectory(tools/height-check)
 # server-only build unable to configure itself.
 add_subdirectory(tools/patcher)
 
+# A synthetic 4.3.4 client. It is the only way to put a known number of real
+# sessions on this server: a WoW client cannot be scripted, so measuring how a
+# session's traffic divides between the two world streams needs a client we
+# wrote. Gated on BUILD_TOOLS, inside.
+add_subdirectory(tools/loadtest)
+
 if (BUILD_MANGOSD OR BUILD_REALMD)
     if(WIN32)
         get_filename_component(MYSQL_LIB_DIR ${MySQL_LIBRARIES} DIRECTORY)
