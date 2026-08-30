@@ -180,6 +180,7 @@ namespace proto
         m_traceSession.store(ticket.session, std::memory_order_relaxed);
         m_links       = ticket.links;
         m_redirectKey = ticket.sessionKey;
+        m_redirectAccount    = ticket.accountName;
         m_redirectGeneration = ticket.generation;
         return true;
     }
@@ -239,6 +240,84 @@ namespace proto
         m_crypt.Init(&key, m_challengeSeed.data());
         m_codec.SetHeaderDecryptor(
             [this](uint8* header, size_t len) { m_crypt.DecryptRecv(header, len); });
+    }
+
+    bool ClientConnection::VerifyContinuedSession(WorldPacket& packet)
+    {
+        // What the client sends on the second stream, and the only thing on this
+        // socket that says who is on it (Wow-64.exe 15595, sub_1400AA560):
+        //
+        //   uint64  the connect-to key the redirect carried, echoed back
+        //   uint64  the counter it searched for, to satisfy the challenge's
+        //           proof-of-work difficulty
+        //   uint8   digest[20]
+        //
+        // The digest is SHA-1 over the account name, the 40-byte session key and
+        // the 4-byte seed this connection put in its own SMSG_AUTH_CHALLENGE, in
+        // that order -- the same shape as the stream-0 login proof, and the same
+        // secret behind it. A ticket is claimed by address alone, so without this
+        // the second stream belongs to whoever reaches the port first from that
+        // address; with it, only the client holding the session key can take it.
+        uint64 key = 0;
+        uint64 counter = 0;
+        uint8  digest[AUTH_DIGEST_SIZE];
+
+        try
+        {
+            packet >> key;
+            packet >> counter;
+
+            // The twenty digest bytes are interleaved on the wire, the same
+            // trick CMSG_AUTH_SESSION plays on stream 0 -- this is a different
+            // order, and it is wire truth rather than a choice. Read out of
+            // three live handshakes on 2026-08-30: the bytes the client sent
+            // were a permutation of the digest computed below, and two of the
+            // three had twenty distinct bytes, which pins every index.
+            packet >> digest[5];
+            packet >> digest[2];
+            packet >> digest[6];
+            packet >> digest[10];
+            packet >> digest[8];
+            packet >> digest[17];
+            packet >> digest[11];
+            packet >> digest[15];
+            packet >> digest[7];
+            packet >> digest[1];
+            packet >> digest[4];
+            packet >> digest[16];
+            packet >> digest[0];
+            packet >> digest[12];
+            packet >> digest[14];
+            packet >> digest[13];
+            packet >> digest[18];
+            packet >> digest[9];
+            packet >> digest[19];
+            packet >> digest[3];
+        }
+        catch (ByteBufferException&)
+        {
+            sLog.outError("proto: truncated CMSG_AUTH_CONTINUED_SESSION from %s",
+                          m_address.c_str());
+            return false;
+        }
+
+        BigNumber sessionKey = m_redirectKey;
+
+        Sha1Hash sha;
+        sha.UpdateData(m_redirectAccount);
+        sha.UpdateBigNumbers(&sessionKey, NULL);
+        sha.UpdateData(reinterpret_cast<const uint8*>(&m_seed), sizeof(m_seed));
+        sha.Finalize();
+
+        if (std::memcmp(sha.GetDigest(), digest, AUTH_DIGEST_SIZE) != 0)
+        {
+            sLog.outError("proto: bad second-stream proof for account '%s' from %s; "
+                          "refusing the stream",
+                          m_redirectAccount.c_str(), m_address.c_str());
+            return false;
+        }
+
+        return true;
     }
 
     void ClientConnection::SendResumeComms()
@@ -431,6 +510,14 @@ namespace proto
                 sLog.outError("proto: opcode 0x%.4X (%u bytes) on the staging stream from %s, "
                               "expected CMSG_AUTH_CONTINUED_SESSION; dropping",
                               opcode, uint32(packet.size()), m_address.c_str());
+                return false;
+            }
+
+            // Before the cipher is armed and before the stream is announced:
+            // nothing is committed to a peer that cannot prove it holds the
+            // session key.
+            if (!VerifyContinuedSession(packet))
+            {
                 return false;
             }
 

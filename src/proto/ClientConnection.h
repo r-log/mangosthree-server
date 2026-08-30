@@ -193,6 +193,15 @@ namespace proto
              * holds the socket in a staging slot -- refusing ordinary packets
              * and queueing everything its own router sends on stream 1.
              */
+            /**
+             * @brief Check the proof the client opens the second stream with.
+             *
+             * SHA-1 over the account name, the session key and this connection's
+             * own challenge seed. Returns false -- drop the peer -- when the
+             * packet is the wrong shape or the digest does not match.
+             */
+            bool VerifyContinuedSession(WorldPacket& packet);
+
             void SendResumeComms();
 
             /**
@@ -238,6 +247,10 @@ namespace proto
             /// The session key of the session being rejoined. Meaningful on a
             /// redirected connection only.
             BigNumber m_redirectKey;
+
+            /// The account whose session this connection is rejoining, as the
+            /// client sent it at login. Hashed into the second-stream proof.
+            std::string m_redirectAccount;
 
             /// The 32 bytes this connection put in its SMSG_AUTH_CHALLENGE. Zero
             /// on stream 0, where the client keys from its own table and ignores

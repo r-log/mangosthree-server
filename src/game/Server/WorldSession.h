@@ -335,7 +335,8 @@ class WorldSession
          *             and it is what the redirect ticket carries to the socket
          *             that will become that stream.
          */
-        WorldSession(uint32 id, std::shared_ptr<proto::SessionLinks> links,
+        WorldSession(uint32 id, const std::string& accountName,
+                     std::shared_ptr<proto::SessionLinks> links,
                      std::shared_ptr<SessionMailbox> mailbox,
                      AccountTypes sec, uint8 expansion, time_t mute_time,
                      LocaleConstant locale, const BigNumber& sessionKey);
@@ -451,6 +452,10 @@ class WorldSession
         {
             return _security;
         }
+        /// The account name as the client sent it at login. The second stream's
+        /// proof is hashed over it, so it is kept rather than looked up again.
+        const std::string& GetAccountName() const { return m_accountName; }
+
         uint32 GetAccountId() const
         {
             return _accountId;
@@ -1208,6 +1213,7 @@ class WorldSession
 
         AccountTypes _security;
         uint32 _accountId;
+        std::string m_accountName;
         uint8 m_expansion;
 
         time_t _logoutTime;

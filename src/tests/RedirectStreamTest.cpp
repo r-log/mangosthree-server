@@ -52,6 +52,7 @@
 #include "SessionLinks.h"
 
 #include "Auth/AuthCrypt.h"
+#include "Auth/Sha1.h"
 #include "Auth/BigNumber.h"
 
 #include <array>
@@ -63,6 +64,7 @@
 namespace
 {
     const char* const CLIENT_ADDRESS = "203.0.113.7";
+    const char* const ACCOUNT        = "ADMIN";
     const proto::SessionId SESSION   = 42;
 
     // Wire values, written out rather than taken from the opcode table: this
@@ -153,14 +155,43 @@ namespace
         return wire;
     }
 
-    /// CMSG_AUTH_CONTINUED_SESSION as sub_1400AA560 builds it: the connect-to key
-    /// the redirect carried, the proof-of-work counter it searched for, and
-    /// SHA-1(account || session key || server seed). 36 bytes, opcode 0x044D.
-    std::vector<uint8> ContinuedSession()
+    /// The proof the client puts in CMSG_AUTH_CONTINUED_SESSION: SHA-1 over the
+    /// account name, the 40-byte session key and the 4-byte server seed, in that
+    /// order (Wow-64.exe 15595, sub_1400AA560).
+    std::array<uint8, 20> StreamProof(const BigNumber& sessionKey, uint32 serverSeed)
+    {
+        BigNumber key = sessionKey;
+
+        Sha1Hash sha;
+        sha.UpdateData(std::string(ACCOUNT));
+        sha.UpdateBigNumbers(&key, NULL);
+        sha.UpdateData(reinterpret_cast<const uint8*>(&serverSeed), sizeof(serverSeed));
+        sha.Finalize();
+
+        std::array<uint8, 20> digest{};
+        std::memcpy(digest.data(), sha.GetDigest(), digest.size());
+        return digest;
+    }
+
+    /// CMSG_AUTH_CONTINUED_SESSION as sub_1400AA560 builds it, byte for byte --
+    /// the shape a live capture confirmed on 2026-08-30:
+    ///   uint64 key (the connect-to key, echoed), uint64 counter, uint8 digest[20]
+    /// Where each digest byte sits on the wire: the client interleaves them, as
+    /// it does in CMSG_AUTH_SESSION, and this is that order. Derived from live
+    /// handshakes on 2026-08-30 -- see ClientConnection::VerifyContinuedSession.
+    const uint8 DIGEST_WIRE_ORDER[20] =
+    {
+        5, 2, 6, 10, 8, 17, 11, 15, 7, 1, 4, 16, 0, 12, 14, 13, 18, 9, 19, 3
+    };
+
+    std::vector<uint8> ContinuedSession(const std::array<uint8, 20>& digest)
     {
         std::vector<uint8> payload(36, 0);
-        payload[0] = 0x11;   // the key, echoed back
-        payload[8] = 0x01;   // the counter
+        payload[8] = 0x02;   // the proof-of-work counter it searched for
+        for (size_t i = 0; i < 20; ++i)
+        {
+            payload[16 + i] = digest[DIGEST_WIRE_ORDER[i]];
+        }
         return Frame(WIRE_AUTH_CONTINUED_SESSION, payload);
     }
 
@@ -176,6 +207,7 @@ namespace
         bool closed = false;
 
         BigNumber sessionKey;
+        uint32    serverSeed = 0;     ///< read out of the challenge this connection sent
 
         Fixture()
             : registry(std::chrono::milliseconds(60000)),
@@ -188,6 +220,7 @@ namespace
             ticket.session       = SESSION;
             ticket.generation    = 1;
             ticket.sessionKey    = sessionKey;
+            ticket.accountName   = ACCOUNT;
             ticket.links         = links;
 
             links->ExpectSlotOne(1);
@@ -229,9 +262,12 @@ namespace
                 const uint8* payload = wire.data() + offset + 4;
                 const size_t payloadLen = size - 2;
 
-                if (opcode == WIRE_AUTH_CHALLENGE && payloadLen >= seed.size())
+                if (opcode == WIRE_AUTH_CHALLENGE && payloadLen >= seed.size() + 4)
                 {
                     std::memcpy(seed.data(), payload, seed.size());
+                    // The 4 bytes after the cipher seed are the server's own
+                    // nonce, which the client hashes into its stream proof.
+                    std::memcpy(&serverSeed, payload + seed.size(), sizeof(serverSeed));
                 }
 
                 offset += 4 + payloadLen;
@@ -255,7 +291,7 @@ TEST(RedirectStream_continued_session_arrives_in_clear_and_is_not_dropped)
     fixture.OpenAndReadChallengeSeed();
 
     fixture.Feed(ClientBanner());
-    fixture.Feed(ContinuedSession());
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, fixture.serverSeed)));
 
     CHECK(!fixture.closed);
 
@@ -275,7 +311,7 @@ TEST(RedirectStream_ciphers_are_keyed_from_the_challenge_seed)
         fixture.OpenAndReadChallengeSeed();
 
     fixture.Feed(ClientBanner());
-    fixture.Feed(ContinuedSession());
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, fixture.serverSeed)));
     REQUIRE(!fixture.closed);
 
     // The client's side of the same schedule. RC4 is an XOR stream and the two
@@ -312,7 +348,7 @@ TEST(RedirectStream_the_old_constant_seed_no_longer_decodes)
     fixture.OpenAndReadChallengeSeed();
 
     fixture.Feed(ClientBanner());
-    fixture.Feed(ContinuedSession());
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, fixture.serverSeed)));
     REQUIRE(!fixture.closed);
 
     BigNumber key = fixture.sessionKey;
@@ -345,7 +381,7 @@ TEST(RedirectStream_answers_the_handshake_with_resume_comms)
 
     fixture.Feed(ClientBanner());
     fixture.sent.clear();
-    fixture.Feed(ContinuedSession());
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, fixture.serverSeed)));
 
     REQUIRE(!fixture.closed);
     REQUIRE(fixture.sent.size() >= 4);
@@ -392,7 +428,7 @@ TEST(RedirectStream_a_superseded_socket_is_never_announced_to_the_client)
     fixture.links->ExpectSlotOne(2);
 
     fixture.sent.clear();
-    fixture.Feed(ContinuedSession());
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, fixture.serverSeed)));
 
     // Refused, and silently: nothing was written to a socket that is not going
     // to be the stream.
@@ -434,6 +470,86 @@ TEST(RedirectStream_the_handshake_must_be_the_right_size)
     CHECK(fixture.closed);
     CHECK_EQ(int(fixture.sent.size()), 0);
     CHECK_EQ(int(fixture.gateway.delivered.size()), 0);
+}
+
+TEST(RedirectStream_refuses_a_second_stream_that_cannot_prove_the_session_key)
+{
+    // A redirect ticket is claimed by address alone, so without this check the
+    // second stream belongs to whoever reaches the port first from that address
+    // -- another client behind the same router, or anything else on the machine.
+    // The digest is the only thing on this socket that says who is on it, and it
+    // is over a secret only the real client holds.
+    Fixture fixture;
+    fixture.OpenAndReadChallengeSeed();
+    fixture.Feed(ClientBanner());
+    fixture.sent.clear();
+
+    std::array<uint8, 20> wrong = StreamProof(fixture.sessionKey, fixture.serverSeed);
+    wrong[0] = uint8(wrong[0] ^ 0xFF);
+
+    fixture.Feed(ContinuedSession(wrong));
+
+    CHECK(fixture.closed);
+    CHECK_EQ(int(fixture.sent.size()), 0);          // nothing announced to a stranger
+    CHECK_EQ(int(fixture.gateway.delivered.size()), 0);
+}
+
+TEST(RedirectStream_the_proof_is_bound_to_this_connections_own_seed)
+{
+    // The seed is drawn per connection, so a digest lifted from another socket's
+    // challenge -- a replay of a proof seen once -- does not open this one.
+    Fixture fixture;
+    fixture.OpenAndReadChallengeSeed();
+    fixture.Feed(ClientBanner());
+    fixture.sent.clear();
+
+    const uint32 someoneElsesSeed = uint32(fixture.serverSeed + 1);
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, someoneElsesSeed)));
+
+    CHECK(fixture.closed);
+    CHECK_EQ(int(fixture.sent.size()), 0);
+}
+
+TEST(RedirectStream_accepts_a_handshake_captured_from_the_live_client)
+{
+    // Not a round trip through our own helpers: these are the bytes a real
+    // 4.3.4 client put on the wire on 2026-08-30, with the session key its
+    // realmd handed it and the seed this server sent it. Nothing here is
+    // computed by the code under test, so it fails if either the digest formula
+    // or the interleaving drifts -- which the round-trip tests cannot catch,
+    // since they build the packet with the same rules they check.
+    const char* const KEY_HEX =
+        "A243D2994CCBF95639739E4A1C9510A25CF6F86C826AD846B4038DBE11CF6A6E6C251B0A2E59751C";
+
+    BigNumber sessionKey;
+    sessionKey.SetHexStr(KEY_HEX);
+
+    // The 4 seed bytes as they sat in that connection's SMSG_AUTH_CHALLENGE.
+    const uint8 seedBytes[4] = { 0xDB, 0xB2, 0x8E, 0xCB };
+    uint32 serverSeed = 0;
+    std::memcpy(&serverSeed, seedBytes, sizeof(serverSeed));
+
+    Sha1Hash sha;
+    sha.UpdateData(std::string("ADMIN"));
+    sha.UpdateBigNumbers(&sessionKey, NULL);
+    sha.UpdateData(seedBytes, sizeof(seedBytes));
+    sha.Finalize();
+
+    // What the client actually sent, byte for byte.
+    const uint8 onTheWire[20] =
+    {
+        0x13, 0x3E, 0xB9, 0x40, 0x92, 0xD1, 0xA9, 0xA6, 0xF2, 0x62,
+        0x4E, 0x58, 0x25, 0xE4, 0x37, 0x59, 0x5A, 0x66, 0x23, 0xCA
+    };
+
+    // Unscrambling it with the order the server reads must give the digest.
+    uint8 rebuilt[20] = {};
+    for (size_t i = 0; i < 20; ++i)
+    {
+        rebuilt[DIGEST_WIRE_ORDER[i]] = onTheWire[i];
+    }
+
+    CHECK(std::memcmp(rebuilt, sha.GetDigest(), 20) == 0);
 }
 
 TEST(RedirectStream_challenge_seed_differs_per_connection)
