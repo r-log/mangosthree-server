@@ -34,18 +34,14 @@
   }
 
   # Paths
+  #
+  # This script lives in server/extra/linux. The server checkout (SRCPATH) and the
+  # database checkout sit side by side under one root (SRCROOT): a fresh clone puts
+  # them at $SRCROOT/server and $SRCROOT/database, and every database path is derived
+  # from that root -- by SetDatabasePaths, called again whenever the root changes.
+  function SetDatabasePaths
   {
-    CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-    ROOTPATH=$(readlink -e "$CUR_DIR/../..")
-
-    LOGFILE="$ROOTPATH/getmangos.log"
-
-    SRCPATH="$ROOTPATH/server"
-    BUILDPATH="$SRCPATH"'_build'
-    INSTPATH="$SRCPATH"'_install'
-
-    dbDir="$ROOTPATH/database"
+    dbDir="$SRCROOT/database"
     dbDirChar="$dbDir/Character";
     dbDirCharSU="$dbDirChar/Setup"
     dbDirCharUpd="$dbDirChar/Updates"
@@ -55,6 +51,21 @@
     dbDirWorld="$dbDir/World";
     dbDirWorldSU="$dbDirWorld/Setup"
     dbDirWorldUpd="$dbDirWorld/Updates"
+  }
+
+  {
+    CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+    SRCPATH=$(readlink -e "$CUR_DIR/../..")
+    SRCROOT=$(dirname "$SRCPATH")
+    ROOTPATH="$SRCROOT"
+
+    LOGFILE="$ROOTPATH/getmangos.log"
+
+    BUILDPATH="$SRCPATH"'_build'
+    INSTPATH="$SRCPATH"'_install'
+
+    SetDatabasePaths
   }
 
   # Build Options
@@ -169,22 +180,24 @@
       fi
 
       # See if the sources directory exists
-      if [ ! -d "$CUR_DIR/../src" ]; then
+      if [ ! -d "$CUR_DIR/../../src" ]; then
         Log "Source files directory does not exist, assuming repo has not been cloned." 0
         return 0
       fi
 
       # Check for the CMake directory
-      if [ ! -d "$CUR_DIR/../cmake" ]; then
+      if [ ! -d "$CUR_DIR/../../cmake" ]; then
         Log "CMake directory does not exist, assuming repo has not been cloned." 0
         return 0
       fi
 
       # Set the default paths based on the current location
-      SRCPATH=$( dirname $CUR_DIR )
-      ROOTPATH=$( dirname $SRCPATH )
+      SRCPATH=$(readlink -e "$CUR_DIR/../..")
+      SRCROOT=$(dirname "$SRCPATH")
+      ROOTPATH="$SRCROOT"
       BUILDPATH="$SRCPATH"'_build'
       INSTPATH="$SRCPATH"'_install'
+      SetDatabasePaths
 
       # Log the detected path
       Log "Detected cloned repository in $SRCPATH" 0
@@ -614,13 +627,13 @@
         {
           # Set
           if [[ $DLGAPP == 'fzf' ]]; then
-            read -p "Source-Code Path (Default: $SRCPATH): " TMPPATH;
+            read -p "Source-Code Path, holds server/ and database/ (Default: $SRCROOT): " TMPPATH;
           else
             TMPPATH=$(
               $DLGAPP \
                 --backtitle "MaNGOS Linux Build Configuration" \
-                --title "Source-Code Path" \
-                --inputbox "Default: $SRCPATH" 8 60 3>&2 2>&1 1>&3
+                --title "Source-Code Path (holds server/ and database/)" \
+                --inputbox "Default: $SRCROOT" 8 60 3>&2 2>&1 1>&3
             )
           fi
 
@@ -630,29 +643,34 @@
             exit 0
           fi
 
-          # Change the path only if it was modified
+          # Change the path only if it was modified; everything below the root follows
           if [ ! -z "$TMPPATH" ]; then
-            SRCPATH="$TMPPATH"
+            SRCROOT="$TMPPATH"
+            ROOTPATH="$SRCROOT"
+            SRCPATH="$SRCROOT/server"
+            BUILDPATH="$SRCPATH"'_build'
+            INSTPATH="$SRCPATH"'_install'
+            SetDatabasePaths
           fi
 
           # Validate
-          if [ ! -d "$SRCPATH" ]; then
+          if [ ! -d "$SRCROOT" ]; then
             if [[ $DLGAPP == 'fzf' ]]; then
               CHOICE=$(
                 echo -e 'Yes\nNo' \
-                | $DLGAPPFZF --header "Would you like to create the directory \"$SRCPATH\"?"
+                | $DLGAPPFZF --header "Would you like to create the directory \"$SRCROOT\"?"
               )
               if [[ "$CHOICE" == 'Yes' ]]; then (exit 0); else (exit 1); fi
             else
               $DLGAPP \
                 --backtitle "MaNGOS Linux Build Configuration" \
                 --title "Path does not exist" \
-                --yesno "Would you like to create the directory \"$SRCPATH\"?" 8 60
+                --yesno "Would you like to create the directory \"$SRCROOT\"?" 8 60
             fi
 
             if [ $? -eq 0 ]; then
-              Log "Creating source path: $SRCPATH" 1
-              mkdir -p "$SRCPATH" > /dev/null 2>&1
+              Log "Creating source path: $SRCROOT" 1
+              mkdir -p "$SRCROOT" > /dev/null 2>&1
 
               # Check to see if the directory was created
               if [ $? -ne 0 ]; then
@@ -660,14 +678,14 @@
                 exit 1
               fi
 
-              chown -R $SERVER_USER:$SERVER_USER "$SRCPATH"
+              chown -R $SERVER_USER:$SERVER_USER "$SRCROOT"
             else
               Log "Source path creation cancelled. No modifications have been made to your system." 1
               exit 0
             fi
           else
             # Check for old sources
-            if [ -d "$SRCPATH/server" ] || [ -d "$SRCPATH/database" ]; then
+            if [ -d "$SRCROOT/server" ] || [ -d "$SRCROOT/database" ]; then
               # Ask to remove the old sources
               if [[ $DLGAPP == 'fzf' ]]; then
                 CHOICE=$(
@@ -684,8 +702,8 @@
 
               # Remove the old sources if requested
               if [ $? -eq 0 ]; then
-                Log "Removing old sources from: $SRCPATH/*" 1
-                rm -rf $SRCPATH/*
+                Log "Removing old sources: $SRCROOT/server and $SRCROOT/database" 1
+                rm -rf "${SRCROOT:?}/server" "${SRCROOT:?}/database"
 
                 # Check for removal failure
                 if [ $? -ne 0 ]; then
@@ -901,12 +919,26 @@
       fi
 
       # Log the settings
+      Log "Source root: $SRCROOT" 0
       Log "Source path: $SRCPATH" 0
       Log "Build path: $BUILDPATH" 0
       Log "Install path: $INSTPATH" 0
     }
 
 
+
+    # Clone one repository into one directory at one branch, or stop: a failed clone
+    # used to be logged as a success and built as an empty directory.
+    function CloneRepo
+    {
+      local URL="$1" DIR="$2" REPO_BRANCH="$3"
+      shift 3
+      Log "Cloning $URL ($REPO_BRANCH) into $DIR" 0
+      if ! git clone "$URL" "$DIR" -b "$REPO_BRANCH" "$@"; then
+        Log "Error: Cloning $URL (branch $REPO_BRANCH) into $DIR failed!" 1
+        exit 1
+      fi
+    }
 
     # Function to clone or update sources
     function GetMangos
@@ -1004,39 +1036,39 @@
 
         # Set the branch
         if [ -z "$BRANCH" ]; then
-          BRANCH="$releases | awk '{print $1}'"
+          BRANCH=$(echo $releases | awk '{print $1}')
         fi
 
         # Clone the selected version
         case "$VERSION" in
           0)
             Log "Cloning Zero branch: $BRANCH" 1
-            git clone http://github.com/mangoszero/server.git "$SRCPATH/server" -b $BRANCH --recursive
-            git clone http://github.com/mangoszero/database.git "$SRCPATH/database" -b $BRANCH --recursive
+            CloneRepo http://github.com/mangoszero/server.git "$SRCROOT/server" "$BRANCH" --recursive
+            CloneRepo http://github.com/mangoszero/database.git "$SRCROOT/database" "$BRANCH" --recursive
             ;;
 
           1)
             Log "Cloning One branch: $BRANCH" 1
-            git clone http://github.com/mangosone/server.git "$SRCPATH/server" -b $BRANCH --recursive
-            git clone http://github.com/mangosone/database.git "$SRCPATH/database" -b $BRANCH --recursive
+            CloneRepo http://github.com/mangosone/server.git "$SRCROOT/server" "$BRANCH" --recursive
+            CloneRepo http://github.com/mangosone/database.git "$SRCROOT/database" "$BRANCH" --recursive
             ;;
 
           2)
             Log "Cloning Two branch: $BRANCH" 1
-            git clone http://github.com/mangostwo/server.git "$SRCPATH/server" -b $BRANCH --recursive
-            git clone http://github.com/mangostwo/database.git "$SRCPATH/database" -b $BRANCH --recursive
+            CloneRepo http://github.com/mangostwo/server.git "$SRCROOT/server" "$BRANCH" --recursive
+            CloneRepo http://github.com/mangostwo/database.git "$SRCROOT/database" "$BRANCH" --recursive
             ;;
 
           3)
             Log "Cloning Three branch: $BRANCH" 1
-            git clone https://github.com/r-log/mangosthree-server.git "$SRCPATH/server" -b $BRANCH
-            git clone https://github.com/r-log/mangosthree-database.git "$SRCPATH/database" -b $BRANCH
+            CloneRepo https://github.com/r-log/mangosthree-server.git "$SRCROOT/server" "$BRANCH"
+            CloneRepo https://github.com/r-log/mangosthree-database.git "$SRCROOT/database" "$BRANCH"
             ;;
 
           4)
             Log "Cloning Four branch: $BRANCH" 1
-            git clone http://github.com/mangosfour/server.git "$SRCPATH/server" -b $BRANCH --recursive
-            git clone http://github.com/mangosfour/database.git "$SRCPATH/database" -b $BRANCH --recursive
+            CloneRepo http://github.com/mangosfour/server.git "$SRCROOT/server" "$BRANCH" --recursive
+            CloneRepo http://github.com/mangosfour/database.git "$SRCROOT/database" "$BRANCH" --recursive
             ;;
 
           *)
@@ -1054,12 +1086,18 @@
         Log "Updating your local repository..." 1
 
         # Update the core sources
-        cd "$SRCPATH/server"
-        git pull
+        cd "$SRCROOT/server" && git pull
+        if [ $? -ne 0 ]; then
+          Log "Error: Updating the server sources in $SRCROOT/server failed!" 1
+          exit 1
+        fi
 
         # Now update the database sources
-        cd "$SRCPATH/database"
-        git pull
+        cd "$SRCROOT/database" && git pull
+        if [ $? -ne 0 ]; then
+          Log "Error: Updating the database sources in $SRCROOT/database failed!" 1
+          exit 1
+        fi
 
         # Log success
         Log "Updated the local respository!" 1
