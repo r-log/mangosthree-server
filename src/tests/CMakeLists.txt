@@ -53,6 +53,7 @@ set(SRC_GRP_TESTS
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp
     RedirectStreamTest.cpp
+    GlobalWmoEvictionTest.cpp
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
     AuthCryptTest.cpp

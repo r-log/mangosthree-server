@@ -117,8 +117,12 @@ namespace world::terrain
         // byte and spares a failed file open per query, so the sweep keeps it.
         mutable std::array<std::array<TilePtr, GRID_COUNT>, GRID_COUNT> m_tiles;
         mutable std::array<std::array<uint8_t, GRID_COUNT>, GRID_COUNT> m_loaded{};
+        // A map built from one global WMO has no ADT grid, so this tile sits outside
+        // m_tiles and cannot be reached by a (tx, ty) sweep. It gets its own clock and
+        // its own eviction for that reason -- see Update().
         mutable TilePtr m_globalWmo;
         mutable uint8_t m_globalWmoProbed = 0;
+        mutable std::atomic<uint32_t> m_globalWmoLastUse{0};
         mutable std::shared_mutex m_mutex;
 
         mutable std::array<std::array<std::atomic<uint32_t>, GRID_COUNT>, GRID_COUNT>
