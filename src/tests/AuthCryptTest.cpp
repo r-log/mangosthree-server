@@ -115,6 +115,84 @@ TEST(Crypto_authcrypt_round_trips)
     CHECK_EQ(mismatches, 0);
 }
 
+TEST(Crypto_authcrypt_seed_table_splits_into_send_then_receive)
+{
+    // The seed table is two HMAC keys back to back, and which half goes to which
+    // direction is not a free choice: it is fixed by the client's own schedule
+    // (Wow-64.exe 15595, sub_1401A78D0), which keys its SEND cipher from the
+    // second half and its receive cipher from the first. Ours are the mirror --
+    // encrypt from the first, decrypt from the second -- and the shipped
+    // constants at 0x140992B00 are exactly the default table in that order.
+    //
+    // So: a crypt keyed with the halves swapped must produce, on its send side,
+    // the very keystream the default produces on its receive side. If the split
+    // is ever reversed, this closes the wrong way round and the second stream
+    // decodes nothing.
+    const uint8 DEFAULT_TABLE[AuthCrypt::SeedLength] =
+    {
+        0xCC, 0x98, 0xAE, 0x04, 0xE8, 0x97, 0xEA, 0xCA, 0x12, 0xDD, 0xC0, 0x93, 0x42, 0x91, 0x53, 0x57,
+        0xC2, 0xB3, 0x72, 0x3C, 0xC6, 0xAE, 0xD9, 0xB5, 0x34, 0x3C, 0x53, 0xEE, 0x2F, 0x43, 0x67, 0xCE
+    };
+
+    uint8 swapped[AuthCrypt::SeedLength];
+    std::memcpy(swapped, DEFAULT_TABLE + 16, 16);
+    std::memcpy(swapped + 16, DEFAULT_TABLE, 16);
+
+    BigNumber key = MakeSessionKey(4);
+
+    AuthCrypt implicitDefault;
+    AuthCrypt explicitDefault;
+    AuthCrypt mirrored;
+    implicitDefault.Init(&key);
+    explicitDefault.Init(&key, DEFAULT_TABLE);
+    mirrored.Init(&key, swapped);
+
+    std::vector<uint8> a(64, 0x33);
+    std::vector<uint8> b = a;
+    std::vector<uint8> c = a;
+
+    implicitDefault.EncryptSend(a.data(), a.size());
+    explicitDefault.EncryptSend(b.data(), b.size());
+    mirrored.DecryptRecv(c.data(), c.size());
+
+    // Passing the table explicitly is passing nothing at all.
+    CHECK(a == b);
+    // And the halves land where the client says they land.
+    CHECK(a == c);
+}
+
+TEST(Crypto_authcrypt_a_different_seed_is_a_different_keystream)
+{
+    // What makes the redirected stream its own cipher rather than a second copy
+    // of stream 0's: the same session key under different seed bytes must not
+    // reproduce the same keystream, in either direction.
+    BigNumber key = MakeSessionKey(5);
+
+    uint8 seed[AuthCrypt::SeedLength];
+    for (size_t i = 0; i < sizeof(seed); ++i)
+    {
+        seed[i] = uint8(0xA0 + i);
+    }
+
+    AuthCrypt constants;
+    AuthCrypt seeded;
+    constants.Init(&key);
+    seeded.Init(&key, seed);
+
+    std::vector<uint8> a(64, 0x77);
+    std::vector<uint8> b = a;
+    std::vector<uint8> c = a;
+    std::vector<uint8> d = a;
+
+    constants.EncryptSend(a.data(), a.size());
+    seeded.EncryptSend(b.data(), b.size());
+    constants.DecryptRecv(c.data(), c.size());
+    seeded.DecryptRecv(d.data(), d.size());
+
+    CHECK(a != b);
+    CHECK(c != d);
+}
+
 TEST(Crypto_authcrypt_keystream_is_continuous_across_fragments)
 {
     // The property the packet codec depends on, and the reason it decrypts a

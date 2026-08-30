@@ -33,6 +33,7 @@
 
 #include "Auth/BigNumber.h"
 #include "Auth/Sha1.h"
+#include "Crypto/SystemRandom.h"
 #include "Log/Log.h"
 #include "SessionLinks.h"
 #include "Utilities/ByteBuffer.h"
@@ -58,9 +59,20 @@ namespace proto
         //   CMSG_PING            Opcodes.h:555  (0x444D)
         //   SMSG_PONG            Opcodes.h:556  (0x4D42)
         //   CMSG_KEEP_ALIVE      Opcodes.h:1119 (0x0015)
+        //
+        // CMSG_AUTH_CONTINUED_SESSION is the exception: Opcodes.h carried a
+        // placeholder for it (0x1513, from an older list), so its value comes
+        // from the client's own send router by way of OpcodeSlots.inc:85 --
+        // and the live wire confirmed it on 2026-08-30, a 36-byte payload under
+        // 0x044D landing on the stream-1 port. Opcodes.h now agrees.
         const uint16 MSG_WOW_CONNECTION  = 0x4F57;
         const uint16 SMSG_AUTH_CHALLENGE = 0x4542;
         const uint16 CMSG_AUTH_SESSION   = 0x0449;
+        const uint16 CMSG_AUTH_CONTINUED_SESSION = 0x044D;
+        // SMSG_RESUME_COMMS carried a placeholder too (0x1512); 0x0140 is the
+        // value in the client's connection-control set, the eight opcodes it
+        // dispatches ahead of every gate. Opcodes.h now agrees.
+        const uint16 SMSG_RESUME_COMMS   = 0x0140;
         const uint16 SMSG_AUTH_RESPONSE  = 0x5DB6;
         const uint16 CMSG_PING           = 0x444D;
         const uint16 SMSG_PONG           = 0x4D42;
@@ -90,6 +102,7 @@ namespace proto
           m_redirects(redirects),
           m_policy(policy),
           m_role(policy.role),
+          m_challengeSeed{},
           m_bannerDone(false),
           m_codec(),
           m_seed(MakeAuthSeed()),
@@ -125,12 +138,20 @@ namespace proto
     void ClientConnection::AppendAuthChallenge(std::vector<uint8_t>& wire)
     {
         // SMSG_AUTH_CHALLENGE (37-byte payload, WorldSocket.cpp:371-378): eight
-        // zero uint32s, then the server seed, then a trailing uint8(1).
+        // uint32s, then the server seed, then a trailing uint8(1).
+        //
+        // Those 32 bytes are not padding, though stream 0 may leave them zero.
+        // The client keeps them (Wow-64.exe 15595, sub_1400AA560) and, on a
+        // REDIRECTED connection, keys that stream's ciphers from them instead of
+        // from the pair in its image. So m_challengeSeed is what we sent and what
+        // we must key with; it stays zero on stream 0, where the client ignores
+        // it, leaving that handshake byte-for-byte what it always was.
+        //
+        // The trailing byte is the client's proof-of-work difficulty: it hashes
+        // its account name, these 32 bytes and a counter until the digest ends in
+        // that many zero bits. One bit costs it nothing and is what 4.3.4 shipped.
         WorldPacket challenge(SMSG_AUTH_CHALLENGE, 37);
-        for (uint32 i = 0; i < 8; ++i)
-        {
-            challenge << uint32(0);
-        }
+        challenge.append(m_challengeSeed.data(), m_challengeSeed.size());
         challenge << m_seed;
         challenge << uint8(1);
 
@@ -179,6 +200,12 @@ namespace proto
 
             if (m_policy.armRedirectedCrypto)
             {
+                // Fresh per connection, because these bytes become this stream's
+                // cipher keys (with the session key, which stream 0 already used
+                // for its own pair). Reusing one table across both streams of a
+                // session would run two keystreams from the same key material.
+                MaNGOS::Crypto::SystemRandom::Instance().FillExact(m_challengeSeed.data(),
+                                                                   m_challengeSeed.size());
                 AppendAuthChallenge(wire);
             }
 
@@ -203,9 +230,34 @@ namespace proto
         BigNumber key = m_redirectKey;
 
         std::lock_guard<std::mutex> lock(m_cryptSendLock);
-        m_crypt.Init(&key);
+        m_crypt.Init(&key, m_challengeSeed.data());
         m_codec.SetHeaderDecryptor(
             [this](uint8* header, size_t len) { m_crypt.DecryptRecv(header, len); });
+    }
+
+    void ClientConnection::SendResumeComms()
+    {
+        // The packet that makes the second stream real, on the client's side.
+        //
+        // Until this arrives the client keeps the new socket in a staging slot,
+        // where sub_1400A9B60 refuses every ordinary packet with disconnect
+        // reason 3 and closes it -- only the eight connection-control opcodes
+        // reach a staging connection at all. SMSG_RESUME_COMMS is the one that
+        // ends that state: sub_1400AC1D0 moves the connection out of staging and
+        // into stream 1, carries the banner flag across, retires whatever held
+        // that slot, and flushes the queue.
+        //
+        // That queue is the other half of it. The client marks stream 1 pending
+        // at construction (NetClient + 34505 = 1), so from the first second of
+        // the session every opcode its router sends on stream 1 is queued rather
+        // than transmitted -- CMSG_LOGOUT_REQUEST among them, which is why a
+        // session that never sees this packet has a Logout button that does
+        // nothing at all. Nothing is lost; it is all delivered by the flush.
+        //
+        // Empty by design: sub_1400AC1D0 reads no payload, only the connection
+        // the packet arrived on.
+        WorldPacket resume(SMSG_RESUME_COMMS, 0);
+        SendPacket(resume);
     }
 
     bool ClientConnection::PromoteToSlotOne()
@@ -326,28 +378,58 @@ namespace proto
         {
             HandleWowConnection(packet);
 
-            if (!m_bannerDone)
-            {
-                m_bannerDone = true;
-
-                // Both directions of the banner are plain text, so the ciphers
-                // cannot be armed any earlier than this.
-                if (m_role == ConnRole::Staging1 && m_policy.armRedirectedCrypto)
-                {
-                    ArmRedirectedCrypto();
-                }
-            }
-
+            m_bannerDone = true;
             return true;
         }
 
         if (m_role == ConnRole::Staging1)
         {
             // The client frames packets on this socket only once it has adopted
-            // it as a stream, so this packet is the promotion happening.
+            // it as a stream, so this packet is the promotion happening. It is
+            // CMSG_AUTH_CONTINUED_SESSION, and it arrives IN CLEAR: the client
+            // sends it and only then arms its ciphers (Wow-64.exe 15595,
+            // sub_1400AA560 -- send at sub_1401A9920, key schedule at
+            // sub_1401A78D0 three lines later), exactly as it does with
+            // CMSG_AUTH_SESSION on stream 0. Arming any earlier decrypts a
+            // plaintext header into noise and drops the socket, which the client
+            // answers by giving up on the second stream:
+            //   "malformed packet framing ... header 6F C6 E3 16 32 58 ->
+            //    size=28614 cmd=0x583216E3, header cipher armed, 42 byte(s) read"
+            // -- 42 bytes being this packet, whose true header is
+            // 00 28 4D 04 00 00: 36 payload bytes under opcode 0x044D.
+            //
+            // Arm before promoting, not after: promotion hands the session its
+            // second stream, and the world may write to it from its own thread
+            // the moment it has one.
+            if (m_policy.armRedirectedCrypto)
+            {
+                ArmRedirectedCrypto();
+            }
+
+            // Before the promotion, not after: promoting attaches this socket to
+            // the session, and the world's queued stream-1 traffic flushes onto
+            // it the moment it does. Every one of those packets would arrive
+            // while the client still holds this connection in a staging slot,
+            // where it refuses anything but the eight control opcodes.
+            SendResumeComms();
+
             if (!PromoteToSlotOne())
             {
                 return false;
+            }
+
+            if (opcode == CMSG_AUTH_CONTINUED_SESSION)
+            {
+                // Transport, not game: the payload is the connect-to key we
+                // signed into the redirect, the client's proof-of-work counter,
+                // and SHA-1(account || session key || server seed). The world has
+                // no handler for it and needs none -- the ticket the socket
+                // claimed already bound it to a session and a key.
+                //
+                // The digest is not checked here because proto does not know the
+                // account name; carrying it on the ticket would let this verify
+                // the client rather than trust the address it came from.
+                return true;
             }
         }
 

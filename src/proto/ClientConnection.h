@@ -38,6 +38,7 @@
 #include "Auth/BigNumber.h"
 #include "net/ISession.hpp"
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -63,18 +64,16 @@ namespace proto
         /**
          * @brief Whether the redirected connection gets its own ciphers.
          *
-         * The client re-derives a fresh cipher pair for the second stream from
-         * the session key it already holds -- it does not authenticate again --
-         * but what prompts it to do so is not settled. The only candidate among
-         * the packets a server may write to a connection that is not yet a
-         * stream is SMSG_AUTH_CHALLENGE, which the client accepts on any
-         * connection and dispatches ahead of everything else.
+         * Settled against the client (Wow-64.exe 15595, 2026-08-30). The second
+         * stream is what SMSG_AUTH_CHALLENGE prompts: on receiving it the client
+         * answers CMSG_AUTH_CONTINUED_SESSION -- in clear -- and only then keys a
+         * fresh cipher pair (sub_1400AA560). It keys that pair from the 32 bytes
+         * the challenge carried, not from the constants it uses on stream 0.
          *
-         * So this sends that challenge and arms both directions once the client
-         * answers the banner. Turn it off to leave the second stream in plain
-         * text, which is what a client that does not arm on the challenge will
-         * expect -- the symptom of getting this wrong is a stream-1 socket that
-         * goes quiet immediately after the banner.
+         * So this sends the challenge, and the cipher is armed when that answer
+         * arrives. Turning it off sends no challenge, which leaves the client
+         * with nothing to answer: the socket goes quiet after the banner and the
+         * session times out waiting for a stream that never opens.
          */
         bool armRedirectedCrypto = true;
     };
@@ -177,12 +176,24 @@ namespace proto
              * @brief Derive this connection's ciphers from the session key.
              *
              * The redirected socket never sees a login, so it has nothing of its
-             * own to key from; it re-uses the key the session already agreed on
-             * and starts fresh cipher state, exactly as the client does. Called
-             * once the banner reply is in, because the banner itself is plain
-             * text in both directions.
+             * own to key from; it re-uses the key the session already agreed on,
+             * together with the 32 bytes it sent in this connection's
+             * SMSG_AUTH_CHALLENGE, and starts fresh cipher state -- exactly as
+             * the client does. Called when CMSG_AUTH_CONTINUED_SESSION arrives,
+             * because everything up to and including that packet is plain text
+             * in both directions.
              */
             void ArmRedirectedCrypto();
+
+            /**
+             * @brief Tell the client this connection is now its second stream.
+             *
+             * Sent on the redirected socket itself, once, after the continued
+             * session handshake and before the promotion. Without it the client
+             * holds the socket in a staging slot -- refusing ordinary packets
+             * and queueing everything its own router sends on stream 1.
+             */
+            void SendResumeComms();
 
             /**
              * @brief Take this connection to be the session's stream 1.
@@ -227,6 +238,11 @@ namespace proto
             /// The session key of the session being rejoined. Meaningful on a
             /// redirected connection only.
             BigNumber m_redirectKey;
+
+            /// The 32 bytes this connection put in its SMSG_AUTH_CHALLENGE. Zero
+            /// on stream 0, where the client keys from its own table and ignores
+            /// them; random on a redirected stream, where they ARE its keys.
+            std::array<uint8, AuthCrypt::SeedLength> m_challengeSeed;
             /// The generation of the redirect this staging socket answers.
             uint32 m_redirectGeneration = 0;
 

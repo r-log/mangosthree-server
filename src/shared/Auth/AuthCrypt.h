@@ -52,11 +52,21 @@ class AuthCrypt
         ~AuthCrypt();
 
 
+        /// Bytes in the seed table: two 16-byte HMAC keys, send then receive.
+        static constexpr size_t SeedLength = 32;
+
         /**
          * @brief Initialize the encryption/decryption state
-         * @param K Session key used to seed the cipher state
+         *
+         * @param K    Session key used to seed the cipher state
+         * @param seed SeedLength bytes: the first 16 key the outgoing direction,
+         *             the last 16 the incoming one. Null selects the pair the
+         *             client keeps in its own image, which is what stream 0
+         *             always uses. A redirected stream is keyed instead by the
+         *             32 bytes the server sent it in SMSG_AUTH_CHALLENGE --
+         *             see ClientConnection::ArmRedirectedCrypto().
          */
-        void Init(BigNumber* K);
+        void Init(BigNumber* K, const uint8* seed = NULL);
         /**
          * @brief Decrypt received data from client
          * @param data Pointer to data buffer to decrypt

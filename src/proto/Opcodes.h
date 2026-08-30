@@ -1400,8 +1400,8 @@ enum OpcodesList
     CMSG_CONNECT_TO_FAILED                                = 0x2533, // 4.3.4 15595
     SMSG_SUSPEND_COMMS                                    = 0x4140, // 4.3.4 15595
     CMSG_SUSPEND_COMMS_ACK                                = 0x1511,
-    SMSG_RESUME_COMMS                                     = 0x1512,
-    CMSG_AUTH_CONTINUED_SESSION                           = 0x1513,
+    SMSG_RESUME_COMMS                                     = 0x0140, // 4.3.4 15595
+    CMSG_AUTH_CONTINUED_SESSION                           = 0x044D, // 4.3.4 15595
     CMSG_DROP_NEW_CONNECTION                              = 0x1514,
     SMSG_SEND_ALL_COMBAT_LOG                              = 0x1515,
     SMSG_OPEN_LFG_DUNGEON_FINDER                          = 0x2C37, // 4.3.4 15595
