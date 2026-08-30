@@ -266,6 +266,14 @@ namespace MaNGOS
         {
             MontMulPortable(z, x, y, m, n0inv, k);
         }
+        void MontSqrMulx(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulPortable(z, x, x, m, n0inv, k);
+        }
+        void MontSqrAsm(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulPortable(z, x, x, m, n0inv, k);
+        }
 
 #endif
     }

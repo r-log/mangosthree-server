@@ -249,6 +249,9 @@ Lerase:
         sub rcx, 8
         jnz Lerase
         mov qword ptr [rsp], rax
+        xor edx, edx
+        xor r8d, r8d
+        xor r12d, r12d
         lea rsp, [rbp]
         pop rsi
         pop rdi
@@ -664,6 +667,7 @@ Lmm16_erase:
         jnz Lmm16_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 152
@@ -1401,6 +1405,7 @@ Lmm32_erase:
         jnz Lmm32_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 280
@@ -2613,6 +2618,7 @@ Lms16_erase:
         jnz Lms16_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 272
@@ -6233,6 +6239,7 @@ Lms32_erase:
         jnz Lms32_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 528

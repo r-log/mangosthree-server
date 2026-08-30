@@ -276,6 +276,9 @@ mangos_montmul_adx:
         sub rcx, 8
         jnz .Lerase
         mov qword ptr [rsp], rax
+        xor edx, edx
+        xor r8d, r8d
+        xor r12d, r12d
         lea rsp, [rbp]
 #if WINDOWS_ABI
         pop rsi
@@ -738,6 +741,7 @@ mangos_montmul16_adx:
         jnz .Lmm16_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 152
@@ -1522,6 +1526,7 @@ mangos_montmul32_adx:
         jnz .Lmm32_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 280
@@ -2781,6 +2786,7 @@ mangos_montsqr16_adx:
         jnz .Lms16_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 272
@@ -6448,6 +6454,7 @@ mangos_montsqr32_adx:
         jnz .Lms32_erase
         xor edx, edx
         xor r8d, r8d
+        xor r9d, r9d
         xor r12d, r12d
         xor r14d, r14d
         add rsp, 528

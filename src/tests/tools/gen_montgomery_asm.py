@@ -159,8 +159,11 @@ def epilogue(name, frame, tag):
     o.append("        sub rcx, 8")
     o.append("        mov qword ptr [rsp + rcx], rax")
     o.append(f"        jnz .L{tag}_erase")
+    # rdx the last multiplier, r8 n0inv (and r9, where the Windows ABI delivered it
+    # for the squarings), r12 the last carry, r14 the folded row carry
     o.append("        xor edx, edx")
     o.append("        xor r8d, r8d")
+    o.append("        xor r9d, r9d")
     o.append("        xor r12d, r12d")
     o.append("        xor r14d, r14d")
     o.append(f"        add rsp, {frame}")
@@ -560,6 +563,9 @@ mangos_montmul_adx:
         sub rcx, 8
         jnz .Lerase
         mov qword ptr [rsp], rax
+        xor edx, edx
+        xor r8d, r8d
+        xor r12d, r12d
         lea rsp, [rbp]
 #if WINDOWS_ABI
         pop rsi
