@@ -29,7 +29,7 @@ constexpr std::size_t DigestChunkSize = 4096;
 PatchArtifact::PatchArtifact(
     std::ifstream stream,
     std::uint64_t size,
-    std::array<std::uint8_t, MD5_DIGEST_LENGTH> digest)
+    std::array<std::uint8_t, Md5Hash::DigestLength> digest)
     : m_stream(std::move(stream)),
       m_size(size),
       m_digest(std::move(digest))
@@ -76,8 +76,7 @@ std::unique_ptr<PatchArtifact> PatchArtifact::Open(std::string const& path)
         return nullptr;
     }
 
-    // Md5Hash owns the context, so the five separate EVP_MD_CTX_free calls this
-    // replaced -- one on every early return -- cannot be forgotten on a sixth.
+    // Md5Hash owns its state, so the early returns below have nothing to release.
     Md5Hash md5;
 
     std::array<char, DigestChunkSize> buffer{};
@@ -98,7 +97,7 @@ std::unique_ptr<PatchArtifact> PatchArtifact::Open(std::string const& path)
     }
 
     md5.Finalize();
-    std::array<std::uint8_t, MD5_DIGEST_LENGTH> digest{};
+    std::array<std::uint8_t, Md5Hash::DigestLength> digest{};
     std::memcpy(digest.data(), md5.GetDigest(), digest.size());
 
     stream.clear();

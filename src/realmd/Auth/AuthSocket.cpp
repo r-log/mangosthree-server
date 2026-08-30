@@ -62,7 +62,7 @@
 #include "PatchArtifact.h"
 #include "PatchHandler.h"
 
-#include <openssl/md5.h>
+#include "Auth/Md5.h"
 
 #include <chrono>
 #include <cstring>
@@ -173,7 +173,7 @@ typedef struct XFER_INIT
     uint8  fileNameLen;                                     // strlen(fileName)
     uint8  fileName[5];                                     // "Patch"
     uint64 file_size;                                       // file size (bytes)
-    uint8  md5[MD5_DIGEST_LENGTH];                          // MD5 of the file
+    uint8  md5[Md5Hash::DigestLength];                      // MD5 of the file
 } XFER_INIT;
 
 typedef struct AuthHandler
@@ -466,8 +466,6 @@ void AuthSocket::_SetVSFields(const std::string& rI)
     v_hex = v.AsHexStr();
     s_hex = s.AsHexStr();
     LoginDatabase.PExecute("UPDATE `account` SET `v` = '%s', `s` = '%s' WHERE `username` = '%s'", v_hex, s_hex, _safelogin.c_str());
-    OPENSSL_free((void*)v_hex);
-    OPENSSL_free((void*)s_hex);
 }
 
 void AuthSocket::SendProof(const uint8* M2)
@@ -807,12 +805,9 @@ bool AuthSocket::_HandleLogonProof()
             sLog.outError(
                 "[Auth] Failed to publish session key for account %s",
                 _login.c_str());
-            OPENSSL_free(const_cast<char*>(K_hex));
             close_connection();
             return false;
         }
-
-        OPENSSL_free(const_cast<char*>(K_hex));
 
         ///- Finish SRP6 and send the final result to the client
         uint8 M2[SHA_DIGEST_LENGTH];

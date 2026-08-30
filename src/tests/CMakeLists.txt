@@ -77,7 +77,7 @@ set(SRC_GRP_TESTS
     CodecStressTest.cpp
     CryptoStressTest.cpp
     PacketCodecTest.cpp
-    # The SRP6 unit realmd calls and the vectors captured on the OpenSSL build.
+    # The SRP6 unit realmd calls and the golden vectors captured before the switch.
     Srp6Test.cpp
     CryptoGoldenTest.cpp
     # The in-house primitives (src/shared/Crypto), checked against the vectors above.
@@ -121,7 +121,6 @@ target_link_libraries(mangos_tests
         extractor_client
         extractor_data
         Threads::Threads
-        mangos_openssl_strict
 )
 
 # The big-integer oracle (src/tests/oracle): s2n-bignum's proved routines, assembled where
@@ -134,18 +133,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64
 endif()
 
 add_test(NAME mangos_tests COMMAND mangos_tests)
-
-# The golden-vector generator. Run on the OpenSSL build, its stdout is CryptoGoldenVectors.h
-# and its stderr the timing baseline the in-house kernel is measured against:
-#   cmake --build <build> --config Release --target crypto_golden_capture
-#   <build>/src/tests/[Release/]crypto_golden_capture > src/tests/CryptoGoldenVectors.h 2> baseline.md
-# Not built by default. It captures what OpenSSL computes, so it leaves the tree with OpenSSL.
-add_executable(crypto_golden_capture EXCLUDE_FROM_ALL
-    tools/CryptoGoldenCapture.cpp
-    ${CMAKE_SOURCE_DIR}/src/realmd/Auth/Srp6.cpp)
-target_include_directories(crypto_golden_capture PRIVATE ${CMAKE_SOURCE_DIR}/src/realmd)
-target_link_libraries(crypto_golden_capture PRIVATE shared Threads::Threads mangos_openssl mangos_openssl_strict)
-set_target_properties(crypto_golden_capture PROPERTIES FOLDER "tests")
 
 add_test(NAME crypto_asm_twin
     COMMAND ${CMAKE_COMMAND}
@@ -162,6 +149,13 @@ add_test(NAME warden_dormant_boundary
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckDormantWardenBoundary.cmake)
 
+# Nothing of ours names, links or documents the crypto library the tree used to sit on;
+# the two greps are exact (see the script).
+add_test(NAME crypto_is_ours
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckCryptoIsOurs.cmake)
+
 add_test(NAME build_policy
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
@@ -177,27 +171,9 @@ add_test(NAME version_sources
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckVersionSources.cmake)
 
-# Put the runtime DLLs beside the test binary so it can be run from the build tree.
-# A convenience, never a gate: the search is derived from the library that was actually
-# found, and a miss warns rather than failing the configure.
+# Put the MySQL client DLL beside the test binary so it can be run from the build tree.
+# A convenience, never a gate: the path is derived from the library that was found.
 if(WIN32)
-    get_filename_component(MANGOS_SSL_LIB_DIR "${OPENSSL_CRYPTO_LIBRARY}" DIRECTORY)
-    get_filename_component(MANGOS_SSL_ROOT "${MANGOS_SSL_LIB_DIR}" DIRECTORY)
-
-    find_file(MANGOS_TEST_OPENSSL_CRYPTO_DLL
-        NAMES libcrypto-3-x64.dll libcrypto-3.dll libcrypto.dll
-        HINTS "${MANGOS_SSL_ROOT}/bin" "${MANGOS_SSL_LIB_DIR}" "${OPENSSL_ROOT_DIR}/bin")
-
-    if(MANGOS_TEST_OPENSSL_CRYPTO_DLL)
-        add_custom_command(TARGET mangos_tests POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${MANGOS_TEST_OPENSSL_CRYPTO_DLL}"
-                "$<TARGET_FILE_DIR:mangos_tests>")
-    else()
-        message(WARNING
-            "OpenSSL runtime DLL not found; mangos_tests may need it on PATH to run.")
-    endif()
-
     get_filename_component(
         MANGOS_TEST_MYSQL_DLL_DIR "${MySQL_LIBRARY}" DIRECTORY)
     get_filename_component(

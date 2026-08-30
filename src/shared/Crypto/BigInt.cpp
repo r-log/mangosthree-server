@@ -86,7 +86,7 @@ namespace MaNGOS
         bool BigInt::FromHex(std::string_view hex)
         {
             m_limbs.clear();
-            std::vector<Limb> limbs((hex.size() + 15) / 16, 0);
+            LimbVector limbs((hex.size() + 15) / 16, 0);
             for (size_t i = 0; i < hex.size(); ++i)
             {
                 const char c = hex[hex.size() - 1 - i];
@@ -108,8 +108,8 @@ namespace MaNGOS
             {
                 return "0";
             }
-            // Whole bytes, two digits each, leading zero bytes dropped: the shape
-            // BN_bn2hex produced and the database and key files hold ("01", "0A2B").
+            // Whole bytes, two digits each, leading zero bytes dropped: the shape the
+            // database columns and the key files hold ("01", "0A2B").
             static const char* digits = "0123456789ABCDEF";
             const size_t length = ByteLength();
             std::string out;
@@ -132,7 +132,7 @@ namespace MaNGOS
             // Peel 19 decimal digits at a time (10^19 fits a limb).
             const Limb chunk = 10000000000000000000ull;
             BigInt work(*this);
-            std::vector<Limb> parts;
+            LimbVector parts;
             while (!work.IsZero())
             {
                 parts.push_back(work.DivModSmall(chunk));
@@ -308,7 +308,7 @@ namespace MaNGOS
             }
             const size_t limbShift = bits / LimbBits;
             const unsigned bitShift = unsigned(bits % LimbBits);
-            std::vector<Limb> out(m_limbs.size() + limbShift + 1, 0);
+            LimbVector out(m_limbs.size() + limbShift + 1, 0);
             for (size_t i = 0; i < m_limbs.size(); ++i)
             {
                 out[i + limbShift] |= m_limbs[i] << bitShift;
@@ -331,7 +331,7 @@ namespace MaNGOS
                 m_limbs.clear();
                 return *this;
             }
-            std::vector<Limb> out(m_limbs.size() - limbShift, 0);
+            LimbVector out(m_limbs.size() - limbShift, 0);
             for (size_t i = 0; i < out.size(); ++i)
             {
                 out[i] = m_limbs[i + limbShift] >> bitShift;
@@ -386,7 +386,7 @@ namespace MaNGOS
             const size_t m = a.m_limbs.size() - n;
             const unsigned s = CountLeadingZeros(d.m_limbs.back());   // D1: normalise so the top digit of v has its high bit set
 
-            std::vector<Limb> v(n), u(a.m_limbs.size() + 1, 0);
+            LimbVector v(n), u(a.m_limbs.size() + 1, 0);
             for (size_t i = n; i-- > 0;)
             {
                 v[i] = (d.m_limbs[i] << s) | ((s && i > 0) ? (d.m_limbs[i - 1] >> (LimbBits - s)) : 0);
@@ -397,7 +397,7 @@ namespace MaNGOS
             }
             u[a.m_limbs.size()] = s ? (a.m_limbs.back() >> (LimbBits - s)) : 0;
 
-            std::vector<Limb> quotient(m + 1, 0);
+            LimbVector quotient(m + 1, 0);
             const Limb vn1 = v[n - 1], vn2 = v[n - 2];
 
             for (size_t j = m + 1; j-- > 0;)
@@ -463,7 +463,7 @@ namespace MaNGOS
             }
 
             // D8: the remainder is u[0 .. n-1], shifted back.
-            std::vector<Limb> remainder(n, 0);
+            LimbVector remainder(n, 0);
             for (size_t i = 0; i < n; ++i)
             {
                 remainder[i] = (u[i] >> s) | ((s && i + 1 < n + 1) ? (u[i + 1] << (LimbBits - s)) : 0);

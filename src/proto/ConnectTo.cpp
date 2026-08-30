@@ -28,6 +28,7 @@
 #include "Auth/HMACSHA1.h"
 #include "Crypto/BigInt.h"
 #include "Crypto/Rsa.h"
+#include "Crypto/SecureZero.h"
 #include "Crypto/SystemRandom.h"
 #include "Log/Log.h"
 
@@ -168,6 +169,24 @@ namespace proto
             std::memcpy(digest.data(), hmac.GetDigest(), digest.size());
             return digest;
         }
+
+        /// The decoded halves of a key are erased when they go out of scope, whichever
+        /// way the load ends; the BigInts built from them erase themselves.
+        struct EraseOnExit
+        {
+            std::vector<std::vector<uint8>*> buffers;
+            ~EraseOnExit()
+            {
+                for (std::vector<uint8>* buffer : buffers)
+                {
+                    if (!buffer->empty())
+                    {
+                        MaNGOS::Crypto::SecureZero(buffer->data(), buffer->size());
+                    }
+                    buffer->clear();
+                }
+            }
+        };
 
         bool DecodeHex(const std::string& text, std::vector<uint8>& out)
         {
@@ -324,6 +343,7 @@ namespace proto
 
         std::vector<uint8> modulus;
         std::vector<uint8> exponent;
+        EraseOnExit eraseDecoded{ { &modulus, &exponent } };
 
         if (!DecodeHex(modulusHex, modulus) || !DecodeHex(privateExponentHex, exponent))
         {
@@ -379,6 +399,7 @@ namespace proto
         if (allCrt)
         {
             std::vector<uint8> p, q, dP, dQ, qInv;
+            EraseOnExit eraseCrt{ { &p, &q, &dP, &dQ, &qInv } };
             if (!DecodeHex(prime1Hex, p) || !DecodeHex(prime2Hex, q) || !DecodeHex(exponent1Hex, dP) ||
                 !DecodeHex(exponent2Hex, dQ) || !DecodeHex(coefficientHex, qInv))
             {

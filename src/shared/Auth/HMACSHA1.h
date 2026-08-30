@@ -27,9 +27,9 @@
 #define _AUTH_HMACSHA1_H
 
 #include "Platform/Define.h"
-#include "Utilities/Errors.h"
-#include <openssl/evp.h>
-#include <openssl/sha.h>       // SHA_DIGEST_LENGTH
+#include "Auth/Sha1.h"
+#include "Crypto/HmacSha1.h"
+
 #include <string>
 
 class BigNumber;
@@ -37,82 +37,43 @@ class BigNumber;
 #define SEED_KEY_SIZE 16
 
 /**
- * @brief HMAC-SHA1 hash computation for authentication
+ * @brief HMAC-SHA1 with the interface the packet cipher and the redirect were written
+ * against, over the tree's own implementation (src/shared/Crypto).
  *
- * HMACSHA1 provides HMAC (Hash-based Message Authentication Code)
- * using SHA-1 hash algorithm. Used for secure authentication
- * and packet integrity verification in World of Warcraft protocol.
+ * Derives the two packet-cipher keys from the session key under fixed 16-byte seeds,
+ * and tags the redirect. Keyed at construction; the key material is erased when the
+ * object goes.
  */
 class HMACSHA1
 {
     public:
         /**
-         * @brief Constructor with seed initialization
-         * @param len Length of the seed
-         * @param seed Pointer to seed data
+         * @brief A MAC keyed with `len` bytes of `seed`
          */
         HMACSHA1(uint32 len, uint8 *seed);
-
-        /**
-         * @brief Destructor
-         */
         ~HMACSHA1();
 
-        // The MAC context is owned; copying would double-free it.
+        // The keyed state is owned; a copy would be a second holder of the key.
         HMACSHA1(const HMACSHA1&) = delete;
         HMACSHA1& operator=(const HMACSHA1&) = delete;
 
-        /**
-         * @brief Update hash with a BigNumber
-         * @param bn BigNumber to add to hash
-         */
+        /// Update with the minimal little-endian bytes of the number
         void UpdateBigNumber(BigNumber *bn);
-
-        /**
-         * @brief Update hash with raw data
-         * @param data Pointer to data
-         * @param length Length of data
-         */
         void UpdateData(const uint8 *data, int length);
-
-        /**
-         * @brief Update hash with string data
-         * @param str String to add to hash
-         */
         void UpdateData(const std::string &str);
 
-        /**
-         * @brief Finalize the hash computation
-         */
+        /// Produce the tag; the MAC is re-keyed afterwards, ready for another message.
         void Finalize();
 
-        /**
-         * @brief Compute hash for a BigNumber
-         * @param bn BigNumber to hash
-         * @return Pointer to digest buffer
-         */
+        /// UpdateBigNumber, Finalize and return the tag in one call.
         uint8 *ComputeHash(BigNumber *bn);
 
-        /**
-         * @brief Get the computed digest
-         * @return Pointer to digest buffer
-         */
-        uint8 *GetDigest()
-        {
-            return (uint8*)m_digest;
-        }
-
-        /**
-         * @brief Get the digest length
-         * @return SHA_DIGEST_LENGTH (20 bytes)
-         */
-        int GetLength()
-        {
-            return SHA_DIGEST_LENGTH;
-        }
+        /// The tag. Only meaningful after Finalize(); SHA_DIGEST_LENGTH bytes.
+        uint8 *GetDigest() { return m_digest; }
+        int GetLength() { return SHA_DIGEST_LENGTH; }
 
     private:
-        EVP_MAC_CTX* m_ctx; /**< OpenSSL HMAC context */
-        uint8 m_digest[SHA_DIGEST_LENGTH]; /**< Computed hash digest */
+        MaNGOS::Crypto::HmacSha1 m_mac;      /**< The keyed state */
+        uint8 m_digest[SHA_DIGEST_LENGTH];   /**< The computed tag */
 };
 #endif

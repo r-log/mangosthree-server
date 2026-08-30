@@ -56,7 +56,7 @@ add_executable(mangos-patch
 )
 
 target_include_directories(mangos-patch PRIVATE src)
-# The hashes are the tree's own (src/shared/Crypto) -- and nothing else: no shared, no proto, no OpenSSL.
+# The hashes are the tree's own (src/shared/Crypto) -- and nothing else: no shared, no proto.
 target_link_libraries(mangos-patch PRIVATE mangos_crypto)
 
 if(MSVC)

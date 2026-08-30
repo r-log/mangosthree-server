@@ -24,8 +24,7 @@
  */
 
 #include "ARC4.h"
-
-#include <cstring>
+#include "Crypto/SecureZero.h"
 
 namespace
 {
@@ -71,10 +70,10 @@ ARC4::ARC4(uint8* seed, uint8 len)
 ARC4::~ARC4()
 {
     // The key schedule is derived from a session secret, so it does not outlive the
-    // object in freed memory waiting to be read back. memset rather than std::fill
-    // because the intent is erasure, and a loop over a member the compiler can see is
-    // dead is a loop the compiler may delete.
-    std::memset(m_state, 0, sizeof(m_state));
+    // object in freed memory waiting to be read back. SecureZero rather than memset or
+    // std::fill: a store to a member the compiler can see is dead is a store the
+    // compiler may delete, and this one exists to be made.
+    MaNGOS::Crypto::SecureZero(m_state, sizeof(m_state));
     m_x = 0;
     m_y = 0;
 }

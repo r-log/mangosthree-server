@@ -205,7 +205,7 @@ namespace MaNGOS
             // way for every modulus of this width.
             m_r2.assign(m_k, 0);
             m_r2[0] = 1;
-            std::vector<Limb> doubled(m_k), reduced(m_k);
+            LimbVector doubled(m_k), reduced(m_k);
             for (size_t step = 0; step < 128 * m_k; ++step)
             {
                 Limb carry = 0;
@@ -229,14 +229,14 @@ namespace MaNGOS
 
             // R mod m = Mont(1, R^2)
             m_one.assign(m_k, 0);
-            std::vector<Limb> one(m_k, 0);
+            LimbVector one(m_k, 0);
             one[0] = 1;
             Mul(m_one.data(), one.data(), m_r2.data());
         }
 
         MontgomeryContext::~MontgomeryContext()
         {
-            for (std::vector<Limb>* v : { &m_m, &m_r2, &m_one })
+            for (LimbVector* v : { &m_m, &m_r2, &m_one })
             {
                 if (!v->empty())
                 {
@@ -254,8 +254,8 @@ namespace MaNGOS
         void MontgomeryContext::ToMont(Limb* z, const BigInt& x) const
         {
             BigInt reduced = x % ModulusValue();
-            std::vector<Limb> limbs(m_k, 0);
-            const std::vector<Limb>& src = reduced.Limbs();
+            LimbVector limbs(m_k, 0);
+            const LimbVector& src = reduced.Limbs();
             for (size_t j = 0; j < src.size(); ++j)
             {
                 limbs[j] = src[j];
@@ -267,7 +267,7 @@ namespace MaNGOS
 
         BigInt MontgomeryContext::FromMont(const Limb* x) const
         {
-            std::vector<Limb> one(m_k, 0), out(m_k, 0);
+            LimbVector one(m_k, 0), out(m_k, 0);
             one[0] = 1;
             Mul(out.data(), x, one.data());
             BigInt value = BigInt::FromLimbs(out.data(), m_k);

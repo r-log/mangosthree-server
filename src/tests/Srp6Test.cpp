@@ -4,7 +4,7 @@
  *
  * `Srp6` is what `AuthSocket` calls, so what these tests pin is the production
  * calculation and not a copy of its formulas. The golden handshakes were captured on
- * the OpenSSL build (`CryptoGoldenVectors.h`); the in-house primitives that replace
+ * the old build (`CryptoGoldenVectors.h`); the in-house primitives that replace
  * it must reproduce every intermediate byte for byte. The short-width handshakes are
  * the ones that matter most: every quantity is hashed at its protocol width, and a
  * minimal encoding passes the full-width handshake and fails all of them.

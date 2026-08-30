@@ -64,8 +64,6 @@ target_link_libraries(mangosd
         game
         proto
         Threads::Threads
-        mangos_openssl
-        mangos_openssl_strict
 )
 
 install(

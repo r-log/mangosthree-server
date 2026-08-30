@@ -56,16 +56,12 @@ target_include_directories(realmd
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
-        ${OPENSSL_INCLUDE_DIR}
 )
 
 target_link_libraries(realmd
     PUBLIC
         shared
         Threads::Threads
-        mangos_openssl
-    PRIVATE
-        mangos_openssl_strict
 )
 
 install(
@@ -166,67 +162,7 @@ if(WITH_TESTS OR BUILD_TESTING)
     )
     target_link_libraries(realmd_patch_safety_tests PRIVATE
         shared
-        mangos_openssl
-        mangos_openssl_strict
     )
-    if(WIN32)
-        # Co-locate the OpenSSL crypto runtime next to the test executable.
-        #
-        # OPENSSL_ROOT_DIR alone is not a usable anchor: FindOpenSSL routinely
-        # resolves via OPENSSL_INCLUDE_DIR / the library paths without it ever
-        # being set, in which case "${OPENSSL_ROOT_DIR}/bin" degrades to "/bin".
-        # Installs also disagree on whether the DLLs sit in <prefix>/bin or
-        # directly in <prefix>. So derive candidate directories from whatever the
-        # OpenSSL discovery actually produced, and search all of them.
-        set(_realmd_openssl_hints)
-        if(OPENSSL_ROOT_DIR)
-            list(APPEND _realmd_openssl_hints
-                "${OPENSSL_ROOT_DIR}" "${OPENSSL_ROOT_DIR}/bin")
-        endif()
-        if(OPENSSL_INCLUDE_DIR)
-            get_filename_component(_realmd_openssl_prefix
-                "${OPENSSL_INCLUDE_DIR}" DIRECTORY)
-            list(APPEND _realmd_openssl_hints
-                "${_realmd_openssl_prefix}" "${_realmd_openssl_prefix}/bin")
-        endif()
-        foreach(_realmd_openssl_lib IN ITEMS
-                ${OPENSSL_CRYPTO_LIBRARY} ${LIB_EAY_RELEASE} ${LIB_EAY})
-            if(_realmd_openssl_lib)
-                get_filename_component(_realmd_openssl_libdir
-                    "${_realmd_openssl_lib}" DIRECTORY)
-                list(APPEND _realmd_openssl_hints
-                    "${_realmd_openssl_libdir}" "${_realmd_openssl_libdir}/../bin")
-            endif()
-        endforeach()
-
-        # The runtime name carries the major version (libcrypto-3-x64.dll on
-        # OpenSSL 3, libcrypto-4-x64.dll on OpenSSL 4), so match the family
-        # rather than pinning one major.
-        find_file(REALMD_TEST_OPENSSL_CRYPTO_DLL
-            NAMES
-                libcrypto-4-x64.dll libcrypto-4.dll
-                libcrypto-3-x64.dll libcrypto-3.dll
-                libcrypto-x64.dll   libcrypto.dll
-            HINTS ${_realmd_openssl_hints}
-        )
-
-        # A missing test-only runtime must not break configuring the server: warn
-        # and let the test fall back to whatever is on PATH.
-        if(REALMD_TEST_OPENSSL_CRYPTO_DLL)
-            add_custom_command(TARGET realmd_patch_safety_tests POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "${REALMD_TEST_OPENSSL_CRYPTO_DLL}"
-                    "$<TARGET_FILE_DIR:realmd_patch_safety_tests>"
-                COMMENT
-                    "realmd_patch_safety_tests: co-locating the OpenSSL runtime"
-            )
-        else()
-            message(WARNING
-                "OpenSSL crypto runtime DLL not found; realmd_patch_safety_tests "
-                "will rely on it being on PATH. Set OPENSSL_ROOT_DIR to have it "
-                "copied next to the test executable.")
-        endif()
-    endif()
     add_test(NAME realmd_patch_safety_tests COMMAND realmd_patch_safety_tests)
 
     add_test(NAME realmd_patch_safety_policy

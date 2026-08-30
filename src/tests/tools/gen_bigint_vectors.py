@@ -2,7 +2,7 @@
 """Generate src/tests/BigIntVectors.h: big-integer test vectors computed by Python.
 
 Python's integers are the second, independent reference for the in-house BigInt and
-Montgomery code (the first is what OpenSSL produced through the old wrappers, in
+Montgomery code (the first is what the old wrappers produced before the switch, in
 CryptoGoldenVectors.h; the third, on Linux, is s2n-bignum). Seeded, so the table is
 reproducible: python3 src/tests/tools/gen_bigint_vectors.py > src/tests/BigIntVectors.h
 """
@@ -30,7 +30,7 @@ def limbs(*words):
 
 
 def hexs(v):
-    """Uppercase, whole bytes, no leading zero bytes -- the BN_bn2hex shape BigInt::ToHex keeps."""
+    """Uppercase, whole bytes, no leading zero bytes -- the shape BigInt::ToHex keeps."""
     if v == 0:
         return "0"
     h = format(v, "X")

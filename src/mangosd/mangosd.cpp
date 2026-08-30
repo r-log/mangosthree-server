@@ -45,9 +45,6 @@
 
 #include <csignal>
 #include "Common/ServerDefines.h"
-#include <openssl/opensslv.h>
-#include <openssl/crypto.h>
-
 #include "Platform/Define.h"
 #include <cstdio>
 #include <cstring>
@@ -296,8 +293,6 @@ int main(int argc, char** argv)
     sLog.outString("%s", GitRevision::GetFullRevision());
     print_banner();
     sLog.outString("Using configuration file %s.", cfg_file);
-
-    DETAIL_LOG("Using SSL version: %s (Library: %s)", OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
 
 
     ///- Set progress bars show mode

@@ -116,7 +116,7 @@ TEST(CryptoRandom_os_backend_delivers_entropy)
 
 TEST(CryptoRandom_bits_has_the_setrand_shape)
 {
-    // Exactly `bits` bits, the top one set, odd: what BN_rand(top = 0, bottom = 1) gave
+    // Exactly `bits` bits, the top one set, odd: what the old wrappers gave
     // the SRP6 ephemerals and salts. 200 draws per width.
     for (size_t bits : { size_t(2), size_t(32), size_t(152), size_t(256), size_t(257) })
     {

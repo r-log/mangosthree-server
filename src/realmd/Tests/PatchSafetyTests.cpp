@@ -61,7 +61,7 @@ void TestInvalidBuildTokensAreRejected()
 }
 
 std::string Hex(
-    std::array<std::uint8_t, MD5_DIGEST_LENGTH> const& digest)
+    std::array<std::uint8_t, Md5Hash::DigestLength> const& digest)
 {
     std::ostringstream hex;
     hex << std::hex << std::setfill('0');

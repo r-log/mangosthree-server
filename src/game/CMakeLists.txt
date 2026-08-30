@@ -129,9 +129,6 @@ target_link_libraries(game
         RecastNavigation::Detour
         ZLIB::ZLIB
         $<$<BOOL:${SCRIPT_LIB_SD3}>:mangosscript>
-    PRIVATE
-        # Holds game to the same OpenSSL 3.x API level as shared and mangosd.
-        mangos_openssl_strict
 )
 
 # Generate precompiled header

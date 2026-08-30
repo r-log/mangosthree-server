@@ -1,8 +1,8 @@
 /**
  * @file
- * @brief BigInt against OpenSSL's goldens, Python's vectors, and its own invariants.
+ * @brief BigInt against the captured goldens, Python's vectors, and its own invariants.
  *
- * Three independent references: what OpenSSL computed through the old wrappers
+ * Three independent references: what the old wrappers computed before the switch
  * (CryptoGoldenVectors.h), what Python's integers compute (BigIntVectors.h), and the
  * algebra a = q * d + r, r < d that any division must satisfy. The directed cases in
  * both tables are the ones Knuth's Algorithm D gets wrong first: a quotient estimate
@@ -60,7 +60,7 @@ namespace
     }
 }
 
-TEST(CryptoBigInt_reproduces_the_openssl_goldens)
+TEST(CryptoBigInt_reproduces_the_goldens)
 {
     const size_t count = sizeof(golden::kBigInt) / sizeof(golden::kBigInt[0]);
     CHECK(count > 200);
@@ -147,7 +147,7 @@ TEST(CryptoBigInt_hex_parsing_and_rendering)
     CHECK_STR(v.ToHex(), "FF");
     CHECK(v.FromHex("abcdef0123456789ABCDEF"));
     CHECK_STR(v.ToHex(), "ABCDEF0123456789ABCDEF");
-    CHECK(v.FromHex("1"));                    // rendered as a whole byte, as BN_bn2hex did
+    CHECK(v.FromHex("1"));                    // rendered as a whole byte, as the old wrappers did
     CHECK_STR(v.ToHex(), "01");
     CHECK(v.FromHex("ABC"));
     CHECK_STR(v.ToHex(), "0ABC");

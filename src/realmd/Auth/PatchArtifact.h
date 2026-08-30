@@ -13,7 +13,7 @@
 #ifndef MANGOS_H_PATCHARTIFACT
 #define MANGOS_H_PATCHARTIFACT
 
-#include <openssl/md5.h>
+#include "Auth/Md5.h"
 
 #include <array>
 #include <cstddef>
@@ -33,7 +33,7 @@ public:
     PatchArtifact& operator=(PatchArtifact const&) = delete;
 
     std::uint64_t size() const { return m_size; }
-    std::array<std::uint8_t, MD5_DIGEST_LENGTH> const& digest() const
+    std::array<std::uint8_t, Md5Hash::DigestLength> const& digest() const
     {
         return m_digest;
     }
@@ -46,11 +46,11 @@ private:
     PatchArtifact(
         std::ifstream stream,
         std::uint64_t size,
-        std::array<std::uint8_t, MD5_DIGEST_LENGTH> digest);
+        std::array<std::uint8_t, Md5Hash::DigestLength> digest);
 
     std::ifstream m_stream;
     std::uint64_t m_size;
-    std::array<std::uint8_t, MD5_DIGEST_LENGTH> m_digest;
+    std::array<std::uint8_t, Md5Hash::DigestLength> m_digest;
 };
 
 #endif

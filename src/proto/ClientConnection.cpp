@@ -72,7 +72,7 @@ namespace proto
          * WorldSocket's constructor drew this from rand32() (the general-purpose
          * PRNG). The value is hashed into the client's proof, so a predictable
          * seed narrows the search space for anyone replaying a captured login --
-         * the OpenSSL RNG is the strictly-safer port, per the Stage 2 prompt.
+         * the OS CSPRNG is the strictly-safer port.
          */
         uint32 MakeAuthSeed()
         {

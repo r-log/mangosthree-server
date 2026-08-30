@@ -27,85 +27,53 @@
 #define _AUTH_SHA1_H
 
 #include "Platform/Define.h"
-#include "Utilities/Errors.h"
-#include <openssl/evp.h>
-#include <openssl/sha.h>       // SHA_DIGEST_LENGTH
+#include "Crypto/Sha1.h"
+
 #include <string>
 
 class BigNumber;
 
+/// The SHA-1 digest width, under the name the protocol code has always used for it.
+constexpr int SHA_DIGEST_LENGTH = 20;
+
 /**
- * @brief SHA-1 hash computation for cryptographic operations
+ * @brief SHA-1 with the interface the authentication code was written against, over
+ * the tree's own core (src/shared/Crypto).
  *
- * Sha1Hash provides SHA-1 (Secure Hash Algorithm 1) hash computation
- * using OpenSSL. Used for password hashing, session key generation,
- * and data integrity verification in World of Warcraft authentication.
+ * Used for the SRP6 quantities, account password hashes and the world session proof.
+ * Value semantics are load-bearing: realmd passes a finalized Sha1Hash to
+ * AuthSocket::SendProof() by value, and a copy carries both the running state and
+ * the digest.
  */
 class Sha1Hash
 {
     public:
-        /**
-         * @brief Constructor - initializes SHA-1 context
-         */
-        Sha1Hash();
-        /**
-         * @brief Destructor
-         */
+        Sha1Hash() = default;
+        /// The digest may be session key material; it does not outlive the object.
         ~Sha1Hash();
+        Sha1Hash(const Sha1Hash& other) = default;
+        Sha1Hash& operator=(const Sha1Hash& other) = default;
 
         /**
-         * @brief Copy constructor - duplicates the digest context
-         *
-         * Value semantics are load-bearing: realmd passes a finalized
-         * Sha1Hash to AuthSocket::SendProof() by value.
-         */
-        Sha1Hash(const Sha1Hash& other);
-        /**
-         * @brief Copy assignment - duplicates the digest context
-         */
-        Sha1Hash& operator=(const Sha1Hash& other);
-
-        /**
-         * @brief Update hash with multiple BigNumbers (variadic)
-         * @param bn0 First BigNumber to add
-         * @param ... Additional BigNumbers (NULL terminated)
+         * @brief Update the hash with the minimal little-endian bytes of each number
+         * @param bn0 First BigNumber; the list is NULL terminated
          */
         void UpdateBigNumbers(BigNumber* bn0, ...);
 
-        /**
-         * @brief Update hash with raw data
-         * @param dta Pointer to data
-         * @param len Length of data
-         */
         void UpdateData(const uint8* dta, int len);
-        /**
-         * @brief Update hash with string data
-         * @param str String to add to hash
-         */
         void UpdateData(const std::string& str);
 
-        /**
-         * @brief Initialize/reset the SHA-1 context
-         */
+        /// Reset, ready to hash a fresh message.
         void Initialize();
-        /**
-         * @brief Finalize the hash computation
-         */
+        /// Produce the digest; the running state is reset afterwards.
         void Finalize();
 
-        /**
-         * @brief Get the computed digest
-         * @return Pointer to digest buffer (20 bytes)
-         */
-        uint8* GetDigest(void) { return mDigest; };
-        /**
-         * @brief Get the digest length
-         * @return SHA_DIGEST_LENGTH (20 bytes)
-         */
-        int GetLength(void) { return SHA_DIGEST_LENGTH; };
+        /// The digest. Only meaningful after Finalize(); SHA_DIGEST_LENGTH bytes.
+        uint8* GetDigest(void) { return mDigest; }
+        int GetLength(void) { return SHA_DIGEST_LENGTH; }
 
     private:
-        EVP_MD_CTX* mC; /**< OpenSSL SHA-1 context */
-        uint8 mDigest[SHA_DIGEST_LENGTH]{ 0 }; /**< Computed hash digest */
+        MaNGOS::Crypto::Sha1Core mC;              /**< The running state */
+        uint8 mDigest[SHA_DIGEST_LENGTH]{ 0 };    /**< The computed digest */
 };
 #endif

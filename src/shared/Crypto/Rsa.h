@@ -104,7 +104,7 @@ namespace MaNGOS
              * decorrelated from the message; the exponentiation itself is the
              * constant-time ModExp. The blinding pair (r^e, r^-1) is kept and squared
              * after every use, and drawn afresh every 32 signatures -- the scheme of
-             * OpenSSL's BN_BLINDING; an inversion per signature would cost as much as a
+             * the classic blinding cache; an inversion per signature would cost as much as a
              * CRT half. The result is not verified here -- the caller does that with the
              * public key, which also catches a faulty CRT computation. Thread-safe.
              */
@@ -123,7 +123,7 @@ namespace MaNGOS
             bool m_crt = false;
             BigInt m_p, m_q, m_dP, m_dQ, m_qInv;
             std::optional<MontgomeryContext> m_pContext, m_qContext;
-            std::vector<Limb> m_qInvMont;   // qInv in Montgomery form modulo p
+            LimbVector m_qInvMont;   // qInv in Montgomery form modulo p
 
             mutable std::mutex m_blindingLock;
             mutable BigInt m_blindingFactor;    // r^e mod n

@@ -281,14 +281,14 @@ target_link_libraries(shared
         Threads::Threads
         utf8
         MySQL::MySQL
-        mangos_openssl
+        # The Auth wrappers (BigNumber, Sha1Hash, HMACSHA1, Md5Hash) are headers over
+        # the tree's own crypto library; whatever includes them needs it too.
+        mangos_crypto
         $<$<BOOL:${WIN32}>:dbghelp>
         # Winsock + the AcceptEx/GetAcceptExSockaddrs extensions used by IocpServer.
         $<$<BOOL:${WIN32}>:ws2_32>
         $<$<BOOL:${WIN32}>:mswsock>
         $<$<BOOL:${MANGOS_USE_IO_URING}>:${URING_LIBRARY}>
-    PRIVATE
-        mangos_openssl_strict
 )
 
 if(MANGOS_USE_IO_URING)

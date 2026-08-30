@@ -122,7 +122,7 @@ namespace MaNGOS
             }
             // Everything checked: build the contexts, then commit.
             MontgomeryContext pContext(p), qContext(q);
-            std::vector<Limb> qInvMont(pContext.Limbs(), 0);
+            LimbVector qInvMont(pContext.Limbs(), 0);
             pContext.ToMont(qInvMont.data(), qInv);
 
             m_public = publicKey;
@@ -149,7 +149,7 @@ namespace MaNGOS
             // h = qInv * (m1 - m2) mod p, in modular arithmetic on kp limbs and with
             // masks, never an unsigned subtraction. Load guarantees p > q, so m2 < q < p
             // is already canonical modulo p and fits kp limbs.
-            std::vector<Limb> a(kp, 0), b(kp, 0), t(kp, 0), tmp(kp, 0);
+            LimbVector a(kp, 0), b(kp, 0), t(kp, 0), tmp(kp, 0);
             for (size_t j = 0; j < m1.LimbCount(); ++j) a[j] = m1.Limbs()[j];
             for (size_t j = 0; j < m2.LimbCount(); ++j) b[j] = m2.Limbs()[j];
             const Limb* p = m_pContext->Modulus();
@@ -163,7 +163,7 @@ namespace MaNGOS
                 for (size_t j = 0; j < kp; ++j) t[j] = CtSelect(wentNegative, tmp[j], t[j]);
             }
             // h = t * qInv mod p: qInv is held in Montgomery form, so one product does it.
-            std::vector<Limb> h(kp, 0);
+            LimbVector h(kp, 0);
             m_pContext->Mul(h.data(), t.data(), m_qInvMont.data());
             const BigInt hValue = BigInt::FromLimbs(h.data(), kp);
 

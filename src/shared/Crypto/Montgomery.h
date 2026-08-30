@@ -115,9 +115,9 @@ namespace MaNGOS
 
         private:
             size_t m_k;
-            std::vector<Limb> m_m;
-            std::vector<Limb> m_r2;
-            std::vector<Limb> m_one;
+            LimbVector m_m;
+            LimbVector m_r2;
+            LimbVector m_one;
             Limb m_n0inv;
             MontMulFn m_kernel;   // the tier, taken once at construction
         };

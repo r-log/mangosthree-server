@@ -1,7 +1,7 @@
 #pragma once
 
 // The patcher's hashes are the tree's own (src/shared/Crypto), tested against the
-// FIPS/RFC vectors and the OpenSSL goldens; this header keeps the patcher's small
+// FIPS/RFC vectors and the captured goldens; this header keeps the patcher's small
 // vocabulary -- digests as std::array, hex helpers -- over them.
 
 #include "Crypto/Hex.h"

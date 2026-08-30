@@ -27,7 +27,7 @@
 #                     it linkable, and testable, on its own.
 #   extractor_data    the DBC stores and tile assembly. Compiles the server's own
 #                     DBCFileLoader rather than linking `shared`, which would drag
-#                     in MySQL and OpenSSL as PUBLIC dependencies.
+#                     in MySQL as a PUBLIC dependency.
 #   extractor_mpq     the StormLib container reader.
 # =============================================================================
 
@@ -129,8 +129,8 @@ target_link_libraries(extractor_mpq
 
 set_target_properties(extractor_mpq PROPERTIES FOLDER "tools")
 
-# The console is compiled IN rather than linked from `shared`, which exports MySQL and
-# OpenSSL as PUBLIC dependencies the baker has no use for. It carries no dependency of
+# The console is compiled IN rather than linked from `shared`, which exports MySQL as
+# a PUBLIC dependency the baker has no use for. It carries no dependency of
 # its own, which is what makes that possible.
 add_executable(mangos-extractor
     Extractor.cpp

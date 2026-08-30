@@ -267,31 +267,31 @@
           case ${VER} in
             "sarah")
               # Linux Mint 18 - Ubuntu Xenial based
-              su -c "aptitude -y install build-essential cmake libbz2-dev libssl-dev libmysqlclient-dev" root
+              su -c "aptitude -y install build-essential cmake libbz2-dev libmysqlclient-dev" root
               ;;
             "rosa")
               # Linux Mint 17.3 - Ubuntu Trusty based
-              su -c "aptitude -y install build-essential cmake libbz2-dev libssl-dev libmysqlclient-dev" root
+              su -c "aptitude -y install build-essential cmake libbz2-dev libmysqlclient-dev" root
               ;;
             "rafaela")
               # Linux Mint 17.2 - Ubuntu Trusty based
-              su -c "aptitude -y install build-essential cmake libbz2-dev libssl-dev libmysqlclient-dev" root
+              su -c "aptitude -y install build-essential cmake libbz2-dev libmysqlclient-dev" root
               ;;
             "rebecca")
               # Linux Mint 17.1 - Ubuntu Trusty based
-              su -c "aptitude -y install build-essential cmake libbz2-dev libssl-dev libmysqlclient-dev" root
+              su -c "aptitude -y install build-essential cmake libbz2-dev libmysqlclient-dev" root
               ;;
             "qiana")
               # Linux Mint 17 - Ubuntu Trusty based
-              su -c "aptitude -y install build-essential cmake libbz2-dev libssl-dev libmysqlclient-dev" root
+              su -c "aptitude -y install build-essential cmake libbz2-dev libmysqlclient-dev" root
               ;;
             "maya")
               # Linux Mint 13 - Ubuntu Precise based
-              su -c "aptitude -y install build-essential cmake libbz2-dev libssl-dev libmysqlclient-dev" root
+              su -c "aptitude -y install build-essential cmake libbz2-dev libmysqlclient-dev" root
               ;;
             "betsy")
               # LMDE 2 - Debian Jessie based
-              su -c "aptitude -y install build-essential linux-headers-$(uname -r) autoconf automake cmake libbz2-dev libace-6.2.8 libssl-dev libmysqlclient-dev libtool zliblg-dev" root
+              su -c "aptitude -y install build-essential linux-headers-$(uname -r) autoconf automake cmake libbz2-dev libace-6.2.8 libmysqlclient-dev libtool zliblg-dev" root
               ;;
             *)
               OS_VER=0
@@ -302,39 +302,39 @@
           case ${VER} in
             "precise")
               # Ubuntu 12.04 LTS
-              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
               ;;
             "trusty")
               # Ubuntu 14.04 LTS
-              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
               ;;
             "xenial")
               # Ubuntu 16.04 LTS
-              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
               ;;
             "yakkety")
               # Ubuntu 16.10
-              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+              su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
               ;;
         "zesty")
           # Ubuntu 17.04
-          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
           ;;
         "artful")
           # Ubuntu 17.10
-          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
           ;;
         "bionic")
           # Ubuntu 18.04 LTS
-          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
           ;;
         "disco")
           # Ubuntu 19.04
-          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
           ;;
         "focal")
           # Ubuntu 20.04
-          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libssl-dev libmysqlclient-dev libtool" root
+          su -c "apt-get -y install build-essential curl autoconf automake cmake libbz2-dev libmysqlclient-dev libtool" root
           ;;
             *)
               OS_VER=0
@@ -345,11 +345,11 @@
           case ${VER} in
             "jessie")
               # Debian 8.0 "current"
-              su -c "aptitude -y install curl build-essential autoconf automake cmake libbz2-dev libssl-dev default-libmysqlclient-dev libtool" root
+              su -c "aptitude -y install curl build-essential autoconf automake cmake libbz2-dev default-libmysqlclient-dev libtool" root
               ;;
             "stretch")
               # Debian Next
-              su -c "aptitude -y install curl build-essential autoconf automake cmake libbz2-dev libssl-dev default-libmysqlclient-dev libtool" root
+              su -c "aptitude -y install curl build-essential autoconf automake cmake libbz2-dev default-libmysqlclient-dev libtool" root
               ;;
             *)
               OS_VER=0
@@ -360,11 +360,11 @@
           case ${VER} in
             "santiago")
               # Red Hat 6.x
-              su -c "yum -y install curl build-essential linux-headers-$(uname -r) autoconf automake cmake libbz2-dev ace-6.3.3 libssl-dev libmysqlclient-dev libtool zliblg-dev" root
+              su -c "yum -y install curl build-essential linux-headers-$(uname -r) autoconf automake cmake libbz2-dev ace-6.3.3 libmysqlclient-dev libtool zliblg-dev" root
               ;;
             "maipo")
               # Red Hat 7.x
-              su -c "yum -y install curl build-essential linux-headers-$(uname -r) autoconf automake cmake libbz2-dev ace-6.3.3 libssl-dev libmysqlclient-dev libtool zliblg-dev" root
+              su -c "yum -y install curl build-essential linux-headers-$(uname -r) autoconf automake cmake libbz2-dev ace-6.3.3 libmysqlclient-dev libtool zliblg-dev" root
               ;;
             *)
               OS_VER=0
@@ -381,7 +381,7 @@
               rpm -Uv ftp://rpmfind.net/linux/centos/7/os/x86_64/Packages/libtool-2.4.2-22.el7_3.x86_64.rpm
               rpm -Uv ftp://ftp.pbone.net/mirror/ftp5.gwdg.de/pub/opensuse/repositories/devel:/libraries:/ACE:/micro/CentOS_7/x86_64/ace-devel-6.3.3-55.1.x86_64.rpm
               su -c "yum -y install epel-release"
-              su -c "yum -y install curl autoconf automake cmake3 ace-devel ace-6.3.3 openssl-devel mysql-devel libtool gcc-c++ bzip2-devel" root
+              su -c "yum -y install curl autoconf automake cmake3 ace-devel ace-6.3.3 mysql-devel libtool gcc-c++ bzip2-devel" root
               ;;
             *)
               OS_VER=0
@@ -411,7 +411,7 @@
               make install
               cd ~
               # Installing remaining dependencies..
-              su -c "yum -y install cmake openssl-devel mariadb-devel" root
+              su -c "yum -y install cmake mariadb-devel" root
               ;;
             "Forty")
               # Fedora 40 - Adding necessary RPM third-party.
@@ -458,7 +458,7 @@
 
               # Installing remaining dependencies..
 
-              for packageName in 'cmake' 'openssl-devel' 'mariadb-devel'; do
+              for packageName in 'cmake' 'mariadb-devel'; do
                 if ! rpm -qa "name=$packageName"; then
                   dnf -y install "$packageName"
                 fi

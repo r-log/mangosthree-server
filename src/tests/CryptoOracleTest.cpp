@@ -32,56 +32,56 @@ namespace
 {
     std::mt19937_64 g_rng(0x53324E2D42494Eull);
 
-    std::vector<Limb> RandomLimbs(size_t k)
+    LimbVector RandomLimbs(size_t k)
     {
-        std::vector<Limb> v(k);
+        LimbVector v(k);
         for (auto& l : v) l = g_rng();
         return v;
     }
 
     /// An odd modulus of k limbs with a non-zero top limb.
-    std::vector<Limb> OddModulus(size_t k)
+    LimbVector OddModulus(size_t k)
     {
-        std::vector<Limb> m = RandomLimbs(k);
+        LimbVector m = RandomLimbs(k);
         m[0] |= 1;
         if (m[k - 1] == 0) m[k - 1] = 1;
         return m;
     }
 
     /// A value below m (the same limb count): random limbs, reduced with BigInt.
-    std::vector<Limb> Below(const std::vector<Limb>& m)
+    LimbVector Below(const LimbVector& m)
     {
         const size_t k = m.size();
         const BigInt modulus = BigInt::FromLimbs(m.data(), k);
-        std::vector<Limb> r = RandomLimbs(k);
+        LimbVector r = RandomLimbs(k);
         const BigInt reduced = BigInt::FromLimbs(r.data(), k) % modulus;
-        std::vector<Limb> out(k, 0);
+        LimbVector out(k, 0);
         for (size_t j = 0; j < reduced.LimbCount(); ++j) out[j] = reduced.Limbs()[j];
         return out;
     }
 
-    std::vector<Limb> MinusOne(const std::vector<Limb>& m)
+    LimbVector MinusOne(const LimbVector& m)
     {
-        std::vector<Limb> v = m;
+        LimbVector v = m;
         v[0] -= 1;   // m is odd, so no borrow
         return v;
     }
 
-    bool Same(const std::vector<Limb>& a, const std::vector<Limb>& b)
+    bool Same(const LimbVector& a, const LimbVector& b)
     {
         return a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * LimbBytes) == 0;
     }
 
-    Limb N0Inv(const std::vector<Limb>& m)
+    Limb N0Inv(const LimbVector& m)
     {
         MontgomeryContext ctx(BigInt::FromLimbs(m.data(), m.size()));
         return ctx.N0Inv();
     }
 
-    void CompareMontMul(MontMulFn kernel, const std::vector<Limb>& m, const std::vector<Limb>& x, const std::vector<Limb>& y)
+    void CompareMontMul(MontMulFn kernel, const LimbVector& m, const LimbVector& x, const LimbVector& y)
     {
         const size_t k = m.size();
-        std::vector<Limb> ours(k), theirs(k);
+        LimbVector ours(k), theirs(k);
         kernel(ours.data(), x.data(), y.data(), m.data(), N0Inv(m), k);
         bignum_montmul(k, theirs.data(), x.data(), y.data(), m.data());
         CHECK(Same(ours, theirs));
@@ -99,12 +99,12 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
     {
         for (int round = 0; round < 4; ++round)
         {
-            const std::vector<Limb> m = OddModulus(k);
+            const LimbVector m = OddModulus(k);
             const int cases = k >= 32 ? 400 : 2000;
             const bool asmHere = HasAsmTier() && k % 4 == 0;
             for (int i = 0; i < cases; ++i)
             {
-                const std::vector<Limb> x = Below(m), y = Below(m);
+                const LimbVector x = Below(m), y = Below(m);
                 CompareMontMul(&MontMulPortable, m, x, y);
                 if (HasMulxTier())
                 {
@@ -116,8 +116,8 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
                 }
             }
             // the edge patterns
-            const std::vector<Limb> mm1 = MinusOne(m);
-            std::vector<Limb> one(k, 0), zero(k, 0);
+            const LimbVector mm1 = MinusOne(m);
+            LimbVector one(k, 0), zero(k, 0);
             one[0] = 1;
             std::vector<MontMulFn> kernels = { &MontMulPortable };
             if (HasMulxTier()) kernels.push_back(&MontMulMulx);
@@ -129,7 +129,7 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
                 CompareMontMul(kernel, m, zero, mm1);
                 CompareMontMul(kernel, m, one, one);
                 CompareMontMul(kernel, m, zero, zero);
-                const std::vector<Limb> same = Below(m);
+                const LimbVector same = Below(m);
                 CompareMontMul(kernel, m, same, same);
             }
         }
@@ -140,7 +140,7 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
             {
                 continue;   // that would be the modulus 1, which no context accepts
             }
-            std::vector<Limb> m = OddModulus(k);
+            LimbVector m = OddModulus(k);
             m[k - 1] = top;
             m[0] |= 1;
             std::vector<MontMulFn> kernels = { &MontMulPortable };
@@ -165,18 +165,18 @@ TEST(CryptoOracle_montgomery_constants_match_s2n_bignum)
     {
         for (int round = 0; round < 8; ++round)
         {
-            const std::vector<Limb> m = OddModulus(k);
+            const LimbVector m = OddModulus(k);
             MontgomeryContext ctx(BigInt::FromLimbs(m.data(), k));
             // negmodinv: -m^-1 mod 2^64 (the word-level version is the first limb of the array one)
-            std::vector<Limb> negInv(k);
+            LimbVector negInv(k);
             bignum_negmodinv(k, negInv.data(), m.data());
             CHECK_EQ(negInv[0], ctx.N0Inv());
             // montifier: 2^(128k) mod m, which is R^2
-            std::vector<Limb> r2(k), t(3 * k);
+            LimbVector r2(k), t(3 * k);
             bignum_montifier(k, r2.data(), m.data(), t.data());
             CHECK(std::memcmp(r2.data(), ctx.R2(), k * LimbBytes) == 0);
             // demont of our One is 1
-            std::vector<Limb> back(k);
+            LimbVector back(k);
             bignum_demont(k, back.data(), ctx.One(), m.data());
             CHECK_EQ(back[0], Limb(1));
             bool rest = true;
@@ -192,25 +192,25 @@ TEST(CryptoOracle_modexp_matches_s2n_bignum)
     {
         for (int round = 0; round < (k >= 32 ? 3 : 10); ++round)
         {
-            const std::vector<Limb> m = OddModulus(k);
+            const LimbVector m = OddModulus(k);
             const BigInt modulus = BigInt::FromLimbs(m.data(), k);
             MontgomeryContext ctx(modulus);
             for (int i = 0; i < 4; ++i)
             {
-                const std::vector<Limb> a = Below(m), p = RandomLimbs(k);
-                std::vector<Limb> theirs(k), t(3 * k);
+                const LimbVector a = Below(m), p = RandomLimbs(k);
+                LimbVector theirs(k), t(3 * k);
                 bignum_modexp(k, theirs.data(), a.data(), p.data(), m.data(), t.data());
                 const BigInt ours = ModExp(BigInt::FromLimbs(a.data(), k), BigInt::FromLimbs(p.data(), k), ctx);
                 CHECK_STR(ours.ToHex(), BigInt::FromLimbs(theirs.data(), k).ToHex());
             }
             // the edge patterns: base m-1, exponent all ones, exponent zero
             {
-                const std::vector<Limb> a = MinusOne(m);
-                std::vector<Limb> p(k, ~Limb(0)), theirs(k), t(3 * k);
+                const LimbVector a = MinusOne(m);
+                LimbVector p(k, ~Limb(0)), theirs(k), t(3 * k);
                 bignum_modexp(k, theirs.data(), a.data(), p.data(), m.data(), t.data());
                 CHECK_STR(ModExp(BigInt::FromLimbs(a.data(), k), BigInt::FromLimbs(p.data(), k), ctx).ToHex(),
                           BigInt::FromLimbs(theirs.data(), k).ToHex());
-                std::vector<Limb> zero(k, 0);
+                LimbVector zero(k, 0);
                 bignum_modexp(k, theirs.data(), a.data(), zero.data(), m.data(), t.data());
                 CHECK_STR(ModExp(BigInt::FromLimbs(a.data(), k), BigInt(), ctx).ToHex(),
                           BigInt::FromLimbs(theirs.data(), k).ToHex());
@@ -225,26 +225,26 @@ TEST(CryptoOracle_modinv_and_mul_match_s2n_bignum)
     {
         for (int round = 0; round < 20; ++round)
         {
-            std::vector<Limb> m = OddModulus(k);
+            LimbVector m = OddModulus(k);
             if (k == 1 && m[0] < 3) m[0] = 3;
             const BigInt modulus = BigInt::FromLimbs(m.data(), k);
-            std::vector<Limb> a = Below(m);
+            LimbVector a = Below(m);
             const BigInt aValue = BigInt::FromLimbs(a.data(), k);
             const BigInt ours = ModInverse(aValue, modulus);
-            std::vector<Limb> t(3 * k), pad(k, 0);
+            LimbVector t(3 * k), pad(k, 0);
             if (!bignum_coprime(k, a.data(), k, m.data(), t.data()))
             {
                 CHECK(ours.IsZero());
                 continue;
             }
-            std::vector<Limb> theirs(k);
+            LimbVector theirs(k);
             bignum_modinv(k, theirs.data(), a.data(), m.data(), t.data());
             CHECK_STR(ours.ToHex(), BigInt::FromLimbs(theirs.data(), k).ToHex());
         }
         for (int round = 0; round < 20; ++round)
         {
-            const std::vector<Limb> x = RandomLimbs(k), y = RandomLimbs(k + round % 3);
-            std::vector<Limb> theirs(x.size() + y.size());
+            const LimbVector x = RandomLimbs(k), y = RandomLimbs(k + round % 3);
+            LimbVector theirs(x.size() + y.size());
             bignum_mul(theirs.size(), theirs.data(), x.size(), x.data(), y.size(), y.data());
             const BigInt ours = BigInt::FromLimbs(x.data(), x.size()) * BigInt::FromLimbs(y.data(), y.size());
             CHECK_STR(ours.ToHex(), BigInt::FromLimbs(theirs.data(), theirs.size()).ToHex());
@@ -257,7 +257,7 @@ TEST(CryptoOracle_modinv_and_mul_match_s2n_bignum)
 TEST(CryptoOracle_not_available_on_this_platform)
 {
     // The s2n-bignum oracle assembles on Linux x86-64 with GCC or Clang only; here the
-    // same comparisons ran against the Python vectors and the OpenSSL goldens.
+    // same comparisons ran against the Python vectors and the captured goldens.
     CHECK(true);
 }
 

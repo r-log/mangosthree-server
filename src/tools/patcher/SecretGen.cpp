@@ -94,7 +94,7 @@ namespace
     }
 
     /**
-     * @brief Serialise a BIGNUM to a fixed width, big-endian.
+     * @brief Serialise a BigInt to a fixed width, big-endian.
      *
      * Fixed width matters: the modulus has to be exactly 256 bytes because that
      * is the width the client's verifier reads, and a private exponent whose top

@@ -24,174 +24,181 @@
  */
 
 #include "Auth/BigNumber.h"
-#include <openssl/bn.h>
+#include "Crypto/ModExp.h"
+#include "Crypto/SecureZero.h"
+#include "Crypto/SystemRandom.h"
+#include "Log/Log.h"
+#include "Utilities/Errors.h"
+
 #include <algorithm>
+#include <string>
 #include <vector>
+
+using MaNGOS::Crypto::BigInt;
+
+namespace
+{
+    void Erase(std::vector<uint8>& bytes)
+    {
+        if (!bytes.empty())
+        {
+            MaNGOS::Crypto::SecureZero(bytes.data(), bytes.size());
+        }
+        bytes.clear();
+    }
+
+    void Erase(std::string& text)
+    {
+        if (!text.empty())
+        {
+            MaNGOS::Crypto::SecureZero(&text[0], text.size());
+        }
+        text.clear();
+    }
+}
 
 BigNumber::BigNumber()
 {
-    _bn = BN_new();
-    _array = NULL;
 }
 
-BigNumber::BigNumber(const BigNumber& bn)
+BigNumber::BigNumber(const BigNumber& bn) : m_value(bn.m_value)
 {
-    _bn = BN_dup(bn._bn);
-    _array = NULL;
 }
 
-BigNumber::BigNumber(uint32 val)
+BigNumber::BigNumber(uint32 val) : m_value(val)
 {
-    _bn = BN_new();
-    BN_set_word(_bn, val);
-    _array = NULL;
 }
 
 BigNumber::~BigNumber()
 {
-    BN_free(_bn);
-    if (_array)
-    {
-        delete[] _array;
-    }
+    m_value.SecureClear();
+    Erase(m_array);
+    Erase(m_text);
 }
 
 void BigNumber::SetDword(uint32 val)
 {
-    BN_set_word(_bn, val);
+    m_value = BigInt(val);
 }
 
 void BigNumber::SetQword(uint64 val)
 {
-    BN_add_word(_bn, (uint32)(val >> 32));
-    BN_lshift(_bn, _bn, 32);
-    BN_add_word(_bn, (uint32)(val & 0xFFFFFFFF));
+    m_value = BigInt(val);
 }
 
 void BigNumber::SetBinary(const uint8* bytes, int len)
 {
-    // Input is little-endian; BN_bin2bn wants big-endian, hence the reversal.
-    //
-    // The buffer used to be a fixed uint8 t[1000] on the stack with no check on
-    // len, so any caller passing more than a kilobyte wrote past it. Nothing in
-    // the tree does today -- the largest is a 40-byte session key -- but the
-    // bound was neither enforced nor documented, and the argument comes from
-    // callers that read lengths off the wire.
-    if (len <= 0)
+    // The argument comes from callers that read lengths off the wire: nothing is
+    // assumed about it beyond what the bytes say.
+    if (len <= 0 || !bytes)
     {
-        BN_zero(_bn);
+        m_value = BigInt();
         return;
     }
-
-    // Braces, not parentheses: vector<uint8> reversed(size_t(len)) is a function
-    // declaration, not a vector -- the most vexing parse.
-    std::vector<uint8> reversed(static_cast<size_t>(len), 0);
-    for (int i = 0; i < len; ++i)
-    {
-        reversed[size_t(i)] = bytes[len - 1 - i];
-    }
-
-    BN_bin2bn(reversed.data(), len, _bn);
+    m_value = BigInt::FromBytesLE(bytes, size_t(len));
 }
 
 void BigNumber::SetHexStr(const char* str)
 {
-    BN_hex2bn(&_bn, str);
+    if (!str || !m_value.FromHex(str))
+    {
+        m_value = BigInt();
+        if (str && *str)
+        {
+            sLog.outError("BigNumber: '%s' is not a hexadecimal number; using zero", str);
+        }
+    }
 }
 
 void BigNumber::SetRand(int numbits)
 {
-    BN_rand(_bn, numbits, 0, 1);
+    MANGOS_ASSERT(numbits >= 2);
+    m_value = MaNGOS::Crypto::SystemRandom::Instance().Bits(size_t(numbits));
 }
 
 BigNumber BigNumber::operator=(const BigNumber& bn)
 {
-    BN_copy(_bn, bn._bn);
+    if (this != &bn)
+    {
+        m_value = bn.m_value;
+    }
     return *this;
 }
 
 BigNumber BigNumber::operator+=(const BigNumber& bn)
 {
-    BN_add(_bn, _bn, bn._bn);
+    m_value += bn.m_value;
     return *this;
 }
 
 BigNumber BigNumber::operator-=(const BigNumber& bn)
 {
-    BN_sub(_bn, _bn, bn._bn);
+    MANGOS_ASSERT(!(m_value < bn.m_value) && "BigNumber is unsigned: the result would be negative");
+    m_value -= bn.m_value;
     return *this;
 }
 
 BigNumber BigNumber::operator*=(const BigNumber& bn)
 {
-    BN_CTX* bnctx;
-
-    bnctx = BN_CTX_new();
-    BN_mul(_bn, _bn, bn._bn, bnctx);
-    BN_CTX_free(bnctx);
-
+    m_value *= bn.m_value;
     return *this;
 }
 
 BigNumber BigNumber::operator/=(const BigNumber& bn)
 {
-    BN_CTX* bnctx;
-
-    bnctx = BN_CTX_new();
-    BN_div(_bn, NULL, _bn, bn._bn, bnctx);
-    BN_CTX_free(bnctx);
-
+    MANGOS_ASSERT(!bn.m_value.IsZero() && "BigNumber: division by zero");
+    m_value /= bn.m_value;
     return *this;
 }
 
 BigNumber BigNumber::operator%=(const BigNumber& bn)
 {
-    BN_CTX* bnctx;
-
-    bnctx = BN_CTX_new();
-    BN_mod(_bn, _bn, bn._bn, bnctx);
-    BN_CTX_free(bnctx);
-
+    MANGOS_ASSERT(!bn.m_value.IsZero() && "BigNumber: division by zero");
+    m_value %= bn.m_value;
     return *this;
 }
 
 BigNumber BigNumber::Exp(const BigNumber& bn)
 {
-    BigNumber ret;
-    BN_CTX* bnctx;
-
-    bnctx = BN_CTX_new();
-    BN_exp(ret._bn, _bn, bn._bn, bnctx);
-    BN_CTX_free(bnctx);
-
+    BigNumber ret(1);
+    const size_t bits = bn.m_value.BitLength();
+    for (size_t i = bits; i-- > 0;)
+    {
+        ret.m_value *= ret.m_value;
+        if (bn.m_value.Bit(i))
+        {
+            ret.m_value *= m_value;
+        }
+    }
     return ret;
 }
 
 BigNumber BigNumber::ModExp(const BigNumber& bn1, const BigNumber& bn2)
 {
     BigNumber ret;
-    BN_CTX* bnctx;
-
-    bnctx = BN_CTX_new();
-    BN_mod_exp(ret._bn, _bn, bn1._bn, bn2._bn, bnctx);
-    BN_CTX_free(bnctx);
-
+    if (bn2.m_value.IsZero())
+    {
+        return ret;
+    }
+    // Odd moduli of two limbs or more take the Montgomery kernel; the rest (never a
+    // protocol modulus) the plain path, so the class stays total.
+    ret.m_value = MaNGOS::Crypto::ModExp(m_value, bn1.m_value, bn2.m_value, MaNGOS::Crypto::ExponentKind::Secret);
     return ret;
 }
 
 int BigNumber::GetNumBytes(void)
 {
-    return BN_num_bytes(_bn);
+    return int(m_value.ByteLength());
 }
 
 uint32 BigNumber::AsDword()
 {
-    return (uint32)BN_get_word(_bn);
+    return uint32(m_value.Low64());
 }
 
 bool BigNumber::isZero() const
 {
-    return BN_is_zero(_bn) != 0;
+    return m_value.IsZero();
 }
 
 uint8* BigNumber::AsByteArray(int minSize)
@@ -201,39 +208,34 @@ uint8* BigNumber::AsByteArray(int minSize)
 
 uint8* BigNumber::AsByteArray(int minSize, bool reverse)
 {
-    const int length = (minSize >= GetNumBytes()) ? minSize : GetNumBytes();
+    const size_t length = std::max(size_t(minSize > 0 ? minSize : 0), m_value.ByteLength());
 
-    delete[] _array;
-    _array = new uint8[length];
-
-    // BN_bn2binpad left-pads to exactly `length` bytes. The previous code used
-    // BN_bn2bin, which emits the minimal big-endian encoding at offset 0 and
-    // leaves the zero padding at the *end* -- so std::reverse below moved that
-    // padding to the front of the little-endian result and shifted the value by
-    // however many bytes were short.
-    //
-    // The number has to serialise shorter than requested for this to bite, which
-    // for a uniformly distributed quantity (every SRP6 value here) is a leading
-    // zero byte: about 1 login in 256. That is why it survived so long -- it
-    // looks exactly like a flaky network, and it is invisible 255 times out of
-    // 256. Using the padding-aware call makes the mistake unwritable rather than
-    // merely fixed.
-    BN_bn2binpad(_bn, _array, length);
-
-    if (reverse)
+    Erase(m_array);
+    if (length == 0)
     {
-        std::reverse(_array, _array + length);
+        // Zero at width zero: a pointer the caller may hand to a hash with a length of
+        // zero, never a null one.
+        m_array.assign(1, 0);
+        return m_array.data();
     }
-
-    return _array;
+    // The value is rendered at `length` bytes, so the padding lands at the high end
+    // whichever way round the bytes go -- not rendered minimal and then padded, the
+    // mistake that once shifted every SRP6 value with a leading zero byte, one login
+    // in 256.
+    m_array = reverse ? m_value.ToBytesLE(length) : m_value.ToBytesBE(length);
+    return m_array.data();
 }
 
 const char* BigNumber::AsHexStr()
 {
-    return BN_bn2hex(_bn);
+    Erase(m_text);
+    m_text = m_value.ToHex();
+    return m_text.c_str();
 }
 
 const char* BigNumber::AsDecStr()
 {
-    return BN_bn2dec(_bn);
+    Erase(m_text);
+    m_text = m_value.ToDecimal();
+    return m_text.c_str();
 }

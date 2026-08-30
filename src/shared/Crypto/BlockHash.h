@@ -57,6 +57,9 @@ namespace MaNGOS
             static constexpr size_t DigestLength = Traits::DigestLength;
 
             BlockHash() { Reset(); }
+            // A copy carries the running state: the SHA-1 wrapper is passed by value.
+            BlockHash(const BlockHash&) = default;
+            BlockHash& operator=(const BlockHash&) = default;
 
             /// What was hashed may have been a key: the state and the buffered bytes are
             /// erased, not just dropped.

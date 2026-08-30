@@ -240,7 +240,7 @@ namespace proto
             AuthCrypt  m_crypt;
             std::mutex m_cryptSendLock; ///< serialises header encryption on send
 
-            /// Server half of the authentication nonce, drawn from the OpenSSL RNG
+            /// Server half of the authentication nonce, drawn from the OS CSPRNG
             /// rather than the general-purpose PRNG (the old WorldSocket used
             /// rand32()): it is an input to the client's SHA-1 proof, so a
             /// predictable value weakens the handshake.

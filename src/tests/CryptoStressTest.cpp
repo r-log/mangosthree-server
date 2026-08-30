@@ -41,12 +41,12 @@
  * @file
  * @brief Known-answer and stress coverage for the crypto used on the wire.
  *
- * Every digest here was reimplemented during the OpenSSL 3.x migration: Sha1Hash
- * and HMACSHA1 moved from the deprecated low-level API to EVP, Md5Hash is new,
- * and a 474-line vendored MD5 was deleted. A reimplementation that is subtly
- * wrong does not fail to build and does not crash -- it produces a digest the
- * client rejects, which presents as "login does not work" with nothing in the
- * log. Known-answer vectors are the only thing that catches that.
+ * Every digest here has been reimplemented twice: once when the wrappers moved to
+ * a newer library API, and once when the library went and the wrappers became
+ * adapters over the tree's own cores. A reimplementation that is subtly wrong does
+ * not fail to build and does not crash -- it produces a digest the client rejects,
+ * which presents as "login does not work" with nothing in the log. Known-answer
+ * vectors are the only thing that catches that.
  *
  * The vectors are from RFC 1321 (MD5), RFC 3174 (SHA-1) and RFC 2202 (HMAC).
  *
@@ -274,7 +274,7 @@ TEST(Crypto_arc4_matches_the_published_vector)
 {
     // This vector is what says the in-house ARCFOUR is the cipher it replaced.
     // It predates that swap and was not touched by it: the same three-byte key
-    // and the same nine bytes of plaintext that OpenSSL's RC4 turned into these
+    // and the same nine bytes of plaintext that the library's RC4 turned into these
     // bytes, so equivalence is demonstrated rather than asserted.
     //
     // A cipher that initialises cleanly and encrypts to something else passes
