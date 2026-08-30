@@ -26,6 +26,7 @@
 #ifndef MANGOS_H_CRYPTO_BIGINT
 #define MANGOS_H_CRYPTO_BIGINT
 
+#include "Crypto/ErasingAllocator.h"
 #include "Crypto/Limb.h"
 
 #include <cstddef>
@@ -38,6 +39,11 @@ namespace MaNGOS
 {
     namespace Crypto
     {
+        /// Limb storage that is erased whenever it is freed -- on assignment, growth,
+        /// destruction, and for every temporary and local of the same type. The reason
+        /// a value that passed through a BigInt does not linger in the heap.
+        using LimbVector = std::vector<Limb, ErasingAllocator<Limb>>;
+
         /**
          * @brief An unsigned integer of any size: 64-bit limbs, little-endian, normalised.
          *
@@ -81,7 +87,7 @@ namespace MaNGOS
             size_t BitLength() const;
             size_t ByteLength() const { return (BitLength() + 7) / 8; }
             size_t LimbCount() const { return m_limbs.size(); }
-            const std::vector<Limb>& Limbs() const { return m_limbs; }
+            const LimbVector& Limbs() const { return m_limbs; }
             Limb Low64() const { return m_limbs.empty() ? 0 : m_limbs[0]; }
             bool Bit(size_t index) const;
 
@@ -121,7 +127,7 @@ namespace MaNGOS
         private:
             void Normalise();
 
-            std::vector<Limb> m_limbs;
+            LimbVector m_limbs;
         };
     }
 }

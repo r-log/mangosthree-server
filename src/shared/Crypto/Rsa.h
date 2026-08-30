@@ -123,7 +123,7 @@ namespace MaNGOS
             bool m_crt = false;
             BigInt m_p, m_q, m_dP, m_dQ, m_qInv;
             std::optional<MontgomeryContext> m_pContext, m_qContext;
-            std::vector<Limb> m_qInvMont;   // qInv in Montgomery form modulo p
+            LimbVector m_qInvMont;   // qInv in Montgomery form modulo p
 
             mutable std::mutex m_blindingLock;
             mutable BigInt m_blindingFactor;    // r^e mod n

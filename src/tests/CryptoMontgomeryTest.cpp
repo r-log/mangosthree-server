@@ -60,9 +60,9 @@ namespace
         return BigInt::FromBytesLE(bytes.data(), bytes.size());
     }
 
-    std::vector<Limb> Padded(const BigInt& v, size_t k)
+    LimbVector Padded(const BigInt& v, size_t k)
     {
-        std::vector<Limb> out(k, 0);
+        LimbVector out(k, 0);
         for (size_t j = 0; j < v.LimbCount(); ++j) out[j] = v.Limbs()[j];
         return out;
     }
@@ -72,7 +72,7 @@ namespace
     {
         const size_t k = ctx.Limbs();
         const BigInt m = ctx.ModulusValue();
-        std::vector<Limb> xl = Padded(x, k), yl = Padded(y, k), zl(k);
+        LimbVector xl = Padded(x, k), yl = Padded(y, k), zl(k);
         kernel(zl.data(), xl.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
         const BigInt z = BigInt::FromLimbs(zl.data(), k);
         CHECK(z < m);
@@ -80,7 +80,7 @@ namespace
         const BigInt rhs = (x * y) % m;
         CHECK_STR(lhs.ToHex(), rhs.ToHex());
         // aliasing: z may be x
-        std::vector<Limb> alias = xl;
+        LimbVector alias = xl;
         kernel(alias.data(), alias.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
         CHECK(std::memcmp(alias.data(), zl.data(), k * LimbBytes) == 0);
     }
@@ -109,7 +109,7 @@ TEST(CryptoMontgomery_context_constants)
         CHECK_STR(BigInt::FromLimbs(ctx.R2(), k).ToHex(), ((R * R) % m).ToHex());
         CHECK_STR(ctx.ModulusValue().ToHex(), m.ToHex());
         // to and from Montgomery form round-trip, reducing on the way in
-        std::vector<Limb> z(k);
+        LimbVector z(k);
         const BigInt wide = RandomBits(LimbBits * k * 2);
         ctx.ToMont(z.data(), wide);
         CHECK_STR(ctx.FromMont(z.data()).ToHex(), (wide % m).ToHex());
@@ -178,7 +178,7 @@ TEST(CryptoMontgomery_portable_kernel_matches_the_definition)
             }
         }
         // a modulus whose top limb is exactly 0x8000000000000000, and one whose top limb is 1
-        std::vector<Limb> limbs(k);
+        LimbVector limbs(k);
         for (auto& l : limbs) l = g_rng();
         limbs[k - 1] = Limb(1) << 63;
         limbs[0] |= 1;
@@ -260,7 +260,7 @@ TEST(CryptoMontgomery_tiers_agree)
                 for (int i = 0; i < 16; ++i)
                 {
                     const BigInt x = RandomBits(m.BitLength()) % m, y = RandomBits(m.BitLength()) % m;
-                    std::vector<Limb> xl = Padded(x, k), yl = Padded(y, k), a(k), b(k);
+                    LimbVector xl = Padded(x, k), yl = Padded(y, k), a(k), b(k);
                     MontMulPortable(a.data(), xl.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
                     other(b.data(), xl.data(), yl.data(), ctx.Modulus(), ctx.N0Inv(), k);
                     CHECK(std::memcmp(a.data(), b.data(), k * LimbBytes) == 0);

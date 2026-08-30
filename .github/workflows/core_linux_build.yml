@@ -97,7 +97,8 @@ jobs:
 
       # No binary of ours links the crypto library the tree used to sit on. Direct imports
       # only (readelf, not ldd): the MySQL client brings its own copy, and that one is its.
-      - name: Check the import tables
+      # And no binary carries a static copy: none defines the library's entry points.
+      - name: Check the import tables and the defined symbols
         run: |
           checked=0
           while IFS= read -r bin; do
@@ -105,6 +106,10 @@ jobs:
             checked=$((checked + 1))
             if readelf -d "$bin" | grep -E 'NEEDED.*lib(ssl|crypto)'; then
               echo "::error::$bin links the removed crypto library"
+              exit 1
+            fi
+            if nm --defined-only "$bin" 2>/dev/null | grep -E ' (CRYPTO_malloc|EVP_MD_CTX_new|BN_new|ERR_get_error)$'; then
+              echo "::error::$bin carries a static copy of the removed crypto library"
               exit 1
             fi
           done < <(find "$BUILD_DIR/src" -type f -perm -u+x -not -name '*.o' -not -name '*.a')

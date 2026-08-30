@@ -21,17 +21,19 @@
 #      package list, a workflow, a comment, a link target -- except one sentence in
 #      README.md about the MySQL client shipping its own copy for itself. The pattern is
 #      deliberately unanchored so a package name, a target name or a DLL name all match.
-#      dep/ (vendored, its own business) and the historical ChangeLog are excluded.
+#      dep/ (vendored, its own business; only its CMake lists are read) and the
+#      historical ChangeLog are excluded.
 #
 #   2. No source under src/ uses that library's symbol families -- the prefixes its
-#      API used. A wrapper that quietly reached back for one would be caught at its
-#      first identifier. src/modules (a submodule) is excluded.
+#      API used, and its big-number type name. A wrapper that quietly reached back for
+#      one would be caught at its first identifier. src/modules (a submodule) is
+#      excluded.
 #
 # Both greps must come back empty; this script prints every offender it finds.
 
 set(WORD_PATTERN "openssl|libssl|libcrypto|legacy[.]dll")
 set(README_SENTENCE "the openssl libraries it brings for itself")
-set(SYMBOL_PATTERN "(^|[^A-Za-z0-9_])(OSSL|EVP|BN|OPENSSL|SHA1|MD5|HMAC|RAND)_[A-Za-z]")
+set(SYMBOL_PATTERN "(^|[^A-Za-z0-9_])((OSSL|EVP|BN|OPENSSL|SHA1|MD5|HMAC|RAND)_[A-Za-z]|BIGNUM([^A-Za-z0-9_]|$))")
 
 file(GLOB_RECURSE ALL_FILES LIST_DIRECTORIES false RELATIVE "${SOURCE_ROOT}" "${SOURCE_ROOT}/*")
 
@@ -40,11 +42,16 @@ set(SYMBOL_OFFENDERS)
 set(SCANNED 0)
 
 foreach(REL IN LISTS ALL_FILES)
-  # Excluded: version control, any build tree inside the checkout, vendored code, the
-  # compiler cache, the historical change log, and this script (it spells the patterns).
+  # Excluded: version control, any build tree inside the checkout, the compiler cache,
+  # the historical change log, this script (it spells the patterns), and vendored code
+  # -- except the CMake lists under dep/, which are where a vendored crypto target would
+  # have to be declared to reach a binary of ours.
   if(REL MATCHES "^[.]git/" OR REL MATCHES "^[.]ccache/" OR REL MATCHES "^_?build[^/]*/"
-     OR REL MATCHES "^dep/" OR REL STREQUAL "extra/doc/ChangeLog.md"
+     OR REL STREQUAL "extra/doc/ChangeLog.md"
      OR REL STREQUAL "src/tests/CheckCryptoIsOurs.cmake")
+    continue()
+  endif()
+  if(REL MATCHES "^dep/" AND NOT REL MATCHES "^dep/([^/]+/)?CMakeLists[.]txt$")
     continue()
   endif()
   # Only text is worth reading; binaries (images, archives) cannot name a library.

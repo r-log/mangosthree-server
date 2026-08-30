@@ -89,14 +89,14 @@ void RunCryptoBench()
         t = MedianMicros(100, [&] { BigInt r = ModExp(base, dP, pctx); (void)r; });
         std::printf("| one CRT half: 1024-bit `ModExp` (16 limbs) | %.0f us | 100 |\n", t);
         const size_t k = ctx.Limbs();
-        std::vector<Limb> a(k), b(k), z(k);
+        LimbVector a(k), b(k), z(k);
         ctx.ToMont(a.data(), base);
         ctx.ToMont(b.data(), d);
         t = MedianMicros(2000, [&] { for (int i = 0; i < 100; ++i) ctx.Mul(z.data(), a.data(), b.data()); });
         std::printf("| `montmul`, 32 limbs (2048-bit), per call | %.3f us | 2000 x 100 |\n", t / 100.0);
         MontgomeryContext half(H(testkey::kPrime1));
         const size_t kh = half.Limbs();
-        std::vector<Limb> ah(kh), bh(kh), zh(kh);
+        LimbVector ah(kh), bh(kh), zh(kh);
         half.ToMont(ah.data(), base);
         half.ToMont(bh.data(), d);
         t = MedianMicros(2000, [&] { for (int i = 0; i < 100; ++i) half.Mul(zh.data(), ah.data(), bh.data()); });

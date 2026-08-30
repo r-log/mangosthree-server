@@ -74,7 +74,7 @@ namespace MaNGOS
             const size_t tableSize = size_t(1) << w;
 
             // The table of base^0 .. base^(2^w - 1) in Montgomery form.
-            std::vector<Limb> table(tableSize * k);
+            LimbVector table(tableSize * k);
             for (size_t j = 0; j < k; ++j)
             {
                 table[j] = context.One()[j];
@@ -87,7 +87,7 @@ namespace MaNGOS
 
             // The exponent, zero-padded to the declared width. A public exponent is
             // walked over its own bit length instead.
-            std::vector<Limb> e(exponentLimbs, 0);
+            LimbVector e(exponentLimbs, 0);
             for (size_t j = 0; j < exponent.LimbCount(); ++j)
             {
                 e[j] = exponent.Limbs()[j];
@@ -95,7 +95,7 @@ namespace MaNGOS
             const size_t bits = kind == ExponentKind::Public ? exponent.BitLength() : exponentLimbs * LimbBits;
             const size_t windows = (bits + w - 1) / w;
 
-            std::vector<Limb> acc(k), selected(k);
+            LimbVector acc(k), selected(k);
             for (size_t j = 0; j < k; ++j)
             {
                 acc[j] = context.One()[j];

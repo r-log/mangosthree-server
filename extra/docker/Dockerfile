@@ -37,6 +37,9 @@ RUN cmake -S . -B build -G Ninja \
            if readelf -d "$bin" | grep -E 'NEEDED.*lib(ssl|crypto)'; then \
                echo "$bin links the removed crypto library" >&2; exit 1; \
            fi; \
+           if nm --defined-only "$bin" | grep -E ' (CRYPTO_malloc|EVP_MD_CTX_new|BN_new|ERR_get_error)$'; then \
+               echo "$bin carries a static copy of the removed crypto library" >&2; exit 1; \
+           fi; \
        done
 
 FROM ubuntu:22.04 AS runtime-base

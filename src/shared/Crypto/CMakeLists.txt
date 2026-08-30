@@ -21,6 +21,7 @@ set(CRYPTO_SOURCES
     HmacSha1.h
     SecureZero.cpp
     SecureZero.h
+    ErasingAllocator.h
     Limb.h
     BigInt.cpp
     BigInt.h
