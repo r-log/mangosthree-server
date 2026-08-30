@@ -31,6 +31,7 @@
 #include "WorldPacket.h"
 
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -100,10 +101,26 @@ namespace proto
              * it does by framing a packet on it -- not by completing the banner,
              * which happens while the stream is still held.
              */
-            /// Attach the client's second stream. Refused (false) when `generation`
-            /// is not the one last announced with ExpectSlotOne: the socket answers a
-            /// redirect that has since been reissued.
-            bool AttachSlotOne(const std::shared_ptr<IClientLink>& link, uint32 generation);
+            /**
+             * @brief Attach the client's second stream.
+             *
+             * Refused (false) when `generation` is not the one last announced
+             * with ExpectSlotOne: the socket answers a redirect that has since
+             * been reissued.
+             *
+             * `announce` runs between the two, once the generation is known good
+             * and before the slot is published or the held queue released. It is
+             * where the connection tells the client to adopt the socket, and both
+             * ends of that window matter: too early and a superseded socket is
+             * promoted by a client that is then dropped, taking whatever it had
+             * queued for stream 1 with it; too late and the world's held traffic
+             * reaches a socket the client still parks in a staging slot, where it
+             * refuses everything but connection control. It is called with the
+             * lock held, so nothing else can send on the slot in between; it must
+             * therefore write to its own connection and not re-enter SessionLinks.
+             */
+            bool AttachSlotOne(const std::shared_ptr<IClientLink>& link, uint32 generation,
+                               const std::function<void()>& announce = std::function<void()>());
             /// The generation of the redirect currently in flight; older sockets are refused.
             void ExpectSlotOne(uint32 generation);
 
