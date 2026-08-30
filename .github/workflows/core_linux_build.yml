@@ -1,4 +1,4 @@
-name: Linux Build (GCC + Clang)
+name: Linux Build (GCC + Clang + aarch64)
 
 on:
   push:
@@ -23,20 +23,30 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: gcc
+            runner: ubuntu-latest
             cc: gcc
             cxx: g++
             pkg: g++
           - name: clang
+            runner: ubuntu-latest
             cc: clang
             cxx: clang++
             pkg: clang
+          # The one build without the x86-64 tiers: no mulx, no assembly, no s2n-bignum
+          # oracle -- the portable kernel and the fallbacks are what this job proves,
+          # on the hardware the design promises them for.
+          - name: aarch64
+            runner: ubuntu-24.04-arm
+            cc: gcc
+            cxx: g++
+            pkg: g++
 
     name: Build (${{ matrix.name }})
 
@@ -88,6 +98,7 @@ jobs:
       # The s2n-bignum oracle must exist on these jobs: if it silently vanished, the kernel
       # comparisons in CryptoOracleTest would vanish with it.
       - name: Check the big-integer oracle was built
+        if: matrix.name != 'aarch64'
         run: cmake --build "$BUILD_DIR" --target s2n_bignum_oracle
 
       - name: Test
@@ -97,10 +108,20 @@ jobs:
       # silent fall-back to a C++ tier (a CPU without ADX, a wiring mistake) would pass
       # every test without executing the listing. The runners have BMI2 and ADX.
       - name: Check the assembly tier ran
+        if: matrix.name != 'aarch64'
         run: |
           out=$("$BUILD_DIR/src/tests/mangos_tests" -only CryptoMontgomery_assembly_tier)
           echo "$out"
           echo "$out" | grep -q "tier: asm"
+
+      # And on aarch64 the opposite: the assembly tier is not compiled in, the portable
+      # kernel is what ran -- the tier test says so, and the whole suite passed on it.
+      - name: Check the portable tier ran
+        if: matrix.name == 'aarch64'
+        run: |
+          out=$("$BUILD_DIR/src/tests/mangos_tests" -only CryptoMontgomery_assembly_tier)
+          echo "$out"
+          echo "$out" | grep -q "tier: portable"
 
       # No binary of ours links the crypto library the tree used to sit on. Direct imports
       # only (readelf, not ldd): the MySQL client brings its own copy, and that one is its.
