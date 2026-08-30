@@ -71,10 +71,20 @@ namespace
 
     // Which stream each of these belongs on is the client's decision, read out
     // of its own tables; they are named here only so the cases read as intent.
+    //
+    // Stream 1 carries exactly the nineteen opcodes the client's receive gate
+    // insists on -- combat, loot and duel. Everything else goes on stream 0,
+    // INCLUDING packets the client would itself transmit on stream 1: its send
+    // router and its receive gate are different tables, and only the gate binds
+    // the server. SMSG_UPDATE_OBJECT and SMSG_LOGIN_VERIFY_WORLD were listed
+    // here as stream 1 on the strength of the send router, and the live client
+    // dropped the stream over it (see OpcodeSlots.h).
     const uint16 ON_STREAM_ZERO       = SMSG_TIME_SYNC_REQ;
     const uint16 ON_STREAM_ZERO_BULK  = SMSG_PLAYER_MOVE;
-    const uint16 ON_STREAM_ONE        = SMSG_UPDATE_OBJECT;
-    const uint16 ON_STREAM_ONE_LOGIN  = SMSG_LOGIN_VERIFY_WORLD;
+    const uint16 ON_STREAM_ZERO_WORLD = SMSG_UPDATE_OBJECT;
+    const uint16 ON_STREAM_ZERO_LOGIN = SMSG_LOGIN_VERIFY_WORLD;
+    const uint16 ON_STREAM_ONE        = SMSG_ATTACKSTART;
+    const uint16 ON_STREAM_ONE_LOOT   = SMSG_LOOT_RESPONSE;
     const uint16 ON_STREAM_ONE_GATED  = SMSG_ATTACKSTART;
 }
 
@@ -95,6 +105,36 @@ TEST(SessionLinks_routes_by_opcode)
     CHECK_EQ(uint32(one->sent[0]), uint32(ON_STREAM_ONE));
 }
 
+TEST(SessionLinks_keeps_the_login_sequence_on_stream_zero)
+{
+    // The regression, and the first login this fork ever completed to the
+    // loading screen. These four are the tail of the login sequence; every one
+    // of them is send_slot 1 in the client's own router and recv_slot 0. Sent on
+    // the second stream they cost the session its stream and produced
+    // CMSG_LOG_DISCONNECT reason 3 -- the client will not take them there.
+    auto zero = std::make_shared<RecordingLink>("198.51.100.4");
+    auto one  = std::make_shared<RecordingLink>("198.51.100.4");
+
+    proto::SessionLinks links(zero);
+    links.AttachSlotOne(one, 0);
+
+    links.SendPacket(Packet(SMSG_ADDON_INFO));
+    links.SendPacket(Packet(SMSG_TUTORIAL_FLAGS));
+    links.SendPacket(Packet(SMSG_ACCOUNT_DATA_TIMES));
+    links.SendPacket(Packet(ON_STREAM_ZERO_LOGIN));
+    links.SendPacket(Packet(ON_STREAM_ZERO_WORLD));
+
+    CHECK_EQ(zero->sent.size(), size_t(5));
+    CHECK_EQ(one->sent.size(), size_t(0));
+
+    // And the nineteen still go where the gate demands.
+    links.SendPacket(Packet(ON_STREAM_ONE));
+    links.SendPacket(Packet(ON_STREAM_ONE_LOOT));
+
+    CHECK_EQ(zero->sent.size(), size_t(5));
+    CHECK_EQ(one->sent.size(), size_t(2));
+}
+
 TEST(SessionLinks_holds_stream_one_traffic_until_it_is_live)
 {
     auto zero = std::make_shared<RecordingLink>("198.51.100.4");
@@ -104,7 +144,7 @@ TEST(SessionLinks_holds_stream_one_traffic_until_it_is_live)
     CHECK(!links.IsSlotLive(LinkSlot::One));
 
     links.SendPacket(Packet(ON_STREAM_ONE));
-    links.SendPacket(Packet(ON_STREAM_ONE_LOGIN));
+    links.SendPacket(Packet(ON_STREAM_ONE_LOOT));
     links.SendPacket(Packet(ON_STREAM_ZERO_BULK));
 
     // Nothing bound for the second stream leaked onto the first: the client
@@ -117,7 +157,7 @@ TEST(SessionLinks_holds_stream_one_traffic_until_it_is_live)
 
     CHECK_EQ(one->sent.size(), size_t(2));
     CHECK_EQ(uint32(one->sent[0]), uint32(ON_STREAM_ONE));
-    CHECK_EQ(uint32(one->sent[1]), uint32(ON_STREAM_ONE_LOGIN));
+    CHECK_EQ(uint32(one->sent[1]), uint32(ON_STREAM_ONE_LOOT));
 }
 
 TEST(SessionLinks_refuses_a_gated_opcode_on_stream_zero)

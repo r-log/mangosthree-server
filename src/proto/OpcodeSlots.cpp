@@ -76,6 +76,11 @@ namespace proto
         const uint16 CONTROL_VALUE = 0x0140;
     }
 
+    LinkSlot ServerSlotOf(uint16 opcode)
+    {
+        return (Slots()[opcode] & SLOT_RECV_GATE) != 0 ? LinkSlot::One : LinkSlot::Zero;
+    }
+
     LinkSlot SendSlotOf(uint16 opcode)
     {
         return (Slots()[opcode] & SLOT_SEND_ONE) != 0 ? LinkSlot::One : LinkSlot::Zero;
