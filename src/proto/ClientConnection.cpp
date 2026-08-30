@@ -734,20 +734,32 @@ namespace proto
 
         m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed), packet, false);
 
-        std::vector<uint8_t> wire;
-        {
-            // The cipher is a stream: two threads encrypting headers concurrently
-            // would interleave the keystream and desynchronise the client for good.
-            std::lock_guard<std::mutex> lock(m_cryptSendLock);
-            wire = PacketCodec::Encode(packet,
-                [this](uint8* header, size_t len)
+        // The cipher is a stream, so order matters twice over: two threads must
+        // not encrypt concurrently, and the bytes must reach the transport in the
+        // same order they were enciphered. The lock used to cover only the first
+        // of those. Thread A would take the keystream for its header, thread B
+        // would take the next stretch for its own, and then B could reach the
+        // send first -- putting the two packets on the wire in the order the
+        // keystream says they are not. The client decrypts strictly in arrival
+        // order, so it reads A's bytes against B's keystream, sees a header that
+        // decodes to nothing, and drops the connection. That is the same symptom
+        // as a dozen unrelated faults, and it would strike only under concurrent
+        // sends on one connection -- which the world thread and the network
+        // threads do to a busy session constantly.
+        //
+        // So the send stays inside the lock. It is a queue append
+        // (SendChannel::post -> ConnCtx::enqueue), not a blocking write, so this
+        // holds the lock for an append and never waits on the network.
+        std::lock_guard<std::mutex> lock(m_cryptSendLock);
+
+        const std::vector<uint8_t> wire = PacketCodec::Encode(packet,
+            [this](uint8* header, size_t len)
+            {
+                if (m_crypt.IsInitialized())
                 {
-                    if (m_crypt.IsInitialized())
-                    {
-                        m_crypt.EncryptSend(header, len);
-                    }
-                });
-        }
+                    m_crypt.EncryptSend(header, len);
+                }
+            });
 
         m_sender(wire.data(), wire.size());
     }
