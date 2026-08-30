@@ -92,6 +92,12 @@ namespace MaNGOS
 #if defined(MANGOS_CRYPTO_HAVE_ASM)
         extern "C" void mangos_montmul_adx(uint64_t* z, const uint64_t* x, const uint64_t* y,
                                            const uint64_t* m, uint64_t n0inv, uint64_t k);
+        extern "C" void mangos_montmul16_adx(uint64_t* z, const uint64_t* x, const uint64_t* y,
+                                             const uint64_t* m, uint64_t n0inv);
+        extern "C" void mangos_montmul32_adx(uint64_t* z, const uint64_t* x, const uint64_t* y,
+                                             const uint64_t* m, uint64_t n0inv);
+        extern "C" void mangos_montsqr16_adx(uint64_t* z, const uint64_t* x, const uint64_t* m, uint64_t n0inv);
+        extern "C" void mangos_montsqr32_adx(uint64_t* z, const uint64_t* x, const uint64_t* m, uint64_t n0inv);
 
         bool HasAsmTier()
         {
@@ -104,9 +110,37 @@ namespace MaNGOS
             return true;
         }
 
+        // The two widths the server uses have their loops written out; every other
+        // multiple of four takes the generic listing. The choice depends on k alone.
         void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
         {
-            mangos_montmul_adx(z, x, y, m, n0inv, k);
+            if (k == 16)
+            {
+                mangos_montmul16_adx(z, x, y, m, n0inv);
+            }
+            else if (k == 32)
+            {
+                mangos_montmul32_adx(z, x, y, m, n0inv);
+            }
+            else
+            {
+                mangos_montmul_adx(z, x, y, m, n0inv, k);
+            }
+        }
+        void MontSqrAsm(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            if (k == 16)
+            {
+                mangos_montsqr16_adx(z, x, m, n0inv);
+            }
+            else if (k == 32)
+            {
+                mangos_montsqr32_adx(z, x, m, n0inv);
+            }
+            else
+            {
+                mangos_montmul_adx(z, x, x, m, n0inv, k);
+            }
         }
 #else
         bool HasAsmTier()
@@ -123,7 +157,15 @@ namespace MaNGOS
         {
             MontMulMulx(z, x, y, m, n0inv, k);
         }
+        void MontSqrAsm(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulMulx(z, x, x, m, n0inv, k);
+        }
 #endif
+        void MontSqrMulx(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulMulx(z, x, x, m, n0inv, k);
+        }
 
         MANGOS_TARGET_BMI2
         void MontMulMulx(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
@@ -223,6 +265,14 @@ namespace MaNGOS
         void MontMulAsm(Limb* z, const Limb* x, const Limb* y, const Limb* m, Limb n0inv, size_t k)
         {
             MontMulPortable(z, x, y, m, n0inv, k);
+        }
+        void MontSqrMulx(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulPortable(z, x, x, m, n0inv, k);
+        }
+        void MontSqrAsm(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulPortable(z, x, x, m, n0inv, k);
         }
 
 #endif

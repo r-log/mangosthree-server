@@ -167,6 +167,25 @@ namespace MaNGOS
             return kernel == &MontMulAsm ? "asm" : kernel == &MontMulMulx ? "mulx" : "portable";
         }
 
+        void MontSqrPortable(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k)
+        {
+            MontMulPortable(z, x, x, m, n0inv, k);
+        }
+
+        MontSqrFn MontSqrFor(size_t k)
+        {
+            const MontMulFn kernel = MontMulFor(k);
+            if (kernel == &MontMulAsm)
+            {
+                return &MontSqrAsm;
+            }
+            if (kernel == &MontMulMulx)
+            {
+                return &MontSqrMulx;
+            }
+            return &MontSqrPortable;
+        }
+
         MontMulFn MontMulFor(size_t k)
         {
             const MontMulFn kernel = ActiveMontMul();
@@ -180,7 +199,7 @@ namespace MaNGOS
         // ------------------------------------------------------------------ the context
 
         MontgomeryContext::MontgomeryContext(const BigInt& modulus)
-            : m_k(modulus.LimbCount()), m_n0inv(0), m_kernel(MontMulFor(modulus.LimbCount()))
+            : m_k(modulus.LimbCount()), m_n0inv(0), m_kernel(MontMulFor(modulus.LimbCount())), m_sqr(MontSqrFor(modulus.LimbCount()))
         {
             if (modulus.IsZero() || !modulus.IsOdd() || modulus.IsOne())
             {

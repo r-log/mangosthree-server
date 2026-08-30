@@ -78,6 +78,15 @@ namespace
         return ctx.N0Inv();
     }
 
+    void CompareMontSqr(MontSqrFn kernel, const LimbVector& m, const LimbVector& x)
+    {
+        const size_t k = m.size();
+        LimbVector ours(k), theirs(k);
+        kernel(ours.data(), x.data(), m.data(), N0Inv(m), k);
+        bignum_montsqr(k, theirs.data(), x.data(), m.data());
+        CHECK(Same(ours, theirs));
+    }
+
     void CompareMontMul(MontMulFn kernel, const LimbVector& m, const LimbVector& x, const LimbVector& y)
     {
         const size_t k = m.size();
@@ -114,6 +123,15 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
                 {
                     CompareMontMul(&MontMulAsm, m, x, y);
                 }
+                CompareMontSqr(&MontSqrPortable, m, x);
+                if (HasMulxTier())
+                {
+                    CompareMontSqr(&MontSqrMulx, m, x);
+                }
+                if (asmHere)
+                {
+                    CompareMontSqr(&MontSqrAsm, m, x);
+                }
             }
             // the edge patterns
             const LimbVector mm1 = MinusOne(m);
@@ -131,6 +149,16 @@ TEST(CryptoOracle_montmul_matches_s2n_bignum)
                 CompareMontMul(kernel, m, zero, zero);
                 const LimbVector same = Below(m);
                 CompareMontMul(kernel, m, same, same);
+            }
+            std::vector<MontSqrFn> squarings = { &MontSqrPortable };
+            if (HasMulxTier()) squarings.push_back(&MontSqrMulx);
+            if (asmHere) squarings.push_back(&MontSqrAsm);
+            for (MontSqrFn sqr : squarings)
+            {
+                CompareMontSqr(sqr, m, mm1);
+                CompareMontSqr(sqr, m, one);
+                CompareMontSqr(sqr, m, zero);
+                CompareMontSqr(sqr, m, Below(m));
             }
         }
         // a modulus whose top limb is 0x8000000000000000, and one whose top limb is 1
