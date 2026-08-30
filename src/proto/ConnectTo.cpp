@@ -63,6 +63,12 @@ namespace proto
          * dword -- so offsets 17 through 19 are zeroed by that store no matter what
          * we put in them. Anything signed there is lost, which is why the block is
          * round-tripped through this permutation before the tag is computed.
+         *
+         * Checked against the client (Wow-64.exe 15595, sub_14033FE90, 2026-08-30):
+         * the 255 reads land where this table says, with the client's own struct
+         * carrying four bytes of padding after that dword (its offsets are ours plus
+         * four from 20 on). The order the client then hashes -- address, family,
+         * port, auth, pi, control -- is the order Tag() is given below.
          */
         const uint16 KPERM[255] =
         {
@@ -531,11 +537,26 @@ namespace proto
 
         const std::array<uint8, 256> plaintext = BlockToPlaintext(d);
 
+        // The client's big numbers are little-endian, bytes and limbs alike. Its
+        // verifier (Wow-64.exe 15595, sub_1400F76C0) builds the number from the
+        // 256 wire bytes with byte i in limb i >> 2 at bit 8 * (i & 3)
+        // (sub_1400F61C0), raises it to 65537 under the patched modulus, and writes
+        // the result back the same way (sub_1400F6330) before scattering it into its
+        // struct. So the number that is signed is the plaintext read backwards, and
+        // the signature travels backwards too: byte 255 of the plaintext -- which
+        // the scatter never reads and BlockToPlaintext leaves zero -- is the most
+        // significant byte of that number, which keeps it below any modulus. Our
+        // primitives are big-endian (src/shared/Crypto/Rsa); the two reversals are
+        // the translation. Sending the big-endian form passed the client's first
+        // gate (s < n, by luck) and failed the second (the tag), with reason 4.
+        std::array<uint8, 256> asClient;
+        std::reverse_copy(plaintext.begin(), plaintext.end(), asClient.begin());
+
         // The private operation: blinded, and through the CRT halves when the key
         // file carries the primes (src/shared/Crypto/Rsa). It refuses a plaintext
         // that is not below the modulus rather than wrapping it.
         std::vector<uint8> signature;
-        if (!m_key.SignRaw(plaintext.data(), plaintext.size(), signature, MaNGOS::Crypto::SystemRandom::Instance()))
+        if (!m_key.SignRaw(asClient.data(), asClient.size(), signature, MaNGOS::Crypto::SystemRandom::Instance()))
         {
             sLog.outError("proto: the redirect plaintext could not be signed: it is not below the modulus");
             return false;
@@ -547,13 +568,14 @@ namespace proto
         // the redirect, which is the same symptom as a dozen unrelated faults.
         std::vector<uint8> recovered;
         if (!MaNGOS::Crypto::RsaVerifyRaw(m_key.Public(), signature.data(), signature.size(), recovered) ||
-            recovered.size() != RSA_FIELD_LEN || std::memcmp(recovered.data(), plaintext.data(), RSA_FIELD_LEN) != 0)
+            recovered.size() != RSA_FIELD_LEN || std::memcmp(recovered.data(), asClient.data(), RSA_FIELD_LEN) != 0)
         {
             sLog.outError("proto: signed redirect does not recover to its plaintext; "
                           "check that Redirect.Modulus and Redirect.PrivateExponent "
                           "are the same keypair");
             return false;
         }
+        std::reverse(signature.begin(), signature.end());
 
         // The wrapper the client reads: three dwords of its own bookkeeping,
         // which it stores and never sends back, then the signed field, then the

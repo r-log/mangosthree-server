@@ -267,6 +267,50 @@ TEST(ConnectTo_signs_with_a_real_pair)
     CHECK_EQ(packet.size(), size_t(4 + 4 + 4 + 256 + 1));
 }
 
+TEST(ConnectTo_field_recovers_through_the_clients_little_endian_steps)
+{
+    // The 4.3.4 client (Wow-64.exe 15595) reads the 256-byte field as a little-endian
+    // number, raises it to 65537 under the patched modulus, and writes the result
+    // back little-endian before scattering it into its struct. Play those steps on
+    // a packet and the struct must come out: the address, the family, the control
+    // byte 0x2A, the port, the digits of pi. The first live redirect failed here --
+    // the field went out big-endian, the client's first gate passed by luck and the
+    // second refused the block with disconnect reason 4.
+    proto::RedirectSigner signer;
+    REQUIRE(signer.Load(TEST_MODULUS, TEST_PRIVATE_EXPONENT, ""));
+    WorldPacket packet;
+    REQUIRE(signer.BuildConnectTo(Ipv4(203, 0, 113, 7), proto::RedirectFamily::IPv4,
+                                  8086, proto::LinkSlot::One, packet));
+    REQUIRE(packet.size() == size_t(4 + 4 + 4 + 256 + 1));
+
+    // the client's number from the wire bytes: byte i is the i-th least significant
+    std::vector<uint8> field(packet.contents() + 12, packet.contents() + 12 + 256);
+    std::reverse(field.begin(), field.end());
+    MaNGOS::Crypto::BigInt n, e(65537);
+    REQUIRE(n.FromHex(TEST_MODULUS));
+    MaNGOS::Crypto::RsaPublicKey key;
+    REQUIRE(key.Load(n, e));
+    std::vector<uint8> recovered;
+    REQUIRE(MaNGOS::Crypto::RsaVerifyRaw(key, field.data(), field.size(), recovered));
+    REQUIRE(recovered.size() == size_t(256));
+    // and the result written back the same way: least significant byte first
+    std::array<uint8, 256> plaintext;
+    std::reverse_copy(recovered.begin(), recovered.end(), plaintext.begin());
+    CHECK_EQ(int(plaintext[255]), 0);   // the byte the client never reads keeps the number below n
+
+    const proto::RedirectSigner::Block d = proto::RedirectSigner::PlaintextToBlock(plaintext);
+    CHECK_EQ(int(d[0x00]), 203);
+    CHECK_EQ(int(d[0x01]), 0);
+    CHECK_EQ(int(d[0x02]), 113);
+    CHECK_EQ(int(d[0x03]), 7);
+    CHECK_EQ(int(d[0x10]), 1);                              // IPv4
+    CHECK_EQ(int(d[0x14]), 0x2A);                           // the control byte
+    CHECK_EQ(int(d[0x15]) | (int(d[0x16]) << 8), 8086);     // the port, low byte first
+    CHECK_HEX(&d[0x60], 6, "314159265358");                 // pi, in BCD
+    // the target stream rides outside the field
+    CHECK_EQ(int(packet.contents()[12 + 256]), 1);
+}
+
 TEST(ConnectTo_refuses_a_modulus_and_exponent_that_are_not_a_pair)
 {
     // The signature is checked against the client's own public operation before
