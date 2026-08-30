@@ -77,6 +77,19 @@ namespace MaNGOS
         MontMulFn MontMulFor(size_t k);
 
         /**
+         * @brief Squaring: z = x * x * 2^(-64k) mod m, x < m. The C++ tiers multiply x by
+         * itself; the assembly tier has a dedicated listing for k = 16 and k = 32 (the
+         * upper triangle doubled plus the diagonal, then the reduction: 1.5 k^2 products
+         * instead of 2 k^2) and multiplies at other widths.
+         */
+        using MontSqrFn = void (*)(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k);
+        void MontSqrPortable(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k);
+        void MontSqrMulx(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k);
+        void MontSqrAsm(Limb* z, const Limb* x, const Limb* m, Limb n0inv, size_t k);
+        /// The squaring of the tier MontMulFor(k) selects.
+        MontSqrFn MontSqrFor(size_t k);
+
+        /**
          * @brief Everything Montgomery arithmetic needs about one odd modulus.
          *
          * Built once per modulus (RSA keys and SRP6's N keep theirs), the constants come
@@ -104,7 +117,7 @@ namespace MaNGOS
 
             /// z = x * y * R^-1 mod m for canonical x, y. z may alias x or y.
             void Mul(Limb* z, const Limb* x, const Limb* y) const;
-            void Sqr(Limb* z, const Limb* x) const { Mul(z, x, x); }
+            void Sqr(Limb* z, const Limb* x) const { m_sqr(z, x, m_m.data(), m_n0inv, m_k); }
 
             /// z = x * R mod m. x is reduced modulo m first (a plain division), so any
             /// value may enter here -- this is where an SRP6 product or an RSA message
@@ -120,6 +133,7 @@ namespace MaNGOS
             LimbVector m_one;
             Limb m_n0inv;
             MontMulFn m_kernel;   // the tier, taken once at construction
+            MontSqrFn m_sqr;      // its squaring
         };
     }
 }

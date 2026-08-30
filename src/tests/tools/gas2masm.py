@@ -16,7 +16,7 @@ import sys
 
 KNOWN_MNEMONICS = {
     "push", "pop", "mov", "lea", "and", "or", "xor", "not", "neg", "add", "sub", "sbb", "adc",
-    "shl", "shr", "imul", "mulx", "adcx", "adox", "cmp", "jb", "jnz", "jmp", "jrcxz", "ret",
+    "shl", "shr", "imul", "mulx", "adcx", "adox", "cmp", "jb", "jae", "jnz", "jmp", "jrcxz", "ret",
 }
 
 
@@ -77,7 +77,7 @@ def translate(lines):
                 out.append(f"L{m.group(1)}:")
                 continue
             # the MASM unwind directives of the Windows branch pass through as they are
-            if re.match(r"\.(pushreg\s+\w+|setframe\s+\w+,\s*\d+|endprolog)$", code):
+            if re.match(r"\.(pushreg\s+\w+|setframe\s+\w+,\s*\d+|allocstack\s+\d+|endprolog)$", code):
                 out.append(f"        {code}")
                 continue
             raise SystemExit(f"unhandled directive: {code}")

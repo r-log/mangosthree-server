@@ -101,6 +101,10 @@ void RunCryptoBench()
         half.ToMont(bh.data(), d);
         t = MedianMicros(2000, [&] { for (int i = 0; i < 100; ++i) half.Mul(zh.data(), ah.data(), bh.data()); });
         std::printf("| `montmul`, 16 limbs (1024-bit), per call | %.3f us | 2000 x 100 |\n", t / 100.0);
+        t = MedianMicros(2000, [&] { for (int i = 0; i < 100; ++i) ctx.Sqr(z.data(), a.data()); });
+        std::printf("| `montsqr`, 32 limbs (2048-bit), per call | %.3f us | 2000 x 100 |\n", t / 100.0);
+        t = MedianMicros(2000, [&] { for (int i = 0; i < 100; ++i) half.Sqr(zh.data(), ah.data()); });
+        std::printf("| `montsqr`, 16 limbs (1024-bit), per call | %.3f us | 2000 x 100 |\n", t / 100.0);
     }
 
     // SRP6: v = g^x, B = g^b, S = (A * v^u)^b under N -- three 256-bit exponentiations

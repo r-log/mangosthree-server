@@ -143,6 +143,70 @@ namespace
     const MontgomeryContext g_staticContext(g_staticModulus);
 }
 
+TEST(CryptoMontgomery_squaring_agrees_with_multiplication_on_every_tier)
+{
+    // The assembly tier squares with its own listing at 16 and 32 limbs (the triangle
+    // doubled, the diagonal, the in-place reduction); every tier's squaring must equal
+    // the portable multiplication of x by itself, on random operands and at the edges.
+    std::vector<MontSqrFn> squarings = { &MontSqrPortable };
+    if (HasMulxTier()) squarings.push_back(&MontSqrMulx);
+    if (HasAsmTier()) squarings.push_back(&MontSqrAsm);
+    for (size_t k : { size_t(1), size_t(4), size_t(8), size_t(16), size_t(32), size_t(64) })
+    {
+        const size_t bits = LimbBits * k;
+        for (int round = 0; round < 4; ++round)
+        {
+            const BigInt m = OddModulus(round == 0 ? bits : bits - size_t(g_rng() % 60));
+            MontgomeryContext ctx(m);
+            std::vector<BigInt> operands;
+            for (int i = 0; i < 24; ++i)
+            {
+                operands.push_back(RandomBits(m.BitLength()) % m);
+            }
+            operands.push_back(m - BigInt(1));
+            operands.push_back(BigInt(0));
+            operands.push_back(BigInt(1));
+            operands.push_back(BigInt(2));
+            if (m > BigInt(0x10000))
+            {
+                operands.push_back(m - BigInt(0x1234));
+                operands.push_back((m - BigInt(1)) >> 1);
+            }
+            for (MontSqrFn sqr : squarings)
+            {
+                if (sqr == &MontSqrAsm && k % 4 != 0)
+                {
+                    continue;
+                }
+                for (const BigInt& x : operands)
+                {
+                    LimbVector xl = Padded(x, k), a(k), b(k);
+                    sqr(a.data(), xl.data(), ctx.Modulus(), ctx.N0Inv(), k);
+                    MontMulPortable(b.data(), xl.data(), xl.data(), ctx.Modulus(), ctx.N0Inv(), k);
+                    CHECK(std::memcmp(a.data(), b.data(), k * LimbBytes) == 0);
+                    // and the definition: a * R = x * x mod m
+                    const BigInt R = BigInt(1) << (LimbBits * k);
+                    CHECK((BigInt::FromLimbs(a.data(), k) * R) % m == (x * x) % m);
+                }
+            }
+            // the context squares with the tier it multiplies with
+            LimbVector xl = Padded(operands[0], k), viaContext(k), viaKernel(k);
+            ctx.Sqr(viaContext.data(), xl.data());
+            MontSqrFor(k)(viaKernel.data(), xl.data(), ctx.Modulus(), ctx.N0Inv(), k);
+            CHECK(std::memcmp(viaContext.data(), viaKernel.data(), k * LimbBytes) == 0);
+        }
+    }
+    // the selector follows the multiplication's tier (which the environment may force down)
+    if (ActiveMontMul() == &MontMulAsm)
+    {
+        CHECK(MontSqrFor(16) == &MontSqrAsm);
+        CHECK(MontSqrFor(32) == &MontSqrAsm);
+    }
+    CHECK(MontSqrFor(3) != &MontSqrAsm);
+    CHECK((MontSqrFor(16) == &MontSqrAsm) == (MontMulFor(16) == &MontMulAsm));
+    CHECK((MontSqrFor(8) == &MontSqrMulx) == (MontMulFor(8) == &MontMulMulx));
+}
+
 TEST(CryptoMontgomery_a_context_built_before_main_works)
 {
     CHECK_EQ(g_staticContext.Limbs(), size_t(4));

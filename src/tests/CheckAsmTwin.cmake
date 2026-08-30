@@ -46,4 +46,23 @@ if(NOT GENERATED STREQUAL COMMITTED)
         "CheckAsmTwin: src/shared/Crypto/MontgomeryAsm.asm is not what gas2masm.py generates from MontgomeryAsm.S. "
         "Regenerate it: python3 src/tests/tools/gas2masm.py src/shared/Crypto/MontgomeryAsm.S > src/shared/Crypto/MontgomeryAsm.asm")
 endif()
-message(STATUS "CheckAsmTwin: MontgomeryAsm.asm is current")
+# The GAS source itself is generated (src/tests/tools/gen_montgomery_asm.py): it too
+# must be what the generator produces.
+set(GENERATOR "${SOURCE_ROOT}/src/tests/tools/gen_montgomery_asm.py")
+execute_process(
+    COMMAND "${PYTHON_FOR_TWIN}" "${GENERATOR}"
+    OUTPUT_VARIABLE GENERATED_S
+    ERROR_VARIABLE GENERATOR_ERROR
+    RESULT_VARIABLE GENERATOR_RESULT)
+if(NOT GENERATOR_RESULT EQUAL 0)
+    message(FATAL_ERROR "CheckAsmTwin: gen_montgomery_asm.py failed: ${GENERATOR_ERROR}")
+endif()
+file(READ "${GAS_SOURCE}" COMMITTED_S)
+string(REPLACE "\r\n" "\n" GENERATED_S "${GENERATED_S}")
+string(REPLACE "\r\n" "\n" COMMITTED_S "${COMMITTED_S}")
+if(NOT GENERATED_S STREQUAL COMMITTED_S)
+    message(FATAL_ERROR
+        "CheckAsmTwin: src/shared/Crypto/MontgomeryAsm.S is not what gen_montgomery_asm.py generates. "
+        "Regenerate it: python3 src/tests/tools/gen_montgomery_asm.py > src/shared/Crypto/MontgomeryAsm.S, then the twin.")
+endif()
+message(STATUS "CheckAsmTwin: MontgomeryAsm.S and MontgomeryAsm.asm are current")
