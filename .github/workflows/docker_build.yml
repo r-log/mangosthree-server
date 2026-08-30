@@ -6,6 +6,13 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ master, united, devel ]
+    # A pull request that touches only documentation does not need a build; the
+    # Codestyle workflow still runs on every pull request, so a status always exists.
+    # Pushes (master, tags) are never filtered: the nightly and the releases depend on them.
+    paths-ignore:
+      - '**.md'
+      - 'extra/doc/**'
+      - 'LICENSE'
 
 permissions:
   contents: read
