@@ -260,7 +260,7 @@ proto::SessionId WorldGateway::Attach(const proto::AuthRequest& request,
 
     std::unique_ptr<WorldSession> session =
         std::make_unique<WorldSession>(
-            row->id, links, mailbox, row->security, row->expansion,
+            row->id, request.account, links, mailbox, row->security, row->expansion,
             row->muteTime, row->locale, row->sessionKey);
 
     session->LoadGlobalAccountData();

@@ -163,7 +163,8 @@ bool WorldSessionFilter::Process(WorldPacket* packet)
 }
 
 /// WorldSession constructor
-WorldSession::WorldSession(uint32 id, std::shared_ptr<proto::SessionLinks> links,
+WorldSession::WorldSession(uint32 id, const std::string& accountName,
+                           std::shared_ptr<proto::SessionLinks> links,
                            std::shared_ptr<SessionMailbox> mailbox,
                            AccountTypes sec, uint8 expansion, time_t mute_time,
                            LocaleConstant locale, const BigNumber& sessionKey) :
@@ -171,7 +172,8 @@ WorldSession::WorldSession(uint32 id, std::shared_ptr<proto::SessionLinks> links
     m_mailbox(mailbox ? std::move(mailbox) : std::make_shared<SessionMailbox>()),
     m_sessionKey(sessionKey), m_secondStreamAttempts(0),
     m_sessionId(proto::INVALID_SESSION_ID),
-    _security(sec), _accountId(id), m_expansion(expansion), _logoutTime(0),
+    _security(sec), _accountId(id), m_accountName(accountName),
+    m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
     m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
     m_latency(0), m_clientTimeDelay(0), m_tutorialState(TUTORIALDATA_UNCHANGED)
@@ -1441,6 +1443,7 @@ void WorldSession::UpdateSecondStream()
     ticket.clientAddress = GetRemoteAddress();
     ticket.session       = GetSessionId();
     ticket.sessionKey    = m_sessionKey;
+    ticket.accountName   = m_accountName;
     ticket.links         = m_Socket;
     ticket.generation    = ++m_secondStreamGeneration;
 

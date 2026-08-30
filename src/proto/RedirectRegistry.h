@@ -61,6 +61,14 @@ namespace proto
 
         BigNumber sessionKey;
 
+        /// The account this session logged in as, exactly as the client sent it.
+        /// It is here because the client hashes it into the digest that opens the
+        /// second stream -- SHA-1(account, session key, server seed) -- and that
+        /// digest is the only thing on this socket that proves who is on it. The
+        /// address it arrives from proves nothing: a ticket is claimed by address
+        /// alone, so two clients behind one address can claim each other's.
+        std::string accountName;
+
         std::shared_ptr<SessionLinks> links;
     };
 
