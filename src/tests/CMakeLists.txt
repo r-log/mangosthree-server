@@ -52,6 +52,7 @@ set(SRC_GRP_TESTS
     OpcodeSlotsTest.cpp
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp
+    RedirectStreamTest.cpp
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
     AuthCryptTest.cpp

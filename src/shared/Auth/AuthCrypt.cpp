@@ -40,16 +40,36 @@ AuthCrypt::~AuthCrypt()
 {
 }
 
-void AuthCrypt::Init(BigNumber* K)
+/**
+ * The seed pair the client carries in its own image, at 0x140992B00 in
+ * Wow-64.exe 15595 -- the encryption key first, the decryption key second, in
+ * exactly this order. The client hands that address to its key schedule
+ * (sub_1401A78D0) for an ordinary connection, splits it in half, and keys its
+ * send cipher from the SECOND half and its receive cipher from the first. Our
+ * two directions are therefore the mirror: we encrypt with the first half and
+ * decrypt with the second, which is what these two names have always meant.
+ *
+ * A redirected connection passes the same routine a different 32 bytes -- the
+ * ones the server put in that connection's SMSG_AUTH_CHALLENGE -- so the split
+ * is a parameter here rather than a constant.
+ */
+static const uint8 DEFAULT_SEED[AuthCrypt::SeedLength] =
 {
-    uint8 ServerEncryptionKey[SEED_KEY_SIZE] = { 0xCC, 0x98, 0xAE, 0x04, 0xE8, 0x97, 0xEA, 0xCA, 0x12, 0xDD, 0xC0, 0x93, 0x42, 0x91, 0x53, 0x57 };
+    0xCC, 0x98, 0xAE, 0x04, 0xE8, 0x97, 0xEA, 0xCA, 0x12, 0xDD, 0xC0, 0x93, 0x42, 0x91, 0x53, 0x57,
+    0xC2, 0xB3, 0x72, 0x3C, 0xC6, 0xAE, 0xD9, 0xB5, 0x34, 0x3C, 0x53, 0xEE, 0x2F, 0x43, 0x67, 0xCE
+};
 
-    HMACSHA1 serverEncryptHmac(SEED_KEY_SIZE, (uint8*)ServerEncryptionKey);
+static_assert(AuthCrypt::SeedLength == 2 * SEED_KEY_SIZE,
+              "the seed table is exactly the two HMAC keys, back to back");
+
+void AuthCrypt::Init(BigNumber* K, const uint8* seed)
+{
+    const uint8* table = seed ? seed : DEFAULT_SEED;
+
+    HMACSHA1 serverEncryptHmac(SEED_KEY_SIZE, (uint8*)table);
     uint8* encryptHash = serverEncryptHmac.ComputeHash(K);
 
-    uint8 ServerDecryptionKey[SEED_KEY_SIZE] = { 0xC2, 0xB3, 0x72, 0x3C, 0xC6, 0xAE, 0xD9, 0xB5, 0x34, 0x3C, 0x53, 0xEE, 0x2F, 0x43, 0x67, 0xCE };
-
-    HMACSHA1 clientDecryptHmac(SEED_KEY_SIZE, (uint8*)ServerDecryptionKey);
+    HMACSHA1 clientDecryptHmac(SEED_KEY_SIZE, (uint8*)(table + SEED_KEY_SIZE));
     uint8* decryptHash = clientDecryptHmac.ComputeHash(K);
 
     // SARC4 _serverDecrypt(encryptHash);

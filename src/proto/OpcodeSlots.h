@@ -36,23 +36,37 @@ namespace proto
      * The 15595 client routes by opcode, not by socket. Two independent bits per
      * opcode were read out of the binary and generated into OpcodeSlots.inc:
      *
-     *   send_slot  which stream the client transmits that opcode on. For an SMSG
-     *              the client never takes that path, so using it to choose the
-     *              server's egress link is an inference, not client law -- it is
-     *              right for all 19 opcodes where the client can prove us wrong,
-     *              and the fallback for an opcode outside the table is stream 0,
-     *              never a guess onto stream 1.
+     *   send_slot  which stream the client transmits that opcode on. It says
+     *              nothing about where the server should send: for an SMSG the
+     *              client never takes that path, and the table still carries a
+     *              bit for it because the router it was read from is indexed by
+     *              every opcode. 729 opcodes have it set.
      *
      *   recv_slot  whether the client's receive gate drops the opcode unless it
      *              arrives on stream 1. This one IS law: 19 opcodes carry it, and
      *              emitting any of them anywhere else means the client silently
      *              discards the packet. Fail closed instead.
      *
+     * Routing the server's egress by send_slot was an inference, and the wire
+     * disproved it on 2026-08-30: the login sequence -- SMSG_ADDON_INFO,
+     * SMSG_CACHE_VERSION, SMSG_TUTORIAL_FLAGS, SMSG_ACCOUNT_DATA_TIMES, all
+     * send_slot 1 and recv_slot 0 -- went out on the second stream, and the
+     * client answered by dropping that stream and reporting disconnect reason 3.
+     * The client's own receive path (sub_1400AA9A0) consults ONLY the gate: an
+     * opcode outside those 19 is taken on whichever connection it arrives on,
+     * and the login sequence has always belonged on stream 0. So the server
+     * routes by ServerSlotOf, and send_slot describes the client alone.
+     *
      * Everything here is a pure function of the opcode; there is no state and no
      * allocation, so it is safe from any thread.
      */
 
-    /// The stream the server emits this opcode on. Unknown opcode -> Zero.
+    /// The stream the SERVER must emit this opcode on: One for the 19 the
+    /// client's gate insists on, Zero for everything else, known or not.
+    LinkSlot ServerSlotOf(uint16 opcode);
+
+    /// The stream the CLIENT transmits this opcode on. Describes the client's
+    /// own router; it is not the server's egress rule -- see ServerSlotOf.
     LinkSlot SendSlotOf(uint16 opcode);
 
     /// True for the 19 opcodes the client accepts only on stream 1.

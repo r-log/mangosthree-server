@@ -159,14 +159,15 @@ namespace proto
                                 LinkSlot target,
                                 WorldPacket& out) const;
 
-        private:
-
             /// The 258-byte struct the client reconstructs from the plaintext.
             typedef std::array<uint8, 258> Block;
 
-            /// Serialise the struct into the 256-byte RSA plaintext, and back.
+            /// Serialise the struct into the 256-byte RSA plaintext, and back. Public
+            /// so that a test can play the client: recover the field and reassemble.
             static std::array<uint8, 256> BlockToPlaintext(const Block& d);
             static Block PlaintextToBlock(const std::array<uint8, 256>& pt);
+
+        private:
 
             /// The realm's key (src/shared/Crypto): raw RSA-2048, blinded, CRT when
             /// the file carries the primes. Not copyable -- neither is this class.

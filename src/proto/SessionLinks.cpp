@@ -55,7 +55,12 @@ namespace proto
 
     void SessionLinks::SendPacket(const WorldPacket& packet)
     {
-        SendOn(SendSlotOf(packet.GetOpcode()), packet);
+        // The client's receive gate decides this, and nothing else: nineteen
+        // opcodes must arrive on stream 1, everything else belongs on stream 0.
+        // Routing by the client's own send router instead put the whole login
+        // sequence on the second stream, where the client dropped the stream and
+        // answered with disconnect reason 3 (2026-08-30). See OpcodeSlots.h.
+        SendOn(ServerSlotOf(packet.GetOpcode()), packet);
     }
 
     void SessionLinks::SendOn(LinkSlot slot, const WorldPacket& packet)

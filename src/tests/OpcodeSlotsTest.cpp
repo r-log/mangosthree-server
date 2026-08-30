@@ -148,6 +148,42 @@ TEST(OpcodeSlots_known_routing)
     CHECK(proto::SendSlotOf(0x3B0C) == LinkSlot::One);  // CMSG_TIME_SYNC_RESP
 }
 
+TEST(OpcodeSlots_server_routes_by_the_receive_gate_alone)
+{
+    // The server's egress rule is the client's receive gate and nothing else.
+    // The nineteen gated opcodes go on stream 1; every other opcode -- including
+    // the many the CLIENT would transmit on stream 1 -- goes on stream 0.
+    //
+    // The distinction is not academic. SMSG_LOGIN_VERIFY_WORLD, SMSG_UPDATE_OBJECT
+    // and the login tail all read as stream 1 in the send router, and sending
+    // them there cost the first live login its second stream: the client dropped
+    // it and reported disconnect reason 3 (2026-08-30).
+    CHECK(proto::ServerSlotOf(0x2005) == LinkSlot::Zero); // SMSG_LOGIN_VERIFY_WORLD
+    CHECK(proto::ServerSlotOf(0x4715) == LinkSlot::Zero); // SMSG_UPDATE_OBJECT
+    CHECK(proto::ServerSlotOf(0x2C14) == LinkSlot::Zero); // SMSG_ADDON_INFO
+    CHECK(proto::ServerSlotOf(0x2734) == LinkSlot::Zero); // SMSG_CACHE_VERSION
+    CHECK(proto::ServerSlotOf(0x0B35) == LinkSlot::Zero); // SMSG_TUTORIAL_FLAGS
+    CHECK(proto::ServerSlotOf(0x4B05) == LinkSlot::Zero); // SMSG_ACCOUNT_DATA_TIMES
+
+    // The gated nineteen, which the client will accept nowhere else.
+    CHECK(proto::ServerSlotOf(0x2D15) == LinkSlot::One);  // SMSG_ATTACK_START
+    CHECK(proto::ServerSlotOf(0x0934) == LinkSlot::One);  // SMSG_ATTACK_STOP
+    CHECK(proto::ServerSlotOf(0x4C16) == LinkSlot::One);  // SMSG_LOOT_RESPONSE
+
+    // Exhaustively: the two agree on exactly the gated set.
+    uint32 onOne = 0;
+    for (uint32 opcode = 0; opcode <= 0xFFFF; ++opcode)
+    {
+        const bool gated = proto::IsRecvGated(uint16(opcode));
+        CHECK((proto::ServerSlotOf(uint16(opcode)) == LinkSlot::One) == gated);
+        if (gated)
+        {
+            ++onOne;
+        }
+    }
+    CHECK_EQ(onOne, uint32(19));
+}
+
 TEST(OpcodeSlots_unknown_opcode_never_routes_to_stream_one)
 {
     // Guessing an unlisted opcode onto the second stream would put it where the
