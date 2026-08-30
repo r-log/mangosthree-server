@@ -65,6 +65,8 @@ target_include_directories(proto
 target_link_libraries(proto
     PUBLIC
         shared
+        # ConnectTo.h holds the redirect key as a Crypto::RsaPrivateKey.
+        mangos_crypto
     PRIVATE
         mangos_openssl_strict
 )

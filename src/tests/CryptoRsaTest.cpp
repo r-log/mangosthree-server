@@ -197,6 +197,8 @@ TEST(CryptoRsa_load_rejects_what_is_not_a_key)
     CHECK(!key.Load(n, e, d, p, p, dP, dQ, qInv));                          // p * p != n
     CHECK(!key.Load(n, e, d, q, p, dQ, dP, qInv));                          // swapped primes: p > q is required (the recombination relies on m2 < q < p)
     CHECK(!key.Load(n, e, d, p, q, p, dQ, qInv));                           // dP >= p
+    CHECK(!key.Load(n, e, BigInt(1), p, q, dP, dQ, qInv));                  // d is not the key's: dP, dQ do not derive from it
+    CHECK(!key.Load(n, e, d, p, q, dP + BigInt(2), dQ, qInv));              // dP not d mod (p - 1)
     CHECK(key.Load(n, e, d, p, q, dP, dQ, qInv));                           // and the real set loads
     CHECK(key.HasCrt());
     // reloading without the primes drops the CRT path

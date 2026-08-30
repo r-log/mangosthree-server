@@ -53,12 +53,10 @@
 #include "Auth/BigNumber.h"
 #include "ConnectTo.h"
 
-#include <openssl/bn.h>
-#include <openssl/core_names.h>
-#include <openssl/evp.h>
-#include <openssl/param_build.h>
-#include <openssl/rand.h>
-#include <openssl/rsa.h>
+#include "Crypto/BigInt.h"
+#include "Crypto/Rsa.h"
+#include "Crypto/SecureZero.h"
+#include "Crypto/SystemRandom.h"
 
 #include <cstdio>
 #include <cstring>
@@ -103,63 +101,91 @@ namespace
      * byte happens to be zero must not come out a byte short and be mistaken for
      * a different number.
      */
-    std::string BigNumToHex(const BIGNUM* value, int width)
+    std::string FixedWidthHex(const MaNGOS::Crypto::BigInt& value, size_t width)
     {
-        std::vector<uint8> bytes(size_t(width), 0);
-        if (BN_bn2binpad(value, bytes.data(), width) != width)
-        {
-            return std::string();
-        }
-        return ToHex(bytes);
+        const std::vector<uint8> bytes = value.ToBytesBE(width);
+        return bytes.empty() ? std::string() : ToHex(bytes);
     }
 
+    /// The pair as the files carry it: n and d at the full 256-byte width, the CRT
+    /// parameters (PKCS#1 names) at 128 bytes -- the shape the server's CRT path reads.
     struct Keypair
     {
         std::string modulusHex;
         std::string privateExponentHex;
+        std::string prime1Hex;
+        std::string prime2Hex;
+        std::string exponent1Hex;
+        std::string exponent2Hex;
+        std::string coefficientHex;
+    };
+
+    /// The private half passes through std::strings on its way to the file; they are
+    /// erased when they go out of scope, whichever way the run ends.
+    void Erase(std::string& text)
+    {
+        if (!text.empty())
+        {
+            MaNGOS::Crypto::SecureZero(&text[0], text.size());
+        }
+        text.clear();
+    }
+
+    struct KeypairEraser
+    {
+        Keypair& pair;
+        ~KeypairEraser()
+        {
+            Erase(pair.privateExponentHex);
+            Erase(pair.prime1Hex);
+            Erase(pair.prime2Hex);
+            Erase(pair.exponent1Hex);
+            Erase(pair.exponent2Hex);
+            Erase(pair.coefficientHex);
+        }
+    };
+
+    struct StringEraser
+    {
+        std::string& text;
+        ~StringEraser() { Erase(text); }
     };
 
     bool GenerateKeypair(Keypair& out)
     {
-        EVP_PKEY* key = EVP_RSA_gen(KEY_BITS);
-        if (key == NULL)
+        // The tree's own generator (src/shared/Crypto/Prime, Rsa): FIPS 186-4 primes,
+        // 64 Miller-Rabin rounds, the pair loaded and a probe signed before it is
+        // handed back. Once per realm, offline, so it can afford all of that.
+        MaNGOS::Crypto::RsaKeyPair pair;
+        if (!MaNGOS::Crypto::RsaGenerateKey(size_t(KEY_BITS), MaNGOS::Crypto::BigInt(65537),
+                                            MaNGOS::Crypto::SystemRandom::Instance(), pair))
         {
             std::fprintf(stderr, "secret-gen: RSA key generation failed\n");
             return false;
         }
-
-        BIGNUM* modulus  = NULL;
-        BIGNUM* exponent = NULL;
-
-        bool ok = EVP_PKEY_get_bn_param(key, OSSL_PKEY_PARAM_RSA_N, &modulus) == 1 &&
-                  EVP_PKEY_get_bn_param(key, OSSL_PKEY_PARAM_RSA_D, &exponent) == 1;
-
-        if (ok)
-        {
-            out.modulusHex         = BigNumToHex(modulus, KEY_BITS / 8);
-            out.privateExponentHex = BigNumToHex(exponent, KEY_BITS / 8);
-            ok = !out.modulusHex.empty() && !out.privateExponentHex.empty();
-        }
-
-        BN_free(modulus);
-        BN_clear_free(exponent);
-        EVP_PKEY_free(key);
-
+        out.modulusHex         = FixedWidthHex(pair.n, KEY_BITS / 8);
+        out.privateExponentHex = FixedWidthHex(pair.d, KEY_BITS / 8);
+        out.prime1Hex          = FixedWidthHex(pair.p, KEY_BITS / 16);
+        out.prime2Hex          = FixedWidthHex(pair.q, KEY_BITS / 16);
+        out.exponent1Hex       = FixedWidthHex(pair.dP, KEY_BITS / 16);
+        out.exponent2Hex       = FixedWidthHex(pair.dQ, KEY_BITS / 16);
+        out.coefficientHex     = FixedWidthHex(pair.qInv, KEY_BITS / 16);
+        const bool ok = !out.modulusHex.empty() && !out.privateExponentHex.empty() && !out.prime1Hex.empty() &&
+                        !out.prime2Hex.empty() && !out.exponent1Hex.empty() && !out.exponent2Hex.empty() &&
+                        !out.coefficientHex.empty();
         if (!ok)
         {
-            std::fprintf(stderr, "secret-gen: could not read the generated key\n");
+            std::fprintf(stderr, "secret-gen: the generated key does not have the expected widths\n");
         }
         return ok;
     }
 
     bool GenerateAuthBlob(std::string& out)
     {
+        // The OS CSPRNG through the tree's own wrapper; a failure is fatal there, not
+        // a weak blob here.
         std::vector<uint8> blob(AUTH_BLOB_SIZE, 0);
-        if (RAND_bytes(blob.data(), int(blob.size())) != 1)
-        {
-            std::fprintf(stderr, "secret-gen: no secure randomness available\n");
-            return false;
-        }
+        MaNGOS::Crypto::SystemRandom::Instance().FillExact(blob.data(), blob.size());
         out = ToHex(blob);
         return true;
     }
@@ -327,6 +353,7 @@ int main(int argc, char** argv)
     }
 
     Keypair     keypair;
+    KeypairEraser eraseKeypair{ keypair };
     std::string authBlobHex;
     if (!GenerateKeypair(keypair) || !GenerateAuthBlob(authBlobHex))
     {
@@ -338,7 +365,8 @@ int main(int argc, char** argv)
     // signs a redirect the client's verifier accepts -- and the digest the
     // client must carry comes from the one implementation that defines it.
     proto::RedirectSigner signer;
-    if (!signer.Load(keypair.modulusHex, keypair.privateExponentHex, authBlobHex))
+    if (!signer.Load(keypair.modulusHex, keypair.privateExponentHex, authBlobHex,
+                     keypair.prime1Hex, keypair.prime2Hex, keypair.exponent1Hex, keypair.exponent2Hex, keypair.coefficientHex))
     {
         std::fprintf(stderr, "secret-gen: the generated key was rejected by the signer\n");
         return 1;
@@ -373,7 +401,7 @@ int main(int argc, char** argv)
         "Modulus = " + keypair.modulusHex + "\n"
         "Digest = " + digest + "\n";
 
-    const std::string serverBody =
+    std::string serverBody =
         "# Generated by secret-gen. Point Redirect.SecretFile in mangosd.conf here.\n"
         "#\n"
         "# SECRET. PrivateExponent is what lets this server, and only this server,\n"
@@ -384,7 +412,17 @@ int main(int argc, char** argv)
         "\n"
         "Modulus = " + keypair.modulusHex + "\n"
         "PrivateExponent = " + keypair.privateExponentHex + "\n"
-        "AuthBlob = " + authBlobHex + "\n";
+        "AuthBlob = " + authBlobHex + "\n"
+        "\n"
+        "# The primes and the CRT parameters (PKCS#1 names). With them the server signs\n"
+        "# each redirect with two half-size exponentiations, about four times faster;\n"
+        "# a file without them still loads and signs on the slower path.\n"
+        "Prime1 = " + keypair.prime1Hex + "\n"
+        "Prime2 = " + keypair.prime2Hex + "\n"
+        "Exponent1 = " + keypair.exponent1Hex + "\n"
+        "Exponent2 = " + keypair.exponent2Hex + "\n"
+        "Coefficient = " + keypair.coefficientHex + "\n";
+    StringEraser eraseServerBody{ serverBody };
 
     // Under --force a working key may be in place. Keep it aside until both new
     // files are installed, so a failure half-way leaves the old pair, not nothing.

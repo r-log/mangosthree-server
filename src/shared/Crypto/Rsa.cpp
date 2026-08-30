@@ -25,6 +25,7 @@
 
 #include "Crypto/Rsa.h"
 #include "Crypto/ModExp.h"
+#include "Crypto/Prime.h"
 #include "Crypto/SecureZero.h"
 
 namespace MaNGOS
@@ -109,6 +110,13 @@ namespace MaNGOS
                 return false;
             }
             if ((q * qInv) % p != BigInt(1))
+            {
+                return false;
+            }
+            // With the primes present the private operation never touches d, so d has
+            // to be tied to them here: the CRT exponents must be d reduced modulo p - 1
+            // and q - 1, or a file could advertise a private exponent that is not its key.
+            if (dP != d % (p - BigInt(1)) || dQ != d % (q - BigInt(1)))
             {
                 return false;
             }
@@ -246,6 +254,107 @@ namespace MaNGOS
             s.SecureClear();
             m.SecureClear();
             return !signature.empty();
+        }
+
+        RsaKeyPair::~RsaKeyPair()
+        {
+            d.SecureClear();
+            p.SecureClear();
+            q.SecureClear();
+            dP.SecureClear();
+            dQ.SecureClear();
+            qInv.SecureClear();
+        }
+
+        namespace
+        {
+            /// Erases the generator's working values on every exit -- a retry or a return.
+            struct EraseOnExit
+            {
+                std::vector<BigInt*> values;
+                ~EraseOnExit()
+                {
+                    for (BigInt* v : values)
+                    {
+                        v->SecureClear();
+                    }
+                }
+            };
+        }
+
+        bool RsaGenerateKey(size_t bits, const BigInt& e, SystemRandom& random, RsaKeyPair& out, unsigned millerRabinRounds)
+        {
+            if (bits < 1024 || bits % 512 != 0 || !e.IsOdd() || e <= BigInt(2) || millerRabinRounds == 0)
+            {
+                return false;
+            }
+            const size_t half = bits / 2;
+            const BigInt one(1);
+            const BigInt minimumDistance = one << (half - 100);
+            for (int attempt = 0; attempt < 16; ++attempt)
+            {
+                BigInt p, q, n, pMinusOne, qMinusOne, lambda, d, dP, dQ, qInv;
+                EraseOnExit erase{ { &p, &q, &pMinusOne, &qMinusOne, &lambda, &d, &dP, &dQ, &qInv } };
+                p = GeneratePrime(half, e, random, millerRabinRounds);
+                q = GeneratePrime(half, e, random, millerRabinRounds);
+                if (p == q)
+                {
+                    continue;
+                }
+                if (p < q)
+                {
+                    std::swap(p, q);
+                }
+                // |p - q| > 2^(half - 100), strictly: primes too close make n easy to factor
+                if (p - q <= minimumDistance)
+                {
+                    continue;
+                }
+                n = p * q;
+                if (n.BitLength() != bits)
+                {
+                    continue;
+                }
+                pMinusOne = p - one;
+                qMinusOne = q - one;
+                lambda = (pMinusOne * qMinusOne) / Gcd(pMinusOne, qMinusOne);
+                d = ModInverse(e, lambda);
+                if (d.IsZero() || d.BitLength() <= half)
+                {
+                    continue;   // d too small (FIPS: d > 2^(nlen/2)): both primes again
+                }
+                dP = d % pMinusOne;
+                dQ = d % qMinusOne;
+                qInv = ModInverse(q, p);
+                if (dP.IsZero() || dQ.IsZero() || qInv.IsZero())
+                {
+                    continue;
+                }
+                // The pair must load as a CRT key and sign a probe the public half recovers.
+                RsaPrivateKey key;
+                if (!key.Load(n, e, d, p, q, dP, dQ, qInv))
+                {
+                    continue;
+                }
+                std::vector<uint8_t> probe(n.ByteLength(), 0x5A), signature, recovered;
+                probe[0] = 0x00;
+                if (!key.SignRaw(probe.data(), probe.size(), signature, random) ||
+                    !RsaVerifyRaw(key.Public(), signature.data(), signature.size(), recovered) ||
+                    recovered != probe)
+                {
+                    continue;
+                }
+                out.n = n;
+                out.e = e;
+                out.d = d;
+                out.p = p;
+                out.q = q;
+                out.dP = dP;
+                out.dQ = dQ;
+                out.qInv = qInv;
+                return true;
+            }
+            return false;
         }
 
         bool RsaVerifyRaw(const RsaPublicKey& key, const uint8_t* signature, size_t length, std::vector<uint8_t>& message)

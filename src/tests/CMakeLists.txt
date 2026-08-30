@@ -87,6 +87,8 @@ set(SRC_GRP_TESTS
     CryptoMontgomeryTest.cpp
     CryptoRsaTest.cpp
     RsaTestKey.h
+    CryptoPrimeTest.cpp
+    PrimeVectors.h
     CryptoOracleTest.cpp
     CryptoBench.cpp
     BigIntVectors.h
