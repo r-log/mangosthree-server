@@ -56,9 +56,12 @@
 #include "Auth/BigNumber.h"
 
 #include <array>
+#include <atomic>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -203,6 +206,7 @@ namespace
         std::shared_ptr<proto::SessionLinks> links;
         std::shared_ptr<proto::ClientConnection> connection;
 
+        std::mutex sentLock;          ///< the send path is reachable from many threads
         std::vector<uint8> sent;      ///< what the connection wrote after onConnect
         bool closed = false;
 
@@ -233,6 +237,7 @@ namespace
             connection->setPeerAddress(CLIENT_ADDRESS);
             connection->setSender([this](const uint8_t* data, size_t len)
             {
+                std::lock_guard<std::mutex> lock(sentLock);
                 sent.insert(sent.end(), data, data + len);
             });
             connection->setCloser([this]() { closed = true; });
@@ -550,6 +555,95 @@ TEST(RedirectStream_accepts_a_handshake_captured_from_the_live_client)
     }
 
     CHECK(std::memcmp(rebuilt, sha.GetDigest(), 20) == 0);
+}
+
+TEST(RedirectStream_concurrent_sends_reach_the_wire_in_keystream_order)
+{
+    // The header cipher is an RC4 stream: each packet takes the next stretch of
+    // it, so the bytes only decode if they reach the wire in the order they were
+    // enciphered. The client decrypts strictly in arrival order and cannot
+    // reorder. Encrypting under a lock is therefore only half the job -- the
+    // hand-off to the transport has to be inside the same lock, or two threads
+    // take their keystream in one order and queue their frames in the other.
+    //
+    // The symptom would be a client dropping the connection over a header that
+    // decodes to nothing, indistinguishable from a genuinely desynchronised
+    // cipher, and only on a session busy enough for the world thread and the
+    // network threads to send at once. This is a race, so one pass proves
+    // nothing; the test leans on volume and on threads released together. It
+    // cannot fail unless the ordering is broken.
+    constexpr int THREADS = 4;
+    constexpr int PER_THREAD = 400;
+
+    Fixture fixture;
+    const std::array<uint8, AuthCrypt::SeedLength> seed =
+        fixture.OpenAndReadChallengeSeed();
+
+    fixture.Feed(ClientBanner());
+    fixture.Feed(ContinuedSession(StreamProof(fixture.sessionKey, fixture.serverSeed)));
+    REQUIRE(!fixture.closed);
+
+    std::atomic<bool> go(false);
+    std::vector<std::thread> senders;
+
+    for (int t = 0; t < THREADS; ++t)
+    {
+        senders.push_back(std::thread([&fixture, &go, t, PER_THREAD]()
+        {
+            while (!go.load(std::memory_order_acquire))
+            {
+                std::this_thread::yield();
+            }
+
+            for (int i = 0; i < PER_THREAD; ++i)
+            {
+                WorldPacket packet(uint16(0x0100 + t), 4);
+                packet << uint32(i);
+                fixture.connection->SendPacket(packet);
+            }
+        }));
+    }
+
+    go.store(true, std::memory_order_release);
+    for (size_t i = 0; i < senders.size(); ++i)
+    {
+        senders[i].join();
+    }
+
+    // Read it back the way the client does: one cipher, strictly in arrival
+    // order. Two packets that swapped places decrypt to a header that is not a
+    // header, and the walk stops making sense from there.
+    BigNumber key = fixture.sessionKey;
+    AuthCrypt clientSide;
+    clientSide.Init(&key, seed.data());
+
+    size_t offset = 0;
+    int decoded = 0;
+    bool malformed = false;
+
+    while (offset + 4 <= fixture.sent.size())
+    {
+        uint8 header[4];
+        std::memcpy(header, &fixture.sent[offset], sizeof(header));
+        clientSide.EncryptSend(header, sizeof(header));   // the mirror of our send
+
+        const uint32 size = uint32(header[0]) << 8 | uint32(header[1]);
+
+        // Two shapes are legitimate here: the resume that opened the stream
+        // (opcode only) and the four-byte payloads sent above.
+        if (size != 2 && size != 6)
+        {
+            malformed = true;
+            break;
+        }
+
+        ++decoded;
+        offset += 4 + (size - 2);
+    }
+
+    CHECK(!malformed);
+    CHECK_EQ(decoded, THREADS * PER_THREAD + 1);   // + SMSG_RESUME_COMMS
+    CHECK_EQ(offset, fixture.sent.size());
 }
 
 TEST(RedirectStream_challenge_seed_differs_per_connection)
