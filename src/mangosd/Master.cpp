@@ -385,6 +385,28 @@ int Master::Run()
                              uint16(sConfig.GetIntDefault("WorldServerStreamPort", DEFAULT_WORLDSERVER_STREAM_PORT)),
                              sConfig.GetStringDefault("BindIP", "0.0.0.0")))
     {
+        // The world is fully loaded by the time the listener is asked to open,
+        // so this path has to take it down as deliberately as the normal one --
+        // returning here left the maps standing and the process crashed on its
+        // way out, every time the listener refused to start:
+        //
+        //   MapManager::~MapManager -> Transport::WithdrawFromWorld
+        //     -> GameObject::RemoveFromWorld -> TerrainInfo::GetZoneId
+        //     -> FusedTerrain::TileAt        ACCESS_VIOLATION
+        //
+        // The destructor is right to withdraw its transports while the maps are
+        // alive, but it runs from the exit handlers, where the terrain those
+        // objects sit on may already have been destroyed by another static --
+        // an order the language does not define and this code cannot rely on.
+        // ShutdownWorld unloads while everything is still standing, and leaves
+        // the destructor a set of transports that are already out of the world,
+        // which its IsInWorld guard then skips. That is exactly what the normal
+        // shutdown does, and why it does not crash.
+        //
+        // Nothing here is conditional on how far start-up got: there are no
+        // players to kick and no sessions to drain, and Listener::Stop is a
+        // no-op on a listener that never opened.
+        ShutdownWorld();
         StopDatabases();
         return 1;
     }
