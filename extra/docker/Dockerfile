@@ -13,7 +13,7 @@ FROM ubuntu:22.04 AS build
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential clang cmake ninja-build ca-certificates \
-        libssl-dev libbz2-dev libmysqlclient-dev zlib1g-dev \
+        libbz2-dev libmysqlclient-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
@@ -32,12 +32,17 @@ RUN cmake -S . -B build -G Ninja \
         -DBUILD_MANGOSD=1 -DBUILD_REALMD=1 -DBUILD_TOOLS=0 \
         -DSCRIPT_LIB_SD3=1 -DPCH=1 \
     && cmake --build build --parallel \
-    && cmake --install build
+    && cmake --install build \
+    && for bin in /mangos/bin/mangosd /mangos/bin/realmd; do \
+           if readelf -d "$bin" | grep -E 'NEEDED.*lib(ssl|crypto)'; then \
+               echo "$bin links the removed crypto library" >&2; exit 1; \
+           fi; \
+       done
 
 FROM ubuntu:22.04 AS runtime-base
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libmysqlclient21 libssl3 libbz2-1.0 zlib1g ca-certificates tzdata gosu \
+        libmysqlclient21 libbz2-1.0 zlib1g ca-certificates tzdata gosu \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 1000 mangos \
     && useradd -u 1000 -g mangos -d /mangos -s /usr/sbin/nologin mangos \

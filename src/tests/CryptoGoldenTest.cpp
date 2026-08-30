@@ -1,13 +1,13 @@
 /**
  * @file
- * @brief The golden vectors captured on the OpenSSL build, replayed through the wrappers.
+ * @brief The golden vectors captured before the switch, replayed through the wrappers.
  *
- * `CryptoGoldenVectors.h` holds what OpenSSL computed through this repository's own
- * wrappers for fixed inputs: big-integer arithmetic at every shape the server uses
+ * `CryptoGoldenVectors.h` holds what this repository's own wrappers computed, on the
+ * library they used to sit on, for fixed inputs: big-integer arithmetic at every shape the server uses
  * (SRP6's 256-bit modulus, the redirect's 2048-bit one, the division edge cases a
  * replacement gets wrong first), the packet cipher's keystreams, an HMAC over a key
- * that must be padded, and raw RSA signatures. These tests pass on the OpenSSL build
- * by construction; their job is to keep passing when the wrappers are re-implemented.
+ * that must be padded, and raw RSA signatures. These tests passed on the old build by
+ * construction; their job is to keep passing now that the wrappers are re-implemented.
  */
 
 #include "TestHarness.h"
@@ -69,7 +69,7 @@ namespace
     }
 }
 
-TEST(Golden_bigint_cases_match_openssl)
+TEST(Golden_bigint_cases_match_the_capture)
 {
     const size_t count = sizeof(golden::kBigInt) / sizeof(golden::kBigInt[0]);
     CHECK(count > 150);
@@ -99,7 +99,7 @@ TEST(Golden_bigint_cases_match_openssl)
     }
 }
 
-TEST(Golden_authcrypt_keystreams_match_openssl)
+TEST(Golden_authcrypt_keystreams_match_the_capture)
 {
     BigNumber K = FromHex(golden::kAuthCrypt.K);
     uint8 send[64], recv[64];
@@ -126,7 +126,7 @@ TEST(Golden_hmac_over_a_short_key_at_its_full_width)
     CHECK_HEX(h.GetDigest(), 20, Lower(golden::kHmacShortKey.hmac));
 }
 
-TEST(Golden_raw_rsa_signatures_match_openssl)
+TEST(Golden_raw_rsa_signatures_match_the_capture)
 {
     BigNumber n = FromHex(golden::kRsaModulus), d = FromHex(golden::kRsaPrivateExponent), e(65537u);
     CHECK_EQ(n.GetNumBytes(), 256);
@@ -146,8 +146,8 @@ TEST(Golden_raw_rsa_signatures_match_openssl)
 
 TEST(Golden_setrand_has_exactly_the_requested_bits_with_both_ends_set)
 {
-    // BN_rand(top = 0, bottom = 1): the most significant bit set, odd -- the shape the
-    // SRP6 ephemerals and salts have relied on. 200 draws per width.
+    // The most significant bit set, odd -- the shape the SRP6 ephemerals and salts have
+    // relied on. 200 draws per width.
     for (int bits : { 32, 128, 152, 256 })
     {
         for (int i = 0; i < 200; ++i)

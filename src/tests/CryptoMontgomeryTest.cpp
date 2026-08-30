@@ -4,7 +4,7 @@
  *
  * The kernel is checked against its definition (z * R = x * y mod m, by plain
  * division), the constants against BigInt's division, the exponentiation against
- * every OpenSSL golden and every Python vector, and the two C++ tiers against each
+ * every captured golden and every Python vector, and the two C++ tiers against each
  * other on the same inputs. The edge patterns are the ones a Montgomery reduction
  * gets wrong first: operands just below the modulus, a modulus whose top limb is
  * 0x8000..., all-ones operands, and results that need the final subtraction.
@@ -278,7 +278,7 @@ TEST(CryptoMontgomery_tiers_agree)
     }
 }
 
-TEST(CryptoModExp_reproduces_the_openssl_goldens)
+TEST(CryptoModExp_reproduces_the_goldens)
 {
     const size_t count = sizeof(golden::kBigInt) / sizeof(golden::kBigInt[0]);
     for (size_t i = 0; i < count; ++i)

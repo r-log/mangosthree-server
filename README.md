@@ -44,8 +44,8 @@ Downloads
   `https://github.com/r-log/mangosthree-server/releases/download/nightly/MangosThree-nightly-win64.zip`.
 * **Releases** — version tags (`v0.22.x`) publish a [release][61] with generated notes.
 
-The Windows zip is self-contained (server, tools, OpenSSL, MySQL client, VC++ runtime and the
-debug symbols that make crash logs readable); no redistributable install is needed.
+The Windows zip is self-contained (server, tools, the MySQL client with the OpenSSL libraries it brings for itself -- nothing of ours links them --
+the VC++ runtime and the debug symbols that make crash logs readable); no redistributable install is needed.
 
 Docker
 ------
@@ -100,7 +100,6 @@ their systems package management instead of source packages.**
 * **[Stormlib][46]**: Provides an abstraction layer for reading from the client's data files.
 * **[Zlib][53]/[Zlib for Windows][51]** provides compression algorithms used in both MPQ archive handling and the client/server protocol.
 * **[Bzip2][54]/[Bzip2 for Windows][52]** provides compression algorithms used in MPQ archives.
-* **[OpenSSL][48]/[OpenSSL for Windows][55]** provides encryption algorithms used when authenticating clients.
 
 * **[utf8cpp][56]**: UTF-8 handling for names and chat, where a wrong answer is a
   disconnect rather than a crash.
@@ -182,12 +181,6 @@ is today.
 <br>All we ask is that if you modify the code and make improvements, please have
 the decency to feed those changes back to us.
 
-In addition, as a special exception, permission is granted to link the code of
-*Mangos* with the OpenSSL project's [OpenSSL library][48] (or with modified
-versions of it that use the same license as the OpenSSL library), and distribute
-the linked executables. You must obey the GNU General Public License in all
-respects for all of the code used other than [OpenSSL][48].
-
 Acknowledgements
 --------
 World of Warcraft, and all related art, images, and lore are copyright [Blizzard Entertainment, Inc.][1]
@@ -225,13 +218,11 @@ World of Warcraft, and all related art, images, and lore are copyright [Blizzard
 [44]: http://github.com/memononen/recastnavigation "Recast - Navigation-mesh Toolset for Games"
 [46]: http://zezula.net/en/mpq/stormlib.html "Stormlib - A library for reading data from MPQ archives"
 [56]: https://github.com/nemtrif/utfcpp "utfcpp - UTF-8 with C++ in a portable way"
-[48]: http://www.openssl.org/ "OpenSSL - The Open Source toolkit for SSL/TLS"
 [49]: https://www.doxygen.nl/download.html "Doxygen - API documentation generator"
 [51]: http://gnuwin32.sourceforge.net/packages/zlib.htm "Zlib for Windows"
 [52]: http://gnuwin32.sourceforge.net/packages/bzip2.htm "Bzip2 for Windows"
 [53]: http://www.zlib.net/ "Zlib"
 [54]: http://www.bzip.org/ "Bzip2"
-[55]: http://slproweb.com/products/Win32OpenSSL.html "OpenSSL for Windows"
 [60]: https://github.com/r-log/mangosthree-server/releases/latest
 [61]: https://github.com/r-log/mangosthree-server/releases
 [62]: https://github.com/r-log/mangosthree-server/commits/master

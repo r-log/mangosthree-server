@@ -45,7 +45,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libssl-dev libbz2-dev default-libmysqlclient-dev             ${{ matrix.pkg }}
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libbz2-dev default-libmysqlclient-dev             ${{ matrix.pkg }}
 
       - name: Compiler cache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03
@@ -94,6 +94,22 @@ jobs:
           out=$("$BUILD_DIR/src/tests/mangos_tests" -only CryptoMontgomery_assembly_tier)
           echo "$out"
           echo "$out" | grep -q "tier: asm"
+
+      # No binary of ours links the crypto library the tree used to sit on. Direct imports
+      # only (readelf, not ldd): the MySQL client brings its own copy, and that one is its.
+      - name: Check the import tables
+        run: |
+          checked=0
+          while IFS= read -r bin; do
+            readelf -h "$bin" > /dev/null 2>&1 || continue
+            checked=$((checked + 1))
+            if readelf -d "$bin" | grep -E 'NEEDED.*lib(ssl|crypto)'; then
+              echo "::error::$bin links the removed crypto library"
+              exit 1
+            fi
+          done < <(find "$BUILD_DIR/src" -type f -perm -u+x -not -name '*.o' -not -name '*.a')
+          echo "checked $checked binaries"
+          [ "$checked" -ge 4 ]
 
       - name: Install
         run: cmake --install "$BUILD_DIR"

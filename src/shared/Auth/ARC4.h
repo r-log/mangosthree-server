@@ -30,14 +30,14 @@
 /**
  * @brief ARCFOUR, in about thirty lines, because the alternative was a DLL.
  *
- * This used to be EVP_rc4(). OpenSSL 3 moved RC4 to the LEGACY provider, which is not
- * compiled into libcrypto -- it is a separate module discovered on disk at run time. So
- * a cipher of two hundred and fifty-six bytes of state dragged in a deployment
- * requirement (`ossl-modules/legacy.dll` beside the executable, an OPENSSL_MODULES
- * search path, an installer that ships it, CI that copies it) and a start-up check that
- * REFUSED TO RUN without it.
+ * This used to come from the crypto library the server linked at the time, whose third
+ * major release moved RC4 out of the library proper into a "legacy" module discovered
+ * on disk at run time. So a cipher of two hundred and fifty-six bytes of state dragged
+ * in a deployment requirement (a module file beside the executable, a search path for
+ * it, an installer that ships it, CI that copies it) and a start-up check that REFUSED
+ * TO RUN without it.
  *
- * It also aimed a loaded gun at the server: the legacy provider is deprecated, and the
+ * It also aimed a loaded gun at the server: that module was deprecated, and the
  * release that finally drops it would have stopped this emulator booting -- for want of
  * a cipher any competent programmer can write from the specification.
  *

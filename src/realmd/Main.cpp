@@ -59,9 +59,6 @@
 #include "ScheduledExit.h"
 #include "Util.h"
 
-#include <openssl/opensslv.h>
-#include <openssl/crypto.h>
-
 #include <chrono>
 #include <cstring>
 #include <thread>
@@ -421,8 +418,6 @@ extern int main(int argc, char** argv)
     }
 
     LoadScheduledExitConfig();
-
-    DETAIL_LOG("Using SSL version: %s (Library: %s)", OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
 
     /// realmd PID file creation
     std::string pidfile = sConfig.GetStringDefault("PidFile", "");

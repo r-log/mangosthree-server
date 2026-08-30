@@ -32,7 +32,7 @@
  * @brief Regression tests for BigNumber::AsByteArray's zero padding.
  *
  * These exist because of a real defect: the old implementation called
- * BN_bn2bin, which writes the number's minimal big-endian encoding at offset 0,
+ * a minimal encoder, which writes the number's big-endian bytes at offset 0,
  * and then reversed the whole buffer. When the value serialised shorter than the
  * requested length, the zero padding ended up on the wrong side and every byte of
  * the value was shifted.
@@ -43,7 +43,7 @@
  * for no reason and then worked again -- indistinguishable from a flaky network.
  *
  * So these cases use values that are *deterministically* short. Revert
- * BigNumber.cpp to BN_bn2bin and both go red immediately; a test built on a
+ * BigNumber.cpp to a minimal encoder and both go red immediately; a test built on a
  * random value would pass 255 runs out of 256 and prove nothing.
  */
 
@@ -129,4 +129,100 @@ TEST(BigNumber_session_key_sized_padding)
         }
     }
     CHECK(restIsZero);
+}
+
+// ---------------------------------------------------------------------------
+// The adapter's contract beyond padding: the conventions the database columns, the
+// key files and the wire depend on, now that the class is a wrapper over the tree's
+// own BigInt rather than over a library.
+// ---------------------------------------------------------------------------
+
+TEST(BigNumber_hex_is_uppercase_whole_bytes_and_round_trips)
+{
+    BigNumber n;
+    n.SetDword(1);
+    CHECK_STR(n.AsHexStr(), "01");        // a whole byte, never "1"
+    n.SetDword(0x0A2B);
+    CHECK_STR(n.AsHexStr(), "0A2B");
+    BigNumber zero;
+    CHECK(zero.isZero());
+    CHECK_STR(zero.AsHexStr(), "0");
+    CHECK_EQ(zero.GetNumBytes(), 0);
+
+    // lowercase digits and leading zero bytes are accepted on the way in
+    BigNumber k;
+    k.SetHexStr("00ff10");
+    CHECK_STR(k.AsHexStr(), "FF10");
+    CHECK_EQ(k.GetNumBytes(), 2);
+    CHECK_EQ(k.AsDword(), uint32(0xFF10));
+
+    // a 40-byte session key survives the round trip the database gives it
+    const char* K = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+    k.SetHexStr(K);
+    CHECK_EQ(k.GetNumBytes(), 40);
+    CHECK_STR(k.AsHexStr(), K);
+}
+
+TEST(BigNumber_rejects_what_is_not_hex_and_sets_zero)
+{
+    BigNumber n;
+    n.SetDword(7);
+    n.SetHexStr("-1");
+    CHECK(n.isZero());
+    n.SetDword(7);
+    n.SetHexStr("0x10");
+    CHECK(n.isZero());
+    n.SetDword(7);
+    n.SetHexStr("");
+    CHECK(n.isZero());
+}
+
+TEST(BigNumber_setqword_sets_rather_than_adds)
+{
+    // The old implementation added the high word into whatever was there before
+    // shifting; a value set twice was wrong the second time.
+    BigNumber n;
+    n.SetQword(0x0102030405060708ull);
+    CHECK_STR(n.AsHexStr(), "0102030405060708");
+    n.SetQword(0x0102030405060708ull);
+    CHECK_STR(n.AsHexStr(), "0102030405060708");
+    n.SetQword(1);
+    CHECK_STR(n.AsHexStr(), "01");
+}
+
+TEST(BigNumber_arithmetic_and_modexp_agree_with_the_definition)
+{
+    BigNumber a, b, m;
+    a.SetHexStr("F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F1");
+    b.SetHexStr("0123456789ABCDEF0123456789ABCDEF");
+    m.SetHexStr("894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7");   // the SRP6 modulus
+    CHECK((a + b - b).AsHexStr() == std::string(a.AsHexStr()));
+    CHECK(((a * b) / b).AsHexStr() == std::string(a.AsHexStr()));
+    CHECK(((a * b) % b).isZero());
+    // g^0 = 1, g^1 = g, and (g^x)^y == g^(x*y) mod N
+    BigNumber g(7), zero, one(1), x(12345), y(6789);
+    CHECK_STR(g.ModExp(zero, m).AsHexStr(), "01");
+    CHECK_STR(g.ModExp(one, m).AsHexStr(), "07");
+    CHECK(g.ModExp(x, m).ModExp(y, m).AsHexStr() == std::string(g.ModExp(x * y, m).AsHexStr()));
+    // an even modulus and a single-limb modulus take the plain path, and agree with %
+    BigNumber even(1000), small(0xFFFFFFFFu), three(3);
+    CHECK(three.ModExp(BigNumber(3), even).AsHexStr() == std::string("1B"));    // 27
+    CHECK(three.ModExp(BigNumber(30), small).AsHexStr() == std::string(((three.Exp(BigNumber(30))) % small).AsHexStr()));
+    CHECK_STR(three.Exp(BigNumber(5)).AsHexStr(), "F3");                         // 243
+}
+
+TEST(BigNumber_random_values_have_the_requested_width)
+{
+    for (int bits : { 32, 152, 256 })
+    {
+        for (int i = 0; i < 20; ++i)
+        {
+            BigNumber r;
+            r.SetRand(bits);
+            CHECK_EQ(r.GetNumBytes(), bits / 8);
+            const uint8* le = r.AsByteArray(bits / 8);
+            CHECK((le[bits / 8 - 1] & 0x80) != 0);   // top bit set
+            CHECK((le[0] & 1) != 0);                 // odd
+        }
+    }
 }

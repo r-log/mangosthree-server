@@ -25,56 +25,27 @@
 
 #include "Auth/Sha1.h"
 #include "Auth/BigNumber.h"
-#include <stdarg.h>
-#include <cstring>
-#include <string>
+#include "Crypto/SecureZero.h"
 
-Sha1Hash::Sha1Hash() : mC(EVP_MD_CTX_new())
-{
-    Initialize();
-}
+#include <cstdarg>
+#include <string>
 
 Sha1Hash::~Sha1Hash()
 {
-    EVP_MD_CTX_free(mC);
-    mC = nullptr;
-}
-
-Sha1Hash::Sha1Hash(const Sha1Hash& other) : mC(EVP_MD_CTX_new())
-{
-    memcpy(mDigest, other.mDigest, SHA_DIGEST_LENGTH);
-
-    // A copy of an already-finalized hash only ever has its digest read, so a
-    // context that refuses to duplicate is not fatal -- leave it freshly
-    // initialized rather than half-copied.
-    if (!mC || !other.mC || EVP_MD_CTX_copy_ex(mC, other.mC) != 1)
-    {
-        Initialize();
-    }
-}
-
-Sha1Hash& Sha1Hash::operator=(const Sha1Hash& other)
-{
-    if (this != &other)
-    {
-        memcpy(mDigest, other.mDigest, SHA_DIGEST_LENGTH);
-
-        if (!mC || !other.mC || EVP_MD_CTX_copy_ex(mC, other.mC) != 1)
-        {
-            Initialize();
-        }
-    }
-    return *this;
+    MaNGOS::Crypto::SecureZero(mDigest, sizeof mDigest);
 }
 
 void Sha1Hash::UpdateData(const uint8* dta, int len)
 {
-    EVP_DigestUpdate(mC, dta, len);
+    if (len > 0)
+    {
+        mC.Update(dta, size_t(len));
+    }
 }
 
 void Sha1Hash::UpdateData(const std::string& str)
 {
-    UpdateData((uint8 const*)str.c_str(), str.length());
+    UpdateData((uint8 const*)str.c_str(), int(str.length()));
 }
 
 void Sha1Hash::UpdateBigNumbers(BigNumber* bn0, ...)
@@ -94,11 +65,10 @@ void Sha1Hash::UpdateBigNumbers(BigNumber* bn0, ...)
 
 void Sha1Hash::Initialize()
 {
-    EVP_DigestInit_ex(mC, EVP_sha1(), nullptr);
+    mC.Reset();
 }
 
 void Sha1Hash::Finalize(void)
 {
-    unsigned int length = 0;
-    EVP_DigestFinal_ex(mC, mDigest, &length);
+    mC.Finish(mDigest);
 }

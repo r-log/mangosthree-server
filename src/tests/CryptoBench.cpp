@@ -1,10 +1,10 @@
 /**
  * @file
  * @brief `mangos_tests --bench crypto`: the in-house primitives timed the way the
- * OpenSSL baseline was (medians of N runs, same shapes), printed as a markdown table.
+ * pre-switch baseline was (medians of N runs, same shapes), printed as a markdown table.
  *
  * Not a test: nothing is asserted. The numbers go into the pull request next to the
- * baseline captured on the OpenSSL build, and decide nothing by themselves -- the
+ * baseline captured on the old build, and decide nothing by themselves -- the
  * assembly tier is written regardless; this is what it is compared with.
  */
 

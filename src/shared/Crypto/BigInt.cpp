@@ -108,8 +108,8 @@ namespace MaNGOS
             {
                 return "0";
             }
-            // Whole bytes, two digits each, leading zero bytes dropped: the shape
-            // BN_bn2hex produced and the database and key files hold ("01", "0A2B").
+            // Whole bytes, two digits each, leading zero bytes dropped: the shape the
+            // database columns and the key files hold ("01", "0A2B").
             static const char* digits = "0123456789ABCDEF";
             const size_t length = ByteLength();
             std::string out;

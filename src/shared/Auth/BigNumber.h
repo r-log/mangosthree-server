@@ -27,217 +27,105 @@
 #define MANGOS_H_AUTH_BIGNUMBER
 
 #include "Platform/Define.h"
+#include "Crypto/BigInt.h"
 
-struct bignum_st;
+#include <string>
+#include <vector>
 
 /**
- * @brief Arbitrary precision integer arithmetic using OpenSSL BIGNUM
+ * @brief The big integer the protocol code was written against, over the tree's own
+ * arithmetic (src/shared/Crypto).
  *
- * BigNumber provides a C++ wrapper around OpenSSL's BIGNUM structure,
- * enabling arbitrary precision integer arithmetic for cryptographic operations.
- * Used primarily for RSA key generation and cryptographic computations.
+ * The interface is the historical one and its byte conventions are load-bearing:
+ * SetBinary reads little-endian bytes and AsByteArray writes them, padded at the high
+ * end to the requested width; AsByteArray(size, false) writes big-endian, left-padded;
+ * AsHexStr is uppercase in whole bytes ("01", "0A2B"; "0" for zero), which is the
+ * shape the database columns and the key files hold. The buffers AsByteArray, AsHexStr
+ * and AsDecStr return belong to the object and are replaced by the next call of the
+ * same method on it.
+ *
+ * Every value is erased when the object goes: session keys and ephemerals pass through
+ * this class.
  */
 class BigNumber
 {
     public:
-        /**
-         * @brief Default constructor - creates a zero BigNumber
-         */
         BigNumber();
-        /**
-         * @brief Copy constructor
-         * @param bn BigNumber to copy from
-         */
         BigNumber(const BigNumber& bn);
-        /**
-         * @brief Constructor from 32-bit unsigned integer
-         * @param val Initial value
-         */
         BigNumber(uint32 val);
-        /**
-         * @brief Destructor - frees OpenSSL BIGNUM resources
-         */
         ~BigNumber();
 
-        /**
-         * @brief Set value from 32-bit unsigned integer
-         * @param val Value to set
-         */
         void SetDword(uint32 val);
-        /**
-         * @brief Set value from 64-bit unsigned integer
-         * @param val Value to set
-         */
         void SetQword(uint64 val);
-        /**
-         * @brief Set value from binary data
-         * @param bytes Pointer to binary data
-         * @param len Length of binary data in bytes
-         */
+        /// From `len` little-endian bytes; zero when there are none.
         void SetBinary(const uint8* bytes, int len);
-        /**
-         * @brief Set value from hexadecimal string
-         * @param str Hexadecimal string representation
-         */
+        /// From big-endian hexadecimal digits; anything else sets zero and is logged.
         void SetHexStr(const char* str);
 
-        /**
-         * @brief Set to a random value
-         * @param numbits Number of bits for the random value
-         */
+        /// A random value of exactly `numbits` bits -- top bit set, odd -- from the OS
+        /// CSPRNG: the shape the SRP6 salts and ephemerals have always had.
         void SetRand(int numbits);
 
-        /**
-         * @brief Assignment operator
-         * @param bn BigNumber to assign from
-         * @return Reference to this BigNumber
-         */
         BigNumber operator=(const BigNumber& bn);
 
-        /**
-         * @brief Addition assignment operator
-         * @param bn BigNumber to add
-         * @return Reference to this BigNumber
-         */
         BigNumber operator+=(const BigNumber& bn);
-        /**
-         * @brief Addition operator
-         * @param bn BigNumber to add
-         * @return New BigNumber with sum
-         */
         BigNumber operator+(const BigNumber& bn)
         {
             BigNumber t(*this);
             return t += bn;
         }
-        /**
-         * @brief Subtraction assignment operator
-         * @param bn BigNumber to subtract
-         * @return Reference to this BigNumber
-         */
+        /// Unsigned: subtracting the larger value is an assertion failure.
         BigNumber operator-=(const BigNumber& bn);
-        /**
-         * @brief Subtraction operator
-         * @param bn BigNumber to subtract
-         * @return New BigNumber with difference
-         */
         BigNumber operator-(const BigNumber& bn)
         {
             BigNumber t(*this);
             return t -= bn;
         }
-        /**
-         * @brief Multiplication assignment operator
-         * @param bn BigNumber to multiply by
-         * @return Reference to this BigNumber
-         */
         BigNumber operator*=(const BigNumber& bn);
-        /**
-         * @brief Multiplication operator
-         * @param bn BigNumber to multiply by
-         * @return New BigNumber with product
-         */
         BigNumber operator*(const BigNumber& bn)
         {
             BigNumber t(*this);
             return t *= bn;
         }
-        /**
-         * @brief Division assignment operator
-         * @param bn BigNumber to divide by
-         * @return Reference to this BigNumber
-         */
         BigNumber operator/=(const BigNumber& bn);
-        /**
-         * @brief Division operator
-         * @param bn BigNumber to divide by
-         * @return New BigNumber with quotient
-         */
         BigNumber operator/(const BigNumber& bn)
         {
             BigNumber t(*this);
             return t /= bn;
         }
-        /**
-         * @brief Modulo assignment operator
-         * @param bn BigNumber for modulo operation
-         * @return Reference to this BigNumber
-         */
         BigNumber operator%=(const BigNumber& bn);
-        /**
-         * @brief Modulo operator
-         * @param bn BigNumber for modulo operation
-         * @return New BigNumber with remainder
-         */
         BigNumber operator%(const BigNumber& bn)
         {
             BigNumber t(*this);
             return t %= bn;
         }
 
-        /**
-         * @brief Check if the BigNumber is zero
-         * @return True if value is zero, false otherwise
-         */
         bool isZero() const;
 
         /**
-         * @brief Modular exponentiation: (this ^ bn1) mod bn2
-         * @param bn1 Exponent
-         * @param bn2 Modulus
-         * @return New BigNumber with result
+         * @brief (this ^ bn1) mod bn2, with the exponent treated as secret: the running
+         * time does not depend on its bits. Zero when the modulus is zero.
          */
         BigNumber ModExp(const BigNumber& bn1, const BigNumber& bn2);
-        /**
-         * @brief Exponentiation: this ^ bn
-         * @param bn Exponent value
-         * @return New BigNumber with result
-         */
+        /// this ^ bn, without a modulus.
         BigNumber Exp(const BigNumber& bn);
 
-        /**
-         * @brief Get the number of bytes needed to represent this value
-         * @return Number of bytes
-         */
+        /// The minimal number of bytes; 0 for zero.
         int GetNumBytes(void);
 
-        /**
-         * @brief Get the underlying OpenSSL BIGNUM structure
-         * @return Pointer to OpenSSL BIGNUM structure
-         */
-        struct bignum_st* BN() { return _bn; }
-
-        /**
-         * @brief Convert to 32-bit unsigned integer
-         * @return 32-bit unsigned integer value
-         */
+        /// The low 32 bits.
         uint32 AsDword();
-        /**
-         * @brief Convert to byte array
-         * @param minSize Minimum size of the array (pads with zeros if needed)
-         * @return Pointer to byte array
-         */
+        /// Little-endian, padded with zero bytes at the high end to at least `minSize`.
         uint8* AsByteArray(int minSize = 0);
-        /**
-         * @brief Convert to byte array with optional byte reversal
-         * @param minSize Minimum size of the array
-         * @param reverse If true, reverse byte order
-         * @return Pointer to byte array
-         */
+        /// `reverse` = true is AsByteArray(minSize); false writes big-endian, left-padded.
         uint8* AsByteArray(int minSize, bool reverse);
-        /**
-         * @brief Convert to hexadecimal string
-         * @return Hexadecimal string representation
-         */
+        /// Uppercase hexadecimal in whole bytes; "0" for zero.
         const char* AsHexStr();
-        /**
-         * @brief Convert to decimal string
-         * @return Decimal string representation
-         */
         const char* AsDecStr();
 
     private:
-        struct bignum_st* _bn; /**< OpenSSL BIGNUM structure */
-        uint8* _array; /**< Cached byte array representation */
+        MaNGOS::Crypto::BigInt m_value;
+        std::vector<uint8>     m_array;   /**< The buffer AsByteArray returns */
+        std::string            m_text;    /**< The buffer AsHexStr and AsDecStr return */
 };
 #endif

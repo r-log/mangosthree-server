@@ -4,7 +4,6 @@ param(
     [Parameter(Mandatory)] [string] $BuildDir,
     [Parameter(Mandatory)] [string] $Version,
     [Parameter(Mandatory)] [string] $OutDir,
-    [string] $OpenSslBin = 'C:\Program Files\OpenSSL-Win64\bin',
     [int] $SmokeTimeoutSec = 90
 )
 
@@ -46,7 +45,7 @@ if ($mysqlLib) {
     }
 }
 $vcRedist = if ($env:VCToolsRedistDir) { Join-Path $env:VCToolsRedistDir 'x64\Microsoft.VC143.CRT' } else { $null }
-$searchDirs = @($OpenSslBin) + $mysqlDirs + @($vcRedist) | Where-Object { $_ -and (Test-Path $_) }
+$searchDirs = $mysqlDirs + @($vcRedist) | Where-Object { $_ -and (Test-Path $_) }
 $system32 = Join-Path $env:SystemRoot 'System32'
 Write-Step "DLL search directories: $($searchDirs -join ' ; ')"
 
@@ -90,15 +89,22 @@ while ($queue.Count -gt 0) {
 }
 $report | Sort-Object -Unique | ForEach-Object { Write-Host "    $_" }
 
-$openssl = & (Join-Path $OpenSslBin 'openssl.exe') version
+# Nothing of ours imports the crypto library the tree used to sit on. The MySQL client
+# brings its own copy for itself; every executable in the package is ours.
+Write-Step 'Import tables'
+foreach ($exe in Get-ChildItem -Path $staging -Recurse -Include *.exe) {
+    $imports = @(Get-Dependents $exe.FullName | Where-Object { $_ -match '^lib(ssl|crypto)' })
+    if ($imports.Count -gt 0) { throw "$($exe.Name) imports $($imports -join ', ') -- the removed crypto library" }
+    Write-Host "    $($exe.Name): clean"
+}
+
 @(
     "MaNGOS Three (Cataclysm 4.3.4) Windows x64 build"
     "Version:   $Version"
     "Commit:    $($env:GITHUB_SHA)"
     "Built:     $((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm')) UTC"
     "Compiler:  MSVC $(Get-CacheValue 'CMAKE_CXX_COMPILER_VERSION'), $(Get-CacheValue 'CMAKE_BUILD_TYPE')"
-    "OpenSSL:   $openssl"
-    "MySQL:     $(Get-CacheValue 'MySQL_INCLUDE_DIR')"
+    "MySQL:     $(Get-CacheValue 'MySQL_INCLUDE_DIR') (libmysql.dll, with the libraries it brings for itself)"
     ""
     "Copy mangosd.conf.dist to mangosd.conf and realmd.conf.dist to realmd.conf, set the"
     "*DatabaseInfo lines, extract the client data with tools\mangos-extractor.exe, run realmd.exe"

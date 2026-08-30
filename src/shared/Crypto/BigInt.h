@@ -64,7 +64,7 @@ namespace MaNGOS
             /// the value zero and returns false.
             bool FromHex(std::string_view hex);
             /// Uppercase, whole bytes (two digits each, no leading zero bytes), "0" for
-            /// zero -- the BN_bn2hex shape the database columns and key files hold.
+            /// zero -- the shape the database columns and key files hold.
             std::string ToHex() const;
             std::string ToDecimal() const;
 

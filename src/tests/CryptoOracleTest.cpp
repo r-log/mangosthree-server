@@ -257,7 +257,7 @@ TEST(CryptoOracle_modinv_and_mul_match_s2n_bignum)
 TEST(CryptoOracle_not_available_on_this_platform)
 {
     // The s2n-bignum oracle assembles on Linux x86-64 with GCC or Clang only; here the
-    // same comparisons ran against the Python vectors and the OpenSSL goldens.
+    // same comparisons ran against the Python vectors and the captured goldens.
     CHECK(true);
 }
 

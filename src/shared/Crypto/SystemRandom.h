@@ -61,8 +61,8 @@ namespace MaNGOS
             void FillExact(uint8_t* out, size_t length);
 
             /// A value of exactly `bits` bits: the top bit set and the value odd -- the
-            /// shape BN_rand(top = 0, bottom = 1) produced for the SRP6 ephemerals and
-            /// salts. bits must be at least 2.
+            /// shape the SRP6 ephemerals and salts have always had. bits must be at
+            /// least 2.
             BigInt Bits(size_t bits);
 
             /// Uniform in [0, n) by rejection sampling. n must be non-zero.

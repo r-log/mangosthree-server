@@ -1,13 +1,13 @@
 /**
  * @file
- * @brief The in-house hashes against their published vectors and the OpenSSL goldens.
+ * @brief The in-house hashes against their published vectors and the captured goldens.
  *
  * SHA-1 and SHA-256: FIPS 180 examples and the NIST million-'a' samples. MD5: the
  * RFC 1321 test suite. HMAC-SHA1: RFC 2202 cases 1-7 (short key, block-size key,
  * larger-than-block key). Then the properties a streaming implementation gets wrong:
  * the digest must not depend on how the message was split into Update calls, and the
  * padding must be right at every length around the 64-byte block boundary. Finally
- * the values OpenSSL produced through the old wrappers (CryptoGoldenVectors.h) must
+ * the values the old wrappers produced before the switch (CryptoGoldenVectors.h) must
  * come out of the new code byte for byte.
  */
 
@@ -200,9 +200,9 @@ TEST(CryptoHash_padding_at_the_block_boundary)
     }
 }
 
-TEST(CryptoHash_reproduces_the_openssl_goldens)
+TEST(CryptoHash_reproduces_the_goldens)
 {
-    // The SRP6 password hash of the golden handshake: SHA-1("GOLDEN:VECTOR") as OpenSSL computed it.
+    // The SRP6 password hash of the golden handshake: SHA-1("GOLDEN:VECTOR") as captured.
     CHECK_HEX(Sha1(Bytes("GOLDEN:VECTOR"), 13).data(), 20, Lower(golden::kSrp6.passwordHashHex));
 
     // The HMAC keyed with a 39-byte session key taken at its 40-byte width: a zero byte

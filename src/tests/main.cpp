@@ -33,7 +33,7 @@
 // No argument runs everything, which is what CI does and what the ctest entry does.
 // -only/-skip are for iterating: the network and crypto stress cases cost minutes and
 // have nothing to say about a change elsewhere.
-/// CryptoBench.cpp: the in-house primitives timed the way the OpenSSL baseline was.
+/// CryptoBench.cpp: the in-house primitives timed the way the pre-switch baseline was.
 void RunCryptoBench();
 
 static void Usage()

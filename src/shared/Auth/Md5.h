@@ -27,40 +27,24 @@
 #define _AUTH_MD5_H
 
 #include "Platform/Define.h"
-
-#include <openssl/evp.h>
-#include <openssl/md5.h>        // MD5_DIGEST_LENGTH
+#include "Crypto/Md5.h"
 
 #include <cstddef>
 #include <string>
 
 /**
- * @brief MD5 over OpenSSL's EVP interface.
+ * @brief MD5 with the interface the patch handling in realmd was written against, over
+ * the tree's own core (src/shared/Crypto).
  *
- * MD5 remains only for compatibility with legacy client protocols, including
- * the realmd patch catalogue. It must not be used for new security decisions;
- * the remaining algorithm choices are fixed by shipped clients.
- *
- * The point of this class is the *interface*, not the algorithm. The call sites
- * previously used OpenSSL's low-level MD5_Init/MD5_Update/MD5_Final, which
- * OpenSSL 3.0 deprecated; building those targets with OPENSSL_NO_DEPRECATED --
- * which is what mangos_openssl_strict asks for everywhere else in this tree --
- * deletes their declarations outright. Mirrors Sha1Hash so both digests are
- * reached the same way.
+ * The protocol identifies a patch file by its MD5, so the digest is a name here, not
+ * a security property.
  */
 class Md5Hash
 {
     public:
 
-        Md5Hash() : m_ctx(EVP_MD_CTX_new())
-        {
-            Initialize();
-        }
-
-        ~Md5Hash()
-        {
-            EVP_MD_CTX_free(m_ctx);
-        }
+        Md5Hash() = default;
+        ~Md5Hash() = default;
 
         Md5Hash(const Md5Hash&) = delete;
         Md5Hash& operator=(const Md5Hash&) = delete;
@@ -68,12 +52,12 @@ class Md5Hash
         /// Reset, ready to hash a fresh message.
         void Initialize()
         {
-            EVP_DigestInit_ex(m_ctx, EVP_md5(), nullptr);
+            m_ctx.Reset();
         }
 
         void UpdateData(const uint8* data, size_t length)
         {
-            EVP_DigestUpdate(m_ctx, data, length);
+            m_ctx.Update(data, length);
         }
 
         void UpdateData(const std::string& str)
@@ -84,19 +68,18 @@ class Md5Hash
         /// Produce the digest. Call once, after the last UpdateData().
         void Finalize()
         {
-            unsigned int length = 0;
-            EVP_DigestFinal_ex(m_ctx, m_digest, &length);
+            m_ctx.Finish(m_digest);
         }
 
-        /// The digest. Only meaningful after Finalize(); MD5_DIGEST_LENGTH bytes.
+        /// The digest. Only meaningful after Finalize(); DigestLength bytes.
         uint8* GetDigest() { return m_digest; }
 
-        static constexpr int DigestLength = MD5_DIGEST_LENGTH;
+        static constexpr int DigestLength = int(MaNGOS::Crypto::Md5Core::DigestLength);
 
     private:
 
-        EVP_MD_CTX* m_ctx;
-        uint8       m_digest[MD5_DIGEST_LENGTH]{};
+        MaNGOS::Crypto::Md5Core m_ctx;
+        uint8                   m_digest[DigestLength]{};
 };
 
 #endif

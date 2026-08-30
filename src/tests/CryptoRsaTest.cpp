@@ -1,8 +1,8 @@
 /**
  * @file
- * @brief Raw RSA: the OpenSSL goldens through both private paths, and the key's rules.
+ * @brief Raw RSA: the captured goldens through both private paths, and the key's rules.
  *
- * The four signatures OpenSSL produced under the test pair (CryptoGoldenVectors.h)
+ * The four signatures captured under the test pair (CryptoGoldenVectors.h)
  * must come out of the plain path and of the CRT path byte for byte; the CRT
  * parameters are the ones recovered from (n, e, d) in RsaTestKey.h. Then the
  * properties: verify inverts sign, blinding does not change the result, the widths
@@ -85,7 +85,7 @@ TEST(CryptoRsa_test_key_is_the_golden_pair_with_consistent_crt_parameters)
     CHECK_EQ(q.BitLength(), size_t(1024));
 }
 
-TEST(CryptoRsa_plain_signatures_match_openssl)
+TEST(CryptoRsa_plain_signatures_match_the_goldens)
 {
     RsaPrivateKey key;
     REQUIRE(LoadPlain(key));
@@ -94,7 +94,7 @@ TEST(CryptoRsa_plain_signatures_match_openssl)
     CheckGoldens(key);
 }
 
-TEST(CryptoRsa_crt_signatures_match_openssl)
+TEST(CryptoRsa_crt_signatures_match_the_goldens)
 {
     RsaPrivateKey key;
     REQUIRE(LoadCrt(key));
