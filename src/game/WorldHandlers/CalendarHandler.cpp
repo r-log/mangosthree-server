@@ -89,6 +89,14 @@ void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recv_data*/)
         data << secsToTimeBitFields(event->EventTime);
         data << uint32(event->Flags);
         data << int32(event->DungeonId);
+
+        // Client reads a fixed uint64 here before the packed creator GUID (event->GuildId
+        // is only the guild's uint32 id, not the GUID the client wants). Skipping it used to
+        // be invisible because an empty calendar never enters this loop; the first real event
+        // shifted every field after it, and the client hung parsing the desynced packet.
+        Guild* guild = sGuildMgr.GetGuildById(event->GuildId);
+        data << uint64(guild ? guild->GetObjectGuid().GetRawValue() : 0);
+
         data << event->CreatorGuid.WriteAsPacked();
 
         std::string timeStr = TimeToTimestampStr(event->EventTime);
