@@ -63,6 +63,20 @@ ConfVersion=@MANGOS_WORLD_VER@
 #        be reachable from the client, through any firewall or NAT in between.
 #        Default: 8086
 #
+#    SecondStream.ExtraRouting
+#        Whether the second stream also carries opcodes the client would accept
+#        on either one. The 19 it demands there are sent there regardless; this
+#        governs only the ones the server elects to move, which today are the
+#        loot packets Blizzard left unpinned (the roll, the master list, the
+#        currency removal) -- the rest of a conversation whose other half is
+#        already gated onto that stream.
+#        Turn this off if loot ever behaves oddly after an update: the second
+#        stream is nearly idle and the first is not, so a moved packet arrives
+#        sooner, and anything that turns out to depend on the order of the two
+#        would show up here first. 0 restores the previous behaviour without a
+#        rebuild.
+#        Default: 1 (use the second stream for the elective set)
+#
 #    BindIP
 #        Bind World Server to IP/hostname
 #        This option is useful for running multiple worldd/realmd instances
@@ -130,6 +144,7 @@ CharacterDatabaseConnections = 1
 MaxPingTime                  = 5
 WorldServerPort              = 8085
 WorldServerStreamPort        = 8086
+SecondStream.ExtraRouting    = 1
 BindIP                       = "0.0.0.0"
 
 Redirect.SecretFile          = "server.secret"

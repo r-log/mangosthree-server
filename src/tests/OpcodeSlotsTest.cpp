@@ -26,6 +26,7 @@
 #include "TestHarness.h"
 
 #include "OpcodeSlots.h"
+#include "ServerRouting.h"
 
 #include <vector>
 
@@ -148,16 +149,15 @@ TEST(OpcodeSlots_known_routing)
     CHECK(proto::SendSlotOf(0x3B0C) == LinkSlot::One);  // CMSG_TIME_SYNC_RESP
 }
 
-TEST(OpcodeSlots_server_routes_by_the_receive_gate_alone)
+TEST(OpcodeSlots_server_never_routes_the_login_sequence_to_stream_one)
 {
-    // The server's egress rule is the client's receive gate and nothing else.
-    // The nineteen gated opcodes go on stream 1; every other opcode -- including
-    // the many the CLIENT would transmit on stream 1 -- goes on stream 0.
+    // The login tail reads as stream 1 in the client's SEND router, and sending
+    // it there cost the first live login its second stream (2026-08-30). None of
+    // it may ever be routed by send_slot, whatever else the egress rule grows.
     //
-    // The distinction is not academic. SMSG_LOGIN_VERIFY_WORLD, SMSG_UPDATE_OBJECT
-    // and the login tail all read as stream 1 in the send router, and sending
-    // them there cost the first live login its second stream: the client dropped
-    // it and reported disconnect reason 3 (2026-08-30).
+    // These are also the opcodes the elective policy must never claim: they go
+    // out before the second stream is promoted, so putting them there is not a
+    // question of ordering but of the stream not existing yet.
     CHECK(proto::ServerSlotOf(0x2005) == LinkSlot::Zero); // SMSG_LOGIN_VERIFY_WORLD
     CHECK(proto::ServerSlotOf(0x4715) == LinkSlot::Zero); // SMSG_UPDATE_OBJECT
     CHECK(proto::ServerSlotOf(0x2C14) == LinkSlot::Zero); // SMSG_ADDON_INFO
@@ -169,19 +169,29 @@ TEST(OpcodeSlots_server_routes_by_the_receive_gate_alone)
     CHECK(proto::ServerSlotOf(0x2D15) == LinkSlot::One);  // SMSG_ATTACK_START
     CHECK(proto::ServerSlotOf(0x0934) == LinkSlot::One);  // SMSG_ATTACK_STOP
     CHECK(proto::ServerSlotOf(0x4C16) == LinkSlot::One);  // SMSG_LOOT_RESPONSE
+}
 
-    // Exhaustively: the two agree on exactly the gated set.
+TEST(OpcodeSlots_stream_one_is_the_gate_plus_the_policy_and_nothing_else)
+{
+    // The egress rule has two sources and they are different kinds of claim: the
+    // client's gate is obligation, the policy is our judgement. Exhaustively,
+    // stream 1 is exactly their union -- so an opcode can never reach the second
+    // stream by accident, only because one of the two put it there.
     uint32 onOne = 0;
     for (uint32 opcode = 0; opcode <= 0xFFFF; ++opcode)
     {
-        const bool gated = proto::IsRecvGated(uint16(opcode));
-        CHECK((proto::ServerSlotOf(uint16(opcode)) == LinkSlot::One) == gated);
-        if (gated)
+        const uint16 op = uint16(opcode);
+        const bool wanted = proto::IsRecvGated(op) || proto::PrefersStreamOne(op);
+
+        CHECK((proto::ServerSlotOf(op) == LinkSlot::One) == wanted);
+        if (wanted)
         {
             ++onOne;
         }
     }
-    CHECK_EQ(onOne, uint32(19));
+
+    // 19 the client demands + 7 elected loot opcodes.
+    CHECK_EQ(onOne, uint32(19 + 7));
 }
 
 TEST(OpcodeSlots_unknown_opcode_never_routes_to_stream_one)

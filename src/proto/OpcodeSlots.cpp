@@ -25,6 +25,8 @@
 
 #include "OpcodeSlots.h"
 
+#include "ServerRouting.h"
+
 #include <array>
 #include <cstddef>
 
@@ -78,7 +80,17 @@ namespace proto
 
     LinkSlot ServerSlotOf(uint16 opcode)
     {
-        return (Slots()[opcode] & SLOT_RECV_GATE) != 0 ? LinkSlot::One : LinkSlot::Zero;
+        // Two independent reasons to use the second stream, and they are not the
+        // same kind of statement. The gate is the client's: those 19 opcodes are
+        // discarded anywhere else, so this is obligation. The policy is ours:
+        // opcodes the client accepts on either stream that we have judged safe to
+        // move (see ServerRouting.h). Obligation is checked first so that turning
+        // the policy off can never strand a gated opcode on stream 0.
+        if ((Slots()[opcode] & SLOT_RECV_GATE) != 0)
+        {
+            return LinkSlot::One;
+        }
+        return PrefersStreamOne(opcode) ? LinkSlot::One : LinkSlot::Zero;
     }
 
     LinkSlot SendSlotOf(uint16 opcode)

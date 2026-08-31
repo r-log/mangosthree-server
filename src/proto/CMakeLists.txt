@@ -47,6 +47,8 @@ set(SRC_GRP_PROTO
     Opcodes.h
     RedirectRegistry.cpp
     RedirectRegistry.h
+    ServerRouting.cpp
+    ServerRouting.h
     SessionLinks.cpp
     SessionLinks.h
     WorldPacket.h

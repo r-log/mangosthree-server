@@ -50,6 +50,7 @@ set(SRC_GRP_TESTS
     SessionMailboxTest.cpp
     SessionProtocolPolicyTest.cpp
     OpcodeSlotsTest.cpp
+    ServerRoutingTest.cpp
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp
     RedirectStreamTest.cpp
