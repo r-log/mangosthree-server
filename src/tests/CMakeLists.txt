@@ -180,6 +180,15 @@ add_test(NAME version_sources
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckVersionSources.cmake)
 
+# No future feature may adopt one of the 47 opcode values we know the 4.3.4
+# client disagrees with. Checks construction AND dispatch: a wrong CMSG value is
+# invisible to a construction-only test, which is how the calendar's request side
+# stayed broken through two revisions of its own design doc.
+add_test(NAME opcode_denylist
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckOpcodeDenylist.cmake)
+
 # Put the MySQL client DLL beside the test binary so it can be run from the build tree.
 # A convenience, never a gate: the path is derived from the library that was found.
 if(WIN32)
