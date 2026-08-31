@@ -118,7 +118,8 @@ namespace
                 return proto::INVALID_SESSION_ID;
             }
 
-            void TracePacket(proto::SessionId, const WorldPacket&, bool) override {}
+            void TracePacket(proto::SessionId, const WorldPacket&, bool,
+                             proto::LinkSlot) override {}
 
             void Deliver(proto::SessionId, WorldPacket&& packet) override
             {

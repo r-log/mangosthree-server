@@ -52,17 +52,35 @@ namespace proto
      * SMSG_CACHE_VERSION, SMSG_TUTORIAL_FLAGS, SMSG_ACCOUNT_DATA_TIMES, all
      * send_slot 1 and recv_slot 0 -- went out on the second stream, and the
      * client answered by dropping that stream and reporting disconnect reason 3.
-     * The client's own receive path (sub_1400AA9A0) consults ONLY the gate: an
-     * opcode outside those 19 is taken on whichever connection it arrives on,
-     * and the login sequence has always belonged on stream 0. So the server
-     * routes by ServerSlotOf, and send_slot describes the client alone.
+     * So the server routes by ServerSlotOf, and send_slot describes the client
+     * alone.
      *
-     * Everything here is a pure function of the opcode; there is no state and no
-     * allocation, so it is safe from any thread.
+     * The CAUSE of that reason 3 was misread at the time, and the correction
+     * matters because it decides what may be moved later. It was not the
+     * opcodes' recv_slot. Reading the client's receive path (sub_1400AA9A0) has
+     * since shown that a recv_slot-0 opcode on the wrong stream is silently
+     * DROPPED -- the gate check is a bare `return` -- and that all three sources
+     * of reason 3 ignore the opcode entirely: a connection absent from the
+     * client's four-slot array, a first packet that is not the server banner,
+     * and sub_1400A9B60's check that the slot is 0 or 1 and no longer staging.
+     * It was the third: on 2026-08-30 the second stream had not yet been
+     * promoted, because SMSG_RESUME_COMMS did not exist in this fork yet.
+     *
+     * What survives is the conclusion, not the reasoning: send_slot is the
+     * client's own router and never the server's egress rule. What changes is
+     * the ceiling -- the 19 are a floor, and an opcode outside them may be put
+     * on either stream. Which ones we elect to move, and why that is an ordering
+     * question rather than a permission one, is ServerRouting.h.
+     *
+     * IsRecvGated, SendSlotOf, IsTransportPlane and IsKnownSlotOpcode are pure
+     * functions of the opcode -- no state, no allocation, safe from any thread.
+     * ServerSlotOf additionally reads the elective policy's on/off flag, which is
+     * an atomic set once at startup.
      */
 
-    /// The stream the SERVER must emit this opcode on: One for the 19 the
-    /// client's gate insists on, Zero for everything else, known or not.
+    /// The stream the SERVER emits this opcode on: One for the 19 the client's
+    /// gate insists on, One for those the elective policy adds (ServerRouting.h),
+    /// and Zero for everything else, known or not.
     LinkSlot ServerSlotOf(uint16 opcode);
 
     /// The stream the CLIENT transmits this opcode on. Describes the client's

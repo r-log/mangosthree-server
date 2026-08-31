@@ -164,6 +164,24 @@ namespace proto
             /// The 47-byte greeting every world connection opens with, on either
             /// port. It is a packet whose opcode happens to spell two of its own
             /// letters, so it goes through the codec like anything else.
+            /**
+             * @brief Which stream this connection IS, for the packet dump.
+             *
+             * Reported from the connection's own role rather than computed from
+             * the opcode, so the dump records where a packet actually went. A
+             * slot derived from ServerSlotOf could only ever confirm the routing
+             * rule against itself; this can contradict it, which is the only way
+             * a log can settle a question about routing.
+             *
+             * A staging connection counts as stream 1: it is the socket opened
+             * for that stream, and the handshake it carries is stream-1 traffic
+             * even before the promotion makes it official.
+             */
+            LinkSlot TraceSlot() const
+            {
+                return m_role == ConnRole::Live0 ? LinkSlot::Zero : LinkSlot::One;
+            }
+
             void AppendBanner(std::vector<uint8_t>& wire);
 
             void AppendAuthChallenge(std::vector<uint8_t>& wire);

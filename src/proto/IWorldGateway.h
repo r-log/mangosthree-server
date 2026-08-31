@@ -186,9 +186,17 @@ namespace proto
              * `session` is INVALID_SESSION_ID for the pre-auth handshake only.
              * Without it a dump cannot say which of several connected clients a
              * packet belongs to, which is most of what a packet dump is for.
+             *
+             * `slot` is which of the client's two world streams actually carried
+             * the packet, reported by the connection that carried it rather than
+             * derived from the opcode. The difference matters: the routing rule
+             * is what we INTEND, and a dump that recomputed the slot from the
+             * opcode could only ever agree with itself. This is the observation,
+             * and it is the only thing that can contradict the intent -- which is
+             * exactly what is wanted from a session that misbehaves.
              */
             virtual void TracePacket(SessionId session, const WorldPacket& packet,
-                                     bool incoming) = 0;
+                                     bool incoming, LinkSlot slot) = 0;
 
             /**
              * @brief Hand a decoded packet to an attached session.

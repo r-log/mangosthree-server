@@ -1087,7 +1087,7 @@ void Log::outErrorScriptLib(const char* err, ...)
     }
 }
 
-void Log::outWorldPacketDump(uint32 session, uint32 opcode, char const* opcodeName, ByteBuffer const* packet, bool incoming)
+void Log::outWorldPacketDump(uint32 session, uint32 opcode, char const* opcodeName, ByteBuffer const* packet, bool incoming, uint32 stream)
 {
     if (!worldLogfile)
     {
@@ -1108,10 +1108,15 @@ void Log::outWorldPacketDump(uint32 session, uint32 opcode, char const* opcodeNa
     // outgoing side on the account id, two numbering schemes in one field that named
     // neither. header[512] is ample for the fixed text plus a (short, compile-time)
     // opcode-name constant, and snprintf is bounded.
+    // STREAM is observed, not derived: it is the connection that actually
+    // carried the packet, so a dump can disagree with the routing rule. That is
+    // the point of recording it -- without it the log cannot answer "did this
+    // opcode really go where we meant it to", which is the only question that
+    // settles a routing change.
     char header[512];
-    snprintf(header, sizeof(header), "\n%s:\nSESSION: %u\nLENGTH: %zu\nOPCODE: %s (0x%.4X)\nDATA:\n",
+    snprintf(header, sizeof(header), "\n%s:\nSESSION: %u\nSTREAM: %u\nLENGTH: %zu\nOPCODE: %s (0x%.4X)\nDATA:\n",
         incoming ? "CLIENT" : "SERVER",
-        session, packet->size(), opcodeName, opcode);
+        session, stream, packet->size(), opcodeName, opcode);
     out += header;
 
     char hexbuf[4];

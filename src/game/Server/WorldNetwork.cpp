@@ -30,6 +30,7 @@
 #include "Config/Config.h"
 #include "Log/Log.h"
 #include "OpcodeTable.h"
+#include "ServerRouting.h"
 #include "SessionLinks.h"
 
 #include <chrono>
@@ -139,6 +140,18 @@ bool WorldNetwork::Start(uint16 port, uint16 streamPort, const std::string& bind
     // the call belongs here, on the game side, which is the last place that owns
     // both.
     InitializeOpcodes();
+
+    // Which opcodes the second stream carries beyond the ones the client demands
+    // (proto::PrefersStreamOne). Configurable because the cost of a wrong
+    // judgement is paid on a live realm and the symptom -- a loot window that
+    // does not open -- deserves an answer that is not a rebuild.
+    const bool extraRouting = sConfig.GetBoolDefault("SecondStream.ExtraRouting", true);
+    proto::SetStreamOnePolicyEnabled(extraRouting);
+    if (!extraRouting)
+    {
+        sLog.outString("World: second stream carries only the opcodes the client "
+                       "requires (SecondStream.ExtraRouting = 0)");
+    }
 
     m_streamPort = streamPort;
 
