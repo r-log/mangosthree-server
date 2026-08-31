@@ -60,6 +60,15 @@ namespace proto
         // Routing by the client's own send router instead put the whole login
         // sequence on the second stream, where the client dropped the stream and
         // answered with disconnect reason 3 (2026-08-30). See OpcodeSlots.h.
+        // A packet that names its own stream is answering something that
+        // arrived on that stream, and the client is timing that wire. Opcode
+        // routing cannot express it: the opcode is the same either way.
+        if (packet.HasStream())
+        {
+            SendOn(packet.GetStream(), packet);
+            return;
+        }
+
         SendOn(ServerSlotOf(packet.GetOpcode()), packet);
     }
 

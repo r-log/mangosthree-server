@@ -571,6 +571,11 @@ namespace proto
             return false;
         }
 
+        // Record which wire this came in on. Only a reply the client times
+        // per-connection needs it, but the connection is the last place that
+        // knows: past here a packet is just bytes in a session's mailbox.
+        packet.SetStream(TraceSlot());
+
         m_gateway.Deliver(m_session, std::move(packet));
         return true;
     }

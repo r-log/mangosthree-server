@@ -765,6 +765,16 @@ void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
     // Echo the sequence, not the latency: the client matches a pong to the
     // ping it answers by this value alone, and drops one it cannot place.
     WorldPacket response(SMSG_PONG, 4);
+
+    // Back down the wire it came up. The client pings both streams, counts
+    // each one separately, and only matches a pong against the counter of the
+    // connection it arrives on -- so answering everything on stream 0 left the
+    // World readout of GetNetStats() at zero however good the link was.
+    if (recvPacket.HasStream())
+    {
+        response.SetStream(recvPacket.GetStream());
+    }
+
     response << ping;
     SendPacket(&response);
 }
