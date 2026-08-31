@@ -1105,7 +1105,7 @@ void CalendarMgr::SendCalendarEventModeratorStatusAlert(CalendarInvite const* in
 void CalendarMgr::SendCalendarEventUpdateAlert(CalendarEvent const* event, time_t oldEventTime)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_UPDATED_ALERT");
-    WorldPacket data(SMSG_CALENDAR_EVENT_UPDATED_ALERT, 1 + 8 + 4 + 4 + 4 + 1 + 4 + event->Title.size());
+    WorldPacket data(SMSG_CALENDAR_EVENT_UPDATED_ALERT, 1 + 8 + 4 + 4 + 4 + 1 + 4 + event->Title.size() + 1); // +1 for the string's NUL terminator
     data << uint8(1);       // show pending alert?
     data << uint64(event->EventId);
     data << secsToTimeBitFields(oldEventTime);
