@@ -4828,6 +4828,27 @@ void SpellAuraHolder::BuildUpdatePacket(WorldPacket& data) const
 
 void SpellAuraHolder::SendAuraUpdate(bool remove) const
 {
+    // A target that is not in the world yet has nothing on the client to hang an
+    // aura on. The client finds no object for the guid and drops the packet whole
+    // (Wow-64.exe 15595, sub_140248780: look the guid up, and on a miss skip to
+    // the end of the packet and return), so every one of these is written,
+    // framed, enciphered and thrown away.
+    //
+    // Player::SendMessageToSet is what lets them out: with the player out of the
+    // world it skips the broadcast but still sends to that player's own session.
+    // On a live login this was 32 packets, all of them ahead of the
+    // SMSG_UPDATE_OBJECT that creates the player client-side.
+    //
+    // Nothing is lost by holding them. These are exactly the holders that took a
+    // visible slot, which is the same set SendAurasForTarget writes into
+    // SMSG_AURA_UPDATE_ALL from SendInitialPacketsAfterAddToMap -- and that runs
+    // at the end of both windows where a player is out of the world, login
+    // (CharacterHandler) and world teleport (MovementHandler).
+    if (!m_target || !m_target->IsInWorld())
+    {
+        return;
+    }
+
     WorldPacket data(SMSG_AURA_UPDATE);
     data << m_target->GetPackGUID();
 
