@@ -791,8 +791,16 @@ namespace proto
 
             if (m_role == ConnRole::Live1)
             {
-                sLog.outError("proto: stream 1 lost for session %u (%s)",
-                              m_session, m_address.c_str());
+                // Not an error here, and it used to say it was on every single
+                // logout: a client leaving closes both of its sockets, so this
+                // fires on the most ordinary event there is. Whether losing the
+                // stream MATTERS is a question about the session -- is there
+                // still a player in the world who needs it? -- and proto cannot
+                // see that. WorldSession::UpdateSecondStream can, and already
+                // logs the real error ("lost its second world stream; asking the
+                // client to open it again") on exactly the path where it is one.
+                DEBUG_LOG("proto: stream 1 closed for session %u (%s)",
+                          m_session, m_address.c_str());
             }
 
             m_session = INVALID_SESSION_ID;
