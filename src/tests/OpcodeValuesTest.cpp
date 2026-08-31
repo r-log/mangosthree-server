@@ -58,3 +58,36 @@ TEST(OpcodeValues_calendar_requests_match_the_client)
     // calendar block cannot renumber the one part that works.
     CHECK_EQ(int(CMSG_CALENDAR_GET_CALENDAR),          0x2814);
 }
+
+TEST(OpcodeValues_calendar_replies_match_the_client)
+{
+    // Thirteen replies were registered against values the client's dispatcher never routes to
+    // a calendar reader, so every one of these packets was silently discarded on arrival. Traced
+    // each reader directly out of the client's own decompiled parser (task-4-traces.md) rather
+    // than trusting a single source; every value below is corroborated by two independent
+    // sources that agree.
+    CHECK_EQ(int(SMSG_CALENDAR_SEND_EVENT),                    0x0C35);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_INVITE),                  0x4E16);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_INVITE_REMOVED),          0x0725);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_STATUS),                  0x2A27);
+    CHECK_EQ(int(SMSG_CALENDAR_COMMAND_RESULT),                0x6F36);
+    CHECK_EQ(int(SMSG_CALENDAR_RAID_LOCKOUT_ADDED),            0x2305);
+    CHECK_EQ(int(SMSG_CALENDAR_RAID_LOCKOUT_REMOVED),          0x2E25);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_INVITE_ALERT),            0x2A05);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_INVITE_REMOVED_ALERT),    0x2617);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_REMOVED_ALERT),           0x6D35);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_UPDATED_ALERT),           0x0907);
+    CHECK_EQ(int(SMSG_CALENDAR_EVENT_MODERATOR_STATUS_ALERT),  0x6B06);
+    CHECK_EQ(int(SMSG_CALENDAR_CLEAR_PENDING_ACTION),          0x2106);
+
+    // Already correct before this campaign. Pinned so a future "tidy-up" of the calendar block
+    // cannot renumber the two parts that work.
+    CHECK_EQ(int(SMSG_CALENDAR_SEND_CALENDAR),                 0x6805);
+    CHECK_EQ(int(SMSG_CALENDAR_SEND_NUM_PENDING),              0x0C17);
+
+    // SMSG_CALENDAR_ARENA_TEAM and SMSG_CALENDAR_FILTER_GUILD are deliberately absent here.
+    // WowPacketParser annotates the two of them as "may be swapped with" each other -- source
+    // agreement exists for the pair, not for either individually, so there is no evidence to
+    // prefer one assignment over the other. They are left at their pre-campaign values rather
+    // than guessed at.
+}

@@ -857,6 +857,14 @@ void CalendarMgr::SendCalendarEventInviteAlert(CalendarInvite const* invite)
     data << uint32(event->Type);
     data << int32(event->DungeonId);
     data << uint64(invite->InviteId);
+
+    // Client reads a fixed uint64 here before Status (event->GuildId is only the guild's
+    // uint32 id, not the GUID the client wants). This field is read unconditionally on every
+    // invite alert, guild event or not; omitting it desyncs every field that follows and hangs
+    // the client the same way the missing guild GUID did in HandleCalendarGetCalendar.
+    Guild* guild = sGuildMgr.GetGuildById(event->GuildId);
+    data << uint64(guild ? guild->GetObjectGuid().GetRawValue() : 0);
+
     data << uint8(invite->Status);
     data << uint8(invite->Rank);
     data << event->CreatorGuid.WriteAsPacked();
@@ -989,7 +997,12 @@ void CalendarMgr::SendCalendarEvent(Player* player, CalendarEvent const* event, 
     data << event->Flags;
     data << secsToTimeBitFields(event->EventTime);
     data << secsToTimeBitFields(event->UnknownTime);
-    data << event->GuildId;
+
+    // Client reads a fixed uint64 here before the per-invite list (event->GuildId is only
+    // the guild's uint32 id, not the GUID the client wants). Same field, same fix as the
+    // already-applied HandleCalendarGetCalendar and SendCalendarEventInviteAlert corrections.
+    Guild* guild = sGuildMgr.GetGuildById(event->GuildId);
+    data << uint64(guild ? guild->GetObjectGuid().GetRawValue() : 0);
 
     CalendarInviteMap const* cInvMap = event->GetInviteMap();
     data << (uint32)cInvMap->size();
@@ -1092,8 +1105,7 @@ void CalendarMgr::SendCalendarEventModeratorStatusAlert(CalendarInvite const* in
 void CalendarMgr::SendCalendarEventUpdateAlert(CalendarEvent const* event, time_t oldEventTime)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_UPDATED_ALERT");
-    WorldPacket data(SMSG_CALENDAR_EVENT_UPDATED_ALERT, 1 + 8 + 4 + 4 + 4 + 1 + 4 +
-                     event->Title.size() + event->Description.size() + 1 + 4 + 4);
+    WorldPacket data(SMSG_CALENDAR_EVENT_UPDATED_ALERT, 1 + 8 + 4 + 4 + 4 + 1 + 4 + event->Title.size());
     data << uint8(1);       // show pending alert?
     data << uint64(event->EventId);
     data << secsToTimeBitFields(oldEventTime);
@@ -1102,10 +1114,11 @@ void CalendarMgr::SendCalendarEventUpdateAlert(CalendarEvent const* event, time_
     data << uint8(event->Type);
     data << int32(event->DungeonId);
     data << event->Title;
-    data << event->Description;
-    data << uint8(event->Repeatable);
-    data << uint32(CALENDAR_MAX_INVITES);
-    data << secsToTimeBitFields(event->UnknownTime);
+    // Client's SMSG_CALENDAR_EVENT_UPDATED_ALERT reader stops after Title -- it never reads a
+    // Description, Repeatable, MaxInvites, or UnknownTime field for this opcode (those exist on
+    // SMSG_CALENDAR_SEND_EVENT and SMSG_CALENDAR_UPDATE_EVENT, not here). Writing them was inert
+    // bandwidth, not a desync risk, but it's dead code that misleads a reader into thinking the
+    // client uses them. Dropped rather than kept "just in case".
     //data.hexlike();
 
     SendPacketToAllEventRelatives(data, event);
