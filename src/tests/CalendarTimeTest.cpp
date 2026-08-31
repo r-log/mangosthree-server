@@ -27,6 +27,9 @@
 
 #include "Utilities/Util.h"
 
+#include <cstdlib>
+#include <string>
+
 // CalendarHandler.cpp's create/update/copy handlers compared a client-sent
 // packed date bitfield directly against GameTime::GetGameTime(), a unix
 // timestamp, before ever unpacking it with timeBitFieldsToSecs(). The two
@@ -75,6 +78,71 @@ namespace
         const std::tm t = safe_localtime(now + offsetSeconds);
         return PackClientDate(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
     }
+
+    // Saves and restores the TZ environment variable around a scope, including the case where
+    // it was not set at all beforehand. Used below to force a non-UTC host timezone for the
+    // double-conversion regression test -- see that test for why the zone must be forced rather
+    // than left at whatever the host happens to run in. RAII rather than a manual
+    // save/set/restore sequence so the previous zone comes back on every exit path (including a
+    // CHECK_EQ failure partway through, which reports and carries on rather than throwing).
+    class ScopedTimeZone
+    {
+    public:
+        explicit ScopedTimeZone(const char* zone)
+        {
+            const char* existing = std::getenv("TZ");
+            m_hadPrevious = existing != nullptr;
+            if (m_hadPrevious)
+            {
+                m_previous = existing;
+            }
+            SetTZ(zone);
+        }
+
+        ~ScopedTimeZone()
+        {
+            if (m_hadPrevious)
+            {
+                SetTZ(m_previous.c_str());
+            }
+            else
+            {
+                UnsetTZ();
+            }
+        }
+
+        ScopedTimeZone(const ScopedTimeZone&) = delete;
+        ScopedTimeZone& operator=(const ScopedTimeZone&) = delete;
+
+    private:
+        static void SetTZ(const char* zone)
+        {
+#if defined(_WIN32)
+            const std::string assignment = std::string("TZ=") + zone;
+            _putenv(assignment.c_str());
+            _tzset();
+#else
+            setenv("TZ", zone, 1);
+            tzset();
+#endif
+        }
+
+        static void UnsetTZ()
+        {
+#if defined(_WIN32)
+            // The Windows CRT has no unsetenv(); assigning an empty value is what _tzset()
+            // treats as "TZ not set", falling back to the OS-configured zone.
+            _putenv("TZ=");
+            _tzset();
+#else
+            unsetenv("TZ");
+            tzset();
+#endif
+        }
+
+        bool m_hadPrevious = false;
+        std::string m_previous;
+    };
 }
 
 TEST(CalendarTime_packed_bitfield_round_trips_to_the_calendar_date)
@@ -183,7 +251,25 @@ TEST(CalendarTime_ToTimestamp_preserves_the_exact_wall_clock_the_client_sent)
     // through mktime()/localtime() in whatever zone the host is in, so the round trip must
     // reproduce the same fields regardless of which zone that is -- that symmetry is what a
     // fixed UTC+1 example date could not exercise on a machine running in a different zone.
-    const uint32 packed = PackClientDate(2026, 11, 4, 0, 0);
+    //
+    // The bug this test guards -- CalendarPackedTimeToTimestamp() adding _timezone/timezone on
+    // top of mktime()'s already-correct result -- is a no-op whenever the host's UTC offset is
+    // zero. Every CI runner this project uses (ubuntu-latest, windows-2022) runs in UTC and
+    // nothing in the workflow sets TZ, so without forcing a zone here this test would pass in CI
+    // even with the bug fully reintroduced, and only fail on a developer's non-UTC machine --
+    // which is exactly how the bug reached production the first time. ScopedTimeZone forces a
+    // fixed non-UTC zone for the duration of this test and restores whatever TZ was (or was not)
+    // set beforehand, so the assertion below is actually exercised on every runner, and the
+    // change cannot leak into other tests.
+    //
+    // The wall-clock time is noon, not midnight: midnight is the one instant a DST transition
+    // can delete outright (a "spring forward" boundary that lands exactly on 00:00 has no
+    // corresponding local time at all), which would make mktime()'s result depend on the DST
+    // rule rather than on the bug under test. Noon can never fall in a transition gap, so the
+    // "does not depend on the host timezone" claim above holds unconditionally.
+    const ScopedTimeZone forcedZone("CET-1CEST,M3.5.0,M10.5.0/3");
+
+    const uint32 packed = PackClientDate(2026, 11, 4, 12, 0);
 
     const time_t converted = CalendarPackedTimeToTimestamp(packed);
     const std::tm decomposed = safe_localtime(converted);
@@ -191,6 +277,6 @@ TEST(CalendarTime_ToTimestamp_preserves_the_exact_wall_clock_the_client_sent)
     CHECK_EQ(decomposed.tm_year + 1900, 2026);
     CHECK_EQ(decomposed.tm_mon + 1, 11);
     CHECK_EQ(decomposed.tm_mday, 4);
-    CHECK_EQ(decomposed.tm_hour, 0);
+    CHECK_EQ(decomposed.tm_hour, 12);
     CHECK_EQ(decomposed.tm_min, 0);
 }
