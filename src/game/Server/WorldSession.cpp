@@ -721,10 +721,29 @@ void WorldSession::KickPlayer()
 /// account -- all game knowledge on the wrong side of the seam.
 void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
 {
-    uint32 ping = 0;
+    // 4.3.4 sends the latency FIRST and the sequence second. 3.3.5 sent them
+    // the other way round, and this handler was carried across unchanged, so
+    // every reply echoed the wrong dword.
+    //
+    // On the wire, one client sitting still (world-packets.log, two sessions):
+    //
+    //     CMSG_PING  00 00 00 00 | 01 00 00 00
+    //     CMSG_PING  00 00 00 00 | 02 00 00 00
+    //     CMSG_PING  00 00 00 00 | 03 00 00 00
+    //
+    // The second dword counts; the first never moves. The counter is the
+    // sequence the client waits to see echoed, and the dead field is the
+    // latency it reports -- nought because it had never completed a
+    // measurement, because the pong it needed to complete one always carried
+    // zero. Reading them the WotLK way round put the sequence into the latency
+    // (a nonsense figure in .pinfo) and echoed the latency as the sequence.
+    //
+    // Nothing in the packet distinguishes the two fields by shape: both are
+    // uint32, and a wrong guess is only visible as a number that never rises.
     uint32 latency = 0;
-    recvPacket >> ping;
+    uint32 ping = 0;
     recvPacket >> latency;
+    recvPacket >> ping;
 
     uint32 fastPingRun =
         m_pingTracker.Record(SessionPingTracker::Clock::now());
@@ -743,6 +762,8 @@ void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
     SetLatency(latency);
     ResetClientTimeDelay();
 
+    // Echo the sequence, not the latency: the client matches a pong to the
+    // ping it answers by this value alone, and drops one it cannot place.
     WorldPacket response(SMSG_PONG, 4);
     response << ping;
     SendPacket(&response);
