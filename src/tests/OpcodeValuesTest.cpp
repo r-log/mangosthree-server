@@ -85,6 +85,27 @@ TEST(OpcodeValues_calendar_replies_match_the_client)
     CHECK_EQ(int(SMSG_CALENDAR_SEND_CALENDAR),                 0x6805);
     CHECK_EQ(int(SMSG_CALENDAR_SEND_NUM_PENDING),              0x0C17);
 
+    // The mass-invite pair, adopted from TrinityCore rather than proved.
+    //
+    // These two are the one place in this campaign where the client could not
+    // settle the question. Both values reach the SAME reader (sub_1407AE660 --
+    // 0x4A26 jumps into the 0x0615 case via LABEL_29), and our two builders
+    // write an identical wire shape: uint32 count, then N x (packed GUID,
+    // uint8). Nothing about the payload distinguishes a guild roster from an
+    // arena roster, so the trace that settled the other thirteen is silent here.
+    //
+    // WowPacketParser annotates both as "may be swapped with" the other, which
+    // is agreement that it does not know. TrinityCore ships this mapping and is
+    // in production, which is corroboration rather than proof.
+    //
+    // Adopted deliberately, because leaving them wrong guaranteed mass invite
+    // stayed broken, while a wrong guess here cannot desync or freeze anything
+    // -- the shapes are identical, so the worst case is one roster populating
+    // the wrong panel, which is visible in seconds and fixed by swapping these
+    // two numbers.
+    CHECK_EQ(int(SMSG_CALENDAR_FILTER_GUILD),                  0x4A26);
+    CHECK_EQ(int(SMSG_CALENDAR_ARENA_TEAM),                    0x0615);
+
     // SMSG_CALENDAR_ARENA_TEAM and SMSG_CALENDAR_FILTER_GUILD are deliberately absent here.
     // WowPacketParser annotates the two of them as "may be swapped with" each other -- source
     // agreement exists for the pair, not for either individually, so there is no evidence to

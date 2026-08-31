@@ -1183,8 +1183,8 @@ enum OpcodesList
     CMSG_CALENDAR_EVENT_MODERATOR_STATUS                  = 0x6B35, // 4.3.4 15595
     SMSG_CALENDAR_SEND_CALENDAR                           = 0x6805, // 4.3.4 15595
     SMSG_CALENDAR_SEND_EVENT                              = 0x0C35, // 4.3.4 15595
-    SMSG_CALENDAR_FILTER_GUILD                            = 0x1439,
-    SMSG_CALENDAR_ARENA_TEAM                              = 0x143A,
+    SMSG_CALENDAR_FILTER_GUILD                            = 0x4A26, // 4.3.4 15595
+    SMSG_CALENDAR_ARENA_TEAM                              = 0x0615, // 4.3.4 15595
     SMSG_CALENDAR_EVENT_INVITE                            = 0x4E16, // 4.3.4 15595
     SMSG_CALENDAR_EVENT_INVITE_REMOVED                    = 0x0725, // 4.3.4 15595
     SMSG_CALENDAR_EVENT_STATUS                            = 0x2A27, // 4.3.4 15595
