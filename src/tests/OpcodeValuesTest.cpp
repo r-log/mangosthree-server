@@ -29,7 +29,8 @@
 // the expected value from the enum would assert nothing. Each number below was
 // taken from two independent sources that agree and neither of which annotates
 // doubt: the dispatch table reversed from Wow-64.exe, and WowPacketParser's
-// direction-keyed 4.3.4 table. See OPCODE_CORRECTION_DESIGN_2026-08-31.md.
+// direction-keyed 4.3.4 table. See src/tests/opcode_denylist.txt for the
+// parallel list of names still carrying a wrong value by the same method.
 
 #include "TestHarness.h"
 
@@ -53,6 +54,11 @@ TEST(OpcodeValues_calendar_requests_match_the_client)
     CHECK_EQ(int(CMSG_CALENDAR_GET_EVENT),             0x6416);
     CHECK_EQ(int(CMSG_CALENDAR_REMOVE_EVENT),          0x6636);
     CHECK_EQ(int(CMSG_CALENDAR_EVENT_MODERATOR_STATUS), 0x6B35);
+
+    // A twelfth dead handler: missed by the original name-keyed sweep because
+    // the client's slot table spells this SIGN_UP (OpcodeSlots.inc) while the
+    // enum here spells it SIGNUP, so a name match between the two never fired.
+    CHECK_EQ(int(CMSG_CALENDAR_EVENT_SIGNUP),          0x6606);
 
     // Already correct before this campaign. Pinned so a future "tidy-up" of the
     // calendar block cannot renumber the one part that works.
@@ -112,10 +118,4 @@ TEST(OpcodeValues_calendar_replies_match_the_client)
     // adopted values; they are measured ones.
     CHECK_EQ(int(SMSG_CALENDAR_FILTER_GUILD),                  0x4A26);
     CHECK_EQ(int(SMSG_CALENDAR_ARENA_TEAM),                    0x0615);
-
-    // SMSG_CALENDAR_ARENA_TEAM and SMSG_CALENDAR_FILTER_GUILD are deliberately absent here.
-    // WowPacketParser annotates the two of them as "may be swapped with" each other -- source
-    // agreement exists for the pair, not for either individually, so there is no evidence to
-    // prefer one assignment over the other. They are left at their pre-campaign values rather
-    // than guessed at.
 }

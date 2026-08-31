@@ -1313,7 +1313,7 @@ enum OpcodesList
     SMSG_CORPSE_TRANSPORT_QUERY                           = 0x0E35, // 4.3.4 15595
     CMSG_UNUSED5                                          = 0x14B9,
     CMSG_UNUSED6                                          = 0x14BA,
-    CMSG_CALENDAR_EVENT_SIGNUP                            = 0x14BB,
+    CMSG_CALENDAR_EVENT_SIGNUP                            = 0x6606, // 4.3.4 15595
     SMSG_CALENDAR_CLEAR_PENDING_ACTION                    = 0x2106, // 4.3.4 15595
     SMSG_LOAD_EQUIPMENT_SET                               = 0x2E04, // 4.3.4 15595
     CMSG_SAVE_EQUIPMENT_SET                               = 0x4F27, // 4.3.4 15595
