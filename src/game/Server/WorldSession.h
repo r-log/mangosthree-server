@@ -38,6 +38,7 @@
 #include <vector>
 #include <list>
 #include "Auth/BigNumber.h"
+#include "LinkSlot.h"
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
 #include "AuctionHouseMgr.h"
@@ -624,13 +625,31 @@ class WorldSession
         }
         const char* GetMangosString(int32 entry) const;
 
+        /**
+         * @brief The round trip the client last reported for one world stream.
+         *
+         * There are two, because the client times the two connections
+         * separately: it pings both and keeps a sequence counter for each.
+         * They are the pair the player sees behind the latency meter.
+         *
+         * Stream 0 is the client's "home" readout and stream 1 its "world"
+         * one. That is not a guess: while this server answered every ping on
+         * stream 0, home was the figure that worked and world sat at zero.
+         */
+        uint32 GetLatency(proto::LinkSlot stream) const
+        {
+            return m_latency[static_cast<size_t>(stream)];
+        }
+        void SetLatency(proto::LinkSlot stream, uint32 latency)
+        {
+            m_latency[static_cast<size_t>(stream)] = latency;
+        }
+
+        /// The stream-0 figure, for the callers that want a single number.
+        /// Movement rides on stream 0, so it is the one that times movement.
         uint32 GetLatency() const
         {
-            return m_latency;
-        }
-        void SetLatency(uint32 latency)
-        {
-            m_latency = latency;
+            return m_latency[static_cast<size_t>(proto::LinkSlot::Zero)];
         }
         uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 
@@ -1224,7 +1243,7 @@ class WorldSession
         bool m_playerSave;                                  // code processed in LogoutPlayer with save request
         LocaleConstant m_sessionDbcLocale;
         int m_sessionDbLocaleIndex;
-        uint32 m_latency;
+        uint32 m_latency[2];   ///< indexed by proto::LinkSlot
         uint32 m_clientTimeDelay;
         SessionPingTracker m_pingTracker;
         AccountData m_accountData[NUM_ACCOUNT_DATA_TYPES];

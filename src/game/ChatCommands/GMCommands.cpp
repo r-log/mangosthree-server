@@ -66,7 +66,8 @@ bool ChatHandler::HandlePInfoCommand(char* args)
     uint32 money = 0;
     uint32 total_player_time = 0;
     uint32 level = 0;
-    uint32 latency = 0;
+    uint32 latencyHome = 0;
+    uint32 latencyWorld = 0;
 
     // get additional information from Player object
     if (target)
@@ -81,7 +82,9 @@ bool ChatHandler::HandlePInfoCommand(char* args)
         money = target->GetMoney();
         total_player_time = target->GetTotalPlayedTime();
         level = target->getLevel();
-        latency = target->GetSession()->GetLatency();
+        // Both, because the client measures and displays both.
+        latencyHome  = target->GetSession()->GetLatency(proto::LinkSlot::Zero);
+        latencyWorld = target->GetSession()->GetLatency(proto::LinkSlot::One);
     }
     // get additional information from DB
     else
@@ -143,7 +146,8 @@ bool ChatHandler::HandlePInfoCommand(char* args)
     // it came out as a different absurd number every time it was run.
     PSendSysMessage(LANG_PINFO_ACCOUNT, (target ? "" : GetMangosString(LANG_OFFLINE)),
                     nameLink.c_str(), target_guid.GetCounter(), username.c_str(),
-                    accId, security, last_ip.c_str(), last_login.c_str(), latency);
+                    accId, security, last_ip.c_str(), last_login.c_str(),
+                    latencyHome, latencyWorld);
 
     std::string timeStr = secsToTimeString(total_player_time, TimeFormat::ShortText, true);
     uint32 gold = money / GOLD;

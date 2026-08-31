@@ -95,8 +95,8 @@ set(MANGOS_CHAR_DB_DESCRIPT  "Remove_Playerbots")
 
 set(MANGOS_WORLD_DB_VERSION   "22")
 set(MANGOS_WORLD_DB_STRUCTURE "10")
-set(MANGOS_WORLD_DB_CONTENT   "2")
-set(MANGOS_WORLD_DB_DESCRIPT  "Remove_RA_Strings")
+set(MANGOS_WORLD_DB_CONTENT   "3")
+set(MANGOS_WORLD_DB_DESCRIPT  "Pinfo_Both_Latencies")
 
 # --- Client ------------------------------------------------------------------
 #

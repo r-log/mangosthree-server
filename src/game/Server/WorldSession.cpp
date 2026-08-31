@@ -176,7 +176,7 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
     m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
     m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
-    m_latency(0), m_clientTimeDelay(0), m_tutorialState(TUTORIALDATA_UNCHANGED)
+    m_latency(), m_clientTimeDelay(0), m_tutorialState(TUTORIALDATA_UNCHANGED)
 {
     if (m_Socket)
     {
@@ -759,7 +759,12 @@ void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    SetLatency(latency);
+    // Against the wire it came in on: the client measures the two streams
+    // independently and shows both.
+    const proto::LinkSlot stream =
+        recvPacket.HasStream() ? recvPacket.GetStream() : proto::LinkSlot::Zero;
+
+    SetLatency(stream, latency);
     ResetClientTimeDelay();
 
     // Echo the sequence, not the latency: the client matches a pong to the
@@ -770,10 +775,7 @@ void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
     // each one separately, and only matches a pong against the counter of the
     // connection it arrives on -- so answering everything on stream 0 left the
     // World readout of GetNetStats() at zero however good the link was.
-    if (recvPacket.HasStream())
-    {
-        response.SetStream(recvPacket.GetStream());
-    }
+    response.SetStream(stream);
 
     response << ping;
     SendPacket(&response);
