@@ -42,15 +42,6 @@
 #include "ArenaTeam.h"
 #include "PlayerRegistry.h"
 
-static time_t LocalTimeToUTCTime(time_t time)
-{
-    #if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
-        return time + _timezone;
-    #else
-        return time + timezone;
-    #endif
-}
-
 void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recv_data*/)
 {
     ObjectGuid guid = _player->GetObjectGuid();
@@ -316,21 +307,20 @@ void WorldSession::HandleCalendarAddEvent(WorldPacket& recv_data)
     recv_data >> unkPackedTime;
     recv_data >> flags;
 
-    // eventPackedTime is a packed bitfield (minute/hour/weekday/day/month/year
-    // crammed into the low bits of a uint32), not a count of seconds -- it has
-    // to go through timeBitFieldsToSecs() before it means anything next to a
-    // unix timestamp. Every packed value a client can send is smaller than
-    // GameTime::GetGameTime() by roughly a billion, so comparing the raw
-    // bitfield made the "event is in the past" branch fire for every date.
-    time_t const eventTime = LocalTimeToUTCTime(timeBitFieldsToSecs(eventPackedTime));
-
     // prevent events in the past
-    if (eventTime < (GameTime::GetGameTime() - time_t(86400L)))
+    //
+    // CalendarPackedTimeIsPast() does the unpack-then-compare in one call --
+    // see abbb8a8c3, which fixed this handler comparing the still-packed
+    // bitfield straight against GameTime::GetGameTime() and rejecting every
+    // possible date as "in the past".
+    if (CalendarPackedTimeIsPast(eventPackedTime, GameTime::GetGameTime(), time_t(86400L)))
     {
         recv_data.rfinish();
         sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
+
+    time_t const eventTime = CalendarPackedTimeToUtc(eventPackedTime);
 
     // 946684800 is 01/01/2000 00:00:00 - default response time
     CalendarEvent* cal =  sCalendarMgr.AddEvent(_player->GetObjectGuid(), title, description, type, repeatable, maxInvites, dungeonId, eventTime, timeBitFieldsToSecs(unkPackedTime), flags);
@@ -385,19 +375,16 @@ void WorldSession::HandleCalendarUpdateEvent(WorldPacket& recv_data)
     recv_data >> UnknownPackedTime;
     recv_data >> flags;
 
-    // See HandleCalendarAddEvent: eventPackedTime is a packed bitfield, and
-    // must be unpacked into seconds before it can be measured against
-    // GameTime::GetGameTime() -- comparing the raw bitfield always looks like
-    // the past, whatever date the client actually sent.
-    time_t const eventTime = LocalTimeToUTCTime(timeBitFieldsToSecs(eventPackedTime));
-
-    // prevent events in the past
-    if (eventTime < (GameTime::GetGameTime() - time_t(86400L)))
+    // prevent events in the past -- see HandleCalendarAddEvent /
+    // CalendarPackedTimeIsPast() for why this has to unpack before comparing.
+    if (CalendarPackedTimeIsPast(eventPackedTime, GameTime::GetGameTime(), time_t(86400L)))
     {
         recv_data.rfinish();
         sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
+
+    time_t const eventTime = CalendarPackedTimeToUtc(eventPackedTime);
 
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "EventId [" UI64FMTD "], InviteId [" UI64FMTD "] Title %s, Description %s, type %u "
                      "Repeatable %u, MaxInvites %u, Dungeon ID %d, Flags %u", eventId, inviteId, title.c_str(),
@@ -477,19 +464,16 @@ void WorldSession::HandleCalendarCopyEvent(WorldPacket& recv_data)
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "EventId [" UI64FMTD "] inviteId [" UI64FMTD "]",
                      eventId, inviteId);
 
-    // See HandleCalendarAddEvent: packedTime is a packed bitfield, and must be
-    // unpacked into seconds before it can be measured against
-    // GameTime::GetGameTime() -- comparing the raw bitfield always looks like
-    // the past, whatever date the client actually sent.
-    time_t const eventTime = LocalTimeToUTCTime(timeBitFieldsToSecs(packedTime));
-
-    // prevent events in the past
-    if (eventTime < (GameTime::GetGameTime() - time_t(86400L)))
+    // prevent events in the past -- see HandleCalendarAddEvent /
+    // CalendarPackedTimeIsPast() for why this has to unpack before comparing.
+    if (CalendarPackedTimeIsPast(packedTime, GameTime::GetGameTime(), time_t(86400L)))
     {
         recv_data.rfinish();
         sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
+
+    time_t const eventTime = CalendarPackedTimeToUtc(packedTime);
 
     sCalendarMgr.CopyEvent(eventId, eventTime, guid);
 }

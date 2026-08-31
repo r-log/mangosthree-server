@@ -386,6 +386,37 @@ time_t timeBitFieldsToSecs(uint32 packedDate)
     return time_t(mktime(&lt));
 }
 
+// mktime() (used above, via timeBitFieldsToSecs) and time() both already read
+// as local time on every platform this runs on, so the two are consistent
+// with each other -- but the calendar system stores and compares everything
+// as UTC (GameTime::GetGameTime() included). Windows has no single libc call
+// that goes from a local struct tm straight to a UTC time_t, so this applies
+// the local/UTC offset by hand instead, the same offset gmtime()/localtime()
+// use internally. _timezone/timezone are seconds *west* of UTC, so adding
+// them to a local time_t moves it to UTC.
+static time_t LocalTimeToUTCTime(time_t localTime)
+{
+#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
+    return localTime + _timezone;
+#else
+    return localTime + timezone;
+#endif
+}
+
+time_t CalendarPackedTimeToUtc(uint32 packedDate)
+{
+    return LocalTimeToUTCTime(timeBitFieldsToSecs(packedDate));
+}
+
+bool CalendarPackedTimeIsPast(uint32 packedDate, time_t now, time_t graceSeconds)
+{
+    // The bug fixed in abbb8a8c3: comparing a packed bitfield (tops out under
+    // 600 million) against a unix timestamp (past 1.7 billion) makes every
+    // possible date look like it is in the past. Converting first is what
+    // makes this comparison mean anything at all.
+    return CalendarPackedTimeToUtc(packedDate) < (now - graceSeconds);
+}
+
 /// Check if the string is a valid ip address representation
 bool IsIPAddress(char const* ipaddress)
 {

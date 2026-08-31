@@ -38,11 +38,16 @@
 // forever for a packet that was never going to arrive.
 //
 // CalendarHandler.cpp itself cannot be linked into mangos_tests -- it depends
-// on Player, ObjectMgr and sWorld, which pull in the whole game library --
-// so this test pins the one piece that IS testable in isolation: the unit
-// mismatch that made the comparison meaningless. It exists to fail loudly if
-// a packed bitfield and a time_t are ever compared directly again anywhere
-// in this codebase.
+// on Player, ObjectMgr and sWorld, which pull in the whole game library. So
+// the fix (abbb8a8c3) moved the conversion AND the "is this in the past"
+// comparison out of the three handlers and into CalendarPackedTimeToUtc() /
+// CalendarPackedTimeIsPast() in shared/Utilities/Util, which this test links
+// directly. These cases guard those two functions specifically: they would
+// catch a future revert of either function back to comparing the raw packed
+// value, or any other change that makes them stop agreeing with the
+// behaviour pinned below. They cannot catch a handler that stops calling
+// them and reintroduces the raw comparison inline instead -- that class of
+// regression has no test coverage without linking `game` into this binary.
 
 namespace
 {
@@ -54,6 +59,21 @@ namespace
     uint32 PackClientDate(uint32 year, uint32 month, uint32 day, uint32 hour, uint32 minute)
     {
         return ((year - 2000) << 24) | ((month - 1) << 20) | ((day - 1) << 14) | (hour << 6) | minute;
+    }
+
+    // Builds the packed value a client would send for "now, shifted by
+    // offsetSeconds", by breaking the shifted instant down into local
+    // calendar fields and repacking them -- the same round trip the client
+    // itself does when it reads its own clock and time-zone. Deriving from
+    // the current time (rather than a literal date) is what keeps the
+    // future/past tests below meaningful for as long as this file exists,
+    // instead of quietly testing a date that was "in the future" only in
+    // 2026. time_t arithmetic handles month/year rollover for free, so no
+    // separate normalisation step is needed before the field breakdown.
+    uint32 PackClientDateOffsetFromNow(time_t now, time_t offsetSeconds)
+    {
+        const std::tm t = safe_localtime(now + offsetSeconds);
+        return PackClientDate(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
     }
 }
 
@@ -92,4 +112,44 @@ TEST(CalendarTime_packed_bitfield_is_never_comparable_to_a_unix_timestamp)
     // creation impossible.
     const time_t converted = timeBitFieldsToSecs(latestExpressible);
     CHECK(converted > time_t(1700000000));
+}
+
+TEST(CalendarTime_future_date_is_not_treated_as_past)
+{
+    // This is the exact case the bug in abbb8a8c3 got wrong: under the raw
+    // bitfield-vs-timestamp comparison, EVERY date -- including one still
+    // days away -- read as "in the past", because the packed value is
+    // numerically far smaller than any real unix timestamp. A correct
+    // implementation must clear this for an ordinary future date; this is
+    // the test that would have failed on the original bug for any input at
+    // all.
+    const time_t now = time(nullptr);
+    const uint32 packed = PackClientDateOffsetFromNow(now, 5 * DAY);
+
+    CHECK(!CalendarPackedTimeIsPast(packed, now, time_t(86400L)));
+}
+
+TEST(CalendarTime_date_well_in_the_past_is_treated_as_past)
+{
+    // The past-date check is defence-in-depth against a modified client --
+    // the retail UI already refuses to submit a past date, but the server
+    // keeps checking anyway (see abbb8a8c3's commit message). A date well
+    // outside the grace window must still be rejected; fixing the unit
+    // mismatch must not turn this into a check that never fires.
+    const time_t now = time(nullptr);
+    const uint32 packed = PackClientDateOffsetFromNow(now, -30 * DAY);
+
+    CHECK(CalendarPackedTimeIsPast(packed, now, time_t(86400L)));
+}
+
+TEST(CalendarTime_date_inside_grace_window_is_not_treated_as_past)
+{
+    // The live callers pass an 86400s (24h) grace period, not a strict "now"
+    // cutoff, so a client whose clock is a little behind -- or whose packet
+    // took a while to arrive -- isn't punished for it. Two hours ago sits
+    // well inside that window and must not be rejected.
+    const time_t now = time(nullptr);
+    const uint32 packed = PackClientDateOffsetFromNow(now, -2 * HOUR);
+
+    CHECK(!CalendarPackedTimeIsPast(packed, now, time_t(86400L)));
 }

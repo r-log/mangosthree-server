@@ -152,6 +152,25 @@ std::string TimeToTimestampStr(time_t t);
 
 time_t timeBitFieldsToSecs(uint32 packedDate);
 
+/// Calendar packet fields (CMSG_CALENDAR_ADD_EVENT / UPDATE_EVENT / COPY_EVENT)
+/// carry a packed date bitfield rather than a unix timestamp; timeBitFieldsToSecs()
+/// alone yields a time_t in the server's *local* wall-clock reading, not UTC, so it
+/// still isn't comparable to something like GameTime::GetGameTime(). This finishes
+/// the conversion by applying the local/UTC offset, the same way the client's own
+/// "local time" gets shifted before being stored. Keeping the two steps -- unpack,
+/// then shift -- behind one call is what stops a future caller from doing the
+/// comparison in between, which is exactly the bug abbb8a8c3 fixed.
+time_t CalendarPackedTimeToUtc(uint32 packedDate);
+
+/// Whether a packed client calendar date is more than `graceSeconds` older than
+/// `now`, once actually converted to UTC. This is the "prevent events in the past"
+/// check used by HandleCalendarAddEvent, HandleCalendarUpdateEvent and
+/// HandleCalendarCopyEvent, pulled out here so it can be exercised without linking
+/// CalendarHandler.cpp's Player/ObjectMgr/World dependencies -- see CalendarTimeTest.cpp.
+/// `graceSeconds` exists because a client can legitimately submit a date a few
+/// minutes in the past by the time the packet round-trips; the live callers pass 86400.
+bool CalendarPackedTimeIsPast(uint32 packedDate, time_t now, time_t graceSeconds);
+
 
 /**
  * @brief
