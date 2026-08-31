@@ -316,17 +316,24 @@ void WorldSession::HandleCalendarAddEvent(WorldPacket& recv_data)
     recv_data >> unkPackedTime;
     recv_data >> flags;
 
-    eventPackedTime = uint32(LocalTimeToUTCTime(eventPackedTime));
+    // eventPackedTime is a packed bitfield (minute/hour/weekday/day/month/year
+    // crammed into the low bits of a uint32), not a count of seconds -- it has
+    // to go through timeBitFieldsToSecs() before it means anything next to a
+    // unix timestamp. Every packed value a client can send is smaller than
+    // GameTime::GetGameTime() by roughly a billion, so comparing the raw
+    // bitfield made the "event is in the past" branch fire for every date.
+    time_t const eventTime = LocalTimeToUTCTime(timeBitFieldsToSecs(eventPackedTime));
 
     // prevent events in the past
-    if (time_t(eventPackedTime) < (GameTime::GetGameTime() - time_t(86400L)))
+    if (eventTime < (GameTime::GetGameTime() - time_t(86400L)))
     {
         recv_data.rfinish();
+        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
 
     // 946684800 is 01/01/2000 00:00:00 - default response time
-    CalendarEvent* cal =  sCalendarMgr.AddEvent(_player->GetObjectGuid(), title, description, type, repeatable, maxInvites, dungeonId, timeBitFieldsToSecs(eventPackedTime), timeBitFieldsToSecs(unkPackedTime), flags);
+    CalendarEvent* cal =  sCalendarMgr.AddEvent(_player->GetObjectGuid(), title, description, type, repeatable, maxInvites, dungeonId, eventTime, timeBitFieldsToSecs(unkPackedTime), flags);
 
     if (cal)
     {
@@ -378,12 +385,17 @@ void WorldSession::HandleCalendarUpdateEvent(WorldPacket& recv_data)
     recv_data >> UnknownPackedTime;
     recv_data >> flags;
 
-    eventPackedTime = uint32(LocalTimeToUTCTime(eventPackedTime));
+    // See HandleCalendarAddEvent: eventPackedTime is a packed bitfield, and
+    // must be unpacked into seconds before it can be measured against
+    // GameTime::GetGameTime() -- comparing the raw bitfield always looks like
+    // the past, whatever date the client actually sent.
+    time_t const eventTime = LocalTimeToUTCTime(timeBitFieldsToSecs(eventPackedTime));
 
     // prevent events in the past
-    if (time_t(eventPackedTime) < (GameTime::GetGameTime() - time_t(86400L)))
+    if (eventTime < (GameTime::GetGameTime() - time_t(86400L)))
     {
         recv_data.rfinish();
+        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
 
@@ -414,7 +426,7 @@ void WorldSession::HandleCalendarUpdateEvent(WorldPacket& recv_data)
 
         event->Type = CalendarEventType(type);
         event->Flags = flags;
-        event->EventTime = timeBitFieldsToSecs(eventPackedTime);
+        event->EventTime = eventTime;
         event->UnknownTime = timeBitFieldsToSecs(UnknownPackedTime);
         event->DungeonId = dungeonId;
         event->Title = title;
@@ -465,16 +477,21 @@ void WorldSession::HandleCalendarCopyEvent(WorldPacket& recv_data)
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "EventId [" UI64FMTD "] inviteId [" UI64FMTD "]",
                      eventId, inviteId);
 
-    packedTime = uint32(LocalTimeToUTCTime(packedTime));
+    // See HandleCalendarAddEvent: packedTime is a packed bitfield, and must be
+    // unpacked into seconds before it can be measured against
+    // GameTime::GetGameTime() -- comparing the raw bitfield always looks like
+    // the past, whatever date the client actually sent.
+    time_t const eventTime = LocalTimeToUTCTime(timeBitFieldsToSecs(packedTime));
 
     // prevent events in the past
-    if (time_t(packedTime) < (GameTime::GetGameTime() - time_t(86400L)))
+    if (eventTime < (GameTime::GetGameTime() - time_t(86400L)))
     {
         recv_data.rfinish();
+        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
 
-    sCalendarMgr.CopyEvent(eventId, timeBitFieldsToSecs(packedTime), guid);
+    sCalendarMgr.CopyEvent(eventId, eventTime, guid);
 }
 
 void WorldSession::HandleCalendarEventInvite(WorldPacket& recv_data)
