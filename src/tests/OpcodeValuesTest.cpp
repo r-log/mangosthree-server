@@ -103,6 +103,13 @@ TEST(OpcodeValues_calendar_replies_match_the_client)
     // -- the shapes are identical, so the worst case is one roster populating
     // the wrong panel, which is visible in seconds and fixed by swapping these
     // two numbers.
+    //
+    // SETTLED ON THE WIRE, 2026-08-31. Guild mass invite was driven from a live
+    // client: SMSG_CALENDAR_FILTER_GUILD went out at 0x4A26 and the client
+    // populated the roster from it. That confirms the guild half by observation,
+    // and the arena half follows by elimination -- the pair has only two
+    // possible arrangements, so fixing one fixes the other. These are no longer
+    // adopted values; they are measured ones.
     CHECK_EQ(int(SMSG_CALENDAR_FILTER_GUILD),                  0x4A26);
     CHECK_EQ(int(SMSG_CALENDAR_ARENA_TEAM),                    0x0615);
 
