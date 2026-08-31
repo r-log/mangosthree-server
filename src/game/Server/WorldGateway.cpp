@@ -318,7 +318,7 @@ proto::SessionId WorldGateway::Attach(const proto::AuthRequest& request,
 }
 
 void WorldGateway::TracePacket(proto::SessionId session, const WorldPacket& packet,
-                               bool incoming)
+                               bool incoming, proto::LinkSlot slot)
 {
     // Both directions, from the one place that sees every packet on the wire. It used to
     // be two: this side keyed on the SessionId, WorldSession::SendPacket on the account
@@ -326,7 +326,8 @@ void WorldGateway::TracePacket(proto::SessionId session, const WorldPacket& pack
     if (sLog.IsPacketLoggingEnabled())
     {
         sLog.outWorldPacketDump(session, packet.GetOpcode(),
-                                LookupOpcodeName(packet.GetOpcode()), &packet, incoming);
+                                LookupOpcodeName(packet.GetOpcode()), &packet, incoming,
+                                slot == proto::LinkSlot::One ? 1u : 0u);
     }
 }
 

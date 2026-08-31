@@ -309,7 +309,9 @@ class Log : public MaNGOS::Singleton<Log>
          * @param packet
          * @param incoming
          */
-        void outWorldPacketDump(uint32 session, uint32 opcode, char const* opcodeName, ByteBuffer const* packet, bool incoming);
+        /// @param stream which of the client's two world streams carried it, as
+        ///               reported by the connection that carried it.
+        void outWorldPacketDump(uint32 session, uint32 opcode, char const* opcodeName, ByteBuffer const* packet, bool incoming, uint32 stream = 0);
         /**
          * @brief any log level
          *

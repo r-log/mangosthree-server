@@ -135,7 +135,7 @@ namespace proto
         connection << std::string("RLD OF WARCRAFT CONNECTION - SERVER TO CLIENT");
 
         m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed),
-                              connection, false);
+                              connection, false, TraceSlot());
         const std::vector<uint8> encoded =
             PacketCodec::Encode(connection, PacketCodec::HeaderEncryptor());
         wire.insert(wire.end(), encoded.begin(), encoded.end());
@@ -162,7 +162,7 @@ namespace proto
         challenge << uint8(1);
 
         m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed),
-                              challenge, false);
+                              challenge, false, TraceSlot());
         const std::vector<uint8> encoded =
             PacketCodec::Encode(challenge, PacketCodec::HeaderEncryptor());
         wire.insert(wire.end(), encoded.begin(), encoded.end());
@@ -402,7 +402,7 @@ namespace proto
                     ++decoded;
                     // Before the move, which empties it.
                     m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed),
-                                          packet, true);
+                                          packet, true, TraceSlot());
                     if (!HandlePacket(std::move(packet)))
                     {
                         fatal = true;
@@ -732,7 +732,8 @@ namespace proto
             return;
         }
 
-        m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed), packet, false);
+        m_gateway.TracePacket(m_traceSession.load(std::memory_order_relaxed), packet, false,
+                              TraceSlot());
 
         // The cipher is a stream, so order matters twice over: two threads must
         // not encrypt concurrently, and the bytes must reach the transport in the
