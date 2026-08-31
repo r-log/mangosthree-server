@@ -40,7 +40,7 @@
 // CalendarHandler.cpp itself cannot be linked into mangos_tests -- it depends
 // on Player, ObjectMgr and sWorld, which pull in the whole game library. So
 // the fix (abbb8a8c3) moved the conversion AND the "is this in the past"
-// comparison out of the three handlers and into CalendarPackedTimeToUtc() /
+// comparison out of the three handlers and into CalendarPackedTimeToTimestamp() /
 // CalendarPackedTimeIsPast() in shared/Utilities/Util, which this test links
 // directly. These cases guard those two functions specifically: they would
 // catch a future revert of either function back to comparing the raw packed
@@ -152,4 +152,45 @@ TEST(CalendarTime_date_inside_grace_window_is_not_treated_as_past)
     const uint32 packed = PackClientDateOffsetFromNow(now, -2 * HOUR);
 
     CHECK(!CalendarPackedTimeIsPast(packed, now, time_t(86400L)));
+}
+
+TEST(CalendarTime_ToTimestamp_preserves_the_exact_wall_clock_the_client_sent)
+{
+    // Regression test for the double timezone conversion bug: CalendarPackedTimeToTimestamp()
+    // used to run timeBitFieldsToSecs()'s result -- already a correct conversion, done
+    // entirely by mktime() -- through a second local/UTC shift (a since-removed
+    // LocalTimeToUTCTime() helper that added _timezone/timezone on top). That moved every
+    // event backwards by one zone-offset hour in any non-UTC timezone, e.g. a UTC+1 click on
+    // 4 November 00:00 local got stored as 3 November 23:00 and displayed to the client as
+    // happening on the 3rd.
+    //
+    // None of the tests above would have caught that: they only ask whether a date is judged
+    // "in the past" or not, and a one-hour shift is nowhere near either threshold they use (5
+    // days future, 30 days past, 2 hours inside an 86400s grace window), so it never flips
+    // either verdict. This test instead pins the exact calendar fields that come back out --
+    // year, month, day, hour, minute -- against the exact fields that went in, so a one-hour
+    // drift fails it loudly no matter where it falls relative to any threshold.
+    //
+    // Calling CalendarPackedTimeToTimestamp() itself, rather than timeBitFieldsToSecs()
+    // directly (as CalendarTime_packed_bitfield_round_trips_to_the_calendar_date above does),
+    // is what makes this catch a revert of the actual fix: this is the function the three
+    // handlers call.
+    //
+    // The date is a fixed calendar date rather than "now" (like the future/past tests use) so
+    // this test's result doesn't depend on today's date or on DST being in or out of effect at
+    // the time it runs. It also doesn't depend on the host's timezone: PackClientDate() and
+    // CalendarPackedTimeToTimestamp()/safe_localtime() both read/write local wall-clock fields
+    // through mktime()/localtime() in whatever zone the host is in, so the round trip must
+    // reproduce the same fields regardless of which zone that is -- that symmetry is what a
+    // fixed UTC+1 example date could not exercise on a machine running in a different zone.
+    const uint32 packed = PackClientDate(2026, 11, 4, 0, 0);
+
+    const time_t converted = CalendarPackedTimeToTimestamp(packed);
+    const std::tm decomposed = safe_localtime(converted);
+
+    CHECK_EQ(decomposed.tm_year + 1900, 2026);
+    CHECK_EQ(decomposed.tm_mon + 1, 11);
+    CHECK_EQ(decomposed.tm_mday, 4);
+    CHECK_EQ(decomposed.tm_hour, 0);
+    CHECK_EQ(decomposed.tm_min, 0);
 }

@@ -328,7 +328,7 @@ void WorldSession::HandleCalendarAddEvent(WorldPacket& recv_data)
         return;
     }
 
-    time_t const eventTime = CalendarPackedTimeToUtc(eventPackedTime);
+    time_t const eventTime = CalendarPackedTimeToTimestamp(eventPackedTime);
 
     // 946684800 is 01/01/2000 00:00:00 - default response time
     CalendarEvent* cal =  sCalendarMgr.AddEvent(_player->GetObjectGuid(), title, description, type, repeatable, maxInvites, dungeonId, eventTime, timeBitFieldsToSecs(unkPackedTime), flags);
@@ -392,7 +392,7 @@ void WorldSession::HandleCalendarUpdateEvent(WorldPacket& recv_data)
         return;
     }
 
-    time_t const eventTime = CalendarPackedTimeToUtc(eventPackedTime);
+    time_t const eventTime = CalendarPackedTimeToTimestamp(eventPackedTime);
 
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "EventId [" UI64FMTD "], InviteId [" UI64FMTD "] Title %s, Description %s, type %u "
                      "Repeatable %u, MaxInvites %u, Dungeon ID %d, Flags %u", eventId, inviteId, title.c_str(),
@@ -481,7 +481,7 @@ void WorldSession::HandleCalendarCopyEvent(WorldPacket& recv_data)
         return;
     }
 
-    time_t const eventTime = CalendarPackedTimeToUtc(packedTime);
+    time_t const eventTime = CalendarPackedTimeToTimestamp(packedTime);
 
     sCalendarMgr.CopyEvent(eventId, eventTime, guid);
 }
