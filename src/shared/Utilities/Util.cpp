@@ -386,6 +386,41 @@ time_t timeBitFieldsToSecs(uint32 packedDate)
     return time_t(mktime(&lt));
 }
 
+// mktime() (used above, via timeBitFieldsToSecs) interprets the tm fields it
+// is given as LOCAL wall-clock time and already applies the local/UTC offset
+// internally to produce its return value -- that is the entire point of
+// mktime() over a plain field-by-field struct-to-int packing. Its result is
+// therefore already a time_t directly comparable to time() and to
+// GameTime::GetGameTime(); there is no separate "now finish converting to
+// UTC" step left to do.
+//
+// This function used to do exactly that anyway, via a LocalTimeToUTCTime()
+// helper that added _timezone/timezone (seconds *west* of UTC) on top of
+// mktime()'s already-correct result. That applied the local/UTC correction a
+// second time, which moved every event backwards by the zone offset instead
+// of leaving it alone: in UTC+1, a click on 4 November at 00:00 local got
+// stored as 3 November 23:00 and therefore displayed to the client as
+// happening on the 3rd. TrinityCore's ByteBuffer::ReadPackedTime -- the same
+// bit layout and the same bare mktime() call as timeBitFieldsToSecs() above
+// -- applies no further offset either, which is independent confirmation
+// that mktime()'s result is meant to be used as-is.
+time_t CalendarPackedTimeToTimestamp(uint32 packedDate)
+{
+    return timeBitFieldsToSecs(packedDate);
+}
+
+bool CalendarPackedTimeIsPast(uint32 packedDate, time_t now, time_t graceSeconds)
+{
+    // The bug fixed in abbb8a8c3: comparing a packed bitfield (tops out under
+    // 600 million) against a unix timestamp (past 1.7 billion) makes every
+    // possible date look like it is in the past. Converting first is what
+    // makes this comparison mean anything at all. CalendarPackedTimeToTimestamp()
+    // above is already directly comparable to `now` with no timezone offset
+    // applied on top -- see its comment for why adding one anyway is a bug,
+    // not a fix.
+    return CalendarPackedTimeToTimestamp(packedDate) < (now - graceSeconds);
+}
+
 /// Check if the string is a valid ip address representation
 bool IsIPAddress(char const* ipaddress)
 {

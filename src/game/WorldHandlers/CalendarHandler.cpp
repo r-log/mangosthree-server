@@ -42,15 +42,6 @@
 #include "ArenaTeam.h"
 #include "PlayerRegistry.h"
 
-static time_t LocalTimeToUTCTime(time_t time)
-{
-    #if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
-        return time + _timezone;
-    #else
-        return time + timezone;
-    #endif
-}
-
 void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recv_data*/)
 {
     ObjectGuid guid = _player->GetObjectGuid();
@@ -98,6 +89,14 @@ void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recv_data*/)
         data << secsToTimeBitFields(event->EventTime);
         data << uint32(event->Flags);
         data << int32(event->DungeonId);
+
+        // Client reads a fixed uint64 here before the packed creator GUID (event->GuildId
+        // is only the guild's uint32 id, not the GUID the client wants). Skipping it used to
+        // be invisible because an empty calendar never enters this loop; the first real event
+        // shifted every field after it, and the client hung parsing the desynced packet.
+        Guild* guild = sGuildMgr.GetGuildById(event->GuildId);
+        data << uint64(guild ? guild->GetObjectGuid().GetRawValue() : 0);
+
         data << event->CreatorGuid.WriteAsPacked();
 
         std::string timeStr = TimeToTimestampStr(event->EventTime);
@@ -316,17 +315,23 @@ void WorldSession::HandleCalendarAddEvent(WorldPacket& recv_data)
     recv_data >> unkPackedTime;
     recv_data >> flags;
 
-    eventPackedTime = uint32(LocalTimeToUTCTime(eventPackedTime));
-
     // prevent events in the past
-    if (time_t(eventPackedTime) < (GameTime::GetGameTime() - time_t(86400L)))
+    //
+    // CalendarPackedTimeIsPast() does the unpack-then-compare in one call --
+    // see abbb8a8c3, which fixed this handler comparing the still-packed
+    // bitfield straight against GameTime::GetGameTime() and rejecting every
+    // possible date as "in the past".
+    if (CalendarPackedTimeIsPast(eventPackedTime, GameTime::GetGameTime(), time_t(86400L)))
     {
         recv_data.rfinish();
+        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
 
+    time_t const eventTime = CalendarPackedTimeToTimestamp(eventPackedTime);
+
     // 946684800 is 01/01/2000 00:00:00 - default response time
-    CalendarEvent* cal =  sCalendarMgr.AddEvent(_player->GetObjectGuid(), title, description, type, repeatable, maxInvites, dungeonId, timeBitFieldsToSecs(eventPackedTime), timeBitFieldsToSecs(unkPackedTime), flags);
+    CalendarEvent* cal =  sCalendarMgr.AddEvent(_player->GetObjectGuid(), title, description, type, repeatable, maxInvites, dungeonId, eventTime, timeBitFieldsToSecs(unkPackedTime), flags);
 
     if (cal)
     {
@@ -378,14 +383,16 @@ void WorldSession::HandleCalendarUpdateEvent(WorldPacket& recv_data)
     recv_data >> UnknownPackedTime;
     recv_data >> flags;
 
-    eventPackedTime = uint32(LocalTimeToUTCTime(eventPackedTime));
-
-    // prevent events in the past
-    if (time_t(eventPackedTime) < (GameTime::GetGameTime() - time_t(86400L)))
+    // prevent events in the past -- see HandleCalendarAddEvent /
+    // CalendarPackedTimeIsPast() for why this has to unpack before comparing.
+    if (CalendarPackedTimeIsPast(eventPackedTime, GameTime::GetGameTime(), time_t(86400L)))
     {
         recv_data.rfinish();
+        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
+
+    time_t const eventTime = CalendarPackedTimeToTimestamp(eventPackedTime);
 
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "EventId [" UI64FMTD "], InviteId [" UI64FMTD "] Title %s, Description %s, type %u "
                      "Repeatable %u, MaxInvites %u, Dungeon ID %d, Flags %u", eventId, inviteId, title.c_str(),
@@ -414,7 +421,7 @@ void WorldSession::HandleCalendarUpdateEvent(WorldPacket& recv_data)
 
         event->Type = CalendarEventType(type);
         event->Flags = flags;
-        event->EventTime = timeBitFieldsToSecs(eventPackedTime);
+        event->EventTime = eventTime;
         event->UnknownTime = timeBitFieldsToSecs(UnknownPackedTime);
         event->DungeonId = dungeonId;
         event->Title = title;
@@ -465,16 +472,18 @@ void WorldSession::HandleCalendarCopyEvent(WorldPacket& recv_data)
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "EventId [" UI64FMTD "] inviteId [" UI64FMTD "]",
                      eventId, inviteId);
 
-    packedTime = uint32(LocalTimeToUTCTime(packedTime));
-
-    // prevent events in the past
-    if (time_t(packedTime) < (GameTime::GetGameTime() - time_t(86400L)))
+    // prevent events in the past -- see HandleCalendarAddEvent /
+    // CalendarPackedTimeIsPast() for why this has to unpack before comparing.
+    if (CalendarPackedTimeIsPast(packedTime, GameTime::GetGameTime(), time_t(86400L)))
     {
         recv_data.rfinish();
+        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_PASSED);
         return;
     }
 
-    sCalendarMgr.CopyEvent(eventId, timeBitFieldsToSecs(packedTime), guid);
+    time_t const eventTime = CalendarPackedTimeToTimestamp(packedTime);
+
+    sCalendarMgr.CopyEvent(eventId, eventTime, guid);
 }
 
 void WorldSession::HandleCalendarEventInvite(WorldPacket& recv_data)
@@ -848,6 +857,14 @@ void CalendarMgr::SendCalendarEventInviteAlert(CalendarInvite const* invite)
     data << uint32(event->Type);
     data << int32(event->DungeonId);
     data << uint64(invite->InviteId);
+
+    // Client reads a fixed uint64 here before Status (event->GuildId is only the guild's
+    // uint32 id, not the GUID the client wants). This field is read unconditionally on every
+    // invite alert, guild event or not; omitting it desyncs every field that follows and hangs
+    // the client the same way the missing guild GUID did in HandleCalendarGetCalendar.
+    Guild* guild = sGuildMgr.GetGuildById(event->GuildId);
+    data << uint64(guild ? guild->GetObjectGuid().GetRawValue() : 0);
+
     data << uint8(invite->Status);
     data << uint8(invite->Rank);
     data << event->CreatorGuid.WriteAsPacked();
@@ -980,7 +997,12 @@ void CalendarMgr::SendCalendarEvent(Player* player, CalendarEvent const* event, 
     data << event->Flags;
     data << secsToTimeBitFields(event->EventTime);
     data << secsToTimeBitFields(event->UnknownTime);
-    data << event->GuildId;
+
+    // Client reads a fixed uint64 here before the per-invite list (event->GuildId is only
+    // the guild's uint32 id, not the GUID the client wants). Same field, same fix as the
+    // already-applied HandleCalendarGetCalendar and SendCalendarEventInviteAlert corrections.
+    Guild* guild = sGuildMgr.GetGuildById(event->GuildId);
+    data << uint64(guild ? guild->GetObjectGuid().GetRawValue() : 0);
 
     CalendarInviteMap const* cInvMap = event->GetInviteMap();
     data << (uint32)cInvMap->size();
@@ -1083,8 +1105,7 @@ void CalendarMgr::SendCalendarEventModeratorStatusAlert(CalendarInvite const* in
 void CalendarMgr::SendCalendarEventUpdateAlert(CalendarEvent const* event, time_t oldEventTime)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "SMSG_CALENDAR_EVENT_UPDATED_ALERT");
-    WorldPacket data(SMSG_CALENDAR_EVENT_UPDATED_ALERT, 1 + 8 + 4 + 4 + 4 + 1 + 4 +
-                     event->Title.size() + event->Description.size() + 1 + 4 + 4);
+    WorldPacket data(SMSG_CALENDAR_EVENT_UPDATED_ALERT, 1 + 8 + 4 + 4 + 4 + 1 + 4 + event->Title.size() + 1); // +1 for the string's NUL terminator
     data << uint8(1);       // show pending alert?
     data << uint64(event->EventId);
     data << secsToTimeBitFields(oldEventTime);
@@ -1093,10 +1114,11 @@ void CalendarMgr::SendCalendarEventUpdateAlert(CalendarEvent const* event, time_
     data << uint8(event->Type);
     data << int32(event->DungeonId);
     data << event->Title;
-    data << event->Description;
-    data << uint8(event->Repeatable);
-    data << uint32(CALENDAR_MAX_INVITES);
-    data << secsToTimeBitFields(event->UnknownTime);
+    // Client's SMSG_CALENDAR_EVENT_UPDATED_ALERT reader stops after Title -- it never reads a
+    // Description, Repeatable, MaxInvites, or UnknownTime field for this opcode (those exist on
+    // SMSG_CALENDAR_SEND_EVENT and SMSG_CALENDAR_UPDATE_EVENT, not here). Writing them was inert
+    // bandwidth, not a desync risk, but it's dead code that misleads a reader into thinking the
+    // client uses them. Dropped rather than kept "just in case".
     //data.hexlike();
 
     SendPacketToAllEventRelatives(data, event);

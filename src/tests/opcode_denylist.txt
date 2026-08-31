@@ -1,0 +1,62 @@
+# Opcode denylist -- generated 2026-08-31
+#
+# 47 opcode names whose value disagrees with every independent 4.3.4
+# source, and which nothing currently builds or dispatches. They are inert
+# TODAY. Adopting one without correcting its value ships a silent no-op:
+# an SMSG the client discards, or a CMSG handler that never runs.
+#
+# Enforced by src/tests/CheckOpcodeDenylist.cmake.
+#
+# Provenance for the 'correct' column: the dispatch table reversed from
+# Wow-64.exe, cross-checked against WowPacketParser's direction-keyed 4.3.4
+# table. See the header comment on src/tests/OpcodeValuesTest.cpp for the
+# same methodology applied to the names that have already been fixed.
+#
+# name                                         ours    correct
+SMSG_SET_FACTION_NOT_VISIBLE                   0x0000  0x6737
+SMSG_FORCEACTIONSHOW                           0x101C  0x6126
+SMSG_PETGODMODE                                0x101E  0x2E36
+SMSG_REFER_A_FRIEND_EXPIRED                    0x101F  0x4934
+SMSG_GODMODE                                   0x1024  0x0405
+SMSG_GAMESPEED_SET                             0x1048  0x4E34
+MSG_MOVE_TELEPORT_CHEAT                        0x10C7  0x3A10
+MSG_MOVE_TOGGLE_COLLISION_CHEAT                0x10DA  0x7B04
+CMSG_OPENING_CINEMATIC                         0x10FA  0x0A16
+SMSG_BINDZONEREPLY                             0x1158  0x4C34
+SMSG_RWHOIS                                    0x11FF  0x2437
+SMSG_QUEST_FORCE_REMOVED                       0x121F  0x6605
+SMSG_GM_PLAYER_INFO                            0x1231  0x4A15
+SMSG_FORCE_SET_VEHICLE_REC_ID                  0x1240  0x70A1
+CMSG_SET_VEHICLE_REC_ID_ACK                    0x1241  0x3108
+SMSG_RESURRECT_FAILED                          0x1253  0x6705
+SMSG_PROCRESIST                                0x1261  0x0426
+SMSG_COMBAT_EVENT_FAILED                       0x1262  0x2B07
+CMSG_GROUP_SWAP_SUB_GROUP                      0x1281  0x0034
+SMSG_TEST_DROP_RATE_RESULT                     0x1296  0x6816
+SMSG_PET_BROKEN                                0x12B0  0x2E27
+SMSG_WARDEN_DATA                               0x12E7  0x31A0
+SMSG_PLAY_TIME_WARNING                         0x12F6  0x4814
+SMSG_MINIGAME_SETUP                            0x12F7  0x6727
+SMSG_MINIGAME_STATE                            0x12F8  0x2E17
+SMSG_SET_FACTION_ATWAR                         0x1314  0x4216
+SMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY 0x133F  0x59A2
+SMSG_MOVE_UNSET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY 0x1340  0x7DB2
+CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK 0x1341  0x3014
+SMSG_FLIGHT_SPLINE_SYNC                        0x1389  0x0924
+SMSG_VOICE_SESSION_ROSTER_UPDATE               0x139F  0x2A17
+SMSG_VOICE_SESSION_LEAVE                       0x13A0  0x2A24
+SMSG_VOICE_SET_TALKER_MUTED                    0x13A3  0x6E35
+SMSG_IGNORE_REQUIREMENTS_CHEAT                 0x13AA  0x4E36
+SMSG_VOICE_PARENTAL_CONTROLS                   0x13B2  0x0534
+SMSG_KICK_REASON                               0x13C6  0x4027
+SMSG_AVAILABLE_VOICE_CHANNEL                   0x13DB  0x2E16
+SMSG_CALENDAR_EVENT_INVITE_STATUS_ALERT        0x1443  0x6625
+SMSG_CALENDAR_EVENT_INVITE_NOTES               0x1461  0x0E17
+SMSG_CALENDAR_EVENT_INVITE_NOTES_ALERT         0x1462  0x2535
+SMSG_CALENDAR_RAID_LOCKOUT_UPDATED             0x1472  0x4636
+SMSG_NOTIFY_DEST_LOC_SPELL_CAST                0x148F  0x6204
+SMSG_SERVER_INFO_RESPONSE                      0x14A2  0x74B5
+SMSG_BATTLEGROUND_INFO_THROTTLED               0x14A7  0x34B2
+SMSG_TALENTS_INVOLUNTARILY_RESET               0x14FB  0x2C27
+SMSG_DEBUG_SERVER_GEO                          0x14FD  0x0235
+CMSG_SUSPEND_COMMS_ACK                         0x1511  0x4469

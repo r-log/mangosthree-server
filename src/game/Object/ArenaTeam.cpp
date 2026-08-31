@@ -891,9 +891,16 @@ bool ArenaTeam::IsFighting() const
 // add new arena event to all already connected team members
 void ArenaTeam::MassInviteToEvent(WorldSession* session)
 {
-    WorldPacket data(SMSG_CALENDAR_ARENA_TEAM);
+    uint32 count = 0;
 
-    data << uint32(m_members.size());
+    // The requester is deliberately excluded from the roster below, so the
+    // written count can only be known once the loop is done. Write a
+    // placeholder up front and back-patch it with the real tally afterwards
+    // -- the client reads exactly `count` (packedGUID, uint8) pairs, and a
+    // count that overstates what was written runs the client off the end of
+    // the packet (mirrors the fix applied to Guild::MassInviteToEvent).
+    WorldPacket data(SMSG_CALENDAR_ARENA_TEAM);
+    data << uint32(count); // count placeholder
 
     for (MemberList::const_iterator itr = m_members.begin(); itr != m_members.end(); ++itr)
     {
@@ -903,7 +910,11 @@ void ArenaTeam::MassInviteToEvent(WorldSession* session)
         {
             data << itr->guid.WriteAsPacked();
             data << uint8(level);
+            ++count;
         }
     }
+
+    data.put<uint32>(0, count);
+
     session->SendPacket(&data);
 }

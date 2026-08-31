@@ -152,6 +152,33 @@ std::string TimeToTimestampStr(time_t t);
 
 time_t timeBitFieldsToSecs(uint32 packedDate);
 
+/// Calendar packet fields (CMSG_CALENDAR_ADD_EVENT / UPDATE_EVENT / COPY_EVENT)
+/// carry a packed date bitfield rather than a unix timestamp. timeBitFieldsToSecs()
+/// unpacks it into a struct tm and hands that to mktime(), which -- because it
+/// interprets the fields it receives as LOCAL wall-clock time -- already returns a
+/// time_t directly comparable to time() and GameTime::GetGameTime(); nothing further
+/// needs to be applied here. (This function used to add the local/UTC offset again
+/// on top of mktime()'s result, which double-applies a correction mktime() already
+/// made: it shifted every event back by the zone offset, e.g. an hour early in
+/// UTC+1, so a click on 4 November got stored and displayed as the 3rd. TrinityCore's
+/// ByteBuffer::ReadPackedTime -- the same bit layout, the same bare mktime() call --
+/// applies no further offset either, which corroborates this.) Kept as its own
+/// function, rather than inlining timeBitFieldsToSecs() at each call site, so
+/// CalendarPackedTimeIsPast() and the handlers have one shared, comparable value to
+/// depend on -- see abbb8a8c3, the bug that motivated pulling this unpack step out
+/// of the handlers in the first place.
+time_t CalendarPackedTimeToTimestamp(uint32 packedDate);
+
+/// Whether a packed client calendar date is more than `graceSeconds` older than
+/// `now`, once converted to the comparable unix timestamp CalendarPackedTimeToTimestamp()
+/// above returns. This is the "prevent events in the past" check used by
+/// HandleCalendarAddEvent, HandleCalendarUpdateEvent and HandleCalendarCopyEvent,
+/// pulled out here so it can be exercised without linking CalendarHandler.cpp's
+/// Player/ObjectMgr/World dependencies -- see CalendarTimeTest.cpp.
+/// `graceSeconds` exists because a client can legitimately submit a date a few
+/// minutes in the past by the time the packet round-trips; the live callers pass 86400.
+bool CalendarPackedTimeIsPast(uint32 packedDate, time_t now, time_t graceSeconds);
+
 
 /**
  * @brief
