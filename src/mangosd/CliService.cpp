@@ -37,6 +37,7 @@
 #include <thread>
 
 #ifdef _WIN32
+#  include <io.h>
 #  include <windows.h>
 #else
 #  include <sys/select.h>
@@ -61,6 +62,21 @@ namespace
         }
 
         sLog.ConsoleEmitRaw("mangos>");
+    }
+
+    /**
+     * @brief True when stdin is a terminal, i.e. somebody can type at it.
+     *
+     * End of input means two unrelated things either side of this, and nothing
+     * else distinguishes them. See the EOF branch of RunLineBased().
+     */
+    bool StdinIsTerminal()
+    {
+#ifdef _WIN32
+        return _isatty(_fileno(stdin)) != 0;
+#else
+        return isatty(STDIN_FILENO) != 0;
+#endif
     }
 
 #ifndef _WIN32
@@ -205,11 +221,34 @@ void CliService::RunLineBased()
 
         if (line == nullptr)
         {
-            if (feof(stdin))
+            if (!feof(stdin))
+            {
+                continue;               // a failed or interrupted read, not EOF
+            }
+
+            // End of input. At a terminal that is the operator pressing Ctrl-D,
+            // which has always meant "shut the server down". Anywhere else it
+            // means only that no more commands are coming, and the world must
+            // outlive its console.
+            //
+            // A service manager hands the daemon /dev/null, which reports EOF on
+            // the very first read: stopping the world here ended it about a
+            // second after start-up finished. The exit was clean -- status 0, a
+            // full shutdown sequence -- so Restart=on-failure never fired and
+            // the journal held nothing that read as an error. It presented as
+            // the world port being closed, which looks like a firewall fault
+            // from outside. Windows already avoided this by refusing to start a
+            // console in service mode (Master.cpp); nothing covered POSIX.
+            if (StdinIsTerminal())
             {
                 World::StopNow(SHUTDOWN_EXIT_CODE);
             }
-            continue;
+            else
+            {
+                sLog.outString("Console: end of input on a stdin that is not a "
+                               "terminal. Console stopped; world still running.");
+            }
+            return;
         }
 
         // Trim the line ending in place.

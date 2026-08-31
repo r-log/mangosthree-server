@@ -191,6 +191,15 @@ add_test(NAME opcode_denylist
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckOpcodeDenylist.cmake)
 
+# The console may only stop the world on EOF when stdin is a terminal. A service
+# manager passes /dev/null, which is EOF at once; treating that as an operator
+# shutdown request stops every headless deployment a second after start-up, and
+# exits 0 while doing it. See the script for why this is shape and not behaviour.
+add_test(NAME headless_console
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckHeadlessConsole.cmake)
+
 # Put the MySQL client DLL beside the test binary so it can be run from the build tree.
 # A convenience, never a gate: the path is derived from the library that was found.
 if(WIN32)
