@@ -33,6 +33,7 @@
  * - General purpose administrative utilities
  */
 
+#include <cstdio>
 #include <string>
 #include <list>
 #include "Chat.h"
@@ -107,12 +108,11 @@ bool ChatHandler::HandlePInfoCommand(char* args)
     }
 
     std::string username = GetMangosString(LANG_ERROR);
-    std::string email = GetMangosString(LANG_ERROR);
     std::string last_ip = GetMangosString(LANG_ERROR);
     AccountTypes security = SEC_PLAYER;
     std::string last_login = GetMangosString(LANG_ERROR);
 
-    QueryResult* result = LoginDatabase.PQuery("SELECT `username`,`gmlevel`,`email`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'", accId);
+    QueryResult* result = LoginDatabase.PQuery("SELECT `username`,`gmlevel`,`last_ip`,`last_login` FROM `account` WHERE `id` = '%u'", accId);
     if (result)
     {
         Field* fields = result->Fetch();
@@ -121,20 +121,11 @@ bool ChatHandler::HandlePInfoCommand(char* args)
 
         if (GetAccessLevel() >= security)
         {
-            if (security == SEC_ADMINISTRATOR)
-            {
-                email = fields[2].GetCppString();
-            }
-            else
-            {
-                email = "*hidden*";
-            }
-            last_ip = fields[3].GetCppString();
-            last_login = fields[4].GetCppString();
+            last_ip = fields[2].GetCppString();
+            last_login = fields[3].GetCppString();
         }
         else
         {
-            email = "-";
             last_ip = "-";
             last_login = "-";
         }
@@ -144,13 +135,29 @@ bool ChatHandler::HandlePInfoCommand(char* args)
 
     std::string nameLink = playerLink(target_name);
 
-    PSendSysMessage(LANG_PINFO_ACCOUNT, (target ? "" : GetMangosString(LANG_OFFLINE)), nameLink.c_str(), target_guid.GetCounter(), username.c_str(), accId, security, email.c_str(), last_ip.c_str(), last_login.c_str(), latency);
+    // Nine arguments for nine conversions. LANG_PINFO_ACCOUNT carries no
+    // e-mail field -- the shipped string drops it, and its translations drop
+    // it too -- but this call passed one anyway. Every argument after it
+    // landed one place early: "Last login" printed the address, and "Latency"
+    // read a char* through %u and printed a piece of a pointer, which is why
+    // it came out as a different absurd number every time it was run.
+    PSendSysMessage(LANG_PINFO_ACCOUNT, (target ? "" : GetMangosString(LANG_OFFLINE)),
+                    nameLink.c_str(), target_guid.GetCounter(), username.c_str(),
+                    accId, security, last_ip.c_str(), last_login.c_str(), latency);
 
     std::string timeStr = secsToTimeString(total_player_time, TimeFormat::ShortText, true);
     uint32 gold = money / GOLD;
     uint32 silv = (money % GOLD) / SILVER;
     uint32 copp = (money % GOLD) % SILVER;
-    PSendSysMessage(LANG_PINFO_LEVEL, timeStr.c_str(), level, gold, silv, copp);
+
+    // LANG_PINFO_LEVEL asks for the purse as one string, not three numbers.
+    // Passing the gold count to that %s dereferenced it as a pointer: harmless
+    // only while the character held under a gold, where the count is zero and
+    // glibc prints "(null)". At one gold or more it is a wild read, and
+    // .pinfo on an ordinary player took the world server down with it.
+    char moneyStr[64];
+    snprintf(moneyStr, sizeof(moneyStr), "%ug%us%uc", gold, silv, copp);
+    PSendSysMessage(LANG_PINFO_LEVEL, timeStr.c_str(), level, moneyStr);
 //    if (target)
 //    {
 //        uint32 mapId = target->GetMapId();
