@@ -254,7 +254,8 @@ TEST(CalendarTime_ToTimestamp_preserves_the_exact_wall_clock_the_client_sent)
     //
     // The bug this test guards -- CalendarPackedTimeToTimestamp() adding _timezone/timezone on
     // top of mktime()'s already-correct result -- is a no-op whenever the host's UTC offset is
-    // zero. Every CI runner this project uses (ubuntu-latest, windows-2022) runs in UTC and
+    // zero. Every GitHub-hosted runner this project uses defaults to UTC -- ubuntu-latest,
+    // ubuntu-24.04-arm and windows-2022 alike -- and
     // nothing in the workflow sets TZ, so without forcing a zone here this test would pass in CI
     // even with the bug fully reintroduced, and only fail on a developer's non-UTC machine --
     // which is exactly how the bug reached production the first time. ScopedTimeZone forces a
@@ -262,11 +263,15 @@ TEST(CalendarTime_ToTimestamp_preserves_the_exact_wall_clock_the_client_sent)
     // set beforehand, so the assertion below is actually exercised on every runner, and the
     // change cannot leak into other tests.
     //
-    // The wall-clock time is noon, not midnight: midnight is the one instant a DST transition
-    // can delete outright (a "spring forward" boundary that lands exactly on 00:00 has no
-    // corresponding local time at all), which would make mktime()'s result depend on the DST
-    // rule rather than on the bug under test. Noon can never fall in a transition gap, so the
-    // "does not depend on the host timezone" claim above holds unconditionally.
+    // The wall-clock time is noon, not midnight. Midnight is the one instant a DST transition
+    // can delete outright: where a "spring forward" boundary lands exactly on 00:00 there is
+    // no such local time, and mktime()'s result would then depend on the DST rule rather than
+    // on the bug under test. Noon can never fall in a transition gap under any rule.
+    //
+    // Neither the zone nor the date below actually sits near such a boundary -- CET switches
+    // in late March and late October, and this date is in November -- so noon is belt and
+    // braces here rather than a live hazard. It is chosen so the test stays correct if the
+    // date or the forced zone is ever changed by someone who has not re-derived this.
     const ScopedTimeZone forcedZone("CET-1CEST,M3.5.0,M10.5.0/3");
 
     const uint32 packed = PackClientDate(2026, 11, 4, 12, 0);
