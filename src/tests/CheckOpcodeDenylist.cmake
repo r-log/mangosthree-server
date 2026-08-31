@@ -168,8 +168,7 @@ if(VIOLATIONS)
         "These names carry values the 4.3.4 client does not agree with. Using one\n"
         "ships a silent no-op. Correct the value in src/proto/Opcodes.h from the\n"
         "'correct' column of src/tests/opcode_denylist.txt, then remove the name\n"
-        "from that file in the same commit.\n"
-        "See OPCODE_CORRECTION_DESIGN_2026-08-31.md.")
+        "from that file in the same commit.")
 endif()
 
 message(STATUS "opcode denylist: ${DENY_COUNT} names, no adoptions")

@@ -6,7 +6,11 @@
 # an SMSG the client discards, or a CMSG handler that never runs.
 #
 # Enforced by src/tests/CheckOpcodeDenylist.cmake.
-# Design: OPCODE_CORRECTION_DESIGN_2026-08-31.md
+#
+# Provenance for the 'correct' column: the dispatch table reversed from
+# Wow-64.exe, cross-checked against WowPacketParser's direction-keyed 4.3.4
+# table. See the header comment on src/tests/OpcodeValuesTest.cpp for the
+# same methodology applied to the names that have already been fixed.
 #
 # name                                         ours    correct
 SMSG_SET_FACTION_NOT_VISIBLE                   0x0000  0x6737
