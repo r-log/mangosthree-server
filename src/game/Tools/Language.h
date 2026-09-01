@@ -530,8 +530,8 @@ Faction Template: %u. */
     LANG_NPCINFO_VENDOR                                       = 545,    /* *** Is a vendor! */
     LANG_NPCINFO_TRAINER                                      = 546,    /* *** Is a trainer! */
     LANG_NPCINFO_DUNGEON_ID                                   = 547,    /* InstanceID: %u */
-    LANG_PINFO_ACCOUNT                                        = 548,    /* Player%s %s (guid: %u) Account: %s (id: %u) GMLevel: %u E-mail: %s Last IP: %s Last login: %s Latency: %ums */
-    LANG_PINFO_LEVEL                                          = 549,    /* Played time: %s Level: %u Money: %ug%us%uc */
+    LANG_PINFO_ACCOUNT                                        = 548,    /* Player%s %s (guid: %u) Account: %s (id: %u) GMLevel: %u Last IP: %s Last login: %s Latency: home %ums, world %ums */
+    LANG_PINFO_LEVEL                                          = 549,    /* Played time: %s Level: %u Money: %s */
     LANG_PINFO_NO_REP                                         = 550,    /* Command .pinfo doesn't support 'rep' option for offline players. */
     LANG_YOU_SET_EXPLORE_ALL                                  = 551,    /* %s has explored all zones now. */
     LANG_YOU_SET_EXPLORE_NOTHING                              = 552,    /* %s has no more explored zones. */

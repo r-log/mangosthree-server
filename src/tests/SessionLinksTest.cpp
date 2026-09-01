@@ -253,3 +253,72 @@ TEST(SessionLinks_refuses_a_stream_one_that_answers_a_superseded_redirect)
     links.DetachSlotOne(second.get());
     CHECK(!links.IsSlotLive(proto::LinkSlot::One));
 }
+
+TEST(SessionLinks_sends_a_pinned_packet_on_the_stream_it_names)
+{
+    // A reply the client times per-connection has to go back on the wire its
+    // request arrived on. Opcode routing cannot say that: SMSG_PONG is one
+    // opcode whichever stream asked for it, and ServerSlotOf puts it on 0.
+    auto zero = std::make_shared<RecordingLink>("198.51.100.4");
+    auto one  = std::make_shared<RecordingLink>("198.51.100.4");
+
+    proto::SessionLinks links(zero);
+    links.AttachSlotOne(one, 0);
+
+    WorldPacket pinned = Packet(ON_STREAM_ZERO);   // routes to 0 by opcode
+    pinned.SetStream(LinkSlot::One);               // but was asked for on 1
+    links.SendPacket(pinned);
+
+    CHECK_EQ(one->sent.size(), size_t(1));
+    CHECK_EQ(zero->sent.size(), size_t(0));
+    CHECK_EQ(uint32(one->sent[0]), uint32(ON_STREAM_ZERO));
+}
+
+TEST(SessionLinks_unpinned_packets_still_route_by_opcode)
+{
+    // The pin is an exception, not a new policy: everything that does not ask
+    // for a stream must keep going where its opcode says.
+    auto zero = std::make_shared<RecordingLink>("198.51.100.4");
+    auto one  = std::make_shared<RecordingLink>("198.51.100.4");
+
+    proto::SessionLinks links(zero);
+    links.AttachSlotOne(one, 0);
+
+    WorldPacket plain = Packet(ON_STREAM_ZERO);
+    CHECK(!plain.HasStream());
+    links.SendPacket(plain);
+
+    CHECK_EQ(zero->sent.size(), size_t(1));
+    CHECK_EQ(one->sent.size(), size_t(0));
+}
+
+TEST(WorldPacket_carries_its_stream_across_a_copy)
+{
+    // Every inbound packet is copied once before any handler sees it:
+    // WorldGateway enqueues `new WorldPacket(std::move(packet))`, and because
+    // WorldPacket declares a copy constructor that move resolves to a copy.
+    // A copy constructor that forgot this field would drop the stream exactly
+    // between the connection that knows it and the handler that needs it,
+    // leaving the pong on stream 0 and the World latency at zero -- with
+    // nothing in the routing code looking wrong.
+    WorldPacket arrived(ON_STREAM_ZERO, 0);
+    arrived.SetStream(LinkSlot::One);
+
+    WorldPacket copied(arrived);
+
+    CHECK(copied.HasStream());
+    CHECK(copied.GetStream() == LinkSlot::One);
+}
+
+TEST(WorldPacket_has_no_stream_until_one_is_set)
+{
+    WorldPacket fresh(ON_STREAM_ZERO, 0);
+    CHECK(!fresh.HasStream());
+
+    fresh.SetStream(LinkSlot::One);
+    CHECK(fresh.HasStream());
+
+    // Reusing the buffer discards the provenance with the contents.
+    fresh.Initialize(ON_STREAM_ZERO, 0);
+    CHECK(!fresh.HasStream());
+}
