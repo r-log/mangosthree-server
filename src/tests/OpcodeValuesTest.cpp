@@ -142,3 +142,22 @@ TEST(OpcodeValues_player_feedback_replies_match_the_client)
     // been right, and in use, all along.
     CHECK_EQ(int(SMSG_SET_FACTION_VISIBLE),             0x2525);
 }
+
+TEST(OpcodeValues_spell_resist_matches_the_client)
+{
+    // Corroborated three ways, which is one more than the rule requires: the
+    // dispatch table reversed from Wow-64.exe, WowPacketParser's direction-keyed
+    // table, and TrinityCore's own enum -- all three say 0x0426.
+    //
+    // The payload agrees across two of those independently. The client's reader
+    // takes two flat eight-byte GUIDs (sub_1405A7D80 reads 8 bytes; these are
+    // NOT packed), a uint32 spell id and a trailing byte it discards.
+    // TrinityCore sizes the same packet 8+8+4+1 and calls the byte a log-format
+    // selector. Nothing had to be guessed.
+    CHECK_EQ(int(SMSG_PROCRESIST), 0x0426);
+
+    // Not to be confused with the miss log, which reports a spell that never
+    // landed. That one has always been correct and in use; pinned so the two
+    // cannot be conflated by a later tidy-up.
+    CHECK_EQ(int(SMSG_SPELLLOGMISS), 0x0625);
+}
