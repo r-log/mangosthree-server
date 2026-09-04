@@ -428,7 +428,7 @@ enum OpcodesList
     CMSG_SETDEATHBINDPOINT                                = 0x1155,
     SMSG_BINDPOINTUPDATE                                  = 0x0527, // 4.3.4 15595
     CMSG_GETDEATHBINDZONE                                 = 0x1157,
-    SMSG_BINDZONEREPLY                                    = 0x1158,
+    SMSG_BINDZONEREPLY                                    = 0x4C34, // 4.3.4 15595
     SMSG_PLAYERBOUND                                      = 0x2516, // 4.3.4 15595
     SMSG_CLIENT_CONTROL_UPDATE                            = 0x2837, // 4.3.4 15595
     CMSG_REPOP_REQUEST                                    = 0x6235, // 4.3.4 15595
@@ -633,7 +633,7 @@ enum OpcodesList
     SMSG_GMTICKET_SYSTEMSTATUS                            = 0x0D35, // 4.3.4 15595
     CMSG_SPIRIT_HEALER_ACTIVATE                           = 0x2E26, // 4.3.4 15595
     CMSG_SET_STAT_CHEAT                                   = 0x121E,
-    SMSG_QUEST_FORCE_REMOVED                              = 0x121F,
+    SMSG_QUEST_FORCE_REMOVED                              = 0x6605, // 4.3.4 15595
     CMSG_SKILL_BUY_STEP                                   = 0x1220,
     CMSG_SKILL_BUY_RANK                                   = 0x1221,
     CMSG_XP_CHEAT                                         = 0x1222,
@@ -885,8 +885,8 @@ enum OpcodesList
     MSG_GM_DESTROY_CORPSE                                 = 0x1311,
     CMSG_GM_DESTROY_ONLINE_CORPSE                         = 0x1312,
     CMSG_ACTIVATETAXIEXPRESS                              = 0x0515, // 4.3.4 15595
-    SMSG_SET_FACTION_ATWAR                                = 0x1314,
-    SMSG_SET_FACTION_NOT_VISIBLE = 0x0000, //TODO: Needs fixing up
+    SMSG_SET_FACTION_ATWAR                                = 0x4216, // 4.3.4 15595
+    SMSG_SET_FACTION_NOT_VISIBLE                          = 0x6737, // 4.3.4 15595
     SMSG_GAMETIMEBIAS_SET = 0x1315,
     CMSG_DEBUG_ACTIONS_START                              = 0x1316,
     CMSG_DEBUG_ACTIONS_STOP                               = 0x1317,
@@ -1377,7 +1377,7 @@ enum OpcodesList
     SMSG_UI_TIME                                          = 0x4A14, // 4.3.4 15595
     CMSG_CHAR_RACE_CHANGE                                 = 0x0D24, // 4.3.4 15595
     MSG_VIEW_PHASE_SHIFT                                  = 0x14FA,
-    SMSG_TALENTS_INVOLUNTARILY_RESET                      = 0x14FB,
+    SMSG_TALENTS_INVOLUNTARILY_RESET                      = 0x2C27, // 4.3.4 15595
     CMSG_DEBUG_SERVER_GEO                                 = 0x14FC,
     SMSG_DEBUG_SERVER_GEO                                 = 0x14FD,
     SMSG_LOOT_UPDATE                                      = 0x14FE,

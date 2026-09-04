@@ -117,6 +117,7 @@ bool ChatHandler::HandleResetSpecsCommand(char* args)
     {
         target->resetTalents(true, true);
         target->SendTalentsInfoData(false);
+        target->SendTalentsInvoluntarilyReset(false);
 
         ChatHandler(target).SendSysMessage(LANG_RESET_TALENTS);
         if (!m_session || m_session->GetPlayer() != target)
@@ -316,6 +317,7 @@ bool ChatHandler::HandleResetTalentsCommand(char* args)
             {
                 ((Pet*)creature)->resetTalents(true);
                 ((Player*)owner)->SendTalentsInfoData(true);
+                ((Player*)owner)->SendTalentsInvoluntarilyReset(true);
 
                 ChatHandler((Player*)owner).SendSysMessage(LANG_RESET_PET_TALENTS);
                 if (!m_session || m_session->GetPlayer() != ((Player*)owner))
@@ -335,6 +337,7 @@ bool ChatHandler::HandleResetTalentsCommand(char* args)
     {
         target->resetTalents(true);
         target->SendTalentsInfoData(false);
+        target->SendTalentsInvoluntarilyReset(false);
         ChatHandler(target).SendSysMessage(LANG_RESET_TALENTS);
         if (!m_session || m_session->GetPlayer() != target)
         {

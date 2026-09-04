@@ -597,6 +597,27 @@ void Player::BuildPetTalentsInfoData(WorldPacket* data)
     }
 }
 
+/**
+ * @brief Tells the client its talents were reset by something other than itself.
+ *
+ * The client answers this with a static popup -- "Your talents have been reset."
+ * from UIParent.lua, or the pet wording when the byte is set. It is the only
+ * reset feedback the client owns: SMSG_TALENT_UPDATE resends the talents but
+ * says nothing about why they changed, so without this a GM reset looks to the
+ * player like their talents silently vanished.
+ *
+ * One uint8, read straight into a boolean and passed to the UI event. Taken
+ * from the client's own reader for opcode 0x2C27.
+ *
+ * @param pet true to report the pet's talents rather than the player's.
+ */
+void Player::SendTalentsInvoluntarilyReset(bool pet)
+{
+    WorldPacket data(SMSG_TALENTS_INVOLUNTARILY_RESET, 1);
+    data << uint8(pet ? 1 : 0);
+    GetSession()->SendPacket(&data);
+}
+
 void Player::SendTalentsInfoData(bool pet)
 {
     WorldPacket data(SMSG_TALENT_UPDATE, 50);

@@ -290,6 +290,34 @@ void ReputationMgr::SendVisible(FactionState const* faction) const
 }
 
 /**
+ * @brief Sends the at-war flag for one faction to the client.
+ *
+ * SendState carries only (ReputationListID, Standing) pairs -- no flags at all --
+ * so this is the only channel that can correct the client's at-war bit after
+ * login. That matters because the client sets the bit locally the moment the box
+ * is ticked, without waiting: when SetAtWar then refuses the change (a
+ * PEACE_FORCED faction above hated, or a hidden one) the client is left showing a
+ * war the server never declared, and stays wrong until the next login.
+ *
+ * The client reads a uint32 list id then one flags byte, and takes a single bit
+ * out of it -- 0x02, which is FACTION_FLAG_AT_WAR. Sending the low byte of Flags
+ * therefore says exactly what the client asks for; the other bits are ignored by
+ * its reader for opcode 0x4216.
+ */
+void ReputationMgr::SendAtWar(FactionState const* faction) const
+{
+    if (m_player->GetSession()->PlayerLoading())
+    {
+        return;
+    }
+
+    WorldPacket data(SMSG_SET_FACTION_ATWAR, 4 + 1);
+    data << uint32(faction->ReputationListID);
+    data << uint8(faction->Flags & 0xFF);
+    m_player->SendDirectMessage(&data);
+}
+
+/**
  * @brief Initializes all tracked faction states for the player.
  */
 void ReputationMgr::Initialize()
@@ -583,6 +611,10 @@ void ReputationMgr::SetAtWar(FactionState* faction, bool atWar)
     // not allow declare war to faction unless already hated or less
     if (atWar && (faction->Flags & FACTION_FLAG_PEACE_FORCED) && ReputationToRank(faction->Standing) > REP_HATED)
     {
+        // The client ticked its own box before asking. Refusing in silence
+        // leaves it displaying a war that was never declared, so say what the
+        // flag really is.
+        SendAtWar(faction);
         return;
     }
 
@@ -603,6 +635,7 @@ void ReputationMgr::SetAtWar(FactionState* faction, bool atWar)
 
     faction->needSend = true;
     faction->needSave = true;
+    SendAtWar(faction);
 }
 
 /**

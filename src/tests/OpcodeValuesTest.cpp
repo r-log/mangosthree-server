@@ -119,3 +119,26 @@ TEST(OpcodeValues_calendar_replies_match_the_client)
     CHECK_EQ(int(SMSG_CALENDAR_FILTER_GUILD),                  0x4A26);
     CHECK_EQ(int(SMSG_CALENDAR_ARENA_TEAM),                    0x0615);
 }
+
+TEST(OpcodeValues_player_feedback_replies_match_the_client)
+{
+    // Five names off the denylist. Each value is corroborated the usual two
+    // ways -- the dispatch table reversed from Wow-64.exe and WowPacketParser's
+    // direction-keyed table -- and each was then traced into the client's own
+    // decompiled reader, which is what settled the payloads the senders write.
+    //
+    // SMSG_SET_FACTION_NOT_VISIBLE was not merely wrong, it was 0x0000, and
+    // OpcodeTable.cpp registered it: value zero was a live server-side row.
+    CHECK_EQ(int(SMSG_TALENTS_INVOLUNTARILY_RESET),     0x2C27);
+    CHECK_EQ(int(SMSG_SET_FACTION_ATWAR),               0x4216);
+    CHECK_EQ(int(SMSG_SET_FACTION_NOT_VISIBLE),         0x6737);
+    CHECK_EQ(int(SMSG_QUEST_FORCE_REMOVED),             0x6605);
+    CHECK_EQ(int(SMSG_BINDZONEREPLY),                   0x4C34);
+
+    // The already-correct half of the pair sub_14072FFF0 serves. That one
+    // reader branches on the opcode itself -- 0x2525 sets the visible bit,
+    // 0x6737 clears it -- so the value below is what corroborates the value
+    // above: they are two arms of a single client function, and this one has
+    // been right, and in use, all along.
+    CHECK_EQ(int(SMSG_SET_FACTION_VISIBLE),             0x2525);
+}
