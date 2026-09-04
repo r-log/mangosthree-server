@@ -154,6 +154,15 @@ bool ChatHandler::HandleQuestRemoveCommand(char* args)
     // reset rewarded for restart repeatable quest
     player->getQuestStatusMap()[entry].m_rewarded = false;
 
+    // Tell the player's client the quest is gone. Clearing the log slot above
+    // only makes it disappear -- silently, with no indication that anything
+    // happened. This is what the client has for saying so: it reads the id,
+    // looks the quest up in its own store and names it in a message. One
+    // uint32, per the client's reader for opcode 0x6605.
+    WorldPacket data(SMSG_QUEST_FORCE_REMOVED, 4);
+    data << uint32(entry);
+    player->GetSession()->SendPacket(&data);
+
     SendSysMessage(LANG_COMMAND_QUEST_REMOVED);
     return true;
 }
