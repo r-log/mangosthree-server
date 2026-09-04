@@ -698,7 +698,7 @@ enum OpcodesList
     SMSG_AUCTION_OWNER_LIST_RESULT                        = 0x6C34, // 4.3.4 15595
     SMSG_AUCTION_BIDDER_NOTIFICATION                      = 0x4E27, // 4.3.4 15595
     SMSG_AUCTION_OWNER_NOTIFICATION                       = 0x4116, // 4.3.4 15595
-    SMSG_PROCRESIST                                       = 0x1261,
+    SMSG_PROCRESIST                                       = 0x0426, // 4.3.4 15595
     SMSG_COMBAT_EVENT_FAILED                              = 0x1262,
     SMSG_DISPEL_FAILED                                    = 0x0307, // 4.3.4 15595
     SMSG_SPELLOGDAMAGE_IMMUNE                             = 0x4507, // 4.3.4 15595

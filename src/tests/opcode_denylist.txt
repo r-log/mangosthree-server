@@ -1,6 +1,6 @@
 # Opcode denylist -- generated 2026-08-31
 #
-# 42 opcode names whose value disagrees with every independent 4.3.4
+# 41 opcode names whose value disagrees with every independent 4.3.4
 # source, and which nothing currently builds or dispatches. They are inert
 # TODAY. Adopting one without correcting its value ships a silent no-op:
 # an SMSG the client discards, or a CMSG handler that never runs.
@@ -26,7 +26,6 @@ SMSG_GM_PLAYER_INFO                            0x1231  0x4A15
 SMSG_FORCE_SET_VEHICLE_REC_ID                  0x1240  0x70A1
 CMSG_SET_VEHICLE_REC_ID_ACK                    0x1241  0x3108
 SMSG_RESURRECT_FAILED                          0x1253  0x6705
-SMSG_PROCRESIST                                0x1261  0x0426
 SMSG_COMBAT_EVENT_FAILED                       0x1262  0x2B07
 CMSG_GROUP_SWAP_SUB_GROUP                      0x1281  0x0034
 SMSG_TEST_DROP_RATE_RESULT                     0x1296  0x6816

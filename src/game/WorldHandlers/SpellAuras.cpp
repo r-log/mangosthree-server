@@ -3178,7 +3178,9 @@ void Aura::PeriodicTick()
             SpellNonMeleeDamage damageInfo(pCaster, target, spellProto->ID, SpellSchoolMask(spellProto->SchoolMask));
             pCaster->CalculateSpellDamage(&damageInfo, gain, spellProto);
 
-            damageInfo.target->CalculateAbsorbResistBlock(pCaster, &damageInfo, spellProto);
+            // periodic: this is a tick, so a full resist here must not be announced
+            // as a resisted spell -- the power drain above has already happened.
+            damageInfo.target->CalculateAbsorbResistBlock(pCaster, &damageInfo, spellProto, BASE_ATTACK, true);
 
             pCaster->DealDamageMods(damageInfo.target, damageInfo.damage, &damageInfo.absorb);
 

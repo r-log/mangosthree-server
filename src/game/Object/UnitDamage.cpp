@@ -720,7 +720,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
  * @param spellProto The spell entry causing damage.
  * @param attType The associated attack type.
  */
-void Unit::CalculateAbsorbResistBlock(Unit* pCaster, SpellNonMeleeDamage* damageInfo, SpellEntry const* spellProto, WeaponAttackType attType)
+void Unit::CalculateAbsorbResistBlock(Unit* pCaster, SpellNonMeleeDamage* damageInfo, SpellEntry const* spellProto, WeaponAttackType attType, bool periodic)
 {
     bool blocked = false;
     // Get blocked status
@@ -748,6 +748,30 @@ void Unit::CalculateAbsorbResistBlock(Unit* pCaster, SpellNonMeleeDamage* damage
     uint32 absorb_affected_damage = pCaster->CalcNotIgnoreAbsorbDamage(damageInfo->damage, GetSpellSchoolMask(spellProto), spellProto);
     CalculateDamageAbsorbAndResist(pCaster, GetSpellSchoolMask(spellProto), SPELL_DIRECT_DAMAGE, absorb_affected_damage, &damageInfo->absorb, &damageInfo->resist, !spellProto->HasAttribute(SPELL_ATTR_EX_CANT_REFLECTED));
     damageInfo->damage -= damageInfo->absorb + damageInfo->resist;
+
+    // Resistance stopped the whole thing, and nothing else contributed. That is
+    // the one event the client's SPELL_RESIST combat text describes, and it is
+    // not the same as a miss: SendSpellMiss reports a spell that never landed,
+    // where this one landed and was resisted down to nothing.
+    //
+    // The test is on the damage that remains, not on absorb_affected_damage. Those
+    // differ whenever the caster carries SPELL_AURA_MOD_IGNORE_ABSORB_SCHOOL or
+    // ..._FOR_SPELL: CalcNotIgnoreAbsorbDamage then returns only a fraction of the
+    // hit, and resisting all of *that* fraction still leaves real damage to land --
+    // which SendSpellNonMeleeDamageLog reports for the same hit, so the client
+    // would have been told a blow was resisted while it was busy taking it.
+    //
+    // Periodic ticks are excluded by the caller rather than by the resist maths.
+    // The DOT carve-out in CalculateDamageAbsorbAndResist holds a tick at
+    // damage - 1 so that it always reports something, but it keys off damagetype
+    // DOT and this routine passes SPELL_DIRECT_DAMAGE for every caller -- so a
+    // periodic power burn can reach a full resist, and without this would announce
+    // one for a tick whose power drain had already succeeded.
+    if (!periodic && damageInfo->damage == 0 && damageInfo->resist > 0 &&
+        damageInfo->absorb == 0 && damageInfo->blocked == 0)
+    {
+        pCaster->SendSpellDamageResist(this, spellProto->ID);
+    }
 }
 
 void Unit::CalculateHealAbsorb(const uint32 heal, uint32* absorb)

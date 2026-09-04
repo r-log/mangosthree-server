@@ -3014,6 +3014,31 @@ void Unit::SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo)
 }
 
 /**
+ * @brief Reports a spell whose damage resistance stopped in full.
+ *
+ * Distinct from \ref Unit::SendSpellMiss, which reports that a spell never
+ * landed. This one lands and is then resisted down to nothing, which the client
+ * shows as its own combat text type: its reader for opcode 0x0426 builds a
+ * combat text entry and, when the local player is the target, raises
+ * COMBAT_TEXT_UPDATE with the message type "SPELL_RESIST".
+ *
+ * Two flat uint64 GUIDs, not packed -- the client reads eight bytes for each.
+ * The trailing byte is a log-format selector the client reads and discards.
+ *
+ * @param target The unit the spell was resisted by.
+ * @param spellID The spell that was resisted.
+ */
+void Unit::SendSpellDamageResist(Unit* target, uint32 spellID)
+{
+    WorldPacket data(SMSG_PROCRESIST, 8 + 8 + 4 + 1);
+    data << uint64(GetObjectGuid().GetRawValue());
+    data << uint64(target->GetObjectGuid().GetRawValue());
+    data << uint32(spellID);
+    data << uint8(0);                                       // log format: 0 default, 1 debug
+    SendMessageToSet(&data, true);
+}
+
+/**
  * @brief Sends an attacker state update using prepared melee damage data.
  *
  * @param damageInfo The prepared melee damage information.
