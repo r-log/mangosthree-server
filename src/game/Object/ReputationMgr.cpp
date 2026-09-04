@@ -624,6 +624,35 @@ void ReputationMgr::SetAtWar(FactionState* faction, bool atWar)
         return;
     }
 
+    // A war the standing itself forces cannot be called off. SetOneFactionReputation
+    // declares it the moment the rank reaches hostile or below, and it has to stay
+    // declared until the standing recovers: it is a state, not a one-off action.
+    //
+    // The threshold is the client's own. sub_14072CFF0, which builds what
+    // GetFactionInfo returns, disables the At War checkbox when
+    //
+    //     standing < -3000  ||  (faction flags & 0x10)     // 0x10 = PEACE_FORCED
+    //
+    // and -3000 is exactly where REP_UNFRIENDLY starts by our own PointsInRank
+    // table, so "rank <= REP_HOSTILE" is that same comparison. The client
+    // therefore never asks to clear the flag while this holds -- but the request
+    // arrives from the client, and the client is not where this can be decided.
+    //
+    // The rank is recomputed the way the setter computes it, base reputation
+    // included. Comparing faction->Standing raw -- as the PEACE_FORCED check above
+    // does -- disagrees with the rule that turned the flag on for any faction whose
+    // ReputationBase is not zero, and a guard that disagrees with its own setter
+    // leaves the flag flapping.
+    if (!atWar)
+    {
+        FactionEntry const* factionEntry = sFactionStore.LookupEntry(faction->ID);
+        if (factionEntry && GetRank(factionEntry) <= REP_HOSTILE)
+        {
+            SendAtWar(faction);
+            return;
+        }
+    }
+
     if (atWar)
     {
         faction->Flags |= FACTION_FLAG_AT_WAR;
