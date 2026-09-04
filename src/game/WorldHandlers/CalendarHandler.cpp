@@ -222,6 +222,17 @@ void WorldSession::HandleCalendarGetEvent(WorldPacket& recv_data)
 
     if (CalendarEvent* event = sCalendarMgr.GetEventById(eventId))
     {
+        // The reply carries the title, the description, the times and the full
+        // invitee list. Event ids are sequential, so without this any player
+        // could read every event on the realm by counting upwards. Answer
+        // exactly as for an id that does not exist -- telling a stranger that
+        // one is real is already half the disclosure.
+        if (!event->IsVisibleTo(guid, _player->GetGuildId()))
+        {
+            sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_INVALID);
+            return;
+        }
+
         sCalendarMgr.SendCalendarEvent(_player, event, CALENDAR_SENDTYPE_GET);
     }
     else
@@ -286,6 +297,15 @@ void WorldSession::HandleCalendarArenaTeam(WorldPacket& recv_data)
 
     if (ArenaTeam* team = sObjectMgr.GetArenaTeamById(areanTeamId))
     {
+        // The reply is the team's roster -- every member's guid and level. The
+        // id comes from the packet, so answering one the sender does not belong
+        // to hands out the membership of every arena team on the realm. Say
+        // nothing at all: the client only asks this for a team it is on.
+        if (!team->HaveMember(_player->GetObjectGuid()))
+        {
+            return;
+        }
+
         team->MassInviteToEvent(this);
     }
 }
@@ -565,6 +585,27 @@ void WorldSession::HandleCalendarEventInvite(WorldPacket& recv_data)
     {
         if (CalendarEvent* event = sCalendarMgr.GetEventById(eventId))
         {
+            // Only the creator or a moderator may add people, which is the rule
+            // HandleCalendarUpdateEvent already applies to editing the event.
+            // Without it any player could attach anyone to any event id, and the
+            // invitation arrives naming the event's owner rather than the sender.
+            if (playerGuid != event->CreatorGuid)
+            {
+                CalendarInvite* inviterInvite = event->GetInviteByGuid(playerGuid);
+                if (inviterInvite == NULL)
+                {
+                    sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_NOT_INVITED);
+                    return;
+                }
+
+                if (inviterInvite->Rank != CALENDAR_RANK_MODERATOR &&
+                    inviterInvite->Rank != CALENDAR_RANK_OWNER)
+                {
+                    sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_PERMISSIONS);
+                    return;
+                }
+            }
+
             if (event->IsGuildEvent() && event->GuildId == inviteeGuildId)
             {
                 // we can't invite guild members to guild events

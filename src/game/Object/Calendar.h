@@ -173,6 +173,16 @@ class CalendarEvent
         CalendarInvite* GetInviteById(uint64 inviteId);
         CalendarInvite* GetInviteByGuid(ObjectGuid const& guid);
 
+        /**
+         * @brief Whether a player is entitled to see this event at all.
+         *
+         * The creator, anybody holding an invite, and -- for a guild event or
+         * announcement -- any member of the owning guild. Nobody else: an event
+         * id is a small integer, so anything that answers for an arbitrary one
+         * hands out every event on the realm to whoever counts upwards.
+         */
+        bool IsVisibleTo(ObjectGuid const& playerGuid, uint32 playerGuildId);
+
         bool RemoveInviteById(uint64 inviteId, Player* remover);
         void RemoveInviteByGuid(ObjectGuid const& playerGuid);
         void RemoveAllInvite(ObjectGuid const& remover);

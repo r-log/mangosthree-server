@@ -114,6 +114,23 @@ void CalendarEvent::RemoveInviteByGuid(ObjectGuid const& playerGuid)
 
 // remove invite by invite ID (some check done before and if requirement not complete
 // operation is aborted and raison is sent to client
+bool CalendarEvent::IsVisibleTo(ObjectGuid const& playerGuid, uint32 playerGuildId)
+{
+    if (CreatorGuid == playerGuid)
+    {
+        return true;
+    }
+
+    // A guild event is visible to the guild whether or not the member was
+    // invited individually -- that is what makes it a guild event.
+    if ((IsGuildEvent() || IsGuildAnnouncement()) && GuildId && GuildId == playerGuildId)
+    {
+        return true;
+    }
+
+    return GetInviteByGuid(playerGuid) != NULL;
+}
+
 bool CalendarEvent::RemoveInviteById(uint64 inviteId, Player* remover)
 {
     CalendarInviteMap::iterator inviteItr = m_Invitee.find(inviteId);
@@ -509,6 +526,18 @@ void CalendarMgr::CopyEvent(uint64 eventId, time_t newTime, ObjectGuid const& gu
     Player* player = sObjectMgr.GetPlayer(guid);
     CalendarEvent* event = GetEventById(eventId);
     if (!event)
+    {
+        SendCalendarCommandResult(player, CALENDAR_ERROR_EVENT_INVALID);
+        return;
+    }
+
+    // Copying is not a read-only act. It clones the invitee list into a new
+    // event and invites every one of them again, so without this an event id
+    // was enough to learn who had been invited to a private event AND to post
+    // an invitation, in your own name, to players who had never heard of you.
+    // Answer as though the id did not exist: confirming that it does is itself
+    // the disclosure.
+    if (!player || !event->IsVisibleTo(guid, player->GetGuildId()))
     {
         SendCalendarCommandResult(player, CALENDAR_ERROR_EVENT_INVALID);
         return;
