@@ -68,8 +68,11 @@ namespace Wire
         const GuidBytes guid2(status.guid2);
         const GuidBytes tguid(status.transport.guid);
         const bool hasTransport = status.transport.present;
-        const bool hasFlags = status.flags != 0;
-        const bool hasFlags2 = status.flags2 != 0;
+        // Presence is derived from the value, except that a decoded packet may have
+        // announced a block that carried zero; the status remembers that case so it
+        // re-encodes byte-identical instead of dropping the block and shifting the rest.
+        const bool hasFlags = status.flags != 0 || status.has.emptyFlagsBlock;
+        const bool hasFlags2 = status.flags2 != 0 || status.has.emptyFlags2Block;
 
         for (Sequence p = sequence; *p != Element::End; ++p)
         {
@@ -265,8 +268,20 @@ namespace Wire
                 {
                     case Element::HasMovementFlags:   hasFlags = !in.ReadBit();                        break;
                     case Element::HasMovementFlags2:  hasFlags2 = !in.ReadBit();                       break;
-                    case Element::Flags:              if (hasFlags)  { out.flags = in.ReadBits(30); }  break;
-                    case Element::Flags2:             if (hasFlags2) { out.flags2 = in.ReadBits(12); } break;
+                    case Element::Flags:
+                        if (hasFlags)
+                        {
+                            out.flags = in.ReadBits(30);
+                            out.has.emptyFlagsBlock = (out.flags == 0);
+                        }
+                        break;
+                    case Element::Flags2:
+                        if (hasFlags2)
+                        {
+                            out.flags2 = in.ReadBits(12);
+                            out.has.emptyFlags2Block = (out.flags2 == 0);
+                        }
+                        break;
                     case Element::HasTimestamp:       out.has.timestamp = !in.ReadBit();               break;
                     case Element::Timestamp:          if (out.has.timestamp) { out.time = in.read<uint32>(); } break;
                     case Element::HasPitch:           out.has.pitch = !in.ReadBit();                   break;
@@ -340,16 +355,18 @@ namespace Wire
         }
 
         const size_t start = in.rpos();
-        out = MovementStatus();
+        MovementStatus candidate;
         try
         {
-            result = DecodeUnchecked(in, sequence, out);
+            result = DecodeUnchecked(in, sequence, candidate);
         }
         catch (ByteBufferException const&)
         {
             result.error = DecodeError::Overread;
         }
         result.consumed = in.rpos() - start;
+        // Nothing half-read reaches the caller: the whole status, or the defaults.
+        out = result.ok() ? candidate : MovementStatus();
         return result;
     }
 }

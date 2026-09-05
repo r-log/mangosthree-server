@@ -452,3 +452,75 @@ TEST(MovementCapture_writes_one_parseable_line_per_packet)
     // The stream is closed, so the removal must succeed; a leftover file is a failure.
     CHECK(std::remove(path.c_str()) == 0);
 }
+
+TEST(MovementCodec_remembers_a_present_but_zero_flags_block)
+{
+    // A block announced present and carrying zero has no value to derive presence
+    // from, so the status remembers it; otherwise re-encoding would drop thirty bits
+    // and shift every later field. Layout: the presence bit, then the 30-bit block.
+    const Wire::Element seq[] = { Wire::Element::HasMovementFlags, Wire::Element::Flags, Wire::Element::End };
+
+    // Present (the inverted bit is 0) followed by thirty zero bits: 31 bits, four zero bytes.
+    ByteBuffer wire;
+    wire << uint8(0x00) << uint8(0x00) << uint8(0x00) << uint8(0x00);
+    Wire::MovementStatus got;
+    REQUIRE(Wire::Decode(wire, seq, got).ok());
+    CHECK_EQ(got.flags, uint32(0));
+    CHECK(got.has.emptyFlagsBlock);
+
+    ByteBuffer again;
+    Wire::Encode(again, seq, got);
+    CHECK_BYTES(again.contents(), again.size(), { 0x00, 0x00, 0x00, 0x00 });
+
+    // The same value without that memory is "absent": one set bit, one byte.
+    Wire::MovementStatus plain;
+    ByteBuffer absent;
+    Wire::Encode(absent, seq, plain);
+    CHECK_BYTES(absent.contents(), absent.size(), { 0x80 });
+}
+
+TEST(MovementCodec_failed_decode_leaves_out_at_defaults)
+{
+    ByteBuffer full;
+    Wire::Encode(full, kTinySequence, TinyFixture());
+
+    // Cut after the position float: the timestamp read must fail, and nothing
+    // decoded before the failure may leak into `out` -- nor may what the caller
+    // left there survive.
+    ByteBuffer cut;
+    cut.append(full.contents(), 5);
+    Wire::MovementStatus got;
+    got.pos.x = 99.0f;
+    const Wire::DecodeResult r = Wire::Decode(cut, kTinySequence, got);
+    CHECK(r.error == Wire::DecodeError::Overread);
+    CHECK(got == Wire::MovementStatus());
+}
+
+// The legacy layouts the seed tables were copied from: header-only arrays in
+// src/game/movement, safe to define in this one translation unit.
+#include "MovementStructures.h"
+
+TEST(MovementSequences_seed_tables_match_the_legacy_arrays)
+{
+    // The seed tables stay bound to the legacy layouts until P1 replaces each with
+    // a binary-verified golden: an edit that drifts either side fails here, not on
+    // a client. Both enums mirror one another ordinal for ordinal, so the raw
+    // values compare directly.
+    const Wire::Registry r = Wire::AllSequences();
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        MovementStatusElements const* legacy = GetMovementStatusElementsSequence(e->opcode);
+        REQUIRE(legacy != nullptr);
+        int i = 0;
+        for (;; ++i)
+        {
+            CHECK_EQ(int(e->sequence[i]), int(legacy[i]));
+            if (e->sequence[i] == Wire::Element::End || legacy[i] == MSEEnd)
+            {
+                break;
+            }
+        }
+        CHECK(e->sequence[i] == Wire::Element::End);
+        CHECK(legacy[i] == MSEEnd);
+    }
+}

@@ -25,6 +25,7 @@
 
 #include "wire/MovementCapture.h"
 
+#include <atomic>
 #include <cstdio>
 #include <mutex>
 
@@ -34,6 +35,9 @@ namespace Wire
     {
         std::mutex g_lock;
         FILE* g_file = nullptr;
+        // Mirrors `g_file != nullptr`, written only under the lock, so the per-packet
+        // "is capture on?" question on every map thread costs a load, not a mutex.
+        std::atomic<bool> g_open{ false };
     }
 
     bool MovementCapture::Open(std::string const& path)
@@ -45,13 +49,13 @@ namespace Wire
             g_file = nullptr;
         }
         g_file = std::fopen(path.c_str(), "ab");
+        g_open.store(g_file != nullptr, std::memory_order_release);
         return g_file != nullptr;
     }
 
     bool MovementCapture::IsOpen()
     {
-        std::lock_guard<std::mutex> guard(g_lock);
-        return g_file != nullptr;
+        return g_open.load(std::memory_order_acquire);
     }
 
     void MovementCapture::Record(char direction, uint16 opcode, uint8 const* bytes, size_t size)
@@ -77,6 +81,7 @@ namespace Wire
     void MovementCapture::Close()
     {
         std::lock_guard<std::mutex> guard(g_lock);
+        g_open.store(false, std::memory_order_release);
         if (g_file)
         {
             std::fclose(g_file);

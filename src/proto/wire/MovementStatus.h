@@ -68,6 +68,11 @@ namespace Wire
             bool spline = false;
             bool splineElevation = false;
             bool unknownBit = false;      ///< the layout's unnamed bit, carried so a captured packet re-encodes byte-identical
+            /// A decoded packet announced its flags block present but the block was zero.
+            /// Presence is otherwise derived from the value; this remembers the one case
+            /// that derivation cannot, so the packet re-encodes byte-identical.
+            bool emptyFlagsBlock = false;
+            bool emptyFlags2Block = false; ///< same, for flags2
         } has;
 
         struct
@@ -106,6 +111,7 @@ namespace Wire
                    has.orientation == r.has.orientation && has.pitch == r.has.pitch &&
                    has.timestamp == r.has.timestamp && has.spline == r.has.spline &&
                    has.splineElevation == r.has.splineElevation && has.unknownBit == r.has.unknownBit &&
+                   has.emptyFlagsBlock == r.has.emptyFlagsBlock && has.emptyFlags2Block == r.has.emptyFlags2Block &&
                    fall.present == r.fall.present && fall.hasDirection == r.fall.hasDirection &&
                    fall.time == r.fall.time && fall.vertical == r.fall.vertical &&
                    fall.horizontal == r.fall.horizontal && fall.cosAngle == r.fall.cosAngle &&

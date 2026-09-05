@@ -59,8 +59,9 @@ namespace Wire
     /// layout that ends in a bit is a per-layout fact P1 verifies against the binary.
     void Encode(ByteBuffer& out, Sequence sequence, MovementStatus const& status);
 
-    /// Read `sequence`'s layout into `out`. On any error `out` is unspecified and the
-    /// caller must not use it; the read cursor is left wherever the failure happened.
+    /// Read `sequence`'s layout into `out`. On any error `out` is reset to its defaults
+    /// (nothing half-read reaches the caller); the read cursor is left wherever the
+    /// failure happened.
     /// Precondition: `in`'s bit cursor is at a byte boundary (its last read was a byte read,
     /// or nothing has been read).
     DecodeResult Decode(ByteBuffer& in, Sequence sequence, MovementStatus& out);
