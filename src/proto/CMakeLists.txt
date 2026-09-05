@@ -54,6 +54,14 @@ set(SRC_GRP_PROTO
     WorldPacket.h
     PacketCodec.cpp
     PacketCodec.h
+    wire/MovementElements.h
+    wire/MovementStatus.h
+    wire/MovementCodec.h
+    wire/MovementCodec.cpp
+    wire/MovementSequences.h
+    wire/MovementSequences.cpp
+    wire/MovementCapture.h
+    wire/MovementCapture.cpp
 )
 source_group("proto" FILES ${SRC_GRP_PROTO})
 

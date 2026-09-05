@@ -52,6 +52,7 @@ set(SRC_GRP_TESTS
     SessionProtocolPolicyTest.cpp
     OpcodeSlotsTest.cpp
     OpcodeValuesTest.cpp
+    MovementCodecTest.cpp
     ServerRoutingTest.cpp
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp
@@ -121,6 +122,9 @@ target_include_directories(mangos_tests
         ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers
         ${CMAKE_SOURCE_DIR}/src/game/Server
         ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators
+        # The legacy movement layouts (header-only arrays) the wire codec's seed
+        # tables are checked against until P1 replaces them with binary goldens.
+        ${CMAKE_SOURCE_DIR}/src/game/movement
         ${CMAKE_SOURCE_DIR}/src/realmd
         ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src)
 

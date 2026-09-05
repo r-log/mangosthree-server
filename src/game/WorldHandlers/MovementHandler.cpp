@@ -74,6 +74,7 @@
 #include "MapPersistentStateMgr.h"
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
+#include "wire/MovementCapture.h"
 
 #define MOVEMENT_PACKET_TIME_DELAY 0
 
@@ -417,6 +418,11 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
     {
         DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(opcode), opcode, opcode);
         recv_data.hexlike();
+    }
+
+    if (Wire::MovementCapture::IsOpen())
+    {
+        Wire::MovementCapture::Record('C', opcode, recv_data.contents(), recv_data.size());
     }
 
     Unit* mover = _player->GetMover();

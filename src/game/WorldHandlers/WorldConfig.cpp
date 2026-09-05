@@ -26,6 +26,7 @@
 #include <cmath>
 #include <string>
 #include "World.h"
+#include "wire/MovementCapture.h"
 #include "Database/DatabaseEnv.h"
 #include "Config/Config.h"
 #include "Platform/Define.h"
@@ -674,6 +675,25 @@ void World::LoadConfigSettings(bool reload)
     std::string ignoreMapIds = sConfig.GetStringDefault("mmap.ignoreMapIds", "");
     MMAP::MMapFactory::preventPathfindingOnMaps(ignoreMapIds.c_str());
     sLog.outString("WORLD: MMap pathfinding %sabled", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
+
+    // Passive recorder of inbound client movement packets (Wire::MovementCapture).
+    // Off unless a path is given; it is measurement tooling, never a feature.
+    std::string movementCapture = sConfig.GetStringDefault("Movement.CaptureFile", "");
+    if (!movementCapture.empty())
+    {
+        if (Wire::MovementCapture::Open(movementCapture))
+        {
+            sLog.outString("WORLD: Movement capture ON -> %s", movementCapture.c_str());
+        }
+        else
+        {
+            sLog.outError("WORLD: Movement capture could not open %s", movementCapture.c_str());
+        }
+    }
+    else
+    {
+        Wire::MovementCapture::Close();
+    }
 
     setConfig(CONFIG_BOOL_MOVEMENT_ARBITER_SHADOW, "Movement.ArbiterShadow", false);
 
