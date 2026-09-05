@@ -52,6 +52,7 @@ set(SRC_GRP_TESTS
     SessionProtocolPolicyTest.cpp
     OpcodeSlotsTest.cpp
     OpcodeValuesTest.cpp
+    MovementCodecTest.cpp
     ServerRoutingTest.cpp
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp

@@ -54,6 +54,8 @@ set(SRC_GRP_PROTO
     WorldPacket.h
     PacketCodec.cpp
     PacketCodec.h
+    wire/MovementElements.h
+    wire/MovementStatus.h
 )
 source_group("proto" FILES ${SRC_GRP_PROTO})
 
