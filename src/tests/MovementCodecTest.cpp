@@ -366,3 +366,40 @@ TEST(MovementSequences_every_layout_announces_before_it_reads)
     CheckLayoutAnnouncesBeforeItReads(CMSG_MOVE_START_FORWARD);
     CheckLayoutAnnouncesBeforeItReads(CMSG_MOVE_STOP);
 }
+
+#include "wire/MovementCapture.h"
+
+#include <cstdio>
+#include <fstream>
+#include <string>
+
+TEST(MovementCapture_writes_one_parseable_line_per_packet)
+{
+    const std::string path = "mvcapture_test.log";
+    std::remove(path.c_str());
+
+    REQUIRE(Wire::MovementCapture::Open(path));
+    CHECK(Wire::MovementCapture::IsOpen());
+
+    const uint8 a[] = { 0x60, 0x00, 0x00, 0x80, 0x3F };
+    const uint8 b[] = { 0xEF };
+    Wire::MovementCapture::Record('C', 0x791A, a, sizeof(a));
+    Wire::MovementCapture::Record('S', 0x79A2, b, sizeof(b));
+    Wire::MovementCapture::Close();
+    CHECK(!Wire::MovementCapture::IsOpen());
+
+    std::ifstream in(path.c_str());
+    std::string line1, line2, line3;
+    std::getline(in, line1);
+    std::getline(in, line2);
+    const bool third = bool(std::getline(in, line3));
+    CHECK_STR(line1.c_str(), "C 0x791A 600000803F");
+    CHECK_STR(line2.c_str(), "S 0x79A2 EF");
+    CHECK(!third);
+    in.close();
+
+    // Closed means silent: recording must be a no-op, not a crash.
+    Wire::MovementCapture::Record('C', 0x0001, a, sizeof(a));
+    // The stream is closed, so the removal must succeed; a leftover file is a failure.
+    CHECK(std::remove(path.c_str()) == 0);
+}
