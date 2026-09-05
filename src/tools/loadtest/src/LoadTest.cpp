@@ -46,10 +46,13 @@
 
 #include "Auth/Sha1.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -70,9 +73,18 @@ namespace
             "  --emit-sql           print the SQL that plants the derived key, and exit\n"
             "  --verbose            trace each milestone as it is reached\n"
             "\n"
+            "Protocol peer (movement P0-B):\n"
+            "  --walk SECONDS       walk straight ahead for SECONDS once in the world\n"
+            "  --heading DEGREES    walk in this direction instead of the character's facing\n"
+            "  --ack MODE           answer movement changes: immediate | delay:MS | mismatch | drop\n"
+            "  --observe GUID       count relayed movement of this mover\n"
+            "  --pair ACCOUNT:GUID  run a second, observing session of that character alongside,\n"
+            "                       watching this one, and print the relay verdict\n"
+            "\n"
             "Typical use:\n"
             "  mangos-loadtest --account LOAD01 --emit-sql | mysql -u root realmd\n"
-            "  mangos-loadtest --account LOAD01 --character 9 --hold 60 --verbose\n");
+            "  mangos-loadtest --account LOAD01 --character 9 --hold 60 --verbose\n"
+            "  mangos-loadtest --account RNDBOT0 --character 46 --walk 6 --hold 12 --pair RNDBOT1:47\n");
     }
 
     /**
@@ -128,6 +140,8 @@ int main(int argc, char** argv)
     loadtest::Config config;
     std::string keyHex;
     bool emitSql = false;
+    std::string pairAccount;
+    uint64      pairGuid = 0;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -180,6 +194,53 @@ int main(int argc, char** argv)
             if (!WantsValue(argc, i, "--key")) { return 2; }
             keyHex = argv[++i];
         }
+        else if (arg == "--walk")
+        {
+            if (!WantsValue(argc, i, "--walk")) { return 2; }
+            config.script.walk.seconds = uint32(std::strtoul(argv[++i], NULL, 10));
+        }
+        else if (arg == "--heading")
+        {
+            if (!WantsValue(argc, i, "--heading")) { return 2; }
+            config.script.walk.headingSet = true;
+            config.script.walk.heading = float(std::strtod(argv[++i], NULL) * 3.14159265358979323846 / 180.0);
+        }
+        else if (arg == "--ack")
+        {
+            if (!WantsValue(argc, i, "--ack")) { return 2; }
+            const std::string mode = argv[++i];
+            if (mode == "immediate")            { config.script.ack.mode = loadtest::AckMode::Immediate; }
+            else if (mode == "mismatch")        { config.script.ack.mode = loadtest::AckMode::Mismatch; }
+            else if (mode == "drop")            { config.script.ack.mode = loadtest::AckMode::Drop; }
+            else if (mode.compare(0, 6, "delay:") == 0)
+            {
+                config.script.ack.mode = loadtest::AckMode::Delay;
+                config.script.ack.delayMs = uint32(std::strtoul(mode.c_str() + 6, NULL, 10));
+            }
+            else
+            {
+                std::fprintf(stderr, "--ack wants immediate, delay:MS, mismatch or drop\n");
+                return 2;
+            }
+        }
+        else if (arg == "--observe")
+        {
+            if (!WantsValue(argc, i, "--observe")) { return 2; }
+            config.script.observeGuid = std::strtoull(argv[++i], NULL, 10);
+        }
+        else if (arg == "--pair")
+        {
+            if (!WantsValue(argc, i, "--pair")) { return 2; }
+            const std::string spec = argv[++i];
+            const size_t colon = spec.find(':');
+            if (colon == std::string::npos || colon == 0 || colon + 1 >= spec.size())
+            {
+                std::fprintf(stderr, "--pair wants ACCOUNT:GUID\n");
+                return 2;
+            }
+            pairAccount = spec.substr(0, colon);
+            pairGuid = std::strtoull(spec.c_str() + colon + 1, NULL, 10);
+        }
         else
         {
             std::fprintf(stderr, "unknown option: %s\n\n", arg.c_str());
@@ -201,6 +262,20 @@ int main(int argc, char** argv)
     for (size_t i = 0; i < config.account.size(); ++i)
     {
         config.account[i] = char(std::toupper(static_cast<unsigned char>(config.account[i])));
+    }
+
+    for (size_t i = 0; i < pairAccount.size(); ++i)
+    {
+        pairAccount[i] = char(std::toupper(static_cast<unsigned char>(pairAccount[i])));
+    }
+    // A walk needs the session to outlive it, with room for the lead and the stop.
+    if (config.script.walk.seconds > 0)
+    {
+        const uint32 needed = config.script.walk.seconds + config.script.walk.leadMs / 1000 + 3;
+        if (config.holdSeconds < needed)
+        {
+            config.holdSeconds = needed;
+        }
     }
 
     if (keyHex.empty())
@@ -241,9 +316,36 @@ int main(int argc, char** argv)
                 config.account.c_str(), config.host.c_str(),
                 uint32(config.port), uint32(config.streamPort));
 
+    // The paired session logs in first and simply watches; the primary's walk
+    // lead (3 s by default) gives it time to be in the world before anything
+    // moves. Its own key is derived from its account name like the primary's.
+    loadtest::Result pairResult;
+    std::thread pairThread;
+    if (!pairAccount.empty())
+    {
+        loadtest::Config pairConfig = config;
+        pairConfig.account = pairAccount;
+        pairConfig.sessionKey.SetHexStr(DeriveSessionKeyHex(pairAccount).c_str());
+        pairConfig.characterGuid = pairGuid;
+        pairConfig.script = loadtest::PeerScript();
+        pairConfig.script.observeGuid = config.characterGuid;
+        pairConfig.holdSeconds = config.holdSeconds;
+        std::printf("pairing '%s' (character %llu), watching character %llu\n",
+                    pairAccount.c_str(), static_cast<unsigned long long>(pairGuid),
+                    static_cast<unsigned long long>(config.characterGuid));
+        pairThread = std::thread([pairConfig, &pairResult]()
+        {
+            loadtest::SyntheticClient pair(pairConfig);
+            pairResult = pair.Run();
+        });
+    }
+
     loadtest::SyntheticClient client(config);
     const loadtest::Result result = client.Run();
-
+    if (pairThread.joinable())
+    {
+        pairThread.join();
+    }
     loadtest::ShutdownSockets();
 
     // Reaching the world is not the whole of it: a session dropped during the
@@ -284,5 +386,57 @@ int main(int argc, char** argv)
                 result.packetsOnStream1,
                 static_cast<unsigned long long>(result.bytesOnStream1));
 
-    return ok ? 0 : 1;
+    const loadtest::PeerReport& peer = result.peer;
+    std::printf("PEER timesync answered=%u controlUpdates=%u other=%u\n",
+                peer.timeSyncsAnswered, peer.controlUpdates, peer.otherPackets);
+    std::printf("PEER walk start=%u heartbeats=%u stop=%u final=%.1f %.1f %.1f\n",
+                peer.walkStarts, peer.walkHeartbeats, peer.walkStops,
+                peer.walkFinal.x, peer.walkFinal.y, peer.walkFinal.z);
+    std::printf("PEER acks sent=%u dropped=%u unregistered=", peer.acksSent, peer.acksDropped);
+    for (std::map<uint16, uint32>::const_iterator it = peer.unregisteredChanges.begin();
+         it != peer.unregisteredChanges.end(); ++it)
+    {
+        std::printf("0x%.4X:%u ", uint32(it->first), it->second);
+    }
+    std::printf("\n");
+
+    bool verdictsOk = true;
+    // The server sends a time-sync request at login and every ten seconds; any
+    // hold long enough to answer one proves the responder.
+    const bool timesyncOk = peer.timeSyncsAnswered >= 1;
+    std::printf("PEER VERDICT timesync %s (answered %u)\n", timesyncOk ? "OK" : "BUG",
+                peer.timeSyncsAnswered);
+    verdictsOk = verdictsOk && timesyncOk;
+
+    if (config.script.walk.seconds > 0)
+    {
+        // One start, one stop, and at least two heartbeats per second walked
+        // minus one for the tail.
+        const bool walkOk = peer.walkStarts == 1 && peer.walkStops == 1 &&
+                            peer.walkHeartbeats + 1 >= config.script.walk.seconds * 2;
+        std::printf("PEER VERDICT walk %s (start %u, heartbeats %u, stop %u)\n",
+                    walkOk ? "OK" : "BUG", peer.walkStarts, peer.walkHeartbeats, peer.walkStops);
+        verdictsOk = verdictsOk && walkOk;
+    }
+
+    if (!pairAccount.empty())
+    {
+        const loadtest::PeerReport& seen = pairResult.peer;
+        const bool pairIn = pairResult.Reached(loadtest::Stage::InWorld) && pairResult.error.empty();
+        const float dx = seen.lastTargetObservation.pos.x - peer.walkFinal.x;
+        const float dy = seen.lastTargetObservation.pos.y - peer.walkFinal.y;
+        const float gap = std::sqrt(dx * dx + dy * dy);
+        // The observer must have seen the walker's relayed movement, and its last
+        // sighting must be where the walker says it stopped.
+        const bool relayOk = pairIn && seen.observedTarget >= 2 && gap <= 3.0f;
+        std::printf("PEER pair stage=%s error=%s observedTarget=%u observedOthers=%u lastSeen=%.1f %.1f gap=%.1f\n",
+                    loadtest::StageName(pairResult.stage),
+                    pairResult.error.empty() ? "-" : pairResult.error.c_str(),
+                    seen.observedTarget, seen.observedOthers,
+                    seen.lastTargetObservation.pos.x, seen.lastTargetObservation.pos.y, gap);
+        std::printf("PEER VERDICT relay %s\n", relayOk ? "OK" : "BUG");
+        verdictsOk = verdictsOk && relayOk;
+    }
+
+    return (ok && verdictsOk) ? 0 : 1;
 }
