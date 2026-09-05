@@ -355,6 +355,46 @@ TEST(Walker_returns_home_when_told_to)
     CHECK_EQ(walker.LastStampedTime(), uint32(2000));
 }
 
+TEST(Walker_clamps_each_leg_so_a_late_poll_still_ends_at_home)
+{
+    // The Serve loop polls, so a leg's end is seen late; the walk must stop
+    // where the leg's time ran out, not where the late poll would put it, or
+    // the two legs differ in length and "home" drifts by a run's overshoot.
+    loadtest::WalkScript script;
+    script.seconds = 1;
+    script.leadMs = 0;
+    script.headingSet = true;
+    script.heading = 0.0f;
+    script.returnHome = true;
+    Wire::Vec4 start;
+    start.x = 50.0f;
+    start.y = 60.0f;
+    loadtest::Walker walker(script, 0x42, start);
+
+    std::vector<WorldPacket> out = walker.Advance(0);      // start, outbound
+    REQUIRE(out.size() == 1);
+    out = walker.Advance(700);                              // heartbeat at x = 54.9
+    REQUIRE(out.size() == 1);
+    CHECK(std::fabs(DecodeWalk(out[0]).pos.x - 54.9f) < 0.01f);
+    out = walker.Advance(1300);                             // 300 ms late: stops at x = 57 all the same
+    REQUIRE(out.size() == 1);
+    CHECK_EQ(int(out[0].GetOpcode()), int(CMSG_MOVE_STOP));
+    CHECK(std::fabs(DecodeWalk(out[0]).pos.x - 57.0f) < 0.01f);
+
+    out = walker.Advance(1300);                             // the return leg starts at once
+    REQUIRE(out.size() == 1);
+    CHECK_EQ(int(out[0].GetOpcode()), int(CMSG_MOVE_START_FORWARD));
+    out = walker.Advance(1900);                             // heartbeat, heading back
+    REQUIRE(out.size() == 1);
+    out = walker.Advance(2450);                             // 150 ms late: home exactly
+    REQUIRE(out.size() == 1);
+    CHECK_EQ(int(out[0].GetOpcode()), int(CMSG_MOVE_STOP));
+    const Wire::MovementStatus s = DecodeWalk(out[0]);
+    CHECK_EQ(s.pos.x, 50.0f);
+    CHECK_EQ(s.pos.y, 60.0f);
+    CHECK(walker.Done());
+}
+
 TEST(AckEngine_stale_acks_the_previous_counter)
 {
     loadtest::AckPolicy policy;

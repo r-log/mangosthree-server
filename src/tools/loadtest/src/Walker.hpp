@@ -42,7 +42,8 @@ namespace loadtest
      * The first Advance() call fixes the moment the lead starts counting.
      * With `returnHome` set, the stop of the outbound leg is followed at once
      * by a second leg along the reversed heading for the same time, ending
-     * where the walk began.
+     * exactly where the walk began: each leg is clamped at its end, so a late
+     * poll never lengthens it, and the return leg snaps to the origin.
      */
     class Walker
     {
@@ -66,6 +67,7 @@ namespace loadtest
             WalkScript m_script;
             uint64     m_guid;
             Wire::Vec4 m_pos;
+            Wire::Vec4 m_origin;         ///< where the walk began; the return leg ends here
             float      m_heading;
 
             bool   m_armed = false;      ///< first Advance seen; the lead is counting

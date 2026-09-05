@@ -42,7 +42,7 @@ namespace loadtest
     }
 
     Walker::Walker(const WalkScript& script, uint64 guid, const Wire::Vec4& start)
-        : m_script(script), m_guid(guid), m_pos(start),
+        : m_script(script), m_guid(guid), m_pos(start), m_origin(start),
           m_heading(script.headingSet ? script.heading : start.o)
     {
     }
@@ -91,15 +91,27 @@ namespace loadtest
             return out;
         }
 
-        // Advance the reported position by what the clock says has elapsed.
-        const uint32 dt = nowTicks - m_lastTicks;
-        m_lastTicks = nowTicks;
+        // Advance the reported position by what the clock says has elapsed, but
+        // never past the leg's end: the caller polls, so the end is seen late,
+        // and the walk stops where the leg's time ran out rather than where the
+        // late poll would put it. Both legs then cover speed x seconds exactly.
+        const uint32 legMs = m_script.seconds * 1000;
+        const bool legOver = nowTicks - m_startTicks >= legMs;
+        const uint32 upto = legOver ? m_startTicks + legMs : nowTicks;
+        const uint32 dt = upto - m_lastTicks;
+        m_lastTicks = upto;
         const float yards = m_script.speed * float(dt) / 1000.0f;
         m_pos.x += std::cos(m_heading) * yards;
         m_pos.y += std::sin(m_heading) * yards;
 
-        if (nowTicks - m_startTicks >= m_script.seconds * 1000)
+        if (legOver)
         {
+            if (m_returning)
+            {
+                // Rounding along two legs of trigonometry is not "home".
+                m_pos.x = m_origin.x;
+                m_pos.y = m_origin.y;
+            }
             ++m_stops;
             out.push_back(Packet(CMSG_MOVE_STOP, 0, nowTicks));
             m_lastStampedTime = nowTicks;
