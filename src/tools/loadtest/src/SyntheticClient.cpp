@@ -25,6 +25,12 @@
 
 #include "SyntheticClient.hpp"
 
+#include "AckEngine.hpp"
+#include "TimeSync.hpp"
+#include "Walker.hpp"
+#include "wire/MovementCodec.h"
+#include "wire/MovementSequences.h"
+
 #include "Auth/Sha1.h"
 #include "Opcodes.h"
 
@@ -194,7 +200,7 @@ namespace loadtest
         if (m_result.stage == Stage::InWorld && m_config.holdSeconds > 0)
         {
             std::string error;
-            if (!Hold(error))
+            if (!Serve(error))
             {
                 m_result.error = error;
             }
@@ -673,12 +679,93 @@ namespace loadtest
             return false;
         }
 
+        // uint32 map, then x, y, z, o: where the character now stands, which is
+        // where a scripted walk starts from.
+        if (verify.size() >= 20)
+        {
+            m_result.mapId      = verify.read<uint32>(0);
+            m_result.worldPos.x = verify.read<float>(4);
+            m_result.worldPos.y = verify.read<float>(8);
+            m_result.worldPos.z = verify.read<float>(12);
+            m_result.worldPos.o = verify.read<float>(16);
+            Trace("placed on map %u at %.1f %.1f %.1f facing %.2f", m_result.mapId,
+                  m_result.worldPos.x, m_result.worldPos.y, m_result.worldPos.z,
+                  m_result.worldPos.o);
+        }
+
         m_result.msToWorld = ElapsedMs();
         Trace("in world");
         return true;
     }
 
-    bool SyntheticClient::Hold(std::string& error)
+    bool SyntheticClient::Dispatch(WorldPacket& packet, AckEngine& acks, uint32 nowTicks,
+                                   std::string& error)
+    {
+        PeerReport& report = m_result.peer;
+        const uint16 opcode = packet.GetOpcode();
+
+        switch (opcode)
+        {
+            case SMSG_TIME_SYNC_REQ:
+            {
+                uint32 counter = 0;
+                if (!ReadTimeSyncRequest(packet, counter))
+                {
+                    ++report.decodeFailures[opcode];
+                    return true;
+                }
+                if (!Send(m_stream0, MakeTimeSyncResponse(counter, nowTicks), error))
+                {
+                    return false;
+                }
+                ++report.timeSyncsAnswered;
+                Trace("time sync %u answered at %u", counter, nowTicks);
+                return true;
+            }
+
+            case SMSG_PLAYER_MOVE:
+            {
+                Wire::MovementStatus status;
+                if (!Wire::Decode(packet, Wire::SequenceFor(SMSG_PLAYER_MOVE), status).ok())
+                {
+                    ++report.decodeFailures[opcode];
+                    return true;
+                }
+                Observation seen;
+                seen.guid = status.guid;
+                seen.pos = status.pos;
+                seen.time = status.time;
+                seen.atTicks = nowTicks;
+                if (m_config.script.observeGuid != 0 && status.guid == m_config.script.observeGuid)
+                {
+                    ++report.observedTarget;
+                    report.lastTargetObservation = seen;
+                    Trace("saw the target at %.1f %.1f %.1f (time %u)",
+                          seen.pos.x, seen.pos.y, seen.pos.z, seen.time);
+                }
+                else
+                {
+                    ++report.observedOthers;
+                }
+                return true;
+            }
+
+            case SMSG_CLIENT_CONTROL_UPDATE:
+                ++report.controlUpdates;
+                return true;
+
+            default:
+                if (acks.IsChange(opcode))
+                {
+                    acks.Plan(packet, nowTicks);
+                    return true;
+                }
+                ++report.otherPackets;
+                return true;
+        }
+    }
+
+    bool SyntheticClient::Serve(std::string& error)
     {
         // A real client pings roughly every 30 seconds, and the server kicks a
         // session that pings faster than that too often
@@ -693,18 +780,45 @@ namespace loadtest
             std::chrono::steady_clock::now() + std::chrono::seconds(30);
         uint32 pingId = 0;
 
+        ClientClock clock;
+        Walker walker(m_config.script.walk, m_config.characterGuid, m_result.worldPos);
+        AckEngine acks(m_config.script.ack, [](uint16 opcode) { return Wire::SequenceFor(opcode); });
+
         while (std::chrono::steady_clock::now() < until)
         {
             if (!Pump(POLL_MS, error))
             {
                 return false;
             }
+            const uint32 now = clock.Ticks();
 
-            // The inboxes would otherwise grow for the whole hold: the world
-            // sends a lot to a session standing still, and none of it is read
-            // by this phase.
-            m_stream0.inbox.clear();
-            m_stream1.inbox.clear();
+            Stream* streams[] = { &m_stream0, &m_stream1 };
+            for (Stream* stream : streams)
+            {
+                for (WorldPacket& packet : stream->inbox)
+                {
+                    if (!Dispatch(packet, acks, now, error))
+                    {
+                        return false;
+                    }
+                }
+                stream->inbox.clear();
+            }
+
+            for (const WorldPacket& packet : walker.Advance(now))
+            {
+                if (!Send(m_stream0, packet, error))
+                {
+                    return false;
+                }
+            }
+            for (const WorldPacket& packet : acks.Due(now))
+            {
+                if (!Send(m_stream0, packet, error))
+                {
+                    return false;
+                }
+            }
 
             if (std::chrono::steady_clock::now() >= nextPing)
             {
@@ -720,7 +834,18 @@ namespace loadtest
             }
         }
 
-        Trace("held for %u s", m_config.holdSeconds);
+        PeerReport& report = m_result.peer;
+        report.walkStarts = walker.Starts();
+        report.walkHeartbeats = walker.Heartbeats();
+        report.walkStops = walker.Stops();
+        report.walkFinal = walker.Position();
+        report.acksSent = acks.Sent();
+        report.acksDropped = acks.Dropped();
+        report.unregisteredChanges = acks.Unregistered();
+
+        Trace("held for %u s: %u time syncs, walk %u/%u/%u, saw target %u times",
+              m_config.holdSeconds, report.timeSyncsAnswered, report.walkStarts,
+              report.walkHeartbeats, report.walkStops, report.observedTarget);
         return true;
     }
 }

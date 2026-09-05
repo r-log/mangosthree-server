@@ -49,6 +49,8 @@
 #include "Auth/AuthCrypt.h"
 #include "Auth/BigNumber.h"
 #include "Framing.hpp"
+#include "Peer.hpp"
+#include "wire/MovementStatus.h"
 #include "Platform/Define.h"
 #include "Socket.hpp"
 
@@ -99,6 +101,12 @@ namespace loadtest
         uint32 holdSeconds = 0;
 
         bool verbose = false;
+
+        /// What to do once in the world (movement P0-B). By default the session
+        /// walks nothing and watches nobody, but it does what a real client does
+        /// regardless: answers time-sync requests from its tick clock and acks any
+        /// server-initiated movement change whose layout the registry knows.
+        PeerScript script;
     };
 
     /// What one run produced, whether or not it finished.
@@ -117,6 +125,12 @@ namespace loadtest
         uint32 packetsOnStream1 = 0;
         uint64 bytesOnStream0   = 0;
         uint64 bytesOnStream1   = 0;
+
+        /// Where SMSG_LOGIN_VERIFY_WORLD put the character.
+        uint32     mapId = 0;
+        Wire::Vec4 worldPos;
+
+        PeerReport peer;
 
         bool Reached(Stage wanted) const { return stage >= wanted; }
     };
@@ -152,7 +166,14 @@ namespace loadtest
             bool AwaitRedirect(std::string& error);
             bool OpenStreamOne(std::string& error);
             bool AwaitWorld(std::string& error);
-            bool Hold(std::string& error);
+            /// Holds the session for `holdSeconds`, answering what must be answered,
+            /// walking if scripted, acking changes under the policy, and recording
+            /// what it sees. Pings at the real client's cadence throughout.
+            bool Serve(std::string& error);
+
+            /// One inbound packet during Serve. False only on a send failure.
+            bool Dispatch(WorldPacket& packet, class AckEngine& acks, uint32 nowTicks,
+                          std::string& error);
 
             /// Sends on `stream`, enciphered iff that stream has armed.
             bool Send(Stream& stream, const WorldPacket& packet, std::string& error);
