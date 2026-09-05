@@ -109,3 +109,55 @@ TEST(MovementCodec_encode_matches_the_hand_derived_bytes)
                   0x09,
                   0x0B });
 }
+
+TEST(MovementCodec_decode_reads_the_golden_back)
+{
+    ByteBuffer buf;
+    buf.append<uint8>(0x60);
+    buf << float(1.0f);
+    buf << uint32(0x11223344);
+    buf << uint8(0x09) << uint8(0x0B);
+
+    Wire::MovementStatus got;
+    const Wire::DecodeResult r = Wire::Decode(buf, kTinySequence, got);
+    REQUIRE(r.ok());
+    CHECK_EQ(r.consumed, size_t(11));
+    CHECK(got == TinyFixture());
+}
+
+TEST(MovementCodec_round_trips_the_tiny_layout)
+{
+    ByteBuffer buf;
+    Wire::Encode(buf, kTinySequence, TinyFixture());
+
+    Wire::MovementStatus got;
+    REQUIRE(Wire::Decode(buf, kTinySequence, got).ok());
+    CHECK(got == TinyFixture());
+}
+
+TEST(MovementCodec_decode_reports_a_truncated_packet_instead_of_throwing)
+{
+    ByteBuffer full;
+    Wire::Encode(full, kTinySequence, TinyFixture());
+
+    // Every strict prefix of a valid packet must come back as Overread, never
+    // as an exception or a half-filled status the caller might trust.
+    for (size_t keep = 0; keep < full.size(); ++keep)
+    {
+        ByteBuffer cut;
+        cut.append(full.contents(), keep);
+        Wire::MovementStatus got;
+        const Wire::DecodeResult r = Wire::Decode(cut, kTinySequence, got);
+        CHECK(r.error == Wire::DecodeError::Overread);
+    }
+}
+
+TEST(MovementCodec_decode_refuses_a_null_sequence)
+{
+    ByteBuffer buf;
+    buf << uint32(0);
+    Wire::MovementStatus got;
+    const Wire::DecodeResult r = Wire::Decode(buf, nullptr, got);
+    CHECK(r.error == Wire::DecodeError::NoSequence);
+    CHECK_EQ(r.consumed, size_t(0));
+}

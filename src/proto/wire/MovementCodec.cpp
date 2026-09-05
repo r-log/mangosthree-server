@@ -183,4 +183,172 @@ namespace Wire
 
         out.FlushBits();
     }
+
+    namespace
+    {
+        // Mirror of Encode's GUID rule: a mask bit of 1 announces a byte that
+        // arrives as (byte ^ 1); a mask bit of 0 means the byte is zero and absent.
+        struct GuidReader
+        {
+            bool mask[8] = { false, false, false, false, false, false, false, false };
+            uint8 bytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+            uint64 Value() const
+            {
+                uint64 v = 0;
+                for (int i = 0; i < 8; ++i)
+                {
+                    v |= uint64(bytes[i]) << (8 * i);
+                }
+                return v;
+            }
+        };
+
+        DecodeResult DecodeUnchecked(ByteBuffer& in, Sequence sequence, MovementStatus& out)
+        {
+            GuidReader guid, guid2, tguid;
+            bool hasFlags = false;
+            bool hasFlags2 = false;
+
+            for (Sequence p = sequence; *p != Element::End; ++p)
+            {
+                const Element e = *p;
+
+                if (InRange(e, Element::GuidBit0, Element::GuidBit7))
+                {
+                    guid.mask[Index(e, Element::GuidBit0)] = in.ReadBit();
+                    continue;
+                }
+                if (InRange(e, Element::Guid2Bit0, Element::Guid2Bit7))
+                {
+                    guid2.mask[Index(e, Element::Guid2Bit0)] = in.ReadBit();
+                    continue;
+                }
+                if (InRange(e, Element::TransportGuidBit0, Element::TransportGuidBit7))
+                {
+                    if (out.transport.present)
+                    {
+                        tguid.mask[Index(e, Element::TransportGuidBit0)] = in.ReadBit();
+                    }
+                    continue;
+                }
+                if (InRange(e, Element::GuidByte0, Element::GuidByte7))
+                {
+                    const int i = Index(e, Element::GuidByte0);
+                    if (guid.mask[i])
+                    {
+                        guid.bytes[i] = in.read<uint8>() ^ 1;
+                    }
+                    continue;
+                }
+                if (InRange(e, Element::Guid2Byte0, Element::Guid2Byte7))
+                {
+                    const int i = Index(e, Element::Guid2Byte0);
+                    if (guid2.mask[i])
+                    {
+                        guid2.bytes[i] = in.read<uint8>() ^ 1;
+                    }
+                    continue;
+                }
+                if (InRange(e, Element::TransportGuidByte0, Element::TransportGuidByte7))
+                {
+                    const int i = Index(e, Element::TransportGuidByte0);
+                    if (out.transport.present && tguid.mask[i])
+                    {
+                        tguid.bytes[i] = in.read<uint8>() ^ 1;
+                    }
+                    continue;
+                }
+
+                switch (e)
+                {
+                    case Element::HasMovementFlags:   hasFlags = !in.ReadBit();                        break;
+                    case Element::HasMovementFlags2:  hasFlags2 = !in.ReadBit();                       break;
+                    case Element::Flags:              if (hasFlags)  { out.flags = in.ReadBits(30); }  break;
+                    case Element::Flags2:             if (hasFlags2) { out.flags2 = in.ReadBits(12); } break;
+                    case Element::HasTimestamp:       out.has.timestamp = !in.ReadBit();               break;
+                    case Element::Timestamp:          if (out.has.timestamp) { out.time = in.read<uint32>(); } break;
+                    case Element::HasPitch:           out.has.pitch = !in.ReadBit();                   break;
+                    case Element::Pitch:              if (out.has.pitch) { out.pitch = in.read<float>(); } break;
+                    case Element::HasOrientation:     out.has.orientation = !in.ReadBit();             break;
+                    case Element::HasSpline:          out.has.spline = in.ReadBit();                   break;
+                    case Element::HasSplineElevation: out.has.splineElevation = !in.ReadBit();         break;
+                    case Element::SplineElevation:    if (out.has.splineElevation) { out.splineElevation = in.read<float>(); } break;
+                    case Element::HasUnknownBit:      in.ReadBit();                                    break;
+                    case Element::PositionX:          out.pos.x = in.read<float>();                    break;
+                    case Element::PositionY:          out.pos.y = in.read<float>();                    break;
+                    case Element::PositionZ:          out.pos.z = in.read<float>();                    break;
+                    case Element::PositionO:          if (out.has.orientation) { out.pos.o = in.read<float>(); } break;
+
+                    case Element::HasFallData:        out.fall.present = in.ReadBit();                 break;
+                    case Element::HasFallDirection:   if (out.fall.present) { out.fall.hasDirection = in.ReadBit(); } break;
+                    case Element::FallTime:           if (out.fall.present) { out.fall.time = in.read<uint32>(); } break;
+                    case Element::FallVerticalSpeed:  if (out.fall.present) { out.fall.vertical = in.read<float>(); } break;
+                    case Element::FallHorizontalSpeed:
+                        if (out.fall.present && out.fall.hasDirection) { out.fall.horizontal = in.read<float>(); }
+                        break;
+                    case Element::FallCosAngle:
+                        if (out.fall.present && out.fall.hasDirection) { out.fall.cosAngle = in.read<float>(); }
+                        break;
+                    case Element::FallSinAngle:
+                        if (out.fall.present && out.fall.hasDirection) { out.fall.sinAngle = in.read<float>(); }
+                        break;
+
+                    case Element::HasTransportData:   out.transport.present = in.ReadBit();            break;
+                    case Element::HasTransportTime2:  if (out.transport.present) { out.transport.hasTime2 = in.ReadBit(); } break;
+                    case Element::HasTransportTime3:  if (out.transport.present) { out.transport.hasTime3 = in.ReadBit(); } break;
+                    case Element::TransportSeat:      if (out.transport.present) { out.transport.seat = in.read<int8>(); } break;
+                    case Element::TransportPositionX: if (out.transport.present) { out.transport.pos.x = in.read<float>(); } break;
+                    case Element::TransportPositionY: if (out.transport.present) { out.transport.pos.y = in.read<float>(); } break;
+                    case Element::TransportPositionZ: if (out.transport.present) { out.transport.pos.z = in.read<float>(); } break;
+                    case Element::TransportPositionO: if (out.transport.present) { out.transport.pos.o = in.read<float>(); } break;
+                    case Element::TransportTime:      if (out.transport.present) { out.transport.time = in.read<uint32>(); } break;
+                    case Element::TransportTime2:
+                        if (out.transport.present && out.transport.hasTime2) { out.transport.time2 = in.read<uint32>(); }
+                        break;
+                    case Element::TransportTime3:
+                        if (out.transport.present && out.transport.hasTime3) { out.transport.time3 = in.read<uint32>(); }
+                        break;
+
+                    case Element::MovementCounter:    out.counter = in.read<uint32>();                 break;
+                    case Element::ByteParam:          out.byteParam = in.read<int8>();                 break;
+
+                    default:
+                    {
+                        DecodeResult bad;
+                        bad.error = DecodeError::BadElement;
+                        return bad;
+                    }
+                }
+            }
+
+            out.guid = guid.Value();
+            out.guid2 = guid2.Value();
+            out.transport.guid = out.transport.present ? tguid.Value() : 0;
+            return DecodeResult();
+        }
+    }
+
+    DecodeResult Decode(ByteBuffer& in, Sequence sequence, MovementStatus& out)
+    {
+        DecodeResult result;
+        if (!sequence)
+        {
+            result.error = DecodeError::NoSequence;
+            return result;
+        }
+
+        const size_t start = in.rpos();
+        out = MovementStatus();
+        try
+        {
+            result = DecodeUnchecked(in, sequence, out);
+        }
+        catch (ByteBufferException const&)
+        {
+            result.error = DecodeError::Overread;
+        }
+        result.consumed = in.rpos() - start;
+        return result;
+    }
 }
