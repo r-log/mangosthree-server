@@ -66,6 +66,7 @@ set(SRC_GRP_TESTS
     PeerTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/AckEngine.cpp
     GlobalWmoEvictionTest.cpp
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp

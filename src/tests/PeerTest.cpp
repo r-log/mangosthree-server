@@ -176,3 +176,135 @@ TEST(Walker_with_no_seconds_never_moves)
     CHECK(!walker.Started());
     CHECK(!walker.Done());
 }
+
+#include "AckEngine.hpp"
+
+namespace
+{
+    // A change and its ack sharing one tiny layout that carries the counter --
+    // the real ack layouts arrive in P1 and plug into the same engine through
+    // the registry; here the lookup is injected so the engine can be pinned now.
+    const uint16 kFakeChange = 0x1001;
+    const uint16 kFakeAck    = 0x1002;
+    const Wire::Element kCounterLayout[] =
+    {
+        Wire::Element::MovementCounter, Wire::Element::PositionX, Wire::Element::End
+    };
+
+    Wire::Sequence FakeLookup(uint16 opcode)
+    {
+        return (opcode == kFakeChange || opcode == kFakeAck) ? kCounterLayout : nullptr;
+    }
+
+    WorldPacket FakeChange(uint32 counter)
+    {
+        Wire::MovementStatus s;
+        s.counter = counter;
+        s.pos.x = 1.0f;
+        WorldPacket p(kFakeChange, 8);
+        Wire::Encode(p, kCounterLayout, s);
+        return p;
+    }
+
+    std::vector<loadtest::ChangePair> FakePairs()
+    {
+        std::vector<loadtest::ChangePair> pairs;
+        loadtest::ChangePair pair;
+        pair.change = kFakeChange;
+        pair.ack = kFakeAck;
+        pairs.push_back(pair);
+        return pairs;
+    }
+
+    uint32 CounterOf(WorldPacket& ack)
+    {
+        Wire::MovementStatus s;
+        CHECK(Wire::Decode(ack, kCounterLayout, s).ok());
+        return s.counter;
+    }
+}
+
+TEST(AckEngine_answers_at_once_with_the_counter_echoed)
+{
+    loadtest::AckPolicy policy;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+    CHECK(engine.IsChange(kFakeChange));
+    CHECK(!engine.IsChange(kFakeAck));
+
+    REQUIRE(engine.Plan(FakeChange(7), 1000));
+    std::vector<WorldPacket> due = engine.Due(1000);
+    REQUIRE(due.size() == 1);
+    CHECK_EQ(int(due[0].GetOpcode()), int(kFakeAck));
+    CHECK_EQ(CounterOf(due[0]), uint32(7));
+    CHECK_EQ(engine.Sent(), uint32(1));
+    CHECK(engine.Due(1000).empty());
+}
+
+TEST(AckEngine_delays_when_told_to)
+{
+    loadtest::AckPolicy policy;
+    policy.mode = loadtest::AckMode::Delay;
+    policy.delayMs = 250;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+
+    REQUIRE(engine.Plan(FakeChange(3), 1000));
+    CHECK(engine.Due(1000).empty());
+    CHECK(engine.Due(1249).empty());
+    std::vector<WorldPacket> due = engine.Due(1250);
+    REQUIRE(due.size() == 1);
+    CHECK_EQ(CounterOf(due[0]), uint32(3));
+}
+
+TEST(AckEngine_mismatches_the_counter_when_told_to)
+{
+    loadtest::AckPolicy policy;
+    policy.mode = loadtest::AckMode::Mismatch;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+
+    REQUIRE(engine.Plan(FakeChange(9), 1000));
+    std::vector<WorldPacket> due = engine.Due(1000);
+    REQUIRE(due.size() == 1);
+    CHECK_EQ(CounterOf(due[0]), uint32(10));
+}
+
+TEST(AckEngine_drops_when_told_to_and_counts_it)
+{
+    loadtest::AckPolicy policy;
+    policy.mode = loadtest::AckMode::Drop;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+
+    REQUIRE(engine.Plan(FakeChange(1), 1000));
+    CHECK(engine.Due(5000).empty());
+    CHECK_EQ(engine.Dropped(), uint32(1));
+    CHECK_EQ(engine.Sent(), uint32(0));
+}
+
+TEST(AckEngine_counts_a_change_whose_layout_is_not_registered)
+{
+    loadtest::AckPolicy policy;
+    loadtest::AckEngine engine(policy, [](uint16) -> Wire::Sequence { return nullptr; }, FakePairs());
+
+    CHECK(!engine.Plan(FakeChange(1), 1000));
+    CHECK(engine.Due(1000).empty());
+    REQUIRE(engine.Unregistered().count(kFakeChange) == 1);
+    CHECK_EQ(engine.Unregistered().at(kFakeChange), uint32(1));
+}
+
+TEST(AckEngine_knows_the_real_pairs)
+{
+    // The table itself is data; this pins that it names real opcodes on both
+    // sides and that speed changes map to the force-change acks.
+    const std::vector<loadtest::ChangePair>& pairs = loadtest::KnownChangePairs();
+    CHECK(pairs.size() >= 20);
+    bool foundRun = false;
+    for (const loadtest::ChangePair& p : pairs)
+    {
+        CHECK(p.change != 0);
+        CHECK(p.ack != 0);
+        if (p.change == SMSG_MOVE_SET_RUN_SPEED)
+        {
+            foundRun = (p.ack == CMSG_FORCE_RUN_SPEED_CHANGE_ACK);
+        }
+    }
+    CHECK(foundRun);
+}

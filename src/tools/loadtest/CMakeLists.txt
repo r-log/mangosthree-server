@@ -49,6 +49,8 @@ add_executable(mangos-loadtest
     src/TimeSync.hpp
     src/Walker.cpp
     src/Walker.hpp
+    src/AckEngine.cpp
+    src/AckEngine.hpp
 )
 
 target_include_directories(mangos-loadtest PRIVATE src)
