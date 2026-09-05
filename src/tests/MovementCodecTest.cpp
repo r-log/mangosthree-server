@@ -58,3 +58,54 @@ TEST(MovementStatus_defaults_are_a_plain_standing_mover)
     // The vocabulary is closed by End; the count is what sequence tables size by.
     CHECK(int(Wire::Element::End) > int(Wire::Element::MovementCounter));
 }
+
+#include "wire/MovementCodec.h"
+#include "Utilities/ByteBuffer.h"
+
+namespace
+{
+    // A deliberately tiny layout that exercises every mechanism the real ones
+    // use -- bit block, a byte-aligned float after bits (forces a flush), a
+    // uint32, and the mask-then-xor GUID bytes -- with bytes small enough to
+    // derive by hand. Real layouts are in Task 4; they are round-tripped, not
+    // hand-derived: their bytes come from the client binary in P1.
+    const Wire::Element kTinySequence[] =
+    {
+        Wire::Element::HasTimestamp,
+        Wire::Element::GuidBit3,
+        Wire::Element::GuidBit0,
+        Wire::Element::HasUnknownBit,
+        Wire::Element::PositionX,
+        Wire::Element::Timestamp,
+        Wire::Element::GuidByte0,
+        Wire::Element::GuidByte3,
+        Wire::Element::End
+    };
+
+    Wire::MovementStatus TinyFixture()
+    {
+        Wire::MovementStatus s;
+        s.guid = 0x000000000A000008ull; // byte0 = 0x08, byte3 = 0x0A, the rest zero
+        s.has.timestamp = true;
+        s.time = 0x11223344;
+        s.pos.x = 1.0f;                 // 0x3F800000
+        return s;
+    }
+}
+
+TEST(MovementCodec_encode_matches_the_hand_derived_bytes)
+{
+    // Bit block, MSB first: HasTimestamp is written inverted (present -> 0),
+    // GuidBit3 = 1 (0x0A != 0), GuidBit0 = 1 (0x08 != 0), unknown = 0.
+    //   0b0110_0000 = 0x60, flushed by the float that follows.
+    // Then 1.0f little-endian, then the timestamp little-endian, then the two
+    // GUID bytes as (byte ^ 1) because their mask bits were set.
+    ByteBuffer out;
+    Wire::Encode(out, kTinySequence, TinyFixture());
+    CHECK_BYTES(out.contents(), out.size(),
+                { 0x60,
+                  0x00, 0x00, 0x80, 0x3F,
+                  0x44, 0x33, 0x22, 0x11,
+                  0x09,
+                  0x0B });
+}
