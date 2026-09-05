@@ -31,6 +31,23 @@
 
 namespace Wire
 {
+    /// One registered layout.
+    struct Entry
+    {
+        uint16   opcode;
+        Sequence sequence;
+    };
+
+    /// Every registered layout, so a test can cover all of them by construction
+    /// rather than by a hand-kept list.
+    struct Registry
+    {
+        Entry const* begin;
+        Entry const* end;
+    };
+
+    Registry AllSequences();
+
     /**
      * @brief The layout the 4.3.4 client uses for `opcode`, or null when none is
      *        known. Null is a legitimate answer (the caller reports NoSequence).

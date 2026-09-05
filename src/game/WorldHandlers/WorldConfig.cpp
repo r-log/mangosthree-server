@@ -690,6 +690,10 @@ void World::LoadConfigSettings(bool reload)
             sLog.outError("WORLD: Movement capture could not open %s", movementCapture.c_str());
         }
     }
+    else
+    {
+        Wire::MovementCapture::Close();
+    }
 
     setConfig(CONFIG_BOOL_MOVEMENT_ARBITER_SHADOW, "Movement.ArbiterShadow", false);
 

@@ -51,8 +51,8 @@ namespace Wire
     {
         uint64 guid = 0;     ///< the mover
         uint64 guid2 = 0;    ///< a second unit some layouts carry (vehicle seat changes)
-        uint32 flags = 0;    ///< MovementFlags, 30 bits on the wire; "present" iff non-zero
-        uint32 flags2 = 0;   ///< MovementFlags2, 12 bits on the wire; "present" iff non-zero
+        uint32 flags = 0;    ///< MovementFlags: 30 bits on the wire, "present" iff non-zero. A value using bit 30 or 31 is announced present but truncated (real 4.3.4 flags fit).
+        uint32 flags2 = 0;   ///< MovementFlags2: 12 bits on the wire, "present" iff non-zero; same truncation rule above bit 11.
         uint32 time = 0;     ///< client movement time, written only when has.timestamp
         Vec4   pos;          ///< o written only when has.orientation
         float  pitch = 0.0f;           ///< when has.pitch
@@ -67,6 +67,7 @@ namespace Wire
             bool timestamp = true;
             bool spline = false;
             bool splineElevation = false;
+            bool unknownBit = false;      ///< the layout's unnamed bit, carried so a captured packet re-encodes byte-identical
         } has;
 
         struct
@@ -93,6 +94,9 @@ namespace Wire
             bool   hasTime3 = false;
         } transport;
 
+        /// Field-wise. Fields under an absent gate (e.g. fall.hasDirection while
+        /// !fall.present, transport.* while !transport.present) are compared too, so
+        /// a fixture must leave them at their defaults for a round trip to compare equal.
         bool operator==(MovementStatus const& r) const
         {
             return guid == r.guid && guid2 == r.guid2 && flags == r.flags && flags2 == r.flags2 &&
@@ -101,7 +105,7 @@ namespace Wire
                    byteParam == r.byteParam &&
                    has.orientation == r.has.orientation && has.pitch == r.has.pitch &&
                    has.timestamp == r.has.timestamp && has.spline == r.has.spline &&
-                   has.splineElevation == r.has.splineElevation &&
+                   has.splineElevation == r.has.splineElevation && has.unknownBit == r.has.unknownBit &&
                    fall.present == r.fall.present && fall.hasDirection == r.fall.hasDirection &&
                    fall.time == r.fall.time && fall.vertical == r.fall.vertical &&
                    fall.horizontal == r.fall.horizontal && fall.cosAngle == r.fall.cosAngle &&

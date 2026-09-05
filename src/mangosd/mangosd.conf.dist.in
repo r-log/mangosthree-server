@@ -270,8 +270,11 @@ Redirect.Stream1Crypt        = 1
 #                 1 (on)
 #
 #    Movement.CaptureFile
-#        Path of a text file that receives every inbound client movement packet,
-#        one per line: direction, opcode, hex payload. Diagnostic only.
+#        Path of a text file that receives every packet the movement-status handler
+#        sees (the MSG_MOVE_*/heartbeat family; acks and other movement opcodes are
+#        not included), one per line: direction, opcode, hex payload. Appended to and
+#        never rotated, so it grows without bound. Clear the key and `.reload config`
+#        to stop. Diagnostic only.
 #        Default: "" (off)
 #
 #    UpdateUptimeInterval

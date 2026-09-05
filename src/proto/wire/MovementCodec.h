@@ -53,10 +53,16 @@ namespace Wire
     };
 
     /// Write `status` in `sequence`'s layout. Never throws; a null sequence writes nothing.
+    /// Precondition: `out`'s bit cursor is at a byte boundary (a fresh buffer, or one that
+    /// last had bytes appended). Trailing bits are flushed to a whole byte at the end --
+    /// the legacy writer never flushed; whether the client expects the pad byte for a
+    /// layout that ends in a bit is a per-layout fact P1 verifies against the binary.
     void Encode(ByteBuffer& out, Sequence sequence, MovementStatus const& status);
 
     /// Read `sequence`'s layout into `out`. On any error `out` is unspecified and the
     /// caller must not use it; the read cursor is left wherever the failure happened.
+    /// Precondition: `in`'s bit cursor is at a byte boundary (its last read was a byte read,
+    /// or nothing has been read).
     DecodeResult Decode(ByteBuffer& in, Sequence sequence, MovementStatus& out);
 }
 

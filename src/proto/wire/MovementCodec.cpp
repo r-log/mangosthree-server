@@ -135,7 +135,7 @@ namespace Wire
                 case Element::HasSpline:          out.WriteBit(status.has.spline);             break;
                 case Element::HasSplineElevation: out.WriteBit(!status.has.splineElevation);   break;
                 case Element::SplineElevation:    if (status.has.splineElevation) { out << float(status.splineElevation); } break;
-                case Element::HasUnknownBit:      out.WriteBit(false);                         break;
+                case Element::HasUnknownBit:      out.WriteBit(status.has.unknownBit);         break;
                 case Element::PositionX:          out << float(status.pos.x);                  break;
                 case Element::PositionY:          out << float(status.pos.y);                  break;
                 case Element::PositionZ:          out << float(status.pos.z);                  break;
@@ -175,8 +175,9 @@ namespace Wire
                 case Element::ByteParam:          out << int8(status.byteParam);               break;
 
                 default:
-                    // Guid ranges were handled above; anything else is not in the vocabulary.
-                    // Writing nothing keeps the packet short rather than corrupt.
+                    // Every Element has a case above; only a value cast from outside the enum
+                    // lands here. Nothing is written -- which would corrupt the packet for the
+                    // client -- so the registry test walks every table to keep this unreachable.
                     break;
             }
         }
@@ -274,7 +275,7 @@ namespace Wire
                     case Element::HasSpline:          out.has.spline = in.ReadBit();                   break;
                     case Element::HasSplineElevation: out.has.splineElevation = !in.ReadBit();         break;
                     case Element::SplineElevation:    if (out.has.splineElevation) { out.splineElevation = in.read<float>(); } break;
-                    case Element::HasUnknownBit:      in.ReadBit();                                    break;
+                    case Element::HasUnknownBit:      out.has.unknownBit = in.ReadBit();               break;
                     case Element::PositionX:          out.pos.x = in.read<float>();                    break;
                     case Element::PositionY:          out.pos.y = in.read<float>();                    break;
                     case Element::PositionZ:          out.pos.z = in.read<float>();                    break;

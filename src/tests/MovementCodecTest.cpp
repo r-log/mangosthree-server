@@ -110,6 +110,26 @@ TEST(MovementCodec_encode_matches_the_hand_derived_bytes)
                   0x0B });
 }
 
+TEST(MovementCodec_carries_the_unnamed_bit)
+{
+    Wire::MovementStatus s = TinyFixture();
+    s.has.unknownBit = true;
+
+    ByteBuffer out;
+    Wire::Encode(out, kTinySequence, s);
+    CHECK_BYTES(out.contents(), out.size(),
+                { 0x70,
+                  0x00, 0x00, 0x80, 0x3F,
+                  0x44, 0x33, 0x22, 0x11,
+                  0x09,
+                  0x0B });
+
+    Wire::MovementStatus got;
+    REQUIRE(Wire::Decode(out, kTinySequence, got).ok());
+    CHECK(got.has.unknownBit);
+    CHECK(got == s);
+}
+
 TEST(MovementCodec_decode_reads_the_golden_back)
 {
     ByteBuffer buf;
@@ -173,7 +193,7 @@ namespace
     Wire::MovementStatus FullFixture()
     {
         Wire::MovementStatus s;
-        s.guid = 0x0F00000000000123ull;
+        s.guid = 0x0F0E0D0C0B0A0123ull;   // every byte non-zero; byte 1 is 0x01 so the (byte ^ 1) == 0x00 edge stays covered
         s.guid2 = 0x0000000000000000ull;
         s.flags = 0x00000001 | 0x00000200 | 0x00100000;   // forward | falling | swimming-ish bits, any 30-bit value
         s.flags2 = 0x00000040;
@@ -198,7 +218,7 @@ namespace
         s.fall.sinAngle = 0.8f;
 
         s.transport.present = true;
-        s.transport.guid = 0x1F40000000C0FFEEull;
+        s.transport.guid = 0x1F40A1B2C3C0FFEEull; // every byte non-zero
         s.transport.pos = { 1.5f, -2.5f, 3.5f, 1.0f };
         s.transport.time = 555;
         s.transport.hasTime2 = true;
@@ -346,6 +366,14 @@ namespace
             CheckAnnouncedBefore(s, E::HasTransportData, E(int(E::TransportGuidBit0) + i));
             CheckAnnouncedBefore(s, E::HasTransportData, E(int(E::TransportGuidByte0) + i));
         }
+
+        // A GUID byte is read only if its mask bit said so: mask bit before byte, all three GUIDs.
+        for (int i = 0; i < 8; ++i)
+        {
+            CheckAnnouncedBefore(s, E(int(E::GuidBit0) + i),          E(int(E::GuidByte0) + i));
+            CheckAnnouncedBefore(s, E(int(E::Guid2Bit0) + i),         E(int(E::Guid2Byte0) + i));
+            CheckAnnouncedBefore(s, E(int(E::TransportGuidBit0) + i), E(int(E::TransportGuidByte0) + i));
+        }
         CheckAnnouncedBefore(s, E::HasTransportData, E::HasTransportTime2);
         CheckAnnouncedBefore(s, E::HasTransportData, E::HasTransportTime3);
         CheckAnnouncedBefore(s, E::HasTransportData, E::TransportSeat);
@@ -361,10 +389,31 @@ namespace
 
 TEST(MovementSequences_every_layout_announces_before_it_reads)
 {
-    CheckLayoutAnnouncesBeforeItReads(MSG_MOVE_HEARTBEAT);
-    CheckLayoutAnnouncesBeforeItReads(SMSG_PLAYER_MOVE);
-    CheckLayoutAnnouncesBeforeItReads(CMSG_MOVE_START_FORWARD);
-    CheckLayoutAnnouncesBeforeItReads(CMSG_MOVE_STOP);
+    const Wire::Registry r = Wire::AllSequences();
+    CHECK(r.begin != r.end);
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        CheckLayoutAnnouncesBeforeItReads(e->opcode);
+    }
+}
+
+TEST(MovementSequences_every_layout_reports_overread_on_every_strict_prefix)
+{
+    const Wire::Registry r = Wire::AllSequences();
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        ByteBuffer full;
+        Wire::Encode(full, e->sequence, FullFixture());
+        REQUIRE(full.size() > 0);
+        for (size_t keep = 0; keep < full.size(); ++keep)
+        {
+            ByteBuffer cut;
+            cut.append(full.contents(), keep);
+            Wire::MovementStatus got;
+            const Wire::DecodeResult d = Wire::Decode(cut, e->sequence, got);
+            CHECK(d.error == Wire::DecodeError::Overread);
+        }
+    }
 }
 
 #include "wire/MovementCapture.h"

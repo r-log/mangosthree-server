@@ -169,17 +169,31 @@ namespace Wire
             E::FallCosAngle, E::FallSinAngle, E::FallHorizontalSpeed, E::FallVerticalSpeed, E::FallTime,
             E::End
         };
+
+        const Entry kRegistry[] =
+        {
+            { MSG_MOVE_HEARTBEAT,      kHeartbeat    },
+            { SMSG_PLAYER_MOVE,        kPlayerMove   },
+            { CMSG_MOVE_START_FORWARD, kStartForward },
+            { CMSG_MOVE_STOP,          kStop         },
+        };
+        const Entry* const kRegistryEnd = kRegistry + sizeof(kRegistry) / sizeof(kRegistry[0]);
+    }
+
+    Registry AllSequences()
+    {
+        return { kRegistry, kRegistryEnd };
     }
 
     Sequence SequenceFor(uint16 opcode)
     {
-        switch (opcode)
+        for (Entry const* e = kRegistry; e != kRegistryEnd; ++e)
         {
-            case MSG_MOVE_HEARTBEAT:       return kHeartbeat;
-            case SMSG_PLAYER_MOVE:         return kPlayerMove;
-            case CMSG_MOVE_START_FORWARD:  return kStartForward;
-            case CMSG_MOVE_STOP:           return kStop;
-            default:                       return nullptr;
+            if (e->opcode == opcode)
+            {
+                return e->sequence;
+            }
         }
+        return nullptr;
     }
 }
