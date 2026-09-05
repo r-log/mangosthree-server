@@ -197,6 +197,11 @@ namespace loadtest
             m_result.stage = step.reached;
         }
 
+        if (m_result.stage == Stage::InWorld && m_config.onInWorld)
+        {
+            m_config.onInWorld();
+        }
+
         if (m_result.stage == Stage::InWorld && m_config.holdSeconds > 0)
         {
             std::string error;

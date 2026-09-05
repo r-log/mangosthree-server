@@ -46,11 +46,14 @@
 
 #include "Auth/Sha1.h"
 
+#include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -320,11 +323,24 @@ int main(int argc, char** argv)
                 config.account.c_str(), config.host.c_str(),
                 uint32(config.port), uint32(config.streamPort));
 
-    // The paired session logs in first and simply watches; the primary's walk
-    // lead (3 s by default) gives it time to be in the world before anything
-    // moves. Its own key is derived from its account name like the primary's.
+    // The paired session logs in first and simply watches. The primary waits
+    // until it is in the world (or has failed to get there) before logging in
+    // itself: the redirect registry serialises logins from one address, and a
+    // cold grid load can outlast the walk's lead. Its own key is derived from
+    // its account name like the primary's.
     loadtest::Result pairResult;
     std::thread pairThread;
+    std::mutex pairMutex;
+    std::condition_variable pairSettled;
+    bool pairReady = false;
+    const auto settle = [&pairMutex, &pairSettled, &pairReady]()
+    {
+        {
+            std::lock_guard<std::mutex> lock(pairMutex);
+            pairReady = true;
+        }
+        pairSettled.notify_all();
+    };
     if (!pairAccount.empty())
     {
         loadtest::Config pairConfig = config;
@@ -333,15 +349,25 @@ int main(int argc, char** argv)
         pairConfig.characterGuid = pairGuid;
         pairConfig.script = loadtest::PeerScript();
         pairConfig.script.observeGuid = config.characterGuid;
-        pairConfig.holdSeconds = config.holdSeconds;
+        pairConfig.onInWorld = settle;
+        // It entered the world first and must still be watching at the walker's
+        // last stop, so it holds a little longer than the primary.
+        pairConfig.holdSeconds = config.holdSeconds + 3;
         std::printf("pairing '%s' (character %llu), watching character %llu\n",
                     pairAccount.c_str(), static_cast<unsigned long long>(pairGuid),
                     static_cast<unsigned long long>(config.characterGuid));
-        pairThread = std::thread([pairConfig, &pairResult]()
+        pairThread = std::thread([pairConfig, &pairResult, &settle]()
         {
             loadtest::SyntheticClient pair(pairConfig);
             pairResult = pair.Run();
+            settle();   // a login that never reached the world settles here
         });
+
+        std::unique_lock<std::mutex> lock(pairMutex);
+        if (!pairSettled.wait_for(lock, std::chrono::seconds(30), [&pairReady]() { return pairReady; }))
+        {
+            std::printf("the observer has not reached the world after 30 s; going on without it\n");
+        }
     }
 
     loadtest::SyntheticClient client(config);
@@ -412,33 +438,64 @@ int main(int argc, char** argv)
     std::printf("\n");
 
     bool verdictsOk = true;
-    // The server sends a time-sync request at login and every ten seconds; any
-    // hold long enough to answer one proves the responder.
-    const bool timesyncOk = peer.timeSyncsAnswered >= 1;
-    std::printf("PEER VERDICT timesync %s (answered %u)\n", timesyncOk ? "OK" : "BUG",
-                peer.timeSyncsAnswered);
-    verdictsOk = verdictsOk && timesyncOk;
+    // The verdicts judge what Serve did, and a plain login (no hold) never
+    // served: it keeps exiting 0 on reaching the world, as it did before the peer.
+    if (config.holdSeconds == 0)
+    {
+        std::printf("PEER VERDICT timesync SKIPPED (no hold)\n");
+    }
+    else
+    {
+        // The server sends a time-sync request at login and every ten seconds;
+        // any hold long enough to answer one proves the responder.
+        const bool timesyncOk = peer.timeSyncsAnswered >= 1;
+        std::printf("PEER VERDICT timesync %s (answered %u)\n", timesyncOk ? "OK" : "BUG",
+                    peer.timeSyncsAnswered);
+        verdictsOk = verdictsOk && timesyncOk;
+    }
 
     if (config.script.walk.seconds > 0)
     {
-        // One start and one stop per leg, and at least two heartbeats per second
-        // walked minus one per leg for the tail.
+        // One start and one stop per leg, and heartbeats at three quarters of the
+        // nominal cadence or better. A real client sends no overdue heartbeat
+        // retroactively, so the slack is what keeps a stall of this process from
+        // reading as the server losing the walk.
         const uint32 legs = config.script.walk.returnHome ? 2 : 1;
+        const uint32 nominal = config.script.walk.seconds * 1000 / config.script.walk.heartbeatMs * legs;
         const bool walkOk = peer.walkStarts == legs && peer.walkStops == legs &&
-                            peer.walkHeartbeats + legs >= config.script.walk.seconds * 2 * legs;
-        std::printf("PEER VERDICT walk %s (start %u, heartbeats %u, stop %u, legs %u)\n",
-                    walkOk ? "OK" : "BUG", peer.walkStarts, peer.walkHeartbeats, peer.walkStops, legs);
+                            peer.walkHeartbeats * 4 >= nominal * 3;
+        std::printf("PEER VERDICT walk %s (start %u, heartbeats %u of %u nominal, stop %u, legs %u)\n",
+                    walkOk ? "OK" : "BUG", peer.walkStarts, peer.walkHeartbeats, nominal,
+                    peer.walkStops, legs);
         verdictsOk = verdictsOk && walkOk;
     }
+
+    // The server relays movement only inside the observer's visibility range
+    // (Visibility.Distance.Continents, 90 yd by default), and the walker leads
+    // away by speed x seconds. A pair placed further apart than that allows, or
+    // on different maps, is a setup fault, not a relay verdict.
+    const float kVisibilityYards = 90.0f;
+    const bool  pairIn = pairResult.Reached(loadtest::Stage::InWorld) && pairResult.error.empty();
+    const float sx = pairResult.worldPos.x - result.worldPos.x;
+    const float sy = pairResult.worldPos.y - result.worldPos.y;
+    const float apart = std::sqrt(sx * sx + sy * sy);
+    const float reach = config.script.walk.speed * float(config.script.walk.seconds);
+    const bool  colocated = pairResult.mapId == result.mapId && apart + reach <= kVisibilityYards;
 
     if (!pairAccount.empty() && config.script.walk.seconds == 0)
     {
         std::printf("PEER VERDICT relay SKIPPED (no walk)\n");
     }
+    else if (!pairAccount.empty() && pairIn && !colocated)
+    {
+        std::printf("PEER VERDICT relay SETUP (observer on map %u, %.1f yd from the walker on map %u, "
+                    "whose walk reaches %.1f yd; both must fit inside %.0f yd on one map)\n",
+                    pairResult.mapId, apart, result.mapId, reach, kVisibilityYards);
+        verdictsOk = false;
+    }
     else if (!pairAccount.empty())
     {
         const loadtest::PeerReport& seen = pairResult.peer;
-        const bool pairIn = pairResult.Reached(loadtest::Stage::InWorld) && pairResult.error.empty();
         const float dx = seen.lastTargetObservation.pos.x - peer.walkFinal.x;
         const float dy = seen.lastTargetObservation.pos.y - peer.walkFinal.y;
         const float gap = std::sqrt(dx * dx + dy * dy);

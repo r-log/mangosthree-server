@@ -55,6 +55,7 @@
 #include "Socket.hpp"
 
 #include <chrono>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -107,6 +108,11 @@ namespace loadtest
         /// regardless: answers time-sync requests from its tick clock and acks any
         /// server-initiated movement change whose layout the registry knows.
         PeerScript script;
+
+        /// Called once the session is in the world, before any hold. The CLI's
+        /// paired run uses it to log the walker in only once the observer is
+        /// watching.
+        std::function<void()> onInWorld;
     };
 
     /// What one run produced, whether or not it finished.
