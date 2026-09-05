@@ -44,6 +44,9 @@ add_executable(mangos-loadtest
     src/Socket.hpp
     src/SyntheticClient.cpp
     src/SyntheticClient.hpp
+    src/Peer.hpp
+    src/TimeSync.cpp
+    src/TimeSync.hpp
 )
 
 target_include_directories(mangos-loadtest PRIVATE src)
