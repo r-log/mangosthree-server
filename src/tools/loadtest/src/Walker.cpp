@@ -1,0 +1,115 @@
+/**
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * MaNGOS is a full featured server for World of Warcraft, supporting
+ * the following clients: 1.12.x, 2.4.3, 3.3.5a, 4.3.4a and 5.4.8
+ *
+ * Copyright (C) 2005-2026 MaNGOS <https://www.getmangos.eu>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * World of Warcraft, and all World of Warcraft or Warcraft art, images,
+ * and lore are copyrighted by Blizzard Entertainment, Inc.
+ */
+
+#include "Walker.hpp"
+
+#include "Opcodes.h"
+#include "wire/MovementCodec.h"
+#include "wire/MovementSequences.h"
+
+#include <cmath>
+
+namespace loadtest
+{
+    namespace
+    {
+        /// MovementFlags::MOVEFLAG_FORWARD (src/game/Object/Unit.h). The tool
+        /// cannot include game headers, so the one bit it needs lives here.
+        const uint32 MOVEFLAG_FORWARD = 0x00000001;
+    }
+
+    Walker::Walker(const WalkScript& script, uint64 guid, const Wire::Vec4& start)
+        : m_script(script), m_guid(guid), m_pos(start),
+          m_heading(script.headingSet ? script.heading : start.o)
+    {
+    }
+
+    WorldPacket Walker::Packet(uint16 opcode, uint32 flags, uint32 nowTicks) const
+    {
+        Wire::MovementStatus status;
+        status.guid = m_guid;
+        status.flags = flags;
+        status.time = nowTicks;
+        status.pos = m_pos;
+        status.pos.o = m_heading;
+
+        WorldPacket packet(opcode, 64);
+        Wire::Encode(packet, Wire::SequenceFor(opcode), status);
+        return packet;
+    }
+
+    std::vector<WorldPacket> Walker::Advance(uint32 nowTicks)
+    {
+        std::vector<WorldPacket> out;
+        if (m_done || m_script.seconds == 0)
+        {
+            return out;
+        }
+
+        if (!m_armed)
+        {
+            m_armed = true;
+            m_armedTicks = nowTicks;
+        }
+
+        if (!m_started)
+        {
+            if (nowTicks - m_armedTicks < m_script.leadMs)
+            {
+                return out;
+            }
+            m_started = true;
+            m_startTicks = nowTicks;
+            m_lastTicks = nowTicks;
+            m_nextHeartbeat = nowTicks + m_script.heartbeatMs;
+            ++m_starts;
+            out.push_back(Packet(CMSG_MOVE_START_FORWARD, MOVEFLAG_FORWARD, nowTicks));
+            return out;
+        }
+
+        // Advance the reported position by what the clock says has elapsed.
+        const uint32 dt = nowTicks - m_lastTicks;
+        m_lastTicks = nowTicks;
+        const float yards = m_script.speed * float(dt) / 1000.0f;
+        m_pos.x += std::cos(m_heading) * yards;
+        m_pos.y += std::sin(m_heading) * yards;
+
+        if (nowTicks - m_startTicks >= m_script.seconds * 1000)
+        {
+            m_done = true;
+            ++m_stops;
+            out.push_back(Packet(CMSG_MOVE_STOP, 0, nowTicks));
+            return out;
+        }
+
+        if (nowTicks >= m_nextHeartbeat)
+        {
+            ++m_heartbeats;
+            m_nextHeartbeat += m_script.heartbeatMs;
+            out.push_back(Packet(MSG_MOVE_HEARTBEAT, MOVEFLAG_FORWARD, nowTicks));
+        }
+        return out;
+    }
+}

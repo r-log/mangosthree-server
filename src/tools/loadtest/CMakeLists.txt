@@ -47,6 +47,8 @@ add_executable(mangos-loadtest
     src/Peer.hpp
     src/TimeSync.cpp
     src/TimeSync.hpp
+    src/Walker.cpp
+    src/Walker.hpp
 )
 
 target_include_directories(mangos-loadtest PRIVATE src)
