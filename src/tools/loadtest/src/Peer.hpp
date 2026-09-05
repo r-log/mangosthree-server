@@ -42,7 +42,8 @@ namespace loadtest
     {
         Immediate,  ///< ack at once, counter echoed
         Delay,      ///< ack after `delayMs`
-        Mismatch,   ///< ack at once with the counter + 1 (what a stale ack looks like)
+        Mismatch,   ///< ack at once with counter + 1: a counter the server never issued (the violation case)
+        Stale,      ///< ack at once with counter - 1: an ack for a change already retired (consumed by a tombstone)
         Drop        ///< never ack
     };
 
@@ -61,6 +62,10 @@ namespace loadtest
         float  heading = 0.0f;       ///< radians; the character's facing when not set
         float  speed = 7.0f;         ///< yards per second (4.3.4 base run speed)
         uint32 heartbeatMs = 500;    ///< the real client's heartbeat cadence
+        /// Turn round at the end and walk the same time back along the reversed
+        /// heading, so a run leaves the character where it found it and the next
+        /// run's observer is still in range.
+        bool   returnHome = false;
     };
 
     struct PeerScript
@@ -70,7 +75,7 @@ namespace loadtest
         uint64     observeGuid = 0;  ///< count SMSG_MOVE_UPDATE relays for this mover
     };
 
-    /// One relayed movement status the peer saw.
+    /// One relayed movement status (SMSG_PLAYER_MOVE, the client's SMSG_MOVE_UPDATE) the peer saw.
     struct Observation
     {
         uint64     guid = 0;
@@ -88,6 +93,7 @@ namespace loadtest
         uint32     walkHeartbeats = 0;
         uint32     walkStops = 0;
         Wire::Vec4 walkFinal;
+        uint32     walkLastTime = 0;   ///< the movement time stamped on the walker's last packet
 
         uint32      observedTarget = 0;
         uint32      observedOthers = 0;

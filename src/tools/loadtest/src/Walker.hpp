@@ -40,6 +40,9 @@ namespace loadtest
      *
      * Pure: fed the clock, it returns the packets due; the caller sends them.
      * The first Advance() call fixes the moment the lead starts counting.
+     * With `returnHome` set, the stop of the outbound leg is followed at once
+     * by a second leg along the reversed heading for the same time, ending
+     * where the walk began.
      */
     class Walker
     {
@@ -55,6 +58,7 @@ namespace loadtest
             uint32 Starts() const { return m_starts; }
             uint32 Heartbeats() const { return m_heartbeats; }
             uint32 Stops() const { return m_stops; }
+            uint32 LastStampedTime() const { return m_lastStampedTime; }
 
         private:
             WorldPacket Packet(uint16 opcode, uint32 flags, uint32 nowTicks) const;
@@ -74,5 +78,7 @@ namespace loadtest
             uint32 m_starts = 0;
             uint32 m_heartbeats = 0;
             uint32 m_stops = 0;
+            bool   m_returning = false;      ///< on the way back (returnHome)
+            uint32 m_lastStampedTime = 0;
     };
 }

@@ -76,7 +76,8 @@ namespace
             "Protocol peer (movement P0-B):\n"
             "  --walk SECONDS       walk straight ahead for SECONDS once in the world\n"
             "  --heading DEGREES    walk in this direction instead of the character's facing\n"
-            "  --ack MODE           answer movement changes: immediate | delay:MS | mismatch | drop\n"
+            "  --return             walk the same time back, so the character ends where it began\n"
+            "  --ack MODE           answer movement changes: immediate | delay:MS | mismatch | stale | drop\n"
             "  --observe GUID       count relayed movement of this mover\n"
             "  --pair ACCOUNT:GUID  run a second, observing session of that character alongside,\n"
             "                       watching this one, and print the relay verdict\n"
@@ -84,7 +85,7 @@ namespace
             "Typical use:\n"
             "  mangos-loadtest --account LOAD01 --emit-sql | mysql -u root realmd\n"
             "  mangos-loadtest --account LOAD01 --character 9 --hold 60 --verbose\n"
-            "  mangos-loadtest --account RNDBOT0 --character 46 --walk 6 --hold 12 --pair RNDBOT1:47\n");
+            "  mangos-loadtest --account RNDBOT0 --character 46 --walk 6 --return --hold 12 --pair RNDBOT1:47\n");
     }
 
     /**
@@ -205,6 +206,7 @@ int main(int argc, char** argv)
             config.script.walk.headingSet = true;
             config.script.walk.heading = float(std::strtod(argv[++i], NULL) * 3.14159265358979323846 / 180.0);
         }
+        else if (arg == "--return")     { config.script.walk.returnHome = true; }
         else if (arg == "--ack")
         {
             if (!WantsValue(argc, i, "--ack")) { return 2; }
@@ -212,6 +214,7 @@ int main(int argc, char** argv)
             if (mode == "immediate")            { config.script.ack.mode = loadtest::AckMode::Immediate; }
             else if (mode == "mismatch")        { config.script.ack.mode = loadtest::AckMode::Mismatch; }
             else if (mode == "drop")            { config.script.ack.mode = loadtest::AckMode::Drop; }
+            else if (mode == "stale")           { config.script.ack.mode = loadtest::AckMode::Stale; }
             else if (mode.compare(0, 6, "delay:") == 0)
             {
                 config.script.ack.mode = loadtest::AckMode::Delay;
@@ -219,7 +222,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                std::fprintf(stderr, "--ack wants immediate, delay:MS, mismatch or drop\n");
+                std::fprintf(stderr, "--ack wants immediate, delay:MS, mismatch, stale or drop\n");
                 return 2;
             }
         }
@@ -271,7 +274,8 @@ int main(int argc, char** argv)
     // A walk needs the session to outlive it, with room for the lead and the stop.
     if (config.script.walk.seconds > 0)
     {
-        const uint32 needed = config.script.walk.seconds + config.script.walk.leadMs / 1000 + 3;
+        const uint32 legs = config.script.walk.returnHome ? 2 : 1;
+        const uint32 needed = config.script.walk.seconds * legs + config.script.walk.leadMs / 1000 + 3;
         if (config.holdSeconds < needed)
         {
             config.holdSeconds = needed;
@@ -389,12 +393,19 @@ int main(int argc, char** argv)
     const loadtest::PeerReport& peer = result.peer;
     std::printf("PEER timesync answered=%u controlUpdates=%u other=%u\n",
                 peer.timeSyncsAnswered, peer.controlUpdates, peer.otherPackets);
-    std::printf("PEER walk start=%u heartbeats=%u stop=%u final=%.1f %.1f %.1f\n",
+    std::printf("PEER walk start=%u heartbeats=%u stop=%u final=%.1f %.1f %.1f lastTime=%u\n",
                 peer.walkStarts, peer.walkHeartbeats, peer.walkStops,
-                peer.walkFinal.x, peer.walkFinal.y, peer.walkFinal.z);
+                peer.walkFinal.x, peer.walkFinal.y, peer.walkFinal.z, peer.walkLastTime);
     std::printf("PEER acks sent=%u dropped=%u unregistered=", peer.acksSent, peer.acksDropped);
     for (std::map<uint16, uint32>::const_iterator it = peer.unregisteredChanges.begin();
          it != peer.unregisteredChanges.end(); ++it)
+    {
+        std::printf("0x%.4X:%u ", uint32(it->first), it->second);
+    }
+    std::printf("\n");
+    std::printf("PEER decodefail ");
+    for (std::map<uint16, uint32>::const_iterator it = peer.decodeFailures.begin();
+         it != peer.decodeFailures.end(); ++it)
     {
         std::printf("0x%.4X:%u ", uint32(it->first), it->second);
     }
@@ -410,16 +421,21 @@ int main(int argc, char** argv)
 
     if (config.script.walk.seconds > 0)
     {
-        // One start, one stop, and at least two heartbeats per second walked
-        // minus one for the tail.
-        const bool walkOk = peer.walkStarts == 1 && peer.walkStops == 1 &&
-                            peer.walkHeartbeats + 1 >= config.script.walk.seconds * 2;
-        std::printf("PEER VERDICT walk %s (start %u, heartbeats %u, stop %u)\n",
-                    walkOk ? "OK" : "BUG", peer.walkStarts, peer.walkHeartbeats, peer.walkStops);
+        // One start and one stop per leg, and at least two heartbeats per second
+        // walked minus one per leg for the tail.
+        const uint32 legs = config.script.walk.returnHome ? 2 : 1;
+        const bool walkOk = peer.walkStarts == legs && peer.walkStops == legs &&
+                            peer.walkHeartbeats + legs >= config.script.walk.seconds * 2 * legs;
+        std::printf("PEER VERDICT walk %s (start %u, heartbeats %u, stop %u, legs %u)\n",
+                    walkOk ? "OK" : "BUG", peer.walkStarts, peer.walkHeartbeats, peer.walkStops, legs);
         verdictsOk = verdictsOk && walkOk;
     }
 
-    if (!pairAccount.empty())
+    if (!pairAccount.empty() && config.script.walk.seconds == 0)
+    {
+        std::printf("PEER VERDICT relay SKIPPED (no walk)\n");
+    }
+    else if (!pairAccount.empty())
     {
         const loadtest::PeerReport& seen = pairResult.peer;
         const bool pairIn = pairResult.Reached(loadtest::Stage::InWorld) && pairResult.error.empty();

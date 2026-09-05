@@ -38,6 +38,7 @@ namespace loadtest
         /// MovementFlags::MOVEFLAG_FORWARD (src/game/Object/Unit.h). The tool
         /// cannot include game headers, so the one bit it needs lives here.
         const uint32 MOVEFLAG_FORWARD = 0x00000001;
+        const float kPi = 3.14159265358979f;
     }
 
     Walker::Walker(const WalkScript& script, uint64 guid, const Wire::Vec4& start)
@@ -86,6 +87,7 @@ namespace loadtest
             m_nextHeartbeat = nowTicks + m_script.heartbeatMs;
             ++m_starts;
             out.push_back(Packet(CMSG_MOVE_START_FORWARD, MOVEFLAG_FORWARD, nowTicks));
+            m_lastStampedTime = nowTicks;
             return out;
         }
 
@@ -98,9 +100,21 @@ namespace loadtest
 
         if (nowTicks - m_startTicks >= m_script.seconds * 1000)
         {
-            m_done = true;
             ++m_stops;
             out.push_back(Packet(CMSG_MOVE_STOP, 0, nowTicks));
+            m_lastStampedTime = nowTicks;
+            if (m_script.returnHome && !m_returning)
+            {
+                // Turn round and walk the same time back: the next Advance starts
+                // the return leg at once, with no lead.
+                m_returning = true;
+                m_heading += kPi;
+                m_started = false;
+                m_armed = false;
+                m_script.leadMs = 0;
+                return out;
+            }
+            m_done = true;
             return out;
         }
 
@@ -109,6 +123,7 @@ namespace loadtest
             ++m_heartbeats;
             m_nextHeartbeat += m_script.heartbeatMs;
             out.push_back(Packet(MSG_MOVE_HEARTBEAT, MOVEFLAG_FORWARD, nowTicks));
+            m_lastStampedTime = nowTicks;
         }
         return out;
     }

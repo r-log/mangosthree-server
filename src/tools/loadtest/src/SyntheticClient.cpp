@@ -680,18 +680,25 @@ namespace loadtest
         }
 
         // uint32 map, then x, y, z, o: where the character now stands, which is
-        // where a scripted walk starts from.
-        if (verify.size() >= 20)
+        // where a scripted walk starts from. A short packet must not be walked
+        // from -- that would carry the character to the origin and save it there.
+        if (verify.size() < 20)
         {
-            m_result.mapId      = verify.read<uint32>(0);
-            m_result.worldPos.x = verify.read<float>(4);
-            m_result.worldPos.y = verify.read<float>(8);
-            m_result.worldPos.z = verify.read<float>(12);
-            m_result.worldPos.o = verify.read<float>(16);
-            Trace("placed on map %u at %.1f %.1f %.1f facing %.2f", m_result.mapId,
-                  m_result.worldPos.x, m_result.worldPos.y, m_result.worldPos.z,
-                  m_result.worldPos.o);
+            char detail[96];
+            std::snprintf(detail, sizeof(detail),
+                          "SMSG_LOGIN_VERIFY_WORLD is %u byte(s), not the 20 a position needs",
+                          uint32(verify.size()));
+            error = detail;
+            return false;
         }
+        m_result.mapId      = verify.read<uint32>(0);
+        m_result.worldPos.x = verify.read<float>(4);
+        m_result.worldPos.y = verify.read<float>(8);
+        m_result.worldPos.z = verify.read<float>(12);
+        m_result.worldPos.o = verify.read<float>(16);
+        Trace("placed on map %u at %.1f %.1f %.1f facing %.2f", m_result.mapId,
+              m_result.worldPos.x, m_result.worldPos.y, m_result.worldPos.z,
+              m_result.worldPos.o);
 
         m_result.msToWorld = ElapsedMs();
         Trace("in world");
@@ -839,9 +846,15 @@ namespace loadtest
         report.walkHeartbeats = walker.Heartbeats();
         report.walkStops = walker.Stops();
         report.walkFinal = walker.Position();
+        report.walkLastTime = walker.LastStampedTime();
         report.acksSent = acks.Sent();
         report.acksDropped = acks.Dropped();
         report.unregisteredChanges = acks.Unregistered();
+        for (std::map<uint16, uint32>::const_iterator it = acks.DecodeFailures().begin();
+             it != acks.DecodeFailures().end(); ++it)
+        {
+            report.decodeFailures[it->first] += it->second;
+        }
 
         Trace("held for %u s: %u time syncs, walk %u/%u/%u, saw target %u times",
               m_config.holdSeconds, report.timeSyncsAnswered, report.walkStarts,

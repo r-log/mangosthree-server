@@ -54,7 +54,10 @@ namespace loadtest
      * with the ack's layout, echoing the decoded status (the real client echoes
      * its own status; for a session that does not move between the two, the
      * change's status is that status). A change or ack with no registered layout
-     * is counted, not guessed -- that count is what P1's layout work consumes.
+     * is counted as unregistered; a change whose layout is registered but does
+     * not decode is counted apart, as a decode failure -- the first list is what
+     * P1 has to register, the second what it has to fix. An ack is stamped with
+     * the peer's own clock, as a real client's would be.
      */
     class AckEngine
     {
@@ -76,6 +79,7 @@ namespace loadtest
             uint32 Sent() const { return m_sent; }
             uint32 Dropped() const { return m_dropped; }
             const std::map<uint16, uint32>& Unregistered() const { return m_unregistered; }
+            const std::map<uint16, uint32>& DecodeFailures() const { return m_decodeFailures; }
 
         private:
             struct Pending
@@ -92,6 +96,7 @@ namespace loadtest
             std::vector<ChangePair> m_pairs;
             std::vector<Pending>    m_pending;
             std::map<uint16, uint32> m_unregistered;
+            std::map<uint16, uint32> m_decodeFailures;
             uint32                  m_sent = 0;
             uint32                  m_dropped = 0;
     };

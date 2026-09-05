@@ -33,6 +33,8 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 
+#include <cmath>
+
 TEST(TimeSync_answers_the_request_with_the_counter_and_the_client_clock)
 {
     WorldPacket request(SMSG_TIME_SYNC_REQ, 4);
@@ -307,4 +309,111 @@ TEST(AckEngine_knows_the_real_pairs)
         }
     }
     CHECK(foundRun);
+}
+
+TEST(Walker_returns_home_when_told_to)
+{
+    loadtest::WalkScript script;
+    script.seconds = 1;
+    script.leadMs = 0;
+    script.headingSet = true;
+    script.heading = 0.0f;
+    script.returnHome = true;
+    Wire::Vec4 start;
+    start.x = 50.0f;
+    start.y = 60.0f;
+    loadtest::Walker walker(script, 0x42, start);
+
+    std::vector<WorldPacket> out = walker.Advance(0);      // start, outbound
+    REQUIRE(out.size() == 1);
+    CHECK_EQ(int(out[0].GetOpcode()), int(CMSG_MOVE_START_FORWARD));
+    out = walker.Advance(500);                              // heartbeat at x = 53.5
+    REQUIRE(out.size() == 1);
+    out = walker.Advance(1000);                             // stop outbound at x = 57
+    REQUIRE(out.size() == 1);
+    CHECK_EQ(int(out[0].GetOpcode()), int(CMSG_MOVE_STOP));
+    CHECK_EQ(DecodeWalk(out[0]).pos.x, 57.0f);
+    CHECK(!walker.Done());
+
+    out = walker.Advance(1000);                             // start the return leg at once
+    REQUIRE(out.size() == 1);
+    CHECK_EQ(int(out[0].GetOpcode()), int(CMSG_MOVE_START_FORWARD));
+    Wire::MovementStatus s = DecodeWalk(out[0]);
+    CHECK(std::fabs(s.pos.o - 3.14159265f) < 0.001f);
+    out = walker.Advance(1500);                             // heartbeat, heading back
+    REQUIRE(out.size() == 1);
+    out = walker.Advance(2000);                             // stop: home again
+    REQUIRE(out.size() == 1);
+    CHECK_EQ(int(out[0].GetOpcode()), int(CMSG_MOVE_STOP));
+    s = DecodeWalk(out[0]);
+    CHECK(std::fabs(s.pos.x - 50.0f) < 0.01f);
+    CHECK(std::fabs(s.pos.y - 60.0f) < 0.01f);
+    CHECK(walker.Done());
+    CHECK_EQ(walker.Starts(), uint32(2));
+    CHECK_EQ(walker.Stops(), uint32(2));
+    CHECK_EQ(walker.Heartbeats(), uint32(2));
+    CHECK_EQ(walker.LastStampedTime(), uint32(2000));
+}
+
+TEST(AckEngine_stale_acks_the_previous_counter)
+{
+    loadtest::AckPolicy policy;
+    policy.mode = loadtest::AckMode::Stale;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+
+    REQUIRE(engine.Plan(FakeChange(9), 1000));
+    std::vector<WorldPacket> due = engine.Due(1000);
+    REQUIRE(due.size() == 1);
+    CHECK_EQ(CounterOf(due[0]), uint32(8));
+}
+
+TEST(AckEngine_counts_a_registered_change_that_fails_to_decode_apart)
+{
+    loadtest::AckPolicy policy;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+
+    // The layout is registered, but the packet is one byte short.
+    WorldPacket whole = FakeChange(1);
+    WorldPacket cut(kFakeChange, 8);
+    cut.append(whole.contents(), whole.size() - 1);
+    CHECK(!engine.Plan(cut, 1000));
+    CHECK(engine.Unregistered().empty());
+    REQUIRE(engine.DecodeFailures().count(kFakeChange) == 1);
+    CHECK_EQ(engine.DecodeFailures().at(kFakeChange), uint32(1));
+}
+
+namespace
+{
+    const Wire::Element kTimedLayout[] =
+    {
+        Wire::Element::HasTimestamp, Wire::Element::Timestamp,
+        Wire::Element::MovementCounter, Wire::Element::PositionX, Wire::Element::End
+    };
+
+    Wire::Sequence TimedLookup(uint16 opcode)
+    {
+        return (opcode == kFakeChange || opcode == kFakeAck) ? kTimedLayout : nullptr;
+    }
+}
+
+TEST(AckEngine_stamps_the_ack_with_the_client_clock_not_the_servers_time)
+{
+    loadtest::AckPolicy policy;
+    loadtest::AckEngine engine(policy, &TimedLookup, FakePairs());
+
+    Wire::MovementStatus s;
+    s.has.timestamp = true;
+    s.time = 5;              // what the server stamped on the change
+    s.counter = 7;
+    s.pos.x = 1.0f;
+    WorldPacket change(kFakeChange, 16);
+    Wire::Encode(change, kTimedLayout, s);
+
+    REQUIRE(engine.Plan(change, 1000));
+    std::vector<WorldPacket> due = engine.Due(1234);
+    REQUIRE(due.size() == 1);
+    Wire::MovementStatus got;
+    REQUIRE(Wire::Decode(due[0], kTimedLayout, got).ok());
+    CHECK_EQ(got.time, uint32(1234));
+    CHECK_EQ(got.counter, uint32(7));
 }

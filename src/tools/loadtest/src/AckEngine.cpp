@@ -107,7 +107,7 @@ namespace loadtest
         Wire::MovementStatus status;
         if (!Wire::Decode(copy, in, status).ok())
         {
-            ++m_unregistered[pair->change];
+            ++m_decodeFailures[pair->change];
             return false;
         }
 
@@ -118,6 +118,9 @@ namespace loadtest
                 return true;
             case AckMode::Mismatch:
                 status.counter += 1;
+                break;
+            case AckMode::Stale:
+                status.counter -= 1;
                 break;
             case AckMode::Delay:
             case AckMode::Immediate:
@@ -143,8 +146,15 @@ namespace loadtest
                 keep.push_back(p);
                 continue;
             }
+            // A real client stamps its ack with its own clock, not the time the
+            // server put in the change it is answering.
+            Wire::MovementStatus status = p.status;
+            if (status.has.timestamp)
+            {
+                status.time = nowTicks;
+            }
             WorldPacket packet(p.opcode, 64);
-            Wire::Encode(packet, m_lookup(p.opcode), p.status);
+            Wire::Encode(packet, m_lookup(p.opcode), status);
             out.push_back(packet);
             ++m_sent;
         }
