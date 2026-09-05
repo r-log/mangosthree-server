@@ -62,6 +62,11 @@ set(SRC_GRP_TESTS
     # proto's own codec rather than against a copy of itself. Its asymmetry with
     # the server's framing has misled this project twice.
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Framing.cpp
+    # The protocol peer's pure units (movement P0-B), compiled in like Framing.cpp.
+    PeerTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/AckEngine.cpp
     GlobalWmoEvictionTest.cpp
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
