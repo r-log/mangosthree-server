@@ -161,3 +161,48 @@ TEST(OpcodeValues_spell_resist_matches_the_client)
     // cannot be conflated by a later tidy-up.
     CHECK_EQ(int(SMSG_SPELLLOGMISS), 0x0625);
 }
+
+TEST(OpcodeValues_movement_changes_match_the_client)
+{
+    // Two client-binary sources per value, as the file header requires. For an
+    // SMSG: the dispatch table (client_opcode_table_434.tsv; the reader address
+    // is quoted so the row can be found again). For a CMSG: the client's own send
+    // router, in tree as src/proto/OpcodeSlots.inc, which lists exactly what the
+    // client can transmit. The Cataclysm Preservation Project's enum agrees with
+    // every value below; WowPacketParser's 4.3.4 table is where that enum came from.
+    //
+    // Six speed-change acks carried WotLK values that no 4.3.4 source lists and
+    // the send router does not know, so the client's real ack arrived as an
+    // unknown opcode. Their handler rows in OpcodeTable.cpp are commented out and
+    // stay so: binding them is P2's, with the handlers rewritten for the 4.3.4
+    // layout (today's read a WotLK packed guid).
+    CHECK_EQ(int(CMSG_FORCE_WALK_SPEED_CHANGE_ACK),        0x7210);   // SLOT(0x7210, 1, 0)
+    CHECK_EQ(int(CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK),    0x3216);   // SLOT(0x3216, 1, 0)
+    CHECK_EQ(int(CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK),   0x7A16);   // SLOT(0x7A16, 1, 0)
+    CHECK_EQ(int(CMSG_FORCE_TURN_RATE_CHANGE_ACK),         0x7316);   // SLOT(0x7316, 1, 0)
+    CHECK_EQ(int(CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK), 0x310E);   // SLOT(0x310E, 1, 0)
+    CHECK_EQ(int(CMSG_FORCE_PITCH_RATE_CHANGE_ACK),        0x3100);   // SLOT(0x3100, 1, 0)
+    // The three the login already exercises, pinned so the family reads as one.
+    CHECK_EQ(int(CMSG_FORCE_RUN_SPEED_CHANGE_ACK),         0x7818);   // SLOT(0x7818, 1, 0)
+    CHECK_EQ(int(CMSG_FORCE_SWIM_SPEED_CHANGE_ACK),        0x7A10);   // SLOT(0x7A10, 1, 0)
+    CHECK_EQ(int(CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK),      0x7314);   // SLOT(0x7314, 1, 0)
+
+    // Off the denylist: the swim/fly transition pair and its ack.
+    CHECK_EQ(int(SMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY),     0x59A2);   // reader sub_1403814B0
+    CHECK_EQ(int(SMSG_MOVE_UNSET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY),   0x7DB2);   // reader sub_140382D00
+    CHECK_EQ(int(CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK), 0x3014);   // SLOT(0x3014, 1, 0)
+
+    // The observer-side speed updates this server has never sent (§7's per-change
+    // matrix names them), the collision-height update, and the mover handover.
+    // 0x14A6 was carried as CMSG_QUERY_VEHICLE_STATUS, a name no 4.3.4 source
+    // has; the client dispatches that value as the run-speed update.
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_WALK_SPEED),        0x54A2);   // reader sub_1403994F0
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_RUN_SPEED),         0x14A6);   // reader sub_140394F20
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_RUN_BACK_SPEED),    0x3DA6);   // reader sub_140397B80
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_SWIM_SPEED),        0x59B5);   // reader sub_140393A10
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_SWIM_BACK_SPEED),   0x30B5);   // reader sub_140390F70
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_FLIGHT_SPEED),      0x30B1);   // reader sub_140396770
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED), 0x74A0);   // reader sub_140391E10
+    CHECK_EQ(int(SMSG_MOVE_UPDATE_COLLISION_HEIGHT),  0x59A3);   // reader sub_1403990B0
+    CHECK_EQ(int(SMSG_MOVE_SET_ACTIVE_MOVER),         0x11B3);   // reader sub_14037F8D0
+}

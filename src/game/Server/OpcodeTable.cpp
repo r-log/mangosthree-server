@@ -1328,7 +1328,6 @@ void InitializeOpcodes()
     //OPCODE(CMSG_CHECK_LOGIN_CRITERIA,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_SERVER_BUCK_DATA_START,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_SET_BREATH,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    //OPCODE(CMSG_QUERY_VEHICLE_STATUS,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_BATTLEGROUND_INFO_THROTTLED,             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SET_VEHICLE_REC_ID,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_RIDE_VEHICLE_INTERACT,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,   &WorldSession::HandleRideVehicleInteract       );

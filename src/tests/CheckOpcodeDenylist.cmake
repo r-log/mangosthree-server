@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-# 41 opcode names whose value disagrees with every independent 4.3.4 source and
+# 38 opcode names whose value disagrees with every independent 4.3.4 source and
 # which nothing currently builds or dispatches. They are inert TODAY. Adopting
 # one without correcting its value ships a silent no-op -- an SMSG the client
 # discards, or a CMSG handler that never runs.
