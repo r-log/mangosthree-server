@@ -25,6 +25,8 @@
 
 #include "wire/GuidCodec.h"
 
+#include "Utilities/ByteBuffer.h"
+
 namespace Wire
 {
     uint64 MaskedGuid::Value() const

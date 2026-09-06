@@ -92,6 +92,38 @@ TEST(GuidCodec_masked_guid_writes_presence_bits_in_one_order_and_bytes_in_anothe
     CHECK_EQ(g.Value(), kGuid);
 }
 
+TEST(GuidCodec_all_zero_guid_writes_a_clear_mask_and_no_bytes)
+{
+    // Every byte absent: WriteGuidMask writes eight clear bits (one byte, all
+    // zero) and WriteGuidBytes writes nothing at all, for any order.
+    const uint8 order[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    WorldPacket p;
+    Wire::WriteGuidMask(p, 0, order);
+    Wire::WriteGuidBytes(p, 0, order);
+    CHECK(Hex(p) == std::string("00"));
+
+    p.rpos(0);
+    p.ResetBitReader();
+    Wire::MaskedGuid g;
+    Wire::DecodeResult r = Wire::Detail::Run(p, g, [&](Wire::Detail::Reader& in, Wire::MaskedGuid& out)
+    {
+        Wire::ReadGuidMask(in, out, order);
+        Wire::ReadGuidBytes(in, out, order);
+    });
+    CHECK(r.ok());
+    CHECK_EQ(r.consumed, size_t(1));
+    CHECK_EQ(g.Value(), uint64(0));
+
+    WorldPacket packed;
+    Wire::WritePackedGuid(packed, 0);
+    CHECK(Hex(packed) == std::string("00"));
+    packed.rpos(0);
+    uint64 v = 0;
+    Wire::DecodeResult r2 = Wire::Detail::Run(packed, v, [](Wire::Detail::Reader& in, uint64& out) { out = Wire::ReadPackedGuid(in); });
+    CHECK(r2.ok());
+    CHECK_EQ(v, uint64(0));
+}
+
 TEST(GuidCodec_packed_guid_is_a_mask_byte_then_the_bytes_low_to_high)
 {
     WorldPacket p;

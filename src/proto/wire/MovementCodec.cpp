@@ -25,6 +25,7 @@
 
 #include "wire/MovementCodec.h"
 #include "wire/ByteReader.h"
+#include "wire/GuidCodec.h"
 
 #include "Utilities/ByteBuffer.h"
 
@@ -32,21 +33,6 @@ namespace Wire
 {
     namespace
     {
-        // A GUID on this wire is eight bytes, each announced by a mask bit and
-        // sent as (byte ^ 1) only when non-zero. Split once, use twice.
-        struct GuidBytes
-        {
-            uint8 b[8];
-
-            explicit GuidBytes(uint64 guid)
-            {
-                for (int i = 0; i < 8; ++i)
-                {
-                    b[i] = uint8((guid >> (8 * i)) & 0xFF);
-                }
-            }
-        };
-
         inline bool InRange(Element e, Element first, Element last)
         {
             return int(e) >= int(first) && int(e) <= int(last);
@@ -65,9 +51,9 @@ namespace Wire
             return;
         }
 
-        const GuidBytes guid(status.guid);
-        const GuidBytes guid2(status.guid2);
-        const GuidBytes tguid(status.transport.guid);
+        const MaskedGuid guid = MaskedGuid::Of(status.guid);
+        const MaskedGuid guid2 = MaskedGuid::Of(status.guid2);
+        const MaskedGuid tguid = MaskedGuid::Of(status.transport.guid);
         const bool hasTransport = status.transport.present;
         // Presence is derived from the value, except that a decoded packet may have
         // announced a block that carried zero; the status remembers that case so it
@@ -81,46 +67,46 @@ namespace Wire
 
             if (InRange(e, Element::GuidBit0, Element::GuidBit7))
             {
-                out.WriteBit(guid.b[Index(e, Element::GuidBit0)] != 0);
+                out.WriteBit(guid.present[Index(e, Element::GuidBit0)]);
                 continue;
             }
             if (InRange(e, Element::Guid2Bit0, Element::Guid2Bit7))
             {
-                out.WriteBit(guid2.b[Index(e, Element::Guid2Bit0)] != 0);
+                out.WriteBit(guid2.present[Index(e, Element::Guid2Bit0)]);
                 continue;
             }
             if (InRange(e, Element::TransportGuidBit0, Element::TransportGuidBit7))
             {
                 if (hasTransport)
                 {
-                    out.WriteBit(tguid.b[Index(e, Element::TransportGuidBit0)] != 0);
+                    out.WriteBit(tguid.present[Index(e, Element::TransportGuidBit0)]);
                 }
                 continue;
             }
             if (InRange(e, Element::GuidByte0, Element::GuidByte7))
             {
-                const uint8 b = guid.b[Index(e, Element::GuidByte0)];
-                if (b != 0)
+                const int i = Index(e, Element::GuidByte0);
+                if (guid.present[i])
                 {
-                    out << uint8(b ^ 1);
+                    out << uint8(guid.byte[i] ^ 1);
                 }
                 continue;
             }
             if (InRange(e, Element::Guid2Byte0, Element::Guid2Byte7))
             {
-                const uint8 b = guid2.b[Index(e, Element::Guid2Byte0)];
-                if (b != 0)
+                const int i = Index(e, Element::Guid2Byte0);
+                if (guid2.present[i])
                 {
-                    out << uint8(b ^ 1);
+                    out << uint8(guid2.byte[i] ^ 1);
                 }
                 continue;
             }
             if (InRange(e, Element::TransportGuidByte0, Element::TransportGuidByte7))
             {
-                const uint8 b = tguid.b[Index(e, Element::TransportGuidByte0)];
-                if (hasTransport && b != 0)
+                const int i = Index(e, Element::TransportGuidByte0);
+                if (hasTransport && tguid.present[i])
                 {
-                    out << uint8(b ^ 1);
+                    out << uint8(tguid.byte[i] ^ 1);
                 }
                 continue;
             }
@@ -197,28 +183,10 @@ namespace Wire
 
     namespace
     {
-        // Mirror of Encode's GUID rule: a mask bit of 1 announces a byte that
-        // arrives as (byte ^ 1); a mask bit of 0 means the byte is zero and absent.
-        struct GuidReader
-        {
-            bool mask[8] = { false, false, false, false, false, false, false, false };
-            uint8 bytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-            uint64 Value() const
-            {
-                uint64 v = 0;
-                for (int i = 0; i < 8; ++i)
-                {
-                    v |= uint64(bytes[i]) << (8 * i);
-                }
-                return v;
-            }
-        };
-
         DecodeResult DecodeUnchecked(ByteBuffer& buffer, Sequence sequence, MovementStatus& out)
         {
             Detail::Reader in(buffer);
-            GuidReader guid, guid2, tguid;
+            MaskedGuid guid, guid2, tguid;
             bool hasFlags = false;
             bool hasFlags2 = false;
 
@@ -228,46 +196,46 @@ namespace Wire
 
                 if (InRange(e, Element::GuidBit0, Element::GuidBit7))
                 {
-                    guid.mask[Index(e, Element::GuidBit0)] = in.Bit();
+                    guid.present[Index(e, Element::GuidBit0)] = in.Bit();
                     continue;
                 }
                 if (InRange(e, Element::Guid2Bit0, Element::Guid2Bit7))
                 {
-                    guid2.mask[Index(e, Element::Guid2Bit0)] = in.Bit();
+                    guid2.present[Index(e, Element::Guid2Bit0)] = in.Bit();
                     continue;
                 }
                 if (InRange(e, Element::TransportGuidBit0, Element::TransportGuidBit7))
                 {
                     if (out.transport.present)
                     {
-                        tguid.mask[Index(e, Element::TransportGuidBit0)] = in.Bit();
+                        tguid.present[Index(e, Element::TransportGuidBit0)] = in.Bit();
                     }
                     continue;
                 }
                 if (InRange(e, Element::GuidByte0, Element::GuidByte7))
                 {
                     const int i = Index(e, Element::GuidByte0);
-                    if (guid.mask[i])
+                    if (guid.present[i])
                     {
-                        guid.bytes[i] = in.Get<uint8>() ^ 1;
+                        guid.byte[i] = in.Get<uint8>() ^ 1;
                     }
                     continue;
                 }
                 if (InRange(e, Element::Guid2Byte0, Element::Guid2Byte7))
                 {
                     const int i = Index(e, Element::Guid2Byte0);
-                    if (guid2.mask[i])
+                    if (guid2.present[i])
                     {
-                        guid2.bytes[i] = in.Get<uint8>() ^ 1;
+                        guid2.byte[i] = in.Get<uint8>() ^ 1;
                     }
                     continue;
                 }
                 if (InRange(e, Element::TransportGuidByte0, Element::TransportGuidByte7))
                 {
                     const int i = Index(e, Element::TransportGuidByte0);
-                    if (out.transport.present && tguid.mask[i])
+                    if (out.transport.present && tguid.present[i])
                     {
-                        tguid.bytes[i] = in.Get<uint8>() ^ 1;
+                        tguid.byte[i] = in.Get<uint8>() ^ 1;
                     }
                     continue;
                 }
