@@ -50,14 +50,14 @@ namespace loadtest
     /**
      * @brief Answers server-initiated movement changes under a scripted policy.
      *
-     * Decodes the change with the layout the lookup returns, and encodes the ack
-     * with the ack's layout, echoing the decoded status (the real client echoes
-     * its own status; for a session that does not move between the two, the
-     * change's status is that status). A change or ack with no registered layout
-     * is counted as unregistered; a change whose layout is registered but does
-     * not decode is counted apart, as a decode failure -- the first list is what
-     * P1 has to register, the second what it has to fix. An ack is stamped with
-     * the peer's own clock, as a real client's would be.
+     * The change is decoded for its guid, counter and value; the ack is the
+     * mover's status as last given by SetMover, with those three (and the
+     * two-bit field) written into it and the time stamped when it is sent --
+     * the real client echoes its own status the same way. A change or ack with
+     * no registered layout is counted as unregistered; a change whose layout is
+     * registered but does not decode is counted apart, as a decode failure --
+     * the first list is what P1 has to register, the second what it has to fix.
+     * An ack is stamped with the peer's own clock, as a real client's would be.
      */
     class AckEngine
     {
@@ -69,6 +69,11 @@ namespace loadtest
 
             bool IsChange(uint16 opcode) const;
 
+            /// The mover's current status: what an ack carries besides the change's
+            /// counter and value. Set it before every Due; the default is an empty
+            /// status, which a server accepts but a reader of the capture would not.
+            void SetMover(const Wire::MovementStatus& mover) { m_mover = mover; }
+
             /// Decode `change` and queue its ack per the policy. Returns false, and
             /// counts the opcode, when no layout is registered for it or its ack.
             bool Plan(const WorldPacket& change, uint32 nowTicks);
@@ -78,15 +83,21 @@ namespace loadtest
 
             uint32 Sent() const { return m_sent; }
             uint32 Dropped() const { return m_dropped; }
+            /// Planned and not yet sent. Non-zero when a hold ends means a change
+            /// went unanswered, which the run must say rather than look clean.
+            uint32 PendingCount() const { return uint32(m_pending.size()); }
             const std::map<uint16, uint32>& Unregistered() const { return m_unregistered; }
             const std::map<uint16, uint32>& DecodeFailures() const { return m_decodeFailures; }
 
         private:
             struct Pending
             {
-                uint16               opcode;
-                Wire::MovementStatus status;
-                uint32               dueTicks;
+                uint16 opcode;
+                uint64 guid;
+                uint32 counter;
+                float  value;
+                uint8  twoBits;
+                uint32 dueTicks;
             };
 
             const ChangePair* Find(uint16 change) const;
@@ -94,6 +105,7 @@ namespace loadtest
             AckPolicy               m_policy;
             Lookup                  m_lookup;
             std::vector<ChangePair> m_pairs;
+            Wire::MovementStatus    m_mover;
             std::vector<Pending>    m_pending;
             std::map<uint16, uint32> m_unregistered;
             std::map<uint16, uint32> m_decodeFailures;

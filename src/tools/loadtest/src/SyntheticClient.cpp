@@ -32,6 +32,8 @@
 #include "wire/MovementSequences.h"
 
 #include "Auth/Sha1.h"
+#include "LinkSlot.h"
+#include "OpcodeSlots.h"
 #include "Opcodes.h"
 
 #include <cstdarg>
@@ -215,6 +217,11 @@ namespace loadtest
         m_result.packetsOnStream1 = m_stream1.packets;
         m_result.bytesOnStream0   = m_stream0.bytes;
         m_result.bytesOnStream1   = m_stream1.bytes;
+
+        m_result.sentOnStream0      = m_stream0.sent;
+        m_result.sentOnStream1      = m_stream1.sent;
+        m_result.sentBytesOnStream0 = m_stream0.sentBytes;
+        m_result.sentBytesOnStream1 = m_stream1.sentBytes;
         return m_result;
     }
 
@@ -235,7 +242,24 @@ namespace loadtest
         }
 
         const std::vector<uint8> wire = EncodeClientPacket(packet, cipher);
-        return stream.socket.SendAll(wire.data(), wire.size(), error);
+        if (!stream.socket.SendAll(wire.data(), wire.size(), error))
+        {
+            return false;
+        }
+        ++stream.sent;
+        stream.sentBytes += wire.size();
+        return true;
+    }
+
+    // The client routes what it sends by opcode, not by socket: its send router
+    // (OpcodeSlots.inc, send_slot) puts time-sync answers, movement and acks on the
+    // second stream and the ping on the first. The server accepts either today;
+    // following the client is what makes this peer a regression net for a server
+    // that one day cares about cross-stream order. Stream 1 is live and keyed
+    // from SMSG_RESUME_COMMS on, which is before Serve ever runs.
+    SyntheticClient::Stream& SyntheticClient::StreamFor(uint16 opcode)
+    {
+        return proto::SendSlotOf(opcode) == proto::LinkSlot::One ? m_stream1 : m_stream0;
     }
 
     bool SyntheticClient::Drain(Stream& stream, int timeoutMs, std::string& error)
@@ -726,7 +750,8 @@ namespace loadtest
                     ++report.decodeFailures[opcode];
                     return true;
                 }
-                if (!Send(m_stream0, MakeTimeSyncResponse(counter, nowTicks), error))
+                const WorldPacket reply = MakeTimeSyncResponse(counter, nowTicks);
+                if (!Send(StreamFor(reply.GetOpcode()), reply, error))
                 {
                     return false;
                 }
@@ -819,14 +844,16 @@ namespace loadtest
 
             for (const WorldPacket& packet : walker.Advance(now))
             {
-                if (!Send(m_stream0, packet, error))
+                if (!Send(StreamFor(packet.GetOpcode()), packet, error))
                 {
                     return false;
                 }
             }
+            // An ack sent this tick carries where the mover is this tick.
+            acks.SetMover(walker.Status());
             for (const WorldPacket& packet : acks.Due(now))
             {
-                if (!Send(m_stream0, packet, error))
+                if (!Send(StreamFor(packet.GetOpcode()), packet, error))
                 {
                     return false;
                 }
@@ -837,7 +864,7 @@ namespace loadtest
                 WorldPacket ping(CMSG_PING, 8);
                 ping << uint32(++pingId);
                 ping << uint32(50);                          // reported latency
-                if (!Send(m_stream0, ping, error))
+                if (!Send(StreamFor(CMSG_PING), ping, error))
                 {
                     return false;
                 }
@@ -854,6 +881,7 @@ namespace loadtest
         report.walkLastTime = walker.LastStampedTime();
         report.acksSent = acks.Sent();
         report.acksDropped = acks.Dropped();
+        report.acksPending = acks.PendingCount();
         report.unregisteredChanges = acks.Unregistered();
         for (std::map<uint16, uint32>::const_iterator it = acks.DecodeFailures().begin();
              it != acks.DecodeFailures().end(); ++it)

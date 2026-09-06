@@ -36,8 +36,12 @@ namespace Wire
      * A packet's layout is a sequence of these, terminated by End. The same
      * vocabulary drives both the reader and the writer (MovementCodec.h), so a
      * sequence can never be right for one direction and wrong for the other.
-     * Names mirror the legacy MSE* enum in src/game/movement/MovementStructures.h
-     * one for one, so the seed tables can be checked against it by eye.
+     * Names follow the legacy MSE* enum in src/game/movement/MovementStructures.h
+     * where it has a name for the slot and the Cataclysm Preservation Project's
+     * where it does not (the vehicle id, which the legacy header misnamed as a
+     * third transport time, and the five P1 additions at the end). Every legacy
+     * element keeps its ordinal below End, which is what lets the fence test map
+     * the legacy arrays onto these by value.
      */
     enum class Element : uint8
     {
@@ -56,7 +60,7 @@ namespace Wire
         HasFallDirection,
         HasTransportData,
         HasTransportTime2,
-        HasTransportTime3,
+        HasVehicleId,
         TransportGuidBit0, TransportGuidBit1, TransportGuidBit2, TransportGuidBit3,
         TransportGuidBit4, TransportGuidBit5, TransportGuidBit6, TransportGuidBit7,
         HasSpline,
@@ -83,9 +87,17 @@ namespace Wire
         TransportPositionZ,
         TransportTime,
         TransportTime2,
-        TransportTime3,
+        TransportVehicleId,
         MovementCounter,
         ByteParam,
+
+        // P1: what the Cataclysm Preservation Project's tables use beyond the legacy set.
+        ExtraFloat,             ///< a float the packet carries outside the status: a speed, a collision height
+        ExtraTwoBits,           ///< a two-bit field in the bit section: the collision-height change reason
+        HasHeightChangeFailed,  ///< SMSG_MOVE_UPDATE's extra bit
+        OneBit,                 ///< a bit the client always writes as 1; written as 1, read and discarded
+        FlushBits,              ///< end the bit section here: the writer pads to a byte, the reader realigns
+
         End
     };
 

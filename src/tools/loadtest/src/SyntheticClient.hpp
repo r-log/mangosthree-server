@@ -132,6 +132,11 @@ namespace loadtest
         uint64 bytesOnStream0   = 0;
         uint64 bytesOnStream1   = 0;
 
+        uint32 sentOnStream0 = 0;
+        uint32 sentOnStream1 = 0;
+        uint64 sentBytesOnStream0 = 0;
+        uint64 sentBytesOnStream1 = 0;
+
         /// Where SMSG_LOGIN_VERIFY_WORLD put the character.
         uint32     mapId = 0;
         Wire::Vec4 worldPos;
@@ -163,6 +168,9 @@ namespace loadtest
                 std::vector<WorldPacket> inbox;
                 uint32 packets = 0;
                 uint64 bytes   = 0;
+
+                uint32 sent      = 0;
+                uint64 sentBytes = 0;
             };
 
             bool OpenStreamZero(std::string& error);
@@ -183,6 +191,10 @@ namespace loadtest
 
             /// Sends on `stream`, enciphered iff that stream has armed.
             bool Send(Stream& stream, const WorldPacket& packet, std::string& error);
+
+            /// Which stream a post-login send belongs on, by the client's own
+            /// send router (OpcodeSlots.inc, send_slot).
+            Stream& StreamFor(uint16 opcode);
 
             /**
              * @brief Pump until `wanted` shows up on `stream`, or the deadline passes.

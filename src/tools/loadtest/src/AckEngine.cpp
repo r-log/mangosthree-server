@@ -111,16 +111,18 @@ namespace loadtest
             return false;
         }
 
+        uint32 counter = status.counter;
+
         switch (m_policy.mode)
         {
             case AckMode::Drop:
                 ++m_dropped;
                 return true;
             case AckMode::Mismatch:
-                status.counter += 1;
+                counter += 1;
                 break;
             case AckMode::Stale:
-                status.counter -= 1;
+                counter -= 1;
                 break;
             case AckMode::Delay:
             case AckMode::Immediate:
@@ -128,8 +130,11 @@ namespace loadtest
         }
 
         Pending pending;
-        pending.opcode = pair->ack;
-        pending.status = status;
+        pending.opcode  = pair->ack;
+        pending.guid    = status.guid;
+        pending.counter = counter;
+        pending.value   = status.value;
+        pending.twoBits = status.twoBits;
         pending.dueTicks = nowTicks + (m_policy.mode == AckMode::Delay ? m_policy.delayMs : 0);
         m_pending.push_back(pending);
         return true;
@@ -146,15 +151,22 @@ namespace loadtest
                 keep.push_back(p);
                 continue;
             }
-            // A real client stamps its ack with its own clock, not the time the
-            // server put in the change it is answering.
-            Wire::MovementStatus status = p.status;
-            if (status.has.timestamp)
+            // The ack is the mover's own status, as last given by SetMover, with
+            // the change's counter and value echoed; the SET names the unit, and
+            // the ack names the same one. A real client stamps its ack with its
+            // own clock, not the time the server put in the change it is
+            // answering, so the time comes from here too, not from Plan.
+            Wire::MovementStatus reply = m_mover;
+            reply.guid    = p.guid;
+            reply.counter = p.counter;
+            reply.value   = p.value;
+            reply.twoBits = p.twoBits;
+            if (reply.has.timestamp)
             {
-                status.time = nowTicks;
+                reply.time = nowTicks;
             }
             WorldPacket packet(p.opcode, 64);
-            Wire::Encode(packet, m_lookup(p.opcode), status);
+            Wire::Encode(packet, m_lookup(p.opcode), reply);
             out.push_back(packet);
             ++m_sent;
         }

@@ -32,6 +32,7 @@
 #include "TimeSync.hpp"
 #include "Opcodes.h"
 #include "WorldPacket.h"
+#include "wire/MovementSequences.h"
 
 #include <cmath>
 
@@ -257,6 +258,23 @@ TEST(AckEngine_delays_when_told_to)
     CHECK_EQ(CounterOf(due[0]), uint32(3));
 }
 
+TEST(AckEngine_reports_what_is_still_pending)
+{
+    // A delayed ack that has not gone out yet is a fact the run must report: a
+    // hold that ends before it is due would otherwise look like a clean run.
+    loadtest::AckPolicy policy;
+    policy.mode = loadtest::AckMode::Delay;
+    policy.delayMs = 250;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+    CHECK_EQ(engine.PendingCount(), uint32(0));
+    REQUIRE(engine.Plan(FakeChange(3), 1000));
+    CHECK_EQ(engine.PendingCount(), uint32(1));
+    CHECK(engine.Due(1100).empty());
+    CHECK_EQ(engine.PendingCount(), uint32(1));
+    REQUIRE(engine.Due(1250).size() == 1);
+    CHECK_EQ(engine.PendingCount(), uint32(0));
+}
+
 TEST(AckEngine_mismatches_the_counter_when_told_to)
 {
     loadtest::AckPolicy policy;
@@ -456,4 +474,121 @@ TEST(AckEngine_stamps_the_ack_with_the_client_clock_not_the_servers_time)
     REQUIRE(Wire::Decode(due[0], kTimedLayout, got).ok());
     CHECK_EQ(got.time, uint32(1234));
     CHECK_EQ(got.counter, uint32(7));
+}
+
+TEST(AckEngine_answers_a_real_speed_change_from_the_registry_layouts)
+{
+    // A SET carries the mover's guid, a counter and the new speed; the ack the
+    // client returns carries the mover's whole status plus that counter and
+    // speed. The engine is told the mover's status and echoes the rest.
+    loadtest::AckPolicy policy;
+    loadtest::AckEngine engine(policy, [](uint16 op) { return Wire::SequenceFor(op); });
+    Wire::MovementStatus mover;
+    mover.guid = 0x42;
+    mover.pos.x = 1.0f; mover.pos.y = 2.0f; mover.pos.z = 3.0f; mover.pos.o = 0.5f;
+    engine.SetMover(mover);
+
+    Wire::MovementStatus change;
+    change.guid = 0x42;
+    change.counter = 5;
+    change.value = 14.0f;
+    WorldPacket set(SMSG_MOVE_SET_RUN_SPEED, 32);
+    Wire::Encode(set, Wire::SequenceFor(SMSG_MOVE_SET_RUN_SPEED), change);
+
+    REQUIRE(engine.IsChange(SMSG_MOVE_SET_RUN_SPEED));
+    REQUIRE(engine.Plan(set, 1000));
+    std::vector<WorldPacket> due = engine.Due(1000);
+    REQUIRE(due.size() == 1);
+    CHECK_EQ(int(due[0].GetOpcode()), int(CMSG_FORCE_RUN_SPEED_CHANGE_ACK));
+    Wire::MovementStatus ack;
+    REQUIRE(Wire::Decode(due[0], Wire::SequenceFor(CMSG_FORCE_RUN_SPEED_CHANGE_ACK), ack).ok());
+    CHECK_EQ(ack.guid, uint64(0x42));
+    CHECK_EQ(ack.counter, uint32(5));
+    CHECK_EQ(ack.value, 14.0f);
+    CHECK_EQ(ack.pos.x, 1.0f);
+    CHECK_EQ(ack.pos.o, 0.5f);
+    CHECK_EQ(ack.time, uint32(1000));
+    CHECK(engine.Unregistered().empty());
+    CHECK(engine.DecodeFailures().empty());
+    CHECK_EQ(engine.Sent(), uint32(1));
+}
+
+TEST(AckEngine_knows_which_known_pairs_still_lack_a_layout)
+{
+    // Knock-back and teleport are hand-written packets in every source (P1-C);
+    // the turn-rate and pitch-rate acks have no layout in any source yet. Every
+    // other pair has both halves in the registry now.
+    for (const loadtest::ChangePair& pair : loadtest::KnownChangePairs())
+    {
+        const bool handWritten = pair.change == SMSG_MOVE_KNOCK_BACK || pair.change == SMSG_MOVE_TELEPORT;
+        const bool noAckSource = pair.change == SMSG_MOVE_SET_TURN_RATE || pair.change == SMSG_MOVE_SET_PITCH_RATE;
+        if (handWritten)
+        {
+            CHECK(Wire::SequenceFor(pair.change) == nullptr);
+            continue;
+        }
+        CHECK(Wire::SequenceFor(pair.change) != nullptr);
+        if (noAckSource)
+        {
+            CHECK(Wire::SequenceFor(pair.ack) == nullptr);
+            continue;
+        }
+        CHECK(Wire::SequenceFor(pair.ack) != nullptr);
+    }
+}
+
+TEST(AckEngine_stamps_the_mover_as_it_stands_when_the_ack_is_sent)
+{
+    // The change may arrive a tick before the ack goes out; the ack carries the
+    // mover's position at the send, not at the decode, so position and time agree.
+    loadtest::AckPolicy policy;
+    loadtest::AckEngine engine(policy, [](uint16 op) { return Wire::SequenceFor(op); });
+    Wire::MovementStatus before;
+    before.guid = 0x42;
+    before.pos.x = 1.0f;
+    engine.SetMover(before);
+
+    Wire::MovementStatus change;
+    change.guid = 0x42;
+    change.counter = 9;
+    change.value = 8.0f;
+    WorldPacket set(SMSG_MOVE_SET_RUN_SPEED, 32);
+    Wire::Encode(set, Wire::SequenceFor(SMSG_MOVE_SET_RUN_SPEED), change);
+    REQUIRE(engine.Plan(set, 1000));
+
+    Wire::MovementStatus after = before;
+    after.pos.x = 4.5f;
+    engine.SetMover(after);
+    std::vector<WorldPacket> due = engine.Due(1050);
+    REQUIRE(due.size() == 1);
+    Wire::MovementStatus ack;
+    REQUIRE(Wire::Decode(due[0], Wire::SequenceFor(CMSG_FORCE_RUN_SPEED_CHANGE_ACK), ack).ok());
+    CHECK_EQ(ack.pos.x, 4.5f);
+    CHECK_EQ(ack.time, uint32(1050));
+    CHECK_EQ(ack.counter, uint32(9));
+    CHECK_EQ(ack.value, 8.0f);
+}
+
+TEST(Walker_reports_its_status_without_a_timestamp)
+{
+    loadtest::WalkScript script;
+    script.seconds = 1;
+    script.leadMs = 0;
+    script.headingSet = true;
+    script.heading = 0.0f;
+    Wire::Vec4 start;
+    start.x = 10.0f;
+    loadtest::Walker walker(script, 0x42, start);
+    Wire::MovementStatus s = walker.Status();
+    CHECK_EQ(s.guid, uint64(0x42));
+    CHECK_EQ(s.flags, uint32(0));            // not walking yet
+    CHECK_EQ(s.pos.x, 10.0f);
+    CHECK_EQ(s.pos.o, 0.0f);
+    walker.Advance(0);                       // start
+    walker.Advance(500);                     // heartbeat at x = 13.5
+    s = walker.Status();
+    CHECK_EQ(s.flags, uint32(0x00000001));   // MOVEFLAG_FORWARD
+    CHECK_EQ(s.pos.x, 13.5f);
+    walker.Advance(1000);                    // stop
+    CHECK_EQ(walker.Status().flags, uint32(0));
 }

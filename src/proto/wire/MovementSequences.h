@@ -34,8 +34,9 @@ namespace Wire
     /// One registered layout.
     struct Entry
     {
-        uint16   opcode;
-        Sequence sequence;
+        uint16      opcode;
+        Sequence    sequence;
+        char const* table;      ///< the layout's name in MovementLayouts.inc, for reports
     };
 
     /// Every registered layout, so a test can cover all of them by construction
@@ -52,10 +53,11 @@ namespace Wire
      * @brief The layout the 4.3.4 client uses for `opcode`, or null when none is
      *        known. Null is a legitimate answer (the caller reports NoSequence).
      *
-     * Provenance is recorded per table in MovementSequences.cpp: SERVER-DERIVED
-     * tables were copied from the legacy src/game/movement/MovementStructures.h
-     * and are binary-unverified; BINARY-VERIFIED tables cite the client reader
-     * they were checked against. P1 turns the former into the latter.
+     * Provenance: every table comes from MovementLayouts.inc, generated from the
+     * Cataclysm Preservation Project's tables and binary-unverified (see the
+     * file's banner). P1-B's goldens and P1-C's reader lift upgrade tables in
+     * place; the banner and the legacy fence in MovementCodecTest say where the
+     * two transcriptions the tree has seen disagree.
      */
     Sequence SequenceFor(uint16 opcode);
 }

@@ -160,7 +160,7 @@ namespace Wire
 
                 case Element::HasTransportData:   out.WriteBit(hasTransport);                  break;
                 case Element::HasTransportTime2:  if (hasTransport) { out.WriteBit(status.transport.hasTime2); } break;
-                case Element::HasTransportTime3:  if (hasTransport) { out.WriteBit(status.transport.hasTime3); } break;
+                case Element::HasVehicleId:       if (hasTransport) { out.WriteBit(status.transport.hasVehicleId); } break;
                 case Element::TransportSeat:      if (hasTransport) { out << int8(status.transport.seat); } break;
                 case Element::TransportPositionX: if (hasTransport) { out << float(status.transport.pos.x); } break;
                 case Element::TransportPositionY: if (hasTransport) { out << float(status.transport.pos.y); } break;
@@ -170,12 +170,18 @@ namespace Wire
                 case Element::TransportTime2:
                     if (hasTransport && status.transport.hasTime2) { out << uint32(status.transport.time2); }
                     break;
-                case Element::TransportTime3:
-                    if (hasTransport && status.transport.hasTime3) { out << uint32(status.transport.time3); }
+                case Element::TransportVehicleId:
+                    if (hasTransport && status.transport.hasVehicleId) { out << uint32(status.transport.vehicleId); }
                     break;
 
                 case Element::MovementCounter:    out << uint32(status.counter);               break;
                 case Element::ByteParam:          out << int8(status.byteParam);               break;
+
+                case Element::ExtraFloat:            out << float(status.value);                         break;
+                case Element::ExtraTwoBits:          out.WriteBits(status.twoBits, 2);                   break;
+                case Element::HasHeightChangeFailed: out.WriteBit(status.has.heightChangeFailed);        break;
+                case Element::OneBit:                out.WriteBit(true);                                 break;
+                case Element::FlushBits:             out.FlushBits();                                    break;
 
                 default:
                     // Every Element has a case above; only a value cast from outside the enum
@@ -312,7 +318,7 @@ namespace Wire
 
                     case Element::HasTransportData:   out.transport.present = in.ReadBit();            break;
                     case Element::HasTransportTime2:  if (out.transport.present) { out.transport.hasTime2 = in.ReadBit(); } break;
-                    case Element::HasTransportTime3:  if (out.transport.present) { out.transport.hasTime3 = in.ReadBit(); } break;
+                    case Element::HasVehicleId:       if (out.transport.present) { out.transport.hasVehicleId = in.ReadBit(); } break;
                     case Element::TransportSeat:      if (out.transport.present) { out.transport.seat = in.read<int8>(); } break;
                     case Element::TransportPositionX: if (out.transport.present) { out.transport.pos.x = in.read<float>(); } break;
                     case Element::TransportPositionY: if (out.transport.present) { out.transport.pos.y = in.read<float>(); } break;
@@ -322,12 +328,18 @@ namespace Wire
                     case Element::TransportTime2:
                         if (out.transport.present && out.transport.hasTime2) { out.transport.time2 = in.read<uint32>(); }
                         break;
-                    case Element::TransportTime3:
-                        if (out.transport.present && out.transport.hasTime3) { out.transport.time3 = in.read<uint32>(); }
+                    case Element::TransportVehicleId:
+                        if (out.transport.present && out.transport.hasVehicleId) { out.transport.vehicleId = in.read<uint32>(); }
                         break;
 
                     case Element::MovementCounter:    out.counter = in.read<uint32>();                 break;
                     case Element::ByteParam:          out.byteParam = in.read<int8>();                 break;
+
+                    case Element::ExtraFloat:            out.value = in.read<float>();                      break;
+                    case Element::ExtraTwoBits:          out.twoBits = uint8(in.ReadBits(2));               break;
+                    case Element::HasHeightChangeFailed: out.has.heightChangeFailed = in.ReadBit();         break;
+                    case Element::OneBit:                in.ReadBit();                                      break;
+                    case Element::FlushBits:             in.ResetBitReader();                               break;
 
                     default:
                     {
