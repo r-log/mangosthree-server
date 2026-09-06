@@ -222,8 +222,8 @@ namespace WireParity
     void Inbound(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy)
     {
         if (!Enabled()) { return; }
+        if (!Wire::IsPacketLayout(opcode)) { return; }
         const int i = Wire::RegistryIndex(opcode);
-        if (i < 0) { return; }
         Row& row = Rows()[size_t(i)];
         ++row.inSeen;
         Wire::MovementStatus wire;
@@ -250,8 +250,8 @@ namespace WireParity
     void Outbound(uint16 opcode, WorldPacket const& packet)
     {
         if (!Enabled()) { return; }
+        if (!Wire::IsPacketLayout(opcode)) { return; }
         const int i = Wire::RegistryIndex(opcode);
-        if (i < 0) { return; }
         Row& row = Rows()[size_t(i)];
         ++row.outSeen;
         Wire::MovementStatus wire;

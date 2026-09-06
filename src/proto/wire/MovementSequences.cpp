@@ -105,4 +105,11 @@ namespace Wire
         const int i = RegistryIndex(opcode);
         return i < 0 ? nullptr : kRegistry[i].sequence;
     }
+
+    bool IsEmbeddedLayout(uint16 opcode)
+    {
+        // The registry's CastSpellEmbeddedMovement table (the legacy header's
+        // MovementCastSpellSequence): a block inside the cast packet.
+        return opcode == CMSG_CAST_SPELL || opcode == CMSG_PET_CAST_SPELL || opcode == CMSG_USE_ITEM;
+    }
 }

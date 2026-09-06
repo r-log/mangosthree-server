@@ -123,3 +123,19 @@ TEST(Replay_judges_a_server_speed_set_the_codec_wrote)
     CHECK_EQ(report.exact, uint32(1));
     CHECK(report.Clean());
 }
+
+TEST(Replay_counts_an_embedded_layout_apart_and_does_not_judge_it)
+{
+    // A real CMSG_USE_ITEM from a 15595 client: item fields first, the movement
+    // block after them. Its opcode has a layout, but not for the whole packet.
+    std::stringstream capture;
+    capture << "C 0x2C06 FF0F01098D0100CC00000000000047000000000000000000\n";
+    const loadtest::ReplayReport report = loadtest::Replay(capture);
+    CHECK_EQ(report.lines, uint32(1));
+    CHECK_EQ(report.embedded, uint32(1));
+    CHECK_EQ(report.decoded, uint32(0));
+    CHECK_EQ(report.failed, uint32(0));
+    CHECK_EQ(report.unregistered, uint32(0));
+    CHECK(report.Clean());
+    CHECK_EQ(report.byOpcode.at(CMSG_USE_ITEM).embedded, uint32(1));
+}

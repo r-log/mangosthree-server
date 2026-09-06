@@ -125,6 +125,12 @@ namespace loadtest
             ++report.lines;
             ReplayRow& row = report.byOpcode[line.opcode];
             ++row.lines;
+            if (Wire::IsEmbeddedLayout(line.opcode))
+            {
+                ++row.embedded;
+                ++report.embedded;
+                continue;
+            }
             const Wire::Sequence layout = Wire::SequenceFor(line.opcode);
             if (!layout)
             {
@@ -174,14 +180,14 @@ namespace loadtest
 
     void PrintReplay(ReplayReport const& report, std::FILE* to)
     {
-        std::fprintf(to, "REPLAY %u line(s): %u decoded, %u exact, %u failed, %u unregistered, %u malformed -> %s\n",
-                     report.lines, report.decoded, report.exact, report.failed, report.unregistered, report.malformed,
+        std::fprintf(to, "REPLAY %u line(s): %u decoded, %u exact, %u failed, %u unregistered, %u embedded, %u malformed -> %s\n",
+                     report.lines, report.decoded, report.exact, report.failed, report.unregistered, report.embedded, report.malformed,
                      report.Clean() ? "CLEAN" : "NOT CLEAN");
         for (std::map<uint16, ReplayRow>::const_iterator it = report.byOpcode.begin(); it != report.byOpcode.end(); ++it)
         {
             const ReplayRow& row = it->second;
-            std::fprintf(to, "  0x%.4X  lines %u  decoded %u  exact %u  failed %u  unregistered %u\n",
-                         uint32(it->first), row.lines, row.decoded, row.exact, row.failed, row.unregistered);
+            std::fprintf(to, "  0x%.4X  lines %u  decoded %u  exact %u  failed %u  unregistered %u  embedded %u\n",
+                         uint32(it->first), row.lines, row.decoded, row.exact, row.failed, row.unregistered, row.embedded);
             if (!row.firstProblem.empty())
             {
                 std::fprintf(to, "          %s\n", row.firstProblem.c_str());

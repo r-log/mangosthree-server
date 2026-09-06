@@ -294,7 +294,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
     // The other direction of the same capture: what this server puts on the wire
     // for the opcodes the registry knows, so a replay can judge the legacy writers
     // by the same layouts the client reads with.
-    if (Wire::MovementCapture::IsOpen() && Wire::IsRegistered(packet->GetOpcode()))
+    if (Wire::MovementCapture::IsOpen() && Wire::IsPacketLayout(packet->GetOpcode()))
     {
         Wire::MovementCapture::Record('S', packet->GetOpcode(), packet->contents(), packet->size());
     }
@@ -1555,7 +1555,7 @@ void WorldSession::ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* pac
     // Passive capture of every packet the registry has a layout for, at the one
     // place every handler is reached from; the handler-local hook in
     // HandleMovementOpcodes covers what the registry lacks (P1-C's worklist).
-    if (Wire::MovementCapture::IsOpen() && Wire::IsRegistered(packet->GetOpcode()))
+    if (Wire::MovementCapture::IsOpen() && Wire::IsPacketLayout(packet->GetOpcode()))
     {
         Wire::MovementCapture::Record('C', packet->GetOpcode(), packet->contents(), packet->size());
     }

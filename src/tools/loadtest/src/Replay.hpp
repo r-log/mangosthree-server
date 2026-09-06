@@ -52,6 +52,7 @@ namespace loadtest
     {
         uint32 lines = 0;        ///< capture lines with this opcode
         uint32 unregistered = 0; ///< no layout: counted, not judged
+        uint32 embedded = 0;     ///< the layout is a block inside the packet (the cast opcodes): counted, not judged
         uint32 decoded = 0;      ///< decoded whole (ok, consumed == size)
         uint32 failed = 0;       ///< decode error or a short read
         uint32 exact = 0;        ///< decoded and re-encoded to the same bytes
@@ -62,7 +63,7 @@ namespace loadtest
     struct ReplayReport
     {
         std::map<uint16, ReplayRow> byOpcode;
-        uint32 lines = 0, malformed = 0, unregistered = 0, decoded = 0, failed = 0, exact = 0;
+        uint32 lines = 0, malformed = 0, unregistered = 0, embedded = 0, decoded = 0, failed = 0, exact = 0;
 
         /// True when every registered line decoded whole and re-encoded byte for byte,
         /// and nothing was malformed. Unregistered lines never make it false.

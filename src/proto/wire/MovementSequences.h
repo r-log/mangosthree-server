@@ -72,6 +72,17 @@ namespace Wire
      */
     int RegistryIndex(uint16 opcode);
     inline bool IsRegistered(uint16 opcode) { return RegistryIndex(opcode) >= 0; }
+
+    /**
+     * @brief True for the opcodes whose registered layout is a movement block
+     *        embedded in a larger packet -- the three cast opcodes, whose block
+     *        follows the item, spell and target fields -- rather than the packet.
+     *        Decoding such a packet from its first byte with its layout is wrong;
+     *        the capture, the shadow and the replay leave them alone.
+     */
+    bool IsEmbeddedLayout(uint16 opcode);
+    /// Registered, and the layout is the whole packet.
+    inline bool IsPacketLayout(uint16 opcode) { return IsRegistered(opcode) && !IsEmbeddedLayout(opcode); }
 }
 
 #endif

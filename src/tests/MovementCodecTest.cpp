@@ -764,3 +764,21 @@ TEST(MovementSequences_index_answers_for_every_entry_and_nothing_else)
     CHECK_EQ(Wire::RegistryIndex(SMSG_MOVE_KNOCK_BACK), -1);
     CHECK(!Wire::IsRegistered(CMSG_PING));
 }
+
+TEST(MovementSequences_the_three_cast_opcodes_are_embedded_layouts)
+{
+    // Their table is the movement block inside a cast packet, not the packet;
+    // everything that judges a whole packet must leave them alone.
+    CHECK(Wire::IsEmbeddedLayout(CMSG_CAST_SPELL));
+    CHECK(Wire::IsEmbeddedLayout(CMSG_PET_CAST_SPELL));
+    CHECK(Wire::IsEmbeddedLayout(CMSG_USE_ITEM));
+    CHECK(Wire::IsRegistered(CMSG_USE_ITEM));
+    CHECK(!Wire::IsPacketLayout(CMSG_USE_ITEM));
+    CHECK(!Wire::IsEmbeddedLayout(CMSG_MOVE_START_FORWARD));
+    CHECK(Wire::IsPacketLayout(CMSG_MOVE_START_FORWARD));
+    CHECK(!Wire::IsPacketLayout(CMSG_PING));
+    int embedded = 0;
+    const Wire::Registry r = Wire::AllSequences();
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e) { embedded += Wire::IsEmbeddedLayout(e->opcode) ? 1 : 0; }
+    CHECK_EQ(embedded, 3);
+}
