@@ -29,9 +29,11 @@
 #include "Opcodes.h"
 
 #include "wire/GuidCodec.h"
+#include "wire/KnockBackCodec.h"
 #include "wire/MovementFamilies.h"
 #include "wire/MovementSequences.h"
 #include "wire/MoverCodec.h"
+#include "wire/TeleportCodec.h"
 
 #include <cstring>
 #include <string>
@@ -238,4 +240,110 @@ TEST(MovementFamilies_judge_covers_both_kinds_the_same_way)
     v = Wire::Judge(CMSG_PING, unknown, false);
     CHECK(!v.decoded);
     CHECK(v.result.error == Wire::DecodeError::NoSequence);
+}
+
+TEST(KnockBackCodec_matches_the_tree_writer_and_cpp)
+{
+    // WorldSession::SendKnockBack: mask 0,3,6,7,2,5,1,4; byte 1; float sin;
+    // uint32 counter; bytes 6,7; float horizontal; bytes 4,5,3; float vertical;
+    // float cos; bytes 2,0. For kGuid the mask is 0x80 (byte 0 listed first)
+    // and the one guid byte lands last.
+    Wire::KnockBack v;
+    v.guid = kGuid; v.counter = 7; v.directionY = 0.0f; v.horizontal = 10.0f; v.vertical = -12.0f; v.directionX = 1.0f;
+    WorldPacket p(SMSG_MOVE_KNOCK_BACK, 32);
+    Wire::EncodeKnockBack(p, v);
+    CHECK(Hex(p) == std::string("80" "00000000" "07000000" "00002041" "000040C1" "0000803F" "47"));
+    Wire::KnockBack back;
+    p.rpos(0); p.ResetBitReader();
+    Wire::DecodeResult r = Wire::DecodeKnockBack(p, back);
+    CHECK(r.ok());
+    CHECK_EQ(r.consumed, size_t(22));
+    CHECK_EQ(back.guid, kGuid);
+    CHECK_EQ(back.counter, uint32(7));
+    CHECK_EQ(back.horizontal, 10.0f);
+    CHECK_EQ(back.vertical, -12.0f);
+    CHECK_EQ(back.directionX, 1.0f);
+    Wire::Verdict judged = Wire::Judge(SMSG_MOVE_KNOCK_BACK, p, false);
+    CHECK(judged.decoded);
+    CHECK(judged.exact);
+}
+
+TEST(TeleportCodec_without_transport_or_vehicle_matches_the_tree_writer)
+{
+    // Player::SendTeleportPacket: mask 6,0,3,2; bit hasVehicle (the tree writes
+    // 0); bit hasTransport; mask 1; [transport mask]; mask 4,7,5; flush;
+    // [transport bytes]; uint32 counter; bytes 1,2,3,5; x; byte 4; o; byte 7;
+    // z; [vehicle seat]; bytes 0,6; y. Ten bits: 0x40 0x00.
+    Wire::Teleport v;
+    v.guid = kGuid; v.counter = 1;
+    v.pos.x = 1.5f; v.pos.y = -1.5f; v.pos.z = 2.5f; v.pos.o = 0.5f;
+    WorldPacket p(SMSG_MOVE_TELEPORT, 64);
+    Wire::EncodeTeleport(p, v);
+    CHECK(Hex(p) == std::string("40" "00" "01000000" "0000C03F" "0000003F" "00002040" "47" "0000C0BF"));
+    Wire::Teleport back;
+    p.rpos(0); p.ResetBitReader();
+    Wire::DecodeResult r = Wire::DecodeTeleport(p, back);
+    CHECK(r.ok());
+    CHECK_EQ(r.consumed, size_t(23));
+    CHECK_EQ(back.guid, kGuid);
+    CHECK_EQ(back.pos.x, 1.5f);
+    CHECK_EQ(back.pos.y, -1.5f);
+    CHECK_EQ(back.pos.z, 2.5f);
+    CHECK_EQ(back.pos.o, 0.5f);
+    CHECK(!back.hasTransport);
+    CHECK(!back.hasVehicle);
+    CHECK(Wire::Judge(SMSG_MOVE_TELEPORT, p, false).exact);
+}
+
+TEST(TeleportCodec_transport_and_vehicle_branches_round_trip)
+{
+    // The branches CPP's MoveTeleport::Write carries and the tree's writer does
+    // not (yet): the transport guid's own mask and bytes, the two vehicle bits
+    // after hasVehicle, the seat after z.
+    Wire::Teleport v;
+    v.guid = 0x0000000000000102ULL; v.counter = 9;
+    v.pos.x = 1.0f; v.pos.y = 2.0f; v.pos.z = 3.0f; v.pos.o = 4.0f;
+    v.hasTransport = true; v.transportGuid = 0x1F00000000000A01ULL;
+    v.hasVehicle = true; v.vehicleExitVoluntary = true; v.vehicleExitTeleport = false; v.vehicleSeat = 3;
+    WorldPacket p(SMSG_MOVE_TELEPORT, 64);
+    Wire::EncodeTeleport(p, v);
+    Wire::Teleport back;
+    p.rpos(0); p.ResetBitReader();
+    Wire::DecodeResult r = Wire::DecodeTeleport(p, back);
+    CHECK(r.ok());
+    CHECK_EQ(r.consumed, p.size());
+    CHECK_EQ(back.guid, v.guid);
+    CHECK_EQ(back.transportGuid, v.transportGuid);
+    CHECK(back.hasVehicle);
+    CHECK(back.vehicleExitVoluntary);
+    CHECK(!back.vehicleExitTeleport);
+    CHECK_EQ(back.vehicleSeat, uint32(3));
+    CHECK_EQ(back.pos.y, 2.0f);
+    CHECK(Wire::Judge(SMSG_MOVE_TELEPORT, p, false).exact);
+}
+
+TEST(TeleportCodec_ack_is_counter_time_then_the_masked_guid)
+{
+    // HandleMoveTeleportAckOpcode and CPP's MoveTeleportAck::Read: uint32
+    // counter, uint32 time, mask 5,0,1,6,3,7,2,4, bytes 4,2,7,6,5,1,3,0.
+    Wire::TeleportAck v;
+    v.counter = 1; v.time = 1000; v.guid = kGuid;
+    WorldPacket p(CMSG_MOVE_TELEPORT_ACK, 16);
+    Wire::EncodeTeleportAck(p, v);
+    CHECK(Hex(p) == std::string("01000000" "E8030000" "40" "47"));
+    Wire::TeleportAck back;
+    p.rpos(0); p.ResetBitReader();
+    Wire::DecodeResult r = Wire::DecodeTeleportAck(p, back);
+    CHECK(r.ok());
+    CHECK_EQ(r.consumed, size_t(10));
+    CHECK_EQ(back.counter, uint32(1));
+    CHECK_EQ(back.time, uint32(1000));
+    CHECK_EQ(back.guid, kGuid);
+    CHECK(Wire::Judge(CMSG_MOVE_TELEPORT_ACK, p, false).exact);
+    // Truncated after the time: an overread, whole-or-nothing.
+    WorldPacket cut = FromHex(CMSG_MOVE_TELEPORT_ACK, "01000000E8030000");
+    cut.rpos(0);
+    r = Wire::DecodeTeleportAck(cut, back);
+    CHECK(r.error == Wire::DecodeError::Overread);
+    CHECK_EQ(back.counter, uint32(0));
 }

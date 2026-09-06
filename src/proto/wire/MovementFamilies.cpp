@@ -23,9 +23,11 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
+#include "wire/KnockBackCodec.h"
 #include "wire/MovementFamilies.h"
 #include "wire/MovementSequences.h"
 #include "wire/MoverCodec.h"
+#include "wire/TeleportCodec.h"
 
 #include "Opcodes.h"
 #include "Utilities/ByteBuffer.h"
@@ -145,7 +147,28 @@ namespace Wire
                     if (v.result.ok()) { EncodeControlUpdate(again, value); }
                     break;
                 }
-                // Tasks 2 and 3 add KnockBack, Teleport, TeleportAck, MonsterMove here.
+                case Family::KnockBack:
+                {
+                    KnockBack value;
+                    v.result = DecodeKnockBack(copy, value);
+                    if (v.result.ok()) { EncodeKnockBack(again, value); }
+                    break;
+                }
+                case Family::Teleport:
+                {
+                    Teleport value;
+                    v.result = DecodeTeleport(copy, value);
+                    if (v.result.ok()) { EncodeTeleport(again, value); }
+                    break;
+                }
+                case Family::TeleportAck:
+                {
+                    TeleportAck value;
+                    v.result = DecodeTeleportAck(copy, value);
+                    if (v.result.ok()) { EncodeTeleportAck(again, value); }
+                    break;
+                }
+                // Task 3 adds MonsterMove here.
                 default:
                     v.result.error = DecodeError::NoSequence;
                     return v;
