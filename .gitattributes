@@ -26,6 +26,13 @@ src/shared/revision_nr.h  text eol=lf
 src/shared/revision_sql.h text eol=lf
 
 # ----------------------------------------------------------------------------
+# Generated tables and the scripts that write them -> LF, so regeneration
+# reproduces the committed file byte for byte on every platform
+# ----------------------------------------------------------------------------
+*.inc        text eol=lf
+*.py         text eol=lf
+
+# ----------------------------------------------------------------------------
 # CMake, config and other text files -> LF
 # ----------------------------------------------------------------------------
 CMakeLists.txt text eol=lf

@@ -520,6 +520,38 @@ TEST(AckEngine_knows_which_known_pairs_still_lack_a_layout)
     }
 }
 
+TEST(AckEngine_stamps_the_mover_as_it_stands_when_the_ack_is_sent)
+{
+    // The change may arrive a tick before the ack goes out; the ack carries the
+    // mover's position at the send, not at the decode, so position and time agree.
+    loadtest::AckPolicy policy;
+    loadtest::AckEngine engine(policy, [](uint16 op) { return Wire::SequenceFor(op); });
+    Wire::MovementStatus before;
+    before.guid = 0x42;
+    before.pos.x = 1.0f;
+    engine.SetMover(before);
+
+    Wire::MovementStatus change;
+    change.guid = 0x42;
+    change.counter = 9;
+    change.value = 8.0f;
+    WorldPacket set(SMSG_MOVE_SET_RUN_SPEED, 32);
+    Wire::Encode(set, Wire::SequenceFor(SMSG_MOVE_SET_RUN_SPEED), change);
+    REQUIRE(engine.Plan(set, 1000));
+
+    Wire::MovementStatus after = before;
+    after.pos.x = 4.5f;
+    engine.SetMover(after);
+    std::vector<WorldPacket> due = engine.Due(1050);
+    REQUIRE(due.size() == 1);
+    Wire::MovementStatus ack;
+    REQUIRE(Wire::Decode(due[0], Wire::SequenceFor(CMSG_FORCE_RUN_SPEED_CHANGE_ACK), ack).ok());
+    CHECK_EQ(ack.pos.x, 4.5f);
+    CHECK_EQ(ack.time, uint32(1050));
+    CHECK_EQ(ack.counter, uint32(9));
+    CHECK_EQ(ack.value, 8.0f);
+}
+
 TEST(Walker_reports_its_status_without_a_timestamp)
 {
     loadtest::WalkScript script;

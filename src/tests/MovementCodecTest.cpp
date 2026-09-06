@@ -559,6 +559,9 @@ TEST(MovementCodec_carries_the_transport_vehicle_id_only_under_its_gates)
     CHECK_BYTES(q.contents(), q.size(), { 0x00 });
 }
 
+// The tree's older transcription of these layouts: header-only arrays in
+// src/game/movement, safe to define in this one translation unit. Included only
+// here, and only so the fence below can say exactly how the two transcriptions differ.
 #include "MovementStructures.h"
 
 namespace
@@ -608,9 +611,10 @@ namespace
         { SMSG_PLAYER_MOVE,            "CPP reads HasHeightChangeFailed where legacy has the unnamed bit, and flushes" },
     };
 
-    bool InList(uint16 opcode, uint16 const* list, size_t count)
+    template <size_t N>
+    bool InList(uint16 opcode, const uint16 (&list)[N])
     {
-        for (size_t i = 0; i < count; ++i) { if (list[i] == opcode) { return true; } }
+        for (size_t i = 0; i < N; ++i) { if (list[i] == opcode) { return true; } }
         return false;
     }
     bool InDiffers(uint16 opcode)
@@ -645,8 +649,8 @@ TEST(MovementSequences_agrees_with_the_legacy_arrays_exactly_where_it_should)
         MovementStatusElements const* legacy = GetMovementStatusElementsSequence(e->opcode);
         if (!legacy) { continue; }
         ++covered;
-        const bool verbatim = InList(e->opcode, kLegacyVerbatim, 2);
-        const bool swapped  = InList(e->opcode, kLegacyFallAngleSwapped, 28);
+        const bool verbatim = InList(e->opcode, kLegacyVerbatim);
+        const bool swapped  = InList(e->opcode, kLegacyFallAngleSwapped);
         const bool differs  = InDiffers(e->opcode);
         CHECK_EQ(int(verbatim) + int(swapped) + int(differs), 1);   // every covered opcode in exactly one set
         if (verbatim) { CHECK(SameLayout(e->sequence, legacy, false)); }

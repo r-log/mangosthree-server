@@ -413,13 +413,22 @@ int main(int argc, char** argv)
 
     // The split this harness exists to measure. Today only 19 opcodes are gated
     // onto the second stream, so a login is expected to be lopsided; printing it
-    // per run is what makes a change in the routing policy visible.
+    // per run is what makes a change in the routing policy visible. The first
+    // pair is what the server sent to each stream; the second is what this
+    // client sent on each, which is what shows the routing the client's send
+    // router prescribes.
     std::printf("  stream 0        %u packet(s), %llu byte(s)\n",
                 result.packetsOnStream0,
                 static_cast<unsigned long long>(result.bytesOnStream0));
     std::printf("  stream 1        %u packet(s), %llu byte(s)\n",
                 result.packetsOnStream1,
                 static_cast<unsigned long long>(result.bytesOnStream1));
+    std::printf("  sent on stream 0  %u packet(s), %llu byte(s)\n",
+                result.sentOnStream0,
+                static_cast<unsigned long long>(result.sentBytesOnStream0));
+    std::printf("  sent on stream 1  %u packet(s), %llu byte(s)\n",
+                result.sentOnStream1,
+                static_cast<unsigned long long>(result.sentBytesOnStream1));
 
     const loadtest::PeerReport& peer = result.peer;
     std::printf("PEER timesync answered=%u controlUpdates=%u other=%u\n",
@@ -480,6 +489,8 @@ int main(int argc, char** argv)
         // Every change the server sent must have decoded with its registry layout,
         // and the only changes allowed to have no layout are the two hand-written
         // packets (P1-C) and the two rate changes no source has an ack layout for.
+        // This verdict covers every packet the peer decodes, not only the changes
+        // -- nobody should narrow it later.
         bool acksOk = peer.decodeFailures.empty();
         for (std::map<uint16, uint32>::const_iterator it = peer.unregisteredChanges.begin();
              it != peer.unregisteredChanges.end(); ++it)

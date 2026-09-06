@@ -217,6 +217,11 @@ namespace loadtest
         m_result.packetsOnStream1 = m_stream1.packets;
         m_result.bytesOnStream0   = m_stream0.bytes;
         m_result.bytesOnStream1   = m_stream1.bytes;
+
+        m_result.sentOnStream0      = m_stream0.sent;
+        m_result.sentOnStream1      = m_stream1.sent;
+        m_result.sentBytesOnStream0 = m_stream0.sentBytes;
+        m_result.sentBytesOnStream1 = m_stream1.sentBytes;
         return m_result;
     }
 
@@ -237,7 +242,13 @@ namespace loadtest
         }
 
         const std::vector<uint8> wire = EncodeClientPacket(packet, cipher);
-        return stream.socket.SendAll(wire.data(), wire.size(), error);
+        if (!stream.socket.SendAll(wire.data(), wire.size(), error))
+        {
+            return false;
+        }
+        ++stream.sent;
+        stream.sentBytes += wire.size();
+        return true;
     }
 
     // The client routes what it sends by opcode, not by socket: its send router
@@ -817,8 +828,6 @@ namespace loadtest
                 return false;
             }
             const uint32 now = clock.Ticks();
-            // An ack sent this tick carries where the mover is this tick.
-            acks.SetMover(walker.Status());
 
             Stream* streams[] = { &m_stream0, &m_stream1 };
             for (Stream* stream : streams)
@@ -840,6 +849,8 @@ namespace loadtest
                     return false;
                 }
             }
+            // An ack sent this tick carries where the mover is this tick.
+            acks.SetMover(walker.Status());
             for (const WorldPacket& packet : acks.Due(now))
             {
                 if (!Send(StreamFor(packet.GetOpcode()), packet, error))

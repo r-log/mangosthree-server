@@ -29,7 +29,7 @@ if(NOT IS_DIRECTORY "${PROTO_DIR}")
     message(FATAL_ERROR "Protocol boundary missing: ${PROTO_DIR}")
 endif()
 
-file(GLOB PROTO_SOURCES
+file(GLOB_RECURSE PROTO_SOURCES
     "${PROTO_DIR}/*.h" "${PROTO_DIR}/*.hpp"
     "${PROTO_DIR}/*.cpp" "${PROTO_DIR}/*.cc")
 
