@@ -144,8 +144,12 @@ namespace loadtest
             if (v.exact) { ++row.exact; ++report.exact; }
             else if (row.firstProblem.empty())
             {
+                // The byte offset matters more than the two lengths: an inexact
+                // re-encoding is often the same length as the packet, and then
+                // the lengths alone say nothing about what the writer got wrong.
                 std::ostringstream why;
-                why << "line " << number << ": re-encoded to " << v.reencoded << " byte(s), " << line.bytes.size() << " on the wire";
+                why << "line " << number << ": re-encoded to " << v.reencoded << " byte(s), " << line.bytes.size()
+                    << " on the wire, first difference at byte " << v.firstDifference;
                 row.firstProblem = why.str();
             }
         }

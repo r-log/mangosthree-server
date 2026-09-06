@@ -77,6 +77,13 @@ namespace Wire
         bool exact = false;
         DecodeResult result;
         size_t reencoded = 0;
+        /// Where the re-encoding first parts company with the packet: the byte
+        /// offset of the first difference, or the shorter of the two lengths when
+        /// one is a prefix of the other. -1 when they are the same bytes (and so
+        /// whenever `exact`, and whenever the packet did not decode at all).
+        /// A size alone does not say what changed; this is what a report needs to
+        /// point at the field a legacy writer got wrong.
+        long firstDifference = -1;
     };
 
     /**

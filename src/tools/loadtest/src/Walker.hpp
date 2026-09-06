@@ -61,11 +61,20 @@ namespace loadtest
              * @brief The mover is now here -- a teleport the server ordered and the
              *        peer acked; the next packet starts from this position.
              *
-             * The leg in progress is not ended, only moved: its origin becomes the
-             * new place, so the remaining time still walks the same distance along
-             * the same heading, from there. The home moves with it, so `--return`
-             * walks back to where the teleport left the character rather than to a
-             * point the character can no longer reach.
+             * Position and home both move: `--return` then walks back to where the
+             * teleport left the character rather than to a point it can no longer
+             * reach. Any leg in progress ENDS here -- the state is reset as if none
+             * were running, keeping the heading and whatever legs are still owed --
+             * because a leg that outlived a teleport would owe its stop, and a
+             * return leg its snap to the origin, from a place the mover has left;
+             * that snap is exactly how a small rounding correction turns into a
+             * jump across the map. No CMSG_MOVE_STOP is sent for the leg that ends
+             * this way: the server has just carried the mover elsewhere, and a stop
+             * reported from the old place would be a lie about where it is. The
+             * next Advance therefore opens a fresh leg from `pos` with no lead,
+             * which costs one more CMSG_MOVE_START_FORWARD (and one more `Starts()`)
+             * than an undisturbed walk -- the same thing a real client does after
+             * acking a teleport mid-run.
              */
             void Relocate(const Wire::Vec4& pos);
 

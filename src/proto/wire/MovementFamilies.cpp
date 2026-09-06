@@ -33,8 +33,6 @@
 #include "Opcodes.h"
 #include "Utilities/ByteBuffer.h"
 
-#include <cstring>
-
 namespace
 {
     struct FamilyEntry
@@ -190,7 +188,14 @@ namespace Wire
         {
             again.FlushBits();
             v.reencoded = again.size();
-            v.exact = again.size() == copy.size() && std::memcmp(again.contents(), copy.contents(), copy.size()) == 0;
+            // Walk both to the first byte that differs. When one is a prefix of
+            // the other the walk stops at the shorter length, which is the offset
+            // a reader wants: that is where the two stop agreeing.
+            const size_t shorter = again.size() < copy.size() ? again.size() : copy.size();
+            size_t at = 0;
+            while (at < shorter && again.contents()[at] == copy.contents()[at]) { ++at; }
+            v.exact = again.size() == copy.size() && at == shorter;
+            v.firstDifference = v.exact ? -1 : long(at);
         }
         return v;
     }

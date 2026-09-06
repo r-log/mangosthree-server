@@ -837,6 +837,11 @@ namespace loadtest
                 // (CMSG_MOVE_KNOCK_BACK_ACK is a registered layout).
                 Wire::MovementStatus reply = walker.Status();
                 reply.counter = k.counter;
+                // Stamped from the peer's own clock, like the time-sync and
+                // teleport replies: an ack with time 0 would relay to a paired
+                // observer as an SMSG_MOVE_UPDATE_KNOCK_BACK out of any order.
+                reply.has.timestamp = true;
+                reply.time = nowTicks;
                 reply.fall.present = true;
                 reply.fall.hasDirection = true;
                 reply.fall.time = 0;

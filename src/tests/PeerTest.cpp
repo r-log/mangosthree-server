@@ -181,6 +181,7 @@ TEST(Walker_with_no_seconds_never_moves)
 }
 
 #include "AckEngine.hpp"
+#include "wire/MovementFamilies.h"
 
 namespace
 {
@@ -515,26 +516,27 @@ TEST(AckEngine_answers_a_real_speed_change_from_the_registry_layouts)
 
 TEST(AckEngine_knows_which_known_pairs_still_lack_a_layout)
 {
-    // Knock-back and teleport are hand-written packets in every source (P1-C);
-    // the turn-rate and pitch-rate acks have no layout in any source yet. Every
-    // other pair has both halves in the registry now.
+    // The table is the engine's business only: a change whose status the engine
+    // can decode and echo back as an ack. Knock-back and teleport carry no
+    // movement status at all, so they are not in it -- they have families, and
+    // the peer answers them from those codecs (P1-C). Everything the table does
+    // hold has a registry layout for its change; the turn-rate and pitch-rate
+    // acks are the only halves no source has a layout for yet.
     for (const loadtest::ChangePair& pair : loadtest::KnownChangePairs())
     {
-        const bool handWritten = pair.change == SMSG_MOVE_KNOCK_BACK || pair.change == SMSG_MOVE_TELEPORT;
-        const bool noAckSource = pair.change == SMSG_MOVE_SET_TURN_RATE || pair.change == SMSG_MOVE_SET_PITCH_RATE;
-        if (handWritten)
-        {
-            CHECK(Wire::SequenceFor(pair.change) == nullptr);
-            continue;
-        }
+        CHECK(pair.change != SMSG_MOVE_KNOCK_BACK);
+        CHECK(pair.change != SMSG_MOVE_TELEPORT);
         CHECK(Wire::SequenceFor(pair.change) != nullptr);
-        if (noAckSource)
+        if (pair.change == SMSG_MOVE_SET_TURN_RATE || pair.change == SMSG_MOVE_SET_PITCH_RATE)
         {
             CHECK(Wire::SequenceFor(pair.ack) == nullptr);
             continue;
         }
         CHECK(Wire::SequenceFor(pair.ack) != nullptr);
     }
+    // And the two that left are answered elsewhere, not forgotten.
+    CHECK(Wire::IsFamily(SMSG_MOVE_KNOCK_BACK));
+    CHECK(Wire::IsFamily(SMSG_MOVE_TELEPORT));
 }
 
 TEST(AckEngine_stamps_the_mover_as_it_stands_when_the_ack_is_sent)

@@ -225,6 +225,7 @@ TEST(MovementFamilies_judge_covers_both_kinds_the_same_way)
     CHECK(v.decoded);
     CHECK(v.exact);
     CHECK_EQ(v.result.consumed, size_t(27));
+    CHECK_EQ(v.firstDifference, -1L);                   // exact: nothing to point at
 
     WorldPacket mover = FromHex(SMSG_MOVE_SET_ACTIVE_MOVER, "0847");
     v = Wire::Judge(SMSG_MOVE_SET_ACTIVE_MOVER, mover, false);
@@ -241,6 +242,35 @@ TEST(MovementFamilies_judge_covers_both_kinds_the_same_way)
     v = Wire::Judge(CMSG_PING, unknown, false);
     CHECK(!v.decoded);
     CHECK(v.result.error == Wire::DecodeError::NoSequence);
+}
+
+TEST(MovementFamilies_judge_says_where_an_inexact_re_encoding_first_differs)
+{
+    // The heartbeat golden with one byte of its flag block altered -- 0x91 to
+    // 0xC7 at offset 12. The codec still decodes it whole, and re-encodes it to
+    // 27 bytes: the SAME length as the packet, so the length alone says nothing
+    // at all about what moved. firstDifference is the only thing that points at
+    // it, and it points at byte 19 -- not at 12, because what the altered flags
+    // changed is which fields the block below them carries.
+    //
+    // This is the one such case in the two registry goldens: a sweep of all 256
+    // values at all 27 offsets of both the start-forward and the heartbeat
+    // fixture found 33 decoded-but-inexact packets, and every other one differs
+    // in length as well. No single-BIT flip of the start-forward fixture is
+    // decoded-but-inexact at all -- the codec round-trips them or rejects them.
+    WorldPacket beat = FromHex(MSG_MOVE_HEARTBEAT, "E13AC94232B677C564A059C69104000000012F5C5A054064940100");
+    Wire::Verdict v = Wire::Judge(MSG_MOVE_HEARTBEAT, beat, false);
+    CHECK(v.decoded);
+    CHECK(v.exact);
+    CHECK_EQ(v.firstDifference, -1L);
+
+    const_cast<uint8*>(beat.contents())[12] = 0xC7;
+    v = Wire::Judge(MSG_MOVE_HEARTBEAT, beat, false);
+    CHECK(v.decoded);
+    CHECK(!v.exact);
+    CHECK_EQ(v.reencoded, size_t(27));                  // the same length as the packet
+    CHECK_EQ(beat.size(), size_t(27));
+    CHECK_EQ(v.firstDifference, 19L);
 }
 
 TEST(KnockBackCodec_matches_the_tree_writer_and_cpp)
@@ -463,3 +493,4 @@ TEST(MonsterMoveCodec_refuses_a_path_count_the_buffer_cannot_hold)
     CHECK(r.error == Wire::DecodeError::Overread);
     CHECK(back.points.empty());
 }
+

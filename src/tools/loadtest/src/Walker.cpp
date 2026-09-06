@@ -59,13 +59,19 @@ namespace loadtest
 
     void Walker::Relocate(const Wire::Vec4& pos)
     {
-        // A relocation moves the leg, it does not end it: the walker keeps its
-        // heading and the leg keeps its clock, so the time still to run walks the
-        // same distance in the same direction, starting here. The origin moves
-        // too, which is what makes a return leg end where the teleport left the
-        // character instead of snapping back to a place it was carried away from.
+        // The mover was carried somewhere else, so whatever leg was running is
+        // over: leaving it running would leave a stop, and a return leg's
+        // snap-to-origin, owed from a place the character is no longer at. The
+        // state is reset as if no leg had started -- heading kept, `--return`'s
+        // second leg still owed if it was -- and no CMSG_MOVE_STOP is sent for
+        // the leg that ends here: the server has just teleported this mover, and
+        // a stop reported from the old place would be a lie about where it is.
+        // The next Advance starts a fresh leg from `pos`, with no lead.
         m_pos = pos;
         m_origin = pos;
+        m_started = false;
+        m_armed = false;
+        m_script.leadMs = 0;
     }
 
     WorldPacket Walker::Packet(uint16 opcode, uint32 flags, uint32 nowTicks) const
