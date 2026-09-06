@@ -80,8 +80,11 @@ namespace WireParity
             return *rows;
         }
 
-        /// The row `opcode` counts in, or -1 when the wire layer does not know it.
-        /// Registry rows come first so an existing index keeps its meaning.
+        /// The row `opcode` counts in, or -1 when neither the registry nor the
+        /// family table names it. Registry rows come first so an existing index
+        /// keeps its meaning. An embedded layout answers with its registry index,
+        /// which is a row nothing writes to: every caller gates on IsKnown or
+        /// IsPacketLayout first, and both reject an embedded layout.
         int RowIndex(uint16 opcode)
         {
             const int registry = Wire::RegistryIndex(opcode);
@@ -300,10 +303,13 @@ namespace WireParity
         }
         if (!v.exact)
         {
+            // The offset, not the two lengths: an inexact re-encoding is often
+            // exactly as long as the packet, and then the lengths say nothing
+            // about which field the writer got wrong.
             ++row.outInexact;
-            char text[128];
-            std::snprintf(text, sizeof(text), "0x%.4X %s: outbound re-encodes to %u byte(s), %u on the wire", uint32(opcode),
-                          LookupOpcodeName(opcode), uint32(v.reencoded), uint32(packet.size()));
+            char text[160];
+            std::snprintf(text, sizeof(text), "0x%.4X %s: outbound re-encodes to %u byte(s), %u on the wire, first difference at byte %ld",
+                          uint32(opcode), LookupOpcodeName(opcode), uint32(v.reencoded), uint32(packet.size()), v.firstDifference);
             NoteFirst(row, text);
         }
     }
@@ -311,14 +317,19 @@ namespace WireParity
     void InboundMover(WorldPacket const& packet, uint64 sessionMover)
     {
         if (!Enabled()) { return; }
-        Row& row = Rows()[size_t(RowIndex(CMSG_SET_ACTIVE_MOVER))];
+        const int i = RowIndex(CMSG_SET_ACTIVE_MOVER);
+        if (i < 0) { return; }
+        Row& row = Rows()[size_t(i)];
         ++row.inSeen;
         WorldPacket copy(packet);
         copy.rpos(0);
         copy.ResetBitReader();
         Wire::ActiveMover value;
-        const Wire::DecodeResult r = Wire::DecodeActiveMover(copy, CMSG_SET_ACTIVE_MOVER, value);
-        if (!r.ok() || r.consumed != copy.size())
+        Wire::DecodeResult r = Wire::DecodeActiveMover(copy, CMSG_SET_ACTIVE_MOVER, value);
+        // A decode that stopped short of the payload is a short read, not a
+        // success -- Judge calls that LeftBytes, and so does this.
+        if (r.ok() && r.consumed != copy.size()) { r.error = Wire::DecodeError::LeftBytes; }
+        if (!r.ok())
         {
             ++row.inFailed;
             char text[128];
@@ -342,14 +353,17 @@ namespace WireParity
     void InboundTeleportAck(WorldPacket const& packet, uint32 legacyCounter, uint32 legacyTime, uint64 legacyGuid)
     {
         if (!Enabled()) { return; }
-        Row& row = Rows()[size_t(RowIndex(CMSG_MOVE_TELEPORT_ACK))];
+        const int i = RowIndex(CMSG_MOVE_TELEPORT_ACK);
+        if (i < 0) { return; }
+        Row& row = Rows()[size_t(i)];
         ++row.inSeen;
         WorldPacket copy(packet);
         copy.rpos(0);
         copy.ResetBitReader();
         Wire::TeleportAck value;
-        const Wire::DecodeResult r = Wire::DecodeTeleportAck(copy, value);
-        if (!r.ok() || r.consumed != copy.size())
+        Wire::DecodeResult r = Wire::DecodeTeleportAck(copy, value);
+        if (r.ok() && r.consumed != copy.size()) { r.error = Wire::DecodeError::LeftBytes; }
+        if (!r.ok())
         {
             ++row.inFailed;
             char text[128];
