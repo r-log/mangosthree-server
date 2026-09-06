@@ -75,6 +75,7 @@
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
 #include "wire/MovementCapture.h"
+#include "wire/MovementSequences.h"
 
 #define MOVEMENT_PACKET_TIME_DELAY 0
 
@@ -420,7 +421,9 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
         recv_data.hexlike();
     }
 
-    if (Wire::MovementCapture::IsOpen())
+    // ExecuteOpcode already recorded this packet if the registry has a layout for
+    // it; the ones it lacks are exactly what P1-C needs a capture of.
+    if (Wire::MovementCapture::IsOpen() && !Wire::IsRegistered(opcode))
     {
         Wire::MovementCapture::Record('C', opcode, recv_data.contents(), recv_data.size());
     }
