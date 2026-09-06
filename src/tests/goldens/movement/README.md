@@ -6,10 +6,18 @@ server's `Movement.CaptureFile` format:
     <direction> 0x<opcode> <payload hex>
 
 `C` is client to server, `S` is server to client; `#` starts a comment.
-`GoldenCaptureTest` replays every `*.log` here through the wire registry
+`GoldenCaptureTest` replays the goldens listed below through the wire registry
 (`src/proto/wire/MovementLayouts.inc`): each registered line must decode
-whole and re-encode to the same bytes. A change to the codec or a table that
-breaks that fails the suite, which is the point.
+whole and re-encode to the same bytes. The files are named in the test source,
+not discovered, so a golden that goes missing fails instead of vanishing --
+adding one here means adding it there too. A change to the codec or a table
+that breaks a replay fails the suite, which is the point.
+
+`client-15595.log` is trimmed (four high-volume opcodes cut to their first 40
+and last 10 lines, see the table), and
+`GoldenCapture_client_fall_blocks_settle_the_fall_angle_labels` walks it in
+order with a stateful jump/fall window: re-trimming it changes which packets
+that window sees, so re-run that test after any re-trim.
 
 | File | Provenance |
 |---|---|

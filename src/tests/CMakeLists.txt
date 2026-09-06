@@ -137,7 +137,7 @@ target_include_directories(mangos_tests
         ${CMAKE_SOURCE_DIR}/src/realmd
         ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src)
 
-# Where the golden captures live; GoldenCaptureTest replays every file there.
+# Where the golden captures live; GoldenCaptureTest replays the ones it names.
 target_compile_definitions(mangos_tests PRIVATE MANGOS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/goldens")
 
 target_link_libraries(mangos_tests

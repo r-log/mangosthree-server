@@ -35,6 +35,7 @@
 #include "wire/MovementSequences.h"
 
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -72,6 +73,14 @@ namespace
         }
         out = loadtest::Replay(picked);
     }
+
+    // The four movement flags a direction key sets, by their names in
+    // src/game/Object/Unit.h:739-742 -- MOVEFLAG_FORWARD 0x1,
+    // MOVEFLAG_BACKWARD 0x2, MOVEFLAG_STRAFE_LEFT 0x4, MOVEFLAG_STRAFE_RIGHT
+    // 0x8 -- spelled out here because this test links proto and shared only and
+    // cannot include Unit.h.
+    const uint32 kDirectionKeys = 0x1 | 0x2 | 0x4 | 0x8;
+    const uint32 kForwardOnly   = 0x1;
 }
 
 TEST(GoldenCapture_peer_walk_replays_clean)
@@ -81,6 +90,9 @@ TEST(GoldenCapture_peer_walk_replays_clean)
     CHECK(report.lines >= 60);
     CHECK_EQ(report.malformed, uint32(0));
     CHECK_EQ(report.failed, uint32(0));
+    // Clean() ignores unregistered lines on purpose, so without this a golden
+    // that had lost every layout would still pass the presence checks below.
+    CHECK_EQ(report.unregistered, uint32(0));
     CHECK_EQ(report.exact, report.decoded);
     CHECK(report.Clean());
     // What a walk-and-relay must contain, both directions.
@@ -210,6 +222,7 @@ TEST(GoldenCapture_client_fall_blocks_settle_the_fall_angle_labels)
     bool fallOpen = false;
     float takeoffCos = 0.0f;
     float takeoffSin = 0.0f;
+    int spread = 0;
     while (std::getline(capture, text))
     {
         loadtest::CaptureLine line;
@@ -234,16 +247,19 @@ TEST(GoldenCapture_client_fall_blocks_settle_the_fall_angle_labels)
 
         if (line.opcode == CMSG_MOVE_JUMP)
         {
-            if (s.fall.present && s.fall.hasDirection && s.has.orientation && (s.flags & 0xF) == 0x1)
+            if (s.fall.present && s.fall.hasDirection && s.has.orientation && (s.flags & kDirectionKeys) == kForwardOnly)
             {
                 // Pure forward: direction is the facing.
                 const float c = std::cos(s.pos.o);
                 const float n = std::sin(s.pos.o);
                 CHECK(std::fabs(s.fall.cosAngle - c) < 0.15f);
                 CHECK(std::fabs(s.fall.sinAngle - n) < 0.15f);
+                // Cos and sin far apart: a heading where the two labels cannot be
+                // swapped and still pass the 0.15 tolerance.
+                if (std::fabs(c - n) > 0.5f) { ++spread; }
                 ++judged[CMSG_MOVE_JUMP];
             }
-            if (s.fall.present && s.fall.hasDirection && (s.flags & 0xF) != 0)
+            if (s.fall.present && s.fall.hasDirection && (s.flags & kDirectionKeys) != 0)
             {
                 // A jump with a direction key held is frozen at takeoff: opens
                 // the echo window with that pair.
@@ -253,13 +269,19 @@ TEST(GoldenCapture_client_fall_blocks_settle_the_fall_angle_labels)
             }
             else
             {
-                // A standing jump: no takeoff this model tracks (fact 4).
+                // A standing jump: no takeoff this model tracks (fact 4). Closing
+                // an open window here is an addition beyond the two ruled
+                // conditions (CMSG_MOVE_FALL_LAND, the first packet with no fall
+                // block): a standing jump's direction is set by the first key
+                // pressed in the air, so a window still open across it would judge
+                // echoes of a pair no jump ever announced.
                 fallOpen = false;
             }
             continue;
         }
         if (line.opcode == CMSG_MOVE_FALL_LAND)
         {
+            CHECK(!s.fall.hasDirection);            // fact 1, on every landing the golden has
             fallOpen = false;
             continue;
         }
@@ -284,8 +306,14 @@ TEST(GoldenCapture_client_fall_blocks_settle_the_fall_angle_labels)
         std::printf("    fall block 0x%04X: %d echoed the takeoff pair\n", uint32(it->first), it->second);
         totalEchoes += it->second;
     }
+    std::printf("    fall block 0x%04X: %d judged from a heading with cos and sin far apart\n",
+                uint32(CMSG_MOVE_JUMP), spread);
     REQUIRE(judged[CMSG_MOVE_JUMP] >= 20);
     REQUIRE(totalEchoes >= 20);
+    // A capture whose jumps all faced a diagonal (cos == sin) could not tell the
+    // two labels apart at all -- swapping them would pass the tolerance above --
+    // so the proof rests on the judged jumps spanning headings that do not.
+    CHECK(spread >= 10);
     // At least one Cos-then-Sin table (the opposite wire order from the jump
     // itself) echoed the identical pair: the flip is proven at both wire orders.
     REQUIRE(echoed[MSG_MOVE_HEARTBEAT] + echoed[CMSG_MOVE_START_STRAFE_LEFT] +

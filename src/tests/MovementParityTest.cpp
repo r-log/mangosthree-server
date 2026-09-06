@@ -77,3 +77,27 @@ TEST(MovementParity_a_crossed_fall_angle_pair_is_named_as_the_cos_field)
     b.fall.sinAngle = 1.0f;
     CHECK_STR(Wire::FirstDifference(a, b), "fall.cosAngle");
 }
+
+TEST(MovementParity_fall_time_is_named_before_the_transport_block_and_the_fall_angles)
+{
+    // The shadow's vehicle-id bin rests on this ordering: on seeing fall.time
+    // named it patches that one field and re-compares the rest before crediting
+    // the quirk, which is only sound while fall.time is the FIRST difference a
+    // packet of this shape can produce. If a transport field or a fall angle
+    // came first, the bin would credit the wrong packets and hide a real
+    // disagreement behind a known one.
+    Wire::MovementStatus a;
+    a.fall.present = true;
+    a.fall.hasDirection = true;
+    a.transport.present = true;
+
+    Wire::MovementStatus b = a;
+    b.fall.time = 4242;                  // what the legacy reader wrote there
+    b.transport.vehicleId = 4242;        // and where it belonged
+    CHECK_STR(Wire::FirstDifference(a, b), "fall.time");
+
+    Wire::MovementStatus c = a;
+    c.fall.time = 4242;
+    c.fall.cosAngle = 0.5f;
+    CHECK_STR(Wire::FirstDifference(a, c), "fall.time");
+}
