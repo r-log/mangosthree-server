@@ -94,8 +94,15 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
     return true;
 }
 
-// The wire codec's shadow counters (Movement.WireParity): what the legacy
-// movement reader and the registry's layouts disagree on, per opcode.
+/**
+ * @brief Handler for HandleServerMovementCommand command.
+ *
+ * Prints the wire codec's shadow counters (Movement.WireParity): what the legacy
+ * movement reader and the registry's layouts disagree on, per opcode.
+ *
+ * @param args Command arguments.
+ * @returns True if the command executed successfully, false otherwise.
+ */
 bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
 {
     WireParity::Report([this](std::string const& line) { SendSysMessage(line.c_str()); });

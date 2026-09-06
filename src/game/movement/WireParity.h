@@ -45,13 +45,34 @@ class WorldPacket;
  * Movement.WireParity is set; then every hook is one atomic load.
  *
  * Two legacy quirks are counted apart, not as mismatches, because they are
- * known and each has its own fate: the legacy header named the two
- * fall-direction floats the other way round on 28 layouts (labelSwapped;
- * P1-B's real-client golden found the legacy header's labels were the ones
- * the client's own bytes agree with, so the registry now emits those labels
- * and labelSwapped counts nothing -- it can be removed in P2), and the legacy
- * reader stores a transport's vehicle id into fallTime (vehicleIdInFallTime;
- * P2 retires that reader).
+ * known and each has its own fate:
+ *
+ *  - labelSwapped: the legacy header and the registry disagree about which of
+ *    the two fall-direction floats is the cosine. P1-B's real-client golden
+ *    settled the 28 layouts where the legacy header's labels were suspect --
+ *    the client's own bytes agree with them, the registry now emits those
+ *    labels, and the bin can no longer fire for any of the 28. It can still
+ *    fire for the two the same flip moved the other way,
+ *    CMSG_MOVE_SET_RUN_MODE and CMSG_MOVE_SET_WALK_MODE, which the legacy
+ *    header labels the CPP way (MovementCodecTest's kLegacyFallAngleSwapped).
+ *    Only an airborne run/walk toggle produces such a packet, and the golden
+ *    has none, so those two are unproven either way: a parity run that catches
+ *    one lands it in this bin, and that is the evidence that would settle
+ *    them. The bin therefore outlives P1.
+ *
+ *  - vehicleIdInFallTime: the legacy reader stores a transport's vehicle id
+ *    into fallTime (P2 retires that reader). The bin only fires on a packet
+ *    that carries both a fall block and a transport vehicle id: ToWire reads
+ *    fallTime only when the legacy status says hasFallData, so the commoner
+ *    corruption -- the vehicle id landing in fallTime on a packet with no fall
+ *    block at all -- is masked there and counted nowhere. A 0 in that column
+ *    is not evidence that the defect is absent.
+ *
+ * Boundary: Inbound runs only from HandleMovementOpcodes, so the registered
+ * inbound acks (CMSG_FORCE_*_CHANGE_ACK, CMSG_MOVE_SET_CAN_FLY_ACK, ...) --
+ * which have their own handlers -- are captured and replayed, but never
+ * compared against the legacy reader here. That is the plan's scope, not a
+ * defect; P1-C must not read these counters as covering them.
  */
 namespace WireParity
 {
@@ -66,14 +87,19 @@ namespace WireParity
 
     /// An inbound registered packet, after the legacy reader consumed it.
     void Inbound(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy);
-    /// A relay the legacy writer built from `legacy`, before it is sent.
+    /// A relay the legacy writer built from `legacy`, before it is sent -- and
+    /// before SendPacket flushes its trailing bits.
     void Relay(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy);
     /// Any other registered packet this server sends: must decode, whole.
     void Outbound(uint16 opcode, WorldPacket const& packet);
 
+    /// True once any hook has counted a packet, whatever the switch says now.
+    /// The shutdown report asks this instead of Enabled(), so a `.reload config`
+    /// that turns the shadow off before shutdown does not discard the run.
+    bool Saw();
+
     /// One summary line, then one line per opcode that saw traffic.
     void Report(std::function<void(std::string const&)> const& line);
-    std::string Summary();
 }
 
 #endif

@@ -26,6 +26,7 @@
 #include "WireParity.h"
 
 #include "Unit.h"
+#include "Geometry/Placement.h"
 #include "OpcodeTable.h"
 #include "WorldPacket.h"
 #include "wire/MovementCodec.h"
@@ -34,6 +35,7 @@
 
 #include <atomic>
 #include <cstdio>
+#include <cstring>
 #include <mutex>
 #include <vector>
 
@@ -64,8 +66,9 @@ namespace WireParity
         std::vector<Row>& Rows()
         {
             // Leaked on purpose: the process is exiting when the last reader runs
-            // (World::CleanupsBeforeStop, then whatever static destruction follows),
-            // and static destruction order across singletons is not ours to control.
+            // (Master::ShutdownWorld's report, then whatever static destruction
+            // follows), and static destruction order across singletons is not
+            // ours to control.
             static std::vector<Row>* rows = new std::vector<Row>(Wire::RegistrySize());
             return *rows;
         }
@@ -98,15 +101,29 @@ namespace WireParity
 
         // Where the codec's decode and the legacy status disagree, sorted into the
         // three bins the header describes.
-        void Compare(Row& row, uint16 opcode, Wire::MovementStatus const& wire, MovementInfo const& legacy)
+        void Compare(Row& row, uint16 opcode, Wire::MovementStatus const& wire, MovementInfo const& legacy, bool relayed)
         {
-            const Wire::MovementStatus expected = ToWire(legacy, wire);
+            Wire::MovementStatus expected = ToWire(legacy, wire);
+            if (relayed)
+            {
+                // The relay writer wraps the orientation into [0, 2pi) (Unit.cpp:480,
+                // :537); the client's own packets are compared raw, where a wrapped
+                // expectation would hide a reader defect.
+                if (expected.has.orientation)
+                {
+                    expected.pos.o = Geometry::Placement::NormalizeOrientation(expected.pos.o);
+                }
+                if (expected.transport.present)
+                {
+                    expected.transport.pos.o = Geometry::Placement::NormalizeOrientation(expected.transport.pos.o);
+                }
+            }
             char const* field = Wire::FirstDifference(wire, expected);
             if (!field)
             {
                 return;
             }
-            if ((field == std::string("fall.cosAngle") || field == std::string("fall.sinAngle")) &&
+            if ((std::strcmp(field, "fall.cosAngle") == 0 || std::strcmp(field, "fall.sinAngle") == 0) &&
                 wire.fall.cosAngle == expected.fall.sinAngle && wire.fall.sinAngle == expected.fall.cosAngle)
             {
                 Wire::MovementStatus crossed = expected;
@@ -118,7 +135,7 @@ namespace WireParity
                     return;
                 }
             }
-            if (field == std::string("fall.time") && wire.transport.present && wire.transport.hasVehicleId &&
+            if (std::strcmp(field, "fall.time") == 0 && wire.transport.present && wire.transport.hasVehicleId &&
                 expected.fall.time == wire.transport.vehicleId)
             {
                 // fall.time comes before fall.vertical/horizontal/cosAngle/sinAngle and
@@ -162,7 +179,7 @@ namespace WireParity
                 NoteFirst(row, text);
                 return;
             }
-            Compare(row, opcode, wire, legacy);
+            Compare(row, opcode, wire, legacy, relayed);
         }
     }
 
@@ -202,6 +219,10 @@ namespace WireParity
                 w.fall.sinAngle = legacy.GetJumpInfo().sinAngle;
             }
         }
+        // MovementInfo does not expose the HasTransportData gate (it is a local in
+        // MovementInfo::Read), so a non-empty transport guid is the only signal: a
+        // client that sends the gate with a zero guid shows as a transport.present
+        // disagreement, which is right.
         w.transport.present = !legacy.GetTransportGuid().IsEmpty();
         if (w.transport.present)
         {
@@ -267,20 +288,38 @@ namespace WireParity
         }
     }
 
-    std::string Summary()
+    bool Saw()
     {
-        uint32 inSeen = 0, inFailed = 0, inMismatch = 0, swapped = 0, vehicle = 0, outSeen = 0, outFailed = 0;
         for (Row const& r : Rows())
         {
-            inSeen += r.inSeen; inFailed += r.inFailed; inMismatch += r.inMismatch;
-            swapped += r.labelSwapped; vehicle += r.vehicleIdInFallTime;
-            outSeen += r.outSeen; outFailed += r.outFailed;
+            if (r.inSeen.load(std::memory_order_relaxed) != 0 || r.outSeen.load(std::memory_order_relaxed) != 0)
+            {
+                return true;
+            }
         }
-        char text[256];
-        std::snprintf(text, sizeof(text),
-                      "wire parity %s: in %u seen, %u failed, %u mismatched (%u fall-label swapped, %u vehicle id in fall time); out %u seen, %u failed",
-                      Enabled() ? "on" : "off", inSeen, inFailed, inMismatch, swapped, vehicle, outSeen, outFailed);
-        return text;
+        return false;
+    }
+
+    namespace
+    {
+        // The one line Report() opens with: the totals across every row. Nothing
+        // outside this file asks for it -- the GM command and the shutdown log
+        // both go through Report -- so it stays file-local.
+        std::string Summary()
+        {
+            uint32 inSeen = 0, inFailed = 0, inMismatch = 0, swapped = 0, vehicle = 0, outSeen = 0, outFailed = 0;
+            for (Row const& r : Rows())
+            {
+                inSeen += r.inSeen; inFailed += r.inFailed; inMismatch += r.inMismatch;
+                swapped += r.labelSwapped; vehicle += r.vehicleIdInFallTime;
+                outSeen += r.outSeen; outFailed += r.outFailed;
+            }
+            char text[256];
+            std::snprintf(text, sizeof(text),
+                          "wire parity %s: in %u seen, %u failed, %u mismatched (%u fall-label swapped, %u vehicle id in fall time); out %u seen, %u failed",
+                          Enabled() ? "on" : "off", inSeen, inFailed, inMismatch, swapped, vehicle, outSeen, outFailed);
+            return text;
+        }
     }
 
     void Report(std::function<void(std::string const&)> const& line)
@@ -308,5 +347,6 @@ namespace WireParity
             }
         }
         line("  columns: in seen/failed/mismatched (the SMSG_PLAYER_MOVE row counts the relays this server built), out seen/failed");
+        line("  vehicle counts only packets carrying both a fall block and a transport vehicle id; a 0 is not evidence the defect is absent");
     }
 }

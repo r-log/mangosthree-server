@@ -422,9 +422,10 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
         recv_data.hexlike();
     }
 
-    // ExecuteOpcode already recorded this packet if the registry has a layout for
-    // it; the ones it lacks are exactly what P1-C needs a capture of.
-    if (Wire::MovementCapture::IsOpen() && !Wire::IsRegistered(opcode))
+    // ExecuteOpcode already recorded this packet if the registry has a whole-packet
+    // layout for it -- the exact complement of the condition there; the ones it
+    // lacks are exactly what P1-C needs a capture of.
+    if (Wire::MovementCapture::IsOpen() && !Wire::IsPacketLayout(opcode))
     {
         Wire::MovementCapture::Record('C', opcode, recv_data.contents(), recv_data.size());
     }
