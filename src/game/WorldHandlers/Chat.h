@@ -578,6 +578,7 @@ class ChatHandler
         bool HandleServerLogFilterCommand(char* args);
         bool HandleServerLogLevelCommand(char* args);
         bool HandleServerMotdCommand(char* args);
+        bool HandleServerMovementCommand(char* args);
         bool HandleServerPLimitCommand(char* args);
         bool HandleServerResetAllRaidCommand(char* args);
         bool HandleServerRestartCommand(char* args);

@@ -74,6 +74,7 @@
 #include "MapPersistentStateMgr.h"
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
+#include "movement/WireParity.h"
 #include "wire/MovementCapture.h"
 #include "wire/MovementSequences.h"
 
@@ -442,6 +443,7 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
     MovementInfo movementInfo;
     recv_data >> movementInfo;
     /*----------------*/
+    WireParity::Inbound(opcode, recv_data, movementInfo);
 
     if (!VerifyMovementInfo(movementInfo))
     {
@@ -470,6 +472,7 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
 
     WorldPacket data(SMSG_PLAYER_MOVE, recv_data.size());
     data << movementInfo;
+    WireParity::Relay(SMSG_PLAYER_MOVE, data, movementInfo);
     mover->SendMessageToSetExcept(&data, _player);
 }
 

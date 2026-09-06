@@ -115,6 +115,7 @@
 #include <mutex>
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
+#include "movement/WireParity.h"
 #include "wire/MovementCapture.h"
 
 
@@ -198,6 +199,11 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
 /// World destructor
 World::~World()
 {
+    if (WireParity::Enabled())
+    {
+        WireParity::Report([](std::string const& line) { sLog.outString("%s", line.c_str()); });
+    }
+
     Wire::MovementCapture::Close();
 
     // it is assumed that no other thread is accessing this data when the destructor is called.  therefore, no locks are necessary

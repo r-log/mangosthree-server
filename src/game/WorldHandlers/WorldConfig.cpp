@@ -26,6 +26,7 @@
 #include <cmath>
 #include <string>
 #include "World.h"
+#include "movement/WireParity.h"
 #include "wire/MovementCapture.h"
 #include "Database/DatabaseEnv.h"
 #include "Config/Config.h"
@@ -696,6 +697,13 @@ void World::LoadConfigSettings(bool reload)
     }
 
     setConfig(CONFIG_BOOL_MOVEMENT_ARBITER_SHADOW, "Movement.ArbiterShadow", false);
+
+    setConfig(CONFIG_BOOL_MOVEMENT_WIRE_PARITY, "Movement.WireParity", false);
+    WireParity::Enable(getConfig(CONFIG_BOOL_MOVEMENT_WIRE_PARITY));
+    if (WireParity::Enabled())
+    {
+        sLog.outString("WORLD: Wire parity shadow ON (.server movement to read it)");
+    }
 
     sLog.outString();
 }

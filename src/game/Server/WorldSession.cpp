@@ -60,6 +60,7 @@
 #include "Log.h"
 #include "OpcodeTable.h"
 #include "WorldPacket.h"
+#include "movement/WireParity.h"
 #include "wire/MovementCapture.h"
 #include "wire/MovementSequences.h"
 #include "WorldSession.h"
@@ -296,6 +297,11 @@ void WorldSession::SendPacket(WorldPacket const* packet)
     if (Wire::MovementCapture::IsOpen() && Wire::IsRegistered(packet->GetOpcode()))
     {
         Wire::MovementCapture::Record('S', packet->GetOpcode(), packet->contents(), packet->size());
+    }
+
+    if (WireParity::Enabled() && packet->GetOpcode() != SMSG_PLAYER_MOVE)
+    {
+        WireParity::Outbound(packet->GetOpcode(), *packet);   // the relay is compared at its writer
     }
 
     m_Socket->SendPacket(*packet);
