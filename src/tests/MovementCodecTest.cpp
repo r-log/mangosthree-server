@@ -750,3 +750,17 @@ TEST(MovementSequences_random_bytes_never_escape_the_decoder)
         }
     }
 }
+
+TEST(MovementSequences_index_answers_for_every_entry_and_nothing_else)
+{
+    const Wire::Registry r = Wire::AllSequences();
+    CHECK_EQ(int(Wire::RegistrySize()), int(r.end - r.begin));
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        CHECK_EQ(Wire::RegistryIndex(e->opcode), int(e - r.begin));
+        CHECK(Wire::IsRegistered(e->opcode));
+    }
+    CHECK_EQ(Wire::RegistryIndex(0x0000), -1);
+    CHECK_EQ(Wire::RegistryIndex(SMSG_MOVE_KNOCK_BACK), -1);
+    CHECK(!Wire::IsRegistered(CMSG_PING));
+}

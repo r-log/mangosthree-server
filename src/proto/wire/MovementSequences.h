@@ -60,6 +60,18 @@ namespace Wire
      * two transcriptions the tree has seen disagree.
      */
     Sequence SequenceFor(uint16 opcode);
+
+    /// Number of registered layouts (the size of AllSequences()).
+    size_t RegistrySize();
+
+    /**
+     * @brief Position of `opcode` in AllSequences(), or -1 when it has no layout.
+     *
+     * O(1) after the first call: the session asks for every packet it sends and
+     * every packet it dispatches, so a linear search would sit on the hot path.
+     */
+    int RegistryIndex(uint16 opcode);
+    inline bool IsRegistered(uint16 opcode) { return RegistryIndex(opcode) >= 0; }
 }
 
 #endif

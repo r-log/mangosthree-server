@@ -60,6 +60,8 @@ set(SRC_GRP_PROTO
     wire/MovementCodec.cpp
     wire/MovementSequences.h
     wire/MovementSequences.cpp
+    wire/MovementParity.h
+    wire/MovementParity.cpp
     wire/MovementLayouts.inc
     wire/gen_movement_layouts.py
     wire/MovementCapture.h

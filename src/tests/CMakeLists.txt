@@ -53,6 +53,7 @@ set(SRC_GRP_TESTS
     OpcodeSlotsTest.cpp
     OpcodeValuesTest.cpp
     MovementCodecTest.cpp
+    MovementParityTest.cpp
     ServerRoutingTest.cpp
     SessionLinksTest.cpp
     RedirectRegistryTest.cpp
