@@ -40,6 +40,7 @@
 #include "BuildInfo.h"
 #include "Timer.h"
 #include "World.h"
+#include "movement/WireParity.h"
 
 #ifdef _WIN32
 #include "ServiceWin32.h"
@@ -336,6 +337,13 @@ void Master::ShutdownWorld()
 
     sLog.outString("[shutdown] draining remaining sessions");
     sWorld.UpdateSessions(1);
+
+    // The wire-parity shadow's tally, while the sessions are drained and every
+    // singleton and the logger are still alive; static destruction is too late.
+    if (WireParity::Enabled())
+    {
+        WireParity::Report([](std::string const& line) { sLog.outString("%s", line.c_str()); });
+    }
 
     sLog.outString("[shutdown] stopping the world listener");
     sWorldNetwork.Stop();

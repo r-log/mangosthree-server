@@ -115,7 +115,6 @@
 #include <mutex>
 #include "PlayerRegistry.h"
 #include "CorpseManager.h"
-#include "movement/WireParity.h"
 #include "wire/MovementCapture.h"
 
 
@@ -228,13 +227,6 @@ void World::CleanupsBeforeStop()
     KickAll();                                       // save and kick all players
     UpdateSessions(1);                               // real players unload required UpdateSessions call
     sBattleGroundMgr.DeleteAllBattleGrounds();       // unload battleground templates before different singletons destroyed
-
-    // The wire-parity shadow's tally, while every singleton and the logger are
-    // still alive: static destruction runs too late for a report.
-    if (WireParity::Enabled())
-    {
-        WireParity::Report([](std::string const& line) { sLog.outString("%s", line.c_str()); });
-    }
 }
 
 
