@@ -57,6 +57,18 @@ namespace loadtest
             bool Done() const { return m_done; }
             const Wire::Vec4& Position() const { return m_pos; }
 
+            /**
+             * @brief The mover is now here -- a teleport the server ordered and the
+             *        peer acked; the next packet starts from this position.
+             *
+             * The leg in progress is not ended, only moved: its origin becomes the
+             * new place, so the remaining time still walks the same distance along
+             * the same heading, from there. The home moves with it, so `--return`
+             * walks back to where the teleport left the character rather than to a
+             * point the character can no longer reach.
+             */
+            void Relocate(const Wire::Vec4& pos);
+
             /// The mover as it stands now: guid, forward flag while a leg is under
             /// way, position with the heading as orientation; no timestamp -- the
             /// caller stamps.

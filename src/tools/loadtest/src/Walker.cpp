@@ -57,6 +57,17 @@ namespace loadtest
         return status;
     }
 
+    void Walker::Relocate(const Wire::Vec4& pos)
+    {
+        // A relocation moves the leg, it does not end it: the walker keeps its
+        // heading and the leg keeps its clock, so the time still to run walks the
+        // same distance in the same direction, starting here. The origin moves
+        // too, which is what makes a return leg end where the teleport left the
+        // character instead of snapping back to a place it was carried away from.
+        m_pos = pos;
+        m_origin = pos;
+    }
+
     WorldPacket Walker::Packet(uint16 opcode, uint32 flags, uint32 nowTicks) const
     {
         Wire::MovementStatus status = Status();
