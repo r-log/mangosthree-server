@@ -24,6 +24,7 @@
  */
 
 #include "wire/MovementCodec.h"
+#include "wire/ByteReader.h"
 
 #include "Utilities/ByteBuffer.h"
 
@@ -214,63 +215,9 @@ namespace Wire
             }
         };
 
-        /// Thrown when the layout asks for a byte the buffer does not hold. A
-        /// codec-local type on purpose: ByteBufferException logs from its
-        /// constructor, and a shadow or a replay that judges bad packets must not
-        /// write a line per packet.
-        struct Overread {};
-
-        /// Every read of a decode goes through here, so the bounds are checked
-        /// before ByteBuffer's own check could throw. The bit position mirrors
-        /// ByteBuffer's: both start at a byte boundary (Decode's precondition) and
-        /// every read in between is one of these, so a bit read is bounds-checked
-        /// exactly when ByteBuffer would fetch a new cursor byte.
-        struct Reader
-        {
-            ByteBuffer& in;
-            size_t bitpos = 8;
-
-            explicit Reader(ByteBuffer& buffer) : in(buffer) {}
-
-            template <typename T>
-            T Get()
-            {
-                if (in.rpos() + sizeof(T) > in.size()) { throw Overread(); }
-                bitpos = 8;                              // read<T>() resets the bit reader
-                return in.read<T>();
-            }
-
-            bool Bit()
-            {
-                ++bitpos;
-                if (bitpos > 7)
-                {
-                    if (in.rpos() >= in.size()) { throw Overread(); }
-                    bitpos = 0;
-                }
-                return in.ReadBit();
-            }
-
-            uint32 Bits(size_t bits)
-            {
-                uint32 value = 0;
-                for (int32 i = int32(bits) - 1; i >= 0; --i)
-                {
-                    if (Bit()) { value |= (1u << i); }
-                }
-                return value;
-            }
-
-            void Reset()
-            {
-                in.ResetBitReader();
-                bitpos = 8;
-            }
-        };
-
         DecodeResult DecodeUnchecked(ByteBuffer& buffer, Sequence sequence, MovementStatus& out)
         {
-            Reader in(buffer);
+            Detail::Reader in(buffer);
             GuidReader guid, guid2, tguid;
             bool hasFlags = false;
             bool hasFlags2 = false;
@@ -427,7 +374,7 @@ namespace Wire
         {
             result = DecodeUnchecked(in, sequence, candidate);
         }
-        catch (Overread const&)
+        catch (Detail::Overread const&)
         {
             result.error = DecodeError::Overread;
         }
