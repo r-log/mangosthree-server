@@ -84,19 +84,6 @@ namespace WireParity
             }
         }
 
-        bool DecodeCopy(uint16 opcode, WorldPacket const& packet, Wire::MovementStatus& out, Wire::DecodeResult& result)
-        {
-            WorldPacket copy(packet);
-            // Wire::Decode's precondition is a bit cursor at a byte boundary: flush any
-            // pending write bits into the copy (only the copy grows by that byte, never
-            // the original), then rewind and reset the read-side bit cursor.
-            copy.FlushBits();
-            copy.rpos(0);
-            copy.ResetBitReader();
-            result = Wire::Decode(copy, Wire::SequenceFor(opcode), out);
-            return result.ok() && result.consumed == copy.size();
-        }
-
         const char* ErrorName(Wire::DecodeError e)
         {
             switch (e)
@@ -153,6 +140,29 @@ namespace WireParity
             std::snprintf(text, sizeof(text), "0x%.4X %s: first mismatch in %s", uint32(opcode),
                           LookupOpcodeName(opcode), field);
             NoteFirst(row, text);
+        }
+
+        // The one body both compared directions run: decode a copy of the packet
+        // whole with its layout, then compare against the legacy status. `relayed`
+        // says the bytes came from this server's legacy writer, which has not
+        // flushed its trailing bits yet (WorldSession::SendPacket does that later),
+        // rather than from the client, whose packet the legacy reader has just read
+        // and whose bit cursor therefore holds read state.
+        void Judge(Row& row, uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy, bool relayed)
+        {
+            ++row.inSeen;
+            Wire::MovementStatus wire;
+            Wire::DecodeResult result;
+            if (!Wire::DecodeWhole(packet, Wire::SequenceFor(opcode), wire, result, relayed))
+            {
+                ++row.inFailed;
+                char text[128];
+                std::snprintf(text, sizeof(text), "0x%.4X %s: decode %s, consumed %u, payload %u", uint32(opcode),
+                              LookupOpcodeName(opcode), ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
+                NoteFirst(row, text);
+                return;
+            }
+            Compare(row, opcode, wire, legacy);
         }
     }
 
@@ -223,28 +233,17 @@ namespace WireParity
     {
         if (!Enabled()) { return; }
         if (!Wire::IsPacketLayout(opcode)) { return; }
-        const int i = Wire::RegistryIndex(opcode);
-        Row& row = Rows()[size_t(i)];
-        ++row.inSeen;
-        Wire::MovementStatus wire;
-        Wire::DecodeResult result;
-        if (!DecodeCopy(opcode, packet, wire, result))
-        {
-            ++row.inFailed;
-            char text[128];
-            std::snprintf(text, sizeof(text), "0x%.4X %s: decode %s, consumed %u of %u", uint32(opcode),
-                          LookupOpcodeName(opcode), ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
-            NoteFirst(row, text);
-            return;
-        }
-        Compare(row, opcode, wire, legacy);
+        Judge(Rows()[size_t(Wire::RegistryIndex(opcode))], opcode, packet, legacy, false);
     }
 
     void Relay(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy)
     {
         // The same comparison as Inbound; the bytes came from the legacy writer
-        // instead of the client, which is what makes it a test of that writer.
-        Inbound(opcode, packet, legacy);
+        // instead of the client, which is what makes it a test of that writer --
+        // and that writer has not flushed its trailing bits yet.
+        if (!Enabled()) { return; }
+        if (!Wire::IsPacketLayout(opcode)) { return; }
+        Judge(Rows()[size_t(Wire::RegistryIndex(opcode))], opcode, packet, legacy, true);
     }
 
     void Outbound(uint16 opcode, WorldPacket const& packet)
@@ -256,11 +255,13 @@ namespace WireParity
         ++row.outSeen;
         Wire::MovementStatus wire;
         Wire::DecodeResult result;
-        if (!DecodeCopy(opcode, packet, wire, result))
+        // SendPacket flushed this packet's trailing bits before the hook ran, so
+        // the copy carries every byte the wire will: nothing left to flush.
+        if (!Wire::DecodeWhole(packet, Wire::SequenceFor(opcode), wire, result, false))
         {
             ++row.outFailed;
             char text[128];
-            std::snprintf(text, sizeof(text), "0x%.4X %s: outbound decode %s, consumed %u of %u", uint32(opcode),
+            std::snprintf(text, sizeof(text), "0x%.4X %s: outbound decode %s, consumed %u, payload %u", uint32(opcode),
                           LookupOpcodeName(opcode), ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
             NoteFirst(row, text);
         }

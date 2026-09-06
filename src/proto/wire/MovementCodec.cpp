@@ -381,4 +381,18 @@ namespace Wire
         out = result.ok() ? candidate : MovementStatus();
         return result;
     }
+
+    bool DecodeWhole(ByteBuffer const& packet, Sequence sequence, MovementStatus& out,
+                     DecodeResult& result, bool pendingWriteBits)
+    {
+        ByteBuffer copy(packet);
+        if (pendingWriteBits)
+        {
+            copy.FlushBits();
+        }
+        copy.rpos(0);
+        copy.ResetBitReader();
+        result = Decode(copy, sequence, out);
+        return result.ok() && result.consumed == copy.size();
+    }
 }

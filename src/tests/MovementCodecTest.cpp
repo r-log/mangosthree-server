@@ -799,3 +799,57 @@ TEST(MovementSequences_the_three_cast_opcodes_are_embedded_layouts)
     for (Wire::Entry const* e = r.begin; e != r.end; ++e) { embedded += Wire::IsEmbeddedLayout(e->opcode) ? 1 : 0; }
     CHECK_EQ(embedded, 3);
 }
+
+// DecodeWhole: copy a packet, decode it with one layout, and say whether the
+// layout consumed every byte. The one thing it has to get right is ByteBuffer's
+// single bit cursor, which serves both the read and the write side.
+namespace
+{
+    // A layout ending on a bit, so a packet a writer has built and not flushed
+    // still holds its last bit in the cursor byte -- the state
+    // WorldSession::SendPacket receives, and the one the relay hook is handed.
+    const Wire::Element kTrailingBitSequence[] =
+    {
+        Wire::Element::PositionX,
+        Wire::Element::OneBit,
+        Wire::Element::End
+    };
+}
+
+TEST(MovementCodec_DecodeWhole_leaves_a_read_packet_whole)
+{
+    // The legacy reader leaves ByteBuffer's one bit cursor in read state; a
+    // whole-packet decode of a copy must not flush that state into a byte.
+    WorldPacket packet(CMSG_MOVE_START_FORWARD, 64);
+    Wire::Encode(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), FullFixture());
+    const size_t bytes = packet.size();
+    packet.rpos(0);
+    packet.ResetBitReader();
+    (void)packet.ReadBit();                        // as the legacy reader leaves it
+    Wire::MovementStatus out;
+    Wire::DecodeResult result;
+    CHECK(Wire::DecodeWhole(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), out, result, false));
+    CHECK_EQ(result.consumed, bytes);
+    CHECK_EQ(packet.size(), bytes);                // the original is untouched
+    CHECK_EQ(out.pos.x, FullFixture().pos.x);
+}
+
+TEST(MovementCodec_DecodeWhole_flushes_a_writers_pending_bits)
+{
+    // A packet a writer built and has not flushed: its last bits are still in
+    // the cursor byte, and the copy must carry them before it is judged.
+    // Wire::Encode flushes at the end of every layout, so the state the relay
+    // hook actually sees is built here by hand instead.
+    WorldPacket packet;
+    packet << float(1.5f);
+    packet.WriteBit(true);                         // pending: the cursor byte is not appended yet
+    CHECK_EQ(packet.size(), size_t(4));
+    Wire::MovementStatus out;
+    Wire::DecodeResult result;
+    CHECK(Wire::DecodeWhole(packet, kTrailingBitSequence, out, result, true));
+    CHECK_EQ(result.consumed, packet.size() + 1);  // the flushed byte
+    CHECK_EQ(packet.size(), size_t(4));            // the original is untouched
+    CHECK_EQ(out.pos.x, 1.5f);
+    // And without being told: the copy is short by that byte and cannot pass.
+    CHECK(!Wire::DecodeWhole(packet, kTrailingBitSequence, out, result, false));
+}

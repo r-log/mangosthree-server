@@ -65,6 +65,19 @@ namespace Wire
     /// Precondition: `in`'s bit cursor is at a byte boundary (its last read was a byte read,
     /// or nothing has been read).
     DecodeResult Decode(ByteBuffer& in, Sequence sequence, MovementStatus& out);
+
+    /**
+     * @brief Decodes a copy of a whole packet with one layout and says whether the
+     *        layout consumed every byte. The packet itself is untouched.
+     * @param pendingWriteBits true for a packet a writer built and has not flushed
+     *        (its last bits are still in the cursor byte, and the socket will
+     *        flush them): the copy is flushed first. false for a packet that has
+     *        been read from: ByteBuffer's one bit cursor then holds READ state
+     *        (0..7 after a bit read), and flushing it would append a byte the
+     *        wire never carried.
+     */
+    bool DecodeWhole(ByteBuffer const& packet, Sequence sequence, MovementStatus& out,
+                     DecodeResult& result, bool pendingWriteBits);
 }
 
 #endif
