@@ -26,6 +26,7 @@
 #include "wire/MovementSequences.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include "Opcodes.h"
 
@@ -108,8 +109,10 @@ namespace Wire
 
     bool IsEmbeddedLayout(uint16 opcode)
     {
-        // The registry's CastSpellEmbeddedMovement table (the legacy header's
-        // MovementCastSpellSequence): a block inside the cast packet.
-        return opcode == CMSG_CAST_SPELL || opcode == CMSG_PET_CAST_SPELL || opcode == CMSG_USE_ITEM;
+        // The rows whose table is the movement block inside a cast packet (the
+        // legacy header's MovementCastSpellSequence), read off the registry so a
+        // new row with that table is embedded by construction.
+        const int i = RegistryIndex(opcode);
+        return i >= 0 && std::strcmp(kRegistry[i].table, "CastSpellEmbeddedMovement") == 0;
     }
 }

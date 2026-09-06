@@ -794,9 +794,17 @@ TEST(MovementSequences_the_three_cast_opcodes_are_embedded_layouts)
     CHECK(!Wire::IsEmbeddedLayout(CMSG_MOVE_START_FORWARD));
     CHECK(Wire::IsPacketLayout(CMSG_MOVE_START_FORWARD));
     CHECK(!Wire::IsPacketLayout(CMSG_PING));
+    // Every row: embedded exactly when its table is the embedded one, so a
+    // fourth opcode the generator maps to that table cannot be judged from
+    // byte 0 just because a hand-kept list did not know about it.
     int embedded = 0;
     const Wire::Registry r = Wire::AllSequences();
-    for (Wire::Entry const* e = r.begin; e != r.end; ++e) { embedded += Wire::IsEmbeddedLayout(e->opcode) ? 1 : 0; }
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        const bool byTable = std::strcmp(e->table, "CastSpellEmbeddedMovement") == 0;
+        CHECK_EQ(Wire::IsEmbeddedLayout(e->opcode), byTable);
+        embedded += byTable ? 1 : 0;
+    }
     CHECK_EQ(embedded, 3);
 }
 
