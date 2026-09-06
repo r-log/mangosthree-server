@@ -51,6 +51,8 @@ add_executable(mangos-loadtest
     src/Walker.hpp
     src/AckEngine.cpp
     src/AckEngine.hpp
+    src/Replay.hpp
+    src/Replay.cpp
 )
 
 target_include_directories(mangos-loadtest PRIVATE src)

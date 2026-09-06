@@ -45,6 +45,7 @@
 #include "UpdateTime.h"
 #include "MapPersistentStateMgr.h"
 #include "CorpseManager.h"
+#include "movement/WireParity.h"
 
 /**
  * @brief Handler for HandleServerInfoCommand command.
@@ -90,6 +91,21 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
     PSendSysMessage(LANG_UPTIME, str.c_str());
     PSendSysMessage("World Delay: %u", updateTime); // ToDo: move to language string
 
+    return true;
+}
+
+/**
+ * @brief Handler for HandleServerMovementCommand command.
+ *
+ * Prints the wire codec's shadow counters (Movement.WireParity): what the legacy
+ * movement reader and the registry's layouts disagree on, per opcode.
+ *
+ * @param args Command arguments.
+ * @returns True if the command executed successfully, false otherwise.
+ */
+bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
+{
+    WireParity::Report([this](std::string const& line) { SendSysMessage(line.c_str()); });
     return true;
 }
 

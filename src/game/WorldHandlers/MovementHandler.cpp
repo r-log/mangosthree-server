@@ -74,7 +74,9 @@
 #include "MapPersistentStateMgr.h"
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
+#include "movement/WireParity.h"
 #include "wire/MovementCapture.h"
+#include "wire/MovementSequences.h"
 
 #define MOVEMENT_PACKET_TIME_DELAY 0
 
@@ -420,7 +422,10 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
         recv_data.hexlike();
     }
 
-    if (Wire::MovementCapture::IsOpen())
+    // ExecuteOpcode already recorded this packet if the registry has a whole-packet
+    // layout for it -- the exact complement of the condition there; the ones it
+    // lacks are exactly what P1-C needs a capture of.
+    if (Wire::MovementCapture::IsOpen() && !Wire::IsPacketLayout(opcode))
     {
         Wire::MovementCapture::Record('C', opcode, recv_data.contents(), recv_data.size());
     }
@@ -439,6 +444,7 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
     MovementInfo movementInfo;
     recv_data >> movementInfo;
     /*----------------*/
+    WireParity::Inbound(opcode, recv_data, movementInfo);
 
     if (!VerifyMovementInfo(movementInfo))
     {
@@ -467,6 +473,7 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
 
     WorldPacket data(SMSG_PLAYER_MOVE, recv_data.size());
     data << movementInfo;
+    WireParity::Relay(SMSG_PLAYER_MOVE, data, movementInfo);
     mover->SendMessageToSetExcept(&data, _player);
 }
 

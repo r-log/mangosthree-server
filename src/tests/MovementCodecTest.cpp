@@ -578,14 +578,25 @@ namespace
     // an earlier TrinityCore. Where both cover an opcode, one of three things is
     // true, and each is pinned so a drift on either side lands here, not on a client.
 
-    // Identical.
-    const uint16 kLegacyVerbatim[] = { CMSG_MOVE_SET_RUN_MODE, CMSG_MOVE_SET_WALK_MODE };
-
-    // Identical except that the legacy names the two fall-direction floats the
-    // other way round (cos where CPP says sin). The wire position is the same, so
-    // nothing decodes differently -- only the label. P1-B's jump golden at facing 0
-    // (cos must read 1.0) decides which name is right.
-    const uint16 kLegacyFallAngleSwapped[] =
+    // Identical. P1-B's real-client golden settled the fall-direction floats
+    // (see gen_movement_layouts.py's ELEMENT_NAMES): a real CMSG_MOVE_JUMP's own
+    // bytes, and every packet the client sent while that jump's fall stayed
+    // open, show the legacy header's cos/sin labels for CMSG_MOVE_JUMP and its
+    // 27 siblings below are the ones the client's own bytes agree with, so the
+    // generator now emits the registry with those labels and every opcode that
+    // used to sit in kLegacyFallAngleSwapped is verbatim against the legacy
+    // table, not swapped.
+    //
+    // MovementSetRunMode and MovementSetWalkMode (CMSG_MOVE_SET_RUN_MODE,
+    // CMSG_MOVE_SET_WALK_MODE) also carry a fall block. The legacy header
+    // labels these two tables the CPP way and the other 28 the flipped way --
+    // the session has no run-mode or walk-mode toggle while airborne, so
+    // neither labeling is proven for these two specifically, only assumed: the
+    // registry follows the same rule the client proved on the other 28, moving
+    // these two the other way, out of verbatim and into
+    // kLegacyFallAngleSwapped. A capture with an airborne walk-mode toggle
+    // would settle them for real.
+    const uint16 kLegacyVerbatim[] =
     {
         CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE, CMSG_DISMISS_CONTROLLED_VEHICLE,
         CMSG_MOVE_CHNG_TRANSPORT, CMSG_MOVE_FALL_LAND, CMSG_MOVE_JUMP, CMSG_MOVE_KNOCK_BACK_ACK,
@@ -597,6 +608,12 @@ namespace
         CMSG_MOVE_STOP, CMSG_MOVE_STOP_ASCEND, CMSG_MOVE_STOP_PITCH, CMSG_MOVE_STOP_STRAFE,
         CMSG_MOVE_STOP_SWIM, CMSG_MOVE_STOP_TURN, MSG_MOVE_HEARTBEAT
     };
+
+    // The two opcodes the flip moved out of kLegacyVerbatim (see above): the
+    // legacy header labels these two the CPP way, unlike the other 28, but the
+    // session never caught either airborne, so the registry only assumes the
+    // same rule applies rather than proving it here.
+    const uint16 kLegacyFallAngleSwapped[] = { CMSG_MOVE_SET_RUN_MODE, CMSG_MOVE_SET_WALK_MODE };
 
     // Structurally different. The registry follows CPP until a golden says otherwise.
     struct Differ { uint16 opcode; char const* why; };
@@ -749,4 +766,117 @@ TEST(MovementSequences_random_bytes_never_escape_the_decoder)
             CHECK(result.consumed <= size);
         }
     }
+}
+
+TEST(MovementSequences_index_answers_for_every_entry_and_nothing_else)
+{
+    const Wire::Registry r = Wire::AllSequences();
+    CHECK_EQ(int(Wire::RegistrySize()), int(r.end - r.begin));
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        CHECK_EQ(Wire::RegistryIndex(e->opcode), int(e - r.begin));
+        CHECK(Wire::IsRegistered(e->opcode));
+    }
+    CHECK_EQ(Wire::RegistryIndex(0x0000), -1);
+    CHECK_EQ(Wire::RegistryIndex(SMSG_MOVE_KNOCK_BACK), -1);
+    CHECK(!Wire::IsRegistered(CMSG_PING));
+}
+
+TEST(MovementSequences_the_three_cast_opcodes_are_embedded_layouts)
+{
+    // Their table is the movement block inside a cast packet, not the packet;
+    // everything that judges a whole packet must leave them alone.
+    CHECK(Wire::IsEmbeddedLayout(CMSG_CAST_SPELL));
+    CHECK(Wire::IsEmbeddedLayout(CMSG_PET_CAST_SPELL));
+    CHECK(Wire::IsEmbeddedLayout(CMSG_USE_ITEM));
+    CHECK(Wire::IsRegistered(CMSG_USE_ITEM));
+    CHECK(!Wire::IsPacketLayout(CMSG_USE_ITEM));
+    CHECK(!Wire::IsEmbeddedLayout(CMSG_MOVE_START_FORWARD));
+    CHECK(Wire::IsPacketLayout(CMSG_MOVE_START_FORWARD));
+    CHECK(!Wire::IsPacketLayout(CMSG_PING));
+    // Every row: embedded exactly when its table is the embedded one, so a
+    // fourth opcode the generator maps to that table cannot be judged from
+    // byte 0 just because a hand-kept list did not know about it.
+    int embedded = 0;
+    const Wire::Registry r = Wire::AllSequences();
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        const bool byTable = std::strcmp(e->table, "CastSpellEmbeddedMovement") == 0;
+        CHECK_EQ(Wire::IsEmbeddedLayout(e->opcode), byTable);
+        embedded += byTable ? 1 : 0;
+    }
+    CHECK_EQ(embedded, 3);
+}
+
+// DecodeWhole: copy a packet, decode it with one layout, and say whether the
+// layout consumed every byte. The one thing it has to get right is ByteBuffer's
+// single bit cursor, which serves both the read and the write side.
+namespace
+{
+    // A layout ending on a bit, so a packet a writer has built and not flushed
+    // still holds its last bit in the cursor byte -- the state
+    // WorldSession::SendPacket receives, and the one the relay hook is handed.
+    const Wire::Element kTrailingBitSequence[] =
+    {
+        Wire::Element::PositionX,
+        Wire::Element::OneBit,
+        Wire::Element::End
+    };
+}
+
+TEST(MovementCodec_DecodeWhole_leaves_a_read_packet_whole)
+{
+    // The legacy reader leaves ByteBuffer's one bit cursor in read state; a
+    // whole-packet decode of a copy must not flush that state into a byte.
+    WorldPacket packet(CMSG_MOVE_START_FORWARD, 64);
+    Wire::Encode(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), FullFixture());
+    const size_t bytes = packet.size();
+    packet.rpos(0);
+    packet.ResetBitReader();
+    (void)packet.ReadBit();                        // as the legacy reader leaves it
+    Wire::MovementStatus out;
+    Wire::DecodeResult result;
+    CHECK(Wire::DecodeWhole(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), out, result, false));
+    CHECK_EQ(result.consumed, bytes);
+    CHECK_EQ(packet.size(), bytes);                // the original is untouched
+    CHECK_EQ(out.pos.x, FullFixture().pos.x);
+}
+
+TEST(MovementCodec_DecodeWhole_flushes_a_writers_pending_bits)
+{
+    // A packet a writer built and has not flushed: its last bits are still in
+    // the cursor byte, and the copy must carry them before it is judged.
+    // Wire::Encode flushes at the end of every layout, so the state the relay
+    // hook actually sees is built here by hand instead.
+    WorldPacket packet;
+    packet << float(1.5f);
+    packet.WriteBit(true);                         // pending: the cursor byte is not appended yet
+    CHECK_EQ(packet.size(), size_t(4));
+    Wire::MovementStatus out;
+    Wire::DecodeResult result;
+    CHECK(Wire::DecodeWhole(packet, kTrailingBitSequence, out, result, true));
+    CHECK_EQ(result.consumed, packet.size() + 1);  // the flushed byte
+    CHECK_EQ(packet.size(), size_t(4));            // the original is untouched
+    CHECK_EQ(out.pos.x, 1.5f);
+    // And without being told: the copy is short by that byte and cannot pass.
+    CHECK(!Wire::DecodeWhole(packet, kTrailingBitSequence, out, result, false));
+    CHECK(result.error == Wire::DecodeError::Overread);
+}
+
+TEST(MovementCodec_DecodeWhole_names_the_bytes_a_layout_left_behind)
+{
+    // A decode that succeeds but stops short of the payload's end is not a
+    // whole decode; the result says so by name, not by a bare false.
+    WorldPacket packet(CMSG_MOVE_START_FORWARD, 64);
+    Wire::Encode(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), FullFixture());
+    const size_t bytes = packet.size();
+    packet << uint8(0xEE);                         // one byte the layout never reads
+    Wire::MovementStatus out;
+    Wire::DecodeResult result;
+    CHECK(!Wire::DecodeWhole(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), out, result, false));
+    CHECK(result.error == Wire::DecodeError::LeftBytes);
+    CHECK_EQ(result.consumed, bytes);
+    CHECK_EQ(out.pos.x, Wire::MovementStatus().pos.x);   // whole, or nothing
+    CHECK(std::string(Wire::ErrorName(result.error)) == "left bytes");
+    CHECK(std::string(Wire::ErrorName(Wire::DecodeError::Overread)) == "overread");
 }

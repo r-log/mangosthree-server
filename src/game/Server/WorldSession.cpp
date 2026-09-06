@@ -60,6 +60,9 @@
 #include "Log.h"
 #include "OpcodeTable.h"
 #include "WorldPacket.h"
+#include "movement/WireParity.h"
+#include "wire/MovementCapture.h"
+#include "wire/MovementSequences.h"
 #include "WorldSession.h"
 #include "Player.h"
 #include "ObjectMgr.h"
@@ -287,6 +290,20 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 
     // SendPacket is void and safe to call on a dead link -- unlike the old
     // WorldSocket::SendPacket, there is no failure to react to here.
+
+    // The other direction of the same capture: what this server puts on the wire
+    // for the opcodes the registry knows, so a replay can judge the legacy writers
+    // by the same layouts the client reads with.
+    if (Wire::MovementCapture::IsOpen() && Wire::IsPacketLayout(packet->GetOpcode()))
+    {
+        Wire::MovementCapture::Record('S', packet->GetOpcode(), packet->contents(), packet->size());
+    }
+
+    if (WireParity::Enabled() && packet->GetOpcode() != SMSG_PLAYER_MOVE)
+    {
+        WireParity::Outbound(packet->GetOpcode(), *packet);   // the relay is compared at its writer
+    }
+
     m_Socket->SendPacket(*packet);
 }
 
@@ -1535,6 +1552,14 @@ void WorldSession::HandleConnectToFailed(WorldPacket& /*recvPacket*/)
  */
 void WorldSession::ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* packet)
 {
+    // Passive capture of every packet the registry has a layout for, at the one
+    // place every handler is reached from; the handler-local hook in
+    // HandleMovementOpcodes covers what the registry lacks (P1-C's worklist).
+    if (Wire::MovementCapture::IsOpen() && Wire::IsPacketLayout(packet->GetOpcode()))
+    {
+        Wire::MovementCapture::Record('C', packet->GetOpcode(), packet->contents(), packet->size());
+    }
+
     // need prevent do internal far teleports in handlers because some handlers do lot steps
     // or call code that can do far teleports in some conditions unexpectedly for generic way work code
     if (_player)

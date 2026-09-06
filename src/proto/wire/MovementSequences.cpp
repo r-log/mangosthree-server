@@ -25,6 +25,9 @@
 
 #include "wire/MovementSequences.h"
 
+#include <algorithm>
+#include <cstring>
+
 #include "Opcodes.h"
 
 // The layouts below are generated: see wire/MovementLayouts.inc's own banner
@@ -64,6 +67,22 @@ namespace Wire
 #undef MAP
         };
         const Entry* const kRegistryEnd = kRegistry + sizeof(kRegistry) / sizeof(kRegistry[0]);
+
+        // Opcode -> registry position, one int16 per possible opcode (128 KB), built
+        // on first use. A function-local static, so the build is thread-safe and
+        // costs nothing to a process that never asks.
+        struct IndexTable
+        {
+            int16 at[65536];
+            IndexTable()
+            {
+                std::fill(at, at + 65536, int16(-1));
+                for (Entry const* e = kRegistry; e != kRegistryEnd; ++e)
+                {
+                    at[e->opcode] = int16(e - kRegistry);
+                }
+            }
+        };
     }
 
     Registry AllSequences()
@@ -71,15 +90,29 @@ namespace Wire
         return { kRegistry, kRegistryEnd };
     }
 
+    size_t RegistrySize()
+    {
+        return size_t(kRegistryEnd - kRegistry);
+    }
+
+    int RegistryIndex(uint16 opcode)
+    {
+        static const IndexTable table;
+        return table.at[opcode];
+    }
+
     Sequence SequenceFor(uint16 opcode)
     {
-        for (Entry const* e = kRegistry; e != kRegistryEnd; ++e)
-        {
-            if (e->opcode == opcode)
-            {
-                return e->sequence;
-            }
-        }
-        return nullptr;
+        const int i = RegistryIndex(opcode);
+        return i < 0 ? nullptr : kRegistry[i].sequence;
+    }
+
+    bool IsEmbeddedLayout(uint16 opcode)
+    {
+        // The rows whose table is the movement block inside a cast packet (the
+        // legacy header's MovementCastSpellSequence), read off the registry so a
+        // new row with that table is embedded by construction.
+        const int i = RegistryIndex(opcode);
+        return i >= 0 && std::strcmp(kRegistry[i].table, "CastSpellEmbeddedMovement") == 0;
     }
 }
