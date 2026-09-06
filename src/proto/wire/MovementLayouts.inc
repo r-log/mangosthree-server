@@ -8,6 +8,8 @@
 // place. Every table is CPP-SOURCED and BINARY-UNVERIFIED: P1-B's real-client goldens
 // and P1-C's reader lift are what turn a table into a verified one, and the legacy
 // fence in MovementCodecTest records where the tree's older transcription disagrees.
+// One rename: MSEFallCosAngle -> FallSinAngle and MSEFallSinAngle -> FallCosAngle, in every
+// table -- P1-B's client golden proved the source's mapping backwards (see ELEMENT_NAMES).
 //
 // 3 of the source's tables are excluded -- no layout, no MAP row -- because they read
 // gated fields with none of the presence gates, so no table would be better than a wrong one:

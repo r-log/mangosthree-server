@@ -149,7 +149,9 @@ buf.write("// Cataclysm Preservation Project's MovementStructures.cpp (%s, GPL-3
 buf.write("// into Wire's vocabulary, with that source's per-packet extra elements spliced in\n")
 buf.write("// place. Every table is CPP-SOURCED and BINARY-UNVERIFIED: P1-B's real-client goldens\n")
 buf.write("// and P1-C's reader lift are what turn a table into a verified one, and the legacy\n")
-buf.write("// fence in MovementCodecTest records where the tree's older transcription disagrees.\n//\n")
+buf.write("// fence in MovementCodecTest records where the tree's older transcription disagrees.\n")
+buf.write("// One rename: MSEFallCosAngle -> FallSinAngle and MSEFallSinAngle -> FallCosAngle, in every\n")
+buf.write("// table -- P1-B's client golden proved the source's mapping backwards (see ELEMENT_NAMES).\n//\n")
 buf.write("// %d of the source's tables are excluded -- no layout, no MAP row -- because they read\n" % len(EXCLUDED))
 buf.write("// gated fields with none of the presence gates, so no table would be better than a wrong one:\n")
 for name in sorted(EXCLUDED):

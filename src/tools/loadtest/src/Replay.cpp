@@ -180,8 +180,12 @@ namespace loadtest
 
     void PrintReplay(ReplayReport const& report, std::FILE* to)
     {
+        // Every line the file had: report.lines counts the parsed ones only, so a
+        // capture with malformed lines would otherwise be summarised as smaller
+        // than it is.
         std::fprintf(to, "REPLAY %u line(s): %u decoded, %u exact, %u failed, %u unregistered, %u embedded, %u malformed -> %s\n",
-                     report.lines, report.decoded, report.exact, report.failed, report.unregistered, report.embedded, report.malformed,
+                     report.lines + report.malformed,
+                     report.decoded, report.exact, report.failed, report.unregistered, report.embedded, report.malformed,
                      report.Clean() ? "CLEAN" : "NOT CLEAN");
         for (std::map<uint16, ReplayRow>::const_iterator it = report.byOpcode.begin(); it != report.byOpcode.end(); ++it)
         {

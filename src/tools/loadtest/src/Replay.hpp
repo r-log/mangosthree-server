@@ -63,6 +63,8 @@ namespace loadtest
     struct ReplayReport
     {
         std::map<uint16, ReplayRow> byOpcode;
+        /// `lines` counts the lines that PARSED; a malformed line is counted in
+        /// `malformed` and nowhere else, so a file's total is lines + malformed.
         uint32 lines = 0, malformed = 0, unregistered = 0, embedded = 0, decoded = 0, failed = 0, exact = 0;
 
         /// True when every registered line decoded whole and re-encoded byte for byte,
