@@ -30,6 +30,8 @@
 
 #include "TestHarness.h"
 
+#include <cstring>
+
 #include "wire/MovementStatus.h"
 #include "wire/MovementElements.h"
 
@@ -557,44 +559,190 @@ TEST(MovementCodec_carries_the_transport_vehicle_id_only_under_its_gates)
     CHECK_BYTES(q.contents(), q.size(), { 0x00 });
 }
 
-// The legacy layouts the seed tables were copied from: header-only arrays in
-// src/game/movement, safe to define in this one translation unit.
 #include "MovementStructures.h"
 
 namespace
 {
-    // The legacy enum mirrors Wire::Element ordinal for ordinal below End (pinned
-    // by the static_assert); only the terminator differs, because Wire appended
-    // elements the legacy header never had.
     static_assert(int(Wire::Element::ByteParam) == int(MSEByteParam),
                   "the legacy prefix of the vocabulary must stay ordinal-mirrored");
     Wire::Element WireOf(MovementStatusElements e)
     {
         return e == MSEEnd ? Wire::Element::End : Wire::Element(int(e));
     }
+
+    // The registry is transcribed from the Cataclysm Preservation Project's tables
+    // (2026); the tree's own older transcription in MovementStructures.h came from
+    // an earlier TrinityCore. Where both cover an opcode, one of three things is
+    // true, and each is pinned so a drift on either side lands here, not on a client.
+
+    // Identical.
+    const uint16 kLegacyVerbatim[] = { CMSG_MOVE_SET_RUN_MODE, CMSG_MOVE_SET_WALK_MODE };
+
+    // Identical except that the legacy names the two fall-direction floats the
+    // other way round (cos where CPP says sin). The wire position is the same, so
+    // nothing decodes differently -- only the label. P1-B's jump golden at facing 0
+    // (cos must read 1.0) decides which name is right.
+    const uint16 kLegacyFallAngleSwapped[] =
+    {
+        CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE, CMSG_DISMISS_CONTROLLED_VEHICLE,
+        CMSG_MOVE_CHNG_TRANSPORT, CMSG_MOVE_FALL_LAND, CMSG_MOVE_JUMP, CMSG_MOVE_KNOCK_BACK_ACK,
+        CMSG_MOVE_NOT_ACTIVE_MOVER, CMSG_MOVE_SET_CAN_FLY_ACK, CMSG_MOVE_SET_FACING,
+        CMSG_MOVE_SET_PITCH, CMSG_MOVE_START_ASCEND, CMSG_MOVE_START_BACKWARD,
+        CMSG_MOVE_START_DESCEND, CMSG_MOVE_START_FORWARD, CMSG_MOVE_START_PITCH_DOWN,
+        CMSG_MOVE_START_PITCH_UP, CMSG_MOVE_START_STRAFE_LEFT, CMSG_MOVE_START_STRAFE_RIGHT,
+        CMSG_MOVE_START_SWIM, CMSG_MOVE_START_TURN_LEFT, CMSG_MOVE_START_TURN_RIGHT,
+        CMSG_MOVE_STOP, CMSG_MOVE_STOP_ASCEND, CMSG_MOVE_STOP_PITCH, CMSG_MOVE_STOP_STRAFE,
+        CMSG_MOVE_STOP_SWIM, CMSG_MOVE_STOP_TURN, MSG_MOVE_HEARTBEAT
+    };
+
+    // Structurally different. The registry follows CPP until a golden says otherwise.
+    struct Differ { uint16 opcode; char const* why; };
+    const Differ kLegacyDiffers[] =
+    {
+        { CMSG_CAST_SPELL,             "the unnamed bit and HasSpline are the other way round" },
+        { CMSG_PET_CAST_SPELL,         "same layout as CMSG_CAST_SPELL" },
+        { CMSG_USE_ITEM,               "same layout as CMSG_CAST_SPELL" },
+        { CMSG_MOVE_FALL_RESET,        "legacy drops TransportTime (67 elements against 68)" },
+        { CMSG_MOVE_SET_CAN_FLY,       "legacy is a 45-element stub" },
+        { CMSG_MOVE_SPLINE_DONE,       "legacy leads with a counter CPP does not put there" },
+        { SMSG_PLAYER_MOVE,            "CPP reads HasHeightChangeFailed where legacy has the unnamed bit, and flushes" },
+    };
+
+    bool InList(uint16 opcode, uint16 const* list, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i) { if (list[i] == opcode) { return true; } }
+        return false;
+    }
+    bool InDiffers(uint16 opcode)
+    {
+        for (const Differ& d : kLegacyDiffers) { if (d.opcode == opcode) { return true; } }
+        return false;
+    }
+    Wire::Element SwapFall(Wire::Element e)
+    {
+        if (e == Wire::Element::FallCosAngle) { return Wire::Element::FallSinAngle; }
+        if (e == Wire::Element::FallSinAngle) { return Wire::Element::FallCosAngle; }
+        return e;
+    }
+    bool SameLayout(Wire::Sequence w, MovementStatusElements const* legacy, bool swapFall)
+    {
+        for (int i = 0;; ++i)
+        {
+            Wire::Element l = WireOf(legacy[i]);
+            if (swapFall) { l = SwapFall(l); }
+            if (w[i] != l) { return false; }
+            if (w[i] == Wire::Element::End) { return true; }
+        }
+    }
 }
 
-TEST(MovementSequences_seed_tables_match_the_legacy_arrays)
+TEST(MovementSequences_agrees_with_the_legacy_arrays_exactly_where_it_should)
 {
-    // The seed tables stay bound to the legacy layouts until P1 replaces each with
-    // a binary-verified golden: an edit that drifts either side fails here, not on
-    // a client. Both enums mirror one another ordinal for ordinal, so the raw
-    // values compare directly.
     const Wire::Registry r = Wire::AllSequences();
+    int covered = 0;
     for (Wire::Entry const* e = r.begin; e != r.end; ++e)
     {
         MovementStatusElements const* legacy = GetMovementStatusElementsSequence(e->opcode);
-        REQUIRE(legacy != nullptr);
-        int i = 0;
-        for (;; ++i)
+        if (!legacy) { continue; }
+        ++covered;
+        const bool verbatim = InList(e->opcode, kLegacyVerbatim, 2);
+        const bool swapped  = InList(e->opcode, kLegacyFallAngleSwapped, 28);
+        const bool differs  = InDiffers(e->opcode);
+        CHECK_EQ(int(verbatim) + int(swapped) + int(differs), 1);   // every covered opcode in exactly one set
+        if (verbatim) { CHECK(SameLayout(e->sequence, legacy, false)); }
+        if (swapped)  { CHECK(SameLayout(e->sequence, legacy, true)); CHECK(!SameLayout(e->sequence, legacy, false)); }
+        if (differs)  { CHECK(!SameLayout(e->sequence, legacy, false)); CHECK(!SameLayout(e->sequence, legacy, true)); }
+    }
+    // 38 legacy opcodes, minus SMSG_MOVE_UPDATE_KNOCK_BACK whose only CPP table is excluded (see the generator)
+    CHECK_EQ(covered, 37);
+}
+
+TEST(MovementSequences_registers_every_layout_of_the_source)
+{
+    const Wire::Registry r = Wire::AllSequences();
+    CHECK_EQ(int(r.end - r.begin), 108);
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        REQUIRE(e->sequence != nullptr);
+        REQUIRE(e->table != nullptr);
+        int n = 0;
+        while (e->sequence[n] != Wire::Element::End) { ++n; REQUIRE(n < 128); }
+        for (Wire::Entry const* o = e + 1; o != r.end; ++o) { CHECK(o->opcode != e->opcode); }
+    }
+    // The families §7 names, one probe each; the fence above covers the client set.
+    CHECK(Wire::SequenceFor(SMSG_MOVE_SET_RUN_SPEED) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_UPDATE_RUN_SPEED) != nullptr);
+    CHECK(Wire::SequenceFor(CMSG_FORCE_RUN_SPEED_CHANGE_ACK) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_SPLINE_MOVE_SET_RUN_SPEED) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_FORCE_MOVE_ROOT) != nullptr);
+    CHECK(Wire::SequenceFor(CMSG_FORCE_MOVE_ROOT_ACK) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_GRAVITY_DISABLE) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_WATER_WALK) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_FEATHER_FALL) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_SET_HOVER) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_SET_COLLISION_HGT) != nullptr);
+    CHECK(Wire::SequenceFor(CMSG_MOVE_SET_COLLISION_HGT_ACK) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY) != nullptr);
+    CHECK(Wire::SequenceFor(CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE) != nullptr);
+    CHECK(Wire::SequenceFor(SMSG_SPLINE_MOVE_ROOT) != nullptr);
+    // Hand-written in every source; P1-C's.
+    CHECK(Wire::SequenceFor(SMSG_MOVE_KNOCK_BACK) == nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_TELEPORT) == nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_SET_ACTIVE_MOVER) == nullptr);
+    CHECK(Wire::SequenceFor(SMSG_CLIENT_CONTROL_UPDATE) == nullptr);
+    // CPP's tables for these read fields with no presence gate; excluded until P1-C's reader lift
+    CHECK(Wire::SequenceFor(SMSG_MOVE_UPDATE_KNOCK_BACK) == nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_UPDATE_RUN_BACK_SPEED) == nullptr);
+    CHECK(Wire::SequenceFor(SMSG_MOVE_UPDATE_WALK_SPEED) == nullptr);
+}
+
+TEST(MovementSequences_every_layout_re_encodes_its_own_bytes)
+{
+    // Layout-agnostic round trip: whatever a layout carries, decoding what it
+    // wrote and writing that again must give the same bytes. This is the check
+    // that catches a reader and a writer disagreeing about one element.
+    const Wire::Registry r = Wire::AllSequences();
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        Wire::MovementStatus full = FullFixture();
+        full.value = 7.5f;
+        full.twoBits = 3;
+        full.has.heightChangeFailed = true;
+        full.transport.hasVehicleId = true;
+        full.transport.vehicleId = 0xABCD;
+        WorldPacket once(e->opcode, 256);
+        Wire::Encode(once, e->sequence, full);
+        Wire::MovementStatus back;
+        REQUIRE(Wire::Decode(once, e->sequence, back).ok());
+        WorldPacket twice(e->opcode, 256);
+        Wire::Encode(twice, e->sequence, back);
+        CHECK_EQ(twice.size(), once.size());
+        CHECK(twice.size() == once.size() && std::memcmp(twice.contents(), once.contents(), once.size()) == 0);
+    }
+}
+
+TEST(MovementSequences_random_bytes_never_escape_the_decoder)
+{
+    // The seeded fuzz P0-A's review asked for: any bytes, any layout, the decoder
+    // answers ok or Overread and never throws or reads past the buffer.
+    uint32 x = 0x2026u;
+    const Wire::Registry r = Wire::AllSequences();
+    for (Wire::Entry const* e = r.begin; e != r.end; ++e)
+    {
+        for (int round = 0; round < 64; ++round)
         {
-            CHECK_EQ(int(e->sequence[i]), int(WireOf(legacy[i])));
-            if (e->sequence[i] == Wire::Element::End || legacy[i] == MSEEnd)
+            x ^= x << 13; x ^= x >> 17; x ^= x << 5;      // xorshift32
+            const size_t size = x % 97;
+            WorldPacket p(e->opcode, size);
+            for (size_t i = 0; i < size; ++i)
             {
-                break;
+                x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+                p << uint8(x & 0xFF);
             }
+            Wire::MovementStatus out;
+            const Wire::DecodeResult result = Wire::Decode(p, e->sequence, out);
+            CHECK(result.error == Wire::DecodeError::None || result.error == Wire::DecodeError::Overread);
+            CHECK(result.consumed <= size);
         }
-        CHECK(e->sequence[i] == Wire::Element::End);
-        CHECK(legacy[i] == MSEEnd);
     }
 }
