@@ -25,8 +25,8 @@
 
 #include "WireParity.h"
 
-#include "Object/Unit.h"
-#include "Server/OpcodeTable.h"
+#include "Unit.h"
+#include "OpcodeTable.h"
 #include "WorldPacket.h"
 #include "wire/MovementCodec.h"
 #include "wire/MovementParity.h"
@@ -84,9 +84,14 @@ namespace WireParity
         bool DecodeCopy(uint16 opcode, WorldPacket const& packet, Wire::MovementStatus& out, Wire::DecodeResult& result)
         {
             WorldPacket copy(packet);
+            // Wire::Decode's precondition is a bit cursor at a byte boundary: flush any
+            // pending write bits into the copy (only the copy grows by that byte, never
+            // the original), then rewind and reset the read-side bit cursor.
+            copy.FlushBits();
             copy.rpos(0);
+            copy.ResetBitReader();
             result = Wire::Decode(copy, Wire::SequenceFor(opcode), out);
-            return result.ok() && result.consumed == packet.size();
+            return result.ok() && result.consumed == copy.size();
         }
 
         const char* ErrorName(Wire::DecodeError e)
@@ -126,8 +131,19 @@ namespace WireParity
             if (field == std::string("fall.time") && wire.transport.present && wire.transport.hasVehicleId &&
                 expected.fall.time == wire.transport.vehicleId)
             {
-                ++row.vehicleIdInFallTime;
-                return;
+                // fall.time comes before fall.vertical/horizontal/cosAngle/sinAngle and
+                // the whole transport block in struct order, so FirstDifference stopping
+                // here does not clear those fields -- patch fall.time to what the wire
+                // actually carried and re-compare the rest before crediting the quirk.
+                Wire::MovementStatus patched = expected;
+                patched.fall.time = wire.fall.time;
+                char const* patchedField = Wire::FirstDifference(wire, patched);
+                if (!patchedField)
+                {
+                    ++row.vehicleIdInFallTime;
+                    return;
+                }
+                field = patchedField;
             }
             ++row.inMismatch;
             char text[128];
@@ -287,6 +303,6 @@ namespace WireParity
                 line("    " + row.first);
             }
         }
-        line("  columns: in seen/failed/mismatched, out seen/failed");
+        line("  columns: in seen/failed/mismatched (the SMSG_PLAYER_MOVE row counts the relays this server built), out seen/failed");
     }
 }
