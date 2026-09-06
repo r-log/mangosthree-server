@@ -42,6 +42,7 @@
 // from its own database. It cannot tell this client from a real one, which is
 // the point.
 
+#include "Replay.hpp"
 #include "SyntheticClient.hpp"
 
 #include "Auth/Sha1.h"
@@ -53,6 +54,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <map>
 #include <mutex>
 #include <string>
@@ -78,6 +80,7 @@ namespace
             "  --verbose            trace each milestone as it is reached\n"
             "\n"
             "Protocol peer (movement P0-B):\n"
+            "  --replay FILE        judge a capture file offline: decode every line with the registry, re-encode, compare bytes; exit 0 when clean\n"
             "  --walk SECONDS       walk straight ahead for SECONDS once in the world\n"
             "  --heading DEGREES    walk in this direction instead of the character's facing\n"
             "  --return             walk the same time back, so the character ends where it began\n"
@@ -145,6 +148,7 @@ int main(int argc, char** argv)
     loadtest::Config config;
     std::string keyHex;
     bool emitSql = false;
+    std::string replayPath;
     std::string pairAccount;
     uint64      pairGuid = 0;
 
@@ -158,6 +162,11 @@ int main(int argc, char** argv)
             return 0;
         }
         else if (arg == "--emit-sql")   { emitSql = true; }
+        else if (arg == "--replay")
+        {
+            if (!WantsValue(argc, i, "--replay")) { return 2; }
+            replayPath = argv[++i];
+        }
         else if (arg == "--verbose")    { config.verbose = true; }
         else if (arg == "--account")
         {
@@ -254,6 +263,21 @@ int main(int argc, char** argv)
             Usage();
             return 2;
         }
+    }
+
+    if (!replayPath.empty())
+    {
+        // Offline: no server, no account. Every line of the capture through the
+        // registry's layout and back, judged by the bytes.
+        std::ifstream capture(replayPath.c_str());
+        if (!capture)
+        {
+            std::fprintf(stderr, "cannot open %s\n", replayPath.c_str());
+            return 2;
+        }
+        const loadtest::ReplayReport report = loadtest::Replay(capture);
+        loadtest::PrintReplay(report, stdout);
+        return report.Clean() ? 0 : 1;
     }
 
     if (config.account.empty())

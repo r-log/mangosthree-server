@@ -65,9 +65,11 @@ set(SRC_GRP_TESTS
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Framing.cpp
     # The protocol peer's pure units (movement P0-B), compiled in like Framing.cpp.
     PeerTest.cpp
+    ReplayTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/AckEngine.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Replay.cpp
     GlobalWmoEvictionTest.cpp
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
