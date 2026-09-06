@@ -92,12 +92,15 @@ TEST(Replay_counts_an_unregistered_opcode_without_judging_it)
 
 TEST(Replay_reports_a_truncated_line_as_failed_and_a_malformed_one_as_malformed)
 {
+    // A valid packet followed by text is malformed too: the format is three
+    // tokens, and a replay must not certify a line it only partly read.
     std::stringstream capture;
-    capture << "C 0x7814 CDAC59C6\n" << "C 0x7814 zz\n";
+    capture << "C 0x7814 CDAC59C6\n" << "C 0x7814 zz\n"
+            << "C 0x7814 CDAC59C6E13AC9423D9A77C52011800000012F5C5A054067920100 extra\n";
     const loadtest::ReplayReport report = loadtest::Replay(capture);
     CHECK_EQ(report.lines, uint32(1));
     CHECK_EQ(report.failed, uint32(1));
-    CHECK_EQ(report.malformed, uint32(1));
+    CHECK_EQ(report.malformed, uint32(2));
     CHECK(!report.Clean());
     CHECK(!report.byOpcode.at(CMSG_MOVE_START_FORWARD).firstProblem.empty());
 }

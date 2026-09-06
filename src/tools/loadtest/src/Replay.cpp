@@ -90,6 +90,8 @@ namespace loadtest
         }
         if (value > 0xFFFF) { error = "opcode does not fit 16 bits"; return false; }
         if (hex.size() % 2 != 0) { error = "payload hex has odd length"; return false; }
+        std::string extra;
+        if (in >> extra) { error = "trailing text after the payload"; return false; }
         out.direction = direction[0];
         out.opcode = uint16(value);
         out.bytes.clear();
@@ -141,18 +143,15 @@ namespace loadtest
             WorldPacket packet(line.opcode, line.bytes.size());
             packet.append(line.bytes.data(), line.bytes.size());
             Wire::MovementStatus status;
-            const Wire::DecodeResult result = Wire::Decode(packet, layout, status);
-            if (!result.ok() || result.consumed != line.bytes.size())
+            Wire::DecodeResult result;
+            if (!Wire::DecodeWhole(packet, layout, status, result, false))
             {
                 ++row.failed;
                 ++report.failed;
                 if (row.firstProblem.empty())
                 {
                     std::ostringstream why;
-                    why << "line " << number << ": decode "
-                        << (result.error == Wire::DecodeError::Overread ? "overread" :
-                            result.error == Wire::DecodeError::BadElement ? "bad element" :
-                            result.ok() ? "left bytes" : "failed")
+                    why << "line " << number << ": decode " << Wire::ErrorName(result.error)
                         << ", consumed " << result.consumed << " of " << line.bytes.size();
                     row.firstProblem = why.str();
                 }

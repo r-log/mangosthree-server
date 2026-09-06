@@ -87,18 +87,6 @@ namespace WireParity
             }
         }
 
-        const char* ErrorName(Wire::DecodeError e)
-        {
-            switch (e)
-            {
-                case Wire::DecodeError::None:       return "ok";
-                case Wire::DecodeError::NoSequence: return "no layout";
-                case Wire::DecodeError::Overread:   return "overread";
-                case Wire::DecodeError::BadElement: return "bad element";
-            }
-            return "?";
-        }
-
         // Where the codec's decode and the legacy status disagree, sorted into the
         // three bins the header describes.
         void Compare(Row& row, uint16 opcode, Wire::MovementStatus const& wire, MovementInfo const& legacy, bool relayed)
@@ -175,7 +163,7 @@ namespace WireParity
                 ++row.inFailed;
                 char text[128];
                 std::snprintf(text, sizeof(text), "0x%.4X %s: decode %s, consumed %u, payload %u", uint32(opcode),
-                              LookupOpcodeName(opcode), ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
+                              LookupOpcodeName(opcode), Wire::ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
                 NoteFirst(row, text);
                 return;
             }
@@ -283,7 +271,7 @@ namespace WireParity
             ++row.outFailed;
             char text[128];
             std::snprintf(text, sizeof(text), "0x%.4X %s: outbound decode %s, consumed %u, payload %u", uint32(opcode),
-                          LookupOpcodeName(opcode), ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
+                          LookupOpcodeName(opcode), Wire::ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
             NoteFirst(row, text);
         }
     }

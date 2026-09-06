@@ -214,8 +214,63 @@ namespace Wire
             }
         };
 
-        DecodeResult DecodeUnchecked(ByteBuffer& in, Sequence sequence, MovementStatus& out)
+        /// Thrown when the layout asks for a byte the buffer does not hold. A
+        /// codec-local type on purpose: ByteBufferException logs from its
+        /// constructor, and a shadow or a replay that judges bad packets must not
+        /// write a line per packet.
+        struct Overread {};
+
+        /// Every read of a decode goes through here, so the bounds are checked
+        /// before ByteBuffer's own check could throw. The bit position mirrors
+        /// ByteBuffer's: both start at a byte boundary (Decode's precondition) and
+        /// every read in between is one of these, so a bit read is bounds-checked
+        /// exactly when ByteBuffer would fetch a new cursor byte.
+        struct Reader
         {
+            ByteBuffer& in;
+            size_t bitpos = 8;
+
+            explicit Reader(ByteBuffer& buffer) : in(buffer) {}
+
+            template <typename T>
+            T Get()
+            {
+                if (in.rpos() + sizeof(T) > in.size()) { throw Overread(); }
+                bitpos = 8;                              // read<T>() resets the bit reader
+                return in.read<T>();
+            }
+
+            bool Bit()
+            {
+                ++bitpos;
+                if (bitpos > 7)
+                {
+                    if (in.rpos() >= in.size()) { throw Overread(); }
+                    bitpos = 0;
+                }
+                return in.ReadBit();
+            }
+
+            uint32 Bits(size_t bits)
+            {
+                uint32 value = 0;
+                for (int32 i = int32(bits) - 1; i >= 0; --i)
+                {
+                    if (Bit()) { value |= (1u << i); }
+                }
+                return value;
+            }
+
+            void Reset()
+            {
+                in.ResetBitReader();
+                bitpos = 8;
+            }
+        };
+
+        DecodeResult DecodeUnchecked(ByteBuffer& buffer, Sequence sequence, MovementStatus& out)
+        {
+            Reader in(buffer);
             GuidReader guid, guid2, tguid;
             bool hasFlags = false;
             bool hasFlags2 = false;
@@ -226,19 +281,19 @@ namespace Wire
 
                 if (InRange(e, Element::GuidBit0, Element::GuidBit7))
                 {
-                    guid.mask[Index(e, Element::GuidBit0)] = in.ReadBit();
+                    guid.mask[Index(e, Element::GuidBit0)] = in.Bit();
                     continue;
                 }
                 if (InRange(e, Element::Guid2Bit0, Element::Guid2Bit7))
                 {
-                    guid2.mask[Index(e, Element::Guid2Bit0)] = in.ReadBit();
+                    guid2.mask[Index(e, Element::Guid2Bit0)] = in.Bit();
                     continue;
                 }
                 if (InRange(e, Element::TransportGuidBit0, Element::TransportGuidBit7))
                 {
                     if (out.transport.present)
                     {
-                        tguid.mask[Index(e, Element::TransportGuidBit0)] = in.ReadBit();
+                        tguid.mask[Index(e, Element::TransportGuidBit0)] = in.Bit();
                     }
                     continue;
                 }
@@ -247,7 +302,7 @@ namespace Wire
                     const int i = Index(e, Element::GuidByte0);
                     if (guid.mask[i])
                     {
-                        guid.bytes[i] = in.read<uint8>() ^ 1;
+                        guid.bytes[i] = in.Get<uint8>() ^ 1;
                     }
                     continue;
                 }
@@ -256,7 +311,7 @@ namespace Wire
                     const int i = Index(e, Element::Guid2Byte0);
                     if (guid2.mask[i])
                     {
-                        guid2.bytes[i] = in.read<uint8>() ^ 1;
+                        guid2.bytes[i] = in.Get<uint8>() ^ 1;
                     }
                     continue;
                 }
@@ -265,81 +320,81 @@ namespace Wire
                     const int i = Index(e, Element::TransportGuidByte0);
                     if (out.transport.present && tguid.mask[i])
                     {
-                        tguid.bytes[i] = in.read<uint8>() ^ 1;
+                        tguid.bytes[i] = in.Get<uint8>() ^ 1;
                     }
                     continue;
                 }
 
                 switch (e)
                 {
-                    case Element::HasMovementFlags:   hasFlags = !in.ReadBit();                        break;
-                    case Element::HasMovementFlags2:  hasFlags2 = !in.ReadBit();                       break;
+                    case Element::HasMovementFlags:   hasFlags = !in.Bit();                        break;
+                    case Element::HasMovementFlags2:  hasFlags2 = !in.Bit();                       break;
                     case Element::Flags:
                         if (hasFlags)
                         {
-                            out.flags = in.ReadBits(30);
+                            out.flags = in.Bits(30);
                             out.has.emptyFlagsBlock = (out.flags == 0);
                         }
                         break;
                     case Element::Flags2:
                         if (hasFlags2)
                         {
-                            out.flags2 = in.ReadBits(12);
+                            out.flags2 = in.Bits(12);
                             out.has.emptyFlags2Block = (out.flags2 == 0);
                         }
                         break;
-                    case Element::HasTimestamp:       out.has.timestamp = !in.ReadBit();               break;
-                    case Element::Timestamp:          if (out.has.timestamp) { out.time = in.read<uint32>(); } break;
-                    case Element::HasPitch:           out.has.pitch = !in.ReadBit();                   break;
-                    case Element::Pitch:              if (out.has.pitch) { out.pitch = in.read<float>(); } break;
-                    case Element::HasOrientation:     out.has.orientation = !in.ReadBit();             break;
-                    case Element::HasSpline:          out.has.spline = in.ReadBit();                   break;
-                    case Element::HasSplineElevation: out.has.splineElevation = !in.ReadBit();         break;
-                    case Element::SplineElevation:    if (out.has.splineElevation) { out.splineElevation = in.read<float>(); } break;
-                    case Element::HasUnknownBit:      out.has.unknownBit = in.ReadBit();               break;
-                    case Element::PositionX:          out.pos.x = in.read<float>();                    break;
-                    case Element::PositionY:          out.pos.y = in.read<float>();                    break;
-                    case Element::PositionZ:          out.pos.z = in.read<float>();                    break;
-                    case Element::PositionO:          if (out.has.orientation) { out.pos.o = in.read<float>(); } break;
+                    case Element::HasTimestamp:       out.has.timestamp = !in.Bit();               break;
+                    case Element::Timestamp:          if (out.has.timestamp) { out.time = in.Get<uint32>(); } break;
+                    case Element::HasPitch:           out.has.pitch = !in.Bit();                   break;
+                    case Element::Pitch:              if (out.has.pitch) { out.pitch = in.Get<float>(); } break;
+                    case Element::HasOrientation:     out.has.orientation = !in.Bit();             break;
+                    case Element::HasSpline:          out.has.spline = in.Bit();                   break;
+                    case Element::HasSplineElevation: out.has.splineElevation = !in.Bit();         break;
+                    case Element::SplineElevation:    if (out.has.splineElevation) { out.splineElevation = in.Get<float>(); } break;
+                    case Element::HasUnknownBit:      out.has.unknownBit = in.Bit();               break;
+                    case Element::PositionX:          out.pos.x = in.Get<float>();                    break;
+                    case Element::PositionY:          out.pos.y = in.Get<float>();                    break;
+                    case Element::PositionZ:          out.pos.z = in.Get<float>();                    break;
+                    case Element::PositionO:          if (out.has.orientation) { out.pos.o = in.Get<float>(); } break;
 
-                    case Element::HasFallData:        out.fall.present = in.ReadBit();                 break;
-                    case Element::HasFallDirection:   if (out.fall.present) { out.fall.hasDirection = in.ReadBit(); } break;
-                    case Element::FallTime:           if (out.fall.present) { out.fall.time = in.read<uint32>(); } break;
-                    case Element::FallVerticalSpeed:  if (out.fall.present) { out.fall.vertical = in.read<float>(); } break;
+                    case Element::HasFallData:        out.fall.present = in.Bit();                 break;
+                    case Element::HasFallDirection:   if (out.fall.present) { out.fall.hasDirection = in.Bit(); } break;
+                    case Element::FallTime:           if (out.fall.present) { out.fall.time = in.Get<uint32>(); } break;
+                    case Element::FallVerticalSpeed:  if (out.fall.present) { out.fall.vertical = in.Get<float>(); } break;
                     case Element::FallHorizontalSpeed:
-                        if (out.fall.present && out.fall.hasDirection) { out.fall.horizontal = in.read<float>(); }
+                        if (out.fall.present && out.fall.hasDirection) { out.fall.horizontal = in.Get<float>(); }
                         break;
                     case Element::FallCosAngle:
-                        if (out.fall.present && out.fall.hasDirection) { out.fall.cosAngle = in.read<float>(); }
+                        if (out.fall.present && out.fall.hasDirection) { out.fall.cosAngle = in.Get<float>(); }
                         break;
                     case Element::FallSinAngle:
-                        if (out.fall.present && out.fall.hasDirection) { out.fall.sinAngle = in.read<float>(); }
+                        if (out.fall.present && out.fall.hasDirection) { out.fall.sinAngle = in.Get<float>(); }
                         break;
 
-                    case Element::HasTransportData:   out.transport.present = in.ReadBit();            break;
-                    case Element::HasTransportTime2:  if (out.transport.present) { out.transport.hasTime2 = in.ReadBit(); } break;
-                    case Element::HasVehicleId:       if (out.transport.present) { out.transport.hasVehicleId = in.ReadBit(); } break;
-                    case Element::TransportSeat:      if (out.transport.present) { out.transport.seat = in.read<int8>(); } break;
-                    case Element::TransportPositionX: if (out.transport.present) { out.transport.pos.x = in.read<float>(); } break;
-                    case Element::TransportPositionY: if (out.transport.present) { out.transport.pos.y = in.read<float>(); } break;
-                    case Element::TransportPositionZ: if (out.transport.present) { out.transport.pos.z = in.read<float>(); } break;
-                    case Element::TransportPositionO: if (out.transport.present) { out.transport.pos.o = in.read<float>(); } break;
-                    case Element::TransportTime:      if (out.transport.present) { out.transport.time = in.read<uint32>(); } break;
+                    case Element::HasTransportData:   out.transport.present = in.Bit();            break;
+                    case Element::HasTransportTime2:  if (out.transport.present) { out.transport.hasTime2 = in.Bit(); } break;
+                    case Element::HasVehicleId:       if (out.transport.present) { out.transport.hasVehicleId = in.Bit(); } break;
+                    case Element::TransportSeat:      if (out.transport.present) { out.transport.seat = in.Get<int8>(); } break;
+                    case Element::TransportPositionX: if (out.transport.present) { out.transport.pos.x = in.Get<float>(); } break;
+                    case Element::TransportPositionY: if (out.transport.present) { out.transport.pos.y = in.Get<float>(); } break;
+                    case Element::TransportPositionZ: if (out.transport.present) { out.transport.pos.z = in.Get<float>(); } break;
+                    case Element::TransportPositionO: if (out.transport.present) { out.transport.pos.o = in.Get<float>(); } break;
+                    case Element::TransportTime:      if (out.transport.present) { out.transport.time = in.Get<uint32>(); } break;
                     case Element::TransportTime2:
-                        if (out.transport.present && out.transport.hasTime2) { out.transport.time2 = in.read<uint32>(); }
+                        if (out.transport.present && out.transport.hasTime2) { out.transport.time2 = in.Get<uint32>(); }
                         break;
                     case Element::TransportVehicleId:
-                        if (out.transport.present && out.transport.hasVehicleId) { out.transport.vehicleId = in.read<uint32>(); }
+                        if (out.transport.present && out.transport.hasVehicleId) { out.transport.vehicleId = in.Get<uint32>(); }
                         break;
 
-                    case Element::MovementCounter:    out.counter = in.read<uint32>();                 break;
-                    case Element::ByteParam:          out.byteParam = in.read<int8>();                 break;
+                    case Element::MovementCounter:    out.counter = in.Get<uint32>();                 break;
+                    case Element::ByteParam:          out.byteParam = in.Get<int8>();                 break;
 
-                    case Element::ExtraFloat:            out.value = in.read<float>();                      break;
-                    case Element::ExtraTwoBits:          out.twoBits = uint8(in.ReadBits(2));               break;
-                    case Element::HasHeightChangeFailed: out.has.heightChangeFailed = in.ReadBit();         break;
-                    case Element::OneBit:                in.ReadBit();                                      break;
-                    case Element::FlushBits:             in.ResetBitReader();                               break;
+                    case Element::ExtraFloat:            out.value = in.Get<float>();                      break;
+                    case Element::ExtraTwoBits:          out.twoBits = uint8(in.Bits(2));               break;
+                    case Element::HasHeightChangeFailed: out.has.heightChangeFailed = in.Bit();         break;
+                    case Element::OneBit:                in.Bit();                                      break;
+                    case Element::FlushBits:             in.Reset();                               break;
 
                     default:
                     {
@@ -372,8 +427,14 @@ namespace Wire
         {
             result = DecodeUnchecked(in, sequence, candidate);
         }
+        catch (Overread const&)
+        {
+            result.error = DecodeError::Overread;
+        }
         catch (ByteBufferException const&)
         {
+            // Backstop only: the Reader checks every bound first, so this is
+            // reached only if a caller broke the byte-boundary precondition.
             result.error = DecodeError::Overread;
         }
         result.consumed = in.rpos() - start;
@@ -393,6 +454,24 @@ namespace Wire
         copy.rpos(0);
         copy.ResetBitReader();
         result = Decode(copy, sequence, out);
-        return result.ok() && result.consumed == copy.size();
+        if (result.ok() && result.consumed != copy.size())
+        {
+            result.error = DecodeError::LeftBytes;
+            out = MovementStatus();                       // whole, or nothing
+        }
+        return result.ok();
+    }
+
+    char const* ErrorName(DecodeError error)
+    {
+        switch (error)
+        {
+            case DecodeError::None:       return "ok";
+            case DecodeError::NoSequence: return "no layout";
+            case DecodeError::Overread:   return "overread";
+            case DecodeError::BadElement: return "bad element";
+            case DecodeError::LeftBytes:  return "left bytes";
+        }
+        return "?";
     }
 }

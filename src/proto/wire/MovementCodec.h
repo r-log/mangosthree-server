@@ -41,8 +41,12 @@ namespace Wire
         None,        ///< decoded the whole sequence
         NoSequence,  ///< sequence was null (no layout known for that opcode)
         Overread,    ///< the layout asked for more bytes than the buffer holds
-        BadElement   ///< an Element value outside the vocabulary
+        BadElement,  ///< an Element value outside the vocabulary
+        LeftBytes    ///< the layout consumed less than the whole packet (DecodeWhole only)
     };
+
+    /// The error's name for a report: "ok", "no layout", "overread", "bad element", "left bytes".
+    char const* ErrorName(DecodeError error);
 
     struct DecodeResult
     {
@@ -61,7 +65,9 @@ namespace Wire
 
     /// Read `sequence`'s layout into `out`. On any error `out` is reset to its defaults
     /// (nothing half-read reaches the caller); the read cursor is left wherever the
-    /// failure happened.
+    /// failure happened. Never logs: the decoder checks every read's bounds itself, so
+    /// an overread is a returned error, not a ByteBufferException (whose constructor
+    /// writes an error line -- a shadow that measures must not).
     /// Precondition: `in`'s bit cursor is at a byte boundary (its last read was a byte read,
     /// or nothing has been read).
     DecodeResult Decode(ByteBuffer& in, Sequence sequence, MovementStatus& out);

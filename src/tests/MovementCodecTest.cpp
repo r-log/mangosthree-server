@@ -860,4 +860,23 @@ TEST(MovementCodec_DecodeWhole_flushes_a_writers_pending_bits)
     CHECK_EQ(out.pos.x, 1.5f);
     // And without being told: the copy is short by that byte and cannot pass.
     CHECK(!Wire::DecodeWhole(packet, kTrailingBitSequence, out, result, false));
+    CHECK(result.error == Wire::DecodeError::Overread);
+}
+
+TEST(MovementCodec_DecodeWhole_names_the_bytes_a_layout_left_behind)
+{
+    // A decode that succeeds but stops short of the payload's end is not a
+    // whole decode; the result says so by name, not by a bare false.
+    WorldPacket packet(CMSG_MOVE_START_FORWARD, 64);
+    Wire::Encode(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), FullFixture());
+    const size_t bytes = packet.size();
+    packet << uint8(0xEE);                         // one byte the layout never reads
+    Wire::MovementStatus out;
+    Wire::DecodeResult result;
+    CHECK(!Wire::DecodeWhole(packet, Wire::SequenceFor(CMSG_MOVE_START_FORWARD), out, result, false));
+    CHECK(result.error == Wire::DecodeError::LeftBytes);
+    CHECK_EQ(result.consumed, bytes);
+    CHECK_EQ(out.pos.x, Wire::MovementStatus().pos.x);   // whole, or nothing
+    CHECK(std::string(Wire::ErrorName(result.error)) == "left bytes");
+    CHECK(std::string(Wire::ErrorName(Wire::DecodeError::Overread)) == "overread");
 }
