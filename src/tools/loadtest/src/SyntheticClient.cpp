@@ -881,6 +881,7 @@ namespace loadtest
         report.walkLastTime = walker.LastStampedTime();
         report.acksSent = acks.Sent();
         report.acksDropped = acks.Dropped();
+        report.acksPending = acks.PendingCount();
         report.unregisteredChanges = acks.Unregistered();
         for (std::map<uint16, uint32>::const_iterator it = acks.DecodeFailures().begin();
              it != acks.DecodeFailures().end(); ++it)

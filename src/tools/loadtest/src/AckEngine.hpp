@@ -83,6 +83,9 @@ namespace loadtest
 
             uint32 Sent() const { return m_sent; }
             uint32 Dropped() const { return m_dropped; }
+            /// Planned and not yet sent. Non-zero when a hold ends means a change
+            /// went unanswered, which the run must say rather than look clean.
+            uint32 PendingCount() const { return uint32(m_pending.size()); }
             const std::map<uint16, uint32>& Unregistered() const { return m_unregistered; }
             const std::map<uint16, uint32>& DecodeFailures() const { return m_decodeFailures; }
 

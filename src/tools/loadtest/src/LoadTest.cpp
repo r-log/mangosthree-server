@@ -436,7 +436,8 @@ int main(int argc, char** argv)
     std::printf("PEER walk start=%u heartbeats=%u stop=%u final=%.1f %.1f %.1f lastTime=%u\n",
                 peer.walkStarts, peer.walkHeartbeats, peer.walkStops,
                 peer.walkFinal.x, peer.walkFinal.y, peer.walkFinal.z, peer.walkLastTime);
-    std::printf("PEER acks sent=%u dropped=%u unregistered=", peer.acksSent, peer.acksDropped);
+    std::printf("PEER acks sent=%u dropped=%u pending=%u unregistered=",
+                peer.acksSent, peer.acksDropped, peer.acksPending);
     for (std::map<uint16, uint32>::const_iterator it = peer.unregisteredChanges.begin();
          it != peer.unregisteredChanges.end(); ++it)
     {
@@ -490,8 +491,9 @@ int main(int argc, char** argv)
         // and the only changes allowed to have no layout are the two hand-written
         // packets (P1-C) and the two rate changes no source has an ack layout for.
         // This verdict covers every packet the peer decodes, not only the changes
-        // -- nobody should narrow it later.
-        bool acksOk = peer.decodeFailures.empty();
+        // -- nobody should narrow it later. A delayed ack still pending when the
+        // hold ended is a change that went unanswered.
+        bool acksOk = peer.decodeFailures.empty() && peer.acksPending == 0;
         for (std::map<uint16, uint32>::const_iterator it = peer.unregisteredChanges.begin();
              it != peer.unregisteredChanges.end(); ++it)
         {
@@ -502,8 +504,8 @@ int main(int argc, char** argv)
                 acksOk = false;
             }
         }
-        std::printf("PEER VERDICT acks %s (sent %u, dropped %u)\n", acksOk ? "OK" : "BUG",
-                    peer.acksSent, peer.acksDropped);
+        std::printf("PEER VERDICT acks %s (sent %u, dropped %u, pending %u)\n", acksOk ? "OK" : "BUG",
+                    peer.acksSent, peer.acksDropped, peer.acksPending);
         verdictsOk = verdictsOk && acksOk;
     }
 

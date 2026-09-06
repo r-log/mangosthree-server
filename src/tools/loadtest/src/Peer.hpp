@@ -103,6 +103,7 @@ namespace loadtest
         std::map<uint16, uint32> unregisteredChanges; ///< change opcodes with no layout yet
         uint32 acksSent = 0;
         uint32 acksDropped = 0;
+        uint32 acksPending = 0;      ///< planned but not sent when the hold ended
         uint32 otherPackets = 0;
     };
 }

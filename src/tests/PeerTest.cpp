@@ -258,6 +258,23 @@ TEST(AckEngine_delays_when_told_to)
     CHECK_EQ(CounterOf(due[0]), uint32(3));
 }
 
+TEST(AckEngine_reports_what_is_still_pending)
+{
+    // A delayed ack that has not gone out yet is a fact the run must report: a
+    // hold that ends before it is due would otherwise look like a clean run.
+    loadtest::AckPolicy policy;
+    policy.mode = loadtest::AckMode::Delay;
+    policy.delayMs = 250;
+    loadtest::AckEngine engine(policy, &FakeLookup, FakePairs());
+    CHECK_EQ(engine.PendingCount(), uint32(0));
+    REQUIRE(engine.Plan(FakeChange(3), 1000));
+    CHECK_EQ(engine.PendingCount(), uint32(1));
+    CHECK(engine.Due(1100).empty());
+    CHECK_EQ(engine.PendingCount(), uint32(1));
+    REQUIRE(engine.Due(1250).size() == 1);
+    CHECK_EQ(engine.PendingCount(), uint32(0));
+}
+
 TEST(AckEngine_mismatches_the_counter_when_told_to)
 {
     loadtest::AckPolicy policy;
