@@ -66,6 +66,7 @@ set(SRC_GRP_TESTS
     # The protocol peer's pure units (movement P0-B), compiled in like Framing.cpp.
     PeerTest.cpp
     ReplayTest.cpp
+    GoldenCaptureTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/AckEngine.cpp
@@ -135,6 +136,9 @@ target_include_directories(mangos_tests
         ${CMAKE_SOURCE_DIR}/src/game/movement
         ${CMAKE_SOURCE_DIR}/src/realmd
         ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src)
+
+# Where the golden captures live; GoldenCaptureTest replays every file there.
+target_compile_definitions(mangos_tests PRIVATE MANGOS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/goldens")
 
 target_link_libraries(mangos_tests
     PRIVATE
