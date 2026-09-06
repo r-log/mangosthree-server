@@ -59,6 +59,8 @@ namespace Wire
         float  splineElevation = 0.0f; ///< when has.splineElevation
         uint32 counter = 0;  ///< movement counter (acks). The legacy reader discards it; we do not.
         int8   byteParam = 0;
+        float  value = 0.0f;   ///< ExtraFloat: the speed a SET/UPDATE/ACK carries, or a collision height
+        uint8  twoBits = 0;    ///< ExtraTwoBits: the collision-height change reason
 
         struct
         {
@@ -73,6 +75,7 @@ namespace Wire
             /// that derivation cannot, so the packet re-encodes byte-identical.
             bool emptyFlagsBlock = false;
             bool emptyFlags2Block = false; ///< same, for flags2
+            bool heightChangeFailed = false; ///< SMSG_MOVE_UPDATE's HasHeightChangeFailed bit
         } has;
 
         struct
@@ -93,10 +96,10 @@ namespace Wire
             Vec4   pos;
             uint32 time = 0;
             uint32 time2 = 0;        ///< when hasTime2
-            uint32 time3 = 0;        ///< when hasTime3
+            uint32 vehicleId = 0;    ///< when hasVehicleId (the legacy reader called this transport time 3)
             int8   seat = -1;
             bool   hasTime2 = false;
-            bool   hasTime3 = false;
+            bool   hasVehicleId = false;
         } transport;
 
         /// Field-wise. Fields under an absent gate (e.g. fall.hasDirection while
@@ -108,6 +111,7 @@ namespace Wire
                    time == r.time && pos == r.pos && pitch == r.pitch &&
                    splineElevation == r.splineElevation && counter == r.counter &&
                    byteParam == r.byteParam &&
+                   value == r.value && twoBits == r.twoBits && has.heightChangeFailed == r.has.heightChangeFailed &&
                    has.orientation == r.has.orientation && has.pitch == r.has.pitch &&
                    has.timestamp == r.has.timestamp && has.spline == r.has.spline &&
                    has.splineElevation == r.has.splineElevation && has.unknownBit == r.has.unknownBit &&
@@ -118,9 +122,9 @@ namespace Wire
                    fall.sinAngle == r.fall.sinAngle &&
                    transport.present == r.transport.present && transport.guid == r.transport.guid &&
                    transport.pos == r.transport.pos && transport.time == r.transport.time &&
-                   transport.time2 == r.transport.time2 && transport.time3 == r.transport.time3 &&
+                   transport.time2 == r.transport.time2 && transport.vehicleId == r.transport.vehicleId &&
                    transport.seat == r.transport.seat && transport.hasTime2 == r.transport.hasTime2 &&
-                   transport.hasTime3 == r.transport.hasTime3;
+                   transport.hasVehicleId == r.transport.hasVehicleId;
         }
     };
 }

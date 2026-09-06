@@ -223,8 +223,8 @@ namespace
         s.transport.time = 555;
         s.transport.hasTime2 = true;
         s.transport.time2 = 556;
-        s.transport.hasTime3 = true;
-        s.transport.time3 = 557;
+        s.transport.hasVehicleId = true;
+        s.transport.vehicleId = 557;
         s.transport.seat = 2;
         return s;
     }
@@ -375,7 +375,7 @@ namespace
             CheckAnnouncedBefore(s, E(int(E::TransportGuidBit0) + i), E(int(E::TransportGuidByte0) + i));
         }
         CheckAnnouncedBefore(s, E::HasTransportData, E::HasTransportTime2);
-        CheckAnnouncedBefore(s, E::HasTransportData, E::HasTransportTime3);
+        CheckAnnouncedBefore(s, E::HasTransportData, E::HasVehicleId);
         CheckAnnouncedBefore(s, E::HasTransportData, E::TransportSeat);
         CheckAnnouncedBefore(s, E::HasTransportData, E::TransportPositionX);
         CheckAnnouncedBefore(s, E::HasTransportData, E::TransportPositionY);
@@ -383,7 +383,7 @@ namespace
         CheckAnnouncedBefore(s, E::HasTransportData, E::TransportPositionO);
         CheckAnnouncedBefore(s, E::HasTransportData, E::TransportTime);
         CheckAnnouncedBefore(s, E::HasTransportTime2, E::TransportTime2);
-        CheckAnnouncedBefore(s, E::HasTransportTime3, E::TransportTime3);
+        CheckAnnouncedBefore(s, E::HasVehicleId, E::TransportVehicleId);
     }
 }
 
@@ -496,9 +496,83 @@ TEST(MovementCodec_failed_decode_leaves_out_at_defaults)
     CHECK(got == Wire::MovementStatus());
 }
 
+#include "WorldPacket.h"
+
+TEST(MovementCodec_writes_the_p1_elements_in_their_slots)
+{
+    // Two gate bits, the constant one, a two-bit field, an explicit flush, then a
+    // float and the counter in the byte section. Hand-derived: bits 1,1,1,0 make
+    // 0xE0; 1.5f is 00 00 C0 3F; the counter 7 is 07 00 00 00.
+    static const Wire::Element kLayout[] =
+    {
+        Wire::Element::HasHeightChangeFailed, Wire::Element::OneBit, Wire::Element::ExtraTwoBits,
+        Wire::Element::FlushBits, Wire::Element::ExtraFloat, Wire::Element::MovementCounter,
+        Wire::Element::End
+    };
+    Wire::MovementStatus s;
+    s.has.heightChangeFailed = true;
+    s.twoBits = 2;
+    s.value = 1.5f;
+    s.counter = 7;
+    WorldPacket p(0, 16);
+    Wire::Encode(p, kLayout, s);
+    CHECK_BYTES(p.contents(), p.size(), { 0xE0, 0x00, 0x00, 0xC0, 0x3F, 0x07, 0x00, 0x00, 0x00 });
+
+    Wire::MovementStatus back;
+    REQUIRE(Wire::Decode(p, kLayout, back).ok());
+    CHECK(back.has.heightChangeFailed);
+    CHECK_EQ(int(back.twoBits), 2);
+    CHECK_EQ(back.value, 1.5f);
+    CHECK_EQ(back.counter, uint32(7));
+    CHECK(back == s);
+}
+
+TEST(MovementCodec_carries_the_transport_vehicle_id_only_under_its_gates)
+{
+    // The slot the legacy header called "transport time 3" is the vehicle id, and
+    // it sits behind two gates: the transport block and its own presence bit.
+    static const Wire::Element kLayout[] =
+    {
+        Wire::Element::HasTransportData, Wire::Element::HasVehicleId,
+        Wire::Element::TransportVehicleId, Wire::Element::End
+    };
+    Wire::MovementStatus s;
+    s.transport.present = true;
+    s.transport.hasVehicleId = true;
+    s.transport.vehicleId = 0x1234;
+    WorldPacket p(0, 8);
+    Wire::Encode(p, kLayout, s);
+    CHECK_BYTES(p.contents(), p.size(), { 0xC0, 0x34, 0x12, 0x00, 0x00 });
+
+    Wire::MovementStatus back;
+    REQUIRE(Wire::Decode(p, kLayout, back).ok());
+    CHECK(back.transport.present);
+    CHECK(back.transport.hasVehicleId);
+    CHECK_EQ(back.transport.vehicleId, uint32(0x1234));
+    CHECK(back == s);
+
+    Wire::MovementStatus bare;      // no transport block: both gates closed, one zero byte
+    WorldPacket q(0, 8);
+    Wire::Encode(q, kLayout, bare);
+    CHECK_BYTES(q.contents(), q.size(), { 0x00 });
+}
+
 // The legacy layouts the seed tables were copied from: header-only arrays in
 // src/game/movement, safe to define in this one translation unit.
 #include "MovementStructures.h"
+
+namespace
+{
+    // The legacy enum mirrors Wire::Element ordinal for ordinal below End (pinned
+    // by the static_assert); only the terminator differs, because Wire appended
+    // elements the legacy header never had.
+    static_assert(int(Wire::Element::ByteParam) == int(MSEByteParam),
+                  "the legacy prefix of the vocabulary must stay ordinal-mirrored");
+    Wire::Element WireOf(MovementStatusElements e)
+    {
+        return e == MSEEnd ? Wire::Element::End : Wire::Element(int(e));
+    }
+}
 
 TEST(MovementSequences_seed_tables_match_the_legacy_arrays)
 {
@@ -514,7 +588,7 @@ TEST(MovementSequences_seed_tables_match_the_legacy_arrays)
         int i = 0;
         for (;; ++i)
         {
-            CHECK_EQ(int(e->sequence[i]), int(legacy[i]));
+            CHECK_EQ(int(e->sequence[i]), int(WireOf(legacy[i])));
             if (e->sequence[i] == Wire::Element::End || legacy[i] == MSEEnd)
             {
                 break;
