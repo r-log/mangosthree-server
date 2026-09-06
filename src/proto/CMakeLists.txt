@@ -71,6 +71,8 @@ set(SRC_GRP_PROTO
     wire/GuidCodec.cpp
     wire/KnockBackCodec.h
     wire/KnockBackCodec.cpp
+    wire/MonsterMoveCodec.h
+    wire/MonsterMoveCodec.cpp
     wire/MovementFamilies.h
     wire/MovementFamilies.cpp
     wire/MoverCodec.h

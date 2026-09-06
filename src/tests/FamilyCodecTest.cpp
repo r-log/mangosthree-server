@@ -30,6 +30,7 @@
 
 #include "wire/GuidCodec.h"
 #include "wire/KnockBackCodec.h"
+#include "wire/MonsterMoveCodec.h"
 #include "wire/MovementFamilies.h"
 #include "wire/MovementSequences.h"
 #include "wire/MoverCodec.h"
@@ -346,4 +347,119 @@ TEST(TeleportCodec_ack_is_counter_time_then_the_masked_guid)
     r = Wire::DecodeTeleportAck(cut, back);
     CHECK(r.error == Wire::DecodeError::Overread);
     CHECK_EQ(back.counter, uint32(0));
+}
+
+TEST(MonsterMoveCodec_linear_path_matches_the_packet_builder)
+{
+    // PacketBuilder::WriteMonsterMove for the common case: packed mover guid,
+    // the zero byte, start, id, type Normal, flags, duration, then a linear
+    // path: last index, destination, and one packed offset per middle point.
+    Wire::MonsterMove v;
+    v.mover = kGuid;
+    v.start.x = 1.0f; v.start.y = 2.0f; v.start.z = 3.0f;
+    v.id = 5;
+    v.flags = 0x00000000;
+    v.duration = 1500;
+    v.path = Wire::SplinePath::Linear;
+    v.destination.x = 4.0f; v.destination.y = 5.0f; v.destination.z = 6.0f;
+    v.packedOffsets.push_back(0x00400801u);   // one middle point, kept packed
+    WorldPacket p(SMSG_MONSTER_MOVE, 64);
+    Wire::EncodeMonsterMove(p, SMSG_MONSTER_MOVE, v);
+    CHECK(Hex(p) == std::string("0146" "00" "0000803F" "00000040" "00004040" "05000000" "00" "00000000" "DC050000"
+                                 "02000000" "00008040" "0000A040" "0000C040" "01084000"));
+    Wire::MonsterMove back;
+    p.rpos(0);
+    Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back);
+    CHECK(r.ok());
+    CHECK_EQ(r.consumed, p.size());
+    CHECK_EQ(back.mover, kGuid);
+    CHECK_EQ(back.id, uint32(5));
+    CHECK_EQ(back.duration, uint32(1500));
+    CHECK(back.path == Wire::SplinePath::Linear);
+    CHECK_EQ(back.destination.z, 6.0f);
+    CHECK_EQ(back.packedOffsets.size(), size_t(1));
+    CHECK_EQ(back.packedOffsets[0], 0x00400801u);
+    CHECK(Wire::Judge(SMSG_MONSTER_MOVE, p, false).exact);
+}
+
+TEST(MonsterMoveCodec_stop_form_ends_at_the_type)
+{
+    // MoveSplineInit::Stop: guid, zero byte, position, id, MonsterMoveStop, nothing more.
+    Wire::MonsterMove v;
+    v.mover = kGuid;
+    v.start.x = 1.0f; v.start.y = 2.0f; v.start.z = 3.0f;
+    v.id = 6;
+    v.type = Wire::MonsterMoveType::Stop;
+    WorldPacket p(SMSG_MONSTER_MOVE, 32);
+    Wire::EncodeMonsterMove(p, SMSG_MONSTER_MOVE, v);
+    CHECK(Hex(p) == std::string("0146" "00" "0000803F" "00000040" "00004040" "06000000" "01"));
+    Wire::MonsterMove back;
+    p.rpos(0);
+    CHECK(Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back).ok());
+    CHECK(back.type == Wire::MonsterMoveType::Stop);
+    CHECK(Wire::Judge(SMSG_MONSTER_MOVE, p, false).exact);
+}
+
+TEST(MonsterMoveCodec_transport_form_facing_animation_parabolic_and_uncompressed_path_round_trip)
+{
+    Wire::MonsterMove v;
+    v.mover = 0x0000000000000102ULL;
+    v.onTransport = true; v.transport = 0x1F00000000000A01ULL; v.seat = 2;
+    v.exitVoluntary = 0;
+    v.start.x = -1.0f; v.start.y = -2.0f; v.start.z = -3.0f;
+    v.id = 77;
+    v.type = Wire::MonsterMoveType::FacingTarget; v.facingTarget = 0xF130000000001234ULL;
+    v.flags = Wire::kSplineFlagAnimation | Wire::kSplineFlagTrajectory | Wire::kSplineFlagUncompressedPath | 0x00000200;
+    v.animationId = 2; v.animationStart = 300;
+    v.duration = 4000;
+    v.verticalAcceleration = 9.5f; v.parabolicStart = 100;
+    v.path = Wire::SplinePath::Uncompressed;
+    Wire::Vec3 a; a.x = 1; a.y = 1; a.z = 1;
+    Wire::Vec3 b; b.x = 2; b.y = 2; b.z = 2;
+    v.points.push_back(a); v.points.push_back(b);
+    WorldPacket p(SMSG_MONSTER_MOVE_TRANSPORT, 128);
+    Wire::EncodeMonsterMove(p, SMSG_MONSTER_MOVE_TRANSPORT, v);
+    Wire::MonsterMove back;
+    p.rpos(0);
+    Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE_TRANSPORT, back);
+    CHECK(r.ok());
+    CHECK_EQ(r.consumed, p.size());
+    CHECK(back.onTransport);
+    CHECK_EQ(back.transport, v.transport);
+    CHECK_EQ(int(back.seat), 2);
+    CHECK(back.type == Wire::MonsterMoveType::FacingTarget);
+    CHECK_EQ(back.facingTarget, v.facingTarget);
+    CHECK_EQ(int(back.animationId), 2);
+    CHECK_EQ(back.animationStart, int32(300));
+    CHECK_EQ(back.verticalAcceleration, 9.5f);
+    CHECK_EQ(back.parabolicStart, int32(100));
+    CHECK(back.path == Wire::SplinePath::Uncompressed);
+    CHECK_EQ(back.points.size(), size_t(2));
+    CHECK_EQ(back.points[1].z, 2.0f);
+    CHECK(Wire::Judge(SMSG_MONSTER_MOVE_TRANSPORT, p, false).exact);
+    // The other two facings round-trip too.
+    v.onTransport = false; v.type = Wire::MonsterMoveType::FacingAngle; v.facingAngle = 1.25f;
+    WorldPacket q(SMSG_MONSTER_MOVE, 128);
+    Wire::EncodeMonsterMove(q, SMSG_MONSTER_MOVE, v);
+    q.rpos(0);
+    CHECK(Wire::DecodeMonsterMove(q, SMSG_MONSTER_MOVE, back).ok());
+    CHECK_EQ(back.facingAngle, 1.25f);
+    v.type = Wire::MonsterMoveType::FacingSpot; v.facingSpot = a;
+    WorldPacket s(SMSG_MONSTER_MOVE, 128);
+    Wire::EncodeMonsterMove(s, SMSG_MONSTER_MOVE, v);
+    s.rpos(0);
+    CHECK(Wire::DecodeMonsterMove(s, SMSG_MONSTER_MOVE, back).ok());
+    CHECK_EQ(back.facingSpot.y, 1.0f);
+}
+
+TEST(MonsterMoveCodec_refuses_a_path_count_the_buffer_cannot_hold)
+{
+    // A count of 4 billion points must not reserve 4 billion points: the
+    // decoder bounds the count by the bytes that remain before it reserves.
+    WorldPacket p = FromHex(SMSG_MONSTER_MOVE, "0146" "00" "0000803F" "00000040" "00004040" "05000000" "00" "00004000" "DC050000" "FFFFFFFF");
+    Wire::MonsterMove back;
+    p.rpos(0);
+    Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back);
+    CHECK(r.error == Wire::DecodeError::Overread);
+    CHECK(back.points.empty());
 }

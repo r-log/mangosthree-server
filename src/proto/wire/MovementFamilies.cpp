@@ -24,6 +24,7 @@
  */
 
 #include "wire/KnockBackCodec.h"
+#include "wire/MonsterMoveCodec.h"
 #include "wire/MovementFamilies.h"
 #include "wire/MovementSequences.h"
 #include "wire/MoverCodec.h"
@@ -168,7 +169,13 @@ namespace Wire
                     if (v.result.ok()) { EncodeTeleportAck(again, value); }
                     break;
                 }
-                // Task 3 adds MonsterMove here.
+                case Family::MonsterMove:
+                {
+                    MonsterMove value;
+                    v.result = DecodeMonsterMove(copy, opcode, value);
+                    if (v.result.ok()) { EncodeMonsterMove(again, opcode, value); }
+                    break;
+                }
                 default:
                     v.result.error = DecodeError::NoSequence;
                     return v;
