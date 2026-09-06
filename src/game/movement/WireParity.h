@@ -73,6 +73,31 @@ class WorldPacket;
  * which have their own handlers -- are captured and replayed, but never
  * compared against the legacy reader here. That is the plan's scope, not a
  * defect; P1-C must not read these counters as covering them.
+ *
+ * The families (P1-C). Eight opcodes carry no movement status and so have no
+ * generated layout; each has a hand-written codec instead, and the shadow now
+ * counts them too -- one row per family opcode, after the registry's, so an
+ * existing row index still means what it did. Outbound judges every packet the
+ * wire layer knows, of either kind, by decoding it whole and re-encoding what it
+ * decoded: a packet that decodes but does not reproduce its own bytes is counted
+ * as `inexact` rather than as a failure, because the decode was sound and it is
+ * the writer or the encoder that disagrees. Two of the families are built by the
+ * client and read by hand in their own handlers rather than through
+ * MovementInfo, so they get a hook each -- InboundMover and InboundTeleportAck --
+ * which compare the codec's fields with what the handler just read, exactly as
+ * Inbound compares a movement status.
+ *
+ * One of those two reads nothing. HandleSetActiveMoverOpcode calls recv_data's
+ * WriteGuidMask/WriteGuidBytes templates rather than the ReadGuidMask/
+ * ReadGuidBytes ones its neighbours use -- the only such call site in the tree.
+ * Those write: with the empty guid they are handed they append a zero mask byte
+ * to the packet and fill nothing, so the handler always compares the mover
+ * against an empty guid, always logs "incorrect mover guid" and always returns
+ * without setting a mover. The hook runs where the handler's read belongs, so
+ * until that is fixed this row records the defect rather than a codec fault: the
+ * packet it decodes is one byte longer than the client sent it, which lands in
+ * inFailed as "consumed 2 of 3". Fixing the handler is a change to what the
+ * server does and is therefore not P1's; the row is the evidence for it.
  */
 namespace WireParity
 {
@@ -90,8 +115,14 @@ namespace WireParity
     /// A relay the legacy writer built from `legacy`, before it is sent -- and
     /// before SendPacket flushes its trailing bits.
     void Relay(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy);
-    /// Any other registered packet this server sends: must decode, whole.
+    /// Any other packet the wire layer knows that this server sends -- a registry
+    /// layout or a family: must decode whole, and should re-encode to its own bytes.
     void Outbound(uint16 opcode, WorldPacket const& packet);
+
+    /// CMSG_SET_ACTIVE_MOVER after the legacy handler read its guid.
+    void InboundMover(WorldPacket const& packet, uint64 legacyGuid);
+    /// CMSG_MOVE_TELEPORT_ACK after the legacy handler read its fields.
+    void InboundTeleportAck(WorldPacket const& packet, uint32 legacyCounter, uint32 legacyTime, uint64 legacyGuid);
 
     /// True once any hook has counted a packet, whatever the switch says now.
     /// The shutdown report asks this instead of Enabled(), so a `.reload config`
