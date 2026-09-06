@@ -47,14 +47,21 @@ namespace loadtest
     {
     }
 
-    WorldPacket Walker::Packet(uint16 opcode, uint32 flags, uint32 nowTicks) const
+    Wire::MovementStatus Walker::Status() const
     {
         Wire::MovementStatus status;
         status.guid = m_guid;
-        status.flags = flags;
-        status.time = nowTicks;
+        status.flags = (m_started && !m_done) ? MOVEFLAG_FORWARD : 0;
         status.pos = m_pos;
         status.pos.o = m_heading;
+        return status;
+    }
+
+    WorldPacket Walker::Packet(uint16 opcode, uint32 flags, uint32 nowTicks) const
+    {
+        Wire::MovementStatus status = Status();
+        status.flags = flags;
+        status.time = nowTicks;
 
         WorldPacket packet(opcode, 64);
         Wire::Encode(packet, Wire::SequenceFor(opcode), status);

@@ -56,6 +56,12 @@ namespace loadtest
             bool Started() const { return m_started; }
             bool Done() const { return m_done; }
             const Wire::Vec4& Position() const { return m_pos; }
+
+            /// The mover as it stands now: guid, forward flag while a leg is under
+            /// way, position with the heading as orientation; no timestamp -- the
+            /// caller stamps.
+            Wire::MovementStatus Status() const;
+
             uint32 Starts() const { return m_starts; }
             uint32 Heartbeats() const { return m_heartbeats; }
             uint32 Stops() const { return m_stops; }

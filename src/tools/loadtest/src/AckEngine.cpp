@@ -111,16 +111,24 @@ namespace loadtest
             return false;
         }
 
+        // The ack is the mover's own status with the change's counter and value
+        // echoed; the SET names the unit, and the ack names the same one.
+        Wire::MovementStatus reply = m_mover;
+        reply.guid    = status.guid;
+        reply.counter = status.counter;
+        reply.value   = status.value;
+        reply.twoBits = status.twoBits;
+
         switch (m_policy.mode)
         {
             case AckMode::Drop:
                 ++m_dropped;
                 return true;
             case AckMode::Mismatch:
-                status.counter += 1;
+                reply.counter += 1;
                 break;
             case AckMode::Stale:
-                status.counter -= 1;
+                reply.counter -= 1;
                 break;
             case AckMode::Delay:
             case AckMode::Immediate:
@@ -129,7 +137,7 @@ namespace loadtest
 
         Pending pending;
         pending.opcode = pair->ack;
-        pending.status = status;
+        pending.status = reply;
         pending.dueTicks = nowTicks + (m_policy.mode == AckMode::Delay ? m_policy.delayMs : 0);
         m_pending.push_back(pending);
         return true;

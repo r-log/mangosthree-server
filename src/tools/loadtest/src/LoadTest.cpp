@@ -45,6 +45,7 @@
 #include "SyntheticClient.hpp"
 
 #include "Auth/Sha1.h"
+#include "Opcodes.h"
 
 #include <chrono>
 #include <cmath>
@@ -73,7 +74,7 @@ namespace
             "  --build N            client build to claim       (default 15595)\n"
             "  --hold SECONDS       stay in world afterwards    (default 0)\n"
             "  --key HEX            session key, 80 hex digits; overrides the derived one\n"
-            "  --emit-sql           print the SQL that plants the derived key, and exit\n"
+            "  --emit-sql           print the SQL that plants the derived key and the client OS, and exit\n"
             "  --verbose            trace each milestone as it is reached\n"
             "\n"
             "Protocol peer (movement P0-B):\n"
@@ -303,6 +304,10 @@ int main(int argc, char** argv)
         // the operator's to create, with whatever password realmd wants.
         std::printf("UPDATE `account` SET `sessionkey` = '%s' WHERE `username` = '%s';\n",
                     keyHex.c_str(), config.account.c_str());
+        // The world gateway refuses any client OS but Win/OSX (AUTH_REJECT, 0x0E),
+        // and an account that never went through realmd has an empty one.
+        std::printf("UPDATE `account` SET `os` = 'Win' WHERE `username` = '%s';\n",
+                    config.account.c_str());
         std::printf("-- then, against the character database, to find a guid to log in:\n");
         std::printf("--   SELECT `guid`, `name` FROM `characters` WHERE `account` = "
                     "(SELECT `id` FROM `realmd`.`account` WHERE `username` = '%s');\n",
@@ -468,6 +473,27 @@ int main(int argc, char** argv)
                     walkOk ? "OK" : "BUG", peer.walkStarts, peer.walkHeartbeats, nominal,
                     peer.walkStops, legs);
         verdictsOk = verdictsOk && walkOk;
+    }
+
+    if (config.holdSeconds > 0)
+    {
+        // Every change the server sent must have decoded with its registry layout,
+        // and the only changes allowed to have no layout are the two hand-written
+        // packets (P1-C) and the two rate changes no source has an ack layout for.
+        bool acksOk = peer.decodeFailures.empty();
+        for (std::map<uint16, uint32>::const_iterator it = peer.unregisteredChanges.begin();
+             it != peer.unregisteredChanges.end(); ++it)
+        {
+            const uint16 op = it->first;
+            if (op != SMSG_MOVE_KNOCK_BACK && op != SMSG_MOVE_TELEPORT &&
+                op != SMSG_MOVE_SET_TURN_RATE && op != SMSG_MOVE_SET_PITCH_RATE)
+            {
+                acksOk = false;
+            }
+        }
+        std::printf("PEER VERDICT acks %s (sent %u, dropped %u)\n", acksOk ? "OK" : "BUG",
+                    peer.acksSent, peer.acksDropped);
+        verdictsOk = verdictsOk && acksOk;
     }
 
     // The server relays movement only inside the observer's visibility range

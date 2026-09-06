@@ -69,6 +69,11 @@ namespace loadtest
 
             bool IsChange(uint16 opcode) const;
 
+            /// The mover's current status: what an ack carries besides the change's
+            /// counter and value. Set it before every Plan; the default is an empty
+            /// status, which a server accepts but a reader of the capture would not.
+            void SetMover(const Wire::MovementStatus& mover) { m_mover = mover; }
+
             /// Decode `change` and queue its ack per the policy. Returns false, and
             /// counts the opcode, when no layout is registered for it or its ack.
             bool Plan(const WorldPacket& change, uint32 nowTicks);
@@ -94,6 +99,7 @@ namespace loadtest
             AckPolicy               m_policy;
             Lookup                  m_lookup;
             std::vector<ChangePair> m_pairs;
+            Wire::MovementStatus    m_mover;
             std::vector<Pending>    m_pending;
             std::map<uint16, uint32> m_unregistered;
             std::map<uint16, uint32> m_decodeFailures;

@@ -803,6 +803,8 @@ namespace loadtest
                 return false;
             }
             const uint32 now = clock.Ticks();
+            // An ack sent this tick carries where the mover is this tick.
+            acks.SetMover(walker.Status());
 
             Stream* streams[] = { &m_stream0, &m_stream1 };
             for (Stream* stream : streams)
