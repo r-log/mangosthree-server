@@ -63,8 +63,11 @@ namespace WireParity
 
         std::vector<Row>& Rows()
         {
-            static std::vector<Row> rows(Wire::RegistrySize());
-            return rows;
+            // Leaked on purpose: the process is exiting when the last reader runs
+            // (World::CleanupsBeforeStop, then whatever static destruction follows),
+            // and static destruction order across singletons is not ours to control.
+            static std::vector<Row>* rows = new std::vector<Row>(Wire::RegistrySize());
+            return *rows;
         }
 
         void NoteFirst(Row& row, std::string const& text)
