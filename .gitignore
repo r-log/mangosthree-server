@@ -107,3 +107,6 @@ src/shared/revision_data.h
 /extra/docker/data/
 /extra/docker/logs/
 /extra/docker/.env
+
+# The movement wire goldens are the one kind of capture the tree checks in.
+!src/tests/goldens/movement/*.log

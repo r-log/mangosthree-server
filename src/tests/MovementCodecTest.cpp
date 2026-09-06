@@ -578,14 +578,25 @@ namespace
     // an earlier TrinityCore. Where both cover an opcode, one of three things is
     // true, and each is pinned so a drift on either side lands here, not on a client.
 
-    // Identical.
-    const uint16 kLegacyVerbatim[] = { CMSG_MOVE_SET_RUN_MODE, CMSG_MOVE_SET_WALK_MODE };
-
-    // Identical except that the legacy names the two fall-direction floats the
-    // other way round (cos where CPP says sin). The wire position is the same, so
-    // nothing decodes differently -- only the label. P1-B's jump golden at facing 0
-    // (cos must read 1.0) decides which name is right.
-    const uint16 kLegacyFallAngleSwapped[] =
+    // Identical. P1-B's real-client golden settled the fall-direction floats
+    // (see gen_movement_layouts.py's ELEMENT_NAMES): a real CMSG_MOVE_JUMP's own
+    // bytes, and every packet the client sent while that jump's fall stayed
+    // open, show the legacy header's cos/sin labels for CMSG_MOVE_JUMP and its
+    // 27 siblings below are the ones the client's own bytes agree with, so the
+    // generator now emits the registry with those labels and every opcode that
+    // used to sit in kLegacyFallAngleSwapped is verbatim against the legacy
+    // table, not swapped.
+    //
+    // MovementSetRunMode and MovementSetWalkMode (CMSG_MOVE_SET_RUN_MODE,
+    // CMSG_MOVE_SET_WALK_MODE) also carry a fall block. The legacy header
+    // labels these two tables the CPP way and the other 28 the flipped way --
+    // the session has no run-mode or walk-mode toggle while airborne, so
+    // neither labeling is proven for these two specifically, only assumed: the
+    // registry follows the same rule the client proved on the other 28, moving
+    // these two the other way, out of verbatim and into
+    // kLegacyFallAngleSwapped. A capture with an airborne walk-mode toggle
+    // would settle them for real.
+    const uint16 kLegacyVerbatim[] =
     {
         CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE, CMSG_DISMISS_CONTROLLED_VEHICLE,
         CMSG_MOVE_CHNG_TRANSPORT, CMSG_MOVE_FALL_LAND, CMSG_MOVE_JUMP, CMSG_MOVE_KNOCK_BACK_ACK,
@@ -597,6 +608,12 @@ namespace
         CMSG_MOVE_STOP, CMSG_MOVE_STOP_ASCEND, CMSG_MOVE_STOP_PITCH, CMSG_MOVE_STOP_STRAFE,
         CMSG_MOVE_STOP_SWIM, CMSG_MOVE_STOP_TURN, MSG_MOVE_HEARTBEAT
     };
+
+    // The two opcodes the flip moved out of kLegacyVerbatim (see above): the
+    // legacy header labels these two the CPP way, unlike the other 28, but the
+    // session never caught either airborne, so the registry only assumes the
+    // same rule applies rather than proving it here.
+    const uint16 kLegacyFallAngleSwapped[] = { CMSG_MOVE_SET_RUN_MODE, CMSG_MOVE_SET_WALK_MODE };
 
     // Structurally different. The registry follows CPP until a golden says otherwise.
     struct Differ { uint16 opcode; char const* why; };

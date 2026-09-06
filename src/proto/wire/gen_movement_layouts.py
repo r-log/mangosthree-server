@@ -66,6 +66,15 @@ ELEMENT_NAMES = {
     "MSEZeroBit": "HasUnknownBit",          # the same positional bit P0-A carries
     "MSEOneBit": "OneBit", "MSEFlushBits": "FlushBits",
     "MSEExtraInt8": "ByteParam", "MSEExtraFloat": "ExtraFloat", "MSEExtraTwoBits": "ExtraTwoBits",
+    # The P1-B client golden proves CPP has these two the wrong way round: a
+    # real CMSG_MOVE_JUMP's own bytes show the float CPP names sin is actually
+    # the cosine of the facing (and vice versa), and every other packet the
+    # client sends while that jump's fall stays open (MSG_MOVE_HEARTBEAT,
+    # CMSG_MOVE_START_STRAFE_LEFT -- Cos-then-Sin tables, the opposite wire
+    # order from the jump's Sin-then-Cos) echoes the identical, now-correct
+    # pair. CPP names both elements from one offset-to-name mapping applied to
+    # every table, so the flip belongs in that one mapping, not per table.
+    "MSEFallCosAngle": "FallSinAngle", "MSEFallSinAngle": "FallCosAngle",
 }
 for i in range(8):
     ELEMENT_NAMES["MSEHasGuidByte%d" % i] = "GuidBit%d" % i

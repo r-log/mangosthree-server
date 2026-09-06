@@ -45,11 +45,13 @@ class WorldPacket;
  * Movement.WireParity is set; then every hook is one atomic load.
  *
  * Two legacy quirks are counted apart, not as mismatches, because they are
- * known and each has its own fate: the legacy header names the two
+ * known and each has its own fate: the legacy header named the two
  * fall-direction floats the other way round on 28 layouts (labelSwapped;
- * P1-B's real-client golden decides), and the legacy reader stores a
- * transport's vehicle id into fallTime (vehicleIdInFallTime; P2 retires that
- * reader).
+ * P1-B's real-client golden found the legacy header's labels were the ones
+ * the client's own bytes agree with, so the registry now emits those labels
+ * and labelSwapped counts nothing -- it can be removed in P2), and the legacy
+ * reader stores a transport's vehicle id into fallTime (vehicleIdInFallTime;
+ * P2 retires that reader).
  */
 namespace WireParity
 {
