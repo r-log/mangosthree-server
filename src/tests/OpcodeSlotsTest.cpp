@@ -26,6 +26,7 @@
 #include "TestHarness.h"
 
 #include "OpcodeSlots.h"
+#include "Opcodes.h"
 #include "ServerRouting.h"
 
 #include <vector>
@@ -214,4 +215,19 @@ TEST(OpcodeSlots_batch_container_is_not_a_routable_opcode)
     // catalogue, so it has no send_slot of its own; anything that batches has to
     // choose the stream from what it is batching, never from the container.
     CHECK(!proto::IsKnownSlotOpcode(0x0D40));
+}
+
+TEST(OpcodeSlots_the_peer_transmits_where_the_client_does)
+{
+    // What SyntheticClient::StreamFor relies on: the client's own send router puts
+    // its in-world traffic -- time-sync answers, movement, acks -- on the second
+    // stream and keeps the ping on the first. The server accepts either today;
+    // the peer follows the client so a server that one day cares about
+    // cross-stream order is exercised the real way.
+    CHECK(proto::SendSlotOf(CMSG_TIME_SYNC_RESP) == proto::LinkSlot::One);
+    CHECK(proto::SendSlotOf(CMSG_MOVE_START_FORWARD) == proto::LinkSlot::One);
+    CHECK(proto::SendSlotOf(MSG_MOVE_HEARTBEAT) == proto::LinkSlot::One);
+    CHECK(proto::SendSlotOf(CMSG_MOVE_STOP) == proto::LinkSlot::One);
+    CHECK(proto::SendSlotOf(CMSG_FORCE_RUN_SPEED_CHANGE_ACK) == proto::LinkSlot::One);
+    CHECK(proto::SendSlotOf(CMSG_PING) == proto::LinkSlot::Zero);
 }

@@ -184,6 +184,10 @@ namespace loadtest
             /// Sends on `stream`, enciphered iff that stream has armed.
             bool Send(Stream& stream, const WorldPacket& packet, std::string& error);
 
+            /// Which stream a post-login send belongs on, by the client's own
+            /// send router (OpcodeSlots.inc, send_slot).
+            Stream& StreamFor(uint16 opcode);
+
             /**
              * @brief Pump until `wanted` shows up on `stream`, or the deadline passes.
              *
