@@ -308,7 +308,7 @@ namespace WireParity
         }
     }
 
-    void InboundMover(WorldPacket const& packet, uint64 legacyGuid)
+    void InboundMover(WorldPacket const& packet, uint64 sessionMover)
     {
         if (!Enabled()) { return; }
         Row& row = Rows()[size_t(RowIndex(CMSG_SET_ACTIVE_MOVER))];
@@ -321,19 +321,20 @@ namespace WireParity
         if (!r.ok() || r.consumed != copy.size())
         {
             ++row.inFailed;
-            char text[160];
-            std::snprintf(text, sizeof(text), "0x3314 CMSG_SET_ACTIVE_MOVER: decode %s, consumed %u of %u"
-                          " (the handler's Write* guid templates append to recv_data, see the header)",
+            char text[128];
+            std::snprintf(text, sizeof(text), "0x3314 CMSG_SET_ACTIVE_MOVER: decode %s, consumed %u of %u",
                           Wire::ErrorName(r.error), uint32(r.consumed), uint32(copy.size()));
             NoteFirst(row, text);
             return;
         }
-        if (value.guid != legacyGuid)
+        if (value.guid != sessionMover)
         {
+            // The client naming a mover this session does not hold -- the
+            // disagreement the legacy handler's own check was written to catch.
             ++row.inMismatch;
             char text[128];
-            std::snprintf(text, sizeof(text), "0x3314 CMSG_SET_ACTIVE_MOVER: guid %llu, legacy read %llu",
-                          (unsigned long long)value.guid, (unsigned long long)legacyGuid);
+            std::snprintf(text, sizeof(text), "0x3314 CMSG_SET_ACTIVE_MOVER: guid %llu, session mover %llu",
+                          (unsigned long long)value.guid, (unsigned long long)sessionMover);
             NoteFirst(row, text);
         }
     }

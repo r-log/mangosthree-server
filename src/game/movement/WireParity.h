@@ -87,17 +87,17 @@ class WorldPacket;
  * which compare the codec's fields with what the handler just read, exactly as
  * Inbound compares a movement status.
  *
- * One of those two reads nothing. HandleSetActiveMoverOpcode calls recv_data's
- * WriteGuidMask/WriteGuidBytes templates rather than the ReadGuidMask/
- * ReadGuidBytes ones its neighbours use -- the only such call site in the tree.
- * Those write: with the empty guid they are handed they append a zero mask byte
- * to the packet and fill nothing, so the handler always compares the mover
- * against an empty guid, always logs "incorrect mover guid" and always returns
- * without setting a mover. The hook runs where the handler's read belongs, so
- * until that is fixed this row records the defect rather than a codec fault: the
- * packet it decodes is one byte longer than the client sent it, which lands in
- * inFailed as "consumed 2 of 3". Fixing the handler is a change to what the
- * server does and is therefore not P1's; the row is the evidence for it.
+ * One of those two handlers reads nothing, which is why its hook runs first.
+ * HandleSetActiveMoverOpcode calls recv_data's WriteGuidMask/WriteGuidBytes
+ * templates rather than the ReadGuidMask/ReadGuidBytes ones its neighbours use
+ * -- the only such call site in the tree. Those write: handed the empty guid the
+ * handler declares, they append a zero mask byte to the received packet and fill
+ * nothing, so the guid is never read, the handler always reports an incorrect
+ * mover and always returns having set none. The instrument must judge the wire
+ * rather than the packet that read mutated, so InboundMover is called before it,
+ * on the bytes the client sent, and compares the client's guid with the mover
+ * the session holds -- the comparison the handler was meant to make. The handler
+ * is P2's, with the rest of mover authority.
  */
 namespace WireParity
 {
@@ -119,8 +119,11 @@ namespace WireParity
     /// layout or a family: must decode whole, and should re-encode to its own bytes.
     void Outbound(uint16 opcode, WorldPacket const& packet);
 
-    /// CMSG_SET_ACTIVE_MOVER after the legacy handler read its guid.
-    void InboundMover(WorldPacket const& packet, uint64 legacyGuid);
+    /// CMSG_SET_ACTIVE_MOVER as the client sent it -- called before the legacy
+    /// handler's read, which writes into the packet rather than reading it.
+    /// `sessionMover` is the mover the session holds, which is what that
+    /// handler's check was meant to compare the client's guid against.
+    void InboundMover(WorldPacket const& packet, uint64 sessionMover);
     /// CMSG_MOVE_TELEPORT_ACK after the legacy handler read its fields.
     void InboundTeleportAck(WorldPacket const& packet, uint32 legacyCounter, uint32 legacyTime, uint64 legacyGuid);
 

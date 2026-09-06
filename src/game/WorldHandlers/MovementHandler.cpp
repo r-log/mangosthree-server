@@ -570,12 +570,16 @@ void WorldSession::HandleSetActiveMoverOpcode(WorldPacket& recv_data)
 
     ObjectGuid guid;
 
+    // The shadow runs before the legacy read, not after it: that read calls the
+    // write templates on the packet it received, so it appends a byte and fills
+    // nothing, and anything judged afterwards would be looking at bytes the
+    // client never sent. What it compares against is the mover the session holds
+    // -- what the check below was meant to test the client's guid against. The
+    // handler itself is P2's, with the rest of mover authority.
+    WireParity::InboundMover(recv_data, _player->GetMover()->GetObjectGuid().GetRawValue());
+
     recv_data.WriteGuidMask<7, 2, 1, 0, 4, 5, 6, 3>(guid);
     recv_data.WriteGuidBytes<3, 2, 4, 0, 5, 1, 6, 7>(guid);
-    // Those two are the Write* templates, not the Read* ones every other handler
-    // uses: they append to recv_data and leave `guid` empty. Left alone here --
-    // P1 changes nothing the server does -- and counted by the shadow instead.
-    WireParity::InboundMover(recv_data, guid.GetRawValue());
 
     if (_player->GetMover()->GetObjectGuid() != guid)
     {
