@@ -1899,3 +1899,37 @@ void ChatHandler::DumpPetsOn(Map* on, char const* label)
                         owner ? owner->GetGuidStr().c_str() : "(none)");
     }
 }
+
+/**
+ * @brief .debug movement knockback [#player] [horizontal] [vertical]
+ *
+ * Knocks the named player (or the selection, or the caller) straight back
+ * from their facing. Exists so a knockback can be produced on demand -- from
+ * the console too -- for the wire captures and the peer's live gate.
+ */
+bool ChatHandler::HandleDebugMovementKnockBackCommand(char* args)
+{
+    Player* target = NULL;
+    ObjectGuid targetGuid;
+    std::string targetName;
+    char* nameStr = ExtractOptNotLastArg(&args);
+    if (!ExtractPlayerTarget(&nameStr, &target, &targetGuid, &targetName))
+    {
+        return false;
+    }
+
+    if (!target)
+    {
+        PSendSysMessage(LANG_PLAYER_NOT_FOUND);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    float horizontal = 10.0f, vertical = 10.0f;
+    ExtractOptFloat(&args, horizontal, 10.0f);
+    ExtractOptFloat(&args, vertical, 10.0f);
+
+    target->KnockBackWithAngle(target->Where().Facing() + M_PI_F, horizontal, vertical);
+    PSendSysMessage("Knocked %s back: horizontal %.1f, vertical %.1f", target->GetName(), horizontal, vertical);
+    return true;
+}
