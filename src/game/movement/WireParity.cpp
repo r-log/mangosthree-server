@@ -182,7 +182,11 @@ namespace WireParity
         // flushed its trailing bits yet (WorldSession::SendPacket does that later),
         // rather than from the client, whose packet the legacy reader has just read
         // and whose bit cursor therefore holds read state.
-        void Judge(Row& row, uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy, bool relayed)
+        //
+        // Not "Judge": Wire::Judge is the wire's own round-trip verdict, used a
+        // few lines below in Outbound, and two functions of that name in one unit
+        // is one too many.
+        void CompareToLegacy(Row& row, uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy, bool relayed)
         {
             ++row.inSeen;
             Wire::MovementStatus wire;
@@ -271,7 +275,7 @@ namespace WireParity
     {
         if (!Enabled()) { return; }
         if (!Wire::IsPacketLayout(opcode)) { return; }
-        Judge(Rows()[size_t(RowIndex(opcode))], opcode, packet, legacy, false);
+        CompareToLegacy(Rows()[size_t(RowIndex(opcode))], opcode, packet, legacy, false);
     }
 
     void Relay(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy)
@@ -281,7 +285,7 @@ namespace WireParity
         // and that writer has not flushed its trailing bits yet.
         if (!Enabled()) { return; }
         if (!Wire::IsPacketLayout(opcode)) { return; }
-        Judge(Rows()[size_t(RowIndex(opcode))], opcode, packet, legacy, true);
+        CompareToLegacy(Rows()[size_t(RowIndex(opcode))], opcode, packet, legacy, true);
     }
 
     void Outbound(uint16 opcode, WorldPacket const& packet)
@@ -327,7 +331,7 @@ namespace WireParity
         Wire::ActiveMover value;
         Wire::DecodeResult r = Wire::DecodeActiveMover(copy, CMSG_SET_ACTIVE_MOVER, value);
         // A decode that stopped short of the payload is a short read, not a
-        // success -- Judge calls that LeftBytes, and so does this.
+        // success -- Wire::Judge calls that LeftBytes, and so does this.
         if (r.ok() && r.consumed != copy.size()) { r.error = Wire::DecodeError::LeftBytes; }
         if (!r.ok())
         {
