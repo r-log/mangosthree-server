@@ -5,7 +5,7 @@
 // 109 movement-status layouts for 111 opcodes of build 15595, 106 of them transcribed from the
 // Cataclysm Preservation Project's MovementStructures.cpp (716f480 (2026-05-05), GPL-3.0-or-later)
 // into Wire's vocabulary, with that source's per-packet extra elements spliced in
-// place. Every table is CPP-SOURCED and BINARY-UNVERIFIED: P1-B's real-client goldens
+// place. Every CPP table is CPP-SOURCED and BINARY-UNVERIFIED: P1-B's real-client goldens
 // and P1-C's reader lift are what turn a table into a verified one, and the legacy
 // fence in MovementCodecTest records where the tree's older transcription disagrees.
 // One rename: MSEFallCosAngle -> FallSinAngle and MSEFallSinAngle -> FallCosAngle, in every

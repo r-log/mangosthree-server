@@ -759,6 +759,13 @@ TEST(MovementSequences_the_lifted_tables_round_trip_a_full_status)
         Wire::Encode(p, s, in);
         Wire::MovementStatus out;
         REQUIRE(Wire::Decode(p, s, out).ok());
+        // The mover guid first: it is sixteen elements (eight presence bits and
+        // eight bytes), and because the encoder and the decoder walk the same
+        // table, a table missing one of them round-trips happily -- the guid is
+        // the only thing that notices. The fixture's guid has every byte
+        // non-zero, so every one of the eight is on the wire to be lost.
+        CHECK_EQ(out.guid, in.guid);
+        CHECK_EQ(out.guid2, in.guid2);
         CHECK(out.pos == in.pos);
         CHECK_EQ(out.flags, in.flags);
         CHECK_EQ(out.flags2, in.flags2);

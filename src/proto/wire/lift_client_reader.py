@@ -100,11 +100,25 @@ three are the lifted tables themselves. Of the other 40: one (the control) is
 exact; 31 agree on every element and differ only where the lift has no name for
 a slot outside the MovementInfo (a small packet's own counter or float,
 `u32@40`); one agrees but for CPP's per-packet naming of the bit at +133
-(MSEZeroBit vs MSEHasHeightChangeFailed); four agree but for which of the fall
-angle pair is which, where the control settles it; one (SMSG_MOVE_SET_COLLISION_HGT,
-a non-status packet) stops the lifter with an explicit error rather than a
-guess; and two disagree, in both of which the client is plainly right and CPP's
-table wrong:
+(MSEZeroBit vs MSEHasHeightChangeFailed); one (SMSG_MOVE_SET_COLLISION_HGT, a
+non-status packet) stops the lifter with an explicit error rather than a guess;
+four agree except that the client reads the fall angle pair the other way round
+from the control; and two disagree structurally, in both of which the client is
+plainly right and CPP's table wrong.
+
+The four with the fall pair the other way round are MovementUpdateFlightSpeed,
+MovementUpdateSwimSpeed, MoveUpdateSwimBackSpeed and
+MovementUpdateCollisionHeight. "The other way round" means this: the two angles
+live at fixed struct offsets, +116 and +120, and the control fixes which is
+which (its reader takes +120 where CPP's run-speed table, after the P1-B
+rename, says FallSinAngle). These four readers take +116 where their CPP table
+says FallSinAngle and +120 where it says FallCosAngle -- the same two slots, the
+opposite labels -- so those four tables and the control cannot both be right.
+The control is the one a real-client golden replayed, so it is those four
+tables, still CPP-sourced and live in the registry, that need a witness and a
+fix; this tool only reports it.
+
+The two that disagree structurally:
 
   MoveUpdateFlightBackSpeed -- CPP misses the +132 bit the reader takes first
       of all, and calls the +80 bit (HasTransportTime2) MSEOneBit while
@@ -248,9 +262,11 @@ def statements(body):
     return [s for s in out if not (decl.match(s) and "=" not in s and "(" not in s)]
 
 
-def lift(path, name):
+def lift(path, name, unknown=None):
     """The reader's reads, in wire order: a list of (kind, offset) pairs, plus
-    the pseudo-kind ("flush", None) where the bit section ends.
+    the pseudo-kind ("flush", None) where the bit section ends. Any callee the
+    lifter has no name for is warned about and added to `unknown` (a set the
+    caller may pass in to act on).
 
     Neither the order the bits are stored nor the order they are textually
     taken is the wire order: the decompiler both sinks a store past the next
@@ -263,6 +279,7 @@ def lift(path, name):
     Where a bit is taken into a variable, the slot stays open until that
     variable is stored -- the store is the only thing that names it."""
     stmts = statements(function_body(path, name))
+    unknown = set() if unknown is None else unknown
     reads = []               # entries are [kind, offset, bit position]
     pending_u32 = 0          # four-byte fetches whose store has not been seen
     pending_u8 = None        # the offset a byte fetch was already emitted for
@@ -441,6 +458,12 @@ def lift(path, name):
                     setpos(m.group(1), high[0] + 1)   # the register's next byte
             continue
 
+        if calls:
+            # Some other sub_XXXX. It may read nothing at all, but it may be a
+            # sub-reader HELPERS has no name for, in which case this lift is
+            # quietly short -- so say so rather than walking past it.
+            unknown.update(calls)
+
         st = STORE_match(s)
         if st:
             off, xor, rhs = int(st.group(1)), st.group(2) == "^", st.group(3).strip()
@@ -513,6 +536,10 @@ def lift(path, name):
                 setpos(var, bitpos(rhs))
             continue
 
+    for c in sorted(unknown):
+        sys.stderr.write("%s: WARNING: calls %s, which the lifter has no name for; "
+                         "if it reads the stream this lift is short. Add it to HELPERS.\n"
+                         % (name, c))
     if pending_u32:
         sys.exit("%s: %d four-byte fetches with no store" % (name, pending_u32))
     reads = [r for r in reads if r[0] != "dead"]
@@ -574,6 +601,10 @@ def registry_table(name):
     return [e for e in re.findall(r"E::([A-Za-z0-9_]+)", m.group(1)) if e != "End"]
 
 
+def usage():
+    sys.exit("\n".join(__doc__.split("\n")[2:6]))
+
+
 def main():
     args = [a for a in sys.argv[1:]]
     raw = "--raw" in args
@@ -583,16 +614,19 @@ def main():
     for flag in ("--control", "--base"):
         if flag in args:
             i = args.index(flag)
+            if i + 1 >= len(args):
+                usage()                      # a trailing flag with no value
             if flag == "--control":
                 control = args[i + 1]
             else:
                 base = int(args[i + 1], 0)
             del args[i:i + 2]
     if len(args) != 2:
-        sys.exit("\n".join(__doc__.split("\n")[2:6]))
+        usage()
     path, func = args
 
-    reads = lift(path, func)
+    unknown = set()
+    reads = lift(path, func, unknown)
     if base is None:
         base = movement_info_base(reads)
     lifted = names(reads, raw, base)
@@ -613,6 +647,11 @@ def main():
         if a != b and first is None:
             first = i
         print("%3d %-34s %-34s %s" % (i, a, b, mark))
+    if unknown:
+        # A calibration that matched while walking past an unnamed sub-reader
+        # matched by luck; refuse it, so HELPERS grows instead of the tables.
+        print("\nUNRECOGNISED CALLEE: %s (see the warnings above)" % " ".join(sorted(unknown)))
+        return 1
     if first is None:
         print("\nMATCH: %d elements" % len(lifted))
         return 0

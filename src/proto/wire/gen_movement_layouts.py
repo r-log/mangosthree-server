@@ -211,7 +211,7 @@ buf.write("// %d movement-status layouts for %d opcodes of build 15595, %d of th
           % (len(emitted_order) + len(lifted_order), len(emitted_opmap) + len(lifted_opmap), len(emitted_order)))
 buf.write("// Cataclysm Preservation Project's MovementStructures.cpp (%s, GPL-3.0-or-later)\n" % SOURCE_REV)
 buf.write("// into Wire's vocabulary, with that source's per-packet extra elements spliced in\n")
-buf.write("// place. Every table is CPP-SOURCED and BINARY-UNVERIFIED: P1-B's real-client goldens\n")
+buf.write("// place. Every CPP table is CPP-SOURCED and BINARY-UNVERIFIED: P1-B's real-client goldens\n")
 buf.write("// and P1-C's reader lift are what turn a table into a verified one, and the legacy\n")
 buf.write("// fence in MovementCodecTest records where the tree's older transcription disagrees.\n")
 buf.write("// One rename: MSEFallCosAngle -> FallSinAngle and MSEFallSinAngle -> FallCosAngle, in every\n")
