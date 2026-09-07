@@ -342,11 +342,14 @@ TEST(GoldenCapture_families_server_built_lines_fail_only_where_the_legacy_writer
 {
     // This server's own packets from the same session. SMSG_CLIENT_CONTROL_UPDATE has no
     // floor here: this tree sends none at login (the client assumes control without one);
-    // P2's packet matrix decides whether that is right. No observer was in the world for
-    // this session, so it carries no SMSG_MOVE_UPDATE_KNOCK_BACK at all -- the live gate's
-    // two-bot pair (an observer holding nearby, watching a walker get knocked back) is what
-    // will put that opcode in front of the lifted layout and let it judge that WotLK-shaped
-    // writer (MovementHandler.cpp:658).
+    // P2's packet matrix decides whether that is right. SMSG_MOVE_UPDATE_KNOCK_BACK is
+    // ABSENT, not wrong: no observer stood in the world for this session, and that relay
+    // goes only to the observers around the mover, so there was nothing to capture. The
+    // live gate's two-bot pair (an observer holding nearby while a walker is knocked back)
+    // did capture one, and the shadow judged it under the lifted layout: decoded whole and
+    // re-encoded exact. So the relay (MovementHandler.cpp, `data << movementInfo`) is not
+    // WotLK-shaped after all, and the collision-height writer below is the one known
+    // server-side failure that remains.
     loadtest::ReplayReport report;
     ReplayGoldenByDirection("client-15595-families.log", 'S', report);
     CHECK(report.lines >= 200);
