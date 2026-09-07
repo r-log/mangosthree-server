@@ -740,6 +740,11 @@ TEST(MovementSequences_the_lifted_tables_carry_presence_gates)
             if (*p == Wire::Element::FallTime) { readsFall = true; }
             if (*p == Wire::Element::TransportPositionX) { readsTransport = true; }
         }
+        // The two implications below are vacuously true of a table that reads
+        // neither block -- which is exactly the shape the exclusion was about --
+        // so pin that these three do read both before asking whether they gate.
+        CHECK(readsFall);
+        CHECK(readsTransport);
         CHECK(!readsFall || hasFallGate);
         CHECK(!readsTransport || hasTransportGate);
     }
@@ -949,6 +954,6 @@ TEST(MovementCodec_DecodeWhole_names_the_bytes_a_layout_left_behind)
     CHECK(result.error == Wire::DecodeError::LeftBytes);
     CHECK_EQ(result.consumed, bytes);
     CHECK_EQ(out.pos.x, Wire::MovementStatus().pos.x);   // whole, or nothing
-    CHECK(std::string(Wire::ErrorName(result.error)) == "left bytes");
-    CHECK(std::string(Wire::ErrorName(Wire::DecodeError::Overread)) == "overread");
+    CHECK_STR(Wire::ErrorName(result.error), "left bytes");
+    CHECK_STR(Wire::ErrorName(Wire::DecodeError::Overread), "overread");
 }

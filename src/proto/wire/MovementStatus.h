@@ -45,6 +45,8 @@ namespace Wire
         float x = 0.0f;
         float y = 0.0f;
         float z = 0.0f;
+
+        bool operator==(Vec3 const& r) const { return x == r.x && y == r.y && z == r.z; }
     };
 
     /**

@@ -9,6 +9,11 @@ The decompiled client is not in the tree; pass its path (build 15595's
 Wow-64.c). The lifted element lists are what gets committed, in
 gen_movement_layouts.py's LIFTED table.
 
+Either mode exits 1 when the lift met a callee the lifter has no name for --
+the element list it printed is then short by whatever that callee read, so it
+must not be copied into LIFTED -- and --control also when the lift and the
+registry table differ.
+
 WHY. Three of the Cataclysm Preservation Project's movement tables read gated
 fields (timestamp, pitch, fall, transport) without carrying any of the presence
 gates, so P1-A excluded them: a reader cannot know from such a table what to
@@ -635,6 +640,14 @@ def main():
         print("%s: %d elements (MovementInfo at +%d)" % (func, len(lifted), base))
         for i in range(0, len(lifted), 6):
             print("    " + ", ".join('"%s"' % e for e in lifted[i:i + 6]) + ",")
+        if unknown:
+            # A plain lift is the one that gets copied into LIFTED, so it is the
+            # one place the refusal matters: a lift that walked past a callee the
+            # lifter has no name for is short by whatever that callee read, and
+            # the list printed above is not the table. Refuse it here too, so
+            # HELPERS grows instead of the tables.
+            print("\nUNRECOGNISED CALLEE: %s (see the warnings above)" % " ".join(sorted(unknown)))
+            return 1
         return 0
 
     want = registry_table(control)

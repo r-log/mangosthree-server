@@ -35,6 +35,13 @@ namespace Wire
 {
     /// SMSG_MOVE_SET_ACTIVE_MOVER and its CMSG_SET_ACTIVE_MOVER ack: the same
     /// guid, in two different masked-guid orders per opcode.
+    ///
+    /// Provenance: CMSG_SET_ACTIVE_MOVER -- the tree's own handler
+    /// (HandleSetActiveMoverOpcode), CPP's SetActiveMover::Read, and the real-client
+    /// families golden. SMSG_MOVE_SET_ACTIVE_MOVER -- CPP's MoveSetActiveMover::Write
+    /// and the client's reader sub_140374180 through lift_client_reader.py, which
+    /// agreed with it exactly; no writer in this tree sends one yet, so it has no
+    /// golden line.
     struct ActiveMover
     {
         uint64 guid = 0;
@@ -44,6 +51,10 @@ namespace Wire
     DecodeResult DecodeActiveMover(ByteBuffer& in, uint16 opcode, ActiveMover& out);
 
     /// SMSG_CLIENT_CONTROL_UPDATE: a packed guid and a byte.
+    ///
+    /// Provenance: the tree's own writer (Player::SetClientControl) and the client's
+    /// handler sub_1402431B0, which read the same two fields in the same order.
+    /// None in the golden: this tree sends none at login.
     struct ControlUpdate
     {
         uint64 guid = 0;

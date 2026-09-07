@@ -111,6 +111,10 @@ namespace Wire
 
     uint16 FamilyOpcodeAt(size_t index)
     {
+        // 0 is not an opcode, so an out-of-range index answers "no opcode"
+        // instead of reading past the table: a caller that walks one row too far
+        // gets an answer it can test rather than whatever follows the array.
+        if (index >= kFamilyCount) { return 0; }
         return kFamilies[index].opcode;
     }
 

@@ -72,7 +72,10 @@ namespace Wire
             out << float(v.verticalAcceleration);
             out << int32(v.parabolicStart);
         }
-        if (v.path == SplinePath::Uncompressed)
+        // The flag, not `path`: the flag is what is on the wire, and it is what
+        // the decoder branches on, so the encoder follows the same thing. `path`
+        // is the decode output that reports which branch was taken.
+        if (v.flags & kSplineFlagUncompressedPath)
         {
             out << uint32(v.points.size());
             for (size_t i = 0; i < v.points.size(); ++i) { WriteVec3(out, v.points[i]); }
@@ -139,7 +142,11 @@ namespace Wire
             else
             {
                 v.path = SplinePath::Linear;
-                if (count == 0 || count - 1 > left / 4) { throw Detail::Overread(); }
+                // The linear form spends twelve of those bytes on the destination
+                // before the first packed offset, so the offsets are bounded by
+                // what is left after it -- and a count of 0 is not a path at all
+                // (WriteLinearPath writes the last index, never -1).
+                if (count == 0 || left < 12 || count - 1 > (left - 12) / 4) { throw Detail::Overread(); }
                 v.destination = ReadVec3(r);
                 v.packedOffsets.reserve(count - 1);
                 for (uint32 i = 1; i < count; ++i) { v.packedOffsets.push_back(r.Get<uint32>()); }

@@ -54,9 +54,17 @@ namespace Wire
     /// whose shape depends on the most -- the transport form, the facing the mover ends
     /// up looking at, the animation and trajectory blocks, and either an uncompressed path
     /// or a linear one with its middle points kept packed.
+    ///
+    /// Provenance: SMSG_MONSTER_MOVE(_TRANSPORT) -- the tree's own builder
+    /// (PacketBuilder::WriteMonsterMove), the client's handler sub_140248800, and the
+    /// real-client families golden x250, every one of them a linear path. The
+    /// uncompressed, cyclic, animation and trajectory forms have no witness on any
+    /// wire yet: unit fixtures cover them, this tree has not seen one live.
     struct MonsterMove
     {
         uint64 mover = 0;
+        /// Decode output: the opcode says which form it was, so the encoder takes
+        /// it from the opcode too and never reads this back.
         bool   onTransport = false;        // the SMSG_MONSTER_MOVE_TRANSPORT form
         uint64 transport = 0;
         int8   seat = -1;
@@ -73,6 +81,8 @@ namespace Wire
         uint32 duration = 0;
         float  verticalAcceleration = 0.0f; // when flags & kSplineFlagTrajectory
         int32  parabolicStart = 0;
+        /// Decode output: kSplineFlagUncompressedPath is what is on the wire and
+        /// what both directions branch on, so the encoder never reads this back.
         SplinePath path = SplinePath::Linear;
         std::vector<Vec3>   points;         // Uncompressed: every point, in order (a cyclic writer's fake first point included, it is on the wire)
         Vec3                destination;    // Linear

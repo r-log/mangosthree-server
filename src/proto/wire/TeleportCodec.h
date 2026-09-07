@@ -37,6 +37,12 @@ namespace Wire
     /// SMSG_MOVE_TELEPORT (Player::SendTeleportPacket): the tree's writer plus
     /// CPP's vehicle branch, which the client reads but the tree does not yet
     /// write.
+    ///
+    /// Provenance: the tree's own writer (Player::SendTeleportPacket), CPP's
+    /// MoveTeleport::Write, the client's reader sub_140363890 -- which settled the
+    /// vehicle seat as one byte, not four -- and the real-client families golden x3.
+    /// The vehicle and transport branches have no witness in this tree yet: nothing
+    /// here writes one, so only the client's reader and CPP speak for them.
     struct Teleport
     {
         uint64 guid = 0;
@@ -55,6 +61,10 @@ namespace Wire
 
     /// CMSG_MOVE_TELEPORT_ACK (HandleMoveTeleportAckOpcode): counter, time,
     /// then a masked guid.
+    ///
+    /// Provenance: the tree's own handler (WorldSession::HandleMoveTeleportAckOpcode),
+    /// CPP's MoveTeleportAck::Read, and the real-client families golden x3 -- the
+    /// client built those three, so they are the order's ground truth.
     struct TeleportAck
     {
         uint32 counter = 0;

@@ -80,7 +80,7 @@ TEST(GuidCodec_masked_guid_writes_presence_bits_in_one_order_and_bytes_in_anothe
     WorldPacket p;
     Wire::WriteGuidMask(p, kGuid, mask);
     Wire::WriteGuidBytes(p, kGuid, bytes);
-    CHECK(Hex(p) == std::string("0847"));
+    CHECK_STR(Hex(p), "0847");
 
     p.rpos(0);
     p.ResetBitReader();
@@ -103,7 +103,7 @@ TEST(GuidCodec_all_zero_guid_writes_a_clear_mask_and_no_bytes)
     WorldPacket p;
     Wire::WriteGuidMask(p, 0, order);
     Wire::WriteGuidBytes(p, 0, order);
-    CHECK(Hex(p) == std::string("00"));
+    CHECK_STR(Hex(p), "00");
 
     p.rpos(0);
     p.ResetBitReader();
@@ -119,7 +119,7 @@ TEST(GuidCodec_all_zero_guid_writes_a_clear_mask_and_no_bytes)
 
     WorldPacket packed;
     Wire::WritePackedGuid(packed, 0);
-    CHECK(Hex(packed) == std::string("00"));
+    CHECK_STR(Hex(packed), "00");
     packed.rpos(0);
     uint64 v = 0;
     Wire::DecodeResult r2 = Wire::Detail::Run(packed, v, [](Wire::Detail::Reader& in, uint64& out) { out = Wire::ReadPackedGuid(in); });
@@ -133,7 +133,7 @@ TEST(GuidCodec_packed_guid_is_a_mask_byte_then_the_bytes_low_to_high)
     Wire::WritePackedGuid(p, 0x0000000000010046ULL);
     // Byte 0 is 0x46, byte 1 is zero (skipped), byte 2 is 0x01: the mask (bit 0
     // and bit 2) is 0x05, then the present bytes low to high.
-    CHECK(Hex(p) == std::string("054601"));
+    CHECK_STR(Hex(p), "054601");
     p.rpos(0);
     uint64 v = 0;
     Wire::DecodeResult r = Wire::Detail::Run(p, v, [](Wire::Detail::Reader& in, uint64& out) { out = Wire::ReadPackedGuid(in); });
@@ -155,10 +155,10 @@ TEST(MoverCodec_active_mover_has_one_order_per_opcode)
     v.guid = kGuid;
     WorldPacket s(SMSG_MOVE_SET_ACTIVE_MOVER, 16);
     Wire::EncodeActiveMover(s, SMSG_MOVE_SET_ACTIVE_MOVER, v);
-    CHECK(Hex(s) == std::string("0847"));
+    CHECK_STR(Hex(s), "0847");
     WorldPacket c(CMSG_SET_ACTIVE_MOVER, 16);
     Wire::EncodeActiveMover(c, CMSG_SET_ACTIVE_MOVER, v);
-    CHECK(Hex(c) == std::string("1047"));
+    CHECK_STR(Hex(c), "1047");
 
     Wire::ActiveMover back;
     s.rpos(0); s.ResetBitReader();
@@ -180,7 +180,7 @@ TEST(MoverCodec_control_update_is_a_packed_guid_and_a_byte)
     v.allowMove = 1;
     WorldPacket p(SMSG_CLIENT_CONTROL_UPDATE, 16);
     Wire::EncodeControlUpdate(p, v);
-    CHECK(Hex(p) == std::string("014601"));
+    CHECK_STR(Hex(p), "014601");
     Wire::ControlUpdate back;
     p.rpos(0);
     Wire::DecodeResult r = Wire::DecodeControlUpdate(p, back);
@@ -213,7 +213,28 @@ TEST(MovementFamilies_every_family_opcode_is_known_and_no_registry_opcode_is_a_f
         CHECK(!Wire::IsPacketLayout(op));               // the two kinds never overlap
         CHECK(Wire::SequenceFor(op) == nullptr);
     }
-    CHECK(std::string(Wire::FamilyName(Wire::Family::MonsterMove)) == "monster move");
+    // Every enumerator has a name of its own: FamilyName's switch is what a
+    // report prints, so a value added without a case must not fall through to
+    // "?" unnoticed, and no two may share a name.
+    const Wire::Family all[7] =
+    {
+        Wire::Family::None, Wire::Family::KnockBack, Wire::Family::Teleport,
+        Wire::Family::TeleportAck, Wire::Family::ActiveMover,
+        Wire::Family::ControlUpdate, Wire::Family::MonsterMove
+    };
+    const char* names[7] =
+    {
+        "none", "knock back", "teleport", "teleport ack",
+        "active mover", "control update", "monster move"
+    };
+    for (int i = 0; i < 7; ++i)
+    {
+        CHECK_STR(Wire::FamilyName(all[i]), names[i]);
+        for (int j = 0; j < i; ++j) { CHECK(std::string(names[i]) != names[j]); }
+    }
+    // An index past the end is no opcode, not whatever follows the table.
+    CHECK_EQ(Wire::FamilyOpcodeAt(Wire::FamilyCount()), uint16(0));
+    CHECK_EQ(Wire::FamilyIndex(CMSG_PING), -1);
 }
 
 TEST(MovementFamilies_judge_covers_both_kinds_the_same_way)
@@ -283,7 +304,7 @@ TEST(KnockBackCodec_matches_the_tree_writer_and_cpp)
     v.guid = kGuid; v.counter = 7; v.directionY = 0.0f; v.horizontal = 10.0f; v.vertical = -12.0f; v.directionX = 1.0f;
     WorldPacket p(SMSG_MOVE_KNOCK_BACK, 32);
     Wire::EncodeKnockBack(p, v);
-    CHECK(Hex(p) == std::string("80" "00000000" "07000000" "00002041" "000040C1" "0000803F" "47"));
+    CHECK_STR(Hex(p), "80" "00000000" "07000000" "00002041" "000040C1" "0000803F" "47");
     Wire::KnockBack back;
     p.rpos(0); p.ResetBitReader();
     Wire::DecodeResult r = Wire::DecodeKnockBack(p, back);
@@ -310,7 +331,7 @@ TEST(TeleportCodec_without_transport_or_vehicle_matches_the_tree_writer)
     v.pos.x = 1.5f; v.pos.y = -1.5f; v.pos.z = 2.5f; v.pos.o = 0.5f;
     WorldPacket p(SMSG_MOVE_TELEPORT, 64);
     Wire::EncodeTeleport(p, v);
-    CHECK(Hex(p) == std::string("40" "00" "01000000" "0000C03F" "0000003F" "00002040" "47" "0000C0BF"));
+    CHECK_STR(Hex(p), "40" "00" "01000000" "0000C03F" "0000003F" "00002040" "47" "0000C0BF");
     Wire::Teleport back;
     p.rpos(0); p.ResetBitReader();
     Wire::DecodeResult r = Wire::DecodeTeleport(p, back);
@@ -371,7 +392,7 @@ TEST(TeleportCodec_ack_is_counter_time_then_the_masked_guid)
     v.counter = 1; v.time = 1000; v.guid = kGuid;
     WorldPacket p(CMSG_MOVE_TELEPORT_ACK, 16);
     Wire::EncodeTeleportAck(p, v);
-    CHECK(Hex(p) == std::string("01000000" "E8030000" "40" "47"));
+    CHECK_STR(Hex(p), "01000000" "E8030000" "40" "47");
     Wire::TeleportAck back;
     p.rpos(0); p.ResetBitReader();
     Wire::DecodeResult r = Wire::DecodeTeleportAck(p, back);
@@ -386,7 +407,12 @@ TEST(TeleportCodec_ack_is_counter_time_then_the_masked_guid)
     cut.rpos(0);
     r = Wire::DecodeTeleportAck(cut, back);
     CHECK(r.error == Wire::DecodeError::Overread);
+    // Whole-or-nothing means the whole struct, not just the first field: `back`
+    // held a good ack a moment ago, and a failed decode must leave none of it
+    // behind for a caller to mistake for this packet's.
     CHECK_EQ(back.counter, uint32(0));
+    CHECK_EQ(back.time, uint32(0));
+    CHECK_EQ(back.guid, uint64(0));
 }
 
 TEST(MonsterMoveCodec_linear_path_matches_the_packet_builder)
@@ -405,8 +431,8 @@ TEST(MonsterMoveCodec_linear_path_matches_the_packet_builder)
     v.packedOffsets.push_back(0x00400801u);   // one middle point, kept packed
     WorldPacket p(SMSG_MONSTER_MOVE, 64);
     Wire::EncodeMonsterMove(p, SMSG_MONSTER_MOVE, v);
-    CHECK(Hex(p) == std::string("0146" "00" "0000803F" "00000040" "00004040" "05000000" "00" "00000000" "DC050000"
-                                 "02000000" "00008040" "0000A040" "0000C040" "01084000"));
+    CHECK_STR(Hex(p), "0146" "00" "0000803F" "00000040" "00004040" "05000000" "00" "00000000" "DC050000"
+                      "02000000" "00008040" "0000A040" "0000C040" "01084000");
     Wire::MonsterMove back;
     p.rpos(0);
     Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back);
@@ -432,7 +458,7 @@ TEST(MonsterMoveCodec_stop_form_ends_at_the_type)
     v.type = Wire::MonsterMoveType::Stop;
     WorldPacket p(SMSG_MONSTER_MOVE, 32);
     Wire::EncodeMonsterMove(p, SMSG_MONSTER_MOVE, v);
-    CHECK(Hex(p) == std::string("0146" "00" "0000803F" "00000040" "00004040" "06000000" "01"));
+    CHECK_STR(Hex(p), "0146" "00" "0000803F" "00000040" "00004040" "06000000" "01");
     Wire::MonsterMove back;
     p.rpos(0);
     CHECK(Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back).ok());
@@ -502,5 +528,53 @@ TEST(MonsterMoveCodec_refuses_a_path_count_the_buffer_cannot_hold)
     Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back);
     CHECK(r.error == Wire::DecodeError::Overread);
     CHECK(back.points.empty());
+}
+
+TEST(MonsterMoveCodec_refuses_a_move_type_it_does_not_know)
+{
+    // The type byte decides what follows it, so a value outside the five the
+    // writer emits leaves the reader with no idea what the rest of the packet
+    // is. Refuse the whole packet rather than guess, and leave `out` as it was
+    // built -- nothing of a packet that did not decode may reach a caller.
+    WorldPacket p = FromHex(SMSG_MONSTER_MOVE, "0146" "00" "0000803F" "00000040" "00004040" "05000000" "05");
+    Wire::MonsterMove back;
+    back.mover = 0x1234u;                                // a value the failure must clear
+    p.rpos(0);
+    Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back);
+    CHECK(r.error == Wire::DecodeError::Overread);
+    CHECK_EQ(back.mover, uint64(0));
+    CHECK_EQ(back.id, uint32(0));
+    CHECK(back.type == Wire::MonsterMoveType::Normal);
+    CHECK(back.packedOffsets.empty());
+}
+
+TEST(MonsterMoveCodec_refuses_a_linear_path_of_no_points)
+{
+    // WriteLinearPath writes the LAST INDEX, so the count is one more than the
+    // middle points and is never zero: a zero would mean "read the destination
+    // and then step back one", which is not a path at all.
+    WorldPacket p = FromHex(SMSG_MONSTER_MOVE, "0146" "00" "0000803F" "00000040" "00004040" "05000000" "00" "00000000" "DC050000"
+                            "00000000" "00008040" "0000A040" "0000C040");
+    Wire::MonsterMove back;
+    p.rpos(0);
+    Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back);
+    CHECK(r.error == Wire::DecodeError::Overread);
+    CHECK(back.packedOffsets.empty());
+}
+
+TEST(MonsterMoveCodec_refuses_a_linear_count_the_bytes_after_the_destination_cannot_hold)
+{
+    // Count 4 promises the destination and three packed offsets, and the packet
+    // holds the destination alone. The bound has to subtract the twelve bytes of
+    // that destination before it divides, or a count of four looks affordable in
+    // exactly the twelve bytes the destination is about to spend.
+    WorldPacket p = FromHex(SMSG_MONSTER_MOVE, "0146" "00" "0000803F" "00000040" "00004040" "05000000" "00" "00000000" "DC050000"
+                            "04000000" "00008040" "0000A040" "0000C040");
+    Wire::MonsterMove back;
+    p.rpos(0);
+    Wire::DecodeResult r = Wire::DecodeMonsterMove(p, SMSG_MONSTER_MOVE, back);
+    CHECK(r.error == Wire::DecodeError::Overread);
+    CHECK(back.packedOffsets.empty());
+    CHECK_EQ(back.destination.x, 0.0f);                  // whole-or-nothing: not even the part it read
 }
 

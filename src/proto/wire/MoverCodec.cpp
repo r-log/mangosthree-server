@@ -42,20 +42,27 @@ namespace Wire
 {
     void EncodeActiveMover(ByteBuffer& out, uint16 opcode, ActiveMover const& v)
     {
+        // One choice of order, made once: the mask order and the byte order are a
+        // pair, and picking them apart at each call is four chances to pair the
+        // wrong two.
         const bool set = (opcode == SMSG_MOVE_SET_ACTIVE_MOVER);
-        if (set) { WriteGuidMask(out, v.guid, kSetMask); } else { WriteGuidMask(out, v.guid, kAckMask); }
+        const uint8 (&mask)[8] = set ? kSetMask : kAckMask;
+        const uint8 (&bytes)[8] = set ? kSetBytes : kAckBytes;
+        WriteGuidMask(out, v.guid, mask);
         out.FlushBits();
-        if (set) { WriteGuidBytes(out, v.guid, kSetBytes); } else { WriteGuidBytes(out, v.guid, kAckBytes); }
+        WriteGuidBytes(out, v.guid, bytes);
     }
 
     DecodeResult DecodeActiveMover(ByteBuffer& in, uint16 opcode, ActiveMover& out)
     {
         const bool set = (opcode == SMSG_MOVE_SET_ACTIVE_MOVER);
-        return Detail::Run(in, out, [set](Detail::Reader& r, ActiveMover& v)
+        const uint8 (&mask)[8] = set ? kSetMask : kAckMask;
+        const uint8 (&bytes)[8] = set ? kSetBytes : kAckBytes;
+        return Detail::Run(in, out, [&mask, &bytes](Detail::Reader& r, ActiveMover& v)
         {
             MaskedGuid g;
-            if (set) { ReadGuidMask(r, g, kSetMask); } else { ReadGuidMask(r, g, kAckMask); }
-            if (set) { ReadGuidBytes(r, g, kSetBytes); } else { ReadGuidBytes(r, g, kAckBytes); }
+            ReadGuidMask(r, g, mask);
+            ReadGuidBytes(r, g, bytes);
             v.guid = g.Value();
         });
     }

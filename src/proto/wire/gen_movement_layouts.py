@@ -249,8 +249,9 @@ for name in lifted_order:
     reader, elems = LIFTED[name]
     layout(name, elems + ["End"],
            "lifted from the client reader %s; see lift_client_reader.py" % reader)
-for op in sorted(dict(emitted_opmap, **lifted_opmap)):
-    buf.write("MAP(%s, %s)\n" % (op, dict(emitted_opmap, **lifted_opmap)[op]))
+rows = dict(emitted_opmap, **lifted_opmap)
+for op in sorted(rows):
+    buf.write("MAP(%s, %s)\n" % (op, rows[op]))
 io.open(OUT, "w", encoding="utf-8", newline="\n").write(buf.getvalue())
 print("wrote %s: %d tables, %d rows (%d of them lifted from the client's readers)"
       % (OUT, len(emitted_order) + len(lifted_order), len(emitted_opmap) + len(lifted_opmap), len(LIFTED)))

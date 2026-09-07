@@ -66,7 +66,8 @@ namespace Wire
     int FamilyIndex(uint16 opcode);
     /// How many opcodes have a family (8).
     size_t FamilyCount();
-    /// The opcode at `index` in the family table (0 <= index < FamilyCount()).
+    /// The opcode at `index` in the family table (0 <= index < FamilyCount()),
+    /// or 0 -- which is no opcode -- when `index` is past the end.
     uint16 FamilyOpcodeAt(size_t index);
 
     /// What Judge found: whether the packet decoded and, if it did, whether

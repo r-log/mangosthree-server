@@ -41,9 +41,10 @@ namespace Wire { namespace Detail
 
     /// Every read of a decode goes through here, so the bounds are checked
     /// before ByteBuffer's own check could throw. The bit position mirrors
-    /// ByteBuffer's: both start at a byte boundary (Decode's precondition) and
-    /// every read in between is one of these, so a bit read is bounds-checked
-    /// exactly when ByteBuffer would fetch a new cursor byte.
+    /// ByteBuffer's: both start at a byte boundary (Run clears the buffer's bit
+    /// cursor before it builds one of these) and every read in between is one of
+    /// these, so a bit read is bounds-checked exactly when ByteBuffer would
+    /// fetch a new cursor byte.
     struct Reader
     {
         ByteBuffer& in;
@@ -99,6 +100,14 @@ namespace Wire { namespace Detail
         T candidate;
         try
         {
+            // Every family decode starts at a byte boundary: Reader's bit
+            // position starts at 8 and assumes ByteBuffer's does too, and the
+            // bounds check that stands in for ByteBuffer's own is written from
+            // that assumption. Clearing the buffer's bit cursor here makes the
+            // precondition true by construction rather than by the caller
+            // remembering it -- and with it goes the last path by which a decode
+            // could reach ByteBufferException instead of Overread.
+            in.ResetBitReader();
             Reader reader(in);
             body(reader, candidate);
         }
