@@ -330,7 +330,8 @@ TEST(TeleportCodec_transport_and_vehicle_branches_round_trip)
 {
     // The branches CPP's MoveTeleport::Write carries and the tree's writer does
     // not (yet): the transport guid's own mask and bytes, the two vehicle bits
-    // after hasVehicle, the seat after z.
+    // after hasVehicle, the one-byte seat after z (P1-C task 5's cross-check
+    // against the client's reader: one byte, not four).
     Wire::Teleport v;
     v.guid = 0x0000000000000102ULL; v.counter = 9;
     v.pos.x = 1.0f; v.pos.y = 2.0f; v.pos.z = 3.0f; v.pos.o = 4.0f;
@@ -348,7 +349,16 @@ TEST(TeleportCodec_transport_and_vehicle_branches_round_trip)
     CHECK(back.hasVehicle);
     CHECK(back.vehicleExitVoluntary);
     CHECK(!back.vehicleExitTeleport);
-    CHECK_EQ(back.vehicleSeat, uint32(3));
+    CHECK_EQ(int(back.vehicleSeat), 3);
+    // The seat is one byte on the wire. Dropping the vehicle branch drops the
+    // seat and its two bits -- and 18 bits pad to the same three bytes as 20 --
+    // so the whole difference must be that single byte.
+    Wire::Teleport noVehicle = v;
+    noVehicle.hasVehicle = false;
+    noVehicle.vehicleExitVoluntary = false;
+    WorldPacket q(SMSG_MOVE_TELEPORT, 64);
+    Wire::EncodeTeleport(q, noVehicle);
+    CHECK_EQ(p.size(), q.size() + 1);
     CHECK_EQ(back.pos.y, 2.0f);
     CHECK(Wire::Judge(SMSG_MOVE_TELEPORT, p, false).exact);
 }

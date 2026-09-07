@@ -47,7 +47,7 @@ namespace Wire
         bool   hasVehicle = false;
         bool   vehicleExitVoluntary = false;
         bool   vehicleExitTeleport = false;
-        uint32 vehicleSeat = 0;
+        uint8  vehicleSeat = 0;   ///< one byte: the client's reader takes one (P1-C task 5)
     };
 
     void EncodeTeleport(ByteBuffer& out, Teleport const& v);

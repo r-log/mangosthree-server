@@ -68,7 +68,10 @@ namespace Wire
         out << float(v.pos.o);
         WriteGuidBytes(out, v.guid, kBytesC);
         out << float(v.pos.z);
-        if (v.hasVehicle) { out << uint32(v.vehicleSeat); }
+        // One byte, not four: the client's reader (sub_140363890) fetches a
+        // single byte here -- `if (a1[64]) { GetByte(store, &v); a1[65] = v; }`
+        // -- so a four-byte seat would desync the three fields after it.
+        if (v.hasVehicle) { out << uint8(v.vehicleSeat); }
         WriteGuidBytes(out, v.guid, kBytesD);
         out << float(v.pos.y);
     }
@@ -97,7 +100,7 @@ namespace Wire
             v.pos.o = r.Get<float>();
             ReadGuidBytes(r, g, kBytesC);
             v.pos.z = r.Get<float>();
-            if (v.hasVehicle) { v.vehicleSeat = r.Get<uint32>(); }
+            if (v.hasVehicle) { v.vehicleSeat = r.Get<uint8>(); }
             ReadGuidBytes(r, g, kBytesD);
             v.pos.y = r.Get<float>();
             v.guid = g.Value();
