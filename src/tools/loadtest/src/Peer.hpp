@@ -97,6 +97,7 @@ namespace loadtest
         uint32     walkStarts = 0;
         uint32     walkHeartbeats = 0;
         uint32     walkStops = 0;
+        uint32     relocations = 0;    ///< legs cut short by a teleport: one extra start each, no stop
         Wire::Vec4 walkFinal;
         uint32     walkLastTime = 0;   ///< the movement time stamped on the walker's last packet
 

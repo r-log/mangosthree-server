@@ -67,6 +67,17 @@ namespace loadtest
         // the leg that ends here: the server has just teleported this mover, and
         // a stop reported from the old place would be a lie about where it is.
         // The next Advance starts a fresh leg from `pos`, with no lead.
+        //
+        // Count it only when a leg was actually running: that is the case that
+        // costs an extra start and skips a stop, and so the case a walk verdict
+        // has to know about. A teleport that lands between legs -- during the
+        // lead, before the return leg opens, or after the walk is done -- opens
+        // no fresh leg, so counting it would be the arithmetic error the count
+        // exists to prevent. `m_started` alone does not say a leg is running: it
+        // is still set when the last leg stopped and `m_done` went up, which is
+        // exactly when a teleport is most likely to arrive (the peer holds after
+        // the walk), so both are asked. Status() reads the pair the same way.
+        if (m_started && !m_done) { ++m_relocations; }
         m_pos = pos;
         m_origin = pos;
         m_started = false;

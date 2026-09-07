@@ -74,7 +74,8 @@ namespace loadtest
              * next Advance therefore opens a fresh leg from `pos` with no lead,
              * which costs one more CMSG_MOVE_START_FORWARD (and one more `Starts()`)
              * than an undisturbed walk -- the same thing a real client does after
-             * acking a teleport mid-run.
+             * acking a teleport mid-run. `Relocations()` counts those, so a caller
+             * judging the walk can tell that extra start from a lost one.
              */
             void Relocate(const Wire::Vec4& pos);
 
@@ -86,6 +87,12 @@ namespace loadtest
             uint32 Starts() const { return m_starts; }
             uint32 Heartbeats() const { return m_heartbeats; }
             uint32 Stops() const { return m_stops; }
+            /// How many times a leg that was actually running was cut short by a
+            /// Relocate. Each one costs an extra Starts() and no Stops(), so a
+            /// verdict that expects one start per leg needs this to balance its
+            /// arithmetic. A Relocate arriving between legs changes no counts and
+            /// is not one of these.
+            uint32 Relocations() const { return m_relocations; }
             uint32 LastStampedTime() const { return m_lastStampedTime; }
 
         private:
@@ -107,6 +114,7 @@ namespace loadtest
             uint32 m_starts = 0;
             uint32 m_heartbeats = 0;
             uint32 m_stops = 0;
+            uint32 m_relocations = 0;    ///< Relocates that ended a leg in progress
             bool   m_returning = false;      ///< on the way back (returnHome)
             uint32 m_lastStampedTime = 0;
     };

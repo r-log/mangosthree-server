@@ -474,8 +474,8 @@ int main(int argc, char** argv)
     const loadtest::PeerReport& peer = result.peer;
     std::printf("PEER timesync answered=%u controlUpdates=%u other=%u\n",
                 peer.timeSyncsAnswered, peer.controlUpdates, peer.otherPackets);
-    std::printf("PEER walk start=%u heartbeats=%u stop=%u final=%.1f %.1f %.1f lastTime=%u\n",
-                peer.walkStarts, peer.walkHeartbeats, peer.walkStops,
+    std::printf("PEER walk start=%u heartbeats=%u stop=%u relocations=%u final=%.1f %.1f %.1f lastTime=%u\n",
+                peer.walkStarts, peer.walkHeartbeats, peer.walkStops, peer.relocations,
                 peer.walkFinal.x, peer.walkFinal.y, peer.walkFinal.z, peer.walkLastTime);
     std::printf("PEER acks sent=%u dropped=%u pending=%u unregistered=",
                 peer.acksSent, peer.acksDropped, peer.acksPending);
@@ -485,6 +485,9 @@ int main(int argc, char** argv)
         std::printf("0x%.4X:%u ", uint32(it->first), it->second);
     }
     std::printf("\n");
+    // activeMover can only be 0 on this tree: nothing here writes
+    // SMSG_MOVE_SET_ACTIVE_MOVER yet, so a zero is the expected reading and not a
+    // pass -- it says nothing about whether the codec would judge one correctly.
     std::printf("PEER teleports=%u/%u knockbacks=%u/%u activeMover=%u splines=%u\n",
                 peer.teleports, peer.teleportAcks, peer.knockBacks, peer.knockBackAcks,
                 peer.activeMoverSets, peer.monsterMoves);
@@ -515,17 +518,23 @@ int main(int argc, char** argv)
 
     if (config.script.walk.seconds > 0)
     {
-        // One start and one stop per leg, and heartbeats at three quarters of the
-        // nominal cadence or better. A real client sends no overdue heartbeat
-        // retroactively, so the slack is what keeps a stall of this process from
-        // reading as the server losing the walk.
+        // One stop per leg, and one start per leg PLUS one per relocation: a
+        // teleport that lands mid-leg ends that leg where it stands, sends no
+        // stop for it (a stop from the old place would be a lie about where the
+        // mover is), and opens a fresh leg with a fresh start -- so the leg that
+        // was interrupted pays its stop only when the restarted leg finishes.
+        // starts == legs + relocations and stops == legs is that arithmetic;
+        // without the relocations term an ordinary teleport read as a lost walk.
+        // Heartbeats at three quarters of the nominal cadence or better: a real
+        // client sends no overdue heartbeat retroactively, so the slack is what
+        // keeps a stall of this process from reading as the server losing the walk.
         const uint32 legs = config.script.walk.returnHome ? 2 : 1;
         const uint32 nominal = config.script.walk.seconds * 1000 / config.script.walk.heartbeatMs * legs;
-        const bool walkOk = peer.walkStarts == legs && peer.walkStops == legs &&
+        const bool walkOk = peer.walkStarts == legs + peer.relocations && peer.walkStops == legs &&
                             peer.walkHeartbeats * 4 >= nominal * 3;
-        std::printf("PEER VERDICT walk %s (start %u, heartbeats %u of %u nominal, stop %u, legs %u)\n",
+        std::printf("PEER VERDICT walk %s (start %u, heartbeats %u of %u nominal, stop %u, legs %u, relocations %u)\n",
                     walkOk ? "OK" : "BUG", peer.walkStarts, peer.walkHeartbeats, nominal,
-                    peer.walkStops, legs);
+                    peer.walkStops, legs, peer.relocations);
         verdictsOk = verdictsOk && walkOk;
     }
 

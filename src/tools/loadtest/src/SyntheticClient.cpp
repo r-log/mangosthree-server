@@ -962,6 +962,7 @@ namespace loadtest
         report.walkStarts = walker.Starts();
         report.walkHeartbeats = walker.Heartbeats();
         report.walkStops = walker.Stops();
+        report.relocations = walker.Relocations();
         report.walkFinal = walker.Position();
         report.walkLastTime = walker.LastStampedTime();
         report.acksSent = acks.Sent();
