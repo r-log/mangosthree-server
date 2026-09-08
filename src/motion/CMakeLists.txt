@@ -35,6 +35,8 @@ set(SRC_GRP_MOTION
     Writers.cpp
     State.h
     State.cpp
+    WriterShadow.h
+    WriterShadow.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 
