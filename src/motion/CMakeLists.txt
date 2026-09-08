@@ -31,6 +31,8 @@ set(SRC_GRP_MOTION
     PendingChanges.cpp
     TimeBase.h
     TimeBase.cpp
+    Writers.h
+    Writers.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 
