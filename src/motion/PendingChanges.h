@@ -65,10 +65,12 @@ namespace Motion
     enum class AckResult : uint8
     {
         Matched,          ///< the pending entry of that type had this counter; payload agreed
-        PayloadMismatch,  ///< same, but the echoed value disagrees; the entry is dropped
+        PayloadMismatch,  ///< same, but the echoed value disagrees; the entry is dropped and the
+                          ///< change stays desired-but-unconfirmed with nothing pending; P2-C
+                          ///< decides the recovery (resend or resync)
         Tombstone,        ///< a retired or superseded counter; consumed silently
         NoPending,        ///< an issued counter for a type with nothing pending and no tombstone
-        Stale,            ///< an issued counter below the pending one, tombstone gone
+        Stale,            ///< an issued counter that is neither this type's pending one nor a live tombstone
         Future            ///< a counter never issued
     };
 
@@ -112,6 +114,10 @@ namespace Motion
         explicit PendingChanges(TimeoutPolicy const& policy);
 
         uint32 Open(Change const& change, uint32 now);
+        /// Matches design v2 6.2's (type, counter, epoch) by type and counter alone: counters
+        /// never reset and NewEpoch() tombstones every pending entry, so a counter already
+        /// implies its epoch. P2-C may stamp tombstones with their epoch if it ever needs to
+        /// tell a prior-epoch counter from one that was never issued.
         AckOutcome Ack(ChangeType type, uint32 counter, AckPayload const& payload, uint32 now);
         void NewEpoch(uint32 now);
         std::vector<TimeoutEvent> Tick(uint32 now);

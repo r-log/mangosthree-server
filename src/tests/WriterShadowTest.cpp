@@ -123,7 +123,8 @@ TEST(WriterShadow_a_packet_no_row_claims_or_a_wrong_change_has_no_writer)
 
 TEST(WriterShadow_counts_per_row_and_form_and_reports)
 {
-    CHECK_EQ(MatrixSize(), size_t(30));   // guards ShadowCounters::kRows below
+    REQUIRE(MatrixSize() == size_t(30));   // guards ShadowCounters::kRows below: a mismatch must stop before Count() can run OOB
+    CHECK_EQ(ShadowCounters::Rows(), MatrixSize() * 2 + 1);
     ShadowCounters counters;
     CHECK(!counters.Saw());
     WorldPacket legacy = Mover(SpeedChange(1, 7.0f), 0);

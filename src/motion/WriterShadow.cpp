@@ -97,6 +97,8 @@ namespace Motion
                 if (&MatrixRowAt(i) == row) { index = i * kForms + (isSpline ? 1 : 0); break; }
             }
         }
+        // A matrix grown past what kRows was sized for lands here instead of past m_rows.
+        if (index >= kRows - 1) { index = kRows - 1; }
         Row& r = m_rows[index];
         r.seen.fetch_add(1, std::memory_order_relaxed);
         m_seen.fetch_add(1, std::memory_order_relaxed);

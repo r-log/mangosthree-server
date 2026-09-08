@@ -69,6 +69,7 @@ namespace Motion
         uint32 Seen() const { return m_seen.load(std::memory_order_relaxed); }
         uint32 Mismatched() const { return m_mismatched.load(std::memory_order_relaxed); }
         void Report(std::function<void(std::string const&)> const& line) const;
+        static size_t Rows() { return kRows; }   ///< the counter table's row count, for a test to pin
 
     private:
         ShadowCounters(ShadowCounters const&);
@@ -81,7 +82,9 @@ namespace Motion
             std::atomic<uint32> otherOpcode;       ///< the kernel's opcode on a mismatch, or the legacy opcode in the unmatched row
             Row();
         };
-        enum { kForms = 2, kRows = 30 * kForms + 1 };   ///< MatrixSize() rows x {mover, spline} + one for packets no row claims
+        enum { kForms = 2, kRows = 30 * kForms + 1 };   ///< MatrixSize() rows x {mover, spline} + one for packets no row claims;
+                                                         ///< a row beyond MatrixSize() at the time this was sized lands in
+                                                         ///< that last, unmatched-row slot instead of past the array (Count)
 
         Row                 m_rows[kRows];
         std::atomic<uint32> m_seen;

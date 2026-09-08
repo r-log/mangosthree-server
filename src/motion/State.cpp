@@ -111,6 +111,8 @@ namespace Motion
         }
         else
         {
+            // Forward-compatibility for a future client-driven row with no mover form; no
+            // such row exists today (Gait/Swim are server-driven only and refused above).
             m_confirmed.Apply(change);   // nothing to negotiate: confirmed at once
         }
         return out;
@@ -127,6 +129,8 @@ namespace Motion
         }
         AckOutcome const outcome = m_pending.Ack(type, counter, payload, now);
         m_lastAck = outcome.result;
+        // A PayloadMismatch (or any other non-Matched result) leaves desired diverged from
+        // confirmed with nothing pending; P2-C decides the recovery (resend or resync).
         if (outcome.result != AckResult::Matched) { return out; }
         Change const& change = outcome.change.change;
         m_confirmed.Apply(change);
