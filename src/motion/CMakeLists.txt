@@ -29,6 +29,8 @@ set(SRC_GRP_MOTION
     PacketMatrix.cpp
     PendingChanges.h
     PendingChanges.cpp
+    TimeBase.h
+    TimeBase.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 
