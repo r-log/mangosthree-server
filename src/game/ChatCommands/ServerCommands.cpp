@@ -99,7 +99,8 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
  * @brief Handler for HandleServerMovementCommand command.
  *
  * Prints the wire codec's shadow counters (Movement.WireParity): what the legacy
- * movement reader and the registry's layouts disagree on, per opcode.
+ * movement reader and the registry's layouts disagree on, per opcode. The writer
+ * shadow's counts follow (P2-A).
  *
  * @param args Command arguments.
  * @returns True if the command executed successfully, false otherwise.

@@ -30,7 +30,7 @@ if(NOT IS_DIRECTORY "${MOTION_DIR}")
     message(FATAL_ERROR "Motion boundary missing: ${MOTION_DIR}")
 endif()
 
-file(GLOB_RECURSE PROTO_SOURCES
+file(GLOB_RECURSE MOTION_SOURCES
     "${MOTION_DIR}/*.h" "${MOTION_DIR}/*.hpp"
     "${MOTION_DIR}/*.cpp" "${MOTION_DIR}/*.cc")
 
@@ -41,7 +41,7 @@ set(FORBIDDEN_PATTERNS
 
 set(VIOLATIONS "")
 
-foreach(FILE_PATH IN LISTS PROTO_SOURCES)
+foreach(FILE_PATH IN LISTS MOTION_SOURCES)
     file(STRINGS "${FILE_PATH}" RAW_LINES)
 
     set(IN_BLOCK OFF)
@@ -80,5 +80,5 @@ endforeach()
 
 if(VIOLATIONS)
     string(REPLACE ";" "\n  " VIOLATIONS "${VIOLATIONS}")
-    message(FATAL_ERROR "Forbidden protocol dependency:\n  ${VIOLATIONS}")
+    message(FATAL_ERROR "Forbidden game dependency in the motion library:\n  ${VIOLATIONS}")
 endif()

@@ -7434,13 +7434,17 @@ void Unit::SendCollisionHeightUpdate(float height)
 {
     if (GetTypeId() == TYPEID_PLAYER)
     {
+        // Computed once and reused below: GetCollisionHeight(true) is up to four DBC
+        // lookups and two possible error logs, and the hook must not pay for a second
+        // call just to be handed the same value the packet already carries.
+        const float collisionHeight = ((Player*)this)->GetCollisionHeight(true);
         WorldPacket data(SMSG_MOVE_SET_COLLISION_HGT, GetPackGUID().size() + 4 + 4);
         data.WriteGuidMask<6, 1, 4, 7, 5, 2, 0, 3>(GetObjectGuid());
         data.WriteGuidBytes<6, 0, 4, 3, 5>(GetObjectGuid());
         data << uint32(sWorld.GetGameTime());   // Packet counter
         data.WriteGuidBytes<1, 2, 7>(GetObjectGuid());
-        data << ((Player*)this)->GetCollisionHeight(true);
-        WriterShadow::Height(*this, ((Player*)this)->GetCollisionHeight(true), 0, data);
+        data << collisionHeight;
+        WriterShadow::Height(*this, collisionHeight, 0, data);
         ((Player*)this)->GetSession()->SendPacket(&data);
     }
 }
