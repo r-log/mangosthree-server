@@ -31,11 +31,11 @@ namespace Motion
     namespace
     {
         const char* const kFilled = "";
-        const char* const kNoRateAck = "the client's ack (CMSG_FORCE_*_RATE_CHANGE_ACK) has no registry layout: a client writer, not liftable; the update is lifted in Task 6";
+        const char* const kNoRateAck = "the client's ack (CMSG_FORCE_*_RATE_CHANGE_ACK) has no registry layout: a client writer, not liftable";
+        const char* const kNoPitchRateObserver = "the client's ack (CMSG_FORCE_PITCH_RATE_CHANGE_ACK) has no registry layout: a client writer, not liftable; its observer's own reader (sub_14037B330) defeated the lifter (Task 6: a bitwise-complement gate bit, `~expr >> 7`, that lift_client_reader.py cannot follow) and has no layout either";
         const char* const kNoSplineFlag = "4.3.4 has no spline form of this change";
         const char* const kNoSplineValue = "creatures have no packet for this: height is a player thing, a knock-back is a spline jump (P3), a teleport is an object update";
         const char* const kServerOnly = "server-driven only (design v2 6.4): no mover packet, no ack, no observer update";
-        const char* const kTeleportObserver = "SMSG_MOVE_UPDATE_TELEPORT is lifted in Task 6";
 
         const MatrixRow kRows[] =
         {
@@ -45,10 +45,10 @@ namespace Motion
             { ChangeType::RunBackSpeed,    true,  SMSG_MOVE_SET_RUN_BACK_SPEED,    CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK,    SMSG_MOVE_UPDATE_RUN_BACK_SPEED,    SMSG_SPLINE_MOVE_SET_RUN_BACK_SPEED,    kFilled },
             { ChangeType::SwimSpeed,       true,  SMSG_MOVE_SET_SWIM_SPEED,        CMSG_FORCE_SWIM_SPEED_CHANGE_ACK,        SMSG_MOVE_UPDATE_SWIM_SPEED,        SMSG_SPLINE_MOVE_SET_SWIM_SPEED,        kFilled },
             { ChangeType::SwimBackSpeed,   true,  SMSG_MOVE_SET_SWIM_BACK_SPEED,   CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK,   SMSG_MOVE_UPDATE_SWIM_BACK_SPEED,   SMSG_SPLINE_MOVE_SET_SWIM_BACK_SPEED,   kFilled },
-            { ChangeType::TurnRate,        true,  SMSG_MOVE_SET_TURN_RATE,         0,                                       0 /* Task 6 */,                     SMSG_SPLINE_MOVE_SET_TURN_RATE,         kNoRateAck },
+            { ChangeType::TurnRate,        true,  SMSG_MOVE_SET_TURN_RATE,         0,                                       SMSG_MOVE_UPDATE_TURN_RATE,         SMSG_SPLINE_MOVE_SET_TURN_RATE,         kNoRateAck },
             { ChangeType::FlightSpeed,     true,  SMSG_MOVE_SET_FLIGHT_SPEED,      CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK,      SMSG_MOVE_UPDATE_FLIGHT_SPEED,      SMSG_SPLINE_MOVE_SET_FLIGHT_SPEED,      kFilled },
             { ChangeType::FlightBackSpeed, true,  SMSG_MOVE_SET_FLIGHT_BACK_SPEED, CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK, SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED, SMSG_SPLINE_MOVE_SET_FLIGHT_BACK_SPEED, kFilled },
-            { ChangeType::PitchRate,       true,  SMSG_MOVE_SET_PITCH_RATE,        0,                                       0 /* Task 6 */,                     SMSG_SPLINE_MOVE_SET_PITCH_RATE,        kNoRateAck },
+            { ChangeType::PitchRate,       true,  SMSG_MOVE_SET_PITCH_RATE,        0,                                       0 /* BLOCKED, Task 6 */,            SMSG_SPLINE_MOVE_SET_PITCH_RATE,        kNoPitchRateObserver },
 
             { ChangeType::Root,            true,  SMSG_FORCE_MOVE_ROOT,            CMSG_FORCE_MOVE_ROOT_ACK,                SMSG_FORCE_MOVE_ROOT,               SMSG_SPLINE_MOVE_ROOT,                  kFilled },
             { ChangeType::Root,            false, SMSG_FORCE_MOVE_UNROOT,          CMSG_FORCE_MOVE_UNROOT_ACK,              SMSG_FORCE_MOVE_UNROOT,             SMSG_SPLINE_MOVE_UNROOT,                kFilled },
@@ -65,9 +65,9 @@ namespace Motion
             { ChangeType::CanTransitionSwimFly, true,  SMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY,   CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK, SMSG_PLAYER_MOVE, 0, kNoSplineFlag },
             { ChangeType::CanTransitionSwimFly, false, SMSG_MOVE_UNSET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY, CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK, SMSG_PLAYER_MOVE, 0, kNoSplineFlag },
 
-            { ChangeType::CollisionHeight, true,  SMSG_MOVE_SET_COLLISION_HGT,     CMSG_MOVE_SET_COLLISION_HGT_ACK,         SMSG_MOVE_UPDATE_COLLISION_HEIGHT,  0,                                      kNoSplineValue },
-            { ChangeType::KnockBack,       true,  SMSG_MOVE_KNOCK_BACK,            CMSG_MOVE_KNOCK_BACK_ACK,                SMSG_MOVE_UPDATE_KNOCK_BACK,        0,                                      kNoSplineValue },
-            { ChangeType::Teleport,        true,  SMSG_MOVE_TELEPORT,              CMSG_MOVE_TELEPORT_ACK,                  0 /* Task 6 */,                     0,                                      kTeleportObserver },
+            { ChangeType::CollisionHeight, true,  SMSG_MOVE_SET_COLLISION_HGT, CMSG_MOVE_SET_COLLISION_HGT_ACK, SMSG_MOVE_UPDATE_COLLISION_HEIGHT, 0, kNoSplineValue },
+            { ChangeType::KnockBack,       true,  SMSG_MOVE_KNOCK_BACK,        CMSG_MOVE_KNOCK_BACK_ACK,        SMSG_MOVE_UPDATE_KNOCK_BACK,       0, kNoSplineValue },
+            { ChangeType::Teleport,        true,  SMSG_MOVE_TELEPORT,          CMSG_MOVE_TELEPORT_ACK,          SMSG_MOVE_UPDATE_TELEPORT,         0, kNoSplineValue },
 
             { ChangeType::Gait,            true,  0, 0, 0, SMSG_SPLINE_MOVE_SET_WALK_MODE, kServerOnly },
             { ChangeType::Gait,            false, 0, 0, 0, SMSG_SPLINE_MOVE_SET_RUN_MODE,  kServerOnly },

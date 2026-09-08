@@ -76,9 +76,9 @@ TEST(MotionMatrix_the_empty_cells_are_exactly_the_pinned_ones)
         if (!row.spline)   { empty.push_back(name + ":spline"); }
     }
     std::vector<std::string> pinned;
-    pinned.push_back("TurnRate+:ack");   pinned.push_back("TurnRate+:observer");    // Task 6 fills the observer
-    pinned.push_back("PitchRate+:ack");  pinned.push_back("PitchRate+:observer");   // Task 6 fills the observer
-    pinned.push_back("Teleport+:observer");                                         // Task 6 fills it
+    pinned.push_back("TurnRate+:ack");                                              // client writer, not liftable
+    pinned.push_back("PitchRate+:ack");  pinned.push_back("PitchRate+:observer");   // ack: client writer; observer:
+                                                                                     // its reader is BLOCKED (Task 6)
     pinned.push_back("CanTransitionSwimFly+:spline"); pinned.push_back("CanTransitionSwimFly-:spline");
     pinned.push_back("CollisionHeight+:spline"); pinned.push_back("KnockBack+:spline"); pinned.push_back("Teleport+:spline");
     const char* serverOnly[] = { "Gait+", "Gait-", "Swim+", "Swim-" };
@@ -93,7 +93,10 @@ TEST(MotionMatrix_the_empty_cells_are_exactly_the_pinned_ones)
 
 TEST(MotionMatrix_speed_rows_follow_the_reference_table_in_move_type_order)
 {
-    // CPP MovementPacketSender.cpp:29-40: {spline, mover, observer} per UnitMoveType.
+    // CPP MovementPacketSender.cpp:29-40: {spline, mover, observer} per UnitMoveType. CPP's
+    // own table has 0 for both rate observers -- neither is in its source at all -- but
+    // Task 6 lifted TurnRate's from the client's own reader (PitchRate's is BLOCKED; see
+    // gen_movement_layouts.py's ADDED comment), so that cell no longer follows CPP here.
     const uint16 reference[9][3] =
     {
         { SMSG_SPLINE_MOVE_SET_WALK_SPEED,        SMSG_MOVE_SET_WALK_SPEED,        SMSG_MOVE_UPDATE_WALK_SPEED },
@@ -101,7 +104,7 @@ TEST(MotionMatrix_speed_rows_follow_the_reference_table_in_move_type_order)
         { SMSG_SPLINE_MOVE_SET_RUN_BACK_SPEED,    SMSG_MOVE_SET_RUN_BACK_SPEED,    SMSG_MOVE_UPDATE_RUN_BACK_SPEED },
         { SMSG_SPLINE_MOVE_SET_SWIM_SPEED,        SMSG_MOVE_SET_SWIM_SPEED,        SMSG_MOVE_UPDATE_SWIM_SPEED },
         { SMSG_SPLINE_MOVE_SET_SWIM_BACK_SPEED,   SMSG_MOVE_SET_SWIM_BACK_SPEED,   SMSG_MOVE_UPDATE_SWIM_BACK_SPEED },
-        { SMSG_SPLINE_MOVE_SET_TURN_RATE,         SMSG_MOVE_SET_TURN_RATE,         0 },
+        { SMSG_SPLINE_MOVE_SET_TURN_RATE,         SMSG_MOVE_SET_TURN_RATE,         SMSG_MOVE_UPDATE_TURN_RATE },
         { SMSG_SPLINE_MOVE_SET_FLIGHT_SPEED,      SMSG_MOVE_SET_FLIGHT_SPEED,      SMSG_MOVE_UPDATE_FLIGHT_SPEED },
         { SMSG_SPLINE_MOVE_SET_FLIGHT_BACK_SPEED, SMSG_MOVE_SET_FLIGHT_BACK_SPEED, SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED },
         { SMSG_SPLINE_MOVE_SET_PITCH_RATE,        SMSG_MOVE_SET_PITCH_RATE,        0 },

@@ -301,7 +301,7 @@ TEST(MotionWriters_every_cell_round_trips_through_the_judge_and_carries_its_coun
     }
     CHECK_EQ(movers, size_t(26));      // 30 rows less the four server-only ones
     CHECK_EQ(splines, size_t(25));     // 30 less CanTransition x2, CollisionHeight, KnockBack, Teleport
-    CHECK_EQ(observers, size_t(23));   // 26 movers less TurnRate, PitchRate, Teleport (Task 6 makes this 26)
+    CHECK_EQ(observers, size_t(25));   // 26 movers less PitchRate (Task 6 fills TurnRate and Teleport; PitchRate's own reader is BLOCKED)
 }
 
 TEST(MotionWriters_the_collision_height_writer_is_the_client_layout_not_the_legacy_one)
