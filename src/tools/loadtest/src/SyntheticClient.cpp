@@ -767,7 +767,8 @@ namespace loadtest
             case SMSG_PLAYER_MOVE:
             {
                 Wire::MovementStatus status;
-                if (!Wire::Decode(packet, Wire::SequenceFor(SMSG_PLAYER_MOVE), status).ok())
+                Wire::DecodeResult const decoded = Wire::Decode(packet, Wire::SequenceFor(SMSG_PLAYER_MOVE), status);
+                if (!decoded.ok() || decoded.consumed != packet.size())
                 {
                     ++report.decodeFailures[opcode];
                     return true;
