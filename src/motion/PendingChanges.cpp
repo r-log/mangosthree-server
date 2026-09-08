@@ -156,6 +156,7 @@ namespace Motion
         }
         m_pending.clear();
         ++m_epoch;
+        m_resyncs = 0;
     }
 
     void PendingChanges::ExpireTombstones(uint32 now)

@@ -198,3 +198,21 @@ TEST(PendingChanges_a_resync_reissues_every_pending_entry_and_tombstones_expire)
     pending.ExpireTombstones(12000);
     CHECK_EQ(pending.Tombstones(), size_t(0));
 }
+
+TEST(PendingChanges_a_new_epoch_restores_the_resync_budget)
+{
+    PendingChanges pending(Enforcing());
+    pending.Open(SpeedChange(1, 7.0f), 0);
+    REQUIRE(pending.Tick(1000).size() == 1);                     // the resend
+    std::vector<TimeoutEvent> events = pending.Tick(2000);       // the resync: budget spent
+    REQUIRE(events.size() == 2);
+    CHECK(events[0].action == TimeoutAction::Resync);
+    pending.NewEpoch(2500);
+    pending.Open(SpeedChange(1, 8.0f), 3000);
+    REQUIRE(pending.Tick(4000).size() == 1);                     // the resend
+    events = pending.Tick(5000);                                 // a resync again, not a kick
+    REQUIRE(events.size() == 2);
+    CHECK(events[0].action == TimeoutAction::Resync);
+    CHECK_EQ(pending.Counters().resynced, 2u);
+    CHECK_EQ(pending.Counters().kicked, 0u);
+}
