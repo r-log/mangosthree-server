@@ -33,6 +33,8 @@ set(SRC_GRP_MOTION
     TimeBase.cpp
     Writers.h
     Writers.cpp
+    State.h
+    State.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 
