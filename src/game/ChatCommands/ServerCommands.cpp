@@ -46,6 +46,7 @@
 #include "MapPersistentStateMgr.h"
 #include "CorpseManager.h"
 #include "movement/WireParity.h"
+#include "movement/WriterShadowHooks.h"
 
 /**
  * @brief Handler for HandleServerInfoCommand command.
@@ -106,6 +107,7 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
 bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
 {
     WireParity::Report([this](std::string const& line) { SendSysMessage(line.c_str()); });
+    WriterShadow::Report([this](std::string const& line) { SendSysMessage(line.c_str()); });
     return true;
 }
 

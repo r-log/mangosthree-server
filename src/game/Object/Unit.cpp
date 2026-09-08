@@ -65,6 +65,7 @@
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
 #include "movement/MovementStructures.h"
+#include "movement/WriterShadowHooks.h"
 #include "Transports.h"
 #include "TransportMap.h"
 
@@ -7308,6 +7309,7 @@ void Unit::BuildForceMoveRootPacket(WorldPacket* data, bool apply, uint32 value)
         *data << uint32(value);
         data->WriteGuidBytes<2, 0, 7, 4, 5>(GetObjectGuid());
     }
+    WriterShadow::Flag(*this, Motion::ChangeType::Root, apply, *data);
 }
 
 void Unit::BuildMoveSetCanFlyPacket(WorldPacket* data, bool apply, uint32 value)
@@ -7328,6 +7330,7 @@ void Unit::BuildMoveSetCanFlyPacket(WorldPacket* data, bool apply, uint32 value)
         *data << uint32(value);
         data->WriteGuidBytes<1, 0, 2, 3, 5, 7>(GetObjectGuid());
     }
+    WriterShadow::Flag(*this, Motion::ChangeType::CanFly, apply, *data);
 }
 
 void Unit::BuildSendPlayVisualPacket(WorldPacket* data, uint32 value, bool impact)
@@ -7358,6 +7361,7 @@ void Unit::BuildMoveWaterWalkPacket(WorldPacket* data, bool apply, uint32 value)
         data->WriteGuidBytes<6, 1, 7, 5, 4, 0, 3, 2>(GetObjectGuid());
         *data << uint32(value);
     }
+    WriterShadow::Flag(*this, Motion::ChangeType::WaterWalk, apply, *data);
 }
 
 void Unit::BuildMoveFeatherFallPacket(WorldPacket* data, bool apply, uint32 value)
@@ -7379,6 +7383,7 @@ void Unit::BuildMoveFeatherFallPacket(WorldPacket* data, bool apply, uint32 valu
         data->WriteGuidMask<3, 0, 1, 5, 7, 4, 6, 2>(guid);
         data->WriteGuidBytes<2, 7, 1, 4, 5, 0, 3, 6>(guid);
     }
+    WriterShadow::Flag(*this, Motion::ChangeType::FeatherFall, apply, *data);
 }
 
 void Unit::BuildMoveHoverPacket(WorldPacket* data, bool apply, uint32 value)
@@ -7399,6 +7404,7 @@ void Unit::BuildMoveHoverPacket(WorldPacket* data, bool apply, uint32 value)
         data->WriteGuidBytes<4, 5, 3, 6, 7, 1, 2, 0>(guid);
         *data << uint32(0);
     }
+    WriterShadow::Flag(*this, Motion::ChangeType::Hover, apply, *data);
 }
 
 void Unit::BuildMoveLevitatePacket(WorldPacket* data, bool apply, uint32 value)
@@ -7421,6 +7427,7 @@ void Unit::BuildMoveLevitatePacket(WorldPacket* data, bool apply, uint32 value)
         *data << uint32(value);
         data->WriteGuidBytes<5, 1, 3, 4, 6>(GetObjectGuid());
     }
+    WriterShadow::Flag(*this, Motion::ChangeType::GravityDisabled, apply, *data);
 }
 
 void Unit::SendCollisionHeightUpdate(float height)
@@ -7433,6 +7440,7 @@ void Unit::SendCollisionHeightUpdate(float height)
         data << uint32(sWorld.GetGameTime());   // Packet counter
         data.WriteGuidBytes<1, 2, 7>(GetObjectGuid());
         data << ((Player*)this)->GetCollisionHeight(true);
+        WriterShadow::Height(*this, ((Player*)this)->GetCollisionHeight(true), 0, data);
         ((Player*)this)->GetSession()->SendPacket(&data);
     }
 }
