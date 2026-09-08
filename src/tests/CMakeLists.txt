@@ -69,6 +69,7 @@ set(SRC_GRP_TESTS
     GoldenCaptureTest.cpp
     FamilyCodecTest.cpp
     MotionMatrixTest.cpp
+    PendingChangesTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/AckEngine.cpp
