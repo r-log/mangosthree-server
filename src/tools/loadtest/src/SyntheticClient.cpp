@@ -800,7 +800,8 @@ namespace loadtest
                 Wire::Teleport t;
                 packet.rpos(0);
                 packet.ResetBitReader();
-                if (!Wire::DecodeTeleport(packet, t).ok())
+                Wire::DecodeResult const decoded = Wire::DecodeTeleport(packet, t);
+                if (!decoded.ok() || decoded.consumed != packet.size())
                 {
                     ++report.decodeFailures[opcode];
                     return true;
@@ -827,7 +828,8 @@ namespace loadtest
                 Wire::KnockBack k;
                 packet.rpos(0);
                 packet.ResetBitReader();
-                if (!Wire::DecodeKnockBack(packet, k).ok())
+                Wire::DecodeResult const decoded = Wire::DecodeKnockBack(packet, k);
+                if (!decoded.ok() || decoded.consumed != packet.size())
                 {
                     ++report.decodeFailures[opcode];
                     return true;
@@ -862,7 +864,8 @@ namespace loadtest
                 Wire::ActiveMover m;
                 packet.rpos(0);
                 packet.ResetBitReader();
-                if (!Wire::DecodeActiveMover(packet, SMSG_MOVE_SET_ACTIVE_MOVER, m).ok()) { ++report.decodeFailures[opcode]; }
+                Wire::DecodeResult const decoded = Wire::DecodeActiveMover(packet, SMSG_MOVE_SET_ACTIVE_MOVER, m);
+                if (!decoded.ok() || decoded.consumed != packet.size()) { ++report.decodeFailures[opcode]; }
                 else { ++report.activeMoverSets; }
                 return true;
             }
