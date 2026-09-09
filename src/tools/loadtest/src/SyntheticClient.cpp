@@ -782,7 +782,10 @@ namespace loadtest
                 {
                     // Only the target's own observations feed the skew: other
                     // movers interleave and would compare unrelated timestamps.
-                    if (report.observedTarget > 0)
+                    // A status with no timestamp decodes time as 0, which would
+                    // read as skew unrelated to the relay -- so the sample is
+                    // taken only when this status actually carries one.
+                    if (report.observedTarget > 0 && status.has.timestamp)
                     {
                         const uint32 skew = RelaySkew(report.lastTargetObservation, seen);
                         if (skew > report.relayMaxSkew)

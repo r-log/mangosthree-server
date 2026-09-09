@@ -162,6 +162,7 @@ TEST(GoldenCapture_client_session_covers_the_checklist)
         SMSG_MOVE_SET_CAN_FLY, CMSG_MOVE_SET_CAN_FLY_ACK, SMSG_MOVE_UNSET_CAN_FLY,
         CMSG_MOVE_START_ASCEND, CMSG_MOVE_STOP_ASCEND,
         SMSG_MOVE_SET_FLIGHT_SPEED, CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK,
+        CMSG_FORCE_MOVE_ROOT_ACK, CMSG_FORCE_MOVE_UNROOT_ACK,
     };
     for (uint16 op : kRequired)
     {
@@ -174,12 +175,12 @@ TEST(GoldenCapture_client_session_covers_the_checklist)
     // Optional (steps 10-11): counted when present, so the report says what the run had.
     static const uint16 kOptional[] =
     {
-        SMSG_FORCE_MOVE_ROOT, CMSG_FORCE_MOVE_ROOT_ACK, SMSG_FORCE_MOVE_UNROOT, CMSG_FORCE_MOVE_UNROOT_ACK,
+        SMSG_FORCE_MOVE_ROOT, SMSG_FORCE_MOVE_UNROOT,
         CMSG_MOVE_CHNG_TRANSPORT,
     };
     int optional = 0;
     for (uint16 op : kOptional) { optional += report.byOpcode.count(op) == 1 ? 1 : 0; }
-    std::printf("    client golden: %d of 5 optional opcodes present\n", optional);
+    std::printf("    client golden: %d of 3 optional opcodes present\n", optional);
 }
 
 // Four protocol facts a real client's own bytes establish here, and P2's fall
