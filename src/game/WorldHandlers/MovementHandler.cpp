@@ -828,12 +828,10 @@ bool WorldSession::VerifyMovementInfo(MovementInfo const& movementInfo) const
  */
 void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo)
 {
-    //if (m_clientTimeDelay == 0)
-    //{
-    //    m_clientTimeDelay = GameTime::GetGameTimeMS - movementInfo.GetTime();
-    //}
-    //movementInfo.UpdateTime(movementInfo.GetTime() + m_clientTimeDelay + MOVEMENT_PACKET_TIME_DELAY);
-    movementInfo.UpdateTime(movementInfo.GetTime() + GetLatency());
+    // Design v2 6.3: the client's timestamp is rebased to server time through the
+    // session clock before it is stored or relayed. Until the first time-sync
+    // pair lands the clock falls back to server-now and counts it.
+    movementInfo.UpdateTime(m_timeBase.Rebase(movementInfo.GetTime(), GameTime::GetGameTimeMS()));
 
     Unit* mover = _player->GetMover();
 

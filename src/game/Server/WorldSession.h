@@ -47,6 +47,7 @@
 #include "SessionMailbox.h"
 #include "SessionProtocolPolicy.h"
 #include "IWorldGateway.h"
+#include "TimeBase.h"
 
 #include <chrono>
 #include <memory>
@@ -653,9 +654,11 @@ class WorldSession
         }
         uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 
-        // Misc
-        void SetClientTimeDelay(uint32 delay) { m_clientTimeDelay = delay; }
-        void ResetClientTimeDelay() { m_clientTimeDelay = 0; }
+        /// The session's clock model (design v2 §6.3): the delta between the
+        /// client's millisecond tick and the server's, learned from time-sync
+        /// pairs, used to rebase every inbound movement timestamp.
+        Motion::TimeBase& TimeBase() { return m_timeBase; }
+        Motion::TimeBase const& TimeBase() const { return m_timeBase; }
 
     public:                                                 // opcodes handlers
 
@@ -1244,7 +1247,7 @@ class WorldSession
         LocaleConstant m_sessionDbcLocale;
         int m_sessionDbLocaleIndex;
         uint32 m_latency[2];   ///< indexed by proto::LinkSlot
-        uint32 m_clientTimeDelay;
+        Motion::TimeBase m_timeBase;
         SessionPingTracker m_pingTracker;
         AccountData m_accountData[NUM_ACCOUNT_DATA_TYPES];
         uint32 m_Tutorials[8];

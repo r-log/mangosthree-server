@@ -180,7 +180,7 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
     m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
     m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
-    m_latency(), m_clientTimeDelay(0), m_tutorialState(TUTORIALDATA_UNCHANGED)
+    m_latency(), m_tutorialState(TUTORIALDATA_UNCHANGED)
 {
     if (m_Socket)
     {
@@ -784,7 +784,6 @@ void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
         recvPacket.HasStream() ? recvPacket.GetStream() : proto::LinkSlot::Zero;
 
     SetLatency(stream, latency);
-    ResetClientTimeDelay();
 
     // Echo the sequence, not the latency: the client matches a pong to the
     // ping it answers by this value alone, and drops one it cannot place.
