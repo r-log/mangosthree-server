@@ -81,8 +81,6 @@
 #include "wire/MovementSequences.h"
 #include "wire/TeleportCodec.h"
 
-#define MOVEMENT_PACKET_TIME_DELAY 0
-
 /**
  * @brief Handles the packet-based worldport acknowledgement.
  *
@@ -779,8 +777,18 @@ bool WorldSession::VerifyMovementInfo(MovementInfo const& movementInfo) const
         return false;
     }
 
-    if (movementInfo.GetTransportGuid())
+    MovementInfo::StatusInfo const& si = movementInfo.GetStatusInfo();
+    if (si.hasTransportData)
     {
+        // The wire's gate, not the guid, decides whether a transport block is
+        // present -- and the writer forwards it on that gate. A block announced
+        // with an empty guid names no transport the server knows; it is dropped
+        // here rather than relayed as one.
+        if (movementInfo.GetTransportGuid().IsEmpty())
+        {
+            return false;
+        }
+
         // WHERE HE STANDS ON THE DECK MAP. The wire spells this field t_x/t_y/t_z and the
         // protocol calls it an offset, but the moment it is ours it is a position on the
         // vessel's own map -- nothing is composed with it, ever.

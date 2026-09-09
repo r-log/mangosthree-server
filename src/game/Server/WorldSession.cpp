@@ -180,7 +180,7 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
     m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
     m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
-    m_latency(), m_tutorialState(TUTORIALDATA_UNCHANGED)
+    m_latency(), m_badPackets(0), m_tutorialState(TUTORIALDATA_UNCHANGED)
 {
     if (m_Socket)
     {
@@ -451,6 +451,7 @@ bool WorldSession::Update(PacketFilter& updater)
         {
             sLog.outError("WorldSession::Update ByteBufferException occured while parsing a packet (opcode: %u) from client %s, accountid=%i.",
                           packet->GetOpcode(), GetRemoteAddress().c_str(), GetAccountId());
+            ++m_badPackets;
             if (sLog.HasLogLevelOrHigher(LOG_LVL_DEBUG))
             {
                 DEBUG_LOG("Dumping error causing packet:");

@@ -89,9 +89,10 @@ namespace WireParity
 
         /// The row `opcode` counts in, or -1 when neither the registry nor the
         /// family table names it. Registry rows come first so an existing index
-        /// keeps its meaning. An embedded layout answers with its registry index,
-        /// which is a row nothing writes to: every caller gates on IsKnown or
-        /// IsPacketLayout first, and both reject an embedded layout.
+        /// keeps its meaning. An embedded layout answers with its registry index;
+        /// that row is written by BridgeCheck and Rejected (the record reads the
+        /// embedded block through them) and read by nothing in Outbound, whose
+        /// callers gate on IsKnown/IsPacketLayout.
         int RowIndex(uint16 opcode)
         {
             const int registry = Wire::RegistryIndex(opcode);

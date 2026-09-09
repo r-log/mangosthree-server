@@ -477,7 +477,9 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
 
             if (hasVehicleId)
             {
-                *data << uint32(unit->m_movementInfo.GetFallTime());
+                // The vehicle id has been its own field since P2-B; the legacy
+                // reader used to store it into the fall time.
+                *data << uint32(unit->m_movementInfo.GetVehicleId());
             }
 
             *data << int8(unit->m_movementInfo.GetTransportSeat());

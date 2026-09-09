@@ -646,12 +646,11 @@ class WorldSession
             m_latency[static_cast<size_t>(stream)] = latency;
         }
 
-        /// The stream-0 figure, for the callers that want a single number.
-        /// Movement rides on stream 0, so it is the one that times movement.
-        uint32 GetLatency() const
-        {
-            return m_latency[static_cast<size_t>(proto::LinkSlot::Zero)];
-        }
+        /// Bad packets received on this session (design v2 §10.1): every
+        /// ByteBufferException caught in WorldSession::Update, codec
+        /// rejections included, attributed to the session that sent it.
+        uint32 GetBadPacketCount() const { return m_badPackets; }
+
         uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 
         /// The session's clock model (design v2 §6.3): the delta between the
@@ -1247,6 +1246,7 @@ class WorldSession
         LocaleConstant m_sessionDbcLocale;
         int m_sessionDbLocaleIndex;
         uint32 m_latency[2];   ///< indexed by proto::LinkSlot
+        uint32 m_badPackets;   ///< bad packets received on this session (design v2 §10.1)
         Motion::TimeBase m_timeBase;
         SessionPingTracker m_pingTracker;
         AccountData m_accountData[NUM_ACCOUNT_DATA_TYPES];
