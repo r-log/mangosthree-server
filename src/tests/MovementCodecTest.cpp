@@ -585,6 +585,16 @@ TEST(MovementSequences_the_embedded_cast_block_gates_nothing_on_its_two_swapped_
     Wire::Encode(pa, seq, a);
     Wire::Encode(pb, seq, b);
     CHECK_EQ(pa.size(), pb.size());   // the two labels move a bit, never a byte
+
+    Wire::MovementStatus a2, b2;
+    Wire::DecodeResult const ra = Wire::Decode(pa, seq, a2);
+    Wire::DecodeResult const rb = Wire::Decode(pb, seq, b2);
+    REQUIRE(ra.ok());
+    REQUIRE(rb.ok());
+    CHECK_EQ(ra.consumed, rb.consumed);
+    CHECK_EQ(ra.consumed, pa.size());
+    CHECK(a2.has.spline && !a2.has.unknownBit);
+    CHECK(!b2.has.spline && b2.has.unknownBit);
 }
 
 TEST(MovementSequences_registers_every_layout_of_the_source)

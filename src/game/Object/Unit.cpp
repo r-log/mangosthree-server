@@ -64,6 +64,7 @@
 #include "movement/MoveSpline.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
+#include "Geometry/Placement.h"
 #include "movement/MovementBridge.h"
 #include "movement/WireParity.h"
 #include "movement/WriterShadowHooks.h"
@@ -129,7 +130,20 @@ void MovementInfo::Write(ByteBuffer& data, uint16 opcode) const
         sLog.outError("Unsupported MovementInfo::Write for 0x%X (%s)!", opcode, LookupOpcodeName(opcode));
         return;
     }
-    Wire::Encode(data, sequence, Movement::ToWire(*this));
+    Wire::MovementStatus status = Movement::ToWire(*this);
+    // The legacy writer wrapped both orientation slots into [0, 2pi) before
+    // sending; the relays (SMSG_PLAYER_MOVE, SMSG_MOVE_UPDATE_KNOCK_BACK) forward
+    // a client-sourced record, and VerifyMovementInfo only demands finiteness.
+    status.pos.o = Geometry::Placement::NormalizeOrientation(status.pos.o);
+    status.transport.pos.o = Geometry::Placement::NormalizeOrientation(status.transport.pos.o);
+    // The legacy writer never wrote these -- it wrote the unnamed bit as 0 and
+    // derived the flags-block presence from the flags themselves -- and the
+    // relays forward client-sourced records; P2-C decides whether a relay
+    // should forward them instead.
+    status.has.unknownBit = false;
+    status.has.emptyFlagsBlock = false;
+    status.has.emptyFlags2Block = false;
+    Wire::Encode(data, sequence, status);
 }
 
 ////////////////////////////////////////////////////////////
