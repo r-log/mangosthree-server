@@ -301,9 +301,9 @@ void WorldSession::SendPacket(WorldPacket const* packet)
         Wire::MovementCapture::Record('S', packet->GetOpcode(), packet->contents(), packet->size());
     }
 
-    if (WireParity::Enabled() && packet->GetOpcode() != SMSG_PLAYER_MOVE)
+    if (WireParity::Enabled())
     {
-        WireParity::Outbound(packet->GetOpcode(), *packet);   // the relay is compared at its writer
+        WireParity::Outbound(packet->GetOpcode(), *packet);
     }
 
     m_Socket->SendPacket(*packet);

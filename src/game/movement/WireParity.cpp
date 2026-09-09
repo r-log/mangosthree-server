@@ -53,20 +53,27 @@ namespace WireParity
         struct Row
         {
             std::atomic<uint32> inSeen{ 0 };
-            std::atomic<uint32> inFailed{ 0 };
-            std::atomic<uint32> inMismatch{ 0 };
-            std::atomic<uint32> labelSwapped{ 0 };
-            std::atomic<uint32> vehicleIdInFallTime{ 0 };
+            std::atomic<uint32> inRejected{ 0 };
+            std::atomic<uint32> inBridgeMismatch{ 0 };
             std::atomic<uint32> outSeen{ 0 };
             std::atomic<uint32> outFailed{ 0 };
             std::atomic<uint32> outInexact{ 0 };
-            // P2-B: MovementInfo::Read's own counters, minimal until Task 3 gives
-            // them a row and report line of their own.
-            std::atomic<uint32> rejected{ 0 };
-            std::atomic<uint32> bridgeMismatch{ 0 };
             std::atomic<bool>   hasFirst{ false };
             std::string         first;
         };
+
+        // Rejected's fallback when RowIndex finds neither a registry layout nor a
+        // family for the opcode: nothing in the tree exercises this today (every
+        // opcode Rejected is called for -- MovementInfo::Read's, and
+        // HandleMoveTeleportAckOpcode's -- has a row), but a rejection must count
+        // somewhere rather than be dropped silently.
+        struct UnknownOpcode
+        {
+            std::atomic<uint32> rejected{ 0 };
+            std::atomic<bool>   hasFirst{ false };
+            std::string         first;
+        };
+        UnknownOpcode g_unknownOpcode;
 
         std::mutex g_firstLock;
 
@@ -102,17 +109,18 @@ namespace WireParity
             return Wire::FamilyOpcodeAt(i - Wire::RegistrySize());
         }
 
-        void NoteFirst(Row& row, std::string const& text)
+        // Shared by a Row and by g_unknownOpcode, which is not one.
+        void NoteFirst(std::atomic<bool>& hasFirst, std::string& dest, std::string const& text)
         {
-            if (row.hasFirst.load(std::memory_order_acquire))
+            if (hasFirst.load(std::memory_order_acquire))
             {
                 return;
             }
             std::lock_guard<std::mutex> guard(g_firstLock);
-            if (!row.hasFirst.load(std::memory_order_relaxed))
+            if (!hasFirst.load(std::memory_order_relaxed))
             {
-                row.first = text;
-                row.hasFirst.store(true, std::memory_order_release);
+                dest = text;
+                hasFirst.store(true, std::memory_order_release);
             }
         }
 
@@ -123,14 +131,19 @@ namespace WireParity
 
     void Rejected(uint16 opcode, Wire::DecodeError error)
     {
-        const int i = RowIndex(opcode);
-        if (i < 0) { return; }
-        Row& row = Rows()[size_t(i)];
-        ++row.rejected;
         char text[128];
         std::snprintf(text, sizeof(text), "0x%.4X %s: rejected, decode %s", uint32(opcode),
                       LookupOpcodeName(opcode), Wire::ErrorName(error));
-        NoteFirst(row, text);
+        const int i = RowIndex(opcode);
+        if (i < 0)
+        {
+            ++g_unknownOpcode.rejected;
+            NoteFirst(g_unknownOpcode.hasFirst, g_unknownOpcode.first, text);
+            return;
+        }
+        Row& row = Rows()[size_t(i)];
+        ++row.inRejected;
+        NoteFirst(row.hasFirst, row.first, text);
     }
 
     void BridgeCheck(uint16 opcode, Wire::MovementStatus const& decoded, MovementInfo const& record)
@@ -138,15 +151,16 @@ namespace WireParity
         if (!Enabled()) { return; }
         const int i = RowIndex(opcode);
         if (i < 0) { return; }
+        Row& row = Rows()[size_t(i)];
+        ++row.inSeen;
         Wire::MovementStatus const back = Movement::ToWire(record);
         if (back == decoded) { return; }
-        Row& row = Rows()[size_t(i)];
-        ++row.bridgeMismatch;
+        ++row.inBridgeMismatch;
         char const* field = Wire::FirstDifference(decoded, back);
         char text[128];
-        std::snprintf(text, sizeof(text), "0x%.4X %s: bridge mismatch in %s", uint32(opcode),
+        std::snprintf(text, sizeof(text), "0x%.4X %s: bridge round trip differs at %s", uint32(opcode),
                       LookupOpcodeName(opcode), field ? field : "?");
-        NoteFirst(row, text);
+        NoteFirst(row.hasFirst, row.first, text);
     }
 
     void Outbound(uint16 opcode, WorldPacket const& packet)
@@ -163,7 +177,7 @@ namespace WireParity
             char text[128];
             std::snprintf(text, sizeof(text), "0x%.4X %s: outbound decode %s, consumed %u, payload %u", uint32(opcode),
                           LookupOpcodeName(opcode), Wire::ErrorName(v.result.error), uint32(v.result.consumed), uint32(packet.size()));
-            NoteFirst(row, text);
+            NoteFirst(row.hasFirst, row.first, text);
             return;
         }
         if (!v.exact)
@@ -175,7 +189,7 @@ namespace WireParity
             char text[160];
             std::snprintf(text, sizeof(text), "0x%.4X %s: outbound re-encodes to %u byte(s), %u on the wire, first difference at byte %ld",
                           uint32(opcode), LookupOpcodeName(opcode), uint32(v.reencoded), uint32(packet.size()), v.firstDifference);
-            NoteFirst(row, text);
+            NoteFirst(row.hasFirst, row.first, text);
         }
     }
 
@@ -183,13 +197,14 @@ namespace WireParity
     {
         for (Row const& r : Rows())
         {
-            if (r.inSeen.load(std::memory_order_relaxed) != 0 || r.outSeen.load(std::memory_order_relaxed) != 0 ||
-                r.rejected.load(std::memory_order_relaxed) != 0 || r.bridgeMismatch.load(std::memory_order_relaxed) != 0)
+            if (r.inSeen.load(std::memory_order_relaxed) != 0 || r.inRejected.load(std::memory_order_relaxed) != 0 ||
+                r.inBridgeMismatch.load(std::memory_order_relaxed) != 0 || r.outSeen.load(std::memory_order_relaxed) != 0 ||
+                r.outFailed.load(std::memory_order_relaxed) != 0 || r.outInexact.load(std::memory_order_relaxed) != 0)
             {
                 return true;
             }
         }
-        return false;
+        return g_unknownOpcode.rejected.load(std::memory_order_relaxed) != 0;
     }
 
     namespace
@@ -199,17 +214,17 @@ namespace WireParity
         // both go through Report -- so it stays file-local.
         std::string Summary()
         {
-            uint32 inSeen = 0, inFailed = 0, inMismatch = 0, swapped = 0, vehicle = 0, outSeen = 0, outFailed = 0, outInexact = 0;
+            uint32 inSeen = 0, inRejected = 0, inBridgeMismatch = 0, outSeen = 0, outFailed = 0, outInexact = 0;
             for (Row const& r : Rows())
             {
-                inSeen += r.inSeen; inFailed += r.inFailed; inMismatch += r.inMismatch;
-                swapped += r.labelSwapped; vehicle += r.vehicleIdInFallTime;
+                inSeen += r.inSeen; inRejected += r.inRejected; inBridgeMismatch += r.inBridgeMismatch;
                 outSeen += r.outSeen; outFailed += r.outFailed; outInexact += r.outInexact;
             }
+            inRejected += g_unknownOpcode.rejected.load(std::memory_order_relaxed);
             char text[256];
             std::snprintf(text, sizeof(text),
-                          "wire parity %s: in %u seen, %u failed, %u mismatched (%u fall-label swapped, %u vehicle id in fall time); out %u seen, %u failed, %u inexact",
-                          Enabled() ? "on" : "off", inSeen, inFailed, inMismatch, swapped, vehicle, outSeen, outFailed, outInexact);
+                          "wire parity: in %u seen, %u rejected, %u bridge-mismatched; out %u seen, %u failed, %u inexact",
+                          inSeen, inRejected, inBridgeMismatch, outSeen, outFailed, outInexact);
             return text;
         }
     }
@@ -221,16 +236,16 @@ namespace WireParity
         for (size_t i = 0; i < rows.size(); ++i)
         {
             Row const& row = rows[i];
-            if (row.inSeen == 0 && row.outSeen == 0)
+            if (row.inSeen == 0 && row.inRejected == 0 && row.inBridgeMismatch == 0 &&
+                row.outSeen == 0 && row.outFailed == 0 && row.outInexact == 0)
             {
                 continue;
             }
             const uint16 opcode = RowOpcode(i);
             char text[256];
-            std::snprintf(text, sizeof(text), "  0x%.4X %-44s in %u/%u/%u (swapped %u, vehicle %u)  out %u/%u inexact %u",
+            std::snprintf(text, sizeof(text), "  0x%.4X %-44s in %u/%u/%u  out %u/%u inexact %u",
                           uint32(opcode), LookupOpcodeName(opcode),
-                          uint32(row.inSeen), uint32(row.inFailed), uint32(row.inMismatch),
-                          uint32(row.labelSwapped), uint32(row.vehicleIdInFallTime),
+                          uint32(row.inSeen), uint32(row.inRejected), uint32(row.inBridgeMismatch),
                           uint32(row.outSeen), uint32(row.outFailed), uint32(row.outInexact));
             line(text);
             if (row.hasFirst.load(std::memory_order_acquire))
@@ -238,8 +253,17 @@ namespace WireParity
                 line("    " + row.first);
             }
         }
-        line("  columns: in seen/failed/mismatched (the SMSG_PLAYER_MOVE row counts the relays this server built), out seen/failed, inexact");
+        if (g_unknownOpcode.rejected.load(std::memory_order_relaxed) != 0)
+        {
+            char text[64];
+            std::snprintf(text, sizeof(text), "  (unknown opcode) rejected %u", uint32(g_unknownOpcode.rejected));
+            line(text);
+            if (g_unknownOpcode.hasFirst.load(std::memory_order_acquire))
+            {
+                line("    " + g_unknownOpcode.first);
+            }
+        }
+        line("  columns: in seen/rejected/bridge-mismatched, out seen/failed, inexact");
         line("  inexact: decoded whole but re-encodes to different bytes");
-        line("  vehicle counts only packets carrying both a fall block and a transport vehicle id; a 0 is not evidence the defect is absent");
     }
 }
