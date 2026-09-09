@@ -27,20 +27,15 @@
 
 #include "MovementBridge.h"
 #include "Unit.h"
-#include "Geometry/Placement.h"
 #include "OpcodeTable.h"
-#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "wire/MovementCodec.h"
 #include "wire/MovementFamilies.h"
 #include "wire/MovementParity.h"
 #include "wire/MovementSequences.h"
-#include "wire/MoverCodec.h"
-#include "wire/TeleportCodec.h"
 
 #include <atomic>
 #include <cstdio>
-#include <cstring>
 #include <mutex>
 #include <vector>
 
@@ -65,6 +60,10 @@ namespace WireParity
             std::atomic<uint32> outSeen{ 0 };
             std::atomic<uint32> outFailed{ 0 };
             std::atomic<uint32> outInexact{ 0 };
+            // P2-B: MovementInfo::Read's own counters, minimal until Task 3 gives
+            // them a row and report line of their own.
+            std::atomic<uint32> rejected{ 0 };
+            std::atomic<uint32> bridgeMismatch{ 0 };
             std::atomic<bool>   hasFirst{ false };
             std::string         first;
         };
@@ -117,130 +116,37 @@ namespace WireParity
             }
         }
 
-        // Where the codec's decode and the legacy status disagree, sorted into the
-        // three bins the header describes.
-        void Compare(Row& row, uint16 opcode, Wire::MovementStatus const& wire, MovementInfo const& legacy, bool relayed)
-        {
-            Wire::MovementStatus expected = ToWire(legacy, wire);
-            if (relayed)
-            {
-                // The relay writer wraps the orientation into [0, 2pi) (Unit.cpp:480,
-                // :537); the client's own packets are compared raw, where a wrapped
-                // expectation would hide a reader defect.
-                if (expected.has.orientation)
-                {
-                    expected.pos.o = Geometry::Placement::NormalizeOrientation(expected.pos.o);
-                }
-                if (expected.transport.present)
-                {
-                    expected.transport.pos.o = Geometry::Placement::NormalizeOrientation(expected.transport.pos.o);
-                }
-            }
-            char const* field = Wire::FirstDifference(wire, expected);
-            if (!field)
-            {
-                return;
-            }
-            if ((std::strcmp(field, "fall.cosAngle") == 0 || std::strcmp(field, "fall.sinAngle") == 0) &&
-                wire.fall.cosAngle == expected.fall.sinAngle && wire.fall.sinAngle == expected.fall.cosAngle)
-            {
-                Wire::MovementStatus crossed = expected;
-                crossed.fall.cosAngle = expected.fall.sinAngle;
-                crossed.fall.sinAngle = expected.fall.cosAngle;
-                if (!Wire::FirstDifference(wire, crossed))
-                {
-                    ++row.labelSwapped;
-                    return;
-                }
-            }
-            if (std::strcmp(field, "fall.time") == 0 && wire.transport.present && wire.transport.hasVehicleId &&
-                expected.fall.time == wire.transport.vehicleId)
-            {
-                // fall.time comes before fall.vertical/horizontal/cosAngle/sinAngle and
-                // the whole transport block in struct order, so FirstDifference stopping
-                // here does not clear those fields -- patch fall.time to what the wire
-                // actually carried and re-compare the rest before crediting the quirk.
-                Wire::MovementStatus patched = expected;
-                patched.fall.time = wire.fall.time;
-                char const* patchedField = Wire::FirstDifference(wire, patched);
-                if (!patchedField)
-                {
-                    ++row.vehicleIdInFallTime;
-                    return;
-                }
-                field = patchedField;
-            }
-            ++row.inMismatch;
-            char text[128];
-            std::snprintf(text, sizeof(text), "0x%.4X %s: first mismatch in %s", uint32(opcode),
-                          LookupOpcodeName(opcode), field);
-            NoteFirst(row, text);
-        }
-
-        // The one body both compared directions run: decode a copy of the packet
-        // whole with its layout, then compare against the legacy status. `relayed`
-        // says the bytes came from this server's legacy writer, which has not
-        // flushed its trailing bits yet (WorldSession::SendPacket does that later),
-        // rather than from the client, whose packet the legacy reader has just read
-        // and whose bit cursor therefore holds read state.
-        //
-        // Not "Judge": Wire::Judge is the wire's own round-trip verdict, used a
-        // few lines below in Outbound, and two functions of that name in one unit
-        // is one too many.
-        void CompareToLegacy(Row& row, uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy, bool relayed)
-        {
-            ++row.inSeen;
-            Wire::MovementStatus wire;
-            Wire::DecodeResult result;
-            if (!Wire::DecodeWhole(packet, Wire::SequenceFor(opcode), wire, result, relayed))
-            {
-                ++row.inFailed;
-                char text[128];
-                std::snprintf(text, sizeof(text), "0x%.4X %s: decode %s, consumed %u, payload %u", uint32(opcode),
-                              LookupOpcodeName(opcode), Wire::ErrorName(result.error), uint32(result.consumed), uint32(packet.size()));
-                NoteFirst(row, text);
-                return;
-            }
-            Compare(row, opcode, wire, legacy, relayed);
-        }
     }
 
     void Enable(bool on) { g_enabled.store(on, std::memory_order_release); }
     bool Enabled() { return g_enabled.load(std::memory_order_acquire); }
 
-    Wire::MovementStatus ToWire(MovementInfo const& legacy, Wire::MovementStatus const& wireOnly)
+    void Rejected(uint16 opcode, Wire::DecodeError error)
     {
-        // The mapping itself now lives in the bridge (movement/MovementBridge.cpp),
-        // both directions. What follows here is only what the record does not yet
-        // carry -- the reader still fills these from the wire's own decode until
-        // Task 2 flips it -- so the shadow's numbers do not move in this task.
-        Wire::MovementStatus w = Movement::ToWire(legacy);
-        w.counter = wireOnly.counter;
-        w.value = wireOnly.value;
-        w.twoBits = wireOnly.twoBits;
-        w.has.unknownBit = wireOnly.has.unknownBit;
-        w.has.emptyFlagsBlock = wireOnly.has.emptyFlagsBlock;
-        w.has.emptyFlags2Block = wireOnly.has.emptyFlags2Block;
-        w.has.heightChangeFailed = wireOnly.has.heightChangeFailed;
-        w.transport.vehicleId = wireOnly.transport.vehicleId;
-        return w;
+        const int i = RowIndex(opcode);
+        if (i < 0) { return; }
+        Row& row = Rows()[size_t(i)];
+        ++row.rejected;
+        char text[128];
+        std::snprintf(text, sizeof(text), "0x%.4X %s: rejected, decode %s", uint32(opcode),
+                      LookupOpcodeName(opcode), Wire::ErrorName(error));
+        NoteFirst(row, text);
     }
 
-    void Inbound(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy)
+    void BridgeCheck(uint16 opcode, Wire::MovementStatus const& decoded, MovementInfo const& record)
     {
         if (!Enabled()) { return; }
-        if (!Wire::IsPacketLayout(opcode)) { return; }
-        CompareToLegacy(Rows()[size_t(RowIndex(opcode))], opcode, packet, legacy, false);
-    }
-
-    void Relay(uint16 opcode, WorldPacket const& packet, MovementInfo const& legacy)
-    {
-        // The same comparison as Inbound; the bytes came from the legacy writer
-        // instead of the client, which is what makes it a test of that writer --
-        // and that writer has not flushed its trailing bits yet.
-        if (!Enabled()) { return; }
-        if (!Wire::IsPacketLayout(opcode)) { return; }
-        CompareToLegacy(Rows()[size_t(RowIndex(opcode))], opcode, packet, legacy, true);
+        const int i = RowIndex(opcode);
+        if (i < 0) { return; }
+        Wire::MovementStatus const back = Movement::ToWire(record);
+        if (back == decoded) { return; }
+        Row& row = Rows()[size_t(i)];
+        ++row.bridgeMismatch;
+        char const* field = Wire::FirstDifference(decoded, back);
+        char text[128];
+        std::snprintf(text, sizeof(text), "0x%.4X %s: bridge mismatch in %s", uint32(opcode),
+                      LookupOpcodeName(opcode), field ? field : "?");
+        NoteFirst(row, text);
     }
 
     void Outbound(uint16 opcode, WorldPacket const& packet)
@@ -273,84 +179,12 @@ namespace WireParity
         }
     }
 
-    void InboundMover(WorldPacket const& packet, uint64 sessionMover)
-    {
-        if (!Enabled()) { return; }
-        const int i = RowIndex(CMSG_SET_ACTIVE_MOVER);
-        if (i < 0) { return; }
-        Row& row = Rows()[size_t(i)];
-        ++row.inSeen;
-        WorldPacket copy(packet);
-        copy.rpos(0);
-        copy.ResetBitReader();
-        Wire::ActiveMover value;
-        Wire::DecodeResult r = Wire::DecodeActiveMover(copy, CMSG_SET_ACTIVE_MOVER, value);
-        // A decode that stopped short of the payload is a short read, not a
-        // success -- Wire::Judge calls that LeftBytes, and so does this.
-        if (r.ok() && r.consumed != copy.size()) { r.error = Wire::DecodeError::LeftBytes; }
-        if (!r.ok())
-        {
-            ++row.inFailed;
-            char text[128];
-            std::snprintf(text, sizeof(text), "0x3314 CMSG_SET_ACTIVE_MOVER: decode %s, consumed %u of %u",
-                          Wire::ErrorName(r.error), uint32(r.consumed), uint32(copy.size()));
-            NoteFirst(row, text);
-            return;
-        }
-        if (value.guid != sessionMover)
-        {
-            // The client naming a mover this session does not hold -- the
-            // disagreement the legacy handler's own check was written to catch.
-            ++row.inMismatch;
-            char text[128];
-            std::snprintf(text, sizeof(text), "0x3314 CMSG_SET_ACTIVE_MOVER: guid %llu, session mover %llu",
-                          (unsigned long long)value.guid, (unsigned long long)sessionMover);
-            NoteFirst(row, text);
-        }
-    }
-
-    void InboundTeleportAck(WorldPacket const& packet, uint32 legacyCounter, uint32 legacyTime, uint64 legacyGuid)
-    {
-        if (!Enabled()) { return; }
-        const int i = RowIndex(CMSG_MOVE_TELEPORT_ACK);
-        if (i < 0) { return; }
-        Row& row = Rows()[size_t(i)];
-        ++row.inSeen;
-        WorldPacket copy(packet);
-        copy.rpos(0);
-        copy.ResetBitReader();
-        Wire::TeleportAck value;
-        Wire::DecodeResult r = Wire::DecodeTeleportAck(copy, value);
-        if (r.ok() && r.consumed != copy.size()) { r.error = Wire::DecodeError::LeftBytes; }
-        if (!r.ok())
-        {
-            ++row.inFailed;
-            char text[128];
-            std::snprintf(text, sizeof(text), "0x390C CMSG_MOVE_TELEPORT_ACK: decode %s, consumed %u of %u",
-                          Wire::ErrorName(r.error), uint32(r.consumed), uint32(copy.size()));
-            NoteFirst(row, text);
-            return;
-        }
-        // The first field that differs, in the order the packet carries them.
-        char const* field = NULL;
-        unsigned long long mine = 0, theirs = 0;
-        if (value.counter != legacyCounter)   { field = "counter"; mine = value.counter; theirs = legacyCounter; }
-        else if (value.time != legacyTime)    { field = "time";    mine = value.time;    theirs = legacyTime; }
-        else if (value.guid != legacyGuid)    { field = "guid";    mine = value.guid;    theirs = legacyGuid; }
-        if (field)
-        {
-            ++row.inMismatch;
-            char text[128];
-            std::snprintf(text, sizeof(text), "0x390C CMSG_MOVE_TELEPORT_ACK: %s %llu, legacy read %llu", field, mine, theirs);
-            NoteFirst(row, text);
-        }
-    }
-
     bool Saw()
     {
         for (Row const& r : Rows())
         {
-            if (r.inSeen.load(std::memory_order_relaxed) != 0 || r.outSeen.load(std::memory_order_relaxed) != 0)
+            if (r.inSeen.load(std::memory_order_relaxed) != 0 || r.outSeen.load(std::memory_order_relaxed) != 0 ||
+                r.rejected.load(std::memory_order_relaxed) != 0 || r.bridgeMismatch.load(std::memory_order_relaxed) != 0)
             {
                 return true;
             }

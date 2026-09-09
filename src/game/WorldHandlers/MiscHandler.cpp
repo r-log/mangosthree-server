@@ -1309,10 +1309,8 @@ void WorldSession::HandleFeatherFallAck(WorldPacket& recv_data)
     DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_FEATHER_FALL_ACK");
 
     // not used
-    recv_data.rfinish();                                    // prevent warnings spam
-    /*
-        bitsream packet
-    */
+    MovementInfo movementInfo;
+    recv_data >> movementInfo;
 }
 
 /**
@@ -1323,10 +1321,8 @@ void WorldSession::HandleFeatherFallAck(WorldPacket& recv_data)
 void WorldSession::HandleMoveUnRootAck(WorldPacket& recv_data)
 {
     // not used
-    recv_data.rfinish();                                    // prevent warnings spam
-    /*
-        bitsream packet
-    */
+    MovementInfo movementInfo;
+    recv_data >> movementInfo;
 }
 
 /**
@@ -1337,10 +1333,8 @@ void WorldSession::HandleMoveUnRootAck(WorldPacket& recv_data)
 void WorldSession::HandleMoveRootAck(WorldPacket& recv_data)
 {
     // not used
-    recv_data.rfinish();                                    // prevent warnings spam
-    /*
-        bitsream packet
-    */
+    MovementInfo movementInfo;
+    recv_data >> movementInfo;
 }
 
 /**
