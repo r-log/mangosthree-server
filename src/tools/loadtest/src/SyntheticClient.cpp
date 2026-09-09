@@ -780,6 +780,17 @@ namespace loadtest
                 seen.atTicks = nowTicks;
                 if (m_config.script.observeGuid != 0 && status.guid == m_config.script.observeGuid)
                 {
+                    // Only the target's own observations feed the skew: other
+                    // movers interleave and would compare unrelated timestamps.
+                    if (report.observedTarget > 0)
+                    {
+                        const uint32 skew = RelaySkew(report.lastTargetObservation, seen);
+                        if (skew > report.relayMaxSkew)
+                        {
+                            report.relayMaxSkew = skew;
+                        }
+                        ++report.relaySkewSamples;
+                    }
                     ++report.observedTarget;
                     report.lastTargetObservation = seen;
                     Trace("saw the target at %.1f %.1f %.1f (time %u)",
