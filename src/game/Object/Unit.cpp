@@ -216,7 +216,7 @@ void MovementInfo::Read(ByteBuffer& data, uint16 opcode)
             case MSEHasTransportTime3:
                 if (hasTransportData)
                 {
-                    si.hasTransportTime3 = data.ReadBit();
+                    si.hasVehicleId = data.ReadBit();
                 }
                 break;
             case MSEHasSpline:
@@ -325,7 +325,7 @@ void MovementInfo::Read(ByteBuffer& data, uint16 opcode)
                 }
                 break;
             case MSETransportTime3:
-                if (hasTransportData && si.hasTransportTime3)
+                if (hasTransportData && si.hasVehicleId)
                 {
                     data >> fallTime;
                 }
@@ -457,7 +457,7 @@ void MovementInfo::Write(ByteBuffer& data, uint16 opcode) const
             case MSEHasTransportTime3:
                 if (hasTransportData)
                 {
-                    data.WriteBit(si.hasTransportTime3);
+                    data.WriteBit(si.hasVehicleId);
                 }
                 break;
             case MSEHasSpline:
@@ -569,7 +569,7 @@ void MovementInfo::Write(ByteBuffer& data, uint16 opcode) const
                 }
                 break;
             case MSETransportTime3:
-                if (hasTransportData && si.hasTransportTime3)
+                if (hasTransportData && si.hasVehicleId)
                 {
                     data << uint32(fallTime);
                 }

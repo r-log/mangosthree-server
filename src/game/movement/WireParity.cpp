@@ -25,6 +25,7 @@
 
 #include "WireParity.h"
 
+#include "MovementBridge.h"
 #include "Unit.h"
 #include "Geometry/Placement.h"
 #include "OpcodeTable.h"
@@ -209,57 +210,11 @@ namespace WireParity
 
     Wire::MovementStatus ToWire(MovementInfo const& legacy, Wire::MovementStatus const& wireOnly)
     {
-        MovementInfo::StatusInfo const& si = legacy.GetStatusInfo();
-        Wire::MovementStatus w;
-        w.guid   = legacy.GetGuid().GetRawValue();
-        w.guid2  = legacy.GetGuid2().GetRawValue();
-        w.flags  = uint32(legacy.GetMovementFlags());
-        w.flags2 = uint32(legacy.GetMovementFlags2());
-        w.has.timestamp = si.hasTimeStamp;
-        w.time = si.hasTimeStamp ? legacy.GetTime() : 0;
-        w.pos.x = legacy.GetPos()->x;
-        w.pos.y = legacy.GetPos()->y;
-        w.pos.z = legacy.GetPos()->z;
-        w.has.orientation = si.hasOrientation;
-        w.pos.o = si.hasOrientation ? legacy.GetPos()->o : 0.0f;
-        w.has.pitch = si.hasPitch;
-        w.pitch = si.hasPitch ? legacy.GetPitch() : 0.0f;
-        w.has.spline = si.hasSpline;
-        w.has.splineElevation = si.hasSplineElevation;
-        w.splineElevation = si.hasSplineElevation ? legacy.GetSplineElevation() : 0.0f;
-        w.fall.present = si.hasFallData;
-        w.fall.hasDirection = si.hasFallDirection;
-        if (si.hasFallData)
-        {
-            w.fall.time = legacy.GetFallTime();
-            w.fall.vertical = legacy.GetJumpInfo().velocity;
-            if (si.hasFallDirection)
-            {
-                w.fall.horizontal = legacy.GetJumpInfo().xyspeed;
-                w.fall.cosAngle = legacy.GetJumpInfo().cosAngle;
-                w.fall.sinAngle = legacy.GetJumpInfo().sinAngle;
-            }
-        }
-        // MovementInfo does not expose the HasTransportData gate (it is a local in
-        // MovementInfo::Read), so a non-empty transport guid is the only signal: a
-        // client that sends the gate with a zero guid shows as a transport.present
-        // disagreement, which is right.
-        w.transport.present = !legacy.GetTransportGuid().IsEmpty();
-        if (w.transport.present)
-        {
-            w.transport.guid = legacy.GetTransportGuid().GetRawValue();
-            w.transport.pos.x = legacy.GetTransportPos()->x;
-            w.transport.pos.y = legacy.GetTransportPos()->y;
-            w.transport.pos.z = legacy.GetTransportPos()->z;
-            w.transport.pos.o = legacy.GetTransportPos()->o;
-            w.transport.time = legacy.GetTransportTime();
-            w.transport.seat = legacy.GetTransportSeat();
-            w.transport.hasTime2 = si.hasTransportTime2;
-            w.transport.time2 = si.hasTransportTime2 ? legacy.GetTransportTime2() : 0;
-            w.transport.hasVehicleId = si.hasTransportTime3;
-        }
-        w.byteParam = legacy.GetByteParam();
-        // What the legacy reader never carries: take the codec's own reading.
+        // The mapping itself now lives in the bridge (movement/MovementBridge.cpp),
+        // both directions. What follows here is only what the record does not yet
+        // carry -- the reader still fills these from the wire's own decode until
+        // Task 2 flips it -- so the shadow's numbers do not move in this task.
+        Wire::MovementStatus w = Movement::ToWire(legacy);
         w.counter = wireOnly.counter;
         w.value = wireOnly.value;
         w.twoBits = wireOnly.twoBits;
