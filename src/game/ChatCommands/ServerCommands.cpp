@@ -46,7 +46,6 @@
 #include "MapPersistentStateMgr.h"
 #include "CorpseManager.h"
 #include "movement/WireParity.h"
-#include "movement/WriterShadowHooks.h"
 #include "WorldSession.h"
 #include "GameTime.h"
 #include "Player.h"
@@ -101,9 +100,10 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
 /**
  * @brief Handler for HandleServerMovementCommand command.
  *
- * Prints the wire codec's shadow counters (Movement.WireParity): what the legacy
- * movement reader and the registry's layouts disagree on, per opcode. The writer
- * shadow's counts follow (P2-A).
+ * Prints the wire codec's parity shadow counters (Movement.WireParity): what the
+ * legacy movement reader and the registry's layouts disagree on, per opcode. The
+ * movement kernel's state, summed over every in-world player, and every session's
+ * acks follow.
  *
  * @param args Command arguments.
  * @returns True if the command executed successfully, false otherwise.
@@ -111,7 +111,6 @@ bool ChatHandler::HandleServerInfoCommand(char* /*args*/)
 bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
 {
     WireParity::Report([this](std::string const& line) { SendSysMessage(line.c_str()); });
-    WriterShadow::Report([this](std::string const& line) { SendSysMessage(line.c_str()); });
 
     // The session clock, aggregated over every session (design v2 6.3): how many
     // have a usable delta right now, and the running counts behind it.

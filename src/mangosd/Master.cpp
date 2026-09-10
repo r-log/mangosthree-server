@@ -42,7 +42,6 @@
 #include "World.h"
 #include "WorldSession.h"
 #include "movement/WireParity.h"
-#include "movement/WriterShadowHooks.h"
 
 #ifdef _WIN32
 #include "ServiceWin32.h"
@@ -361,11 +360,6 @@ void Master::ShutdownWorld()
                            acks.seen.load(), acks.matched.load(), acks.mismatched.load(), acks.resent.load(),
                            acks.tombstone.load(), acks.stale.load(), acks.future.load(), acks.wrongGuid.load(), acks.unverified.load());
         }
-    }
-
-    if (WriterShadow::Saw())
-    {
-        WriterShadow::Report([](std::string const& line) { sLog.outString("%s", line.c_str()); });
     }
 
     sLog.outString("[shutdown] stopping the world listener");
