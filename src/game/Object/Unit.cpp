@@ -66,6 +66,7 @@
 #include "GameTime.h"
 #include "Geometry/Placement.h"
 #include "movement/MovementBridge.h"
+#include "Writers.h"
 #include "movement/WireParity.h"
 #include "movement/WriterShadowHooks.h"
 #include "wire/MovementCodec.h"
@@ -188,7 +189,8 @@ Unit::Unit() :
     m_regenTimer(0),
     m_vehicleInfo(NULL),
     m_ThreatManager(this),
-    m_HostileRefManager(this)
+    m_HostileRefManager(this),
+    m_motion(Motion::Mode::ServerDriven, MotionPolicy(), Motion::Kinematics()), m_motionDropped(0)
 {
     m_objectType |= TYPEMASK_UNIT;
     m_objectTypeId = TYPEID_UNIT;
@@ -272,6 +274,10 @@ Unit::Unit() :
         m_speed_rate[i] = 1.0f;
     }
 
+    // The kernel starts from the unit's speeds; the flags are false and the height 0
+    // until a setter says otherwise. Server-driven until a Player says it is not.
+    m_motion = Motion::State(Motion::Mode::ServerDriven, MotionPolicy(), InitialKinematics());
+
     // remove aurastates allowing special moves
     for (int i = 0; i < MAX_REACTIVE; ++i)
     {
@@ -280,6 +286,74 @@ Unit::Unit() :
 
     m_isCreatureLinkingTrigger = false;
     m_isSpawningLinked = false;
+}
+
+Motion::TimeoutPolicy Unit::MotionPolicy()
+{
+    Motion::TimeoutPolicy policy;
+    policy.timeoutMs = sWorld.getConfig(CONFIG_UINT32_MOVEMENT_ACK_TIMEOUT);
+    policy.tombstoneTtlMs = sWorld.getConfig(CONFIG_UINT32_MOVEMENT_ACK_TOMBSTONE_TTL);
+    return policy;
+}
+
+Motion::Kinematics Unit::InitialKinematics() const
+{
+    Motion::Kinematics k;
+    for (int i = 0; i < MAX_MOVE_TYPE; ++i)
+    {
+        k.speed[i] = GetSpeed(UnitMoveType(i));
+    }
+    return k;
+}
+
+void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
+{
+    if (!IsInWorld())
+    {
+        return;
+    }
+    const uint64 guid = GetObjectGuid().GetRawValue();
+    for (size_t i = 0; i < emissions.size(); ++i)
+    {
+        Motion::Emission const& e = emissions[i];
+        WorldPacket data;
+        switch (e.kind)
+        {
+            case Motion::EmissionKind::Mover:
+                // To the session that owns this unit's movement: the unit itself when it
+                // is a player. A controlled creature's owner arrives with P2-D.
+                if (GetTypeId() != TYPEID_PLAYER || !Motion::BuildMover(data, guid, e.counter, e.change))
+                {
+                    ++m_motionDropped;
+                    continue;
+                }
+                ((Player*)this)->GetSession()->SendPacket(&data);
+                break;
+            case Motion::EmissionKind::Spline:
+                if (!Motion::BuildSpline(data, guid, e.change))
+                {
+                    ++m_motionDropped;
+                    continue;
+                }
+                SendMessageToSet(&data, true);
+                break;
+            case Motion::EmissionKind::Observer:
+                if (!Motion::BuildObserver(data, guid, e.counter, e.change, Movement::ToWire(m_movementInfo)))
+                {
+                    ++m_motionDropped;
+                    continue;
+                }
+                if (GetTypeId() == TYPEID_PLAYER)
+                {
+                    SendMessageToSetExcept(&data, (Player const*)this);
+                }
+                else
+                {
+                    SendMessageToSet(&data, false);
+                }
+                break;
+        }
+    }
 }
 
 Unit::~Unit()

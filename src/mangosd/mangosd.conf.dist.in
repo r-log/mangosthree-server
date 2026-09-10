@@ -292,6 +292,23 @@ Redirect.Stream1Crypt        = 1
 #        Default: 0 (off)
 #                 1 (on)
 #
+#    Movement.AckTimeout
+#        How long the movement kernel waits for a client to acknowledge a change it
+#        was sent (a speed, root, fly, water walk, feather fall, hover, gravity,
+#        collision height, knock-back or teleport) before it resends the change once
+#        under a fresh counter, then snaps the client back to where the server has it
+#        and resends everything still pending, then kicks. In milliseconds; 0 turns the
+#        enforcement off: nothing is resent, resynced or kicked and the counters in
+#        `.server movement` still say what happened. A mismatched acknowledgement is
+#        counted and resent once whatever this says.
+#        Default: 0 (off)
+#
+#    Movement.AckTombstoneTtl
+#        How long the kernel remembers a retired change (superseded, a new epoch at
+#        login or worldport, or spent) so that a late acknowledgement of it is
+#        consumed silently instead of counted as stale. In milliseconds.
+#        Default: 10000
+#
 #    Movement.WriterShadow
 #        Build the movement kernel's packet beside every legacy movement writer
 #        (speeds, root, fly, water walk, feather fall, hover, gravity, collision
@@ -353,6 +370,8 @@ mmap.ignoreMapIds                 = ""
 Movement.ArbiterShadow            = 0
 Movement.CaptureFile              = ""
 Movement.WireParity               = 0
+Movement.AckTimeout               = 0
+Movement.AckTombstoneTtl          = 10000
 Movement.WriterShadow             = 0
 UpdateUptimeInterval              = 10
 MaxCoreStuckTime                  = 0

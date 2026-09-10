@@ -316,6 +316,10 @@ UpdateMask Player::updateVisualBits;
 // one the declaration order happened to put first.
 Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_mover(this), m_camera(this), m_petMgr(this), m_achievementMgr(this), m_reputationMgr(this)
 {
+    // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
+    // with counters and acks. (Unit's constructor cannot know the type.)
+    m_motion.SetMode(Motion::Mode::ClientDriven, GameTime::GetGameTimeMS());
+
     m_transport = 0;
 
     m_speakTime = 0;
