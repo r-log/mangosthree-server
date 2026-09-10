@@ -81,6 +81,8 @@ namespace Motion
         AckOutcome() : result(AckResult::NoPending) {}
     };
 
+    char const* AckResultName(AckResult result);
+
     struct TimeoutPolicy
     {
         uint32 timeoutMs;       ///< 0 = enforcement off (the default; CPP's too)

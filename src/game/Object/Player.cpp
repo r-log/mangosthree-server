@@ -481,12 +481,6 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(t
     // Initialize item update queue blocked flag to false
     m_itemUpdateQueueBlocked = false;
 
-    // Initialize forced speed changes for all move types to 0
-    for (int i = 0; i < MAX_MOVE_TYPE; ++i)
-    {
-        m_forced_speed_changes[i] = 0;
-    }
-
     // m_stableSlots now owned by m_petMgr; initialized in its ctor.
 
     /////////////////// Instance System /////////////////////

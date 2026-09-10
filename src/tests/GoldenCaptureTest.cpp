@@ -30,12 +30,14 @@
 
 #include "Replay.hpp"
 #include "Opcodes.h"
+#include "PacketMatrix.h"
 #include "WorldPacket.h"
 #include "wire/MovementCodec.h"
 #include "wire/MovementSequences.h"
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -437,4 +439,46 @@ TEST(GoldenCapture_flip_server_built_lines_fail_only_where_the_legacy_writer_is_
     {
         if (it->first != SMSG_MOVE_SET_COLLISION_HGT) { CHECK_EQ(it->second.failed, uint32(0)); }
     }
+}
+
+// What the one ack handler reads from a real client's ack, through the same registry
+// decode: the counter it matches on and, for a speed or a height, the value it checks.
+// The lines are the goldens' own; a table that stops yielding these fails here before
+// it fails live.
+static void DecodeGoldenAck(char const* hex, uint16 opcode, Wire::MovementStatus& status)
+{
+    WorldPacket packet(opcode, 64);
+    for (size_t i = 0; hex[i] && hex[i + 1]; i += 2)
+    {
+        packet << uint8(std::strtoul(std::string(hex + i, 2).c_str(), NULL, 16));
+    }
+    Wire::DecodeResult const r = Wire::Decode(packet, Wire::SequenceFor(opcode), status);
+    REQUIRE(r.ok());
+    CHECK_EQ(r.consumed, packet.size());
+}
+
+TEST(GoldenCapture_the_acks_yield_the_counter_and_payload_the_handler_matches_on)
+{
+    Wire::MovementStatus s;
+    // client-15595-flip.log: the first run speed ack of the session (counter 0, the
+    // base 7.0 yd/s echoed: bytes 8-11 are 0000E040); client-15595.log: the root ack.
+    DecodeGoldenAck("00000000009C77C50000E040E13AC94200AC59C60226802FB18601001635A740", CMSG_FORCE_RUN_SPEED_CHANGE_ACK, s);
+    CHECK_EQ(s.counter, 0u);
+    CHECK_EQ(s.value, 7.0f);
+    REQUIRE(Motion::RowForAck(CMSG_FORCE_RUN_SPEED_CHANGE_ACK) != NULL);
+    CHECK(Motion::IsSpeed(Motion::RowForAck(CMSG_FORCE_RUN_SPEED_CHANGE_ACK)->type));
+    DecodeGoldenAck("B833244418AAC542000000005A7706C6122020000000400008BDCAC63D1936B040", CMSG_FORCE_MOVE_ROOT_ACK, s);
+    CHECK_EQ(s.counter, 0u);
+    CHECK(Motion::RowForAck(CMSG_FORCE_MOVE_ROOT_ACK)->type == Motion::ChangeType::Root);
+    // client-15595-flip.log: water walk, feather fall, can-fly, knock-back.
+    DecodeGoldenAck("625A76C55F0D924100000000FE48944450008400000080000FBC53A44030380600", CMSG_MOVE_WATER_WALK_ACK, s);
+    CHECK_EQ(s.counter, 0u);
+    CHECK(Motion::RowForAck(CMSG_MOVE_WATER_WALK_ACK)->type == Motion::ChangeType::WaterWalk);
+    DecodeGoldenAck("5F0D924100000000625A76C5FE4894442800A000800000000FDAF50500BC53A440", CMSG_MOVE_FEATHER_FALL_ACK, s);
+    CHECK(Motion::RowForAck(CMSG_MOVE_FEATHER_FALL_ACK)->type == Motion::ChangeType::FeatherFall);
+    DecodeGoldenAck("EA9289C50000000089A3C344BCD4834110806000080000000F94BD304083470500", CMSG_MOVE_SET_CAN_FLY_ACK, s);
+    CHECK(Motion::RowForAck(CMSG_MOVE_SET_CAN_FLY_ACK)->type == Motion::ChangeType::CanFly);
+    DecodeGoldenAck("00AC59C6E13AC94200000000009C77C53016602F2A37FBBE000020410B115F3F00000000000020C12F9501001635A740", CMSG_MOVE_KNOCK_BACK_ACK, s);
+    CHECK(Motion::RowForAck(CMSG_MOVE_KNOCK_BACK_ACK)->type == Motion::ChangeType::KnockBack);
+    CHECK(s.fall.present);   // a knock-back ack carries the fall the client is in
 }

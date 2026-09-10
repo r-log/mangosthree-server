@@ -79,6 +79,8 @@
 #include "wire/MovementFamilies.h"
 #include "wire/MovementSequences.h"
 #include "wire/TeleportCodec.h"
+#include "Change.h"
+#include "PacketMatrix.h"
 
 /**
  * @brief Handles the packet-based worldport acknowledgement.
@@ -386,6 +388,20 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
         return;
     }
 
+    // The kernel's pending teleport closes on this counter; the landing below runs
+    // whatever it says -- a teleport the server issued must land, or the player stays
+    // behind its semaphore.
+    CountAck(&AckCounters::seen);
+    const uint32 now = GameTime::GetGameTimeMS();
+    std::vector<Motion::Emission> emissions = plMover->MotionState().Ack(Motion::ChangeType::Teleport, counter, Motion::AckPayload(), now);
+    switch (plMover->MotionState().LastAck())
+    {
+        case Motion::AckResult::Matched:   CountAck(&AckCounters::matched); break;
+        case Motion::AckResult::Tombstone: CountAck(&AckCounters::tombstone); break;
+        case Motion::AckResult::Future:    CountAck(&AckCounters::future); break;
+        default:                           CountAck(&AckCounters::stale); break;
+    }
+
     plMover->SetSemaphoreTeleportNear(false);
 
     uint32 old_zone = plMover->GetTerrain()->GetZoneId(plMover->Where().X(), plMover->Where().Y(), plMover->Where().Z());
@@ -393,6 +409,11 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
     WorldLocation const& dest = plMover->GetTeleportDest();
 
     plMover->SetPosition(dest.coord_x, dest.coord_y, dest.coord_z, dest.orientation, true);
+
+    // Observers learn the landing from the kernel's teleport update, built from the
+    // stored status at the destination.
+    plMover->m_movementInfo.ChangePosition(dest.coord_x, dest.coord_y, dest.coord_z, dest.orientation);
+    plMover->SendEmissions(emissions);
 
     uint32 newzone, newarea;
     plMover->GetTerrain()->GetZoneAndAreaId(newzone, newarea, plMover->Where().X(), plMover->Where().Y(), plMover->Where().Z());
@@ -483,81 +504,106 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
 }
 
 /**
- * @brief Verifies client acknowledgement packets for forced speed changes.
+ * @brief One handler for every movement ack the registry has a layout for.
  *
- * @param recv_data The received opcode packet.
+ * The ack is a movement status with a counter (and, for a speed or a height, the
+ * value): decoded through the registry, checked against the session's mover, matched
+ * by the kernel against the pending change of its type. A match relocates the mover
+ * with the ack's status -- the client's position and flags at the moment it applied
+ * the change -- and sends the observer packet the matrix names, built from that
+ * status; a payload mismatch is counted and the change resent once (the kernel's
+ * emission); everything else is counted and left alone. Design v2 §6.2, §7.
+ *
+ * @param recv_data The received ack.
  */
-void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recv_data)
+void WorldSession::HandleMovementAck(WorldPacket& recv_data)
 {
-    uint16 opcode = recv_data.GetOpcode();
-    DEBUG_LOG("WORLD: Received %s (%u, 0x%X) opcode", LookupOpcodeName(opcode), opcode, opcode);
-
-    /* extract packet */
-    ObjectGuid guid;
-    MovementInfo movementInfo;
-    float  newspeed;
-
-    recv_data >> movementInfo;
-    guid = movementInfo.GetGuid();
-    newspeed = movementInfo.GetExtraFloat();
-
-    // now can skip not our packet
-    if (_player->GetObjectGuid() != guid)
+    const uint16 opcode = recv_data.GetOpcode();
+    Unit* mover = _player->GetMover();
+    Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL;
+    if (plMover && plMover->IsBeingTeleported())
     {
         recv_data.rpos(recv_data.wpos());                   // prevent warnings spam
         return;
     }
-    /*----------------*/
 
-    // client ACK send one packet for mounted/run case and need skip all except last from its
-    // in other cases anti-cheat check can be fail in false case
-    UnitMoveType move_type;
-    UnitMoveType force_move_type;
+    MovementInfo movementInfo;
+    recv_data >> movementInfo;
+    CountAck(&AckCounters::seen);
 
-    static char const* move_type_name[MAX_MOVE_TYPE] = {  "Walk", "Run", "RunBack", "Swim", "SwimBack", "TurnRate", "Flight", "FlightBack", "PitchRate" };
-
-    switch (opcode)
+    if (movementInfo.GetGuid() != mover->GetObjectGuid())
     {
-        case CMSG_FORCE_WALK_SPEED_CHANGE_ACK:          move_type = MOVE_WALK;          force_move_type = MOVE_WALK;        break;
-        case CMSG_FORCE_RUN_SPEED_CHANGE_ACK:           move_type = MOVE_RUN;           force_move_type = MOVE_RUN;         break;
-        // case CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK:      move_type = MOVE_RUN_BACK;      force_move_type = MOVE_RUN_BACK;    break;
-        case CMSG_FORCE_SWIM_SPEED_CHANGE_ACK:          move_type = MOVE_SWIM;          force_move_type = MOVE_SWIM;        break;
-        // case CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK:     move_type = MOVE_SWIM_BACK;     force_move_type = MOVE_SWIM_BACK;   break;
-        case CMSG_FORCE_TURN_RATE_CHANGE_ACK:           move_type = MOVE_TURN_RATE;     force_move_type = MOVE_TURN_RATE;   break;
-        case CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK:        move_type = MOVE_FLIGHT;        force_move_type = MOVE_FLIGHT;      break;
-        case CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK:   move_type = MOVE_FLIGHT_BACK;   force_move_type = MOVE_FLIGHT_BACK; break;
-        case CMSG_FORCE_PITCH_RATE_CHANGE_ACK:          move_type = MOVE_PITCH_RATE;    force_move_type = MOVE_PITCH_RATE;  break;
-        default:
-            sLog.outError("WorldSession::HandleForceSpeedChangeAck: Unknown move type opcode: %u", opcode);
+        CountAck(&AckCounters::wrongGuid);
+        DEBUG_LOG("WorldSession::HandleMovementAck: %s acked %s for %s, the mover is %s",
+                  _player->GetGuidStr().c_str(), LookupOpcodeName(opcode),
+                  movementInfo.GetGuid().GetString().c_str(), mover->GetGuidStr().c_str());
+        return;
+    }
+
+    Motion::MatrixRow const* row = Motion::RowForAck(opcode);
+    if (!row)
+    {
+        // The opcode table routes only ack opcodes here; a row-less one is a table edit
+        // this handler has not seen.
+        sLog.outError("WorldSession::HandleMovementAck: no matrix row for %s (0x%X)", LookupOpcodeName(opcode), opcode);
+        return;
+    }
+
+    Motion::AckPayload payload;
+    if (Motion::IsSpeed(row->type) || row->type == Motion::ChangeType::CollisionHeight)
+    {
+        payload.hasValue = true;
+        payload.value = movementInfo.GetExtraFloat();
+    }
+
+    const uint32 now = GameTime::GetGameTimeMS();
+    std::vector<Motion::Emission> emissions = mover->MotionState().Ack(row->type, movementInfo.GetCounter(), payload, now);
+    switch (mover->MotionState().LastAck())
+    {
+        case Motion::AckResult::Matched:
+            CountAck(&AckCounters::matched);
+            break;
+        case Motion::AckResult::PayloadMismatch:
+        {
+            CountAck(&AckCounters::mismatched);
+            if (!emissions.empty())
+            {
+                CountAck(&AckCounters::resent);
+            }
+            float desired = row->type == Motion::ChangeType::CollisionHeight ? mover->MotionState().Desired().collisionHeight :
+                             Motion::IsSpeed(row->type) ? mover->MotionState().Desired().speed[Motion::SpeedIndex(row->type)] : 0.0f;
+            sLog.outError("WorldSession::HandleMovementAck: %s acked %s with %f, the server sent %f (counter %u): %s",
+                          _player->GetName(), LookupOpcodeName(opcode), payload.value, desired,
+                          movementInfo.GetCounter(), emissions.empty() ? "left to the timeout policy" : "resent once");
+            break;
+        }
+        case Motion::AckResult::Tombstone:
+            CountAck(&AckCounters::tombstone);
+            break;
+        case Motion::AckResult::NoPending:
+        case Motion::AckResult::Stale:
+            CountAck(&AckCounters::stale);
+            break;
+        case Motion::AckResult::Future:
+            CountAck(&AckCounters::future);
+            break;
+    }
+
+    if (mover->MotionState().LastAck() == Motion::AckResult::Matched)
+    {
+        // The ack's status is the mover's status now, validated like any other; the
+        // observer form is built from it once it is stored.
+        if (VerifyMovementInfo(movementInfo))
+        {
+            HandleMoverRelocation(movementInfo);
+        }
+        else
+        {
+            CountAck(&AckCounters::unverified);
             return;
-    }
-
-    // skip all forced speed changes except last and unexpected
-    // in run/mounted case used one ACK and it must be skipped.m_forced_speed_changes[MOVE_RUN} store both.
-    if (_player->m_forced_speed_changes[force_move_type] > 0)
-    {
-        --_player->m_forced_speed_changes[force_move_type];
-        if (_player->m_forced_speed_changes[force_move_type] > 0)
-        {
-            return;
         }
     }
-
-    if (!_player->GetTransport() && fabs(_player->GetSpeed(move_type) - newspeed) > 0.01f)
-    {
-        if (_player->GetSpeed(move_type) > newspeed)        // must be greater - just correct
-        {
-            sLog.outError("%sSpeedChange player %s is NOT correct (must be %f instead %f), force set to correct value",
-                          move_type_name[move_type], _player->GetName(), _player->GetSpeed(move_type), newspeed);
-            _player->SetSpeedRate(move_type, _player->GetSpeedRate(move_type), true);
-        }
-        else                                                // must be lesser - cheating
-        {
-            BASIC_LOG("Player %s from account id %u kicked for incorrect speed (must be %f instead %f)",
-                      _player->GetName(), _player->GetSession()->GetAccountId(), _player->GetSpeed(move_type), newspeed);
-            _player->GetSession()->KickPlayer();
-        }
-    }
+    mover->SendEmissions(emissions);
 }
 
 /**
@@ -631,40 +677,6 @@ void WorldSession::HandleMountSpecialAnimOpcode(WorldPacket& /*recvdata*/)
 }
 
 /**
- * @brief Handles knockback acknowledgement movement updates.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleMoveKnockBackAck(WorldPacket& recv_data)
-{
-    DEBUG_LOG("CMSG_MOVE_KNOCK_BACK_ACK");
-
-    Unit* mover = _player->GetMover();
-    Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL;
-
-    // ignore, waiting processing in WorldSession::HandleMoveWorldportAckOpcode and WorldSession::HandleMoveTeleportAck
-    if (plMover && plMover->IsBeingTeleported())
-    {
-        recv_data.rpos(recv_data.wpos());                   // prevent warnings spam
-        return;
-    }
-
-    MovementInfo movementInfo;
-    recv_data >> movementInfo;
-
-    if (!VerifyMovementInfo(movementInfo, movementInfo.GetGuid()))
-    {
-        return;
-    }
-
-    HandleMoverRelocation(movementInfo);
-
-    WorldPacket data(SMSG_MOVE_UPDATE_KNOCK_BACK, recv_data.size() + 15);
-    data << movementInfo;
-    mover->SendMessageToSetExcept(&data, _player);
-}
-
-/**
  * @brief Sends a knockback packet to the client.
  *
  * @param angle The horizontal knockback angle.
@@ -680,32 +692,6 @@ void WorldSession::SendKnockBack(float angle, float horizontalSpeed, float verti
     params.vertical = -verticalSpeed;   // as the wire carries it
     Player* player = GetPlayer();
     player->SendEmissions(player->MotionState().Apply(Motion::KnockBackChange(params), GameTime::GetGameTimeMS()));
-}
-
-/**
- * @brief Handles hover movement acknowledgement packets.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleMoveHoverAck(WorldPacket& recv_data)
-{
-    DEBUG_LOG("CMSG_MOVE_HOVER_ACK");
-
-    MovementInfo movementInfo;
-    recv_data >> movementInfo;
-}
-
-/**
- * @brief Handles water-walk acknowledgement packets.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleMoveWaterWalkAck(WorldPacket& recv_data)
-{
-    DEBUG_LOG("CMSG_MOVE_WATER_WALK_ACK");
-
-    MovementInfo movementInfo;
-    recv_data >> movementInfo;
 }
 
 /**

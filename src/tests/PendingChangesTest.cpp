@@ -28,6 +28,7 @@
 #include "PendingChanges.h"
 
 #include <limits>
+#include <string>
 
 using namespace Motion;
 
@@ -259,6 +260,25 @@ TEST(PendingChanges_issue_hands_out_the_next_counter_without_opening)
     // An ack with the issued counter finds nothing pending and no tombstone.
     AckOutcome const o = p.Ack(ChangeType::RunSpeed, issued, AckPayload(), 1);
     CHECK(o.result == AckResult::Stale);
+}
+
+TEST(PendingChanges_ack_result_name_is_non_empty_and_distinct_per_enumerator)
+{
+    static const AckResult kResults[] =
+    {
+        AckResult::Matched, AckResult::PayloadMismatch, AckResult::Tombstone,
+        AckResult::NoPending, AckResult::Stale, AckResult::Future,
+    };
+    for (size_t i = 0; i < sizeof(kResults) / sizeof(kResults[0]); ++i)
+    {
+        char const* name = AckResultName(kResults[i]);
+        REQUIRE(name != NULL);
+        CHECK(name[0] != '\0');
+        for (size_t j = 0; j < i; ++j)
+        {
+            CHECK(std::string(name) != std::string(AckResultName(kResults[j])));
+        }
+    }
 }
 
 TEST(PendingChanges_reopen_puts_a_dropped_entry_back_with_a_fresh_counter_and_one_more_resend)

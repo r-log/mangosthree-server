@@ -34,6 +34,20 @@ namespace Motion
         const float kPayloadTolerance = 0.01f;   // the legacy speed-ack handler's tolerance (MovementHandler.cpp:544)
     }
 
+    char const* AckResultName(AckResult result)
+    {
+        switch (result)
+        {
+            case AckResult::Matched:         return "Matched";
+            case AckResult::PayloadMismatch: return "PayloadMismatch";
+            case AckResult::Tombstone:       return "Tombstone";
+            case AckResult::NoPending:       return "NoPending";
+            case AckResult::Stale:           return "Stale";
+            case AckResult::Future:          return "Future";
+            default:                         return "?";
+        }
+    }
+
     PendingChanges::PendingChanges(TimeoutPolicy const& policy)
         : m_policy(policy), m_next(0), m_epoch(0), m_resyncs(0)
     {

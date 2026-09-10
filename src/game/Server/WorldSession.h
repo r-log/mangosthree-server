@@ -651,6 +651,20 @@ class WorldSession
         /// rejections included, attributed to the session that sent it.
         uint32 GetBadPacketCount() const { return m_badPackets; }
 
+        /// Every movement ack this session sent, by what the kernel made of it (design
+        /// v2 §6.2, §10.1): seen; matched; the payload disagreed (and the change was
+        /// resent once); a tombstone (silent); stale or unknown; a counter never issued;
+        /// the wrong mover's guid; matched but its status failed validation.
+        struct AckCounters
+        {
+            uint32 seen, matched, mismatched, resent, tombstone, stale, future, wrongGuid, unverified;
+            AckCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0) {}
+        };
+        AckCounters const& GetAckCounters() const { return m_ackCounters; }
+        /// The same, summed over every session since the server started (the shutdown
+        /// report, when the sessions are already gone).
+        static AckCounters const& AckTotals();
+
         uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 
         /// The session's clock model (design v2 §6.3): the delta between the
@@ -679,20 +693,11 @@ class WorldSession
         // played time
         void HandlePlayedTime(WorldPacket& recvPacket);
 
-        // new
-        void HandleMoveUnRootAck(WorldPacket& recvPacket);
-        void HandleMoveRootAck(WorldPacket& recvPacket);
-
         // new inspect
         void HandleInspectOpcode(WorldPacket& recvPacket);
 
         // new party stats
         void HandleInspectHonorStatsOpcode(WorldPacket& recvPacket);
-
-        void HandleMoveWaterWalkAck(WorldPacket& recvPacket);
-        void HandleFeatherFallAck(WorldPacket& recv_data);
-
-        void HandleMoveHoverAck(WorldPacket& recv_data);
 
         void HandleMountSpecialAnimOpcode(WorldPacket& recvdata);
 
@@ -704,11 +709,13 @@ class WorldSession
         void HandleRepairItemOpcode(WorldPacket& recvPacket);
 
         // Knockback
-        void HandleMoveKnockBackAck(WorldPacket& recvPacket);
         void SendKnockBack(float angle, float horizontalSpeed, float verticalSpeed);
 
         void HandleMoveTeleportAckOpcode(WorldPacket& recvPacket);
-        void HandleForceSpeedChangeAckOpcodes(WorldPacket& recv_data);
+        /// Every movement ack the registry has a layout for (design v2 §6.2): decoded,
+        /// matched against the mover's pending change, relocated on a match, and answered
+        /// with the observer packet the matrix names. The teleport ack has its own.
+        void HandleMovementAck(WorldPacket& recv_data);
 
         void HandlePingOpcode(WorldPacket& recvPacket);
         void HandleKeepAliveOpcode(WorldPacket& recvPacket);
@@ -1072,7 +1079,6 @@ class WorldSession
         void HandleFarSightOpcode(WorldPacket& recv_data);
         void HandleSetDungeonDifficultyOpcode(WorldPacket& recv_data);
         void HandleSetRaidDifficultyOpcode(WorldPacket& recv_data);
-        void HandleMoveSetCanFlyAckOpcode(WorldPacket& recv_data);
         void HandleLfgJoinOpcode(WorldPacket& recv_data);
         void HandleLfgLeaveOpcode(WorldPacket& recv_data);
         void HandleSearchLfgJoinOpcode(WorldPacket& recv_data);
@@ -1187,6 +1193,9 @@ class WorldSession
         bool VerifyMovementInfo(MovementInfo const& movementInfo, ObjectGuid const& guid) const;
         bool VerifyMovementInfo(MovementInfo const& movementInfo) const;
         void HandleMoverRelocation(MovementInfo& movementInfo);
+        /// Bumps both this session's tally and the process-wide total by the same field
+        /// (a pointer-to-member keeps the two from drifting apart).
+        void CountAck(uint32 AckCounters::*field);
 
         void ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* packet);
 
@@ -1247,6 +1256,7 @@ class WorldSession
         int m_sessionDbLocaleIndex;
         uint32 m_latency[2];   ///< indexed by proto::LinkSlot
         uint32 m_badPackets;   ///< bad packets received on this session (design v2 §10.1)
+        AckCounters m_ackCounters;
         Motion::TimeBase m_timeBase;
         SessionPingTracker m_pingTracker;
         AccountData m_accountData[NUM_ACCOUNT_DATA_TYPES];

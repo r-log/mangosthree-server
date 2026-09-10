@@ -3619,8 +3619,6 @@ class Player : public Unit
         // Set the cinematic flyover manager
         void SetCinematicFlyover(std::unique_ptr<CinematicFlyover> flyover) { m_cinematicFlyover = std::move(flyover); }
 
-        uint8 m_forced_speed_changes[MAX_MOVE_TYPE];
-
         // Check if the player has a specific at-login flag
         bool HasAtLoginFlag(AtLoginFlags f) const { return m_atLoginFlags & f; }
 
