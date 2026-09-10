@@ -49,6 +49,7 @@
 #include "IWorldGateway.h"
 #include "TimeBase.h"
 
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -661,9 +662,15 @@ class WorldSession
             AckCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0) {}
         };
         AckCounters const& GetAckCounters() const { return m_ackCounters; }
-        /// The same, summed over every session since the server started (the shutdown
-        /// report, when the sessions are already gone).
-        static AckCounters const& AckTotals();
+
+        /// The same nine tallies summed over every session since the server started, for
+        /// the shutdown report: bumped from every map worker at once, hence atomic.
+        struct AckTotalsCounters
+        {
+            std::atomic<uint32> seen, matched, mismatched, resent, tombstone, stale, future, wrongGuid, unverified;
+            AckTotalsCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0) {}
+        };
+        static AckTotalsCounters const& AckTotals();
 
         uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 
@@ -1194,8 +1201,11 @@ class WorldSession
         bool VerifyMovementInfo(MovementInfo const& movementInfo) const;
         void HandleMoverRelocation(MovementInfo& movementInfo);
         /// Bumps both this session's tally and the process-wide total by the same field
-        /// (a pointer-to-member keeps the two from drifting apart).
-        void CountAck(uint32 AckCounters::*field);
+        /// (a pointer-to-member keeps the two from drifting apart). The total is bumped
+        /// through an atomic: several maps run on worker threads at once, so the
+        /// process-wide total is written concurrently from different sessions, while a
+        /// session's own counters stay single-threaded (one session lives on one map).
+        void CountAck(uint32 AckCounters::*field, std::atomic<uint32> AckTotalsCounters::*total);
 
         void ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* packet);
 

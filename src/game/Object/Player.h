@@ -1290,6 +1290,15 @@ class Player : public Unit
         // Reset time synchronization
         void ResetTimeSync();
 
+        /// Design v2 §6.2: a new ack epoch (login, worldport) -- every pending change
+        /// retires to a tombstone -- and the desired state re-applied as fresh changes,
+        /// each with a counter the client has never seen. Call in the world.
+        void StartMovementEpoch();
+        /// The kernel asked for a resync (a pending change spent its resends under
+        /// Movement.AckTimeout): snap the client to where the server has the player,
+        /// through the near-teleport path, so the reissued changes land on a known state.
+        void ResyncMovement();
+
         // Send time synchronization
         void SendTimeSync();
 

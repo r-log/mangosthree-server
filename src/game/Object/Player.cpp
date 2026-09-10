@@ -4632,6 +4632,7 @@ void Player::SendInitialPacketsAfterAddToMap()
     UpdateZone(newzone, newarea);                           // also call SendInitWorldStates();
 
     ResetTimeSync();
+    StartMovementEpoch();
     SendTimeSync();
 
     // client gates its whole raid UI on this arriving
@@ -4657,18 +4658,9 @@ void Player::SendInitialPacketsAfterAddToMap()
         }
     }
 
-    if (HasAuraType(SPELL_AURA_MOD_STUN) || HasAuraType(SPELL_AURA_MOD_ROOT))
-    {
-        SetRoot(true);
-    }
-
     SendAurasForTarget(this);
     SendEnchantmentDurations();                             // must be after add to map
     SendItemDurations();                                    // must be after add to map
-
-    UpdateSpeed(MOVE_RUN, true, 1.0f, true);
-    UpdateSpeed(MOVE_SWIM, true, 1.0f, true);
-    UpdateSpeed(MOVE_FLIGHT, true, 1.0f, true);
 }
 
 /**
@@ -6183,6 +6175,22 @@ void Player::ResetTimeSync()
     m_timeSyncCounter = 0;
     m_timeSyncTimer = 0;
     GetSession()->TimeBase().Reset();
+}
+
+void Player::StartMovementEpoch()
+{
+    const uint32 now = GameTime::GetGameTimeMS();
+    m_motion.NewEpoch(now);
+    std::vector<Motion::Change> const snapshot = m_motion.Snapshot();
+    for (size_t i = 0; i < snapshot.size(); ++i)
+    {
+        SendEmissions(m_motion.Apply(snapshot[i], now));
+    }
+}
+
+void Player::ResyncMovement()
+{
+    TeleportTo(GetMapId(), Where().X(), Where().Y(), Where().Z(), Where().Facing());
 }
 
 void Player::SendTimeSync()

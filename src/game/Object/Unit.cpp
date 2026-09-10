@@ -406,6 +406,26 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
 
     CleanupDeletedAuras();
 
+    // Design v2 §6.2: the pending-change machine's timeouts, in the map phase. Only a
+    // client-driven unit has pending entries; a creature's Tick is a no-op and skipped.
+    if (GetTypeId() == TYPEID_PLAYER && m_motion.Pending().Size() > 0)
+    {
+        const uint32 now = GameTime::GetGameTimeMS();
+        SendEmissions(m_motion.Tick(now));
+        Player* player = (Player*)this;
+        if (m_motion.ResyncRequested())
+        {
+            m_motion.ClearResync();
+            sLog.outError("Movement: player %s (account %u) did not acknowledge a movement change in time; resynced",
+                          player->GetName(), player->GetSession()->GetAccountId());
+            player->ResyncMovement();
+        }
+        if (m_motion.KickRequested())
+        {
+            BASIC_LOG("Player %s from account id %u kicked for not acknowledging movement changes", player->GetName(), player->GetSession()->GetAccountId());
+            player->GetSession()->KickPlayer();
+        }
+    }
 
     if (CanHaveThreatList())
     {

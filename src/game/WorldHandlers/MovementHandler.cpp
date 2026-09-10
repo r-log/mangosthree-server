@@ -383,23 +383,24 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
         return;
     }
 
+    CountAck(&AckCounters::seen, &AckTotalsCounters::seen);
     if (guid != plMover->GetObjectGuid())
     {
+        CountAck(&AckCounters::wrongGuid, &AckTotalsCounters::wrongGuid);
         return;
     }
 
     // The kernel's pending teleport closes on this counter; the landing below runs
     // whatever it says -- a teleport the server issued must land, or the player stays
     // behind its semaphore.
-    CountAck(&AckCounters::seen);
     const uint32 now = GameTime::GetGameTimeMS();
     std::vector<Motion::Emission> emissions = plMover->MotionState().Ack(Motion::ChangeType::Teleport, counter, Motion::AckPayload(), now);
     switch (plMover->MotionState().LastAck())
     {
-        case Motion::AckResult::Matched:   CountAck(&AckCounters::matched); break;
-        case Motion::AckResult::Tombstone: CountAck(&AckCounters::tombstone); break;
-        case Motion::AckResult::Future:    CountAck(&AckCounters::future); break;
-        default:                           CountAck(&AckCounters::stale); break;
+        case Motion::AckResult::Matched:   CountAck(&AckCounters::matched, &AckTotalsCounters::matched); break;
+        case Motion::AckResult::Tombstone: CountAck(&AckCounters::tombstone, &AckTotalsCounters::tombstone); break;
+        case Motion::AckResult::Future:    CountAck(&AckCounters::future, &AckTotalsCounters::future); break;
+        default:                           CountAck(&AckCounters::stale, &AckTotalsCounters::stale); break;
     }
 
     plMover->SetSemaphoreTeleportNear(false);
@@ -529,11 +530,11 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
 
     MovementInfo movementInfo;
     recv_data >> movementInfo;
-    CountAck(&AckCounters::seen);
+    CountAck(&AckCounters::seen, &AckTotalsCounters::seen);
 
     if (movementInfo.GetGuid() != mover->GetObjectGuid())
     {
-        CountAck(&AckCounters::wrongGuid);
+        CountAck(&AckCounters::wrongGuid, &AckTotalsCounters::wrongGuid);
         DEBUG_LOG("WorldSession::HandleMovementAck: %s acked %s for %s, the mover is %s",
                   _player->GetGuidStr().c_str(), LookupOpcodeName(opcode),
                   movementInfo.GetGuid().GetString().c_str(), mover->GetGuidStr().c_str());
@@ -561,14 +562,14 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
     switch (mover->MotionState().LastAck())
     {
         case Motion::AckResult::Matched:
-            CountAck(&AckCounters::matched);
+            CountAck(&AckCounters::matched, &AckTotalsCounters::matched);
             break;
         case Motion::AckResult::PayloadMismatch:
         {
-            CountAck(&AckCounters::mismatched);
+            CountAck(&AckCounters::mismatched, &AckTotalsCounters::mismatched);
             if (!emissions.empty())
             {
-                CountAck(&AckCounters::resent);
+                CountAck(&AckCounters::resent, &AckTotalsCounters::resent);
             }
             float desired = row->type == Motion::ChangeType::CollisionHeight ? mover->MotionState().Desired().collisionHeight :
                              Motion::IsSpeed(row->type) ? mover->MotionState().Desired().speed[Motion::SpeedIndex(row->type)] : 0.0f;
@@ -578,14 +579,14 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
             break;
         }
         case Motion::AckResult::Tombstone:
-            CountAck(&AckCounters::tombstone);
+            CountAck(&AckCounters::tombstone, &AckTotalsCounters::tombstone);
             break;
         case Motion::AckResult::NoPending:
         case Motion::AckResult::Stale:
-            CountAck(&AckCounters::stale);
+            CountAck(&AckCounters::stale, &AckTotalsCounters::stale);
             break;
         case Motion::AckResult::Future:
-            CountAck(&AckCounters::future);
+            CountAck(&AckCounters::future, &AckTotalsCounters::future);
             break;
     }
 
@@ -599,7 +600,7 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
         }
         else
         {
-            CountAck(&AckCounters::unverified);
+            CountAck(&AckCounters::unverified, &AckTotalsCounters::unverified);
             return;
         }
     }
