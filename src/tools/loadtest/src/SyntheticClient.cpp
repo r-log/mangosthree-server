@@ -894,9 +894,57 @@ namespace loadtest
                 return true;
             }
 
+            case SMSG_MOVE_UPDATE_WALK_SPEED:
+            case SMSG_MOVE_UPDATE_RUN_SPEED:
+            case SMSG_MOVE_UPDATE_RUN_BACK_SPEED:
+            case SMSG_MOVE_UPDATE_SWIM_SPEED:
+            case SMSG_MOVE_UPDATE_SWIM_BACK_SPEED:
+            case SMSG_MOVE_UPDATE_TURN_RATE:
+            case SMSG_MOVE_UPDATE_FLIGHT_SPEED:
+            case SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED:
+            case SMSG_MOVE_UPDATE_COLLISION_HEIGHT:
+            case SMSG_MOVE_UPDATE_KNOCK_BACK:
+            case SMSG_MOVE_UPDATE_TELEPORT:
+            {
+                // What the server tells everyone but the mover once the mover acked
+                // (design v2 §7's observer column): counted for the observed mover.
+                Wire::MovementStatus status;
+                Wire::DecodeResult const decoded = Wire::Decode(packet, Wire::SequenceFor(opcode), status);
+                if (!decoded.ok() || decoded.consumed != packet.size())
+                {
+                    ++report.decodeFailures[opcode];
+                    return true;
+                }
+                if (m_config.script.observeGuid != 0 && status.guid == m_config.script.observeGuid)
+                {
+                    ++report.observerForms[opcode];
+                }
+                else
+                {
+                    ++report.observedOthers;
+                }
+                return true;
+            }
+
             default:
                 if (acks.IsChange(opcode))
                 {
+                    // Root and unroot reach observers under the mover's opcode: peek at the guid
+                    // before handing the packet to the ack engine, which would answer for
+                    // someone else's change.
+                    if (m_config.script.observeGuid != 0 && (opcode == SMSG_FORCE_MOVE_ROOT || opcode == SMSG_FORCE_MOVE_UNROOT))
+                    {
+                        WorldPacket peek(packet);
+                        peek.rpos(0);
+                        peek.ResetBitReader();
+                        Wire::MovementStatus status;
+                        Wire::DecodeResult const decoded = Wire::Decode(peek, Wire::SequenceFor(opcode), status);
+                        if (decoded.ok() && status.guid == m_config.script.observeGuid)
+                        {
+                            ++report.observerForms[opcode];
+                            return true;
+                        }
+                    }
                     acks.Plan(packet, nowTicks);
                     return true;
                 }
@@ -928,6 +976,10 @@ namespace loadtest
         {
             if (!Pump(POLL_MS, error))
             {
+                if (m_stream0.socket.PeerClosed() || m_stream1.socket.PeerClosed())
+                {
+                    m_result.peer.kicked = true;
+                }
                 return false;
             }
             const uint32 now = clock.Ticks();
@@ -987,6 +1039,7 @@ namespace loadtest
         report.acksDropped = acks.Dropped();
         report.acksPending = acks.PendingCount();
         report.unregisteredChanges = acks.Unregistered();
+        report.changesSeen = acks.ChangesSeen();
         for (std::map<uint16, uint32>::const_iterator it = acks.DecodeFailures().begin();
              it != acks.DecodeFailures().end(); ++it)
         {
@@ -996,6 +1049,24 @@ namespace loadtest
         Trace("held for %u s: %u time syncs, walk %u/%u/%u, saw target %u times",
               m_config.holdSeconds, report.timeSyncsAnswered, report.walkStarts,
               report.walkHeartbeats, report.walkStops, report.observedTarget);
+
+        // Diagnostic, not gated on --verbose: Task 8's launcher drives the walker
+        // and the observer as separate processes and reads this stdout, the same
+        // way it reads the PEER VERDICT lines.
+        std::printf("observer forms: ");
+        for (std::map<uint16, uint32>::const_iterator it = report.observerForms.begin();
+             it != report.observerForms.end(); ++it)
+        {
+            std::printf("0x%.4X=%u ", uint32(it->first), it->second);
+        }
+        std::printf("\n");
+        std::printf("changes seen: ");
+        for (std::map<uint16, uint32>::const_iterator it = report.changesSeen.begin();
+             it != report.changesSeen.end(); ++it)
+        {
+            std::printf("0x%.4X=%u ", uint32(it->first), it->second);
+        }
+        std::printf("\n");
         return true;
     }
 }
