@@ -104,6 +104,23 @@ namespace Motion
         return entry.counter;
     }
 
+    uint32 PendingChanges::Issue()
+    {
+        return m_next++;
+    }
+
+    uint32 PendingChanges::Reopen(PendingChange const& dropped, uint32 now)
+    {
+        PendingChange entry = dropped;
+        entry.counter = m_next++;
+        entry.epoch = m_epoch;
+        entry.sentAt = now;
+        ++entry.resends;
+        m_pending.push_back(entry);
+        ++m_counters.resent;
+        return entry.counter;
+    }
+
     AckOutcome PendingChanges::Ack(ChangeType type, uint32 counter, AckPayload const& payload, uint32 now)
     {
         // A consumer that never ticks (enforcement off) must not grow tombstones

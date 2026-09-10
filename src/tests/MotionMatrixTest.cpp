@@ -231,3 +231,27 @@ TEST(MotionMatrix_mover_and_spline_opcodes_are_unique_and_found_back)
     CHECK(RowFor(ChangeType::RunSpeed, false) == RowFor(ChangeType::RunSpeed, true));
     CHECK(RowFor(ChangeType::Root, false) != RowFor(ChangeType::Root, true));
 }
+
+TEST(MotionMatrix_every_ack_opcode_finds_its_row_and_nothing_else_does)
+{
+    size_t withAck = 0;
+    for (size_t i = 0; i < MatrixSize(); ++i)
+    {
+        MatrixRow const& row = MatrixRowAt(i);
+        if (!row.ack) { continue; }
+        ++withAck;
+        MatrixRow const* found = RowForAck(row.ack);
+        REQUIRE(found != NULL);
+        CHECK(found->type == row.type);
+    }
+    // Seven speeds (nine less turn rate and pitch rate), seven flag pairs (root, can-fly,
+    // water-walk, feather-fall, hover, gravity, can-transition = 14 rows), collision
+    // height, knock-back, teleport: 7 + 14 + 3.
+    CHECK_EQ(withAck, size_t(24));
+    CHECK(RowForAck(0) == NULL);
+    CHECK(RowForAck(uint16(SMSG_MOVE_SET_RUN_SPEED)) == NULL);
+    CHECK(RowForAck(uint16(CMSG_FORCE_TURN_RATE_CHANGE_ACK)) == NULL);
+    // Pair rows share the type whichever of the pair answers.
+    CHECK(RowForAck(uint16(CMSG_FORCE_MOVE_UNROOT_ACK))->type == ChangeType::Root);
+    CHECK(RowForAck(uint16(CMSG_MOVE_SET_CAN_FLY_ACK))->type == ChangeType::CanFly);
+}
