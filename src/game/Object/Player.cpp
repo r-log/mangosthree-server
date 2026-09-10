@@ -62,7 +62,6 @@
 #include "Util.h"
 #include "Transports.h"
 #include "TransportMap.h"
-#include "movement/WriterShadowHooks.h"
 #include "Weather.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundMgr.h"
@@ -1628,49 +1627,19 @@ ChatTagFlags Player::GetChatTag() const
 
 void Player::SendTeleportPacket(float oldX, float oldY, float oldZ, float oldO)
 {
-    ObjectGuid guid = GetObjectGuid();
     ObjectGuid transportGuid = m_movementInfo.GetTransportGuid();
-
-    Motion::TeleportParams shadow;
-    shadow.pos.x = Where().X();
-    shadow.pos.y = Where().Y();
-    shadow.pos.z = Where().Z();
-    shadow.pos.o = Where().Facing();
-    shadow.hasTransport = !transportGuid.IsEmpty();
-    shadow.transportGuid = transportGuid.GetRawValue();
-
-    WorldPacket data(SMSG_MOVE_TELEPORT, 38);
-    data.WriteGuidMask<6, 0, 3, 2>(guid);
-    data.WriteBit(0);       // unknown
-    data.WriteBit(!transportGuid.IsEmpty());
-    data.WriteGuidMask<1>(guid);
-    if (transportGuid)
-    {
-        data.WriteGuidMask<1, 3, 2, 5, 0, 7, 6, 4>(transportGuid);
-    }
-
-    data.WriteGuidMask<4, 7, 5>(guid);
-
-    if (transportGuid)
-    {
-        data.WriteGuidBytes<5, 6, 1, 7, 0, 2, 4, 3>(transportGuid);
-    }
-
-    data << uint32(0);  // counter
-    data.WriteGuidBytes<1, 2, 3, 5>(guid);
-    data << float(Where().X());
-    data.WriteGuidBytes<4>(guid);
-    data << float(Where().Facing());
-    data.WriteGuidBytes<7>(guid);
-    data << float(Where().Z());
-    data.WriteGuidBytes<0, 6>(guid);
-    data << float(Where().Y());
-
+    Motion::TeleportParams params;
+    params.pos.x = Where().X();
+    params.pos.y = Where().Y();
+    params.pos.z = Where().Z();
+    params.pos.o = Where().Facing();
+    params.hasTransport = !transportGuid.IsEmpty();
+    params.transportGuid = transportGuid.GetRawValue();
+    // The packet names the destination; the player stays where it was until the ack
+    // lands (HandleMoveTeleportAckOpcode moves it), as before.
+    std::vector<Motion::Emission> const emissions = m_motion.Apply(Motion::TeleportChange(params), GameTime::GetGameTimeMS());
     Place().MoveTo(oldX, oldY, oldZ, oldO);
-
-    WriterShadow::Teleport(guid.GetRawValue(), shadow, data);
-
-    SendDirectMessage(&data);
+    SendEmissions(emissions);
 }
 
 /**

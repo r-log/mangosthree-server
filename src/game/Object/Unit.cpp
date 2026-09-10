@@ -68,7 +68,6 @@
 #include "movement/MovementBridge.h"
 #include "Writers.h"
 #include "movement/WireParity.h"
-#include "movement/WriterShadowHooks.h"
 #include "wire/MovementCodec.h"
 #include "wire/MovementSequences.h"
 #include "Transports.h"
@@ -6929,48 +6928,6 @@ bool Unit::HasWorgenForm() const
     return HasAuraType(SPELL_AURA_ALLOW_WORGEN_TRANSFORM);
 }
 
-void Unit::BuildForceMoveRootPacket(WorldPacket* data, bool apply, uint32 value)
-{
-    if (apply)
-    {
-        data->Initialize(SMSG_FORCE_MOVE_ROOT, 13);
-        data->WriteGuidMask<2, 7, 6, 0, 5, 4, 1, 3>(GetObjectGuid());
-        data->WriteGuidBytes<1, 0, 2, 5>(GetObjectGuid());
-        *data << uint32(value);
-        data->WriteGuidBytes<3, 4, 7, 6>(GetObjectGuid());
-    }
-    else
-    {
-        data->Initialize(SMSG_FORCE_MOVE_UNROOT, 13);
-        data->WriteGuidMask<0, 1, 3, 7, 5, 2, 4, 6>(GetObjectGuid());
-        data->WriteGuidBytes<3, 6, 1>(GetObjectGuid());
-        *data << uint32(value);
-        data->WriteGuidBytes<2, 0, 7, 4, 5>(GetObjectGuid());
-    }
-    WriterShadow::Flag(*this, Motion::ChangeType::Root, apply, *data);
-}
-
-void Unit::BuildMoveSetCanFlyPacket(WorldPacket* data, bool apply, uint32 value)
-{
-    if (apply)
-    {
-        data->Initialize(SMSG_MOVE_SET_CAN_FLY, 13);
-        data->WriteGuidMask<1, 6, 5, 0, 7, 4, 2, 3>(GetObjectGuid());
-        data->WriteGuidBytes<6, 3>(GetObjectGuid());
-        *data << uint32(value);
-        data->WriteGuidBytes<2, 1, 4, 7, 0, 5>(GetObjectGuid());
-    }
-    else
-    {
-        data->Initialize(SMSG_MOVE_UNSET_CAN_FLY, 13);
-        data->WriteGuidMask<1, 4, 2, 5, 0, 3, 6, 7>(GetObjectGuid());
-        data->WriteGuidBytes<4, 6>(GetObjectGuid());
-        *data << uint32(value);
-        data->WriteGuidBytes<1, 0, 2, 3, 5, 7>(GetObjectGuid());
-    }
-    WriterShadow::Flag(*this, Motion::ChangeType::CanFly, apply, *data);
-}
-
 void Unit::BuildSendPlayVisualPacket(WorldPacket* data, uint32 value, bool impact)
 {
     data->Initialize(SMSG_PLAY_SPELL_VISUAL, 21);
@@ -6982,109 +6939,16 @@ void Unit::BuildSendPlayVisualPacket(WorldPacket* data, uint32 value, bool impac
     data->WriteGuidBytes<0, 4, 1, 6, 7, 2, 3, 5>(GetObjectGuid());
 }
 
-void Unit::BuildMoveWaterWalkPacket(WorldPacket* data, bool apply, uint32 value)
-{
-    if (apply)
-    {
-        data->Initialize(SMSG_MOVE_WATER_WALK, 13);
-        data->WriteGuidMask<4, 7, 6, 0, 1, 3, 5, 2>(GetObjectGuid());
-        data->WriteGuidBytes<0, 5, 2>(GetObjectGuid());
-        *data << uint32(value);
-        data->WriteGuidBytes<7, 3, 4, 1, 6>(GetObjectGuid());
-    }
-    else
-    {
-        data->Initialize(SMSG_MOVE_LAND_WALK, 13);
-        data->WriteGuidMask<5, 1, 6, 2, 3, 4, 0, 7>(GetObjectGuid());
-        data->WriteGuidBytes<6, 1, 7, 5, 4, 0, 3, 2>(GetObjectGuid());
-        *data << uint32(value);
-    }
-    WriterShadow::Flag(*this, Motion::ChangeType::WaterWalk, apply, *data);
-}
-
-void Unit::BuildMoveFeatherFallPacket(WorldPacket* data, bool apply, uint32 value)
-{
-    ObjectGuid guid = GetObjectGuid();
-
-    if (apply)
-    {
-        data->Initialize(SMSG_MOVE_FEATHER_FALL, 1 + 4 + 8);
-        data->WriteGuidMask<3, 1, 7, 0, 4, 2, 5, 6>(guid);
-        data->WriteGuidBytes<5, 7, 2>(guid);
-        *data << uint32(value);
-        data->WriteGuidBytes<0, 3, 4, 1, 6>(guid);
-    }
-    else
-    {
-        data->Initialize(SMSG_MOVE_NORMAL_FALL, 1 + 4 + 8);
-        *data << uint32(value);
-        data->WriteGuidMask<3, 0, 1, 5, 7, 4, 6, 2>(guid);
-        data->WriteGuidBytes<2, 7, 1, 4, 5, 0, 3, 6>(guid);
-    }
-    WriterShadow::Flag(*this, Motion::ChangeType::FeatherFall, apply, *data);
-}
-
-void Unit::BuildMoveHoverPacket(WorldPacket* data, bool apply, uint32 value)
-{
-    ObjectGuid guid = GetObjectGuid();
-
-    if (apply)
-    {
-        data->Initialize(SMSG_MOVE_SET_HOVER, 8 + 4 + 1);
-        data->WriteGuidMask<1, 4, 2, 3, 0, 5, 6, 7>(guid);
-        data->WriteGuidBytes<5, 4, 1, 2, 3, 6, 0, 7>(guid);
-        *data << uint32(0);
-    }
-    else
-    {
-        data->Initialize(SMSG_MOVE_UNSET_HOVER, 8 + 4 + 1);
-        data->WriteGuidMask<4, 6, 3, 1, 2, 7, 5, 0>(guid);
-        data->WriteGuidBytes<4, 5, 3, 6, 7, 1, 2, 0>(guid);
-        *data << uint32(0);
-    }
-    WriterShadow::Flag(*this, Motion::ChangeType::Hover, apply, *data);
-}
-
-void Unit::BuildMoveLevitatePacket(WorldPacket* data, bool apply, uint32 value)
-{
-    ObjectGuid guid = GetObjectGuid();
-
-    if (apply)
-    {
-        data->Initialize(SMSG_MOVE_GRAVITY_ENABLE);
-        data->WriteGuidMask<1, 4, 7, 5, 2, 0, 3, 6>(GetObjectGuid());
-        data->WriteGuidBytes<3>(GetObjectGuid());
-        *data << uint32(value);
-        data->WriteGuidBytes<7, 6, 4, 0, 1, 5, 2>(GetObjectGuid());
-    }
-    else
-    {
-        data->Initialize(SMSG_MOVE_GRAVITY_DISABLE);
-        data->WriteGuidMask<0, 1, 5, 7, 6, 4, 3, 2>(GetObjectGuid());
-        data->WriteGuidBytes<7, 2, 0>(GetObjectGuid());
-        *data << uint32(value);
-        data->WriteGuidBytes<5, 1, 3, 4, 6>(GetObjectGuid());
-    }
-    WriterShadow::Flag(*this, Motion::ChangeType::GravityDisabled, apply, *data);
-}
-
 void Unit::SendCollisionHeightUpdate(float height)
 {
-    if (GetTypeId() == TYPEID_PLAYER)
+    if (GetTypeId() != TYPEID_PLAYER)
     {
-        // Computed once and reused below: GetCollisionHeight(true) is up to four DBC
-        // lookups and two possible error logs, and the hook must not pay for a second
-        // call just to be handed the same value the packet already carries.
-        const float collisionHeight = ((Player*)this)->GetCollisionHeight(true);
-        WorldPacket data(SMSG_MOVE_SET_COLLISION_HGT, GetPackGUID().size() + 4 + 4);
-        data.WriteGuidMask<6, 1, 4, 7, 5, 2, 0, 3>(GetObjectGuid());
-        data.WriteGuidBytes<6, 0, 4, 3, 5>(GetObjectGuid());
-        data << uint32(sWorld.GetGameTime());   // Packet counter
-        data.WriteGuidBytes<1, 2, 7>(GetObjectGuid());
-        data << collisionHeight;
-        WriterShadow::Height(*this, collisionHeight, 0, data);
-        ((Player*)this)->GetSession()->SendPacket(&data);
+        return;
     }
+    // The 4.3.4 layout with a real counter (the legacy writer sent the WotLK shape on a
+    // game-time counter and threw this parameter away for a second lookup). Both callers
+    // are the mount and dismount paths: reason 1, "mount".
+    SendEmissions(m_motion.Apply(Motion::HeightChange(height, 1), GameTime::GetGameTimeMS()));
 }
 
 // This will create a new creature and set the current unit as the controller of that new creature

@@ -75,7 +75,6 @@
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
 #include "movement/WireParity.h"
-#include "movement/WriterShadowHooks.h"
 #include "wire/MovementCapture.h"
 #include "wire/MovementFamilies.h"
 #include "wire/MovementSequences.h"
@@ -674,30 +673,13 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recv_data)
  */
 void WorldSession::SendKnockBack(float angle, float horizontalSpeed, float verticalSpeed)
 {
-    ObjectGuid guid = GetPlayer()->GetObjectGuid();
-    float vsin = sin(angle);
-    float vcos = cos(angle);
-
-    WorldPacket data(SMSG_MOVE_KNOCK_BACK, 9 + 4 + 4 + 4 + 4 + 4 + 1 + 8);
-    data.WriteGuidMask<0, 3, 6, 7, 2, 5, 1, 4>(guid);
-    data.WriteGuidBytes<1>(guid);
-    data << float(vsin);                                // y direction
-    data << uint32(0);                                  // Sequence
-    data.WriteGuidBytes<6, 7>(guid);
-    data << float(horizontalSpeed);                     // Horizontal speed
-    data.WriteGuidBytes<4, 5, 3>(guid);
-    data << float(-verticalSpeed);                      // Z Movement speed (vertical)
-    data << float(vcos);                                // x direction
-    data.WriteGuidBytes<2, 0>(guid);
-
-    Motion::KnockBackParams shadow;
-    shadow.directionX = vcos;
-    shadow.directionY = vsin;
-    shadow.horizontal = horizontalSpeed;
-    shadow.vertical = -verticalSpeed;
-    WriterShadow::KnockBack(guid.GetRawValue(), shadow, data);
-
-    SendPacket(&data);
+    Motion::KnockBackParams params;
+    params.directionX = cos(angle);
+    params.directionY = sin(angle);
+    params.horizontal = horizontalSpeed;
+    params.vertical = -verticalSpeed;   // as the wire carries it
+    Player* player = GetPlayer();
+    player->SendEmissions(player->MotionState().Apply(Motion::KnockBackChange(params), GameTime::GetGameTimeMS()));
 }
 
 /**
