@@ -972,6 +972,56 @@ namespace loadtest
         Walker walker(m_config.script.walk, m_config.characterGuid, m_result.worldPos);
         AckEngine acks(m_config.script.ack, [](uint16 opcode) { return Wire::SequenceFor(opcode); });
 
+        // Walker and AckEngine tally into their own locals as Serve runs; nothing
+        // copies those tallies into m_result.peer until this runs. A kick (the
+        // server closing the socket mid-hold, under Movement.AckTimeout's last
+        // rung) exits through one of the early `return false`s below, not the
+        // loop's normal fall-through -- so every return, not just that one, must
+        // call this, or a kicked run reports acksSent=0/changesSeen={} even
+        // though the engine watched the whole resend/resync ladder happen.
+        const auto finish = [this, &walker, &acks]()
+        {
+            PeerReport& report = m_result.peer;
+            report.walkStarts = walker.Starts();
+            report.walkHeartbeats = walker.Heartbeats();
+            report.walkStops = walker.Stops();
+            report.relocations = walker.Relocations();
+            report.walkFinal = walker.Position();
+            report.walkLastTime = walker.LastStampedTime();
+            report.acksSent = acks.Sent();
+            report.acksDropped = acks.Dropped();
+            report.acksPending = acks.PendingCount();
+            report.unregisteredChanges = acks.Unregistered();
+            report.changesSeen = acks.ChangesSeen();
+            for (std::map<uint16, uint32>::const_iterator it = acks.DecodeFailures().begin();
+                 it != acks.DecodeFailures().end(); ++it)
+            {
+                report.decodeFailures[it->first] += it->second;
+            }
+
+            Trace("held for %u s: %u time syncs, walk %u/%u/%u, saw target %u times",
+                  m_config.holdSeconds, report.timeSyncsAnswered, report.walkStarts,
+                  report.walkHeartbeats, report.walkStops, report.observedTarget);
+
+            // Diagnostic, not gated on --verbose: Task 8's launcher drives the walker
+            // and the observer as separate processes and reads this stdout, the same
+            // way it reads the PEER VERDICT lines.
+            std::printf("observer forms: ");
+            for (std::map<uint16, uint32>::const_iterator it = report.observerForms.begin();
+                 it != report.observerForms.end(); ++it)
+            {
+                std::printf("0x%.4X=%u ", uint32(it->first), it->second);
+            }
+            std::printf("\n");
+            std::printf("changes seen: ");
+            for (std::map<uint16, uint32>::const_iterator it = report.changesSeen.begin();
+                 it != report.changesSeen.end(); ++it)
+            {
+                std::printf("0x%.4X=%u ", uint32(it->first), it->second);
+            }
+            std::printf("\n");
+        };
+
         while (std::chrono::steady_clock::now() < until)
         {
             if (!Pump(POLL_MS, error))
@@ -980,6 +1030,7 @@ namespace loadtest
                 {
                     m_result.peer.kicked = true;
                 }
+                finish();
                 return false;
             }
             const uint32 now = clock.Ticks();
@@ -991,6 +1042,7 @@ namespace loadtest
                 {
                     if (!Dispatch(packet, acks, walker, now, error))
                     {
+                        finish();
                         return false;
                     }
                 }
@@ -1001,6 +1053,7 @@ namespace loadtest
             {
                 if (!Send(StreamFor(packet.GetOpcode()), packet, error))
                 {
+                    finish();
                     return false;
                 }
             }
@@ -1010,6 +1063,7 @@ namespace loadtest
             {
                 if (!Send(StreamFor(packet.GetOpcode()), packet, error))
                 {
+                    finish();
                     return false;
                 }
             }
@@ -1021,6 +1075,7 @@ namespace loadtest
                 ping << uint32(50);                          // reported latency
                 if (!Send(StreamFor(CMSG_PING), ping, error))
                 {
+                    finish();
                     return false;
                 }
                 nextPing = std::chrono::steady_clock::now() + std::chrono::seconds(30);
@@ -1028,45 +1083,7 @@ namespace loadtest
             }
         }
 
-        PeerReport& report = m_result.peer;
-        report.walkStarts = walker.Starts();
-        report.walkHeartbeats = walker.Heartbeats();
-        report.walkStops = walker.Stops();
-        report.relocations = walker.Relocations();
-        report.walkFinal = walker.Position();
-        report.walkLastTime = walker.LastStampedTime();
-        report.acksSent = acks.Sent();
-        report.acksDropped = acks.Dropped();
-        report.acksPending = acks.PendingCount();
-        report.unregisteredChanges = acks.Unregistered();
-        report.changesSeen = acks.ChangesSeen();
-        for (std::map<uint16, uint32>::const_iterator it = acks.DecodeFailures().begin();
-             it != acks.DecodeFailures().end(); ++it)
-        {
-            report.decodeFailures[it->first] += it->second;
-        }
-
-        Trace("held for %u s: %u time syncs, walk %u/%u/%u, saw target %u times",
-              m_config.holdSeconds, report.timeSyncsAnswered, report.walkStarts,
-              report.walkHeartbeats, report.walkStops, report.observedTarget);
-
-        // Diagnostic, not gated on --verbose: Task 8's launcher drives the walker
-        // and the observer as separate processes and reads this stdout, the same
-        // way it reads the PEER VERDICT lines.
-        std::printf("observer forms: ");
-        for (std::map<uint16, uint32>::const_iterator it = report.observerForms.begin();
-             it != report.observerForms.end(); ++it)
-        {
-            std::printf("0x%.4X=%u ", uint32(it->first), it->second);
-        }
-        std::printf("\n");
-        std::printf("changes seen: ");
-        for (std::map<uint16, uint32>::const_iterator it = report.changesSeen.begin();
-             it != report.changesSeen.end(); ++it)
-        {
-            std::printf("0x%.4X=%u ", uint32(it->first), it->second);
-        }
-        std::printf("\n");
+        finish();
         return true;
     }
 }
