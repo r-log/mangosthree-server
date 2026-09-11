@@ -32,18 +32,39 @@ class Map;
 
 /**
  * Who may touch a unit's movement kernel right now (design v2 §10.4, F21): the
- * map phase of World::Update runs every map on the worker pool, and a unit's
- * kernel belongs to the worker updating that unit's map; outside the map phase
- * (the session phase, the console) the world thread owns everything, because
- * the phases never overlap. The guard witnesses that barrier: a violation is
- * counted process-wide (and asserted under MANGOS_DEBUG), never silently allowed.
+ * map phase flag is the world's (Begin/End around sMapMgr.Update), but which
+ * map currently owns the kernel is set by Map::Update itself, through Scope --
+ * so a vessel's deck, whose TransportMap::Update runs Map::Update nested
+ * inside the world map's own tick on that same thread, is right by
+ * construction: the nested Scope hands the deck the ownership and, on return,
+ * hands the world map back. Outside any map's Update (the session phase, the
+ * console) the world thread owns everything, because the phases never
+ * overlap. The guard witnesses that barrier: a violation is counted
+ * process-wide (and asserted under MANGOS_DEBUG), never silently allowed.
  */
 namespace MapPhase
 {
     void Begin();                  ///< World::Update: the maps are about to run
     void End();                    ///< every map is done (after MapUpdater::wait)
-    void Enter(Map const* map);    ///< this thread starts updating `map`
-    void Leave();
+
+    /// RAII: `map` owns the kernel for the scope's lifetime on this thread. The
+    /// constructor saves whatever map (if any) the thread already owned and
+    /// installs `map`; the destructor restores what it saved -- so a transport
+    /// deck's nested Map::Update sets itself as owner and hands the thread back
+    /// to the world map it interrupted when its own Update returns.
+    class Scope
+    {
+    public:
+        explicit Scope(Map const* map);
+        ~Scope();
+
+    private:
+        Map const* m_previous;
+
+        Scope(Scope const&) = delete;
+        Scope& operator=(Scope const&) = delete;
+    };
+
     bool Active();
     bool Owns(Map const* map);     ///< !Active(), or this thread is updating `map`
     uint32 Violations();           ///< process-wide, since start

@@ -31,7 +31,6 @@
 #include "MapUpdater.h"
 
 #include "Map.h"
-#include "MapPhase.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include <mutex>
@@ -168,9 +167,8 @@ void MapUpdater::workerLoop()
             m_tasks.pop();
         }
 
-        MapPhase::Enter(task.first);
+        // Map::Update sets its own ownership scope now; the worker names no map.
         task.first->Update(task.second);
-        MapPhase::Leave();
 
         {
             std::lock_guard<std::mutex> guard(m_mutex);

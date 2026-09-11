@@ -679,12 +679,14 @@ class WorldSession
         /// every inbound movement handler. Map-phase state like the packets it judges.
         Motion::Authority&       Movers()       { return m_movers; }
         Motion::Authority const& Movers() const { return m_movers; }
-        /// The selected unit, resolved in the player's map: the player itself when its
-        /// own guid is selected, else the member found by guid; NULL when nothing is
-        /// selected, the player is not in the world, or the member is gone (the caller
-        /// counts it unresolved).
+        /// The selected unit, resolved through MemberUnit; NULL when nothing is
+        /// selected or the member is gone (the caller counts it unresolved). The
+        /// player's own guid resolves whether or not the player is in the world.
         Unit* SelectedMover();
-        /// Any member by guid, resolved the same way.
+        /// Any guid the session may name -- the player itself whether or not it is in
+        /// the world (a far transfer keeps its membership, and its in-flight packets
+        /// take the teleporting path), another member only while the player is in the
+        /// world; callers check membership first.
         Unit* MemberUnit(ObjectGuid guid);
         /// A control transition's membership half (spec §4): the unit's kernel mode, its
         /// mover session and the set change together; the packets are SetClientControl's.

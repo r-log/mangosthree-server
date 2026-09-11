@@ -30,11 +30,14 @@
 
 #include "Peer.hpp"
 #include "TimeSync.hpp"
+#include "Control.hpp"
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "wire/MovementSequences.h"
+#include "wire/MoverCodec.h"
 
 #include <cmath>
+#include <cstring>
 
 TEST(TimeSync_answers_the_request_with_the_counter_and_the_client_clock)
 {
@@ -744,10 +747,6 @@ TEST(Walker_reports_its_status_without_a_timestamp)
     walker.Advance(1000);                    // stop
     CHECK_EQ(walker.Status().flags, uint32(0));
 }
-
-#include "Control.hpp"
-#include "wire/MoverCodec.h"
-#include <cstring>
 
 TEST(Control_reads_the_packed_guid_and_the_allow_byte_of_a_control_update)
 {

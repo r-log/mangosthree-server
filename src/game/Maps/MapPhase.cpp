@@ -39,11 +39,19 @@ namespace MapPhase
 {
     void Begin() { s_active.store(true); }
     void End() { s_active.store(false); }
-    void Enter(Map const* map) { t_current = map; }
-    void Leave() { t_current = NULL; }
     bool Active() { return s_active.load(); }
     bool Owns(Map const* map) { return !s_active.load() || t_current == map; }
     uint32 Violations() { return s_violations.load(); }
+
+    Scope::Scope(Map const* map) : m_previous(t_current)
+    {
+        t_current = map;
+    }
+
+    Scope::~Scope()
+    {
+        t_current = m_previous;
+    }
 
     void Violation(char const* unit)
     {

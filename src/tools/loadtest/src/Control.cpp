@@ -29,26 +29,20 @@
 
 namespace loadtest
 {
+    // Through the codec now (both sides): the layout is the same packed guid and byte
+    // Control.hpp's comment names, but a decode failure -- too short, or bytes left
+    // over -- is Wire::DecodeControlUpdate's call, not this function's own size check.
     bool ReadControlUpdate(WorldPacket& packet, uint64& guid, uint8& allow)
     {
         packet.rpos(0);
-        if (packet.size() < 2)
+        Wire::ControlUpdate v;
+        Wire::DecodeResult const r = Wire::DecodeControlUpdate(packet, v);
+        if (!r.ok() || r.consumed != packet.size())
         {
             return false;
         }
-        const uint8 mask = packet.read<uint8>();
-        uint32 bytes = 0;
-        for (int i = 0; i < 8; ++i)
-        {
-            if (mask & (1 << i)) { ++bytes; }
-        }
-        if (packet.size() < 1 + bytes + 1)
-        {
-            return false;
-        }
-        packet.rpos(0);
-        guid = packet.readPackGUID();
-        allow = packet.read<uint8>();
+        guid = v.guid;
+        allow = v.allowMove;
         return true;
     }
 

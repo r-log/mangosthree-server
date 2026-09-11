@@ -19,8 +19,12 @@ TEST(MotionAuthority_starts_empty_and_lets_nothing_move_or_ack)
     CHECK_EQ(a.Selected(), uint64(0));
     CHECK(!a.MovesAs(kPlayer));
     CHECK(!a.MayAck(kPlayer));
-    CHECK_EQ(a.Counters().notActive, 1u);
+    // A client can send guid 0; the guid == 0 guards are what refuse it.
+    CHECK(!a.Deselect(0));
+    CHECK(!a.MovesAs(0));
+    CHECK_EQ(a.Counters().notActive, 2u);
     CHECK_EQ(a.Counters().notMember, 1u);
+    CHECK_EQ(a.Counters().badDeselect, 1u);
 }
 
 TEST(MotionAuthority_add_makes_a_member_and_selects_it)
@@ -114,7 +118,8 @@ TEST(MotionAuthority_movement_needs_the_selected_unit_and_an_ack_needs_membershi
     CHECK(a.MovesAs(kVehicle));
     CHECK(!a.MovesAs(kPlayer));
     CHECK(!a.MovesAs(kOther));
-    CHECK_EQ(a.Counters().notActive, 2u);
+    CHECK(!a.MovesAs(0));
+    CHECK_EQ(a.Counters().notActive, 3u);
     CHECK(a.MayAck(kPlayer));
     CHECK(a.MayAck(kVehicle));
     CHECK(!a.MayAck(kOther));

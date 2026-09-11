@@ -5185,16 +5185,23 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
                       GetGuidStr().c_str(), target->GetGuidStr().c_str(), target->GetCharmerGuid().GetString().c_str());
         return;
     }
-    // Control returns with the last fear or confuse, not the first (CPP's rule).
-    if (target->hasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED))
+    // A grant while still fleeing or confused is refused outright, not turned into
+    // a second, invisible revoke: the take already happened when the fear or
+    // confuse applied, and control returns with the last such aura's own removal
+    // (CPP's rule), not with an interleaved release.
+    if (allowMove && target->hasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED))
     {
-        allowMove = 0;
+        sLog.outError("Player::SetClientControl: %s: the grant of %s waits, it is still fleeing or confused (control returns with the last such aura)",
+                      GetGuidStr().c_str(), target->GetGuidStr().c_str());
+        return;
     }
 
     const uint32 now = GameTime::GetGameTimeMS();
-    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, target->GetPackGUID().size() + 1);
-    data << target->GetPackGUID();
-    data << uint8(allowMove);
+    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, 10);
+    Wire::ControlUpdate cu;
+    cu.guid = target->GetObjectGuid().GetRawValue();
+    cu.allowMove = allowMove;
+    Wire::EncodeControlUpdate(data, cu);
 
     if (!allowMove)
     {
@@ -5232,8 +5239,20 @@ Unit* Player::GetMover() const
 
 bool Player::IsSelfMover() const
 {
-    const uint64 selected = GetSession() ? GetSession()->Movers().Selected() : 0;
-    return selected == 0 || selected == GetObjectGuid().GetRawValue();
+    if (!GetSession())
+    {
+        return true;
+    }
+    std::vector<uint64> const& members = GetSession()->Movers().Members();
+    const uint64 self = GetObjectGuid().GetRawValue();
+    for (size_t i = 0; i < members.size(); ++i)
+    {
+        if (members[i] != self)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 void Player::Uncharm()
@@ -5243,9 +5262,9 @@ void Player::Uncharm()
         charm->RemoveSpellsCausingAura(SPELL_AURA_MOD_CHARM);
         charm->RemoveSpellsCausingAura(SPELL_AURA_MOD_POSSESS);
         charm->RemoveSpellsCausingAura(SPELL_AURA_MOD_POSSESS_PET);
-        // Still selected: no control aura ran ResetControlState (a summoned possession
+        // Still a member: no control aura ran ResetControlState (a summoned possession
         // despawning). Take the control back in the design's order, then this player's.
-        if (charm == GetMover())
+        if (GetSession()->Movers().IsMember(charm->GetObjectGuid().GetRawValue()))
         {
             SetClientControl(charm, 0);
             GetCamera().ResetView();

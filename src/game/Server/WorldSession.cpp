@@ -112,13 +112,22 @@ WorldSession::AuthorityTotalsCounters const& WorldSession::AuthorityTotals()
 
 Unit* WorldSession::MemberUnit(ObjectGuid guid)
 {
-    if (!_player || !_player->IsInWorld())
+    if (!_player)
     {
         return NULL;
     }
+    // The player resolves to itself whether or not it is in the world: a far
+    // transfer keeps its membership, and its in-flight packets (processed
+    // PROCESS_THREADSAFE even while !IsInWorld()) take this path instead of
+    // counting as a wrong guid or an unresolved member. Only another member's
+    // lookup needs the map.
     if (guid == _player->GetObjectGuid())
     {
         return _player;
+    }
+    if (!_player->IsInWorld())
+    {
+        return NULL;
     }
     return ObjectLookup::GetUnit(*_player, guid);
 }
@@ -143,11 +152,13 @@ void WorldSession::GrantMover(Unit* unit, uint32 now)
 void WorldSession::RevokeMover(Unit* unit, uint32 now)
 {
     m_movers.Remove(unit->GetObjectGuid().GetRawValue());
+    // The mode flip is guarded like the session clear: a unit already handed to
+    // another session (or none) is not this session's mode to touch.
     if (unit->MoverSession() == this)
     {
         unit->SetMoverSession(NULL);
+        unit->MotionState().SetMode(Motion::Mode::ServerDriven, now);
     }
-    unit->MotionState().SetMode(Motion::Mode::ServerDriven, now);
 }
 
 void WorldSession::RevokeAllMovers(uint32 now)

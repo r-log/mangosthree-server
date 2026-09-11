@@ -1966,10 +1966,12 @@ bool ChatHandler::HandleDebugMovementKnockBackCommand(char* args)
     return true;
 }
 
-/// .debug movement possess <player> [entry]: summon a creature three yards ahead of the
-/// named player and give the player control of it, the aura-less way (TakePossessOf),
-/// for two minutes. Entry 65 (Peasant Woman: level 1, humanoid, no flags, no script)
-/// unless another is given. The peer's possession scenarios drive this from the console.
+/**
+ * @brief .debug movement possess <player> [entry]: summon a creature three yards ahead of the
+ * named player and give the player control of it, the aura-less way (TakePossessOf),
+ * for two minutes. Entry 65 (Peasant Woman: level 1, humanoid, no flags, no script)
+ * unless another is given. The peer's possession scenarios drive this from the console.
+ */
 bool ChatHandler::HandleDebugMovementPossessCommand(char* args)
 {
     char* nameStr = ExtractOptNotLastArg(&args);
@@ -2022,9 +2024,11 @@ bool ChatHandler::HandleDebugMovementPossessCommand(char* args)
     return true;
 }
 
-/// .debug movement release <player>: the possession ends (ResetControlState, the creature
-/// does not turn on the player); prints the creature's pending changes before and its
-/// tombstones after, which is where a takeover with an outstanding change is read.
+/**
+ * @brief .debug movement release <player>: the possession ends (ResetControlState, the creature
+ * does not turn on the player); prints the creature's pending changes before and its
+ * tombstones after, which is where a takeover with an outstanding change is read.
+ */
 bool ChatHandler::HandleDebugMovementReleaseCommand(char* args)
 {
     Player* target = NULL;
@@ -2060,8 +2064,10 @@ bool ChatHandler::HandleDebugMovementReleaseCommand(char* args)
     return true;
 }
 
-/// .debug movement speed <player> <rate>: the run speed of the unit the player's client
-/// moves (the player itself, or the creature it controls), through the kernel.
+/**
+ * @brief .debug movement speed <player> <rate>: the run speed of the unit the player's client
+ * moves (the player itself, or the creature it controls), through the kernel.
+ */
 bool ChatHandler::HandleDebugMovementSpeedCommand(char* args)
 {
     char* nameStr = ExtractArg(&args);

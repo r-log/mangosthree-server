@@ -4950,7 +4950,11 @@ void Unit::RemoveFromWorld()
         // A unit a client was moving leaves that client's set, with no packet: the
         // charm code sends its own when it runs, and this is the net under it for any
         // creature, pet or summon. A player keeps its membership across a far teleport
-        // (the worldport's grant is idempotent) and is revoked by LogoutPlayer.
+        // (the worldport's grant is idempotent) and is revoked by LogoutPlayer. A unit
+        // changing map goes through here too (a minion drawn onto or off a vessel's
+        // deck crosses by Map::Remove the same as any other map change), so it is
+        // revoked the same way, without a packet; nothing today possesses a minion
+        // across a deck edge, so that gap is named here rather than closed.
         if (m_moverSession && GetTypeId() != TYPEID_PLAYER)
         {
             m_moverSession->RevokeMover(this, GameTime::GetGameTimeMS());

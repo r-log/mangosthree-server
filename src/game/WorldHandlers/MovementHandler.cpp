@@ -378,10 +378,16 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
 
     // The near teleport is a player's (a creature is never issued one); the ack must
     // name a member, and the landing runs for a player being teleported near.
-    Unit* member = Movers().MayAck(guid.GetRawValue()) ? MemberUnit(guid) : NULL;
+    const bool isMember = Movers().MayAck(guid.GetRawValue());
+    Unit* member = isMember ? MemberUnit(guid) : NULL;
     if (!member)
     {
         CountAck(&AckCounters::seen, &AckTotalsCounters::seen);
+        // A member the map lost (out of the world, gone) is not a wrong guid.
+        if (isMember)
+        {
+            Movers().Unresolved();
+        }
         CountAck(&AckCounters::wrongGuid, &AckTotalsCounters::wrongGuid);
         return;
     }
@@ -543,9 +549,15 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
     // as the player while the vehicle is the selected unit. The ack lands in the
     // kernel of the unit it names.
     const ObjectGuid guid = movementInfo.GetGuid();
-    Unit* mover = Movers().MayAck(guid.GetRawValue()) ? MemberUnit(guid) : NULL;
+    const bool isMember = Movers().MayAck(guid.GetRawValue());
+    Unit* mover = isMember ? MemberUnit(guid) : NULL;
     if (!mover)
     {
+        // A member the map lost (out of the world, gone) is not a wrong guid.
+        if (isMember)
+        {
+            Movers().Unresolved();
+        }
         CountAck(&AckCounters::wrongGuid, &AckTotalsCounters::wrongGuid);
         DEBUG_LOG("WorldSession::HandleMovementAck: %s acked %s for %s, not a unit it moves",
                   _player->GetGuidStr().c_str(), LookupOpcodeName(opcode), guid.GetString().c_str());
