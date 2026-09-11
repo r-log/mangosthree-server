@@ -73,6 +73,8 @@ TEST(PeerReport_defaults_are_empty)
 {
     loadtest::PeerReport r;
     CHECK_EQ(r.timeSyncsAnswered, uint32(0));
+    CHECK_EQ(r.controlGranted, uint32(0));
+    CHECK_EQ(r.moverGuid, uint64(0));
     CHECK_EQ(r.walkStarts, uint32(0));
     CHECK_EQ(r.observedTarget, uint32(0));
     CHECK(r.unregisteredChanges.empty());
@@ -741,4 +743,54 @@ TEST(Walker_reports_its_status_without_a_timestamp)
     CHECK_EQ(s.pos.x, 13.5f);
     walker.Advance(1000);                    // stop
     CHECK_EQ(walker.Status().flags, uint32(0));
+}
+
+#include "Control.hpp"
+#include "wire/MoverCodec.h"
+#include <cstring>
+
+TEST(Control_reads_the_packed_guid_and_the_allow_byte_of_a_control_update)
+{
+    WorldPacket packet(SMSG_CLIENT_CONTROL_UPDATE, 10);
+    packet.appendPackGUID(0x0400000000000123ULL);
+    packet << uint8(1);
+    uint64 guid = 0;
+    uint8 allow = 0;
+    CHECK(loadtest::ReadControlUpdate(packet, guid, allow));
+    CHECK_EQ(guid, 0x0400000000000123ULL);
+    CHECK_EQ(allow, uint8(1));
+
+    WorldPacket shortPacket(SMSG_CLIENT_CONTROL_UPDATE, 1);
+    shortPacket << uint8(0);
+    CHECK(!loadtest::ReadControlUpdate(shortPacket, guid, allow));
+}
+
+TEST(Control_select_packet_is_the_codec_order_of_CMSG_SET_ACTIVE_MOVER)
+{
+    const WorldPacket packet = loadtest::MakeSelectActiveMover(0x0400000000000123ULL);
+    CHECK_EQ(packet.GetOpcode(), uint16(CMSG_SET_ACTIVE_MOVER));
+    WorldPacket expected(CMSG_SET_ACTIVE_MOVER, 9);
+    Wire::ActiveMover m;
+    m.guid = 0x0400000000000123ULL;
+    Wire::EncodeActiveMover(expected, CMSG_SET_ACTIVE_MOVER, m);
+    CHECK_EQ(packet.size(), expected.size());
+    CHECK(packet.size() == expected.size() && std::memcmp(packet.contents(), expected.contents(), packet.size()) == 0);
+    // It decodes back to the guid.
+    WorldPacket copy(packet);
+    Wire::ActiveMover back;
+    CHECK(Wire::DecodeActiveMover(copy, CMSG_SET_ACTIVE_MOVER, back).ok());
+    CHECK_EQ(back.guid, 0x0400000000000123ULL);
+}
+
+TEST(Walker_stamps_the_guid_it_was_switched_to)
+{
+    loadtest::WalkScript script;
+    script.seconds = 2;
+    Wire::Vec4 start;
+    loadtest::Walker walker(script, 46, start);
+    CHECK_EQ(walker.Guid(), uint64(46));
+    CHECK_EQ(walker.Status().guid, uint64(46));
+    walker.SetGuid(0xF130000000000099ULL);
+    CHECK_EQ(walker.Guid(), 0xF130000000000099ULL);
+    CHECK_EQ(walker.Status().guid, 0xF130000000000099ULL);
 }

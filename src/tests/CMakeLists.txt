@@ -76,6 +76,7 @@ set(SRC_GRP_TESTS
     MotionAuthorityTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Control.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/AckEngine.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Replay.cpp
     GlobalWmoEvictionTest.cpp
