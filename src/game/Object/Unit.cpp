@@ -4917,6 +4917,15 @@ void Unit::RemoveFromWorld()
     // cleanup
     if (IsInWorld())
     {
+        // A unit a client was moving leaves that client's set, with no packet: the
+        // charm code sends its own when it runs, and this is the net under it for any
+        // creature, pet or summon. A player keeps its membership across a far teleport
+        // (the worldport's grant is idempotent) and is revoked by LogoutPlayer.
+        if (m_moverSession && GetTypeId() != TYPEID_PLAYER)
+        {
+            m_moverSession->RevokeMover(this, GameTime::GetGameTimeMS());
+        }
+
         Uncharm();
         RemoveNotOwnTrackedTargetAuras();
         RemoveGuardians();

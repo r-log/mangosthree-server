@@ -5170,6 +5170,13 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
 {
     MANGOS_ASSERT(target);
 
+    // The session is ending: no packet, no grant (spec §4) -- the teardown that
+    // follows must not re-grant a client that is leaving.
+    if (GetSession()->PlayerLogout())
+    {
+        return;
+    }
+
     // A unit charmed by someone else is not this client's to control; a player's own
     // session always may take or return its own (a player possessed by a creature).
     if (target != this && target->GetCharmerGuid() && target->GetCharmerGuid() != GetObjectGuid())
