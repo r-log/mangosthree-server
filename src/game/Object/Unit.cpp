@@ -415,25 +415,41 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
 
     CleanupDeletedAuras();
 
-    // Design v2 §6.2: the pending-change machine's timeouts, in the map phase. Only a
-    // client-driven unit has pending entries; a creature's Tick is a no-op and skipped.
-    if (GetTypeId() == TYPEID_PLAYER && m_motion.Pending().Size() > 0)
+    // Design v2 §6.2: the pending-change machine's timeouts, in the map phase, for any
+    // unit a client moves (a player, a possessed creature). A server-driven unit has
+    // nothing pending.
+    if (m_motion.GetMode() == Motion::Mode::ClientDriven && m_motion.Pending().Size() > 0)
     {
         const uint32 now = GameTime::GetGameTimeMS();
         SendEmissions(m_motion.Tick(now));
-        Player* player = (Player*)this;
+        Player* owner = m_moverSession ? m_moverSession->GetPlayer() : NULL;
         if (m_motion.ResyncRequested())
         {
             m_motion.ClearResync();
-            sLog.outError("Movement: player %s (account %u) did not acknowledge a movement change in time; resynced",
-                          player->GetName(), player->GetSession()->GetAccountId());
-            player->ResyncMovement();
+            if (GetTypeId() == TYPEID_PLAYER)
+            {
+                Player* player = (Player*)this;
+                sLog.outError("Movement: player %s (account %u) did not acknowledge a movement change in time; resynced",
+                              player->GetName(), player->GetSession()->GetAccountId());
+                player->ResyncMovement();
+            }
+            else
+            {
+                // A creature has no near teleport with an ack to snap the client with:
+                // the tick's reissue is the whole resync.
+                sLog.outError("Movement: %s moved by %s did not acknowledge a movement change in time; reissued",
+                              GetGuidStr().c_str(), owner ? owner->GetName() : "no session");
+            }
         }
         if (m_motion.KickRequested())
         {
-            BASIC_LOG("Player %s from account id %u kicked for not acknowledging movement changes", player->GetName(), player->GetSession()->GetAccountId());
-            player->GetSession()->KickPlayer();
             m_motion.ClearKick();
+            if (m_moverSession)
+            {
+                BASIC_LOG("Player %s from account id %u kicked for not acknowledging movement changes of %s",
+                          owner ? owner->GetName() : "?", m_moverSession->GetAccountId(), GetGuidStr().c_str());
+                m_moverSession->KickPlayer();
+            }
         }
     }
 

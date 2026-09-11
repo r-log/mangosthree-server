@@ -1228,9 +1228,8 @@ class WorldSession
     private:
         // private trade methods
         void moveItems(Item* myItems[], Item* hisItems[]);
-        bool VerifyMovementInfo(MovementInfo const& movementInfo, ObjectGuid const& guid) const;
         bool VerifyMovementInfo(MovementInfo const& movementInfo) const;
-        void HandleMoverRelocation(MovementInfo& movementInfo);
+        void HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo);
         /// The caller passes the matching pair of members for one outcome; this bumps
         /// the session's plain counter and the process-wide atomic one together. The
         /// total is bumped through an atomic: several maps run on worker threads at
