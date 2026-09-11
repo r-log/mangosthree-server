@@ -73,6 +73,7 @@ set(SRC_GRP_TESTS
     TimeBaseTest.cpp
     MotionWritersTest.cpp
     MotionStateTest.cpp
+    MotionAuthorityTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/AckEngine.cpp
