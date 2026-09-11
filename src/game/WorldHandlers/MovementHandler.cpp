@@ -637,7 +637,9 @@ void WorldSession::HandleSetActiveMoverOpcode(WorldPacket& recv_data)
     {
         if (Unit* mover = ObjectLookup::GetUnit(*GetPlayer(), guid))
         {
-            _player->SetMover(mover);
+            // CMSG_SET_ACTIVE_MOVER selects a member of this session's allowed-mover
+            // set (Authority.h); Player::SetMover is gone with P2-D.
+            Movers().Select(mover->GetObjectGuid().GetRawValue());
         }
     }
 }

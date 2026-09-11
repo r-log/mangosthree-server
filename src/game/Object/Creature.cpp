@@ -63,6 +63,8 @@
 #include "movement/MoveSpline.h"
 #include "CreatureLinkingMgr.h"
 #include "DisableMgr.h"
+#include "GameTime.h"
+#include "WorldSession.h"
 
 // apply implementation of the singletons
 #include "Policies/Singleton.h"
@@ -302,6 +304,13 @@ void Creature::AddToWorld()
  */
 void Creature::RemoveFromWorld()
 {
+    // A possessed creature leaving the world leaves its possessor's set, with no
+    // packet: the charm code sends its own when it runs, and this is the net under it.
+    if (m_moverSession)
+    {
+        m_moverSession->RevokeMover(this, GameTime::GetGameTimeMS());
+    }
+
     if (IsInWorld() && GetMap())
     {
         if (TransportMap* hull = GetMap()->AsTransport())

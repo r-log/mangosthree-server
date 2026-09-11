@@ -189,7 +189,7 @@ Unit::Unit() :
     m_vehicleInfo(NULL),
     m_ThreatManager(this),
     m_HostileRefManager(this),
-    m_motion(Motion::Mode::ServerDriven, MotionPolicy(), Motion::Kinematics()), m_motionDropped(0)
+    m_motion(Motion::Mode::ServerDriven, MotionPolicy(), Motion::Kinematics()), m_motionDropped(0), m_moverSession(NULL)
 {
     m_objectType |= TYPEMASK_UNIT;
     m_objectTypeId = TYPEID_UNIT;
@@ -319,14 +319,14 @@ void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
         switch (e.kind)
         {
             case Motion::EmissionKind::Mover:
-                // To the session that owns this unit's movement: the unit itself when it
-                // is a player. A controlled creature's owner arrives with P2-D.
-                if (GetTypeId() != TYPEID_PLAYER || !Motion::BuildMover(data, guid, e.counter, e.change))
+                // To the session whose client moves this unit: a player's own, a
+                // possessed creature's possessor. None: dropped and counted.
+                if (!m_moverSession || !Motion::BuildMover(data, guid, e.counter, e.change))
                 {
                     ++m_motionDropped;
                     continue;
                 }
-                ((Player*)this)->GetSession()->SendPacket(&data);
+                m_moverSession->SendPacket(&data);
                 break;
             case Motion::EmissionKind::Spline:
                 if (!Motion::BuildSpline(data, guid, e.change))
@@ -342,9 +342,11 @@ void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
                     ++m_motionDropped;
                     continue;
                 }
-                if (GetTypeId() == TYPEID_PLAYER)
+                // Everyone but the client that acked it (CPP's SendSpeedChangeToObservers
+                // skips the controller the same way).
+                if (m_moverSession && m_moverSession->GetPlayer())
                 {
-                    SendMessageToSetExcept(&data, (Player const*)this);
+                    SendMessageToSetExcept(&data, m_moverSession->GetPlayer());
                 }
                 else
                 {
@@ -357,6 +359,13 @@ void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
 
 Unit::~Unit()
 {
+    // A session that still names this unit as one it moves would dangle; every path
+    // that removes a unit revokes it first (Creature::RemoveFromWorld, LogoutPlayer).
+    if (m_moverSession)
+    {
+        sLog.outError("Unit::~Unit: %s still had a mover session", GetGuidStr().c_str());
+    }
+
     // set current spells as deletable
     for (uint32 i = 0; i < CURRENT_MAX_SPELL; ++i)
     {
@@ -7027,7 +7036,6 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
     {
         player->GetCamera().SetView(pCreature);                         // modify camera view to the creature view
         player->SetClientControl(pCreature, 1);                         // transfer client control to the creature
-        player->SetMover(pCreature);                                    // set mover so now we know that creature is "moved" by this unit
         player->SendForcedObjectUpdate();                               // we have to update client data here to avoid problem with the "release spirit" windows reappear.
     }
 
@@ -7087,7 +7095,6 @@ bool Unit::TakePossessOf(Unit* possessed)
     {
         player->GetCamera().SetView(possessed);
         player->SetClientControl(possessed, 1);
-        player->SetMover(possessed);
         player->SendForcedObjectUpdate();
 
         if (possessedCreature && possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())
@@ -7137,7 +7144,6 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
         {
             player->GetCamera().ResetView();
             player->SetClientControl(player, 1);
-            player->SetMover(NULL);
         }
         return;
     }
@@ -7151,9 +7157,11 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
 
     if (player)
     {
+        // The unit's revoke, the camera, then the player's own grant: today's release
+        // sent only the first and left the client to recover on its own.
         player->SetClientControl(possessed, 0);
-        player->SetMover(NULL);
         player->GetCamera().ResetView();
+        player->SetClientControl(player, 1);
 
         if (possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())
         {
