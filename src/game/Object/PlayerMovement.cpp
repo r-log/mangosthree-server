@@ -98,9 +98,10 @@ void Player::SetWaterWalk(bool enable)
 }
 
 /**
- * @brief Placeholder for levitation support on this client version.
+ * @brief Levitates (gravity off) or lands the player through the kernel: the
+ * gravity-disable/enable mover form and, on the ack, the observers' update.
  *
- * @param enable Unused levitation state flag.
+ * @param enable true to levitate.
  */
 void Player::SetLevitate(bool enable)
 {

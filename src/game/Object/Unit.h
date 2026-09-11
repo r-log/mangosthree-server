@@ -4028,7 +4028,8 @@ class Unit : public WorldObject
         /// owner, built from this unit's stored status. Nothing is sent while the unit
         /// is out of the world; the desired state has already advanced.
         void SendEmissions(std::vector<Motion::Emission> const& emissions);
-        /// Emissions no packet could be built or sent for.
+        /// Emissions no packet could be built for, or a mover form on a unit without a
+        /// session (a controlled creature before P2-D).
         uint32 GetMotionDropped() const { return m_motionDropped; }
 
         // Movement info

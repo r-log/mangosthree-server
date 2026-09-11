@@ -655,20 +655,21 @@ class WorldSession
         /// Every movement ack this session sent, by what the kernel made of it (design
         /// v2 §6.2, §10.1): seen; matched; the payload disagreed (and the change was
         /// resent once); a tombstone (silent); stale or unknown; a counter never issued;
-        /// the wrong mover's guid; matched but its status failed validation.
+        /// the wrong mover's guid; matched but its status failed validation; seen while
+        /// the mover was mid-teleport, which skips the relocation and the observer form.
         struct AckCounters
         {
-            uint32 seen, matched, mismatched, resent, tombstone, stale, future, wrongGuid, unverified;
-            AckCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0) {}
+            uint32 seen, matched, mismatched, resent, tombstone, stale, future, wrongGuid, unverified, teleporting;
+            AckCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0), teleporting(0) {}
         };
         AckCounters const& GetAckCounters() const { return m_ackCounters; }
 
-        /// The same nine tallies summed over every session since the server started, for
+        /// The same ten tallies summed over every session since the server started, for
         /// the shutdown report: bumped from every map worker at once, hence atomic.
         struct AckTotalsCounters
         {
-            std::atomic<uint32> seen, matched, mismatched, resent, tombstone, stale, future, wrongGuid, unverified;
-            AckTotalsCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0) {}
+            std::atomic<uint32> seen, matched, mismatched, resent, tombstone, stale, future, wrongGuid, unverified, teleporting;
+            AckTotalsCounters() : seen(0), matched(0), mismatched(0), resent(0), tombstone(0), stale(0), future(0), wrongGuid(0), unverified(0), teleporting(0) {}
         };
         static AckTotalsCounters const& AckTotals();
 
@@ -1200,11 +1201,12 @@ class WorldSession
         bool VerifyMovementInfo(MovementInfo const& movementInfo, ObjectGuid const& guid) const;
         bool VerifyMovementInfo(MovementInfo const& movementInfo) const;
         void HandleMoverRelocation(MovementInfo& movementInfo);
-        /// Bumps both this session's tally and the process-wide total by the same field
-        /// (a pointer-to-member keeps the two from drifting apart). The total is bumped
-        /// through an atomic: several maps run on worker threads at once, so the
-        /// process-wide total is written concurrently from different sessions, while a
-        /// session's own counters stay single-threaded (one session lives on one map).
+        /// The caller passes the matching pair of members for one outcome; this bumps
+        /// the session's plain counter and the process-wide atomic one together. The
+        /// total is bumped through an atomic: several maps run on worker threads at
+        /// once, so the process-wide total is written concurrently from different
+        /// sessions, while a session's own counters stay single-threaded (one session
+        /// lives on one map).
         void CountAck(uint32 AckCounters::*field, std::atomic<uint32> AckTotalsCounters::*total);
 
         void ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* packet);

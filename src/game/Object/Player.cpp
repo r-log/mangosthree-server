@@ -4632,7 +4632,6 @@ void Player::SendInitialPacketsAfterAddToMap()
     UpdateZone(newzone, newarea);                           // also call SendInitWorldStates();
 
     ResetTimeSync();
-    StartMovementEpoch();
     SendTimeSync();
 
     // client gates its whole raid UI on this arriving
@@ -4657,6 +4656,13 @@ void Player::SendInitialPacketsAfterAddToMap()
             auraList.front()->ApplyModifier(true, true);
         }
     }
+
+    // After the aura re-application above, not before it: fear, transform, safe fall's
+    // special case and the mounted flight-speed extras above are outside the kernel's
+    // state and still need their own resend, but water walk/feather fall/hover/fly are
+    // inside it, so the epoch's snapshot below already carries whatever the loop just
+    // changed instead of a second, superseding entry for the same flag.
+    StartMovementEpoch();
 
     SendAurasForTarget(this);
     SendEnchantmentDurations();                             // must be after add to map
@@ -6190,7 +6196,13 @@ void Player::StartMovementEpoch()
 
 void Player::ResyncMovement()
 {
-    TeleportTo(GetMapId(), Where().X(), Where().Y(), Where().Z(), Where().Facing());
+    // A player on a transport takes the far-teleport branch of TeleportTo, a worldport
+    // for a missed ack; the tick's reissue is enough there, the snap waits.
+    if (GetTransport())
+    {
+        return;
+    }
+    TeleportTo(GetMapId(), Where().X(), Where().Y(), Where().Z(), Where().Facing(), TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
 }
 
 void Player::SendTimeSync()

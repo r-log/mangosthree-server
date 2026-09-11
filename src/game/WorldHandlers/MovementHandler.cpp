@@ -522,11 +522,6 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
     const uint16 opcode = recv_data.GetOpcode();
     Unit* mover = _player->GetMover();
     Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL;
-    if (plMover && plMover->IsBeingTeleported())
-    {
-        recv_data.rpos(recv_data.wpos());                   // prevent warnings spam
-        return;
-    }
 
     MovementInfo movementInfo;
     recv_data >> movementInfo;
@@ -588,6 +583,17 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
         case Motion::AckResult::Future:
             CountAck(&AckCounters::future, &AckTotalsCounters::future);
             break;
+    }
+
+    if (plMover && plMover->IsBeingTeleported())
+    {
+        // The client is answering the resync's reissued mover forms while a near or far
+        // teleport is already in flight; the row above matched (or didn't) like any other
+        // ack, but the position it describes is one the teleport is about to replace, so
+        // no relocation and no observer form here -- the next relay after the teleport
+        // tells the observers instead.
+        CountAck(&AckCounters::teleporting, &AckTotalsCounters::teleporting);
+        return;
     }
 
     if (mover->MotionState().LastAck() == Motion::AckResult::Matched)

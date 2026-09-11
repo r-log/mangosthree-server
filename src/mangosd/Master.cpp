@@ -356,9 +356,9 @@ void Master::ShutdownWorld()
         WorldSession::AckTotalsCounters const& acks = WorldSession::AckTotals();
         if (acks.seen.load())
         {
-            sLog.outString("acks: seen %u, matched %u, mismatched %u, resent %u, tombstone %u, stale %u, future %u, wrong guid %u, unverified %u",
+            sLog.outString("acks: seen %u, matched %u, mismatched %u, resent %u, tombstone %u, stale %u, future %u, wrong guid %u, unverified %u, teleporting %u",
                            acks.seen.load(), acks.matched.load(), acks.mismatched.load(), acks.resent.load(),
-                           acks.tombstone.load(), acks.stale.load(), acks.future.load(), acks.wrongGuid.load(), acks.unverified.load());
+                           acks.tombstone.load(), acks.stale.load(), acks.future.load(), acks.wrongGuid.load(), acks.unverified.load(), acks.teleporting.load());
         }
     }
 

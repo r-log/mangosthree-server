@@ -168,9 +168,9 @@ bool ChatHandler::HandlePInfoCommand(char* args)
             snprintf(one, sizeof(one), "%s%s#%u %u ms", i ? ", " : "", Motion::ChangeName(entries[i].type), entries[i].counter, now - entries[i].sentAt);
             pending += one;
         }
-        PSendSysMessage("Acks: seen %u, matched %u, mismatched %u, resent %u, tombstone %u, stale %u, future %u, wrong guid %u, unverified %u; pending: %s; last %s",
-                        acks.seen, acks.matched, acks.mismatched, acks.resent, acks.tombstone, acks.stale, acks.future, acks.wrongGuid, acks.unverified,
-                        pending.empty() ? "none" : pending.c_str(), Motion::AckResultName(target->MotionState().LastAck()));
+        PSendSysMessage("Acks: seen %u, matched %u, mismatched %u, resent %u, tombstone %u, stale %u, future %u, wrong guid %u, unverified %u, teleporting %u; pending: %s; last %s; dropped emissions %u",
+                        acks.seen, acks.matched, acks.mismatched, acks.resent, acks.tombstone, acks.stale, acks.future, acks.wrongGuid, acks.unverified, acks.teleporting,
+                        pending.empty() ? "none" : pending.c_str(), Motion::AckResultName(target->MotionState().LastAck()), target->GetMotionDropped());
     }
 
     std::string timeStr = secsToTimeString(total_player_time, TimeFormat::ShortText, true);

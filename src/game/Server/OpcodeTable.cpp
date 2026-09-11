@@ -868,7 +868,7 @@ void InitializeOpcodes()
     //OPCODE(SMSG_FORCE_SWIM_BACK_SPEED_CHANGE,            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK,        STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMovementAck               );
     //OPCODE(SMSG_FORCE_TURN_RATE_CHANGE,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    //OPCODE(CMSG_FORCE_TURN_RATE_CHANGE_ACK,              STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleForceSpeedChangeAckOpcodes);
+    //OPCODE(CMSG_FORCE_TURN_RATE_CHANGE_ACK,              STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMovementAck               );
     OPCODE(CMSG_PVP_LOG_DATA,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePVPLogDataOpcode          );
     OPCODE(SMSG_PVP_LOG_DATA,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_LEAVE_BATTLEFIELD,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLeaveBattlefieldOpcode    );

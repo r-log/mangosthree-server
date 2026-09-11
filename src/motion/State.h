@@ -101,6 +101,7 @@ namespace Motion
         std::vector<Emission> Tick(uint32 now);
         void NewEpoch(uint32 now);
         bool KickRequested() const { return m_kick; }
+        void ClearKick() { m_kick = false; }     ///< Call once the kick has been acted on, so the next tick's still-pending entries do not kick and log again.
         /// True after Tick() reported a resync (design v2 §6.2): every pending entry was
         /// just reissued; the caller snaps the client to where the server has it (a near
         /// teleport) and calls ClearResync() once it has.

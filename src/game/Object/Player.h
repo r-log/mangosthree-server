@@ -1296,7 +1296,9 @@ class Player : public Unit
         void StartMovementEpoch();
         /// The kernel asked for a resync (a pending change spent its resends under
         /// Movement.AckTimeout): snap the client to where the server has the player,
-        /// through the near-teleport path, so the reissued changes land on a known state.
+        /// through the near-teleport path, so the reissued changes land on a known state,
+        /// keeping combat and the pet; a player on a transport waits for the tick's
+        /// reissue instead, since a snap there would worldport them off it.
         void ResyncMovement();
 
         // Send time synchronization

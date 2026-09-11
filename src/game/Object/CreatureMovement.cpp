@@ -33,8 +33,6 @@
 
 #include "Creature.h"
 #include "WaypointMovementGenerator.h"
-#include "WorldPacket.h"
-#include "Opcodes.h"
 #include "GridMap.h"
 #include "GameTime.h"
 

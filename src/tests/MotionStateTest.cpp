@@ -207,6 +207,8 @@ TEST(MotionState_timeouts_reissue_the_mover_packet_and_a_kick_is_reported)
     e = s.Tick(4000);
     CHECK(e.empty());
     CHECK(s.KickRequested());
+    s.ClearKick();
+    CHECK(!s.KickRequested());
     CHECK_EQ(s.Pending().Size(), size_t(0));
     CHECK_EQ(s.Counters().kicks, 1u);
     s.NewEpoch(5000);

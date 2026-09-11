@@ -430,8 +430,10 @@ TEST(GoldenCapture_flip_server_built_lines_fail_only_where_the_legacy_writer_is_
     CHECK_EQ(report.malformed, uint32(0));
     CHECK_EQ(report.unregistered, uint32(0));
     CHECK_EQ(report.exact, report.decoded);
-    // SMSG_MOVE_SET_COLLISION_HGT: the legacy writer still emits the WotLK
-    // shape until P2-C; one at each of the session's four taxi landings.
+    // SMSG_MOVE_SET_COLLISION_HGT: the recorded golden carries the WotLK-shaped
+    // collision packets the legacy writer sent when it was captured; P2-C's
+    // writer sends the 4.3.4 shape, which the flip's golden (Task 8) will carry.
+    // One at each of the session's four taxi landings.
     CHECK_EQ(report.failed, uint32(4));
     CHECK_EQ(report.byOpcode.at(SMSG_MOVE_SET_COLLISION_HGT).failed, uint32(4));
     CHECK_EQ(report.byOpcode.at(SMSG_MOVE_SET_COLLISION_HGT).decoded, uint32(0));

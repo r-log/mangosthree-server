@@ -131,13 +131,11 @@ TEST(MotionMatrix_flag_value_and_event_rows_follow_the_writers_and_handlers)
     // not read from PacketMatrix.cpp: a swapped cell there would pass the test above (it
     // only asks Wire::IsKnown) and would pass this one too if it copied the same table.
     //
-    // mover: this tree's writers -- Unit.cpp BuildForceMoveRootPacket/BuildMoveSetCanFlyPacket/
-    //   BuildMoveWaterWalkPacket/BuildMoveFeatherFallPacket/BuildMoveHoverPacket (:7294-7408),
-    //   Unit::SendCollisionHeightUpdate (:7433), WorldSession::SendKnockBack
-    //   (MovementHandler.cpp:681), Player::SendTeleportPacket (Player.cpp:1625); and, for the
-    //   two rows this tree has no writer for, CPP MovementPacketSender.cpp:196 (gravity: apply
-    //   -> SMSG_MOVE_GRAVITY_DISABLE, unapply -> SMSG_MOVE_GRAVITY_ENABLE -- the tree's own
-    //   BuildMoveLevitatePacket sends the opposite pair, a known-different case) and
+    // mover: transcribed from the legacy writers P2-C deleted (Unit::Build*Packet,
+    //   SendCollisionHeightUpdate, SendKnockBack, SendTeleportPacket of master d4bfd9a64);
+    //   and, for the two rows this tree has no writer for, CPP MovementPacketSender.cpp:196 (gravity: apply
+    //   -> SMSG_MOVE_GRAVITY_DISABLE, unapply -> SMSG_MOVE_GRAVITY_ENABLE -- the legacy writer
+    //   P2-C deleted sent the opposite pair, a known-different case) and
     //   :223 (can-transition).
     // ack: the registry's ack rows, wire/MovementLayouts.inc (MAP(CMSG_..._ACK, ...)).
     // observer: root rebroadcasts as itself (CPP Unit.cpp:11210); the other six flag families
@@ -174,8 +172,8 @@ TEST(MotionMatrix_flag_value_and_event_rows_follow_the_writers_and_handlers)
         { ChangeType::Hover,           true,  SMSG_MOVE_SET_HOVER,      CMSG_MOVE_HOVER_ACK,          SMSG_PLAYER_MOVE,         SMSG_SPLINE_MOVE_SET_HOVER },
         { ChangeType::Hover,           false, SMSG_MOVE_UNSET_HOVER,    CMSG_MOVE_HOVER_ACK,          SMSG_PLAYER_MOVE,         SMSG_SPLINE_MOVE_UNSET_HOVER },
 
-        // The mover cells here are CPP's, not this tree's BuildMoveLevitatePacket, which
-        // sends the opposite pair (a row count apart).
+        // The mover cells here are CPP's, not the legacy writer P2-C deleted, which sent
+        // the opposite pair (a row count apart).
         { ChangeType::GravityDisabled, true,  SMSG_MOVE_GRAVITY_DISABLE, CMSG_MOVE_GRAVITY_DISABLE_ACK, SMSG_PLAYER_MOVE,       SMSG_SPLINE_MOVE_GRAVITY_DISABLE },
         { ChangeType::GravityDisabled, false, SMSG_MOVE_GRAVITY_ENABLE,  CMSG_MOVE_GRAVITY_ENABLE_ACK,  SMSG_PLAYER_MOVE,       SMSG_SPLINE_MOVE_GRAVITY_ENABLE },
 

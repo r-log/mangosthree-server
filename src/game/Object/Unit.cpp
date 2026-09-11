@@ -424,6 +424,7 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
         {
             BASIC_LOG("Player %s from account id %u kicked for not acknowledging movement changes", player->GetName(), player->GetSession()->GetAccountId());
             player->GetSession()->KickPlayer();
+            m_motion.ClearKick();
         }
     }
 
