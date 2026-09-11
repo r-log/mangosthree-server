@@ -52,6 +52,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -431,8 +432,10 @@ int main(int argc, char** argv)
 
     // Reaching the world is not the whole of it: a session dropped during the
     // hold has an error and the world stage both, and reporting that as OK would
-    // hide exactly the failure a long hold exists to catch.
-    const bool ok = result.Reached(loadtest::Stage::InWorld) && result.error.empty();
+    // hide exactly the failure a long hold exists to catch -- unless the kick was
+    // the expectation, when the server closing the socket is the run's proper end.
+    const bool kickExpected = std::find(config.script.expect.begin(), config.script.expect.end(), "kick") != config.script.expect.end();
+    const bool ok = result.Reached(loadtest::Stage::InWorld) && (result.error.empty() || (kickExpected && result.peer.kicked));
 
     std::printf("\n%s: %s\n", ok ? "OK" : "FAILED", loadtest::StageName(result.stage));
     if (!result.error.empty())

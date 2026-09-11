@@ -552,6 +552,15 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
         payload.value = movementInfo.GetExtraFloat();
     }
 
+    // Design v2 §10.1: the semantic rung comes before the kernel. A status that fails
+    // it consumes nothing -- the entry stays pending for the timeout policy or the next
+    // change of its type -- and is counted as unverified.
+    if (!VerifyMovementInfo(movementInfo))
+    {
+        CountAck(&AckCounters::unverified, &AckTotalsCounters::unverified);
+        return;
+    }
+
     const uint32 now = GameTime::GetGameTimeMS();
     std::vector<Motion::Emission> emissions = mover->MotionState().Ack(row->type, movementInfo.GetCounter(), payload, now);
     switch (mover->MotionState().LastAck())
@@ -587,28 +596,18 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
 
     if (plMover && plMover->IsBeingTeleported())
     {
-        // The client is answering the resync's reissued mover forms while a near or far
-        // teleport is already in flight; the row above matched (or didn't) like any other
-        // ack, but the position it describes is one the teleport is about to replace, so
-        // no relocation and no observer form here -- the next relay after the teleport
-        // tells the observers instead.
+        // The client is answering while a near or far teleport is in flight (the resync's
+        // reissue, or a change acked inside a teleport's window). The kernel took the ack
+        // like any other and the emissions go out -- an observer form's position is one
+        // the teleport update corrects a moment later, its speed or flag is not lost --
+        // but the status is not stored: the teleport lands the player, not this packet.
         CountAck(&AckCounters::teleporting, &AckTotalsCounters::teleporting);
-        return;
     }
-
-    if (mover->MotionState().LastAck() == Motion::AckResult::Matched)
+    else if (mover->MotionState().LastAck() == Motion::AckResult::Matched)
     {
-        // The ack's status is the mover's status now, validated like any other; the
-        // observer form is built from it once it is stored.
-        if (VerifyMovementInfo(movementInfo))
-        {
-            HandleMoverRelocation(movementInfo);
-        }
-        else
-        {
-            CountAck(&AckCounters::unverified, &AckTotalsCounters::unverified);
-            return;
-        }
+        // The ack's status is the mover's status now; the observer form is built from
+        // it once it is stored.
+        HandleMoverRelocation(movementInfo);
     }
     mover->SendEmissions(emissions);
 }
