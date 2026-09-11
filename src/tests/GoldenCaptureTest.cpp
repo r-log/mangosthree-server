@@ -484,3 +484,91 @@ TEST(GoldenCapture_the_acks_yield_the_counter_and_payload_the_handler_matches_on
     CHECK(Motion::RowForAck(CMSG_MOVE_KNOCK_BACK_ACK)->type == Motion::ChangeType::KnockBack);
     CHECK(s.fall.present);   // a knock-back ack carries the fall the client is in
 }
+
+// The change pipeline's client session (P2-C, branch feat/movement-change-pipeline):
+// the login snapshot's seven speed sets and their acks -- the walk, run-back,
+// swim-back and flight-back acks among them, which no server in this tree had asked
+// a client for before -- the forced speed change and its acks, and the mount and
+// dismount with the collision-height sets the kernel writes in the 4.3.4 shape and
+// their acks. Every line, client- and server-built, replays whole and exact: the
+// collision-height writer is no longer a known failure.
+TEST(GoldenCapture_pipeline_client_built_lines_replay_clean)
+{
+    loadtest::ReplayReport report;
+    ReplayGoldenByDirection("client-15595-pipeline.log", 'C', report);
+    CHECK(report.lines >= 30);
+    CHECK_EQ(report.malformed, uint32(0));
+    CHECK_EQ(report.failed, uint32(0));
+    CHECK_EQ(report.unregistered, uint32(0));
+    CHECK_EQ(report.exact, report.decoded);
+    CHECK(report.Clean());
+    CHECK_EQ(report.embedded, uint32(0));
+    // The seven speed acks of the login snapshot, each at least once; the four the
+    // legacy never elicited exactly once (nothing else in the session changed them).
+    static const uint16 kOnce[] =
+    {
+        CMSG_FORCE_WALK_SPEED_CHANGE_ACK, CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK,
+        CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK, CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK,
+    };
+    for (uint16 op : kOnce)
+    {
+        CHECK(report.byOpcode.count(op) == 1);
+        if (report.byOpcode.count(op) == 1)
+        {
+            CHECK_EQ(report.byOpcode.at(op).lines, uint32(1));
+            CHECK_EQ(report.byOpcode.at(op).exact, uint32(1));
+        }
+    }
+    static const uint16 kRequired[] =
+    {
+        CMSG_FORCE_RUN_SPEED_CHANGE_ACK, CMSG_FORCE_SWIM_SPEED_CHANGE_ACK, CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK,
+        CMSG_MOVE_SET_COLLISION_HGT_ACK,
+    };
+    for (uint16 op : kRequired)
+    {
+        CHECK(report.byOpcode.count(op) == 1);
+        if (report.byOpcode.count(op) == 1)
+        {
+            CHECK(report.byOpcode.at(op).exact >= 1);
+        }
+    }
+    // The mount and the dismount: two collision-height acks.
+    CHECK_EQ(report.byOpcode.at(CMSG_MOVE_SET_COLLISION_HGT_ACK).exact, uint32(2));
+}
+
+TEST(GoldenCapture_pipeline_server_built_lines_replay_clean)
+{
+    loadtest::ReplayReport report;
+    ReplayGoldenByDirection("client-15595-pipeline.log", 'S', report);
+    CHECK(report.lines >= 50);
+    CHECK_EQ(report.malformed, uint32(0));
+    CHECK_EQ(report.failed, uint32(0));
+    CHECK_EQ(report.unregistered, uint32(0));
+    CHECK_EQ(report.exact, report.decoded);
+    CHECK(report.Clean());
+    // The two collision-height sets in the 4.3.4 shape, the seven login speed sets
+    // (run at least three times: the snapshot and the forced change and back).
+    CHECK(report.byOpcode.count(SMSG_MOVE_SET_COLLISION_HGT) == 1);
+    if (report.byOpcode.count(SMSG_MOVE_SET_COLLISION_HGT) == 1)
+    {
+        CHECK_EQ(report.byOpcode.at(SMSG_MOVE_SET_COLLISION_HGT).exact, uint32(2));
+    }
+    CHECK(report.byOpcode.count(SMSG_MOVE_SET_RUN_SPEED) == 1);
+    if (report.byOpcode.count(SMSG_MOVE_SET_RUN_SPEED) == 1)
+    {
+        CHECK(report.byOpcode.at(SMSG_MOVE_SET_RUN_SPEED).exact >= 3);
+    }
+    static const uint16 kSets[] =
+    {
+        SMSG_MOVE_SET_WALK_SPEED, SMSG_MOVE_SET_RUN_BACK_SPEED, SMSG_MOVE_SET_SWIM_SPEED,
+        SMSG_MOVE_SET_SWIM_BACK_SPEED, SMSG_MOVE_SET_FLIGHT_SPEED, SMSG_MOVE_SET_FLIGHT_BACK_SPEED,
+    };
+    for (uint16 op : kSets)
+    {
+        CHECK(report.byOpcode.count(op) == 1);
+        if (report.byOpcode.count(op) == 1)
+        {
+            CHECK(report.byOpcode.at(op).exact >= 1);
+        }
+    }
+}
