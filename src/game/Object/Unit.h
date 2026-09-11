@@ -4023,8 +4023,11 @@ class Unit : public WorldObject
         /// confirmed kinematics and the pending changes. Client-driven while a session
         /// moves it (MoverSession()), server-driven otherwise; the mode and the session
         /// flip together through WorldSession::GrantMover / RevokeMover.
-        Motion::State&       MotionState()       { return m_motion; }
+        Motion::State&       MotionState()       { AssertMotionOwner(); return m_motion; }
         Motion::State const& MotionState() const { return m_motion; }
+        /// Design v2 §10.4: a unit's kernel is touched only outside the map phase or
+        /// by the worker updating its map. Counts a violation (asserts under MANGOS_DEBUG).
+        void AssertMotionOwner() const;
         /// The session whose client moves this unit: a player's own from its login
         /// grant, a possessor's for a possessed creature, NULL for a server-driven unit.
         WorldSession* MoverSession() const { return m_moverSession; }

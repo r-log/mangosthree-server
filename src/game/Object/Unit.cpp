@@ -57,6 +57,7 @@
 #include "InstanceData.h"
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "MapPersistentStateMgr.h"
+#include "MapPhase.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "MovementGenerator.h"
@@ -305,8 +306,21 @@ Motion::Kinematics Unit::InitialKinematics() const
     return k;
 }
 
+void Unit::AssertMotionOwner() const
+{
+    if (!IsInWorld() || MapPhase::Owns(GetMap()))
+    {
+        return;
+    }
+    MapPhase::Violation(GetGuidStr().c_str());
+#ifdef MANGOS_DEBUG
+    MANGOS_ASSERT(false && "movement kernel touched from outside its map's update");
+#endif
+}
+
 void Unit::SendEmissions(std::vector<Motion::Emission> const& emissions)
 {
+    AssertMotionOwner();
     if (!IsInWorld())
     {
         return;

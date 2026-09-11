@@ -31,6 +31,7 @@
 #include "MapUpdater.h"
 
 #include "Map.h"
+#include "MapPhase.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include <mutex>
@@ -167,7 +168,9 @@ void MapUpdater::workerLoop()
             m_tasks.pop();
         }
 
+        MapPhase::Enter(task.first);
         task.first->Update(task.second);
+        MapPhase::Leave();
 
         {
             std::lock_guard<std::mutex> guard(m_mutex);
