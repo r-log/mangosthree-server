@@ -60,6 +60,10 @@ namespace Harness
         // the call order here does not matter. Tasks 3-5 add their Register calls.
         RegisterJumpScenarios(*this);
         RegisterPointScenarios(*this);
+        RegisterHomeScenarios(*this);
+        RegisterFollowScenarios(*this);
+        RegisterFleeScenarios(*this);
+        RegisterWanderScenarios(*this);
     }
 
     Runner::~Runner()
