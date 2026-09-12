@@ -38,6 +38,57 @@ namespace
     int L(Layer layer) { return static_cast<int>(layer); }
     int P(Policy policy) { return static_cast<int>(policy); }
     int K(Kind kind) { return static_cast<int>(kind); }
+
+    MoveRequest Req(Kind kind, uint32 id = 0, bool resumeCombat = false)
+    {
+        MoveRequest r;
+        r.kind = kind;
+        r.id = id;
+        r.resumeCombat = resumeCombat;
+        return r;
+    }
+
+    MoveRequest Claim(Kind kind, uint64 claim, uint32 id = 0)
+    {
+        MoveRequest r;
+        r.kind = kind;
+        r.id = id;
+        r.claim = claim;
+        return r;
+    }
+
+    int SelectedKind(Arbiter const& m)
+    {
+        std::optional<Held> sel = m.Selected();
+        return sel ? K(sel->kind) : -1;
+    }
+
+    int CountEvents(std::vector<Event> const& events, Event::Kind kind, Kind who)
+    {
+        int n = 0;
+        for (Event const& e : events)
+        {
+            if (e.kind == kind && e.who == who)
+            {
+                ++n;
+            }
+        }
+        return n;
+    }
+
+    bool HasFinished(std::vector<Event> const& events, Kind who, uint32 id, FinishReason reason)
+    {
+        for (Event const& e : events)
+        {
+            if (e.kind == Event::Kind::Finished && e.who == who && e.id == id && e.reason == reason)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int Size(Arbiter const& m) { return static_cast<int>(m.Contents().size()); }
 }
 
 TEST(MotionArbiter_Contract_LayerTable)
@@ -104,4 +155,409 @@ TEST(MotionArbiter_Contract_Names)
     CHECK_STR(LayerName(Layer::Count), "?");
     CHECK_STR(ReasonName(FinishReason::Arrived), "Arrived");
     CHECK_STR(ReasonName(FinishReason::Died), "Died");
+}
+
+TEST(MotionArbiter_EmptyThenFactoryDefault)
+{
+    Arbiter m;
+    CHECK(m.Empty());
+    CHECK_EQ(SelectedKind(m), -1);
+    m.InstallDefault(Kind::Wander);
+    CHECK(!m.Empty());
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));
+    CHECK_EQ(Size(m), 1);
+}
+
+TEST(MotionArbiter_ChaseAboveDefault_AndUpdatesInPlace)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    CHECK_EQ(SelectedKind(m), K(Kind::Chase));
+    const uint32 firstSeq = m.Combat()->seq;
+    m.Request(Req(Kind::Chase));                                      // D6: update, no second chase
+    CHECK_EQ(Size(m), 2);
+    CHECK(m.Combat()->seq != firstSeq);
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Suspended, Kind::Wander), 1);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 0);
+}
+
+TEST(MotionArbiter_PointOverridesCombat_DefaultResumesAfter)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Patrol);
+    m.Request(Req(Kind::Chase));
+    m.Request(Req(Kind::Point, 7));
+    CHECK_EQ(SelectedKind(m), K(Kind::Point));
+    CHECK(!m.Combat());                                               // D2: combat cancelled
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 1);
+    m.ExpireSelected();                                               // the point arrives
+    CHECK_EQ(SelectedKind(m), K(Kind::Patrol));
+    ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Point), 1);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Resumed, Kind::Patrol), 1);
+}
+
+TEST(MotionArbiter_PointWithResumeCombatSuspends)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Patrol);
+    m.Request(Req(Kind::Chase));
+    m.Request(Req(Kind::Point, 7, true));
+    CHECK(m.Combat());
+    m.ExpireSelected();
+    CHECK_EQ(SelectedKind(m), K(Kind::Chase));
+}
+
+TEST(MotionArbiter_PointSupersedesPoint)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Point, 1));
+    m.Request(Req(Kind::Point, 2));
+    CHECK_EQ(Size(m), 2);                                             // default + one point
+    CHECK_EQ(static_cast<int>(m.Command(Layer::Scripted)->id), 2);
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Point, 1, FinishReason::Superseded));
+}
+
+TEST(MotionArbiter_FearSuspendsPoint_PointResumes)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Point, 3));
+    m.Request(Claim(Kind::Fear, 1));
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));
+    CHECK(m.Command(Layer::Scripted));                                // still held, masked
+    m.CancelControl(Kind::Fear);                                      // D3: by identity
+    CHECK_EQ(SelectedKind(m), K(Kind::Point));
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Resumed, Kind::Point), 1);
+}
+
+TEST(MotionArbiter_PointUnderFearWaits)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 1));
+    m.Request(Req(Kind::Point, 4));
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));                         // D1: layer order, not push order
+    CHECK(m.Command(Layer::Scripted));
+}
+
+TEST(MotionArbiter_EffectKeepsCombat_EffectSupersedesEffect)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    m.Request(Req(Kind::Effect, 10));
+    CHECK(m.Combat());
+    m.Request(Req(Kind::Effect, 11));                                 // knockback during a knockback
+    CHECK(m.Combat());
+    CHECK_EQ(static_cast<int>(m.Command(Layer::Forced)->id), 11);
+    m.ExpireSelected();                                               // lands
+    CHECK_EQ(SelectedKind(m), K(Kind::Chase));
+}
+
+TEST(MotionArbiter_SelfExpiringCancelledByAnyRequest)
+{
+    // MotionMaster::Mutate expires a HOME/DISTRACT/EFFECT top before pushing.
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Home));
+    m.Request(Req(Kind::Chase));                                      // aggro on the way home
+    CHECK(!m.Command(Layer::Scripted));
+    CHECK_EQ(SelectedKind(m), K(Kind::Chase));
+    m.Request(Req(Kind::Distract));
+    m.Request(Req(Kind::Point, 5));
+    CHECK(!m.Command(Layer::Distract));
+    CHECK_EQ(SelectedKind(m), K(Kind::Point));
+}
+
+TEST(MotionArbiter_TaxiCancelsScriptedAndCombat_KeepsControlAndDefault)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Confused, 1));
+    m.Request(Req(Kind::Point, 6));
+    m.Request(Req(Kind::Chase));
+    m.Request(Req(Kind::Taxi));
+    CHECK_EQ(SelectedKind(m), K(Kind::Taxi));
+    CHECK(!m.Command(Layer::Scripted));
+    CHECK(!m.Combat());
+    CHECK(m.Command(Layer::Control));                                 // D8
+    CHECK(m.Default());
+    m.ExpireSelected();                                               // landed
+    CHECK_EQ(SelectedKind(m), K(Kind::Confused));
+}
+
+TEST(MotionArbiter_FollowIsDefault_FallbackOnTargetLost)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Clear(false);                                                   // MoveFollow does Clear() first
+    m.Request(Req(Kind::Follow));
+    CHECK_EQ(SelectedKind(m), K(Kind::Follow));
+    CHECK_EQ(Size(m), 1);
+    m.ExpireSelected();                                               // Follow::Update returns false: target gone
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));                       // retained fallback default
+}
+
+TEST(MotionArbiter_IdleOnNonEmptyIsMaskingCommand)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    m.Clear(false);                                                   // possession: Clear(false) + MoveIdle
+    m.Request(Req(Kind::Idle));
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+    CHECK_EQ(K(m.Default()->kind), K(Kind::Wander));                  // default untouched beneath
+    m.ExpireSelected();                                               // MovementExpired
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));
+}
+
+TEST(MotionArbiter_ClearProjections)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Patrol);
+    m.Request(Req(Kind::Chase));
+    m.Request(Req(Kind::Point, 8));
+    m.Request(Claim(Kind::Fear, 1));
+    m.Clear(false);                                                   // everything but the bottom
+    CHECK_EQ(SelectedKind(m), K(Kind::Patrol));
+    CHECK_EQ(Size(m), 1);
+    m.Clear(true);                                                    // the bottom too
+    CHECK(m.Empty());
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Patrol), 1);
+}
+
+TEST(MotionArbiter_ExpireAtDepthOneIsNoOp)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.ExpireSelected();
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));
+    CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
+}
+
+TEST(MotionArbiter_LowerRequestWhileHigherCommandRuns_NoResumeEvent)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 1));
+    m.DrainEvents();
+    m.Request(Req(Kind::Chase));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(static_cast<int>(ev.size()), 0);                         // stored masked, nothing suspended or resumed
+    CHECK(m.Combat());
+}
+
+TEST(MotionArbiter_IdleOverPointSupersedesIt)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Point, 9));
+    m.DrainEvents();
+    m.Request(Req(Kind::Idle));
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+    CHECK_EQ(K(m.Command(Layer::Scripted)->kind), K(Kind::Idle));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Point, 9, FinishReason::Superseded));
+    m.ExpireSelected();                                               // the idle expires
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));                       // the default, never the stale point
+}
+
+TEST(MotionArbiter_IdleTwiceIsNoOp)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Idle));
+    m.DrainEvents();
+    m.Request(Req(Kind::Idle));
+    CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
+    CHECK_EQ(Size(m), 2);
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+}
+
+TEST(MotionArbiter_ExpireKindFinishesMaskedEntryOnly)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 1));
+    m.Request(Req(Kind::Point, 4));                                   // masked beneath the fear
+    m.DrainEvents();
+    m.Expire(Kind::Point);                                            // the stack's point expired
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));                         // the fear is untouched
+    CHECK(!m.Command(Layer::Scripted));
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Finished, Kind::Point), 1);
+}
+
+TEST(MotionArbiter_ExpireKindNotHeldIsNoOp)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    m.DrainEvents();
+    m.Expire(Kind::Point);                                            // a stale point the model never held
+    CHECK_EQ(SelectedKind(m), K(Kind::Chase));
+    CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
+}
+
+TEST(MotionArbiter_ExpireKindPrefersIdleCommandOverDefault)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Idle));                                       // MoveIdle on a non-empty stack
+    m.Expire(Kind::Idle);
+    CHECK(!m.Command(Layer::Scripted));
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));                         // the default remains
+}
+
+TEST(MotionArbiter_ExpireKindFollowRestoresFallback)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Clear(false);
+    m.Request(Req(Kind::Follow));
+    m.Expire(Kind::Follow);
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));
+}
+
+TEST(MotionArbiter_PushedWanderClearedRevealsFactoryDefault)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Wander));                                     // EventAI change-movement: pushed over the factory default
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));
+    m.Clear(false);                                                   // evade: the stack pops it, the factory default resumes
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+    CHECK_EQ(Size(m), 1);
+}
+
+TEST(MotionArbiter_FollowAfterPushedPatrolKeepsFactoryFallback)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Patrol));
+    m.Clear(false);                                                   // MoveFollow clears first
+    m.Request(Req(Kind::Follow));
+    CHECK_EQ(SelectedKind(m), K(Kind::Follow));
+    m.Expire(Kind::Follow);                                           // target gone
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));                         // the factory default, not the popped waypoint
+}
+
+TEST(MotionArbiter_ExpirePushedDefaultPromotesFallback)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Wander));
+    m.ExpireSelected();                                               // MovementExpired at depth two pops the pushed default
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+    m.ExpireSelected();                                               // and at depth one it is a no-op
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+}
+
+TEST(MotionArbiter_Claims_FearThenConfuse_ConfuseSelected_FearSuspendedNotFinished)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11));
+    m.DrainEvents();
+    m.Request(Claim(Kind::Confused, 22));
+    CHECK_EQ(SelectedKind(m), K(Kind::Confused));
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 2);
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Suspended, Kind::Fear), 1);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Fear), 0);
+}
+
+TEST(MotionArbiter_Claims_ReleaseSelectedConfuse_FearResumes)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Confused, 22));
+    m.DrainEvents();
+    m.Release(22);
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 1);
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Confused, 0, FinishReason::Cancelled));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Resumed, Kind::Fear), 1);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Fear), 0);
+}
+
+TEST(MotionArbiter_Claims_ReleaseUnselectedFear_NoSelectionEvent)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Confused, 22));
+    m.DrainEvents();
+    m.Release(11);
+    CHECK_EQ(SelectedKind(m), K(Kind::Confused));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Fear, 0, FinishReason::Cancelled));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Suspended, Kind::Confused), 0);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Resumed, Kind::Confused), 0);
+}
+
+TEST(MotionArbiter_Claims_SameIdentityUpdatesInPlace)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11, 1));
+    const uint32 firstSeq = m.Claims()[0].seq;
+    m.DrainEvents();
+    m.Request(Claim(Kind::Fear, 11, 2));
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 1);
+    CHECK_EQ(static_cast<int>(m.Claims()[0].id), 2);
+    CHECK(m.Claims()[0].seq != firstSeq);
+    CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
+}
+
+TEST(MotionArbiter_Claims_TaxiMasksAllClaims_ResumeAfterTaxi)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Confused, 22));
+    m.DrainEvents();
+    m.Request(Req(Kind::Taxi));
+    CHECK_EQ(SelectedKind(m), K(Kind::Taxi));
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 2);
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Suspended, Kind::Confused), 1);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Fear), 0);
+    m.ExpireSelected();                                               // landed
+    CHECK_EQ(SelectedKind(m), K(Kind::Confused));
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Resumed, Kind::Confused), 1);
+}
+
+TEST(MotionArbiter_Claims_CancelControlReleasesEveryClaimOfKind)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Fear, 12));
+    m.Request(Claim(Kind::Confused, 22));
+    m.DrainEvents();
+    m.CancelControl(Kind::Fear);
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 1);
+    CHECK_EQ(K(m.Claims()[0].kind), K(Kind::Confused));
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Finished, Kind::Fear), 2);
+    m.CancelControl(Kind::Confused);
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+}
+
+TEST(MotionArbiter_Claims_ZeroClaimIgnored)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Fear));                                       // no identity: ignored
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 0);
+    CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
 }
