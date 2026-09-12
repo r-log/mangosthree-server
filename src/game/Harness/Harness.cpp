@@ -25,6 +25,7 @@
 
 #include "Harness.h"
 #include "Scenario.h"
+#include "HarnessAI.h"
 #include "MapManager.h"
 #include "Map.h"
 #include "Creature.h"
@@ -89,6 +90,11 @@ namespace Harness
         {
             m_queue = m_registry;
             std::sort(m_queue.begin(), m_queue.end(), [](Scenario const* a, Scenario const* b) { return a->Order() < b->Order(); });
+            if (m_queue.empty())
+            {
+                sLog.outString("MVTEST refused: no scenarios registered");
+                return false;
+            }
         }
         else
         {
@@ -116,10 +122,22 @@ namespace Harness
         static bool pathAdded = false;
         if (!pathAdded)
         {
-            sWaypointMgr.AddExternalNode(621, 0, 1, -3122.6f, -261.3f, 46.0f, 100.0f, 0);
-            sWaypointMgr.AddExternalNode(621, 0, 2, -3152.6f, -261.3f, 46.0f, 100.0f, 0);
-            sWaypointMgr.AddExternalNode(621, 0, 3, -3152.6f, -231.3f, 46.0f, 100.0f, 0);
-            sWaypointMgr.AddExternalNode(621, 0, 4, -3122.6f, -231.3f, 46.0f, 100.0f, 0);
+            if (!sWaypointMgr.AddExternalNode(621, 0, 1, -3122.6f, -261.3f, 46.0f, 100.0f, 0))
+            {
+                sLog.outString("MVTEST %s", "ERR external node 1 not added");
+            }
+            if (!sWaypointMgr.AddExternalNode(621, 0, 2, -3152.6f, -261.3f, 46.0f, 100.0f, 0))
+            {
+                sLog.outString("MVTEST %s", "ERR external node 2 not added");
+            }
+            if (!sWaypointMgr.AddExternalNode(621, 0, 3, -3152.6f, -231.3f, 46.0f, 100.0f, 0))
+            {
+                sLog.outString("MVTEST %s", "ERR external node 3 not added");
+            }
+            if (!sWaypointMgr.AddExternalNode(621, 0, 4, -3122.6f, -231.3f, 46.0f, 100.0f, 0))
+            {
+                sLog.outString("MVTEST %s", "ERR external node 4 not added");
+            }
             pathAdded = true;
         }
         sLog.outString("MVTEST start: %u scenario(s) on map %u", uint32(m_queue.size()), kMapId);
@@ -129,6 +147,10 @@ namespace Harness
 
     std::string Runner::Status() const
     {
+        if (m_settle)
+        {
+            return "settling";
+        }
         if (!Running())
         {
             return "idle";
@@ -161,13 +183,23 @@ namespace Harness
             }
         }
         // A Find'd creature (S8's patroller) is the world's own: never despawned,
-        // never written back to the database, only handed back inactive.
-        std::vector<ObjectGuid> const& found = s->Found();
+        // never written back to the database, only handed back whole - its own
+        // factory AI restored in place of the recording decorator, and deactivated
+        // again if Find is what activated it.
+        std::vector<FoundActor> const& found = s->Found();
         for (size_t i = 0; i < found.size(); ++i)
         {
-            if (Creature* c = m_map->GetCreature(found[i]))
+            if (Creature* c = m_map->GetCreature(found[i].guid))
             {
-                c->SetActiveObjectState(false);
+                if (HarnessAI* h = dynamic_cast<HarnessAI*>(c->AI()))
+                {
+                    c->SetAI(h->Release());
+                    delete h;
+                }
+                if (!found[i].wasActive)
+                {
+                    c->SetActiveObjectState(false);
+                }
             }
         }
         ++m_verdicts;
@@ -209,6 +241,10 @@ namespace Harness
         m_sinceTick = 0;
         Scenario* s = m_queue[m_index];
         s->Tick(m_elapsed);
+        if (!s->Finished() && s->Idle())
+        {
+            s->Abandon();
+        }
         if (s->Finished())
         {
             End(s);

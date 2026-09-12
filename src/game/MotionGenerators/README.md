@@ -1,6 +1,6 @@
 # MotionMaster Facade
 
-The facade `MotionMaster` is the movement kernel campaign's shim for the vendored scripts: the entry points below are the whole of what `src/modules/SD3` calls, they keep their meaning through P3's arbiter and P5's deletions, and `src/tests/CheckMotionMasterShim.cmake` fails the build when a script calls anything else.
+The facade `MotionMaster` is the movement kernel campaign's shim for the vendored scripts: the entry points below are the whole of what `src/modules/SD3` calls, they keep their meaning through P3's arbiter and P5's deletions, and `src/tests/CheckMotionMasterShim.cmake` fails `ctest` (which CI runs) when a script calls anything else.
 
 | Entry Point | Count |
 |---|---|

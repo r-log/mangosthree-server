@@ -107,10 +107,10 @@ namespace Harness
         c->SetSpawn(pos);
         // No player stands on the harness map, and Map::Update ticks only the cells
         // around players plus the active objects: without this the actor is in the
-        // world but never updated, so its movement generators never run at all. It
-        // must be set BEFORE the add, which is what puts an active object on the
-        // map's active list (SetActiveObjectState itself only does so for an object
-        // that is already active, so a false->true flip in world adds nothing).
+        // world but never updated, so its movement generators never run at all. The
+        // flag is set before the add because Map::Add is the single registration
+        // point for a new object; setting it afterwards would register through the
+        // setter instead - either works, one is enough.
         c->SetActiveObjectState(true);
         c->Summon(TEMPSPAWN_MANUAL_DESPAWN, 0);   // adds it to the map; despawned by the runner's sweep
         c->SetAI(new HarnessAI(c, c->AI(), this));
@@ -134,9 +134,13 @@ namespace Harness
             }
             // A found creature is the world's own and is not ticked without a player
             // nearby unless it is on the map's active list; the runner hands it back
-            // inactive when the scenario ends (End-of-scenario sweep over Found()).
+            // whole when the scenario ends (its factory AI restored, and deactivated
+            // again if it was Find that activated it) instead of despawning it.
+            FoundActor fa;
+            fa.guid = c->GetObjectGuid();
+            fa.wasActive = c->IsActiveObject();
             c->SetActiveObjectState(true);
-            m_found.push_back(c->GetObjectGuid());
+            m_found.push_back(fa);
         }
         return c;
     }
@@ -175,6 +179,10 @@ namespace Harness
 
     void Scenario::Verdict(std::string const& body)
     {
+        if (m_finished)
+        {
+            return;
+        }
         Out("MVTEST " + VerdictLine(m_name, body));
         m_finished = true;
     }

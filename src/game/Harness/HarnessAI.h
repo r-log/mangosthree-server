@@ -44,6 +44,11 @@ namespace Harness
         HarnessAI(Creature* creature, CreatureAI* wrapped, Scenario* scenario);
         ~HarnessAI() override;
 
+        /// Hands the wrapped AI back to the caller and forgets it: the destructor
+        /// deletes it only while still held. For the runner's end-of-scenario sweep,
+        /// which installs it back on the creature in this decorator's place.
+        CreatureAI* Release();
+
         void MovementInform(uint32 type, uint32 id) override;
         void JustReachedHome() override;
         void JustDied(Unit* killer) override;

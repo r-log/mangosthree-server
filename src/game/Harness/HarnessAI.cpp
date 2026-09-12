@@ -62,6 +62,13 @@ namespace Harness
         delete m_wrapped;
     }
 
+    CreatureAI* HarnessAI::Release()
+    {
+        CreatureAI* wrapped = m_wrapped;
+        m_wrapped = NULL;
+        return wrapped;
+    }
+
     void HarnessAI::MovementInform(uint32 type, uint32 id)
     {
         Record(m_scenario, m_creature, type, id);

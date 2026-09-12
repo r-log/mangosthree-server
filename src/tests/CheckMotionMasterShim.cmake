@@ -4,6 +4,9 @@
 # starts calling anything else widens the promise, and this gate says so.
 #
 # Usage: cmake -DSOURCE_ROOT=<repo root> -P CheckMotionMasterShim.cmake
+# Limitation: the regex below sees only literal "GetMotionMaster()->X" call sites;
+# a script that hoists the pointer first (MotionMaster* mm = c->GetMotionMaster();)
+# would escape it. None does today.
 set(ALLOWED
     MovePoint Clear MoveIdle MoveChase MoveFollow MoveTargetedHome MoveWaypoint
     GetCurrentMovementGeneratorType MoveRandomAroundPoint MovementExpired MoveJump

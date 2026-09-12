@@ -49,6 +49,14 @@ namespace Harness
         uint32 guidLow;
     };
 
+    /// One creature Find resolved: its guid, and whether the world already had it
+    /// active before Find set the flag (so the runner's sweep restores it exactly).
+    struct FoundActor
+    {
+        ObjectGuid guid;
+        bool       wasActive;
+    };
+
     /**
      * One headless scenario (design v2 §12): it spawns its actors, drives the
      * MotionMaster facade from a step timeline, samples positions and generator
@@ -68,11 +76,16 @@ namespace Harness
         virtual void Prepare() = 0;
         void Tick(uint32 nowMs) { m_timeline.Advance(nowMs); }
         bool Finished() const { return m_finished; }
+        /// True while the timeline has no pending steps left to run.
+        bool Idle() const { return m_timeline.Idle(); }
+        /// The timeline ran dry without a verdict: reads BROKEN instead of wedging the runner.
+        void Abandon() { Verdict("BROKEN(no verdict: the timeline ran dry)"); }
         /// Every guid Spawn handed out: the runner despawns them at the end.
         std::vector<ObjectGuid> const& Spawned() const { return m_spawned; }
-        /// Every guid Find resolved and activated: the runner deactivates them at the
-        /// end (a Find'd creature is the world's own; it is never despawned).
-        std::vector<ObjectGuid> const& Found() const { return m_found; }
+        /// Every creature Find resolved and activated: the runner hands each back
+        /// whole at the end (a Find'd creature is the world's own; it is never
+        /// despawned).
+        std::vector<FoundActor> const& Found() const { return m_found; }
         std::vector<Inform>& Informs() { return m_informs; }
         void Reset();
 
@@ -105,7 +118,7 @@ namespace Harness
         Timeline                m_timeline;
         bool                    m_finished;
         std::vector<ObjectGuid> m_spawned;
-        std::vector<ObjectGuid> m_found;
+        std::vector<FoundActor> m_found;
         std::vector<Inform>     m_informs;
     };
 }

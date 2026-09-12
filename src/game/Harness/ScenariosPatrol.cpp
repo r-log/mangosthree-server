@@ -170,24 +170,38 @@ namespace Harness
                         Log("+%5ums %.1f %.1f z=%.1f mt=%s lastWP=%u", s.t, px, py, s.z, Harness::TypeName(s.mt), s.node);
                     });
                 }
-                At(41000, [this, samples, z0]()
+                At(41000, [this, samples, z0, g, x, y, z, o]()
                 {
-                    if (samples->empty()) { Verdict("INVALID(no samples)"); return; }
-                    Sample const& f = samples->back();
-                    std::string b7;
-                    if (f.z < z0 - 20.0f)
+                    if (samples->empty())
                     {
-                        char text[96];
-                        snprintf(text, sizeof(text), "OK(walked back down to z=%.1f: a leg was laid after one lap)", f.z);
-                        b7 = text;
+                        Verdict("INVALID(no samples)");
                     }
                     else
                     {
-                        char text[112];
-                        snprintf(text, sizeof(text), "BUG(still hanging at z=%.1f after 40 s: every node skipped as unreachable)", f.z);
-                        b7 = text;
+                        Sample const& f = samples->back();
+                        std::string b7;
+                        if (f.z < z0 - 20.0f)
+                        {
+                            char text[96];
+                            snprintf(text, sizeof(text), "OK(walked back down to z=%.1f: a leg was laid after one lap)", f.z);
+                            b7 = text;
+                        }
+                        else
+                        {
+                            char text[112];
+                            snprintf(text, sizeof(text), "BUG(still hanging at z=%.1f after 40 s: every node skipped as unreachable)", f.z);
+                            b7 = text;
+                        }
+                        Verdict("B7=" + b7 + " | decisive count = MVTRACE dead-node lines");
                     }
-                    Verdict("B7=" + b7 + " | decisive count = MVTRACE dead-node lines");
+                    // Put the Mouse back where it stood before the lift: Find handed
+                    // back a world creature, not a spawn of ours, so the runner's
+                    // sweep restores its AI and active flag but never its position.
+                    if (Creature* m = Get(g))
+                    {
+                        m->NearTeleportTo(x, y, z, o);
+                        Log("restored to %.1f %.1f %.1f", x, y, z);
+                    }
                 });
             }
         };

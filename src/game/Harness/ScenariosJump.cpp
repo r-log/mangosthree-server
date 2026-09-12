@@ -248,7 +248,7 @@ namespace Harness
                 {
                     Creature* a = Get(g);
                     bool fired = false;
-                    Inform lastFired;
+                    Inform lastFired = Inform();
                     for (size_t k = mark; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];

@@ -156,7 +156,7 @@ namespace Harness
                 At(500 + 21 * 5000, [this, low, samples, mark]()
                 {
                     bool haveInform = false;
-                    Inform lastInform;
+                    Inform lastInform = Inform();
                     for (size_t k = mark; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];
