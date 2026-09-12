@@ -73,6 +73,7 @@ set(SRC_GRP_TESTS
     TimeBaseTest.cpp
     MotionWritersTest.cpp
     MotionStateTest.cpp
+    HarnessTest.cpp
     MotionAuthorityTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Walker.cpp
@@ -101,6 +102,7 @@ set(SRC_GRP_TESTS
     ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators/Arbiter/MoveContract.cpp
     ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators/Arbiter/ArbiterModel.cpp
     ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators/Arbiter/ShadowClassifier.cpp
+    ${CMAKE_SOURCE_DIR}/src/game/Harness/Timeline.cpp
     ByteBufferStressTest.cpp
     CodecStressTest.cpp
     CryptoStressTest.cpp
@@ -139,6 +141,7 @@ target_include_directories(mangos_tests
         ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers
         ${CMAKE_SOURCE_DIR}/src/game/Server
         ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators
+        ${CMAKE_SOURCE_DIR}/src/game/Harness
         # The legacy movement layouts (header-only arrays) the wire codec's seed
         # tables are checked against until P1 replaces them with binary goldens.
         ${CMAKE_SOURCE_DIR}/src/game/movement
