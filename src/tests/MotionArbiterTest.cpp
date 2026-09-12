@@ -787,13 +787,22 @@ TEST(MotionArbiter_Death_RequestDuringDeathDiscarded)
         m.Die();
         m.Request(Req(Kind::Chase));                  // a finalizer re-engaging while still alive
         CHECK(m.Combat());
-        m.Request(Req(Kind::Wander));                 // and a default request
+        m.Request(Req(Kind::Follow));                 // and a default request that overrides nothing
         CHECK(m.Default());
     }
     CHECK(m.Empty());
     std::vector<Event> ev = m.DrainEvents();
-    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 2);
-    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Wander), 2);
+    int chaseDied = 0;
+    for (Event const& e : ev)
+    {
+        if (e.kind == Event::Kind::Finished && e.who == Kind::Chase && e.reason == FinishReason::Died)
+        {
+            ++chaseDied;
+        }
+    }
+    CHECK_EQ(chaseDied, 2);                           // once by Die, once by the sweep
+    CHECK(HasFinished(ev, Kind::Follow, 0, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Wander, 0, FinishReason::Died));
 }
 
 TEST(MotionArbiter_Death_TwoDefaultRequestsDuringDeathBothDiscarded)
@@ -812,4 +821,62 @@ TEST(MotionArbiter_Death_TwoDefaultRequestsDuringDeathBothDiscarded)
     std::vector<Event> ev = m.DrainEvents();
     CHECK(HasFinished(ev, Kind::Patrol, 0, FinishReason::Died));
     CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Wander), 2);
+}
+
+TEST(MotionArbiter_Death_NestedInNormalStillDiscards)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.DrainEvents();
+    {
+        Transaction outer(m, TransactionKind::Normal);   // the shell delivering a completion
+        m.Die();                                          // the hook killed the unit
+        CHECK(m.InDiscardingTransaction());
+        m.Request(Req(Kind::Chase));                      // a finalizer re-engaging while still alive
+        CHECK(m.Combat());
+    }
+    CHECK(m.Empty());
+    CHECK(!m.InDiscardingTransaction());
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Chase, 0, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Wander, 0, FinishReason::Died));
+}
+
+TEST(MotionArbiter_Ring_RecordsBeforeAndAfter)
+{
+    Arbiter m;
+    CHECK_EQ(static_cast<int>(m.Decisions().size()), 0);
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Point, 4));
+    std::vector<Decision> d = m.Decisions();
+    REQUIRE(static_cast<int>(d.size()) == 2);
+    CHECK_EQ(static_cast<int>(d[0].op), static_cast<int>(Decision::Op::InstallDefault));
+    CHECK(!d[0].hadBefore);
+    CHECK(d[0].hadAfter);
+    CHECK_EQ(K(d[0].after.kind), K(Kind::Wander));
+    CHECK_EQ(static_cast<int>(d[1].op), static_cast<int>(Decision::Op::Request));
+    CHECK_EQ(K(d[1].kind), K(Kind::Point));
+    CHECK_EQ(static_cast<int>(d[1].id), 4);
+    CHECK(d[1].hadBefore);
+    CHECK_EQ(K(d[1].before.kind), K(Kind::Wander));
+    CHECK_EQ(K(d[1].after.kind), K(Kind::Point));
+    CHECK(d[1].generation > d[0].generation);
+    m.Die();
+    d = m.Decisions();
+    CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Die));
+    CHECK(!d.back().hadAfter);
+}
+
+TEST(MotionArbiter_Ring_WrapsAt32)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    for (uint32 i = 1; i <= 40; ++i)
+    {
+        m.Request(Req(Kind::Point, i));
+    }
+    std::vector<Decision> d = m.Decisions();
+    CHECK_EQ(static_cast<int>(d.size()), static_cast<int>(Arbiter::kRingSize));
+    CHECK_EQ(static_cast<int>(d.front().id), 9);      // 41 entries recorded, the oldest 9 fell out
+    CHECK_EQ(static_cast<int>(d.back().id), 40);
 }

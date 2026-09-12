@@ -91,6 +91,7 @@ namespace Motion
     /// One held entry, wherever it sits.
     struct Held
     {
+        Held() : kind(Kind::Idle), id(0), seq(0), claim(0), generation(0), doomed(false) {}
         Kind   kind;
         uint32 id;         ///< MovementInform id, 0 when none
         uint32 seq;        ///< arrival order; newest wins ties and tells a resume from a fresh start
@@ -137,6 +138,8 @@ namespace Motion
      * ends, entries created inside a discarding kind (Clear, ClearAll, Death)
      * are finished: this is how a request a finalizer issues during a clear or
      * a death is visible while the hook runs and gone when the operation ends.
+     * A nested Death guard escalates the outer one to Death too: nothing a
+     * hook requests after it survives.
      */
     class Transaction
     {
@@ -215,6 +218,11 @@ namespace Motion
             /// Take and clear the accumulated events.
             std::vector<Event> DrainEvents();
 
+            /// Ring capacity: at most this many decisions kept for Decisions().
+            static const size_t kRingSize = 32;
+            /// The decision ring, oldest first: every public mutation with the selection before and after.
+            std::vector<Decision> Decisions() const;
+
         private:
             /// Finish the Default-layer entry and promote the factory default beneath it, if any.
             void PopDefault(FinishReason reason);
@@ -236,6 +244,8 @@ namespace Motion
             Held Stamp(Kind kind, uint32 id, uint64 claim);
             /// The outermost transaction ended: finish what it doomed.
             void Commit();
+            /// Append one line to the decision ring.
+            void Record(Decision::Op op, Kind kind, uint32 id, uint64 claim, std::optional<Held> const& before);
             friend class Transaction;
 
             std::optional<Held> m_default;         ///< the Default-layer entry
@@ -249,6 +259,9 @@ namespace Motion
             uint32 m_generation;                   ///< advanced by each outermost transaction
             uint32 m_depth;                        ///< open transactions
             TransactionKind m_outerKind;           ///< the outermost open one's kind
+            std::array<Decision, kRingSize> m_ring; ///< the decision ring, next write at m_ringNext
+            size_t m_ringNext;                     ///< the next slot to overwrite, wraps at kRingSize
+            size_t m_ringCount;                    ///< entries recorded so far, capped at kRingSize
     };
 }
 

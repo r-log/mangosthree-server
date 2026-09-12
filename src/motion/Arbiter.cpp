@@ -25,6 +25,16 @@
 
 #include "Arbiter.h"
 
+#include <cassert>
+
+/// The seam's own debug assert: the invariants below hold by construction and
+/// cost nothing in Release.
+#ifdef NDEBUG
+#define MOTION_ASSERT(cond) ((void)0)
+#else
+#define MOTION_ASSERT(cond) assert(cond)
+#endif
+
 namespace Motion
 {
     Layer LayerOf(Kind kind)
@@ -138,7 +148,8 @@ namespace Motion
         }
     }
 
-    Arbiter::Arbiter() : m_seq(0), m_generation(0), m_depth(0), m_outerKind(TransactionKind::Normal)
+    Arbiter::Arbiter() : m_seq(0), m_generation(0), m_depth(0), m_outerKind(TransactionKind::Normal),
+        m_ring(), m_ringNext(0), m_ringCount(0)
     {
     }
 
@@ -160,6 +171,10 @@ namespace Motion
         {
             m_arbiter.m_outerKind = kind;
             ++m_arbiter.m_generation;
+        }
+        else if (kind == TransactionKind::Death)
+        {
+            m_arbiter.m_outerKind = TransactionKind::Death;   // absolute: a nested death escalates the outer one
         }
         ++m_arbiter.m_depth;
     }
@@ -187,11 +202,13 @@ namespace Motion
         }
         const std::optional<Held> before = Selected();
         const FinishReason reason = m_outerKind == TransactionKind::Death ? FinishReason::Died : FinishReason::Cleared;
+        bool swept = false;
         for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
         {
             if (m_commands[i] && m_commands[i]->doomed)
             {
                 Finish(m_commands[i], reason);
+                swept = true;
             }
         }
         for (size_t i = m_claims.size(); i-- > 0;)
@@ -199,24 +216,32 @@ namespace Motion
             if (m_claims[i].doomed)
             {
                 FinishClaim(i, reason);
+                swept = true;
             }
         }
         if (m_combat && m_combat->doomed)
         {
             Finish(m_combat, reason);
+            swept = true;
         }
         if (m_outerKind != TransactionKind::Clear)
         {
             while (m_default && m_default->doomed)
             {
                 PopDefault(reason);   // a doomed fallback promoted by the pop is swept by the next turn
+                swept = true;
             }
             if (m_fallbackDefault && m_fallbackDefault->doomed)
             {
                 Finish(m_fallbackDefault, reason);
+                swept = true;
             }
         }
         Reselect(before);
+        if (swept)
+        {
+            Record(Decision::Op::Commit, Kind::Idle, 0, 0, before);
+        }
     }
 
     void Arbiter::Notify(ExternalEvent event)
@@ -232,11 +257,13 @@ namespace Motion
                 break;
         }
         Reselect(before);
+        Record(Decision::Op::Notify, Kind::Idle, 0, 0, before);
     }
 
     void Arbiter::Die()
     {
         Transaction tx(*this, TransactionKind::Death);
+        const std::optional<Held> before = Selected();
         Finish(m_default, FinishReason::Died);
         Finish(m_fallbackDefault, FinishReason::Died);
         Finish(m_combat, FinishReason::Died);
@@ -252,6 +279,7 @@ namespace Motion
             }
             Finish(m_commands[i], FinishReason::Died);
         }
+        Record(Decision::Op::Die, Kind::Idle, 0, 0, before);
     }
 
     void Arbiter::InstallDefault(Kind kind)
@@ -265,17 +293,19 @@ namespace Motion
         m_default = Stamp(kind, 0, 0);
         m_fallbackDefault.reset();
         Reselect(before);
+        Record(Decision::Op::InstallDefault, kind, 0, 0, before);
     }
 
     void Arbiter::Request(MoveRequest const& request)
     {
         Transaction tx(*this, TransactionKind::Normal);
         const Layer layer = LayerOf(request.kind);
+        const std::optional<Held> before = Selected();
         if (layer == Layer::Control && request.claim == 0)
         {
+            Record(Decision::Op::Request, request.kind, request.id, request.claim, before);
             return;   // a control without an identity cannot be released: refused
         }
-        const std::optional<Held> before = Selected();
         const Policy policy = PolicyOf(request.kind, request.resumeCombat);
         const Held held = Stamp(request.kind, request.id, layer == Layer::Control ? request.claim : 0);
 
@@ -309,6 +339,7 @@ namespace Motion
             RequestCommand(request, held, layer, policy);
         }
         Reselect(before);
+        Record(Decision::Op::Request, request.kind, request.id, request.claim, before);
     }
 
     void Arbiter::RequestDefault(MoveRequest const& request, Held const& held, Policy policy)
@@ -398,14 +429,17 @@ namespace Motion
             PopDefault(FinishReason::Cleared);
         }
         Reselect(before);
+        Record(all ? Decision::Op::ClearAll : Decision::Op::Clear, Kind::Idle, 0, 0, before);
     }
 
     void Arbiter::ExpireSelected()
     {
         Transaction tx(*this, TransactionKind::Normal);
+        const std::optional<Held> before = Selected();
         const std::optional<Layer> layer = SelectedLayer();
         if (!layer)
         {
+            Record(Decision::Op::ExpireSelected, Kind::Idle, 0, 0, before);
             return;
         }
         switch (*layer)
@@ -414,11 +448,12 @@ namespace Motion
             {
                 if (!m_fallbackDefault)
                 {
+                    Record(Decision::Op::ExpireSelected, before->kind, 0, 0, before);
                     return;
                 }
-                const std::optional<Held> before = Selected();
                 PopDefault(m_default->kind == Kind::Follow ? FinishReason::TargetLost : FinishReason::Expired);
                 Reselect(before);
+                Record(Decision::Op::ExpireSelected, before->kind, 0, 0, before);
                 return;
             }
             case Layer::Combat:
@@ -453,6 +488,7 @@ namespace Motion
                 FinishClaim(*best, FinishReason::Expired);
                 Reselect(before);
             }
+            Record(Decision::Op::Expire, kind, 0, 0, before);
             return;
         }
         for (uint8 i = LAYER_COUNT; i-- > FIRST_COMMAND_LAYER;)
@@ -461,6 +497,7 @@ namespace Motion
             {
                 Finish(m_commands[i], FinishReason::Expired);
                 Reselect(before);
+                Record(Decision::Op::Expire, kind, 0, 0, before);
                 return;
             }
         }
@@ -468,6 +505,7 @@ namespace Motion
         {
             Finish(m_combat, FinishReason::TargetLost);
             Reselect(before);
+            Record(Decision::Op::Expire, kind, 0, 0, before);
             return;
         }
         if (m_default && m_default->kind == kind && m_fallbackDefault)
@@ -475,6 +513,7 @@ namespace Motion
             PopDefault(kind == Kind::Follow ? FinishReason::TargetLost : FinishReason::Expired);
             Reselect(before);
         }
+        Record(Decision::Op::Expire, kind, 0, 0, before);
     }
 
     void Arbiter::FinishSelected(FinishReason reason)
@@ -484,6 +523,7 @@ namespace Motion
         const std::optional<Layer> layer = SelectedLayer();
         if (!layer)
         {
+            Record(Decision::Op::FinishSelected, Kind::Idle, 0, 0, before);
             return;
         }
         if (*layer == Layer::Default)
@@ -503,6 +543,7 @@ namespace Motion
             Finish(m_commands[static_cast<size_t>(*layer)], reason);
         }
         Reselect(before);
+        Record(Decision::Op::FinishSelected, before->kind, 0, 0, before);
     }
 
     void Arbiter::CancelControl(Kind kind)
@@ -522,6 +563,7 @@ namespace Motion
         {
             Reselect(before);
         }
+        Record(Decision::Op::CancelControl, kind, 0, 0, before);
     }
 
     void Arbiter::Release(uint64 claim)
@@ -534,9 +576,11 @@ namespace Motion
             {
                 FinishClaim(i, FinishReason::Cancelled);
                 Reselect(before);
+                Record(Decision::Op::Release, Kind::Idle, 0, claim, before);
                 return;
             }
         }
+        Record(Decision::Op::Release, Kind::Idle, 0, claim, before);
     }
 
     bool Arbiter::Empty() const
@@ -722,5 +766,44 @@ namespace Motion
                 m_events.push_back({Event::Kind::Resumed, after->kind, after->id, FinishReason::Arrived, after->claim});
             }
         }
+    }
+
+    void Arbiter::Record(Decision::Op op, Kind kind, uint32 id, uint64 claim, std::optional<Held> const& before)
+    {
+        Decision d;
+        d.op = op;
+        d.kind = kind;
+        d.id = id;
+        d.claim = claim;
+        d.hadBefore = before.has_value();
+        d.before = before ? *before : Held();
+        const std::optional<Held> after = Selected();
+        d.hadAfter = after.has_value();
+        d.after = after ? *after : Held();
+        d.generation = m_generation;
+        m_ring[m_ringNext] = d;
+        m_ringNext = (m_ringNext + 1) % kRingSize;
+        if (m_ringCount < kRingSize)
+        {
+            ++m_ringCount;
+        }
+        MOTION_ASSERT(!after || SelectedLayer().has_value());
+        for (Held const& c : m_claims)
+        {
+            MOTION_ASSERT(c.claim != 0);
+            (void)c;
+        }
+    }
+
+    std::vector<Decision> Arbiter::Decisions() const
+    {
+        std::vector<Decision> out;
+        out.reserve(m_ringCount);
+        const size_t first = m_ringCount < kRingSize ? 0 : m_ringNext;
+        for (size_t i = 0; i < m_ringCount; ++i)
+        {
+            out.push_back(m_ring[(first + i) % kRingSize]);
+        }
+        return out;
     }
 }
