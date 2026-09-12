@@ -831,6 +831,18 @@ namespace loadtest
                     // walker to its own choice and only counts the grant.
                     if (m_config.script.selectGuid == 0)
                     {
+                        // A grant of another unit is answered first with a not-active-
+                        // mover for the one the client is about to stop moving, stamped
+                        // like the walker's own packets.
+                        if (walker.Guid() != guid)
+                        {
+                            Wire::MovementStatus status = walker.Status();
+                            status.has.timestamp = true;
+                            status.time = nowTicks;
+                            const WorldPacket notActive = MakeNotActiveMover(status);
+                            if (!Send(StreamFor(notActive.GetOpcode()), notActive, error)) { return false; }
+                            ++report.notActiveSent;
+                        }
                         walker.SetGuid(guid);
                         if (!SendSelect(guid, error)) { return false; }
                     }
@@ -841,6 +853,14 @@ namespace loadtest
                     ++report.controlRevoked;
                     if (m_config.script.selectGuid == 0 && walker.Guid() == guid && guid != m_config.characterGuid)
                     {
+                        // A revoke of the unit the client itself is moving is answered
+                        // with a not-active-mover for it before the walker falls back.
+                        Wire::MovementStatus status = walker.Status();
+                        status.has.timestamp = true;
+                        status.time = nowTicks;
+                        const WorldPacket notActive = MakeNotActiveMover(status);
+                        if (!Send(StreamFor(notActive.GetOpcode()), notActive, error)) { return false; }
+                        ++report.notActiveSent;
                         walker.SetGuid(m_config.characterGuid);
                     }
                     Trace("control revoked for " UI64FMTD, guid);

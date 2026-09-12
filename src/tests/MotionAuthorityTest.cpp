@@ -95,18 +95,31 @@ TEST(MotionAuthority_select_takes_a_member_and_refuses_a_stranger)
     CHECK_EQ(a.Counters().badSelect, 1u);
 }
 
-TEST(MotionAuthority_deselect_clears_the_selected_guid_only)
+TEST(MotionAuthority_deselect_clears_the_selected_guid_and_is_benign_for_a_unit_the_client_stopped_moving)
 {
     Authority a;
+    a.SetBase(kPlayer);
     a.Add(kPlayer);
-    a.Add(kVehicle);
-    CHECK(!a.Deselect(kPlayer));   // a member, not the selected one
-    CHECK_EQ(a.Counters().badDeselect, 1u);
+    a.Add(kVehicle);              // selected = kVehicle
+    // The grant's pre-selection stands: a deselect of the base player it just
+    // stopped moving is benign, not a bad deselect.
+    CHECK(a.Deselect(kPlayer));
+    CHECK_EQ(a.Counters().deselected, 1u);
     CHECK_EQ(a.Selected(), kVehicle);
+    // The selection itself still clears the ordinary way.
     CHECK(a.Deselect(kVehicle));
     CHECK_EQ(a.Selected(), uint64(0));
-    CHECK_EQ(a.Counters().deselected, 1u);
-    CHECK(!a.Deselect(kVehicle));
+    CHECK_EQ(a.Counters().deselected, 2u);
+    // The unit just removed is named next (a revoke's deselect of itself,
+    // after Remove already cleared the selection): benign too.
+    CHECK(a.Remove(kVehicle));
+    CHECK(a.Deselect(kVehicle));
+    CHECK_EQ(a.Counters().deselected, 3u);
+    // A stranger is still a bad deselect ...
+    CHECK(!a.Deselect(kOther));
+    CHECK_EQ(a.Counters().badDeselect, 1u);
+    // ... and so is guid 0.
+    CHECK(!a.Deselect(0));
     CHECK_EQ(a.Counters().badDeselect, 2u);
 }
 

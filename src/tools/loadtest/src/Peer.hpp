@@ -107,6 +107,7 @@ namespace loadtest
         uint32 controlGranted = 0;   ///< SMSG_CLIENT_CONTROL_UPDATE with allow 1
         uint32 controlRevoked = 0;   ///< ... with allow 0
         uint32 selectsSent = 0;      ///< CMSG_SET_ACTIVE_MOVER sent
+        uint32 notActiveSent = 0;    ///< CMSG_MOVE_NOT_ACTIVE_MOVER sent, for the unit left behind
         uint64 moverGuid = 0;        ///< the walker's mover when the run ended
 
         uint32     walkStarts = 0;

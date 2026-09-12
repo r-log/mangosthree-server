@@ -146,6 +146,10 @@ void WorldSession::GrantMover(Unit* unit, uint32 now)
 {
     unit->MotionState().SetMode(Motion::Mode::ClientDriven, now);
     unit->SetMoverSession(this);
+    if (unit == _player)
+    {
+        m_movers.SetBase(unit->GetObjectGuid().GetRawValue());
+    }
     m_movers.Add(unit->GetObjectGuid().GetRawValue());
 }
 

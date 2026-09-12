@@ -29,7 +29,12 @@
 
 namespace Motion
 {
-    Authority::Authority() : m_selected(0) {}
+    Authority::Authority() : m_selected(0), m_base(0), m_lastRemoved(0) {}
+
+    void Authority::SetBase(uint64 guid)
+    {
+        m_base = guid;
+    }
 
     void Authority::Add(uint64 guid)
     {
@@ -50,6 +55,7 @@ namespace Motion
         }
         m_members.erase(it);
         ++m_counters.removed;
+        m_lastRemoved = guid;
         if (m_selected == guid)
         {
             m_selected = 0;
@@ -76,14 +82,23 @@ namespace Motion
 
     bool Authority::Deselect(uint64 guid)
     {
-        if (guid == 0 || guid != m_selected)
+        if (guid != 0 && guid == m_selected)
         {
-            ++m_counters.badDeselect;
-            return false;
+            m_selected = 0;
+            ++m_counters.deselected;
+            return true;
         }
-        m_selected = 0;
-        ++m_counters.deselected;
-        return true;
+        // The client names a unit it stopped moving that is not (or is no longer)
+        // the selection: benign when it is the base player, a member, or the unit
+        // Remove just dropped -- the set's own pre-selection or clear already
+        // decided what is selected now, so this deselect changes nothing.
+        if (guid != 0 && (guid == m_base || IsMember(guid) || guid == m_lastRemoved))
+        {
+            ++m_counters.deselected;
+            return true;
+        }
+        ++m_counters.badDeselect;
+        return false;
     }
 
     bool Authority::MovesAs(uint64 guid)
@@ -111,5 +126,6 @@ namespace Motion
         m_counters.removed += uint32(m_members.size());
         m_members.clear();
         m_selected = 0;
+        m_lastRemoved = 0;
     }
 }

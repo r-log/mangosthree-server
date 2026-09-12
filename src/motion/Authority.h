@@ -41,6 +41,14 @@
  * packet dropped; thresholds are a later rung of the ladder (§10.1). The
  * session owns one; it runs in the map phase like the packets it judges, so
  * its counters are plain.
+ *
+ * A real client deselects the unit it stops moving, not the one it starts
+ * moving: on a grant of another unit it names the one it leaves, and on a
+ * revoke of its own control it names itself. Both land after the set has
+ * already pre-selected the new unit, or cleared the old one, so the named
+ * guid is the base player, a current or former member, or the unit just
+ * removed -- never the selection itself, except the ordinary case where it
+ * still is. Only a stranger's guid is a bad deselect.
  */
 namespace Motion
 {
@@ -56,6 +64,10 @@ namespace Motion
     public:
         Authority();
 
+        /// The session's own player, for Deselect's benign cases; 0 until set.
+        void SetBase(uint64 guid);
+        uint64 Base() const { return m_base; }
+
         /// Membership, idempotent; selects guid: the server pre-selects what it hands over.
         void Add(uint64 guid);
         /// Drops membership; clears the selection when guid was selected. False for a non-member.
@@ -65,7 +77,11 @@ namespace Motion
         uint64 Selected() const { return m_selected; }
         /// The client's CMSG_SET_ACTIVE_MOVER: a member is selected, a stranger counts badSelect.
         bool Select(uint64 guid);
-        /// The client's CMSG_MOVE_NOT_ACTIVE_MOVER: the selected guid is cleared, anything else counts badDeselect.
+        /// The client's CMSG_MOVE_NOT_ACTIVE_MOVER: clears guid when it is the current
+        /// selection; otherwise benign (counts deselected, selection unchanged) for the
+        /// base player, a member, or the unit just removed -- the units a real client
+        /// names when it stops moving something other than the current selection. A
+        /// stranger's guid counts badDeselect.
         bool Deselect(uint64 guid);
         /// A movement packet: true for the selected unit, else counts notActive.
         bool MovesAs(uint64 guid);
@@ -82,6 +98,8 @@ namespace Motion
     private:
         std::vector<uint64> m_members;   ///< insertion order; two or three entries at most
         uint64              m_selected;
+        uint64              m_base;        ///< the session's own player; 0 until SetBase
+        uint64              m_lastRemoved; ///< set by Remove on success, reset by Clear
         AuthorityCounters   m_counters;
     };
 }

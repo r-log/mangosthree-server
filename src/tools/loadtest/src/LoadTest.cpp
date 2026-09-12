@@ -486,8 +486,8 @@ int main(int argc, char** argv)
                 static_cast<unsigned long long>(result.sentBytesOnStream1));
 
     const loadtest::PeerReport& peer = result.peer;
-    std::printf("PEER timesync answered=%u control granted=%u revoked=%u selects=%u mover=" UI64FMTD " other=%u\n",
-                peer.timeSyncsAnswered, peer.controlGranted, peer.controlRevoked, peer.selectsSent, peer.moverGuid, peer.otherPackets);
+    std::printf("PEER timesync answered=%u control granted=%u revoked=%u selects=%u notactive=%u mover=" UI64FMTD " other=%u\n",
+                peer.timeSyncsAnswered, peer.controlGranted, peer.controlRevoked, peer.selectsSent, peer.notActiveSent, peer.moverGuid, peer.otherPackets);
     std::printf("PEER walk start=%u heartbeats=%u stop=%u relocations=%u final=%.1f %.1f %.1f lastTime=%u\n",
                 peer.walkStarts, peer.walkHeartbeats, peer.walkStops, peer.relocations,
                 peer.walkFinal.x, peer.walkFinal.y, peer.walkFinal.z, peer.walkLastTime);

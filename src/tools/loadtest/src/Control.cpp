@@ -25,6 +25,7 @@
 
 #include "Control.hpp"
 #include "Opcodes.h"
+#include "wire/MovementSequences.h"
 #include "wire/MoverCodec.h"
 
 namespace loadtest
@@ -52,6 +53,13 @@ namespace loadtest
         Wire::ActiveMover m;
         m.guid = guid;
         Wire::EncodeActiveMover(packet, CMSG_SET_ACTIVE_MOVER, m);
+        return packet;
+    }
+
+    WorldPacket MakeNotActiveMover(Wire::MovementStatus const& status)
+    {
+        WorldPacket packet(CMSG_MOVE_NOT_ACTIVE_MOVER, 64);
+        Wire::Encode(packet, Wire::SequenceFor(CMSG_MOVE_NOT_ACTIVE_MOVER), status);
         return packet;
     }
 }

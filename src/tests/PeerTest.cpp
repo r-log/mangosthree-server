@@ -77,6 +77,7 @@ TEST(PeerReport_defaults_are_empty)
     loadtest::PeerReport r;
     CHECK_EQ(r.timeSyncsAnswered, uint32(0));
     CHECK_EQ(r.controlGranted, uint32(0));
+    CHECK_EQ(r.notActiveSent, uint32(0));
     CHECK_EQ(r.moverGuid, uint64(0));
     CHECK_EQ(r.walkStarts, uint32(0));
     CHECK_EQ(r.observedTarget, uint32(0));
@@ -779,6 +780,27 @@ TEST(Control_select_packet_is_the_codec_order_of_CMSG_SET_ACTIVE_MOVER)
     Wire::ActiveMover back;
     CHECK(Wire::DecodeActiveMover(copy, CMSG_SET_ACTIVE_MOVER, back).ok());
     CHECK_EQ(back.guid, 0x0400000000000123ULL);
+}
+
+TEST(Control_not_active_mover_carries_the_status_in_the_registry_layout)
+{
+    Wire::MovementStatus status;
+    status.guid = 46;
+    status.has.timestamp = true;
+    status.time = 1234;
+    status.pos.x = 10.0f; status.pos.y = 20.0f; status.pos.z = 30.0f; status.pos.o = 1.5f;
+
+    WorldPacket packet = loadtest::MakeNotActiveMover(status);
+    CHECK_EQ(packet.GetOpcode(), uint16(CMSG_MOVE_NOT_ACTIVE_MOVER));
+
+    Wire::MovementStatus back;
+    CHECK(Wire::Decode(packet, Wire::SequenceFor(CMSG_MOVE_NOT_ACTIVE_MOVER), back).ok());
+    CHECK_EQ(back.guid, uint64(46));
+    CHECK_EQ(back.pos.x, 10.0f);
+    CHECK_EQ(back.pos.y, 20.0f);
+    CHECK_EQ(back.pos.z, 30.0f);
+    CHECK_EQ(back.pos.o, 1.5f);
+    CHECK_EQ(back.time, uint32(1234));
 }
 
 TEST(Walker_stamps_the_guid_it_was_switched_to)

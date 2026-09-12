@@ -29,6 +29,11 @@
 #include "Platform/Define.h"
 #include "WorldPacket.h"
 
+namespace Wire
+{
+    struct MovementStatus;
+}
+
 namespace loadtest
 {
     /// SMSG_CLIENT_CONTROL_UPDATE: a packed guid and one byte, 1 when this client moves
@@ -38,6 +43,11 @@ namespace loadtest
     /// CMSG_SET_ACTIVE_MOVER for `guid`, the real client's answer to a grant, in the
     /// codec's order (Wire::EncodeActiveMover).
     WorldPacket MakeSelectActiveMover(uint64 guid);
+
+    /// CMSG_MOVE_NOT_ACTIVE_MOVER carrying `status`, the real client's answer for the
+    /// unit it stops moving: on a grant of another unit (naming the one it leaves) and
+    /// on a revoke of its own control (naming itself), in the registry layout.
+    WorldPacket MakeNotActiveMover(Wire::MovementStatus const& status);
 }
 
 #endif
