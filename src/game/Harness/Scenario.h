@@ -49,12 +49,15 @@ namespace Harness
         uint32 guidLow;
     };
 
-    /// One creature Find resolved: its guid, and whether the world already had it
-    /// active before Find set the flag (so the runner's sweep restores it exactly).
+    /// One creature Find resolved: its guid, whether the world already had it
+    /// active before Find set the flag, and whether the map already listed it on
+    /// m_activeNonPlayers before that (a camera can list a creature without ever
+    /// flagging it active) - so the runner's sweep restores both exactly.
     struct FoundActor
     {
         ObjectGuid guid;
         bool       wasActive;
+        bool       wasListed;
     };
 
     /**

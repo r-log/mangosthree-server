@@ -38,6 +38,17 @@ namespace Harness
 {
     class Scenario;
 
+    /// The harness's own external path id for the chicken's template square.
+    /// WaypointManager::AddExternalNode keys its external paths by
+    /// (entry << 8) + pathId with no collision check, and path 0 is the id a
+    /// script would use for entry 621's external path; this id (< 0xFF) is the
+    /// harness's alone. Shared by Harness.cpp's runner and ScenariosPatrol.cpp's
+    /// MoveWaypoint calls. A non-zero path id shifts the waypoint generator's
+    /// MovementInform type to EXTERNAL_WAYPOINT_MOVE + kExternalPath, but
+    /// patrol-square and stun-mid-patrol read Node() for their verdicts, not the
+    /// inform type, so this is unobserved.
+    static const int32 kExternalPath = 250;
+
     /**
      * The GM harness runner (design v2 §12): the registry of scenarios in the old
      * harness's order, the map they run on (Kalimdor, Mulgore), the clock, and the

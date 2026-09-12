@@ -90,7 +90,7 @@ namespace Harness
                 At(500, [this, g, low]()
                 {
                     Creature* a = Get(g); if (!a) { return; }
-                    a->GetMotionMaster()->MoveWaypoint(0, PATH_FROM_EXTERNAL);
+                    a->GetMotionMaster()->MoveWaypoint(kExternalPath, PATH_FROM_EXTERNAL);
                     Log("chicken guid=%u MoveWaypoint on the template square, mt=%s", low, TypeName(a));
                 });
                 for (uint32 i = 1; i <= 40; ++i)
@@ -196,10 +196,15 @@ namespace Harness
                     }
                     // Put the Mouse back where it stood before the lift: Find handed
                     // back a world creature, not a spawn of ours, so the runner's
-                    // sweep restores its AI and active flag but never its position.
+                    // sweep restores its AI and active flag but never its position or
+                    // its generator's node. MotionMaster::Initialize rebuilds a WAYPOINT
+                    // creature's default path from its first node, so the Mouse resumes
+                    // its own patrol rather than picking up at the node the lifted run
+                    // left it on.
                     if (Creature* m = Get(g))
                     {
                         m->NearTeleportTo(x, y, z, o);
+                        m->GetMotionMaster()->Initialize();
                         Log("restored to %.1f %.1f %.1f", x, y, z);
                     }
                 });
@@ -229,7 +234,7 @@ namespace Harness
                 At(500, [this, g]()
                 {
                     Creature* a = Get(g); if (!a) { return; }
-                    a->GetMotionMaster()->MoveWaypoint(0, PATH_FROM_EXTERNAL);
+                    a->GetMotionMaster()->MoveWaypoint(kExternalPath, PATH_FROM_EXTERNAL);
                     Log("chicken MoveWaypoint on the template square, mt=%s", TypeName(a));
                 });
                 At(6000, [this, g, stunAt]()

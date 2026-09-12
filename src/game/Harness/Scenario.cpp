@@ -139,6 +139,7 @@ namespace Harness
             FoundActor fa;
             fa.guid = c->GetObjectGuid();
             fa.wasActive = c->IsActiveObject();
+            fa.wasListed = map->IsActive(c);
             c->SetActiveObjectState(true);
             m_found.push_back(fa);
         }

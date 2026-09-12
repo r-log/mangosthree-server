@@ -37,6 +37,13 @@ namespace Harness
      * creature (so it behaves as it would in the world) and records the movement
      * informs, the home arrival and the death for the scenario, as the old Lua
      * harness's creature events did above the normal AI. Owns the wrapped AI.
+     *
+     * While a scenario owns a creature, Creature::AI() publicly returns this
+     * decorator, so a dynamic_cast to the script's own concrete AI type (as SD3's
+     * quest hooks do for the chicken, npcs_special.cpp:397/409) fails for the
+     * scenario's duration; the wrapped AI still receives every callback beneath it.
+     * The harness's actors are its own summons, and, for one scenario, the world's
+     * Mouse.
      */
     class HarnessAI : public CreatureAI
     {

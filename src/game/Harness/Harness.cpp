@@ -118,23 +118,26 @@ namespace Harness
             m_queue.clear();
             return false;
         }
-        // The chicken's square (S7, S19), the old runner's template rows, as an external path.
+        // The chicken's square (S7, S19), the old runner's template rows, as an
+        // external path under the harness's own path id: id 0 is the one a script
+        // would use for entry 621's external path, and AddExternalNode keys by
+        // (entry << 8) + pathId with no collision check.
         static bool pathAdded = false;
         if (!pathAdded)
         {
-            if (!sWaypointMgr.AddExternalNode(621, 0, 1, -3122.6f, -261.3f, 46.0f, 100.0f, 0))
+            if (!sWaypointMgr.AddExternalNode(621, kExternalPath, 1, -3122.6f, -261.3f, 46.0f, 100.0f, 0))
             {
                 sLog.outString("MVTEST %s", "ERR external node 1 not added");
             }
-            if (!sWaypointMgr.AddExternalNode(621, 0, 2, -3152.6f, -261.3f, 46.0f, 100.0f, 0))
+            if (!sWaypointMgr.AddExternalNode(621, kExternalPath, 2, -3152.6f, -261.3f, 46.0f, 100.0f, 0))
             {
                 sLog.outString("MVTEST %s", "ERR external node 2 not added");
             }
-            if (!sWaypointMgr.AddExternalNode(621, 0, 3, -3152.6f, -231.3f, 46.0f, 100.0f, 0))
+            if (!sWaypointMgr.AddExternalNode(621, kExternalPath, 3, -3152.6f, -231.3f, 46.0f, 100.0f, 0))
             {
                 sLog.outString("MVTEST %s", "ERR external node 3 not added");
             }
-            if (!sWaypointMgr.AddExternalNode(621, 0, 4, -3122.6f, -231.3f, 46.0f, 100.0f, 0))
+            if (!sWaypointMgr.AddExternalNode(621, kExternalPath, 4, -3122.6f, -231.3f, 46.0f, 100.0f, 0))
             {
                 sLog.outString("MVTEST %s", "ERR external node 4 not added");
             }
@@ -199,6 +202,15 @@ namespace Harness
                 if (!found[i].wasActive)
                 {
                     c->SetActiveObjectState(false);
+                }
+                // SetActiveObjectState(false) above drops the creature from
+                // m_activeNonPlayers too; a camera (Camera::SetView) can have listed
+                // it there directly, with the flag never set, so hand that listing
+                // back as well - AddToActive re-takes the grid lock RemoveFromActive
+                // just released, keeping the pair balanced.
+                if (found[i].wasListed && !found[i].wasActive)
+                {
+                    m_map->AddToActive(c);
                 }
             }
         }
