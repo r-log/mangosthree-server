@@ -129,6 +129,28 @@ namespace Motion
         uint32       generation;
     };
 
+    class Arbiter;
+
+    /**
+     * The scope of one mutation (§4.3). The outermost guard sets the kind and
+     * advances the generation; nested guards join it. When the outermost one
+     * ends, entries created inside a discarding kind (Clear, ClearAll, Death)
+     * are finished: this is how a request a finalizer issues during a clear or
+     * a death is visible while the hook runs and gone when the operation ends.
+     */
+    class Transaction
+    {
+        public:
+            Transaction(Arbiter& arbiter, TransactionKind kind);
+            ~Transaction();
+            Transaction(Transaction const&) = delete;
+            Transaction& operator=(Transaction const&) = delete;
+
+        private:
+            Arbiter& m_arbiter;
+            bool m_outermost;
+    };
+
     /**
      * The pure selection core. One Default entry with the factory default
      * retained beneath a pushed one, one Combat entry, one command per layer
@@ -162,6 +184,15 @@ namespace Motion
             void CancelControl(Kind kind);
             /// Release one Control claim by identity.
             void Release(uint64 claim);
+
+            /// Apply an event row (§4.2): CombatStarted cancels the Distract layer.
+            void Notify(ExternalEvent event);
+            /// Death: finish everything as Died, ascending layer order; the model is empty after.
+            void Die();
+            /// The current transaction generation (advances with each outermost transaction).
+            uint32 Generation() const { return m_generation; }
+            /// True while the outermost open transaction is Clear, ClearAll or Death.
+            bool InDiscardingTransaction() const;
 
             /// True when nothing is selected (no default, no combat, no command, no claim).
             bool Empty() const;
@@ -203,6 +234,9 @@ namespace Motion
             std::optional<size_t> SelectedClaimIndex() const;
             /// A fresh Held for this request.
             Held Stamp(Kind kind, uint32 id, uint64 claim);
+            /// The outermost transaction ended: finish what it doomed.
+            void Commit();
+            friend class Transaction;
 
             std::optional<Held> m_default;         ///< the Default-layer entry
             std::optional<Held> m_fallbackDefault; ///< the factory default beneath a pushed one;
@@ -212,6 +246,9 @@ namespace Motion
             std::vector<Held> m_claims;            ///< the Control claim set, arrival order
             uint32 m_seq;                          ///< monotonic arrival counter
             std::vector<Event> m_events;           ///< accumulated since the last DrainEvents
+            uint32 m_generation;                   ///< advanced by each outermost transaction
+            uint32 m_depth;                        ///< open transactions
+            TransactionKind m_outerKind;           ///< the outermost open one's kind
     };
 }
 

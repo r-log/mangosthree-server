@@ -647,3 +647,169 @@ TEST(MotionArbiter_Claims_DefaultOverrideLeavesClaims)
     CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Fear), 0);
     CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 1);
 }
+
+TEST(MotionArbiter_EventRow_CombatStartedCancelsDistractAndAssistDistract)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Distract));
+    m.DrainEvents();
+    m.Notify(ExternalEvent::CombatStarted);
+    CHECK(!m.Command(Layer::Distract));
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Distract, 0, FinishReason::Cancelled));
+    m.Request(Req(Kind::AssistDistract));
+    m.DrainEvents();
+    m.Notify(ExternalEvent::CombatStarted);
+    CHECK(HasFinished(m.DrainEvents(), Kind::AssistDistract, 0, FinishReason::Cancelled));
+}
+
+TEST(MotionArbiter_EventRow_CombatStartedLeavesOtherLayers)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Point, 3));
+    m.Request(Claim(Kind::Fear, 1));
+    m.Request(Req(Kind::Chase));
+    m.DrainEvents();
+    m.Notify(ExternalEvent::CombatStarted);
+    CHECK(m.Command(Layer::Scripted));
+    CHECK(m.Command(Layer::Control));
+    CHECK(m.Combat());
+    CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
+}
+
+TEST(MotionArbiter_Generations_RequestDuringNormalCompletionSurvives)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::AssistRun));
+    {
+        Transaction tx(m, TransactionKind::Normal);   // the shell delivering AssistRun's finish
+        m.FinishSelected(FinishReason::Arrived);
+        m.Request(Req(Kind::AssistDistract));         // the finalizer's request
+        CHECK_EQ(SelectedKind(m), K(Kind::AssistDistract));
+    }
+    CHECK_EQ(SelectedKind(m), K(Kind::AssistDistract));
+    CHECK(m.Command(Layer::Distract));
+}
+
+TEST(MotionArbiter_Generations_RequestDuringClearAllIsDiscardedAtCommit)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::AssistRun));
+    m.DrainEvents();
+    {
+        Transaction tx(m, TransactionKind::ClearAll);
+        m.Clear(true);
+        m.Request(Req(Kind::AssistDistract));         // AssistRun::Finalize -> MoveSeekAssistanceDistract
+        CHECK_EQ(SelectedKind(m), K(Kind::AssistDistract));   // visible during the hook
+        CHECK(m.InDiscardingTransaction());
+    }
+    CHECK(m.Empty());                                 // gone at commit, as DirectClean keeps clearing
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::AssistRun, 0, FinishReason::Cleared));
+    CHECK(HasFinished(ev, Kind::AssistDistract, 0, FinishReason::Cleared));
+    CHECK(!m.InDiscardingTransaction());
+}
+
+TEST(MotionArbiter_Generations_RequestDuringClearKeepsDefaultDropsCommand)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Point, 5));
+    m.DrainEvents();
+    {
+        Transaction tx(m, TransactionKind::Clear);
+        m.Clear(false);
+        m.Request(Req(Kind::Patrol));                 // a finalizer swapping the default: survives
+        m.Request(Req(Kind::Point, 6));               // a finalizer's point: dropped
+    }
+    CHECK_EQ(SelectedKind(m), K(Kind::Patrol));
+    CHECK(!m.Command(Layer::Scripted));
+    CHECK(HasFinished(m.DrainEvents(), Kind::Point, 6, FinishReason::Cleared));
+}
+
+TEST(MotionArbiter_Generations_NestedTransactionJoinsOutermost)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    const uint32 g0 = m.Generation();
+    {
+        Transaction outer(m, TransactionKind::Death);
+        const uint32 g1 = m.Generation();
+        CHECK(g1 != g0);
+        {
+            Transaction inner(m, TransactionKind::Normal);
+            CHECK_EQ(static_cast<int>(m.Generation()), static_cast<int>(g1));
+            CHECK(m.InDiscardingTransaction());       // the outermost decides
+            m.Request(Req(Kind::Chase));
+        }
+        CHECK(m.Combat());                            // the inner commit swept nothing
+    }
+    CHECK(!m.Combat());                               // the outer one did
+    CHECK(HasFinished(m.DrainEvents(), Kind::Chase, 0, FinishReason::Died));
+}
+
+TEST(MotionArbiter_Death_FinishesEverythingDied_ModelEmpty)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Patrol));                     // pushed default over the factory one
+    m.Request(Req(Kind::Chase));
+    m.Request(Req(Kind::Point, 7, true));             // resumeCombat: the chase stays beneath
+    m.Request(Claim(Kind::Fear, 1));
+    m.Request(Req(Kind::Effect, 8));
+    m.DrainEvents();
+    m.Die();
+    CHECK(m.Empty());
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Patrol, 0, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Idle, 0, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Chase, 0, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Point, 7, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Fear, 0, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Effect, 8, FinishReason::Died));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Suspended, Kind::Effect), 0);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Resumed, Kind::Chase), 0);
+}
+
+TEST(MotionArbiter_Death_RequestDuringDeathDiscarded)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    m.DrainEvents();
+    {
+        Transaction tx(m, TransactionKind::Death);
+        m.Die();
+        m.Request(Req(Kind::Chase));                  // a finalizer re-engaging while still alive
+        CHECK(m.Combat());
+        m.Request(Req(Kind::Wander));                 // and a default request
+        CHECK(m.Default());
+    }
+    CHECK(m.Empty());
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 2);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Wander), 2);
+}
+
+TEST(MotionArbiter_Death_TwoDefaultRequestsDuringDeathBothDiscarded)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.DrainEvents();
+    {
+        Transaction tx(m, TransactionKind::Death);
+        m.Die();
+        m.Request(Req(Kind::Wander));                 // a finalizer's default
+        m.Request(Req(Kind::Patrol));                 // and another, retaining the first as fallback
+        CHECK_EQ(SelectedKind(m), K(Kind::Patrol));
+    }
+    CHECK(m.Empty());
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Patrol, 0, FinishReason::Died));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Wander), 2);
+}

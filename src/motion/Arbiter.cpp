@@ -138,7 +138,7 @@ namespace Motion
         }
     }
 
-    Arbiter::Arbiter() : m_seq(0)
+    Arbiter::Arbiter() : m_seq(0), m_generation(0), m_depth(0), m_outerKind(TransactionKind::Normal)
     {
     }
 
@@ -149,13 +149,114 @@ namespace Motion
         h.id = id;
         h.seq = ++m_seq;
         h.claim = claim;
-        h.generation = 0;
-        h.doomed = false;
+        h.generation = m_generation;
+        h.doomed = InDiscardingTransaction();
         return h;
+    }
+
+    Transaction::Transaction(Arbiter& arbiter, TransactionKind kind) : m_arbiter(arbiter), m_outermost(arbiter.m_depth == 0)
+    {
+        if (m_outermost)
+        {
+            m_arbiter.m_outerKind = kind;
+            ++m_arbiter.m_generation;
+        }
+        ++m_arbiter.m_depth;
+    }
+
+    Transaction::~Transaction()
+    {
+        --m_arbiter.m_depth;
+        if (m_outermost)
+        {
+            m_arbiter.Commit();
+            m_arbiter.m_outerKind = TransactionKind::Normal;
+        }
+    }
+
+    bool Arbiter::InDiscardingTransaction() const
+    {
+        return m_depth > 0 && m_outerKind != TransactionKind::Normal;
+    }
+
+    void Arbiter::Commit()
+    {
+        if (m_outerKind == TransactionKind::Normal)
+        {
+            return;
+        }
+        const std::optional<Held> before = Selected();
+        const FinishReason reason = m_outerKind == TransactionKind::Death ? FinishReason::Died : FinishReason::Cleared;
+        for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
+        {
+            if (m_commands[i] && m_commands[i]->doomed)
+            {
+                Finish(m_commands[i], reason);
+            }
+        }
+        for (size_t i = m_claims.size(); i-- > 0;)
+        {
+            if (m_claims[i].doomed)
+            {
+                FinishClaim(i, reason);
+            }
+        }
+        if (m_combat && m_combat->doomed)
+        {
+            Finish(m_combat, reason);
+        }
+        if (m_outerKind != TransactionKind::Clear)
+        {
+            while (m_default && m_default->doomed)
+            {
+                PopDefault(reason);   // a doomed fallback promoted by the pop is swept by the next turn
+            }
+            if (m_fallbackDefault && m_fallbackDefault->doomed)
+            {
+                Finish(m_fallbackDefault, reason);
+            }
+        }
+        Reselect(before);
+    }
+
+    void Arbiter::Notify(ExternalEvent event)
+    {
+        Transaction tx(*this, TransactionKind::Normal);
+        const std::optional<Held> before = Selected();
+        switch (event)
+        {
+            case ExternalEvent::CombatStarted:
+                Finish(m_commands[static_cast<size_t>(Layer::Distract)], FinishReason::Cancelled);
+                break;
+            default:
+                break;
+        }
+        Reselect(before);
+    }
+
+    void Arbiter::Die()
+    {
+        Transaction tx(*this, TransactionKind::Death);
+        Finish(m_default, FinishReason::Died);
+        Finish(m_fallbackDefault, FinishReason::Died);
+        Finish(m_combat, FinishReason::Died);
+        for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
+        {
+            if (i == CONTROL)
+            {
+                while (!m_claims.empty())
+                {
+                    FinishClaim(*SelectedClaimIndex(), FinishReason::Died);
+                }
+                continue;
+            }
+            Finish(m_commands[i], FinishReason::Died);
+        }
     }
 
     void Arbiter::InstallDefault(Kind kind)
     {
+        Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
         if (m_default)
         {
@@ -168,6 +269,7 @@ namespace Motion
 
     void Arbiter::Request(MoveRequest const& request)
     {
+        Transaction tx(*this, TransactionKind::Normal);
         const Layer layer = LayerOf(request.kind);
         if (layer == Layer::Control && request.claim == 0)
         {
@@ -275,6 +377,7 @@ namespace Motion
 
     void Arbiter::Clear(bool all)
     {
+        Transaction tx(*this, all ? TransactionKind::ClearAll : TransactionKind::Clear);
         const std::optional<Held> before = Selected();
         for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
         {
@@ -299,6 +402,7 @@ namespace Motion
 
     void Arbiter::ExpireSelected()
     {
+        Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Layer> layer = SelectedLayer();
         if (!layer)
         {
@@ -328,6 +432,7 @@ namespace Motion
 
     void Arbiter::Expire(Kind kind)
     {
+        Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
         if (LayerOf(kind) == Layer::Control)
         {
@@ -374,6 +479,7 @@ namespace Motion
 
     void Arbiter::FinishSelected(FinishReason reason)
     {
+        Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
         const std::optional<Layer> layer = SelectedLayer();
         if (!layer)
@@ -401,6 +507,7 @@ namespace Motion
 
     void Arbiter::CancelControl(Kind kind)
     {
+        Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
         bool any = false;
         for (size_t i = m_claims.size(); i-- > 0;)
@@ -419,6 +526,7 @@ namespace Motion
 
     void Arbiter::Release(uint64 claim)
     {
+        Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
         for (size_t i = 0; i < m_claims.size(); ++i)
         {
