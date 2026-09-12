@@ -676,6 +676,10 @@ class Creature : public Unit
 
         bool AIM_Initialize();
 
+        /// Installs an AI in place of the current one without deleting it: the GM
+        /// harness wraps the selected AI inside a recording one that owns it.
+        void SetAI(CreatureAI* ai) { i_AI = ai; }
+
         CreatureAI* AI() { return i_AI; }
 
         void SetWalk(bool enable, bool asDefault = true);
