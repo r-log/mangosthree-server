@@ -20,4 +20,6 @@ The facade `MotionMaster` is the movement kernel campaign's shim for the vendore
 | MoveRandom | 1 |
 | MoveFleeing | 1 |
 
+Counted 2026-09-12 on master ebb271cae with `grep -rhoE "GetMotionMaster\(\)->[A-Za-z_]+" src/modules/SD3 | sort | uniq -c`.
+
 The behavioral net over the same facade is `src/game/Harness` (`.debug movement scenario`).
