@@ -43,7 +43,13 @@ namespace Motion
             m_members.push_back(guid);
             ++m_counters.added;
         }
-        m_selected = guid;
+        // The body yields the selection to a grant; a controlled unit does not --
+        // a fear ending on a possessing player's own body must not steal the
+        // selection from the creature still possessed.
+        if (m_selected == 0 || m_selected == m_base)
+        {
+            m_selected = guid;
+        }
     }
 
     bool Authority::Remove(uint64 guid)
@@ -82,17 +88,13 @@ namespace Motion
 
     bool Authority::Deselect(uint64 guid)
     {
-        if (guid != 0 && guid == m_selected)
-        {
-            m_selected = 0;
-            ++m_counters.deselected;
-            return true;
-        }
-        // The client names a unit it stopped moving that is not (or is no longer)
-        // the selection: benign when it is the base player, a member, or the unit
-        // Remove just dropped -- the set's own pre-selection or clear already
-        // decided what is selected now, so this deselect changes nothing.
-        if (guid != 0 && (guid == m_base || IsMember(guid) || guid == m_lastRemoved))
+        // The selection changes only through Add, Remove and Select; a deselect
+        // never touches it. Every legitimate CMSG_MOVE_NOT_ACTIVE_MOVER is either
+        // followed by the client's own select (a grant of another unit) or
+        // preceded by the server's own Remove (a revoke), so this only tells a
+        // benign deselect -- the selected unit, the base player, a member, or the
+        // unit Remove just dropped -- from a stranger's.
+        if (guid != 0 && (guid == m_selected || guid == m_base || IsMember(guid) || guid == m_lastRemoved))
         {
             ++m_counters.deselected;
             return true;

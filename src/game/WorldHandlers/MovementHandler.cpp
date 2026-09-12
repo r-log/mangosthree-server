@@ -962,6 +962,11 @@ void WorldSession::HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo
     }
     else                                                    // creature charmed
     {
+        // The stored status is what the observer form and the create block read;
+        // a possessed creature's observer packets carried its pre-possession
+        // flags, time and position before.
+        mover->m_movementInfo = movementInfo;
+
         if (mover->IsInWorld() && mover->GetTypeId() == TYPEID_UNIT)
         {
             mover->GetMap()->CreatureRelocation((Creature*)mover, movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);

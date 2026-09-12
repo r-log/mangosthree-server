@@ -5218,11 +5218,19 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
     GetSession()->GrantMover(target, now);
     GetSession()->SendPacket(&data);
 
-    WorldPacket active(SMSG_MOVE_SET_ACTIVE_MOVER, 9);
-    Wire::ActiveMover mover;
-    mover.guid = target->GetObjectGuid().GetRawValue();
-    Wire::EncodeActiveMover(active, SMSG_MOVE_SET_ACTIVE_MOVER, mover);
-    GetSession()->SendPacket(&active);
+    // The reference core sends the active-mover set always; but a re-grant of
+    // the body while a controlled unit is still selected (Add takes the
+    // selection from the body only) would have the client's answer to it
+    // re-select the body through Select while the charm stands. Send it only
+    // when the grant actually took the selection.
+    if (GetSession()->Movers().Selected() == target->GetObjectGuid().GetRawValue())
+    {
+        WorldPacket active(SMSG_MOVE_SET_ACTIVE_MOVER, 9);
+        Wire::ActiveMover mover;
+        mover.guid = target->GetObjectGuid().GetRawValue();
+        Wire::EncodeActiveMover(active, SMSG_MOVE_SET_ACTIVE_MOVER, mover);
+        GetSession()->SendPacket(&active);
+    }
 
     if (target == this && IsInWorld())
     {

@@ -42,13 +42,17 @@
  * session owns one; it runs in the map phase like the packets it judges, so
  * its counters are plain.
  *
- * A real client deselects the unit it stops moving, not the one it starts
- * moving: on a grant of another unit it names the one it leaves, and on a
- * revoke of its own control it names itself. Both land after the set has
- * already pre-selected the new unit, or cleared the old one, so the named
- * guid is the base player, a current or former member, or the unit just
- * removed -- never the selection itself, except the ordinary case where it
- * still is. Only a stranger's guid is a bad deselect.
+ * The selection itself changes only through the server's Add (a grant takes it
+ * from the body, never from a controlled unit -- a fear ending on a
+ * possessing player's own body must not steal the selection from the
+ * creature still possessed) and Remove (of the selected member, to nothing),
+ * and the client's validated Select. A deselect never moves it: the live
+ * capture showed every legitimate CMSG_MOVE_NOT_ACTIVE_MOVER is either
+ * followed by the client's own select (a grant of another unit) or preceded
+ * by the server's own Remove (a revoke), so Deselect only tells apart a
+ * benign deselect -- the selected unit, the base player, a current or former
+ * member, or the unit Remove just dropped -- from a stranger's; either way
+ * the selection is untouched.
  */
 namespace Motion
 {
@@ -68,7 +72,9 @@ namespace Motion
         void SetBase(uint64 guid);
         uint64 Base() const { return m_base; }
 
-        /// Membership, idempotent; selects guid: the server pre-selects what it hands over.
+        /// Membership, idempotent; a grant takes the selection from the body only:
+        /// selects guid when nothing is selected or the base is (a controlled unit
+        /// keeps it).
         void Add(uint64 guid);
         /// Drops membership; clears the selection when guid was selected. False for a non-member.
         bool Remove(uint64 guid);
@@ -77,11 +83,10 @@ namespace Motion
         uint64 Selected() const { return m_selected; }
         /// The client's CMSG_SET_ACTIVE_MOVER: a member is selected, a stranger counts badSelect.
         bool Select(uint64 guid);
-        /// The client's CMSG_MOVE_NOT_ACTIVE_MOVER: clears guid when it is the current
-        /// selection; otherwise benign (counts deselected, selection unchanged) for the
-        /// base player, a member, or the unit just removed -- the units a real client
-        /// names when it stops moving something other than the current selection. A
-        /// stranger's guid counts badDeselect.
+        /// The client's CMSG_MOVE_NOT_ACTIVE_MOVER: never moves the selection. Counts
+        /// deselected -- true -- for the selected unit, the base player, a member, or
+        /// the unit Remove just dropped; a stranger, or guid 0, counts badDeselect and
+        /// returns false.
         bool Deselect(uint64 guid);
         /// A movement packet: true for the selected unit, else counts notActive.
         bool MovesAs(uint64 guid);
