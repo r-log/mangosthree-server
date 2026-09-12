@@ -561,3 +561,89 @@ TEST(MotionArbiter_Claims_ZeroClaimIgnored)
     CHECK_EQ(static_cast<int>(m.Claims().size()), 0);
     CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
 }
+
+TEST(MotionArbiter_Claims_ExpireKindFinishesNewestClaimOfKindOnly)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Fear, 12));
+    m.Request(Claim(Kind::Confused, 22));
+    m.DrainEvents();
+    m.Expire(Kind::Fear);                                             // a timed fear ran out
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 2);
+    CHECK_EQ(SelectedKind(m), K(Kind::Confused));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Fear), 1);
+    bool newest = false;
+    for (Event const& e : ev)
+    {
+        if (e.kind == Event::Kind::Finished && e.claim == 12 && e.reason == FinishReason::Expired)
+        {
+            newest = true;
+        }
+    }
+    CHECK(newest);
+    m.Expire(Kind::Fear);
+    m.Expire(Kind::Fear);                                             // none left: a no-op
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 1);
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Finished, Kind::Fear), 1);
+}
+
+TEST(MotionArbiter_Claims_ExpireSelectedFinishesSelectedClaim_OtherResumes)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Point, 3));
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Confused, 22));
+    m.DrainEvents();
+    m.ExpireSelected();                                               // the confuse's own end
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Confused, 0, FinishReason::Expired));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Resumed, Kind::Fear), 1);
+    m.FinishSelected(FinishReason::Cut);                              // the fear's leg cut
+    CHECK_EQ(SelectedKind(m), K(Kind::Point));
+    ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Fear, 0, FinishReason::Cut));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Resumed, Kind::Point), 1);
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 0);
+}
+
+TEST(MotionArbiter_Claims_ContentsCountLiveClaimsInPrecedenceOrder)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Confused, 22));
+    m.Request(Claim(Kind::Fear, 13));
+    CHECK_EQ(Size(m), 5);                                             // default, combat, three claims
+    std::vector<Held> claims = m.Claims();
+    REQUIRE(static_cast<int>(claims.size()) == 3);
+    CHECK_EQ(K(claims[0].kind), K(Kind::Confused));
+    CHECK_EQ(static_cast<int>(claims[1].claim), 13);                  // the newer fear before the older
+    CHECK_EQ(static_cast<int>(claims[2].claim), 11);
+    std::optional<Held> sel = m.Selected();
+    REQUIRE(sel.has_value());
+    CHECK_EQ(static_cast<int>(sel->claim), static_cast<int>(claims[0].claim));
+    std::vector<Held> all = m.Contents();
+    CHECK_EQ(K(all[2].kind), K(Kind::Confused));                      // the claims sit after default and combat
+}
+
+TEST(MotionArbiter_Claims_DefaultOverrideLeavesClaims)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Chase));
+    m.Request(Claim(Kind::Fear, 11));
+    m.DrainEvents();
+    m.Request(Req(Kind::Wander));                                     // an Override default under a fear
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));
+    CHECK(!m.Combat());                                               // combat overridden
+    CHECK_EQ(static_cast<int>(m.Claims().size()), 1);                 // the claim untouched
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Fear), 0);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 1);
+}

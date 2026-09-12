@@ -129,6 +129,13 @@ namespace Motion
         {
             return kind == Kind::Confused ? 2 : 1;
         }
+
+        /// True when `a` is selected over `b`: higher rank, then newer.
+        bool Outranks(Held const& a, Held const& b)
+        {
+            return ClaimRank(a.kind) > ClaimRank(b.kind) ||
+                   (ClaimRank(a.kind) == ClaimRank(b.kind) && a.seq > b.seq);
+        }
     }
 
     Arbiter::Arbiter() : m_seq(0)
@@ -434,14 +441,7 @@ namespace Motion
         std::optional<size_t> best;
         for (size_t i = 0; i < m_claims.size(); ++i)
         {
-            if (!best)
-            {
-                best = i;
-                continue;
-            }
-            Held const& b = m_claims[*best];
-            Held const& c = m_claims[i];
-            if (ClaimRank(c.kind) > ClaimRank(b.kind) || (ClaimRank(c.kind) == ClaimRank(b.kind) && c.seq > b.seq))
+            if (!best || Outranks(m_claims[i], m_claims[*best]))
             {
                 best = i;
             }
@@ -524,8 +524,7 @@ namespace Motion
         {
             Held key = out[i];
             size_t j = i;
-            while (j > 0 && (ClaimRank(out[j - 1].kind) < ClaimRank(key.kind) ||
-                             (ClaimRank(out[j - 1].kind) == ClaimRank(key.kind) && out[j - 1].seq < key.seq)))
+            while (j > 0 && Outranks(key, out[j - 1]))
             {
                 out[j] = out[j - 1];
                 --j;
