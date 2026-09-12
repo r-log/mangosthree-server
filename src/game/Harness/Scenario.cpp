@@ -55,6 +55,7 @@ namespace Harness
         m_timeline = Timeline();
         m_finished = false;
         m_spawned.clear();
+        m_found.clear();
         m_informs.clear();
     }
 
@@ -125,9 +126,17 @@ namespace Harness
             return NULL;
         }
         Creature* c = map->GetCreature(ObjectGuid(HIGHGUID_UNIT, entry, lowGuid));
-        if (c && !dynamic_cast<HarnessAI*>(c->AI()))
+        if (c)
         {
-            c->SetAI(new HarnessAI(c, c->AI(), this));
+            if (!dynamic_cast<HarnessAI*>(c->AI()))
+            {
+                c->SetAI(new HarnessAI(c, c->AI(), this));
+            }
+            // A found creature is the world's own and is not ticked without a player
+            // nearby unless it is on the map's active list; the runner hands it back
+            // inactive when the scenario ends (End-of-scenario sweep over Found()).
+            c->SetActiveObjectState(true);
+            m_found.push_back(c->GetObjectGuid());
         }
         return c;
     }

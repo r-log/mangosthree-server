@@ -70,6 +70,9 @@ namespace Harness
         bool Finished() const { return m_finished; }
         /// Every guid Spawn handed out: the runner despawns them at the end.
         std::vector<ObjectGuid> const& Spawned() const { return m_spawned; }
+        /// Every guid Find resolved and activated: the runner deactivates them at the
+        /// end (a Find'd creature is the world's own; it is never despawned).
+        std::vector<ObjectGuid> const& Found() const { return m_found; }
         std::vector<Inform>& Informs() { return m_informs; }
         void Reset();
 
@@ -102,6 +105,7 @@ namespace Harness
         Timeline                m_timeline;
         bool                    m_finished;
         std::vector<ObjectGuid> m_spawned;
+        std::vector<ObjectGuid> m_found;
         std::vector<Inform>     m_informs;
     };
 }

@@ -64,6 +64,7 @@ namespace Harness
         RegisterFollowScenarios(*this);
         RegisterFleeScenarios(*this);
         RegisterWanderScenarios(*this);
+        RegisterPatrolScenarios(*this);
     }
 
     Runner::~Runner()
@@ -157,6 +158,16 @@ namespace Harness
                 {
                     t->UnSummon();
                 }
+            }
+        }
+        // A Find'd creature (S8's patroller) is the world's own: never despawned,
+        // never written back to the database, only handed back inactive.
+        std::vector<ObjectGuid> const& found = s->Found();
+        for (size_t i = 0; i < found.size(); ++i)
+        {
+            if (Creature* c = m_map->GetCreature(found[i]))
+            {
+                c->SetActiveObjectState(false);
             }
         }
         ++m_verdicts;
