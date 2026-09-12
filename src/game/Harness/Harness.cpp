@@ -59,6 +59,7 @@ namespace Harness
         // S12=11, S13=12, S15=13, S17=14, S19=15, S4=16); Start("all") sorts by it, so
         // the call order here does not matter. Tasks 3-5 add their Register calls.
         RegisterJumpScenarios(*this);
+        RegisterPointScenarios(*this);
     }
 
     Runner::~Runner()
