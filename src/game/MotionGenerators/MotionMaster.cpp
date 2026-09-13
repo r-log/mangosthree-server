@@ -140,8 +140,16 @@ class MotionMaster::Scope
 {
     public:
         Scope(MotionMaster& master, Motion::TransactionKind kind)
-            : m_master(master), m_outermost(master.m_depth == 0), m_kind(kind)
+            : m_master(master), m_outermost(master.m_depth == 0)
         {
+            if (m_outermost)
+            {
+                m_master.m_scopeKind = kind;
+            }
+            else if (kind == Motion::TransactionKind::Death)
+            {
+                m_master.m_scopeKind = Motion::TransactionKind::Death;   // a nested death escalates, as the arbiter's own transaction does
+            }
             ++m_master.m_depth;
             m_transaction.emplace(m_master.m_arbiter, kind);
         }
@@ -149,20 +157,23 @@ class MotionMaster::Scope
         {
             if (m_outermost)
             {
-                m_master.Commit(m_kind, m_transaction);
+                m_master.Commit(m_transaction);
             }
             else
             {
                 m_transaction.reset();
             }
             --m_master.m_depth;
+            if (m_outermost)
+            {
+                m_master.m_scopeKind = Motion::TransactionKind::Normal;
+            }
         }
         Scope(Scope const&) = delete;
         Scope& operator=(Scope const&) = delete;
     private:
         MotionMaster&                      m_master;
         bool                               m_outermost;
-        Motion::TransactionKind            m_kind;
         std::optional<Motion::Transaction> m_transaction;
 };
 
@@ -173,7 +184,7 @@ class MotionMaster::Scope
  * @param unit Pointer to the unit.
  */
 MotionMaster::MotionMaster(Unit* unit)
-    : m_owner(unit), m_depth(0), m_pendingReset(PendingReset::None), m_exposedSeq(0)
+    : m_owner(unit), m_depth(0), m_scopeKind(Motion::TransactionKind::Normal), m_pendingReset(PendingReset::None), m_exposedSeq(0)
 {
     if (sWorld.getConfig(CONFIG_BOOL_MOVEMENT_DECISION_RING))
     {
@@ -194,10 +205,9 @@ MotionMaster::~MotionMaster()
 
 /**
  * @brief Settles one outermost facade call: hooks, the doomed sweep, the selection.
- * @param kind The transaction kind the call opened with.
  * @param transaction The open transaction, closed and reopened here.
  */
-void MotionMaster::Commit(Motion::TransactionKind kind, std::optional<Motion::Transaction>& transaction)
+void MotionMaster::Commit(std::optional<Motion::Transaction>& transaction)
 {
     for (uint32 round = 0; round < kMaxCommitRounds; ++round)
     {
@@ -210,11 +220,12 @@ void MotionMaster::Commit(Motion::TransactionKind kind, std::optional<Motion::Tr
             m_retired.clear();
             return;
         }
-        transaction.emplace(m_arbiter, kind);   // a finalizer re-entered: the same kind again, until nothing is left
+        transaction.emplace(m_arbiter, m_scopeKind);   // a finalizer re-entered: the strongest kind this scope saw, until nothing is left
     }
     sLog.outError("MotionMaster: %s commit did not settle in %u rounds", m_owner->GetGuidStr().c_str(), kMaxCommitRounds);
     transaction.reset();
     DeliverEvents();
+    Reconcile();   // whatever this queues stays in the arbiter's queue; the next facade call's commit delivers it
     m_retired.clear();
 }
 
@@ -324,6 +335,7 @@ void MotionMaster::Reconcile()
         if (activated)
         {
             gone->Finish(*m_owner, Motion::FinishReason::Superseded);
+            i = 0;   // the hook may have bound or unbound entries: rescan from the start
         }
         m_retired.push_back(std::move(gone));
     }

@@ -179,7 +179,7 @@ class MotionMaster
         void Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned);
         void InstallFactory(Motion::Kind kind, MovementGenerator* generator, bool owned);
         void Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, EffectLaunch const& launch);
-        void Commit(Motion::TransactionKind kind, std::optional<Motion::Transaction>& transaction);
+        void Commit(std::optional<Motion::Transaction>& transaction);
         void DeliverEvents();
         void Deliver(Motion::Event const& event);
         void Reconcile();
@@ -195,6 +195,7 @@ class MotionMaster
         std::vector<Bound> m_bound;
         std::vector<std::unique_ptr<MotionBehaviour> > m_retired; ///< finished behaviours, destroyed at the end of the outermost commit (a generator ticking when its hook finished it must outlive its own Update)
         uint32             m_depth;          ///< open scopes
+        Motion::TransactionKind m_scopeKind; ///< the kind the outermost commit runs under; a nested death raises it to Death
         PendingReset       m_pendingReset;
         uint32             m_exposedSeq;     ///< WhenExposed: the entry an expiry exposed
 };
