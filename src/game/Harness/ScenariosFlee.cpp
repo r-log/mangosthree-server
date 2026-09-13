@@ -208,13 +208,20 @@ namespace Harness
                     }
                     else
                     {
-                        // Six seconds past the distract's end: chasing again, and closer to
-                        // the victim than the distract left it (or already in melee).
+                        // The replacement distract dwells first -- the finalizer's re-engagement
+                        // only takes over when it expires -- and six seconds past the distract's
+                        // end the wolf chases again, closer to the victim than the distract left
+                        // it (or already in melee).
                         Sample const& f = chase->back();
+                        Sample const& first = chase->front();
                         char text[128];
-                        if (f.mt == CHASE_MOTION_TYPE && (f.dVictim < *atDistract - 2.0f || f.dVictim < 5.0f))
+                        if (first.mt != ASSISTANCE_DISTRACT_MOTION_TYPE)
                         {
-                            snprintf(text, sizeof(text), "OK(re-engaged through the supersede, %.1f -> %.1f yd)", *atDistract, f.dVictim);
+                            snprintf(text, sizeof(text), "BUG(%s at +400 ms: the replacement distract did not dwell)", Harness::TypeName(first.mt));
+                        }
+                        else if (f.mt == CHASE_MOTION_TYPE && (f.dVictim < *atDistract - 2.0f || f.dVictim < 5.0f))
+                        {
+                            snprintf(text, sizeof(text), "OK(the replacement distract dwelt, then re-engaged through the supersede, %.1f -> %.1f yd)", *atDistract, f.dVictim);
                         }
                         else
                         {

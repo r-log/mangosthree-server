@@ -157,7 +157,7 @@ class MotionMaster
         /// The selected behaviour's generator can reach its goal; true when nothing is selected
         /// (nothing could have reported a failed path: taunts stay where they are).
         bool IsReachable() const;
-        /// The combat-started event row (design v2 §4.2): a new combat cancels the Distract layer.
+        /// The combat-started event row (design v2 §4.2): a new combat cancels the Distract layer; ignored from inside a movement operation.
         void CombatStarted();
         /// True when this sequence has a binding and that binding has been activated.
         bool IsActivated(uint32 seq) const;

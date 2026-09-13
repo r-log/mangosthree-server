@@ -1316,6 +1316,12 @@ bool MotionMaster::IsReachable() const
  */
 void MotionMaster::CombatStarted()
 {
+    // A combat start from inside a movement operation (a finalizer's AttackStop/AttackStart re-engaging) is that operation's own doing, not a new combat: the row fires for combat that begins outside a commit.
+    if (m_depth > 0)
+    {
+        return;
+    }
+
     Scope scope(*this, Motion::TransactionKind::Normal);
     m_arbiter.Notify(Motion::ExternalEvent::CombatStarted);
 }
