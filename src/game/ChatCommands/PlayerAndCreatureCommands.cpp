@@ -353,6 +353,11 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
                 PSendSysMessage(LANG_MOVEGENS_UNKNOWN, gen->GetMovementGeneratorType());
                 break;
         }
+
+        if (held[i].selected)
+        {
+            SendSysMessage("   (selected)");
+        }
     }
     return true;
 }

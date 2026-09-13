@@ -106,8 +106,14 @@ namespace
 
 // ---- Bound --------------------------------------------------------------------
 
-MotionMaster::Bound::Bound(uint32 s, std::unique_ptr<MotionBehaviour> b) : seq(s), behaviour(std::move(b)), activated(false) {}
-MotionMaster::Bound::Bound(Bound&& other) : seq(other.seq), behaviour(std::move(other.behaviour)), activated(other.activated) {}
+MotionMaster::Bound::Bound(uint32 s, std::unique_ptr<MotionBehaviour> b) : seq(s), behaviour(std::move(b)), activated(false)
+{
+}
+
+MotionMaster::Bound::Bound(Bound&& other) : seq(other.seq), behaviour(std::move(other.behaviour)), activated(other.activated)
+{
+}
+
 MotionMaster::Bound& MotionMaster::Bound::operator=(Bound&& other)
 {
     seq = other.seq;
@@ -115,16 +121,20 @@ MotionMaster::Bound& MotionMaster::Bound::operator=(Bound&& other)
     activated = other.activated;
     return *this;
 }
-MotionMaster::Bound::~Bound() {}
+
+MotionMaster::Bound::~Bound()
+{
+}
 
 // ---- Scope: one facade call = one arbiter transaction --------------------------
 
 /**
  * The outermost scope owns the commit: it delivers the arbiter's events while the
  * transaction is still open (so a finalizer's requests fall under the same
- * generation), closes it (the doomed sweep), delivers what the sweep finished under a
- * fresh transaction of the same kind, and finally reconciles the selection. A nested
- * scope only joins.
+ * generation), closes it (the doomed sweep), delivers what that sweep finished, and
+ * only then reconciles the selection -- a round at a time, under a fresh transaction
+ * of the same kind, until nothing is left. The behaviours the rounds finished are
+ * destroyed when the last one ends, never inside a tick. A nested scope only joins.
  */
 class MotionMaster::Scope
 {
@@ -163,7 +173,7 @@ class MotionMaster::Scope
  * @param unit Pointer to the unit.
  */
 MotionMaster::MotionMaster(Unit* unit)
-    : m_owner(unit), m_depth(0), m_pendingReset(PendingReset::None), m_exposedSeq(0), m_ticking(false)
+    : m_owner(unit), m_depth(0), m_pendingReset(PendingReset::None), m_exposedSeq(0)
 {
     if (sWorld.getConfig(CONFIG_BOOL_MOVEMENT_DECISION_RING))
     {
@@ -176,6 +186,7 @@ MotionMaster::MotionMaster(Unit* unit)
  */
 MotionMaster::~MotionMaster()
 {
+    m_retired.clear();
     m_bound.clear();   // generators deleted, no hooks: the stack deleted without Finalize too
 }
 
@@ -190,18 +201,21 @@ void MotionMaster::Commit(Motion::TransactionKind kind, std::optional<Motion::Tr
 {
     for (uint32 round = 0; round < kMaxCommitRounds; ++round)
     {
-        DeliverEvents();
+        DeliverEvents();              // what the operation decided, inside its transaction: a finalizer's requests fall under the same generation
         transaction.reset();          // the arbiter's commit: doomed entries finish, events queue
+        DeliverEvents();              // what the sweep finished (never activated, so no hook runs; the bindings go)
         Reconcile();                  // activate or resume the selection; may queue more
         if (!m_arbiter.HasEvents())
         {
+            m_retired.clear();
             return;
         }
-        transaction.emplace(m_arbiter, kind);
+        transaction.emplace(m_arbiter, kind);   // a finalizer re-entered: the same kind again, until nothing is left
     }
     sLog.outError("MotionMaster: %s commit did not settle in %u rounds", m_owner->GetGuidStr().c_str(), kMaxCommitRounds);
     transaction.reset();
     DeliverEvents();
+    m_retired.clear();
 }
 
 /**
@@ -242,6 +256,7 @@ void MotionMaster::Deliver(Motion::Event const& event)
             {
                 gone->Finish(*m_owner, event.reason);
             }
+            m_retired.push_back(std::move(gone));   // a generator whose own Update fired this hook must outlive it
             return;
         }
         case Motion::Event::Kind::DefaultSwapped:
@@ -264,6 +279,7 @@ void MotionMaster::Deliver(Motion::Event const& event)
             {
                 gone->Finish(*m_owner, Motion::FinishReason::Superseded);
             }
+            m_retired.push_back(std::move(gone));
             return;
         }
         case Motion::Event::Kind::Suspended:
@@ -309,6 +325,7 @@ void MotionMaster::Reconcile()
         {
             gone->Finish(*m_owner, Motion::FinishReason::Superseded);
         }
+        m_retired.push_back(std::move(gone));
     }
 
     std::optional<Motion::Held> selected = m_arbiter.Selected();
@@ -478,6 +495,7 @@ void MotionMaster::Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* 
             {
                 gone->Finish(*m_owner, Motion::FinishReason::Superseded);
             }
+            m_retired.push_back(std::move(gone));
             break;
         }
     }
@@ -588,9 +606,7 @@ void MotionMaster::UpdateMotion(uint32 diff)
         return;   // activated at this scope's commit; ticks from the next update
     }
     MovementGenerator const* ticking = bound->behaviour->Legacy();
-    m_ticking = true;
     const bool alive = bound->behaviour->Tick(*m_owner, diff);
-    m_ticking = false;
     if (!alive && IsSelected(ticking))
     {
         bound = SelectedBound();   // the tick may have re-entered the facade; re-find
@@ -1150,14 +1166,16 @@ void MotionMaster::CancelControl(Motion::Kind kind)
 void MotionMaster::RelocateSelected(float x, float y, float z, float o)
 {
     Bound* bound = SelectedBound();
-    const bool live = bound && bound->activated;
-    if (live)
+    if (bound && bound->activated)
     {
         bound->behaviour->Suspend(*m_owner);
     }
     m_owner->GetMap()->CreatureRelocation((Creature*)m_owner, x, y, z, o);
     m_owner->SendHeartBeat();
-    if (live)
+    // The relocation and the heartbeat may have changed what is selected; resume whatever
+    // is selected now, as the stack applied its Reset to whatever ended up on top.
+    bound = SelectedBound();
+    if (bound && bound->activated)
     {
         bound->behaviour->Resume(*m_owner, true);
     }

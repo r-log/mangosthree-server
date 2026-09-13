@@ -193,10 +193,10 @@ class MotionMaster
         Unit*              m_owner;
         Motion::Arbiter    m_arbiter;
         std::vector<Bound> m_bound;
+        std::vector<std::unique_ptr<MotionBehaviour> > m_retired; ///< finished behaviours, destroyed at the end of the outermost commit (a generator ticking when its hook finished it must outlive its own Update)
         uint32             m_depth;          ///< open scopes
         PendingReset       m_pendingReset;
         uint32             m_exposedSeq;     ///< WhenExposed: the entry an expiry exposed
-        bool               m_ticking;
 };
 
 #endif // MANGOS_MOTIONMASTER_H
