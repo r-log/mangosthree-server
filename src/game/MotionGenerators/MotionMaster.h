@@ -139,6 +139,11 @@ class MotionMaster
         void RelocateSelected(float x, float y, float z, float o);
         /// True iff this generator belongs to the selected behaviour (replaces MovementGenerator::IsActive).
         bool IsSelected(MovementGenerator const* generator) const;
+        /// The Combat-layer entry, selected or masked: is there a chase to go back to?
+        /// (P3-C's typed queries replace it.)
+        bool HoldsCombatMovement() const;
+        /// True when this sequence has a binding and that binding has been activated.
+        bool IsActivated(uint32 seq) const;
         /// The held patrol generator wherever it sits (default slot, masked or not), else NULL.
         WaypointMovementGenerator* HeldWaypoint();
         WaypointMovementGenerator const* HeldWaypoint() const;
@@ -166,8 +171,8 @@ class MotionMaster
             std::unique_ptr<MotionBehaviour> behaviour;
             bool activated;
             Bound(uint32 s, std::unique_ptr<MotionBehaviour> b);
-            Bound(Bound&& other);
-            Bound& operator=(Bound&& other);
+            Bound(Bound&& other) noexcept;
+            Bound& operator=(Bound&& other) noexcept;
             ~Bound();
         };
         /// The stack's reset latch: consumed once at the outermost commit.
@@ -178,17 +183,19 @@ class MotionMaster
         void Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned, EffectLaunch const& launch);
         void Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned);
         void InstallFactory(Motion::Kind kind, MovementGenerator* generator, bool owned);
-        void Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, EffectLaunch const& launch);
+        bool Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, EffectLaunch const& launch);
+        void SweepStale(Motion::Kind kind);
         void Commit(std::optional<Motion::Transaction>& transaction);
         void DeliverEvents();
         void Deliver(Motion::Event const& event);
         void Reconcile();
         bool IsHeld(uint32 seq) const;
+        size_t IndexOf(uint32 seq) const;
         Bound* Find(uint32 seq);
         Bound const* Find(uint32 seq) const;
         Bound* SelectedBound();
         Bound const* SelectedBound() const;
-        void Erase(uint32 seq);
+        void Retire(size_t index, Motion::FinishReason reason);
 
         Unit*              m_owner;
         Motion::Arbiter    m_arbiter;

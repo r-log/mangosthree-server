@@ -27,7 +27,6 @@
 #include <cmath>
 #include <optional>
 #include <sstream>
-#include "Utilities/Errors.h"
 #include "MotionMaster.h"
 #include "Behaviour.h"
 #include "LegacyBehaviour.h"
@@ -48,8 +47,6 @@
 #include "Pet.h"
 #include "World.h"
 #include "DBCStores.h"
-
-#include <cassert>
 
 namespace
 {
@@ -110,15 +107,18 @@ MotionMaster::Bound::Bound(uint32 s, std::unique_ptr<MotionBehaviour> b) : seq(s
 {
 }
 
-MotionMaster::Bound::Bound(Bound&& other) : seq(other.seq), behaviour(std::move(other.behaviour)), activated(other.activated)
+MotionMaster::Bound::Bound(Bound&& other) noexcept : seq(other.seq), behaviour(std::move(other.behaviour)), activated(other.activated)
 {
 }
 
-MotionMaster::Bound& MotionMaster::Bound::operator=(Bound&& other)
+MotionMaster::Bound& MotionMaster::Bound::operator=(Bound&& other) noexcept
 {
-    seq = other.seq;
-    behaviour = std::move(other.behaviour);
-    activated = other.activated;
+    if (this != &other)
+    {
+        seq = other.seq;
+        behaviour = std::move(other.behaviour);
+        activated = other.activated;
+    }
     return *this;
 }
 
@@ -188,7 +188,7 @@ MotionMaster::MotionMaster(Unit* unit)
 {
     if (sWorld.getConfig(CONFIG_BOOL_MOVEMENT_DECISION_RING))
     {
-        m_arbiter.EnableRing();
+        EnableDecisionRing();
     }
 }
 
@@ -251,23 +251,18 @@ void MotionMaster::DeliverEvents()
  */
 void MotionMaster::Deliver(Motion::Event const& event)
 {
-    Bound* bound = Find(event.seq);
-    if (!bound)
+    const size_t index = IndexOf(event.seq);
+    if (index == m_bound.size())
     {
         return;   // a refused or already-unbound entry
     }
+    Bound* bound = &m_bound[index];
     switch (event.kind)
     {
         case Motion::Event::Kind::Finished:
         {
-            std::unique_ptr<MotionBehaviour> gone = std::move(bound->behaviour);
-            const bool activated = bound->activated;
-            Erase(event.seq);
-            if (activated)
-            {
-                gone->Finish(*m_owner, event.reason);
-            }
-            m_retired.push_back(std::move(gone));   // a generator whose own Update fired this hook must outlive it
+            // No delivery of its own afterwards: the caller's loop drains what the hook queued.
+            Retire(index, event.reason);
             return;
         }
         case Motion::Event::Kind::DefaultSwapped:
@@ -283,14 +278,7 @@ void MotionMaster::Deliver(Motion::Event const& event)
                 }
                 return;
             }
-            std::unique_ptr<MotionBehaviour> gone = std::move(bound->behaviour);
-            const bool activated = bound->activated;
-            Erase(event.seq);
-            if (activated)
-            {
-                gone->Finish(*m_owner, Motion::FinishReason::Superseded);
-            }
-            m_retired.push_back(std::move(gone));
+            Retire(index, Motion::FinishReason::Superseded);
             return;
         }
         case Motion::Event::Kind::Suspended:
@@ -329,41 +317,62 @@ void MotionMaster::Reconcile()
             ++i;
             continue;
         }
-        std::unique_ptr<MotionBehaviour> gone = std::move(m_bound[i].behaviour);
         const bool activated = m_bound[i].activated;
-        m_bound.erase(m_bound.begin() + static_cast<std::vector<Bound>::difference_type>(i));
+        Retire(i, Motion::FinishReason::Superseded);
         if (activated)
         {
-            gone->Finish(*m_owner, Motion::FinishReason::Superseded);
+            // The hook may have finished other entries with reasons of their own (a Clear
+            // from AttackStart, a nested request): deliver those before the rescan, or this
+            // blanket supersede reaches them first and they lose their Finalize.
+            DeliverEvents();
             i = 0;   // the hook may have bound or unbound entries: rescan from the start
         }
-        m_retired.push_back(std::move(gone));
     }
 
     std::optional<Motion::Held> selected = m_arbiter.Selected();
-    if (!selected)
-    {
-        m_pendingReset = PendingReset::None;
-        return;
-    }
-    Bound* bound = Find(selected->seq);
-    if (!bound)
+    Bound* bound = selected ? Find(selected->seq) : NULL;
+    if (selected && !bound)
     {
         sLog.outError("MotionMaster: %s selected %s has no behaviour", m_owner->GetGuidStr().c_str(), Motion::KindName(selected->kind));
-        m_pendingReset = PendingReset::None;
-        return;
     }
-    if (!bound->activated)
+    if (bound)
     {
-        bound->activated = true;
-        bound->behaviour->Activate(*m_owner);   // never a reset: the stack never Reset a freshly pushed generator
-    }
-    else if (m_pendingReset == PendingReset::Always ||
-             (m_pendingReset == PendingReset::WhenExposed && selected->seq == m_exposedSeq))
-    {
-        bound->behaviour->Resume(*m_owner, true);
+        if (!bound->activated)
+        {
+            bound->activated = true;
+            bound->behaviour->Activate(*m_owner);   // never a reset: the stack never Reset a freshly pushed generator
+        }
+        else if (m_pendingReset == PendingReset::Always ||
+                 (m_pendingReset == PendingReset::WhenExposed && selected->seq == m_exposedSeq))
+        {
+            bound->behaviour->Resume(*m_owner, true);
+        }
     }
     m_pendingReset = PendingReset::None;
+
+#ifdef MANGOS_DEBUG
+    // The shell's invariant, once the selection has settled: every entry the model holds
+    // (the parked factory default with them) has exactly one binding, and every binding
+    // answers to an entry. Allocating to ask never reaches a release build.
+    std::vector<Motion::Held> model = m_arbiter.Contents();
+    if (std::optional<Motion::Held> const& parked = m_arbiter.Fallback())
+    {
+        model.push_back(*parked);
+    }
+    bool agree = model.size() == m_bound.size();
+    for (size_t i = 0; agree && i < model.size(); ++i)
+    {
+        agree = Find(model[i].seq) != NULL;
+    }
+    for (size_t i = 0; agree && i < m_bound.size(); ++i)
+    {
+        agree = IsHeld(m_bound[i].seq);
+    }
+    if (!agree)
+    {
+        sLog.outError("MotionMaster: %s bindings disagree with the model", m_owner->GetGuidStr().c_str());
+    }
+#endif
 }
 
 // ---- binding -------------------------------------------------------------------
@@ -375,20 +384,24 @@ void MotionMaster::Reconcile()
  */
 bool MotionMaster::IsHeld(uint32 seq) const
 {
-    std::optional<Motion::Held> const& fallback = m_arbiter.Fallback();
-    if (fallback && fallback->seq == seq)
+    return m_arbiter.Holds(seq);   // allocation-free: this runs per binding, per unit, per tick
+}
+
+/**
+ * @brief The index of this sequence's binding.
+ * @param seq The arbiter sequence.
+ * @return Its index in m_bound, or m_bound.size() when it has none.
+ */
+size_t MotionMaster::IndexOf(uint32 seq) const
+{
+    for (size_t i = 0; i < m_bound.size(); ++i)
     {
-        return true;
-    }
-    std::vector<Motion::Held> contents = m_arbiter.Contents();
-    for (size_t i = 0; i < contents.size(); ++i)
-    {
-        if (contents[i].seq == seq)
+        if (m_bound[i].seq == seq)
         {
-            return true;
+            return i;
         }
     }
-    return false;
+    return m_bound.size();
 }
 
 /**
@@ -398,14 +411,8 @@ bool MotionMaster::IsHeld(uint32 seq) const
  */
 MotionMaster::Bound* MotionMaster::Find(uint32 seq)
 {
-    for (size_t i = 0; i < m_bound.size(); ++i)
-    {
-        if (m_bound[i].seq == seq)
-        {
-            return &m_bound[i];
-        }
-    }
-    return NULL;
+    const size_t index = IndexOf(seq);
+    return index < m_bound.size() ? &m_bound[index] : NULL;
 }
 
 /**
@@ -415,14 +422,8 @@ MotionMaster::Bound* MotionMaster::Find(uint32 seq)
  */
 MotionMaster::Bound const* MotionMaster::Find(uint32 seq) const
 {
-    for (size_t i = 0; i < m_bound.size(); ++i)
-    {
-        if (m_bound[i].seq == seq)
-        {
-            return &m_bound[i];
-        }
-    }
-    return NULL;
+    const size_t index = IndexOf(seq);
+    return index < m_bound.size() ? &m_bound[index] : NULL;
 }
 
 /**
@@ -446,19 +447,20 @@ MotionMaster::Bound const* MotionMaster::SelectedBound() const
 }
 
 /**
- * @brief Removes the binding of this sequence, if any.
- * @param seq The arbiter sequence.
+ * @brief Moves a binding's behaviour out, drops the binding and retires the behaviour.
+ * @param index The binding's index in m_bound.
+ * @param reason Why it ended; delivered to Finish only when the behaviour ever ran.
  */
-void MotionMaster::Erase(uint32 seq)
+void MotionMaster::Retire(size_t index, Motion::FinishReason reason)
 {
-    for (size_t i = 0; i < m_bound.size(); ++i)
+    std::unique_ptr<MotionBehaviour> gone = std::move(m_bound[index].behaviour);
+    const bool activated = m_bound[index].activated;
+    m_bound.erase(m_bound.begin() + static_cast<std::vector<Bound>::difference_type>(index));
+    if (activated)
     {
-        if (m_bound[i].seq == seq)
-        {
-            m_bound.erase(m_bound.begin() + static_cast<std::vector<Bound>::difference_type>(i));
-            return;
-        }
+        gone->Finish(*m_owner, reason);
     }
+    m_retired.push_back(std::move(gone));   // a generator whose own Update fired this hook must outlive it
 }
 
 /**
@@ -468,50 +470,51 @@ void MotionMaster::Erase(uint32 seq)
  * @param generator The legacy generator to adapt.
  * @param owned True when the behaviour owns (and deletes) the generator.
  * @param launch The Effect's spline parameters, if any.
+ * @return True when the model kept the entry and it now has a behaviour.
  */
-void MotionMaster::Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, EffectLaunch const& launch)
+bool MotionMaster::Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, EffectLaunch const& launch)
 {
-    // The entry this request produced is newer than everything that existed before it;
-    // an in-place update (a chase on a chasing unit, a claim of the same identity) shows
-    // as a held entry with a bumped sequence whose old binding is now stale.
-    std::optional<Motion::Held> fresh;
-    std::vector<Motion::Held> contents = m_arbiter.Contents();
-    for (size_t i = 0; i < contents.size(); ++i)
-    {
-        if (contents[i].seq > seqBefore && (!fresh || contents[i].seq > fresh->seq))
-        {
-            fresh = contents[i];
-        }
-    }
-    std::optional<Motion::Held> const& fallback = m_arbiter.Fallback();
-    if (!fresh && fallback && fallback->seq > seqBefore)
-    {
-        fresh = *fallback;
-    }
-    if (!fresh)
+    // The arbiter stamps exactly once per Request/InstallDefault, so the entry this call
+    // produced -- when the model kept it -- is exactly seqBefore + 1. A refusal (a control
+    // with no identity: never stamped; an Idle default over an Idle command: stamped and
+    // dropped) leaves nothing holding that sequence.
+    if (!IsHeld(seqBefore + 1))
     {
         if (owned)
         {
-            delete generator;   // refused: an idle twice, a control without an identity
+            delete generator;
         }
-        return;
+        return false;
     }
-    for (size_t i = 0; i < m_bound.size(); ++i)
+    m_bound.push_back(Bound(seqBefore + 1, std::unique_ptr<MotionBehaviour>(new LegacyBehaviour(kind, generator, owned, launch))));
+    return true;
+}
+
+/**
+ * @brief Retires the binding a request left behind when the model updated an entry in place.
+ * @param kind The kind the request asked for.
+ *
+ * Run after the request's events are delivered: by then the only binding of this kind the
+ * model no longer holds is one it updated in place (a chase on a chasing unit, a claim of
+ * the same identity), which finishes no entry and so queues no event of its own.
+ */
+void MotionMaster::SweepStale(Motion::Kind kind)
+{
+    for (size_t i = 0; i < m_bound.size();)
     {
-        if (!IsHeld(m_bound[i].seq) && m_bound[i].behaviour->Kind() == kind)
+        if (IsHeld(m_bound[i].seq) || m_bound[i].behaviour->Kind() != kind)
         {
-            std::unique_ptr<MotionBehaviour> gone = std::move(m_bound[i].behaviour);
-            const bool activated = m_bound[i].activated;
-            m_bound.erase(m_bound.begin() + static_cast<std::vector<Bound>::difference_type>(i));
-            if (activated)
-            {
-                gone->Finish(*m_owner, Motion::FinishReason::Superseded);
-            }
-            m_retired.push_back(std::move(gone));
-            break;
+            ++i;
+            continue;
+        }
+        const bool activated = m_bound[i].activated;
+        Retire(i, Motion::FinishReason::Superseded);
+        if (activated)
+        {
+            DeliverEvents();   // a reason the hook queued must reach its entry before the rescan
+            i = 0;
         }
     }
-    m_bound.push_back(Bound(fresh->seq, std::unique_ptr<MotionBehaviour>(new LegacyBehaviour(kind, generator, owned, launch))));
 }
 
 /**
@@ -526,12 +529,19 @@ void MotionMaster::Request(Motion::MoveRequest const& request, MovementGenerator
     Scope scope(*this, Motion::TransactionKind::Normal);
     const uint32 before = m_arbiter.LastSeq();
     m_arbiter.Request(request);
+    // The entry this request stamped is bound before any hook runs: a hook may issue a
+    // request of its own (a finalizer re-engaging combat), and that nested entry must not
+    // be able to claim this generator -- nor may a hook see the facade empty over a model
+    // that already holds the new selection.
+    const bool bound = Bind(request.kind, before, generator, owned, launch);
     // What the request finished (superseded, overridden, cancelled, a swapped default) is
     // delivered now, with their own reasons and inside this transaction, as Mutate ran the
-    // displaced generator's hooks synchronously; only then is the new entry bound, so the
-    // stale-binding rule in Bind sees nothing but an entry updated in place.
+    // displaced generator's hooks synchronously.
     DeliverEvents();
-    Bind(request.kind, before, generator, owned, launch);
+    if (bound)
+    {
+        SweepStale(request.kind);
+    }
 }
 
 /**
@@ -555,8 +565,12 @@ void MotionMaster::InstallFactory(Motion::Kind kind, MovementGenerator* generato
 {
     const uint32 before = m_arbiter.LastSeq();
     m_arbiter.InstallDefault(kind);
-    DeliverEvents();   // the clear's or the death's Finished events, with their own reasons, before the new default is bound
-    Bind(kind, before, generator, owned, EffectLaunch());
+    const bool bound = Bind(kind, before, generator, owned, EffectLaunch());   // before the hooks, as Request does it
+    DeliverEvents();   // the clear's or the death's Finished events, and the swap's, with their own reasons
+    if (bound)
+    {
+        SweepStale(kind);
+    }
 }
 
 // ---- the facade ----------------------------------------------------------------
@@ -1202,6 +1216,31 @@ bool MotionMaster::IsSelected(MovementGenerator const* generator) const
 {
     Bound const* bound = SelectedBound();
     return bound && bound->behaviour->Legacy() == generator;
+}
+
+/**
+ * @brief Whether the Combat layer holds anything, selected or masked.
+ * @return True when a chase is held.
+ *
+ * The question a one-shot's finalizer asks: is there combat movement to fall back to, or
+ * must it be re-engaged? The selection cannot answer it from inside a transaction -- the
+ * finalizer runs before the model has settled -- but the layer can, because a finished
+ * combat slot is already reset by the time the hook sees it.
+ */
+bool MotionMaster::HoldsCombatMovement() const
+{
+    return m_arbiter.Combat().has_value();
+}
+
+/**
+ * @brief Whether this sequence's behaviour has been activated.
+ * @param seq The arbiter sequence.
+ * @return True when a binding exists for it and has run Activate.
+ */
+bool MotionMaster::IsActivated(uint32 seq) const
+{
+    Bound const* bound = Find(seq);
+    return bound && bound->activated;
 }
 
 /**
