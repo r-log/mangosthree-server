@@ -1060,12 +1060,12 @@ void MotionMaster::PropagateSpeedChange()
 }
 
 /**
- * @brief The held patrol generator wherever it sits.
+ * @brief The held patrol generator wherever it sits; the newest when two are held.
  * @return The waypoint generator, or NULL.
  */
 WaypointMovementGenerator* MotionMaster::HeldWaypoint()
 {
-    for (size_t i = 0; i < m_bound.size(); ++i)
+    for (size_t i = m_bound.size(); i-- > 0;)   // newest first: a patrol pushed over a parked factory patrol is the one the readers mean, as the stack's top-down search found it
     {
         if (m_bound[i].behaviour->LegacyType() == WAYPOINT_MOTION_TYPE)
         {
@@ -1076,12 +1076,12 @@ WaypointMovementGenerator* MotionMaster::HeldWaypoint()
 }
 
 /**
- * @brief The held patrol generator wherever it sits.
+ * @brief The held patrol generator wherever it sits; the newest when two are held.
  * @return The waypoint generator, or NULL.
  */
 WaypointMovementGenerator const* MotionMaster::HeldWaypoint() const
 {
-    for (size_t i = 0; i < m_bound.size(); ++i)
+    for (size_t i = m_bound.size(); i-- > 0;)   // newest first: a patrol pushed over a parked factory patrol is the one the readers mean, as the stack's top-down search found it
     {
         if (m_bound[i].behaviour->LegacyType() == WAYPOINT_MOTION_TYPE)
         {
