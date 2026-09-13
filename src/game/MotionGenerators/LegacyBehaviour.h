@@ -40,6 +40,8 @@ class LegacyBehaviour : public MotionBehaviour
     public:
         LegacyBehaviour(Motion::Kind kind, MovementGenerator* generator, bool owned, EffectLaunch const& launch = EffectLaunch());
         ~LegacyBehaviour() override;
+        LegacyBehaviour(LegacyBehaviour const&) = delete;
+        LegacyBehaviour& operator=(LegacyBehaviour const&) = delete;
 
         Motion::Kind Kind() const override { return m_kind; }
         MovementGeneratorType LegacyType() const override;

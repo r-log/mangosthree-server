@@ -59,7 +59,7 @@ class IntentMovementGenerator : public MovementGenerator
 
             // A hook fired from inside Intent (a waypoint inform, a script) may have pushed
             // or popped generators: a leg laid now would belong to one no longer on top.
-            if (!IsActive(owner))
+            if (!owner.GetMotionMaster()->IsSelected(this))
             {
                 return true;
             }

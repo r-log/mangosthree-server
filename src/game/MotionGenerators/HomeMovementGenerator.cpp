@@ -38,15 +38,15 @@ void HomeMovementGenerator::Initialize(Unit& owner)
         return;
     }
 
-    // MotionMaster::Mutate initializes us BEFORE pushing us, so the stack top here is
-    // still the generator we are evacuating -- and it is the only one that knows where
-    // this creature belongs. Ask it now; once we are on top the answer is unreachable.
+    // Since P3-B the shell asks the displaced behaviour for the reset position and hands
+    // it to the constructor (MotionMaster::MoveTargetedHome), because by the time this runs
+    // the arbiter has already selected us. The fallback below is the no-preset path.
     if (!m_preset)
     {
         float x, y, z, o;
-        MotionMaster* motion = owner.GetMotionMaster();
+        MovementGenerator const* current = owner.GetMotionMaster()->GetCurrent();
 
-        if (motion->empty() || !motion->top()->GetResetPosition(owner, x, y, z, o))
+        if (!current || current == this || !current->GetResetPosition(owner, x, y, z, o))
         {
             Geometry::Placement const& home = static_cast<Creature&>(owner).Spawn();
             x = home.X();
