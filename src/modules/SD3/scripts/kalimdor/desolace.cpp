@@ -184,7 +184,7 @@ struct spell_npc_aged_dying_ancient_kodo : public SpellScript
                 pCreatureTarget->UpdateEntry(NPC_TAMED_KODO);
                 pCreatureTarget->CastSpell(pCreatureTarget, SPELL_KODO_KOMBO_DESPAWN_BUFF, false);
 
-                if (pCreatureTarget->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
+                if (pCreatureTarget->GetMotionMaster()->ActiveKind() == Motion::Kind::Patrol)
                 {
                     pCreatureTarget->GetMotionMaster()->MoveIdle();
                 }
