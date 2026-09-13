@@ -755,6 +755,11 @@ namespace Motion
         return out;
     }
 
+    bool Arbiter::Holds(uint32 seq) const
+    {
+        return StillHeld(seq) || (m_fallbackDefault && m_fallbackDefault->seq == seq);
+    }
+
     std::vector<Event> Arbiter::DrainEvents()
     {
         std::vector<Event> out;

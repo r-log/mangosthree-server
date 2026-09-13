@@ -230,6 +230,10 @@ namespace Motion
             /// Every held entry, ascending layer order (Default, Combat, then the commands,
             /// the claims in precedence order on the Control layer).
             std::vector<Held> Contents() const;
+            /// True when this sequence is still held: an entry Contents() would list, or the
+            /// parked fallback. The allocation-free answer to the question Contents() is
+            /// otherwise built to ask, for the shell's per-binding, per-tick sweeps.
+            bool Holds(uint32 seq) const;
             /// Take and clear the accumulated events.
             std::vector<Event> DrainEvents();
 

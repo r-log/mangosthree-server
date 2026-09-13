@@ -1137,6 +1137,30 @@ TEST(MotionArbiter_Fallback_IsVisible)
     CHECK(!m.Fallback());
 }
 
+TEST(MotionArbiter_Holds_AnswersWithoutContents)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    const uint32 idleSeq = m.Default()->seq;
+    CHECK(m.Holds(idleSeq));
+    CHECK(!m.Holds(idleSeq + 100));                   // never handed out
+    CHECK(!m.Holds(0));
+    m.Request(Req(Kind::Patrol));
+    const uint32 patrolSeq = m.Default()->seq;
+    REQUIRE(m.Fallback().has_value());
+    CHECK(m.Holds(idleSeq));                          // the parked fallback, as Contents() never lists it
+    CHECK(m.Holds(patrolSeq));
+    m.Request(Req(Kind::Point, 7));
+    const uint32 pointSeq = m.Command(Layer::Scripted)->seq;
+    CHECK(m.Holds(pointSeq));
+    m.Request(Claim(Kind::Fear, 11));
+    const uint32 fearSeq = m.Claims()[0].seq;
+    CHECK(m.Holds(fearSeq));
+    m.FinishSelected(FinishReason::Expired);
+    CHECK(!m.Holds(fearSeq));                         // finished: gone from the claim set
+    CHECK(m.Holds(pointSeq));
+}
+
 TEST(MotionArbiter_Ring_OffByDefault_OnWhenEnabled)
 {
     Arbiter m;
