@@ -163,6 +163,7 @@ namespace Motion
         h.claim = claim;
         h.generation = m_generation;
         h.doomed = InDiscardingTransaction();
+        h.started = false;
         return h;
     }
 
@@ -455,7 +456,7 @@ namespace Motion
         if (all)
         {
             Finish(m_default, FinishReason::Cleared);
-            m_fallbackDefault.reset();
+            Finish(m_fallbackDefault, FinishReason::Cleared);
         }
         else if (m_fallbackDefault)
         {
@@ -824,22 +825,59 @@ namespace Motion
         return false;
     }
 
+    Held* Arbiter::HeldBySeq(uint32 seq)
+    {
+        if (m_default && m_default->seq == seq)
+        {
+            return &*m_default;
+        }
+        if (m_combat && m_combat->seq == seq)
+        {
+            return &*m_combat;
+        }
+        for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
+        {
+            if (i == CONTROL)
+            {
+                continue;   // the claim set below, not a command slot
+            }
+            if (m_commands[i] && m_commands[i]->seq == seq)
+            {
+                return &*m_commands[i];
+            }
+        }
+        for (Held& claim : m_claims)
+        {
+            if (claim.seq == seq)
+            {
+                return &claim;
+            }
+        }
+        return NULL;
+    }
+
     void Arbiter::Reselect(std::optional<Held> const& before)
     {
         const std::optional<Held> after = Selected();
-        if (!before || !after || before->seq == after->seq)
+        if (after && (!before || before->seq != after->seq))
         {
-            return;
-        }
-        if (StillHeld(before->seq))
-        {
-            m_events.push_back({Event::Kind::Suspended, before->kind, before->id, FinishReason::Cut, before->claim});
-        }
-        if (after->seq < m_seq || after->seq < before->seq)
-        {
-            if (after->seq != m_seq)
+            if (before && StillHeld(before->seq))
+            {
+                m_events.push_back({Event::Kind::Suspended, before->kind, before->id, FinishReason::Cut, before->claim});
+            }
+            // A resume is for an entry that has run before and is being exposed again, not
+            // for a masked entry starting for the first time, and not for the entry just
+            // requested (the newest arrival, which includes an in-place update).
+            if (after->started && after->seq != m_seq)
             {
                 m_events.push_back({Event::Kind::Resumed, after->kind, after->id, FinishReason::Arrived, after->claim});
+            }
+        }
+        if (after)
+        {
+            if (Held* held = HeldBySeq(after->seq))
+            {
+                held->started = true;
             }
         }
     }

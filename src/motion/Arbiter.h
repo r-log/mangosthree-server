@@ -91,13 +91,14 @@ namespace Motion
     /// One held entry, wherever it sits.
     struct Held
     {
-        Held() : kind(Kind::Idle), id(0), seq(0), claim(0), generation(0), doomed(false) {}
+        Held() : kind(Kind::Idle), id(0), seq(0), claim(0), generation(0), doomed(false), started(false) {}
         Kind   kind;
         uint32 id;         ///< MovementInform id, 0 when none
         uint32 seq;        ///< arrival order; newest wins ties and tells a resume from a fresh start
         uint64 claim;      ///< Control entries only, else 0
         uint32 generation; ///< the transaction that created it
         bool   doomed;     ///< created inside a discarding transaction: finished at its commit
+        bool   started;    ///< it has been the selection at least once
     };
 
     /// One selection event, drained by the shell after a mutating call.
@@ -176,7 +177,8 @@ namespace Motion
             void Request(MoveRequest const& request);
             /// The Clear(reset, all) projection: drop every command, every claim and
             /// combat, a pushed default with them (the factory default beneath resumes),
-            /// and that bottom default too when `all`.
+            /// and that bottom default too when `all`, with the factory default parked
+            /// beneath a pushed one.
             void Clear(bool all);
             /// MovementExpired / Update()==false on whatever is currently selected.
             void ExpireSelected();
@@ -243,6 +245,9 @@ namespace Motion
             void Reselect(std::optional<Held> const& before);
             /// True when some entry Contents() would list (not the fallback) still has this seq.
             bool StillHeld(uint32 seq) const;
+            /// The held entry with this `seq` (m_default, m_combat, the command slots other
+            /// than the unused Control one, or a claim), or NULL.
+            Held* HeldBySeq(uint32 seq);
             /// Apply a Default-layer request (§4.2): swap, Idle-as-command, Follow fallback.
             void RequestDefault(MoveRequest const& request, Held const& held, Policy policy);
             /// Apply a command-layer request: supersede the layer, then Override cancels below it.

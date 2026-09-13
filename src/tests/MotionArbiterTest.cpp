@@ -1053,3 +1053,37 @@ TEST(MotionArbiter_Ring_NotifyRecordsTheEvent)
     CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Notify));
     CHECK_EQ(static_cast<int>(d.back().id), static_cast<int>(ExternalEvent::CombatStarted));
 }
+
+TEST(MotionArbiter_ClearAllFinishesParkedFactoryDefault)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Patrol));                     // Idle parked beneath
+    m.DrainEvents();
+    m.Clear(true);
+    CHECK(m.Empty());
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Patrol, 0, FinishReason::Cleared));
+    CHECK(HasFinished(ev, Kind::Idle, 0, FinishReason::Cleared));
+}
+
+TEST(MotionArbiter_Reselect_NeverRunEntryIsNotResumed)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 1));
+    m.Request(Req(Kind::Point, 3));                   // masked under the fear, never ran
+    m.Request(Req(Kind::Chase));                      // masked too, and newer
+    m.DrainEvents();
+    m.Release(1);
+    CHECK_EQ(SelectedKind(m), K(Kind::Point));
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Resumed, Kind::Point), 0);   // a first start, not a resume
+    m.ExpireSelected();                               // the point arrives
+    CHECK_EQ(SelectedKind(m), K(Kind::Chase));
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Resumed, Kind::Chase), 0);   // never ran either
+    m.Request(Req(Kind::Point, 4, true));             // a point over the running chase, keeping it
+    m.DrainEvents();
+    m.ExpireSelected();
+    CHECK_EQ(SelectedKind(m), K(Kind::Chase));
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Resumed, Kind::Chase), 1);   // it had run: resumed
+}
