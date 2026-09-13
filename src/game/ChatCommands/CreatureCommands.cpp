@@ -1023,16 +1023,7 @@ bool ChatHandler::HandleNpcUnFollowCommand(char* /*args*/)
     }
 
     MotionMaster* creatureMotion = creature->GetMotionMaster();
-    if (creatureMotion->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
-    {
-        PSendSysMessage(LANG_CREATURE_NOT_FOLLOW_YOU, creature->GetName());
-        SetSentErrorMessage(true);
-        return false;
-    }
-
-    FollowMovementGenerator const* mgen = static_cast<FollowMovementGenerator const*>(creatureMotion->GetCurrent());
-
-    if (mgen->GetTarget() != player)
+    if (!creatureMotion->IsFollowing() || creatureMotion->FollowTarget() != player)   // a follow masked by a fear is still the follow to end
     {
         PSendSysMessage(LANG_CREATURE_NOT_FOLLOW_YOU, creature->GetName());
         SetSentErrorMessage(true);
