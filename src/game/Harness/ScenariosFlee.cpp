@@ -366,7 +366,7 @@ namespace Harness
                     else
                     {
                         // Chasing within a second of the attack start, and closer by the end.
-                        Sample const& first = (*samples)[3];   // +900 ms
+                        Sample const& first = (*samples)[2];   // +900 ms
                         Sample const& last = samples->back();
                         char text[160];
                         if (first.mt == CHASE_MOTION_TYPE && last.dVictim < *atAttack - 2.0f)

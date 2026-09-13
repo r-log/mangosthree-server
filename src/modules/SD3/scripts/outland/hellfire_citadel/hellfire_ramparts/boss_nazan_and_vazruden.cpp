@@ -268,6 +268,7 @@ struct boss_vazruden_herald : public CreatureScript
 
         void ReceiveAIEvent(AIEventType /*eventType*/, Creature *pSender, Unit* /*pInvoker*/, uint32 /*data*/) override
         {
+            // TODO upstream: a stub -- the event type is never checked, so any AI event from Vazruden sends Nazan to the combat position.
             if (pSender->GetEntry() == NPC_VAZRUDEN)
             {
                 DoMoveToCombat();

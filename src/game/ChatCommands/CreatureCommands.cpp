@@ -40,7 +40,6 @@
 #include "World.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "TargetedMovementGenerator.h"                      // for HandleNpcUnFollowCommand
 #include "TemporarySummon.h"
 #include "WaypointManager.h"
 #include "PathFinder.h"                                     // for mmap commands

@@ -144,8 +144,6 @@ class MotionMaster
         Motion::Kind ActiveKind() const;
         /// A chase is held (the Combat entry), selected or masked.
         bool IsChasing() const;
-        /// The held chase's target, or NULL.
-        Unit* ChaseTarget() const;
         /// The current default is a follow (the parked fallback does not count), selected or masked.
         bool IsFollowing() const;
         /// The held follow's target, or NULL.

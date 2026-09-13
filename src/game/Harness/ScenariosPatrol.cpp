@@ -311,7 +311,8 @@ namespace Harness
 
             void OnInform(Creature* creature, uint32 type, uint32 id) override
             {
-                if (creature && (type == WAYPOINT_MOTION_TYPE || type == EXTERNAL_WAYPOINT_MOVE + kExternalPath) && id == 2 && creature->IsAlive())
+                if (creature && creature->GetObjectGuid() == m_walker &&
+                    (type == WAYPOINT_MOTION_TYPE || type == EXTERNAL_WAYPOINT_MOVE + kExternalPath) && id == 2 && creature->IsAlive())
                 {
                     Log("node %u inform: ForcedDespawn from inside the hook, mt=%s", id, TypeName(creature));
                     creature->ForcedDespawn();
@@ -324,6 +325,7 @@ namespace Harness
                 if (!a) { Verdict("despawnAtNode=INVALID(spawn failed)"); return; }
                 Load(P0_FAR.x, P0_FAR.y);
                 const ObjectGuid g = a->GetObjectGuid();
+                m_walker = g;   // OnInform fires for every recording actor: only this scenario's walker despawns
                 auto informedAt = std::make_shared<uint32>(0);
                 At(500, [this, g]()
                 {
@@ -368,6 +370,9 @@ namespace Harness
                     Verdict(body);
                 });
             }
+
+        private:
+            ObjectGuid m_walker;   ///< the walker this run spawned; the despawn hook acts on it alone
         };
     }
 
