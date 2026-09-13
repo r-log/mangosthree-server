@@ -648,8 +648,8 @@ bool Unit::haveOffhandWeapon() const
     }
     else
     {
-        uint32 ItemId = GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1);
-        /*ItemEntry const* itemInfo = sItemStore.LookupEntry(ItemId);
+        /*uint32 ItemId = GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1);
+        ItemEntry const* itemInfo = sItemStore.LookupEntry(ItemId);
 
         if (itemInfo && itemInfo->Class == ITEM_CLASS_WEAPON)
         {
@@ -7011,7 +7011,7 @@ void Unit::SendCollisionHeightUpdate(float height)
 }
 
 // This will create a new creature and set the current unit as the controller of that new creature
-Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry const* summonProp, SpellEffectEntry const* spellEffect, float x, float y, float z, float ang)
+Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry const* /*summonProp*/, SpellEffectEntry const* spellEffect, float x, float y, float z, float ang)
 {
     int32 const& creatureEntry = spellEffect->EffectMiscValue_0;
     CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(creatureEntry);

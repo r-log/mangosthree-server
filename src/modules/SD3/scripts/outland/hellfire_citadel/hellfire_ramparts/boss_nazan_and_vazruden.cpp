@@ -266,7 +266,7 @@ struct boss_vazruden_herald : public CreatureScript
             DoScriptText(EMOTE_DESCEND, m_creature);
         }
 
-        void ReceiveAIEvent(AIEventType eventType, Creature *pSender, Unit* /*pInvoker*/, uint32 /*data*/) override
+        void ReceiveAIEvent(AIEventType /*eventType*/, Creature *pSender, Unit* /*pInvoker*/, uint32 /*data*/) override
         {
             if (pSender->GetEntry() == NPC_VAZRUDEN)
             {

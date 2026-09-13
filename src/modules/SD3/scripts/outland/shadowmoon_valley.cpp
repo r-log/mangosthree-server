@@ -377,7 +377,7 @@ struct npc_dragonmaw_peon : public CreatureScript
             }
         }
 
-        bool SetPlayerTarget(ObjectGuid playerGuid)
+        bool SetPlayerTarget(ObjectGuid /*playerGuid*/)
         {
             // Check if event already started
         }
@@ -596,7 +596,7 @@ struct npc_wilda : public CreatureScript
         }
 
 #if defined (WOTLK) || defined (CATA) || defined(MISTS)
-        void Aggro(Unit* pWho) override
+        void Aggro(Unit* /*pWho*/) override
         {
             if (roll_chance_i(30))
             {
@@ -2336,7 +2336,7 @@ struct npc_veneratus_spawn_node : public CreatureScript
         }
 
 #if defined (TBC) || defined (WOTLK) || defined (CATA) || defined(MISTS)
-        void UpdateAI(const uint32 uiDiff) override {}
+        void UpdateAI(const uint32 /*uiDiff*/) override {}
 #endif
     };
 
