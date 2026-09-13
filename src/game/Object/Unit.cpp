@@ -3061,6 +3061,8 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     m_attacking = victim;
     m_attacking->_addAttacker(this);
 
+    GetMotionMaster()->CombatStarted();   // the event row: a new combat drops a running distract (a no-op otherwise)
+
     if (GetTypeId() == TYPEID_UNIT)
     {
         ((Creature*)this)->SendAIReaction(AI_REACTION_HOSTILE);
