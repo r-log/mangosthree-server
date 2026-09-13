@@ -11,16 +11,18 @@ The facade `MotionMaster` is the movement kernel campaign's shim for the vendore
 | MoveFollow | 58 |
 | MoveTargetedHome | 28 |
 | MoveWaypoint | 27 |
-| GetCurrentMovementGeneratorType | 25 |
+| ActiveKind | 20 |
 | MoveRandomAroundPoint | 16 |
 | MovementExpired | 10 |
 | MoveJump | 9 |
 | MoveFlyOrLand | 4 |
 | Initialize | 3 |
+| IsPatrolling | 3 |
+| IsChasing | 2 |
 | MoveRandom | 1 |
 | MoveFleeing | 1 |
 
-Counted 2026-09-12 on master ebb271cae with `grep -rhoE "GetMotionMaster\(\)->[A-Za-z_]+" src/modules/SD3 | sort | uniq -c`.
+Counted 2026-09-14 on `feat/movement-queries` with `grep -rhoE "GetMotionMaster\(\)->[A-Za-z_]+" src/modules/SD3 | sort | uniq -c`.
 
 ## The shell
 

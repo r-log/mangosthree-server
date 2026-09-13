@@ -1129,9 +1129,9 @@ void CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
 
             if (m_isCombatMovement)
             {
-                if (m_creature->GetMotionMaster()->IsChasing())
+                if (m_creature->GetMotionMaster()->ActiveKind() == Motion::Kind::Chase)
                 {
-                    // A held chase, masked or not, is re-issued with the new distance and angle
+                    // The chase that runs now is re-issued with the new distance and angle; a masked chase keeps its mask (the Clear below would cut it)
                     m_creature->GetMotionMaster()->Clear(false);
                     m_creature->GetMotionMaster()->MoveChase(m_creature->getVictim(), m_attackDistance, m_attackAngle);
                 }
