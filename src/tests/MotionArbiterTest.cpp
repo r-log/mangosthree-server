@@ -715,7 +715,7 @@ TEST(MotionArbiter_Generations_RequestDuringClearAllIsDiscardedAtCommit)
     CHECK(!m.InDiscardingTransaction());
 }
 
-TEST(MotionArbiter_Generations_RequestDuringClearKeepsDefaultDropsCommand)
+TEST(MotionArbiter_Generations_RequestDuringClearDropsDefaultAndCommand)
 {
     Arbiter m;
     m.InstallDefault(Kind::Idle);
@@ -724,12 +724,16 @@ TEST(MotionArbiter_Generations_RequestDuringClearKeepsDefaultDropsCommand)
     {
         Transaction tx(m, TransactionKind::Clear);
         m.Clear(false);
-        m.Request(Req(Kind::Patrol));                 // a finalizer swapping the default: survives
+        m.Request(Req(Kind::Patrol));                 // a finalizer swapping the default: popped, as DirectClean pops it
         m.Request(Req(Kind::Point, 6));               // a finalizer's point: dropped
+        CHECK_EQ(SelectedKind(m), K(Kind::Point));    // visible while the hook runs
     }
-    CHECK_EQ(SelectedKind(m), K(Kind::Patrol));
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));         // the factory default beneath
+    CHECK_EQ(Size(m), 1);
     CHECK(!m.Command(Layer::Scripted));
-    CHECK(HasFinished(m.DrainEvents(), Kind::Point, 6, FinishReason::Cleared));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Point, 6, FinishReason::Cleared));
+    CHECK(HasFinished(ev, Kind::Patrol, 0, FinishReason::Cleared));
 }
 
 TEST(MotionArbiter_Generations_NestedTransactionJoinsOutermost)
@@ -879,4 +883,173 @@ TEST(MotionArbiter_Ring_WrapsAt32)
     CHECK_EQ(static_cast<int>(d.size()), static_cast<int>(Arbiter::kRingSize));
     CHECK_EQ(static_cast<int>(d.front().id), 9);      // 41 entries recorded, the oldest 9 fell out
     CHECK_EQ(static_cast<int>(d.back().id), 40);
+}
+
+TEST(MotionArbiter_Generations_LaterDiscardingGuardSweepsOnlyItsOwn)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    {
+        Transaction tx(m, TransactionKind::Clear);
+        m.Request(Req(Kind::Patrol));                 // doomed, popped at this commit
+    }
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+    m.DrainEvents();
+    {
+        Transaction tx(m, TransactionKind::ClearAll); // a later discarding guard that clears nothing itself
+        m.Request(Req(Kind::Point, 1));
+    }
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));         // the factory default was never this guard's to sweep
+    CHECK(!m.Empty());
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK(HasFinished(ev, Kind::Point, 1, FinishReason::Cleared));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Idle), 0);
+}
+
+TEST(MotionArbiter_Death_InstallDefaultInsideDeathGuardSurvives)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    m.DrainEvents();
+    {
+        Transaction tx(m, TransactionKind::Death);
+        m.Die();
+        m.InstallDefault(Kind::Idle);                 // the shell's post-death idle, inside the death's own guard
+    }
+    CHECK(!m.Empty());
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
+    std::vector<Event> ev = m.DrainEvents();
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Idle), 0);
+    CHECK(HasFinished(ev, Kind::Wander, 0, FinishReason::Died));
+    CHECK(HasFinished(ev, Kind::Chase, 0, FinishReason::Died));
+}
+
+TEST(MotionArbiter_Death_DieTwiceInOneGuardIsIdempotent)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.DrainEvents();
+    {
+        Transaction tx(m, TransactionKind::Death);
+        m.Die();
+        m.Die();
+    }
+    CHECK(m.Empty());
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Finished, Kind::Wander), 1);
+}
+
+TEST(MotionArbiter_Death_EventsInAscendingLayerOrder)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Chase));
+    m.Request(Req(Kind::Point, 7, true));
+    m.Request(Claim(Kind::Fear, 1));
+    m.Request(Req(Kind::Effect, 8));
+    m.DrainEvents();
+    m.Die();
+    std::vector<Event> ev = m.DrainEvents();
+    std::vector<Kind> order;
+    for (Event const& e : ev)
+    {
+        if (e.kind == Event::Kind::Finished)
+        {
+            order.push_back(e.who);
+        }
+    }
+    REQUIRE(static_cast<int>(order.size()) == 5);
+    CHECK_EQ(K(order[0]), K(Kind::Idle));
+    CHECK_EQ(K(order[1]), K(Kind::Chase));
+    CHECK_EQ(K(order[2]), K(Kind::Point));
+    CHECK_EQ(K(order[3]), K(Kind::Fear));
+    CHECK_EQ(K(order[4]), K(Kind::Effect));
+}
+
+TEST(MotionArbiter_Claims_ClearFinishesInPrecedenceOrder)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Claim(Kind::Fear, 11));
+    m.Request(Claim(Kind::Confused, 22));
+    m.Request(Claim(Kind::Fear, 13));
+    m.DrainEvents();
+    m.Clear(false);
+    std::vector<Event> ev = m.DrainEvents();
+    std::vector<uint64> order;
+    for (Event const& e : ev)
+    {
+        if (e.kind == Event::Kind::Finished && e.claim != 0)
+        {
+            order.push_back(e.claim);
+        }
+    }
+    REQUIRE(static_cast<int>(order.size()) == 3);
+    CHECK_EQ(static_cast<int>(order[0]), 22);         // Confused first
+    CHECK_EQ(static_cast<int>(order[1]), 13);         // then the newer fear
+    CHECK_EQ(static_cast<int>(order[2]), 11);
+}
+
+TEST(MotionArbiter_InstallDefault_DropsFallback)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Patrol));                     // pushed: Idle retained beneath
+    m.InstallDefault(Kind::Wander);                   // the factory default changes: the fallback goes
+    CHECK_EQ(Size(m), 1);
+    m.Clear(false);                                   // nothing to pop onto
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));
+    CHECK_EQ(Size(m), 1);
+}
+
+TEST(MotionArbiter_Ring_CommitRecordsOnlyWhenItSwept)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    {
+        Transaction tx(m, TransactionKind::ClearAll);
+        m.Request(Req(Kind::Point, 1));
+    }
+    std::vector<Decision> d = m.Decisions();
+    REQUIRE(static_cast<int>(d.size()) == 3);         // InstallDefault, Request, Commit
+    CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Commit));
+    {
+        Transaction tx(m, TransactionKind::ClearAll); // nothing created, nothing swept, nothing recorded
+    }
+    CHECK_EQ(static_cast<int>(m.Decisions().size()), 3);
+}
+
+TEST(MotionArbiter_Ring_RefusedClaimStillRecorded)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Fear));                       // no identity: refused
+    std::vector<Decision> d = m.Decisions();
+    REQUIRE(static_cast<int>(d.size()) == 2);
+    CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Request));
+    CHECK_EQ(K(d.back().kind), K(Kind::Fear));
+    CHECK_EQ(K(d.back().after.kind), K(Kind::Idle));
+}
+
+TEST(MotionArbiter_Ring_ExpireSelectedKeepsItsLabel)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Req(Kind::Chase));
+    m.ExpireSelected();                               // delegates to the finisher, records as itself
+    std::vector<Decision> d = m.Decisions();
+    REQUIRE(static_cast<int>(d.size()) == 3);
+    CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::ExpireSelected));
+    CHECK_EQ(K(d.back().kind), K(Kind::Chase));
+}
+
+TEST(MotionArbiter_Ring_NotifyRecordsTheEvent)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Notify(ExternalEvent::CombatStarted);
+    std::vector<Decision> d = m.Decisions();
+    REQUIRE(static_cast<int>(d.size()) == 2);
+    CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Notify));
+    CHECK_EQ(static_cast<int>(d.back().id), static_cast<int>(ExternalEvent::CombatStarted));
 }

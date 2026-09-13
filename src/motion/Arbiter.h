@@ -139,7 +139,8 @@ namespace Motion
      * are finished: this is how a request a finalizer issues during a clear or
      * a death is visible while the hook runs and gone when the operation ends.
      * A nested Death guard escalates the outer one to Death too: nothing a
-     * hook requests after it survives.
+     * hook requests after it survives. The guard is stack-only and must not
+     * outlive the arbiter it references.
      */
     class Transaction
     {
@@ -165,7 +166,9 @@ namespace Motion
         public:
             Arbiter();
 
-            /// Factory default: swap, nothing cancelled.
+            /// Factory default: swap, nothing cancelled. The factory default survives
+            /// any guard, so the shell's post-death InstallDefault(Kind::Idle) may run
+            /// inside the death's own transaction.
             void InstallDefault(Kind kind);
             /// Generic request entry: derives layer and policy from the kind, applies
             /// self-expiry (Home/Distract/Effect) and the policy's cancellation effects.
@@ -219,7 +222,7 @@ namespace Motion
             std::vector<Event> DrainEvents();
 
             /// Ring capacity: at most this many decisions kept for Decisions().
-            static const size_t kRingSize = 32;
+            static constexpr size_t kRingSize = 32;
             /// The decision ring, oldest first: every public mutation with the selection before and after.
             std::vector<Decision> Decisions() const;
 
@@ -230,8 +233,16 @@ namespace Motion
             void Finish(std::optional<Held>& slot, FinishReason reason);
             /// Finish and erase the claim at `index`.
             void FinishClaim(size_t index, FinishReason reason);
+            /// Repeatedly finish the highest-ranked claim of `kind` (Kind::Count for
+            /// every claim), in precedence order, for `reason`.
+            void FinishClaimsOfKind(Kind kind, FinishReason reason);
+            /// The body of FinishSelected without its own transaction or ring record,
+            /// so a caller that wants its own label can wrap it.
+            void FinishSelectedNoRecord(FinishReason reason);
             /// Compare the selection before and after a mutation and log Suspended/Resumed.
             void Reselect(std::optional<Held> const& before);
+            /// True when some entry Contents() would list (not the fallback) still has this seq.
+            bool StillHeld(uint32 seq) const;
             /// Apply a Default-layer request (§4.2): swap, Idle-as-command, Follow fallback.
             void RequestDefault(MoveRequest const& request, Held const& held, Policy policy);
             /// Apply a command-layer request: supersede the layer, then Override cancels below it.

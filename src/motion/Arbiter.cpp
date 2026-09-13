@@ -124,6 +124,7 @@ namespace Motion
             "Arrived", "Cut", "Blocked", "Expired", "Superseded", "Overridden", "Cleared",
             "Cancelled", "TargetLost", "Died"
         };
+        static_assert(sizeof(names) / sizeof(names[0]) == 10, "ReasonName out of sync with FinishReason");
         const size_t index = static_cast<size_t>(reason);
         return index < sizeof(names) / sizeof(names[0]) ? names[index] : "?";
     }
@@ -205,37 +206,74 @@ namespace Motion
         bool swept = false;
         for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
         {
-            if (m_commands[i] && m_commands[i]->doomed)
+            if (m_commands[i] && m_commands[i]->doomed && m_commands[i]->generation == m_generation)
             {
                 Finish(m_commands[i], reason);
                 swept = true;
             }
         }
-        for (size_t i = m_claims.size(); i-- > 0;)
+        for (;;)   // highest-ranked doomed claim of this generation first, same precedence order as elsewhere
         {
-            if (m_claims[i].doomed)
+            std::optional<size_t> best;
+            for (size_t i = 0; i < m_claims.size(); ++i)
             {
-                FinishClaim(i, reason);
-                swept = true;
+                if (!m_claims[i].doomed || m_claims[i].generation != m_generation)
+                {
+                    continue;
+                }
+                if (!best || Outranks(m_claims[i], m_claims[*best]))
+                {
+                    best = i;
+                }
             }
+            if (!best)
+            {
+                break;
+            }
+            FinishClaim(*best, reason);
+            swept = true;
         }
-        if (m_combat && m_combat->doomed)
+        if (m_combat && m_combat->doomed && m_combat->generation == m_generation)
         {
             Finish(m_combat, reason);
             swept = true;
         }
-        if (m_outerKind != TransactionKind::Clear)
+        while (m_default && m_default->doomed && m_default->generation == m_generation)
         {
-            while (m_default && m_default->doomed)
+            PopDefault(reason);   // a doomed fallback promoted by the pop is swept by the next turn
+            swept = true;
+        }
+        if (m_fallbackDefault && m_fallbackDefault->doomed && m_fallbackDefault->generation == m_generation)
+        {
+            Finish(m_fallbackDefault, reason);
+            swept = true;
+        }
+        // The sweep above only ever owns this generation's own doomed entries;
+        // anything still held past it is no longer at risk from this guard, so
+        // its doomed flag is retired here rather than left to outlive the guard
+        // that set it (Important 1: a later discarding guard must not inherit it).
+        if (m_default)
+        {
+            m_default->doomed = false;
+        }
+        if (m_fallbackDefault)
+        {
+            m_fallbackDefault->doomed = false;
+        }
+        if (m_combat)
+        {
+            m_combat->doomed = false;
+        }
+        for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
+        {
+            if (m_commands[i])
             {
-                PopDefault(reason);   // a doomed fallback promoted by the pop is swept by the next turn
-                swept = true;
+                m_commands[i]->doomed = false;
             }
-            if (m_fallbackDefault && m_fallbackDefault->doomed)
-            {
-                Finish(m_fallbackDefault, reason);
-                swept = true;
-            }
+        }
+        for (Held& claim : m_claims)
+        {
+            claim.doomed = false;
         }
         Reselect(before);
         if (swept)
@@ -257,7 +295,7 @@ namespace Motion
                 break;
         }
         Reselect(before);
-        Record(Decision::Op::Notify, Kind::Idle, 0, 0, before);
+        Record(Decision::Op::Notify, Kind::Idle, static_cast<uint32>(event), 0, before);
     }
 
     void Arbiter::Die()
@@ -271,10 +309,7 @@ namespace Motion
         {
             if (i == CONTROL)
             {
-                while (!m_claims.empty())
-                {
-                    FinishClaim(*SelectedClaimIndex(), FinishReason::Died);
-                }
+                FinishClaimsOfKind(Kind::Count, FinishReason::Died);
                 continue;
             }
             Finish(m_commands[i], FinishReason::Died);
@@ -291,6 +326,7 @@ namespace Motion
             m_events.push_back({Event::Kind::DefaultSwapped, m_default->kind, m_default->id, FinishReason::Superseded, 0});
         }
         m_default = Stamp(kind, 0, 0);
+        m_default->doomed = false;
         m_fallbackDefault.reset();
         Reselect(before);
         Record(Decision::Op::InstallDefault, kind, 0, 0, before);
@@ -382,7 +418,7 @@ namespace Motion
             {
                 if (lower == CONTROL)
                 {
-                    continue;   // D8: a Taxi masks the controls, it never cancels them
+                    continue;   // no Override from a lower layer reaches Control; a Taxi masks the claims (D8)
                 }
                 Finish(m_commands[lower], FinishReason::Overridden);
             }
@@ -414,10 +450,7 @@ namespace Motion
         {
             Finish(m_commands[i], FinishReason::Cleared);
         }
-        while (!m_claims.empty())
-        {
-            FinishClaim(m_claims.size() - 1, FinishReason::Cleared);
-        }
+        FinishClaimsOfKind(Kind::Count, FinishReason::Cleared);
         Finish(m_combat, FinishReason::Cleared);
         if (all)
         {
@@ -457,10 +490,12 @@ namespace Motion
                 return;
             }
             case Layer::Combat:
-                FinishSelected(FinishReason::TargetLost);
+                FinishSelectedNoRecord(FinishReason::TargetLost);
+                Record(Decision::Op::ExpireSelected, before->kind, 0, 0, before);
                 return;
             default:
-                FinishSelected(FinishReason::Expired);
+                FinishSelectedNoRecord(FinishReason::Expired);
+                Record(Decision::Op::ExpireSelected, before->kind, 0, 0, before);
                 return;
         }
     }
@@ -516,14 +551,12 @@ namespace Motion
         Record(Decision::Op::Expire, kind, 0, 0, before);
     }
 
-    void Arbiter::FinishSelected(FinishReason reason)
+    void Arbiter::FinishSelectedNoRecord(FinishReason reason)
     {
-        Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
         const std::optional<Layer> layer = SelectedLayer();
         if (!layer)
         {
-            Record(Decision::Op::FinishSelected, Kind::Idle, 0, 0, before);
             return;
         }
         if (*layer == Layer::Default)
@@ -543,26 +576,22 @@ namespace Motion
             Finish(m_commands[static_cast<size_t>(*layer)], reason);
         }
         Reselect(before);
-        Record(Decision::Op::FinishSelected, before->kind, 0, 0, before);
+    }
+
+    void Arbiter::FinishSelected(FinishReason reason)
+    {
+        Transaction tx(*this, TransactionKind::Normal);
+        const std::optional<Held> before = Selected();
+        FinishSelectedNoRecord(reason);
+        Record(Decision::Op::FinishSelected, before ? before->kind : Kind::Idle, 0, 0, before);
     }
 
     void Arbiter::CancelControl(Kind kind)
     {
         Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
-        bool any = false;
-        for (size_t i = m_claims.size(); i-- > 0;)
-        {
-            if (m_claims[i].kind == kind)
-            {
-                FinishClaim(i, FinishReason::Cancelled);
-                any = true;
-            }
-        }
-        if (any)
-        {
-            Reselect(before);
-        }
+        FinishClaimsOfKind(kind, FinishReason::Cancelled);
+        Reselect(before);
         Record(Decision::Op::CancelControl, kind, 0, 0, before);
     }
 
@@ -744,6 +773,57 @@ namespace Motion
         m_claims.erase(m_claims.begin() + static_cast<std::vector<Held>::difference_type>(index));
     }
 
+    void Arbiter::FinishClaimsOfKind(Kind kind, FinishReason reason)
+    {
+        for (;;)
+        {
+            std::optional<size_t> best;
+            for (size_t i = 0; i < m_claims.size(); ++i)
+            {
+                if (kind != Kind::Count && m_claims[i].kind != kind)
+                {
+                    continue;
+                }
+                if (!best || Outranks(m_claims[i], m_claims[*best]))
+                {
+                    best = i;
+                }
+            }
+            if (!best)
+            {
+                break;
+            }
+            FinishClaim(*best, reason);
+        }
+    }
+
+    bool Arbiter::StillHeld(uint32 seq) const
+    {
+        if (m_default && m_default->seq == seq)
+        {
+            return true;
+        }
+        if (m_combat && m_combat->seq == seq)
+        {
+            return true;
+        }
+        for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
+        {
+            if (m_commands[i] && m_commands[i]->seq == seq)
+            {
+                return true;
+            }
+        }
+        for (Held const& claim : m_claims)
+        {
+            if (claim.seq == seq)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void Arbiter::Reselect(std::optional<Held> const& before)
     {
         const std::optional<Held> after = Selected();
@@ -751,13 +831,9 @@ namespace Motion
         {
             return;
         }
-        for (Held const& h : Contents())
+        if (StillHeld(before->seq))
         {
-            if (h.seq == before->seq)
-            {
-                m_events.push_back({Event::Kind::Suspended, before->kind, before->id, FinishReason::Cut, before->claim});
-                break;
-            }
+            m_events.push_back({Event::Kind::Suspended, before->kind, before->id, FinishReason::Cut, before->claim});
         }
         if (after->seq < m_seq || after->seq < before->seq)
         {
@@ -787,12 +863,16 @@ namespace Motion
         {
             ++m_ringCount;
         }
-        MOTION_ASSERT(!after || SelectedLayer().has_value());
-        for (Held const& c : m_claims)
+#ifndef NDEBUG
+        MOTION_ASSERT(!m_fallbackDefault || m_default);          // a fallback never exists without a default
+        for (size_t i = 0; i < m_claims.size(); ++i)
         {
-            MOTION_ASSERT(c.claim != 0);
-            (void)c;
+            for (size_t j = i + 1; j < m_claims.size(); ++j)
+            {
+                MOTION_ASSERT(m_claims[i].claim != m_claims[j].claim);   // one claim per identity
+            }
         }
+#endif
     }
 
     std::vector<Decision> Arbiter::Decisions() const
