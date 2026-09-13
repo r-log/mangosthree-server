@@ -199,10 +199,11 @@ void EffectMovementGenerator::Finalize(Unit& owner)
         return;
     }
 
-    // Whatever we interrupted resumes by itself. Only a victim with no chase left to resume
-    // gets a fresh one -- and that is a question about the model, not about the selection:
-    // this hook runs inside the request that displaced us, before the selection has settled.
-    if (owner.GetMotionMaster()->HoldsCombatMovement())
+    // Whatever we interrupted resumes by itself -- a chase or a follow included. Only a
+    // victim with neither left to resume gets a fresh chase, and that is a question about
+    // the model, not about the selection: this hook runs inside the request that displaced
+    // us, before the selection has settled.
+    if (owner.GetMotionMaster()->HoldsChaseOrFollow())
     {
         return;
     }

@@ -139,9 +139,9 @@ class MotionMaster
         void RelocateSelected(float x, float y, float z, float o);
         /// True iff this generator belongs to the selected behaviour (replaces MovementGenerator::IsActive).
         bool IsSelected(MovementGenerator const* generator) const;
-        /// The Combat-layer entry, selected or masked: is there a chase to go back to?
-        /// (P3-C's typed queries replace it.)
-        bool HoldsCombatMovement() const;
+        /// A chase (the Combat entry) or a follow (a Default-layer kind), selected or masked --
+        /// what an effect's finalizer asks before starting a fresh chase; P3-C's typed queries replace it.
+        bool HoldsChaseOrFollow() const;
         /// True when this sequence has a binding and that binding has been activated.
         bool IsActivated(uint32 seq) const;
         /// The held patrol generator wherever it sits (default slot, masked or not), else NULL.

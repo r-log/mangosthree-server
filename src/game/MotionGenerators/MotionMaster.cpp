@@ -1219,17 +1219,24 @@ bool MotionMaster::IsSelected(MovementGenerator const* generator) const
 }
 
 /**
- * @brief Whether the Combat layer holds anything, selected or masked.
- * @return True when a chase is held.
+ * @brief Whether a chase or a follow is held, selected or masked.
+ * @return True when the Combat entry exists, or the Default entry is a follow.
  *
- * The question a one-shot's finalizer asks: is there combat movement to fall back to, or
- * must it be re-engaged? The selection cannot answer it from inside a transaction -- the
- * finalizer runs before the model has settled -- but the layer can, because a finished
- * combat slot is already reset by the time the hook sees it.
+ * The question a one-shot's finalizer asks: is there movement toward someone to fall back
+ * to, or must it be re-engaged? The selection cannot answer it from inside a transaction --
+ * the finalizer runs before the model has settled -- but the layers can, because a finished
+ * slot is already reset by the time the hook sees it. A chase lives on Combat and a follow
+ * on Default (Motion::LayerOf), and only the current default counts: the stack read the one
+ * generator directly beneath the popped effect, not the factory default parked under it.
  */
-bool MotionMaster::HoldsCombatMovement() const
+bool MotionMaster::HoldsChaseOrFollow() const
 {
-    return m_arbiter.Combat().has_value();
+    if (m_arbiter.Combat())
+    {
+        return true;
+    }
+    std::optional<Motion::Held> const& current = m_arbiter.Default();
+    return current && current->kind == Motion::Kind::Follow;
 }
 
 /**
