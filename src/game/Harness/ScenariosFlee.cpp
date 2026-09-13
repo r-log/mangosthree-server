@@ -26,6 +26,7 @@
 #include "Scenario.h"
 #include "Harness.h"
 #include "Creature.h"
+#include "CreatureAI.h"
 #include "MotionMaster.h"
 #include "Log.h"
 
@@ -296,11 +297,92 @@ namespace Harness
                 });
             }
         };
+
+        /// P3-C: the combat-started event row. A creature under a distract that begins
+        /// attacking drops the distract at once — the stack's chase push displaced it,
+        /// while the Distract layer sits above Combat, so priority alone would keep the
+        /// creature standing until the timer ran out.
+        class DistractThenAttack : public Scenario
+        {
+        public:
+            DistractThenAttack() : Scenario("distract-then-attack", 19) {}
+
+            void Prepare() override
+            {
+                struct Sample { uint32 t; float dVictim; MovementGeneratorType mt; };
+                const float kx = SE.x + 20.0f;
+                Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* b = Spawn(KOBOLD, kx, SE.y, Ground(kx, SE.y, SE.z), 3.1f);
+                if (!a || !b) { Verdict("combatDropsDistract=INVALID(spawn failed)"); return; }
+                a->SetMaxHealth(500000); a->SetHealth(500000);
+                b->SetMaxHealth(500000); b->SetHealth(500000);
+                b->setFaction(14);   // Monster: hostile to the wolf, so its AI really attacks
+                const ObjectGuid g = a->GetObjectGuid();
+                const ObjectGuid h = b->GetObjectGuid();
+                auto samples = std::make_shared<std::vector<Sample> >();
+                auto atAttack = std::make_shared<float>(0.0f);
+                At(500, [this, g]()
+                {
+                    Creature* a = Get(g); if (!a) { Log("ERR wolf gone"); return; }
+                    a->GetMotionMaster()->MoveDistract(8000);
+                    Log("MoveDistract(8000), mt=%s", TypeName(a));
+                });
+                At(2500, [this, g, h, atAttack]()
+                {
+                    Creature* a = Get(g); Creature* b = Get(h);
+                    if (!a || !b) { Log("ERR actors gone"); return; }
+                    *atAttack = Dist2(a->Where().X(), a->Where().Y(), b->Where().X(), b->Where().Y());
+                    a->AI()->AttackStart(b);   // through the recording AI to the creature's own: Unit::Attack (the row), then its chase
+                    Log("AttackStart at %.1f yd, mt=%s victim=%s", *atAttack, TypeName(a), a->getVictim() ? "true" : "false");
+                });
+                for (uint32 i = 1; i <= 10; ++i)
+                {
+                    At(2500 + i * 300, [this, g, h, samples, i]()
+                    {
+                        Creature* a = Get(g); Creature* b = Get(h);
+                        if (!a || !b) { return; }
+                        Sample s;
+                        s.t = i * 300;
+                        s.dVictim = Dist2(a->Where().X(), a->Where().Y(), b->Where().X(), b->Where().Y());
+                        s.mt = Type(a);
+                        samples->push_back(s);
+                        Log("+%4ums mt=%s dVictim=%.1f", s.t, Harness::TypeName(s.mt), s.dVictim);
+                    });
+                }
+                At(6000, [this, samples, atAttack]()
+                {
+                    std::string body;
+                    if (samples->size() < 4)
+                    {
+                        body = "combatDropsDistract=INVALID(too few samples)";
+                    }
+                    else
+                    {
+                        // Chasing within a second of the attack start, and closer by the end.
+                        Sample const& first = (*samples)[3];   // +900 ms
+                        Sample const& last = samples->back();
+                        char text[160];
+                        if (first.mt == CHASE_MOTION_TYPE && last.dVictim < *atAttack - 2.0f)
+                        {
+                            snprintf(text, sizeof(text), "combatDropsDistract=OK(chasing within a second, %.1f -> %.1f yd)", *atAttack, last.dVictim);
+                        }
+                        else
+                        {
+                            snprintf(text, sizeof(text), "combatDropsDistract=BUG(%s at +%ums, %.1f -> %.1f yd)",
+                                     Harness::TypeName(first.mt), first.t, *atAttack, last.dVictim);
+                        }
+                        body = text;
+                    }
+                    Verdict(body);
+                });
+            }
+        };
     }
 
     void RegisterFleeScenarios(Runner& r)
     {
         r.Register(new FleeDriftsBack());
         r.Register(new DistractOverAssist());
+        r.Register(new DistractThenAttack());
     }
 }
