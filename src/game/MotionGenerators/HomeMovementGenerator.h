@@ -41,6 +41,10 @@
 class HomeMovementGenerator final : public IntentMovementGenerator
 {
     public:
+        HomeMovementGenerator() {}
+        HomeMovementGenerator(Motion::Vector3 const& home, float facing)
+            : m_home(home), m_facing(facing), m_preset(true) {}
+
         void Initialize(Unit& owner) override;
         void Finalize(Unit& owner) override;
         void Interrupt(Unit&) override {}
@@ -57,6 +61,7 @@ class HomeMovementGenerator final : public IntentMovementGenerator
         float m_facing = 0.0f;   ///< The orientation to hold once there.
         bool m_haveHome = false; ///< False when the creature could not be sent home.
         bool m_arrived = false;  ///< Whether Finalize should fire JustReachedHome.
+        bool m_preset = false;   ///< True when home/facing were given by the constructor.
 };
 
 #endif // MANGOS_HOMEMOVEMENTGENERATOR_H

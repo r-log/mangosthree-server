@@ -41,20 +41,24 @@ void HomeMovementGenerator::Initialize(Unit& owner)
     // MotionMaster::Mutate initializes us BEFORE pushing us, so the stack top here is
     // still the generator we are evacuating -- and it is the only one that knows where
     // this creature belongs. Ask it now; once we are on top the answer is unreachable.
-    float x, y, z, o;
-    MotionMaster* motion = owner.GetMotionMaster();
-
-    if (motion->empty() || !motion->top()->GetResetPosition(owner, x, y, z, o))
+    if (!m_preset)
     {
-        Geometry::Placement const& home = static_cast<Creature&>(owner).Spawn();
-        x = home.X();
-        y = home.Y();
-        z = home.Z();
-        o = home.Facing();
+        float x, y, z, o;
+        MotionMaster* motion = owner.GetMotionMaster();
+
+        if (motion->empty() || !motion->top()->GetResetPosition(owner, x, y, z, o))
+        {
+            Geometry::Placement const& home = static_cast<Creature&>(owner).Spawn();
+            x = home.X();
+            y = home.Y();
+            z = home.Z();
+            o = home.Facing();
+        }
+
+        m_home = Motion::Vector3(x, y, z);
+        m_facing = o;
     }
 
-    m_home = Motion::Vector3(x, y, z);
-    m_facing = o;
     m_haveHome = true;
 
     owner.clearUnitState(UNIT_STAT_ALL_DYN_STATES);
