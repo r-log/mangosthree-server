@@ -32,18 +32,16 @@
  * @brief Evade: run back to where the creature belongs, then hand back to its default
  *        movement.
  *
- * The home position is captured in Initialize and never re-read, and that is
- * load-bearing: MotionMaster::Mutate calls Initialize BEFORE pushing this generator, so
- * at that moment the stack top is still the generator being evacuated -- the only one
- * that knows where "home" is (a patroller resumes at the point combat pulled it off its
- * path, not at its spawn). By the time the first leg is laid that answer is gone.
+ * The home position is handed to the constructor and never re-read, and that is
+ * load-bearing: by the time this generator runs, the behaviour that knows where "home" is
+ * -- a patroller resumes at the point combat pulled it off its path, not at its spawn --
+ * has already been displaced. MotionMaster::MoveTargetedHome asks it while it still can.
  */
 class HomeMovementGenerator final : public IntentMovementGenerator
 {
     public:
-        HomeMovementGenerator() {}
         HomeMovementGenerator(Motion::Vector3 const& home, float facing)
-            : m_home(home), m_facing(facing), m_preset(true) {}
+            : m_home(home), m_facing(facing) {}
 
         void Initialize(Unit& owner) override;
         void Finalize(Unit& owner) override;
@@ -61,7 +59,6 @@ class HomeMovementGenerator final : public IntentMovementGenerator
         float m_facing = 0.0f;   ///< The orientation to hold once there.
         bool m_haveHome = false; ///< False when the creature could not be sent home.
         bool m_arrived = false;  ///< Whether Finalize should fire JustReachedHome.
-        bool m_preset = false;   ///< True when home/facing were given by the constructor.
 };
 
 #endif // MANGOS_HOMEMOVEMENTGENERATOR_H

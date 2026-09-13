@@ -23,8 +23,8 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef MANGOS_MOTIONBEHAVIOUR_H
-#define MANGOS_MOTIONBEHAVIOUR_H
+#ifndef MANGOS_BEHAVIOUR_H
+#define MANGOS_BEHAVIOUR_H
 
 #include "Platform/Define.h"
 #include "Arbiter.h"

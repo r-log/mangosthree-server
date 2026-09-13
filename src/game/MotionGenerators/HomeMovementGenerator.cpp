@@ -38,27 +38,9 @@ void HomeMovementGenerator::Initialize(Unit& owner)
         return;
     }
 
-    // Since P3-B the shell asks the displaced behaviour for the reset position and hands
-    // it to the constructor (MotionMaster::MoveTargetedHome), because by the time this runs
-    // the arbiter has already selected us. The fallback below is the no-preset path.
-    if (!m_preset)
-    {
-        float x, y, z, o;
-        MovementGenerator const* current = owner.GetMotionMaster()->GetCurrent();
-
-        if (!current || current == this || !current->GetResetPosition(owner, x, y, z, o))
-        {
-            Geometry::Placement const& home = static_cast<Creature&>(owner).Spawn();
-            x = home.X();
-            y = home.Y();
-            z = home.Z();
-            o = home.Facing();
-        }
-
-        m_home = Motion::Vector3(x, y, z);
-        m_facing = o;
-    }
-
+    // Since P3-B the shell asks the displaced behaviour for the reset position and hands it
+    // to the constructor (MotionMaster::MoveTargetedHome), because by the time this runs the
+    // arbiter has already selected us and that answer is gone.
     m_haveHome = true;
 
     owner.clearUnitState(UNIT_STAT_ALL_DYN_STATES);

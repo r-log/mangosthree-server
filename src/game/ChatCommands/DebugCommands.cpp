@@ -2133,8 +2133,9 @@ bool ChatHandler::HandleDebugMovementDumpCommand(char* args)
     for (size_t i = 0; i < contents.size(); ++i)
     {
         Motion::Held const& h = contents[i];
-        PSendSysMessage("  [%s] %s id %u seq %u%s%s", Motion::LayerName(Motion::LayerOf(h.kind)), Motion::KindName(h.kind),
-                        h.id, h.seq, h.claim ? " claim" : "", (selected && selected->seq == h.seq) ? " (selected)" : "");
+        PSendSysMessage("  [%s] %s id %u seq %u%s%s%s", Motion::LayerName(Motion::LayerOf(h.kind)), Motion::KindName(h.kind),
+                        h.id, h.seq, h.claim ? " claim" : "", mm->IsActivated(h.seq) ? " activated" : "",
+                        (selected && selected->seq == h.seq) ? " (selected)" : "");
     }
     if (!arbiter.RingEnabled())
     {
