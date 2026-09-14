@@ -39,13 +39,19 @@
  * timing does not depend on how fast the machine runs it. Leaving stepped mode keeps
  * an offset, so the clock never runs backwards; it then stays ahead of real time by the
  * run's virtual length, which every consumer tolerates since all of them are relative.
- * The world thread is the only writer; any thread may read.
+ * NowUnix() keeps following the OS wall clock in real mode -- including any adjustment
+ * an NTP step or a VM pause makes to it -- rather than being derived from the steady
+ * clock, since about sixty call sites elsewhere still read time(NULL) directly and must
+ * not diverge from it. A stepped run instead derives its seconds from an anchor taken
+ * at EnterStepped() plus the counter's advance, and leaving keeps a seconds lead the
+ * same way NowMs() keeps a milliseconds one. The world thread is the only writer; any
+ * thread may read.
  */
 namespace WorldClock
 {
     /// Milliseconds since the process started: the steady clock, or the stepped counter while a run steps the world.
     uint32 NowMs();
-    /// Seconds since the epoch from the same source: the wall clock at start plus NowMs().
+    /// Seconds since the epoch: the wall clock plus the lead stepped runs created, or, while stepped, the anchor taken at EnterStepped plus the counter's advance.
     time_t NowUnix();
     /// True while the harness steps the world.
     bool IsStepped();
@@ -57,6 +63,8 @@ namespace WorldClock
     void LeaveStepped();
     /// The lead the clock keeps over real time after stepped runs, in milliseconds.
     uint32 OffsetMs();
+    /// The lead the seconds keep over the wall clock after stepped runs.
+    uint32 OffsetSec();
     /// The steady-clock point the process started at (the old GetApplicationStartTime()).
     std::chrono::steady_clock::time_point StartPoint();
 }

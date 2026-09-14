@@ -6,6 +6,7 @@
 #include "Timer.h"
 
 #include <chrono>
+#include <ctime>
 #include <thread>
 
 TEST(WorldClock_stepped_time_moves_only_by_Step)
@@ -48,17 +49,24 @@ TEST(WorldClock_leaving_never_runs_backwards)
     CHECK(WorldClock::OffsetMs() >= 9000);
 }
 
-TEST(WorldClock_unix_seconds_follow_the_milliseconds)
+TEST(WorldClock_unix_seconds_follow_the_steps_and_the_wall_clock)
 {
+    // Real mode: the wall clock plus whatever lead earlier stepped runs left.
+    const time_t wall = std::time(nullptr);
+    const time_t real = WorldClock::NowUnix();
+    CHECK(real >= wall + time_t(WorldClock::OffsetSec()) - 1);
+    CHECK(real <= wall + time_t(WorldClock::OffsetSec()) + 1);
+
+    // Stepped: the anchor plus the counter's advance, whatever the wall clock does.
     WorldClock::EnterStepped();
     const time_t s0 = WorldClock::NowUnix();
-    const uint32 m0 = WorldClock::NowMs();
     for (int i = 0; i < 60; ++i)                          // three virtual seconds
     {
         WorldClock::Step(50);
     }
-    const time_t s1 = WorldClock::NowUnix();
-    const uint32 m1 = WorldClock::NowMs();
-    CHECK_EQ(uint32(s1 - s0), (m1 / 1000) - (m0 / 1000));
+    CHECK_EQ(uint32(WorldClock::NowUnix() - s0), uint32(3));
+    const time_t virt = WorldClock::NowUnix();
     WorldClock::LeaveStepped();
+    CHECK(WorldClock::NowUnix() >= virt);                 // the lead carries the run's seconds
+    CHECK(WorldClock::OffsetSec() >= 2);
 }
