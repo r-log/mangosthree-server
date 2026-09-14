@@ -396,7 +396,7 @@ namespace Harness
 
             void Prepare() override
             {
-                struct Sample { uint32 t; MovementGeneratorType mt; bool state; bool flag; float dVictim; };
+                struct Sample { uint32 t; MovementGeneratorType mt; bool state; bool move; bool flag; float dVictim; };
                 Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
                 Creature* b = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
                 Creature* c = Spawn(KOBOLD, SE.x + 25.0f, SE.y + 15.0f, Ground(SE.x + 25.0f, SE.y + 15.0f, SE.z), 3.1f);
@@ -415,12 +415,13 @@ namespace Harness
                     Sample s;
                     s.t = t;
                     s.mt = Type(a);
-                    s.state = a->hasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_FLEEING_MOVE);
+                    s.state = a->hasUnitState(UNIT_STAT_FLEEING);
+                    s.move = a->hasUnitState(UNIT_STAT_FLEEING_MOVE);
                     s.flag = a->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
                     Unit* v = a->getVictim() ? a->getVictim() : b;
                     s.dVictim = Dist2(a->Where().X(), a->Where().Y(), v->Where().X(), v->Where().Y());
                     into.push_back(s);
-                    Log("+%5ums mt=%s state=%d flag=%d dVictim=%.1f", t, Harness::TypeName(s.mt), s.state ? 1 : 0, s.flag ? 1 : 0, s.dVictim);
+                    Log("+%5ums mt=%s state=%d move=%d flag=%d dVictim=%.1f", t, Harness::TypeName(s.mt), s.state ? 1 : 0, s.move ? 1 : 0, s.flag ? 1 : 0, s.dVictim);
                 };
                 At(500, [this, g, h]()
                 {
@@ -490,14 +491,14 @@ namespace Harness
                     Sample const& soon = (*afterLast)[std::min<size_t>(2, afterLast->size() - 1)];   // +900 ms
                     Sample const& end = afterLast->back();
                     const bool closed = end.dVictim < (*afterLast)[0].dVictim + 1.0f || end.dVictim <= 4.0f;   // closes on the victim, or already within melee reach
-                    if (soon.mt == CHASE_MOTION_TYPE && !end.state && !end.flag && closed)
+                    if (soon.mt == CHASE_MOTION_TYPE && !end.state && !end.move && !end.flag && closed)
                     {
                         snprintf(text, sizeof(text), "OK(chase back within a second of fear B's removal, state and flag clear, %.1f -> %.1f yd)", (*afterLast)[0].dVictim, end.dVictim);
                     }
                     else
                     {
-                        snprintf(text, sizeof(text), "BUG(after fear B's removal: mt=%s at +%ums, state=%d flag=%d, %.1f -> %.1f yd)",
-                                 Harness::TypeName(soon.mt), soon.t - 8500, end.state ? 1 : 0, end.flag ? 1 : 0, (*afterLast)[0].dVictim, end.dVictim);
+                        snprintf(text, sizeof(text), "BUG(after fear B's removal: mt=%s at +%ums, state=%d move=%d flag=%d, %.1f -> %.1f yd)",
+                                 Harness::TypeName(soon.mt), soon.t - 8500, end.state ? 1 : 0, end.move ? 1 : 0, end.flag ? 1 : 0, (*afterLast)[0].dVictim, end.dVictim);
                     }
                     last = text;
                     Verdict("secondFearKeepsFleeing=" + first + " | lastFearResumesChase=" + last);
