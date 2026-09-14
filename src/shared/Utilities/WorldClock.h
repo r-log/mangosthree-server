@@ -53,7 +53,7 @@ namespace WorldClock
     void EnterStepped();
     /// Advance the stepped counter.
     void Step(uint32 ms);
-    /// Leave stepped mode: real time resumes from the counter's value (an offset keeps it from running backwards).
+    /// Leave stepped mode: real time resumes from the counter's value (an offset keeps it from running backwards); a no-op when not stepped.
     void LeaveStepped();
     /// The lead the clock keeps over real time after stepped runs, in milliseconds.
     uint32 OffsetMs();

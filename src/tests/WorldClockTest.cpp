@@ -42,6 +42,10 @@ TEST(WorldClock_leaving_never_runs_backwards)
     CHECK(WorldClock::OffsetMs() >= 9000);                // ten seconds minus whatever the loop took
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     CHECK(WorldClock::NowMs() >= after);
+    const uint32 beforeSecondLeave = WorldClock::NowMs();
+    WorldClock::LeaveStepped();                           // a second leave while real: nothing moves backwards
+    CHECK(WorldClock::NowMs() >= beforeSecondLeave);
+    CHECK(WorldClock::OffsetMs() >= 9000);
 }
 
 TEST(WorldClock_unix_seconds_follow_the_milliseconds)

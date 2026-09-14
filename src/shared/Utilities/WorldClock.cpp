@@ -86,6 +86,11 @@ namespace WorldClock
 
     void LeaveStepped()
     {
+        if (!g_stepped.load(std::memory_order_acquire))
+        {
+            return;   // already real: the offset stands, the counter is stale
+        }
+
         const uint32 counter = g_counterMs.load(std::memory_order_acquire);
         const uint32 real = RealMs();
         g_offsetMs.store(counter > real ? counter - real : 0, std::memory_order_release);
