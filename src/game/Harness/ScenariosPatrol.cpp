@@ -365,7 +365,10 @@ namespace Harness
                     }
                     else
                     {
-                        body = "despawnAtNode=OK(despawned from inside the node 2 hook, walker gone)";
+                        // A manual-despawn summon stays on the map, dead, until the runner's sweep:
+                        // the despawn from inside the hook is proven by the death, not by removal.
+                        body = a ? "despawnAtNode=OK(despawned from inside the node 2 hook: dead, kept by the map until the sweep)"
+                                 : "despawnAtNode=OK(despawned from inside the node 2 hook, walker gone)";
                     }
                     Verdict(body);
                 });

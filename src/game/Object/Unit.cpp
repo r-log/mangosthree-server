@@ -3033,6 +3033,11 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
         }
     }
 
+    // The event row: a new combat drops a running distract (a no-op otherwise). Before the
+    // victim is assigned, so a cancelled assistance distract's finalizer sees no victim and
+    // does not stop and restart this very attack from inside it.
+    GetMotionMaster()->CombatStarted();
+
     // Set our target — but NOT for PACIFIED creatures (training dummies, etc.).
     // The Cata 4.3.4 client auto-rotates a unit's model toward its UNIT_FIELD_TARGET
     // (a client-rendering behavior dating back to Vanilla), so even though the
@@ -3060,8 +3065,6 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
 
     m_attacking = victim;
     m_attacking->_addAttacker(this);
-
-    GetMotionMaster()->CombatStarted();   // the event row: a new combat drops a running distract (a no-op otherwise)
 
     if (GetTypeId() == TYPEID_UNIT)
     {

@@ -415,7 +415,9 @@ bool Unit::SelectHostileTarget()
     // it in combat but attacker not make any damage and not enter to aggro radius to have record in threat list
     // for example at owner command to pet attack some far away creature
     // Note: creature not have targeted movement generator but have attacker in this case
-    if (!GetMotionMaster()->IsChasing())
+    // (what runs now: a chase masked by a fear or an effect still scans its attackers, as the
+    // stack's top-based check did, instead of evading out from under the mask)
+    if (GetMotionMaster()->ActiveKind() != Motion::Kind::Chase)
     {
         for (AttackerSet::const_iterator itr = m_attackers.begin(); itr != m_attackers.end(); ++itr)
         {
