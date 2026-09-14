@@ -90,17 +90,14 @@ void Aura::HandlePreventFleeing(bool apply, bool Real)
         return;
     }
 
+    // Every fear aura holds its own control claim (P4-A): suspend each while this aura
+    // lasts and restore each when it ends. The last release returns control and runs the
+    // end-of-control rule; the newest restore takes control again.
     Unit::AuraList const& fearAuras = GetTarget()->GetAurasByType(SPELL_AURA_MOD_FEAR);
-    if (!fearAuras.empty())
+    for (Unit::AuraList::const_iterator it = fearAuras.begin(); it != fearAuras.end(); ++it)
     {
-        if (apply)
-        {
-            GetTarget()->SetFeared(false, fearAuras.front()->GetCasterGuid());
-        }
-        else
-        {
-            GetTarget()->SetFeared(true);
-        }
+        Aura const* fear = *it;
+        GetTarget()->SetFeared(!apply, fear->GetCasterGuid(), fear->GetId(), 0, uint8(fear->GetEffIndex()));
     }
 }
 
