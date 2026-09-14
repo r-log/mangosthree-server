@@ -29,6 +29,7 @@
 #include "Log.h"
 #include "MotionFrame.h"
 #include "Util.h"
+#include "WorldClock.h"
 
 #include <algorithm>
 #include <cmath>
@@ -132,6 +133,11 @@ Motion::Vector3 RandomMovementGenerator::NextOrbitPoint(Unit& owner)
     Motion::Vector3 p(m_centre.x + r * std::cos(m_orbitAngle),
                       m_centre.y + r * std::sin(m_orbitAngle),
                       m_centre.z + m_verticalZ * std::sin(m_orbitAngle - m_orbitTilt));
+
+    if (WorldClock::IsStepped())   // diagnostic (P0-D): the orbit's two draws, airborne wander only
+    {
+        sLog.outString("MVTEST orbit angle=%.6f r=%.6f -> %.3f %.3f %.3f", m_orbitAngle, r, p.x, p.y, p.z);
+    }
 
     // Never below the floor under that point. GroundPoint answers in whatever frame the
     // creature is moving in, so this keeps a flier above the terrain at sea and above the
