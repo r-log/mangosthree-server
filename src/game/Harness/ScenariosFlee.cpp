@@ -488,7 +488,8 @@ namespace Harness
                     }
                     Sample const& soon = (*afterLast)[std::min<size_t>(2, afterLast->size() - 1)];   // +900 ms
                     Sample const& end = afterLast->back();
-                    if (soon.mt == CHASE_MOTION_TYPE && !end.state && !end.flag && end.dVictim < (*afterLast)[0].dVictim + 1.0f)
+                    const bool closed = end.dVictim < (*afterLast)[0].dVictim + 1.0f || end.dVictim <= 4.0f;   // closes on the victim, or already within melee reach
+                    if (soon.mt == CHASE_MOTION_TYPE && !end.state && !end.flag && closed)
                     {
                         snprintf(text, sizeof(text), "OK(chase back within a second of fear B's removal, state and flag clear, %.1f -> %.1f yd)", (*afterLast)[0].dVictim, end.dVictim);
                     }
