@@ -776,7 +776,7 @@ namespace Harness
             }
         };
 
-        const uint32 ROOT = 12494;   // Frostbite: a plain root aura, no damage
+        const uint32 ROOT = 745;   // Web: a plain root aura (SPELL_AURA_MOD_ROOT for 10 s), no damage
 
         /// The distance from the first sample to the farthest one: how far the unit got.
         float Spread(std::vector<Pt> const& samples)
@@ -809,6 +809,7 @@ namespace Harness
                 auto rooted = std::make_shared<std::vector<Pt> >();
                 auto after = std::make_shared<std::vector<Pt> >();
                 auto keptFear = std::make_shared<bool>(true);
+                auto legAfter = std::make_shared<bool>(false);   // the generator laid a leg after the unroot (its move bit)
                 At(500, [this, g, gk]()
                 {
                     Creature* a = Get(g); if (!a) { return; }
@@ -819,7 +820,7 @@ namespace Harness
                 {
                     Creature* a = Get(g); if (!a) { return; }
                     a->CastSpell(a, ROOT, true);
-                    Log("rooted mid-flee, mt=%s root state=%d", TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0);
+                    Log("Web cast mid-flee, mt=%s (a projectile: the root lands on the next tick)", TypeName(a));
                 });
                 for (uint32 i = 1; i <= 8; ++i)
                 {
@@ -829,7 +830,7 @@ namespace Harness
                         Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
                         rooted->push_back(p);
                         if (Type(a) != FLEEING_MOTION_TYPE) { *keptFear = false; }
-                        Log("rooted +%4ums mt=%s at %.1f %.1f", i * 400, TypeName(a), p.x, p.y);
+                        Log("rooted +%4ums mt=%s root state=%d at %.1f %.1f", i * 400, TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0, p.x, p.y);
                     });
                 }
                 At(6000, [this, g]()
@@ -838,17 +839,19 @@ namespace Harness
                     a->RemoveAurasDueToSpell(ROOT);
                     Log("root removed, mt=%s root state=%d", TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0);
                 });
-                for (uint32 i = 1; i <= 6; ++i)
+                for (uint32 i = 1; i <= 10; ++i)   // four seconds: the flee rests up to 1.5 s between bolts, and a bolt can be short
                 {
-                    At(6000 + i * 400, [this, g, after, i]()
+                    At(6000 + i * 400, [this, g, after, legAfter, i]()
                     {
                         Creature* a = Get(g); if (!a) { return; }
                         Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
                         after->push_back(p);
-                        Log("after +%4ums mt=%s at %.1f %.1f", i * 400, TypeName(a), p.x, p.y);
+                        const bool leg = a->hasUnitState(UNIT_STAT_FLEEING_MOVE);   // set when a leg starts, cleared by the gate
+                        if (leg) { *legAfter = true; }
+                        Log("after +%4ums mt=%s move=%d at %.1f %.1f", i * 400, TypeName(a), leg ? 1 : 0, p.x, p.y);
                     });
                 }
-                At(8700, [this, rooted, after, keptFear]()
+                At(10300, [this, rooted, after, keptFear, legAfter]()
                 {
                     if (rooted->size() < 3 || after->size() < 3) { Verdict("rootHoldsFear=INVALID(no samples) | fleeResumesAfterRoot=INVALID(no samples)"); return; }
                     const float held = Spread(*rooted);
@@ -863,13 +866,15 @@ namespace Harness
                         snprintf(text, sizeof(text), "rootHoldsFear=BUG(moved %.1f yd while rooted%s)", held, *keptFear ? "" : ", the fear was cut");
                     }
                     std::string body = text;
-                    if (resumed > 3.0f)
+                    // The gate reopened when the generator laid a leg again (its move bit) or the wolf
+                    // got away; a bolt's length and the pauses between bolts are the flee geometry's.
+                    if (*legAfter || resumed > 3.0f)
                     {
-                        snprintf(text, sizeof(text), " | fleeResumesAfterRoot=OK(moved %.1f yd within 2.4 s of the unroot)", resumed);
+                        snprintf(text, sizeof(text), " | fleeResumesAfterRoot=OK(a leg laid again, moved %.1f yd within 4 s of the unroot)", resumed);
                     }
                     else
                     {
-                        snprintf(text, sizeof(text), " | fleeResumesAfterRoot=BUG(moved only %.1f yd after the unroot)", resumed);
+                        snprintf(text, sizeof(text), " | fleeResumesAfterRoot=BUG(no leg laid after the unroot, moved %.1f yd)", resumed);
                     }
                     Verdict(body + text);
                 });
@@ -907,7 +912,7 @@ namespace Harness
                 {
                     Creature* a = Get(g); if (!a) { return; }
                     a->CastSpell(a, ROOT, true);
-                    Log("rooted mid-chase, mt=%s root state=%d", TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0);
+                    Log("Web cast mid-chase, mt=%s (a projectile: the root lands on the next tick)", TypeName(a));
                 });
                 for (uint32 i = 1; i <= 8; ++i)
                 {
@@ -917,7 +922,7 @@ namespace Harness
                         Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
                         rooted->push_back(p);
                         if (Type(a) != CHASE_MOTION_TYPE) { *keptChase = false; }
-                        Log("rooted +%4ums mt=%s at %.1f %.1f", i * 400, TypeName(a), p.x, p.y);
+                        Log("rooted +%4ums mt=%s root state=%d at %.1f %.1f", i * 400, TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0, p.x, p.y);
                     });
                 }
                 At(4800, [this, g]()
