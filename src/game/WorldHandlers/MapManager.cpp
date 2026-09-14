@@ -63,6 +63,7 @@
 #include "Transports.h"
 #include "TransportMap.h"
 #include "ObjectMgr.h"
+#include "WorldClock.h"
 
 
 MapManager::MapManager()
@@ -312,6 +313,7 @@ void MapManager::Update(uint32 diff)
     // among them: it belongs to the vessel, which runs it nested inside the tick of the
     // map it sails, once that map has finished with its own containers. There is no second
     // pass and no barrier between them, because there are no longer two of anything.
+    const bool pooled = m_updater.activated() && !WorldClock::IsStepped();   // a stepped run updates every map on the world thread, in order (P0-D)
     MapPhase::Begin();
     for (MapMapType::iterator iter = i_maps.begin(); iter != i_maps.end(); ++iter)
     {
@@ -320,7 +322,7 @@ void MapManager::Update(uint32 diff)
             continue;
         }
 
-        if (m_updater.activated())
+        if (pooled)
         {
             m_updater.schedule_update(*iter->second, (uint32)i_timer.GetCurrent());
         }
@@ -332,7 +334,7 @@ void MapManager::Update(uint32 diff)
         }
     }
 
-    if (m_updater.activated())
+    if (pooled)
     {
         m_updater.wait();
     }

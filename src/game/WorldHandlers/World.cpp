@@ -1387,7 +1387,7 @@ bool World::RemoveBanAccount(BanMode mode, std::string nameOrIP)
 void World::_UpdateGameTime()
 {
     ///- update the time
-    time_t thisTime = time(NULL);
+    time_t thisTime = WorldClock::NowUnix();
     uint32 elapsed = uint32(thisTime - m_gameTime);
     m_gameTime = thisTime;
 
