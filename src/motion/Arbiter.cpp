@@ -485,10 +485,10 @@ namespace Motion
         {
             Finish(m_commands[i], FinishReason::Cleared);
         }
-        FinishClaimsOfKind(Kind::Count, FinishReason::Cleared);
         Finish(m_combat, FinishReason::Cleared);
         if (all)
         {
+            FinishClaimsOfKind(Kind::Count, FinishReason::Cleared);   // a full reset takes the claims; a partial clear is a script's, and the claims are the auras'
             Finish(m_default, FinishReason::Cleared);
             Finish(m_fallbackDefault, FinishReason::Cleared);
         }
@@ -527,6 +527,9 @@ namespace Motion
             case Layer::Combat:
                 FinishSelectedNoRecord(FinishReason::TargetLost);
                 Record(Decision::Op::ExpireSelected, before->kind, 0, 0, before);
+                return;
+            case Layer::Control:
+                Record(Decision::Op::ExpireSelected, before->kind, 0, 0, before);   // a claim ends only through its aura (Release, CancelControl), a full clear or death
                 return;
             default:
                 FinishSelectedNoRecord(FinishReason::Expired);

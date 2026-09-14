@@ -112,9 +112,9 @@ class MotionMaster
         MovementGenerator const* GetCurrent() const;
         /// One tick of the selected behaviour; nothing under UNIT_STAT_CAN_NOT_MOVE.
         void UpdateMotion(uint32 diff);
-        /// Every command, claim and combat finish; the pushed default too when `all`; the survivor resets when `reset && !all`.
+        /// Every command and combat finish; the pushed default too when `all`; the survivor resets when `reset && !all`. A Control claim is left alone: it ends with its aura.
         void Clear(bool reset = true, bool all = false);
-        /// The selected behaviour finishes; the exposed one resets when `reset` and nothing was pushed over it.
+        /// The selected behaviour finishes; the exposed one resets when `reset` and nothing was pushed over it. A Control claim is left alone: it ends with its aura.
         void MovementExpired(bool reset = true);
 
         void MoveIdle();

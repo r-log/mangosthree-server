@@ -184,12 +184,12 @@ namespace Motion
             /// self-expiry (Home/Distract/Effect) and the policy's cancellation effects.
             /// A Control kind adds or updates the claim of `request.claim` (never 0).
             void Request(MoveRequest const& request);
-            /// The Clear(reset, all) projection: drop every command, every claim and
-            /// combat, a pushed default with them (the factory default beneath resumes),
-            /// and that bottom default too when `all`, with the factory default parked
-            /// beneath a pushed one.
+            /// The Clear(reset, all) projection: drop every command and the combat entry,
+            /// pop a pushed default; `all` takes the default and the Control claims too —
+            /// a partial clear leaves the claims, which end only through their identity.
             void Clear(bool all);
-            /// MovementExpired / Update()==false on whatever is currently selected.
+            /// MovementExpired / Update()==false on whatever is currently selected; a
+            /// selected Control claim is left alone.
             void ExpireSelected();
             /// Finish the highest entry of this kind, as the stack expiring that generator
             /// would: a command Expired, combat TargetLost, a Follow default TargetLost with
