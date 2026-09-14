@@ -1215,10 +1215,10 @@ void MotionMaster::CancelControl(Motion::Kind kind)
  * @brief Ends one Control claim by identity; the newest remaining claim of the layer drives.
  * @param claim The claim's identity (Motion::ControlClaim).
  */
-void MotionMaster::ReleaseControl(uint64 claim)
+bool MotionMaster::ReleaseControl(uint64 claim)
 {
     Scope scope(*this, Motion::TransactionKind::Normal);
-    m_arbiter.Release(claim);
+    return m_arbiter.Release(claim);
 }
 
 /**

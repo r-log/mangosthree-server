@@ -200,7 +200,8 @@ namespace Motion
             /// Release every Control claim of this kind (the aura handlers' form until P4).
             void CancelControl(Kind kind);
             /// Release one Control claim by identity.
-            void Release(uint64 claim);
+            /// @return True when a claim of that identity was held and is now finished.
+            bool Release(uint64 claim);
 
             /// Apply an event row (§4.2): CombatStarted cancels the Distract layer.
             void Notify(ExternalEvent event);

@@ -1110,7 +1110,9 @@ TEST(MotionArbiter_Claims_ClearUnderAClaimKeepsItSelected_ReleaseResumesTheDefau
     m.Request(Req(Kind::Point, 5));                                   // the script's point waits beneath the fear
     CHECK_EQ(SelectedKind(m), K(Kind::Fear));
     m.DrainEvents();
-    m.Release(11);                                                    // the fear's aura ends: the point runs
+    CHECK(!m.Release(12345));                                         // unknown identity: no claim went, selection unchanged
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));
+    CHECK(m.Release(11));                                             // the fear's aura ends: the point runs
     CHECK_EQ(SelectedKind(m), K(Kind::Point));
     ev = m.DrainEvents();
     CHECK(HasFinished(ev, Kind::Fear, 0, FinishReason::Cancelled));

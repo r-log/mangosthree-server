@@ -151,7 +151,8 @@ class MotionMaster
         /// Release the control claims of this kind (the aura handlers' form until P4).
         void CancelControl(Motion::Kind kind);
         /// End one Control claim by identity; the newest remaining claim of the layer drives.
-        void ReleaseControl(uint64 claim);
+        /// @return True when the claim was held.
+        bool ReleaseControl(uint64 claim);
         /// Whether any Control claim of this kind is held (the aura handlers' "last claim" test).
         bool HoldsControl(Motion::Kind kind) const;
         /// A near teleport: suspend the selection, relocate, resume it with a reset.

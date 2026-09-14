@@ -309,7 +309,7 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
     }
     else
     {
-        GetMotionMaster()->ReleaseControl(claim);
+        const bool released = GetMotionMaster()->ReleaseControl(claim);
         if (GetMotionMaster()->HoldsControl(Motion::Kind::Fear))
         {
             return;   // another fear drives (reference §3.6): the flag stays, control stays taken
@@ -317,7 +317,10 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
 
         RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
 
-        if (GetTypeId() != TYPEID_PLAYER && IsAlive())
+        // The end of control runs for the claim that just went: a removal that released
+        // nothing (a fear refused at apply, a second prevent-fleeing aura's loop) changes no
+        // target and moves nothing.
+        if (released && GetTypeId() != TYPEID_PLAYER && IsAlive())
         {
             Creature* c = ((Creature*)this);
 
@@ -385,7 +388,7 @@ void Unit::SetConfused(bool apply, ObjectGuid casterGuid, uint32 spellID, uint8 
     }
     else
     {
-        GetMotionMaster()->ReleaseControl(claim);
+        const bool released = GetMotionMaster()->ReleaseControl(claim);
         if (GetMotionMaster()->HoldsControl(Motion::Kind::Confused))
         {
             return;   // another confuse drives: the flag stays, control stays taken
@@ -393,7 +396,9 @@ void Unit::SetConfused(bool apply, ObjectGuid casterGuid, uint32 spellID, uint8 
 
         RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_CONFUSED);
 
-        if (GetTypeId() != TYPEID_PLAYER && IsAlive())
+        // The end of control runs for the claim that just went: a removal that released
+        // nothing changes no target and moves nothing.
+        if (released && GetTypeId() != TYPEID_PLAYER && IsAlive())
         {
             // The end of control (reference §3.3.4): a victim means the chase resumes, none the run home.
             if (Unit* victim = getVictim())

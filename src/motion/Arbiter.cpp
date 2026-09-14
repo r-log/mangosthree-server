@@ -633,7 +633,7 @@ namespace Motion
         Record(Decision::Op::CancelControl, kind, 0, 0, before);
     }
 
-    void Arbiter::Release(uint64 claim)
+    bool Arbiter::Release(uint64 claim)
     {
         Transaction tx(*this, TransactionKind::Normal);
         const std::optional<Held> before = Selected();
@@ -644,10 +644,11 @@ namespace Motion
                 FinishClaim(i, FinishReason::Cancelled);
                 Reselect(before);
                 Record(Decision::Op::Release, Kind::Idle, 0, claim, before);
-                return;
+                return true;
             }
         }
         Record(Decision::Op::Release, Kind::Idle, 0, claim, before);
+        return false;
     }
 
     bool Arbiter::Empty() const
