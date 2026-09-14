@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 #include "Policies/Singleton.h"
+#include "Timeline.h"
 
 #include <string>
 #include <vector>
@@ -55,6 +56,12 @@ namespace Harness
      * MVTEST log. Ticked from World::Update after the maps, outside the map phase,
      * where console commands run; one scenario at a time; every actor a scenario
      * spawned is despawned when it ends.
+     *
+     * A run steps the world (movement P0-D): from `Start` to `MVTEST DONE` the world
+     * loop advances the clock in fixed 50 ms ticks without sleeping, every map updates
+     * on the world thread, and each scenario starts from `SeedFor(seedBase, order)`; a
+     * logged-in client sees the world race for the run's length -- the mode exists for
+     * the headless launcher.
      */
     class Runner
     {
@@ -62,8 +69,9 @@ namespace Harness
         Runner();
         ~Runner();
 
-        /// `all`, or one scenario's name. False when unknown or a run is in progress.
-        bool Start(std::string const& what);
+        /// `all`, or one scenario's name; `seedBase` is the console's optional second
+        /// argument. False when unknown or a run is in progress.
+        bool Start(std::string const& what, uint32 seedBase = kSeedBase);
         std::string Status() const;
         void Update(uint32 diff);
         Map* GetMap() const { return m_map; }
@@ -81,6 +89,7 @@ namespace Harness
         uint32                 m_settle;        ///< ms of pause left before the next
         uint32                 m_sinceTick;
         uint32                 m_verdicts;
+        uint32                 m_seedBase;
         Map*                   m_map;
     };
 }

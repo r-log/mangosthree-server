@@ -75,6 +75,7 @@ set(SRC_GRP_TESTS
     MotionStateTest.cpp
     HarnessTest.cpp
     WorldClockTest.cpp
+    RNGSeedTest.cpp
     MotionAuthorityTest.cpp
     MotionArbiterTest.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/TimeSync.cpp

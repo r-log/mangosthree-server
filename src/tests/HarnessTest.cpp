@@ -84,3 +84,11 @@ TEST(HarnessDist2_is_planar)
     CHECK_EQ(Harness::Dist2(0.0f, 0.0f, 3.0f, 4.0f), 5.0f);
     CHECK_EQ(Harness::Dist2(-3122.6f, -261.3f, -3122.6f, -261.3f), 0.0f);
 }
+
+TEST(HarnessSeed_derives_from_the_base_and_the_order)
+{
+    CHECK_EQ(Harness::SeedFor(0x4D56, 0), uint32(0x4D56));
+    CHECK_EQ(Harness::SeedFor(0x4D56, 25), uint32(0x4D56 + 25));
+    CHECK_EQ(Harness::SeedFor(2, 25), uint32(27));
+    CHECK(Harness::SeedFor(2, 25) != Harness::SeedFor(3, 25));
+}

@@ -41,6 +41,15 @@
  */
 namespace Harness
 {
+    const uint32 kSeedBase = 0x4D56;   ///< the default seed base ("MV"); a scenario's seed is the base plus its order
+
+    /// The seed a scenario runs from: the base plus its order, so a scenario's outcome does not
+    /// depend on what ran before it and a single-scenario run reproduces the full run.
+    inline uint32 SeedFor(uint32 base, int order)
+    {
+        return base + uint32(order);
+    }
+
     class Timeline
     {
     public:

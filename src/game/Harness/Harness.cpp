@@ -32,6 +32,8 @@
 #include "TemporarySummon.h"
 #include "WaypointManager.h"
 #include "Log.h"
+#include "WorldClock.h"
+#include "RNGen.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -53,7 +55,7 @@ namespace Harness
         const uint32 kMapId = 1;   ///< Kalimdor: the old scenarios' Mulgore plains
     }
 
-    Runner::Runner() : m_index(0), m_elapsed(0), m_settle(0), m_sinceTick(0), m_verdicts(0), m_map(NULL)
+    Runner::Runner() : m_index(0), m_elapsed(0), m_settle(0), m_sinceTick(0), m_verdicts(0), m_seedBase(kSeedBase), m_map(NULL)
     {
         // Every family registers its scenarios with their place in the old harness's
         // run order (S1=1, S2=2, S3=3, S5=4, S6=5, S7=6, S8=7, S9=8, S10=9, S11=10,
@@ -76,7 +78,7 @@ namespace Harness
         }
     }
 
-    bool Runner::Start(std::string const& what)
+    bool Runner::Start(std::string const& what, uint32 seedBase)
     {
         if (Running() || m_settle)
         {
@@ -144,6 +146,9 @@ namespace Harness
             pathAdded = true;
         }
         sLog.outString("MVTEST start: %u scenario(s) on map %u", uint32(m_queue.size()), kMapId);
+        m_seedBase = seedBase;
+        WorldClock::EnterStepped();
+        sLog.outString("MVTEST stepped: seed base %u", m_seedBase);
         Begin(m_queue[0]);
         return true;
     }
@@ -168,7 +173,8 @@ namespace Harness
         m_elapsed = 0;
         m_sinceTick = 0;
         s->Reset();
-        sLog.outString("MVTEST %s start", s->Name());
+        RNG::Seed(SeedFor(m_seedBase, s->Order()));
+        sLog.outString("MVTEST %s start seed=%u", s->Name(), SeedFor(m_seedBase, s->Order()));
         s->Prepare();
     }
 
@@ -235,6 +241,8 @@ namespace Harness
             else
             {
                 sLog.outString("MVTEST DONE %u scenarios, %u verdict lines", uint32(m_queue.size()), m_verdicts);
+                WorldClock::LeaveStepped();
+                sLog.outString("MVTEST clock offset %u ms", WorldClock::OffsetMs());
                 m_queue.clear();
                 m_index = 0;
             }
