@@ -383,6 +383,12 @@ void MapManager::Update(uint32 diff)
     i_timer.SetCurrent(0);
 }
 
+/// Restart the map update interval from zero: the GM harness pins the phase of the map updates to a run's start (P0-D).
+void MapManager::ResetUpdateTimer()
+{
+    i_timer.SetCurrent(0);
+}
+
 /**
  * @brief Removes all objects pending deletion from all loaded maps.
  */

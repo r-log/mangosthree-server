@@ -148,7 +148,8 @@ namespace Harness
         sLog.outString("MVTEST start: %u scenario(s) on map %u", uint32(m_queue.size()), kMapId);
         m_seedBase = seedBase;
         WorldClock::EnterStepped();
-        sLog.outString("MVTEST stepped: seed base %u", m_seedBase);
+        sMapMgr.ResetUpdateTimer();   // the next map update lands exactly two ticks after the start, every run
+        sLog.outString("MVTEST stepped: seed base %u, map phase pinned", m_seedBase);
         Begin(m_queue[0]);
         return true;
     }

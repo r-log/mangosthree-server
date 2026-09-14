@@ -106,6 +106,9 @@ class MapManager : public MaNGOS::Singleton<MapManager>
             i_timer.Reset();
         }
 
+        /// Restart the map update interval from zero: the GM harness pins the phase of the map updates to a run's start (P0-D).
+        void ResetUpdateTimer();
+
         void UnloadAll();
 
         static bool ExistMapAndVMap(uint32 mapid, float x, float y);
