@@ -341,10 +341,14 @@ void MotionMaster::Reconcile()
             bound->activated = true;
             bound->behaviour->Activate(*m_owner);   // never a reset: the stack never Reset a freshly pushed generator
         }
-        else if (m_pendingReset == PendingReset::Always ||
-                 (m_pendingReset == PendingReset::WhenExposed && selected->seq == m_exposedSeq))
+        else
         {
-            bound->behaviour->Resume(*m_owner, true);
+            // The selection hears Resume at every commit, reset or not: a behaviour suspended
+            // beneath a claim and exposed again learns it here (its suspended flag clears);
+            // the reset latch says whether it restarts.
+            const bool reset = m_pendingReset == PendingReset::Always ||
+                               (m_pendingReset == PendingReset::WhenExposed && selected->seq == m_exposedSeq);
+            bound->behaviour->Resume(*m_owner, reset);
         }
     }
     m_pendingReset = PendingReset::None;
