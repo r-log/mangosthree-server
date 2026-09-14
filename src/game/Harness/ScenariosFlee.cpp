@@ -415,7 +415,7 @@ namespace Harness
                     Sample s;
                     s.t = t;
                     s.mt = Type(a);
-                    s.state = a->hasUnitState(UNIT_STAT_FLEEING);
+                    s.state = a->hasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_FLEEING_MOVE);
                     s.flag = a->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
                     Unit* v = a->getVictim() ? a->getVictim() : b;
                     s.dVictim = Dist2(a->Where().X(), a->Where().Y(), v->Where().X(), v->Where().Y());
@@ -689,7 +689,7 @@ namespace Harness
                         s.t = i * 400;
                         s.mt = Type(a);
                         s.flag = a->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
-                        s.state = a->hasUnitState(UNIT_STAT_FLEEING);
+                        s.state = a->hasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_FLEEING_MOVE);
                         samples->push_back(s);
                         Log("+%4ums mt=%s flag=%d state=%d", s.t, Harness::TypeName(s.mt), s.flag ? 1 : 0, s.state ? 1 : 0);
                     });
