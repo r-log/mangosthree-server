@@ -28,24 +28,19 @@
 
 #include "Platform/Define.h"
 #include "Duration.h"
+#include "WorldClock.h"
 #include <ctime>
 #include <chrono>
 
 // New Method
 inline std::chrono::steady_clock::time_point GetApplicationStartTime()
 {
-    using namespace std::chrono;
-
-    static const steady_clock::time_point ApplicationStartTime = steady_clock::now();
-
-    return ApplicationStartTime;
+    return WorldClock::StartPoint();
 }
 
 inline uint32 getMSTime()
 {
-    using namespace std::chrono;
-
-    return uint32(duration_cast<milliseconds>(steady_clock::now() - GetApplicationStartTime()).count());
+    return WorldClock::NowMs();
 }
 
 inline uint32 getMSTimeDiff(uint32 oldMSTime, uint32 newMSTime)
