@@ -148,7 +148,7 @@ class MotionMaster
 
         /// Death: every behaviour finishes Died while the unit still reads alive, then the idle default.
         void Die();
-        /// Release the control claims of this kind (the aura handlers' form until P4).
+        /// Release the control claims of this kind (a take that ends the episode without its aura: the pet possession take).
         void CancelControl(Motion::Kind kind);
         /// End one Control claim by identity; the newest remaining claim of the layer drives.
         /// @return True when the claim was held.

@@ -679,6 +679,16 @@ void MotionMaster::Clear(bool reset, bool all)
     Scope scope(*this, all ? Motion::TransactionKind::ClearAll : Motion::TransactionKind::Clear);
     m_pendingReset = (reset && !all) ? PendingReset::Always : PendingReset::None;   // before the hooks: a later call in the same scope wins, as the stack's flag did
     m_arbiter.Clear(all);
+    // A partial clear leaves a selected Control claim alone, its reset included: what lies
+    // beneath resumes through the arbiter when the claim ends.
+    if (!all)
+    {
+        std::optional<Motion::Held> selected = m_arbiter.Selected();
+        if (selected && selected->claim != 0)   // Held::claim is non-zero for Control entries only
+        {
+            m_pendingReset = PendingReset::None;
+        }
+    }
     // The cleared entries' hooks run here, inside this scope's transaction: nested in another
     // operation, the clear discards for its own extent (a finalizer's request during it is
     // doomed, as the stack's clean loop popped what a finalizer pushed); outermost, the scope's
@@ -1228,15 +1238,7 @@ bool MotionMaster::ReleaseControl(uint64 claim)
  */
 bool MotionMaster::HoldsControl(Motion::Kind kind) const
 {
-    std::vector<Motion::Held> claims = m_arbiter.Claims();
-    for (size_t i = 0; i < claims.size(); ++i)
-    {
-        if (claims[i].kind == kind)
-        {
-            return true;
-        }
-    }
-    return false;
+    return m_arbiter.HasClaim(kind);
 }
 
 /**

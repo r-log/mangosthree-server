@@ -754,6 +754,18 @@ namespace Motion
         return out;
     }
 
+    bool Arbiter::HasClaim(Kind kind) const
+    {
+        for (size_t i = 0; i < m_claims.size(); ++i)
+        {
+            if (m_claims[i].kind == kind)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     std::vector<Held> Arbiter::Contents() const
     {
         std::vector<Held> out;

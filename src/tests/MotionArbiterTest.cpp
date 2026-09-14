@@ -1079,7 +1079,11 @@ TEST(MotionArbiter_Claims_ClearLeavesClaims_ClearAllFinishesThemInPrecedenceOrde
     {
         CHECK(!(e.kind == Event::Kind::Finished && e.claim != 0));
     }
+    CHECK(m.HasClaim(Kind::Fear));
+    CHECK(m.HasClaim(Kind::Confused));
     m.Clear(true);                                                    // the full reset takes them, Confused first, then the newer fear
+    CHECK(!m.HasClaim(Kind::Fear));
+    CHECK(!m.HasClaim(Kind::Confused));
     ev = m.DrainEvents();
     std::vector<uint64> order;
     for (Event const& e : ev)

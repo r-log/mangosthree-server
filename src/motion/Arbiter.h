@@ -197,7 +197,7 @@ namespace Motion
             void Expire(Kind kind);
             /// Finish whatever is currently selected, for the given reason.
             void FinishSelected(FinishReason reason);
-            /// Release every Control claim of this kind (the aura handlers' form until P4).
+            /// Release every Control claim of this kind (a take that ends the episode without its aura: the pet possession take).
             void CancelControl(Kind kind);
             /// Release one Control claim by identity.
             /// @return True when a claim of that identity was held and is now finished.
@@ -233,6 +233,8 @@ namespace Motion
             std::optional<Held> Command(Layer layer) const;
             /// Every Control claim, in precedence order (the selected one first).
             std::vector<Held> Claims() const;
+            /// Whether any Control claim of this kind is held.
+            bool HasClaim(Kind kind) const;
             /// Every held entry, ascending layer order (Default, Combat, then the commands,
             /// the claims in precedence order on the Control layer).
             std::vector<Held> Contents() const;
