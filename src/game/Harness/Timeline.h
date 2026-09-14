@@ -50,6 +50,14 @@ namespace Harness
         return base + uint32(order);
     }
 
+    /// The seed a running scenario's map update draws from: the scenario's seed folded with its
+    /// tick, so nothing drawn outside the map phase (the auction bot, broadcasts, game events,
+    /// whose timers sit at arbitrary phases) can reach what the map draws.
+    inline uint32 TickSeed(uint32 base, int order, uint32 elapsedMs)
+    {
+        return SeedFor(base, order) ^ (0x9E3779B9u * (1u + elapsedMs / 50u));
+    }
+
     class Timeline
     {
     public:

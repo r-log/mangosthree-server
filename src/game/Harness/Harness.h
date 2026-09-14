@@ -56,8 +56,8 @@ namespace Harness
     static const int32 kMousePath = 251;
 
     /// A scenario still running after this much virtual time is abandoned, so
-    /// MVTEST DONE always comes.
-    const uint32 kScenarioMaxMs = 120000;
+    /// MVTEST DONE always comes (long-follow needs about four).
+    const uint32 kScenarioMaxMs = 300000;
 
     /**
      * The GM harness runner (design v2 §12): the registry of scenarios in the old
@@ -83,6 +83,7 @@ namespace Harness
         bool Start(std::string const& what, uint32 seedBase = kSeedBase);
         std::string Status() const;
         void Update(uint32 diff);
+        void SeedMapUpdate();   ///< before each map update of a running scenario: the world thread's generator takes TickSeed(seedBase, order, elapsed)
         Map* GetMap() const { return m_map; }
         void Register(Scenario* scenario) { m_registry.push_back(scenario); }
         bool Running() const { return m_index < m_queue.size(); }

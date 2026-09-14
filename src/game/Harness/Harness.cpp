@@ -184,6 +184,15 @@ namespace Harness
         return text;
     }
 
+    void Runner::SeedMapUpdate()
+    {
+        if (!Running() || m_settle)
+        {
+            return;
+        }
+        RNG::Seed(TickSeed(m_seedBase, m_queue[m_index]->Order(), m_elapsed));
+    }
+
     void Runner::Begin(Scenario* s)
     {
         m_elapsed = 0;

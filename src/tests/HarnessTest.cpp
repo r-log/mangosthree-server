@@ -91,4 +91,7 @@ TEST(HarnessSeed_derives_from_the_base_and_the_order)
     CHECK_EQ(Harness::SeedFor(0x4D56, 25), uint32(0x4D56 + 25));
     CHECK_EQ(Harness::SeedFor(2, 25), uint32(27));
     CHECK(Harness::SeedFor(2, 25) != Harness::SeedFor(3, 25));
+    CHECK(Harness::TickSeed(0x4D56, 3, 0) != Harness::TickSeed(0x4D56, 3, 50));
+    CHECK(Harness::TickSeed(0x4D56, 3, 100) != Harness::TickSeed(0x4D56, 4, 100));
+    CHECK_EQ(Harness::TickSeed(7, 2, 150), Harness::TickSeed(7, 2, 150));
 }
