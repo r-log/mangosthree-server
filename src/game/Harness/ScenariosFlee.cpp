@@ -510,7 +510,9 @@ namespace Harness
         /// it runs home instead of resuming its wander where the fear left it (reference
         /// §3.1.6, §13.3; the caster is killed first so the wolf has nothing to attack). The
         /// wolf reaches its spawn and its wander default resumes there, so the verdict looks
-        /// at the closest sample over the window rather than the last one.
+        /// at the closest sample over the window rather than the last one. A wolf feared only a
+        /// few yards from home can be home before the first sample; the verdict reads HOME at
+        /// the removal itself as well as in the samples.
         class FearThenHome : public Scenario
         {
         public:
@@ -527,6 +529,7 @@ namespace Harness
                 const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
                 const float hx = SE.x, hy = SE.y;
                 auto samples = std::make_shared<std::vector<Sample> >();
+                auto homeAtRemoval = std::make_shared<bool>(false);
                 At(500, [this, g]()
                 {
                     Creature* a = Get(g); if (!a) { return; }
@@ -539,11 +542,12 @@ namespace Harness
                     a->SetFeared(true, gk, 5782, 0, 0);
                     Log("feared by the kobold, mt=%s", TypeName(a));
                 });
-                At(5500, [this, g, gk, hx, hy]()
+                At(5500, [this, g, gk, hx, hy, homeAtRemoval]()
                 {
                     Creature* a = Get(g); Creature* k = Get(gk); if (!a || !k) { return; }
                     k->DealDamage(k, k->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);   // nothing to attack afterwards
                     a->SetFeared(false, gk, 5782, 0, 0);
+                    *homeAtRemoval = Type(a) == HOME_MOTION_TYPE;   // a wolf feared a few yards from home is back before the first sample
                     Log("fear removed %.1f yd from home, mt=%s", Dist2(a->Where().X(), a->Where().Y(), hx, hy), TypeName(a));
                 });
                 for (uint32 i = 1; i <= 12; ++i)
@@ -559,10 +563,10 @@ namespace Harness
                         Log("+%4ums mt=%s dHome=%.1f", s.t, Harness::TypeName(s.mt), s.dHome);
                     });
                 }
-                At(10700, [this, samples]()
+                At(10700, [this, samples, homeAtRemoval]()
                 {
                     if (samples->size() < 3) { Verdict("fearEndGoesHome=INVALID(no samples)"); return; }
-                    bool sawHome = false;
+                    bool sawHome = *homeAtRemoval;
                     for (size_t k = 0; k < samples->size() && (*samples)[k].t <= 2000; ++k)
                     {
                         if ((*samples)[k].mt == HOME_MOTION_TYPE) { sawHome = true; }
