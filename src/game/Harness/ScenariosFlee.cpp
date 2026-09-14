@@ -775,6 +775,196 @@ namespace Harness
                 });
             }
         };
+
+        const uint32 ROOT = 12494;   // Frostbite: a plain root aura, no damage
+
+        /// The distance from the first sample to the farthest one: how far the unit got.
+        float Spread(std::vector<Pt> const& samples)
+        {
+            float spread = 0.0f;
+            for (size_t k = 1; k < samples.size(); ++k)
+            {
+                const float d = Dist2(samples[0].x, samples[0].y, samples[k].x, samples[k].y);
+                if (d > spread) { spread = d; }
+            }
+            return spread;
+        }
+
+        /// A root on a feared creature: the flee stops in place while the root lasts (the unit
+        /// state is what the movement gates read) and resumes when the root ends (reference
+        /// §3.6); the fear itself is not cut by the root.
+        class RootUnderFear : public Scenario
+        {
+        public:
+            RootUnderFear() : Scenario("root-under-fear", 25) {}
+
+            void Prepare() override
+            {
+                Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* k = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
+                if (!a || !k) { Verdict("rootHoldsFear=INVALID(spawn failed) | fleeResumesAfterRoot=INVALID(spawn failed)"); return; }
+                a->SetMaxHealth(500000); a->SetHealth(500000); k->SetMaxHealth(500000); k->SetHealth(500000);
+                k->setFaction(14);
+                const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
+                auto rooted = std::make_shared<std::vector<Pt> >();
+                auto after = std::make_shared<std::vector<Pt> >();
+                auto keptFear = std::make_shared<bool>(true);
+                At(500, [this, g, gk]()
+                {
+                    Creature* a = Get(g); if (!a) { return; }
+                    a->SetFeared(true, gk, 5782, 0, 0);
+                    Log("feared, mt=%s", TypeName(a));
+                });
+                At(2500, [this, g]()
+                {
+                    Creature* a = Get(g); if (!a) { return; }
+                    a->CastSpell(a, ROOT, true);
+                    Log("rooted mid-flee, mt=%s root state=%d", TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0);
+                });
+                for (uint32 i = 1; i <= 8; ++i)
+                {
+                    At(2500 + i * 400, [this, g, rooted, keptFear, i]()
+                    {
+                        Creature* a = Get(g); if (!a) { return; }
+                        Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
+                        rooted->push_back(p);
+                        if (Type(a) != FLEEING_MOTION_TYPE) { *keptFear = false; }
+                        Log("rooted +%4ums mt=%s at %.1f %.1f", i * 400, TypeName(a), p.x, p.y);
+                    });
+                }
+                At(6000, [this, g]()
+                {
+                    Creature* a = Get(g); if (!a) { return; }
+                    a->RemoveAurasDueToSpell(ROOT);
+                    Log("root removed, mt=%s root state=%d", TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0);
+                });
+                for (uint32 i = 1; i <= 6; ++i)
+                {
+                    At(6000 + i * 400, [this, g, after, i]()
+                    {
+                        Creature* a = Get(g); if (!a) { return; }
+                        Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
+                        after->push_back(p);
+                        Log("after +%4ums mt=%s at %.1f %.1f", i * 400, TypeName(a), p.x, p.y);
+                    });
+                }
+                At(8700, [this, rooted, after, keptFear]()
+                {
+                    if (rooted->size() < 3 || after->size() < 3) { Verdict("rootHoldsFear=INVALID(no samples) | fleeResumesAfterRoot=INVALID(no samples)"); return; }
+                    const float held = Spread(*rooted);
+                    const float resumed = Spread(*after);
+                    char text[200];
+                    if (*keptFear && held < 1.0f)
+                    {
+                        snprintf(text, sizeof(text), "rootHoldsFear=OK(stood within %.1f yd for 3 s, still FLEEING)", held);
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), "rootHoldsFear=BUG(moved %.1f yd while rooted%s)", held, *keptFear ? "" : ", the fear was cut");
+                    }
+                    std::string body = text;
+                    if (resumed > 3.0f)
+                    {
+                        snprintf(text, sizeof(text), " | fleeResumesAfterRoot=OK(moved %.1f yd within 2.4 s of the unroot)", resumed);
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | fleeResumesAfterRoot=BUG(moved only %.1f yd after the unroot)", resumed);
+                    }
+                    Verdict(body + text);
+                });
+            }
+        };
+
+        /// A root on a chasing creature: the chase stops in place while the root lasts and
+        /// closes again when the root ends; the wolf's own position is what is measured, since
+        /// the kobold walks up to a rooted wolf on its own.
+        class RootMidChase : public Scenario
+        {
+        public:
+            RootMidChase() : Scenario("root-mid-chase", 26) {}
+
+            void Prepare() override
+            {
+                Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* b = Spawn(KOBOLD, SE.x + 25.0f, SE.y, Ground(SE.x + 25.0f, SE.y, SE.z), 3.1f);
+                if (!a || !b) { Verdict("rootHoldsChase=INVALID(spawn failed) | chaseResumesAfterRoot=INVALID(spawn failed)"); return; }
+                a->SetMaxHealth(500000); a->SetHealth(500000); b->SetMaxHealth(500000); b->SetHealth(500000);
+                b->setFaction(14);
+                const ObjectGuid g = a->GetObjectGuid(), h = b->GetObjectGuid();
+                auto rooted = std::make_shared<std::vector<Pt> >();
+                auto after = std::make_shared<std::vector<Pt> >();
+                auto keptChase = std::make_shared<bool>(true);
+                At(500, [this, g, h]()
+                {
+                    Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
+                    a->Attack(b, true);
+                    a->AddThreat(b, 1000.0f);
+                    a->GetMotionMaster()->MoveChase(b, 0.0f, 0.0f);
+                    Log("Attack + MoveChase from 25 yd, mt=%s", TypeName(a));
+                });
+                At(1300, [this, g]()
+                {
+                    Creature* a = Get(g); if (!a) { return; }
+                    a->CastSpell(a, ROOT, true);
+                    Log("rooted mid-chase, mt=%s root state=%d", TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0);
+                });
+                for (uint32 i = 1; i <= 8; ++i)
+                {
+                    At(1300 + i * 400, [this, g, rooted, keptChase, i]()
+                    {
+                        Creature* a = Get(g); if (!a) { return; }
+                        Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
+                        rooted->push_back(p);
+                        if (Type(a) != CHASE_MOTION_TYPE) { *keptChase = false; }
+                        Log("rooted +%4ums mt=%s at %.1f %.1f", i * 400, TypeName(a), p.x, p.y);
+                    });
+                }
+                At(4800, [this, g]()
+                {
+                    Creature* a = Get(g); if (!a) { return; }
+                    a->RemoveAurasDueToSpell(ROOT);
+                    Log("root removed, mt=%s root state=%d", TypeName(a), a->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0);
+                });
+                for (uint32 i = 1; i <= 6; ++i)
+                {
+                    At(4800 + i * 400, [this, g, h, after, i]()
+                    {
+                        Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
+                        Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
+                        after->push_back(p);
+                        Log("after +%4ums mt=%s at %.1f %.1f dVictim=%.1f", i * 400, TypeName(a), p.x, p.y, Dist2(p.x, p.y, b->Where().X(), b->Where().Y()));
+                    });
+                }
+                At(7500, [this, g, h, rooted, after, keptChase]()
+                {
+                    if (rooted->size() < 3 || after->size() < 3) { Verdict("rootHoldsChase=INVALID(no samples) | chaseResumesAfterRoot=INVALID(no samples)"); return; }
+                    Creature* a = Get(g); Creature* b = Get(h);
+                    const float held = Spread(*rooted);
+                    const float resumed = Spread(*after);
+                    const float dVictim = (a && b) ? Dist2(a->Where().X(), a->Where().Y(), b->Where().X(), b->Where().Y()) : 999.0f;
+                    char text[200];
+                    if (*keptChase && held < 1.0f)
+                    {
+                        snprintf(text, sizeof(text), "rootHoldsChase=OK(stood within %.1f yd for 3 s, still CHASE)", held);
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), "rootHoldsChase=BUG(moved %.1f yd while rooted%s)", held, *keptChase ? "" : ", the chase was cut");
+                    }
+                    std::string body = text;
+                    if (resumed > 3.0f || dVictim <= 4.0f)
+                    {
+                        snprintf(text, sizeof(text), " | chaseResumesAfterRoot=OK(moved %.1f yd after the unroot, %.1f yd from the victim)", resumed, dVictim);
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | chaseResumesAfterRoot=BUG(moved only %.1f yd after the unroot, %.1f yd from the victim)", resumed, dVictim);
+                    }
+                    Verdict(body + text);
+                });
+            }
+        };
     }
 
     void RegisterFleeScenarios(Runner& r)
@@ -787,5 +977,7 @@ namespace Harness
         r.Register(new ConfuseOverFear());
         r.Register(new TimedFleeCleans());
         r.Register(new ClearUnderFear());
+        r.Register(new RootUnderFear());
+        r.Register(new RootMidChase());
     }
 }

@@ -861,6 +861,11 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
 
         target->SetTargetGuid(ObjectGuid());
 
+        // The unit state is what the movement gates read (UNIT_STAT_CAN_NOT_MOVE): without it
+        // a rooted creature stopped once and its generator laid the next leg, and a stun's end
+        // unrooted a still-rooted player.
+        target->addUnitState(UNIT_STAT_ROOT);
+
         if (target->GetTypeId() == TYPEID_PLAYER)
         {
             target->SetRoot(true);
@@ -871,6 +876,7 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
         else
         {
             target->StopMoving();
+            target->SetRoot(true);   // the spline root form to everyone in range
         }
     }
     else
@@ -910,7 +916,7 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
 
         target->clearUnitState(UNIT_STAT_ROOT);
 
-        if (!target->hasUnitState(UNIT_STAT_STUNNED) && (target->GetTypeId() == TYPEID_PLAYER))     // prevent allow move if have also stun effect
+        if (!target->hasUnitState(UNIT_STAT_STUNNED))     // prevent allow move if have also stun effect
         {
             target->SetRoot(false);
         }
