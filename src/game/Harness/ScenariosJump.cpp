@@ -29,6 +29,7 @@
 #include "MotionMaster.h"
 #include "movement/MoveSpline.h"
 #include "Log.h"
+#include "RNGen.h"
 
 #include <cstdio>
 #include <memory>
@@ -76,11 +77,12 @@ namespace Harness
                     {
                         Creature* a = Get(g); if (!a) { return; }
                         Movement::MoveSpline const* sp = a->movespline;
-                        Log("trace +%4ums %.3f %.3f %.3f mt=%s walk=%d run=%.3f spline=%d final=%d rng=%u", i * 100,
+                        const uint64 draws = RNG::Draws();
+                        Log("trace +%4ums %.3f %.3f %.3f mt=%s walk=%d run=%.3f spline=%d final=%d rng=%u draws=%llu", i * 100,
                             a->Where().X(), a->Where().Y(), a->Where().Z(), TypeName(a),
                             a->IsWalking() ? 1 : 0, a->GetSpeed(MOVE_RUN),
                             sp ? int32(sp->Duration()) : -1, (sp && sp->Finalized()) ? 1 : 0,
-                            urand(0, 1000000));
+                            urand(0, 1000000), (unsigned long long)draws);
                     });
                 }
                 // Shared between the steps: the pre-jump spot and the samples.

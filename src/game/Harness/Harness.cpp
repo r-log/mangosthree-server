@@ -190,7 +190,13 @@ namespace Harness
         {
             return;
         }
-        RNG::Seed(TickSeed(m_seedBase, m_queue[m_index]->Order(), m_elapsed));
+        Scenario* s = m_queue[m_index];
+        const uint32 seed = TickSeed(m_seedBase, s->Order(), m_elapsed);
+        if (m_elapsed <= 1000)   // diagnostic (P0-D): the first 20 ticks, to compare seeds and draw counts across two runs
+        {
+            sLog.outString("MVTEST %s reseed elapsed=%u seed=%u draws=%llu", s->Name(), m_elapsed, seed, (unsigned long long)RNG::Draws());
+        }
+        RNG::Seed(seed);
     }
 
     void Runner::Begin(Scenario* s)
