@@ -505,7 +505,9 @@ namespace Harness
 
         /// P4-A: a wandering wolf with no victim, feared by a hostile caster; when the fear ends
         /// it runs home instead of resuming its wander where the fear left it (reference
-        /// §3.1.6, §13.3; the caster is killed first so the wolf has nothing to attack).
+        /// §3.1.6, §13.3; the caster is killed first so the wolf has nothing to attack). The
+        /// wolf reaches its spawn and its wander default resumes there, so the verdict looks
+        /// at the closest sample over the window rather than the last one.
         class FearThenHome : public Scenario
         {
         public:
@@ -564,15 +566,21 @@ namespace Harness
                     }
                     Sample const& first = samples->front();
                     Sample const& last = samples->back();
-                    char text[160];
-                    if (sawHome && last.dHome < first.dHome - 2.0f)
+                    float closest = first.dHome;
+                    for (size_t k = 1; k < samples->size(); ++k)
                     {
-                        snprintf(text, sizeof(text), "fearEndGoesHome=OK(HOME within two seconds, %.1f -> %.1f yd from home)", first.dHome, last.dHome);
+                        if ((*samples)[k].dHome < closest) { closest = (*samples)[k].dHome; }
+                    }
+                    const float bar = first.dHome - 2.0f > 1.0f ? first.dHome - 2.0f : 1.0f;   // arrival counts even when the fear left it near home
+                    char text[192];
+                    if (sawHome && closest < bar)
+                    {
+                        snprintf(text, sizeof(text), "fearEndGoesHome=OK(HOME within two seconds, %.1f -> closest %.1f yd from home, last mt=%s)", first.dHome, closest, Harness::TypeName(last.mt));
                     }
                     else
                     {
-                        snprintf(text, sizeof(text), "fearEndGoesHome=BUG(home %s, %.1f -> %.1f yd from home, last mt=%s)",
-                                 sawHome ? "seen" : "never seen", first.dHome, last.dHome, Harness::TypeName(last.mt));
+                        snprintf(text, sizeof(text), "fearEndGoesHome=BUG(home %s, %.1f -> closest %.1f yd from home, last mt=%s)",
+                                 sawHome ? "seen" : "never seen", first.dHome, closest, Harness::TypeName(last.mt));
                     }
                     Verdict(text);
                 });
