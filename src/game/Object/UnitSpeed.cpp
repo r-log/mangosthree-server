@@ -331,11 +331,11 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
             }
 
             // The end of control (reference §3.1.4, §3.1.6): a victim means the chase resumes
-            // (the masked chase through the arbiter, a fresh one when none is held); none means
-            // the run home.
+            // (the masked chase through the arbiter while it still aims at the victim, a fresh
+            // one otherwise); none means the run home.
             if (Unit* victim = getVictim())
             {
-                if (!GetMotionMaster()->IsChasing())
+                if (!GetMotionMaster()->IsChasing() || GetMotionMaster()->ChaseTarget() != victim)
                 {
                     GetMotionMaster()->MoveChase(victim);
                 }
@@ -400,10 +400,11 @@ void Unit::SetConfused(bool apply, ObjectGuid casterGuid, uint32 spellID, uint8 
         // nothing changes no target and moves nothing.
         if (released && GetTypeId() != TYPEID_PLAYER && IsAlive())
         {
-            // The end of control (reference §3.3.4): a victim means the chase resumes, none the run home.
+            // The end of control (reference §3.3.4): a victim means the chase resumes (the masked
+            // one while it still aims at the victim, a fresh one otherwise), none the run home.
             if (Unit* victim = getVictim())
             {
-                if (!GetMotionMaster()->IsChasing())
+                if (!GetMotionMaster()->IsChasing() || GetMotionMaster()->ChaseTarget() != victim)
                 {
                     GetMotionMaster()->MoveChase(victim);
                 }

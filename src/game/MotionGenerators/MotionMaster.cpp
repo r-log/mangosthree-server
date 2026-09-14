@@ -1301,6 +1301,21 @@ bool MotionMaster::IsChasing() const
 }
 
 /**
+ * @brief The held chase's target.
+ * @return The Combat entry's chase target, or NULL when no chase is held.
+ */
+Unit* MotionMaster::ChaseTarget() const
+{
+    std::optional<Motion::Held> const& combat = m_arbiter.Combat();
+    Bound const* bound = combat ? Find(combat->seq) : NULL;
+    if (!bound || bound->behaviour->LegacyType() != CHASE_MOTION_TYPE)
+    {
+        return NULL;
+    }
+    return static_cast<ChaseMovementGenerator const*>(bound->behaviour->Legacy())->GetTarget();
+}
+
+/**
  * @brief Whether the current default is a follow, selected or masked.
  * @return True for a Follow default; the parked fallback does not count.
  */
