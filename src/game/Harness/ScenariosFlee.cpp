@@ -385,7 +385,7 @@ namespace Harness
             }
         };
 
-        /// P4-A: two fears from two casters on a chasing wolf. Each holds its own claim: the
+        /// P4-A: two fears from two casters on an aggroed, chasing wolf. Each holds its own claim: the
         /// first aura's removal changes nothing while the second runs (the state and the
         /// flag stay, the flee continues); the second's removal ends the episode and the
         /// chase resumes (reference §3.6, §3.1.4).
@@ -426,6 +426,7 @@ namespace Harness
                 {
                     Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
                     a->Attack(b, true);
+                    a->AddThreat(b, 1000.0f);   // aggroed: the end-of-control rule resumes a chase only for a wolf with threat
                     a->GetMotionMaster()->MoveChase(b, 0.0f, 0.0f);
                     Log("Attack + MoveChase, mt=%s", TypeName(a));
                 });
@@ -588,7 +589,7 @@ namespace Harness
             }
         };
 
-        /// P4-A: a confuse over a fear on a chasing wolf. The confuse drives while both are
+        /// P4-A: a confuse over a fear on an aggroed, chasing wolf. The confuse drives while both are
         /// held (Confused outranks Fear, reference §13.2); its removal resumes the fear; the
         /// fear's removal resumes the chase.
         class ConfuseOverFear : public Scenario
@@ -619,6 +620,7 @@ namespace Harness
                 {
                     Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
                     a->Attack(b, true);
+                    a->AddThreat(b, 1000.0f);   // aggroed: the end-of-control rule resumes a chase only for a wolf with threat
                     a->GetMotionMaster()->MoveChase(b, 0.0f, 0.0f);
                 });
                 At(1500, [this, g, gc]() { Creature* a = Get(g); if (a) { a->SetFeared(true, gc, 5782, 0, 0); Log("fear applied, mt=%s", TypeName(a)); } });
@@ -669,6 +671,7 @@ namespace Harness
                 {
                     Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
                     a->Attack(b, true);
+                    a->AddThreat(b, 1000.0f);   // aggroed: the end-of-control rule resumes a chase only for a wolf with threat
                     a->GetMotionMaster()->MoveChase(b, 0.0f, 0.0f);
                 });
                 At(1500, [this, g, h]()
@@ -736,6 +739,7 @@ namespace Harness
                 {
                     Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
                     a->Attack(b, true);
+                    a->AddThreat(b, 1000.0f);   // aggroed: the end-of-control rule resumes a chase only for a wolf with threat
                     a->GetMotionMaster()->MoveChase(b, 0.0f, 0.0f);
                 });
                 At(1500, [this, g, gc]() { Creature* a = Get(g); if (a) { a->SetFeared(true, gc, 5782, 0, 0); Log("fear applied, mt=%s", TypeName(a)); } });
