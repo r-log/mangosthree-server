@@ -170,7 +170,8 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
       m_persistentState(NULL),
       m_activeNonPlayersIter(m_activeNonPlayers.end()),
       i_gridExpiry(expiry), m_TerrainData(sTerrainMgr.LoadTerrain(id)),
-      i_data(NULL)
+      i_data(NULL),
+      m_bare(InstanceId == 0 && sWorld.getConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP) == id)
 {
     m_CreatureGuids.Set(sObjectMgr.GetFirstTemporaryCreatureLowGuid());
     m_GameObjectGuids.Set(sObjectMgr.GetFirstTemporaryGameObjectLowGuid());

@@ -50,6 +50,15 @@ namespace Harness
     /// inform type, so this is unobserved.
     static const int32 kExternalPath = 250;
 
+    /// The world patroller's (Mouse, entry 6271, guid 261361) four nodes, mirrored as
+    /// an external path for S8's own spawn (Movement.HarnessBareMap leaves the map
+    /// with no world creature to find). Same id scheme as kExternalPath, one slot up.
+    static const int32 kMousePath = 251;
+
+    /// A scenario still running after this much virtual time is abandoned, so
+    /// MVTEST DONE always comes.
+    const uint32 kScenarioMaxMs = 120000;
+
     /**
      * The GM harness runner (design v2 §12): the registry of scenarios in the old
      * harness's order, the map they run on (Kalimdor, Mulgore), the clock, and the
@@ -89,7 +98,7 @@ namespace Harness
         uint32                 m_settle;        ///< ms of pause left before the next
         uint32                 m_sinceTick;
         uint32                 m_verdicts;
-        uint32                 m_seedBase;
+        uint32                 m_seedBase;      ///< the run's seed base (Start's second argument): each scenario seeds from SeedFor(m_seedBase, order)
         Map*                   m_map;
     };
 }

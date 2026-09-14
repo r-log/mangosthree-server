@@ -333,6 +333,8 @@ void Master::WorldLoop()
 #endif
     }
 
+    WorldClock::LeaveStepped();   // a run cut short by the stop: the shutdown that follows runs on real time (a no-op when real)
+
     sLog.outString("World updater stopped.");
 }
 

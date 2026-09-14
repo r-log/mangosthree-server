@@ -269,6 +269,7 @@ class Map : public GridRefManager<NGridType>
         bool IsBattleArena() const { return i_mapEntry && i_mapEntry->IsBattleArena(); }
         bool IsBattleGroundOrArena() const { return i_mapEntry && i_mapEntry->IsBattleGroundOrArena(); }
         bool IsContinent() const { return i_mapEntry && i_mapEntry->IsContinent(); }
+        bool IsBare() const { return m_bare; }   ///< no spawns load into this map (Movement.HarnessBareMap): the GM harness's reproducible world
 
         /// This map AS A VESSEL, or NULL. Asked of the map itself rather than of its id, so
         /// the answer comes from what the map IS -- and the caller gets the thing it wanted
@@ -571,6 +572,8 @@ class Map : public GridRefManager<NGridType>
 
         // WeatherSystem
         WeatherSystem* m_weatherSystem;
+
+        bool m_bare;
 };
 
 class WorldMap : public Map

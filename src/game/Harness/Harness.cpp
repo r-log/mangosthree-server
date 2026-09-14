@@ -120,6 +120,13 @@ namespace Harness
             m_queue.clear();
             return false;
         }
+        sLog.outString("MVTEST map %u bare=%d", kMapId, m_map->IsBare() ? 1 : 0);
+        if (!m_map->IsBare())
+        {
+            // A live GM may still run scenarios on a full map; only the launcher's
+            // headless, stepped runs need the map bare to read alike twice (P0-D).
+            sLog.outString("MVTEST WARN: map %u carries the world's spawns; two runs will not read alike (the launcher sets Movement.HarnessBareMap = %u)", kMapId, kMapId);
+        }
         // The chicken's square (S7, S19), the old runner's template rows, as an
         // external path under the harness's own path id: id 0 is the one a script
         // would use for entry 621's external path, and AddExternalNode keys by
@@ -143,6 +150,14 @@ namespace Harness
             {
                 sLog.outString("MVTEST %s", "ERR external node 4 not added");
             }
+            // Mouse's own four nodes (creature_movement guid 261361, entry 6271, read
+            // 2026-09-15), mirrored as an external path so patrol-lifted can spawn its
+            // own patroller on them: the harness map is bare (P0-D), so the world's
+            // Mouse is not there to Find.
+            if (!sWaypointMgr.AddExternalNode(6271, kMousePath, 1, -2986.64f, -329.723f, 54.0748f, 0.0f, 0)) { sLog.outString("MVTEST %s", "ERR mouse node 1 not added"); }
+            if (!sWaypointMgr.AddExternalNode(6271, kMousePath, 2, -2985.8f, -329.178f, 54.0748f, 0.0f, 0)) { sLog.outString("MVTEST %s", "ERR mouse node 2 not added"); }
+            if (!sWaypointMgr.AddExternalNode(6271, kMousePath, 3, -2995.64f, -338.986f, 53.5518f, 0.0f, 0)) { sLog.outString("MVTEST %s", "ERR mouse node 3 not added"); }
+            if (!sWaypointMgr.AddExternalNode(6271, kMousePath, 4, -2995.64f, -338.986f, 53.5518f, 0.0f, 0)) { sLog.outString("MVTEST %s", "ERR mouse node 4 not added"); }
             pathAdded = true;
         }
         sLog.outString("MVTEST start: %u scenario(s) on map %u", uint32(m_queue.size()), kMapId);
@@ -265,6 +280,11 @@ namespace Harness
         if (!s->Finished() && s->Idle())
         {
             s->Abandon();
+        }
+        if (!s->Finished() && m_elapsed > kScenarioMaxMs)
+        {
+            sLog.outString("MVTEST %s abandoned after %u ms (no verdict)", s->Name(), m_elapsed);
+            s->Abandon("timeout=INVALID(abandoned after 120 s)");
         }
         if (s->Finished())
         {
