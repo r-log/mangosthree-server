@@ -916,7 +916,16 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
 
         target->clearUnitState(UNIT_STAT_ROOT);
 
-        if (!target->hasUnitState(UNIT_STAT_STUNNED))     // prevent allow move if have also stun effect
+        // The kernel's root flag has other owners on a creature: a seat roots its passenger
+        // (VehicleInfo::Board) and a fixed-position vehicle roots itself (VehicleInfo::Initialize);
+        // an aura's end leaves those roots in place. (One writer for these states is P5's.)
+        bool seatRoot = target->IsBoarded();
+        if (VehicleInfo* vehicle = target->GetVehicleInfo())
+        {
+            seatRoot = seatRoot || (vehicle->GetVehicleEntry()->Flags & VEHICLE_FLAG_FIXED_POSITION);
+        }
+
+        if (!target->hasUnitState(UNIT_STAT_STUNNED) && !seatRoot)     // prevent allow move if have also stun effect
         {
             target->SetRoot(false);
         }

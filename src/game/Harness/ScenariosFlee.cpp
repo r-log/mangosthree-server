@@ -900,6 +900,7 @@ namespace Harness
                 auto rooted = std::make_shared<std::vector<Pt> >();
                 auto after = std::make_shared<std::vector<Pt> >();
                 auto keptChase = std::make_shared<bool>(true);
+                auto legAfter = std::make_shared<bool>(false);   // the chase laid a leg after the unroot (its move bit)
                 At(500, [this, g, h]()
                 {
                     Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
@@ -933,15 +934,17 @@ namespace Harness
                 });
                 for (uint32 i = 1; i <= 6; ++i)
                 {
-                    At(4800 + i * 400, [this, g, h, after, i]()
+                    At(4800 + i * 400, [this, g, h, after, legAfter, i]()
                     {
                         Creature* a = Get(g); Creature* b = Get(h); if (!a || !b) { return; }
                         Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
                         after->push_back(p);
-                        Log("after +%4ums mt=%s at %.1f %.1f dVictim=%.1f", i * 400, TypeName(a), p.x, p.y, Dist2(p.x, p.y, b->Where().X(), b->Where().Y()));
+                        const bool leg = a->hasUnitState(UNIT_STAT_CHASE_MOVE);   // set per chase leg, cleared by the gate
+                        if (leg) { *legAfter = true; }
+                        Log("after +%4ums mt=%s move=%d at %.1f %.1f dVictim=%.1f", i * 400, TypeName(a), leg ? 1 : 0, p.x, p.y, Dist2(p.x, p.y, b->Where().X(), b->Where().Y()));
                     });
                 }
-                At(7500, [this, g, h, rooted, after, keptChase]()
+                At(7500, [this, g, h, rooted, after, keptChase, legAfter]()
                 {
                     if (rooted->size() < 3 || after->size() < 3) { Verdict("rootHoldsChase=INVALID(no samples) | chaseResumesAfterRoot=INVALID(no samples)"); return; }
                     Creature* a = Get(g); Creature* b = Get(h);
@@ -958,13 +961,15 @@ namespace Harness
                         snprintf(text, sizeof(text), "rootHoldsChase=BUG(moved %.1f yd while rooted%s)", held, *keptChase ? "" : ", the chase was cut");
                     }
                     std::string body = text;
-                    if (resumed > 3.0f || dVictim <= 4.0f)
+                    // The wolf's own movement proves the resume (the kobold walks up to a rooted wolf on
+                    // its own): a chase leg laid again, or the wolf got away from where it stood.
+                    if (*legAfter || resumed > 3.0f)
                     {
-                        snprintf(text, sizeof(text), " | chaseResumesAfterRoot=OK(moved %.1f yd after the unroot, %.1f yd from the victim)", resumed, dVictim);
+                        snprintf(text, sizeof(text), " | chaseResumesAfterRoot=OK(a leg laid again, moved %.1f yd after the unroot, %.1f yd from the victim)", resumed, dVictim);
                     }
                     else
                     {
-                        snprintf(text, sizeof(text), " | chaseResumesAfterRoot=BUG(moved only %.1f yd after the unroot, %.1f yd from the victim)", resumed, dVictim);
+                        snprintf(text, sizeof(text), " | chaseResumesAfterRoot=BUG(no leg laid after the unroot, moved %.1f yd, %.1f yd from the victim)", resumed, dVictim);
                     }
                     Verdict(body + text);
                 });
