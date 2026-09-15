@@ -276,12 +276,13 @@ typedef std::vector<ObjectGuid> GuidVector;
 
 /// Orders object pointers by their guid, so a set of objects walks the same way in every process
 /// (a set ordered by pointer walks by heap address: the GM harness's reproducible runs need the order fixed).
+/// Two pointers with one guid fall back to the pointer, so the set never treats two live objects as one.
 struct ObjectGuidPointerLess
 {
     template <class T>
     bool operator()(T const* a, T const* b) const
     {
-        return a->GetObjectGuid() < b->GetObjectGuid();
+        return a->GetObjectGuid() != b->GetObjectGuid() ? a->GetObjectGuid() < b->GetObjectGuid() : a < b;
     }
 };
 
