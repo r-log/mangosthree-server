@@ -34,6 +34,7 @@
 #include "Log.h"
 #include "WorldClock.h"
 #include "RNGen.h"
+#include "World.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -121,6 +122,10 @@ namespace Harness
             return false;
         }
         sLog.outString("MVTEST map %u bare=%d", kMapId, m_map->IsBare() ? 1 : 0);
+        if (uint32 n = sWorld.GetActiveSessionCount())
+        {
+            sLog.outString("MVTEST WARN: %u session(s) online: the world races for the run's length, and auctions, mail and the uptime advance by its virtual time", n);
+        }
         if (!m_map->IsBare())
         {
             // A live GM may still run scenarios on a full map; only the launcher's
@@ -184,6 +189,9 @@ namespace Harness
             // 2026-09-15), mirrored as an external path so patrol-lifted can spawn its
             // own patroller on them: the harness map is bare (P0-D), so the world's
             // Mouse is not there to Find.
+            // Nodes 3 and 4 coincide, as in the world's rows (creature_movement id
+            // 261361, points 2 and 3 share -2995.64 -338.986 53.5518): the path mirrors
+            // Mouse's exactly.
             if (!sWaypointMgr.AddExternalNode(6271, kMousePath, 1, -2986.64f, -329.723f, 54.0748f, 0.0f, 0)) { sLog.outString("MVTEST %s", "ERR mouse node 1 not added"); }
             if (!sWaypointMgr.AddExternalNode(6271, kMousePath, 2, -2985.8f, -329.178f, 54.0748f, 0.0f, 0)) { sLog.outString("MVTEST %s", "ERR mouse node 2 not added"); }
             if (!sWaypointMgr.AddExternalNode(6271, kMousePath, 3, -2995.64f, -338.986f, 53.5518f, 0.0f, 0)) { sLog.outString("MVTEST %s", "ERR mouse node 3 not added"); }
@@ -217,6 +225,8 @@ namespace Harness
 
     void Runner::SeedMapUpdate()
     {
+        // During the settle the actors are being despawned and Begin reseeds, so the map
+        // update draws from whatever the generator holds; only a running scenario's draws are pinned.
         if (!Running() || m_settle)
         {
             return;
