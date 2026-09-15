@@ -81,9 +81,10 @@ namespace Motion
     enum class SourceDomain : uint8 { Aura = 0, Death = 1, Possession = 2, Seat = 3, FixedVehicle = 4, Script = 5 };
 
     /// A source identity for a non-aura domain: the owner's guid counter and an extra word.
+    /// The extra word carries 28 bits; every real one, a seat index or a spell id, is far below.
     inline uint64 InhibitSource(SourceDomain domain, uint32 owner, uint32 extra = 0)
     {
-        return (uint64(domain) << 60) | (uint64(extra) << 32) | uint64(owner);
+        return (uint64(domain) << 60) | (uint64(extra & 0x0FFFFFFFu) << 32) | uint64(owner);
     }
 
     /// The one source of a real death (a unit dies once at a time).

@@ -111,6 +111,8 @@ TEST(MotionMobility_TableDistractAndTaxi)
     CHECK(d.ticks); CHECK(!d.mayMove); CHECK(d.mayTurn);
     d = Decide(Selected::Distract, ReasonDead);
     CHECK(!d.ticks); CHECK(!d.mayMove); CHECK(!d.mayTurn);
+    d = Decide(Selected::Distract, ReasonPossessed);
+    CHECK(d.ticks); CHECK(!d.mayMove); CHECK(!d.mayTurn); CHECK_EQ(I(d.dominant), I(Inhibition::Possessed));
     // A flight goes on under a root or a stun (nothing lands on a passenger; a scripted flight
     // on a stunned unit keeps flying, reference 15.6.2); death ends it like everything else.
     d = Decide(Selected::Taxi, ReasonRooted | ReasonStunned);
@@ -129,6 +131,7 @@ TEST(MotionMobility_SourcesAndNames)
     CHECK(InhibitSource(SourceDomain::Possession, 7) != InhibitSource(SourceDomain::Possession, 8));
     CHECK_EQ(int(InhibitSource(SourceDomain::Aura, 7, 339) >> 60), 0);
     CHECK_EQ(int(kDeathSource >> 60), int(SourceDomain::Death));
+    CHECK_EQ(int(InhibitSource(SourceDomain::Seat, 7, 0xFFFFFFFFu) >> 60), int(SourceDomain::Seat));   // the domain survives a full extra
     CHECK_STR(InhibitionName(Inhibition::Rooted), "Rooted");
     CHECK_STR(InhibitionName(Inhibition::Possessed), "Possessed");
     CHECK_STR(InhibitionName(Inhibition::Count), "none");
