@@ -1752,6 +1752,11 @@ void Map::UnloadAll(bool pForce)
     }
 }
 
+void Map::RestartTerrainCleanUp()
+{
+    m_TerrainData->RestartCleanUp();
+}
+
 MapDifficultyEntry const* Map::GetMapDifficulty() const
 {
     return GetMapDifficultyData(GetId(), GetDifficulty());

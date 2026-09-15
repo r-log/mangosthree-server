@@ -139,9 +139,14 @@ namespace Harness
             // would answer differently. A bare map holds no objects yet, so
             // unloading every grid here is safe: from here every grid loads on
             // demand at a deterministic virtual moment (a scenario's `Load` call
-            // or an actor's spawn) and its unload timer counts from there.
+            // or an actor's spawn) and its unload timer counts from there. The
+            // terrain caches' reclaim passes were phased the same way -- the fused
+            // tile cache's sweep and the navmesh purge both fell at boot-phased
+            // virtual moments -- so RestartTerrainCleanUp below reclaims every
+            // unheld tile now and restarts both, so the passes count from here too.
             m_map->UnloadAll(true);
-            sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment", kMapId);
+            m_map->RestartTerrainCleanUp();
+            sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment, terrain reclaim restarted", kMapId);
         }
         // The chicken's square (S7, S19), the old runner's template rows, as an
         // external path under the harness's own path id: id 0 is the one a script

@@ -183,3 +183,41 @@ TEST(GlobalWmo_absence_is_still_remembered_between_sweeps)
 
     CHECK_EQ(source->loads, 1);      // nothing to evict, so nothing to re-probe
 }
+
+TEST(RestartSweep_drops_an_unpinned_tile_but_not_a_pinned_one)
+{
+    // The harness's pin (P0-D): a run needs the sweep to land at the SAME virtual
+    // moment on every launch, not at a phase the boot's clock happened to set, so
+    // RestartSweep does not wait for TILE_IDLE_MS -- only whether a cell still pins.
+    class GridTileSource : public ITileSource
+    {
+        public:
+            std::shared_ptr<TerrainTile> Load(uint32_t, int, int) override
+            {
+                ++loads;
+                return std::make_shared<TerrainTile>();
+            }
+
+            int loads = 0;
+    };
+
+    auto source = std::make_shared<GridTileSource>();
+    FusedTerrain terrain(1234, source);
+
+    // (0, 0) resolves to tile (32, 32); nothing else is ever queried, so
+    // ResidentTiles() below counts exactly this one tile.
+    terrain.ColumnAt(0.0f, 0.0f, 100.0f, -100.0f);
+    CHECK_EQ(terrain.ResidentTiles(), size_t(1));
+
+    terrain.RestartSweep();
+    CHECK_EQ(terrain.ResidentTiles(), size_t(0));    // unpinned: gone right away
+
+    terrain.PinCell(32, 32);
+    terrain.ColumnAt(0.0f, 0.0f, 100.0f, -100.0f);
+    CHECK_EQ(terrain.ResidentTiles(), size_t(1));
+
+    terrain.RestartSweep();
+    CHECK_EQ(terrain.ResidentTiles(), size_t(1));    // pinned: survives
+
+    terrain.UnpinCell(32, 32);
+}

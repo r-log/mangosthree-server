@@ -227,6 +227,11 @@ class Map : public GridRefManager<NGridType>
         bool UnloadGrid(const uint32& x, const uint32& y, bool pForce);
         virtual void UnloadAll(bool pForce);
 
+        /// Restarts the terrain caches' reclaim passes: the harness's pin (P0-D), called
+        /// after UnloadAll(true) so a stepped run starts from no held tile and meets the
+        /// passes at the same virtual moments each time.
+        void RestartTerrainCleanUp();
+
         void ResetGridExpiry(NGridType& grid, float factor = 1) const
         {
             grid.ResetTimeTracker((time_t)((float)i_gridExpiry * factor));
