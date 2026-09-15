@@ -69,9 +69,9 @@ namespace Harness
      * A run steps the world (movement P0-D): from `Start` to `MVTEST DONE` the world
      * loop advances the clock in fixed 50 ms ticks without sleeping, every map updates
      * on the world thread, and each scenario starts from `SeedFor(seedBase, order)` and
-     * reseeds again right before the harness map's own update (`SeedMapUpdate`), and,
-     * on a bare map, from no loaded grids; a logged-in client sees the world race for
-     * the run's length -- the mode exists for the headless launcher.
+     * reseeds again right before the harness map's own update (`SeedMapUpdate`) and its
+     * own step, and, on a bare map, from no loaded grids; a logged-in client sees the
+     * world race for the run's length -- the mode exists for the headless launcher.
      */
     class Runner
     {

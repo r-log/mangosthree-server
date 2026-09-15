@@ -58,6 +58,15 @@ namespace Harness
         return SeedFor(base, order) ^ (0x9E3779B9u * (1u + elapsedMs / 50u));
     }
 
+    /// The seed the harness's own step draws from: the scenario callbacks run from
+    /// World::Update after every map has updated, where the other continents' creatures
+    /// draw by amounts no seed controls, so the step reseeds as the map update does; the
+    /// tick seed under a fixed salt, so the two streams differ.
+    inline uint32 StepSeed(uint32 base, int order, uint32 elapsedMs)
+    {
+        return TickSeed(base, order, elapsedMs) ^ 0x7F4A7C15u;
+    }
+
     class Timeline
     {
     public:

@@ -309,6 +309,9 @@ namespace Harness
         }
         m_sinceTick = 0;
         Scenario* s = m_queue[m_index];
+        // The step below runs after every map's update (World::Update calls it after
+        // sMapMgr.Update), so it reseeds for the same reason SeedMapUpdate does.
+        RNG::Seed(StepSeed(m_seedBase, s->Order(), m_elapsed));
         s->Tick(m_elapsed);
         if (!s->Finished() && s->Idle())
         {
