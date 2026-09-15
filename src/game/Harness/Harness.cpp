@@ -144,9 +144,18 @@ namespace Harness
             // tile cache's sweep and the navmesh purge both fell at boot-phased
             // virtual moments -- so RestartTerrainCleanUp below reclaims every
             // unheld tile now and restarts both, so the passes count from here too.
-            m_map->UnloadAll(true);
-            m_map->RestartTerrainCleanUp();
-            sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment, terrain reclaim restarted", kMapId);
+            // UnloadAll(true) force-deletes a player's own NGridType, so a GM
+            // logged in on the bare map keeps its grids instead.
+            if (m_map->HavePlayers())
+            {
+                sLog.outString("MVTEST WARN: map %u has players; grids kept, two runs will not read alike", kMapId);
+            }
+            else
+            {
+                m_map->UnloadAll(true);
+                m_map->RestartTerrainCleanUp();
+                sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment, terrain reclaim restarted", kMapId);
+            }
         }
         // The chicken's square (S7, S19), the old runner's template rows, as an
         // external path under the harness's own path id: id 0 is the one a script

@@ -47,46 +47,36 @@ class RNGen
 
         int32 rand_i(int32 min, int32 max)
         {
-            ++draws_;
             std::uniform_int_distribution<int32> dist{min, max};
             return dist(gen_);
         }
 
         uint32 rand_u(uint32 min, uint32 max)
         {
-            ++draws_;
             std::uniform_int_distribution<uint32> dist{min, max};
             return dist(gen_);
         }
 
         uint32 rand()
         {
-            ++draws_;
             std::uniform_int_distribution<uint32> dist;
             return dist(gen_);
         }
 
         float rand_f(float min, float max)
         {
-            ++draws_;
             std::uniform_real_distribution<float> dist{min, max};
             return dist(gen_);
         }
 
         double rand_d(double min, double max)
         {
-            ++draws_;
             std::uniform_real_distribution<double> dist{min, max};
             return dist(gen_);
         }
 
-        /// Draws served since construction (diagnostic, P0-D): a count of calls to the
-        /// rand_*/rand() wrappers above, not of the underlying engine's own invocations.
-        uint64 Draws() const { return draws_; }
-
     private:
         std::mt19937 gen_;
-        uint64        draws_ = 0;
 };
 
 /**
@@ -110,12 +100,6 @@ class RNG
         static void Seed(uint32 seed)
         {
             instance()->Seed(seed);
-        }
-
-        /// Draws served by the calling thread's generator since it was constructed (diagnostic, P0-D).
-        static uint64 Draws()
-        {
-            return instance()->Draws();
         }
 };
 

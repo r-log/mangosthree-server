@@ -57,7 +57,7 @@ namespace Harness
 
     /// A scenario still running after this much virtual time is abandoned, so
     /// MVTEST DONE always comes (long-follow needs about four).
-    const uint32 kScenarioMaxMs = 300000;
+    static const uint32 kScenarioMaxMs = 300000;
 
     /**
      * The GM harness runner (design v2 §12): the registry of scenarios in the old

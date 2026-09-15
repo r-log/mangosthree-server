@@ -203,21 +203,26 @@ TEST(RestartSweep_drops_an_unpinned_tile_but_not_a_pinned_one)
 
     auto source = std::make_shared<GridTileSource>();
     FusedTerrain terrain(1234, source);
+    CHECK_EQ(source->loads, 0);
 
     // (0, 0) resolves to tile (32, 32); nothing else is ever queried, so
     // ResidentTiles() below counts exactly this one tile.
     terrain.ColumnAt(0.0f, 0.0f, 100.0f, -100.0f);
     CHECK_EQ(terrain.ResidentTiles(), size_t(1));
+    CHECK_EQ(source->loads, 1);    // one real read
 
     terrain.RestartSweep();
     CHECK_EQ(terrain.ResidentTiles(), size_t(0));    // unpinned: gone right away
+    CHECK_EQ(source->loads, 1);    // a drop, not a reload
 
     terrain.PinCell(32, 32);
     terrain.ColumnAt(0.0f, 0.0f, 100.0f, -100.0f);
     CHECK_EQ(terrain.ResidentTiles(), size_t(1));
+    CHECK_EQ(source->loads, 2);    // dropped above, so this is a real re-read
 
     terrain.RestartSweep();
     CHECK_EQ(terrain.ResidentTiles(), size_t(1));    // pinned: survives
+    CHECK_EQ(source->loads, 2);    // pinned tile was never dropped, so nothing to reload
 
     terrain.UnpinCell(32, 32);
 }

@@ -440,6 +440,9 @@ bool MapManager::IsValidMAP(uint32 mapid)
  */
 void MapManager::UnloadAll()
 {
+    // No hook outlives the maps it refers to.
+    m_beforeMapUpdate = BeforeMapUpdateHook();
+
     // Off the world entirely, while the maps that hold them are still alive. See
     // Transport::WithdrawFromWorld -- no grid unload ever reaches a vessel.
     for (TransportSet::iterator i = m_Transports.begin(); i != m_Transports.end(); ++i)

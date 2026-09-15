@@ -574,7 +574,10 @@ bool Map::EnsureGridLoaded(const Cell& cell)
         }
 
         // Add resurrectable corpses to world object list in grid
-        sCorpseManager.AddCorpsesToGrid(GridPair(cell.GridX(), cell.GridY()), (*grid)(cell.CellX(), cell.CellY()), this);
+        if (!IsBare()) // a bare map carries no corpse either (the loader's guard above covers the database spawns; this is the one object path outside it)
+        {
+            sCorpseManager.AddCorpsesToGrid(GridPair(cell.GridX(), cell.GridY()), (*grid)(cell.CellX(), cell.CellY()), this);
+        }
         return true;
     }
 
