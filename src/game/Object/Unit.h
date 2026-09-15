@@ -1400,6 +1400,7 @@ class Unit : public WorldObject
     public:
         /// Ordered by guid: the walk is the same in every process (P0-D).
         typedef std::set<Unit*, ObjectGuidPointerLess> AttackerSet;
+        static_assert(std::is_same<Unit::AttackerSet::key_compare, ObjectGuidPointerLess>::value, "the unit's attacker set walks by guid (P0-D)");
         /**
          * A multimap from spell ids to \ref SpellAuraHolder, multiple \ref SpellAuraHolder can have
          * the same id (ie: the same key)

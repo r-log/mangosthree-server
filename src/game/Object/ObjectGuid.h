@@ -35,6 +35,7 @@
 #include "ByteBuffer.h"
 
 #include <functional>
+#include <type_traits>
 
 enum TypeID
 {

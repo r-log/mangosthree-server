@@ -5,9 +5,22 @@
 #include "WorldClock.h"
 #include "Timer.h"
 
+#include <atomic>
 #include <chrono>
 #include <ctime>
 #include <thread>
+
+namespace
+{
+    // A test that enters stepped mode must leave it again before the next test runs,
+    // even if a REQUIRE above returns early; CHECK alone never does, but this is cheap
+    // insurance against the one macro that does.
+    struct SteppedModeGuard
+    {
+        SteppedModeGuard() { WorldClock::EnterStepped(); }
+        ~SteppedModeGuard() { WorldClock::LeaveStepped(); }
+    };
+}
 
 TEST(WorldClock_stepped_time_moves_only_by_Step)
 {
@@ -69,4 +82,55 @@ TEST(WorldClock_unix_seconds_follow_the_steps_and_the_wall_clock)
     WorldClock::LeaveStepped();
     CHECK(WorldClock::NowUnix() >= virt);                 // the lead carries the run's seconds
     CHECK(WorldClock::OffsetSec() >= 2);
+}
+
+TEST(WorldClock_another_thread_reading_while_stepped_never_sees_a_step_back)
+{
+    SteppedModeGuard guard;   // restores real mode even if a REQUIRE below returned early
+    const uint32 beforeFirstStep = WorldClock::NowMs();
+
+    std::atomic<bool> stop{false};
+    std::atomic<bool> sawDecrease{false};
+    std::atomic<uint32> minSeen{beforeFirstStep};
+    std::atomic<uint32> maxSeen{beforeFirstStep};
+
+    // Reads NowMs() in a loop for about 50 ms of real time -- steady_clock, not
+    // WorldClock, since the clock under test is what is being read.
+    std::thread spinner([&]
+    {
+        const auto spinUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+        uint32 last = WorldClock::NowMs();
+        while (!stop.load(std::memory_order_acquire) || std::chrono::steady_clock::now() < spinUntil)
+        {
+            const uint32 now = WorldClock::NowMs();
+            if (now < last)
+            {
+                sawDecrease.store(true, std::memory_order_relaxed);
+            }
+            last = now;
+
+            uint32 curMin = minSeen.load(std::memory_order_relaxed);
+            while (now < curMin && !minSeen.compare_exchange_weak(curMin, now, std::memory_order_relaxed)) {}
+            uint32 curMax = maxSeen.load(std::memory_order_relaxed);
+            while (now > curMax && !maxSeen.compare_exchange_weak(curMax, now, std::memory_order_relaxed)) {}
+        }
+    });
+
+    // Three 50 ms ticks, a short real sleep between each so the spinner has a chance
+    // to observe the value in between.
+    uint32 lastStepped = beforeFirstStep;
+    for (int i = 0; i < 3; ++i)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        WorldClock::Step(50);
+        lastStepped = WorldClock::NowMs();
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(15));   // let the spinner catch the last step
+
+    stop.store(true, std::memory_order_release);
+    spinner.join();
+
+    CHECK(!sawDecrease.load());
+    CHECK_EQ(maxSeen.load(), lastStepped);
+    CHECK(minSeen.load() >= beforeFirstStep);
 }
