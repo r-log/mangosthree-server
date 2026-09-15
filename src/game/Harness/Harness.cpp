@@ -320,7 +320,9 @@ namespace Harness
         if (!s->Finished() && m_elapsed > kScenarioMaxMs)
         {
             sLog.outString("MVTEST %s abandoned after %u ms (no verdict)", s->Name(), m_elapsed);
-            s->Abandon("timeout=INVALID(abandoned after 120 s)");
+            char text[64];
+            snprintf(text, sizeof(text), "timeout=INVALID(abandoned after %u s)", kScenarioMaxMs / 1000);
+            s->Abandon(text);
         }
         if (s->Finished())
         {
