@@ -101,7 +101,11 @@ namespace WorldClock
 
         const uint32 counter = g_counterMs.load(std::memory_order_acquire);
         const uint32 real = RealMs();
-        g_offsetMs.store(counter > real ? counter - real : 0, std::memory_order_release);
+        // Both clocks wrap at 32 bits; the modular difference under half the range is a
+        // lead (bounded by a run's virtual length), over it a lag (bounded by its real
+        // length), so a run straddling the wrap keeps its lead like getMSTimeDiff would.
+        const uint32 lead = counter - real;
+        g_offsetMs.store(lead < 0x80000000u ? lead : 0, std::memory_order_release);
 
         g_stepped.store(false, std::memory_order_release);
     }
