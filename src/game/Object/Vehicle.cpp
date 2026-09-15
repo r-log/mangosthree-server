@@ -430,7 +430,8 @@ void VehicleInfo::SwitchSeat(Unit* passenger, uint8 seat)
         return;
     }
 
-    VehicleSeatEntry const* seatEntry = GetSeatEntry(itr->second->GetTransportSeat());
+    const uint8 oldSeat = itr->second->GetTransportSeat();
+    VehicleSeatEntry const* seatEntry = GetSeatEntry(oldSeat);
     MANGOS_ASSERT(seatEntry);
 
     // Switching seats is only allowed if this flag is set
@@ -442,8 +443,15 @@ void VehicleInfo::SwitchSeat(Unit* passenger, uint8 seat)
     // Remove passenger modifications of the old seat
     RemoveSeatMods(passenger, seatEntry->Flags);
 
+    // The seat's root is claimed by seat index (C1a): release the old one before the switch
+    // or the old identity's source is never released again once the seat index moves on, then
+    // claim the new one once the switch has happened.
+    passenger->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), oldSeat));
+
     // Set to new seat
     itr->second->SetTransportSeat(seat);
+
+    passenger->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), seat));
 
     Movement::MoveSplineInit init(*passenger);
     init.MoveTo(0.0f, 0.0f, 0.0f);                          // ToDo: Set correct local coords
@@ -485,6 +493,12 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
     // Remove passenger modifications
     RemoveSeatMods(passenger, seatEntry->Flags);
 
+    // Every unboard releases its own seat's root (C1b), changing vehicle or not: a passenger
+    // moving straight to another vehicle would otherwise leave this seat's source held forever
+    // (nothing ever unboards it a second time to release it); the new vehicle's Board claims
+    // its own seat regardless.
+    passenger->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), seat));
+
     if (!changeVehicle)                                     // Send expected unboarding packages
     {
         // Update movementInfo
@@ -498,8 +512,6 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
 
             // SMSG_PET_DISMISS_SOUND (?)
         }
-
-        passenger->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), seat));
 
         Movement::MoveSplineInit init(*passenger);
         // ToDo: Set proper unboard coordinates

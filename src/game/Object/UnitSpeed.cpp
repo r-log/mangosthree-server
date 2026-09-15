@@ -427,6 +427,8 @@ void Unit::SetConfused(bool apply, ObjectGuid casterGuid, uint32 spellID, uint8 
  *
  * @param apply True to enable feign death; false to clear it.
  * @param casterGuid The caster responsible for the effect.
+ * @param spellID The feigning spell, 0 for a caller with no spell of its own (the kernel's
+ * block-state identity then falls back to a shared one for that family, spell 5384).
  */
 void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
 {

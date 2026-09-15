@@ -2109,9 +2109,18 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     // clear state to allow follow again: m_caster here is the guardian pet
                     // rooted by Kick Nass (spell 51866; that effect's unitTarget), so the
                     // release must use its owner's counter to match the claim it was given.
-                    Unit* owner = m_caster->GetOwner();
-                    m_caster->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted,
-                        Motion::ControlClaim(51866, 0, owner ? owner->GetObjectGuid().GetCounter() : m_caster->GetObjectGuid().GetCounter()));
+                    // M2: without an owner there is no way to reconstruct that identity; guessing
+                    // one (e.g. the pet's own counter) would silently leak the root instead, so
+                    // skip the release and say so.
+                    if (Unit* owner = m_caster->GetOwner())
+                    {
+                        m_caster->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted,
+                            Motion::ControlClaim(51866, 0, owner->GetObjectGuid().GetCounter()));
+                    }
+                    else
+                    {
+                        sLog.outError("SpellEffectDummy: spell 51872 (Hair Sample Collected) found no owner for %s to release its Kick Nass root", m_caster->GetGuidStr().c_str());
+                    }
 
                     // Nass Kill Credit
                     m_caster->CastSpell(m_caster, 51871, true);

@@ -497,19 +497,24 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
             target->ModifyAuraState(AURA_STATE_FROZEN, apply);
         }
 
+        // M1: a player or player-charmed unit's movement-flag wipe (and stand state) must run
+        // before Inhibit's projection sets MOVEFLAG_ROOT, or this wipe erases it right back off
+        // (a plain creature is unaffected: the projection never roots it for a stun alone).
+        Unit* charmer = target->GetCharmer();
+        const bool clientMover = target->GetTypeId() == TYPEID_PLAYER || (charmer && charmer->GetTypeId() == TYPEID_PLAYER);
+        if (clientMover)
+        {
+            target->m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
+            target->SetStandState(UNIT_STAND_STATE_STAND);// in 1.5 client
+        }
+
         target->GetMotionMaster()->Inhibit(Motion::Inhibition::Stunned, source);
         target->SetTargetGuid(ObjectGuid());
 
         target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
         target->CastStop(target->GetObjectGuid() == GetCasterGuid() ? GetId() : 0);
 
-        Unit* charmer = target->GetCharmer();
-        if (target->GetTypeId() == TYPEID_PLAYER || (charmer && charmer->GetTypeId() == TYPEID_PLAYER))
-        {
-            target->m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
-            target->SetStandState(UNIT_STAND_STATE_STAND);// in 1.5 client
-        }
-        else
+        if (!clientMover)
         {
             target->StopMoving();
         }
@@ -570,48 +575,54 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
 
         target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Stunned, source);
 
-        if (!target->GetMotionMaster()->Inhibited(Motion::Inhibition::Rooted))        // prevent allow move if have also root effect
+        // I1: master returned here while another MOD_STUN aura remained, skipping the victim
+        // restore and the Wyvern Sting follow-up below; the per-source Uninhibit above must run
+        // on every removal, but this tail stays gated exactly as master gated it.
+        if (!target->HasAuraType(SPELL_AURA_MOD_STUN))
         {
-            if (target->getVictim() && target->IsAlive())
+            if (!target->GetMotionMaster()->Inhibited(Motion::Inhibition::Rooted))        // prevent allow move if have also root effect
             {
-                target->SetTargetGuid(target->getVictim()->GetObjectGuid());
-            }
-        }
-
-        // Wyvern Sting
-        SpellClassOptionsEntry const* classOptions = GetSpellProto()->GetSpellClassOptions();
-        if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_HUNTER && classOptions->SpellClassMask & UI64LIT(0x0000100000000000))
-        {
-            Unit* caster = GetCaster();
-            if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
-            {
-                return;
+                if (target->getVictim() && target->IsAlive())
+                {
+                    target->SetTargetGuid(target->getVictim()->GetObjectGuid());
+                }
             }
 
-            uint32 spell_id = 0;
-
-            switch (GetId())
+            // Wyvern Sting
+            SpellClassOptionsEntry const* classOptions = GetSpellProto()->GetSpellClassOptions();
+            if (classOptions && classOptions->SpellClassSet == SPELLFAMILY_HUNTER && classOptions->SpellClassMask & UI64LIT(0x0000100000000000))
             {
-                case 19386: spell_id = 24131; break;
-                case 24132: spell_id = 24134; break;
-                case 24133: spell_id = 24135; break;
-                case 27068: spell_id = 27069; break;
-                case 49011: spell_id = 49009; break;
-                case 49012: spell_id = 49010; break;
-                default:
-                    sLog.outError("Spell selection called for unexpected original spell %u, new spell for this spell family?", GetId());
+                Unit* caster = GetCaster();
+                if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+                {
                     return;
-            }
+                }
 
-            SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell_id);
+                uint32 spell_id = 0;
 
-            if (!spellInfo)
-            {
+                switch (GetId())
+                {
+                    case 19386: spell_id = 24131; break;
+                    case 24132: spell_id = 24134; break;
+                    case 24133: spell_id = 24135; break;
+                    case 27068: spell_id = 27069; break;
+                    case 49011: spell_id = 49009; break;
+                    case 49012: spell_id = 49010; break;
+                    default:
+                        sLog.outError("Spell selection called for unexpected original spell %u, new spell for this spell family?", GetId());
+                        return;
+                }
+
+                SpellEntry const* spellInfo = sSpellStore.LookupEntry(spell_id);
+
+                if (!spellInfo)
+                {
+                    return;
+                }
+
+                caster->CastSpell(target, spellInfo, true, NULL, this);
                 return;
             }
-
-            caster->CastSpell(target, spellInfo, true, NULL, this);
-            return;
         }
     }
 }
