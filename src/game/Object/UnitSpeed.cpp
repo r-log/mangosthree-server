@@ -428,8 +428,12 @@ void Unit::SetConfused(bool apply, ObjectGuid casterGuid, uint32 spellID, uint8 
  * @param apply True to enable feign death; false to clear it.
  * @param casterGuid The caster responsible for the effect.
  */
-void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 /*spellID*/)
+void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
 {
+    // A caller that gives no spell (the generic "Permanent Feign Death" family in
+    // SpellAuraDummy.cpp) shares one identity, as the old bit did for all of them.
+    const uint64 source = Motion::ControlClaim(spellID != 0 ? spellID : 5384, 0, casterGuid.GetCounter());
+
     if (apply)
     {
         /*
@@ -455,7 +459,7 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 /*spellID*/)
         // blizz like 2.0.x
         SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
 
-        addUnitState(UNIT_STAT_DIED);
+        GetMotionMaster()->Inhibit(Motion::Inhibition::Dead, source);
         CombatStop();
         RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_IMMUNE_OR_LOST_SELECTION);
 
@@ -482,7 +486,7 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 /*spellID*/)
         // blizz like 2.0.x
         RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
 
-        clearUnitState(UNIT_STAT_DIED);
+        GetMotionMaster()->Uninhibit(Motion::Inhibition::Dead, source);
 
         if (GetTypeId() != TYPEID_PLAYER && IsAlive())
         {

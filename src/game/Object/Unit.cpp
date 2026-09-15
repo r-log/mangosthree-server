@@ -4522,6 +4522,12 @@ void Unit::SetDeathState(DeathState s)
     {
         //_ApplyAllAuraMods();
     }
+
+    if (s == JUST_ALIVED || s == ALIVE)
+    {
+        i_motionMaster.Uninhibit(Motion::Inhibition::Dead, Motion::kDeathSource);
+    }
+
     m_deathState = s;
 }
 
@@ -7062,7 +7068,7 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
     pCreature->SetCharmerGuid(GetObjectGuid());                         // save guid of the charmer
     pCreature->SetUInt32Value(UNIT_CREATED_BY_SPELL, spellEntry->ID);   // set the spell id used to create this (may be used for removing corresponding aura
     pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);  // set flag for client that mean this unit is controlled by a player
-    pCreature->addUnitState(UNIT_STAT_CONTROLLED);                      // also set internal unit state flag
+    pCreature->GetMotionMaster()->Inhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, GetObjectGuid().GetCounter())); // also set internal block state
     pCreature->SelectLevel(getLevel());                                 // set level to same level than summoner TODO:: not sure its always the case...
     pCreature->SetLinkedToOwnerAura(TEMPSPAWN_LINKED_AURA_OWNER_CHECK | TEMPSPAWN_LINKED_AURA_REMOVE_OWNER); // set what to do if linked aura is removed or the creature is dead.
     pCreature->SetWalk(IsWalking(), true);                              // sync the walking state with the summoner
@@ -7120,7 +7126,7 @@ bool Unit::TakePossessOf(Unit* possessed)
         player = static_cast<Player *>(this);
     }
 
-    possessed->addUnitState(UNIT_STAT_CONTROLLED);
+    possessed->GetMotionMaster()->Inhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, GetObjectGuid().GetCounter()));
     possessed->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
     possessed->SetCharmerGuid(GetObjectGuid());
     possessed->setFaction(getFaction());
@@ -7201,7 +7207,7 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
 
     Creature* possessedCreature = static_cast<Creature *>(possessed);
 
-    possessed->clearUnitState(UNIT_STAT_CONTROLLED);
+    possessed->GetMotionMaster()->Uninhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, GetObjectGuid().GetCounter()));
     possessed->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
     possessed->SetCharmerGuid(ObjectGuid());
     SetCharmGuid(ObjectGuid());

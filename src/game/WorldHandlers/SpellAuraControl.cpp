@@ -487,6 +487,7 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
     }
 
     Unit* target = GetTarget();
+    const uint64 source = Motion::ControlClaim(GetId(), uint8(GetEffIndex()), GetCasterGuid().GetCounter());
 
     if (apply)
     {
@@ -496,7 +497,7 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
             target->ModifyAuraState(AURA_STATE_FROZEN, apply);
         }
 
-        target->addUnitState(UNIT_STAT_STUNNED);
+        target->GetMotionMaster()->Inhibit(Motion::Inhibition::Stunned, source);
         target->SetTargetGuid(ObjectGuid());
 
         target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
@@ -507,7 +508,6 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
         {
             target->m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
             target->SetStandState(UNIT_STAND_STATE_STAND);// in 1.5 client
-            target->SetRoot(true);
         }
         else
         {
@@ -561,23 +561,21 @@ void Aura::HandleAuraModStun(bool apply, bool Real)
             }
         }
 
-        // Real remove called after current aura remove from lists, check if other similar auras active
-        if (target->HasAuraType(SPELL_AURA_MOD_STUN))
+        // Real remove called after current aura remove from lists; the client flag is still
+        // per-aura-type: only drop it when no other SPELL_AURA_MOD_STUN aura remains.
+        if (!target->HasAuraType(SPELL_AURA_MOD_STUN))
         {
-            return;
+            target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
         }
 
-        target->clearUnitState(UNIT_STAT_STUNNED);
-        target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
+        target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Stunned, source);
 
-        if (!target->hasUnitState(UNIT_STAT_ROOT))        // prevent allow move if have also root effect
+        if (!target->GetMotionMaster()->Inhibited(Motion::Inhibition::Rooted))        // prevent allow move if have also root effect
         {
             if (target->getVictim() && target->IsAlive())
             {
                 target->SetTargetGuid(target->getVictim()->GetObjectGuid());
             }
-
-            target->SetRoot(false);
         }
 
         // Wyvern Sting
@@ -850,6 +848,7 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
     }
 
     Unit* target = GetTarget();
+    const uint64 source = Motion::ControlClaim(GetId(), uint8(GetEffIndex()), GetCasterGuid().GetCounter());
 
     if (apply)
     {
@@ -861,22 +860,20 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
 
         target->SetTargetGuid(ObjectGuid());
 
-        // The unit state is what the movement gates read (UNIT_STAT_CAN_NOT_MOVE): without it
-        // a rooted creature stopped once and its generator laid the next leg, and a stun's end
-        // unrooted a still-rooted player.
-        target->addUnitState(UNIT_STAT_ROOT);
+        // The kernel's block state is what the movement gates read: without it a rooted
+        // creature stopped once and its generator laid the next leg, and a stun's end
+        // unrooted a still-rooted player. The client root follows the aggregate's edges
+        // (MotionMaster::ProjectClientRoot).
+        target->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, source);
 
         if (target->GetTypeId() == TYPEID_PLAYER)
         {
-            target->SetRoot(true);
-
             // Clear unit movement flags
             ((Player*)target)->m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
         }
         else
         {
             target->StopMoving();
-            target->SetRoot(true);   // the spline root form to everyone in range
         }
     }
     else
@@ -908,27 +905,10 @@ void Aura::HandleAuraModRoot(bool apply, bool Real)
             }
         }
 
-        // Real remove called after current aura remove from lists, check if other similar auras active
-        if (target->HasAuraType(SPELL_AURA_MOD_ROOT))
-        {
-            return;
-        }
-
-        target->clearUnitState(UNIT_STAT_ROOT);
-
-        // The kernel's root flag has other owners on a creature: a seat roots its passenger
-        // (VehicleInfo::Board) and a fixed-position vehicle roots itself (VehicleInfo::Initialize);
-        // an aura's end leaves those roots in place. (One writer for these states is P5's.)
-        bool seatRoot = target->IsBoarded();
-        if (VehicleInfo* vehicle = target->GetVehicleInfo())
-        {
-            seatRoot = seatRoot || (vehicle->GetVehicleEntry()->Flags & VEHICLE_FLAG_FIXED_POSITION);
-        }
-
-        if (!target->hasUnitState(UNIT_STAT_STUNNED) && !seatRoot)     // prevent allow move if have also stun effect
-        {
-            target->SetRoot(false);
-        }
+        // One writer for the root state now: the kernel's. The source count replaces the
+        // "other root auras active" check and the seat/fixed-vehicle check; the projection
+        // keeps the mover rooted while a stun or a seat still holds it.
+        target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, source);
     }
 }
 

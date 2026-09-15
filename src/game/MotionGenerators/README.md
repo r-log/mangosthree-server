@@ -21,8 +21,10 @@ The facade `MotionMaster` is the movement kernel campaign's shim for the vendore
 | IsChasing | 2 |
 | MoveRandom | 1 |
 | MoveFleeing | 1 |
+| Inhibit | 1 |
+| Uninhibit | 1 |
 
-Counted 2026-09-14 on `feat/movement-queries` with `grep -rhoE "GetMotionMaster\(\)->[A-Za-z_]+" src/modules/SD3 | sort | uniq -c`.
+Counted 2026-09-15 on `feat/movement-block-state` with `grep -rhoE "GetMotionMaster\(\)->[A-Za-z_]+" src/modules/SD3 | sort | uniq -c`. `Inhibit`/`Uninhibit` (P5-A Task 4) joined the promise with `grizzly_hills.cpp`'s stun: the one script that names itself as a source of the kernel's block instead of writing `UNIT_STAT_STUNNED` itself.
 
 ## The shell
 
