@@ -127,6 +127,22 @@ namespace Harness
             // headless, stepped runs need the map bare to read alike twice (P0-D).
             sLog.outString("MVTEST WARN: map %u carries the world's spawns; two runs will not read alike (the launcher sets Movement.HarnessBareMap = %u)", kMapId, kMapId);
         }
+        else
+        {
+            // Boot force-loads the grids of map 1's always-active creatures
+            // (ObjectMgr::LoadActiveEntities); a bare map skips their spawns but
+            // still loads their terrain, vmap and mmap tiles, and those grids'
+            // unload timers start in real time at boot. A run starting after a
+            // real-time delay that differs between two launches would then see a
+            // boot-loaded grid near the scenario area unload at a different
+            // virtual moment each time, so terrain and vmap queries at its edge
+            // would answer differently. A bare map holds no objects yet, so
+            // unloading every grid here is safe: from here every grid loads on
+            // demand at a deterministic virtual moment (a scenario's `Load` call
+            // or an actor's spawn) and its unload timer counts from there.
+            m_map->UnloadAll(true);
+            sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment", kMapId);
+        }
         // The chicken's square (S7, S19), the old runner's template rows, as an
         // external path under the harness's own path id: id 0 is the one a script
         // would use for entry 621's external path, and AddExternalNode keys by
