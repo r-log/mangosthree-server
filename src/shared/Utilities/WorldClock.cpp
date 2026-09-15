@@ -38,7 +38,6 @@ namespace
     std::atomic<bool>   g_stepped{false};
     std::atomic<uint32> g_counterMs{0};
     std::atomic<uint32> g_offsetMs{0};
-    std::atomic<uint32> g_offsetSec{0};    // the lead the seconds keep over the wall clock after stepped runs
     std::atomic<uint32> g_anchorMs{0};     // NowMs() at the last EnterStepped()
     std::atomic<time_t> g_anchorUnix{0};   // NowUnix() at the last EnterStepped()
     static_assert(std::atomic<time_t>::is_always_lock_free, "the clock's anchor must be lock-free: readers are on every thread");
@@ -70,7 +69,7 @@ namespace WorldClock
             const time_t anchorUnix = g_anchorUnix.load(std::memory_order_acquire);
             return anchorUnix + time_t((counter - anchorMs) / 1000);
         }
-        return std::time(nullptr) + time_t(g_offsetSec.load(std::memory_order_acquire));
+        return std::time(nullptr);
     }
 
     bool IsStepped()
@@ -81,7 +80,7 @@ namespace WorldClock
     void EnterStepped()
     {
         const uint32 nowMs = NowMs();          // still real here: the steady clock plus the ms offset
-        const time_t nowUnix = NowUnix();      // still real here: the wall clock plus the seconds offset
+        const time_t nowUnix = NowUnix();      // still real here: the wall clock
         g_counterMs.store(nowMs, std::memory_order_release);
         g_anchorMs.store(nowMs, std::memory_order_release);
         g_anchorUnix.store(nowUnix, std::memory_order_release);
@@ -100,18 +99,9 @@ namespace WorldClock
             return;   // already real: the offsets stand, the counter and anchors are stale
         }
 
-        const time_t virtUnix = NowUnix();     // still stepped: anchor + counter's advance
-
         const uint32 counter = g_counterMs.load(std::memory_order_acquire);
         const uint32 real = RealMs();
         g_offsetMs.store(counter > real ? counter - real : 0, std::memory_order_release);
-
-        const time_t realUnix = std::time(nullptr);
-        const uint32 lead = virtUnix > realUnix ? uint32(virtUnix - realUnix) : 0;
-        if (lead > g_offsetSec.load(std::memory_order_acquire))
-        {
-            g_offsetSec.store(lead, std::memory_order_release);
-        }
 
         g_stepped.store(false, std::memory_order_release);
     }
@@ -119,11 +109,6 @@ namespace WorldClock
     uint32 OffsetMs()
     {
         return g_offsetMs.load(std::memory_order_acquire);
-    }
-
-    uint32 OffsetSec()
-    {
-        return g_offsetSec.load(std::memory_order_acquire);
     }
 
     std::chrono::steady_clock::time_point StartPoint()

@@ -62,26 +62,28 @@ TEST(WorldClock_leaving_never_runs_backwards)
     CHECK(WorldClock::OffsetMs() >= 9000);
 }
 
-TEST(WorldClock_unix_seconds_follow_the_steps_and_the_wall_clock)
+TEST(WorldClock_unix_seconds_follow_the_steps_then_step_back_to_the_wall_clock)
 {
-    // Real mode: the wall clock plus whatever lead earlier stepped runs left.
-    const time_t wall = std::time(nullptr);
-    const time_t real = WorldClock::NowUnix();
-    CHECK(real >= wall + time_t(WorldClock::OffsetSec()) - 1);
-    CHECK(real <= wall + time_t(WorldClock::OffsetSec()) + 1);
+    // Real mode, before entering: the wall clock, exactly.
+    const time_t wallBefore = std::time(nullptr);
+    const time_t before = WorldClock::NowUnix();
+    CHECK(before >= wallBefore - 1);
+    CHECK(before <= wallBefore + 1);
 
     // Stepped: the anchor plus the counter's advance, whatever the wall clock does.
     WorldClock::EnterStepped();
     const time_t s0 = WorldClock::NowUnix();
-    for (int i = 0; i < 60; ++i)                          // three virtual seconds
-    {
-        WorldClock::Step(50);
-    }
-    CHECK_EQ(uint32(WorldClock::NowUnix() - s0), uint32(3));
-    const time_t virt = WorldClock::NowUnix();
+    WorldClock::Step(2000);                               // two virtual seconds
+    CHECK_EQ(uint32(WorldClock::NowUnix() - s0), uint32(2));
+
+    // Leaving steps the seconds back to the wall clock in one move; the ms clock
+    // keeps the run's lead as before (OffsetMs(), not the seconds).
     WorldClock::LeaveStepped();
-    CHECK(WorldClock::NowUnix() >= virt);                 // the lead carries the run's seconds
-    CHECK(WorldClock::OffsetSec() >= 2);
+    const time_t wallAfter = std::time(nullptr);
+    const time_t after = WorldClock::NowUnix();
+    CHECK(after >= wallAfter - 1);
+    CHECK(after <= wallAfter + 1);
+    CHECK(WorldClock::OffsetMs() >= 1000);                // two seconds' step, safely above whatever real time this test took
 }
 
 TEST(WorldClock_another_thread_reading_while_stepped_never_sees_a_step_back)

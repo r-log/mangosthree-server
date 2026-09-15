@@ -43,15 +43,18 @@
  * an NTP step or a VM pause makes to it -- rather than being derived from the steady
  * clock, since about sixty call sites elsewhere still read time(NULL) directly and must
  * not diverge from it. A stepped run instead derives its seconds from an anchor taken
- * at EnterStepped() plus the counter's advance, and leaving keeps a seconds lead the
- * same way NowMs() keeps a milliseconds one. The world thread is the only writer; any
- * thread may read.
+ * at EnterStepped() plus the counter's advance; leaving steps the seconds back to the
+ * wall clock in one move, by the run's virtual length less its real length, so a server
+ * that goes on to serve players compares respawn and aura stamps against the same clock
+ * they were taken from, and a never-stepped server reads time(nullptr) exactly. The ms
+ * clock keeps its lead as before -- everything reading it is relative. The world thread
+ * is the only writer; any thread may read.
  */
 namespace WorldClock
 {
     /// Milliseconds since the process started: the steady clock, or the stepped counter while a run steps the world.
     uint32 NowMs();
-    /// Seconds since the epoch: the wall clock plus the lead stepped runs created, or, while stepped, the anchor taken at EnterStepped plus the counter's advance.
+    /// Seconds since the epoch: the wall clock in real mode, or, while stepped, the anchor taken at EnterStepped plus the counter's advance; leaving steps the seconds back to the wall clock once, by the run's virtual length less its real length.
     time_t NowUnix();
     /// True while the harness steps the world.
     bool IsStepped();
@@ -59,14 +62,12 @@ namespace WorldClock
     void EnterStepped();
     /// Advance the stepped counter.
     void Step(uint32 ms);
-    /// Leave stepped mode: real time resumes from the counter's value (an offset keeps it from running backwards); a no-op when not stepped.
+    /// Leave stepped mode: the ms clock keeps an offset so it never runs backwards; the seconds step back to the wall clock in one move; a no-op when not stepped.
     void LeaveStepped();
     /// The steady clock since start in milliseconds, whatever the mode: for a thread measuring its own duration (the freeze watchdog, the database threads), which must not read a clock the world thread steps.
     uint32 RealMs();
     /// The lead the clock keeps over real time after stepped runs, in milliseconds.
     uint32 OffsetMs();
-    /// The lead the seconds keep over the wall clock after stepped runs.
-    uint32 OffsetSec();
     /// The steady-clock point the process started at (the old GetApplicationStartTime()).
     std::chrono::steady_clock::time_point StartPoint();
 }

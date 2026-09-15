@@ -114,6 +114,12 @@ namespace Harness
                 return false;
             }
         }
+        if (uint32 n = sWorld.GetActiveSessionCount())
+        {
+            sLog.outString("MVTEST refused: %u session(s) online; a run steps the world and its seconds, and a client's respawn and aura stamps would straddle the step back (run from the console on an empty realm)", n);
+            m_queue.clear();
+            return false;
+        }
         m_map = sMapMgr.CreateMap(kMapId, NULL);
         if (!m_map)
         {
@@ -122,10 +128,6 @@ namespace Harness
             return false;
         }
         sLog.outString("MVTEST map %u bare=%d", kMapId, m_map->IsBare() ? 1 : 0);
-        if (uint32 n = sWorld.GetActiveSessionCount())
-        {
-            sLog.outString("MVTEST WARN: %u session(s) online: the world races for the run's length, and auctions, mail and the uptime advance by its virtual time", n);
-        }
         if (!m_map->IsBare())
         {
             // A live GM may still run scenarios on a full map; only the launcher's
