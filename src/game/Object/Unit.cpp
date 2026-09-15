@@ -5785,6 +5785,16 @@ void Unit::SendPetAIReaction()
 
 ///----------End of Pet responses methods----------
 
+/**
+ * @brief Whether the unit is rooted to the ground (can't move): the kernel's one answer.
+ * @return True while any source holds the Rooted inhibition.
+ * \see MotionMaster::Inhibited
+ */
+bool Unit::IsRooted() const
+{
+    return i_motionMaster.Inhibited(Motion::Inhibition::Rooted);
+}
+
 void Unit::StopMoving(bool forceSendStop /*=false*/)
 {
     clearUnitState(UNIT_STAT_MOVING);

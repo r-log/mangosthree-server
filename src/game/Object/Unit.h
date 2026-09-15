@@ -1749,7 +1749,11 @@ class Unit : public WorldObject
          */
         bool CanFreeMove() const
         {
-            return !hasUnitState(UNIT_STAT_NO_FREE_MOVE) && !GetOwnerGuid();
+            // The same reasons UNIT_STAT_NO_FREE_MOVE covered (Unit.h:556-558): root, stun, death,
+            // taxi, confuse and fear; distract and possession never gated free move.
+            return !(GetMotionMaster()->Mobility().reasons & (Motion::ReasonRooted | Motion::ReasonStunned | Motion::ReasonDead |
+                                                                Motion::ReasonOnTaxi | Motion::ReasonConfused | Motion::ReasonFeared)) &&
+                   !GetOwnerGuid();
         }
 
         /**
@@ -3170,12 +3174,12 @@ class Unit : public WorldObject
          */
         bool IsWalking() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_WALK_MODE); }
         /**
-         * Check if this \ref Unit has the movement flag \ref MovementFlags::MOVEFLAG_ROOT
-         * @return true if the \ref Unit is rooted to the ground (can't move), ie: has the flag
-         * MOVEFLAG_ROOT, false otherwise
-         * \see MovementInfo::HasMovementFlag
+         * Whether the kernel's Rooted inhibition is held (P5-A): the one answer to "is this unit
+         * rooted", independent of MOVEFLAG_ROOT, which MotionMaster::ProjectClientRoot projects from it.
+         * @return true if the \ref Unit is rooted to the ground (can't move), false otherwise
+         * \see MotionMaster::Inhibited
          */
-        bool IsRooted() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT); }
+        bool IsRooted() const;
 
         virtual void SetLevitate(bool /*enabled*/) {}
         virtual void SetSwim(bool /*enabled*/) {}
@@ -3984,6 +3988,7 @@ class Unit : public WorldObject
         void RemoveFollower(FollowerReference* /*pRef*/) { /* nothing to do yet */ }
 
         MotionMaster* GetMotionMaster() { return &i_motionMaster; }
+        MotionMaster const* GetMotionMaster() const { return &i_motionMaster; }
 
         bool IsStopped() const { return !(hasUnitState(UNIT_STAT_MOVING)); }
         void StopMoving(bool forceSendStop = false);

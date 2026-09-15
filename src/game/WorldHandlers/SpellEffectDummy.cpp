@@ -3286,7 +3286,10 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 }
 
                 // Any effect which causes you to lose control of your character will supress the starfall effect.
-                if (m_caster->hasUnitState(UNIT_STAT_NO_FREE_MOVE))
+                // The same reasons UNIT_STAT_NO_FREE_MOVE covered (Unit.h:556-558); CanFreeMove() does not
+                // apply here, as its extra owner-guid check has no place in this caster-state test.
+                if (m_caster->GetMotionMaster()->Mobility().reasons & (Motion::ReasonRooted | Motion::ReasonStunned | Motion::ReasonDead |
+                                                                        Motion::ReasonOnTaxi | Motion::ReasonConfused | Motion::ReasonFeared))
                 {
                     return;
                 }

@@ -102,7 +102,7 @@ std::optional<Motion::Vector3> FleeingMovementGenerator::PickFleePoint(Unit& own
 
 void FleeingMovementGenerator::Initialize(Unit& owner)
 {
-    owner.addUnitState(UNIT_STAT_FLEEING | UNIT_STAT_FLEEING_MOVE);
+    owner.addUnitState(UNIT_STAT_FLEEING_MOVE);
     owner.StopMoving();
 
     if (owner.GetTypeId() == TYPEID_UNIT)
@@ -141,7 +141,7 @@ void FleeingMovementGenerator::Finalize(Unit& owner)
         owner.StopMoving();
     }
 
-    owner.clearUnitState(UNIT_STAT_FLEEING | UNIT_STAT_FLEEING_MOVE);
+    owner.clearUnitState(UNIT_STAT_FLEEING_MOVE);
 }
 
 Motion::MoveIntent FleeingMovementGenerator::Intent(Unit& owner,
@@ -210,7 +210,7 @@ Motion::MoveIntent TimedFleeingMovementGenerator::Intent(Unit& owner,
 
 void TimedFleeingMovementGenerator::Finalize(Unit& owner)
 {
-    owner.clearUnitState(UNIT_STAT_FLEEING | UNIT_STAT_FLEEING_MOVE);
+    owner.clearUnitState(UNIT_STAT_FLEEING_MOVE);
 
     // The low-health flee has no aura to clear the client-visible flag: the shell finished this
     // claim before calling here, so when no fear claim remains the flag goes with it.

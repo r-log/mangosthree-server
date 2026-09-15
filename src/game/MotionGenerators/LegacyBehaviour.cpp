@@ -124,14 +124,12 @@ void LegacyBehaviour::CleanupAfterInterrupt(Unit& owner)
     switch (m_kind)
     {
         case Motion::Kind::Fear:
-            owner.clearUnitState(UNIT_STAT_FLEEING);
             if (owner.GetTypeId() == TYPEID_UNIT)
             {
                 static_cast<Creature&>(owner).SetWalk(!owner.hasUnitState(UNIT_STAT_RUNNING_STATE), false);
             }
             return;
         case Motion::Kind::Confused:
-            owner.clearUnitState(UNIT_STAT_CONFUSED);
             return;
         default:
             return;

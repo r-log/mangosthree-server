@@ -139,6 +139,16 @@ class MotionMaster
         void MoveFall();
         void MoveFlyOrLand(uint32 id, float x, float y, float z, bool liftOff);
 
+        /// An outside reason a behaviour may not move the unit (P5-A, spec §6): the one game-side
+        /// path to the kernel's block. Inside one scope it feeds the arbiter, projects the client
+        /// root (rooted or stunned: SetRoot on the aggregate's edge only) and writes the unit-state mirror.
+        void Inhibit(Motion::Inhibition what, uint64 source);
+        void Uninhibit(Motion::Inhibition what, uint64 source);
+        /// Whether any source holds this reason: the one answer to "is this unit rooted".
+        bool Inhibited(Motion::Inhibition what) const { return m_arbiter.Inhibited(what); }
+        /// What the selected behaviour may do right now, and why not.
+        Motion::MobilityDecision Mobility() const { return m_arbiter.Evaluate(); }
+
         MovementGeneratorType GetCurrentMovementGeneratorType() const;
         void PropagateSpeedChange();
         bool SetNextWaypoint(uint32 pointId);
@@ -233,7 +243,10 @@ class MotionMaster
         Bound* SelectedBound();
         Bound const* SelectedBound() const;
         void Retire(size_t index, Motion::FinishReason reason);
-        void ReassertControlState(Motion::Kind kind);   ///< another claim of the kind may still hold the unit state a finishing hook just cleared
+        /// The client root follows the aggregate of Rooted and Stunned: SetRoot on its edges only.
+        void ProjectClientRoot();
+        /// The old unit-state bits, written here and nowhere else: the kernel's mirror for scripts and the client.
+        void MirrorUnitState();
 
         Unit*              m_owner;
         Motion::Arbiter    m_arbiter;
@@ -243,6 +256,7 @@ class MotionMaster
         Motion::TransactionKind m_scopeKind; ///< the kind the outermost commit runs under; a nested death raises it to Death
         PendingReset       m_pendingReset;
         uint32             m_exposedSeq;     ///< WhenExposed: the entry an expiry exposed
+        bool               m_clientRooted;   ///< what ProjectClientRoot last told the owner
 };
 
 #endif // MANGOS_MOTIONMASTER_H
