@@ -274,6 +274,17 @@ typedef std::set<ObjectGuid> GuidSet;
 typedef std::list<ObjectGuid> GuidList;
 typedef std::vector<ObjectGuid> GuidVector;
 
+/// Orders object pointers by their guid, so a set of objects walks the same way in every process
+/// (a set ordered by pointer walks by heap address: the GM harness's reproducible runs need the order fixed).
+struct ObjectGuidPointerLess
+{
+    template <class T>
+    bool operator()(T const* a, T const* b) const
+    {
+        return a->GetObjectGuid() < b->GetObjectGuid();
+    }
+};
+
 // minimum buffer size for packed guid is 9 bytes
 #define PACKED_GUID_MIN_BUFFER_SIZE 9
 

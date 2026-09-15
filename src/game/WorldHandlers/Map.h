@@ -517,7 +517,8 @@ class Map : public GridRefManager<NGridType>
         MapRefManager m_mapRefManager;
         MapRefManager::iterator m_mapRefIter;
 
-        typedef std::set<WorldObject*> ActiveNonPlayers;
+        /// Ordered by guid: the walk is the same in every process (P0-D).
+        typedef std::set<WorldObject*, ObjectGuidPointerLess> ActiveNonPlayers;
         ActiveNonPlayers m_activeNonPlayers;
         ActiveNonPlayers::iterator m_activeNonPlayersIter;
         MapStoredObjectTypesContainer m_objectsStore;
@@ -543,7 +544,8 @@ class Map : public GridRefManager<NGridType>
 
         std::bitset<TOTAL_NUMBER_OF_CELLS_PER_MAP* TOTAL_NUMBER_OF_CELLS_PER_MAP> marked_cells;
 
-        std::set<WorldObject*> i_objectsToRemove;
+        /// Ordered by guid: the walk is the same in every process (P0-D).
+        std::set<WorldObject*, ObjectGuidPointerLess> i_objectsToRemove;
 
         typedef std::multimap<time_t, ScriptAction> ScriptScheduleMap;
         ScriptScheduleMap m_scriptSchedule;

@@ -1398,7 +1398,8 @@ bool InMeleeReach(Unit const& attacker, Unit const& victim, float flat_mod = 0.0
 class Unit : public WorldObject
 {
     public:
-        typedef std::set<Unit*> AttackerSet;
+        /// Ordered by guid: the walk is the same in every process (P0-D).
+        typedef std::set<Unit*, ObjectGuidPointerLess> AttackerSet;
         /**
          * A multimap from spell ids to \ref SpellAuraHolder, multiple \ref SpellAuraHolder can have
          * the same id (ie: the same key)
