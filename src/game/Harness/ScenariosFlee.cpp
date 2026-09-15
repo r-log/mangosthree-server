@@ -775,7 +775,7 @@ namespace Harness
             }
         };
 
-        const uint32 ROOT = 745;   // Web: a plain root aura (SPELL_AURA_MOD_ROOT for 10 s), no damage
+        const uint32 ROOT = 745;   // Web: a plain root aura (SPELL_AURA_MOD_ROOT for about 5 s), no damage
 
         /// A root on a feared creature: the flee stops in place while the root lasts (the unit
         /// state is what the movement gates read) and resumes when the root ends (reference

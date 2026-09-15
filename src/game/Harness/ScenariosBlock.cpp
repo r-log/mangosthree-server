@@ -47,7 +47,7 @@ namespace Harness
         const uint32 WOLF = 69;
         const uint32 KOBOLD = 6;
         const Pt SE = { -3200.0f, -300.0f, 47.0f };
-        const uint32 ROOT = 745;    // Web: a plain root aura, 10 s, no damage
+        const uint32 ROOT = 745;    // Web: a plain root aura, about 5 s, no damage
         const uint32 STUN = 5211;   // Bash: a plain stun aura
         const uint32 FEIGN = 5384;  // Feign Death
 
@@ -120,7 +120,7 @@ namespace Harness
                 At(500,  [this, g, gk]() { if (Creature* a = Get(g)) { a->SetFeared(true, gk, 5782, 0, 0); Log("feared, mt=%s", TypeName(a)); } });
                 At(2000, [this, g]()     { if (Creature* a = Get(g)) { a->CastSpell(a, ROOT, true); Log("Web mid-flee, mt=%s", TypeName(a)); } });
                 At(4500, [this, g, gk]() { if (Creature* a = Get(g)) { a->SetFeared(false, gk, 5782, 0, 0); Log("fear ended under the root, mt=%s rooted=%d", TypeName(a), a->IsRooted() ? 1 : 0); } });
-                for (uint32 i = 1; i <= 15; ++i)   // 5.0 s .. 12.0 s: rooted until the Web ends at 12.0 s
+                for (uint32 i = 1; i <= 4; ++i)    // 5.0 s .. 6.5 s: rooted (Web, cast at 2.0 s, runs about 5 s)
                 {
                     At(4500 + i * 500, [this, g, rooted, fearGone, i]()
                     {
@@ -131,9 +131,9 @@ namespace Harness
                         Log("rooted +%4ums mt=%s rooted=%d at %.1f %.1f", i * 500, TypeName(a), a->IsRooted() ? 1 : 0, p.x, p.y);
                     });
                 }
-                for (uint32 i = 1; i <= 8; ++i)    // 12.5 s .. 16.0 s: free again
+                for (uint32 i = 1; i <= 7; ++i)    // 7.5 s .. 10.5 s: free again, well after the root's end
                 {
-                    At(12000 + i * 500, [this, g, after, i]()
+                    At(7000 + i * 500, [this, g, after, i]()
                     {
                         Creature* a = Get(g); if (!a) { return; }
                         Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
@@ -141,7 +141,7 @@ namespace Harness
                         Log("free +%4ums mt=%s rooted=%d at %.1f %.1f", i * 500, TypeName(a), a->IsRooted() ? 1 : 0, p.x, p.y);
                     });
                 }
-                At(16500, [this, rooted, after, fearGone]()
+                At(11000, [this, rooted, after, fearGone]()
                 {
                     if (rooted->size() < 3 || after->size() < 3) { Verdict("standsAfterFearEnds=INVALID(no samples) | movesAfterRootEnds=INVALID(no samples)"); return; }
                     const float held = Spread(*rooted);
