@@ -153,8 +153,10 @@ Motion::MoveIntent FleeingMovementGenerator::Intent(Unit& owner,
         return Motion::MoveIntent::Done();
     }
 
-    // Ignore while any OTHER no-reaction or no-move state applies.
-    if (owner.hasUnitState((UNIT_STAT_CAN_NOT_REACT | UNIT_STAT_NOT_MOVE) & ~UNIT_STAT_FLEEING))
+    // Ignore while the block withholds this behaviour: the arbiter's own decision, the
+    // same source ConfusedMovementGenerator's gate reads (a flee is never selected under
+    // a confuse, so this cannot change what it does, only what it reads).
+    if (!owner.GetMotionMaster()->Mobility().mayMove)
     {
         owner.clearUnitState(UNIT_STAT_FLEEING_MOVE);
         return Motion::MoveIntent::Hold();

@@ -488,19 +488,9 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
         // blizz like 2.0.x
         RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
 
+        // The block's own lift resumes whatever the feign paused -- a chase in the Combat
+        // layer, a follow, a patrol -- from where it stood; nothing here needs to guess it
+        // back from combat state.
         GetMotionMaster()->Uninhibit(Motion::Inhibition::Dead, source);
-
-        if (GetTypeId() != TYPEID_PLAYER && IsAlive())
-        {
-            // restore appropriate movement generator
-            if (getVictim())
-            {
-                GetMotionMaster()->MoveChase(getVictim());
-            }
-            else
-            {
-                GetMotionMaster()->Initialize();
-            }
-        }
     }
 }

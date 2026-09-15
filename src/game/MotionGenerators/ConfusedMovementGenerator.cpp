@@ -115,8 +115,10 @@ Motion::MoveIntent ConfusedMovementGenerator::Intent(Unit& owner,
                                                      Motion::MoveStatus const& status,
                                                      uint32 diff)
 {
-    // Ignore while any OTHER no-reaction state applies (stunned, rooted, ...).
-    if (owner.hasUnitState(UNIT_STAT_CAN_NOT_REACT & ~UNIT_STAT_CONFUSED))
+    // The arbiter already chose this behaviour over whatever else it holds (a fear
+    // claim beneath a confuse, say); only a real block -- a stun, a root, a death --
+    // holds it, so ask the kernel's own decision instead of the raw unit-state bits.
+    if (!owner.GetMotionMaster()->Mobility().mayMove)
     {
         return Motion::MoveIntent::Hold();
     }
