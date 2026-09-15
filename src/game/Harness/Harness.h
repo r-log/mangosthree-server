@@ -68,7 +68,8 @@ namespace Harness
      *
      * A run steps the world (movement P0-D): from `Start` to `MVTEST DONE` the world
      * loop advances the clock in fixed 50 ms ticks without sleeping, every map updates
-     * on the world thread, and each scenario starts from `SeedFor(seedBase, order)`; a
+     * on the world thread, and each scenario starts from `SeedFor(seedBase, order)` and
+     * reseeds again right before the harness map's own update (`SeedMapUpdate`); a
      * logged-in client sees the world race for the run's length -- the mode exists for
      * the headless launcher.
      */
@@ -83,7 +84,7 @@ namespace Harness
         bool Start(std::string const& what, uint32 seedBase = kSeedBase);
         std::string Status() const;
         void Update(uint32 diff);
-        void SeedMapUpdate();   ///< before each map update of a running scenario: the world thread's generator takes TickSeed(seedBase, order, elapsed)
+        void SeedMapUpdate();   ///< right before the harness map's update, while a scenario is running: the world thread's generator takes TickSeed(seedBase, order, elapsed)
         Map* GetMap() const { return m_map; }
         void Register(Scenario* scenario) { m_registry.push_back(scenario); }
         bool Running() const { return m_index < m_queue.size(); }

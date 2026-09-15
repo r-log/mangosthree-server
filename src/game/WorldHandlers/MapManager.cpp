@@ -330,6 +330,10 @@ void MapManager::Update(uint32 diff)
         {
             // Map::Update sets its own ownership scope now; no worker pool, so the
             // world thread updates maps in turn, one Scope at a time.
+            if (m_beforeMapUpdate)
+            {
+                m_beforeMapUpdate(*iter->second);
+            }
             iter->second->Update((uint32)i_timer.GetCurrent());
         }
     }

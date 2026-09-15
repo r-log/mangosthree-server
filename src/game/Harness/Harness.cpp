@@ -164,6 +164,7 @@ namespace Harness
         m_seedBase = seedBase;
         WorldClock::EnterStepped();
         sMapMgr.ResetUpdateTimer();   // the next map update lands exactly two ticks after the start, every run
+        sMapMgr.SetBeforeMapUpdateHook([this](Map& map) { if (&map == m_map) { SeedMapUpdate(); } });   // the harness map's own update draws from the scenario's seed; the other maps' creatures ahead of it in the pass no longer shift its stream
         sLog.outString("MVTEST stepped: seed base %u, map phase pinned", m_seedBase);
         Begin(m_queue[0]);
         return true;
@@ -191,12 +192,7 @@ namespace Harness
             return;
         }
         Scenario* s = m_queue[m_index];
-        const uint32 seed = TickSeed(m_seedBase, s->Order(), m_elapsed);
-        if (m_elapsed <= 1000)   // diagnostic (P0-D): the first 20 ticks, to compare seeds and draw counts across two runs
-        {
-            sLog.outString("MVTEST %s reseed elapsed=%u seed=%u draws=%llu", s->Name(), m_elapsed, seed, (unsigned long long)RNG::Draws());
-        }
-        RNG::Seed(seed);
+        RNG::Seed(TickSeed(m_seedBase, s->Order(), m_elapsed));
     }
 
     void Runner::Begin(Scenario* s)
@@ -273,6 +269,7 @@ namespace Harness
             {
                 sLog.outString("MVTEST DONE %u scenarios, %u verdict lines", uint32(m_queue.size()), m_verdicts);
                 WorldClock::LeaveStepped();
+                sMapMgr.SetBeforeMapUpdateHook(MapManager::BeforeMapUpdateHook());
                 sLog.outString("MVTEST clock offset %u ms", WorldClock::OffsetMs());
                 m_queue.clear();
                 m_index = 0;

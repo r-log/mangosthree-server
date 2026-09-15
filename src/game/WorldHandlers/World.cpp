@@ -1059,7 +1059,6 @@ void World::Update(uint32 diff)
 
     /// <li> Handle all other objects
     ///- Update objects (maps, transport, creatures,...)
-    sHarness.SeedMapUpdate();   // a running scenario's map update draws from its own seed (movement P0-D)
     sMapMgr.Update(diff);
     // The GM harness (movement P0-C): scenario steps and samples run here, after
     // every map's tick and before anything else touches units, where console

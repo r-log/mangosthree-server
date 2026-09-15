@@ -77,7 +77,6 @@
 #include "Chat.h"
 #include "Weather.h"
 #include "LivingWorldCellEnvelope.h"
-#include "WorldClock.h"
 
 /**
  * @brief Map destructor
@@ -3519,10 +3518,11 @@ bool Map::GetReachableRandomPointOnGround(uint32 phaseMask, float& x, float& y, 
     GetHitPosition(x, y, z + 1.0f, i_x, i_y, i_z, phaseMask, -0.5f);
     i_z = z; // reset i_z to z value to avoid too much difference from original point
     const auto reachable = FloorNear(phaseMask, i_x, i_y, i_z);
-    if (reachable)
+    if (!reachable)
     {
-        i_z = *reachable;
+        return false;
     }
+    i_z = *reachable;
 
     // here we have a valid position but the point can have a big Z in some case
     // next code checks the slope of the hop: the rise (a) over the horizontal distance walked (b)
@@ -3536,19 +3536,6 @@ bool Map::GetReachableRandomPointOnGround(uint32 phaseMask, float& x, float& y, 
     const float ac = fabs(z - i_z);
     const float horizontal = sqrt((x - i_x) * (x - i_x) + (y - i_y) * (y - i_y));
     const float MAX_SLOPE_IN_RADIAN = 50.0f / 180.0f * M_PI_F;  // 50(degree) max seem best value for walkable slope
-
-    if (WorldClock::IsStepped())   // diagnostic (P0-D): every attempt's predicates, so a two-run mismatch names its cause
-    {
-        sLog.outString("MVTEST randpoint from %.3f %.3f %.3f angle=%.6f range=%.6f hit=%.3f %.3f %.3f floor=%s %.3f slope=%.6f accept=%d",
-                       x, y, z, angle, range, i_x, i_y, i_z, reachable ? "yes" : "no", reachable ? *reachable : 0.0f,
-                       horizontal > 0.0f ? atan(ac / horizontal) : -1.0f,
-                       (reachable && horizontal > 0.0f && atan(ac / horizontal) < MAX_SLOPE_IN_RADIAN) ? 1 : 0);
-    }
-
-    if (!reachable)
-    {
-        return false;
-    }
 
     if (horizontal > 0.0f && atan(ac / horizontal) < MAX_SLOPE_IN_RADIAN)
     {
