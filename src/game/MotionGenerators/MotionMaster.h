@@ -110,7 +110,7 @@ class MotionMaster
         void Initialize();
         /// The selected behaviour's generator; NULL before Initialize.
         MovementGenerator const* GetCurrent() const;
-        /// One tick of the selected behaviour; nothing under UNIT_STAT_CAN_NOT_MOVE.
+        /// One tick of the selected behaviour; nothing while the block's decision withholds it (Evaluate().ticks).
         void UpdateMotion(uint32 diff);
         /// Every command and combat finish; the pushed default too when `all`; the survivor resets when `reset && !all`. A Control claim is left alone: it ends with its aura.
         void Clear(bool reset = true, bool all = false);
