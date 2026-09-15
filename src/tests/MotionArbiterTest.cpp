@@ -1308,3 +1308,128 @@ TEST(MotionArbiter_Ring_OffByDefault_OnWhenEnabled)
     m.EnableRing();                                   // idempotent: keeps what it has
     CHECK_EQ(static_cast<int>(m.Decisions().size()), 1);
 }
+
+namespace
+{
+    const uint64 ROOT_SRC = InhibitSource(SourceDomain::Aura, 9, 339);
+    const uint64 STUN_SRC = InhibitSource(SourceDomain::Aura, 9, 853);
+    const uint64 ROOT_SRC2 = InhibitSource(SourceDomain::Seat, 3, 1);
+
+    int CountBlocked(std::vector<Event> const& events, Event::Kind kind, Kind who)
+    {
+        int n = 0;
+        for (Event const& e : events)
+        {
+            if (e.kind == kind && e.who == who && e.reason == FinishReason::Blocked)
+            {
+                ++n;
+            }
+        }
+        return n;
+    }
+}
+
+TEST(MotionArbiter_Block_RootPausesTheFearOnceAndResumesItOnce)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Claim(Kind::Fear, 0x5782));
+    m.DrainEvents();
+    const Held fear = *m.Selected();
+
+    CHECK(m.Inhibit(Inhibition::Rooted, ROOT_SRC));
+    std::vector<Event> events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Suspended, Kind::Fear), 1);
+    CHECK_EQ(CountEvents(events, Event::Kind::Finished, Kind::Fear), 0);
+    CHECK(!m.Evaluate().ticks);
+    CHECK(!m.Evaluate().mayMove);
+    CHECK(m.Evaluate().mayTurn);
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));            // the claim survives the root
+    CHECK_EQ(int(m.Selected()->seq), int(fear.seq));
+
+    CHECK(!m.Inhibit(Inhibition::Rooted, ROOT_SRC2));     // a second root: no edge, no second pause
+    CHECK_EQ(CountBlocked(m.DrainEvents(), Event::Kind::Suspended, Kind::Fear), 0);
+    CHECK(!m.Uninhibit(Inhibition::Rooted, ROOT_SRC));    // one root left: still paused
+    CHECK_EQ(CountBlocked(m.DrainEvents(), Event::Kind::Resumed, Kind::Fear), 0);
+
+    CHECK(m.Uninhibit(Inhibition::Rooted, ROOT_SRC2));    // the last root: the flee resumes once
+    events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Resumed, Kind::Fear), 1);
+    CHECK(m.Evaluate().mayMove);
+    CHECK_EQ(int(m.Selected()->seq), int(fear.seq));
+    CHECK(m.HasClaim(Kind::Fear));
+}
+
+TEST(MotionArbiter_Block_StunThenConfuseThenFearResumeInOrder)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Claim(Kind::Fear, 0x5782));
+    m.Request(Claim(Kind::Confused, 0x118));
+    m.DrainEvents();
+    CHECK_EQ(SelectedKind(m), K(Kind::Confused));          // Confused outranks Fear
+
+    m.Inhibit(Inhibition::Stunned, STUN_SRC);
+    std::vector<Event> events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Suspended, Kind::Confused), 1);
+    CHECK(!m.Evaluate().mayTurn);                           // a stun keeps nothing
+    CHECK_EQ(int(m.Evaluate().reasons & (ReasonFeared | ReasonConfused | ReasonStunned)), int(ReasonFeared | ReasonConfused | ReasonStunned));
+
+    m.Uninhibit(Inhibition::Stunned, STUN_SRC);
+    events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Resumed, Kind::Confused), 1);   // the wander plays again
+    CHECK_EQ(SelectedKind(m), K(Kind::Confused));
+
+    CHECK(m.Release(0x118));                                // the confuse ends first: the flee resumes
+    events = m.DrainEvents();
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));
+    CHECK_EQ(CountEvents(events, Event::Kind::Resumed, Kind::Fear), 1);
+    CHECK_EQ(CountBlocked(events, Event::Kind::Suspended, Kind::Fear), 0);
+    CHECK(m.Evaluate().mayMove);
+}
+
+TEST(MotionArbiter_Block_AClaimArrivingUnderARootStartsPaused)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.DrainEvents();
+    m.Inhibit(Inhibition::Rooted, ROOT_SRC);
+    std::vector<Event> events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Suspended, Kind::Wander), 1);
+
+    m.Request(Claim(Kind::Fear, 0x5782));                   // a fear lands on a rooted unit
+    events = m.DrainEvents();
+    CHECK_EQ(SelectedKind(m), K(Kind::Fear));
+    CHECK_EQ(CountBlocked(events, Event::Kind::Suspended, Kind::Fear), 1);   // paused at once
+    CHECK(!m.Evaluate().mayMove);
+    CHECK_EQ(CountEvents(events, Event::Kind::Finished, Kind::Fear), 0);
+
+    m.Uninhibit(Inhibition::Rooted, ROOT_SRC);
+    events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Resumed, Kind::Fear), 1);
+    CHECK_EQ(CountBlocked(events, Event::Kind::Resumed, Kind::Wander), 0);   // the wander is masked, not selected
+}
+
+TEST(MotionArbiter_Block_TaxiRefusesControlAndDeathInhibits)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Idle);
+    m.Request(Req(Kind::Taxi, 7));
+    m.DrainEvents();
+    CHECK_EQ(SelectedKind(m), K(Kind::Taxi));
+
+    m.Request(Claim(Kind::Fear, 0x5782));                   // refused at the door: no claim
+    CHECK(!m.HasClaim(Kind::Fear));
+    CHECK_EQ(SelectedKind(m), K(Kind::Taxi));
+    CHECK_EQ(int(m.Evaluate().reasons & ReasonOnTaxi), int(ReasonOnTaxi));
+
+    m.Inhibit(Inhibition::Rooted, ROOT_SRC);                // a root does not stop the flight
+    CHECK(m.Evaluate().ticks);
+    CHECK(m.Evaluate().mayMove);
+
+    m.Die();
+    CHECK(m.Inhibited(Inhibition::Dead));
+    CHECK(m.Empty());
+    CHECK(m.Uninhibit(Inhibition::Dead, kDeathSource));    // resurrection
+    CHECK(!m.Inhibited(Inhibition::Dead));
+}
