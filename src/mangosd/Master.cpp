@@ -310,7 +310,8 @@ void Master::WorldLoop()
         previous = stepped ? getMSTime() : current;
 
         const uint32 spent = getMSTimeDiff(current, getMSTime());
-        if (getMSTimeDiff(lastStatus, current) >= 1000)
+        // The status line (and the console title inside it) is real-mode information; while stepped it would republish every twenty iterations instead of every wall-clock second.
+        if (!stepped && getMSTimeDiff(lastStatus, current) >= 1000)
         {
             lastStatus = current;
             PublishConsoleStatus(spent);
