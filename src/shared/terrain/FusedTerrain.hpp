@@ -138,6 +138,7 @@ namespace world::terrain
         mutable std::array<std::array<std::atomic<uint32_t>, GRID_COUNT>, GRID_COUNT>
             m_tileLastUse{};
         std::atomic<uint32_t> m_clockMs{0};
+        // World thread only: Update() from the terrain manager's tick, RestartSweep() from the harness's start.
         uint32_t m_sweepAccumMs = 0;
 
         std::array<std::array<int16_t, GRID_COUNT>, GRID_COUNT> m_cellRef{};

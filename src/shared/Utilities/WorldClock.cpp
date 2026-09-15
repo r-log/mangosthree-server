@@ -35,22 +35,23 @@ namespace
         return point;
     }
 
-    uint32 RealMs()
-    {
-        using namespace std::chrono;
-        return uint32(duration_cast<milliseconds>(steady_clock::now() - StartPointStorage()).count());
-    }
-
     std::atomic<bool>   g_stepped{false};
     std::atomic<uint32> g_counterMs{0};
     std::atomic<uint32> g_offsetMs{0};
     std::atomic<uint32> g_offsetSec{0};    // the lead the seconds keep over the wall clock after stepped runs
     std::atomic<uint32> g_anchorMs{0};     // NowMs() at the last EnterStepped()
     std::atomic<time_t> g_anchorUnix{0};   // NowUnix() at the last EnterStepped()
+    static_assert(std::atomic<time_t>::is_always_lock_free, "the clock's anchor must be lock-free: readers are on every thread");
 }
 
 namespace WorldClock
 {
+    uint32 RealMs()
+    {
+        using namespace std::chrono;
+        return uint32(duration_cast<milliseconds>(steady_clock::now() - StartPointStorage()).count());
+    }
+
     uint32 NowMs()
     {
         if (g_stepped.load(std::memory_order_acquire))

@@ -61,6 +61,8 @@ namespace WorldClock
     void Step(uint32 ms);
     /// Leave stepped mode: real time resumes from the counter's value (an offset keeps it from running backwards); a no-op when not stepped.
     void LeaveStepped();
+    /// The steady clock since start in milliseconds, whatever the mode: for a thread measuring its own duration (the freeze watchdog, the database threads), which must not read a clock the world thread steps.
+    uint32 RealMs();
     /// The lead the clock keeps over real time after stepped runs, in milliseconds.
     uint32 OffsetMs();
     /// The lead the seconds keep over the wall clock after stepped runs.
