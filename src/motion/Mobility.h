@@ -83,7 +83,16 @@ namespace Motion
     /// The domain of a source, in the value's top nibble. An aura's source is its
     /// ControlClaim-shaped identity (spell << 40 | effect << 32 | caster counter), whose
     /// top nibble is 0 for every 4.3.4 spell id; the other domains never collide with it.
-    enum class SourceDomain : uint8 { Aura = 0, Death = 1, Possession = 2, Seat = 3, FixedVehicle = 4, Script = 5 };
+    enum class SourceDomain : uint8
+    {
+        Aura = 0,
+        Death = 1,
+        Possession = 2,
+        Seat = 3,
+        FixedVehicle = 4,
+        Script = 5   ///< reserved for a script without an aura, and the harness; the one script
+                     ///< today, grizzly_hills.cpp, has an aura and uses the aura shape instead
+    };
 
     /// A source identity for a non-aura domain: the owner's guid counter and an extra word.
     /// The extra word carries 28 bits; every real one, a seat index or a spell id, is far below.
