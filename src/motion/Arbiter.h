@@ -206,7 +206,10 @@ namespace Motion
 
             /// Apply an event row (§4.2): CombatStarted cancels the Distract layer.
             void Notify(ExternalEvent event);
-            /// Death: finish everything as Died, ascending layer order; the model is empty after.
+            /// Death: finish everything as Died, ascending layer order, then drop every Aura and
+            /// Script inhibition source (an aura dies with its aura, a script's must not outlive
+            /// the unit; Seat, FixedVehicle and Possession sources have release paths of their
+            /// own and stay) before inhibiting Dead; the model is empty after.
             void Die();
             /// An outside reason a behaviour may not move the unit (spec §3): counted by source.
             /// On the reason's first source the selected entry is paused once (Suspended, Blocked)
@@ -250,6 +253,8 @@ namespace Motion
             /// The entry held on a command layer: for Control, the selected claim.
             /// Empty for Default and Combat, which have their own accessors.
             std::optional<Held> Command(Layer layer) const;
+            /// Whether a command is held on this layer; allocation-free, for the shell's per-tick mirror.
+            bool HasCommand(Layer layer) const;
             /// Every Control claim, in precedence order (the selected one first).
             std::vector<Held> Claims() const;
             /// Whether any Control claim of this kind is held.

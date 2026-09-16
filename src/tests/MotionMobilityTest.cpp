@@ -123,6 +123,23 @@ TEST(MotionMobility_TableDistractAndTaxi)
     CHECK(d.ticks); CHECK(d.mayMove);
 }
 
+TEST(MotionMobility_DropDomainReleasesOnlyThatDomain)
+{
+    // An aura source and a seat source both hold Rooted; dropping the Aura domain (as death
+    // does) leaves the seat's, which has a release path of its own.
+    Mobility m;
+    const uint64 aura = InhibitSource(SourceDomain::Aura, 1, 339);
+    const uint64 seat = InhibitSource(SourceDomain::Seat, 2, 0);
+    m.Inhibit(Inhibition::Rooted, aura);
+    m.Inhibit(Inhibition::Rooted, seat);
+    CHECK_EQ(int(m.Sources(Inhibition::Rooted).size()), 2);
+
+    m.DropDomain(SourceDomain::Aura);
+    CHECK(m.Inhibited(Inhibition::Rooted));
+    CHECK_EQ(int(m.Sources(Inhibition::Rooted).size()), 1);
+    CHECK(m.Sources(Inhibition::Rooted)[0] == seat);
+}
+
 TEST(MotionMobility_SourcesAndNames)
 {
     // The domain sits in the top nibble; a ControlClaim-shaped aura identity (spell << 40)

@@ -98,6 +98,8 @@ namespace Motion
             bool Inhibit(Inhibition what, uint64 source);
             /// @return True when the reason became inactive (its last source gone); an unknown source is a no-op.
             bool Uninhibit(Inhibition what, uint64 source);
+            /// Releases every source of that domain from every inhibition; used at death.
+            void DropDomain(SourceDomain domain);
             /// True while any source holds this reason.
             bool Inhibited(Inhibition what) const;
             /// The sources holding a reason, in arrival order (the GM dump).

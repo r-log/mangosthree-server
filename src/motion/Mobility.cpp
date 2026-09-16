@@ -126,6 +126,17 @@ namespace Motion
         return sources.empty();
     }
 
+    void Mobility::DropDomain(SourceDomain domain)
+    {
+        for (size_t i = 0; i < static_cast<size_t>(Inhibition::Count); ++i)
+        {
+            std::vector<uint64>& sources = m_sources[i];
+            sources.erase(std::remove_if(sources.begin(), sources.end(),
+                [domain](uint64 source) { return static_cast<SourceDomain>(source >> 60) == domain; }),
+                sources.end());
+        }
+    }
+
     bool Mobility::Inhibited(Inhibition what) const
     {
         return !m_sources[static_cast<size_t>(what)].empty();

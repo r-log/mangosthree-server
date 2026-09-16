@@ -349,6 +349,10 @@ namespace Motion
             }
             Finish(m_commands[i], FinishReason::Died);
         }
+        // An aura source dies with its aura and a script's must not outlive the unit; Seat,
+        // FixedVehicle and Possession sources have release paths of their own and stay.
+        m_mobility.DropDomain(SourceDomain::Aura);
+        m_mobility.DropDomain(SourceDomain::Script);
         m_mobility.Inhibit(Inhibition::Dead, kDeathSource);
         m_blockedSeq = 0;   // nothing is selected afterwards
         Record(Decision::Op::Die, Kind::Idle, 0, 0, before);
@@ -380,11 +384,11 @@ namespace Motion
         {
             bits |= ReasonConfused;
         }
-        if (m_commands[static_cast<size_t>(Layer::Distract)])
+        if (HasCommand(Layer::Distract))
         {
             bits |= ReasonDistracted;
         }
-        if (m_commands[static_cast<size_t>(Layer::Taxi)])
+        if (HasCommand(Layer::Taxi))
         {
             bits |= ReasonOnTaxi;
         }
@@ -840,6 +844,19 @@ namespace Motion
             return m_claims[*index];
         }
         return m_commands[static_cast<size_t>(layer)];
+    }
+
+    bool Arbiter::HasCommand(Layer layer) const
+    {
+        if (layer == Layer::Default || layer == Layer::Combat)
+        {
+            return false;
+        }
+        if (layer == Layer::Control)
+        {
+            return !m_claims.empty();
+        }
+        return m_commands[static_cast<size_t>(layer)].has_value();
     }
 
     std::vector<Held> Arbiter::Claims() const

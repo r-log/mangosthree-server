@@ -1424,12 +1424,39 @@ TEST(MotionArbiter_Block_TaxiRefusesControlAndDeathInhibits)
     CHECK_EQ(int(m.Evaluate().reasons & ReasonOnTaxi), int(ReasonOnTaxi));
 
     m.Inhibit(Inhibition::Rooted, ROOT_SRC);                // a root does not stop the flight
+    m.Inhibit(Inhibition::Rooted, ROOT_SRC2);               // a seat's root, alongside the aura's
     CHECK(m.Evaluate().ticks);
     CHECK(m.Evaluate().mayMove);
 
     m.Die();
     CHECK(m.Inhibited(Inhibition::Dead));
     CHECK(m.Empty());
+    CHECK(m.Inhibited(Inhibition::Rooted));                 // the seat's root survives death; the aura's does not
+    CHECK(m.Uninhibit(Inhibition::Rooted, ROOT_SRC2));      // the seat releases it its own way
+    CHECK(!m.Inhibited(Inhibition::Rooted));
     CHECK(m.Uninhibit(Inhibition::Dead, kDeathSource));    // resurrection
     CHECK(!m.Inhibited(Inhibition::Dead));
+}
+
+TEST(MotionArbiter_Block_AFinishedPausedEntryFreesTheBlockForTheNext)
+{
+    Arbiter m;
+    m.InstallDefault(Kind::Wander);
+    m.Request(Claim(Kind::Fear, 0x5782));
+    m.DrainEvents();
+
+    m.Inhibit(Inhibition::Rooted, ROOT_SRC);
+    std::vector<Event> events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Suspended, Kind::Fear), 1);
+
+    CHECK(m.Release(0x5782));                                // the paused claim finishes
+    events = m.DrainEvents();
+    CHECK_EQ(CountEvents(events, Event::Kind::Finished, Kind::Fear), 1);
+    CHECK_EQ(CountBlocked(events, Event::Kind::Resumed, Kind::Fear), 0);
+    CHECK_EQ(SelectedKind(m), K(Kind::Wander));              // the Wander default is selected next
+    CHECK_EQ(CountBlocked(events, Event::Kind::Suspended, Kind::Wander), 1);   // and paused at once: the root still holds
+
+    CHECK(m.Uninhibit(Inhibition::Rooted, ROOT_SRC));
+    events = m.DrainEvents();
+    CHECK_EQ(CountBlocked(events, Event::Kind::Resumed, Kind::Wander), 1);
 }
