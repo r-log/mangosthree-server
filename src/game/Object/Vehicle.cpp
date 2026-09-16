@@ -449,6 +449,24 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
     float lx, ly, lz, lo;
     CalculateBoardingPositionOf(wx, wy, wz, wo, lx, ly, lz, lo);
 
+    // The rider's grid link moves to the vehicle's cell now, while the placement still holds
+    // world numbers (Map::PlayerRelocation reads the old cell from it). BoardPassenger below
+    // replaces the placement with the seat pose and never touches the link, so a boarding from
+    // across a cell edge would otherwise leave the rider registered in the cell it came from:
+    // every later relocation of it (the 500 ms composition, the unboard's seed) assumes the
+    // vehicle's cell.
+    if (passenger->IsInWorld() && m_owner->IsInWorld())
+    {
+        if (passenger->GetTypeId() == TYPEID_PLAYER)
+        {
+            m_owner->GetMap()->PlayerRelocation((Player*)passenger, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
+        }
+        else if (passenger->GetTypeId() == TYPEID_UNIT)
+        {
+            m_owner->GetMap()->CreatureRelocation((Creature*)passenger, m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
+        }
+    }
+
     Geometry::Placement seatPose;
     seatPose.EnterFrame(SeatFrame(), Geometry::Vector3(lx, ly, lz), lo);
     BoardPassenger(passenger, seatPose, seat);
@@ -600,6 +618,13 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
     // the non-rider branch, which is what Launch takes once IsBoarded() has flipped to false).
     passenger->InterruptMoving();
 
+    // The movement block stops naming this vehicle before the unboard relocates: the
+    // relocation's OnRelocated can run a visibility update that builds a create block from
+    // m_movementInfo for an observer entering view, which would otherwise still carry the old
+    // transport guid, offset and seat for a unit no longer aboard. On a change of vehicle the
+    // next Board writes the new vehicle's data.
+    passenger->m_movementInfo.ClearTransportData();
+
     UnBoardPassenger(passenger);
 
     // Remove passenger modifications
@@ -613,9 +638,6 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
 
     if (!changeVehicle)                                     // Send expected unboarding packages
     {
-        // Update movementInfo
-        passenger->m_movementInfo.ClearTransportData();
-
         if (passenger->GetTypeId() == TYPEID_PLAYER)
         {
             Player* pPlayer = (Player*)passenger;
