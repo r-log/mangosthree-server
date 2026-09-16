@@ -264,7 +264,22 @@ void VehicleInfo::UnBoardPassenger(WorldObject* passenger)
         return;
     }
 
-    passenger->SetTransportInfo(NULL);
+    // The seat pose is local to this vehicle's frame (BoardPassenger's own comment on
+    // TransportInfo::SetSeatPose). Stepping off must put the passenger back in the WORLD
+    // frame with the matching WORLD position -- but SetTransportInfo(NULL) below only
+    // re-tags the frame (WorldObject::RefreshFrame: "the pose is untouched: this says where
+    // the numbers are measured, not what they are"), so a passenger unboarded straight from
+    // its seat pose kept that pose's LOCAL numbers, now mislabelled as world ones. Convert
+    // first, the mirror of Board's CalculateBoardingPositionOf (world -> local):
+    // CalculateGlobalPositionOf (local -> world), the same composition UpdateGlobalPositions
+    // uses every tick to drag a seated rider along a moving vehicle, while the seat pose (and
+    // this vehicle's own frame) are still the ones in scope.
+    Geometry::Placement const& seatPose = itr->second->Seat();
+    float gx, gy, gz, go;
+    CalculateGlobalPositionOf(seatPose.X(), seatPose.Y(), seatPose.Z(), seatPose.Facing(), gx, gy, gz, go);
+
+    passenger->SetTransportInfo(NULL);           // re-tags the frame back to World (RefreshFrame)
+    passenger->Place().MoveTo(gx, gy, gz, go);    // ...now put the matching WORLD numbers in it
 
     delete itr->second;
 
