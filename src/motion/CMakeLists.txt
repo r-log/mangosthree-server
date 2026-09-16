@@ -43,6 +43,8 @@ set(SRC_GRP_MOTION
     Arbiter.cpp
     MoveIntent.h
     BehaviourModel.h
+    SimpleMoves.h
+    SimpleMoves.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 
