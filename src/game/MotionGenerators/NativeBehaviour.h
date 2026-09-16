@@ -37,8 +37,10 @@
  * native and a MotionDriver, fills the Sight, applies the Step's intent through the driver
  * or the launcher, writes the roaming pair, and performs an Outcome's recipe in order with
  * its predicates read live. The projection (the legacy type) is mapped here from the kind.
+ * Since P5-B family 2 it is also the native's Motion::Services port: every draw and every
+ * route the native asks for runs here, over the unit and the adapter's own path query.
  */
-class NativeBehaviour : public MotionBehaviour
+class NativeBehaviour : public MotionBehaviour, private Motion::Services
 {
     public:
         explicit NativeBehaviour(std::unique_ptr<Motion::Behaviour> native);
@@ -57,16 +59,33 @@ class NativeBehaviour : public MotionBehaviour
         MovementGenerator* Legacy() override { return NULL; }
         MovementGenerator const* Legacy() const override { return NULL; }
         void SpeedChanged() override { m_driver.OnSpeedChanged(); }
-        bool GetResetPosition(Unit&, float&, float&, float&, float&) const override { return false; }
+        bool GetResetPosition(Unit& owner, float& x, float& y, float& z, float& o) const override;
         bool Reachable() const override { return m_driver.Reachable(); }
 
         /// The projection of a kind (the facade's legacy type answer).
         static MovementGeneratorType Project(Motion::Kind kind);
 
+        /// The arbiter sequence this binding was given, set once by MotionMaster::BindNative
+        /// right after construction: what a barrier's IsSelectedSequence checks mid-tick.
+        void SetSequence(uint32 seq) { m_seq = seq; }
+
     private:
+        // ---- Motion::Services (private: only the native calls these, through the Behaviour hooks) ----
+        bool RandomPoint(Motion::Vector3 const& centre, float radius, Motion::Vector3& out) override;
+        bool Ground(Motion::Vector3 const& at, float& z) override;
+        float Frand(float min, float max) override;
+        uint32 Urand(uint32 min, uint32 max) override;
+        int32 Irand(int32 min, int32 max) override;
+        Motion::RouteResult Route(Motion::Vector3 const& from, Motion::Vector3 const& to, Motion::PointsArray& points) override;
+        bool Casting() const override;
+        bool WaypointPaused() const override;
+        bool Anchor(Motion::Vector3& out) const override;
+
         Motion::Sight See(Unit& owner, bool tick);   ///< tick: consume the driver's edges; else read the live spline only
         void Perform(Unit& owner, Motion::Step const& step);
         void PerformOutcome(Unit& owner, Motion::Outcome const& outcome);
+        /// The effects loop, creature-only, in order: an Outcome's recipe or a Step's mid-tick set.
+        void PerformEffects(Unit& owner, std::vector<Motion::Effect> const& effects);
         void Launch(Unit& owner, Motion::EffectLaunch const& launch);
         void Roam(Unit& owner, Motion::Roaming what);
 
@@ -74,6 +93,14 @@ class NativeBehaviour : public MotionBehaviour
         MotionDriver       m_driver;
         Motion::MoveStatus m_last;      ///< the last tick's status (EndReason and the hooks read it)
         bool               m_suspended; ///< Suspend ran since the last Activate/Resume: the mover belongs to another behaviour
+        uint32             m_seq = 0;   ///< this binding's arbiter sequence (IsSelectedSequence)
+
+        // ---- the Services port's own state: the owner of the moment, and the adapter's router ----
+        Unit* m_unit = NULL;            ///< set at the start of every hook, before the native is called
+        std::unique_ptr<Motion::IPathQuery> m_query; ///< one router per welding pass, as the generator built (rebuilt below)
+        Motion::FrameKind m_queryFrame = Motion::FrameKind::World;
+        uint32             m_queryMapId = 0;
+        uint32             m_queryInstanceId = 0;
 };
 
 #endif // MANGOS_NATIVEBEHAVIOUR_H

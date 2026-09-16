@@ -180,6 +180,8 @@ class MotionMaster
         void RelocateSelected(float x, float y, float z, float o);
         /// True iff this generator belongs to the selected behaviour (replaces MovementGenerator::IsActive).
         bool IsSelected(MovementGenerator const* generator) const;
+        /// True iff this arbiter sequence is the one selected right now (a native's mid-tick barrier).
+        bool IsSelectedSequence(uint32 seq) const;
         // ---- typed queries (P3-C) -------------------------------------------------------
         /// The selected entry's kind: what runs now (the stack's "current type"); Idle when nothing is held.
         Motion::Kind ActiveKind() const;

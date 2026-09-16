@@ -106,17 +106,69 @@ namespace
         p.goal = Vector3(x, y, z);
         return p;
     }
+
+    /// Records every call it answers; a native under test never draws or routes on its own.
+    class FakeServices : public Services
+    {
+        public:
+            bool RandomPoint(Vector3 const& centre, float radius, Vector3& out) override
+            {
+                calls.push_back("random");
+                out = Vector3(centre.x + radius, centre.y, centre.z);
+                return true;
+            }
+            bool Ground(Vector3 const& at, float& z) override
+            {
+                calls.push_back("ground");
+                z = at.z;
+                return true;
+            }
+            float Frand(float min, float /*max*/) override { calls.push_back("frand"); return min; }
+            uint32 Urand(uint32 min, uint32 /*max*/) override { calls.push_back("urand"); return min; }
+            int32 Irand(int32 min, int32 /*max*/) override { calls.push_back("irand"); return min; }
+            RouteResult Route(Vector3 const& from, Vector3 const& to, PointsArray& points) override
+            {
+                calls.push_back("route");
+                points.push_back(from);
+                points.push_back(to);
+                RouteResult r;
+                r.usable = routeUsable;
+                r.routed = routeRouted;
+                return r;
+            }
+            bool Casting() const override { return casting; }
+            bool WaypointPaused() const override { return waypointPaused; }
+            bool Anchor(Vector3& out) const override
+            {
+                if (!anchorSet)
+                {
+                    return false;
+                }
+                out = anchorPoint;
+                return true;
+            }
+
+            bool routeUsable = false;
+            bool routeRouted = false;
+            bool casting = false;
+            bool waypointPaused = false;
+            bool anchorSet = false;
+            Vector3 anchorPoint;
+            std::vector<std::string> calls;
+    };
+
+    FakeServices g_svc;
 }
 
 TEST(MotionBehaviour_PointActivatesThenLaysItsLegOnTheFirstTick)
 {
     PointBehaviour b(PointTo(10.0f, 0.0f, 0.0f));
-    Step a = b.Activate(Free());
+    Step a = b.Activate(Free(), g_svc);
     CHECK(a.stop);
     CHECK(a.resetLeg);
     CHECK(a.roaming == Roaming::SetBoth);
     CHECK(!a.apply);                                     // the leg is laid by the tick, not the activation
-    Step t = b.Tick(Free(), 100);
+    Step t = b.Tick(Free(), g_svc, 100);
     CHECK(t.apply);
     CHECK(t.intent.act == MoveIntent::Act::Move);
     CHECK_EQ(t.intent.goal.x, 10.0f);
@@ -128,7 +180,7 @@ TEST(MotionBehaviour_PointActivationUnderCanNotReactDoesNothing)
     PointBehaviour b(PointTo(10.0f, 0.0f, 0.0f));
     Sight s = Free();
     s.canReact = false;
-    Step a = b.Activate(s);
+    Step a = b.Activate(s, g_svc);
     CHECK(!a.stop);
     CHECK(a.roaming == Roaming::Keep);
 }
@@ -136,10 +188,10 @@ TEST(MotionBehaviour_PointActivationUnderCanNotReactDoesNothing)
 TEST(MotionBehaviour_PointHoldsWithMoveBitClearedWhileItCannotMove)
 {
     PointBehaviour b(PointTo(10.0f, 0.0f, 0.0f));
-    b.Activate(Free());
+    b.Activate(Free(), g_svc);
     Sight s = Free();
     s.canMove = false;
-    Step t = b.Tick(s, 100);
+    Step t = b.Tick(s, g_svc, 100);
     CHECK(t.intent.act == MoveIntent::Act::Hold);
     CHECK(t.roaming == Roaming::ClearMove);
 }
@@ -148,10 +200,10 @@ TEST(MotionBehaviour_PointEndsAndInformsOnArrivedBlockedAndCut)
 {
     {
         PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f, 55));
-        b.Activate(Free());
-        CHECK(b.Tick(Arrived(), 100).intent.act == MoveIntent::Act::Done);
+        b.Activate(Free(), g_svc);
+        CHECK(b.Tick(Arrived(), g_svc, 100).intent.act == MoveIntent::Act::Done);
         CHECK(b.EndReason(Free()) == FinishReason::Arrived);
-        Outcome o = b.Finish(FinishReason::Arrived, Free());
+        Outcome o = b.Finish(FinishReason::Arrived, Free(), g_svc);
         CHECK(HasEffect(o, Effect::Inform));
         CHECK(HasEffect(o, Effect::SummonedInform));
         CHECK_EQ(o.effects[0].id, 55u);
@@ -159,17 +211,17 @@ TEST(MotionBehaviour_PointEndsAndInformsOnArrivedBlockedAndCut)
     }
     {
         PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f));
-        b.Activate(Free());
-        CHECK(b.Tick(Blocked(), 100).intent.act == MoveIntent::Act::Done);
+        b.Activate(Free(), g_svc);
+        CHECK(b.Tick(Blocked(), g_svc, 100).intent.act == MoveIntent::Act::Done);
         CHECK(b.EndReason(Free()) == FinishReason::Blocked);
-        CHECK(HasEffect(b.Finish(FinishReason::Blocked, Free()), Effect::Inform));
+        CHECK(HasEffect(b.Finish(FinishReason::Blocked, Free(), g_svc), Effect::Inform));
     }
     {
         PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f));
-        b.Activate(Free());
-        CHECK(b.Tick(Cut(), 100).intent.act == MoveIntent::Act::Done);
+        b.Activate(Free(), g_svc);
+        CHECK(b.Tick(Cut(), g_svc, 100).intent.act == MoveIntent::Act::Done);
         CHECK(b.EndReason(Free()) == FinishReason::Cut);
-        CHECK(HasEffect(b.Finish(FinishReason::Cut, Free()), Effect::Inform));   // told anyway, as the generator
+        CHECK(HasEffect(b.Finish(FinishReason::Cut, Free(), g_svc), Effect::Inform));   // told anyway, as the generator
     }
 }
 
@@ -181,9 +233,9 @@ TEST(MotionBehaviour_PointDisplacedInformsNothingAndInterrupts)
     for (FinishReason reason : reasons)
     {
         PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f));
-        b.Activate(Free());
-        b.Tick(Free(), 100);
-        Outcome o = b.Finish(reason, Free());
+        b.Activate(Free(), g_svc);
+        b.Tick(Free(), g_svc, 100);
+        Outcome o = b.Finish(reason, Free(), g_svc);
         CHECK(o.effects.empty());
         CHECK(o.interrupt);
         CHECK(o.roaming == Roaming::ClearBoth);
@@ -193,26 +245,26 @@ TEST(MotionBehaviour_PointDisplacedInformsNothingAndInterrupts)
 TEST(MotionBehaviour_PointSuspendedThenResumedWithResetRelaysFromTheSpot)
 {
     PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f));
-    b.Activate(Free());
-    b.Tick(Free(), 100);
+    b.Activate(Free(), g_svc);
+    b.Tick(Free(), g_svc, 100);
     Step s = b.Suspend();
     CHECK(s.interrupt);
     CHECK(s.resetLeg);
     CHECK(s.roaming == Roaming::ClearBoth);
-    Step r = b.Resume(Free(), true);
+    Step r = b.Resume(Free(), g_svc, true);
     CHECK(r.stop);
     CHECK(r.resetLeg);
-    CHECK(b.Resume(Free(), false).roaming == Roaming::Keep);
+    CHECK(b.Resume(Free(), g_svc, false).roaming == Roaming::Keep);
     // A leg cut while suspended is not the behaviour's own end: no inform on a Cleared finish either way.
-    Outcome o = b.Finish(FinishReason::Cleared, Free());
+    Outcome o = b.Finish(FinishReason::Cleared, Free(), g_svc);
     CHECK(!HasEffect(o, Effect::Inform));   // m_done never set: the tick never saw an edge
 }
 
 TEST(MotionBehaviour_PointRestatesTheGoalOnPartial)
 {
     PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f));
-    b.Activate(Free());
-    Step t = b.Tick(Partial(), 100);
+    b.Activate(Free(), g_svc);
+    Step t = b.Tick(Partial(), g_svc, 100);
     CHECK(t.intent.act == MoveIntent::Act::Move);   // not an end
     CHECK_EQ(t.intent.goal.x, 1.0f);                // the same goal, re-stated
 }
@@ -223,35 +275,35 @@ TEST(MotionBehaviour_AssistRunCallsAssistanceOnEveryNonDisplacingFinishAndNeverI
     p.kind = Kind::AssistRun;
     p.flags = MOVE_WALK;
     PointBehaviour b(p);
-    b.Activate(Free());
-    Step moving = b.Tick(Free(), 100);
+    b.Activate(Free(), g_svc);
+    Step moving = b.Tick(Free(), g_svc, 100);
     CHECK(moving.intent.act == MoveIntent::Act::Move);
     CHECK(moving.intent.Has(MOVE_WALK));            // the flags pass through to the leg
-    b.Tick(Arrived(), 100);
-    Outcome arrived = b.Finish(FinishReason::Arrived, Free());
+    b.Tick(Arrived(), g_svc, 100);
+    Outcome arrived = b.Finish(FinishReason::Arrived, Free(), g_svc);
     CHECK(!HasEffect(arrived, Effect::Inform));
     CHECK(HasEffect(arrived, Effect::CallAssistance));
     CHECK(HasEffect(arrived, Effect::SeekAssistDistract));
     CHECK(arrived.effects[0].kind == Effect::CallAssistance);   // the order: assistance first, then the distract
     Sight dead = Free();
     dead.alive = false;
-    Outcome died = b.Finish(FinishReason::Died, dead);
+    Outcome died = b.Finish(FinishReason::Died, dead, g_svc);
     CHECK(HasEffect(died, Effect::CallAssistance));
     CHECK(!HasEffect(died, Effect::SeekAssistDistract));       // not alive: no distract
-    CHECK(!HasEffect(b.Finish(FinishReason::Superseded, Free()), Effect::CallAssistance));
+    CHECK(!HasEffect(b.Finish(FinishReason::Superseded, Free(), g_svc), Effect::CallAssistance));
 }
 
 TEST(MotionBehaviour_DistractCountsDownStrictlyAndAssistDistractAttacksOnFinish)
 {
     DistractBehaviour d(Kind::Distract, 1000);
-    CHECK(d.Tick(Free(), 400).intent.act != MoveIntent::Act::Done);
-    CHECK(d.Tick(Free(), 600).intent.act != MoveIntent::Act::Done);   // equality: alive at zero
-    CHECK(d.Tick(Free(), 1).intent.act == MoveIntent::Act::Done);
+    CHECK(d.Tick(Free(), g_svc, 400).intent.act != MoveIntent::Act::Done);
+    CHECK(d.Tick(Free(), g_svc, 600).intent.act != MoveIntent::Act::Done);   // equality: alive at zero
+    CHECK(d.Tick(Free(), g_svc, 1).intent.act == MoveIntent::Act::Done);
     CHECK(d.EndReason(Free()) == FinishReason::Expired);
-    CHECK(d.Finish(FinishReason::Expired, Free()).effects.empty());
+    CHECK(d.Finish(FinishReason::Expired, Free(), g_svc).effects.empty());
     DistractBehaviour a(Kind::AssistDistract, 10);
-    CHECK(HasEffect(a.Finish(FinishReason::Superseded, Free()), Effect::AttackVictim));
-    CHECK(HasEffect(a.Finish(FinishReason::Expired, Free()), Effect::AttackVictim));
+    CHECK(HasEffect(a.Finish(FinishReason::Superseded, Free(), g_svc), Effect::AttackVictim));
+    CHECK(HasEffect(a.Finish(FinishReason::Expired, Free(), g_svc), Effect::AttackVictim));
 }
 
 TEST(MotionBehaviour_EffectLaunchesOnceHoldsWhileTravelingAndEnds)
@@ -260,16 +312,16 @@ TEST(MotionBehaviour_EffectLaunchesOnceHoldsWhileTravelingAndEnds)
     l.kind = EffectLaunch::Jump;
     l.point = Vector3(5.0f, 5.0f, 0.0f);
     EffectBehaviour e(66, l);
-    Step a = e.Activate(Free());
+    Step a = e.Activate(Free(), g_svc);
     CHECK(a.apply);
     CHECK(a.intent.act == MoveIntent::Act::Launch);
-    CHECK(!e.Activate(Free()).apply);   // once
-    CHECK(e.Tick(Traveling(), 100).intent.act == MoveIntent::Act::Hold);
+    CHECK(!e.Activate(Free(), g_svc).apply);   // once
+    CHECK(e.Tick(Traveling(), g_svc, 100).intent.act == MoveIntent::Act::Hold);
     Sight landed = Free();
     landed.landed = true;
-    CHECK(e.Tick(landed, 100).intent.act == MoveIntent::Act::Done);
+    CHECK(e.Tick(landed, g_svc, 100).intent.act == MoveIntent::Act::Done);
     CHECK(e.EndReason(landed) == FinishReason::Arrived);
-    Outcome o = e.Finish(FinishReason::Arrived, landed);
+    Outcome o = e.Finish(FinishReason::Arrived, landed, g_svc);
     CHECK(o.effects.size() == 2);
     CHECK(o.effects[0].kind == Effect::Inform);
     CHECK_EQ(o.effects[0].id, 66u);
@@ -285,27 +337,27 @@ TEST(MotionBehaviour_EffectDisplacedInformsOnlyIfLanded_CutOnItsOwnTickInforms)
     for (FinishReason reason : displacing)
     {
         EffectBehaviour e(71, l);
-        e.Activate(Free());
-        CHECK(e.Finish(reason, Free()).effects.empty());    // flying: nothing happened
+        e.Activate(Free(), g_svc);
+        CHECK(e.Finish(reason, Free(), g_svc).effects.empty());    // flying: nothing happened
         Sight landed = Free();
         landed.landed = true;
-        Outcome o = e.Finish(reason, landed);
+        Outcome o = e.Finish(reason, landed, g_svc);
         CHECK(HasEffect(o, Effect::Inform));            // landed, unconsumed: the effect happened
         CHECK(HasEffect(o, Effect::ReengageVictim));    // the whole finalizer runs when landed, re-engage included
     }
     {
         EffectBehaviour e(72, l);
-        e.Activate(Free());
-        CHECK(e.Tick(Cut(), 100).intent.act == MoveIntent::Act::Done);   // not traveling: over
+        e.Activate(Free(), g_svc);
+        CHECK(e.Tick(Cut(), g_svc, 100).intent.act == MoveIntent::Act::Done);   // not traveling: over
         CHECK(e.EndReason(Cut()) == FinishReason::Cut);
-        Outcome o = e.Finish(FinishReason::Cut, Cut());
+        Outcome o = e.Finish(FinishReason::Cut, Cut(), g_svc);
         CHECK(HasEffect(o, Effect::Inform));            // its own tick ended it: told anyway
         CHECK(HasEffect(o, Effect::ReengageVictim));
     }
     {
         EffectBehaviour e(73, l);
-        e.Activate(Free());
-        Outcome o = e.Finish(FinishReason::Died, Free());   // not displacing, not landed, not done
+        e.Activate(Free(), g_svc);
+        Outcome o = e.Finish(FinishReason::Died, Free(), g_svc);   // not displacing, not landed, not done
         CHECK(!HasEffect(o, Effect::Inform));
         CHECK(HasEffect(o, Effect::ReengageVictim));        // the re-engage is independent of the inform
     }
@@ -320,20 +372,20 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
     PointBehaviour b(p);
     CHECK(b.TracksTarget());
     CHECK_EQ(b.Target(), uint64(0x42ull));
-    b.Activate(Free());
+    b.Activate(Free(), g_svc);
     Sight s = Free();
     s.hasTarget = true;
     s.targetPoint = Vector3(10.0f, 0.0f, 0.0f);
-    Step t1 = b.Tick(s, 100);
+    Step t1 = b.Tick(s, g_svc, 100);
     CHECK(t1.intent.act == MoveIntent::Act::Move);
     CHECK_EQ(t1.intent.goal.x, 10.0f);
     CHECK_EQ(t1.intent.speed, 24.0f);
     s.targetPoint = Vector3(11.0f, 0.0f, 0.0f);            // 1 yd: under the tolerance
-    CHECK_EQ(b.Tick(s, 100).intent.goal.x, 10.0f);
+    CHECK_EQ(b.Tick(s, g_svc, 100).intent.goal.x, 10.0f);
     CHECK_EQ(b.Relays(), 0u);
     s.targetPoint = Vector3(13.0f, 0.0f, 0.0f);            // 3 yd, but only 200 ms since the leg
-    CHECK_EQ(b.Tick(s, 100).intent.goal.x, 10.0f);
-    CHECK_EQ(b.Tick(s, 300).intent.goal.x, 13.0f);         // 600 ms: within budget, re-laid
+    CHECK_EQ(b.Tick(s, g_svc, 100).intent.goal.x, 10.0f);
+    CHECK_EQ(b.Tick(s, g_svc, 300).intent.goal.x, 13.0f);         // 600 ms: within budget, re-laid
     CHECK_EQ(b.Relays(), 1u);
     // A leg that ended where the target WAS: the target walked on past the tolerance, so a
     // fresh leg is laid at once (no budget wait), not an arrival.
@@ -341,7 +393,7 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
         Sight ended = s;
         ended.status.arrived = true;
         ended.targetPoint = Vector3(16.0f, 0.0f, 0.0f);   // 3 yd past the laid goal of 13
-        Step again = b.Tick(ended, 50);
+        Step again = b.Tick(ended, g_svc, 50);
         CHECK(again.intent.act == MoveIntent::Act::Move);
         CHECK_EQ(again.intent.goal.x, 16.0f);
         CHECK_EQ(b.Relays(), 2u);
@@ -349,7 +401,7 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
         Sight close = s;
         close.status.arrived = true;
         close.targetPoint = Vector3(16.5f, 0.0f, 0.0f);
-        CHECK(b.Tick(close, 50).intent.act == MoveIntent::Act::Done);
+        CHECK(b.Tick(close, g_svc, 50).intent.act == MoveIntent::Act::Done);
         CHECK(b.EndReason(close) == FinishReason::Arrived);
     }
     {
@@ -357,12 +409,12 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
         lp.target = 0x42ull;
         lp.informs = false;
         PointBehaviour lost(lp);
-        lost.Activate(Free());
+        lost.Activate(Free(), g_svc);
         Sight gone = Free();
         gone.hasTarget = false;
-        CHECK(lost.Tick(gone, 100).intent.act == MoveIntent::Act::Done);
+        CHECK(lost.Tick(gone, g_svc, 100).intent.act == MoveIntent::Act::Done);
         CHECK(lost.EndReason(gone) == FinishReason::TargetLost);
-        CHECK(lost.Finish(FinishReason::TargetLost, gone).effects.empty());   // never informs
+        CHECK(lost.Finish(FinishReason::TargetLost, gone, g_svc).effects.empty());   // never informs
     }
 
     // `informs = false` must hold on a real edge too, not only on TargetLost (which never
@@ -372,15 +424,15 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
         ap.target = 0x42ull;
         ap.informs = false;
         PointBehaviour arriving(ap);
-        arriving.Activate(Free());
+        arriving.Activate(Free(), g_svc);
         Sight there = Free();
         there.hasTarget = true;
         there.targetPoint = Vector3(10.0f, 0.0f, 0.0f);
-        CHECK(arriving.Tick(there, 100).intent.act == MoveIntent::Act::Move);   // the first leg
+        CHECK(arriving.Tick(there, g_svc, 100).intent.act == MoveIntent::Act::Move);   // the first leg
         there.status.arrived = true;                                             // ended at the target's point
-        CHECK(arriving.Tick(there, 100).intent.act == MoveIntent::Act::Done);
+        CHECK(arriving.Tick(there, g_svc, 100).intent.act == MoveIntent::Act::Done);
         CHECK(arriving.EndReason(there) == FinishReason::Arrived);
-        Outcome arrivedOutcome = arriving.Finish(FinishReason::Arrived, there);
+        Outcome arrivedOutcome = arriving.Finish(FinishReason::Arrived, there, g_svc);
         CHECK(!HasEffect(arrivedOutcome, Effect::Inform));
         CHECK(!HasEffect(arrivedOutcome, Effect::SummonedInform));
     }
@@ -390,9 +442,9 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
         PointBehaviour::Params sp = PointTo(1.0f, 2.0f, 3.0f, 0);
         sp.informs = false;
         PointBehaviour swoop(sp);
-        swoop.Activate(Free());
-        CHECK(swoop.Tick(Arrived(), 100).intent.act == MoveIntent::Act::Done);
-        Outcome swoopOutcome = swoop.Finish(FinishReason::Arrived, Free());
+        swoop.Activate(Free(), g_svc);
+        CHECK(swoop.Tick(Arrived(), g_svc, 100).intent.act == MoveIntent::Act::Done);
+        Outcome swoopOutcome = swoop.Finish(FinishReason::Arrived, Free(), g_svc);
         CHECK(!HasEffect(swoopOutcome, Effect::Inform));
         CHECK(!HasEffect(swoopOutcome, Effect::SummonedInform));
     }
@@ -401,9 +453,9 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
 TEST(MotionBehaviour_IdleDoesNothingAndFinishesSilently)
 {
     IdleBehaviour i;
-    CHECK(!i.Activate(Free()).apply);
-    CHECK(!i.Tick(Free(), 100).apply);
-    CHECK(i.Finish(FinishReason::Superseded, Free()).effects.empty());
+    CHECK(!i.Activate(Free(), g_svc).apply);
+    CHECK(!i.Tick(Free(), g_svc, 100).apply);
+    CHECK(i.Finish(FinishReason::Superseded, Free(), g_svc).effects.empty());
 }
 
 TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsAPoint)
@@ -413,13 +465,13 @@ TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsAPoint)
     p.flags = MOVE_FLY | MOVE_STRAIGHT;
     PointBehaviour b(p);
     CHECK(b.Kind() == Kind::FlyLand);
-    b.Activate(Free());
-    Step t = b.Tick(Free(), 100);
+    b.Activate(Free(), g_svc);
+    Step t = b.Tick(Free(), g_svc, 100);
     CHECK(t.intent.act == MoveIntent::Act::Move);
     CHECK(t.intent.Has(MOVE_FLY));
     CHECK(t.intent.Has(MOVE_STRAIGHT));
-    CHECK(b.Tick(Arrived(), 100).intent.act == MoveIntent::Act::Done);
-    Outcome o = b.Finish(FinishReason::Arrived, Free());
+    CHECK(b.Tick(Arrived(), g_svc, 100).intent.act == MoveIntent::Act::Done);
+    Outcome o = b.Finish(FinishReason::Arrived, Free(), g_svc);
     CHECK(HasEffect(o, Effect::Inform));
     CHECK(o.effects[0].who == Kind::FlyLand);
     CHECK_EQ(o.effects[0].id, 5u);

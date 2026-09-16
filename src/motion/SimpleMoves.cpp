@@ -39,7 +39,7 @@ namespace Motion
 
     PointBehaviour::PointBehaviour(Params const& p) : m_p(p) {}
 
-    Step PointBehaviour::Activate(Sight const& sight)
+    Step PointBehaviour::Activate(Sight const& sight, Services& /*svc*/)
     {
         // The generator's Initialize: under CAN_NOT_REACT | NOT_MOVE it returned at once;
         // otherwise StopMoving, both roaming bits, and the leg laid on the first tick.
@@ -66,12 +66,12 @@ namespace Motion
         return s;
     }
 
-    Step PointBehaviour::Resume(Sight const& sight, bool reset)
+    Step PointBehaviour::Resume(Sight const& sight, Services& svc, bool reset)
     {
-        return reset ? Activate(sight) : Step::None();   // the generator's Reset is its Initialize
+        return reset ? Activate(sight, svc) : Step::None();   // the generator's Reset is its Initialize
     }
 
-    Step PointBehaviour::Tick(Sight const& sight, uint32 diff)
+    Step PointBehaviour::Tick(Sight const& sight, Services& /*svc*/, uint32 diff)
     {
         if (!sight.canMove)
         {
@@ -141,7 +141,7 @@ namespace Motion
         return s;
     }
 
-    Outcome PointBehaviour::Finish(FinishReason why, Sight const& sight)
+    Outcome PointBehaviour::Finish(FinishReason why, Sight const& sight, Services& /*svc*/)
     {
         Outcome o;
         o.roaming = Roaming::ClearBoth;
@@ -170,7 +170,7 @@ namespace Motion
 
     // ---- Distract -----------------------------------------------------------------
 
-    Step DistractBehaviour::Tick(Sight const& /*sight*/, uint32 diff)
+    Step DistractBehaviour::Tick(Sight const& /*sight*/, Services& /*svc*/, uint32 diff)
     {
         if (diff > m_timer)   // strict, as the generator: equality leaves it alive at zero
         {
@@ -180,7 +180,7 @@ namespace Motion
         return Step::None();   // the generator touched nothing; the facing was the caller's
     }
 
-    Outcome DistractBehaviour::Finish(FinishReason /*why*/, Sight const& /*sight*/)
+    Outcome DistractBehaviour::Finish(FinishReason /*why*/, Sight const& /*sight*/, Services& /*svc*/)
     {
         Outcome o;
         if (m_kind == Motion::Kind::AssistDistract)
@@ -192,7 +192,7 @@ namespace Motion
 
     // ---- Effect -------------------------------------------------------------------
 
-    Step EffectBehaviour::Activate(Sight const& /*sight*/)
+    Step EffectBehaviour::Activate(Sight const& /*sight*/, Services& /*svc*/)
     {
         if (m_launched || m_launch.kind == EffectLaunch::None)
         {
@@ -202,7 +202,7 @@ namespace Motion
         return Step::Of(MoveIntent::Launch(m_launch));   // once
     }
 
-    Step EffectBehaviour::Tick(Sight const& sight, uint32 /*diff*/)
+    Step EffectBehaviour::Tick(Sight const& sight, Services& /*svc*/, uint32 /*diff*/)
     {
         // `traveling`, not `arrived`: a spline never launched must end at once.
         if (sight.status.traveling)
@@ -213,7 +213,7 @@ namespace Motion
         return Step::Of(MoveIntent::Done());
     }
 
-    Outcome EffectBehaviour::Finish(FinishReason why, Sight const& sight)
+    Outcome EffectBehaviour::Finish(FinishReason why, Sight const& sight, Services& /*svc*/)
     {
         Outcome o;
         if (Displacing(why) && !sight.landed)

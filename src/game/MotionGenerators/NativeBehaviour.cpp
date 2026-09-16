@@ -33,9 +33,20 @@
 #include "Map.h"
 #include "Object.h"
 #include "ObjectLookup.h"
+#include "ObjectMgr.h"
+#include "ScriptMgr.h"
 #include "World.h"
+#include "Log/Log.h"
+#include "Utilities/Util.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
+
+namespace
+{
+    /// A native's continuation may loop within one tick (again = true) without elapsed time
+    /// advancing; this bounds it against a policy bug that never converges.
+    constexpr uint32 kMaxContinuation = 16;
+}
 
 /**
  * @brief Constructor: takes the native over, with a driver of its own.
@@ -115,6 +126,8 @@ Motion::Sight NativeBehaviour::See(Unit& owner, bool tick)
     s.canMove = !owner.hasUnitState(UNIT_STAT_CAN_NOT_MOVE);
     s.landed = owner.movespline->Finalized() && !owner.movespline->Cut();
     s.alive = owner.IsAlive();
+    s.runningState = owner.hasUnitState(UNIT_STAT_RUNNING_STATE);
+    s.levitating = owner.IsLevitating();
     if (m_native->TracksTarget())
     {
         if (Unit* target = ObjectLookup::GetUnit(owner, ObjectGuid(m_native->Target())))
@@ -143,6 +156,8 @@ void NativeBehaviour::Roam(Unit& owner, Motion::Roaming what)
         case Motion::Roaming::SetBoth:   owner.addUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE); break;
         case Motion::Roaming::ClearMove: owner.clearUnitState(UNIT_STAT_ROAMING_MOVE); break;
         case Motion::Roaming::ClearBoth: owner.clearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE); break;
+        case Motion::Roaming::SetRoam:   owner.addUnitState(UNIT_STAT_ROAMING); break;
+        case Motion::Roaming::SetMove:   owner.addUnitState(UNIT_STAT_ROAMING_MOVE); break;
         case Motion::Roaming::Keep:      break;
     }
 }
@@ -192,6 +207,7 @@ void NativeBehaviour::Launch(Unit& owner, Motion::EffectLaunch const& launch)
  */
 void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
 {
+    PerformEffects(owner, step.effects);
     if (step.stop)
     {
         owner.StopMoving();
@@ -229,8 +245,10 @@ void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
  */
 void NativeBehaviour::Activate(Unit& owner)
 {
+    m_unit = &owner;
     m_suspended = false;
-    Perform(owner, m_native->Activate(See(owner, false)));
+    m_query.reset();   // a fresh welding pass starts from a fresh router, as the generator's did
+    Perform(owner, m_native->Activate(See(owner, false), *this));
 }
 
 /**
@@ -239,6 +257,7 @@ void NativeBehaviour::Activate(Unit& owner)
  */
 void NativeBehaviour::Suspend(Unit& owner)
 {
+    m_unit = &owner;
     if (m_suspended)
     {
         return;   // a block's and a mask's Suspended may both arrive: one interrupt
@@ -254,12 +273,18 @@ void NativeBehaviour::Suspend(Unit& owner)
  */
 void NativeBehaviour::Resume(Unit& owner, bool reset)
 {
+    m_unit = &owner;
     m_suspended = false;
-    Perform(owner, m_native->Resume(See(owner, false), reset));
+    if (reset)
+    {
+        m_query.reset();   // re-laying from the spot starts from a fresh router, as Activate does
+    }
+    Perform(owner, m_native->Resume(See(owner, false), *this, reset));
 }
 
 /**
- * @brief One tick of the selected behaviour.
+ * @brief One tick of the selected behaviour: a continuation of up to kMaxContinuation rounds,
+ *        each performing its effects and, at the end, a barrier or a real result.
  * @param owner The moving unit.
  * @param diff The elapsed update time in milliseconds.
  * @return False when the native asked to be retired.
@@ -268,14 +293,30 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
 {
     // No IsSelected re-entrancy guard here, unlike the legacy adapter: a native's tick performs
     // no hook and issues no facade call -- every effect it asks for runs from Finish.
+    m_unit = &owner;
     const Motion::Sight sight = See(owner, true);
-    const Motion::Step step = m_native->Tick(sight, diff);
-    if (step.apply && step.intent.act == Motion::MoveIntent::Act::Done)
+    uint32 elapsed = diff;
+    for (uint32 round = 0; round < kMaxContinuation; ++round)
     {
-        Roam(owner, step.roaming);
-        return false;
+        const Motion::Step step = m_native->Tick(sight, *this, elapsed);
+        PerformEffects(owner, step.effects);
+        if (step.barrier && !(owner.IsAlive() && owner.IsInWorld() && owner.GetMotionMaster()->IsSelectedSequence(m_seq)))
+        {
+            return true;   // the effects replaced or removed us: the generator returned Hold here
+        }
+        if (step.again)
+        {
+            elapsed = 0;
+            continue;
+        }
+        if (step.apply && step.intent.act == Motion::MoveIntent::Act::Done)
+        {
+            Roam(owner, step.roaming);
+            return false;
+        }
+        Perform(owner, step);
+        return true;
     }
-    Perform(owner, step);
     return true;
 }
 
@@ -286,6 +327,7 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
  */
 Motion::FinishReason NativeBehaviour::EndReason(Unit& owner) const
 {
+    const_cast<NativeBehaviour*>(this)->m_unit = &owner;
     Motion::Sight s;
     s.status = m_last;
     s.landed = owner.movespline->Finalized() && !owner.movespline->Cut();
@@ -299,7 +341,29 @@ Motion::FinishReason NativeBehaviour::EndReason(Unit& owner) const
  */
 void NativeBehaviour::Finish(Unit& owner, Motion::FinishReason why)
 {
-    PerformOutcome(owner, m_native->Finish(why, See(owner, false)));
+    m_unit = &owner;
+    PerformOutcome(owner, m_native->Finish(why, See(owner, false), *this));
+}
+
+/**
+ * @brief The home/reset position a default behaviour answers (the patrol); asks the native.
+ * @param owner The moving unit.
+ * @param x, y, z, o Filled with the position and its facing when one exists.
+ * @return False when the native has none.
+ */
+bool NativeBehaviour::GetResetPosition(Unit& owner, float& x, float& y, float& z, float& o) const
+{
+    NativeBehaviour* self = const_cast<NativeBehaviour*>(this);
+    self->m_unit = &owner;
+    Motion::Vector3 pos;
+    if (!m_native->ResetPosition(self->See(owner, false), *self, pos, o))
+    {
+        return false;
+    }
+    x = pos.x;
+    y = pos.y;
+    z = pos.z;
+    return true;
 }
 
 /**
@@ -314,14 +378,29 @@ void NativeBehaviour::PerformOutcome(Unit& owner, Motion::Outcome const& outcome
     {
         owner.InterruptMoving();   // a suspended behaviour was interrupted at its Suspend
     }
+    PerformEffects(owner, outcome.effects);
+}
+
+/**
+ * @brief The effects loop, creature-only, in the order given: an Outcome's finishing recipe
+ *        or a Step's mid-tick set (the shell performs these before the intent).
+ * @param owner The moving unit.
+ * @param effects The effects to perform, in order.
+ */
+void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> const& effects)
+{
+    if (effects.empty())
+    {
+        return;
+    }
     if (owner.GetTypeId() != TYPEID_UNIT)
     {
         return;   // every effect below is a creature's (the generators returned here too)
     }
     Creature& creature = static_cast<Creature&>(owner);
-    for (size_t i = 0; i < outcome.effects.size(); ++i)
+    for (size_t i = 0; i < effects.size(); ++i)
     {
-        Motion::Effect const& e = outcome.effects[i];
+        Motion::Effect const& e = effects[i];
         switch (e.kind)
         {
             case Motion::Effect::Inform:
@@ -390,6 +469,128 @@ void NativeBehaviour::PerformOutcome(Unit& owner, Motion::Outcome const& outcome
                     }
                 }
                 break;
+            case Motion::Effect::InformRaw:
+                if (creature.AI())
+                {
+                    creature.AI()->MovementInform(e.raw, e.id);
+                }
+                break;
+            case Motion::Effect::RunScript:
+                creature.GetMap()->ScriptsStart(DBS_ON_CREATURE_MOVEMENT, e.id, &creature, &creature);
+                break;
+            case Motion::Effect::Emote:
+                creature.HandleEmote(e.id);
+                break;
+            case Motion::Effect::CastSpell:
+                creature.CastSpell(&creature, e.id, false);
+                break;
+            case Motion::Effect::SetDisplay:
+                creature.SetDisplayId(e.id);
+                break;
+            case Motion::Effect::Say:
+                if (MangosStringLocale const* textData = sObjectMgr.GetMangosStringLocale(int32(e.id)))
+                {
+                    creature.MonsterText(textData, NULL);
+                }
+                else
+                {
+                    sLog.outErrorDb("%s attempted to do text %i, but required text-data could not be found",
+                                     creature.GetGuidStr().c_str(), int32(e.id));
+                }
+                break;
+            case Motion::Effect::ClearEmoteState:
+                creature.SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+                break;
+            case Motion::Effect::SetWalk:
+                creature.SetWalk(e.flag, false);
+                break;
+            case Motion::Effect::ClearWaypointPaused:
+                creature.clearUnitState(UNIT_STAT_WAYPOINT_PAUSED);
+                break;
         }
     }
+}
+
+// ---- Motion::Services -----------------------------------------------------------------
+
+/**
+ * @brief The frame's mover-aware reachable random point; every draw the native makes goes here.
+ */
+bool NativeBehaviour::RandomPoint(Motion::Vector3 const& centre, float radius, Motion::Vector3& out)
+{
+    const std::optional<Motion::Vector3> p = Motion::FrameFor(*m_unit).RandomPoint(*m_unit, centre, radius);
+    if (!p)
+    {
+        return false;
+    }
+    out = *p;
+    return true;
+}
+
+/**
+ * @brief The floor under a point in the mover's frame.
+ */
+bool NativeBehaviour::Ground(Motion::Vector3 const& at, float& z)
+{
+    Motion::IMotionFrame const& frame = Motion::FrameFor(*m_unit);
+    const std::optional<Motion::Vector3> floor = frame.GroundPoint(*m_unit, frame.MoverPosition(*m_unit), at);
+    if (!floor)
+    {
+        return false;
+    }
+    z = floor->z;
+    return true;
+}
+
+float NativeBehaviour::Frand(float a, float b) { return frand(a, b); }
+uint32 NativeBehaviour::Urand(uint32 a, uint32 b) { return urand(a, b); }
+int32 NativeBehaviour::Irand(int32 a, int32 b) { return irand(a, b); }
+
+/**
+ * @brief A route in the mover's frame, over the adapter's own router.
+ *
+ * One router per welding pass, as the generator built one per BuildSmoothPath pass
+ * (WaypointMovementGenerator.cpp:366): rebuilt whenever the frame, the map or the instance
+ * changed (the driver's own Query() test, MotionDriver.cpp:56-73), and dropped at every
+ * Activate and every Resume(reset) so a fresh pass starts from a fresh query.
+ */
+Motion::RouteResult NativeBehaviour::Route(Motion::Vector3 const& from, Motion::Vector3 const& to, Motion::PointsArray& points)
+{
+    Motion::RouteResult r;
+    Motion::IMotionFrame const& frame = Motion::FrameFor(*m_unit);
+    if (!m_query || m_queryFrame != frame.Kind() ||
+        m_queryMapId != m_unit->GetMapId() || m_queryInstanceId != m_unit->GetInstanceId())
+    {
+        m_query = frame.CreatePathQuery(*m_unit);
+        m_queryFrame = frame.Kind();
+        m_queryMapId = m_unit->GetMapId();
+        m_queryInstanceId = m_unit->GetInstanceId();
+    }
+    r.usable = m_query->Calculate(from, to, false, 0.0f);
+    r.routed = r.usable && m_query->Routed();
+    r.partial = m_query->Partial();
+    r.progresses = m_query->Progresses();
+    if (r.usable)
+    {
+        points = m_query->Points();
+    }
+    return r;
+}
+
+bool NativeBehaviour::Casting() const { return m_unit->IsNonMeleeSpellCasted(false, false, true); }
+bool NativeBehaviour::WaypointPaused() const { return m_unit->hasUnitState(UNIT_STAT_WAYPOINT_PAUSED); }
+
+bool NativeBehaviour::Anchor(Motion::Vector3& out) const
+{
+    if (m_unit->GetTypeId() != TYPEID_UNIT)
+    {
+        return false;
+    }
+    Geometry::Vector3 const& a = static_cast<Creature*>(m_unit)->CombatAnchor();
+    if (a.x == 0.0f && a.y == 0.0f && a.z == 0.0f)
+    {
+        return false;
+    }
+    out = Motion::Vector3(a.x, a.y, a.z);
+    return true;
 }
