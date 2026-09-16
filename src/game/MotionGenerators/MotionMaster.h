@@ -40,7 +40,6 @@ class MovementGenerator;
 class MotionBehaviour;
 class WaypointMovementGenerator;
 class FlightPathMovementGenerator;
-struct EffectLaunch;
 
 // Creature Entry ID used for waypoints show, visible only for GMs
 #define VISUAL_WAYPOINT 1
@@ -78,6 +77,8 @@ enum MovementGeneratorType
 
 namespace Motion
 {
+    struct EffectLaunch;
+
     /**
      * @brief The identity of a Control claim: the aura that holds it.
      * @param spellId The aura's spell (0 for the low-health flee and for a script's fear).
@@ -231,10 +232,10 @@ class MotionMaster
 
         class Scope;   ///< the transaction guard (MotionMaster.cpp)
 
-        void Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned, EffectLaunch const& launch);
+        void Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned, Motion::EffectLaunch const& launch);
         void Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned);
         void InstallFactory(Motion::Kind kind, MovementGenerator* generator, bool owned);
-        bool Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, EffectLaunch const& launch);
+        bool Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, Motion::EffectLaunch const& launch);
         void SweepStale(Motion::Kind kind);
         void Commit(std::optional<Motion::Transaction>& transaction);
         void DeliverEvents();

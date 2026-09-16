@@ -194,7 +194,7 @@ void LegacyBehaviour::Launch(Unit& owner)
         return;
     }
     Movement::MoveSplineInit init(owner);
-    init.MoveTo(m_launch.x, m_launch.y, m_launch.z);
+    init.MoveTo(m_launch.point.x, m_launch.point.y, m_launch.point.z);
     if (m_launch.kind == EffectLaunch::Jump)
     {
         init.SetParabolic(m_launch.height, 0);

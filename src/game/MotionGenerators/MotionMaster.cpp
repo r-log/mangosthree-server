@@ -991,9 +991,7 @@ void MotionMaster::MoveJump(float x, float y, float z, float horizontalSpeed, fl
 {
     EffectLaunch launch;
     launch.kind = EffectLaunch::Jump;
-    launch.x = x;
-    launch.y = y;
-    launch.z = z;
+    launch.point = Motion::Vector3(x, y, z);
     launch.speed = horizontalSpeed;
     launch.height = max_height;
     Request(R(Motion::Kind::Effect, id), new EffectMovementGenerator(id), true, launch);
@@ -1051,9 +1049,7 @@ void MotionMaster::MoveFall()
     }
     EffectLaunch launch;
     launch.kind = EffectLaunch::Fall;
-    launch.x = m_owner->Where().X();
-    launch.y = m_owner->Where().Y();
-    launch.z = tz;
+    launch.point = Motion::Vector3(m_owner->Where().X(), m_owner->Where().Y(), tz);
     Request(R(Motion::Kind::Effect, 0), new EffectMovementGenerator(0), true, launch);
 }
 

@@ -41,6 +41,8 @@ set(SRC_GRP_MOTION
     Mobility.cpp
     Arbiter.h
     Arbiter.cpp
+    MoveIntent.h
+    BehaviourModel.h
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 

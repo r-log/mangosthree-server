@@ -29,23 +29,14 @@
 #include "Platform/Define.h"
 #include "Arbiter.h"
 #include "MotionMaster.h"
+#include "MoveIntent.h"
 
 class Unit;
 class MovementGenerator;
 
-/// How an Effect launches its spline at first selection (design §4): the parameters
-/// MoveJump/MoveFall used to hand to MoveSplineInit right after the push.
-struct EffectLaunch
-{
-    enum Kind : uint8 { None, Jump, Fall };
-    Kind  kind;
-    float x;
-    float y;
-    float z;
-    float speed;   ///< horizontal speed (jump)
-    float height;  ///< parabola height (jump)
-    EffectLaunch() : kind(None), x(0.0f), y(0.0f), z(0.0f), speed(0.0f), height(0.0f) {}
-};
+/// The kernel's Effect launch (design §4): the parameters MoveJump/MoveFall used to hand
+/// to MoveSplineInit right after the push.
+using Motion::EffectLaunch;
 
 /**
  * One held behaviour of the movement kernel's shell (design §3-§4). The arbiter

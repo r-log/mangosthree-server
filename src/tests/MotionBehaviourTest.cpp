@@ -23,17 +23,26 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef MANGOS_MOVEMENTINTENT_H
-#define MANGOS_MOVEMENTINTENT_H
+// The kernel's native behaviours (P5-B family 1): pure, driven with scripted Sights.
 
-#include "ObjectGuid.h"
-#include "MoveIntent.h"   // the kernel's intent values (src/motion)
+#include "TestHarness.h"
+#include "BehaviourModel.h"
 
-// The shell's aliases: the kernel's Vector3 is Geometry's, the same type Movement uses.
-namespace Motion
+using namespace Motion;
+
+TEST(MotionBehaviour_IntentValuesAreKernelSafe)
 {
-    /// A facing at a unit, from the shell's guid type.
-    inline Facing FacingTarget(ObjectGuid guid) { return Facing::ToTarget(guid.GetRawValue()); }
+    MoveIntent m = MoveIntent::Move(Vector3(1.0f, 2.0f, 3.0f), MOVE_WALK).AtSpeed(24.0f);
+    CHECK(m.act == MoveIntent::Act::Move);
+    CHECK(m.Has(MOVE_WALK));
+    CHECK_EQ(m.speed, 24.0f);
+    EffectLaunch l;
+    l.kind = EffectLaunch::Jump;
+    l.point = Vector3(4.0f, 5.0f, 6.0f);
+    MoveIntent j = MoveIntent::Launch(l);
+    CHECK(j.act == MoveIntent::Act::Launch);
+    CHECK_EQ(j.launch.point.y, 5.0f);
+    Facing f = Facing::ToTarget(0x1234ull);
+    CHECK(f.mode == Facing::Mode::Target);
+    CHECK_EQ(f.target, uint64(0x1234ull));
 }
-
-#endif
