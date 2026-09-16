@@ -39,16 +39,24 @@
 #include <memory>
 #include <vector>
 
-// The simple-move scenarios (P5-B family 1, orders 36-41): the three rule changes the
-// natives brought with them -- a knockback arc is refused on a rooted unit and accepted
-// under a stun, and the charge is a kernel point that tracks its target. Every scenario
-// spawns its own actors at SE and ends them. Pt, Spread and Dist2 are the shared ones.
+// The simple-move scenarios (P5-B family 1, orders 36-44): the three rule changes the
+// natives brought with them (orders 36-41) -- a knockback arc is refused on a rooted unit
+// and accepted under a stun, and the charge is a kernel point that tracks its target --
+// plus three compatibility scenarios (orders 42-44): an AI inform that reenters the
+// facade mid-outcome, a flyer's fall at death, and a point requested while a root already
+// holds the unit. Every scenario spawns its own actors at SE and ends them. Pt, Spread and
+// Dist2 are the shared ones.
 namespace Harness
 {
     namespace
     {
         const uint32 WOLF = 69;
         const uint32 KOBOLD = 6;
+        const uint32 FLYER = 1512;     // Duskbat: InhabitType 5 (ground+air), no AIName, no vehicle --
+                                       // Creature::CanFly() reads the template flag alone (queried
+                                       // 2026-09-16: creature_template where InhabitType & 4 and
+                                       // MinLevel < 20, ordered by Entry -- the first plain bird/bat
+                                       // with no AIName and VehicleTemplateId 0)
         const Pt SE = { -3200.0f, -300.0f, 47.0f };
         const uint32 ROOT = 745;      // Web: a plain root aura, about 5 s, no damage
         const uint32 STUN = 5211;     // Bash: a plain stun aura
@@ -56,7 +64,7 @@ namespace Harness
         const float  CHARGE_SPEED = 24.0f;
 
         /// One position sample with the facade reads a category needs.
-        struct Step
+        struct Sample
         {
             uint32                t;
             float                 x, y, z;
@@ -96,8 +104,12 @@ namespace Harness
                 auto accepted = std::make_shared<bool>(true);
                 auto called = std::make_shared<bool>(false);
                 auto jump = std::make_shared<Pt>();
-                auto rooted = std::make_shared<std::vector<Step> >();
-                auto freed = std::make_shared<std::vector<Step> >();
+                auto rooted = std::make_shared<std::vector<Sample> >();
+                auto freed = std::make_shared<std::vector<Sample> >();
+                // The premise: a jump refused for a reason other than the root (the Web missed,
+                // resisted, whatever) would still read accepted=false and BUG would blame the
+                // kernel for a setup failure. Read at the jump's own moment.
+                auto rootLanded = std::make_shared<bool>(false);
                 At(500, [this, g]()
                 {
                     Creature* w = Get(g); if (!w) { return; }
@@ -110,21 +122,22 @@ namespace Harness
                     w->CastSpell(w, ROOT, true);
                     Log("Web on the moving wolf at %.1f %.1f, rooted=%d mt=%s", w->Where().X(), w->Where().Y(), w->IsRooted() ? 1 : 0, TypeName(w));
                 });
-                At(2000, [this, g, accepted, called, jump]()
+                At(2000, [this, g, accepted, called, jump, rootLanded]()
                 {
                     Creature* w = Get(g); if (!w) { return; }
+                    *rootLanded = w->IsRooted();
                     const float x = w->Where().X(), y = w->Where().Y(), z = w->Where().Z();
                     jump->x = x; jump->y = y + 12.0f; jump->z = Ground(x, y + 12.0f, z);
                     *accepted = w->GetMotionMaster()->MoveJump(jump->x, jump->y, jump->z, 7.5f, 5.0f, 66);
                     *called = true;
-                    Log("MoveJump(66) 12 yd sideways on the rooted wolf: accepted=%d rooted=%d mt=%s", *accepted ? 1 : 0, w->IsRooted() ? 1 : 0, TypeName(w));
+                    Log("MoveJump(66) 12 yd sideways on the rooted wolf: accepted=%d rooted=%d mt=%s", *accepted ? 1 : 0, *rootLanded ? 1 : 0, TypeName(w));
                 });
                 for (uint32 t = 2000; t <= 4000; t += 250)   // under the root: nothing moves, the point stays selected
                 {
                     At(t, [this, g, rooted, jump, t]()
                     {
                         Creature* w = Get(g); if (!w) { return; }
-                        Step s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
+                        Sample s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
                         rooted->push_back(s);
                         Log("rooted +%5ums %.2f %.2f mt=%s rooted=%d dJump=%.2f spline=%d", s.t, s.x, s.y, Harness::TypeName(s.mt),
                             w->IsRooted() ? 1 : 0, Dist2(s.x, s.y, jump->x, jump->y), w->movespline->Finalized() ? 0 : 1);
@@ -135,23 +148,28 @@ namespace Harness
                     At(t, [this, g, freed, t]()
                     {
                         Creature* w = Get(g); if (!w) { return; }
-                        Step s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
+                        Sample s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
                         freed->push_back(s);
                         Log("free +%5ums %.2f %.2f mt=%s rooted=%d", s.t, s.x, s.y, Harness::TypeName(s.mt), w->IsRooted() ? 1 : 0);
                     });
                 }
-                At(9500, [this, low, mark, accepted, called, rooted, freed]()
+                At(9500, [this, low, mark, accepted, called, rooted, freed, rootLanded]()
                 {
                     if (!*called || rooted->size() < 5 || freed->size() < 5)
                     {
                         Verdict("refused=INVALID(no samples) | noSpline=INVALID(no samples) | noInform=INVALID(no samples) | pointResumes=INVALID(no samples)");
                         return;
                     }
+                    if (!*rootLanded)
+                    {
+                        Verdict("refused=INVALID(the Web never landed) | noSpline=INVALID(the Web never landed) | noInform=INVALID(the Web never landed) | pointResumes=INVALID(the Web never landed)");
+                        return;
+                    }
                     std::vector<Pt> held;
                     bool point = true;
                     for (size_t k = 0; k < rooted->size(); ++k)
                     {
-                        Step const& s = (*rooted)[k];
+                        Sample const& s = (*rooted)[k];
                         Pt p = { s.x, s.y, s.z };
                         held.push_back(p);
                         if (s.mt != POINT_MOTION_TYPE) { point = false; }
@@ -159,7 +177,7 @@ namespace Harness
                     std::vector<Pt> after;
                     for (size_t k = 0; k < freed->size(); ++k)
                     {
-                        Step const& s = (*freed)[k];
+                        Sample const& s = (*freed)[k];
                         Pt p = { s.x, s.y, s.z };
                         after.push_back(p);
                     }
@@ -203,26 +221,33 @@ namespace Harness
                 auto called = std::make_shared<bool>(false);
                 auto jump = std::make_shared<Pt>();
                 auto closest = std::make_shared<float>(999.0f);
+                // The premise: without it "accepted=OK" is vacuous (an unstunned wolf jumping
+                // proves nothing). Read at the MoveJump moment and again at the first sample
+                // after it; either reading false means the Bash never applied its state.
+                auto stunAtJump = std::make_shared<bool>(false);
+                auto stunAtFirst = std::make_shared<bool>(false);
                 At(1000, [this, g]()
                 {
                     Creature* w = Get(g); if (!w) { return; }
                     w->CastSpell(w, STUN, true);
                     Log("Bash on the standing wolf: stun=%d rooted=%d mt=%s", w->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0, w->IsRooted() ? 1 : 0, TypeName(w));
                 });
-                At(1500, [this, g, accepted, called, jump]()
+                At(1500, [this, g, accepted, called, jump, stunAtJump]()
                 {
                     Creature* w = Get(g); if (!w) { return; }
+                    *stunAtJump = w->hasUnitState(UNIT_STAT_STUNNED);
                     const float x = w->Where().X(), y = w->Where().Y(), z = w->Where().Z();
                     jump->x = x + 12.0f; jump->y = y; jump->z = Ground(x + 12.0f, y, z);
                     *accepted = w->GetMotionMaster()->MoveJump(jump->x, jump->y, jump->z, 7.5f, 5.0f, 67);
                     *called = true;
-                    Log("MoveJump(67) 12 yd on the stunned wolf: accepted=%d stun=%d mt=%s", *accepted ? 1 : 0, w->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0, TypeName(w));
+                    Log("MoveJump(67) 12 yd on the stunned wolf: accepted=%d stun=%d mt=%s", *accepted ? 1 : 0, *stunAtJump ? 1 : 0, TypeName(w));
                 });
                 for (uint32 t = 1700; t <= 5000; t += 200)
                 {
-                    At(t, [this, g, jump, closest, t]()
+                    At(t, [this, g, jump, closest, stunAtFirst, t]()
                     {
                         Creature* w = Get(g); if (!w) { return; }
+                        if (t == 1700) { *stunAtFirst = w->hasUnitState(UNIT_STAT_STUNNED); }
                         const float d = Dist2(w->Where().X(), w->Where().Y(), jump->x, jump->y);
                         if (d < *closest) { *closest = d; }
                         Log("+%5ums %.2f %.2f mt=%s stun=%d dJump=%.2f spline=%d", t, w->Where().X(), w->Where().Y(), TypeName(w),
@@ -237,9 +262,14 @@ namespace Harness
                         Log("after +%5ums mt=%s stun=%d", t, TypeName(w), w->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0);
                     });
                 }
-                At(9000, [this, low, mark, accepted, called, closest]()
+                At(9000, [this, low, mark, accepted, called, closest, stunAtJump, stunAtFirst]()
                 {
                     if (!*called) { Verdict("accepted=INVALID(never called) | lands=INVALID(never called) | informs=INVALID(never called)"); return; }
+                    if (!*stunAtJump || !*stunAtFirst)
+                    {
+                        Verdict("accepted=INVALID(the Bash did not stun) | lands=INVALID(the Bash did not stun) | informs=INVALID(the Bash did not stun)");
+                        return;
+                    }
                     const bool informed = Informed(Informs(), mark, low, EFFECT_MOTION_TYPE, 67);
                     char lands[140];
                     if (*closest < 2.5f) { snprintf(lands, sizeof(lands), "OK(came within %.2f yd of the jump point)", *closest); }
@@ -403,7 +433,7 @@ namespace Harness
                 Creature* k = Spawn(KOBOLD, SE.x + 25.0f, SE.y, Ground(SE.x + 25.0f, SE.y, SE.z), 3.1f);
                 if (!w || !k) { Verdict("stands=INVALID(spawn failed) | chargeHeld=INVALID(spawn failed) | movesAfterRoot=INVALID(spawn failed)"); return; }
                 const ObjectGuid g = w->GetObjectGuid(), gk = k->GetObjectGuid();
-                auto held = std::make_shared<std::vector<Step> >();
+                auto held = std::make_shared<std::vector<Sample> >();
                 auto atFour = std::make_shared<float>(-1.0f);
                 auto atEight = std::make_shared<float>(-1.0f);
                 At(500, [this, g, gk]()
@@ -423,7 +453,7 @@ namespace Harness
                     At(t, [this, g, gk, held, t]()
                     {
                         Creature* w = Get(g); Creature* k = Get(gk); if (!w || !k) { return; }
-                        Step s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
+                        Sample s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
                         held->push_back(s);
                         Log("rooted +%5ums %.2f %.2f mt=%s rooted=%d spline=%d dTarget=%.2f", s.t, s.x, s.y, Harness::TypeName(s.mt),
                             w->IsRooted() ? 1 : 0, w->movespline->Finalized() ? 0 : 1,
@@ -461,7 +491,7 @@ namespace Harness
                     MovementGeneratorType lost = IDLE_MOTION_TYPE;
                     for (size_t k = 0; k < held->size(); ++k)
                     {
-                        Step const& s = (*held)[k];
+                        Sample const& s = (*held)[k];
                         Pt p = { s.x, s.y, s.z };
                         pts.push_back(p);
                         if (s.mt != POINT_MOTION_TYPE && point) { point = false; lost = s.mt; }
@@ -503,18 +533,23 @@ namespace Harness
                 auto lastType = std::make_shared<MovementGeneratorType>(IDLE_MOTION_TYPE);
                 auto atTwo = std::make_shared<Pt>();
                 auto atThree = std::make_shared<Pt>();
+                // The premise: a kobold that turned out not to be a summon leaves nothing
+                // despawned, and without this flag the verdict would blame the kernel with
+                // BUG for a setup failure instead of reporting the premise as unmet.
+                auto despawned = std::make_shared<bool>(false);
                 At(500, [this, g, gk]()
                 {
                     Creature* w = Get(g); Creature* k = Get(gk); if (!w || !k) { return; }
                     w->GetMotionMaster()->MoveCharge(k, CHARGE_SPEED);
                     Log("MoveCharge at the kobold %.1f yd away, mt=%s", Dist2(w->Where().X(), w->Where().Y(), k->Where().X(), k->Where().Y()), TypeName(w));
                 });
-                At(1000, [this, g, gk]()
+                At(1000, [this, g, gk, despawned]()
                 {
                     Creature* w = Get(g); Creature* k = Get(gk); if (!w) { return; }
                     if (k && k->IsTemporarySummon())
                     {
                         static_cast<TemporarySummon*>(k)->UnSummon();
+                        *despawned = true;
                         Log("the kobold is despawned mid-charge; wolf at %.2f %.2f mt=%s", w->Where().X(), w->Where().Y(), TypeName(w));
                     }
                     else
@@ -534,8 +569,13 @@ namespace Harness
                         Log("+%5ums %.2f %.2f mt=%s spline=%d", t, w->Where().X(), w->Where().Y(), TypeName(w), w->movespline->Finalized() ? 0 : 1);
                     });
                 }
-                At(3500, [this, low, mark, ended, lastType, atTwo, atThree]()
+                At(3500, [this, low, mark, ended, lastType, atTwo, atThree, despawned]()
                 {
+                    if (!*despawned)
+                    {
+                        Verdict("endsWithoutStall=INVALID(the kobold was not despawned) | noInform=INVALID(the kobold was not despawned)");
+                        return;
+                    }
                     const bool informed = Informed(Informs(), mark, low, POINT_MOTION_TYPE, 0);
                     // The default the arbiter reselects lays a leg of its own at once, so a finalized
                     // spline is not the evidence: what proves nothing stalled is that the charge's own
@@ -606,6 +646,262 @@ namespace Harness
                 });
             }
         };
+
+        /// S42: MovementInform runs before ReengageVictim within the same Outcome
+        /// (NativeBehaviour::PerformOutcome processes Effect::Inform first, Effect::
+        /// ReengageVictim second, and the latter reads IsChasing()/IsFollowing() live, "after
+        /// the inform ran" per its own comment): an AI callback that reenters the facade from
+        /// inside the inform -- installing a fresh MoveFollow the instant EFFECT 80 lands -- is
+        /// seen by ReengageVictim's live check and it steps aside. The wolf keeps a victim
+        /// throughout (Attack + AddThreat, as death-drops-sources sets one up) so ReengageVictim
+        /// would have installed a chase had the follow not preempted it; followKept proves the
+        /// final selection is FOLLOW, not that CHASE.
+        class InformReentersFacade : public Scenario
+        {
+        public:
+            InformReentersFacade() : Scenario("inform-reenters-facade", 42) {}
+
+            void Prepare() override
+            {
+                m_leader = ObjectGuid();
+                m_installed = false;
+                Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* leader = Spawn(WOLF, SE.x + 6.0f, SE.y + 6.0f, Ground(SE.x + 6.0f, SE.y + 6.0f, SE.z), 0.0f);
+                Creature* k = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
+                if (!w || !leader || !k) { Verdict("followKept=INVALID(spawn failed)"); return; }
+                m_leader = leader->GetObjectGuid();
+                const ObjectGuid g = w->GetObjectGuid();
+                const ObjectGuid gk = k->GetObjectGuid();
+                auto jump = std::make_shared<Pt>();
+                auto called = std::make_shared<bool>(false);
+                At(500, [this, g, gk]()
+                {
+                    Creature* w = Get(g); Creature* k = Get(gk); if (!w || !k) { return; }
+                    w->Attack(k, true);
+                    w->AddThreat(k, 1000.0f);
+                    Log("Attack + AddThreat on the kobold: victim=%d mt=%s", w->getVictim() ? 1 : 0, TypeName(w));
+                });
+                At(1000, [this, g, jump, called]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    const float x = w->Where().X(), y = w->Where().Y(), z = w->Where().Z();
+                    jump->x = x; jump->y = y + 12.0f; jump->z = Ground(x, y + 12.0f, z);
+                    *called = w->GetMotionMaster()->MoveJump(jump->x, jump->y, jump->z, 7.5f, 5.0f, 80);
+                    Log("MoveJump(80) 12 yd sideways with a victim set: accepted=%d mt=%s", *called ? 1 : 0, TypeName(w));
+                });
+                for (uint32 t = 3000; t <= 5000; t += 500)   // well past the arc: the reentry has already run
+                {
+                    At(t, [this, g, t]()
+                    {
+                        Creature* w = Get(g); if (!w) { return; }
+                        Log("+%5ums mt=%s reentered=%d victim=%d", t, TypeName(w), m_installed ? 1 : 0, w->getVictim() ? 1 : 0);
+                    });
+                }
+                At(5500, [this, g, called]()
+                {
+                    Creature* w = Get(g);
+                    if (!w || !*called) { Verdict("followKept=INVALID(jump refused or lost)"); return; }
+                    if (!m_installed) { Verdict("followKept=INVALID(the inform never reentered the facade)"); return; }
+                    const bool ok = Type(w) == FOLLOW_MOTION_TYPE;
+                    char text[160];
+                    snprintf(text, sizeof(text), "followKept=%s(mt=%s)", ok ? "OK" : "BUG", TypeName(w));
+                    Verdict(text);
+                });
+            }
+
+            /// The recording hook (Scenario.h:105): called synchronously from inside
+            /// NativeBehaviour::PerformOutcome's Effect::Inform case, before that same
+            /// Outcome reaches Effect::ReengageVictim -- installing the follow here IS
+            /// reentering the facade from inside the inform.
+            void OnInform(Creature* creature, uint32 type, uint32 id) override
+            {
+                if (type != EFFECT_MOTION_TYPE || id != 80 || m_installed) { return; }
+                if (Creature* leader = Get(m_leader))
+                {
+                    creature->GetMotionMaster()->MoveFollow(leader, 2.0f, 0.0f);
+                    m_installed = true;
+                    Log("OnInform EFFECT 80: MoveFollow installed mid-outcome, mt=%s", TypeName(creature));
+                }
+            }
+
+        private:
+            ObjectGuid m_leader;
+            bool       m_installed;
+        };
+
+        /// S43: a flying creature's death runs a fall -- Creature::SetDeathState calls
+        /// MoveFall only when CanFly() (Creature.cpp:2041-2044), and for this template that
+        /// reads true from the InhabitType flag alone, no vehicle and no script needed.
+        /// fallRuns proves the fall actually runs (the z drops in the window right after
+        /// death and ends near the ground); deadHolds proves the death claim holds
+        /// throughout, the same predicate death-drops-sources reads for a grounded kill.
+        class FlyerFallsAtDeath : public Scenario
+        {
+        public:
+            FlyerFallsAtDeath() : Scenario("flyer-falls-at-death", 43) {}
+
+            void Prepare() override
+            {
+                const float startZ = Ground(SE.x, SE.y, SE.z) + 10.0f;
+                Creature* w = Spawn(FLYER, SE.x, SE.y, startZ, 0.0f);
+                if (!w) { Verdict("fallRuns=INVALID(spawn failed) | deadHolds=INVALID(spawn failed)"); return; }
+                if (!w->CanFly())
+                {
+                    Log("ERR entry %u does not fly on the bare map (CanFly()=0): pick another entry", FLYER);
+                    Verdict("fallRuns=INVALID(the template does not fly) | deadHolds=INVALID(the template does not fly)");
+                    return;
+                }
+                const ObjectGuid g = w->GetObjectGuid();
+                Log("spawned entry %u at z=%.2f (ground %.2f, CanFly=%d)", FLYER, w->Where().Z(), Ground(SE.x, SE.y, SE.z), w->CanFly() ? 1 : 0);
+                auto zAtKill = std::make_shared<float>(startZ);
+                auto zAtHalf = std::make_shared<float>(startZ);
+                auto zAtTwo = std::make_shared<float>(startZ);
+                auto deadOk = std::make_shared<bool>(false);
+                At(500, [this, g, zAtKill]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    *zAtKill = w->Where().Z();
+                    w->DealDamage(w, w->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                    Log("killed at z=%.2f: alive=%d state=%d mt=%s", *zAtKill, w->IsAlive() ? 1 : 0, int(w->GetDeathState()), TypeName(w));
+                });
+                At(1000, [this, g, zAtHalf]()   // +500ms after the kill
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    *zAtHalf = w->Where().Z();
+                    Log("+500ms z=%.2f mt=%s", *zAtHalf, TypeName(w));
+                });
+                At(2500, [this, g, zAtTwo, deadOk]()   // +2000ms after the kill
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    *zAtTwo = w->Where().Z();
+                    *deadOk = w->GetMotionMaster()->Inhibited(Motion::Inhibition::Dead);
+                    Log("+2000ms z=%.2f mt=%s dead=%d", *zAtTwo, TypeName(w), *deadOk ? 1 : 0);
+                });
+                At(3000, [this, g, zAtKill, zAtHalf, zAtTwo, deadOk]()
+                {
+                    Creature* w = Get(g);
+                    if (!w) { Verdict("fallRuns=INVALID(lost) | deadHolds=INVALID(lost)"); return; }
+                    const float ground = Ground(w->Where().X(), w->Where().Y(), w->Where().Z());
+                    const float droppedByHalf = *zAtKill - *zAtHalf;
+                    const float nearGround = fabsf(*zAtTwo - ground);
+                    const bool falls = droppedByHalf > 1.0f && nearGround < 1.5f;
+                    char fall[200];
+                    if (falls) { snprintf(fall, sizeof(fall), "OK(dropped %.1f yd by +0.5s, %.1f yd of the ground at +2s)", droppedByHalf, nearGround); }
+                    else { snprintf(fall, sizeof(fall), "BUG(z %.1f -> %.1f -> %.1f, ground %.1f)", *zAtKill, *zAtHalf, *zAtTwo, ground); }
+                    char text[320];
+                    snprintf(text, sizeof(text), "fallRuns=%s | deadHolds=%s", fall, *deadOk ? "OK(Inhibited(Dead) held)" : "BUG(Inhibited(Dead) false while dead)");
+                    Verdict(text);
+                });
+            }
+        };
+
+        /// S44: a Point requested while a root already holds the unit lays no leg -- the
+        /// claim is granted (POINT is selected) but the native reads mayMove itself and the
+        /// unit stands where it was rooted, not merely a jump landing on an already-moving
+        /// leg (S36's case). Once the root lifts, the very same request runs; the inform
+        /// fires exactly once, at the real arrival.
+        class PointUnderBlockLaysNothing : public Scenario
+        {
+        public:
+            PointUnderBlockLaysNothing() : Scenario("point-under-block-lays-nothing", 44) {}
+
+            void Prepare() override
+            {
+                Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                if (!w) { Verdict("noLegUnderRoot=INVALID(spawn failed) | legAfterRoot=INVALID(spawn failed) | informsAtArrival=INVALID(spawn failed)"); return; }
+                const ObjectGuid g = w->GetObjectGuid();
+                const uint32 low = w->GetGUIDLow();
+                const size_t mark = Informs().size();
+                auto called = std::make_shared<bool>(false);
+                auto rootLanded = std::make_shared<bool>(false);
+                auto held = std::make_shared<std::vector<Sample> >();
+                auto after = std::make_shared<std::vector<Sample> >();
+                At(500, [this, g]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    w->CastSpell(w, ROOT, true);
+                    Log("Web on the standing wolf: rooted=%d mt=%s", w->IsRooted() ? 1 : 0, TypeName(w));
+                });
+                At(1000, [this, g, called, rootLanded]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    *rootLanded = w->IsRooted();
+                    const float x = w->Where().X(), y = w->Where().Y(), z = w->Where().Z();
+                    w->GetMotionMaster()->MovePoint(3, x + 25.0f, y, Ground(x + 25.0f, y, z), true);
+                    *called = true;
+                    Log("MovePoint(3) 25 yd east requested under the root: rooted=%d mt=%s", *rootLanded ? 1 : 0, TypeName(w));
+                });
+                for (uint32 t = 1500; t <= 4000; t += 250)   // under the root: nothing moves, the point stays selected
+                {
+                    At(t, [this, g, held, t]()
+                    {
+                        Creature* w = Get(g); if (!w) { return; }
+                        Sample s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
+                        held->push_back(s);
+                        Log("rooted +%5ums %.2f %.2f mt=%s rooted=%d", s.t, s.x, s.y, Harness::TypeName(s.mt), w->IsRooted() ? 1 : 0);
+                    });
+                }
+                for (uint32 t = 6000; t <= 8000; t += 250)   // the Web is out (cast at 0.5 s, about 5 s): the point runs
+                {
+                    At(t, [this, g, after, t]()
+                    {
+                        Creature* w = Get(g); if (!w) { return; }
+                        Sample s; s.t = t; s.x = w->Where().X(); s.y = w->Where().Y(); s.z = w->Where().Z(); s.mt = Type(w);
+                        after->push_back(s);
+                        Log("free +%5ums %.2f %.2f mt=%s rooted=%d", s.t, s.x, s.y, Harness::TypeName(s.mt), w->IsRooted() ? 1 : 0);
+                    });
+                }
+                At(12000, [this, low, mark, called, rootLanded, held, after]()
+                {
+                    if (!*called || held->size() < 5 || after->size() < 5)
+                    {
+                        Verdict("noLegUnderRoot=INVALID(no samples) | legAfterRoot=INVALID(no samples) | informsAtArrival=INVALID(no samples)");
+                        return;
+                    }
+                    if (!*rootLanded)
+                    {
+                        Verdict("noLegUnderRoot=INVALID(the Web never landed) | legAfterRoot=INVALID(the Web never landed) | informsAtArrival=INVALID(the Web never landed)");
+                        return;
+                    }
+                    std::vector<Pt> heldPts;
+                    bool point = true;
+                    for (size_t k = 0; k < held->size(); ++k)
+                    {
+                        Sample const& s = (*held)[k];
+                        Pt p = { s.x, s.y, s.z };
+                        heldPts.push_back(p);
+                        if (s.mt != POINT_MOTION_TYPE) { point = false; }
+                    }
+                    std::vector<Pt> afterPts;
+                    for (size_t k = 0; k < after->size(); ++k)
+                    {
+                        Sample const& s = (*after)[k];
+                        Pt p = { s.x, s.y, s.z };
+                        afterPts.push_back(p);
+                    }
+                    const float drift = Spread(heldPts);
+                    const float moved = Spread(afterPts);
+                    uint32 count = 0;
+                    for (size_t k = mark; k < Informs().size(); ++k)
+                    {
+                        Inform const& r = Informs()[k];
+                        if (r.guidLow == low && r.type == POINT_MOTION_TYPE && r.id == 3) { ++count; }
+                    }
+                    char noLeg[140];
+                    if (drift < 0.5f && point) { snprintf(noLeg, sizeof(noLeg), "OK(stood within %.2f yd, POINT throughout)", drift); }
+                    else { snprintf(noLeg, sizeof(noLeg), "BUG(drifted %.2f yd%s)", drift, point ? "" : " and lost the point"); }
+                    char legAfter[140];
+                    if (moved > 3.0f) { snprintf(legAfter, sizeof(legAfter), "OK(moved %.1f yd once the Web ended)", moved); }
+                    else { snprintf(legAfter, sizeof(legAfter), "BUG(moved only %.1f yd after the Web ended)", moved); }
+                    char informsText[80];
+                    if (count == 1) { snprintf(informsText, sizeof(informsText), "OK((POINT, 3) informed once)"); }
+                    else { snprintf(informsText, sizeof(informsText), "BUG(informed %u time(s))", count); }
+                    char text[440];
+                    snprintf(text, sizeof(text), "noLegUnderRoot=%s | legAfterRoot=%s | informsAtArrival=%s", noLeg, legAfter, informsText);
+                    Verdict(text);
+                });
+            }
+        };
     }
 
     void RegisterSimpleScenarios(Runner& r)
@@ -616,5 +912,8 @@ namespace Harness
         r.Register(new ChargeStopsOnRoot());
         r.Register(new ChargeTargetLost());
         r.Register(new SwoopToLocation());
+        r.Register(new InformReentersFacade());
+        r.Register(new FlyerFallsAtDeath());
+        r.Register(new PointUnderBlockLaysNothing());
     }
 }
