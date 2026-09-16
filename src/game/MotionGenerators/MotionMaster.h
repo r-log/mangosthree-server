@@ -160,6 +160,8 @@ class MotionMaster
         void Die();
         /// Release the control claims of this kind (a take that ends the episode without its aura: the pet possession take).
         void CancelControl(Motion::Kind kind);
+        /// Combat ended without a death or an evade: the Combat entry finishes as TargetLost; the feign's apply uses it.
+        void ExpireCombat();
         /// End one Control claim by identity; the newest remaining claim of the layer drives.
         /// @return True when the claim was held.
         bool ReleaseControl(uint64 claim);

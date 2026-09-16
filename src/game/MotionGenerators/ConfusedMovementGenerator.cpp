@@ -115,9 +115,11 @@ Motion::MoveIntent ConfusedMovementGenerator::Intent(Unit& owner,
                                                      Motion::MoveStatus const& status,
                                                      uint32 diff)
 {
-    // The arbiter already chose this behaviour over whatever else it holds (a fear
-    // claim beneath a confuse, say); only a real block -- a stun, a root, a death --
-    // holds it, so ask the kernel's own decision instead of the raw unit-state bits.
+    // MotionMaster::UpdateMotion already withholds a blocked behaviour's tick
+    // (Evaluate().ticks); this is a guard for a caller that ticks the generator
+    // directly, not the rule. It reads the arbiter's own decision, so a claim held
+    // beneath this one (a fear beneath a confuse) no longer counts as a block once
+    // the arbiter has chosen this behaviour over it.
     if (!owner.GetMotionMaster()->Mobility().mayMove)
     {
         return Motion::MoveIntent::Hold();

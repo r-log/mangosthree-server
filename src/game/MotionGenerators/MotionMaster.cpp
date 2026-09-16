@@ -1217,6 +1217,16 @@ void MotionMaster::CancelControl(Motion::Kind kind)
 }
 
 /**
+ * @brief Combat ended without a death or an evade: the Combat entry finishes as TargetLost;
+ *        the feign's apply uses it.
+ */
+void MotionMaster::ExpireCombat()
+{
+    Scope scope(*this, Motion::TransactionKind::Normal);
+    m_arbiter.Expire(Motion::Kind::Chase);
+}
+
+/**
  * @brief Ends one Control claim by identity; the newest remaining claim of the layer drives.
  * @param claim The claim's identity (Motion::ControlClaim).
  */

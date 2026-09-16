@@ -2129,6 +2129,7 @@ bool ChatHandler::HandleDebugMovementDumpCommand(char* args)
     Motion::MobilityDecision decision = mm->Mobility();
     std::string reasons;
     static char const* const reasonNames[] = { "Rooted", "Stunned", "Dead", "Possessed", "Feared", "Confused", "Distracted", "OnTaxi" };
+    static_assert(sizeof(reasonNames) / sizeof(reasonNames[0]) == 8, "the dump's reason names out of sync with Motion::Reason");
     for (unsigned bit = 0; bit < 8; ++bit)
     {
         if (decision.reasons & (1u << bit))

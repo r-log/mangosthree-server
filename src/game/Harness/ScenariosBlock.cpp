@@ -51,8 +51,19 @@ namespace Harness
         const uint32 STUN = 5211;   // Bash: a plain stun aura
         const uint32 FEIGN = 5384;  // Feign Death
 
-        /// S27: a root, then a stun over it, released in both orders: the client root flag
-        /// (the mover flag) holds until the last source goes, never earlier.
+        /// S27: two proofs about the client root flag (the mover flag). a: two Rooted
+        /// sources of different identity overlap -- a self-cast Web, then a second source
+        /// through the kernel's own Inhibit/Uninhibit API (a script's root, not an aura's;
+        /// a second Web from another caster would just replace the first per the
+        /// reference's same-spell rule, 15.8, so it cannot prove two sources -- only the
+        /// kernel's own API can). The flag must hold while either source remains and clear
+        /// only once the LATER one releases -- the rule is "last source", not "first cast"
+        /// -- so the two sources are asserted at every sample, not just the final one.
+        /// b: a Bash stacked over a Web on a creature; a creature's stun leaves the mover's
+        /// root flag to the root alone (reference 2.3: a stunned creature is stopped, not
+        /// rooted -- only a stunned player or player-charmed unit projects the flag from a
+        /// stun), so the flag clears with the Web's end even while the Bash still holds
+        /// the creature stunned.
         class StunOverRoot : public Scenario
         {
         public:
@@ -60,41 +71,86 @@ namespace Harness
 
             void Prepare() override
             {
-                Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);           // root first, stun second, root outlasts
-                Creature* b = Spawn(WOLF, SE.x + 15.0f, SE.y, Ground(SE.x + 15.0f, SE.y, SE.z), 0.0f);   // stun first, root second, stun ends first
-                if (!a || !b) { Verdict("rootHoldsUnderStun=INVALID(spawn failed) | rootHoldsAfterStun=INVALID(spawn failed)"); return; }
+                struct RootSample { uint32 t; bool rooted; bool flag; bool stun; };
+                Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* b = Spawn(WOLF, SE.x + 15.0f, SE.y, Ground(SE.x + 15.0f, SE.y, SE.z), 0.0f);
+                if (!a || !b) { Verdict("rootHeldByLastSource=INVALID(spawn failed) | stunLeavesCreatureRootToTheWeb=INVALID(spawn failed)"); return; }
                 const ObjectGuid ga = a->GetObjectGuid(), gb = b->GetObjectGuid();
-                auto samples = std::make_shared<std::vector<std::string> >();
-                At(500,  [this, ga]() { if (Creature* a = Get(ga)) { a->CastSpell(a, ROOT, true); Log("a: Web"); } });
-                At(1500, [this, gb]() { if (Creature* b = Get(gb)) { b->CastSpell(b, STUN, true); Log("b: Bash"); } });
-                At(2500, [this, ga, gb]()
+                auto sa = std::make_shared<std::vector<RootSample> >();
+                auto sb = std::make_shared<std::vector<RootSample> >();
+                At(500,  [this, ga]() { if (Creature* a = Get(ga)) { a->CastSpell(a, ROOT, true); Log("a: self Web"); } });
+                At(500,  [this, gb]() { if (Creature* b = Get(gb)) { b->CastSpell(b, ROOT, true); Log("b: Web"); } });
+                At(2500, [this, ga]()
                 {
-                    if (Creature* a = Get(ga)) { a->CastSpell(a, STUN, true); Log("a: Bash over the Web"); }
-                    if (Creature* b = Get(gb)) { b->CastSpell(b, ROOT, true); Log("b: Web under the Bash"); }
+                    if (Creature* a = Get(ga))
+                    {
+                        a->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Script, a->GetObjectGuid().GetCounter(), 27));
+                        Log("a: a script root over the Web");
+                    }
                 });
-                for (uint32 t = 3000; t <= 13000; t += 1000)
+                At(2500, [this, gb]() { if (Creature* b = Get(gb)) { b->CastSpell(b, STUN, true); Log("b: Bash over the Web"); } });
+                At(7500, [this, ga]()
                 {
-                    At(t, [this, ga, gb, samples, t]()
+                    if (Creature* a = Get(ga))
+                    {
+                        a->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Script, a->GetObjectGuid().GetCounter(), 27));
+                        Log("a: the script root released");
+                    }
+                });
+                for (uint32 t = 1000; t <= 9500; t += 500)
+                {
+                    At(t, [this, ga, gb, sa, sb, t]()
                     {
                         Creature* a = Get(ga); Creature* b = Get(gb); if (!a || !b) { return; }
+                        RootSample ra = { t, a->IsRooted(), a->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT), a->hasUnitState(UNIT_STAT_STUNNED) };
+                        RootSample rb = { t, b->IsRooted(), b->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT), b->hasUnitState(UNIT_STAT_STUNNED) };
+                        sa->push_back(ra);
+                        sb->push_back(rb);
                         char line[160];
                         snprintf(line, sizeof(line), "+%5ums a rooted=%d flag=%d stun=%d | b rooted=%d flag=%d stun=%d", t,
-                                 a->IsRooted() ? 1 : 0, a->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT) ? 1 : 0, a->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0,
-                                 b->IsRooted() ? 1 : 0, b->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT) ? 1 : 0, b->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0);
-                        samples->push_back(line);
+                                 ra.rooted ? 1 : 0, ra.flag ? 1 : 0, ra.stun ? 1 : 0,
+                                 rb.rooted ? 1 : 0, rb.flag ? 1 : 0, rb.stun ? 1 : 0);
                         Log("%s", line);
                     });
                 }
-                At(13500, [this, ga, gb]()
+                At(10000, [this, ga, gb, sa, sb]()
                 {
-                    Creature* a = Get(ga); Creature* b = Get(gb); if (!a || !b) { Verdict("rootHoldsUnderStun=INVALID(lost) | rootHoldsAfterStun=INVALID(lost)"); return; }
-                    // a: the Web (10 s from 0.5 s) outlasts the Bash; the flag never dropped while either held and is off after 10.5 s.
-                    // b: the Bash ends before the Web; the flag stays until the Web's end.
-                    const bool aOffNow = !a->IsRooted() && !a->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT);
-                    const bool bOffNow = !b->IsRooted() && !b->m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT);
-                    std::string v = std::string("rootHoldsUnderStun=") + (aOffNow ? "OK(a: flag held through the stun, off after the root's end)" : "BUG(a: still rooted after both ended)");
-                    v += std::string(" | rootHoldsAfterStun=") + (bOffNow ? "OK(b: flag held after the stun's end until the root's end)" : "BUG(b: still rooted after both ended)");
-                    Verdict(v);
+                    if (!Get(ga) || !Get(gb)) { Verdict("rootHeldByLastSource=INVALID(lost) | stunLeavesCreatureRootToTheWeb=INVALID(lost)"); return; }
+                    if (sa->size() < 3 || sb->size() < 3) { Verdict("rootHeldByLastSource=INVALID(no samples) | stunLeavesCreatureRootToTheWeb=INVALID(no samples)"); return; }
+                    std::string bodyA;
+                    {
+                        bool bug = false;
+                        RootSample bad = { 0, false, false, false };
+                        for (size_t i = 0; i < sa->size() && !bug; ++i)
+                        {
+                            RootSample const& s = (*sa)[i];
+                            if (s.t <= 7000 && !(s.rooted && s.flag)) { bug = true; bad = s; }
+                            else if (s.t >= 8000 && (s.rooted || s.flag)) { bug = true; bad = s; }
+                        }
+                        char text[160];
+                        if (!bug) { snprintf(text, sizeof(text), "rootHeldByLastSource=OK(rooted and flagged at every sample until the script's release, clear after)"); }
+                        else { snprintf(text, sizeof(text), "rootHeldByLastSource=BUG(+%ums rooted=%d flag=%d)", bad.t, bad.rooted ? 1 : 0, bad.flag ? 1 : 0); }
+                        bodyA = text;
+                    }
+                    std::string bodyB;
+                    {
+                        bool bug = false, stunFail = false;
+                        RootSample bad = { 0, false, false, false };
+                        for (size_t i = 0; i < sb->size() && !bug; ++i)
+                        {
+                            RootSample const& s = (*sb)[i];
+                            if (s.t <= 5000 && !(s.rooted && s.flag)) { bug = true; bad = s; }
+                            else if (s.t == 6000 && (s.rooted || s.flag)) { bug = true; bad = s; }
+                            else if (s.t == 6000 && !s.stun) { bug = true; stunFail = true; bad = s; }
+                            else if (s.t > 6000 && (s.rooted || s.flag)) { bug = true; bad = s; }
+                        }
+                        char text[200];
+                        if (!bug) { snprintf(text, sizeof(text), "stunLeavesCreatureRootToTheWeb=OK(rooted and flagged only until the Web's end, clear at 6.0 s while the Bash still holds the stun)"); }
+                        else if (stunFail) { snprintf(text, sizeof(text), "stunLeavesCreatureRootToTheWeb=BUG(+%ums stun=0: the Bash ended before the Web, proves nothing)", bad.t); }
+                        else { snprintf(text, sizeof(text), "stunLeavesCreatureRootToTheWeb=BUG(+%ums rooted=%d flag=%d)", bad.t, bad.rooted ? 1 : 0, bad.flag ? 1 : 0); }
+                        bodyB = text;
+                    }
+                    Verdict(bodyA + " | " + bodyB);
                 });
             }
         };
@@ -241,20 +297,22 @@ namespace Harness
                 const ObjectGuid g = a->GetObjectGuid();
                 auto pts = std::make_shared<std::vector<Pt> >();
                 auto facing = std::make_shared<std::vector<float> >();
+                auto distractKind = std::make_shared<bool>(true);
                 At(500,  [this, g]() { if (Creature* a = Get(g)) { a->GetMotionMaster()->MoveDistract(10000); a->SetFacingTo(1.5f); Log("distracted 10 s facing 1.5, mt=%s", TypeName(a)); } });
                 At(1500, [this, g]() { if (Creature* a = Get(g)) { a->CastSpell(a, STUN, true); Log("Bash on the distracted wolf, mt=%s", TypeName(a)); } });
                 for (uint32 i = 1; i <= 6; ++i)   // 2.0 s .. 4.5 s
                 {
-                    At(1500 + i * 500, [this, g, pts, facing, i]()
+                    At(1500 + i * 500, [this, g, pts, facing, distractKind, i]()
                     {
                         Creature* a = Get(g); if (!a) { return; }
                         Pt p = { a->Where().X(), a->Where().Y(), a->Where().Z() };
                         pts->push_back(p);
                         facing->push_back(a->Where().Facing());
+                        if (Type(a) != DISTRACT_MOTION_TYPE) { *distractKind = false; }
                         Log("stunned +%4ums mt=%s facing=%.2f at %.1f %.1f", i * 500, TypeName(a), a->Where().Facing(), p.x, p.y);
                     });
                 }
-                At(11500, [this, g, pts, facing]()   // 11.0 s after the distract began: its 10 s are out
+                At(11500, [this, g, pts, facing, distractKind]()   // 11.0 s after the distract began: its 10 s are out
                 {
                     Creature* a = Get(g); if (!a) { Verdict("standsUnderStun=INVALID(lost) | distractRunsOut=INVALID(lost)"); return; }
                     const float held = Spread(*pts);
@@ -264,7 +322,7 @@ namespace Harness
                     char text[220];
                     snprintf(text, sizeof(text), "standsUnderStun=%s | distractRunsOut=%s",
                              (held < 1.0f && turned < 0.05f) ? "OK(stood, facing kept)" : "BUG(moved or turned under the stun)",
-                             over ? "OK(the distract's 10 s ran out under the stun)" : "BUG(still DISTRACT after 11 s)");
+                             (*distractKind && over) ? "OK(the distract's 10 s ran out under the stun)" : "BUG(still DISTRACT after 11 s)");
                     Log("at 11.5 s mt=%s", TypeName(a));
                     Verdict(text);
                 });
@@ -289,7 +347,7 @@ namespace Harness
                 auto followKind = std::make_shared<bool>(true);
                 auto closed = std::make_shared<float>(999.0f);
                 At(500,  [this, g, gLeader]() { Creature* a = Get(g); Creature* leader = Get(gLeader); if (a && leader) { a->GetMotionMaster()->MoveFollow(leader, 2.0f, 0.0f); Log("follows, mt=%s", TypeName(a)); } });
-                At(1000, [this, gLeader]()    { if (Creature* leader = Get(gLeader)) { leader->GetMotionMaster()->MovePoint(1, SE.x + 30.0f, SE.y, Ground(SE.x + 30.0f, SE.y, SE.z), true); Log("the leader runs 30 yd"); } });
+                At(1000, [this, gLeader]()    { if (Creature* leader = Get(gLeader)) { leader->GetMotionMaster()->MovePoint(1, SE.x + 30.0f, SE.y, Ground(SE.x + 30.0f, SE.y, SE.z), true); Log("the leader runs 25 yd"); } });
                 At(2000, [this, g]()     { if (Creature* a = Get(g)) { a->SetFeignDeath(true, a->GetObjectGuid(), FEIGN); Log("feigns, mt=%s", TypeName(a)); } });
                 for (uint32 i = 1; i <= 6; ++i)   // 2.5 s .. 5.0 s
                 {
@@ -320,7 +378,7 @@ namespace Harness
                     char text[220];
                     snprintf(text, sizeof(text), "standsWhileFeigning=%s | followsAfterFeign=%s",
                              (held < 1.0f && *followKind) ? "OK(stood, the follow stayed selected)" : "BUG(moved or lost the follow while feigning)",
-                             *closed < 6.0f ? "OK(closed to the kobold again)" : "BUG(never closed in after the feign)");
+                             *closed < 6.0f ? "OK(closed to the leader again)" : "BUG(never closed in after the feign)");
                     Verdict(text);
                 });
             }

@@ -463,6 +463,7 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
 
         GetMotionMaster()->Inhibit(Motion::Inhibition::Dead, source);
         CombatStop();
+        GetMotionMaster()->ExpireCombat();   // CombatStop() clears the victim, not the Combat entry; end the chase as combat itself ends
         RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_IMMUNE_OR_LOST_SELECTION);
 
         // prevent interrupt message

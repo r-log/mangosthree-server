@@ -153,9 +153,11 @@ Motion::MoveIntent FleeingMovementGenerator::Intent(Unit& owner,
         return Motion::MoveIntent::Done();
     }
 
-    // Ignore while the block withholds this behaviour: the arbiter's own decision, the
-    // same source ConfusedMovementGenerator's gate reads (a flee is never selected under
-    // a confuse, so this cannot change what it does, only what it reads).
+    // MotionMaster::UpdateMotion already withholds a blocked behaviour's tick
+    // (Evaluate().ticks); this is a guard for a caller that ticks the generator
+    // directly, not the rule. The same source ConfusedMovementGenerator's gate reads
+    // (a flee is never selected under a confuse, so this cannot change what it does,
+    // only what it reads).
     if (!owner.GetMotionMaster()->Mobility().mayMove)
     {
         owner.clearUnitState(UNIT_STAT_FLEEING_MOVE);
