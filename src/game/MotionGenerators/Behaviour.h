@@ -34,16 +34,16 @@
 class Unit;
 class MovementGenerator;
 
-/// The kernel's Effect launch (design §4): the parameters MoveJump/MoveFall used to hand
-/// to MoveSplineInit right after the push.
+/// The kernel's Effect launch (design §4): the parameters MoveJump/MoveFall hand to the
+/// Effect native, which asks the adapter to launch the spline once at its activation.
 using Motion::EffectLaunch;
 
 /**
  * One held behaviour of the movement kernel's shell (design §3-§4). The arbiter
  * decides which one is selected; the shell calls these hooks in the order the
- * arbiter's events dictate and ticks the selected one. In P3-B every behaviour
- * adapts a legacy MovementGenerator; P5 replaces them with natives over the
- * per-unit driver.
+ * arbiter's events dictate and ticks the selected one. Since P5-B family 1 the seven
+ * simple moves are natives of the kernel over the per-unit driver (NativeBehaviour);
+ * the nine kinds families 2-4 own still adapt a legacy MovementGenerator.
  */
 class MotionBehaviour
 {
@@ -61,6 +61,7 @@ class MotionBehaviour
         virtual MovementGenerator const* Legacy() const = 0;
         virtual void SpeedChanged() = 0;
         virtual bool GetResetPosition(Unit& owner, float& x, float& y, float& z, float& o) const = 0;
+        virtual bool Reachable() const = 0;                         ///< the behaviour can reach its goal (the IsReachable contract)
 };
 
 #endif

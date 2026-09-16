@@ -30,11 +30,11 @@
 #include "MotionMaster.h"
 #include "Behaviour.h"
 #include "LegacyBehaviour.h"
+#include "NativeBehaviour.h"
+#include "SimpleMoves.h"
 #include "ConfusedMovementGenerator.h"
 #include "FleeingMovementGenerator.h"
 #include "HomeMovementGenerator.h"
-#include "IdleMovementGenerator.h"
-#include "PointMovementGenerator.h"
 #include "TargetedMovementGenerator.h"
 #include "WaypointMovementGenerator.h"
 #include "RandomMovementGenerator.h"
@@ -488,10 +488,9 @@ void MotionMaster::Retire(size_t index, Motion::FinishReason reason)
  * @param seqBefore The arbiter's newest sequence before the request.
  * @param generator The legacy generator to adapt.
  * @param owned True when the behaviour owns (and deletes) the generator.
- * @param launch The Effect's spline parameters, if any.
  * @return True when the model kept the entry and it now has a behaviour.
  */
-bool MotionMaster::Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned, EffectLaunch const& launch)
+bool MotionMaster::Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned)
 {
     // The arbiter stamps exactly once per Request/InstallDefault, so the entry this call
     // produced -- when the model kept it -- is exactly seqBefore + 1. A refusal (a control
@@ -505,7 +504,23 @@ bool MotionMaster::Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* 
         }
         return false;
     }
-    m_bound.push_back(Bound(seqBefore + 1, std::unique_ptr<MotionBehaviour>(new LegacyBehaviour(kind, generator, owned, launch))));
+    m_bound.push_back(Bound(seqBefore + 1, std::unique_ptr<MotionBehaviour>(new LegacyBehaviour(kind, generator, owned))));
+    return true;
+}
+
+/**
+ * @brief Binds a native kernel behaviour to the entry the request just produced.
+ * @param seqBefore The arbiter's newest sequence before the request.
+ * @param native The kernel behaviour to adapt.
+ * @return True when the model kept the entry and it now has a behaviour.
+ */
+bool MotionMaster::BindNative(uint32 seqBefore, std::unique_ptr<Motion::Behaviour> native)
+{
+    if (!IsHeld(seqBefore + 1))
+    {
+        return false;   // refused by the model: the native dies with this call
+    }
+    m_bound.push_back(Bound(seqBefore + 1, std::unique_ptr<MotionBehaviour>(new NativeBehaviour(std::move(native)))));
     return true;
 }
 
@@ -541,9 +556,8 @@ void MotionMaster::SweepStale(Motion::Kind kind)
  * @param request The move request.
  * @param generator The legacy generator to adapt.
  * @param owned True when the behaviour owns the generator.
- * @param launch The Effect's spline parameters, if any.
  */
-void MotionMaster::Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned, EffectLaunch const& launch)
+void MotionMaster::Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned)
 {
     Scope scope(*this, Motion::TransactionKind::Normal);
     const uint32 before = m_arbiter.LastSeq();
@@ -552,7 +566,7 @@ void MotionMaster::Request(Motion::MoveRequest const& request, MovementGenerator
     // request of its own (a finalizer re-engaging combat), and that nested entry must not
     // be able to claim this generator -- nor may a hook see the facade empty over a model
     // that already holds the new selection.
-    const bool bound = Bind(request.kind, before, generator, owned, launch);
+    const bool bound = Bind(request.kind, before, generator, owned);
     // What the request finished (superseded, overridden, cancelled, a swapped default) is
     // delivered now, with their own reasons and inside this transaction, as Mutate ran the
     // displaced generator's hooks synchronously.
@@ -564,14 +578,21 @@ void MotionMaster::Request(Motion::MoveRequest const& request, MovementGenerator
 }
 
 /**
- * @brief One facade request with no Effect launch.
+ * @brief One facade request whose behaviour is a native of the kernel.
  * @param request The move request.
- * @param generator The legacy generator to adapt.
- * @param owned True when the behaviour owns the generator.
+ * @param native The kernel behaviour the adapter drives.
  */
-void MotionMaster::Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned)
+void MotionMaster::Request(Motion::MoveRequest const& request, std::unique_ptr<Motion::Behaviour> native)
 {
-    Request(request, generator, owned, EffectLaunch());
+    Scope scope(*this, Motion::TransactionKind::Normal);
+    const uint32 before = m_arbiter.LastSeq();
+    m_arbiter.Request(request);
+    const bool bound = BindNative(before, std::move(native));   // before any hook runs, as the legacy path
+    DeliverEvents();
+    if (bound)
+    {
+        SweepStale(request.kind);
+    }
 }
 
 /**
@@ -584,7 +605,24 @@ void MotionMaster::InstallFactory(Motion::Kind kind, MovementGenerator* generato
 {
     const uint32 before = m_arbiter.LastSeq();
     m_arbiter.InstallDefault(kind);
-    const bool bound = Bind(kind, before, generator, owned, EffectLaunch());   // before the hooks, as Request does it
+    const bool bound = Bind(kind, before, generator, owned);   // before the hooks, as Request does it
+    DeliverEvents();   // the clear's or the death's Finished events, and the swap's, with their own reasons
+    if (bound)
+    {
+        SweepStale(kind);
+    }
+}
+
+/**
+ * @brief Installs a native factory default; the caller owns the transaction.
+ * @param kind The kind the default runs under.
+ * @param native The kernel behaviour the adapter drives.
+ */
+void MotionMaster::InstallFactoryNative(Motion::Kind kind, std::unique_ptr<Motion::Behaviour> native)
+{
+    const uint32 before = m_arbiter.LastSeq();
+    m_arbiter.InstallDefault(kind);
+    const bool bound = BindNative(before, std::move(native));   // before the hooks, as Request does it
     DeliverEvents();   // the clear's or the death's Finished events, and the swap's, with their own reasons
     if (bound)
     {
@@ -611,7 +649,10 @@ void MotionMaster::Initialize()
     }
     if (!movement)
     {
-        movement = &si_idleMovement;
+        // Nothing registered for this creature's default type (and every player): the idle
+        // native is the default, as the shared idle singleton used to be.
+        InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));
+        return;
     }
     InstallFactory(KindOf(movement->GetMovementGeneratorType()), movement, owned);
     if (movement->GetMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
@@ -622,7 +663,7 @@ void MotionMaster::Initialize()
 
 /**
  * @brief Gets the current movement generator.
- * @return Pointer to the selected behaviour's generator, or NULL.
+ * @return Pointer to the selected behaviour's generator, or NULL (a native has none).
  */
 MovementGenerator const* MotionMaster::GetCurrent() const
 {
@@ -650,11 +691,17 @@ void MotionMaster::UpdateMotion(uint32 diff)
     {
         return;   // activated at this scope's commit; ticks from the next update
     }
-    MovementGenerator const* ticking = bound->behaviour->Legacy();
+    // Identity is the binding's sequence, not a generator pointer: a native has no generator.
+    const uint32 tickingSeq = bound->seq;
     const bool alive = bound->behaviour->Tick(*m_owner, diff);
-    if (!alive && IsSelected(ticking))
+    const std::optional<Motion::Held> now = m_arbiter.Selected();
+    if (!alive && now && now->seq == tickingSeq)
     {
-        bound = SelectedBound();   // the tick may have re-entered the facade; re-find
+        bound = Find(tickingSeq);   // the tick may have re-entered the facade; re-find
+        if (!bound)
+        {
+            return;
+        }
         const Motion::FinishReason reason = bound->behaviour->EndReason(*m_owner);
         const std::optional<Motion::Held> before = m_arbiter.Selected();
         m_arbiter.FinishSelected(reason);
@@ -720,7 +767,7 @@ void MotionMaster::MovementExpired(bool reset)
  */
 void MotionMaster::MoveIdle()
 {
-    Request(R(Motion::Kind::Idle), &si_idleMovement, false);
+    Request(R(Motion::Kind::Idle), std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));
 }
 
 /**
@@ -763,8 +810,8 @@ void MotionMaster::MoveTargetedHome()
         // The stack asked the generator beneath for the reset position from inside Home's
         // Initialize; here the default is the selection after the clear, so ask it now.
         float x, y, z, o;
-        MovementGenerator const* current = GetCurrent();
-        if (!current || !current->GetResetPosition(*m_owner, x, y, z, o))
+        Bound const* current = SelectedBound();
+        if (!current || !current->behaviour->GetResetPosition(*m_owner, x, y, z, o))
         {
             Geometry::Placement const& home = static_cast<Creature*>(m_owner)->Spawn();
             x = home.X();
@@ -850,7 +897,12 @@ void MotionMaster::MoveFollow(Unit* target, float dist, float angle)
 void MotionMaster::MovePoint(uint32 id, float x, float y, float z, bool generatePath)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s targeted point (Id: %u X: %f Y: %f Z: %f)", m_owner->GetGuidStr().c_str(), id, x, y, z);
-    Request(R(Motion::Kind::Point, id), new PointMovementGenerator(id, x, y, z, generatePath), true);
+    Motion::PointBehaviour::Params p;
+    p.kind = Motion::Kind::Point;
+    p.id = id;
+    p.goal = Motion::Vector3(x, y, z);
+    p.flags = generatePath ? Motion::MOVE_NONE : Motion::MOVE_STRAIGHT;
+    Request(R(Motion::Kind::Point, id), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }
 
 /**
@@ -867,7 +919,12 @@ void MotionMaster::MoveSeekAssistance(float x, float y, float z)
         return;
     }
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s seek assistance (X: %f Y: %f Z: %f)", m_owner->GetGuidStr().c_str(), x, y, z);
-    Request(R(Motion::Kind::AssistRun), new AssistanceMovementGenerator(x, y, z), true);
+    Motion::PointBehaviour::Params p;
+    p.kind = Motion::Kind::AssistRun;
+    p.goal = Motion::Vector3(x, y, z);
+    p.flags = Motion::MOVE_WALK;   // it walks, so the players it is fetching have a chance to catch it
+    p.informs = false;             // the assistance finisher replaces the point's: it never informed
+    Request(R(Motion::Kind::AssistRun), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }
 
 /**
@@ -882,7 +939,7 @@ void MotionMaster::MoveSeekAssistanceDistract(uint32 time)
         return;
     }
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s is distracted after assistance call (Time: %u)", m_owner->GetGuidStr().c_str(), time);
-    Request(R(Motion::Kind::AssistDistract), new AssistanceDistractMovementGenerator(time), true);
+    Request(R(Motion::Kind::AssistDistract), std::unique_ptr<Motion::Behaviour>(new Motion::DistractBehaviour(Motion::Kind::AssistDistract, time)));
 }
 
 /**
@@ -975,7 +1032,7 @@ void MotionMaster::MoveTaxiFlight(uint32 path, uint32 pathnode)
 void MotionMaster::MoveDistract(uint32 timer)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s distracted (timer: %u)", m_owner->GetGuidStr().c_str(), timer);
-    Request(R(Motion::Kind::Distract), new DistractMovementGenerator(timer), true);
+    Request(R(Motion::Kind::Distract), std::unique_ptr<Motion::Behaviour>(new Motion::DistractBehaviour(Motion::Kind::Distract, timer)));
 }
 
 /**
@@ -994,7 +1051,7 @@ void MotionMaster::MoveJump(float x, float y, float z, float horizontalSpeed, fl
     launch.point = Motion::Vector3(x, y, z);
     launch.speed = horizontalSpeed;
     launch.height = max_height;
-    Request(R(Motion::Kind::Effect, id), new EffectMovementGenerator(id), true, launch);
+    Request(R(Motion::Kind::Effect, id), std::unique_ptr<Motion::Behaviour>(new Motion::EffectBehaviour(id, launch)));
 }
 
 /**
@@ -1050,7 +1107,7 @@ void MotionMaster::MoveFall()
     EffectLaunch launch;
     launch.kind = EffectLaunch::Fall;
     launch.point = Motion::Vector3(m_owner->Where().X(), m_owner->Where().Y(), tz);
-    Request(R(Motion::Kind::Effect, 0), new EffectMovementGenerator(0), true, launch);
+    Request(R(Motion::Kind::Effect, 0), std::unique_ptr<Motion::Behaviour>(new Motion::EffectBehaviour(0, launch)));
 }
 
 /**
@@ -1068,7 +1125,14 @@ void MotionMaster::MoveFlyOrLand(uint32 id, float x, float y, float z, bool lift
         return;
     }
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s targeted point for %s (Id: %u X: %f Y: %f Z: %f)", m_owner->GetGuidStr().c_str(), liftOff ? "liftoff" : "landing", id, x, y, z);
-    Request(R(Motion::Kind::FlyLand, id), new FlyOrLandMovementGenerator(id, x, y, z, liftOff), true);
+    // liftOff is not read: the leg is a straight line through the air either way, and which
+    // it is is already implied by the height of the destination.
+    Motion::PointBehaviour::Params p;
+    p.kind = Motion::Kind::FlyLand;
+    p.id = id;
+    p.goal = Motion::Vector3(x, y, z);
+    p.flags = Motion::MOVE_FLY | Motion::MOVE_STRAIGHT;
+    Request(R(Motion::Kind::FlyLand, id), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }
 
 /**
@@ -1202,7 +1266,7 @@ void MotionMaster::Die()
 {
     Scope scope(*this, Motion::TransactionKind::Death);
     m_arbiter.Die();
-    InstallFactory(Motion::Kind::Idle, &si_idleMovement, false);   // never doomed: survives the death's own guard
+    InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));   // never doomed: survives the death's own guard
 }
 
 /**
@@ -1380,6 +1444,10 @@ void MotionMaster::RelocateSelected(float x, float y, float z, float o)
  */
 bool MotionMaster::IsSelected(MovementGenerator const* generator) const
 {
+    if (!generator)
+    {
+        return false;   // a native answers NULL for its generator: no caller owns that
+    }
     Bound const* bound = SelectedBound();
     return bound && bound->behaviour->Legacy() == generator;
 }
@@ -1464,12 +1532,12 @@ bool MotionMaster::IsOnTaxi() const
 
 /**
  * @brief Whether the selected behaviour can reach its goal.
- * @return The selected generator's answer; true when nothing is selected.
+ * @return The selected behaviour's answer; true when nothing is selected.
  */
 bool MotionMaster::IsReachable() const
 {
-    MovementGenerator const* current = GetCurrent();
-    return !current || current->IsReachable();
+    Bound const* bound = SelectedBound();
+    return !bound || bound->behaviour->Reachable();
 }
 
 /**
@@ -1509,8 +1577,11 @@ std::vector<MotionMaster::HeldView> MotionMaster::Held() const
     for (size_t i = 0; i < m_bound.size(); ++i)
     {
         HeldView view;
-        view.generator = m_bound[i].behaviour->Legacy();
+        view.kind = m_bound[i].behaviour->Kind();
+        view.type = m_bound[i].behaviour->LegacyType();
         view.selected = &m_bound[i] == selected;
+        view.reachable = m_bound[i].behaviour->Reachable();
+        view.generator = m_bound[i].behaviour->Legacy();
         out.push_back(view);
     }
     return out;
