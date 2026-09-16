@@ -30,7 +30,7 @@
 #include "MovementGenerator.h"
 
 /**
- * A legacy MovementGenerator as a behaviour (design §4, the hook matrix), for the nine
+ * A legacy MovementGenerator as a behaviour (design §4, the hook matrix), for the eight
  * kinds families 2-4 still own; the seven simple moves are natives over NativeBehaviour.
  * Owns the generator when the binding hands ownership over. Only the selected behaviour
  * ticks; the hooks map onto Initialize/Interrupt/Reset/Finalize per class, and a replaced

@@ -32,6 +32,7 @@
 #include "LegacyBehaviour.h"
 #include "NativeBehaviour.h"
 #include "SimpleMoves.h"
+#include "MovementIntent.h"
 #include "ConfusedMovementGenerator.h"
 #include "FleeingMovementGenerator.h"
 #include "HomeMovementGenerator.h"
@@ -596,6 +597,27 @@ void MotionMaster::Request(Motion::MoveRequest const& request, std::unique_ptr<M
 }
 
 /**
+ * @brief One Effect request, through the shell's own gate.
+ * @param id The MovementInform id, 0 when none.
+ * @param launch The arc or the fall the Effect native guards.
+ * @return False when the request was refused.
+ */
+bool MotionMaster::RequestEffect(uint32 id, Motion::EffectLaunch const& launch)
+{
+    // A knockback arc never displaces a rooted unit (reference: the family's retail notes, A):
+    // refused before the model, recorded in the ring, nothing bound, nothing informed. Only
+    // Rooted refuses: a stun mid-flight is undocumented and the jump completes under one; the
+    // dying flyer's fall is requested after the death inhibit and must run.
+    if (launch.kind == Motion::EffectLaunch::Jump && (m_arbiter.Evaluate(Motion::Kind::Effect).reasons & Motion::ReasonRooted))
+    {
+        m_arbiter.Refuse(R(Motion::Kind::Effect, id));
+        return false;
+    }
+    Request(R(Motion::Kind::Effect, id), std::unique_ptr<Motion::Behaviour>(new Motion::EffectBehaviour(id, launch)));
+    return true;
+}
+
+/**
  * @brief Installs the factory default; the caller owns the transaction.
  * @param kind The kind the default runs under.
  * @param generator The legacy generator to adapt.
@@ -1043,15 +1065,16 @@ void MotionMaster::MoveDistract(uint32 timer)
  * @param horizontalSpeed The horizontal speed of the jump.
  * @param max_height The height of the parabola.
  * @param id ID of the movement.
+ * @return False when the jump was refused: a rooted unit is never displaced by an arc.
  */
-void MotionMaster::MoveJump(float x, float y, float z, float horizontalSpeed, float max_height, uint32 id)
+bool MotionMaster::MoveJump(float x, float y, float z, float horizontalSpeed, float max_height, uint32 id)
 {
     EffectLaunch launch;
     launch.kind = EffectLaunch::Jump;
     launch.point = Motion::Vector3(x, y, z);
     launch.speed = horizontalSpeed;
     launch.height = max_height;
-    Request(R(Motion::Kind::Effect, id), std::unique_ptr<Motion::Behaviour>(new Motion::EffectBehaviour(id, launch)));
+    return RequestEffect(id, launch);
 }
 
 /**
@@ -1060,10 +1083,11 @@ void MotionMaster::MoveJump(float x, float y, float z, float horizontalSpeed, fl
  * @param horizontalSpeed The horizontal speed of the jump.
  * @param max_height The height of the parabola.
  * @param id ID of the movement.
+ * @return False when the jump was refused.
  */
-void MotionMaster::MoveJump(Position& pos, float horizontalSpeed, float max_height, uint32 id)
+bool MotionMaster::MoveJump(Position& pos, float horizontalSpeed, float max_height, uint32 id)
 {
-    MoveJump(pos.x, pos.y, pos.z, horizontalSpeed, max_height, id);
+    return MoveJump(pos.x, pos.y, pos.z, horizontalSpeed, max_height, id);
 }
 
 /**
@@ -1071,18 +1095,27 @@ void MotionMaster::MoveJump(Position& pos, float horizontalSpeed, float max_heig
  *
  * Kept where mangos_two teleports instead (its EffectJump ends in NearTeleportTo
  * with a TODO). A spline the client can see is the better answer, so this is the
- * implementation that wins; it lays no behaviour because the jump IS the whole
- * movement and there is nothing left to drive afterwards.
+ * implementation that wins. Since P5-B family 1 it is an Effect like every other
+ * jump -- it was the one arc that laid no behaviour, so nothing guarded it, nothing
+ * cancelled what it displaced, and a rooted caster was displaced by it.
+ * @param x X-coordinate of the destination.
+ * @param y Y-coordinate of the destination.
+ * @param z Z-coordinate of the destination.
+ * @param o The orientation to end in when there is no target.
+ * @param horizontalSpeed The horizontal speed of the jump.
+ * @param max_height The height of the parabola.
+ * @param target The unit to end facing, NULL for `o`.
+ * @return False when the jump was refused.
  */
-void MotionMaster::MoveDestination(float x, float y, float z, float o, float horizontalSpeed, float max_height, Unit* target)
+bool MotionMaster::MoveJump(float x, float y, float z, float o, float horizontalSpeed, float max_height, Unit* target)
 {
-    // unchanged: a raw spline (P5 routes it)
-    Movement::MoveSplineInit init(*m_owner);
-    init.MoveTo(x, y, z);
-    init.SetParabolic(max_height, 0);
-    init.SetVelocity(horizontalSpeed);
-    target ? init.SetFacing(target) : init.SetFacing(o);
-    init.Launch();
+    EffectLaunch launch;
+    launch.kind = EffectLaunch::Jump;
+    launch.point = Motion::Vector3(x, y, z);
+    launch.speed = horizontalSpeed;
+    launch.height = max_height;
+    launch.facing = target ? Motion::FacingTarget(target->GetObjectGuid()) : Motion::Facing::ToAngle(o);
+    return RequestEffect(0, launch);
 }
 
 /**
@@ -1107,7 +1140,7 @@ void MotionMaster::MoveFall()
     EffectLaunch launch;
     launch.kind = EffectLaunch::Fall;
     launch.point = Motion::Vector3(m_owner->Where().X(), m_owner->Where().Y(), tz);
-    Request(R(Motion::Kind::Effect, 0), std::unique_ptr<Motion::Behaviour>(new Motion::EffectBehaviour(0, launch)));
+    RequestEffect(0, launch);   // never refused: a fall is not a Jump, and the dying flyer's is requested after the death inhibit
 }
 
 /**
@@ -1133,6 +1166,59 @@ void MotionMaster::MoveFlyOrLand(uint32 id, float x, float y, float z, bool lift
     p.goal = Motion::Vector3(x, y, z);
     p.flags = Motion::MOVE_FLY | Motion::MOVE_STRAIGHT;
     Request(R(Motion::Kind::FlyLand, id), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
+}
+
+/**
+ * @brief The charge: a point that follows its target's contact point (P5-B family 1 section 6).
+ *
+ * The old charge was a raw MonsterMoveWithSpeed to one fixed contact point, so the spell
+ * stopped a creature target first to keep that point true. The kernel's point re-lays its
+ * leg as the target moves, so the target is no longer stopped: it keeps running and the
+ * charge re-targets it. The point is requested with `resumeCombat`, so the chase the spell's
+ * Attack installs is held beneath it and resumes the moment the charge ends.
+ * @param target The unit charged; nothing happens without one.
+ * @param speed The charge's speed in yards per second.
+ */
+void MotionMaster::MoveCharge(Unit* target, float speed)
+{
+    if (!target)
+    {
+        return;
+    }
+    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s charges %s at %f", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str(), speed);
+    // The first leg's goal, the same call the adapter makes for every re-lay:
+    // 3.666666 instead of ATTACK_DISTANCE(5.0f) gives the more accurate result.
+    float x, y, z;
+    ContactPointNear(*target, m_owner, x, y, z, 3.666666f);
+    Motion::PointBehaviour::Params p;
+    p.kind = Motion::Kind::Point;
+    p.id = 0;
+    p.goal = Motion::Vector3(x, y, z);
+    p.flags = Motion::MOVE_FORCE_DEST;   // routed, and it arrives at the exact contact point
+    p.speed = speed;
+    p.target = target->GetObjectGuid().GetRawValue();
+    p.informs = false;                   // the raw spline it replaces informed nothing
+    Request(R(Motion::Kind::Point, 0, true), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
+}
+
+/**
+ * @brief The swoop: the charge's destination form, a fixed goal with no target to track.
+ * @param x X-coordinate of the goal.
+ * @param y Y-coordinate of the goal.
+ * @param z Z-coordinate of the goal.
+ * @param speed The charge's speed in yards per second.
+ */
+void MotionMaster::MoveCharge(float x, float y, float z, float speed)
+{
+    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s charges to (X: %f Y: %f Z: %f) at %f", m_owner->GetGuidStr().c_str(), x, y, z, speed);
+    Motion::PointBehaviour::Params p;
+    p.kind = Motion::Kind::Point;
+    p.id = 0;
+    p.goal = Motion::Vector3(x, y, z);
+    p.flags = Motion::MOVE_FORCE_DEST;
+    p.speed = speed;
+    p.informs = false;
+    Request(R(Motion::Kind::Point, 0, true), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }
 
 /**

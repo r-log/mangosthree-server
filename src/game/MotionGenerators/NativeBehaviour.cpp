@@ -69,8 +69,20 @@ MovementGeneratorType NativeBehaviour::Project(Motion::Kind kind)
         case Motion::Kind::Distract:       return DISTRACT_MOTION_TYPE;
         case Motion::Kind::AssistDistract: return ASSISTANCE_DISTRACT_MOTION_TYPE;
         case Motion::Kind::Effect:         return EFFECT_MOTION_TYPE;
-        default:                           return IDLE_MOTION_TYPE;
+        // The eight kinds families 2-4 still own: a native is never one of them, and naming
+        // them here makes a kind added later a compile warning instead of a silent Idle.
+        case Motion::Kind::Wander:
+        case Motion::Kind::Patrol:
+        case Motion::Kind::Follow:
+        case Motion::Kind::Chase:
+        case Motion::Kind::Home:
+        case Motion::Kind::Fear:
+        case Motion::Kind::Confused:
+        case Motion::Kind::Taxi:
+        case Motion::Kind::Count:
+            break;
     }
+    return IDLE_MOTION_TYPE;
 }
 
 /**
@@ -164,8 +176,11 @@ void NativeBehaviour::Launch(Unit& owner, Motion::EffectLaunch const& launch)
                 init.SetFacing(target);
             }
             break;
-        default:
-            break;   // None: the travel direction, as every launch does today
+        case Motion::Facing::Mode::Spot:
+            init.SetFacing(launch.facing.spot);   // the kernel's Vector3 is Geometry's, the one Movement takes
+            break;
+        case Motion::Facing::Mode::None:
+            break;   // the travel direction, as every launch does today
     }
     init.Launch();
 }
@@ -251,6 +266,8 @@ void NativeBehaviour::Resume(Unit& owner, bool reset)
  */
 bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
 {
+    // No IsSelected re-entrancy guard here, unlike the legacy adapter: a native's tick performs
+    // no hook and issues no facade call -- every effect it asks for runs from Finish.
     const Motion::Sight sight = See(owner, true);
     const Motion::Step step = m_native->Tick(sight, diff);
     if (step.apply && step.intent.act == Motion::MoveIntent::Act::Done)
