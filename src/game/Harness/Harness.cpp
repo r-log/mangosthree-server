@@ -49,6 +49,7 @@ namespace Harness
     void RegisterFleeScenarios(Runner& r);
     void RegisterWanderScenarios(Runner& r);
     void RegisterBlockScenarios(Runner& r);
+    void RegisterCoverageScenarios(Runner& r);
 
     namespace
     {
@@ -70,6 +71,7 @@ namespace Harness
         RegisterFleeScenarios(*this);
         RegisterWanderScenarios(*this);
         RegisterBlockScenarios(*this);
+        RegisterCoverageScenarios(*this);
         RegisterPatrolScenarios(*this);
     }
 
