@@ -80,6 +80,9 @@ namespace
 
     const uint64 kScriptConfuse = Motion::ControlClaim(0, 2, 1);   ///< MoveConfused() with no identity (no script calls it today)
     const uint32 kMaxCommitRounds = 8; ///< finalizers re-entering the facade during a commit
+    /// The eight bits MirrorUnitState owns; compared against the owner's own state, not a cache.
+    const uint32 kMirrorBits = UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED | UNIT_STAT_CONTROLLED |
+                               UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_DISTRACTED | UNIT_STAT_TAXI_FLIGHT;
 
     /**
      * @brief One move request, spelled out.
@@ -183,8 +186,7 @@ class MotionMaster::Scope
  * @param unit Pointer to the unit.
  */
 MotionMaster::MotionMaster(Unit* unit)
-    : m_owner(unit), m_depth(0), m_scopeKind(Motion::TransactionKind::Normal), m_pendingReset(PendingReset::None), m_exposedSeq(0), m_clientRooted(false),
-      m_mirror(0), m_mirrorValid(false)
+    : m_owner(unit), m_depth(0), m_scopeKind(Motion::TransactionKind::Normal), m_pendingReset(PendingReset::None), m_exposedSeq(0), m_clientRooted(false)
 {
     if (sWorld.getConfig(CONFIG_BOOL_MOVEMENT_DECISION_RING))
     {
@@ -1292,12 +1294,14 @@ void MotionMaster::ProjectClientRoot()
 /**
  * @brief Writes the unit-state bits the kernel now owns: the inhibitions and the arbiter's entries.
  * DIED mirrors a feign (real death never set the bit before and IsAlive() is the game's answer).
- * Keeps the last mask written (m_mirror) and touches only the bits that changed since; the first
- * call (m_mirrorValid unset) writes all eight.
+ * Compares against the owner's own bits (GetUnitState() & kMirrorBits) rather than a cache, so an
+ * outside wipe of the unit state (a respawn's clearUnitState(UNIT_STAT_ALL_STATE)) heals at the
+ * next commit instead of leaving a source death does not drop (a fixed vehicle's root) unmirrored
+ * for good.
  */
 void MotionMaster::MirrorUnitState()
 {
-    struct Bit { uint32 state; uint8 bit; bool on; };
+    struct Bit { uint32 state; bool on; };
     std::vector<uint64> const& dead = m_arbiter.Sources(Motion::Inhibition::Dead);
     bool feign = false;
     for (size_t i = 0; i < dead.size(); ++i)
@@ -1309,27 +1313,28 @@ void MotionMaster::MirrorUnitState()
     }
     const Bit bits[] =
     {
-        { UNIT_STAT_ROOT,        1u << 0, m_arbiter.Inhibited(Motion::Inhibition::Rooted) },
-        { UNIT_STAT_STUNNED,     1u << 1, m_arbiter.Inhibited(Motion::Inhibition::Stunned) },
-        { UNIT_STAT_DIED,        1u << 2, feign },
-        { UNIT_STAT_CONTROLLED,  1u << 3, m_arbiter.Inhibited(Motion::Inhibition::Possessed) },
-        { UNIT_STAT_FLEEING,     1u << 4, m_arbiter.HasClaim(Motion::Kind::Fear) },
-        { UNIT_STAT_CONFUSED,    1u << 5, m_arbiter.HasClaim(Motion::Kind::Confused) },
-        { UNIT_STAT_DISTRACTED,  1u << 6, m_arbiter.HasCommand(Motion::Layer::Distract) },
-        { UNIT_STAT_TAXI_FLIGHT, 1u << 7, m_arbiter.HasCommand(Motion::Layer::Taxi) },
+        { UNIT_STAT_ROOT,        m_arbiter.Inhibited(Motion::Inhibition::Rooted) },
+        { UNIT_STAT_STUNNED,     m_arbiter.Inhibited(Motion::Inhibition::Stunned) },
+        { UNIT_STAT_DIED,        feign },
+        { UNIT_STAT_CONTROLLED,  m_arbiter.Inhibited(Motion::Inhibition::Possessed) },
+        { UNIT_STAT_FLEEING,     m_arbiter.HasClaim(Motion::Kind::Fear) },
+        { UNIT_STAT_CONFUSED,    m_arbiter.HasClaim(Motion::Kind::Confused) },
+        { UNIT_STAT_DISTRACTED,  m_arbiter.HasCommand(Motion::Layer::Distract) },
+        { UNIT_STAT_TAXI_FLIGHT, m_arbiter.HasCommand(Motion::Layer::Taxi) },
     };
-    uint8 mask = 0;
+    uint32 mask = 0;
     for (size_t i = 0; i < sizeof(bits) / sizeof(bits[0]); ++i)
     {
         if (bits[i].on)
         {
-            mask |= bits[i].bit;
+            mask |= bits[i].state;
         }
     }
-    const uint8 changed = m_mirrorValid ? uint8(mask ^ m_mirror) : uint8(0xFF);
+    const uint32 current = m_owner->GetUnitState() & kMirrorBits;
+    const uint32 changed = mask ^ current;
     for (size_t i = 0; i < sizeof(bits) / sizeof(bits[0]); ++i)
     {
-        if (!(changed & bits[i].bit))
+        if (!(changed & bits[i].state))
         {
             continue;
         }
@@ -1342,8 +1347,6 @@ void MotionMaster::MirrorUnitState()
             m_owner->clearUnitState(bits[i].state);
         }
     }
-    m_mirror = mask;
-    m_mirrorValid = true;
 }
 
 /**

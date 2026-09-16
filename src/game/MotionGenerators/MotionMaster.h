@@ -250,8 +250,9 @@ class MotionMaster
         /// The client root follows the aggregate of Rooted and Stunned: SetRoot on its edges only.
         void ProjectClientRoot();
         /// The old unit-state bits, written here and nowhere else: the kernel's mirror for scripts
-        /// and the client. Writes only the bits that changed since the mask last written (m_mirror),
-        /// every bit on the first call (m_mirrorValid unset).
+        /// and the client. Reads the owner's own bits (Unit::GetUnitState()) and writes only what
+        /// differs, so an outside wipe of the unit state (a respawn's clearUnitState) heals at the
+        /// next commit instead of leaving a mirrored bit stuck stale.
         void MirrorUnitState();
 
         Unit*              m_owner;
@@ -263,8 +264,6 @@ class MotionMaster
         PendingReset       m_pendingReset;
         uint32             m_exposedSeq;     ///< WhenExposed: the entry an expiry exposed
         bool               m_clientRooted;   ///< what ProjectClientRoot last told the owner
-        uint8              m_mirror;         ///< the mask last written by MirrorUnitState
-        bool               m_mirrorValid;    ///< false before the first commit: every bit is written then
 };
 
 #endif // MANGOS_MOTIONMASTER_H

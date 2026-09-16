@@ -1736,6 +1736,8 @@ class Unit : public WorldObject
          * \see UnitState
          */
         bool hasUnitState(uint32 f) const { return (m_state & f); }
+        /// The raw state bits, for the movement mirror's changed-bits write.
+        uint32 GetUnitState() const { return m_state; }
         /**
          * Unsets a certain unit state
          * @param f the state to remove
