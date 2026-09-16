@@ -137,9 +137,18 @@ namespace Harness
                         if (vi->IsSeatAvailableFor(w, s)) { *seat = s; break; }
                     }
                     if (*seat < 0) { Log("no passenger seat accepts the wolf"); *seatFailReason = "no passenger seat"; return; }
-                    // The wolf's own world spot right before it stops being a world object:
-                    // unboardPlacesBack checks the unboard returns it here (a stationary vehicle).
-                    *preBoard = Pt { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                    // The wolf's own world spot right before it stops being a world object, read
+                    // the way Board itself reads it (Vehicle.cpp): stop its spline, then take
+                    // PendingSplineCommit() -- the spline's exact position at the stop, up to a
+                    // POSITION_UPDATE_DELAY ahead of a stale Where() -- falling back to Where()
+                    // when nothing was running. Board's own InterruptMoving() a moment later then
+                    // finds an already-finalised spline and is a no-op; its own read returns this
+                    // same pending value. unboardPlacesBack checks the unboard returns the wolf
+                    // here (a stationary vehicle).
+                    w->InterruptMoving();
+                    Position const* pending = w->PendingSplineCommit();
+                    *preBoard = pending ? Pt { pending->x, pending->y, pending->z }
+                                        : Pt { w->Where().X(), w->Where().Y(), w->Where().Z() };
                     vi->Board(w, uint8(*seat));
                     Log("wolf boards seat %d from %.1f %.1f, mt=%s", *seat, preBoard->x, preBoard->y, TypeName(w));
                 });
