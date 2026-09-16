@@ -273,35 +273,61 @@ void VehicleInfo::UnBoardPassenger(WorldObject* passenger)
     }
 
     // The seat pose is local to this vehicle's frame (BoardPassenger's own comment on
-    // TransportInfo::SetSeatPose). Stepping off must put the passenger back in the WORLD frame
-    // with the matching WORLD position -- but SetTransportInfo(NULL) below only re-tags the
-    // frame (WorldObject::RefreshFrame: "the pose is untouched: this says where the numbers are
-    // measured, not what they are"), so a passenger unboarded straight from its seat pose would
-    // keep that pose's LOCAL numbers, now mislabelled as world ones, if nothing composed them.
-    // UpdateGlobalPositionOf does exactly that: the same composition the 500 ms refresh in
-    // VehicleInfo::Update uses to drag a seated rider along a moving vehicle, and it relocates
-    // through the map (Map::CreatureRelocation / PlayerRelocation), keeping the grid cell and
-    // running OnRelocated (visibility, notifiers) -- a plain Place().MoveTo would silently skip
-    // both. The seat pose is copied (not referenced -- the TransportInfo holding it is deleted a
-    // few lines after) before SetTransportInfo(NULL) below.
+    // TransportInfo::SetSeatPose): copied here as a value -- the TransportInfo holding it is
+    // deleted below, before anything that could run arbitrary code gets a chance to touch it.
     Geometry::Placement const seatPose = itr->second->Seat();
 
+    // Leave the passenger map -- and delete the TransportInfo -- before anything below can run
+    // arbitrary code. UpdateGlobalPositionOf's relocation calls OnRelocated (visibility,
+    // notifiers) synchronously, and PassengerMap is an unordered_map: a passenger boarding onto
+    // this same vehicle from inside that callback can rehash it and invalidate this iterator --
+    // a use-after-invalidation on a delete/erase reached afterward. Erasing first also closes
+    // the half-state window where GetTransportInfo() already read NULL but the seat still read
+    // taken (GetTakenSeatsMask/GetPassenger) and the movement block still carried the old
+    // transport offset to an observer entering view in that window.
+    delete itr->second;
+    m_passengers.erase(itr);
+
+    // Stepping off must put the passenger back in the WORLD frame with the matching WORLD
+    // position -- but SetTransportInfo(NULL) below only re-tags the frame (WorldObject::
+    // RefreshFrame: "the pose is untouched: this says where the numbers are measured, not what
+    // they are"), so a passenger unboarded straight from its seat pose would keep that pose's
+    // LOCAL numbers, now mislabelled as world ones, if nothing composed them. UpdateGlobalPositionOf
+    // does exactly that below: the same composition the 500 ms refresh in VehicleInfo::Update
+    // uses to drag a seated rider along a moving vehicle, and it relocates through the map
+    // (Map::CreatureRelocation / PlayerRelocation), keeping the grid cell and running
+    // OnRelocated -- a plain Place().MoveTo would silently skip both.
     passenger->SetTransportInfo(NULL);  // re-tag to the World frame first: relocation notifiers
                                         // measure distances, and Placement fails closed across frames
 
+    if (!passenger->IsInWorld())
+    {
+        // No live map to relocate through -- a teardown (e.g. ~VehicleInfo's
+        // RemoveSpellsCausingAura, reached from Unit::~Unit, where GetMap() would assert). Keep
+        // the frame re-tag and the seat-pose conversion, but write the composed pose directly,
+        // the shape this code had before it started relocating through the map.
+        float gx, gy, gz, go;
+        CalculateGlobalPositionOf(seatPose.X(), seatPose.Y(), seatPose.Z(), seatPose.Facing(), gx, gy, gz, go);
+        passenger->Place().MoveTo(gx, gy, gz, go);
+        return;
+    }
+
     // The old cell Map::PlayerRelocation unlinks from is read from the placement; a rider's may
-    // still be the seat pose (local numbers, a cell at the map's centre), so it is set to the
-    // vehicle's own world pose first, a loaded cell within a seat's reach of the true one;
-    // CreatureRelocation reads the current cell and does not need it, and the seed is harmless
-    // for it. This is the placement's OLD position for the cell derivation only -- the
-    // relocation just below writes the composed (and correct) pose over it.
-    passenger->Place().MoveTo(m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
+    // still be the seat pose (local numbers, a cell at the map's centre) if nothing has composed
+    // it yet. Seed it with the vehicle's own world pose first -- but ONLY while the placement
+    // still equals the copied seat pose: a placement still holding the seat pose names a cell at
+    // the map's centre, but one already composed by the 500 ms refresh names the rider's OWN
+    // cell and must be left as it is, or the seed would introduce the very mismatch it exists to
+    // avoid. (The cross-cell case, a seat offset straddling a cell edge, is P4-C's, the rider
+    // placement model's own limit.) This is the placement's OLD position for the cell
+    // derivation only -- the relocation just below writes the composed (and correct) pose over
+    // it.
+    if (passenger->Where().X() == seatPose.X() && passenger->Where().Y() == seatPose.Y() && passenger->Where().Z() == seatPose.Z())
+    {
+        passenger->Place().MoveTo(m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
+    }
 
     UpdateGlobalPositionOf(passenger, seatPose.X(), seatPose.Y(), seatPose.Z(), seatPose.Facing());
-
-    delete itr->second;
-
-    m_passengers.erase(itr);
 }
 
 TransportInfo::TransportInfo(WorldObject* owner, VehicleInfo* transport,
