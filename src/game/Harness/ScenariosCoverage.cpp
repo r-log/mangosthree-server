@@ -108,6 +108,7 @@ namespace Harness
                 auto seat = std::make_shared<int>(-1);
                 auto seat2 = std::make_shared<int>(-1);
                 auto seatFailReason = std::make_shared<std::string>("not reached");
+                auto preBoard = std::make_shared<Pt>();
                 auto held = std::make_shared<std::vector<Pt> >();
                 auto heldMayMove = std::make_shared<bool>(false);
                 auto switchHeld = std::make_shared<std::vector<Pt> >();
@@ -116,6 +117,7 @@ namespace Harness
                 auto seatPoseIsLocal = std::make_shared<std::string>("INVALID(not reached)");
                 auto switchKeeps = std::make_shared<std::string>("INVALID(not reached)");
                 auto unboardReleases = std::make_shared<std::string>("INVALID(not reached)");
+                auto unboardPlacesBack = std::make_shared<std::string>("INVALID(not reached)");
 
                 At(500, [this, gw]()
                 {
@@ -124,7 +126,7 @@ namespace Harness
                     // seat-pose corruption the class comment describes.
                     if (Creature* w = Get(gw)) { w->GetMotionMaster()->MovePoint(9, SE.x + 30.0f, SE.y, Ground(SE.x + 30.0f, SE.y, SE.z)); Log("pre-board point requested (a world spline in flight at boarding), mt=%s", TypeName(w)); }
                 });
-                At(1000, [this, gv, gw, seat, seatFailReason]()
+                At(1000, [this, gv, gw, seat, seatFailReason, preBoard]()
                 {
                     Creature* v = Get(gv); Creature* w = Get(gw); if (!v || !w) { return; }
                     VehicleInfo* vi = v->GetVehicleInfo();
@@ -135,8 +137,11 @@ namespace Harness
                         if (vi->IsSeatAvailableFor(w, s)) { *seat = s; break; }
                     }
                     if (*seat < 0) { Log("no passenger seat accepts the wolf"); *seatFailReason = "no passenger seat"; return; }
+                    // The wolf's own world spot right before it stops being a world object:
+                    // unboardPlacesBack checks the unboard returns it here (a stationary vehicle).
+                    *preBoard = Pt { w->Where().X(), w->Where().Y(), w->Where().Z() };
                     vi->Board(w, uint8(*seat));
-                    Log("wolf boards seat %d, mt=%s", *seat, TypeName(w));
+                    Log("wolf boards seat %d from %.1f %.1f, mt=%s", *seat, preBoard->x, preBoard->y, TypeName(w));
                 });
                 At(1500, [this, gv, gw, seat, seatRoots]()
                 {
@@ -238,6 +243,19 @@ namespace Harness
                     *unboardReleases = text;
                     Log("after the unboard: %s", text);
                 });
+                At(7500, [this, gw, seat, preBoard, unboardPlacesBack]()
+                {
+                    Creature* w = Get(gw); if (!w || *seat < 0) { return; }
+                    // A stationary vehicle's unboard must return the rider to where it boarded
+                    // (reference: the re-review's reflection, 15.6 yd on the wrong side before
+                    // this was fixed) -- world coordinates this time, not the seat pose.
+                    const float d = Dist2(w->Where().X(), w->Where().Y(), preBoard->x, preBoard->y);
+                    const bool ok = d < 3.0f;
+                    char text[80];
+                    snprintf(text, sizeof(text), "%s(dist %.1f)", ok ? "OK" : "BUG", d);
+                    *unboardPlacesBack = text;
+                    Log("unboardPlacesBack: %s", text);
+                });
                 At(8000, [this, gw]()
                 {
                     if (Creature* w = Get(gw)) { w->GetMotionMaster()->MovePoint(1, SE.x + 25.0f, SE.y + 10.0f, Ground(SE.x + 25.0f, SE.y + 10.0f, SE.z)); Log("fresh point after the unboard, mt=%s", TypeName(w)); }
@@ -252,7 +270,7 @@ namespace Harness
                         Log("after +%4ums mt=%s at %.1f %.1f", t, TypeName(w), p.x, p.y);
                     });
                 }
-                At(11500, [this, gw, seat, seatFailReason, held, heldMayMove, switchHeld, seat2, after, seatRoots, seatPoseIsLocal, switchKeeps, unboardReleases]()
+                At(11500, [this, gw, seat, seatFailReason, held, heldMayMove, switchHeld, seat2, after, seatRoots, seatPoseIsLocal, switchKeeps, unboardReleases, unboardPlacesBack]()
                 {
                     if (*seat < 0) { Verdict(Invalid(seatFailReason->c_str())); return; }
                     if (!Get(gw)) { Verdict(Invalid("lost")); return; }
@@ -269,11 +287,11 @@ namespace Harness
                         snprintf(t2, sizeof(t2), "%s(spread %.1f)", switchSpread < 0.5f ? "OK" : "BUG", switchSpread);
                         switchHoldsSeat = t2;
                     }
-                    char text[520];
-                    snprintf(text, sizeof(text), "seatRoots=%s | seatPoseIsLocal=%s | heldOnSeat=%s(spread %.1f, mayMove seen %d) | switchKeepsRoot=%s | switchHoldsSeat=%s | unboardReleases=%s | movesAfterUnboard=%s(spread %.1f)",
+                    char text[600];
+                    snprintf(text, sizeof(text), "seatRoots=%s | seatPoseIsLocal=%s | heldOnSeat=%s(spread %.1f, mayMove seen %d) | switchKeepsRoot=%s | switchHoldsSeat=%s | unboardReleases=%s | unboardPlacesBack=%s | movesAfterUnboard=%s(spread %.1f)",
                              seatRoots->c_str(), seatPoseIsLocal->c_str(),
                              (heldSpread < 0.5f && !*heldMayMove) ? "OK" : "BUG", heldSpread, *heldMayMove ? 1 : 0,
-                             switchKeeps->c_str(), switchHoldsSeat.c_str(), unboardReleases->c_str(),
+                             switchKeeps->c_str(), switchHoldsSeat.c_str(), unboardReleases->c_str(), unboardPlacesBack->c_str(),
                              afterSpread > 3.0f ? "OK" : "BUG", afterSpread);
                     Verdict(text);
                 });
@@ -283,7 +301,7 @@ namespace Harness
             static std::string Invalid(char const* why)
             {
                 std::string w = std::string("INVALID(") + why + ")";
-                return "seatRoots=" + w + " | seatPoseIsLocal=" + w + " | heldOnSeat=" + w + " | switchKeepsRoot=" + w + " | switchHoldsSeat=" + w + " | unboardReleases=" + w + " | movesAfterUnboard=" + w;
+                return "seatRoots=" + w + " | seatPoseIsLocal=" + w + " | heldOnSeat=" + w + " | switchKeepsRoot=" + w + " | switchHoldsSeat=" + w + " | unboardReleases=" + w + " | unboardPlacesBack=" + w + " | movesAfterUnboard=" + w;
             }
         };
 
