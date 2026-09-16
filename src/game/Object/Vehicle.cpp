@@ -213,12 +213,20 @@ Geometry::Frame VehicleInfo::SeatFrame() const
 Geometry::Placement VehicleInfo::SeatPoseOf(Geometry::Vector3 const& worldPoint,
                                             float worldFacing) const
 {
-    // The vehicle's own basis turns a world delta into seat axes. The negated delta is
-    // MaNGOS' stored convention and is kept exactly: every seat offset in the database is
-    // expressed in it.
+    // The seat pose is the vehicle's own local frame: the exact inverse of
+    // CalculateGlobalPositionOf's composition (world = pos + R(o)*local, Basis().localToWorld),
+    // i.e. local = R(o)^T * (world - pos) -- the same rotation Basis().worldToLocal applies.
+    // The old core paired this side with its own negated composition
+    // (TransportBase::NormalizeRotatedPosition); the core unification (e881112bd, #306,
+    // 2026-07-29) replaced the composition with the standard localToWorld above but kept this
+    // side's negation, so every rider composed by UpdateGlobalPositions on a moving vehicle has
+    // sat at its reflection through the vehicle's centre since. No database row carries a seat
+    // offset and VehicleSeatEntry's attachment offsets are still unused, so nothing outside this
+    // function's own inverse depended on the old sign (see the caller/consumer audit in the
+    // commit body).
     const Geometry::Vector3 delta = worldPoint - m_owner->Where().Pos();
     const Geometry::Vector3 flat =
-        m_owner->Where().Basis().rot.mul(Geometry::Vector3(-delta.x, -delta.y, 0.0f));
+        m_owner->Where().Basis().rot.transpose().mul(Geometry::Vector3(delta.x, delta.y, 0.0f));
 
     Geometry::Placement seat;
     seat.EnterFrame(SeatFrame(), Geometry::Vector3(flat.x, flat.y, delta.z),
