@@ -27,14 +27,6 @@
 
 namespace Motion
 {
-    namespace
-    {
-        bool Displacing(FinishReason why)
-        {
-            return why == FinishReason::Superseded || why == FinishReason::Overridden || why == FinishReason::Cancelled;
-        }
-    }
-
     // ---- Point --------------------------------------------------------------------
 
     PointBehaviour::PointBehaviour(Params const& p) : m_p(p) {}

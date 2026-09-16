@@ -60,7 +60,7 @@ namespace Motion
             bool    m_haveHop = false;
             Vector3 m_hop;
             uint32  m_retries = 0;
-            bool    m_lastRunning = false; ///< the Sight's runningState at the last hook, for the walk restore
+            bool    m_lastRunning = false; ///< Suspend() has no Sight, so the walk restore reads the last tick's running state; equivalent to the generator's live read since the wander's own leg never sets UNIT_STAT_RUNNING, and a chase/fear sets it only after the wander is suspended.
     };
 }
 

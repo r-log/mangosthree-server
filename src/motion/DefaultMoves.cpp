@@ -158,10 +158,13 @@ namespace Motion
         return s;
     }
 
-    Outcome WanderBehaviour::Finish(FinishReason, Sight const& sight, Services&)
+    Outcome WanderBehaviour::Finish(FinishReason why, Sight const& sight, Services& /*svc*/)
     {
+        // Finalize runs for every reason (ClearBoth, the walk restored); a displacing finish
+        // is the generator's Interrupt, the stop first -- the shell skips it when already suspended.
         Outcome o;
         o.roaming = Roaming::ClearBoth;
+        o.interrupt = Displacing(why);
         o.effects.push_back(Effect::Walk(!sight.runningState));
         return o;
     }

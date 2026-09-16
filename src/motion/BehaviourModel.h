@@ -40,6 +40,13 @@
  */
 namespace Motion
 {
+    /// A finish that replaces the behaviour while it is selected: Superseded, Overridden,
+    /// Cancelled; the generators' Interrupt path.
+    inline bool Displacing(FinishReason why)
+    {
+        return why == FinishReason::Superseded || why == FinishReason::Overridden || why == FinishReason::Cancelled;
+    }
+
     /// A route's answer (Services::Route): `usable` when the query produced geometry to walk
     /// (a straight fallback included), `routed` only when it is a real route through the mesh.
     struct RouteResult

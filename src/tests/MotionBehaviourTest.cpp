@@ -611,6 +611,34 @@ TEST(MotionBehaviour_WanderRetriesWithBackoffAndRestoresTheWalk)
     Outcome o = w.Finish(FinishReason::Cleared, running, svc);
     CHECK(o.roaming == Roaming::ClearBoth);
     CHECK(o.effects.size() == 1 && o.effects[0].kind == Effect::SetWalk && !o.effects[0].flag);
+    w.Tick(running, svc, 1);                                 // runningState true: the last hook Suspend reads
     Step s = w.Suspend();
     CHECK(s.interrupt && s.resetLeg);
+    CHECK(s.roaming == Roaming::ClearBoth);
+    CHECK(s.effects.size() == 1 && s.effects[0].kind == Effect::SetWalk && !s.effects[0].flag);
+}
+
+TEST(MotionBehaviour_WanderStopsOnlyOnADisplacingFinish)
+{
+    FakeServices svc;
+    WanderBehaviour::Params p;
+    p.radius = 10.0f;
+    WanderBehaviour w(p);
+    w.Activate(Free(), svc);
+    Sight running = Free();
+    running.runningState = true;
+
+    Outcome superseded = w.Finish(FinishReason::Superseded, running, svc);
+    CHECK(superseded.interrupt);
+    CHECK(superseded.roaming == Roaming::ClearBoth);
+    CHECK(superseded.effects.size() == 1 && superseded.effects[0].kind == Effect::SetWalk && superseded.effects[0].flag == !running.runningState);
+
+    Outcome cleared = w.Finish(FinishReason::Cleared, running, svc);
+    CHECK(!cleared.interrupt);
+    CHECK(cleared.roaming == Roaming::ClearBoth);
+    CHECK(cleared.effects.size() == 1 && cleared.effects[0].kind == Effect::SetWalk && cleared.effects[0].flag == !running.runningState);
+
+    CHECK(w.Finish(FinishReason::Overridden, running, svc).interrupt);
+    CHECK(w.Finish(FinishReason::Cancelled, running, svc).interrupt);
+    CHECK(!w.Finish(FinishReason::Expired, running, svc).interrupt);
 }
