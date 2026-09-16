@@ -142,10 +142,10 @@ class VehicleInfo
 
         void RemoveAccessoriesFromMap();                    ///< Unsummones accessory in case of far-teleport or death
 
-        /// Is @passenger allowed onto @seat specifically? Public so a caller that must pick a
-        /// particular seat (the harness's passenger-seat coverage scenario; a script that must
-        /// avoid the control seat) can probe before calling Board/SwitchSeat, whose own fallback
-        /// (GetUsableSeatFor) does not let the caller choose.
+        /// Is @passenger allowed onto @seat specifically? A caller that must place a passenger
+        /// on a specific seat -- one that must avoid the control seat, say -- probes here
+        /// first; Board/SwitchSeat's own fallback (GetUsableSeatFor) picks the lowest usable
+        /// seat instead.
         bool IsSeatAvailableFor(Unit* passenger, uint8 seat) const;
 
     private:
