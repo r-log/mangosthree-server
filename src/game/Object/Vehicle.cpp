@@ -273,21 +273,22 @@ void VehicleInfo::UnBoardPassenger(WorldObject* passenger)
     }
 
     // The seat pose is local to this vehicle's frame (BoardPassenger's own comment on
-    // TransportInfo::SetSeatPose). Stepping off must put the passenger back in the WORLD
-    // frame with the matching WORLD position -- but SetTransportInfo(NULL) below only
-    // re-tags the frame (WorldObject::RefreshFrame: "the pose is untouched: this says where
-    // the numbers are measured, not what they are"), so a passenger unboarded straight from
-    // its seat pose kept that pose's LOCAL numbers, now mislabelled as world ones. Convert
-    // first, the mirror of Board's CalculateBoardingPositionOf (world -> local):
-    // CalculateGlobalPositionOf (local -> world), the same composition UpdateGlobalPositions
-    // uses every tick to drag a seated rider along a moving vehicle, while the seat pose (and
-    // this vehicle's own frame) are still the ones in scope.
+    // TransportInfo::SetSeatPose). Stepping off must put the passenger back in the WORLD frame
+    // with the matching WORLD position -- but SetTransportInfo(NULL) below only re-tags the
+    // frame (WorldObject::RefreshFrame: "the pose is untouched: this says where the numbers are
+    // measured, not what they are"), so a passenger unboarded straight from its seat pose would
+    // keep that pose's LOCAL numbers, now mislabelled as world ones, if nothing composed them.
+    // UpdateGlobalPositionOf does exactly that: the same composition the 500 ms refresh in
+    // VehicleInfo::Update uses to drag a seated rider along a moving vehicle, and it relocates
+    // through the map (Map::CreatureRelocation / PlayerRelocation), keeping the grid cell and
+    // running OnRelocated (visibility, notifiers) -- a plain Place().MoveTo would silently skip
+    // both. The seat pose is copied before SetTransportInfo(NULL) below; the TransportInfo
+    // holding it is deleted a few lines after.
     Geometry::Placement const& seatPose = itr->second->Seat();
-    float gx, gy, gz, go;
-    CalculateGlobalPositionOf(seatPose.X(), seatPose.Y(), seatPose.Z(), seatPose.Facing(), gx, gy, gz, go);
 
-    passenger->SetTransportInfo(NULL);           // re-tags the frame back to World (RefreshFrame)
-    passenger->Place().MoveTo(gx, gy, gz, go);    // ...now put the matching WORLD numbers in it
+    passenger->SetTransportInfo(NULL);   // re-tag to the World frame first: relocation notifiers
+                                          // measure distances, and Placement fails closed across frames
+    UpdateGlobalPositionOf(passenger, seatPose.X(), seatPose.Y(), seatPose.Z(), seatPose.Facing());
 
     delete itr->second;
 
@@ -551,6 +552,15 @@ void VehicleInfo::UnBoard(Unit* passenger, bool changeVehicle)
     const uint8 seat = itr->second->GetTransportSeat();
     VehicleSeatEntry const* seatEntry = GetSeatEntry(seat);
     MANGOS_ASSERT(seatEntry);
+
+    // The symmetric of Board's own stop (see there): a rider spline still in flight here (the
+    // board spline itself, or a seat switch's) writes seat-local coordinates through
+    // CommitSplinePosition while IsBoarded() is still true (Unit.cpp:5857-5866), so stop it
+    // before UnBoardPassenger reads the seat pose below -- otherwise the exit spline this
+    // function launches further down would read that spline's still-in-flight, still-seat-local
+    // ComputePosition() as if it were already a world position (MoveSplineInit.cpp:130-134,
+    // the non-rider branch, which is what Launch takes once IsBoarded() has flipped to false).
+    passenger->InterruptMoving();
 
     UnBoardPassenger(passenger);
 
