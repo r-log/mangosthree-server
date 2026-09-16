@@ -281,14 +281,15 @@ namespace Harness
             void Prepare() override
             {
                 Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
-                Creature* k = Spawn(KOBOLD, SE.x + 5.0f, SE.y, Ground(SE.x + 5.0f, SE.y, SE.z), 0.0f);
-                if (!a || !k) { Verdict("standsWhileFeigning=INVALID(spawn failed) | followsAfterFeign=INVALID(spawn failed)"); return; }
-                const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
+                Creature* leader = Spawn(WOLF, SE.x + 5.0f, SE.y, Ground(SE.x + 5.0f, SE.y, SE.z), 0.0f);
+                if (!a || !leader) { Verdict("standsWhileFeigning=INVALID(spawn failed) | followsAfterFeign=INVALID(spawn failed)"); return; }
+                leader->SetWalk(false);   // the leader runs; a follower matches its leader's gait (reference: WOLF walks slower than it runs)
+                const ObjectGuid g = a->GetObjectGuid(), gLeader = leader->GetObjectGuid();
                 auto pts = std::make_shared<std::vector<Pt> >();
                 auto followKind = std::make_shared<bool>(true);
                 auto closed = std::make_shared<float>(999.0f);
-                At(500,  [this, g, gk]() { Creature* a = Get(g); Creature* k = Get(gk); if (a && k) { a->GetMotionMaster()->MoveFollow(k, 2.0f, 0.0f); Log("follows, mt=%s", TypeName(a)); } });
-                At(1000, [this, gk]()    { if (Creature* k = Get(gk)) { k->GetMotionMaster()->MovePoint(1, SE.x + 60.0f, SE.y, Ground(SE.x + 60.0f, SE.y, SE.z), true); Log("the kobold walks 60 yd"); } });
+                At(500,  [this, g, gLeader]() { Creature* a = Get(g); Creature* leader = Get(gLeader); if (a && leader) { a->GetMotionMaster()->MoveFollow(leader, 2.0f, 0.0f); Log("follows, mt=%s", TypeName(a)); } });
+                At(1000, [this, gLeader]()    { if (Creature* leader = Get(gLeader)) { leader->GetMotionMaster()->MovePoint(1, SE.x + 30.0f, SE.y, Ground(SE.x + 30.0f, SE.y, SE.z), true); Log("the leader runs 30 yd"); } });
                 At(2000, [this, g]()     { if (Creature* a = Get(g)) { a->SetFeignDeath(true, a->GetObjectGuid(), FEIGN); Log("feigns, mt=%s", TypeName(a)); } });
                 for (uint32 i = 1; i <= 6; ++i)   // 2.5 s .. 5.0 s
                 {
@@ -302,17 +303,17 @@ namespace Harness
                     });
                 }
                 At(5500, [this, g]() { if (Creature* a = Get(g)) { a->SetFeignDeath(false, a->GetObjectGuid(), FEIGN); Log("feign ends, mt=%s", TypeName(a)); } });
-                for (uint32 i = 1; i <= 10; ++i)  // 6.0 s .. 10.5 s
+                for (uint32 i = 1; i <= 16; ++i)  // 6.0 s .. 13.5 s
                 {
-                    At(5500 + i * 500, [this, g, gk, closed, i]()
+                    At(5500 + i * 500, [this, g, gLeader, closed, i]()
                     {
-                        Creature* a = Get(g); Creature* k = Get(gk); if (!a || !k) { return; }
-                        const float d = Dist2(a->Where().X(), a->Where().Y(), k->Where().X(), k->Where().Y());
+                        Creature* a = Get(g); Creature* leader = Get(gLeader); if (!a || !leader) { return; }
+                        const float d = Dist2(a->Where().X(), a->Where().Y(), leader->Where().X(), leader->Where().Y());
                         if (d < *closed) { *closed = d; }
                         Log("after +%4ums mt=%s dist=%.1f", i * 500, TypeName(a), d);
                     });
                 }
-                At(11000, [this, pts, followKind, closed]()
+                At(14000, [this, pts, followKind, closed]()
                 {
                     if (pts->size() < 3) { Verdict("standsWhileFeigning=INVALID(no samples) | followsAfterFeign=INVALID(no samples)"); return; }
                     const float held = Spread(*pts);
