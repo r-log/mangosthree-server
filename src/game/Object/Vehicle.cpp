@@ -282,12 +282,21 @@ void VehicleInfo::UnBoardPassenger(WorldObject* passenger)
     // VehicleInfo::Update uses to drag a seated rider along a moving vehicle, and it relocates
     // through the map (Map::CreatureRelocation / PlayerRelocation), keeping the grid cell and
     // running OnRelocated (visibility, notifiers) -- a plain Place().MoveTo would silently skip
-    // both. The seat pose is copied before SetTransportInfo(NULL) below; the TransportInfo
-    // holding it is deleted a few lines after.
-    Geometry::Placement const& seatPose = itr->second->Seat();
+    // both. The seat pose is copied (not referenced -- the TransportInfo holding it is deleted a
+    // few lines after) before SetTransportInfo(NULL) below.
+    Geometry::Placement const seatPose = itr->second->Seat();
 
-    passenger->SetTransportInfo(NULL);   // re-tag to the World frame first: relocation notifiers
-                                          // measure distances, and Placement fails closed across frames
+    passenger->SetTransportInfo(NULL);  // re-tag to the World frame first: relocation notifiers
+                                        // measure distances, and Placement fails closed across frames
+
+    // The old cell Map::PlayerRelocation unlinks from is read from the placement; a rider's may
+    // still be the seat pose (local numbers, a cell at the map's centre), so it is set to the
+    // vehicle's own world pose first, a loaded cell within a seat's reach of the true one;
+    // CreatureRelocation reads the current cell and does not need it, and the seed is harmless
+    // for it. This is the placement's OLD position for the cell derivation only -- the
+    // relocation just below writes the composed (and correct) pose over it.
+    passenger->Place().MoveTo(m_owner->Where().X(), m_owner->Where().Y(), m_owner->Where().Z(), m_owner->Where().Facing());
+
     UpdateGlobalPositionOf(passenger, seatPose.X(), seatPose.Y(), seatPose.Z(), seatPose.Facing());
 
     delete itr->second;
