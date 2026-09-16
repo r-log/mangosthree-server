@@ -46,8 +46,8 @@ namespace Motion
     {
         bool usable = false;
         bool routed = false;
-        bool partial = false;
-        bool progresses = false;
+        bool partial = false;    ///< the route ends short of the goal
+        bool progresses = false; ///< the partial route still gets closer (worth walking, as opposed to one that ends where it starts)
     };
 
     /**
@@ -64,6 +64,8 @@ namespace Motion
             virtual bool RandomPoint(Vector3 const& centre, float radius, Vector3& out) = 0;
             /// The floor under a point in the mover's frame.
             virtual bool Ground(Vector3 const& at, float& z) = 0;
+            // The shared RNG streams (as the generators drew from them): the native's own draw
+            // order and count -- not the shell's -- are what the stream reproduces.
             virtual float Frand(float min, float max) = 0;
             virtual uint32 Urand(uint32 min, uint32 max) = 0;
             virtual int32 Irand(int32 min, int32 max) = 0;
@@ -136,9 +138,9 @@ namespace Motion
         Roaming    roaming = Roaming::Keep;
         bool       apply = false;     ///< hand `intent` to the driver (Move/Hold) or the launcher (Launch)
         MoveIntent intent;
-        std::vector<Effect> effects;  ///< performed by the shell before the intent, in order (creatures only)
+        std::vector<Effect> effects;  ///< performed by the shell after the stop/interrupt/roaming writes and before the intent, in order; creatures only
         bool       barrier = false;   ///< after the effects: stop unless the unit is alive, in world and this behaviour still selected
-        bool       again = false;     ///< call Tick again at once (no elapsed time) instead of applying the intent
+        bool       again = false;     ///< call Tick again at once (no elapsed time) instead of applying the intent; the round's Sight is one snapshot shared by every round of one Tick, but the Services reads (Casting, WaypointPaused, Anchor) are live -- a native observes its own ClearWaypointPaused through the port, not the Sight
 
         static Step None() { return Step(); }
         static Step Of(MoveIntent const& i) { Step s; s.apply = true; s.intent = i; return s; }

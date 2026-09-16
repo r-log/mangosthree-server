@@ -129,11 +129,19 @@ namespace
             RouteResult Route(Vector3 const& from, Vector3 const& to, PointsArray& points) override
             {
                 calls.push_back("route");
-                points.push_back(from);
-                points.push_back(to);
                 RouteResult r;
                 r.usable = routeUsable;
                 r.routed = routeRouted;
+                r.partial = routePartial;
+                r.progresses = routeProgresses;
+                if (routeUsable)
+                {
+                    // Only a usable route hands back geometry; the adapter's own Route never
+                    // appends to whatever `points` already held.
+                    points.clear();
+                    points.push_back(from);
+                    points.push_back(to);
+                }
                 return r;
             }
             bool Casting() const override { return casting; }
@@ -148,8 +156,24 @@ namespace
                 return true;
             }
 
+            /// Restores every flag/value to its default and clears the call log.
+            void Reset()
+            {
+                routeUsable = false;
+                routeRouted = false;
+                routePartial = false;
+                routeProgresses = false;
+                casting = false;
+                waypointPaused = false;
+                anchorSet = false;
+                anchorPoint = Vector3();
+                calls.clear();
+            }
+
             bool routeUsable = false;
             bool routeRouted = false;
+            bool routePartial = false;
+            bool routeProgresses = false;
             bool casting = false;
             bool waypointPaused = false;
             bool anchorSet = false;
@@ -475,4 +499,25 @@ TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsAPoint)
     CHECK(HasEffect(o, Effect::Inform));
     CHECK(o.effects[0].who == Kind::FlyLand);
     CHECK_EQ(o.effects[0].id, 5u);
+}
+
+TEST(MotionBehaviour_EffectFactoriesSetOnlyTheirFields)
+{
+    Effect raw = Effect::Raw(7, 3);
+    CHECK(raw.kind == Effect::InformRaw);
+    CHECK_EQ(raw.raw, 7u);
+    CHECK_EQ(raw.id, 3u);
+    CHECK(!raw.flag);
+    CHECK(raw.who == Kind::Idle);
+
+    Effect walk = Effect::Walk(true);
+    CHECK(walk.kind == Effect::SetWalk);
+    CHECK(walk.flag);
+    CHECK_EQ(walk.raw, 0u);
+    CHECK_EQ(walk.id, 0u);
+
+    Step s;
+    CHECK(s.effects.empty());
+    CHECK(!s.barrier);
+    CHECK(!s.again);
 }

@@ -37,6 +37,7 @@
 #include "ScriptMgr.h"
 #include "World.h"
 #include "Log/Log.h"
+#include "Utilities/Errors.h"
 #include "Utilities/Util.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
@@ -201,13 +202,15 @@ void NativeBehaviour::Launch(Unit& owner, Motion::EffectLaunch const& launch)
 }
 
 /**
- * @brief Performs one Step: the shell operations of the moment, then the intent.
+ * @brief Performs one Step: stop/interrupt/resetLeg, the roaming write, the effects, then
+ *        the intent when `apply`. The generators stopped and cleared their unit-state bits
+ *        before their SetWalk, and a waypoint arrival's hook saw ROAMING_MOVE already
+ *        cleared -- the effects run after the roaming write and before the intent.
  * @param owner The moving unit.
  * @param step What the native returned.
  */
 void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
 {
-    PerformEffects(owner, step.effects);
     if (step.stop)
     {
         owner.StopMoving();
@@ -221,6 +224,7 @@ void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
         m_driver.ResetLeg();
     }
     Roam(owner, step.roaming);
+    PerformEffects(owner, step.effects);
     if (!step.apply)
     {
         return;
@@ -283,23 +287,31 @@ void NativeBehaviour::Resume(Unit& owner, bool reset)
 }
 
 /**
- * @brief One tick of the selected behaviour: a continuation of up to kMaxContinuation rounds,
- *        each performing its effects and, at the end, a barrier or a real result.
+ * @brief One tick of the selected behaviour: a continuation of up to kMaxContinuation rounds.
+ *        Each round's Step is performed exactly once (a Done intent is handled before
+ *        Perform runs, since it never applies through the driver); a barrier or `again`
+ *        decides whether the continuation stops here or loops again at once.
  * @param owner The moving unit.
  * @param diff The elapsed update time in milliseconds.
  * @return False when the native asked to be retired.
  */
 bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
 {
-    // No IsSelected re-entrancy guard here, unlike the legacy adapter: a native's tick performs
-    // no hook and issues no facade call -- every effect it asks for runs from Finish.
+    // No IsSelected re-entrancy guard here, unlike the legacy adapter: the continuation below
+    // performs its own effects mid-tick and re-checks the selection by sequence at the barrier.
     m_unit = &owner;
     const Motion::Sight sight = See(owner, true);
     uint32 elapsed = diff;
     for (uint32 round = 0; round < kMaxContinuation; ++round)
     {
         const Motion::Step step = m_native->Tick(sight, *this, elapsed);
-        PerformEffects(owner, step.effects);
+        if (step.apply && step.intent.act == Motion::MoveIntent::Act::Done)
+        {
+            Roam(owner, step.roaming);
+            PerformEffects(owner, step.effects);
+            return false;
+        }
+        Perform(owner, step);   // a continuation step has apply == false: no intent is applied here
         if (step.barrier && !(owner.IsAlive() && owner.IsInWorld() && owner.GetMotionMaster()->IsSelectedSequence(m_seq)))
         {
             return true;   // the effects replaced or removed us: the generator returned Hold here
@@ -309,14 +321,10 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
             elapsed = 0;
             continue;
         }
-        if (step.apply && step.intent.act == Motion::MoveIntent::Act::Done)
-        {
-            Roam(owner, step.roaming);
-            return false;
-        }
-        Perform(owner, step);
         return true;
     }
+    sLog.outError("NativeBehaviour: %s kind %u ran %u continuation rounds without applying an intent",
+                  owner.GetGuidStr().c_str(), uint32(m_native->Kind()), kMaxContinuation);
     return true;
 }
 
@@ -327,7 +335,7 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
  */
 Motion::FinishReason NativeBehaviour::EndReason(Unit& owner) const
 {
-    const_cast<NativeBehaviour*>(this)->m_unit = &owner;
+    // No m_unit write here: this hook takes no Services&, so nothing can read it.
     Motion::Sight s;
     s.status = m_last;
     s.landed = owner.movespline->Finalized() && !owner.movespline->Cut();
@@ -518,7 +526,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
  */
 bool NativeBehaviour::RandomPoint(Motion::Vector3 const& centre, float radius, Motion::Vector3& out)
 {
-    const std::optional<Motion::Vector3> p = Motion::FrameFor(*m_unit).RandomPoint(*m_unit, centre, radius);
+    const std::optional<Motion::Vector3> p = Motion::FrameFor(U()).RandomPoint(U(), centre, radius);
     if (!p)
     {
         return false;
@@ -532,8 +540,8 @@ bool NativeBehaviour::RandomPoint(Motion::Vector3 const& centre, float radius, M
  */
 bool NativeBehaviour::Ground(Motion::Vector3 const& at, float& z)
 {
-    Motion::IMotionFrame const& frame = Motion::FrameFor(*m_unit);
-    const std::optional<Motion::Vector3> floor = frame.GroundPoint(*m_unit, frame.MoverPosition(*m_unit), at);
+    Motion::IMotionFrame const& frame = Motion::FrameFor(U());
+    const std::optional<Motion::Vector3> floor = frame.GroundPoint(U(), frame.MoverPosition(U()), at);
     if (!floor)
     {
         return false;
@@ -557,14 +565,14 @@ int32 NativeBehaviour::Irand(int32 a, int32 b) { return irand(a, b); }
 Motion::RouteResult NativeBehaviour::Route(Motion::Vector3 const& from, Motion::Vector3 const& to, Motion::PointsArray& points)
 {
     Motion::RouteResult r;
-    Motion::IMotionFrame const& frame = Motion::FrameFor(*m_unit);
+    Motion::IMotionFrame const& frame = Motion::FrameFor(U());
     if (!m_query || m_queryFrame != frame.Kind() ||
-        m_queryMapId != m_unit->GetMapId() || m_queryInstanceId != m_unit->GetInstanceId())
+        m_queryMapId != U().GetMapId() || m_queryInstanceId != U().GetInstanceId())
     {
-        m_query = frame.CreatePathQuery(*m_unit);
+        m_query = frame.CreatePathQuery(U());
         m_queryFrame = frame.Kind();
-        m_queryMapId = m_unit->GetMapId();
-        m_queryInstanceId = m_unit->GetInstanceId();
+        m_queryMapId = U().GetMapId();
+        m_queryInstanceId = U().GetInstanceId();
     }
     r.usable = m_query->Calculate(from, to, false, 0.0f);
     r.routed = r.usable && m_query->Routed();
@@ -577,16 +585,16 @@ Motion::RouteResult NativeBehaviour::Route(Motion::Vector3 const& from, Motion::
     return r;
 }
 
-bool NativeBehaviour::Casting() const { return m_unit->IsNonMeleeSpellCasted(false, false, true); }
-bool NativeBehaviour::WaypointPaused() const { return m_unit->hasUnitState(UNIT_STAT_WAYPOINT_PAUSED); }
+bool NativeBehaviour::Casting() const { return U().IsNonMeleeSpellCasted(false, false, true); }
+bool NativeBehaviour::WaypointPaused() const { return U().hasUnitState(UNIT_STAT_WAYPOINT_PAUSED); }
 
 bool NativeBehaviour::Anchor(Motion::Vector3& out) const
 {
-    if (m_unit->GetTypeId() != TYPEID_UNIT)
+    if (U().GetTypeId() != TYPEID_UNIT)
     {
         return false;
     }
-    Geometry::Vector3 const& a = static_cast<Creature*>(m_unit)->CombatAnchor();
+    Geometry::Vector3 const& a = static_cast<Creature&>(U()).CombatAnchor();
     if (a.x == 0.0f && a.y == 0.0f && a.z == 0.0f)
     {
         return false;

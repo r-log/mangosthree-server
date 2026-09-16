@@ -29,6 +29,7 @@
 #include "Behaviour.h"        // the shell's MotionBehaviour
 #include "MotionDriver.h"
 #include "BehaviourModel.h"   // the kernel's (src/motion is on the include path, as Arbiter.h is)
+#include "Utilities/Errors.h" // MANGOS_ASSERT, for U()
 
 #include <memory>
 
@@ -81,6 +82,10 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         bool WaypointPaused() const override;
         bool Anchor(Motion::Vector3& out) const override;
 
+        /// The owner of the moment, for the Services implementations below: asserts m_unit was
+        /// set (every hook sets it before the native can call back through the port).
+        Unit& U() const { MANGOS_ASSERT(m_unit); return *m_unit; }
+
         Motion::Sight See(Unit& owner, bool tick);   ///< tick: consume the driver's edges; else read the live spline only
         void Perform(Unit& owner, Motion::Step const& step);
         void PerformOutcome(Unit& owner, Motion::Outcome const& outcome);
@@ -98,9 +103,9 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         // ---- the Services port's own state: the owner of the moment, and the adapter's router ----
         Unit* m_unit = NULL;            ///< set at the start of every hook, before the native is called
         std::unique_ptr<Motion::IPathQuery> m_query; ///< one router per welding pass, as the generator built (rebuilt below)
-        Motion::FrameKind m_queryFrame = Motion::FrameKind::World;
-        uint32             m_queryMapId = 0;
-        uint32             m_queryInstanceId = 0;
+        Motion::FrameKind m_queryFrame = Motion::FrameKind::World;    ///< the frame m_query was built for; a leg never spans two frames, so a change rebuilds it
+        uint32             m_queryMapId = 0;      ///< the map m_query was built for
+        uint32             m_queryInstanceId = 0; ///< and the instance: the mesh query is per instance
 };
 
 #endif // MANGOS_NATIVEBEHAVIOUR_H
