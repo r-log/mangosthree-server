@@ -64,10 +64,11 @@ namespace Motion
             virtual bool RandomPoint(Vector3 const& centre, float radius, Vector3& out) = 0;
             /// The floor under a point in the mover's frame.
             virtual bool Ground(Vector3 const& at, float& z) = 0;
-            // The shared RNG streams (as the generators drew from them): the native's own draw
-            // order and count -- not the shell's -- are what the stream reproduces.
+            /// The shared RNG: the native's draw order and count are the stream.
             virtual float Frand(float min, float max) = 0;
+            /// The shared RNG: the native's draw order and count are the stream.
             virtual uint32 Urand(uint32 min, uint32 max) = 0;
+            /// The shared RNG: the native's draw order and count are the stream.
             virtual int32 Irand(int32 min, int32 max) = 0;
             /// A route in the mover's frame; `points` receives the geometry when usable.
             virtual RouteResult Route(Vector3 const& from, Vector3 const& to, PointsArray& points) = 0;

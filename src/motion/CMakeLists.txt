@@ -45,6 +45,8 @@ set(SRC_GRP_MOTION
     BehaviourModel.h
     SimpleMoves.h
     SimpleMoves.cpp
+    DefaultMoves.h
+    DefaultMoves.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 

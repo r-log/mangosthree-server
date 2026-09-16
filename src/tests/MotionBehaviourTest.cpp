@@ -28,6 +28,7 @@
 #include "TestHarness.h"
 #include "BehaviourModel.h"
 #include "SimpleMoves.h"
+#include "DefaultMoves.h"
 
 using namespace Motion;
 
@@ -114,6 +115,10 @@ namespace
             bool RandomPoint(Vector3 const& centre, float radius, Vector3& out) override
             {
                 calls.push_back("random");
+                if (randomFails)
+                {
+                    return false;
+                }
                 out = Vector3(centre.x + radius, centre.y, centre.z);
                 return true;
             }
@@ -125,7 +130,7 @@ namespace
             }
             float Frand(float min, float /*max*/) override { calls.push_back("frand"); return min; }
             uint32 Urand(uint32 min, uint32 /*max*/) override { calls.push_back("urand"); return min; }
-            int32 Irand(int32 min, int32 /*max*/) override { calls.push_back("irand"); return min; }
+            int32 Irand(int32 /*min*/, int32 /*max*/) override { calls.push_back("irand"); return irandValue; }
             RouteResult Route(Vector3 const& from, Vector3 const& to, PointsArray& points) override
             {
                 calls.push_back("route");
@@ -167,6 +172,8 @@ namespace
                 waypointPaused = false;
                 anchorSet = false;
                 anchorPoint = Vector3();
+                irandValue = 50;
+                randomFails = false;
                 calls.clear();
             }
 
@@ -178,6 +185,8 @@ namespace
             bool waypointPaused = false;
             bool anchorSet = false;
             Vector3 anchorPoint;
+            int32 irandValue = 50;     ///< Irand's answer; 50 is at or above 30, so the wander's break path draws the rest through Urand.
+            bool randomFails = false;  ///< RandomPoint returns false instead of a point.
             std::vector<std::string> calls;
     };
 
@@ -520,4 +529,88 @@ TEST(MotionBehaviour_EffectFactoriesSetOnlyTheirFields)
     CHECK(s.effects.empty());
     CHECK(!s.barrier);
     CHECK(!s.again);
+}
+
+TEST(MotionBehaviour_WanderDrawsTheGeneratorsSequence)
+{
+    FakeServices svc;
+    WanderBehaviour::Params p;
+    p.centre = Vector3(0.0f, 0.0f, 0.0f);
+    p.radius = 10.0f;
+    WanderBehaviour w(p);
+    Step a = w.Activate(Free(), svc);
+    CHECK_EQ(svc.calls.size(), size_t(2));                 // tilt, angle: frand, frand
+    CHECK(svc.calls[0] == "frand" && svc.calls[1] == "frand");
+    CHECK(a.roaming == Roaming::SetRoam);
+    svc.calls.clear();
+    Step t = w.Tick(Free(), svc, 100);                       // rest passed at once: a hop
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK(t.intent.Has(MOVE_WALK));
+    CHECK(t.roaming == Roaming::SetMove);
+    CHECK_EQ(svc.calls.size(), size_t(3));                 // random point, the no-break roll, the rest
+    CHECK(svc.calls[0] == "random" && svc.calls[1] == "irand" && svc.calls[2] == "urand");
+    svc.calls.clear();
+    Sight moving = Free();
+    moving.status.traveling = true;
+    CHECK(w.Tick(moving, svc, 100).intent.act == MoveIntent::Act::Move);   // re-stated, no draw
+    CHECK(svc.calls.empty());
+    Sight arrived = Free();
+    arrived.status.arrived = true;
+    CHECK(w.Tick(arrived, svc, 100).intent.act == MoveIntent::Act::Hold);  // resting 3000 ms
+    CHECK(svc.calls.empty());
+    CHECK(w.Tick(Free(), svc, 2800).intent.act == MoveIntent::Act::Hold);  // 100 ms left
+    CHECK(w.Tick(Free(), svc, 100).intent.act == MoveIntent::Act::Move);   // 3000 ms: the next hop
+}
+
+TEST(MotionBehaviour_WanderNoBreakAndAirborneSkipTheRest)
+{
+    FakeServices svc;
+    svc.irandValue = 10;                                     // < 30: no break
+    WanderBehaviour::Params p;
+    p.radius = 10.0f;
+    WanderBehaviour w(p);
+    w.Activate(Free(), svc);
+    svc.calls.clear();
+    w.Tick(Free(), svc, 100);
+    CHECK_EQ(svc.calls.size(), size_t(2));                 // random point, irand; no urand
+    Sight arrived = Free();
+    arrived.status.arrived = true;
+    w.Tick(arrived, svc, 100);
+    CHECK(w.Tick(Free(), svc, 50).intent.act == MoveIntent::Act::Move);   // 50 ms retry rest
+    FakeServices air;
+    WanderBehaviour::Params ap;
+    ap.radius = 10.0f;
+    ap.verticalZ = 5.0f;
+    ap.airborne = true;
+    WanderBehaviour f(ap);
+    f.Activate(Free(), air);
+    air.calls.clear();
+    Step hop = f.Tick(Free(), air, 100);
+    CHECK(hop.intent.Has(MOVE_FLY) && hop.intent.Has(MOVE_STRAIGHT));
+    CHECK_EQ(air.calls.size(), size_t(3));                 // frand step, frand radius, ground; no roll, no rest
+    CHECK(air.calls[0] == "frand" && air.calls[1] == "frand" && air.calls[2] == "ground");
+}
+
+TEST(MotionBehaviour_WanderRetriesWithBackoffAndRestoresTheWalk)
+{
+    FakeServices svc;
+    svc.randomFails = true;
+    WanderBehaviour::Params p;
+    p.radius = 10.0f;
+    WanderBehaviour w(p);
+    w.Activate(Free(), svc);
+    CHECK(w.Tick(Free(), svc, 100).intent.act == MoveIntent::Act::Hold);   // no point: 50 ms
+    CHECK(w.Tick(Free(), svc, 49).intent.act == MoveIntent::Act::Hold);
+    CHECK(w.Tick(Free(), svc, 1).intent.act == MoveIntent::Act::Hold);     // retried: 100 ms now
+    CHECK(w.Tick(Free(), svc, 99).intent.act == MoveIntent::Act::Hold);
+    Sight blocked = Free();
+    blocked.status.blocked = true;
+    w.Tick(blocked, svc, 1);                                 // a blocked leg also backs off
+    Sight running = Free();
+    running.runningState = true;
+    Outcome o = w.Finish(FinishReason::Cleared, running, svc);
+    CHECK(o.roaming == Roaming::ClearBoth);
+    CHECK(o.effects.size() == 1 && o.effects[0].kind == Effect::SetWalk && !o.effects[0].flag);
+    Step s = w.Suspend();
+    CHECK(s.interrupt && s.resetLeg);
 }
