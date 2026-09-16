@@ -53,7 +53,7 @@ class FlightPathMovementGenerator;
 enum MovementGeneratorType
 {
     IDLE_MOTION_TYPE = 0,                  ///< Idle movement (Motion::IdleBehaviour)
-    RANDOM_MOTION_TYPE = 1,                ///< Random movement (RandomMovementGenerator.h)
+    RANDOM_MOTION_TYPE = 1,                ///< Random movement (Motion::WanderBehaviour)
     WAYPOINT_MOTION_TYPE = 2,              ///< Waypoint movement (WaypointMovementGenerator.h)
     MAX_DB_MOTION_TYPE = 3,                ///< Maximum database motion type (values below this can be set in DB)
 

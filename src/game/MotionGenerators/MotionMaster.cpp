@@ -24,6 +24,7 @@
  */
 
 #include "Log/Log.h"
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <sstream>
@@ -32,13 +33,13 @@
 #include "LegacyBehaviour.h"
 #include "NativeBehaviour.h"
 #include "SimpleMoves.h"
+#include "DefaultMoves.h"
 #include "MovementIntent.h"
 #include "ConfusedMovementGenerator.h"
 #include "FleeingMovementGenerator.h"
 #include "HomeMovementGenerator.h"
 #include "TargetedMovementGenerator.h"
 #include "WaypointMovementGenerator.h"
-#include "RandomMovementGenerator.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
 #include "Map.h"
@@ -668,7 +669,21 @@ void MotionMaster::Initialize()
     bool owned = false;
     if (m_owner->GetTypeId() == TYPEID_UNIT && !m_owner->hasUnitState(UNIT_STAT_CONTROLLED))
     {
-        movement = FactorySelector::selectMovementGenerator((Creature*)m_owner);
+        Creature* creature = (Creature*)m_owner;
+        const MovementGeneratorType wanted = creature->GetOwnerGuid().IsPlayer() ? FOLLOW_MOTION_TYPE : creature->GetDefaultMovementType();
+        if (wanted == RANDOM_MOTION_TYPE)
+        {
+            // No factory is registered for RANDOM_MOTION_TYPE any more: the wander native is
+            // installed directly, as the factory constructor built it (no vertical band).
+            Motion::WanderBehaviour::Params p;
+            p.centre = Motion::Vector3(creature->Spawn().X(), creature->Spawn().Y(), creature->Spawn().Z());
+            p.radius = std::max(creature->GetRespawnRadius(), 0.1f);
+            p.verticalZ = 0.0f;
+            p.airborne = false;
+            InstallFactoryNative(Motion::Kind::Wander, std::unique_ptr<Motion::Behaviour>(new Motion::WanderBehaviour(p)));
+            return;
+        }
+        movement = FactorySelector::selectMovementGenerator(creature);
         owned = movement != NULL;
     }
     if (!movement)
@@ -810,7 +825,16 @@ void MotionMaster::MoveRandomAroundPoint(float x, float y, float z, float radius
         return;
     }
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s move random.", m_owner->GetGuidStr().c_str());
-    Request(R(Motion::Kind::Wander), new RandomMovementGenerator(x, y, z, radius, verticalZ), true);
+    Motion::WanderBehaviour::Params p;
+    p.centre = Motion::Vector3(x, y, z);
+    if (radius < 0.1f)
+    {
+        DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "MotionMaster: wander radius too small, clamped to %f", 0.1f);
+    }
+    p.radius = std::max(radius, 0.1f);   // MIN_WANDER_RADIUS, with the generator's debug log when clamped
+    p.verticalZ = verticalZ;
+    p.airborne = verticalZ > 0.0f && m_owner->GetTypeId() == TYPEID_UNIT && static_cast<Creature*>(m_owner)->CanFly();
+    Request(R(Motion::Kind::Wander), std::unique_ptr<Motion::Behaviour>(new Motion::WanderBehaviour(p)));
 }
 
 /**

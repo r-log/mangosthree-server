@@ -30,7 +30,6 @@
 #include "PetAI.h"
 #include "TotemAI.h"
 #include "CreatureEventAI.h"
-#include "RandomMovementGenerator.h"
 #include "CreatureAIImpl.h"
 #include "MovementGeneratorImpl.h"
 #include "CreatureAIRegistry.h"
@@ -51,7 +50,6 @@ namespace AIRegistry
         (new CreatureAIFactory<TotemAI>("TotemAI"))->RegisterSelf();
         (new CreatureAIFactory<CreatureEventAI>("EventAI"))->RegisterSelf();
 
-        (new MovementGeneratorFactory<RandomMovementGenerator >(RANDOM_MOTION_TYPE))->RegisterSelf();
         (new MovementGeneratorFactory<WaypointMovementGenerator >(WAYPOINT_MOTION_TYPE))->RegisterSelf();
     }
 }

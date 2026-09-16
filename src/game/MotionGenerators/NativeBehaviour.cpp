@@ -81,9 +81,9 @@ MovementGeneratorType NativeBehaviour::Project(Motion::Kind kind)
         case Motion::Kind::Distract:       return DISTRACT_MOTION_TYPE;
         case Motion::Kind::AssistDistract: return ASSISTANCE_DISTRACT_MOTION_TYPE;
         case Motion::Kind::Effect:         return EFFECT_MOTION_TYPE;
-        // The eight kinds families 2-4 still own: a native is never one of them, and naming
+        case Motion::Kind::Wander:         return RANDOM_MOTION_TYPE;
+        // The seven kinds families 2-4 still own: a native is never one of them, and naming
         // them here makes a kind added later a compile warning instead of a silent Idle.
-        case Motion::Kind::Wander:
         case Motion::Kind::Patrol:
         case Motion::Kind::Follow:
         case Motion::Kind::Chase:
