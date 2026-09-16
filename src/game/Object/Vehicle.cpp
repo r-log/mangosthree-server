@@ -408,9 +408,11 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
 
     // A stop only PENDS the placement write for a world unit (applied on the passenger's
     // next Update, and dropped there if something else relocated it meanwhile --
-    // Unit.cpp:530-549), so the boarding position is read the way MoveSplineInit::Launch
-    // itself reads it (MoveSplineInit.cpp:136-144): the pending commit when the stop above
-    // just landed one, Where() otherwise.
+    // Unit.cpp:530-549): the boarding position is the stop's pending commit when a spline ran,
+    // the placement otherwise. Exception (pre-existing, not widened here): a passenger already
+    // a rider on ANOTHER vehicle -- the cross-vehicle click path, no UnBoard first -- commits
+    // straight into that other vehicle's seat pose instead (Unit.cpp:5857-5863, no pending path
+    // for a rider), so Where() there is the OLD seat pose, composed below as if a world point.
     Position const* pending = passenger->PendingSplineCommit();
     const float wx = pending ? pending->x : passenger->Where().X();
     const float wy = pending ? pending->y : passenger->Where().Y();
@@ -443,20 +445,21 @@ void VehicleInfo::Board(Unit* passenger, uint8 seat)
     passenger->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), seat));
 
     // A rider's path is seat-local: MoveSplineInit::Launch starts it from
-    // GetTransportInfo()->Seat() and sends it as SMSG_MONSTER_MOVE_TRANSPORT with the
-    // transport guid and seat index (MoveSplineInit.cpp:110-127, 180-188), so its destination
-    // must be the seat pose BoardPassenger just set, read from the seat itself rather than
-    // from the placement (which only mirrors it, and, before the fix above, could disagree
-    // with it). The result is a zero-length seat-frame path whose only job is to carry the
-    // board-vehicle flag to the client. The placeholder this replaces, (0,0,0)/facing 0.0,
-    // was the seat frame's own origin -- the vehicle's centre, not the world's -- but a
-    // corrupted seat pose (fixed above) turned it into a crawl toward the map origin.
-    // The seat's own attachment offset (VehicleSeatEntry::AttachmentOffset_0..2) is still
-    // unused: a passenger sits where it happened to board, not at the seat's modelled point.
-    Geometry::Placement const& deckPose = passenger->GetTransportInfo()->Seat();
+    // GetTransportInfo()->Seat() -- the boarding offset BoardPassenger just set, wherever the
+    // passenger happened to be standing -- and sends it as SMSG_MONSTER_MOVE_TRANSPORT with the
+    // transport guid and seat index (MoveSplineInit.cpp:110-127, 180-188). The destination is
+    // the seat's own attachment point (VehicleSeatEntry::AttachmentOffset_0..2, in the vehicle's
+    // frame; many seats carry (0,0,0), the frame's own origin) facing the vehicle's own heading
+    // (0.0 in the seat frame): this IS the boarding animation, the walk from the boarding spot to
+    // the seat's modelled point, the same walk the client plays. As the spline ticks, the seat
+    // pose itself walks with it -- CommitSplinePosition/UpdateSplineMovement write a rider's
+    // spline position back through SetSeatPose -- settling at the attachment once the spline
+    // finishes. A seat pose corrupted with a world position (the defect the earlier commits on
+    // this branch fixed) was what once made this look like a drift toward the map origin; it
+    // never was one -- (0,0,0) was always the seat frame's own origin, not the world's.
     Movement::MoveSplineInit init(*passenger);
-    init.MoveTo(deckPose.X(), deckPose.Y(), deckPose.Z());
-    init.SetFacing(deckPose.Facing());
+    init.MoveTo(seatEntry->AttachmentOffset_0, seatEntry->AttachmentOffset_1, seatEntry->AttachmentOffset_2);
+    init.SetFacing(0.0f);
     init.SetBoardVehicle();
     init.Launch();
 
@@ -521,22 +524,22 @@ void VehicleInfo::SwitchSeat(Unit* passenger, uint8 seat)
     // Set to new seat
     itr->second->SetTransportSeat(seat);
 
-    // Same reasoning as Board's own spline: a rider's path is seat-local, so the destination
-    // is the seat pose, not (0,0,0). SetTransportSeat above only changes the seat INDEX --
-    // without the seats' attachment offsets (still unused; see Board) there is no per-seat
-    // pose to move to, so the pose itself (passenger->GetTransportInfo()->Seat()) is kept
-    // across the switch and this, too, is a zero-length spline.
-    Geometry::Placement const& deckPose = passenger->GetTransportInfo()->Seat();
+    // Get seatEntry of new seat
+    seatEntry = GetSeatEntry(seat);
+    MANGOS_ASSERT(seatEntry);
+
+    // Same reasoning as Board's own spline: the destination is the NEW seat's own attachment
+    // point (VehicleSeatEntry::AttachmentOffset_0..2, the vehicle's frame; many seats carry
+    // (0,0,0)), not (0,0,0) unconditionally. SetTransportSeat above only changed the seat
+    // INDEX, so the walk is from wherever the pose settled on the old seat to the new seat's
+    // modelled point -- the same boarding-style animation Board's own spline plays; the pose
+    // itself follows as the spline ticks (see Board).
     Movement::MoveSplineInit init(*passenger);
-    init.MoveTo(deckPose.X(), deckPose.Y(), deckPose.Z());
+    init.MoveTo(seatEntry->AttachmentOffset_0, seatEntry->AttachmentOffset_1, seatEntry->AttachmentOffset_2);
     //if (oldorientation != neworientation) (?)
     //init.SetFacing(0.0f);                                 // local orientation ? ToDo: Set proper orientation!
     // It seems that Seat switching is sent without SplineFlag BoardVehicle
     init.Launch();
-
-    // Get seatEntry of new seat
-    seatEntry = GetSeatEntry(seat);
-    MANGOS_ASSERT(seatEntry);
 
     // Apply passenger modifications of the new seat
     ApplySeatMods(passenger, seatEntry->Flags);
