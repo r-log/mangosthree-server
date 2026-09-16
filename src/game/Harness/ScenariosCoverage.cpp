@@ -54,7 +54,7 @@ namespace Harness
         const uint32 ROOT = 745;           // Web: a plain root aura, about 5 s
         const uint32 FEAR = 5782;          // Fear: the claim's spell id for SetFeared
         const uint32 FEIGN_A = 29266;      // Permanent Feign Death (the dummy family)
-        const uint32 FEIGN_B = 37493;      // Permanent Feign Death, a second member of the family
+        const uint32 FEIGN_B = 31261;      // Permanent Feign Death (Root), a second member of the family
 
         /// The kernel's reads a category asserts, gathered once per sample.
         struct BlockRead
@@ -463,11 +463,287 @@ namespace Harness
                 return "sourcesHeld=" + w + " | deathDropsAuraAndScript=" + w + " | deadStands=" + w + " | respawnClean=" + w + " | movesAfterRespawn=" + w;
             }
         };
+
+        /// S34: a possession by a creature charmer holds the body's own behaviours and lets a
+        /// fear play on it (reference 15.4.1-15.4.2; design P5-A 9.2): a point requested before
+        /// the possession is held, a fear on the possessed body flees, the release leaves no
+        /// reason and a fresh point plays. A creature charmer receives no client root, so the
+        /// projection's ordering (the debate's F3) is the live gate's, not this scenario's.
+        class PossessedBodyPlaysFear : public Scenario
+        {
+        public:
+            PossessedBodyPlaysFear() : Scenario("possessed-body-plays-fear", 34) {}
+
+            void Prepare() override
+            {
+                Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* k = Spawn(KOBOLD, SE.x + 10.0f, SE.y, Ground(SE.x + 10.0f, SE.y, SE.z), 3.1f);
+                if (!w || !k) { Verdict(Invalid("spawn failed")); return; }
+                const ObjectGuid gw = w->GetObjectGuid(), gk = k->GetObjectGuid();
+                auto possessionHolds = std::make_shared<std::string>("INVALID(not reached)");
+                auto fearHeld = std::make_shared<std::string>("INVALID(not reached)");
+                auto releaseRestores = std::make_shared<std::string>("INVALID(not reached)");
+                auto heldPts = std::make_shared<std::vector<Pt> >();
+                auto fearPts = std::make_shared<std::vector<Pt> >();
+                auto afterPts = std::make_shared<std::vector<Pt> >();
+                auto took = std::make_shared<bool>(false);
+                At(1000, [this, gw]()
+                {
+                    if (Creature* w = Get(gw)) { w->GetMotionMaster()->MovePoint(0, SE.x + 25.0f, SE.y, Ground(SE.x + 25.0f, SE.y, SE.z)); Log("point, mt=%s", TypeName(w)); }
+                });
+                At(2000, [this, gw, gk, took]()
+                {
+                    Creature* w = Get(gw); Creature* k = Get(gk); if (!w || !k) { return; }
+                    *took = k->TakePossessOf(w);
+                    Log("kobold possesses the wolf: %d, charmer=%s mt=%s", *took ? 1 : 0, w->GetCharmerGuid().GetString().c_str(), TypeName(w));
+                });
+                At(2500, [this, gw, gk, took, possessionHolds]()
+                {
+                    Creature* w = Get(gw); Creature* k = Get(gk); if (!w || !k) { return; }
+                    if (!*took) { *possessionHolds = "INVALID(TakePossessOf refused)"; return; }
+                    const BlockRead r = ReadBlock(w);
+                    const bool ok = w->GetCharmerGuid() == k->GetObjectGuid() && r.possessed && !r.mayMove;
+                    char text[120];
+                    snprintf(text, sizeof(text), "%s(charmer=%d possessed=%d mayMove=%d)", ok ? "OK" : "BUG",
+                             w->GetCharmerGuid() == k->GetObjectGuid() ? 1 : 0, r.possessed ? 1 : 0, r.mayMove ? 1 : 0);
+                    *possessionHolds = text;
+                    Log("possessed: %s", text);
+                });
+                for (uint32 t = 2500; t <= 4000; t += 500)
+                {
+                    At(t, [this, gw, heldPts, t]()
+                    {
+                        Creature* w = Get(gw); if (!w) { return; }
+                        Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                        heldPts->push_back(p);
+                        Log("possessed +%4ums mt=%s at %.1f %.1f", t, TypeName(w), p.x, p.y);
+                    });
+                }
+                At(4000, [this, gw, gk]()
+                {
+                    Creature* w = Get(gw); Creature* k = Get(gk); if (!w || !k) { return; }
+                    w->SetFeared(true, k->GetObjectGuid(), FEAR, 0, 0);
+                    Log("fear on the possessed body, mt=%s", TypeName(w));
+                });
+                At(4500, [this, gw, fearHeld]()
+                {
+                    Creature* w = Get(gw); if (!w) { return; }
+                    const bool ok = w->GetMotionMaster()->HoldsControl(Motion::Kind::Fear);
+                    *fearHeld = ok ? "OK(the fear claim is held under the possession)" : "BUG(no fear claim on the possessed body)";
+                    Log("fear held=%d mt=%s", ok ? 1 : 0, TypeName(w));
+                });
+                for (uint32 t = 4500; t <= 7000; t += 500)
+                {
+                    At(t, [this, gw, fearPts, t]()
+                    {
+                        Creature* w = Get(gw); if (!w) { return; }
+                        Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                        fearPts->push_back(p);
+                        Log("feared +%4ums mt=%s at %.1f %.1f", t, TypeName(w), p.x, p.y);
+                    });
+                }
+                At(7000, [this, gw, gk]()
+                {
+                    Creature* w = Get(gw); Creature* k = Get(gk); if (!w || !k) { return; }
+                    w->SetFeared(false, k->GetObjectGuid(), FEAR, 0, 0);
+                    Log("fear ends, mt=%s", TypeName(w));
+                });
+                At(8000, [this, gk]()
+                {
+                    if (Creature* k = Get(gk)) { k->ResetControlState(false); Log("kobold releases the wolf"); }
+                });
+                At(8500, [this, gw, releaseRestores]()
+                {
+                    Creature* w = Get(gw); if (!w) { return; }
+                    const BlockRead r = ReadBlock(w);
+                    const bool ok = !r.possessed && w->GetCharmerGuid().IsEmpty() && r.reasons == 0;
+                    char text[120];
+                    snprintf(text, sizeof(text), "%s(possessed=%d charmer=%d reasons=%u mt=%s)", ok ? "OK" : "BUG",
+                             r.possessed ? 1 : 0, w->GetCharmerGuid().IsEmpty() ? 0 : 1, uint32(r.reasons), TypeName(w));
+                    *releaseRestores = text;
+                    Log("released: %s", text);
+                });
+                At(9000, [this, gw]()
+                {
+                    if (Creature* w = Get(gw)) { w->GetMotionMaster()->MovePoint(1, SE.x - 25.0f, SE.y, Ground(SE.x - 25.0f, SE.y, SE.z)); Log("fresh point after the release, mt=%s", TypeName(w)); }
+                });
+                for (uint32 t = 9500; t <= 12000; t += 500)
+                {
+                    At(t, [this, gw, afterPts, t]()
+                    {
+                        Creature* w = Get(gw); if (!w) { return; }
+                        Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                        afterPts->push_back(p);
+                        Log("after +%4ums mt=%s at %.1f %.1f", t, TypeName(w), p.x, p.y);
+                    });
+                }
+                At(12500, [this, gw, took, possessionHolds, fearHeld, releaseRestores, heldPts, fearPts, afterPts]()
+                {
+                    if (!Get(gw)) { Verdict(Invalid("lost")); return; }
+                    if (!*took) { Verdict(Invalid("TakePossessOf refused")); return; }
+                    if (heldPts->size() < 3 || fearPts->size() < 3 || afterPts->size() < 3) { Verdict(Invalid("no samples")); return; }
+                    const float held = Spread(*heldPts), fled = Spread(*fearPts), after = Spread(*afterPts);
+                    char text[420];
+                    snprintf(text, sizeof(text), "possessionHolds=%s | heldUnderPossession=%s(spread %.1f) | fearHeldOnPossessed=%s | fearPlaysOnPossessed=%s(spread %.1f) | releaseRestores=%s | movesAfterRelease=%s(spread %.1f)",
+                             possessionHolds->c_str(),
+                             held < 0.5f ? "OK" : "BUG", held,
+                             fearHeld->c_str(),
+                             fled > 3.0f ? "OK" : "BUG", fled,
+                             releaseRestores->c_str(),
+                             after > 3.0f ? "OK" : "BUG", after);
+                    Verdict(text);
+                });
+            }
+
+        private:
+            static std::string Invalid(char const* why)
+            {
+                std::string w = std::string("INVALID(") + why + ")";
+                return "possessionHolds=" + w + " | heldUnderPossession=" + w + " | fearHeldOnPossessed=" + w + " | fearPlaysOnPossessed=" + w + " | releaseRestores=" + w + " | movesAfterRelease=" + w;
+            }
+        };
+
+        /// S35: two feign auras on one unit are two Dead sources (reference 15.5; the debate's
+        /// F5 on PR #84): the first removal keeps the block and the feign flags, the last
+        /// removal lifts them and the paused follow resumes. The shape of feign-keeps-follow:
+        /// a running leader, a wolf following at 2 yd.
+        class TwoFeignsOneLift : public Scenario
+        {
+        public:
+            TwoFeignsOneLift() : Scenario("two-feigns-one-lift", 35) {}
+
+            void Prepare() override
+            {
+                Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* leader = Spawn(WOLF, SE.x + 5.0f, SE.y, Ground(SE.x + 5.0f, SE.y, SE.z), 0.0f);
+                if (!w || !leader) { Verdict(Invalid("spawn failed")); return; }
+                leader->SetWalk(false);
+                const ObjectGuid gw = w->GetObjectGuid(), gl = leader->GetObjectGuid();
+                auto twoSources = std::make_shared<std::string>("INVALID(not reached)");
+                auto firstKeeps = std::make_shared<std::string>("INVALID(not reached)");
+                auto lastLifts = std::make_shared<std::string>("INVALID(not reached)");
+                auto both = std::make_shared<std::vector<Pt> >();
+                auto one = std::make_shared<std::vector<Pt> >();
+                auto closed = std::make_shared<float>(999.0f);
+                At(500,  [this, gw, gl]() { Creature* w = Get(gw); Creature* l = Get(gl); if (w && l) { w->GetMotionMaster()->MoveFollow(l, 2.0f, 0.0f); Log("follows, mt=%s", TypeName(w)); } });
+                At(1000, [this, gl]() { if (Creature* l = Get(gl)) { l->GetMotionMaster()->MovePoint(1, SE.x + 30.0f, SE.y, Ground(SE.x + 30.0f, SE.y, SE.z), true); Log("the leader runs 25 yd"); } });
+                At(2000, [this, gw]() { if (Creature* w = Get(gw)) { w->CastSpell(w, FEIGN_A, true); Log("feign A %u: dead sources=%u mt=%s", FEIGN_A, uint32(ReadBlock(w).deadSources), TypeName(w)); } });
+                At(2500, [this, gw]() { if (Creature* w = Get(gw)) { w->CastSpell(w, FEIGN_B, true); Log("feign B %u: dead sources=%u mt=%s", FEIGN_B, uint32(ReadBlock(w).deadSources), TypeName(w)); } });
+                At(3000, [this, gw, twoSources]()
+                {
+                    Creature* w = Get(gw); if (!w) { return; }
+                    const BlockRead r = ReadBlock(w);
+                    const bool flags = w->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH) && w->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
+                    if (r.deadSources < 2)
+                    {
+                        char text[120];
+                        snprintf(text, sizeof(text), "INVALID(only %u feign source(s) applied; hasA=%d hasB=%d)", uint32(r.deadSources), w->HasAura(FEIGN_A) ? 1 : 0, w->HasAura(FEIGN_B) ? 1 : 0);
+                        *twoSources = text;
+                        Log("%s", text);
+                        return;
+                    }
+                    const bool ok = r.deadSources == 2 && r.dead && flags && Type(w) == FOLLOW_MOTION_TYPE;
+                    char text[120];
+                    snprintf(text, sizeof(text), "%s(deadSources=%u flags=%d mt=%s)", ok ? "OK" : "BUG", uint32(r.deadSources), flags ? 1 : 0, TypeName(w));
+                    *twoSources = text;
+                    Log("two feigns: %s", text);
+                });
+                for (uint32 t = 3000; t <= 4000; t += 500)
+                {
+                    At(t, [this, gw, both, t]()
+                    {
+                        Creature* w = Get(gw); if (!w) { return; }
+                        Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                        both->push_back(p);
+                        Log("two feigns +%4ums mt=%s at %.1f %.1f", t, TypeName(w), p.x, p.y);
+                    });
+                }
+                At(4000, [this, gw]() { if (Creature* w = Get(gw)) { w->RemoveAurasDueToSpell(FEIGN_A); Log("feign A removed: dead sources=%u mt=%s", uint32(ReadBlock(w).deadSources), TypeName(w)); } });
+                At(4500, [this, gw, firstKeeps]()
+                {
+                    Creature* w = Get(gw); if (!w) { return; }
+                    const BlockRead r = ReadBlock(w);
+                    const bool flags = w->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH) && w->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
+                    const bool ok = r.dead && r.deadSources == 1 && flags;
+                    char text[120];
+                    snprintf(text, sizeof(text), "%s(dead=%d deadSources=%u flags=%d)", ok ? "OK" : "BUG", r.dead ? 1 : 0, uint32(r.deadSources), flags ? 1 : 0);
+                    *firstKeeps = text;
+                    Log("after the first removal: %s", text);
+                });
+                for (uint32 t = 4500; t <= 6000; t += 500)
+                {
+                    At(t, [this, gw, one, t]()
+                    {
+                        Creature* w = Get(gw); if (!w) { return; }
+                        Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                        one->push_back(p);
+                        Log("one feign +%4ums mt=%s at %.1f %.1f", t, TypeName(w), p.x, p.y);
+                    });
+                }
+                At(6000, [this, gw]() { if (Creature* w = Get(gw)) { w->RemoveAurasDueToSpell(FEIGN_B); Log("feign B removed: dead sources=%u mt=%s", uint32(ReadBlock(w).deadSources), TypeName(w)); } });
+                At(6500, [this, gw, lastLifts]()
+                {
+                    Creature* w = Get(gw); if (!w) { return; }
+                    const BlockRead r = ReadBlock(w);
+                    const bool flags = w->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH) || w->HasFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
+                    const bool ok = !r.dead && r.deadSources == 0 && !flags && Type(w) == FOLLOW_MOTION_TYPE;
+                    char text[120];
+                    snprintf(text, sizeof(text), "%s(dead=%d flags=%d mt=%s)", ok ? "OK" : "BUG", r.dead ? 1 : 0, flags ? 1 : 0, TypeName(w));
+                    *lastLifts = text;
+                    Log("after the last removal: %s", text);
+                });
+                // The follower matches its leader's own gait (FollowMovementGenerator::EnableWalking),
+                // and the leader's point leg here runs at its WALK pace, same as the reference
+                // feign-keeps-follow (ScenariosBlock.cpp) shape this scenario borrows: closing a
+                // ~25 yd gap at that pace takes about 5.5 s once the follow resumes, so the window
+                // is the same 8 s that reference uses, not the tighter one first drafted here.
+                for (uint32 t = 6500; t <= 14500; t += 500)
+                {
+                    At(t, [this, gw, gl, closed, t]()
+                    {
+                        Creature* w = Get(gw); Creature* l = Get(gl); if (!w || !l) { return; }
+                        const float d = Dist2(w->Where().X(), w->Where().Y(), l->Where().X(), l->Where().Y());
+                        if (d < *closed) { *closed = d; }
+                        Log("after +%4ums mt=%s dist=%.1f", t, TypeName(w), d);
+                    });
+                }
+                At(15000, [this, gw, twoSources, firstKeeps, lastLifts, both, one, closed]()
+                {
+                    if (!Get(gw)) { Verdict(Invalid("lost")); return; }
+                    if (twoSources->compare(0, 7, "INVALID") == 0)
+                    {
+                        std::string why = twoSources->substr(8, twoSources->size() - 9);
+                        Verdict(Invalid(why.c_str()));
+                        return;
+                    }
+                    if (both->size() < 2 || one->size() < 3) { Verdict(Invalid("no samples")); return; }
+                    const float heldBoth = Spread(*both), heldOne = Spread(*one);
+                    char text[420];
+                    snprintf(text, sizeof(text), "twoSources=%s | standsUnderTwo=%s(spread %.1f) | firstRemovalKeeps=%s | standsUnderOne=%s(spread %.1f) | lastRemovalLifts=%s | followResumes=%s(closed to %.1f)",
+                             twoSources->c_str(),
+                             heldBoth < 0.5f ? "OK" : "BUG", heldBoth,
+                             firstKeeps->c_str(),
+                             heldOne < 0.5f ? "OK" : "BUG", heldOne,
+                             lastLifts->c_str(),
+                             *closed < 6.0f ? "OK" : "BUG", *closed);
+                    Verdict(text);
+                });
+            }
+
+        private:
+            static std::string Invalid(char const* why)
+            {
+                std::string w = std::string("INVALID(") + why + ")";
+                return "twoSources=" + w + " | standsUnderTwo=" + w + " | firstRemovalKeeps=" + w + " | standsUnderOne=" + w + " | lastRemovalLifts=" + w + " | followResumes=" + w;
+            }
+        };
     }
 
     void RegisterCoverageScenarios(Runner& r)
     {
         r.Register(new SeatHoldsPassenger());
         r.Register(new DeathDropsSources());
+        r.Register(new PossessedBodyPlaysFear());
+        r.Register(new TwoFeignsOneLift());
     }
 }
