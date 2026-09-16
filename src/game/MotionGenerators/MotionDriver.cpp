@@ -129,6 +129,11 @@ bool MotionDriver::Apply(Unit& owner, Motion::MoveIntent const& intent)
         case Motion::MoveIntent::Act::Hold:
             ReconcileHold(owner, intent);
             return true;
+
+        case Motion::MoveIntent::Act::Launch:
+            // An Effect's arc is launched by the shell adapter itself (NativeBehaviour::Launch,
+            // once, at activation) and never reaches the driver; a Launch here is a caller's error.
+            return false;
     }
 
     return true;
