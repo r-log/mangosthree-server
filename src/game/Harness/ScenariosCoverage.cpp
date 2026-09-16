@@ -32,6 +32,7 @@
 #include "movement/MoveSpline.h"
 #include "Log.h"
 
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <memory>
@@ -160,8 +161,8 @@ namespace Harness
                     // spline's live position (up to a POSITION_UPDATE_DELAY ahead of the placement),
                     // read WITHOUT stopping it -- the spline must still be in flight when Board runs,
                     // since Board's own stop of it is what seatPoseIsLocal proves. Board reads the
-                    // same spot from the stop's pending commit. unboardPlacesBack checks the unboard
-                    // returns the wolf here (a stationary vehicle).
+                    // same spot from the stop's pending commit. seatPoseIsLocal also checks the seat
+                    // pose's sign against this spot (the wolf boards from the vehicle's +x side).
                     if (!w->movespline->Finalized())
                     {
                         Movement::Location const loc = w->movespline->ComputePosition();
@@ -188,20 +189,27 @@ namespace Harness
                     *seatRoots = text;
                     Log("seated: %s", text);
                 });
-                At(1500, [this, gw, seat, seatPoseIsLocal]()
+                At(1500, [this, gv, gw, seat, seatPoseIsLocal, preBoard]()
                 {
-                    Creature* w = Get(gw); if (!w || *seat < 0) { return; }
+                    Creature* v = Get(gv); Creature* w = Get(gw); if (!v || !w || *seat < 0) { return; }
                     TransportInfo* ti = w->GetTransportInfo();
                     if (!ti) { *seatPoseIsLocal = "INVALID(no transport info)"; Log("seatPoseIsLocal: %s", seatPoseIsLocal->c_str()); return; }
                     // OK below ~15 yd: the wolf boards from about 5 yd out and may have walked a
                     // few yards more on its pre-board errand by now; a seat pose corrupted with a
                     // world position reads in the thousands (the bug this pins: see the class
-                    // comment).
+                    // comment). The sign pins the convention: the pose's x is the boarding spot's
+                    // offset along the vehicle's heading (R(o)^T · (spot - vehicle), standard),
+                    // so it carries the boarding side's sign and never exceeds that offset (the
+                    // walk to the attachment point only shortens it); a reflected pose (the old
+                    // -R(o) · delta) reads the opposite sign.
                     Geometry::Placement const& seatPose = ti->Seat();
                     const float mag = seatPose.Pos().magnitude();
-                    const bool ok = mag < 15.0f;
-                    char text[80];
-                    snprintf(text, sizeof(text), "%s(magnitude %.1f)", ok ? "OK" : "BUG", mag);
+                    const float dx = preBoard->x - v->Where().X(), dy = preBoard->y - v->Where().Y();
+                    const float along = cosf(v->Where().Facing()) * dx + sinf(v->Where().Facing()) * dy;
+                    const bool sameSide = seatPose.X() * along > 0.0f && fabsf(seatPose.X()) <= fabsf(along) + 0.5f;
+                    const bool ok = mag < 15.0f && sameSide;
+                    char text[120];
+                    snprintf(text, sizeof(text), "%s(magnitude %.1f, x %.1f along %.1f)", ok ? "OK" : "BUG", mag, seatPose.X(), along);
                     *seatPoseIsLocal = text;
                     Log("seatPoseIsLocal: %s", text);
                 });
@@ -214,10 +222,12 @@ namespace Harness
                     At(t, [this, gw, held, heldMayMove, t]()
                     {
                         Creature* w = Get(gw); if (!w) { return; }
-                        // w->Where() is the seat pose while boarded (class comment): this samples
-                        // the rider's walk to the seat's attachment point in the VEHICLE's frame,
-                        // not the world's -- seatSettles below checks it actually arrives there.
-                        Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                        TransportInfo* ti = w->GetTransportInfo(); if (!ti) { return; }
+                        // The seat pose itself (TransportInfo::Seat(), always the seat pose; a
+                        // rider's Where() is only its last writer): this samples the rider's walk
+                        // to the seat's attachment point in the VEHICLE's frame, not the world's --
+                        // seatSettles below checks it actually arrives there.
+                        Pt p = { ti->Seat().X(), ti->Seat().Y(), ti->Seat().Z() };
                         held->push_back(p);
                         if (ReadBlock(w).mayMove) { *heldMayMove = true; }
                         Log("on seat +%4ums mt=%s rider(seat) %.1f %.1f mayMove=%d", t, TypeName(w), p.x, p.y, ReadBlock(w).mayMove ? 1 : 0);
@@ -260,10 +270,11 @@ namespace Harness
                     At(t, [this, gw, switchHeld, t]()
                     {
                         Creature* w = Get(gw); if (!w) { return; }
-                        // Still the seat pose: a window between the switch and the unboard, so
+                        TransportInfo* ti = w->GetTransportInfo(); if (!ti) { return; }
+                        // The seat pose again: a window between the switch and the unboard, so
                         // switchSettles can check the pose actually walks to the NEW seat's
                         // attachment point instead of staying at the old one's.
-                        Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                        Pt p = { ti->Seat().X(), ti->Seat().Y(), ti->Seat().Z() };
                         switchHeld->push_back(p);
                         Log("after switch +%4ums mt=%s rider(seat) %.1f %.1f", t, TypeName(w), p.x, p.y);
                     });
