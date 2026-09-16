@@ -7126,9 +7126,10 @@ bool Unit::TakePossessOf(Unit* possessed)
         player = static_cast<Player *>(this);
     }
 
-    possessed->GetMotionMaster()->Inhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, GetObjectGuid().GetCounter()));
     possessed->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
     possessed->SetCharmerGuid(GetObjectGuid());
+    // After the charmer: the block's client-root projection reads it (a stunned body is rooted for its player mover).
+    possessed->GetMotionMaster()->Inhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, GetObjectGuid().GetCounter()));
     possessed->setFaction(getFaction());
 
     SetCharm(possessed);
@@ -7207,9 +7208,10 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
 
     Creature* possessedCreature = static_cast<Creature *>(possessed);
 
-    possessed->GetMotionMaster()->Uninhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, GetObjectGuid().GetCounter()));
     possessed->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
     possessed->SetCharmerGuid(ObjectGuid());
+    // After the charmer is gone: the projection then roots the body as a creature, not as a player's mover.
+    possessed->GetMotionMaster()->Uninhibit(Motion::Inhibition::Possessed, Motion::InhibitSource(Motion::SourceDomain::Possession, GetObjectGuid().GetCounter()));
     SetCharmGuid(ObjectGuid());
 
     if (player)

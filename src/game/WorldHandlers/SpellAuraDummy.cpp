@@ -1015,7 +1015,8 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     // For now, just handle all the same way
                     if (target->GetTypeId() == TYPEID_UNIT)
                     {
-                        target->SetFeignDeath(apply);
+                        // The aura's own identity: two of these on one creature are two feign sources.
+                        target->SetFeignDeath(apply, GetCasterGuid(), GetId());
                     }
 
                     return;
