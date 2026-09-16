@@ -606,7 +606,11 @@ namespace Harness
         /// S35: two feign auras on one unit are two Dead sources (reference 15.5; the debate's
         /// F5 on PR #84): the first removal keeps the block and the feign flags, the last
         /// removal lifts them and the paused follow resumes. The shape of feign-keeps-follow:
-        /// a running leader, a wolf following at 2 yd.
+        /// a running leader, a wolf following at 2 yd. Proven for one pair, 29266 + 31261: not
+        /// every member of the dummy family coexists with another -- 37493's apply removed 29266
+        /// through SetFeignDeath's RemoveAurasWithInterruptFlags(IMMUNE_OR_LOST_SELECTION), the
+        /// aura layer's own rule, not the kernel's -- so this is the two-source case, not a
+        /// statement about the family.
         class TwoFeignsOneLift : public Scenario
         {
         public:
