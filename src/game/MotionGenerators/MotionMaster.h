@@ -160,7 +160,9 @@ class MotionMaster
         void Die();
         /// Release the control claims of this kind (a take that ends the episode without its aura: the pet possession take).
         void CancelControl(Motion::Kind kind);
-        /// Combat ended without a death or an evade: the Combat entry finishes as TargetLost; the feign's apply uses it.
+        /// Combat ended without a death or an evade: the Combat layer's one kind, Chase (today
+        /// the only one), finishes as TargetLost; the feign's apply uses it. Must follow the
+        /// layer if another Combat kind is ever added.
         void ExpireCombat();
         /// End one Control claim by identity; the newest remaining claim of the layer drives.
         /// @return True when the claim was held.
@@ -247,7 +249,9 @@ class MotionMaster
         void Retire(size_t index, Motion::FinishReason reason);
         /// The client root follows the aggregate of Rooted and Stunned: SetRoot on its edges only.
         void ProjectClientRoot();
-        /// The old unit-state bits, written here and nowhere else: the kernel's mirror for scripts and the client.
+        /// The old unit-state bits, written here and nowhere else: the kernel's mirror for scripts
+        /// and the client. Writes only the bits that changed since the mask last written (m_mirror),
+        /// every bit on the first call (m_mirrorValid unset).
         void MirrorUnitState();
 
         Unit*              m_owner;
@@ -259,6 +263,8 @@ class MotionMaster
         PendingReset       m_pendingReset;
         uint32             m_exposedSeq;     ///< WhenExposed: the entry an expiry exposed
         bool               m_clientRooted;   ///< what ProjectClientRoot last told the owner
+        uint8              m_mirror;         ///< the mask last written by MirrorUnitState
+        bool               m_mirrorValid;    ///< false before the first commit: every bit is written then
 };
 
 #endif // MANGOS_MOTIONMASTER_H

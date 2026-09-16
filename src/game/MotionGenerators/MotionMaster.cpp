@@ -183,7 +183,8 @@ class MotionMaster::Scope
  * @param unit Pointer to the unit.
  */
 MotionMaster::MotionMaster(Unit* unit)
-    : m_owner(unit), m_depth(0), m_scopeKind(Motion::TransactionKind::Normal), m_pendingReset(PendingReset::None), m_exposedSeq(0), m_clientRooted(false)
+    : m_owner(unit), m_depth(0), m_scopeKind(Motion::TransactionKind::Normal), m_pendingReset(PendingReset::None), m_exposedSeq(0), m_clientRooted(false),
+      m_mirror(0), m_mirrorValid(false)
 {
     if (sWorld.getConfig(CONFIG_BOOL_MOVEMENT_DECISION_RING))
     {
@@ -1291,10 +1292,12 @@ void MotionMaster::ProjectClientRoot()
 /**
  * @brief Writes the unit-state bits the kernel now owns: the inhibitions and the arbiter's entries.
  * DIED mirrors a feign (real death never set the bit before and IsAlive() is the game's answer).
+ * Keeps the last mask written (m_mirror) and touches only the bits that changed since; the first
+ * call (m_mirrorValid unset) writes all eight.
  */
 void MotionMaster::MirrorUnitState()
 {
-    struct Bit { uint32 state; bool on; };
+    struct Bit { uint32 state; uint8 bit; bool on; };
     std::vector<uint64> const& dead = m_arbiter.Sources(Motion::Inhibition::Dead);
     bool feign = false;
     for (size_t i = 0; i < dead.size(); ++i)
@@ -1306,17 +1309,30 @@ void MotionMaster::MirrorUnitState()
     }
     const Bit bits[] =
     {
-        { UNIT_STAT_ROOT,        m_arbiter.Inhibited(Motion::Inhibition::Rooted) },
-        { UNIT_STAT_STUNNED,     m_arbiter.Inhibited(Motion::Inhibition::Stunned) },
-        { UNIT_STAT_DIED,        feign },
-        { UNIT_STAT_CONTROLLED,  m_arbiter.Inhibited(Motion::Inhibition::Possessed) },
-        { UNIT_STAT_FLEEING,     m_arbiter.HasClaim(Motion::Kind::Fear) },
-        { UNIT_STAT_CONFUSED,    m_arbiter.HasClaim(Motion::Kind::Confused) },
-        { UNIT_STAT_DISTRACTED,  m_arbiter.Command(Motion::Layer::Distract).has_value() },
-        { UNIT_STAT_TAXI_FLIGHT, m_arbiter.Command(Motion::Layer::Taxi).has_value() },
+        { UNIT_STAT_ROOT,        1u << 0, m_arbiter.Inhibited(Motion::Inhibition::Rooted) },
+        { UNIT_STAT_STUNNED,     1u << 1, m_arbiter.Inhibited(Motion::Inhibition::Stunned) },
+        { UNIT_STAT_DIED,        1u << 2, feign },
+        { UNIT_STAT_CONTROLLED,  1u << 3, m_arbiter.Inhibited(Motion::Inhibition::Possessed) },
+        { UNIT_STAT_FLEEING,     1u << 4, m_arbiter.HasClaim(Motion::Kind::Fear) },
+        { UNIT_STAT_CONFUSED,    1u << 5, m_arbiter.HasClaim(Motion::Kind::Confused) },
+        { UNIT_STAT_DISTRACTED,  1u << 6, m_arbiter.HasCommand(Motion::Layer::Distract) },
+        { UNIT_STAT_TAXI_FLIGHT, 1u << 7, m_arbiter.HasCommand(Motion::Layer::Taxi) },
     };
+    uint8 mask = 0;
     for (size_t i = 0; i < sizeof(bits) / sizeof(bits[0]); ++i)
     {
+        if (bits[i].on)
+        {
+            mask |= bits[i].bit;
+        }
+    }
+    const uint8 changed = m_mirrorValid ? uint8(mask ^ m_mirror) : uint8(0xFF);
+    for (size_t i = 0; i < sizeof(bits) / sizeof(bits[0]); ++i)
+    {
+        if (!(changed & bits[i].bit))
+        {
+            continue;
+        }
         if (bits[i].on)
         {
             m_owner->addUnitState(bits[i].state);
@@ -1326,6 +1342,8 @@ void MotionMaster::MirrorUnitState()
             m_owner->clearUnitState(bits[i].state);
         }
     }
+    m_mirror = mask;
+    m_mirrorValid = true;
 }
 
 /**
@@ -1338,7 +1356,10 @@ void MotionMaster::MirrorUnitState()
 void MotionMaster::RelocateSelected(float x, float y, float z, float o)
 {
     Bound* bound = SelectedBound();
-    if (bound && bound->activated)
+    // A blocked behaviour is already suspended and stays that way across the relocation; the
+    // lift's own Resumed(Blocked) relays it from the new spot, so this pair runs only when the
+    // selection ticks.
+    if (bound && bound->activated && m_arbiter.Evaluate().ticks)
     {
         bound->behaviour->Suspend(*m_owner);
     }
@@ -1347,7 +1368,7 @@ void MotionMaster::RelocateSelected(float x, float y, float z, float o)
     // The relocation and the heartbeat may have changed what is selected; resume whatever
     // is selected now, as the stack applied its Reset to whatever ended up on top.
     bound = SelectedBound();
-    if (bound && bound->activated)
+    if (bound && bound->activated && m_arbiter.Evaluate().ticks)
     {
         bound->behaviour->Resume(*m_owner, true);
     }

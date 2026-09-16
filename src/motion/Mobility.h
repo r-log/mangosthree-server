@@ -55,6 +55,11 @@ namespace Motion
         ReasonOnTaxi     = 1 << 7    ///< a Taxi entry is held
     };
 
+    /// The reasons that deny a player free movement for the client's own requests (a logout, a
+    /// chain target): the old UNIT_STAT_NO_FREE_MOVE less its feign bit, which the mirror carries
+    /// as UNIT_STAT_DIED.
+    const uint8 kNoFreeMoveReasons = ReasonRooted | ReasonStunned | ReasonFeared | ReasonConfused | ReasonOnTaxi;
+
     /// The class of the selected entry, for the table.
     enum class Selected : uint8 { None, Ordinary, Distract, Control, Taxi };
 

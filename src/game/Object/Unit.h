@@ -1749,11 +1749,11 @@ class Unit : public WorldObject
          */
         bool CanFreeMove() const
         {
-            // The same reasons UNIT_STAT_NO_FREE_MOVE covered (Unit.h:556-558): root, stun, death,
-            // taxi, confuse and fear; distract and possession never gated free move.
-            return !(GetMotionMaster()->Mobility().reasons & (Motion::ReasonRooted | Motion::ReasonStunned | Motion::ReasonDead |
-                                                                Motion::ReasonOnTaxi | Motion::ReasonConfused | Motion::ReasonFeared)) &&
-                   !GetOwnerGuid();
+            // kNoFreeMoveReasons is the old UNIT_STAT_NO_FREE_MOVE less its feign bit, which the
+            // mirror carries as UNIT_STAT_DIED: a real death does not deny free movement, as on
+            // master, only a feign does.
+            return !(GetMotionMaster()->Mobility().reasons & Motion::kNoFreeMoveReasons) &&
+                   !hasUnitState(UNIT_STAT_DIED) && !GetOwnerGuid();
         }
 
         /**
