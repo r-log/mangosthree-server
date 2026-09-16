@@ -1196,7 +1196,9 @@ void MotionMaster::MoveCharge(Unit* target, float speed)
     p.goal = Motion::Vector3(x, y, z);
     p.flags = Motion::MOVE_FORCE_DEST;   // routed, and it arrives at the exact contact point
     p.speed = speed;
-    p.target = target->GetObjectGuid().GetRawValue();
+    // A self-targeted charge (a positive charge effect on the caster) takes the fixed goal: its
+    // own contact point would move with it and a tracked leg would never end.
+    p.target = target == m_owner ? 0 : target->GetObjectGuid().GetRawValue();
     p.informs = false;                   // the raw spline it replaces informed nothing
     Request(R(Motion::Kind::Point, 0, true), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }

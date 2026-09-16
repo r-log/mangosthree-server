@@ -149,7 +149,8 @@ bool MotionDriver::ReconcileMove(Unit& owner, Motion::MoveIntent const& intent)
     // A speed change re-paces a routed leg, but must NOT re-lay an explicit one: that
     // geometry was built once, from the leg's START, and rebuilding it from a point
     // halfway along would walk the unit back to the beginning of its own path.
-    if (!relay && m_speedChanged && !intent.path)
+    // Nor a leg with its own speed override (the charge): the unit's pace is not what paces it.
+    if (!relay && m_speedChanged && !intent.path && intent.speed <= 0.0f)
     {
         relay = true;
     }

@@ -400,9 +400,12 @@ namespace Harness
                 }
                 At(5500, [this, spell, selected, closest, goals, chased]()
                 {
-                    // The charge ends at the contact point (3.666 yd plus the two reaches) of where
-                    // the kobold was at the last re-lay, so a walking target leaves that much plus the
-                    // re-lay budget's lag between them: 7 yd, not the contact distance alone.
+                    // The charge ends at the contact point (3.666 yd plus the two reaches) of the
+                    // kobold's PLACEMENT, and a spline-moved unit's placement is written once per
+                    // POSITION_UPDATE_DELAY (400 ms): a leg that ended past the tolerance from the fresh
+                    // point is re-laid at once, but the fresh point itself trails the true position by
+                    // up to one update of walking (about 2.3 yd here). So: the contact reach plus that
+                    // lag, 7 yd; a sample can read 3.67 when the placement happens to be current.
                     char arrives[160];
                     if (*closest < 7.0f) { snprintf(arrives, sizeof(arrives), "OK(closed to %.2f yd of the walking kobold)", *closest); }
                     else { snprintf(arrives, sizeof(arrives), "BUG(never closer than %.2f yd)", *closest); }

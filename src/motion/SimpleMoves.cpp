@@ -79,6 +79,27 @@ namespace Motion
             s.roaming = Roaming::ClearMove;
             return s;
         }
+        const bool tracking = m_p.target != 0;
+        if (tracking && !sight.hasTarget)
+        {
+            m_end = FinishReason::TargetLost;   // the charge's target is gone: no inform, no leg
+            return Step::Of(MoveIntent::Done());
+        }
+        if (sight.status.arrived && tracking && m_haveLaid)
+        {
+            // The leg ended where the target WAS. A target that walked on past the tolerance
+            // gets a fresh leg at once: the re-lay budget paces a live leg, not an ended one.
+            const Vector3 drift = sight.targetPoint - m_laid;
+            if (drift.squaredLength() > m_p.relayDrift * m_p.relayDrift)
+            {
+                m_laid = sight.targetPoint;
+                m_sinceRelay = 0;
+                ++m_relays;
+                Step s = Step::Of(MoveIntent::Move(m_laid, m_p.flags).AtSpeed(m_p.speed));
+                s.roaming = Roaming::SetBoth;
+                return s;
+            }
+        }
         if (sight.status.arrived || sight.status.blocked)
         {
             m_done = true;
@@ -94,13 +115,8 @@ namespace Motion
         }
 
         Vector3 goal = m_p.goal;
-        if (m_p.target != 0)
+        if (tracking)
         {
-            if (!sight.hasTarget)
-            {
-                m_end = FinishReason::TargetLost;   // the charge's target is gone: no inform, no leg
-                return Step::Of(MoveIntent::Done());
-            }
             // The charge follows its target's contact point, re-laid when it drifted past the
             // tolerance and not more often than the budget (retail re-targets a moving target).
             m_sinceRelay += diff;

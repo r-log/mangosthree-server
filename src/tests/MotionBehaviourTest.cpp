@@ -335,10 +335,35 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
     CHECK_EQ(b.Tick(s, 100).intent.goal.x, 10.0f);
     CHECK_EQ(b.Tick(s, 300).intent.goal.x, 13.0f);         // 600 ms: within budget, re-laid
     CHECK_EQ(b.Relays(), 1u);
-    s.hasTarget = false;
-    CHECK(b.Tick(s, 100).intent.act == MoveIntent::Act::Done);
-    CHECK(b.EndReason(s) == FinishReason::TargetLost);
-    CHECK(b.Finish(FinishReason::TargetLost, s).effects.empty());   // never informs
+    // A leg that ended where the target WAS: the target walked on past the tolerance, so a
+    // fresh leg is laid at once (no budget wait), not an arrival.
+    {
+        Sight ended = s;
+        ended.status.arrived = true;
+        ended.targetPoint = Vector3(16.0f, 0.0f, 0.0f);   // 3 yd past the laid goal of 13
+        Step again = b.Tick(ended, 50);
+        CHECK(again.intent.act == MoveIntent::Act::Move);
+        CHECK_EQ(again.intent.goal.x, 16.0f);
+        CHECK_EQ(b.Relays(), 2u);
+        // ... and a leg that ended within the tolerance is an arrival.
+        Sight close = s;
+        close.status.arrived = true;
+        close.targetPoint = Vector3(16.5f, 0.0f, 0.0f);
+        CHECK(b.Tick(close, 50).intent.act == MoveIntent::Act::Done);
+        CHECK(b.EndReason(close) == FinishReason::Arrived);
+    }
+    {
+        PointBehaviour::Params lp = PointTo(0.0f, 0.0f, 0.0f, 0);
+        lp.target = 0x42ull;
+        lp.informs = false;
+        PointBehaviour lost(lp);
+        lost.Activate(Free());
+        Sight gone = Free();
+        gone.hasTarget = false;
+        CHECK(lost.Tick(gone, 100).intent.act == MoveIntent::Act::Done);
+        CHECK(lost.EndReason(gone) == FinishReason::TargetLost);
+        CHECK(lost.Finish(FinishReason::TargetLost, gone).effects.empty());   // never informs
+    }
 
     // `informs = false` must hold on a real edge too, not only on TargetLost (which never
     // sets m_done and so would pass this check vacuously even with the guard deleted).
@@ -348,9 +373,14 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
         ap.informs = false;
         PointBehaviour arriving(ap);
         arriving.Activate(Free());
-        CHECK(arriving.Tick(Arrived(), 100).intent.act == MoveIntent::Act::Done);
-        CHECK(arriving.EndReason(Free()) == FinishReason::Arrived);
-        Outcome arrivedOutcome = arriving.Finish(FinishReason::Arrived, Free());
+        Sight there = Free();
+        there.hasTarget = true;
+        there.targetPoint = Vector3(10.0f, 0.0f, 0.0f);
+        CHECK(arriving.Tick(there, 100).intent.act == MoveIntent::Act::Move);   // the first leg
+        there.status.arrived = true;                                             // ended at the target's point
+        CHECK(arriving.Tick(there, 100).intent.act == MoveIntent::Act::Done);
+        CHECK(arriving.EndReason(there) == FinishReason::Arrived);
+        Outcome arrivedOutcome = arriving.Finish(FinishReason::Arrived, there);
         CHECK(!HasEffect(arrivedOutcome, Effect::Inform));
         CHECK(!HasEffect(arrivedOutcome, Effect::SummonedInform));
     }
