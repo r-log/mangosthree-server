@@ -518,7 +518,7 @@ enum UnitState
     UNIT_STAT_CONTROLLED      = 0x00000040,                 // Aura::HandleAuraModPossess
 
     // persistent movement generator state (all time while movement generator applied to unit (independent from top state of movegen)
-    UNIT_STAT_TAXI_FLIGHT     = 0x00000080,                 // player is in flight mode (in fact interrupted at far teleport until next map telport landing)
+    UNIT_STAT_TAXI_FLIGHT     = 0x00000080,                 // player is in flight mode; the bit follows the Taxi entry and is continuous across a far teleport
     UNIT_STAT_DISTRACTED      = 0x00000100,                 // DistractedMovementGenerator active
 
     // persistent movement generator state with non-persistent mirror states for stop support

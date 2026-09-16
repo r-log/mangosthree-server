@@ -443,15 +443,16 @@ void VehicleInfo::SwitchSeat(Unit* passenger, uint8 seat)
     // Remove passenger modifications of the old seat
     RemoveSeatMods(passenger, seatEntry->Flags);
 
-    // The seat's root is claimed by seat index (C1a): release the old one before the switch
-    // or the old identity's source is never released again once the seat index moves on, then
-    // claim the new one once the switch has happened.
+    // Claim the new seat's source before releasing the old one: the two identities differ (the
+    // seat index is part of each), so the aggregate never falls to zero between them and the
+    // client never sees an unroot immediately followed by a root. UnBoard(changeVehicle = true)
+    // followed by the next vehicle's Board has the same shape across two different vehicles and
+    // is left as it is.
+    passenger->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), seat));
     passenger->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), oldSeat));
 
     // Set to new seat
     itr->second->SetTransportSeat(seat);
-
-    passenger->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Seat, m_owner->GetObjectGuid().GetCounter(), seat));
 
     Movement::MoveSplineInit init(*passenger);
     init.MoveTo(0.0f, 0.0f, 0.0f);                          // ToDo: Set correct local coords

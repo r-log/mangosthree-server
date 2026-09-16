@@ -822,6 +822,12 @@ void FlightPathMovementGenerator::Initialize(Unit& u)
 void FlightPathMovementGenerator::Finalize(Unit& u)
 {
     Player& player = static_cast<Player&>(u);
+    // The mirror clears this bit at the commit's end, but Unmount and the online-state change
+    // below must not see a flight still in progress (the old comment warned of a crash sending
+    // an object-build movement packet for a flight state with the generator already off the
+    // stack); the one deliberate second writer of a mirrored bit -- MirrorUnitState agrees once
+    // the commit runs.
+    player.clearUnitState(UNIT_STAT_TAXI_FLIGHT);
     player.Unmount();
     player.RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_TAXI_FLIGHT);
 
