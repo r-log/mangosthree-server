@@ -154,7 +154,7 @@ namespace Motion
 
     // ---- Distract -----------------------------------------------------------------
 
-    Step DistractBehaviour::Tick(Sight const&, uint32 diff)
+    Step DistractBehaviour::Tick(Sight const& /*sight*/, uint32 diff)
     {
         if (diff > m_timer)   // strict, as the generator: equality leaves it alive at zero
         {
@@ -164,7 +164,7 @@ namespace Motion
         return Step::None();   // the generator touched nothing; the facing was the caller's
     }
 
-    Outcome DistractBehaviour::Finish(FinishReason, Sight const&)
+    Outcome DistractBehaviour::Finish(FinishReason /*why*/, Sight const& /*sight*/)
     {
         Outcome o;
         if (m_kind == Motion::Kind::AssistDistract)
@@ -176,7 +176,7 @@ namespace Motion
 
     // ---- Effect -------------------------------------------------------------------
 
-    Step EffectBehaviour::Activate(Sight const&)
+    Step EffectBehaviour::Activate(Sight const& /*sight*/)
     {
         if (m_launched || m_launch.kind == EffectLaunch::None)
         {
@@ -186,7 +186,7 @@ namespace Motion
         return Step::Of(MoveIntent::Launch(m_launch));   // once
     }
 
-    Step EffectBehaviour::Tick(Sight const& sight, uint32)
+    Step EffectBehaviour::Tick(Sight const& sight, uint32 /*diff*/)
     {
         // `traveling`, not `arrived`: a spline never launched must end at once.
         if (sight.status.traveling)

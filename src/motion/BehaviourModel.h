@@ -72,13 +72,15 @@ namespace Motion
     };
 
     /// One shell operation of an Outcome, performed in order after the behaviour finished.
+    /// Every effect is a creature's: the shell performs none of the recipe for a player
+    /// (the generators returned before the inform and the re-engage for a non-creature).
     struct Effect
     {
         enum Kind : uint8
         {
             Inform,            ///< creature.AI()->MovementInform(projection of `who`, id)
             SummonedInform,    ///< a temporary summon's creature summoner: SummonedMovementInform(projection, id)
-            ReengageVictim,    ///< live predicate: alive, not confused/fleeing/no-combat-movement, not chasing/following, has a victim -> MoveChase(victim)
+            ReengageVictim,    ///< live predicate: creature, alive, not confused/fleeing/no-combat-movement, not chasing/following, has a victim -> MoveChase(victim)
             CallAssistance,    ///< SetNoCallAssistance(false); CallAssistance()
             SeekAssistDistract,///< if alive: MoveSeekAssistanceDistract(the configured delay)
             AttackVictim       ///< if a victim and alive: AttackStop(true); AI()->AttackStart(victim)
@@ -93,7 +95,7 @@ namespace Motion
     struct Outcome
     {
         Roaming             roaming = Roaming::Keep;
-        bool                interrupt = false;
+        bool                interrupt = false; ///< performed by the shell only when it did not already suspend this behaviour; a suspended one was interrupted at its Suspend
         std::vector<Effect> effects;
     };
 

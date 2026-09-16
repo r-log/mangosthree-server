@@ -58,14 +58,45 @@ namespace
         s.alive = true;
         return s;
     }
-    Sight Arrived() { Sight s = Free(); s.status.arrived = true; return s; }
-    Sight Cut() { Sight s = Free(); s.status.cut = true; return s; }
-    Sight Blocked() { Sight s = Free(); s.status.blocked = true; return s; }
-    Sight Traveling() { Sight s = Free(); s.status.traveling = true; return s; }
-    Sight Partial() { Sight s = Free(); s.status.partial = true; return s; }
+    Sight Arrived()
+    {
+        Sight s = Free();
+        s.status.arrived = true;
+        return s;
+    }
+    Sight Cut()
+    {
+        Sight s = Free();
+        s.status.cut = true;
+        return s;
+    }
+    Sight Blocked()
+    {
+        Sight s = Free();
+        s.status.blocked = true;
+        return s;
+    }
+    Sight Traveling()
+    {
+        Sight s = Free();
+        s.status.traveling = true;
+        return s;
+    }
+    Sight Partial()
+    {
+        Sight s = Free();
+        s.status.partial = true;
+        return s;
+    }
     bool HasEffect(Outcome const& o, Effect::Kind k)
     {
-        for (size_t i = 0; i < o.effects.size(); ++i) { if (o.effects[i].kind == k) { return true; } }
+        for (size_t i = 0; i < o.effects.size(); ++i)
+        {
+            if (o.effects[i].kind == k)
+            {
+                return true;
+            }
+        }
         return false;
     }
     PointBehaviour::Params PointTo(float x, float y, float z, uint32 id = 7)
@@ -144,13 +175,19 @@ TEST(MotionBehaviour_PointEndsAndInformsOnArrivedBlockedAndCut)
 
 TEST(MotionBehaviour_PointDisplacedInformsNothingAndInterrupts)
 {
-    PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f));
-    b.Activate(Free());
-    b.Tick(Free(), 100);
-    Outcome o = b.Finish(FinishReason::Superseded, Free());
-    CHECK(o.effects.empty());
-    CHECK(o.interrupt);
-    CHECK(o.roaming == Roaming::ClearBoth);
+    // All three displacing reasons, not just Superseded: the native's Outcome::interrupt is
+    // unconditional (the shell's own suspension bookkeeping decides whether to act on it).
+    const FinishReason reasons[] = { FinishReason::Superseded, FinishReason::Overridden, FinishReason::Cancelled };
+    for (FinishReason reason : reasons)
+    {
+        PointBehaviour b(PointTo(1.0f, 2.0f, 3.0f));
+        b.Activate(Free());
+        b.Tick(Free(), 100);
+        Outcome o = b.Finish(reason, Free());
+        CHECK(o.effects.empty());
+        CHECK(o.interrupt);
+        CHECK(o.roaming == Roaming::ClearBoth);
+    }
 }
 
 TEST(MotionBehaviour_PointSuspendedThenResumedWithResetRelaysFromTheSpot)
@@ -177,6 +214,7 @@ TEST(MotionBehaviour_PointRestatesTheGoalOnPartial)
     b.Activate(Free());
     Step t = b.Tick(Partial(), 100);
     CHECK(t.intent.act == MoveIntent::Act::Move);   // not an end
+    CHECK_EQ(t.intent.goal.x, 1.0f);                // the same goal, re-stated
 }
 
 TEST(MotionBehaviour_AssistRunCallsAssistanceOnEveryNonDisplacingFinishAndNeverInforms)
@@ -186,6 +224,9 @@ TEST(MotionBehaviour_AssistRunCallsAssistanceOnEveryNonDisplacingFinishAndNeverI
     p.flags = MOVE_WALK;
     PointBehaviour b(p);
     b.Activate(Free());
+    Step moving = b.Tick(Free(), 100);
+    CHECK(moving.intent.act == MoveIntent::Act::Move);
+    CHECK(moving.intent.Has(MOVE_WALK));            // the flags pass through to the leg
     b.Tick(Arrived(), 100);
     Outcome arrived = b.Finish(FinishReason::Arrived, Free());
     CHECK(!HasEffect(arrived, Effect::Inform));
@@ -239,13 +280,18 @@ TEST(MotionBehaviour_EffectDisplacedInformsOnlyIfLanded_CutOnItsOwnTickInforms)
 {
     EffectLaunch l;
     l.kind = EffectLaunch::Jump;
+    // All three displacing reasons, not just Superseded.
+    const FinishReason displacing[] = { FinishReason::Superseded, FinishReason::Overridden, FinishReason::Cancelled };
+    for (FinishReason reason : displacing)
     {
         EffectBehaviour e(71, l);
         e.Activate(Free());
-        CHECK(e.Finish(FinishReason::Superseded, Free()).effects.empty());    // flying: nothing happened
+        CHECK(e.Finish(reason, Free()).effects.empty());    // flying: nothing happened
         Sight landed = Free();
         landed.landed = true;
-        CHECK(HasEffect(e.Finish(FinishReason::Superseded, landed), Effect::Inform));   // landed, unconsumed: the effect happened
+        Outcome o = e.Finish(reason, landed);
+        CHECK(HasEffect(o, Effect::Inform));            // landed, unconsumed: the effect happened
+        CHECK(HasEffect(o, Effect::ReengageVictim));    // the whole finalizer runs when landed, re-engage included
     }
     {
         EffectBehaviour e(72, l);
@@ -273,6 +319,7 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
     p.informs = false;
     PointBehaviour b(p);
     CHECK(b.TracksTarget());
+    CHECK_EQ(b.Target(), uint64(0x42ull));
     b.Activate(Free());
     Sight s = Free();
     s.hasTarget = true;
@@ -292,12 +339,58 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
     CHECK(b.Tick(s, 100).intent.act == MoveIntent::Act::Done);
     CHECK(b.EndReason(s) == FinishReason::TargetLost);
     CHECK(b.Finish(FinishReason::TargetLost, s).effects.empty());   // never informs
+
+    // `informs = false` must hold on a real edge too, not only on TargetLost (which never
+    // sets m_done and so would pass this check vacuously even with the guard deleted).
+    {
+        PointBehaviour::Params ap = PointTo(0.0f, 0.0f, 0.0f, 0);
+        ap.target = 0x42ull;
+        ap.informs = false;
+        PointBehaviour arriving(ap);
+        arriving.Activate(Free());
+        CHECK(arriving.Tick(Arrived(), 100).intent.act == MoveIntent::Act::Done);
+        CHECK(arriving.EndReason(Free()) == FinishReason::Arrived);
+        Outcome arrivedOutcome = arriving.Finish(FinishReason::Arrived, Free());
+        CHECK(!HasEffect(arrivedOutcome, Effect::Inform));
+        CHECK(!HasEffect(arrivedOutcome, Effect::SummonedInform));
+    }
+
+    // The swoop: no tracked target, `informs = false`, a fixed goal — same silence on arrival.
+    {
+        PointBehaviour::Params sp = PointTo(1.0f, 2.0f, 3.0f, 0);
+        sp.informs = false;
+        PointBehaviour swoop(sp);
+        swoop.Activate(Free());
+        CHECK(swoop.Tick(Arrived(), 100).intent.act == MoveIntent::Act::Done);
+        Outcome swoopOutcome = swoop.Finish(FinishReason::Arrived, Free());
+        CHECK(!HasEffect(swoopOutcome, Effect::Inform));
+        CHECK(!HasEffect(swoopOutcome, Effect::SummonedInform));
+    }
 }
 
-TEST(MotionBehaviour_IdleHoldsAndFinishesSilently)
+TEST(MotionBehaviour_IdleDoesNothingAndFinishesSilently)
 {
     IdleBehaviour i;
     CHECK(!i.Activate(Free()).apply);
     CHECK(!i.Tick(Free(), 100).apply);
     CHECK(i.Finish(FinishReason::Superseded, Free()).effects.empty());
+}
+
+TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsAPoint)
+{
+    PointBehaviour::Params p = PointTo(4.0f, 5.0f, 6.0f, 5);
+    p.kind = Kind::FlyLand;
+    p.flags = MOVE_FLY | MOVE_STRAIGHT;
+    PointBehaviour b(p);
+    CHECK(b.Kind() == Kind::FlyLand);
+    b.Activate(Free());
+    Step t = b.Tick(Free(), 100);
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK(t.intent.Has(MOVE_FLY));
+    CHECK(t.intent.Has(MOVE_STRAIGHT));
+    CHECK(b.Tick(Arrived(), 100).intent.act == MoveIntent::Act::Done);
+    Outcome o = b.Finish(FinishReason::Arrived, Free());
+    CHECK(HasEffect(o, Effect::Inform));
+    CHECK(o.effects[0].who == Kind::FlyLand);
+    CHECK_EQ(o.effects[0].id, 5u);
 }
