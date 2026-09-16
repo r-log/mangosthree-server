@@ -32,8 +32,6 @@
 #include "movement/MoveSpline.h"
 #include "Log.h"
 
-#include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <string>
 #include <memory>
@@ -82,19 +80,26 @@ namespace Harness
         }
 
         /// S32: a vehicle seat roots its passenger (reference 9.4-9.5; design P5-A 9.10): the
-        /// seat is one Rooted source, a point requested on the seat is held, a seat switch
-        /// keeps the root with the new seat's source and the seat pose itself, the unboard
-        /// releases it and a fresh point plays. A creature takes any seat
-        /// (IsUsableSeatForCreature); a passenger seat (index 1 or above) keeps the vehicle's
-        /// control seat empty, so no charm forms -- seatRoots asserts that too. A rider's
-        /// Where() IS its seat pose (WorldObject::Where(), TransportInfo::SetSeatPose): a
-        /// Spread on a seated unit's samples measures the seat pose's drift in the VEHICLE's
-        /// frame, not a world displacement. With a stationary vehicle the two happen to
-        /// coincide, which is exactly why a seat pose corrupted with world-scale coordinates
-        /// (fixed in VehicleInfo::Board -- a rider's world spline, still running the instant it
-        /// became a rider, used to land in the seat pose once the seat root's own claim
-        /// suspended it) once read heldOnSeat=OK too; seatPoseIsLocal pins the pose itself so
-        /// that mistake cannot pass silently again.
+        /// seat is one Rooted source; a point requested on the seat is held while the boarding
+        /// walk settles the seat pose at the seat's own attachment point (VehicleSeatEntry::
+        /// AttachmentOffset_0..2 -- many seats carry (0,0,0)) and it stays there; a seat switch
+        /// keeps the root with the new seat's source and walks the pose to the NEW seat's
+        /// attachment; the unboard releases the root and returns the rider to where it
+        /// boarded; a fresh point plays after. A creature takes the first seat whose flags
+        /// lack SEAT_FLAG_CAN_CONTROL (IsUsableSeatForCreature) -- a non-control seat keeps
+        /// the vehicle's control seat empty, so no charm forms -- seatRoots asserts that too.
+        /// A rider's Where() IS its seat pose (WorldObject::Where(), TransportInfo::
+        /// SetSeatPose): a Spread on a seated unit's samples measures the seat pose's drift in
+        /// the VEHICLE's frame, not a world displacement. With a stationary vehicle the two
+        /// happen to coincide, which is why the round-0 run's world-corrupted pose (fixed in
+        /// VehicleInfo::Board -- a rider's world spline, still running the instant it became a
+        /// rider, used to land in the seat pose once the seat root's own claim suspended it)
+        /// read heldOnSeat=BUG(spread 4.5) -- a large spread, not a silent OK; the reviews
+        /// traced the rest. seatPoseIsLocal pins the pose itself so that mistake cannot pass
+        /// silently again. The board and switch splines walk the rider from its boarding
+        /// offset to the seat's own attachment point -- the boarding animation, not a drift --
+        /// so seatSettles/switchSettles assert the pose actually arrives and stops there, not
+        /// merely that it holds still wherever it happened to board.
         class SeatHoldsPassenger : public Scenario
         {
         public:
@@ -110,6 +115,8 @@ namespace Harness
                 auto seat2 = std::make_shared<int>(-1);
                 auto seatFailReason = std::make_shared<std::string>("not reached");
                 auto preBoard = std::make_shared<Pt>();
+                auto seat1Attach = std::make_shared<Pt>();
+                auto seat2Attach = std::make_shared<Pt>();
                 auto held = std::make_shared<std::vector<Pt> >();
                 auto heldMayMove = std::make_shared<bool>(false);
                 auto switchHeld = std::make_shared<std::vector<Pt> >();
@@ -127,17 +134,28 @@ namespace Harness
                     // seat-pose corruption the class comment describes.
                     if (Creature* w = Get(gw)) { w->GetMotionMaster()->MovePoint(9, SE.x + 30.0f, SE.y, Ground(SE.x + 30.0f, SE.y, SE.z)); Log("pre-board point requested (a world spline in flight at boarding), mt=%s", TypeName(w)); }
                 });
-                At(1000, [this, gv, gw, seat, seatFailReason, preBoard]()
+                At(1000, [this, gv, gw, seat, seatFailReason, preBoard, seat1Attach]()
                 {
                     Creature* v = Get(gv); Creature* w = Get(gw); if (!v || !w) { return; }
                     VehicleInfo* vi = v->GetVehicleInfo();
                     if (!vi) { Log("no vehicle info on %u", v->GetEntry()); *seatFailReason = "no vehicle info"; return; }
                     Log("vehicle info initialised=%d", vi->IsInitialized() ? 1 : 0);
-                    for (uint8 s = 1; s < 8; ++s)
+                    // The first seat that both accepts the wolf AND is not a control seat
+                    // (SEAT_FLAG_CAN_CONTROL): a passenger seat is a matter of the flag, not the
+                    // index -- this template happens to make seat 0 the control seat, but that
+                    // is this template's fact, not a rule this loop may assume.
+                    for (uint8 s = 0; s < 8; ++s)
                     {
-                        if (vi->IsSeatAvailableFor(w, s)) { *seat = s; break; }
+                        if (!vi->IsSeatAvailableFor(w, s)) { continue; }
+                        VehicleSeatEntry const* candidate = vi->GetSeatEntry(s);
+                        if (candidate && !(candidate->Flags & SEAT_FLAG_CAN_CONTROL)) { *seat = s; break; }
                     }
                     if (*seat < 0) { Log("no passenger seat accepts the wolf"); *seatFailReason = "no passenger seat"; return; }
+                    if (VehicleSeatEntry const* chosen = vi->GetSeatEntry(uint8(*seat)))
+                    {
+                        *seat1Attach = Pt { chosen->AttachmentOffset_0, chosen->AttachmentOffset_1, chosen->AttachmentOffset_2 };
+                        Log("chosen seat %d flags=0x%x attach=%.1f %.1f %.1f", *seat, chosen->Flags, seat1Attach->x, seat1Attach->y, seat1Attach->z);
+                    }
                     // The wolf's own world spot right before it stops being a world object: the
                     // spline's live position (up to a POSITION_UPDATE_DELAY ahead of the placement),
                     // read WITHOUT stopping it -- the spline must still be in flight when Board runs,
@@ -197,22 +215,31 @@ namespace Harness
                     {
                         Creature* w = Get(gw); if (!w) { return; }
                         // w->Where() is the seat pose while boarded (class comment): this samples
-                        // the rider's drift in the VEHICLE's frame, not the world's.
+                        // the rider's walk to the seat's attachment point in the VEHICLE's frame,
+                        // not the world's -- seatSettles below checks it actually arrives there.
                         Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
                         held->push_back(p);
                         if (ReadBlock(w).mayMove) { *heldMayMove = true; }
                         Log("on seat +%4ums mt=%s rider(seat) %.1f %.1f mayMove=%d", t, TypeName(w), p.x, p.y, ReadBlock(w).mayMove ? 1 : 0);
                     });
                 }
-                At(5000, [this, gv, gw, seat, seat2]()
+                At(5000, [this, gv, gw, seat, seat2, seat2Attach]()
                 {
                     Creature* v = Get(gv); Creature* w = Get(gw); if (!v || !w || *seat < 0) { return; }
                     VehicleInfo* vi = v->GetVehicleInfo(); if (!vi) { return; }
+                    // Same rule as the initial pick (M5): the flag, not the index.
                     for (uint8 s = uint8(*seat + 1); s < 8; ++s)
                     {
-                        if (vi->IsSeatAvailableFor(w, s)) { *seat2 = s; break; }
+                        if (!vi->IsSeatAvailableFor(w, s)) { continue; }
+                        VehicleSeatEntry const* candidate = vi->GetSeatEntry(s);
+                        if (candidate && !(candidate->Flags & SEAT_FLAG_CAN_CONTROL)) { *seat2 = s; break; }
                     }
                     if (*seat2 < 0) { Log("single passenger seat, the switch is skipped"); return; }
+                    if (VehicleSeatEntry const* chosen = vi->GetSeatEntry(uint8(*seat2)))
+                    {
+                        *seat2Attach = Pt { chosen->AttachmentOffset_0, chosen->AttachmentOffset_1, chosen->AttachmentOffset_2 };
+                        Log("switch target seat %d flags=0x%x attach=%.1f %.1f %.1f", *seat2, chosen->Flags, seat2Attach->x, seat2Attach->y, seat2Attach->z);
+                    }
                     vi->SwitchSeat(w, uint8(*seat2));
                     Log("wolf switches to seat %d", *seat2);
                 });
@@ -233,8 +260,9 @@ namespace Harness
                     At(t, [this, gw, switchHeld, t]()
                     {
                         Creature* w = Get(gw); if (!w) { return; }
-                        // Still the seat pose: a window between the switch and the unboard, so a
-                        // switch that never recomputed the new seat's pose shows up here.
+                        // Still the seat pose: a window between the switch and the unboard, so
+                        // switchSettles can check the pose actually walks to the NEW seat's
+                        // attachment point instead of staying at the old one's.
                         Pt p = { w->Where().X(), w->Where().Y(), w->Where().Z() };
                         switchHeld->push_back(p);
                         Log("after switch +%4ums mt=%s rider(seat) %.1f %.1f", t, TypeName(w), p.x, p.y);
@@ -256,16 +284,24 @@ namespace Harness
                     *unboardReleases = text;
                     Log("after the unboard: %s", text);
                 });
-                At(7500, [this, gw, seat, preBoard, unboardPlacesBack]()
+                At(7500, [this, gv, gw, seat, seat2, seat1Attach, seat2Attach, unboardPlacesBack]()
                 {
-                    Creature* w = Get(gw); if (!w || *seat < 0) { return; }
-                    // A stationary vehicle's unboard must return the rider to where it boarded
-                    // (reference: the re-review's reflection, 15.6 yd on the wrong side before
-                    // this was fixed) -- world coordinates this time, not the seat pose.
-                    const float d = Dist2(w->Where().X(), w->Where().Y(), preBoard->x, preBoard->y);
+                    Creature* v = Get(gv); Creature* w = Get(gw); if (!v || !w || *seat < 0) { return; }
+                    // The board/switch splines now walk the seat pose to the seat's own
+                    // attachment point (class comment), so a stationary vehicle's unboard must
+                    // return the rider to THAT -- the vehicle's own position composed with the
+                    // currently-seated seat's attachment offset (Basis().localToWorld, the same
+                    // composition UpdateGlobalPositionOf uses) -- not to where it originally
+                    // boarded: the walk moves the rider on purpose, so preBoard (logged above)
+                    // is no longer where the unboard is expected to return it. Reference: the
+                    // re-review's reflection, 15.6 yd on the wrong side, before the seat-pose
+                    // convention itself was fixed.
+                    Pt const& currentAttach = (*seat2 >= 0) ? *seat2Attach : *seat1Attach;
+                    Geometry::Vector3 const expected = v->Where().Basis().localToWorld(Geometry::Vector3(currentAttach.x, currentAttach.y, currentAttach.z));
+                    const float d = Dist2(w->Where().X(), w->Where().Y(), expected.x, expected.y);
                     const bool ok = d < 3.0f;
-                    char text[80];
-                    snprintf(text, sizeof(text), "%s(dist %.1f)", ok ? "OK" : "BUG", d);
+                    char text[100];
+                    snprintf(text, sizeof(text), "%s(dist %.1f, expected %.1f %.1f)", ok ? "OK" : "BUG", d, expected.x, expected.y);
                     *unboardPlacesBack = text;
                     Log("unboardPlacesBack: %s", text);
                 });
@@ -283,28 +319,45 @@ namespace Harness
                         Log("after +%4ums mt=%s at %.1f %.1f", t, TypeName(w), p.x, p.y);
                     });
                 }
-                At(11500, [this, gw, seat, seatFailReason, held, heldMayMove, switchHeld, seat2, after, seatRoots, seatPoseIsLocal, switchKeeps, unboardReleases, unboardPlacesBack]()
+                At(11500, [this, gw, seat, seatFailReason, held, heldMayMove, seat1Attach, switchHeld, seat2, seat2Attach, after, seatRoots, seatPoseIsLocal, switchKeeps, unboardReleases, unboardPlacesBack]()
                 {
                     if (*seat < 0) { Verdict(Invalid(seatFailReason->c_str())); return; }
                     if (!Get(gw)) { Verdict(Invalid("lost")); return; }
                     if (held->size() < 3 || after->size() < 3) { Verdict(Invalid("no samples")); return; }
-                    const float heldSpread = Spread(*held);
                     const float afterSpread = Spread(*after);
-                    std::string switchHoldsSeat;
-                    if (*seat2 < 0) { switchHoldsSeat = "OK(single seat, switch skipped)"; }
-                    else if (switchHeld->size() < 3) { switchHoldsSeat = "INVALID(no samples)"; }
+                    // seatSettles: the pose must have arrived at the seat's own attachment point
+                    // by the end of the window (within 0.5 yd) and stopped moving there (the last
+                    // two samples within 0.1 yd of each other) -- not merely held wherever it
+                    // happened to board (that was heldOnSeat's old, weaker claim).
+                    std::string seatSettles;
+                    {
+                        Pt const& last = (*held)[held->size() - 1];
+                        Pt const& prev = (*held)[held->size() - 2];
+                        const float toAttach = Dist2(last.x, last.y, seat1Attach->x, seat1Attach->y);
+                        const float lastTwo = Dist2(last.x, last.y, prev.x, prev.y);
+                        const bool ok = toAttach < 0.5f && lastTwo < 0.1f && !*heldMayMove;
+                        char t1[110];
+                        snprintf(t1, sizeof(t1), "%s(toAttach %.2f, lastTwo %.2f, mayMove seen %d)", ok ? "OK" : "BUG", toAttach, lastTwo, *heldMayMove ? 1 : 0);
+                        seatSettles = t1;
+                    }
+                    std::string switchSettles;
+                    if (*seat2 < 0) { switchSettles = "OK(single seat, switch skipped)"; }
+                    else if (switchHeld->size() < 3) { switchSettles = "INVALID(no samples)"; }
                     else
                     {
-                        const float switchSpread = Spread(*switchHeld);
-                        char t2[64];
-                        snprintf(t2, sizeof(t2), "%s(spread %.1f)", switchSpread < 0.5f ? "OK" : "BUG", switchSpread);
-                        switchHoldsSeat = t2;
+                        Pt const& last = (*switchHeld)[switchHeld->size() - 1];
+                        Pt const& prev = (*switchHeld)[switchHeld->size() - 2];
+                        const float toAttach = Dist2(last.x, last.y, seat2Attach->x, seat2Attach->y);
+                        const float lastTwo = Dist2(last.x, last.y, prev.x, prev.y);
+                        const bool ok = toAttach < 0.5f && lastTwo < 0.1f;
+                        char t2[90];
+                        snprintf(t2, sizeof(t2), "%s(toAttach %.2f, lastTwo %.2f)", ok ? "OK" : "BUG", toAttach, lastTwo);
+                        switchSettles = t2;
                     }
-                    char text[600];
-                    snprintf(text, sizeof(text), "seatRoots=%s | seatPoseIsLocal=%s | heldOnSeat=%s(spread %.1f, mayMove seen %d) | switchKeepsRoot=%s | switchHoldsSeat=%s | unboardReleases=%s | unboardPlacesBack=%s | movesAfterUnboard=%s(spread %.1f)",
-                             seatRoots->c_str(), seatPoseIsLocal->c_str(),
-                             (heldSpread < 0.5f && !*heldMayMove) ? "OK" : "BUG", heldSpread, *heldMayMove ? 1 : 0,
-                             switchKeeps->c_str(), switchHoldsSeat.c_str(), unboardReleases->c_str(), unboardPlacesBack->c_str(),
+                    char text[640];
+                    snprintf(text, sizeof(text), "seatRoots=%s | seatPoseIsLocal=%s | seatSettles=%s | switchKeepsRoot=%s | switchSettles=%s | unboardReleases=%s | unboardPlacesBack=%s | movesAfterUnboard=%s(spread %.1f)",
+                             seatRoots->c_str(), seatPoseIsLocal->c_str(), seatSettles.c_str(),
+                             switchKeeps->c_str(), switchSettles.c_str(), unboardReleases->c_str(), unboardPlacesBack->c_str(),
                              afterSpread > 3.0f ? "OK" : "BUG", afterSpread);
                     Verdict(text);
                 });
@@ -314,7 +367,7 @@ namespace Harness
             static std::string Invalid(char const* why)
             {
                 std::string w = std::string("INVALID(") + why + ")";
-                return "seatRoots=" + w + " | seatPoseIsLocal=" + w + " | heldOnSeat=" + w + " | switchKeepsRoot=" + w + " | switchHoldsSeat=" + w + " | unboardReleases=" + w + " | unboardPlacesBack=" + w + " | movesAfterUnboard=" + w;
+                return "seatRoots=" + w + " | seatPoseIsLocal=" + w + " | seatSettles=" + w + " | switchKeepsRoot=" + w + " | switchSettles=" + w + " | unboardReleases=" + w + " | unboardPlacesBack=" + w + " | movesAfterUnboard=" + w;
             }
         };
 
@@ -338,6 +391,7 @@ namespace Harness
                 auto sourcesHeld = std::make_shared<std::string>("INVALID(not reached)");
                 auto deathDrops = std::make_shared<std::string>("INVALID(not reached)");
                 auto respawnClean = std::make_shared<std::string>("INVALID(not reached)");
+                auto heldPos = std::make_shared<std::vector<Pt> >();
                 auto dead = std::make_shared<std::vector<Pt> >();
                 auto after = std::make_shared<std::vector<Pt> >();
                 At(500, [this, gw, gk]()
@@ -348,21 +402,26 @@ namespace Harness
                     w->GetMotionMaster()->MoveChase(k, 0.0f, 0.0f);
                     Log("Attack + MoveChase from 20 yd, mt=%s", TypeName(w));
                 });
-                At(1000, [this, gw]()
+                At(1000, [this, gw, heldPos]()
                 {
                     Creature* w = Get(gw); if (!w) { return; }
                     w->CastSpell(w, ROOT, true);
                     w->GetMotionMaster()->Inhibit(Motion::Inhibition::Rooted, Motion::InhibitSource(Motion::SourceDomain::Script, w->GetObjectGuid().GetCounter(), 33));
                     w->GetMotionMaster()->Inhibit(Motion::Inhibition::Stunned, Motion::InhibitSource(Motion::SourceDomain::Script, w->GetObjectGuid().GetCounter(), 33));
                     Log("a Web, a script root and a script stun, mt=%s", TypeName(w));
+                    // Design 3.2's third clause: the three sources actually hold the chasing wolf
+                    // still, not merely counted -- sampled here and at +1500 ms.
+                    heldPos->push_back(Pt { w->Where().X(), w->Where().Y(), w->Where().Z() });
                 });
-                At(1500, [this, gw, sourcesHeld]()
+                At(1500, [this, gw, sourcesHeld, heldPos]()
                 {
                     Creature* w = Get(gw); if (!w) { return; }
                     const BlockRead r = ReadBlock(w);
-                    const bool ok = r.rootSources == 2 && r.stunned && r.rooted;
-                    char text[120];
-                    snprintf(text, sizeof(text), "%s(rootSources=%u stunned=%d)", ok ? "OK" : "BUG", uint32(r.rootSources), r.stunned ? 1 : 0);
+                    heldPos->push_back(Pt { w->Where().X(), w->Where().Y(), w->Where().Z() });
+                    const float spread = heldPos->size() >= 2 ? Spread(*heldPos) : 999.0f;
+                    const bool ok = r.rootSources == 2 && r.stunned && r.rooted && spread < 0.5f;
+                    char text[160];
+                    snprintf(text, sizeof(text), "%s(rootSources=%u stunned=%d spread=%.1f)", ok ? "OK" : "BUG", uint32(r.rootSources), r.stunned ? 1 : 0, spread);
                     *sourcesHeld = text;
                     Log("held: %s", text);
                 });
