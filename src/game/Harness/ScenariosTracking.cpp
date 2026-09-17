@@ -30,6 +30,7 @@
 #include "MotionMaster.h"
 #include "BehaviourModel.h"   // Motion::RelayCounts by value: MotionMaster.h only forward-declares it
 #include "movement/MoveSpline.h"
+#include "World.h"        // the TargetPosRecalculateRange the follow's drift edge is built on
 #include "Utilities/MathDefines.h"
 #include "Log.h"
 
@@ -166,24 +167,31 @@ namespace Harness
         /// The band a follower can hold behind its leader, derived from the native's own
         /// parameters rather than guessed (FollowBehaviour, MakeFollowParams, MotionDriver):
         ///   the standing spot it is aiming at           offset + both extents
-        /// + the drift it is allowed before a re-lay     TargetPosRecalculateRange - target extent + both extents
+        /// + the drift it is allowed before a re-lay     the native's own edge
         /// + the driver's own floor under a re-lay       MIN_RELAY_DISTANCE, 0.5 yd (a live leg whose
         ///                                               goal moved less than that is left alone)
-        /// + one re-lay cadence of the leader's travel   0.4 s x its speed
+        /// + one re-lay cadence of the leader's travel   0.4 s x its speed (MakeFollowParams routineMs)
         /// + one world update of it                      0.1 s x its speed
+        /// The drift edge is FollowBehaviour::Drifted's own arithmetic, read back rather than
+        /// restated: `allowed = recalcRange - target extent + (own + target extent)`, tested through
+        /// `DriftedBeyond(sight, allowed + target extent)`, so the edge is
+        /// `recalcRange + own extent + target extent`, and recalcRange is the live config, not a
+        /// literal. The `offset > FOLLOW_DIST_GAP_FOR_DIST_FACTOR` slop branch is deliberately left
+        /// out: it only applies past a 3 yd follow distance and every follow here asks for 1.0.
         /// `terms` is filled with the same numbers for the verdict text, so the band is read as
         /// a derivation and not as a fit.
         float FollowBand(Creature* f, Creature* leader, float leaderSpeed, std::string& terms)
         {
             const float oe = f->Where().Extent(), te = leader->Where().Extent();
             const float standing = FOLLOW_DIST + oe + te;
-            const float recalc = 1.5f - te + (oe + te);   // TargetPosRecalculateRange, the config default
+            const float recalcRange = sWorld.getConfig(CONFIG_FLOAT_RATE_TARGET_POS_RECALCULATION_RANGE);
+            const float recalc = recalcRange + oe + te;
             const float floorTerm = 0.5f;                 // MotionDriver's MIN_RELAY_DISTANCE
             const float cadence = 0.4f * leaderSpeed;
             const float tick = 0.1f * leaderSpeed;
-            char buf[192];
-            snprintf(buf, sizeof(buf), "standing %.2f + recalc %.2f + re-lay floor %.2f + one 400 ms cadence %.2f + one 100 ms update %.2f",
-                     standing, recalc, floorTerm, cadence, tick);
+            char buf[224];
+            snprintf(buf, sizeof(buf), "standing %.2f + drift edge %.2f (recalc range %.2f) + re-lay floor %.2f + one 400 ms cadence %.2f + one 100 ms update %.2f",
+                     standing, recalc, recalcRange, floorTerm, cadence, tick);
             terms = buf;
             return standing + recalc + floorTerm + cadence + tick;
         }
@@ -198,16 +206,16 @@ namespace Harness
 
         /// Order 48: the chase's re-lay budget, its engage and its band against a target that
         /// keeps changing what it does. The kobold walks a 60 yd straight line, stands 3 s, RUNS
-        /// a 15 yd reversal and stops, then walks a circle at 8 yd around wherever the wolf is
-        /// at that second -- four kinds of drift against one 1 Hz routine cadence (design §5,
+        /// a 15 yd reversal and stops, then RUNS two laps of a 7 yd ring around a fixed point --
+        /// four kinds of drift against one 1 Hz routine cadence (design §5,
         /// §6.1). `routineBudget` is the design's own number: one routine re-lay per second is
         /// the ceiling the cadence sets, and the generator's 100 ms poll could not have held it.
         /// `engages` reads the EngageInReach effect where it can be read at all -- the wolf opens
         /// with a RANGED attack, so the melee bit is the effect's own doing and nothing else's,
         /// and it must not appear before the wolf is inside the client's melee range. `reacquires`
         /// is the reversal: a target that outruns the cadence gets away, and the chase has to come
-        /// back. `noOrbit` is the winding of the chaser's bearing around the target over the
-        /// circle: it must aim at the side of the target it already stands on, never walk around it.
+        /// back. `noOrbit` is where the chase AIMS over the ring: every leg it lays must go to the
+        /// side of the target it already stands on, never around it to the far side.
         class ChaseRelayBudget : public Scenario
         {
         public:
@@ -242,6 +250,8 @@ namespace Harness
                     uint32 reacquireMs = 0;
                     // noOrbit: where the chase AIMS, relative to the line from the target to
                     // itself; plus the winding and the ground, which are reported, not gated
+                    Pt     ringCentre = { 0.0f, 0.0f, 0.0f };   ///< fixed for the whole phase: what the target runs around
+                    uint32 ringHanded = 0;     ///< how many of the ring's points have been handed out
                     float  sideWorst = 0.0f;   ///< the worst angle between "the spot it laid" and "the side it stands on"
                     uint32 sideChecks = 0;
                     uint32 lastTotal = 0;
@@ -257,7 +267,8 @@ namespace Harness
                     bool   haveEnd = false;
                 };
                 const uint32 kPhaseAStart = 1000;
-                const float kLine = 60.0f, kBack = 15.0f, kRadius = 8.0f;
+                const float kLine = 60.0f, kBack = 15.0f, kRadius = 7.0f;
+                const uint32 kRingPoints = 16;   // two full laps of eight octants
 
                 Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
                 Creature* k = Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f);
@@ -315,7 +326,7 @@ namespace Harness
                 auto verdict = [this, st, secs, kPhaseAStart, kRadius]()
                 {
                     std::string routineBudget, reacquires, noOrbit, engages;
-                    char text[288];
+                    char text[512];
                     // routineBudget: the routine re-lays the straight walk cost, from the second
                     // second of the phase (the first carries the very first spot and whatever the
                     // approach latched) to its last.
@@ -399,14 +410,19 @@ namespace Harness
                     }
                     if (circle.size() < 3)
                     {
-                        snprintf(text, sizeof(text), "noOrbit=INVALID(%u seconds of the circle sampled)", uint32(circle.size()));
+                        snprintf(text, sizeof(text), "noOrbit=INVALID(%u seconds of the ring sampled)", uint32(circle.size()));
+                        noOrbit = text;
+                    }
+                    else if (!st->sideChecks)
+                    {
+                        snprintf(text, sizeof(text), "noOrbit=INVALID(the chase laid no leg at all over %u s of the ring: nothing to read an aim off)", uint32(circle.size()));
                         noOrbit = text;
                     }
                     else
                     {
                         const float ceiling = kRadius + st->melee;
                         const bool ok = st->sideWorst <= M_PI_F / 2.0f && st->circleGap <= ceiling;
-                        snprintf(text, sizeof(text), "noOrbit=%s(%u legs laid over %u s of the %.0f yd circle, the worst %.0f deg off the side the chaser already stood on; it covered %.1f yd of ground and the gap peaked at %.2f yd against %.2f; the pair's bearing wound %.2f rad, which is the target's own scripted revolution)",
+                        snprintf(text, sizeof(text), "noOrbit=%s(%u legs laid over %u s of the %.0f yd ring, the worst %.0f deg off the side the chaser already stood on; it covered %.1f yd of ground and the gap peaked at %.2f yd against the %.2f the ring and the melee range allow; the pair's bearing wound %.2f rad, which is not gated because it is the PAIR's relative revolution and this ring scripts the target to revolve)",
                                  ok ? "OK" : "BUG", st->sideChecks, uint32(circle.size()), kRadius,
                                  st->sideWorst * 180.0f / M_PI_F, st->circleGround, st->circleGap, ceiling, st->winding);
                         noOrbit = text;
@@ -418,7 +434,7 @@ namespace Harness
 
                 for (uint32 i = 1; i <= 400; ++i)
                 {
-                    At(kPhaseAStart + i * 250, [this, g, h, st, secs, verdict, i, kPhaseAStart, kBack, kRadius]()
+                    At(kPhaseAStart + i * 250, [this, g, h, st, secs, verdict, i, kPhaseAStart, kBack, kRadius, kRingPoints]()
                     {
                         if (st->phase >= 6) { return; }
                         Creature* w = Get(g); Creature* k = Get(h); if (!w || !k) { return; }
@@ -473,6 +489,12 @@ namespace Harness
                             const uint32 total = rc ? rc->Total() : 0;
                             const bool fresh = rc && st->haveTotal && total > st->lastTotal;
                             if (rc) { st->lastTotal = total; st->haveTotal = true; }
+                            // "Fresh" is the NATIVE's counter, which TrackingBehaviour::Derive
+                            // increments before the driver has decided anything: if the new spot is
+                            // under MotionDriver's MIN_RELAY_DISTANCE from the leg already running,
+                            // ReconcileMove keeps that leg and FinalDestination() is one 0.5 yd
+                            // re-lay floor stale. Bounded by that half yard, and at a 7 yd ring it
+                            // cannot move the side angle across the 90 deg gate.
                             if (fresh && !w->movespline->Finalized())
                             {
                                 const Movement::Vector3 goal = w->movespline->FinalDestination();
@@ -545,35 +567,57 @@ namespace Harness
                             case 4:
                                 if (t - st->phaseAt >= 3000)
                                 {
-                                    WalkPace(k);   // the circle is walked again: slow enough to read
+                                    // The target RUNS the ring, and the ring's centre is FIXED where
+                                    // the wolf stands as the phase opens. A walker cannot reach an
+                                    // octant of a 7 yd ring before the next one is handed out, and a
+                                    // centre that follows the chaser around keeps the target pinned
+                                    // on the melee edge: the first cut of this phase did both, and
+                                    // the chase laid exactly ONE leg over the whole eight seconds.
+                                    // A runner on a fixed ring leaves the 5 yd edge on every octant,
+                                    // so the chase has to derive a fresh spot each time -- which is
+                                    // the only way the aim's-side gate gets anything to read.
+                                    RunPace(k);
                                     st->phase = 5; st->phaseAt = t; st->circleAt = t;
-                                    const float b = Bearing(w->Where().X(), w->Where().Y(), k->Where().X(), k->Where().Y());
+                                    st->ringCentre.x = w->Where().X(); st->ringCentre.y = w->Where().Y(); st->ringCentre.z = w->Where().Z();
+                                    const float b = Bearing(st->ringCentre.x, st->ringCentre.y, k->Where().X(), k->Where().Y());
                                     st->circleIdx = (uint32((b / (2.0f * M_PI_F)) * 8.0f + 0.5f) % 8) + 1;   // the octant after the one it stands in
-                                    const Pt centre = { w->Where().X(), w->Where().Y(), w->Where().Z() };
-                                    const Pt p = Octant(centre, st->circleIdx, kRadius);
+                                    const Pt p = Octant(st->ringCentre, st->circleIdx, kRadius);
                                     k->GetMotionMaster()->MovePoint(3, p.x, p.y, Ground(p.x, p.y, p.z), true);
-                                    Log("phase D: the kobold circles at %.0f yd around wherever the wolf IS, one octant a second, from %.1f %.1f", kRadius, centre.x, centre.y);
+                                    st->ringHanded = 1;
+                                    Log("phase D: the kobold RUNS a %.0f yd ring, %u octants (two laps), around the fixed point %.1f %.1f at %.2f yd/s",
+                                        kRadius, kRingPoints, st->ringCentre.x, st->ringCentre.y, k->GetSpeed(MOVE_RUN));
                                 }
                                 break;
                             case 5:
-                                if (t - st->circleAt >= 1000)
+                            {
+                                // The next octant goes out when the target has reached the last one,
+                                // or after 900 ms, whichever comes first: a 7 yd ring's octant chord
+                                // is 5.36 yd, which a 7 yd/s runner covers in 0.77 s. The 500 ms
+                                // floor is there because the leg is laid on the map tick AFTER the
+                                // request, so a poll right after one is handed out would still see a
+                                // finalized spline and skip an octant.
+                                const bool arrived = t - st->circleAt >= 500 && k->movespline->Finalized();
+                                if (st->ringHanded < kRingPoints && (arrived || t - st->circleAt >= 900))
                                 {
-                                    // The centre is the wolf's LIVE position, re-read every second:
-                                    // a centre latched once would leave the chaser standing on the
-                                    // rim while the target walked over it, and nothing would ever be
-                                    // going around anything.
                                     st->circleAt = t;
                                     ++st->circleIdx;
-                                    const Pt centre = { w->Where().X(), w->Where().Y(), w->Where().Z() };
-                                    const Pt p = Octant(centre, st->circleIdx, kRadius);
+                                    ++st->ringHanded;
+                                    const Pt p = Octant(st->ringCentre, st->circleIdx, kRadius);
                                     k->GetMotionMaster()->MovePoint(3, p.x, p.y, Ground(p.x, p.y, p.z), true);
                                 }
-                                if (t - st->phaseAt >= 8000)
+                                else if (st->ringHanded >= kRingPoints && (arrived || t - st->circleAt >= 900))
+                                {
+                                    st->phase = 6;
+                                    Log("phase D done: %u octants handed out over %u ms", st->ringHanded, t - st->phaseAt);
+                                    At(500, verdict);
+                                }
+                                if (st->phase == 5 && t - st->phaseAt >= 30000)   // the ring never finished: say what was measured
                                 {
                                     st->phase = 6;
                                     At(500, verdict);
                                 }
                                 break;
+                            }
                             default:
                                 break;
                         }
@@ -699,7 +743,7 @@ namespace Harness
                         return;
                     }
                     const float low = 0.5f + st->reachSum;
-                    char text[224];
+                    char text[512];
                     const bool inBand = st->stop >= low && st->stop <= st->melee;
                     snprintf(text, sizeof(text), "stopDistance=%s(%.2f yd, band [%.2f, %.2f])", inBand ? "OK" : "BUG", st->stop, low, st->melee);
                     std::string body = text;
@@ -856,7 +900,7 @@ namespace Harness
                         to = s.t;
                     }
                     std::string body;
-                    char text[224];
+                    char text[512];
                     if (to <= from || st->runSpeed <= 0.0f)
                     {
                         body = "closingPace=INVALID(the pace window held no samples)";
@@ -1008,17 +1052,18 @@ namespace Harness
                             st->lastMoving = t;
                             // A running spline is not necessarily a LEG: the hold's own facing is
                             // applied by launching a spline that turns the unit without moving it,
-                            // and that one is supposed to carry mode Angle. A leg sample is one that
-                            // covered ground AND still has ground to cover -- the second half
-                            // matters, because the sample right after a leg ends has covered its
-                            // 0.5 yd while the leg was still running but reads the hold that has
-                            // already replaced it.
+                            // and that one is supposed to carry mode Angle. A leg sample is one
+                            // whose spline still has somewhere to go. The "and it covered ground
+                            // since the last sample" half of this test is gone: it was only ever
+                            // there because the driver used to record the facing of an intent it
+                            // had not acted on, so the tick a leg ended on read the hold that had
+                            // already replaced it. The driver records what it LAUNCHED now, so
+                            // having somewhere to go is the whole test.
                             const Movement::Vector3 goal = f->movespline->FinalDestination();
-                            const bool going = Dist2(goal.x, goal.y, x, y) >= 0.5f;
-                            const bool covered = st->havePrev && going && Dist2(x, y, st->px, st->py) >= 0.5f;
-                            if (!covered && st->havePrev)
+                            const bool covered = Dist2(goal.x, goal.y, x, y) >= 0.5f;
+                            if (!covered)
                             {
-                                ++st->turnSamples;   // a turn in place, or the tick a leg ended on
+                                ++st->turnSamples;   // the hold's own turn-in-place spline
                             }
                             else if (covered)
                             {
@@ -1028,10 +1073,15 @@ namespace Harness
                                     ++st->legMisses;
                                     st->legWorstMode = mode;
                                 }
-                                const float travel = Bearing(st->px, st->py, x, y);
-                                const float off = AngleDiff(facing, travel);
-                                if (off > st->legWorst) { st->legWorst = off; st->legWorstFacing = facing; st->legWorstTravel = travel; }
-                                Log("+%5ums on a leg: facing mode %s, facing %.3f, travelling %.3f, off by %.3f rad", t, modeName(mode), facing, travel, off);
+                                // The heading against its own travel is still reported, and THAT one
+                                // does need two samples half a yard apart to have a bearing at all.
+                                if (st->havePrev && Dist2(x, y, st->px, st->py) >= 0.5f)
+                                {
+                                    const float travel = Bearing(st->px, st->py, x, y);
+                                    const float off = AngleDiff(facing, travel);
+                                    if (off > st->legWorst) { st->legWorst = off; st->legWorstFacing = facing; st->legWorstTravel = travel; }
+                                    Log("+%5ums on a leg: facing mode %s, facing %.3f, travelling %.3f, off by %.3f rad", t, modeName(mode), facing, travel, off);
+                                }
                             }
                             st->px = x; st->py = y; st->havePrev = true;
                         }
@@ -1054,7 +1104,7 @@ namespace Harness
                 At(26500, [this, st, modeName]()
                 {
                     std::string body;
-                    char text[288];
+                    char text[512];
                     if (!st->haveRest)
                     {
                         body = "facesLikeTheLeader=INVALID(the follower never rested 2 s after the leader turned)";
@@ -1078,7 +1128,7 @@ namespace Harness
                     else
                     {
                         const bool ok = st->legMisses == 0 && st->restAngle == st->restChecks;
-                        snprintf(text, sizeof(text), " | travelFacingOnLegs=%s(the leg asked for facing mode None at %u of %u samples that covered ground, and mode Angle at %u of %u on the hold after it, last read %s; %u further samples were the hold's own turn-in-place spline; the heading was at most %.3f rad off its travel, %.3f against %.3f)",
+                        snprintf(text, sizeof(text), " | travelFacingOnLegs=%s(the leg asked for facing mode None at %u of %u samples whose spline still had somewhere to go, and mode Angle at %u of %u on the hold after it, last read %s; %u further samples were the hold's own turn-in-place spline; the heading was at most %.3f rad off its travel, %.3f against %.3f)",
                                  ok ? "OK" : "BUG", st->legChecks - st->legMisses, st->legChecks,
                                  st->restAngle, st->restChecks, modeName(st->restMode), st->turnSamples,
                                  st->legWorst, st->legWorstFacing, st->legWorstTravel);
@@ -1218,7 +1268,7 @@ namespace Harness
                 At(26000, [this, wa, wb, lowA, lowB, mark]()
                 {
                     std::string body;
-                    char text[256];
+                    char text[512];
                     if (!wa->rootSamples)
                     {
                         body = "noLegUnderRoot=INVALID(A was never rooted) | rootMirrorKept=INVALID(A was never rooted) | oneLegAfterLift=INVALID(A was never rooted) | reachedHomeOnce=INVALID(A was never rooted)";
@@ -1375,6 +1425,11 @@ namespace Harness
                         const uint32 total = rc->Total();
                         const bool fresh = st->haveTotal && total > st->lastTotal;
                         st->lastTotal = total; st->haveTotal = true;
+                        // Same caveat as order 48's read: the counter is the native's, incremented in
+                        // Derive before MotionDriver::ReconcileMove decides, so a spot under the
+                        // driver's 0.5 yd MIN_RELAY_DISTANCE leaves the previous leg running and this
+                        // goal one re-lay floor stale. Half a yard against a 15 yd ceiling and a
+                        // 1.50 yd horizon gate: reported, no verdict effect.
                         if (!fresh || f->movespline->Finalized()) { return; }
                         // Where the leader IS: its spline position while one runs (mid-jump that is
                         // metres from where its placement was last written), its placement otherwise.
@@ -1432,7 +1487,7 @@ namespace Harness
                 }
                 At(26500, [this, st]()
                 {
-                    char text[288];
+                    char text[512];
                     std::string body;
                     if (!st->goalChecks)
                     {

@@ -118,10 +118,6 @@ Motion::MoveStatus MotionDriver::BeginTick(Unit& owner)
 
 bool MotionDriver::Apply(Unit& owner, Motion::MoveIntent const& intent)
 {
-    if (intent.act == Motion::MoveIntent::Act::Move || intent.act == Motion::MoveIntent::Act::Hold)
-    {
-        m_legFacing = intent.facing.mode;   // what the behaviour asked for this tick: read by the facade
-    }
     switch (intent.act)
     {
         case Motion::MoveIntent::Act::Done:
@@ -257,6 +253,7 @@ bool MotionDriver::LayLeg(Unit& owner, Motion::MoveIntent const& intent)
     }
 
     m_legGoal = intent.goal;
+    m_legFacing = intent.facing.mode;   // the leg that was actually launched, for the facade read
     m_haveLeg = true;
     m_blocked = false;
     m_speedChanged = false;
@@ -275,6 +272,12 @@ void MotionDriver::ReconcileHold(Unit& owner, Motion::MoveIntent const& intent)
     {
         return;
     }
+
+    // Past the guard the hold is what the driver is acting on, so its facing is what the facade
+    // reports -- whether or not the switch below has to move anything (a unit already facing the
+    // right way is still being held there). Before the guard nothing happened and the launched
+    // leg's own mode stands.
+    m_legFacing = intent.facing.mode;
 
     switch (intent.facing.mode)
     {
