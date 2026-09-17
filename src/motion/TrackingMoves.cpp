@@ -165,7 +165,7 @@ namespace Motion
             s.effects.push_back(Effect::State(0, m_p.stateMove));
             return s;
         }
-        // 4. A cast with a cast time, or a channel: stop once, hold.
+        // 4. A cast with a cast time, or a channel: stop (every casting tick; the shell sends no packet once stopped), hold.
         if (svc.Casting())
         {
             LatchRelay(sight);
