@@ -111,7 +111,6 @@ namespace Motion
         float   meleeRange = 5.0f;   ///< max(reachSum + 4/3, 5): the client's own test
         bool    walking = false;     ///< it is in walk mode: a follower mirrors the gait
         bool    isVictim = false;    ///< the mover's current victim
-        bool    moving = false;      ///< it is under way, whether or not the velocity is trusted
         Vector3 velocity;            ///< frame yd/s, zero unless trusted
         bool    velocityTrusted = false;
     };
@@ -155,11 +154,9 @@ namespace Motion
         float      extent = 0.0f;     ///< the mover's own bounding radius
         bool       isCreature = false;   ///< TYPEID_UNIT: every Effect is a creature's
         bool       isPet = false;        ///< Creature::IsPet()
-        bool       ownedByTarget = false;///< the tracked target IS the mover's owner (a pet heeling its master)
         bool       combatMovementHeld = false; ///< UNIT_STAT_NO_COMBAT_MOVEMENT
         bool       swimming = false;     ///< MOVEFLAG_SWIMMING
         bool       canFlyHint = false;   ///< a creature's Creature::CanFly(): the drift test adds the height term for fliers, as the generator's did
-        float      ownerSpeed = 0.0f;    ///< the mover's speed for the mode its own flags select (yd/s)
     };
 
     /// The roaming pair the shell mirrors for the point family (UNIT_STAT_ROAMING | ROAMING_MOVE) until a later family retires it.
@@ -188,7 +185,10 @@ namespace Motion
             ClearEmoteState,   ///< creature.SetUInt32Value(UNIT_NPC_EMOTESTATE, 0)
             SetWalk,           ///< creature.SetWalk(flag, false)
             ClearWaypointPaused, ///< clearUnitState(UNIT_STAT_WAYPOINT_PAUSED)
-            StateRaw,          ///< addUnitState(setMask) when non-zero, then clearUnitState(clearMask) when non-zero: the opaque unit-state masks a tracking native carries in its Params
+            StateRaw,          ///< addUnitState(setMask) when non-zero, then clearUnitState(clearMask) when non-zero: the opaque unit-state masks a tracking native carries in its Params.
+                               ///< Performed for creatures only, like every effect (NativeBehaviour::PerformEffects returns early for a non-creature owner): a player owner
+                               ///< would carry the kind's bit in the kernel but never in its unit states. No caller passes a player to MoveChase or MoveFollow today, so the
+                               ///< gap is unreachable; a future one would have to lift the creature-only rule for the whole effects loop, not for this kind alone.
             SyncSpeed,         ///< a pet whose owner is the native's target: UpdateSpeed(MOVE_RUN/MOVE_WALK/MOVE_SWIM, true), the deleted SyncSpeedWithMaster
             EngageInReach,     ///< live predicate: the mover's live position against the target view's, 3D, within meleeRange -> Attack(target, true); re-emitted every idle tick, so a stale false never suppresses the attack. It skips only a target already being MELEED, not every victim: a ranged attacker's victim is upgraded to melee here, once (the deleted ReachTarget's own job), and Unit::Attack returns early afterwards
             RestoreTemporaryFaction, ///< if (GetTemporaryFactionFlags() & TEMPFACTION_RESTORE_REACH_HOME) ClearTemporaryFaction()

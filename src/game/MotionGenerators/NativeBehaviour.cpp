@@ -41,20 +41,11 @@
 #include "Utilities/Util.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
+#include "movement/MoveSplineSpeed.h" // the one speed-mode selector, shared with the spline launch
 #include "PatrolWelding.h"    // the kernel's weld bound (src/motion is on the include path, as BehaviourModel.h is)
 #include "TargetKinematics.h" // the kernel's pure velocity classifier
 
 #include <algorithm>
-
-namespace Movement
-{
-    /// MoveSplineInit.cpp's own speed-mode selector: which of a unit's nine speeds the
-    /// movement flags of the moment name. Declared here rather than copied, so the speed the
-    /// target view reports and the speed a spline is actually launched at cannot drift apart.
-    /// MoveSplineInit.h cannot carry the declaration: UnitMoveType lives in Unit.h, which that
-    /// header does not include.
-    UnitMoveType SelectSpeedType(uint32 moveFlags);
-}
 
 namespace
 {
@@ -172,13 +163,11 @@ Motion::Sight NativeBehaviour::See(Unit& owner, bool tick)
     s.combatMovementHeld = owner.hasUnitState(UNIT_STAT_NO_COMBAT_MOVEMENT);
     s.swimming = owner.m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING);
     s.canFlyHint = s.isCreature && static_cast<Creature&>(owner).CanFly();
-    s.ownerSpeed = SpeedNow(owner);
     if (m_native->TracksTarget())
     {
         if (Unit* target = ObjectLookup::GetUnit(owner, ObjectGuid(m_native->Target())))
         {
             SeeTarget(owner, *target, s.target);
-            s.ownedByTarget = target->GetObjectGuid() == owner.GetOwnerGuid();
             float x, y, z;
             // The charge's contact point, the same call EffectCharge makes, so the native's goal
             // is the spell's own answer (SpellEffectObjectCombat.cpp: the target anchors it and
@@ -252,7 +241,6 @@ void NativeBehaviour::SeeTarget(Unit& owner, Unit& target, Motion::TargetView& v
         in.speed = SpeedNow(target);
     }
     const Motion::TargetMotion motion = Motion::ClassifyTargetMotion(in);
-    view.moving = motion.moving;
     view.velocity = motion.velocity;
     view.velocityTrusted = motion.trusted;
 }

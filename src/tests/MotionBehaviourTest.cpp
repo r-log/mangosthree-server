@@ -1727,11 +1727,11 @@ TEST(MotionBehaviour_ChaseDerivesRetailsBandAndFacesItsVictim)
     CHECK(a.resetLeg);
     CHECK(!a.apply);                                  // the leg is laid by the tick, not the activation
     REQUIRE(a.effects.size() == size_t(2));
-    CHECK(a.effects[0].kind == Effect::SetWalk);
-    CHECK(!a.effects[0].flag);                        // a chase runs
-    CHECK(a.effects[1].kind == Effect::StateRaw);
-    CHECK_EQ(a.effects[1].setMask, 1u);               // CHASE; never CHASE_MOVE, which follows a laid leg
-    CHECK_EQ(a.effects[1].clearMask, 0u);
+    CHECK(a.effects[0].kind == Effect::StateRaw);     // the bit first, as the generator's Initialize set it
+    CHECK_EQ(a.effects[0].setMask, 1u);               // CHASE; never CHASE_MOVE, which follows a laid leg
+    CHECK_EQ(a.effects[0].clearMask, 0u);
+    CHECK(a.effects[1].kind == Effect::SetWalk);
+    CHECK(!a.effects[1].flag);                        // a chase runs
 
     Step t = b.Tick(Tracked(), svc, 100);
     REQUIRE(svc.calls.size() == size_t(1));
@@ -1897,7 +1897,7 @@ TEST(MotionBehaviour_ChaseHoldsForCastsAndStatesAndLosesItsVictim)
     CHECK(underCast.effects.empty());
     Step stillCasting = b.Tick(Tracked(), svc, 100);
     CHECK(stillCasting.intent.act == MoveIntent::Act::Hold);
-    CHECK(!stillCasting.stop);                          // already stopped: once, not every tick
+    CHECK(stillCasting.stop);                           // unconditional: StopMoving also clears the _MOVE bits
     svc.casting = false;
 
     Sight rooted = Tracked();
@@ -1935,6 +1935,27 @@ TEST(MotionBehaviour_ChaseHoldsForCastsAndStatesAndLosesItsVictim)
     CHECK(b.EndReason(gone) == FinishReason::TargetLost);
     CHECK(b.TracksTarget());
     CHECK_EQ(b.Target(), uint64(42));
+}
+
+TEST(MotionBehaviour_ACastStopsAStandingChaserToo)
+{
+    // The generator's gate was `if (!owner.IsStopped()) owner.StopMoving();` and IsStopped()
+    // reads the _MOVE unit states, not the spline: a chaser standing at its spot with CHASE_MOVE
+    // still set was stopped too, and StopMoving clears UNIT_STAT_MOVING before it returns early
+    // on a finalized spline (Unit::StopMoving). So the stop is unconditional here; the shell puts
+    // nothing on the wire for a spline that has already run out.
+    FakeServices svc;
+    ChaseBehaviour b(Chasing());
+    b.Activate(Tracked(), svc);
+    b.Tick(Tracked(), svc, 100);
+
+    svc.casting = true;
+    Sight standing = Tracked();
+    CHECK(!standing.status.traveling);                  // no leg is running
+    Step underCast = b.Tick(standing, svc, 100);
+    CHECK(underCast.intent.act == MoveIntent::Act::Hold);
+    CHECK(underCast.stop);                              // the move bit still has to go
+    CHECK(underCast.effects.empty());
 }
 
 TEST(MotionBehaviour_ChaseEngagesOnEveryIdleTick)
@@ -1985,7 +2006,6 @@ TEST(MotionBehaviour_ChaseEngagesOnEveryIdleTick)
 TEST(MotionBehaviour_ChaseLeadIsAnExperiment)
 {
     Sight running = Tracked();
-    running.target.moving = true;
     running.target.velocity = Vector3(7.0f, 0.0f, 0.0f);
     running.target.velocityTrusted = true;
     {
@@ -2028,13 +2048,12 @@ TEST(MotionBehaviour_FollowAimsOneCadenceAheadAndCopiesTheLeadersFacingAtRest)
         CHECK(a.resetLeg);
         CHECK(!a.apply);
         REQUIRE(a.effects.size() == size_t(2));
-        CHECK(a.effects[0].kind == Effect::SyncSpeed);
-        CHECK(a.effects[1].kind == Effect::StateRaw);
-        CHECK_EQ(a.effects[1].setMask, 4u);
-        CHECK_EQ(a.effects[1].clearMask, 0u);
+        CHECK(a.effects[0].kind == Effect::StateRaw);   // the bit precedes the sync that reads it
+        CHECK_EQ(a.effects[0].setMask, 4u);
+        CHECK_EQ(a.effects[0].clearMask, 0u);
+        CHECK(a.effects[1].kind == Effect::SyncSpeed);
 
         Sight running = Leading();
-        running.target.moving = true;
         running.target.velocity = Vector3(7.0f, 0.0f, 0.0f);
         running.target.velocityTrusted = true;
         Step leg = b.Tick(running, svc, 100);
@@ -2050,7 +2069,6 @@ TEST(MotionBehaviour_FollowAimsOneCadenceAheadAndCopiesTheLeadersFacingAtRest)
         FakeServices svc;
         FollowBehaviour b(Following());
         Sight untrusted = Leading();
-        untrusted.target.moving = true;
         untrusted.target.velocity = Vector3(7.0f, 0.0f, 0.0f);      // a smooth, cyclic or airborne spline
         b.Activate(untrusted, svc);
         b.Tick(untrusted, svc, 100);
@@ -2101,6 +2119,22 @@ TEST(MotionBehaviour_FollowAimsOneCadenceAheadAndCopiesTheLeadersFacingAtRest)
         CHECK(b.Tick(gone, svc, 100).intent.act == MoveIntent::Act::Done);
         CHECK(b.EndReason(gone) == FinishReason::TargetLost);
     }
+}
+
+TEST(MotionBehaviour_FollowSetsItsBitBeforeItSyncsSpeed)
+{
+    // Load-bearing order, not cosmetics: Unit::UpdateSpeed's pet branch copies the owner's
+    // rate only while UNIT_STAT_FOLLOW is set (UnitSpeed.cpp), and the deleted
+    // FollowMovementGenerator::Initialize did addUnitState(UNIT_STAT_FOLLOW) first and
+    // SyncSpeedWithMaster second. A sync performed ahead of the bit reads the pet's own rate,
+    // so the pet would trail its mounted master until some later UpdateSpeed happened to run.
+    FakeServices svc;
+    FollowBehaviour b(Following());
+    Step a = b.Activate(Leading(), svc);
+    REQUIRE(a.effects.size() == size_t(2));
+    CHECK(a.effects[0].kind == Effect::StateRaw);
+    CHECK_EQ(a.effects[0].setMask, 4u);                 // FOLLOW
+    CHECK(a.effects[1].kind == Effect::SyncSpeed);      // reads the bit the line above just set
 }
 
 TEST(MotionBehaviour_FollowWalksWithItsLeaderAndAPetForcesTheDestination)
@@ -2271,9 +2305,9 @@ TEST(MotionBehaviour_TrackingResumesOnlyOnAReset)
     CHECK(reset.resetLeg);
     CHECK(!reset.apply);
     REQUIRE(reset.effects.size() == size_t(2));
-    CHECK(reset.effects[0].kind == Effect::SyncSpeed);
-    CHECK(reset.effects[1].kind == Effect::StateRaw);
-    CHECK_EQ(reset.effects[1].setMask, 4u);
+    CHECK(reset.effects[0].kind == Effect::StateRaw);   // Resume(reset) is Activate: the same order
+    CHECK_EQ(reset.effects[0].setMask, 4u);
+    CHECK(reset.effects[1].kind == Effect::SyncSpeed);
     Step t = b.Tick(Leading(), svc, 100);
     CHECK(t.intent.act == MoveIntent::Act::Move);
     CHECK_EQ(b.Relays()->first, 2u);                // the reset forgot the spot: a first one again

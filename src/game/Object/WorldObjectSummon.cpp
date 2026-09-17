@@ -461,8 +461,13 @@ void FindFreeSpotNear(WorldObject const& anchor, Geometry::Vector3 const& center
     ObjectPosSelector selector(center.x, center.y, distance2d, searcher_bounding_radius, searcher);
 
     // adding used positions around object. The grid area is still the ANCHOR's -- the same
-    // map cells, and the live centre is never more than one update's travel away from it --
-    // while the angles and distances the selector is fed are measured from the centre.
+    // map cells -- while the angles and distances the selector is fed are measured from the
+    // centre. The two are apart by at most one placement update of the anchor's travel, which
+    // the `dist` radius above does not add: for a fast spline (a charge runs at 24 yd/s, so
+    // ~0.8 yd per 33 ms world tick) the visit can therefore under-cover the far side of the
+    // centre by that much and miss a neighbour whose own body would have blocked the spot.
+    // The cost is a spot that ignores one object, never a bad coordinate: the selector still
+    // works in the centre's own polar space, and the answer is still clamped and grounded.
     {
         MaNGOS::NearUsedPosDo u_do(anchor, center, searcher, absAngle, selector);
         MaNGOS::WorldObjectWorker<MaNGOS::NearUsedPosDo> worker(&anchor, u_do);

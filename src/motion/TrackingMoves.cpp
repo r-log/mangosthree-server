@@ -83,8 +83,14 @@ namespace Motion
         ResetTracking();
         Step s;
         s.resetLeg = true;
-        OnActivate(sight, s);
+        // The order is load-bearing: the bit BEFORE the kind's own activation effects. The
+        // deleted FollowMovementGenerator::Initialize did addUnitState(UNIT_STAT_FOLLOW) and
+        // only then SyncSpeedWithMaster, because UpdateSpeed's pet branch copies the owner's
+        // rate only while that bit is set (UnitSpeed.cpp) -- a sync ahead of the bit reads the
+        // pet's own rate and the follower never matches its master. The chase's Walk(false)
+        // then trails its bit too, harmlessly: SetWalk reads no unit state.
         s.effects.push_back(Effect::State(m_p.stateSet, 0));
+        OnActivate(sight, s);
         return s;
     }
 
@@ -164,7 +170,12 @@ namespace Motion
         {
             LatchRelay(sight);
             Step s = Step::Of(MoveIntent::Hold());
-            s.stop = sight.status.traveling;
+            // Unconditional, as the generator's own gate was: it called StopMoving() whenever
+            // !IsStopped(), and StopMoving clears the _MOVE bits BEFORE its finalized-spline
+            // early return (Unit::StopMoving). A standing chaser that starts a cast must lose
+            // its move bit too, so gating the stop on a live leg would leave that bit set for
+            // the whole cast. Nothing goes on the wire for a spline that is already finalized.
+            s.stop = true;
             return s;
         }
         // 5. The routine cadence: has the target drifted past the edge from the leg's goal?
