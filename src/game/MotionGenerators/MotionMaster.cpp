@@ -1879,6 +1879,7 @@ std::vector<MotionMaster::HeldView> MotionMaster::Held() const
         view.selected = &m_bound[i] == selected;
         view.reachable = m_bound[i].behaviour->Reachable();
         view.generator = m_bound[i].behaviour->Legacy();
+        view.target = m_bound[i].behaviour->TrackedTarget();
         out.push_back(view);
     }
     return out;

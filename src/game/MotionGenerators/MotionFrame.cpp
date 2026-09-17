@@ -160,6 +160,15 @@ namespace Motion
                     return p;
                 }
 
+                Vector3 NearPointAt(Unit const& mover, WorldObject const& target,
+                                    Vector3 const& center, float searcherBounding,
+                                    float distance2d, float absAngle) const override
+                {
+                    Vector3 p;
+                    FindFreeSpotNear(target, center, &mover, p.x, p.y, p.z, searcherBounding, distance2d, absAngle);
+                    return p;
+                }
+
                 std::optional<Vector3> RandomPoint(Unit& mover, Vector3 const& centre,
                                                    float radius) const override
                 {
@@ -373,6 +382,31 @@ namespace Motion
                     // refuse the leg and the generator hears `blocked` and picks somewhere
                     // else. Quietly pulling it back onto the deck here would leave a chase
                     // standing still, convinced it had arrived.
+                    return guess;
+                }
+
+                Vector3 NearPointAt(Unit const& mover, WorldObject const& /*target*/,
+                                    Vector3 const& center, float /*searcherBounding*/,
+                                    float distance2d, float absAngle) const override
+                {
+                    // NearPoint with the caller's centre in place of the target's placement;
+                    // a deck-local centre, like every other coordinate down here.
+                    const Vector3 guess(center.x + distance2d * std::cos(absAngle),
+                                        center.y + distance2d * std::sin(absAngle),
+                                        center.z);
+
+                    TransportMap* hull = mover.GetMap()->AsTransport();
+                    if (!hull)
+                    {
+                        return guess;
+                    }
+
+                    if (const auto onDeck = DeckDrop(*hull, guess))
+                    {
+                        return *onDeck;
+                    }
+
+                    // Off the edge: unresolved on purpose, as NearPoint above.
                     return guess;
                 }
 

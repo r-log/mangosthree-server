@@ -62,6 +62,7 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         void SpeedChanged() override { m_driver.OnSpeedChanged(); }
         bool GetResetPosition(Unit& owner, float& x, float& y, float& z, float& o) const override;
         bool Reachable() const override { return m_driver.Reachable(); }
+        uint64 TrackedTarget() const override { return m_native->TracksTarget() ? m_native->Target() : 0; }
 
         /// The projection of a kind (the facade's legacy type answer).
         static MovementGeneratorType Project(Motion::Kind kind);
@@ -96,12 +97,16 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         bool WaypointPaused() const override;
         bool Anchor(Motion::Vector3& out) const override;
         bool CanFly() const override;
+        bool StandingSpot(Motion::Vector3 const& center, float distance2d, float absAngle, Motion::Vector3& out) override;
 
         /// The owner of the moment, for the Services implementations below: asserts m_unit was
         /// set (every hook sets it before the native can call back through the port).
         Unit& U() const { MANGOS_ASSERT(m_unit); return *m_unit; }
 
         Motion::Sight See(Unit& owner, bool tick);   ///< tick: consume the driver's edges; else read the live spline only
+        /// Fills the Sight's TargetView from a resolved target: the frame rule, the live
+        /// position, the reaches and the classified velocity (design §3).
+        void SeeTarget(Unit& owner, Unit& target, Motion::TargetView& view) const;
         /// A Step's shell operations, in order: stop, interrupt, resetLeg, the roaming write, the effects.
         void PerformOps(Unit& owner, Motion::Step const& step);
         /// A Step's intent tail: the launcher's arc, or the driver's Apply with the goal converted from world.
@@ -129,6 +134,9 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         Motion::FrameKind m_queryFrame = Motion::FrameKind::World;    ///< the frame m_query was built for; a leg never spans two frames, so a change rebuilds it
         uint32             m_queryMapId = 0;      ///< the map m_query was built for
         uint32             m_queryInstanceId = 0; ///< and the instance: the mesh query is per instance
+        /// The last Sight's TargetView, kept for the effects: EngageInReach tests the mover's
+        /// live position against the observation the native decided from, not a fresh one.
+        Motion::TargetView m_targetView;
 };
 
 #endif // MANGOS_NATIVEBEHAVIOUR_H

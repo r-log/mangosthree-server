@@ -267,6 +267,10 @@ namespace Movement
              */
             bool isCyclic() const { return splineflags.cyclic;}
 
+            /// Catmull-Rom rather than a straight run between its points: the chord to the
+            /// current destination is NOT the direction of travel, so nothing may lead on it.
+            bool isSmooth() const { return splineflags.isSmooth(); }
+
             /**
              * @brief Gets the final destination of the spline.
              * @return const Vector3 The final destination of the spline.

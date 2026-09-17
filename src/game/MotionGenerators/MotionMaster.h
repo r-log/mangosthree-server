@@ -229,6 +229,7 @@ class MotionMaster
             bool selected;                       ///< this is the one that ticks
             bool reachable;                      ///< it can still reach its goal
             MovementGenerator const* generator;  ///< the adapted generator, NULL for a native
+            uint64 target;                       ///< the raw guid it tracks, 0 for a non-tracking native or a legacy binding
         };
         /// Every held behaviour in arrival order, the selected one marked.
         std::vector<HeldView> Held() const;
