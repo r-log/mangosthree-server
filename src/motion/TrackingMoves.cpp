@@ -289,4 +289,53 @@ namespace Motion
     {
         effects.push_back(Effect(Effect::SyncSpeed));
     }
+
+    // ---- HomeBehaviour ---------------------------------------------------------------
+
+    Step HomeBehaviour::Activate(Sight const& /*sight*/, Services& /*svc*/)
+    {
+        m_cleared = false;
+        m_arrived = false;
+        Step s;
+        s.resetLeg = true;   // the clear waits for the first tick: under a block the mask would erase the block's own mirrors
+        return s;
+    }
+
+    Step HomeBehaviour::Resume(Sight const& /*sight*/, Services& /*svc*/, bool /*reset*/)
+    {
+        return Step::None();   // Reset was a no-op
+    }
+
+    Step HomeBehaviour::Tick(Sight const& sight, Services& /*svc*/, uint32 /*diff*/)
+    {
+        Step s;
+        if (!m_cleared)
+        {
+            m_cleared = true;
+            s.effects.push_back(Effect::State(0, m_p.stateClear));
+        }
+        // A creature that could not be sent home at all still counts as home: evade must always terminate.
+        if (sight.status.arrived || sight.status.blocked)
+        {
+            m_arrived = true;
+            s.apply = true;
+            s.intent = MoveIntent::Done();
+            return s;
+        }
+        // A stop on the way (a stun, a root) is not an arrival: the leg is re-stated once the unit may move again.
+        s.apply = true;
+        s.intent = MoveIntent::Move(m_p.home, MOVE_FORCE_DEST, Facing::ToAngle(m_p.facing));
+        return s;
+    }
+
+    Outcome HomeBehaviour::Finish(FinishReason why, Sight const& sight, Services& /*svc*/)
+    {
+        Outcome o;   // never an interrupt: the generator's Interrupt was a no-op
+        if (Displacing(why) || !m_arrived) { return o; }
+        o.effects.push_back(Effect(Effect::RestoreTemporaryFaction));
+        o.effects.push_back(Effect::Walk(!sight.runningState && !sight.levitating));
+        o.effects.push_back(Effect(Effect::LoadAddon));
+        o.effects.push_back(Effect(Effect::JustReachedHome));
+        return o;
+    }
 }

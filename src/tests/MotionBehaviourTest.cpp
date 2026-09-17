@@ -2278,3 +2278,105 @@ TEST(MotionBehaviour_TrackingResumesOnlyOnAReset)
     CHECK(t.intent.act == MoveIntent::Act::Move);
     CHECK_EQ(b.Relays()->first, 2u);                // the reset forgot the spot: a first one again
 }
+
+namespace
+{
+    /// The evade return's params: a distinct world point and heading so the leg and the
+    /// facing are both checkable, and an opaque dynamic-state clear mask.
+    HomeBehaviour::Params Homing()
+    {
+        HomeBehaviour::Params p;
+        p.home = Vector3(12.0f, -4.0f, 2.0f);
+        p.facing = 1.5f;
+        p.stateClear = 0x30u;
+        return p;
+    }
+}
+
+TEST(MotionBehaviour_HomeClearsOnItsFirstTickAndForcesItsEndpoint)
+{
+    FakeServices svc;
+    HomeBehaviour b(Homing());
+
+    Step a = b.Activate(Free(), svc);
+    CHECK(a.resetLeg);              // the clear waits for the first tick
+    CHECK(a.effects.empty());
+    CHECK(!a.apply);
+
+    Step t1 = b.Tick(Free(), svc, 100);
+    REQUIRE(t1.effects.size() == size_t(1));
+    CHECK(t1.effects[0].kind == Effect::StateRaw);
+    CHECK_EQ(t1.effects[0].setMask, 0u);
+    CHECK_EQ(t1.effects[0].clearMask, 0x30u);
+    CHECK(t1.apply);
+    CHECK(t1.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(t1.intent.goal.x, 12.0f);
+    CHECK_EQ(t1.intent.goal.y, -4.0f);
+    CHECK_EQ(t1.intent.goal.z, 2.0f);
+    CHECK_EQ(t1.intent.flags, uint32(MOVE_FORCE_DEST));
+    CHECK(t1.intent.facing.mode == Facing::Mode::Angle);
+    CHECK_EQ(t1.intent.facing.angle, 1.5f);
+
+    Step t2 = b.Tick(Free(), svc, 100);
+    CHECK(t2.effects.empty());      // the clear happened once, on the first tick only
+    CHECK(t2.apply);
+    CHECK(t2.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(t2.intent.flags, uint32(MOVE_FORCE_DEST));
+
+    Step t3 = b.Tick(Cut(), svc, 100);   // a stop on the way is not an arrival: the leg is re-stated
+    CHECK(t3.effects.empty());
+    CHECK(t3.apply);
+    CHECK(t3.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(t3.intent.goal.x, 12.0f);
+    CHECK_EQ(t3.intent.flags, uint32(MOVE_FORCE_DEST));
+}
+
+TEST(MotionBehaviour_HomeEndsOnArrivalOrBlockAndRestoresOnlyThen)
+{
+    FakeServices svc;
+    {
+        HomeBehaviour b(Homing());
+        b.Activate(Free(), svc);
+        b.Tick(Free(), svc, 100);
+        Step t = b.Tick(Arrived(), svc, 100);
+        CHECK(t.intent.act == MoveIntent::Act::Done);
+        CHECK(b.EndReason(Free()) == FinishReason::Arrived);
+
+        Outcome o = b.Finish(FinishReason::Arrived, Free(), svc);
+        REQUIRE(o.effects.size() == size_t(4));
+        CHECK(o.effects[0].kind == Effect::RestoreTemporaryFaction);
+        CHECK(o.effects[1].kind == Effect::SetWalk);
+        CHECK(o.effects[1].flag);                    // not running, not levitating
+        CHECK(o.effects[2].kind == Effect::LoadAddon);
+        CHECK(o.effects[3].kind == Effect::JustReachedHome);
+        CHECK(!o.interrupt);                          // the generator's Interrupt was a no-op
+    }
+    {
+        // A creature that could not be sent home at all still counts as home: evade must
+        // always terminate.
+        HomeBehaviour b(Homing());
+        b.Activate(Free(), svc);
+        Step t = b.Tick(Blocked(), svc, 100);
+        CHECK(t.intent.act == MoveIntent::Act::Done);
+        CHECK(b.EndReason(Free()) == FinishReason::Arrived);
+        CHECK(!b.Finish(FinishReason::Arrived, Free(), svc).effects.empty());   // it did arrive, home
+    }
+    {
+        // Displaced after an arrival: the recipe never runs twice and Finish never interrupts.
+        HomeBehaviour b(Homing());
+        b.Activate(Free(), svc);
+        b.Tick(Free(), svc, 100);
+        b.Tick(Arrived(), svc, 100);
+        Outcome o = b.Finish(FinishReason::Superseded, Free(), svc);
+        CHECK(o.effects.empty());
+        CHECK(!o.interrupt);
+    }
+    {
+        // Finished before any arrival at all: no recipe.
+        HomeBehaviour b(Homing());
+        b.Activate(Free(), svc);
+        b.Tick(Free(), svc, 100);
+        Outcome o = b.Finish(FinishReason::Arrived, Free(), svc);
+        CHECK(o.effects.empty());
+    }
+}

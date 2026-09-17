@@ -28,12 +28,14 @@
 
 #include "BehaviourModel.h"
 
-// The two natives that keep a distance from another unit, as pure kernel policy (P5-B
-// family 3): ChaseBehaviour and FollowBehaviour replace TargetedMovementGenerator together
-// with its ChaseMovementGenerator and FollowMovementGenerator subclasses -- all three
-// deleted from src/game/MotionGenerators/ on this branch. Everything the generator did to
-// its unit (the free-spot search, the live cast read, the speed sync, the attack in reach)
-// is a Services call or an Effect now.
+// Three natives, pure kernel policy (P5-B family 3). ChaseBehaviour and FollowBehaviour keep
+// a distance from another unit, replacing TargetedMovementGenerator together with its
+// ChaseMovementGenerator and FollowMovementGenerator subclasses -- all three already deleted
+// from src/game/MotionGenerators/ on this branch. HomeBehaviour is the evade return,
+// replacing HomeMovementGenerator.h/.cpp, still in the tree until the shell switches to it.
+// Everything the generator did to its unit (the free-spot search, the live cast read, the
+// speed sync, the attack in reach, the block-safe state clear, the arrival recipe) is a
+// Services call or an Effect now.
 
 namespace Motion
 {
@@ -145,6 +147,31 @@ namespace Motion
             void  OnSuspendOrFinish(std::vector<Effect>& effects) override;
         private:
             FollowParams m_f;               ///< the follow's own fields, beside the shared Params
+    };
+
+    /// The evade return (design §4.3): the deleted HomeMovementGenerator with the block-safe clear
+    /// and a forced endpoint.
+    class HomeBehaviour : public Behaviour
+    {
+        public:
+            struct Params
+            {
+                Vector3 home;               ///< world coordinates (the shell converts a Move goal to the frame)
+                float   facing = 0.0f;
+                uint32  stateClear = 0;     ///< the shell's UNIT_STAT_ALL_DYN_STATES mask (opaque)
+            };
+            explicit HomeBehaviour(Params const& p) : m_p(p) {}
+            Motion::Kind Kind() const override { return Motion::Kind::Home; }
+            Step Activate(Sight const& sight, Services& svc) override;
+            Step Suspend() override { return Step::None(); }                 // Interrupt was a no-op
+            Step Resume(Sight const& sight, Services& svc, bool reset) override;
+            Step Tick(Sight const& sight, Services& svc, uint32 diff) override;
+            FinishReason EndReason(Sight const&) const override { return FinishReason::Arrived; }
+            Outcome Finish(FinishReason why, Sight const& sight, Services& svc) override;
+        private:
+            Params m_p;
+            bool   m_cleared = false;   ///< the dynamic states cleared on the first tick (after any block lifted)
+            bool   m_arrived = false;
     };
 }
 
