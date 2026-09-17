@@ -28,6 +28,13 @@
 
 #include "BehaviourModel.h"
 
+// The two default behaviours a creature falls back to when nothing else claims it, as pure
+// kernel policy (P5-B family 2): WanderBehaviour replaces RandomMovementGenerator, and
+// PatrolBehaviour replaces WaypointMovementGenerator together with its WaypointSmoothing
+// helper -- all three deleted on this branch, the smoothing moved into the kernel as
+// PatrolWelding.h. Everything the shell used to do around them (the draws, the routes, the
+// live unit reads) is a Services call now.
+
 namespace Motion
 {
     /// The idle wander (design §4.1): a hop to a random point in the leash, a rest, again;
@@ -127,7 +134,12 @@ namespace Motion
             bool Stopped(Services& svc) const { return m_wait > 0 || svc.WaypointPaused(); }
             bool CanMove(Services& svc, uint32 diff);
             void Stop(int32 ms) { m_wait = ms; }
-            void ClearSegment() { m_segment.clear(); m_segmentArrivals = 0; }
+            /// The tracked segment goes, and with it every arrival it still owed: the
+            /// generator's SetNextWaypoint/Pause cleared m_segment, which ended
+            /// ProcessSegmentProgress's while loop at once, so the nodes the spline had passed
+            /// were never informed. Only the finalized branch's latch-guarded trailing
+            /// OnArrived still ran afterwards -- the trailing `{0, false}` entry stays.
+            void ClearSegment();
             Step ArrivalStep(Services& svc);              ///< one node's state and effects, in the generator's order
             Step StartPrepare(Sight const& sight, Services& svc);
             Step PrepareLeg(Sight const& sight, Services& svc, size_t currIndex);
@@ -159,7 +171,7 @@ namespace Motion
             Phase   m_phase = Phase::Fresh;              ///< no generator counterpart: the generator ran OnArrived/PrepareMove to completion inline
             std::vector<Arrival> m_pendingArrivals;      ///< nodes to arrive at, in order
             bool    m_finalizedSegment = false;          ///< the arrivals came from a finalized spline: prepare after them
-            bool    m_reachedLast = false;                ///< the generator's local `reachedLast` in PrepareMove, kept across the barrier step
+            bool    m_reachedLast = false;                ///< the generator's local `reachedLast` in PrepareMove, kept across the external inform's round
             uint32  m_nextAfterInform = 0;               ///< the node the prepare inform named
             uint32  m_nodeBeforeInform = 0;              ///< m_currentNode when the prepare inform fired: a hook's SetNextWaypoint shows as a change
             bool    m_lastRunning = false;               ///< Suspend() has no Sight: the last tick's running state, as WanderBehaviour's m_lastRunning

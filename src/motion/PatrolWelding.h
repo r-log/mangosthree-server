@@ -1,3 +1,28 @@
+/**
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * MaNGOS is a full featured server for World of Warcraft, supporting
+ * the following clients: 1.12.x, 2.4.3, 3.3.5a, 4.3.4a and 5.4.8
+ *
+ * Copyright (C) 2005-2026 MaNGOS <https://www.getmangos.eu>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * World of Warcraft, and all World of Warcraft or Warcraft art, images,
+ * and lore are copyrighted by Blizzard Entertainment, Inc.
+ */
+
 #ifndef MANGOS_MOTION_PATROLWELDING_H
 #define MANGOS_MOTION_PATROLWELDING_H
 
@@ -5,10 +30,10 @@
 
 // The kernel's own copy of the waypoint-smoothing primitives (moved from
 // src/game/MotionGenerators/WaypointSmoothing.h, P5-B family 2 Task 3): the patrol native
-// welds its own legs through this port now. Namespaced (Motion) because the shell's copy is
-// gone; the kernel owns the welding, and src/game/CMakeLists.txt links `motion` into `game`
-// -- an un-namespaced clash would land both definitions on mangosd's link line, resolved
-// only by archive order.
+// welds its own legs through this port now. Namespaced (Motion) because the kernel owns these
+// names, as it owns every other name it exports -- the shell's own copy is gone, so there is
+// no clash left to avoid; it is the kernel's namespace that makes `motion`, linked into
+// `game` by src/game/CMakeLists.txt, a library rather than a pile of loose symbols.
 
 namespace Motion
 {

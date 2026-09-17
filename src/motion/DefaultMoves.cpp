@@ -286,6 +286,19 @@ namespace Motion
         return m_wait <= 0 && !svc.WaypointPaused();
     }
 
+    void PatrolBehaviour::ClearSegment()
+    {
+        m_segment.clear();
+        m_segmentArrivals = 0;
+        // The arrivals the segment still owed go with it: the generator's SetNextWaypoint and
+        // Pause cleared m_segment, and ProcessSegmentProgress's while loop -- the only thing
+        // that informed a passed node -- ended on the spot. The trailing `{0, false}` entry is
+        // the finalized branch's own latch-guarded OnArrived, which ran regardless, so it stays.
+        m_pendingArrivals.erase(std::remove_if(m_pendingArrivals.begin(), m_pendingArrivals.end(),
+                                               [](Arrival const& a) { return a.fromSegment; }),
+                                m_pendingArrivals.end());
+    }
+
     void PatrolBehaviour::CollectArrivals(int32 pathIndex)
     {
         while (m_segmentArrivals < m_segment.size() &&
@@ -344,7 +357,11 @@ namespace Motion
         m_approached = false;
         m_legPoints.clear();
         if (m_p.nodes.empty() || Stopped(svc)) { return Step::Of(MoveIntent::Hold()); }
-        if (!sight.alive || !sight.canMove) { return Step::Of(MoveIntent::Hold()); }
+        // The generator re-read IsAlive/UNIT_STAT_NOT_MOVE here, live, after the node's effects
+        // had run: the spell an arrival cast may have rooted or stunned the unit since the
+        // Sight was taken. Death after the effects is the shell's guard, which drops this
+        // round's intent outright; the movement bit is the port's to answer.
+        if (!sight.alive || !svc.CanMove()) { return Step::Of(MoveIntent::Hold()); }
         size_t curr = IndexOf(m_currentNode);
         if (curr >= m_p.nodes.size()) { return Step::Of(MoveIntent::Hold()); }
         Step s;
@@ -357,7 +374,7 @@ namespace Motion
             // reversed on this internal path -- unobservable, since nothing runs between the two in
             // the same tick. The external path, the only one with a hook in between, keeps the
             // generator's actual order (the hook ran before ROAMING_MOVE there too): ROAMING_MOVE is
-            // not set until the PrepareInform barrier's continuation calls PrepareLeg, after the hook.
+            // not set until the PrepareInform continuation calls PrepareLeg, after the hook.
             s.effects.push_back(Effect(Effect::ClearEmoteState));
         }
         if (m_arrivalDone)
@@ -367,11 +384,12 @@ namespace Motion
             if (next >= m_p.nodes.size()) { m_reachedLast = true; next = 0; }
             if (m_p.external)
             {
-                // The external start/last inform is a barrier: the hook may replace us or set the next node.
+                // The external start/last inform ends the round: its hook may replace us (the
+                // shell's own re-check after every round's effects catches that) or set the
+                // next node, which the PrepareInform continuation below honours.
                 m_nodeBeforeInform = m_currentNode;
                 m_nextAfterInform = m_p.nodes[next].id;
                 s.effects.push_back(Effect::Raw(m_reachedLast ? m_p.inform.externalLast : m_p.inform.externalStart, m_p.nodes[next].id));
-                s.barrier = true;
                 s.again = true;
                 m_phase = Phase::PrepareInform;
                 return s;
@@ -448,6 +466,10 @@ namespace Motion
         // An externally-scripted path is walked node by node: its script may replace the path
         // under us at any node, so welding ahead through it is not safe.
         if (m_p.externalOrigin) { return; }
+        // The generator built its router here, one per pass, and the legs of the pass shared it.
+        // The mesh router is stateful (it reuses the poly path of its previous Calculate), so a
+        // pass that inherited the last one's state would not weld the same geometry.
+        svc.ResetRoute();
         Vector3 start = moverPos;
         WaypointSmoothingBounds bounds;
         size_t curr = startIndex;
@@ -524,7 +546,8 @@ namespace Motion
         }
         if (m_phase == Phase::PrepareInform)
         {
-            // The barrier passed. The generator compared m_currentNode before and after the inform
+            // The inform's hook has run and the shell found us still selected. The generator
+            // compared m_currentNode before and after the inform
             // (nodeBefore): a SetNextWaypoint made inside the hook wins over the named next node.
             m_phase = Phase::Fresh;
             size_t curr = (m_currentNode != m_nodeBeforeInform) ? IndexOf(m_currentNode) : IndexOf(m_nextAfterInform);

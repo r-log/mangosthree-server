@@ -151,6 +151,8 @@ namespace
                 }
                 return r;
             }
+            void ResetRoute() override { calls.push_back("resetRoute"); }
+            bool CanMove() const override { return canMove; }
             bool Casting() const override { return casting; }
             bool WaypointPaused() const override { return waypointPaused; }
             bool Anchor(Vector3& out) const override
@@ -170,6 +172,7 @@ namespace
                 routeRouted = false;
                 routePartial = false;
                 routeProgresses = false;
+                canMove = true;
                 casting = false;
                 waypointPaused = false;
                 anchorSet = false;
@@ -183,6 +186,7 @@ namespace
             bool routeRouted = false;
             bool routePartial = false;
             bool routeProgresses = false;
+            bool canMove = true;       ///< the live !UNIT_STAT_CAN_NOT_MOVE the prepare re-reads.
             bool casting = false;
             bool waypointPaused = false;
             bool anchorSet = false;
@@ -529,7 +533,6 @@ TEST(MotionBehaviour_EffectFactoriesSetOnlyTheirFields)
 
     Step s;
     CHECK(s.effects.empty());
-    CHECK(!s.barrier);
     CHECK(!s.again);
 }
 
@@ -694,6 +697,20 @@ TEST(MotionBehaviour_PatrolArrivesInTheGeneratorsOrder)
     CHECK(first.effects[0].kind == Effect::SetWalk);
     CHECK(first.effects[0].flag);
 
+    // The welding pass reset the router before its first route, as the generator built a fresh
+    // query per BuildSmoothPath pass; the legs welded inside the pass then share it.
+    {
+        size_t reset = svc.calls.size();
+        size_t route = svc.calls.size();
+        for (size_t i = 0; i < svc.calls.size(); ++i)
+        {
+            if (reset == svc.calls.size() && svc.calls[i] == "resetRoute") { reset = i; }
+            if (route == svc.calls.size() && svc.calls[i] == "route") { route = i; }
+        }
+        CHECK(route < svc.calls.size());
+        CHECK(reset < route);
+    }
+
     // The whole welded spline (start, node 1, node 2) finalizes at once: both endpoints are
     // reached together.
     Sight finalized = Free();
@@ -783,7 +800,7 @@ TEST(MotionBehaviour_PatrolArrivesInTheGeneratorsOrder)
     }
 }
 
-TEST(MotionBehaviour_PatrolExternalPrepareInformIsABarrierAndHonoursSetNextWaypoint)
+TEST(MotionBehaviour_PatrolExternalPrepareInformEndsTheRoundAndHonoursSetNextWaypoint)
 {
     FakeServices svc;   // routeUsable defaults false: an externally-scripted path never welds anyway
 
@@ -803,17 +820,17 @@ TEST(MotionBehaviour_PatrolExternalPrepareInformIsABarrierAndHonoursSetNextWaypo
     finalized.status.traveling = false;
     b.Tick(finalized, svc, 0);                  // arrives at node 1: Raw(externalMove, 1), consumed
 
-    Step barrier = b.Tick(finalized, svc, 0);   // the arrivals phase drains; StartPrepare's external inform fires
-    CHECK(barrier.barrier);
-    CHECK(barrier.again);
-    CHECK_EQ(barrier.effects.size(), size_t(1));
-    CHECK(barrier.effects[0].kind == Effect::InformRaw);
-    CHECK_EQ(barrier.effects[0].raw, 701u);      // externalStart: node 2 was next
-    CHECK_EQ(barrier.effects[0].id, 2u);
+    Step informed = b.Tick(finalized, svc, 0);   // the arrivals phase drains; StartPrepare's external inform fires
+    CHECK(informed.again);                       // the round ends on the inform; the shell re-checks the selection
+    CHECK(!informed.apply);                      // and nothing is laid before the hook has run
+    CHECK_EQ(informed.effects.size(), size_t(1));
+    CHECK(informed.effects[0].kind == Effect::InformRaw);
+    CHECK_EQ(informed.effects[0].raw, 701u);      // externalStart: node 2 was next
+    CHECK_EQ(informed.effects[0].id, 2u);
 
     CHECK(b.SetNextWaypoint(3));                 // the hook retargets the patrol, as it may
 
-    Step toNode3 = b.Tick(finalized, svc, 0);    // the barrier passed: the hook's node wins over the named one
+    Step toNode3 = b.Tick(finalized, svc, 0);    // the round after: the hook's node wins over the named one
     CHECK(toNode3.intent.act == MoveIntent::Act::Move);
     CHECK_EQ(toNode3.intent.goal.x, 20.0f);
     CHECK_EQ(b.CurrentNode(), 3u);
@@ -829,7 +846,7 @@ TEST(MotionBehaviour_PatrolExternalPrepareInformIsABarrierAndHonoursSetNextWaypo
 
     b.Tick(finalized, svc, 0);                   // arrives at node 3: Raw(externalMove, 3), consumed
     Step wrap = b.Tick(finalized, svc, 0);       // node 3 is last: the wrap uses externalLast, naming node 1
-    CHECK(wrap.barrier);
+    CHECK(wrap.again);
     CHECK_EQ(wrap.effects.size(), size_t(1));
     CHECK(wrap.effects[0].kind == Effect::InformRaw);
     CHECK_EQ(wrap.effects[0].raw, 702u);          // externalLast
@@ -924,6 +941,8 @@ namespace
                 points.push_back(end);
                 return r;
             }
+            void ResetRoute() override {}
+            bool CanMove() const override { return true; }
             bool Casting() const override { return false; }
             bool WaypointPaused() const override { return false; }
             bool Anchor(Vector3&) const override { return false; }
@@ -952,6 +971,8 @@ namespace
                 points.push_back(to);
                 return r;
             }
+            void ResetRoute() override {}
+            bool CanMove() const override { return true; }
             bool Casting() const override { return false; }
             bool WaypointPaused() const override { return false; }
             bool Anchor(Vector3&) const override { return false; }
@@ -1230,6 +1251,127 @@ TEST(MotionBehaviour_PatrolArrivesMidSplineAndKeepsRoaming)
         CHECK(heldNoMove.intent.act == MoveIntent::Act::Hold);
         CHECK(heldNoMove.roaming == Roaming::ClearMove);
     }
+}
+
+TEST(MotionBehaviour_PatrolSetNextWaypointInsideAnArrivalDropsTheQueuedArrivals)
+{
+    // A three-node weld. Node 3 waits, which is where the weld ends anyway (the full-lap guard
+    // refuses to weld the path onto itself), and the wait is what keeps the patrol still after
+    // the redirect: an arrival resets the move timer to its own node's delay, as the
+    // generator's OnArrived did, overwriting SetNextWaypoint's 1 ms.
+    PatrolBehaviour::Node n3 = MakeNode(3, 30.0f, 0.0f, 0.0f);
+    n3.delay = 1000;
+
+    Sight start = Free();
+    start.position = Vector3(0.0f, 0.0f, 0.0f);
+    Sight finalized = Free();
+    finalized.status.traveling = false;
+    finalized.status.pathIndex = 3;   // past every endpoint of the four-point leg
+
+    // A hook's SetNextWaypoint, made from inside node 1's arrival: it clears the segment, and
+    // the arrivals that segment still owed (nodes 2 and 3) go with it -- the generator's own
+    // ProcessSegmentProgress loop ended the moment m_segment was cleared.
+    {
+        FakeServices svc;
+        svc.routeUsable = true;
+        svc.routeRouted = true;
+        PatrolBehaviour::Params p;
+        p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f), n3 };
+        p.inform.waypoint = 411;
+        PatrolBehaviour b(p);
+        b.Activate(start, svc);
+        b.Tick(start, svc, 100);
+        CHECK_EQ(b.LegPointCount(), size_t(4));   // start, node 1, node 2, node 3
+
+        Step atNode1 = b.Tick(finalized, svc, 100);   // nodes 1, 2 and 3 queue, plus the trailing entry
+        CHECK(atNode1.again);
+        CHECK_EQ(atNode1.effects.size(), size_t(1));
+        CHECK(atNode1.effects[0].kind == Effect::InformRaw);
+        CHECK_EQ(atNode1.effects[0].raw, 411u);
+        CHECK_EQ(atNode1.effects[0].id, 1u);
+
+        CHECK(b.SetNextWaypoint(3));
+
+        // Not node 2: its queued arrival went with the segment. Only the trailing entry is left,
+        // and with the latch cleared and node 3 current it runs the generator's own quirk -- an
+        // arrival at the node the hook just told the patrol to walk to.
+        Step trailing = b.Tick(finalized, svc, 0);
+        CHECK(trailing.again);
+        CHECK_EQ(trailing.effects.size(), size_t(1));
+        CHECK(trailing.effects[0].kind == Effect::InformRaw);
+        CHECK_EQ(trailing.effects[0].raw, 411u);
+        CHECK_EQ(trailing.effects[0].id, 3u);
+        CHECK_EQ(b.LastReached(), 3u);
+
+        Step held = b.Tick(finalized, svc, 0);   // the segment cleared, node 3's wait running
+        CHECK(held.apply);
+        CHECK(held.intent.act == MoveIntent::Act::Hold);
+        CHECK_EQ(b.CurrentNode(), 3u);
+    }
+    // The same drain under Pause, which leaves the latch alone: the trailing entry finds
+    // m_isArrivalDone still set from node 1 and informs nothing at all.
+    {
+        FakeServices svc;
+        svc.routeUsable = true;
+        svc.routeRouted = true;
+        PatrolBehaviour::Params p;
+        p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f), n3 };
+        p.inform.waypoint = 411;
+        PatrolBehaviour b(p);
+        b.Activate(start, svc);
+        b.Tick(start, svc, 100);
+
+        Step atNode1 = b.Tick(finalized, svc, 100);
+        CHECK(atNode1.again);
+        CHECK_EQ(atNode1.effects.size(), size_t(1));
+        CHECK_EQ(atNode1.effects[0].id, 1u);
+
+        Step paused = b.Pause(1000);
+        CHECK(paused.stop);
+
+        Step trailing = b.Tick(finalized, svc, 0);
+        CHECK(trailing.again);
+        CHECK(trailing.effects.empty());
+        CHECK(trailing.roaming == Roaming::Keep);
+        CHECK_EQ(b.LastReached(), 1u);
+
+        Step held = b.Tick(finalized, svc, 0);
+        CHECK(held.apply);
+        CHECK(held.intent.act == MoveIntent::Act::Hold);
+        CHECK_EQ(b.CurrentNode(), 1u);
+    }
+}
+
+TEST(MotionBehaviour_PatrolPrepareRereadsCanMoveAfterTheNodesEffects)
+{
+    FakeServices svc;   // routeUsable defaults false: a plain, unwelded leg each time
+    PatrolBehaviour::Node n1 = MakeNode(1, 10.0f, 0.0f, 0.0f);
+    n1.spell = 4444;    // the arrival casts, and a cast may root or stun the caster
+    PatrolBehaviour::Params p;
+    p.nodes = { n1, MakeNode(2, 20.0f, 0.0f, 0.0f) };
+    p.inform.waypoint = 411;
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+    b.Tick(Free(), svc, 0);                      // the leg toward node 1
+
+    Sight finalized = Free();
+    finalized.status.traveling = false;
+    Step arrived = b.Tick(finalized, svc, 0);    // node 1's arrival: the spell is cast here
+    CHECK(arrived.again);
+    CHECK_EQ(arrived.effects.size(), size_t(2));
+    CHECK(arrived.effects[0].kind == Effect::CastSpell);
+    CHECK_EQ(arrived.effects[0].id, 4444u);
+
+    // The cast rooted the unit. The Sight is the tick's one snapshot, taken before any of the
+    // arrival's effects ran, so it still reads canMove -- only the live port knows better, and
+    // the prepare is exactly where the generator re-read it.
+    svc.canMove = false;
+    Step prepared = b.Tick(finalized, svc, 0);
+    CHECK(prepared.apply);
+    CHECK(prepared.intent.act == MoveIntent::Act::Hold);
+    CHECK(prepared.effects.empty());
+    CHECK_EQ(b.LegPointCount(), size_t(0));
+    CHECK_EQ(b.CurrentNode(), 1u);               // the node loop did not advance: no leg was laid
 }
 
 TEST(MotionBehaviour_PatrolLifecycleSteps)

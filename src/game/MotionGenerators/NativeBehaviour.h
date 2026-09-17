@@ -67,7 +67,7 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         static MovementGeneratorType Project(Motion::Kind kind);
 
         /// The arbiter sequence this binding was given, set once by MotionMaster::BindNative
-        /// right after construction: what a barrier's IsSelectedSequence checks mid-tick.
+        /// right after construction: what the tick's per-round IsSelectedSequence re-check reads.
         void SetSequence(uint32 seq) { m_seq = seq; }
 
         /// The native this adapter drives (MotionMaster::HeldPatrol and friends read it).
@@ -90,6 +90,8 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         uint32 Urand(uint32 min, uint32 max) override;
         int32 Irand(int32 min, int32 max) override;
         Motion::RouteResult Route(Motion::Vector3 const& from, Motion::Vector3 const& to, Motion::PointsArray& points) override;
+        void ResetRoute() override;
+        bool CanMove() const override;
         bool Casting() const override;
         bool WaypointPaused() const override;
         bool Anchor(Motion::Vector3& out) const override;
@@ -99,6 +101,11 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         Unit& U() const { MANGOS_ASSERT(m_unit); return *m_unit; }
 
         Motion::Sight See(Unit& owner, bool tick);   ///< tick: consume the driver's edges; else read the live spline only
+        /// A Step's shell operations, in order: stop, interrupt, resetLeg, the roaming write, the effects.
+        void PerformOps(Unit& owner, Motion::Step const& step);
+        /// A Step's intent tail: the launcher's arc, or the driver's Apply with the goal converted from world.
+        void ApplyIntent(Unit& owner, Motion::Step const& step);
+        /// Both halves, for the hooks that have no selection to re-check between them.
         void Perform(Unit& owner, Motion::Step const& step);
         void PerformOutcome(Unit& owner, Motion::Outcome const& outcome);
         /// The effects loop, creature-only, in order: an Outcome's recipe or a Step's mid-tick set.
@@ -113,8 +120,11 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         uint32             m_seq = 0;   ///< this binding's arbiter sequence (IsSelectedSequence)
 
         // ---- the Services port's own state: the owner of the moment, and the adapter's router ----
-        Unit* m_unit = NULL;            ///< set at the start of every hook, before the native is called
-        std::unique_ptr<Motion::IPathQuery> m_query; ///< one router per welding pass, as the generator built (rebuilt below)
+        /// Set at the start of every hook, before the native is called; mutable because the
+        /// const GetResetPosition hook is a hook like any other and the port's owner of the
+        /// moment is not observable state.
+        mutable Unit* m_unit = NULL;
+        std::unique_ptr<Motion::IPathQuery> m_query; ///< the router: dropped at every welding pass (ResetRoute), shared by the legs within one
         Motion::FrameKind m_queryFrame = Motion::FrameKind::World;    ///< the frame m_query was built for; a leg never spans two frames, so a change rebuilds it
         uint32             m_queryMapId = 0;      ///< the map m_query was built for
         uint32             m_queryInstanceId = 0; ///< and the instance: the mesh query is per instance

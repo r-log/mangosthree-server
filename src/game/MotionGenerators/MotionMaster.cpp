@@ -594,7 +594,7 @@ bool MotionMaster::BindNative(uint32 seqBefore, std::unique_ptr<Motion::Behaviou
         return false;   // refused by the model: the native dies with this call
     }
     std::unique_ptr<NativeBehaviour> adapter(new NativeBehaviour(std::move(native)));
-    adapter->SetSequence(seqBefore + 1);   // what a barrier's IsSelectedSequence checks mid-tick
+    adapter->SetSequence(seqBefore + 1);   // what the tick's per-round IsSelectedSequence re-check reads
     m_bound.push_back(Bound(seqBefore + 1, std::unique_ptr<MotionBehaviour>(std::move(adapter))));
     return true;
 }
@@ -1702,8 +1702,8 @@ bool MotionMaster::IsSelected(MovementGenerator const* generator) const
 /**
  * @brief Whether this arbiter sequence is the one selected right now.
  * @param seq The sequence to test (a native binding's own, from BindNative).
- * @return True when it is the current selection: a native's mid-tick barrier reads this to
- *         notice its own effects replaced or removed it before applying its intent.
+ * @return True when it is the current selection: a native's shell reads this after every
+ *         round's effects, to notice they replaced or removed it before applying its intent.
  */
 bool MotionMaster::IsSelectedSequence(uint32 seq) const
 {

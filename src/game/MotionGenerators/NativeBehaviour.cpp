@@ -202,14 +202,14 @@ void NativeBehaviour::Launch(Unit& owner, Motion::EffectLaunch const& launch)
 }
 
 /**
- * @brief Performs one Step: stop/interrupt/resetLeg, the roaming write, the effects, then
- *        the intent when `apply`. The generators stopped and cleared their unit-state bits
- *        before their SetWalk, and a waypoint arrival's hook saw ROAMING_MOVE already
- *        cleared -- the effects run after the roaming write and before the intent.
+ * @brief Performs a Step's shell operations: stop/interrupt/resetLeg, the roaming write, then
+ *        the effects. The generators stopped and cleared their unit-state bits before their
+ *        SetWalk, and a waypoint arrival's hook saw ROAMING_MOVE already cleared -- the
+ *        effects run after the roaming write and before the intent.
  * @param owner The moving unit.
  * @param step What the native returned.
  */
-void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
+void NativeBehaviour::PerformOps(Unit& owner, Motion::Step const& step)
 {
     if (step.stop)
     {
@@ -225,10 +225,16 @@ void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
     }
     Roam(owner, step.roaming);
     PerformEffects(owner, step.effects);
-    if (!step.apply)
-    {
-        return;
-    }
+}
+
+/**
+ * @brief Applies a Step's intent: the launcher's own arc, or the driver's Apply with the goal
+ *        converted out of world coordinates. Only called for a Step that carries `apply`.
+ * @param owner The moving unit.
+ * @param step What the native returned.
+ */
+void NativeBehaviour::ApplyIntent(Unit& owner, Motion::Step const& step)
+{
     if (step.intent.act == Motion::MoveIntent::Act::Launch)
     {
         Launch(owner, step.intent.launch);   // never handed to the driver: it has no Launch case
@@ -241,6 +247,21 @@ void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
         intent.goal = Motion::FrameFor(owner).FromWorld(owner, intent.goal);
     }
     m_driver.Apply(owner, intent);
+}
+
+/**
+ * @brief Both halves of a Step, for the hooks (Activate, Suspend, Resume, PerformStep): none of
+ *        them runs inside a continuation, so there is no selection to re-check between them.
+ * @param owner The moving unit.
+ * @param step What the native returned.
+ */
+void NativeBehaviour::Perform(Unit& owner, Motion::Step const& step)
+{
+    PerformOps(owner, step);
+    if (step.apply)
+    {
+        ApplyIntent(owner, step);
+    }
 }
 
 /**
@@ -288,17 +309,19 @@ void NativeBehaviour::Resume(Unit& owner, bool reset)
 
 /**
  * @brief One tick of the selected behaviour: a continuation of up to kMaxContinuation rounds.
- *        Each round's Step is performed exactly once (a Done intent is handled before
- *        Perform runs, since it never applies through the driver); a barrier or `again`
- *        decides whether the continuation stops here or loops again at once.
+ *        Each round performs its Step's shell operations exactly once (a Done intent is handled
+ *        before they run, since it never applies through the driver), then the selection is
+ *        re-checked; `again` loops the continuation at once, otherwise the round's intent is
+ *        applied and the tick ends.
  * @param owner The moving unit.
  * @param diff The elapsed update time in milliseconds.
  * @return False when the native asked to be retired.
  */
 bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
 {
-    // No IsSelected re-entrancy guard here, unlike the legacy adapter: the continuation below
-    // performs its own effects mid-tick and re-checks the selection by sequence at the barrier.
+    // No IsSelected re-entrancy guard around the whole tick, unlike the legacy adapter: the
+    // continuation below performs its own effects mid-tick and re-checks the selection by
+    // sequence after every round, which is the same guard at a finer grain.
     m_unit = &owner;
     const Motion::Sight sight = See(owner, true);
     uint32 elapsed = diff;
@@ -311,20 +334,32 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
             PerformEffects(owner, step.effects);
             return false;
         }
-        Perform(owner, step);   // a continuation step has apply == false: no intent is applied here
-        if (step.barrier && !(owner.IsAlive() && owner.IsInWorld() && owner.GetMotionMaster()->IsSelectedSequence(m_seq)))
+        PerformOps(owner, step);
+        // IntentMovementGenerator::Update re-checked IsSelected(this) after EVERY Intent before
+        // applying it, because a hook fired from inside (a waypoint inform) may have replaced the
+        // generator. The same check, after every round's effects: a leg laid now would belong to
+        // a behaviour that is no longer selected.
+        if (!(owner.IsAlive() && owner.IsInWorld() && owner.GetMotionMaster()->IsSelectedSequence(m_seq)))
         {
-            return true;   // the effects replaced or removed us: the generator returned Hold here
+            return true;   // the effects replaced, suspended or removed us: the generator returned Hold here
         }
         if (step.again)
         {
             elapsed = 0;
             continue;
         }
+        if (step.apply)
+        {
+            ApplyIntent(owner, step);
+        }
         return true;
     }
-    sLog.outError("NativeBehaviour: %s kind %u ran %u continuation rounds without applying an intent",
-                  owner.GetGuidStr().c_str(), uint32(m_native->Kind()), kMaxContinuation);
+    // A weld may queue up to WAYPOINT_SMOOTHING_MAX_LOOKAHEAD (32) arrivals against these 16
+    // rounds, so running out is an ordinary long-weld tick rather than a policy bug that never
+    // converges: whatever is left stays queued and drains on the next one.
+    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS,
+                     "NativeBehaviour: %s kind %u used all %u continuation rounds without applying an intent; a long weld defers the rest to the next tick",
+                     owner.GetGuidStr().c_str(), uint32(m_native->Kind()), kMaxContinuation);
     return true;
 }
 
@@ -361,10 +396,12 @@ void NativeBehaviour::Finish(Unit& owner, Motion::FinishReason why)
  */
 bool NativeBehaviour::GetResetPosition(Unit& owner, float& x, float& y, float& z, float& o) const
 {
-    NativeBehaviour* self = const_cast<NativeBehaviour*>(this);
-    self->m_unit = &owner;
+    m_unit = &owner;   // mutable: the port's owner of the moment, not observable state
+    // The port itself is still handed over non-const: Services' draws and routes are non-const
+    // by contract (a route mutates the router), though a ResetPosition only reads through it.
+    NativeBehaviour& self = const_cast<NativeBehaviour&>(*this);
     Motion::Vector3 pos;
-    if (!m_native->ResetPosition(self->See(owner, false), *self, pos, o))
+    if (!m_native->ResetPosition(self.See(owner, false), self, pos, o))
     {
         return false;
     }
@@ -558,9 +595,11 @@ int32 NativeBehaviour::Irand(int32 a, int32 b) { return irand(a, b); }
  * @brief A route in the mover's frame, over the adapter's own router.
  *
  * One router per welding pass, as the generator built one per BuildSmoothPath pass
- * (WaypointMovementGenerator.cpp:366): rebuilt whenever the frame, the map or the instance
- * changed (the driver's own Query() test, MotionDriver.cpp:56-73), and dropped at every
- * Activate and every Resume(reset) so a fresh pass starts from a fresh query.
+ * (WaypointMovementGenerator.cpp:366): the native drops it through ResetRoute at the head of
+ * every pass, and the legs welded within that pass then share it, exactly as the generator's
+ * legs shared the query it had just built. It is rebuilt here as well whenever the frame, the
+ * map or the instance changed (the driver's own Query() test, MotionDriver.cpp:56-73), and
+ * dropped at every Activate and every Resume(reset).
  */
 Motion::RouteResult NativeBehaviour::Route(Motion::Vector3 const& from, Motion::Vector3 const& to, Motion::PointsArray& points)
 {
@@ -585,6 +624,12 @@ Motion::RouteResult NativeBehaviour::Route(Motion::Vector3 const& from, Motion::
     return r;
 }
 
+/**
+ * @brief Drops the router: the next route is the first leg of a fresh welding pass.
+ */
+void NativeBehaviour::ResetRoute() { m_query.reset(); }
+
+bool NativeBehaviour::CanMove() const { return !U().hasUnitState(UNIT_STAT_CAN_NOT_MOVE); }
 bool NativeBehaviour::Casting() const { return U().IsNonMeleeSpellCasted(false, false, true); }
 bool NativeBehaviour::WaypointPaused() const { return U().hasUnitState(UNIT_STAT_WAYPOINT_PAUSED); }
 

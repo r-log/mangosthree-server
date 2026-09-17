@@ -28,8 +28,10 @@
 #include "Creature.h"
 #include "MotionMaster.h"
 #include "WaypointManager.h"
+#include "Utilities/MathDefines.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -51,9 +53,6 @@ namespace Harness
         const Pt P0_FAR = { -3152.6f, -231.3f, 46.0f };   // node 3: the square's far (diagonal) corner
         const Pt P0_N4  = { -3122.6f, -231.3f, 46.0f };   // node 4
 
-        const float kPi = 3.14159265358979323846f;
-        const float kTwoPi = kPi * 2.0f;
-
         /// The nodes a sample recorded, comma-joined, as ScenariosPatrol.cpp's JoinNodes does
         /// (copied here rather than shared: each family's copy stays a one-line function).
         std::string JoinNodes(std::vector<uint32> const& nodes)
@@ -72,15 +71,24 @@ namespace Harness
             return out;
         }
 
+        /// The bearing from one point to another, normalized into [0, 2*pi) the way
+        /// Geometry::Placement::Face stores every facing, so AngleDiff can compare a sampled
+        /// facing against it directly.
+        float Bearing(Pt const& from, Pt const& to)
+        {
+            const float a = std::atan2(to.y - from.y, to.x - from.x);
+            return (a >= 0.0f) ? a : 2.0f * M_PI_F + a;
+        }
+
         /// The shorter angular distance between two facings (both already in [0, 2*pi), as
         /// Geometry::Placement::Face normalizes every write): wraps at pi, so a facing near
         /// 0/2*pi still compares correctly against a target near the other end.
         float AngleDiff(float a, float b)
         {
             float d = std::fabs(a - b);
-            if (d > kPi)
+            if (d > M_PI_F)
             {
-                d = kTwoPi - d;
+                d = 2.0f * M_PI_F - d;
             }
             return d;
         }
@@ -133,7 +141,7 @@ namespace Harness
                         if (reached->empty() || reached->back() != wp)
                         {
                             reached->push_back(wp);
-                            Log("+%3us at %.1f %.1f mt=%s reached node %u", i, px, py, TypeName(a), wp);
+                            Log("+%3us at %.1f %.1f mt=%s at node %u", i, px, py, TypeName(a), wp);
                         }
                         const size_t legPoints = a->GetMotionMaster()->SelectedPatrolLegPoints();
                         if (legPoints != *lastLegPoints)
@@ -176,7 +184,8 @@ namespace Harness
                     }
 
                     std::string body = std::string(welded) + " | " + informsInOrder + " | lapContinues=" +
-                                        (lapContinues ? "OK" : "BUG(no second lap in 60 s)") +
+                                        (lapContinues ? std::string("OK")
+                                                      : "BUG(no second lap in 60 s; informed ids: " + JoinNodes(ids) + ")") +
                                         " (nodes in order: " + JoinNodes(*reached) + ")";
                     Verdict(body);
                 });
@@ -188,7 +197,7 @@ namespace Harness
         /// (4.7 rad) the native must ignore, keeping the travel facing instead. `facesAtWait`
         /// polls the wait at node 2, which holds for 3 s -- ample time for a 250 ms sample to
         /// land inside it. `travelFacingElse` cannot poll the same way: node 3 has no delay,
-        /// so Node() reads 3 for at most the native's own PrepareInform barrier (one tick,
+        /// so Node() reads 3 for at most the native's own PrepareInform round (one tick,
         /// proven on the seeded run: even a 1.5 yd position window never sampled it), too
         /// narrow a window for a 250 ms cadence to hit reliably. It reads the facing from
         /// inside the arrival's own inform instead, where the moment is exact rather than a
@@ -203,7 +212,7 @@ namespace Harness
             /// might catch after the driver has already moved on to the next leg.
             void OnInform(Creature* creature, uint32 type, uint32 id) override
             {
-                if (type == EXTERNAL_WAYPOINT_MOVE + kFacePath && id == 3)
+                if (creature->GetGUIDLow() == m_low && type == EXTERNAL_WAYPOINT_MOVE + kFacePath && id == 3)
                 {
                     const float facing = creature->Where().Facing();
                     m_atNode3.push_back(facing);
@@ -214,6 +223,7 @@ namespace Harness
             void Prepare() override
             {
                 m_atNode3.clear();
+                m_low = 0;
                 Creature* a = Spawn(CHICKEN, P0.x, P0.y, P0.z, 0.0f);
                 if (!a)
                 {
@@ -223,6 +233,7 @@ namespace Harness
                 Load(P0_FAR.x, P0_FAR.y);
                 const ObjectGuid g = a->GetObjectGuid();
                 const uint32 low = a->GetGUIDLow();
+                m_low = low;   // the hook below fires for every recording creature: only ours counts
                 auto atNode2 = std::make_shared<std::vector<float> >();
                 At(500, [this, g, low]()
                 {
@@ -272,15 +283,30 @@ namespace Harness
                     }
                     else
                     {
+                        // Not the node's own 4.7 is only half the claim: the facing must be the
+                        // travel direction, which for the 2->3 leg is the bearing between the two
+                        // nodes (pi/2 here, computed rather than written down).
+                        const float travel = Bearing(P0_N2, P0_FAR);
                         bool allFar = true;
+                        bool allTravel = true;
                         float culprit = m_atNode3.front();
+                        float strayed = m_atNode3.front();
                         for (size_t k = 0; k < m_atNode3.size(); ++k)
                         {
                             if (AngleDiff(m_atNode3[k], 4.7f) <= 0.3f) { allFar = false; culprit = m_atNode3[k]; break; }
                         }
-                        char buf[96];
-                        if (allFar) { snprintf(buf, sizeof(buf), "travelFacingElse=OK(facing %.3f at node 3)", m_atNode3.front()); }
-                        else { snprintf(buf, sizeof(buf), "travelFacingElse=BUG(faced the node's orientation %.3f)", culprit); }
+                        for (size_t k = 0; k < m_atNode3.size(); ++k)
+                        {
+                            if (AngleDiff(m_atNode3[k], travel) > 0.3f) { allTravel = false; strayed = m_atNode3[k]; break; }
+                        }
+                        char buf[160];
+                        if (allFar && allTravel)
+                        {
+                            snprintf(buf, sizeof(buf), "travelFacingElse=OK(facing %.3f at node 3: %.3f rad from the node's 4.7, %.3f rad from the 2->3 bearing %.3f)",
+                                     m_atNode3.front(), AngleDiff(m_atNode3.front(), 4.7f), AngleDiff(m_atNode3.front(), travel), travel);
+                        }
+                        else if (!allFar) { snprintf(buf, sizeof(buf), "travelFacingElse=BUG(faced the node's orientation %.3f)", culprit); }
+                        else { snprintf(buf, sizeof(buf), "travelFacingElse=BUG(facing %.3f is %.3f rad off the 2->3 bearing %.3f)", strayed, AngleDiff(strayed, travel), travel); }
                         travelFacingElse = buf;
                     }
                     Verdict(facesAtWait + " | " + travelFacingElse);
@@ -289,10 +315,11 @@ namespace Harness
 
         private:
             std::vector<float> m_atNode3;   ///< facings OnInform captured at node 3's arrival
+            uint32             m_low = 0;   ///< this scenario's own chicken, for the hook's filter
         };
 
         /// Task 5 / patrol-hook-sets-next-node (47): kHookPath, a plain external square. The
-        /// hook reacts to the MOVE_START barrier for node 2 (fired right after node 1) by
+        /// hook reacts to the MOVE_START inform for node 2 (fired right after node 1) by
         /// calling SetNextWaypoint(4) from inside the inform, the same reentrant pattern
         /// family 1's InformReentersFacade (ScenariosSimple.cpp) uses for a different facade
         /// call. `hookHonoured` reads the next arrival off the redirected node; `noStall`
@@ -303,11 +330,11 @@ namespace Harness
             PatrolHookSetsNextNode() : Scenario("patrol-hook-sets-next-node", 47) {}
 
             /// The recording hook (Scenario.h): called synchronously from inside the native's
-            /// MOVE_START barrier, before the driver prepares the leg toward the named node --
+            /// MOVE_START inform, before the driver prepares the leg toward the named node --
             /// installing SetNextWaypoint here IS reentering the facade from inside the inform.
             void OnInform(Creature* creature, uint32 type, uint32 id) override
             {
-                if (type == EXTERNAL_WAYPOINT_MOVE_START + kHookPath && id == 2 && !m_hooked)
+                if (creature->GetGUIDLow() == m_low && type == EXTERNAL_WAYPOINT_MOVE_START + kHookPath && id == 2 && !m_hooked)
                 {
                     const bool ok = creature->GetMotionMaster()->SetNextWaypoint(4);
                     m_hooked = true;
@@ -320,6 +347,7 @@ namespace Harness
             {
                 m_hooked = false;
                 m_hookMark = 0;
+                m_low = 0;
                 Creature* a = Spawn(CHICKEN, P0.x, P0.y, P0.z, 0.0f);
                 if (!a)
                 {
@@ -329,6 +357,7 @@ namespace Harness
                 Load(P0_FAR.x, P0_FAR.y);
                 const ObjectGuid g = a->GetObjectGuid();
                 const uint32 low = a->GetGUIDLow();
+                m_low = low;   // the hook and the scan below both count only our own chicken
                 auto reached = std::make_shared<std::vector<uint32> >();
                 At(500, [this, g, low]()
                 {
@@ -346,7 +375,7 @@ namespace Harness
                         if (reached->empty() || reached->back() != wp)
                         {
                             reached->push_back(wp);
-                            Log("+%3us at %.1f %.1f mt=%s reached node %u", i, px, py, TypeName(a), wp);
+                            Log("+%3us at %.1f %.1f mt=%s at node %u", i, px, py, TypeName(a), wp);
                         }
                     });
                 }
@@ -363,7 +392,7 @@ namespace Harness
                     for (size_t k = m_hookMark; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];
-                        if (r.type != EXTERNAL_WAYPOINT_MOVE + kHookPath) { continue; }
+                        if (r.guidLow != m_low || r.type != EXTERNAL_WAYPOINT_MOVE + kHookPath) { continue; }
                         ++arrivals;
                         if (!found && r.id != 1) { found = true; nextArrival = r.id; }
                     }
@@ -380,6 +409,7 @@ namespace Harness
         private:
             bool   m_hooked;
             size_t m_hookMark;
+            uint32 m_low;    ///< this scenario's own chicken, for the hook's and the scan's filter
         };
     }
 

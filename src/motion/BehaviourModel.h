@@ -79,6 +79,13 @@ namespace Motion
             virtual int32 Irand(int32 min, int32 max) = 0;
             /// A route in the mover's frame; `points` receives the geometry when usable.
             virtual RouteResult Route(Vector3 const& from, Vector3 const& to, PointsArray& points) = 0;
+            /// Starts the next route from a fresh router: a welding pass begins here, as the
+            /// generator built one router per pass; the mesh router is stateful and reuses a
+            /// previous poly path.
+            virtual void ResetRoute() = 0;
+            /// Live: the unit may move (`!UNIT_STAT_CAN_NOT_MOVE`); the generator re-read it
+            /// after a node's effects, which may have rooted or stunned the unit.
+            virtual bool CanMove() const = 0;
             virtual bool Casting() const = 0;          ///< a non-melee spell in progress (the patrol holds)
             virtual bool WaypointPaused() const = 0;   ///< UNIT_STAT_WAYPOINT_PAUSED, a script's bit
             virtual bool Anchor(Vector3& out) const = 0; ///< the creature's combat anchor; false when zero
@@ -138,6 +145,9 @@ namespace Motion
     };
 
     /// One tick's or one hook's result: shell operations first, then the intent when `apply`.
+    /// A tick's round needs no guard of its own: the shell re-checks alive/in-world/selected
+    /// after every round's effects and drops the round's intent when a hook the effects fired
+    /// has replaced or suspended the behaviour.
     struct Step
     {
         bool       stop = false;      ///< Unit::StopMoving (a Point's activation)
@@ -147,8 +157,7 @@ namespace Motion
         bool       apply = false;     ///< hand `intent` to the driver (Move/Hold) or the launcher (Launch)
         MoveIntent intent;
         std::vector<Effect> effects;  ///< performed by the shell after the stop/interrupt/roaming writes and before the intent, in order; creatures only
-        bool       barrier = false;   ///< after the effects: stop unless the unit is alive, in world and this behaviour still selected
-        bool       again = false;     ///< call Tick again at once (no elapsed time) instead of applying the intent; the round's Sight is one snapshot shared by every round of one Tick, but the Services reads (Casting, WaypointPaused, Anchor) are live -- a native observes its own ClearWaypointPaused through the port, not the Sight
+        bool       again = false;     ///< call Tick again at once (no elapsed time) instead of applying the intent; the round's Sight is one snapshot shared by every round of one Tick, but the Services reads (CanMove, Casting, WaypointPaused, Anchor) are live -- a native observes its own ClearWaypointPaused through the port, not the Sight
 
         static Step None() { return Step(); }
         static Step Of(MoveIntent const& i) { Step s; s.apply = true; s.intent = i; return s; }
