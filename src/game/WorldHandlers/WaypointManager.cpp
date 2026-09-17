@@ -497,6 +497,39 @@ bool WaypointManager::AddExternalNode(uint32 entry, int32 pathId, uint32 pointId
 }
 
 /**
+ * It adds a waypoint to the entry-path template map, in memory only: no database row (the
+ * GM harness's AddEntryNode: WaypointManager offers no in-memory adder for an entry-origin
+ * path otherwise, since AddNode's toolbox writes the database).
+ * @param entry The entry of the NPC you want to add the waypoint to.
+ * @param pathId This is the path ID. It's a number between 0 and 255.
+ * @param pointId The point ID of the waypoint.
+ * @param x The X coordinate of the waypoint.
+ * @param y The Y coordinate of the waypoint.
+ * @param z The Z coordinate of the waypoint.
+ * @param o The orientation
+ * @param waittime The time in milliseconds that the NPC will wait at this node before moving to the
+ * next node.
+ * @return a boolean value.
+ */
+bool WaypointManager::AddEntryNode(uint32 entry, int32 pathId, uint32 pointId, float x, float y, float z, float o, uint32 waittime)
+{
+    if (pathId < 0 || pathId >= 0xFF)
+    {
+        sLog.outErrorScriptLib("WaypointManager::AddEntryNode: (Npc-Entry %u, PathId %i) Invalid pathId", entry, pathId);
+        return false;
+    }
+
+    if (!MaNGOS::IsValidMapCoord(x, y, z, o))
+    {
+        sLog.outErrorScriptLib("WaypointManager::AddEntryNode: (Npc-Entry %u, PathId %i) Invalid coordinates", entry, pathId);
+        return false;
+    }
+
+    m_pathTemplateMap[(entry << 8) + pathId][pointId] = WaypointNode(x, y, z, o, waittime, 0, NULL);
+    return true;
+}
+
+/**
  * It adds a new waypoint to the waypoint path
  * @param entry The entry of the creature.
  * @param dbGuid The GUID of the creature in the database.

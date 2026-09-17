@@ -1494,6 +1494,20 @@ uint32 MotionMaster::SelectedPatrolNode() const
 }
 
 /**
+ * @brief The selected patrol's welded leg's point count (the harness's welding measurement).
+ * @return The point count, or 0 when the selection is not a patrol.
+ */
+size_t MotionMaster::SelectedPatrolLegPoints() const
+{
+    Bound const* bound = SelectedBound();
+    if (!bound || bound->behaviour->Kind() != Motion::Kind::Patrol)
+    {
+        return 0;
+    }
+    return static_cast<Motion::PatrolBehaviour const*>(static_cast<NativeBehaviour const*>(bound->behaviour.get())->Native())->LegPointCount();
+}
+
+/**
  * @brief Gets the destination coordinates.
  * @param x Reference to the X-coordinate.
  * @param y Reference to the Y-coordinate.

@@ -169,6 +169,10 @@ class WaypointManager
         std::string GetExternalWPTable() const { return m_externalTable; }
         /// Add Nodes from external sources
         bool AddExternalNode(uint32 entry, int32 pathId, uint32 pointId, float x, float y, float z, float o, uint32 waittime);
+        /// An in-memory entry path for the harness: no database row (mirrors AddExternalNode,
+        /// but into the entry-origin template map -- PATH_FROM_ENTRY, so a patrol loaded from
+        /// it welds its legs, which an external path never does).
+        bool AddEntryNode(uint32 entry, int32 pathId, uint32 pointId, float x, float y, float z, float o, uint32 waittime);
 
         // Toolbox for .wp add command
         /// Add a node as position pointId. If pointId == 0 then as last point

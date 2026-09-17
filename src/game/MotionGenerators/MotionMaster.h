@@ -170,6 +170,8 @@ class MotionMaster
         bool AddToSelectedPatrolPause(int32 ms);
         /// The selected patrol's current node; 0 when the selection is not a patrol.
         uint32 SelectedPatrolNode() const;
+        /// The selected patrol's welded leg's point count (the harness's welding measurement); 0 when the selection is not a patrol.
+        size_t SelectedPatrolLegPoints() const;
         bool GetDestination(float& x, float& y, float& z);
 
         /// Death: every behaviour finishes Died while the unit still reads alive, then the idle default.
