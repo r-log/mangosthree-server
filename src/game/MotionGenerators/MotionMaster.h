@@ -58,8 +58,8 @@ enum MovementGeneratorType
     MAX_DB_MOTION_TYPE = 3,                ///< Maximum database motion type (values below this can be set in DB)
 
     CONFUSED_MOTION_TYPE = 4,              ///< Confused movement (ConfusedMovementGenerator.h)
-    CHASE_MOTION_TYPE = 5,                 ///< Chase movement (TargetedMovementGenerator.h)
-    HOME_MOTION_TYPE = 6,                  ///< Return home movement (HomeMovementGenerator.h)
+    CHASE_MOTION_TYPE = 5,                 ///< Chase movement (Motion::ChaseBehaviour)
+    HOME_MOTION_TYPE = 6,                  ///< Return home movement (Motion::HomeBehaviour)
     FLIGHT_MOTION_TYPE = 7,                ///< Flight movement (FlightPathMovementGenerator.h)
     POINT_MOTION_TYPE = 8,                 ///< Point movement (Motion::PointBehaviour; fly/land projects here too)
     FLEEING_MOTION_TYPE = 9,               ///< Fleeing movement (FleeingMovementGenerator.h)
@@ -67,7 +67,7 @@ enum MovementGeneratorType
     ASSISTANCE_MOTION_TYPE = 11,           ///< Assistance movement (Motion::PointBehaviour - first part of flee for assistance)
     ASSISTANCE_DISTRACT_MOTION_TYPE = 12,  ///< Assistance distract (Motion::DistractBehaviour - second part of flee for assistance)
     TIMED_FLEEING_MOTION_TYPE = 13,        ///< Timed fleeing (FleeingMovementGenerator.h - alternative second part of flee for assistance)
-    FOLLOW_MOTION_TYPE = 14,               ///< Follow movement (TargetedMovementGenerator.h)
+    FOLLOW_MOTION_TYPE = 14,               ///< Follow movement (Motion::FollowBehaviour)
     EFFECT_MOTION_TYPE = 15,               ///< Effect movement
 
     EXTERNAL_WAYPOINT_MOVE = 256,          ///< External waypoint move (used in CreatureAI::MovementInform when waypoint reached)
@@ -80,6 +80,7 @@ namespace Motion
     class Behaviour;      ///< a native kernel behaviour (src/motion/BehaviourModel.h); the .cpp has the definition
     class PatrolBehaviour; ///< the waypoint patrol native (src/motion/DefaultMoves.h)
     struct EffectLaunch;   ///< a jump, a knockback arc or a fall (src/motion/MoveIntent.h); the .cpp has the definition
+    struct RelayCounts;    ///< a tracking native's re-lays by cause (src/motion/BehaviourModel.h)
 
     /**
      * @brief The identity of a Control claim: the aura that holds it.
@@ -220,6 +221,9 @@ class MotionMaster
         Motion::PatrolBehaviour const* HeldPatrol() const;
         /// The held taxi flight, else NULL.
         FlightPathMovementGenerator* HeldFlight();
+        /// The selected native's re-lay counters by cause (design v2 §5), else NULL: a legacy
+        /// binding and a native that counts nothing both answer NULL.
+        Motion::RelayCounts const* SelectedRelays() const;
 
         /// One held entry for a listing: what it is, without asking a generator for it.
         struct HeldView

@@ -105,13 +105,13 @@ namespace Motion
     {
         bool    valid = false;       ///< resolved this tick, alive, in the world, sharing the mover's frame
         Vector3 position;            ///< the live position: the running spline's, else the placement
-        float   facing = 0.0f;
+        float   facing = 0.0f;       ///< its orientation, in the mover's frame
         float   extent = 0.0f;       ///< bounding radius
         float   reachSum = 0.0f;     ///< the two combat reaches, no offset
         float   meleeRange = 5.0f;   ///< max(reachSum + 4/3, 5): the client's own test
-        bool    walking = false;
+        bool    walking = false;     ///< it is in walk mode: a follower mirrors the gait
         bool    isVictim = false;    ///< the mover's current victim
-        bool    moving = false;
+        bool    moving = false;      ///< it is under way, whether or not the velocity is trusted
         Vector3 velocity;            ///< frame yd/s, zero unless trusted
         bool    velocityTrusted = false;
     };

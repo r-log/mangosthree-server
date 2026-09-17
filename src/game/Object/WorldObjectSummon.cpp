@@ -43,7 +43,6 @@
 #include "MapManager.h"
 #include "Log.h"
 #include "Transports.h"
-#include "TargetedMovementGenerator.h"
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -254,12 +253,12 @@ namespace MaNGOS
             /**
              * @brief Constructor
              * @param obj Source object
+             * @param center The point the used-position accounting is laid out around; the
+             *        anchor's own placement when the caller has no live centre of its own.
              * @param searcher Object searching for position
              * @param absAngle Absolute angle
              * @param selector Position selector
              */
-            /// @param center The point the used-position accounting is laid out around; the
-            ///        anchor's own placement when the caller has no live centre of its own.
             NearUsedPosDo(WorldObject const& obj, Geometry::Vector3 const& center, WorldObject const* searcher, float absAngle, ObjectPosSelector& selector)
                 : i_object(obj), i_searcher(searcher), i_absAngle(Geometry::Placement::NormalizeOrientation(absAngle)), i_selector(selector), i_at(obj.Where())
             {

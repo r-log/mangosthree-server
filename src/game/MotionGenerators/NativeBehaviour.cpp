@@ -120,11 +120,11 @@ MovementGeneratorType NativeBehaviour::Project(Motion::Kind kind)
         case Motion::Kind::Effect:         return EFFECT_MOTION_TYPE;
         case Motion::Kind::Wander:         return RANDOM_MOTION_TYPE;
         case Motion::Kind::Patrol:         return WAYPOINT_MOTION_TYPE;
-        // The six kinds families 2-4 still own: a native is never one of them, and naming
-        // them here makes a kind added later a compile warning instead of a silent Idle.
-        case Motion::Kind::Follow:
-        case Motion::Kind::Chase:
-        case Motion::Kind::Home:
+        case Motion::Kind::Chase:          return CHASE_MOTION_TYPE;
+        case Motion::Kind::Follow:         return FOLLOW_MOTION_TYPE;
+        case Motion::Kind::Home:           return HOME_MOTION_TYPE;
+        // The three kinds family 4 and the taxi still own: a native is never one of them, and
+        // naming them here makes a kind added later a compile warning instead of a silent Idle.
         case Motion::Kind::Fear:
         case Motion::Kind::Confused:
         case Motion::Kind::Taxi:
@@ -234,7 +234,9 @@ void NativeBehaviour::SeeTarget(Unit& owner, Unit& target, Motion::TargetView& v
         in.splineFrom = view.position;
         const Geometry::Vector3 dest = target.movespline->CurrentDestination();
         in.splineTo = local ? dest : frame.FromWorld(owner, dest);
-        in.speed = SpeedNow(target);
+        // The SPLINE's own speed, not the unit's for its mode: a charge runs at 24 yd/s and a
+        // taxi at the path's, both overrides the movement flags know nothing about.
+        in.speed = target.movespline->Velocity();
     }
     else if (target.MoverSession() != NULL)
     {
@@ -818,7 +820,10 @@ bool NativeBehaviour::CanFly() const { return U().GetTypeId() == TYPEID_UNIT && 
 bool NativeBehaviour::StandingSpot(Motion::Vector3 const& center, float distance2d, float absAngle, Motion::Vector3& out)
 {
     Unit* target = ObjectLookup::GetUnit(U(), ObjectGuid(m_native->Target()));
-    if (!target)
+    // The same three conditions SeeTarget demands before it fills the view: a dead, unloaded or
+    // differently framed anchor would send the search through another frame's grid and hand back
+    // a point in coordinates the mover does not speak. No spot at all is the honest answer.
+    if (!target || !target->IsAlive() || !target->IsInWorld() || !U().Where().ShareFrame(target->Where()))
     {
         return false;
     }

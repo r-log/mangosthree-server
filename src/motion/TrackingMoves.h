@@ -29,10 +29,10 @@
 #include "BehaviourModel.h"
 
 // Three natives, pure kernel policy (P5-B family 3). ChaseBehaviour and FollowBehaviour keep
-// a distance from another unit, replacing TargetedMovementGenerator together with its
-// ChaseMovementGenerator and FollowMovementGenerator subclasses -- all three already deleted
-// from src/game/MotionGenerators/ on this branch. HomeBehaviour is the evade return,
-// replacing HomeMovementGenerator.h/.cpp, still in the tree until the shell switches to it.
+// a distance from another unit, replacing the deleted TargetedMovementGenerator together
+// with its chase and follow subclasses. HomeBehaviour is the evade return, replacing the
+// deleted HomeMovementGenerator. All six files left src/game/MotionGenerators/ with the
+// shell switch, along with the FollowerReference link they held their target through.
 // Everything the generator did to its unit (the free-spot search, the live cast read, the
 // speed sync, the attack in reach, the block-safe state clear, the arrival recipe) is a
 // Services call or an Effect now.
@@ -40,9 +40,8 @@
 namespace Motion
 {
     /// The chase's and the follow's shared policy (design §4): the deleted
-    /// TargetedMovementGenerator::Intent() with one routine cadence per kind and counted
-    /// event recoveries in place of the 100/50 ms polls. Replaces src/game/MotionGenerators/
-    /// TargetedMovementGenerator.h/.cpp (deleted on this branch).
+    /// the deleted TargetedMovementGenerator::Intent() with one routine cadence per kind and
+    /// counted event recoveries in place of the 100/50 ms polls.
     class TrackingBehaviour : public Behaviour
     {
         public:
@@ -149,7 +148,7 @@ namespace Motion
             FollowParams m_f;               ///< the follow's own fields, beside the shared Params
     };
 
-    /// The evade return (design §4.3): the deleted HomeMovementGenerator with the block-safe clear
+    /// The evade return (design §4.3): the deleted home generator with the block-safe clear
     /// and a forced endpoint.
     class HomeBehaviour : public Behaviour
     {
