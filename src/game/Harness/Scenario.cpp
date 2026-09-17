@@ -162,6 +162,18 @@ namespace Harness
         return map ? map->GetCreature(guid) : NULL;
     }
 
+    void Scenario::Silence(Creature* c)
+    {
+        if (!c)
+        {
+            return;
+        }
+        if (HarnessAI* recording = dynamic_cast<HarnessAI*>(c->AI()))
+        {
+            delete recording->Release();   // the decorator stays; the AI it forwarded to is gone
+        }
+    }
+
     MovementGeneratorType Scenario::Type(Creature* c) const
     {
         // The binding's projection, not a generator's: the simple moves are natives now.
@@ -171,6 +183,11 @@ namespace Harness
     uint32 Scenario::Node(Creature* c) const
     {
         return c ? c->GetMotionMaster()->SelectedPatrolNode() : 0;
+    }
+
+    Motion::RelayCounts const* Scenario::Relays(Creature* c) const
+    {
+        return c ? c->GetMotionMaster()->SelectedRelays() : NULL;
     }
 
     void Scenario::Log(char const* fmt, ...) const

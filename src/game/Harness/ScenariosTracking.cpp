@@ -1,0 +1,1207 @@
+/**
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * MaNGOS is a full featured server for World of Warcraft, supporting
+ * the following clients: 1.12.x, 2.4.3, 3.3.5a, 4.3.4a and 5.4.8
+ *
+ * Copyright (C) 2005-2026 MaNGOS <https://www.getmangos.eu>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * World of Warcraft, and all World of Warcraft or Warcraft art, images,
+ * and lore are copyrighted by Blizzard Entertainment, Inc.
+ */
+
+#include "Scenario.h"
+#include "Harness.h"
+#include "Creature.h"
+#include "CreatureAI.h"
+#include "MotionMaster.h"
+#include "BehaviourModel.h"   // Motion::RelayCounts by value: MotionMaster.h only forward-declares it
+#include "movement/MoveSpline.h"
+#include "Utilities/MathDefines.h"
+#include "Log.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+// The tracking-move scenarios (P5-B family 3, orders 48-53): what the chase, the follow and
+// the home natives claim and no older family ever asked. The chase's counted re-lay budget
+// against a target that walks a straight line, stops, reverses and then circles, and where
+// it comes to rest against one that cannot move at all; the follow's pace and band behind a
+// running leader, the leader's facing copied at rest and the travel facing kept on a leg,
+// and a leader that changes the KIND of its movement under the follower; the evade that
+// waits under a root and runs its arrival recipe exactly once. Every scenario spawns its own
+// actors at the block family's spot and the runner despawns them. Pt, Spread and Dist2 are
+// the shared ones (Scenario.h).
+namespace Harness
+{
+    namespace
+    {
+        const uint32 WOLF = 69;
+        const uint32 KOBOLD = 6;
+        const uint32 CHICKEN = 621;     // a walker: the follow's gait mirror wants a leader that walks
+        const Pt SE = { -3200.0f, -300.0f, 47.0f };   // the block family's spot (ScenariosBlock.cpp)
+        const uint32 ROOT = 745;        // Web: a plain root aura, about 5 s, no damage
+
+        /// Pet.h's PET_FOLLOW_DIST and PET_FOLLOW_ANGLE, copied rather than included: the
+        /// harness has no other reason to pull the pet header in, and a pet's own numbers are
+        /// what a follow is asked for everywhere in the shell.
+        const float FOLLOW_DIST = 1.0f;
+        const float FOLLOW_ANGLE = (M_PI_F / 4.00f) * 3.50f;
+
+        /// Three dimensions, unlike the shared planar Dist2: a chase's stop is measured the
+        /// way the engage effect measures its reach (NativeBehaviour.cpp), in all three.
+        float Dist3(float x1, float y1, float z1, float x2, float y2, float z2)
+        {
+            const float dx = x1 - x2, dy = y1 - y2, dz = z1 - z2;
+            return std::sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        }
+
+        float Dist3(Creature* a, Creature* b)
+        {
+            return Dist3(a->Where().X(), a->Where().Y(), a->Where().Z(),
+                         b->Where().X(), b->Where().Y(), b->Where().Z());
+        }
+
+        /// The bearing from one point to another in [0, 2*pi), as Geometry::Placement::Face
+        /// stores every facing (ScenariosDefault.cpp's own copy of the same one-liner).
+        float Bearing(float fx, float fy, float tx, float ty)
+        {
+            const float a = std::atan2(ty - fy, tx - fx);
+            return (a >= 0.0f) ? a : 2.0f * M_PI_F + a;
+        }
+
+        /// The shorter angular distance between two facings, both already normalised.
+        float AngleDiff(float a, float b)
+        {
+            float d = std::fabs(a - b);
+            if (d > M_PI_F)
+            {
+                d = 2.0f * M_PI_F - d;
+            }
+            return d;
+        }
+
+        /// The pair's combat reaches, the chase's band is built on (design §6.1).
+        float ReachSum(Creature* a, Creature* b)
+        {
+            return a->GetFloatValue(UNIT_FIELD_COMBATREACH) + b->GetFloatValue(UNIT_FIELD_COMBATREACH);
+        }
+
+        /// The client's own melee range for the pair: the chase's re-approach edge.
+        float MeleeRange(Creature* a, Creature* b)
+        {
+            return std::max(ReachSum(a, b) + 4.0f / 3.0f, 5.0f);
+        }
+
+        /// The two bounding radii a follow's standing distance folds in beside its offset.
+        float ExtentSum(Creature* a, Creature* b)
+        {
+            return a->Where().Extent() + b->Where().Extent();
+        }
+
+        /// "routine 12, cut 1, partial 0, blocked 0, finished 3, first 1 (total 17)".
+        std::string Causes(Motion::RelayCounts const& c)
+        {
+            char text[160];
+            snprintf(text, sizeof(text), "routine %u, cut %u, partial %u, blocked %u, finished %u, first %u (total %u)",
+                     c.routine, c.cut, c.partial, c.blocked, c.finished, c.first, c.Total());
+            return text;
+        }
+
+        /// A creature's own default movement is a random wander around its spawn, so the moment
+        /// a scripted leg ends it heads back there -- 56 yd of it, on the first run of order 48,
+        /// which is also why a scenario watching for "the leg finished" never saw a finalized
+        /// spline: the wander laid the next leg on the same tick. MoveIdle is NOT the answer,
+        /// because an Idle request over a non-empty stack parks a SCRIPTED-layer idle
+        /// (Arbiter::RequestDefault), which outranks the very chase being measured. Naming the
+        /// default idle and re-initialising is: the factory native becomes IdleBehaviour and
+        /// nothing at all moves the actor except this file.
+        void Park(Creature* c)
+        {
+            c->SetDefaultMovementType(IDLE_MOTION_TYPE);
+            c->GetMotionMaster()->Initialize();
+        }
+
+        /// A point leg always runs: MotionMaster::MovePoint asks for no gait at all and the
+        /// driver reads MOVE_WALK off the intent alone (MotionDriver.cpp: init.SetWalk(intent)),
+        /// so setting the walk flag on a scripted target would make it LOOK like a walker while
+        /// covering ground at 5.4 yd/s. Holding its run speed down to its own walk speed makes
+        /// the flag and the pace agree, which is what a follower mirroring a gait is owed.
+        void WalkPace(Creature* c)
+        {
+            const float rate = c->GetSpeedRate(MOVE_RUN);
+            const float unrated = rate > 0.0f ? c->GetSpeed(MOVE_RUN) / rate : 0.0f;
+            if (unrated > 0.0f)
+            {
+                c->SetSpeedRate(MOVE_RUN, c->GetSpeed(MOVE_WALK) / unrated, true);
+            }
+            c->SetWalk(true, false);
+        }
+
+        /// A point on the circle of `radius` around `centre`, at octant `idx` of eight.
+        Pt Octant(Pt const& centre, uint32 idx, float radius)
+        {
+            const float a = 2.0f * M_PI_F * (float(idx % 8) / 8.0f);
+            Pt p = { centre.x + radius * std::cos(a), centre.y + radius * std::sin(a), centre.z };
+            return p;
+        }
+
+        /// Order 48: the chase's re-lay budget. A wolf chases a kobold that walks a 60 yd
+        /// straight line, stands 3 s, reverses 30 yd and then circles the wolf: four kinds of
+        /// drift against one 1 Hz routine cadence (design §5, §6.1). `routineBudget` is the
+        /// design's own number -- one routine re-lay per second is the ceiling the cadence
+        /// sets, and the generator's 100 ms poll could not have held it. `reacquires` and
+        /// `noOrbit` are what the band buys: it re-approaches once the target leaves the
+        /// client's melee range, and it does not chase its own tail while the target walks
+        /// circles around it -- it covers less ground than the target does, and never falls
+        /// out of reach of it. `engages` reads the EngageInReach effect's outcome.
+        class ChaseRelayBudget : public Scenario
+        {
+        public:
+            ChaseRelayBudget() : Scenario("chase-relay-budget", 48) {}
+
+            void Prepare() override
+            {
+                struct Second { uint32 t; int phase; uint32 routine; bool have; float facing; float dist; };
+                struct State
+                {
+                    int    phase = 1;          ///< 1 the straight line, 2 the stop, 3 the reversal, 4 the circle, 5 done
+                    uint32 phaseAt = 0;        ///< when the current phase began
+                    uint32 circleAt = 0;       ///< when the last circle point was handed out
+                    uint32 circleIdx = 0;
+                    Pt     aEnd = { 0.0f, 0.0f, 0.0f };
+                    Pt     goal = { 0.0f, 0.0f, 0.0f };   ///< where the phase's own point leg was sent
+                    Pt     centre = { 0.0f, 0.0f, 0.0f };
+                    bool   engaged = false;
+                    uint32 reacquireMs = 0;    ///< ms after the reversal at which the gap was back inside melee range
+                    bool   reacquired = false;
+                    float  reacquirePeak = 0.0f;
+                    float  melee = 0.0f;
+                    float  wolfGround = 0.0f;  ///< the ground the chaser covered during the circle
+                    float  kobGround = 0.0f;   ///< and the ground its target covered
+                    Pt     lastW = { 0.0f, 0.0f, 0.0f };
+                    Pt     lastK = { 0.0f, 0.0f, 0.0f };
+                    bool   haveLast = false;
+                    Motion::RelayCounts end;
+                    bool   haveEnd = false;
+                };
+                const uint32 kPhaseAStart = 1000;
+                const float kLine = 60.0f, kBack = 30.0f, kRadius = 6.0f;
+
+                Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* k = Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f);
+                if (!w || !k)
+                {
+                    Verdict("routineBudget=INVALID(spawn failed) | reacquires=INVALID(spawn failed) | noOrbit=INVALID(spawn failed) | engages=INVALID(spawn failed)");
+                    return;
+                }
+                w->SetMaxHealth(500000); w->SetHealth(500000);
+                k->SetMaxHealth(500000); k->SetHealth(500000);
+                k->setFaction(14);
+                // Both AIs go: the kobold's would take the wheel back the moment a scripted leg
+                // ended (the wolf's melee wakes it, and a leg it cannot path arms the no-path
+                // evade, which walked it all the way home mid-phase on the first run of this
+                // scenario), and the wolf's SelectHostileTarget would turn it to face its victim
+                // every tick, which is a facing the chase is supposed to be asking for itself.
+                Silence(w); Silence(k);
+                // A creature default is a random wander around its spawn, so the moment a
+                // scripted point leg ends it walks all the way back there (it did, 56 yd, on the
+                // first run of this scenario). Parked.
+                Park(w); Park(k);
+                WalkPace(k);   // the target walks: the drift the cadence must catch is slow enough to read
+                Load(SE.x + kLine + 10.0f, SE.y);
+                const ObjectGuid g = w->GetObjectGuid(), h = k->GetObjectGuid();
+                auto st = std::make_shared<State>();
+                auto secs = std::make_shared<std::vector<Second> >();
+                st->phaseAt = kPhaseAStart;
+
+                At(500, [this, g, h]()
+                {
+                    Creature* w = Get(g); Creature* k = Get(h); if (!w || !k) { return; }
+                    w->Attack(k, true);
+                    w->AddThreat(k, 1000.0f);
+                    w->GetMotionMaster()->MoveChase(k);
+                    Log("Attack + MoveChase from %.1f yd, mt=%s, reaches %.2f + %.2f, melee range %.2f; the wolf runs at %.2f yd/s, the kobold walks at %.2f",
+                        Dist3(w, k), TypeName(w), w->GetFloatValue(UNIT_FIELD_COMBATREACH),
+                        k->GetFloatValue(UNIT_FIELD_COMBATREACH), MeleeRange(w, k), w->GetSpeed(MOVE_RUN), k->GetSpeed(MOVE_RUN));
+                });
+                At(kPhaseAStart, [this, h, st, kLine]()
+                {
+                    Creature* k = Get(h); if (!k) { return; }
+                    const float tx = k->Where().X() + kLine, ty = k->Where().Y();
+                    st->goal.x = tx; st->goal.y = ty; st->goal.z = SE.z;
+                    k->GetMotionMaster()->MovePoint(1, tx, ty, Ground(tx, ty, SE.z), true);
+                    Log("phase A: the kobold walks %.0f yd straight (+x) to %.1f %.1f", kLine, tx, ty);
+                });
+
+                auto verdict = [this, st, secs, kPhaseAStart]()
+                {
+                    std::string routineBudget, reacquires, noOrbit, engages;
+                    // routineBudget: the routine re-lays the straight walk cost, from the
+                    // second second of the phase (the first carries the very first spot and
+                    // whatever the approach latched) to its last.
+                    std::vector<Second> line;
+                    for (size_t i = 0; i < secs->size(); ++i)
+                    {
+                        Second const& s = (*secs)[i];
+                        if (s.phase == 1 && s.have && s.t >= kPhaseAStart + 2000) { line.push_back(s); }
+                    }
+                    if (line.size() < 3)
+                    {
+                        char text[96];
+                        snprintf(text, sizeof(text), "routineBudget=INVALID(%u seconds of the straight walk sampled)", uint32(line.size()));
+                        routineBudget = text;
+                    }
+                    else
+                    {
+                        const float span = float(line.back().t - line.front().t) / 1000.0f;
+                        const uint32 laid = line.back().routine - line.front().routine;
+                        const float rate = laid / span;
+                        char text[192];
+                        snprintf(text, sizeof(text), "routineBudget=%s(%.2f routine re-lays per second: %u over %.1f s of the straight walk)",
+                                 rate <= 1.0f ? "OK" : "BUG", rate, laid, span);
+                        routineBudget = text;
+                    }
+                    // reacquires: the reversal walks the target out of the band; the chase
+                    // must be back inside the client's melee range within 3 s.
+                    if (!st->melee)
+                    {
+                        reacquires = "reacquires=INVALID(the reversal never ran)";
+                    }
+                    else
+                    {
+                        char text[192];
+                        snprintf(text, sizeof(text), "reacquires=%s(inside the %.2f yd melee range %u ms after the reversal; the gap peaked at %.2f yd)",
+                                 st->reacquired ? "OK" : "BUG", st->melee, st->reacquireMs, st->reacquirePeak);
+                        reacquires = text;
+                    }
+                    // noOrbit: while the target circles, the chase must not spin on the spot
+                    // nor be left behind.
+                    std::vector<Second> circle;
+                    for (size_t i = 0; i < secs->size(); ++i)
+                    {
+                        if ((*secs)[i].phase == 4) { circle.push_back((*secs)[i]); }
+                    }
+                    if (circle.size() < 3)
+                    {
+                        char text[96];
+                        snprintf(text, sizeof(text), "noOrbit=INVALID(%u seconds of the circle sampled)", uint32(circle.size()));
+                        noOrbit = text;
+                    }
+                    else
+                    {
+                        float turn = 0.0f, gap = 0.0f;
+                        for (size_t i = 0; i < circle.size(); ++i)
+                        {
+                            if (i) { turn = std::max(turn, AngleDiff(circle[i].facing, circle[i - 1].facing)); }
+                            gap = std::max(gap, circle[i].dist);
+                        }
+                        // Orbiting is a chaser that covers ground going nowhere, so that is what is
+                        // measured: a chase holding its band walks a fraction of what its target
+                        // walks, an orbiting one walks a whole circumference more. The heading is
+                        // reported but not gated -- the chase faces its victim by rule
+                        // (Facing::ToTarget), and a target walking a 6 yd circle passes within about
+                        // a yard of a chaser standing at the circle's centre, where the bearing to it
+                        // legitimately swings 133 deg in one second while the chaser does not move
+                        // at all. A flat angular bound measures the facing rule, not orbiting.
+                        const bool ok = st->wolfGround <= st->kobGround && gap <= 8.0f;
+                        char text[256];
+                        snprintf(text, sizeof(text), "noOrbit=%s(the chaser covered %.1f yd of ground to its target's %.1f over %u s of the circle, gap peaked at %.2f yd, heading turned at most %.0f deg between samples)",
+                                 ok ? "OK" : "BUG", st->wolfGround, st->kobGround, uint32(circle.size()), gap, turn * 180.0f / M_PI_F);
+                        noOrbit = text;
+                    }
+                    engages = st->engaged ? "engages=OK(the kobold was the wolf's victim and the wolf was meleeing)"
+                                          : "engages=BUG(the wolf never both held the kobold as its victim and carried the melee state)";
+                    std::string tail = st->haveEnd ? (" (re-lays: " + Causes(st->end) + ")") : " (re-lays: the chase was not selected at the end)";
+                    Log("totals: %s", st->haveEnd ? Causes(st->end).c_str() : "the chase was not selected at the end");
+                    Verdict(routineBudget + " | " + reacquires + " | " + noOrbit + " | " + engages + tail);
+                };
+
+                for (uint32 i = 1; i <= 400; ++i)
+                {
+                    At(kPhaseAStart + i * 250, [this, g, h, st, secs, verdict, i, kPhaseAStart, kBack, kRadius]()
+                    {
+                        if (st->phase >= 5) { return; }
+                        Creature* w = Get(g); Creature* k = Get(h); if (!w || !k) { return; }
+                        const uint32 t = kPhaseAStart + i * 250;
+                        Motion::RelayCounts const* rc = Relays(w);
+                        const float d = Dist3(w, k);
+                        if (rc) { st->end = *rc; st->haveEnd = true; }
+                        if (t >= kPhaseAStart + 1000 && w->getVictim() == k && w->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
+                        {
+                            st->engaged = true;
+                        }
+                        if (st->phase == 3 && t <= st->phaseAt + 3000)
+                        {
+                            st->melee = MeleeRange(w, k);
+                            st->reacquirePeak = std::max(st->reacquirePeak, d);
+                            if (!st->reacquired && d <= st->melee)
+                            {
+                                st->reacquired = true;
+                                st->reacquireMs = t - st->phaseAt;
+                            }
+                        }
+                        if (st->phase == 4)
+                        {
+                            const Pt w2 = { w->Where().X(), w->Where().Y(), w->Where().Z() };
+                            const Pt k2 = { k->Where().X(), k->Where().Y(), k->Where().Z() };
+                            if (st->haveLast)
+                            {
+                                st->wolfGround += Dist2(w2.x, w2.y, st->lastW.x, st->lastW.y);
+                                st->kobGround += Dist2(k2.x, k2.y, st->lastK.x, st->lastK.y);
+                            }
+                            st->lastW = w2; st->lastK = k2; st->haveLast = true;
+                        }
+                        if (i % 4 == 0)
+                        {
+                            Second s;
+                            s.t = t; s.phase = st->phase; s.have = rc != NULL;
+                            s.routine = rc ? rc->routine : 0;
+                            s.facing = w->Where().Facing();
+                            s.dist = d;
+                            secs->push_back(s);
+                            Log("+%5ums phase %d re-lays %s | heading %.3f | gap %.2f yd | wolf %.1f %.1f | kobold %.1f %.1f",
+                                t, s.phase, rc ? Causes(*rc).c_str() : "(the chase is not selected)", s.facing, s.dist,
+                                w->Where().X(), w->Where().Y(), k->Where().X(), k->Where().Y());
+                        }
+                        switch (st->phase)
+                        {
+                            case 1:
+                                if (t - st->phaseAt >= 2000 && (k->movespline->Finalized() || Dist2(k->Where().X(), k->Where().Y(), st->goal.x, st->goal.y) <= 1.5f))
+                                {
+                                    st->aEnd.x = k->Where().X(); st->aEnd.y = k->Where().Y(); st->aEnd.z = k->Where().Z();
+                                    st->phase = 2; st->phaseAt = t;
+                                    Log("phase B: the kobold arrived at %.1f %.1f after %u ms and stands 3 s", st->aEnd.x, st->aEnd.y, t - kPhaseAStart);
+                                }
+                                break;
+                            case 2:
+                                if (t - st->phaseAt >= 3000)
+                                {
+                                    const float tx = st->aEnd.x - kBack, ty = st->aEnd.y;
+                                    st->goal.x = tx; st->goal.y = ty; st->goal.z = SE.z;
+                                    k->GetMotionMaster()->MovePoint(2, tx, ty, Ground(tx, ty, SE.z), true);
+                                    st->phase = 3; st->phaseAt = t;
+                                    Log("phase C: the kobold reverses 180 deg and walks %.0f yd back to %.1f %.1f (the wolf is %.2f yd away)", kBack, tx, ty, Dist3(w, k));
+                                }
+                                break;
+                            case 3:
+                                if (t - st->phaseAt >= 2000 && (k->movespline->Finalized() || Dist2(k->Where().X(), k->Where().Y(), st->goal.x, st->goal.y) <= 1.5f))
+                                {
+                                    st->centre.x = w->Where().X(); st->centre.y = w->Where().Y(); st->centre.z = w->Where().Z();
+                                    const float b = Bearing(st->centre.x, st->centre.y, k->Where().X(), k->Where().Y());
+                                    st->circleIdx = uint32((b / (2.0f * M_PI_F)) * 8.0f + 0.5f) % 8;   // the octant the kobold already stands in
+                                    st->phase = 4; st->phaseAt = t; st->circleAt = t;
+                                    ++st->circleIdx;
+                                    const Pt p = Octant(st->centre, st->circleIdx, kRadius);
+                                    k->GetMotionMaster()->MovePoint(3, p.x, p.y, Ground(p.x, p.y, p.z), true);
+                                    Log("phase D: the kobold circles the wolf at %.0f yd around %.1f %.1f, one octant a second", kRadius, st->centre.x, st->centre.y);
+                                }
+                                break;
+                            case 4:
+                                if (t - st->circleAt >= 1000)
+                                {
+                                    st->circleAt = t;
+                                    ++st->circleIdx;
+                                    const Pt p = Octant(st->centre, st->circleIdx, kRadius);
+                                    k->GetMotionMaster()->MovePoint(3, p.x, p.y, Ground(p.x, p.y, p.z), true);
+                                }
+                                if (t - st->phaseAt >= 8000)
+                                {
+                                    st->phase = 5;
+                                    At(500, verdict);
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    });
+                }
+                At(kPhaseAStart + 401 * 250, verdict);   // the phases never completed: whatever was measured, said plainly
+            }
+        };
+
+        /// Order 49: where the chase comes to rest. The kobold is held by a Web for the whole
+        /// measurement, because a chase target that walks into its chaser on its own (the
+        /// wolf's melee wakes the kobold's AI, as root-mid-chase already records) would close
+        /// the band from the other side and what is measured would be the pair's stop, not the
+        /// chase's. `stopDistance` is the band itself (design §6.1: the spot is asked for at
+        /// offset + 0.5 + the two reaches, and the free-spot search adds the two bounding
+        /// radii on top, so the answer sits between the contact gap and the client's melee
+        /// range); `noRelayWhileStanding` is the whole point of the one-second cadence -- a
+        /// target that does not move costs nothing at all; `attacks` reads the engage.
+        class ChaseStopsInsideReach : public Scenario
+        {
+        public:
+            ChaseStopsInsideReach() : Scenario("chase-stops-inside-reach", 49) {}
+
+            void Prepare() override
+            {
+                struct State
+                {
+                    bool   ran = false;         ///< the wolf's spline has been seen running since the chase began
+                    bool   stopped = false;
+                    uint32 stopAt = 0;
+                    float  stop = 0.0f;         ///< the 3D gap at the stop
+                    float  reachSum = 0.0f;
+                    float  melee = 0.0f;
+                    uint32 relaysAtStop = 0;
+                    uint32 relaysAfter = 0;
+                    bool   measured = false;    ///< the 5 s standing window has been read
+                    bool   attacked = false;
+                    bool   haveRelays = false;
+                };
+                Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* k = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
+                if (!w || !k)
+                {
+                    Verdict("stopDistance=INVALID(spawn failed) | noRelayWhileStanding=INVALID(spawn failed) | attacks=INVALID(spawn failed)");
+                    return;
+                }
+                w->SetMaxHealth(500000); w->SetHealth(500000);
+                k->SetMaxHealth(500000); k->SetHealth(500000);
+                k->setFaction(14);
+                Silence(w); Silence(k);   // a silent kobold really does stand: nothing walks it into its chaser
+                Park(w); Park(k);   // and neither wanders back to its spawn between legs
+                const ObjectGuid g = w->GetObjectGuid(), h = k->GetObjectGuid();
+                auto st = std::make_shared<State>();
+                At(700, [this, g, h]()
+                {
+                    Creature* w = Get(g); Creature* k = Get(h); if (!w || !k) { return; }
+                    w->Attack(k, true);
+                    w->AddThreat(k, 1000.0f);
+                    w->GetMotionMaster()->MoveChase(k);
+                    Log("Attack + MoveChase from %.2f yd at a standing target, mt=%s", Dist3(w, k), TypeName(w));
+                });
+                for (uint32 i = 1; i <= 56; ++i)
+                {
+                    At(1000 + i * 250, [this, g, h, st, i]()
+                    {
+                        Creature* w = Get(g); Creature* k = Get(h); if (!w || !k) { return; }
+                        const uint32 t = 1000 + i * 250;
+                        Motion::RelayCounts const* rc = Relays(w);
+                        const bool running = !w->movespline->Finalized();
+                        if (running) { st->ran = true; }
+                        if (!st->stopped && st->ran && !running)
+                        {
+                            st->stopped = true;
+                            st->stopAt = t;
+                            st->stop = Dist3(w, k);
+                            st->reachSum = ReachSum(w, k);
+                            st->melee = MeleeRange(w, k);
+                            st->haveRelays = rc != NULL;
+                            st->relaysAtStop = rc ? rc->Total() : 0;
+                            Log("+%5ums the chase came to rest %.2f yd away (reaches %.2f, melee range %.2f), re-lays %s",
+                                t, st->stop, st->reachSum, st->melee, rc ? Causes(*rc).c_str() : "(the chase is not selected)");
+                        }
+                        if (st->stopped && t <= st->stopAt + 1000 && w->getVictim() == k && w->hasUnitState(UNIT_STAT_MELEE_ATTACKING))
+                        {
+                            st->attacked = true;
+                        }
+                        if (st->stopped && !st->measured && t >= st->stopAt + 5000)
+                        {
+                            st->measured = true;
+                            st->relaysAfter = rc ? rc->Total() : 0;
+                            if (!rc) { st->haveRelays = false; }
+                            Log("+%5ums 5 s of standing later: re-lays %s, gap %.2f yd, the kobold has moved %.2f yd",
+                                t, rc ? Causes(*rc).c_str() : "(the chase is not selected)", Dist3(w, k),
+                                Dist2(k->Where().X(), k->Where().Y(), k->Spawn().X(), k->Spawn().Y()));
+                        }
+                    });
+                }
+                At(15500, [this, st]()
+                {
+                    if (!st->stopped)
+                    {
+                        Verdict("stopDistance=INVALID(the chase never came to rest) | noRelayWhileStanding=INVALID(the chase never came to rest) | attacks=INVALID(the chase never came to rest)");
+                        return;
+                    }
+                    const float low = 0.5f + st->reachSum;
+                    char text[224];
+                    const bool inBand = st->stop >= low && st->stop <= st->melee;
+                    snprintf(text, sizeof(text), "stopDistance=%s(%.2f yd, band [%.2f, %.2f])", inBand ? "OK" : "BUG", st->stop, low, st->melee);
+                    std::string body = text;
+                    if (!st->measured || !st->haveRelays)
+                    {
+                        body += " | noRelayWhileStanding=INVALID(the standing window was never read)";
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | noRelayWhileStanding=%s(%u re-lays at the stop, %u after 5 s of standing)",
+                                 st->relaysAfter == st->relaysAtStop ? "OK" : "BUG", st->relaysAtStop, st->relaysAfter);
+                        body += text;
+                    }
+                    body += st->attacked ? " | attacks=OK(meleeing the kobold within 1 s of the stop)"
+                                         : " | attacks=BUG(not meleeing the kobold within 1 s of the stop)";
+                    Verdict(body);
+                });
+            }
+        };
+
+        /// Order 50: the follow's pace and band behind a running leader. The follower aims one
+        /// 400 ms cadence ahead of a trusted velocity (design §6.2), which is what lets it hold
+        /// a band at all against a leader of its own speed: without the horizon it would fall
+        /// one re-lay behind per second and never recover.
+        class FollowKeepsPace : public Scenario
+        {
+        public:
+            FollowKeepsPace() : Scenario("follow-keeps-pace", 50) {}
+
+            void Prepare() override
+            {
+                struct Sample { uint32 t; float x, y, z; float dist; bool leaderMoving; };
+                struct State
+                {
+                    uint32 leaderStop = 0;
+                    bool   stopped = false;
+                    float  band = 0.0f;      ///< 1.0 + the two extents + 4.0
+                    float  rest = 0.0f;      ///< 1.0 + the two extents + 1.5
+                    float  runSpeed = 0.0f;
+                    float  endGap = -1.0f;
+                    bool   endRead = false;
+                };
+                const float kLeg = 70.0f;
+                Creature* leader = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                const float fx = SE.x - 2.0f, fy = SE.y + 0.8f;
+                Creature* f = Spawn(WOLF, fx, fy, Ground(fx, fy, SE.z), 0.0f);
+                if (!leader || !f)
+                {
+                    Verdict("closingPace=INVALID(spawn failed) | holdsBand=INVALID(spawn failed) | endsBehind=INVALID(spawn failed)");
+                    return;
+                }
+                Silence(leader); Silence(f);     // neither wolf decides anything on its own: the legs here are the script's
+                Park(leader); Park(f);           // no random wander back to the spawn when a leg ends
+                leader->SetWalk(false, false);   // the leader runs; the follower mirrors its gait
+                Load(SE.x + kLeg + 10.0f, SE.y);
+                const ObjectGuid gl = leader->GetObjectGuid(), gf = f->GetObjectGuid();
+                auto st = std::make_shared<State>();
+                auto samples = std::make_shared<std::vector<Sample> >();
+                At(300, [this, gl, gf]()
+                {
+                    Creature* leader = Get(gl); Creature* f = Get(gf); if (!leader || !f) { return; }
+                    f->GetMotionMaster()->MoveFollow(leader, FOLLOW_DIST, FOLLOW_ANGLE);
+                    Log("MoveFollow(%.1f, %.3f) from %.2f yd, mt=%s", FOLLOW_DIST, FOLLOW_ANGLE, Dist3(f, leader), TypeName(f));
+                });
+                At(500, [this, gl, kLeg]()
+                {
+                    Creature* leader = Get(gl); if (!leader) { return; }
+                    const float tx = SE.x + kLeg, ty = SE.y;
+                    leader->GetMotionMaster()->MovePoint(1, tx, ty, Ground(tx, ty, SE.z), true);
+                    Log("the leader runs %.0f yd (+x) at %.2f yd/s", kLeg, leader->GetSpeed(MOVE_RUN));
+                });
+                for (uint32 i = 1; i <= 70; ++i)
+                {
+                    At(500 + i * 500, [this, gl, gf, st, samples, i]()
+                    {
+                        Creature* leader = Get(gl); Creature* f = Get(gf); if (!leader || !f) { return; }
+                        const uint32 t = 500 + i * 500;
+                        Sample s;
+                        s.t = t;
+                        s.x = f->Where().X(); s.y = f->Where().Y(); s.z = f->Where().Z();
+                        s.dist = Dist3(f, leader);
+                        s.leaderMoving = !leader->movespline->Finalized();
+                        samples->push_back(s);
+                        // The trail a one-second drift re-check costs: the follower is always
+                        // aiming at where the leader was up to a cadence ago, so the band it can
+                        // hold is its standing spot plus one second of the leader's travel (the
+                        // 400 ms horizon pays part of that back). A flat 4 yd is not a band at
+                        // all -- it is a bet on the leader's speed, and a 6.00 yd/s leader beats
+                        // it by 0.8 yd every run.
+                        st->band = FOLLOW_DIST + ExtentSum(f, leader) + leader->GetSpeed(MOVE_RUN);
+                        st->rest = FOLLOW_DIST + ExtentSum(f, leader) + 1.5f;
+                        st->runSpeed = f->GetSpeed(MOVE_RUN);
+                        if (!st->stopped && t >= 2000 && !s.leaderMoving)
+                        {
+                            st->stopped = true;
+                            st->leaderStop = t;
+                            Log("+%5ums the leader's leg finished %.1f yd from the start, the follower %.2f yd behind",
+                                t, Dist2(leader->Where().X(), leader->Where().Y(), SE.x, SE.y), s.dist);
+                        }
+                        if (st->stopped && !st->endRead && t >= st->leaderStop + 2000)
+                        {
+                            st->endRead = true;
+                            st->endGap = s.dist;
+                            Log("+%5ums 2 s after the leader stopped: the follower rests %.2f yd behind (spline running=%d)",
+                                t, s.dist, f->movespline->Finalized() ? 0 : 1);
+                        }
+                        if (i % 4 == 0)
+                        {
+                            Log("+%5ums gap %.2f yd, leader moving=%d, follower at %.1f %.1f", t, s.dist, s.leaderMoving ? 1 : 0, s.x, s.y);
+                        }
+                    });
+                }
+                At(36000, [this, st, samples]()
+                {
+                    if (samples->size() < 20)
+                    {
+                        Verdict("closingPace=INVALID(no samples) | holdsBand=INVALID(no samples) | endsBehind=INVALID(no samples)");
+                        return;
+                    }
+                    // closingPace: the ground the follower actually covered over the middle
+                    // six seconds of the leader's run, against its own run speed.
+                    float travelled = 0.0f;
+                    uint32 from = 0, to = 0;
+                    for (size_t i = 0; i < samples->size(); ++i)
+                    {
+                        Sample const& s = (*samples)[i];
+                        if (s.t < 3000 || s.t > 9000) { continue; }
+                        if (!from) { from = s.t; }
+                        else { travelled += Dist3(s.x, s.y, s.z, (*samples)[i - 1].x, (*samples)[i - 1].y, (*samples)[i - 1].z); }
+                        to = s.t;
+                    }
+                    std::string body;
+                    char text[224];
+                    if (to <= from || st->runSpeed <= 0.0f)
+                    {
+                        body = "closingPace=INVALID(the pace window held no samples)";
+                    }
+                    else
+                    {
+                        const float pace = travelled / (float(to - from) / 1000.0f);
+                        const float share = pace / st->runSpeed;
+                        snprintf(text, sizeof(text), "closingPace=%s(%.2f yd/s over %.1f s, %.0f %% of the %.2f yd/s run speed)",
+                                 share >= 0.90f ? "OK" : "BUG", pace, float(to - from) / 1000.0f, share * 100.0f, st->runSpeed);
+                        body = text;
+                    }
+                    // holdsBand: from the third second until the leader stops.
+                    float worst = 0.0f;
+                    uint32 counted = 0;
+                    for (size_t i = 0; i < samples->size(); ++i)
+                    {
+                        Sample const& s = (*samples)[i];
+                        if (s.t < 3000 || (st->stopped && s.t > st->leaderStop)) { continue; }
+                        worst = std::max(worst, s.dist);
+                        ++counted;
+                    }
+                    if (!counted)
+                    {
+                        body += " | holdsBand=INVALID(the band window held no samples)";
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | holdsBand=%s(the gap peaked at %.2f yd over %u samples, band %.2f yd)",
+                                 worst <= st->band ? "OK" : "BUG", worst, counted, st->band);
+                        body += text;
+                    }
+                    if (!st->endRead)
+                    {
+                        body += " | endsBehind=INVALID(the leader never stopped)";
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | endsBehind=%s(%.2f yd behind 2 s after the leader stopped, rest band %.2f yd)",
+                                 st->endGap <= st->rest ? "OK" : "BUG", st->endGap, st->rest);
+                        body += text;
+                    }
+                    Verdict(body);
+                });
+            }
+        };
+
+        /// Order 51: the two facings a follow owns (design §6.2). At rest it copies the
+        /// leader's -- the generator's own rule, and the one a pet's idle pose depends on --
+        /// and while a leg runs it asks for none at all, so the spline's travel facing stands.
+        class FollowCopiesFacing : public Scenario
+        {
+        public:
+            FollowCopiesFacing() : Scenario("follow-copies-facing", 51) {}
+
+            void Prepare() override
+            {
+                struct State
+                {
+                    bool   faced = false;
+                    uint32 facedAt = 0;
+                    uint32 lastMoving = 0;    ///< the last sample at which the follower's spline ran
+                    bool   haveRest = false;
+                    float  restFacing = 0.0f;
+                    uint32 restAt = 0;
+                    uint32 legChecks = 0;
+                    uint32 legMisses = 0;
+                    float  legWorst = 0.0f;
+                    float  legWorstFacing = 0.0f;
+                    float  legWorstTravel = 0.0f;
+                    float  px = 0.0f, py = 0.0f;
+                    bool   havePrev = false;
+                };
+                const float kLeg = 15.0f, kFace = 1.2f;
+                Creature* leader = Spawn(CHICKEN, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                // Twelve yards back along the follow angle, not three: a follower that starts
+                // inside its own band never lays a leg long enough to read a travel facing off
+                // (the first cut of this scenario got four usable samples out of a whole run).
+                const float fx = SE.x + 12.0f * std::cos(FOLLOW_ANGLE), fy = SE.y + 12.0f * std::sin(FOLLOW_ANGLE);
+                Creature* f = Spawn(WOLF, fx, fy, Ground(fx, fy, SE.z), 0.0f);
+                if (!leader || !f)
+                {
+                    Verdict("facesLikeTheLeader=INVALID(spawn failed) | travelFacingOnLegs=INVALID(spawn failed)");
+                    return;
+                }
+                Silence(leader); Silence(f);
+                Park(leader); Park(f);
+                WalkPace(leader);   // a walker in both senses: the flag the follower mirrors and the pace it mirrors
+                const ObjectGuid gl = leader->GetObjectGuid(), gf = f->GetObjectGuid();
+                auto st = std::make_shared<State>();
+                At(300, [this, gl, gf]()
+                {
+                    Creature* leader = Get(gl); Creature* f = Get(gf); if (!leader || !f) { return; }
+                    f->GetMotionMaster()->MoveFollow(leader, FOLLOW_DIST, FOLLOW_ANGLE);
+                    Log("MoveFollow behind the chicken from %.2f yd, mt=%s", Dist3(f, leader), TypeName(f));
+                });
+                At(500, [this, gl, kLeg]()
+                {
+                    Creature* leader = Get(gl); if (!leader) { return; }
+                    const float tx = SE.x + kLeg, ty = SE.y;
+                    leader->GetMotionMaster()->MovePoint(1, tx, ty, Ground(tx, ty, SE.z), true);
+                    Log("the chicken walks %.0f yd (+x) at %.2f yd/s", kLeg, leader->GetSpeed(MOVE_WALK));
+                });
+                for (uint32 i = 1; i <= 100; ++i)
+                {
+                    At(500 + i * 250, [this, gl, gf, st, i, kFace]()
+                    {
+                        Creature* leader = Get(gl); Creature* f = Get(gf); if (!leader || !f) { return; }
+                        const uint32 t = 500 + i * 250;
+                        if (!st->faced && t >= 1500 && leader->movespline->Finalized())
+                        {
+                            leader->SetFacingTo(kFace);
+                            st->faced = true;
+                            st->facedAt = t;
+                            Log("+%5ums the chicken arrived and turned to %.3f rad (its facing reads %.3f)", t, kFace, leader->Where().Facing());
+                        }
+                        const bool moving = !f->movespline->Finalized();
+                        const float x = f->Where().X(), y = f->Where().Y();
+                        const float facing = f->Where().Facing();
+                        if (moving)
+                        {
+                            st->lastMoving = t;
+                            if (st->havePrev && Dist2(x, y, st->px, st->py) >= 0.5f)
+                            {
+                                const float travel = Bearing(st->px, st->py, x, y);
+                                const float off = AngleDiff(facing, travel);
+                                ++st->legChecks;
+                                if (off > 0.35f) { ++st->legMisses; }
+                                if (off > st->legWorst) { st->legWorst = off; st->legWorstFacing = facing; st->legWorstTravel = travel; }
+                                Log("+%5ums on a leg: facing %.3f, travelling %.3f, off by %.3f rad", t, facing, travel, off);
+                            }
+                            st->px = x; st->py = y; st->havePrev = true;
+                        }
+                        else
+                        {
+                            st->havePrev = false;
+                            if (st->faced && t >= st->facedAt + 2000 && st->lastMoving && t >= st->lastMoving + 2000)
+                            {
+                                st->haveRest = true;
+                                st->restFacing = facing;
+                                st->restAt = t;
+                            }
+                        }
+                    });
+                }
+                At(26500, [this, gl, st, kFace]()
+                {
+                    Creature* leader = Get(gl);
+                    const float leaderFacing = leader ? leader->Where().Facing() : kFace;
+                    std::string body;
+                    char text[224];
+                    if (!st->haveRest)
+                    {
+                        body = "facesLikeTheLeader=INVALID(the follower never rested 2 s after the leader turned)";
+                    }
+                    else
+                    {
+                        const float off = AngleDiff(st->restFacing, kFace);
+                        snprintf(text, sizeof(text), "facesLikeTheLeader=%s(facing %.3f at +%u ms, %.3f rad from the leader's %.3f)",
+                                 off <= 0.26f ? "OK" : "BUG", st->restFacing, st->restAt, off, leaderFacing);
+                        body = text;
+                    }
+                    if (!st->legChecks)
+                    {
+                        body += " | travelFacingOnLegs=INVALID(no leg sample moved 0.5 yd between reads)";
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | travelFacingOnLegs=%s(%u of %u samples off by more than 0.35 rad; the worst was %.3f rad, facing %.3f against a travel bearing of %.3f)",
+                                 st->legMisses ? "BUG" : "OK", st->legMisses, st->legChecks, st->legWorst, st->legWorstFacing, st->legWorstTravel);
+                        body += text;
+                    }
+                    Verdict(body);
+                });
+            }
+        };
+
+        /// Order 52: the evade that waits. A root lands on a creature sent home, and the home
+        /// native's first tick -- the one that clears the dynamic states -- must not come until
+        /// the root lifts (design §6.5), because that clear would otherwise erase the block's
+        /// own mirrors. Then exactly one leg carries it home and the arrival recipe runs once.
+        /// A second wolf is displaced under the same root (MoveIdle while it still holds): its
+        /// home never arrived, so JustReachedHome must never be called for it at all.
+        class RootedEvadeWaits : public Scenario
+        {
+        public:
+            RootedEvadeWaits() : Scenario("rooted-evade-waits", 52) {}
+
+            void Prepare() override
+            {
+                struct Wolf
+                {
+                    bool   out = false;        ///< the 30 yd leg finished and the root + home went in
+                    uint32 homeAt = 0;
+                    bool   idled = false;
+                    bool   lifted = false;
+                    uint32 liftAt = 0;
+                    size_t liftMark = 0;       ///< how many informs the run had seen when the root lifted
+                    uint32 rootSamples = 0;
+                    uint32 auraSamples = 0;
+                    uint32 mirrorMisses = 0;
+                    uint32 legsUnderRoot = 0;
+                    std::vector<Pt> underRoot;
+                    bool   wasRunning = false;
+                    uint32 legsAfter = 0;
+                    float  homeGap = 999.0f;
+                };
+                const float kOut = 30.0f;
+                const Pt SEB = { SE.x, SE.y + 40.0f, SE.z };
+                Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* b = Spawn(WOLF, SEB.x, SEB.y, Ground(SEB.x, SEB.y, SEB.z), 0.0f);
+                if (!a || !b)
+                {
+                    Verdict("noLegUnderRoot=INVALID(spawn failed) | rootMirrorKept=INVALID(spawn failed) | oneLegAfterLift=INVALID(spawn failed) | reachedHomeOnce=INVALID(spawn failed) | noRecipeOnDisplacement=INVALID(spawn failed)");
+                    return;
+                }
+                Silence(a); Silence(b);   // the home arrival still records: HarnessAI books it before it forwards
+                Park(a); Park(b);   // the default is a wander around the spawn; the home must be the only thing that goes there
+                Load(SE.x + kOut + 10.0f, SE.y);
+                const ObjectGuid ga = a->GetObjectGuid(), gb = b->GetObjectGuid();
+                const uint32 lowA = a->GetGUIDLow(), lowB = b->GetGUIDLow();
+                auto wa = std::make_shared<Wolf>();
+                auto wb = std::make_shared<Wolf>();
+                const size_t mark = Informs().size();
+                At(400, [this, ga, gb, kOut, SEB]()
+                {
+                    Creature* a = Get(ga); Creature* b = Get(gb); if (!a || !b) { return; }
+                    a->GetMotionMaster()->MovePoint(1, SE.x + kOut, SE.y, Ground(SE.x + kOut, SE.y, SE.z), true);
+                    b->GetMotionMaster()->MovePoint(1, SEB.x + kOut, SEB.y, Ground(SEB.x + kOut, SEB.y, SEB.z), true);
+                    Log("both wolves walk %.0f yd out of their spawn", kOut);
+                });
+                for (uint32 i = 1; i <= 125; ++i)   // 200 ms * 125 = 25 s
+                {
+                    At(400 + i * 200, [this, ga, gb, wa, wb, i]()
+                    {
+                        const uint32 t = 400 + i * 200;
+                        Creature* a = Get(ga); Creature* b = Get(gb); if (!a || !b) { return; }
+                        struct Pair { Creature* c; std::shared_ptr<Wolf> w; char const* name; bool idles; };
+                        Pair pairs[2] = { { a, wa, "A", false }, { b, wb, "B", true } };
+                        for (uint32 p = 0; p < 2; ++p)
+                        {
+                            Creature* c = pairs[p].c;
+                            Wolf& s = *pairs[p].w;
+                            const bool running = !c->movespline->Finalized();
+                            if (!s.out)
+                            {
+                                if (t >= 1400 && !running)
+                                {
+                                    s.out = true;
+                                    s.homeAt = t;
+                                    c->CastSpell(c, ROOT, true);
+                                    c->GetMotionMaster()->MoveTargetedHome();
+                                    Log("+%5ums %s arrived %.1f yd out: Web cast and MoveTargetedHome in the same step (rooted=%d, mt=%s)",
+                                        t, pairs[p].name, Dist2(c->Where().X(), c->Where().Y(), c->Spawn().X(), c->Spawn().Y()),
+                                        c->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0, TypeName(c));
+                                }
+                                s.wasRunning = running;
+                                continue;
+                            }
+                            if (pairs[p].idles && !s.idled && t >= s.homeAt + 1000)
+                            {
+                                s.idled = true;
+                                c->GetMotionMaster()->MoveIdle();
+                                Log("+%5ums B goes idle under the root: its home is displaced, never arrived (rooted=%d, mt=%s)",
+                                    t, c->hasUnitState(UNIT_STAT_ROOT) ? 1 : 0, TypeName(c));
+                            }
+                            const bool rooted = c->hasUnitState(UNIT_STAT_ROOT);
+                            const bool aura = c->HasAura(ROOT);
+                            if (aura)
+                            {
+                                ++s.auraSamples;
+                                if (!rooted) { ++s.mirrorMisses; }
+                            }
+                            if (rooted)
+                            {
+                                ++s.rootSamples;
+                                Pt here = { c->Where().X(), c->Where().Y(), c->Where().Z() };
+                                s.underRoot.push_back(here);
+                                if (running) { ++s.legsUnderRoot; }
+                            }
+                            else if (!s.lifted && s.rootSamples)
+                            {
+                                s.lifted = true;
+                                s.liftAt = t;
+                                s.liftMark = Informs().size();
+                                Log("+%5ums %s: the root lifted after %u samples, mt=%s, %.1f yd from home",
+                                    t, pairs[p].name, s.rootSamples, TypeName(c),
+                                    Dist2(c->Where().X(), c->Where().Y(), c->Spawn().X(), c->Spawn().Y()));
+                            }
+                            if (s.lifted)
+                            {
+                                if (running && !s.wasRunning) { ++s.legsAfter; }
+                                s.homeGap = std::min(s.homeGap, Dist2(c->Where().X(), c->Where().Y(), c->Spawn().X(), c->Spawn().Y()));
+                            }
+                            s.wasRunning = running;
+                            if (i % 5 == 0)
+                            {
+                                Log("+%5ums %s rooted=%d aura=%d spline=%d mt=%s at %.1f %.1f",
+                                    t, pairs[p].name, rooted ? 1 : 0, aura ? 1 : 0, running ? 1 : 0, TypeName(c), c->Where().X(), c->Where().Y());
+                            }
+                        }
+                    });
+                }
+                At(26000, [this, wa, wb, lowA, lowB, mark]()
+                {
+                    std::string body;
+                    char text[256];
+                    if (!wa->rootSamples)
+                    {
+                        body = "noLegUnderRoot=INVALID(A was never rooted) | rootMirrorKept=INVALID(A was never rooted) | oneLegAfterLift=INVALID(A was never rooted) | reachedHomeOnce=INVALID(A was never rooted)";
+                    }
+                    else
+                    {
+                        const float spread = Spread(wa->underRoot);
+                        snprintf(text, sizeof(text), "noLegUnderRoot=%s(stood within %.2f yd over %u rooted samples, %u of them with a spline running)",
+                                 (spread < 0.5f && !wa->legsUnderRoot) ? "OK" : "BUG", spread, wa->rootSamples, wa->legsUnderRoot);
+                        body = text;
+                        snprintf(text, sizeof(text), " | rootMirrorKept=%s(the root state held at %u of the %u samples the Web was on, about %.1f s)",
+                                 wa->mirrorMisses ? "BUG" : "OK", wa->auraSamples - wa->mirrorMisses, wa->auraSamples, wa->auraSamples * 0.2f);
+                        body += text;
+                        if (!wa->lifted)
+                        {
+                            body += " | oneLegAfterLift=INVALID(the root never lifted) | reachedHomeOnce=INVALID(the root never lifted)";
+                        }
+                        else
+                        {
+                            snprintf(text, sizeof(text), " | oneLegAfterLift=%s(%u leg%s after the lift, closing to %.2f yd from home)",
+                                     (wa->legsAfter == 1 && wa->homeGap < 2.0f) ? "OK" : "BUG", wa->legsAfter, wa->legsAfter == 1 ? "" : "s", wa->homeGap);
+                            body += text;
+                            uint32 before = 0, after = 0, atHome = 0;
+                            for (size_t i = mark; i < Informs().size(); ++i)
+                            {
+                                Inform const& r = Informs()[i];
+                                if (r.guidLow != lowA || r.type != HOME_MOTION_TYPE) { continue; }
+                                if (i < wa->liftMark) { ++before; }
+                                else { ++after; }
+                                if (Dist2(r.x, r.y, SE.x, SE.y) <= 2.0f) { ++atHome; }
+                            }
+                            snprintf(text, sizeof(text), " | reachedHomeOnce=%s(%u home inform%s after the lift, %u before it, %u of them within 2 yd of home)",
+                                     (after == 1 && !before && atHome == 1) ? "OK" : "BUG", after, after == 1 ? "" : "s", before, atHome);
+                            body += text;
+                        }
+                    }
+                    uint32 bHome = 0;
+                    for (size_t i = mark; i < Informs().size(); ++i)
+                    {
+                        Inform const& r = Informs()[i];
+                        if (r.guidLow == lowB && r.type == HOME_MOTION_TYPE) { ++bHome; }
+                    }
+                    snprintf(text, sizeof(text), " | noRecipeOnDisplacement=%s(%u home informs for the wolf that went idle under the root)",
+                             bHome ? "BUG" : "OK", bHome);
+                    body += text;
+                    Verdict(body);
+                });
+            }
+        };
+
+        /// Order 53: a leader that changes the KIND of its movement under the follower. A jump
+        /// is a parabola, so its velocity is never trusted (TargetKinematics: an airborne spline
+        /// is moving but untrusted) and the follow's horizon must switch itself off rather than
+        /// lead a follower into thin air. The horizon is read where it shows: a spot led by
+        /// 400 ms of a 7.5 yd/s jump would be laid about two yards IN FRONT of the leader, and
+        /// an unled one is always behind it, whatever the lag. The slow leg that comes after is
+        /// a plain linear one again, and the follower closes on it and holds its band.
+        class FollowOnMovingTargetKinds : public Scenario
+        {
+        public:
+            FollowOnMovingTargetKinds() : Scenario("follow-on-moving-target-kinds", 53) {}
+
+            void Prepare() override
+            {
+                struct State
+                {
+                    float  worstGap = 0.0f;
+                    uint32 airSamples = 0;
+                    uint32 airRelays = 0;         ///< how many fresh spots the follower derived while the leader was in the air
+                    uint32 lastTotal = 0;
+                    bool   haveTotal = false;
+                    float  airAheadWorst = -999.0f;///< how far IN FRONT of the leader a FRESH leg goal was laid, along the jump's axis
+                    float  airLead = 0.0f;        ///< what counts as led: the follow's own standing distance and a little slack
+                    uint32 airGoalChecks = 0;
+                    uint32 walkAt = 0;
+                    bool   walkStopped = false;
+                    uint32 walkStop = 0;
+                    float  walkWorst = 0.0f;
+                    uint32 walkChecks = 0;
+                    float  walkBand = 0.0f;
+                };
+                const float kJump = 10.0f, kWalk = 20.0f;
+                Creature* leader = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                const float fx = SE.x - 2.5f, fy = SE.y + 1.0f;
+                Creature* f = Spawn(WOLF, fx, fy, Ground(fx, fy, SE.z), 0.0f);
+                if (!leader || !f)
+                {
+                    Verdict("noWildGoal=INVALID(spawn failed) | horizonOffWhileAirborne=INVALID(spawn failed) | keepsUpOnTheWalk=INVALID(spawn failed)");
+                    return;
+                }
+                Silence(leader); Silence(f);
+                Park(leader); Park(f);
+                leader->SetWalk(false, false);   // it runs until the walk phase, so the follower may close the jump's gap
+                Load(SE.x + kJump + kWalk + 10.0f, SE.y);
+                const ObjectGuid gl = leader->GetObjectGuid(), gf = f->GetObjectGuid();
+                auto st = std::make_shared<State>();
+                At(300, [this, gl, gf]()
+                {
+                    Creature* leader = Get(gl); Creature* f = Get(gf); if (!leader || !f) { return; }
+                    f->GetMotionMaster()->MoveFollow(leader, FOLLOW_DIST, FOLLOW_ANGLE);
+                    Log("MoveFollow from %.2f yd, mt=%s", Dist3(f, leader), TypeName(f));
+                });
+                At(500, [this, gl, kJump]()
+                {
+                    Creature* leader = Get(gl); if (!leader) { return; }
+                    const float tx = SE.x + kJump, ty = SE.y;
+                    leader->GetMotionMaster()->MoveJump(tx, ty, Ground(tx, ty, SE.z), 7.5f, 5.0f, 53);
+                    Log("the leader jumps %.0f yd (+x)", kJump);
+                });
+                At(2500, [this, gl, st, kJump, kWalk]()
+                {
+                    Creature* leader = Get(gl); if (!leader) { return; }
+                    const float tx = SE.x + kJump + kWalk, ty = SE.y;
+                    WalkPace(leader);
+                    leader->GetMotionMaster()->MovePoint(1, tx, ty, Ground(tx, ty, SE.z), true);
+                    st->walkAt = 2500;
+                    Log("the leader now walks %.0f yd (+x) at %.2f yd/s", kWalk, leader->GetSpeed(MOVE_WALK));
+                });
+                // The horizon has to be read on a FRESH goal, at the harness's own tick: a goal
+                // derived a second ago has had the leader move 7.5 yd out from under it, which
+                // swamps the 3 yd a 400 ms horizon on a 7.5 yd/s jump would add. On a goal at most
+                // one 100 ms tick old the two cases do not overlap: unled, the spot sits within the
+                // follow's standing distance of where the leader IS, minus up to 0.75 yd of tick
+                // lag; led, it would sit 3 yd further along the jump, so between 1.25 and 4 yd in
+                // front. The gate is the standing distance and half a yard of slack for the free-
+                // spot search, which may rotate the spot anywhere around that ring.
+                for (uint32 i = 1; i <= 21; ++i)
+                {
+                    At(500 + i * 100, [this, gl, gf, st, i]()
+                    {
+                        Creature* leader = Get(gl); Creature* f = Get(gf); if (!leader || !f) { return; }
+                        const uint32 t = 500 + i * 100;
+                        if (leader->movespline->Finalized() || !leader->movespline->Airborne()) { return; }
+                        ++st->airSamples;
+                        st->airLead = FOLLOW_DIST + ExtentSum(f, leader) + 0.5f;
+                        Motion::RelayCounts const* rc = Relays(f);
+                        if (!rc) { return; }
+                        const uint32 total = rc->Total();
+                        const bool fresh = st->haveTotal && total > st->lastTotal;
+                        st->lastTotal = total; st->haveTotal = true;
+                        if (!fresh) { return; }
+                        ++st->airRelays;
+                        if (f->movespline->Finalized()) { return; }
+                        const Movement::Vector3 goal = f->movespline->FinalDestination();
+                        // The jump runs along +x, so the signed x offset IS the along-axis one:
+                        // positive means the goal was laid in FRONT of where the leader is.
+                        const float ahead = goal.x - leader->Where().X();
+                        st->airAheadWorst = std::max(st->airAheadWorst, ahead);
+                        ++st->airGoalChecks;
+                        Log("+%5ums the leader is airborne and the follower just laid a leg: the goal is %.2f yd along the jump from the leader's live spot (led would be %.2f or more), %.2f yd from it in all",
+                            t, ahead, st->airLead, Dist3(goal.x, goal.y, goal.z, leader->Where().X(), leader->Where().Y(), leader->Where().Z()));
+                    });
+                }
+                for (uint32 i = 1; i <= 100; ++i)
+                {
+                    At(500 + i * 250, [this, gl, gf, st, i]()
+                    {
+                        Creature* leader = Get(gl); Creature* f = Get(gf); if (!leader || !f) { return; }
+                        const uint32 t = 500 + i * 250;
+                        const float gap = Dist3(f, leader);
+                        st->worstGap = std::max(st->worstGap, gap);
+                        Motion::RelayCounts const* rc = Relays(f);
+                        // From the slow leg's third second on: what the follower must hold once
+                        // the leader is back on the ground and moving at a walking pace.
+                        if (st->walkAt && t >= st->walkAt + 3000 && !st->walkStopped)
+                        {
+                            st->walkWorst = std::max(st->walkWorst, gap);
+                            st->walkBand = FOLLOW_DIST + ExtentSum(f, leader) + 3.0f;
+                            ++st->walkChecks;
+                        }
+                        if (st->walkAt && !st->walkStopped && t >= st->walkAt + 2000 && leader->movespline->Finalized())
+                        {
+                            st->walkStopped = true;
+                            st->walkStop = t;
+                            Log("+%5ums the leader's walk finished, the follower %.2f yd behind", t, gap);
+                        }
+                        if (i % 4 == 0)
+                        {
+                            Log("+%5ums gap %.2f yd, leader walking=%d spline=%d, follower walking=%d re-lays %s",
+                                t, gap, leader->IsWalking() ? 1 : 0, leader->movespline->Finalized() ? 0 : 1,
+                                f->IsWalking() ? 1 : 0, rc ? Causes(*rc).c_str() : "(the follow is not selected)");
+                        }
+                    });
+                }
+                At(26500, [this, st]()
+                {
+                    char text[256];
+                    snprintf(text, sizeof(text), "noWildGoal=%s(the gap peaked at %.2f yd)", st->worstGap <= 15.0f ? "OK" : "BUG", st->worstGap);
+                    std::string body = text;
+                    if (!st->airSamples)
+                    {
+                        body += " | horizonOffWhileAirborne=INVALID(the leader was never sampled airborne)";
+                    }
+                    else if (!st->airGoalChecks)
+                    {
+                        body += " | horizonOffWhileAirborne=INVALID(no fresh leg goal was laid while the leader was airborne: nothing to read a horizon off)";
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | horizonOffWhileAirborne=%s(%u fresh leg goals over %u airborne ticks reached at most %.2f yd along the jump from the leader's live spot, under the %.2f yd a led spot would have needed)",
+                                 st->airAheadWorst <= st->airLead ? "OK" : "BUG",
+                                 st->airGoalChecks, st->airSamples, st->airAheadWorst, st->airLead);
+                        body += text;
+                    }
+                    if (!st->walkChecks)
+                    {
+                        body += " | keepsUpOnTheWalk=INVALID(the walk phase held no samples)";
+                    }
+                    else
+                    {
+                        snprintf(text, sizeof(text), " | keepsUpOnTheWalk=%s(the gap peaked at %.2f yd over %u samples of the walking-pace leg, band %.2f yd)",
+                                 st->walkWorst <= st->walkBand ? "OK" : "BUG", st->walkWorst, st->walkChecks, st->walkBand);
+                        body += text;
+                    }
+                    Verdict(body);
+                });
+            }
+        };
+    }
+
+    void RegisterTrackingScenarios(Runner& r)
+    {
+        r.Register(new ChaseRelayBudget());
+        r.Register(new ChaseStopsInsideReach());
+        r.Register(new FollowKeepsPace());
+        r.Register(new FollowCopiesFacing());
+        r.Register(new RootedEvadeWaits());
+        r.Register(new FollowOnMovingTargetKinds());
+    }
+}
