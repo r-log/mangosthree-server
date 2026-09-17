@@ -1829,7 +1829,9 @@ Unit* MotionMaster::ChaseTarget() const
 {
     std::optional<Motion::Held> const& combat = m_arbiter.Combat();
     Bound const* bound = combat ? Find(combat->seq) : NULL;
-    if (!bound || bound->behaviour->Kind() != Motion::Kind::Chase)
+    // A legacy binding answers nothing here, as SelectedRelays does: the cast below is a
+    // NativeBehaviour's, and a legacy entry is not one.
+    if (!bound || bound->behaviour->Legacy() || bound->behaviour->Kind() != Motion::Kind::Chase)
     {
         return NULL;
     }
@@ -1857,7 +1859,7 @@ Unit* MotionMaster::FollowTarget() const
 {
     std::optional<Motion::Held> const& current = m_arbiter.Default();
     Bound const* bound = (current && current->kind == Motion::Kind::Follow) ? Find(current->seq) : NULL;
-    if (!bound)
+    if (!bound || bound->behaviour->Legacy())   // a legacy binding is not the NativeBehaviour the cast below reads
     {
         return NULL;
     }

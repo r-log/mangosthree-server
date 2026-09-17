@@ -31,8 +31,10 @@
 // Three natives, pure kernel policy (P5-B family 3). ChaseBehaviour and FollowBehaviour keep
 // a distance from another unit, replacing the deleted TargetedMovementGenerator together
 // with its chase and follow subclasses. HomeBehaviour is the evade return, replacing the
-// deleted HomeMovementGenerator. All six files left src/game/MotionGenerators/ with the
-// shell switch, along with the FollowerReference link they held their target through.
+// deleted HomeMovementGenerator. Seven files left the tree with the shell switch: four from
+// src/game/MotionGenerators/ (TargetedMovementGenerator.h/.cpp, HomeMovementGenerator.h/.cpp)
+// and the three of src/game/References/ (FollowerReference.h/.cpp, FollowerRefManager.h), the
+// link they held their target through.
 // Everything the generator did to its unit (the free-spot search, the live cast read, the
 // speed sync, the attack in reach, the block-safe state clear, the arrival recipe) is a
 // Services call or an Effect now.
@@ -40,8 +42,8 @@
 namespace Motion
 {
     /// The chase's and the follow's shared policy (design §4): the deleted
-    /// the deleted TargetedMovementGenerator::Intent() with one routine cadence per kind and
-    /// counted event recoveries in place of the 100/50 ms polls.
+    /// TargetedMovementGenerator::Intent() with one routine cadence per kind and counted
+    /// event recoveries in place of the 100/50 ms polls.
     class TrackingBehaviour : public Behaviour
     {
         public:

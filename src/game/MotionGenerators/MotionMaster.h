@@ -199,11 +199,13 @@ class MotionMaster
         Motion::Kind ActiveKind() const;
         /// A chase is held (the Combat entry), selected or masked.
         bool IsChasing() const;
-        /// The held chase's target, or NULL.
+        /// The held chase's target, or NULL: no chase is held, the entry is a legacy binding,
+        /// or the target has left the world (the guid is resolved now, not a stored pointer).
         Unit* ChaseTarget() const;
         /// The current default is a follow (the parked fallback does not count), selected or masked.
         bool IsFollowing() const;
-        /// The held follow's target, or NULL.
+        /// The held follow's target, or NULL: no follow is the default, the entry is a legacy
+        /// binding, or the target has left the world (the guid is resolved now).
         Unit* FollowTarget() const;
         /// The current default is a patrol, selected or masked.
         bool IsPatrolling() const;
