@@ -70,6 +70,18 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         /// right after construction: what a barrier's IsSelectedSequence checks mid-tick.
         void SetSequence(uint32 seq) { m_seq = seq; }
 
+        /// The native this adapter drives (MotionMaster::HeldPatrol and friends read it).
+        Motion::Behaviour* Native() { return m_native.get(); }
+        Motion::Behaviour const* Native() const { return m_native.get(); }
+
+        /// Forgets the driver's leg (MotionMaster::SetNextWaypoint, after the native accepts
+        /// the jump: the leg the driver was tracking no longer applies).
+        void ResetLeg() { m_driver.ResetLeg(); }
+
+        /// Runs one Step through the shell (MotionMaster::PauseWaypoints, for a step the
+        /// native handed back directly rather than through Activate/Resume/Tick).
+        void PerformStep(Unit& owner, Motion::Step const& step) { Perform(owner, step); }
+
     private:
         // ---- Motion::Services (private: only the native calls these, through the Behaviour hooks) ----
         bool RandomPoint(Motion::Vector3 const& centre, float radius, Motion::Vector3& out) override;

@@ -39,7 +39,8 @@
 #include "FleeingMovementGenerator.h"
 #include "HomeMovementGenerator.h"
 #include "TargetedMovementGenerator.h"
-#include "WaypointMovementGenerator.h"
+#include "FlightPathMovementGenerator.h"
+#include "WaypointManager.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
 #include "Map.h"
@@ -52,34 +53,6 @@
 
 namespace
 {
-    /**
-     * @brief The arbiter kind a legacy generator type projects onto.
-     * @param type The legacy movement generator type.
-     * @return The kind the arbiter holds it under.
-     */
-    Motion::Kind KindOf(MovementGeneratorType type)
-    {
-        switch (type)
-        {
-            case IDLE_MOTION_TYPE:                return Motion::Kind::Idle;
-            case RANDOM_MOTION_TYPE:              return Motion::Kind::Wander;
-            case WAYPOINT_MOTION_TYPE:            return Motion::Kind::Patrol;
-            case CONFUSED_MOTION_TYPE:            return Motion::Kind::Confused;
-            case CHASE_MOTION_TYPE:               return Motion::Kind::Chase;
-            case HOME_MOTION_TYPE:                return Motion::Kind::Home;
-            case FLIGHT_MOTION_TYPE:              return Motion::Kind::Taxi;
-            case POINT_MOTION_TYPE:               return Motion::Kind::Point;
-            case FLEEING_MOTION_TYPE:
-            case TIMED_FLEEING_MOTION_TYPE:       return Motion::Kind::Fear;
-            case DISTRACT_MOTION_TYPE:            return Motion::Kind::Distract;
-            case ASSISTANCE_MOTION_TYPE:          return Motion::Kind::AssistRun;
-            case ASSISTANCE_DISTRACT_MOTION_TYPE: return Motion::Kind::AssistDistract;
-            case FOLLOW_MOTION_TYPE:              return Motion::Kind::Follow;
-            case EFFECT_MOTION_TYPE:              return Motion::Kind::Effect;
-            default:                              return Motion::Kind::Idle;
-        }
-    }
-
     const uint64 kScriptConfuse = Motion::ControlClaim(0, 2, 1);   ///< MoveConfused() with no identity (no script calls it today)
     const uint32 kMaxCommitRounds = 8; ///< finalizers re-entering the facade during a commit
     /// The eight bits MirrorUnitState owns; compared against the owner's own state, not a cache.
@@ -87,7 +60,7 @@ namespace
                                UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_DISTRACTED | UNIT_STAT_TAXI_FLIGHT;
 
     /// A leash radius below this is meaningless and would make every hop degenerate (the generator's own floor).
-    static const float MIN_WANDER_RADIUS = 0.1f;
+    const float MIN_WANDER_RADIUS = 0.1f;
 
     /**
      * @brief One move request, spelled out.
@@ -660,6 +633,12 @@ void MotionMaster::InstallFactoryNative(Motion::Kind kind, std::unique_ptr<Motio
 
 // ---- the facade ----------------------------------------------------------------
 
+/// The shell's path resolution and node copy for a patrol (MoveWaypoint's helper, defined
+/// alongside it below): forward-declared here for Initialize's WAYPOINT default.
+static bool BuildPatrolParams(Creature& creature, int32 pathId, WaypointPathOrigin source,
+                               uint32 initialDelay, uint32 overwriteEntry,
+                               Motion::PatrolBehaviour::Params& out);
+
 /**
  * @brief Initializes the MotionMaster.
  */
@@ -668,17 +647,15 @@ void MotionMaster::Initialize()
     m_owner->StopMoving();
     Scope scope(*this, Motion::TransactionKind::ClearAll);
     m_arbiter.Clear(true);
-    MovementGenerator* movement = NULL;
-    bool owned = false;
     if (m_owner->GetTypeId() == TYPEID_UNIT && !m_owner->hasUnitState(UNIT_STAT_CONTROLLED))
     {
         Creature* creature = (Creature*)m_owner;
-        MANGOS_ASSERT(creature->GetCreatureInfo() != NULL);   // selectMovementGenerator's own guard, kept for the branch below that skips it
+        MANGOS_ASSERT(creature->GetCreatureInfo() != NULL);   // every creature reaching here has one: the default-type reads below assume it
         const MovementGeneratorType wanted = creature->GetOwnerGuid().IsPlayer() ? FOLLOW_MOTION_TYPE : creature->GetDefaultMovementType();
         if (wanted == RANDOM_MOTION_TYPE)
         {
-            // No factory is registered for RANDOM_MOTION_TYPE any more: the wander native is
-            // installed directly, as the factory constructor built it (no vertical band).
+            // No factory is registered for RANDOM_MOTION_TYPE: the wander native is installed
+            // directly, as the factory constructor built it (no vertical band).
             Geometry::Placement const& spawn = creature->Spawn();
             Motion::WanderBehaviour::Params p;
             p.centre = Motion::Vector3(spawn.X(), spawn.Y(), spawn.Z());
@@ -688,21 +665,21 @@ void MotionMaster::Initialize()
             InstallFactoryNative(Motion::Kind::Wander, std::unique_ptr<Motion::Behaviour>(new Motion::WanderBehaviour(p)));
             return;
         }
-        movement = FactorySelector::selectMovementGenerator(creature);
-        owned = movement != NULL;
+        if (wanted == WAYPOINT_MOTION_TYPE)
+        {
+            // Likewise for WAYPOINT_MOTION_TYPE: the patrol native, loading the default path
+            // exactly as InitializeWaypointPath(pathId 0, PATH_NO_PATH) did; an unresolved path
+            // is a patrol with no nodes, which holds, as the generator's did.
+            Motion::PatrolBehaviour::Params p;
+            BuildPatrolParams(*creature, 0, PATH_NO_PATH, 0, 0, p);
+            InstallFactoryNative(Motion::Kind::Patrol, std::unique_ptr<Motion::Behaviour>(new Motion::PatrolBehaviour(p)));
+            return;
+        }
     }
-    if (!movement)
-    {
-        // Nothing registered for this creature's default type (and every player): the idle
-        // native is the default, as the shared idle singleton used to be.
-        InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));
-        return;
-    }
-    InstallFactory(KindOf(movement->GetMovementGeneratorType()), movement, owned);
-    if (movement->GetMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
-    {
-        (static_cast<WaypointMovementGenerator*>(movement))->InitializeWaypointPath(*((Creature*)(m_owner)), 0, PATH_NO_PATH, 0, 0);
-    }
+    // Nothing registered for this creature's default type (and every player, and a Follow
+    // default -- it never had a registered factory either): the idle native is the default,
+    // as the shared idle singleton used to be.
+    InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));
 }
 
 /**
@@ -1016,6 +993,100 @@ void MotionMaster::MoveFleeing(Unit* enemy, uint32 time, uint64 claim)
 }
 
 /**
+ * @brief The shell's LoadPath: resolves the path and copies each node into the native's Params.
+ * @param creature The creature the path is loaded for.
+ * @param pathId The requested path id (0 for "the default path").
+ * @param source The requested path source; PATH_NO_PATH for "figure it out".
+ * @param initialDelay How long the patrol waits before its first leg.
+ * @param overwriteEntry An entry to load the path for instead of the creature's own; 0 for the creature's own.
+ * @param out Filled with the resolved path and its nodes.
+ * @return True when a non-empty path was resolved; false leaves `out` with no nodes (the
+ *         native then holds, exactly as the generator's unresolved LoadPath did).
+ */
+static bool BuildPatrolParams(Creature& creature, int32 pathId, WaypointPathOrigin source,
+                               uint32 initialDelay, uint32 overwriteEntry,
+                               Motion::PatrolBehaviour::Params& out)
+{
+    if (!overwriteEntry)
+    {
+        overwriteEntry = creature.GetEntry();
+    }
+
+    WaypointPathOrigin resolvedOrigin = source;
+    WaypointPath const* path = NULL;
+    if (source == PATH_NO_PATH && pathId == 0)
+    {
+        path = sWaypointMgr.GetDefaultPath(overwriteEntry, creature.GetGUIDLow(), &resolvedOrigin);
+    }
+    else
+    {
+        resolvedOrigin = (source == PATH_NO_PATH) ? PATH_FROM_ENTRY : source;
+        path = sWaypointMgr.GetPathFromOrigin(overwriteEntry, creature.GetGUIDLow(), pathId, resolvedOrigin);
+    }
+
+    out.pathId = pathId;
+    out.origin = uint32(resolvedOrigin);
+    out.external = resolvedOrigin == PATH_FROM_EXTERNAL && pathId > 0;
+    out.externalOrigin = resolvedOrigin == PATH_FROM_EXTERNAL;
+    out.initialDelay = initialDelay;
+    out.inform.waypoint = WAYPOINT_MOTION_TYPE;
+    out.inform.externalMove = EXTERNAL_WAYPOINT_MOVE + pathId;
+    out.inform.externalStart = EXTERNAL_WAYPOINT_MOVE_START + pathId;
+    out.inform.externalLast = EXTERNAL_WAYPOINT_FINISHED_LAST + pathId;
+
+    if (!path)
+    {
+        if (resolvedOrigin == PATH_FROM_EXTERNAL)
+        {
+            sLog.outErrorScriptLib("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
+        }
+        else
+        {
+            sLog.outErrorDb("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
+        }
+        return false;
+    }
+
+    if (path->empty())
+    {
+        return false;
+    }
+
+    for (WaypointPath::const_iterator itr = path->begin(); itr != path->end(); ++itr)
+    {
+        WaypointNode const& src = itr->second;
+        Motion::PatrolBehaviour::Node node;
+        node.id = itr->first;
+        node.pos = Motion::Vector3(src.x, src.y, src.z);
+        node.orientation = src.orientation;
+        node.delay = src.delay;
+        node.scriptId = src.script_id;
+        if (WaypointBehavior* behavior = src.behavior)
+        {
+            node.emote = behavior->emote;
+            node.spell = behavior->spell;
+            node.model1 = behavior->model1;
+            node.model2 = behavior->model2;
+            for (int i = 0; i < MAX_WAYPOINT_TEXT && behavior->textid[i]; ++i)
+            {
+                node.textIds.push_back(behavior->textid[i]);
+            }
+            for (int i = 0; i < MAX_WAYPOINT_TEXT; ++i)
+            {
+                if (behavior->textid[i])
+                {
+                    node.textAnywhere = true;
+                    break;
+                }
+            }
+        }
+        out.nodes.push_back(node);
+    }
+
+    return true;
+}
+
+/**
  * @brief Moves the unit along a waypoint path.
  * @param id ID of the waypoint path.
  * @param source Source of the waypoint path.
@@ -1036,9 +1107,9 @@ void MotionMaster::MoveWaypoint(int32 id, uint32 source, uint32 initialDelay, ui
     }
     Creature* creature = (Creature*)m_owner;
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s start MoveWaypoint()", m_owner->GetGuidStr().c_str());
-    WaypointMovementGenerator* generator = new WaypointMovementGenerator(*creature);
-    generator->InitializeWaypointPath(*creature, id, (WaypointPathOrigin)source, initialDelay, overwriteEntry);
-    Request(R(Motion::Kind::Patrol), generator, true);   // a default request is never refused
+    Motion::PatrolBehaviour::Params p;
+    BuildPatrolParams(*creature, id, (WaypointPathOrigin)source, initialDelay, overwriteEntry, p);
+    Request(R(Motion::Kind::Patrol), std::unique_ptr<Motion::Behaviour>(new Motion::PatrolBehaviour(p)));
 }
 
 /**
@@ -1049,11 +1120,13 @@ void MotionMaster::MoveWaypoint(int32 id, uint32 source, uint32 initialDelay, ui
 bool MotionMaster::PauseWaypoints(int32 ms)
 {
     Bound* bound = SelectedBound();
-    if (!bound || bound->behaviour->LegacyType() != WAYPOINT_MOTION_TYPE)
+    if (!bound || bound->behaviour->Kind() != Motion::Kind::Patrol)
     {
         return false;
     }
-    static_cast<WaypointMovementGenerator*>(bound->behaviour->Legacy())->Pause(*m_owner, ms);
+    NativeBehaviour* adapter = static_cast<NativeBehaviour*>(bound->behaviour.get());
+    Motion::PatrolBehaviour* patrol = static_cast<Motion::PatrolBehaviour*>(adapter->Native());
+    adapter->PerformStep(*m_owner, patrol->Pause(ms));
     return true;
 }
 
@@ -1276,32 +1349,32 @@ void MotionMaster::PropagateSpeedChange()
 }
 
 /**
- * @brief The held patrol generator wherever it sits; the newest when two are held.
- * @return The waypoint generator, or NULL.
+ * @brief The held patrol native wherever it sits; the newest when two are held.
+ * @return The patrol behaviour, or NULL.
  */
-WaypointMovementGenerator* MotionMaster::HeldWaypoint()
+Motion::PatrolBehaviour* MotionMaster::HeldPatrol()
 {
     for (size_t i = m_bound.size(); i-- > 0;)   // newest first: a patrol pushed over a parked factory patrol is the one the readers mean, as the stack's top-down search found it
     {
-        if (m_bound[i].behaviour->LegacyType() == WAYPOINT_MOTION_TYPE)
+        if (m_bound[i].behaviour->Kind() == Motion::Kind::Patrol)
         {
-            return static_cast<WaypointMovementGenerator*>(m_bound[i].behaviour->Legacy());
+            return static_cast<Motion::PatrolBehaviour*>(static_cast<NativeBehaviour*>(m_bound[i].behaviour.get())->Native());
         }
     }
     return NULL;
 }
 
 /**
- * @brief The held patrol generator wherever it sits; the newest when two are held.
- * @return The waypoint generator, or NULL.
+ * @brief The held patrol native wherever it sits; the newest when two are held.
+ * @return The patrol behaviour, or NULL.
  */
-WaypointMovementGenerator const* MotionMaster::HeldWaypoint() const
+Motion::PatrolBehaviour const* MotionMaster::HeldPatrol() const
 {
     for (size_t i = m_bound.size(); i-- > 0;)   // newest first: a patrol pushed over a parked factory patrol is the one the readers mean, as the stack's top-down search found it
     {
-        if (m_bound[i].behaviour->LegacyType() == WAYPOINT_MOTION_TYPE)
+        if (m_bound[i].behaviour->Kind() == Motion::Kind::Patrol)
         {
-            return static_cast<WaypointMovementGenerator const*>(m_bound[i].behaviour->Legacy());
+            return static_cast<Motion::PatrolBehaviour const*>(static_cast<NativeBehaviour const*>(m_bound[i].behaviour.get())->Native());
         }
     }
     return NULL;
@@ -1330,8 +1403,21 @@ FlightPathMovementGenerator* MotionMaster::HeldFlight()
  */
 bool MotionMaster::SetNextWaypoint(uint32 pointId)
 {
-    WaypointMovementGenerator* waypoint = HeldWaypoint();
-    return waypoint ? waypoint->SetNextWaypoint(pointId) : false;
+    for (size_t i = m_bound.size(); i-- > 0;)   // newest first, as HeldPatrol scans
+    {
+        if (m_bound[i].behaviour->Kind() != Motion::Kind::Patrol)
+        {
+            continue;
+        }
+        NativeBehaviour* adapter = static_cast<NativeBehaviour*>(m_bound[i].behaviour.get());
+        if (!static_cast<Motion::PatrolBehaviour*>(adapter->Native())->SetNextWaypoint(pointId))
+        {
+            return false;
+        }
+        adapter->ResetLeg();   // the driver's leg, not the native's own state: the caller's job
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -1340,8 +1426,8 @@ bool MotionMaster::SetNextWaypoint(uint32 pointId)
  */
 uint32 MotionMaster::getLastReachedWaypoint() const
 {
-    WaypointMovementGenerator const* waypoint = HeldWaypoint();
-    return waypoint ? waypoint->getLastReachedWaypoint() : 0;
+    Motion::PatrolBehaviour const* patrol = HeldPatrol();
+    return patrol ? patrol->LastReached() : 0;
 }
 
 /**
@@ -1350,10 +1436,61 @@ uint32 MotionMaster::getLastReachedWaypoint() const
  */
 void MotionMaster::GetWaypointPathInformation(std::ostringstream& oss) const
 {
-    if (WaypointMovementGenerator const* waypoint = HeldWaypoint())
+    Motion::PatrolBehaviour const* patrol = HeldPatrol();
+    if (!patrol)
     {
-        waypoint->GetPathInformation(oss);
+        return;
     }
+    oss << "WaypointMovement: Last Reached WP: " << patrol->LastReached() << " ";
+    oss << "(Loaded path " << patrol->PathId() << " from " << WaypointManager::GetOriginString(WaypointPathOrigin(patrol->Origin())) << ")\n";
+}
+
+/**
+ * @brief The held patrol's loaded path id and origin.
+ * @param pathId Filled with the path id.
+ * @param origin Filled with the path's origin.
+ * @return True when a patrol is held.
+ */
+bool MotionMaster::GetWaypointPathInformation(int32& pathId, WaypointPathOrigin& origin) const
+{
+    Motion::PatrolBehaviour const* patrol = HeldPatrol();
+    if (!patrol)
+    {
+        return false;
+    }
+    pathId = patrol->PathId();
+    origin = WaypointPathOrigin(patrol->Origin());
+    return true;
+}
+
+/**
+ * @brief Extends (or cuts short) the selected patrol's pause at its current node.
+ * @param ms The time delta (a positive value shortens the wait, a negative one extends it).
+ * @return True when the selected behaviour is a patrol.
+ */
+bool MotionMaster::AddToSelectedPatrolPause(int32 ms)
+{
+    Bound* bound = SelectedBound();
+    if (!bound || bound->behaviour->Kind() != Motion::Kind::Patrol)
+    {
+        return false;
+    }
+    static_cast<Motion::PatrolBehaviour*>(static_cast<NativeBehaviour*>(bound->behaviour.get())->Native())->AddToPauseTime(ms);
+    return true;
+}
+
+/**
+ * @brief The selected patrol's current node.
+ * @return The node id, or 0 when the selection is not a patrol.
+ */
+uint32 MotionMaster::SelectedPatrolNode() const
+{
+    Bound const* bound = SelectedBound();
+    if (!bound || bound->behaviour->Kind() != Motion::Kind::Patrol)
+    {
+        return 0;
+    }
+    return static_cast<Motion::PatrolBehaviour const*>(static_cast<NativeBehaviour const*>(bound->behaviour.get())->Native())->CurrentNode();
 }
 
 /**

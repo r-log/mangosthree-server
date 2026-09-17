@@ -31,14 +31,12 @@
 #include "TotemAI.h"
 #include "CreatureEventAI.h"
 #include "CreatureAIImpl.h"
-#include "MovementGeneratorImpl.h"
 #include "CreatureAIRegistry.h"
-#include "WaypointMovementGenerator.h"
 
 namespace AIRegistry
 {
     /**
-     * @brief Registers built-in creature AI and movement generator factories.
+     * @brief Registers built-in creature AI factories.
      */
     void Initialize()
     {
@@ -49,7 +47,5 @@ namespace AIRegistry
         (new CreatureAIFactory<PetAI>("PetAI"))->RegisterSelf();
         (new CreatureAIFactory<TotemAI>("TotemAI"))->RegisterSelf();
         (new CreatureAIFactory<CreatureEventAI>("EventAI"))->RegisterSelf();
-
-        (new MovementGeneratorFactory<WaypointMovementGenerator >(WAYPOINT_MOTION_TYPE))->RegisterSelf();
     }
 }
