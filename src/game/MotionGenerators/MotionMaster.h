@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 #include "Arbiter.h"
+#include "MoveIntent.h"   // Motion::Facing::Mode, returned by value from SelectedLegFacingMode
 #include "WaypointManager.h"
 #include <memory>
 #include <optional>
@@ -226,6 +227,10 @@ class MotionMaster
         /// The selected native's re-lay counters by cause (design v2 §5), else NULL: a legacy
         /// binding and a native that counts nothing both answer NULL.
         Motion::RelayCounts const* SelectedRelays() const;
+        /// The facing the selected native's driver last asked for: the running leg's, or the
+        /// hold's once it has finished. None when nothing is selected or the entry is legacy.
+        /// A read for the GM harness, not a script entry point.
+        Motion::Facing::Mode SelectedLegFacingMode() const;
 
         /// One held entry for a listing: what it is, without asking a generator for it.
         struct HeldView

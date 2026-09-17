@@ -190,7 +190,7 @@ namespace Motion
             ClearWaypointPaused, ///< clearUnitState(UNIT_STAT_WAYPOINT_PAUSED)
             StateRaw,          ///< addUnitState(setMask) when non-zero, then clearUnitState(clearMask) when non-zero: the opaque unit-state masks a tracking native carries in its Params
             SyncSpeed,         ///< a pet whose owner is the native's target: UpdateSpeed(MOVE_RUN/MOVE_WALK/MOVE_SWIM, true), the deleted SyncSpeedWithMaster
-            EngageInReach,     ///< live predicate: the mover's live position against the target view's, 3D, within meleeRange -> Attack(target, true); re-emitted every idle tick, so a stale false never suppresses the attack
+            EngageInReach,     ///< live predicate: the mover's live position against the target view's, 3D, within meleeRange -> Attack(target, true); re-emitted every idle tick, so a stale false never suppresses the attack. It skips only a target already being MELEED, not every victim: a ranged attacker's victim is upgraded to melee here, once (the deleted ReachTarget's own job), and Unit::Attack returns early afterwards
             RestoreTemporaryFaction, ///< if (GetTemporaryFactionFlags() & TEMPFACTION_RESTORE_REACH_HOME) ClearTemporaryFaction()
             LoadAddon,         ///< creature.LoadCreatureAddon(true)
             JustReachedHome    ///< creature.AI()->JustReachedHome()

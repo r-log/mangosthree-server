@@ -69,6 +69,13 @@ class MotionDriver
         /// False once a route only got partway to its goal (the IsReachable contract).
         bool Reachable() const { return !m_query || m_query->Reachable(); }
 
+        /// The facing mode of the last intent this driver acted on: the running leg's while one
+        /// runs, the hold's once it has finished, None before anything was laid or after a reset.
+        /// A harness read (MotionMaster::SelectedLegFacingMode), so a scenario can tell "the leg
+        /// asked for no facing and the spline kept the travel direction" from "the behaviour baked
+        /// a heading into the leg" -- two things that look identical in a sampled orientation.
+        Motion::Facing::Mode LegFacingMode() const { return m_legFacing; }
+
     private:
         /// Lay a fresh leg if one is needed; false when nothing was launched.
         bool ReconcileMove(Unit& owner, Motion::MoveIntent const& intent);
@@ -93,6 +100,8 @@ class MotionDriver
         /// The goal of the leg we last laid, so the drift test can tell when a tracked
         /// destination has moved far enough to be worth re-routing.
         Motion::Vector3 m_legGoal;
+        /// The facing mode that came with it (or with the hold that replaced it).
+        Motion::Facing::Mode m_legFacing = Motion::Facing::Mode::None;
         bool m_haveLeg = false;
         bool m_partialLeg = false;   ///< The running leg's route only got partway to its goal.
 

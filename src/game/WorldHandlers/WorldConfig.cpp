@@ -716,6 +716,10 @@ void World::LoadConfigSettings(bool reload)
     // The map the GM movement harness runs on (P0-D): a live server keeps 0.
     setConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP, "Movement.HarnessBareMap", 0);
 
+    // The follow's extrapolation horizon (design §6.3): how far ahead of a trusted velocity the
+    // heel point is laid. 0 is retail's own aim -- the leader's current position, no lead at all.
+    setConfig(CONFIG_UINT32_MOVEMENT_FOLLOW_HORIZON_MS, "Movement.FollowHorizonMs", 400);
+
     sLog.outString();
 }
 

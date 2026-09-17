@@ -278,6 +278,15 @@ Redirect.Stream1Crypt        = 1
 #        Default: 0 (off, retail's aim)
 #                 1 (on)
 #
+#    Movement.FollowHorizonMs
+#        The follow's extrapolation horizon: how far ahead of a trusted velocity the follower's
+#        heel point is laid, in milliseconds of that velocity. One re-lay cadence (400) is what
+#        lets a follower hold a band behind a leader of its own speed; 0 is retail's own aim,
+#        the leader's current position, and is the baseline the harness's follow-keeps-pace
+#        scenario measures the horizon against.
+#        Default: 400 (one cadence)
+#                 0   (retail's current-position heel point)
+#
 #    Movement.CaptureFile
 #        Path of a text file that receives every packet the movement-status handler
 #        sees (every opcode the wire registry has a layout for, in both directions --
@@ -375,6 +384,7 @@ mmap.enabled                      = 1
 mmap.ignoreMapIds                 = ""
 Movement.DecisionRing             = 0
 Movement.ChaseLead                = 0
+Movement.FollowHorizonMs          = 400
 Movement.CaptureFile              = ""
 Movement.WireParity               = 0
 Movement.AckTimeout               = 0

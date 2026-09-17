@@ -96,7 +96,10 @@ namespace
         p.stateSet = UNIT_STAT_FOLLOW;
         p.stateMove = UNIT_STAT_FOLLOW_MOVE;
         p.routineMs = 400;    // retail's measured re-lay cluster, in place of the generator's 50 ms poll
-        p.horizonMs = 400;    // one cadence of lead on a trusted velocity: the heel point (design §6.3)
+        // One cadence of lead on a trusted velocity by default: the heel point (design §6.3).
+        // Movement.FollowHorizonMs = 0 turns it off, which is retail's own aim and the baseline
+        // the harness's follow-keeps-pace scenario is measured against.
+        p.horizonMs = sWorld.getConfig(CONFIG_UINT32_MOVEMENT_FOLLOW_HORIZON_MS);
         p.recalcRange = sWorld.getConfig(CONFIG_FLOAT_RATE_TARGET_POS_RECALCULATION_RANGE);
         return p;
     }
@@ -1462,6 +1465,21 @@ Motion::RelayCounts const* MotionMaster::SelectedRelays() const
         return NULL;
     }
     return static_cast<NativeBehaviour const*>(bound->behaviour.get())->Native()->Relays();
+}
+
+/**
+ * @brief The facing the selected native's driver last asked for.
+ * @return The running leg's facing mode, or the hold's once the leg has finished;
+ *         Motion::Facing::Mode::None when nothing is selected or the entry is a legacy binding.
+ */
+Motion::Facing::Mode MotionMaster::SelectedLegFacingMode() const
+{
+    Bound const* bound = SelectedBound();
+    if (!bound || bound->behaviour->Legacy())
+    {
+        return Motion::Facing::Mode::None;
+    }
+    return static_cast<NativeBehaviour const*>(bound->behaviour.get())->LegFacingMode();
 }
 
 /**

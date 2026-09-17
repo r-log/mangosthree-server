@@ -168,6 +168,19 @@ namespace Harness
         {
             return;
         }
+        // A Find'd creature is the world's own and the runner hands it back by installing the AI
+        // this decorator was wrapping; deleting that AI here would hand the world a creature with
+        // none at all. Spawned actors only, and the runner despawns those.
+        bool spawned = false;
+        for (size_t i = 0; i < m_spawned.size() && !spawned; ++i)
+        {
+            spawned = m_spawned[i] == c->GetObjectGuid();
+        }
+        if (!spawned)
+        {
+            Log("ERR Silence refused for guid %u: not an actor this scenario spawned", c->GetGUIDLow());
+            return;
+        }
         if (HarnessAI* recording = dynamic_cast<HarnessAI*>(c->AI()))
         {
             delete recording->Release();   // the decorator stays; the AI it forwarded to is gone

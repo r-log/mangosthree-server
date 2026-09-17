@@ -75,6 +75,9 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         Motion::Behaviour* Native() { return m_native.get(); }
         Motion::Behaviour const* Native() const { return m_native.get(); }
 
+        /// The facing mode of the intent the driver last acted on (MotionMaster::SelectedLegFacingMode).
+        Motion::Facing::Mode LegFacingMode() const { return m_driver.LegFacingMode(); }
+
         /// Forgets the driver's leg (MotionMaster::SetNextWaypoint, after the native accepts
         /// the jump: the leg the driver was tracking no longer applies).
         void ResetLeg() { m_driver.ResetLeg(); }

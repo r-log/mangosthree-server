@@ -696,10 +696,17 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
                     break;
                 }
                 Unit* target = ObjectLookup::GetUnit(creature, ObjectGuid(m_native->Target()));
-                if (!target || creature.getVictim() == target)
+                if (!target || (creature.getVictim() == target && creature.hasUnitState(UNIT_STAT_MELEE_ATTACKING)))
                 {
-                    // Unit::Attack returns early for the victim it is already meleeing, but not
-                    // before stripping MOD_UNATTACKABLE auras; an idle tick may not do that again.
+                    // Only "already meleeing THIS target" is nothing left to do. Skipping every
+                    // victim, as this guard used to, left the legacy ReachTarget's ranged-to-melee
+                    // upgrade with no live path at all: ChaseBehaviour holds the whole tick while
+                    // the target is NOT the victim (TrackingBehaviour::Tick step 3, LostTarget), so
+                    // the only target this effect can ever see is the victim, and Unit::Attack's
+                    // `m_attacking == victim && !UNIT_STAT_MELEE_ATTACKING` branch (Unit.cpp) --
+                    // which adds the melee bit and sends the attack start -- was unreachable. A
+                    // ranged attacker now closes to reach and upgrades here, once: Unit::Attack
+                    // returns early with no packet on every later idle tick, since the bit is set.
                     break;
                 }
                 const Geometry::Vector3 mine = LivePosition(creature);

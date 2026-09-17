@@ -46,6 +46,7 @@ namespace
 void MotionDriver::ResetLeg()
 {
     m_legGoal = Motion::Vector3();
+    m_legFacing = Motion::Facing::Mode::None;
     m_haveLeg = false;
     m_partialLeg = false;
     m_blocked = false;
@@ -117,6 +118,10 @@ Motion::MoveStatus MotionDriver::BeginTick(Unit& owner)
 
 bool MotionDriver::Apply(Unit& owner, Motion::MoveIntent const& intent)
 {
+    if (intent.act == Motion::MoveIntent::Act::Move || intent.act == Motion::MoveIntent::Act::Hold)
+    {
+        m_legFacing = intent.facing.mode;   // what the behaviour asked for this tick: read by the facade
+    }
     switch (intent.act)
     {
         case Motion::MoveIntent::Act::Done:
