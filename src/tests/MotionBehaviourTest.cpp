@@ -165,6 +165,21 @@ namespace
                 return true;
             }
             bool CanFly() const override { return canFly; }   // a live read, like the four above: never logged in `calls`
+            bool StandingSpot(Vector3 const& center, float distance2d, float absAngle, Vector3& out) override
+            {
+                calls.push_back("spot");
+                spotCenter = center;
+                spotDistance = distance2d;
+                spotAngle = absAngle;
+                if (spotFails)
+                {
+                    return false;
+                }
+                out = Vector3(center.x + distance2d * std::cos(absAngle),
+                              center.y + distance2d * std::sin(absAngle),
+                              center.z);
+                return true;
+            }
 
             /// Restores every flag/value to its default and clears the call log.
             void Reset()
@@ -181,6 +196,10 @@ namespace
                 canFly = false;
                 irandValue = 50;
                 randomFails = false;
+                spotFails = false;
+                spotCenter = Vector3();
+                spotDistance = 0.0f;
+                spotAngle = 0.0f;
                 calls.clear();
             }
 
@@ -196,6 +215,10 @@ namespace
             bool canFly = false;       ///< the live Creature::CanFly() the wander re-reads every tick.
             int32 irandValue = 50;     ///< Irand's answer; 50 is at or above 30, so the wander's break path draws the rest through Urand.
             bool randomFails = false;  ///< RandomPoint returns false instead of a point.
+            bool spotFails = false;    ///< StandingSpot returns false instead of a point.
+            Vector3 spotCenter;        ///< the centre of the last StandingSpot call.
+            float spotDistance = 0.0f; ///< its distance2d.
+            float spotAngle = 0.0f;    ///< its absAngle.
             std::vector<std::string> calls;
     };
 
@@ -424,11 +447,11 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
     CHECK_EQ(t1.intent.speed, 24.0f);
     s.targetPoint = Vector3(11.0f, 0.0f, 0.0f);            // 1 yd: under the tolerance
     CHECK_EQ(b.Tick(s, g_svc, 100).intent.goal.x, 10.0f);
-    CHECK_EQ(b.Relays(), 0u);
+    CHECK_EQ(b.RelayCount(), 0u);
     s.targetPoint = Vector3(13.0f, 0.0f, 0.0f);            // 3 yd, but only 200 ms since the leg
     CHECK_EQ(b.Tick(s, g_svc, 100).intent.goal.x, 10.0f);
     CHECK_EQ(b.Tick(s, g_svc, 300).intent.goal.x, 13.0f);         // 600 ms: within budget, re-laid
-    CHECK_EQ(b.Relays(), 1u);
+    CHECK_EQ(b.RelayCount(), 1u);
     // A leg that ended where the target WAS: the target walked on past the tolerance, so a
     // fresh leg is laid at once (no budget wait), not an arrival.
     {
@@ -438,7 +461,7 @@ TEST(MotionBehaviour_ChargeRelaysOnDriftWithinBudgetAndEndsWhenTheTargetIsLost)
         Step again = b.Tick(ended, g_svc, 50);
         CHECK(again.intent.act == MoveIntent::Act::Move);
         CHECK_EQ(again.intent.goal.x, 16.0f);
-        CHECK_EQ(b.Relays(), 2u);
+        CHECK_EQ(b.RelayCount(), 2u);
         // ... and a leg that ended within the tolerance is an arrival.
         Sight close = s;
         close.status.arrived = true;
@@ -977,6 +1000,7 @@ namespace
             bool WaypointPaused() const override { return false; }
             bool Anchor(Vector3&) const override { return false; }
             bool CanFly() const override { return false; }
+            bool StandingSpot(Vector3 const&, float, float, Vector3&) override { return false; }
     };
 
     /// A Services stub whose route hands back a middle point within the drop tolerance of its
@@ -1008,6 +1032,7 @@ namespace
             bool WaypointPaused() const override { return false; }
             bool Anchor(Vector3&) const override { return false; }
             bool CanFly() const override { return false; }
+            bool StandingSpot(Vector3 const&, float, float, Vector3&) override { return false; }
     };
 }
 
