@@ -493,6 +493,7 @@ bool WaypointManager::AddExternalNode(uint32 entry, int32 pathId, uint32 pointId
     }
 
     m_externalPathTemplateMap[(entry << 8) + pathId][pointId] = WaypointNode(x, y, z, o, waittime, 0, NULL);
+    ++m_revision;   // a running patrol re-reads its path on the next tick
     return true;
 }
 
@@ -526,6 +527,7 @@ bool WaypointManager::AddEntryNode(uint32 entry, int32 pathId, uint32 pointId, f
     }
 
     m_pathTemplateMap[(entry << 8) + pathId][pointId] = WaypointNode(x, y, z, o, waittime, 0, NULL);
+    ++m_revision;   // a running patrol re-reads its path on the next tick
     return true;
 }
 
@@ -582,6 +584,7 @@ WaypointNode const* WaypointManager::AddNode(uint32 entry, uint32 dbGuid, uint32
 
     // Insert new or remaining
     path[nextPoint] = temp;
+    ++m_revision;   // a running patrol re-reads its path on the next tick
 
     // Update original waypoints
     for (WaypointPath::reverse_iterator rItr = path.rbegin(); rItr != path.rend() && rItr->first > pointId; ++rItr)
@@ -626,6 +629,7 @@ void WaypointManager::DeleteNode(uint32 entry, uint32 dbGuid, uint32 point, int3
     WorldDatabase.PExecuteLog("DELETE FROM `%s` WHERE `%s`=%u AND `point`=%u", table, key_field, key, point);
 
     path->erase(point);
+    ++m_revision;   // a running patrol re-reads its path on the next tick
 }
 
 /**
@@ -639,6 +643,7 @@ void WaypointManager::DeletePath(uint32 id)
     if (itr != m_pathMap.end())
     {
         _clearPath(itr->second);
+        ++m_revision;   // a running patrol re-reads its path on the next tick
     }
     // the path is not removed from the map, just cleared
     // WMGs have pointers to the path, so deleting them would crash
@@ -684,6 +689,7 @@ void WaypointManager::SetNodePosition(uint32 entry, uint32 dbGuid, uint32 point,
         find->second.x = x;
         find->second.y = y;
         find->second.z = z;
+        ++m_revision;   // a running patrol re-reads its path on the next tick
     }
 }
 
@@ -721,6 +727,7 @@ void WaypointManager::SetNodeWaittime(uint32 entry, uint32 dbGuid, uint32 point,
     if (find != path->end())
     {
         find->second.delay = waittime;
+        ++m_revision;   // a running patrol re-reads its path on the next tick
     }
 }
 
@@ -757,6 +764,7 @@ void WaypointManager::SetNodeOrientation(uint32 entry, uint32 dbGuid, uint32 poi
     if (find != path->end())
     {
         find->second.orientation = orientation;
+        ++m_revision;   // a running patrol re-reads its path on the next tick
     }
 }
 
@@ -794,6 +802,7 @@ bool WaypointManager::SetNodeScriptId(uint32 entry, uint32 dbGuid, uint32 point,
     if (find != path->end())
     {
         find->second.script_id = scriptId;
+        ++m_revision;   // a running patrol re-reads its path on the next tick
     }
 
     ScriptChainMap const* scm = sScriptMgr.GetScriptChainMap(DBS_ON_CREATURE_MOVEMENT);
@@ -866,4 +875,6 @@ void WaypointManager::CheckTextsExistance(std::set<int32>& ids)
                 CheckWPText(true, pmItr->first, pItr->first, pItr->second.behavior, ids);
             }
     }
+
+    ++m_revision;   // the pass zeroes and shifts invalid text ids: a node's contents changed
 }

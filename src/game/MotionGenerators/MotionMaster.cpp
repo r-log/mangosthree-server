@@ -115,6 +115,11 @@ namespace
 
         out.pathId = pathId;
         out.origin = uint32(resolvedOrigin);
+        // The entry this path was actually resolved with (the creature's own unless the caller
+        // overwrote it), so a later refresh reaches the same map key, and the manager revision
+        // the nodes below are read at: UpdateMotion compares it before every patrol tick.
+        out.entry = overwriteEntry;
+        out.revision = sWaypointMgr.Revision();
         out.external = resolvedOrigin == PATH_FROM_EXTERNAL && pathId > 0;
         out.externalOrigin = resolvedOrigin == PATH_FROM_EXTERNAL;
         out.initialDelay = initialDelay;
@@ -173,6 +178,40 @@ namespace
         }
 
         return true;
+    }
+
+    /**
+     * @brief Re-reads a running patrol's nodes when a waypoint edit has changed them.
+     *
+     * The deleted generator held a live WaypointPath pointer at the manager's own node map, so a
+     * GM's `.wp modify` reached a patrol already walking that path. The native owns a copy
+     * instead, and this is what keeps the copy honest: one integer compare per patrol tick, and
+     * a re-read only when the manager's revision has actually moved. Only the selected binding
+     * is checked -- a masked patrol refreshes when it is selected again, which is the first tick
+     * it could act on the new nodes anyway.
+     * @param owner The moving unit.
+     * @param behaviour The selected binding's behaviour.
+     */
+    void RefreshPatrolPath(Unit& owner, MotionBehaviour& behaviour)
+    {
+        if (behaviour.Kind() != Motion::Kind::Patrol || owner.GetTypeId() != TYPEID_UNIT)
+        {
+            return;
+        }
+        Motion::PatrolBehaviour* native =
+            static_cast<Motion::PatrolBehaviour*>(static_cast<NativeBehaviour&>(behaviour).Native());
+        if (native->Revision() == sWaypointMgr.Revision())
+        {
+            return;
+        }
+        // The same entry the path was resolved with the first time (BuildPatrolParams normalized
+        // 0 to the creature's own), so the refresh reads the very same map key; the initial delay
+        // is not re-applied, since ReplaceNodes takes the nodes alone and leaves the patrol's own
+        // progress -- its current node, its wait and the leg in flight -- untouched.
+        Motion::PatrolBehaviour::Params np;
+        BuildPatrolParams(static_cast<Creature&>(owner), native->PathId(), WaypointPathOrigin(native->Origin()),
+                          0, native->Entry(), np);
+        native->ReplaceNodes(np.nodes, np.revision);
     }
 }
 
@@ -731,8 +770,7 @@ void MotionMaster::Initialize()
             Motion::WanderBehaviour::Params p;
             p.centre = Motion::Vector3(spawn.X(), spawn.Y(), spawn.Z());
             p.radius = std::max(creature->GetRespawnRadius(), MIN_WANDER_RADIUS);
-            p.verticalZ = 0.0f;
-            p.airborne = false;
+            p.verticalZ = 0.0f;   // no vertical band: this wander never flies, whatever the creature can do
             InstallFactoryNative(Motion::Kind::Wander, std::unique_ptr<Motion::Behaviour>(new Motion::WanderBehaviour(p)));
             return;
         }
@@ -783,6 +821,7 @@ void MotionMaster::UpdateMotion(uint32 diff)
     {
         return;   // activated at this scope's commit; ticks from the next update
     }
+    RefreshPatrolPath(*m_owner, *bound->behaviour);
     // Identity is the binding's sequence, not a generator pointer: a native has no generator.
     const uint32 tickingSeq = bound->seq;
     const bool alive = bound->behaviour->Tick(*m_owner, diff);
@@ -885,8 +924,7 @@ void MotionMaster::MoveRandomAroundPoint(float x, float y, float z, float radius
         DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "MotionMaster: wander radius too small, clamped to %f", MIN_WANDER_RADIUS);
     }
     p.radius = std::max(radius, MIN_WANDER_RADIUS);
-    p.verticalZ = verticalZ;
-    p.airborne = verticalZ > 0.0f && m_owner->GetTypeId() == TYPEID_UNIT && static_cast<Creature*>(m_owner)->CanFly();
+    p.verticalZ = verticalZ;   // whether it actually flies is the native's live Services::CanFly() read, tick by tick
     Request(R(Motion::Kind::Wander), std::unique_ptr<Motion::Behaviour>(new Motion::WanderBehaviour(p)));
 }
 

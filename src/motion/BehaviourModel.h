@@ -89,6 +89,10 @@ namespace Motion
             virtual bool Casting() const = 0;          ///< a non-melee spell in progress (the patrol holds)
             virtual bool WaypointPaused() const = 0;   ///< UNIT_STAT_WAYPOINT_PAUSED, a script's bit
             virtual bool Anchor(Vector3& out) const = 0; ///< the creature's combat anchor; false when zero
+            /// Live: the unit is a creature that can fly (Creature::CanFly()), false for anything
+            /// else; the wander generator re-read it on every tick, since a shapeshift, an aura or
+            /// a levitate flips it under a leash that was laid long before.
+            virtual bool CanFly() const = 0;
     };
 
     /// What a behaviour may know about its unit this tick.

@@ -108,7 +108,11 @@ namespace Motion
     Step WanderBehaviour::Tick(Sight const& sight, Services& svc, uint32 diff)
     {
         m_lastRunning = sight.runningState;
-        const uint32 hopFlags = m_p.airborne ? (MOVE_FLY | MOVE_STRAIGHT) : MOVE_WALK;
+        // The generator asked Airborne(owner) here, at the top of every Intent, and it re-read
+        // CanFly() each time: a leash laid while the unit could fly is walked on foot the moment
+        // it cannot, and the other way round. The port answers live, so this does the same.
+        const bool airborne = m_p.verticalZ > 0.0f && svc.CanFly();
+        const uint32 hopFlags = airborne ? (MOVE_FLY | MOVE_STRAIGHT) : MOVE_WALK;
 
         if (!sight.alive || !sight.canMove)
         {
@@ -135,7 +139,7 @@ namespace Motion
         {
             return Step::Of(MoveIntent::Hold());
         }
-        if (m_p.airborne)
+        if (airborne)
         {
             m_hop = NextOrbitPoint(svc);
         }
@@ -151,7 +155,7 @@ namespace Motion
         }
         m_haveHop = true;
         // The rest after THIS hop is decided now; a flier never rests (its arcs join).
-        m_rest = int32((m_p.airborne || svc.Irand(0, 99) < CHANCE_NO_BREAK)
+        m_rest = int32((airborne || svc.Irand(0, 99) < CHANCE_NO_BREAK)
             ? RETRY_DELAY
             : svc.Urand(REST_AFTER_HOP_MIN, REST_AFTER_HOP_MAX));
         Step s = Step::Of(MoveIntent::Move(m_hop, hopFlags));
@@ -343,7 +347,12 @@ namespace Motion
             s.effects.push_back(Effect(Effect::Say, Motion::Kind::Patrol, uint32(textId)));
         }
         s.effects.push_back(Effect::Raw(m_p.external ? m_p.inform.externalMove : m_p.inform.waypoint, m_currentNode));
-        Stop(int32(node->delay));
+        // The generator's Stop(node.delay) was OnArrived's last line -- it ran AFTER the inform
+        // hook, so it overwrote whatever that hook installed (a SetNextWaypoint's 1 ms, a Pause's
+        // own timer). The shell performs this step's effects only after it returns, so the Stop
+        // is owed rather than done: the next round starts it before anything else.
+        m_delayAfterEffects = int32(node->delay);
+        m_delayPending = true;
         return s;
     }
     // (The generator re-added ROAMING_MOVE after each arrival while the spline still ran and nothing stopped
@@ -527,6 +536,13 @@ namespace Motion
     Step PatrolBehaviour::Tick(Sight const& sight, Services& svc, uint32 diff)
     {
         m_lastRunning = sight.runningState;
+        // The Stop the last arrival owed (ArrivalStep), started here because the generator ran it
+        // after the node's effects and their hooks: a hook's own wait loses to the node's delay.
+        if (m_delayPending)
+        {
+            Stop(m_delayAfterEffects);
+            m_delayPending = false;
+        }
         if (m_phase == Phase::Arrivals)
         {
             if (!m_pendingArrivals.empty()) { return ArrivalStep(svc); }
@@ -595,10 +611,10 @@ namespace Motion
             m_pendingArrivals.push_back({0, false});
         }
         // A weld of up to WAYPOINT_SMOOTHING_MAX_LOOKAHEAD nodes crossed in one tick costs one
-        // continuation round per arrival, plus one for the trailing entry above: the shell's own
-        // round cap (its kMaxContinuation, not the kernel's) logs and defers whatever is left to
-        // the next tick rather than looping here -- the undrained entries simply stay in
-        // m_pendingArrivals until then, and a Suspend in between drops them outright.
+        // continuation round per arrival, plus one for the trailing entry above and one for the
+        // prepare that drains the phase: the shell's own round cap (its kMaxContinuation, not the
+        // kernel's) is sized to cover a full weld, so one tick drains whatever a weld can queue,
+        // as the generator's own ProcessSegmentProgress loop did.
         if (!m_pendingArrivals.empty())
         {
             m_phase = Phase::Arrivals;

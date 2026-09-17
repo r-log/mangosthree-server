@@ -39,6 +39,8 @@ namespace Motion
 {
     /// The idle wander (design §4.1): a hop to a random point in the leash, a rest, again;
     /// a flier orbits an inclined ellipse instead. Every draw is the generator's, in its order.
+    /// Whether it flies is not a parameter: the tick asks Services::CanFly() live, as the
+    /// generator's Airborne(owner) did on every Intent.
     class WanderBehaviour : public Behaviour
     {
         public:
@@ -46,8 +48,9 @@ namespace Motion
             {
                 Vector3 centre;
                 float   radius = 0.1f;      ///< clamped at 0.1 by the caller
+                /// The vertical band of the orbit; > 0 offers the flight, but only a unit whose
+                /// live Services::CanFly() says so actually orbits (the generator's rule).
                 float   verticalZ = 0.0f;
-                bool    airborne = false;   ///< the shell's verticalZ > 0 && CanFly()
             };
             explicit WanderBehaviour(Params const& p) : m_p(p) {}
             Motion::Kind Kind() const override { return Motion::Kind::Wander; }
@@ -106,6 +109,8 @@ namespace Motion
                 std::vector<Node> nodes;   ///< in path order (ascending id)
                 uint32 initialDelay = 0;
                 InformTypes inform;
+                uint32 revision = 0;       ///< opaque: the shell's path revision the nodes were read at
+                uint32 entry = 0;          ///< opaque: the entry the shell resolved the path with, so a refresh resolves the same path
             };
             explicit PatrolBehaviour(Params const& p);
             Motion::Kind Kind() const override { return Motion::Kind::Patrol; }
@@ -124,6 +129,16 @@ namespace Motion
             uint32 LastReached() const { return m_lastReached; }
             int32  PathId() const { return m_p.pathId; }
             uint32 Origin() const { return m_p.origin; }
+            uint32 Revision() const { return m_p.revision; }   ///< the shell's path revision these nodes were read at
+            uint32 Entry() const { return m_p.entry; }         ///< the entry the shell resolved the path with
+            /// Takes a freshly read copy of the path: the generator held a live pointer at the
+            /// manager's node map, so a GM's waypoint edit reached a running patrol at once.
+            /// Only the nodes and the revision are replaced -- the current node, the last
+            /// reached one, the wait, the pending node delay, the segment and the leg in flight
+            /// are the patrol's own progress and stay. The next prepare reads the new nodes
+            /// through IndexOf; a current node that no longer exists takes the "not found ->
+            /// Hold" path, and an empty replacement makes HasPath() false.
+            void ReplaceNodes(std::vector<Node> const& nodes, uint32 revision) { m_p.nodes = nodes; m_p.revision = revision; }
             bool   HasPath() const { return !m_p.nodes.empty(); }
             size_t LegPointCount() const { return m_legPoints.size(); }   ///< the harness's welding measurement
         private:
@@ -174,6 +189,8 @@ namespace Motion
             bool    m_reachedLast = false;                ///< the generator's local `reachedLast` in PrepareMove, kept across the external inform's round
             uint32  m_nextAfterInform = 0;               ///< the node the prepare inform named
             uint32  m_nodeBeforeInform = 0;              ///< m_currentNode when the prepare inform fired: a hook's SetNextWaypoint shows as a change
+            int32   m_delayAfterEffects = 0;             ///< the arrived node's delay, waiting to be started: the generator's OnArrived ran Stop(node.delay) as its LAST line, after the inform hook
+            bool    m_delayPending = false;              ///< an arrival that reached its effects owes that Stop; the next round starts it before anything else, so the node's delay overwrites whatever the hook installed, and it survives Suspend/Resume as the generator's timer did
             bool    m_lastRunning = false;               ///< Suspend() has no Sight: the last tick's running state, as WanderBehaviour's m_lastRunning
     };
 }

@@ -41,12 +41,16 @@
 #include "Utilities/Util.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
+#include "PatrolWelding.h"    // the kernel's weld bound (src/motion is on the include path, as BehaviourModel.h is)
 
 namespace
 {
     /// A native's continuation may loop within one tick (again = true) without elapsed time
-    /// advancing; this bounds it against a policy bug that never converges.
-    constexpr uint32 kMaxContinuation = 16;
+    /// advancing; this bounds it against a policy bug that never converges. The bound covers
+    /// the longest run any native can legitimately ask for: every node of a full weld (32, the
+    /// kernel's WAYPOINT_SMOOTHING_MAX_LOOKAHEAD), plus the patrol's trailing arrival and the
+    /// prepare that drains the phase, with room to spare -- one tick drains any weld.
+    constexpr uint32 kMaxContinuation = uint32(Motion::WAYPOINT_SMOOTHING_MAX_LOOKAHEAD) + 8;
 }
 
 /**
@@ -354,11 +358,10 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
         }
         return true;
     }
-    // A weld may queue up to WAYPOINT_SMOOTHING_MAX_LOOKAHEAD (32) arrivals against these 16
-    // rounds, so running out is an ordinary long-weld tick rather than a policy bug that never
-    // converges: whatever is left stays queued and drains on the next one.
+    // The bound covers every round a full weld can ask for, so reaching it is a policy that
+    // never converges rather than an ordinary long tick.
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS,
-                     "NativeBehaviour: %s kind %u used all %u continuation rounds without applying an intent; a long weld defers the rest to the next tick",
+                     "NativeBehaviour: %s kind %u used all %u continuation rounds without applying an intent; its policy did not converge",
                      owner.GetGuidStr().c_str(), uint32(m_native->Kind()), kMaxContinuation);
     return true;
 }
@@ -632,6 +635,7 @@ void NativeBehaviour::ResetRoute() { m_query.reset(); }
 bool NativeBehaviour::CanMove() const { return !U().hasUnitState(UNIT_STAT_CAN_NOT_MOVE); }
 bool NativeBehaviour::Casting() const { return U().IsNonMeleeSpellCasted(false, false, true); }
 bool NativeBehaviour::WaypointPaused() const { return U().hasUnitState(UNIT_STAT_WAYPOINT_PAUSED); }
+bool NativeBehaviour::CanFly() const { return U().GetTypeId() == TYPEID_UNIT && static_cast<Creature&>(U()).CanFly(); }
 
 bool NativeBehaviour::Anchor(Motion::Vector3& out) const
 {

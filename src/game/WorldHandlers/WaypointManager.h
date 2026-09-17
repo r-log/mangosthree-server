@@ -185,6 +185,10 @@ class WaypointManager
         void SetNodeOrientation(uint32 entry, uint32 dbGuid, uint32 point, int32 pathId, WaypointPathOrigin wpOrigin, float orientation);
         bool SetNodeScriptId(uint32 entry, uint32 dbGuid, uint32 point, int32 pathId, WaypointPathOrigin wpOrigin, uint32 scriptId);
 
+        /// The node maps' revision: bumped by every node mutation; a running patrol compares it
+        /// before each tick and re-reads its path on a change, as the generator's live path view did.
+        uint32 Revision() const { return m_revision; }
+
         // Small Helper for nice output
         static std::string GetOriginString(WaypointPathOrigin origin)
         {
@@ -218,6 +222,7 @@ class WaypointManager
         WaypointPathMap m_pathTemplateMap;
         WaypointPathMap m_externalPathTemplateMap;
         std::string m_externalTable;
+        uint32 m_revision = 0;   ///< see Revision(): every node mutation below bumps it
 };
 
 #define sWaypointMgr MaNGOS::Singleton<WaypointManager>::Instance()

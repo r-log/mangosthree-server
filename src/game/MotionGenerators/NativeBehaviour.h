@@ -95,6 +95,7 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         bool Casting() const override;
         bool WaypointPaused() const override;
         bool Anchor(Motion::Vector3& out) const override;
+        bool CanFly() const override;
 
         /// The owner of the moment, for the Services implementations below: asserts m_unit was
         /// set (every hook sets it before the native can call back through the port).

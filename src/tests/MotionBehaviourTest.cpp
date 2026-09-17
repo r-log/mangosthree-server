@@ -164,6 +164,7 @@ namespace
                 out = anchorPoint;
                 return true;
             }
+            bool CanFly() const override { return canFly; }   // a live read, like the four above: never logged in `calls`
 
             /// Restores every flag/value to its default and clears the call log.
             void Reset()
@@ -177,6 +178,7 @@ namespace
                 waypointPaused = false;
                 anchorSet = false;
                 anchorPoint = Vector3();
+                canFly = false;
                 irandValue = 50;
                 randomFails = false;
                 calls.clear();
@@ -191,6 +193,7 @@ namespace
             bool waypointPaused = false;
             bool anchorSet = false;
             Vector3 anchorPoint;
+            bool canFly = false;       ///< the live Creature::CanFly() the wander re-reads every tick.
             int32 irandValue = 50;     ///< Irand's answer; 50 is at or above 30, so the wander's break path draws the rest through Urand.
             bool randomFails = false;  ///< RandomPoint returns false instead of a point.
             std::vector<std::string> calls;
@@ -583,10 +586,10 @@ TEST(MotionBehaviour_WanderNoBreakAndAirborneSkipTheRest)
     w.Tick(arrived, svc, 100);
     CHECK(w.Tick(Free(), svc, 50).intent.act == MoveIntent::Act::Move);   // 50 ms retry rest
     FakeServices air;
+    air.canFly = true;                                       // the live read, not a parameter: the generator asked CanFly() each tick
     WanderBehaviour::Params ap;
     ap.radius = 10.0f;
     ap.verticalZ = 5.0f;
-    ap.airborne = true;
     WanderBehaviour f(ap);
     f.Activate(Free(), air);
     air.calls.clear();
@@ -594,6 +597,33 @@ TEST(MotionBehaviour_WanderNoBreakAndAirborneSkipTheRest)
     CHECK(hop.intent.Has(MOVE_FLY) && hop.intent.Has(MOVE_STRAIGHT));
     CHECK_EQ(air.calls.size(), size_t(3));                 // frand step, frand radius, ground; no roll, no rest
     CHECK(air.calls[0] == "frand" && air.calls[1] == "frand" && air.calls[2] == "ground");
+
+    // The same vertical band with the flight taken away: a ground hop, drawn the ground way.
+    // Give it back and the very next hop orbits -- nothing about the leash was re-requested.
+    {
+        FakeServices ground;                                 // canFly defaults false
+        WanderBehaviour::Params gp;
+        gp.radius = 10.0f;
+        gp.verticalZ = 5.0f;
+        WanderBehaviour g(gp);
+        g.Activate(Free(), ground);
+        ground.calls.clear();
+        Step walked = g.Tick(Free(), ground, 100);
+        CHECK(walked.intent.Has(MOVE_WALK));
+        CHECK(!walked.intent.Has(MOVE_FLY));
+        CHECK_EQ(ground.calls.size(), size_t(3));            // random point, the no-break roll, the rest
+        CHECK(ground.calls[0] == "random" && ground.calls[1] == "irand" && ground.calls[2] == "urand");
+
+        ground.canFly = true;
+        ground.calls.clear();
+        Sight landed = Free();
+        landed.status.arrived = true;
+        g.Tick(landed, ground, 100);                         // lands; the 3000 ms rest the ground hop banked runs
+        Step orbited = g.Tick(Free(), ground, 3000);
+        CHECK(orbited.intent.Has(MOVE_FLY) && orbited.intent.Has(MOVE_STRAIGHT));
+        CHECK_EQ(ground.calls.size(), size_t(3));            // frand step, frand radius, ground; no roll, no rest
+        CHECK(ground.calls[0] == "frand" && ground.calls[1] == "frand" && ground.calls[2] == "ground");
+    }
 }
 
 TEST(MotionBehaviour_WanderRetriesWithBackoffAndRestoresTheWalk)
@@ -946,6 +976,7 @@ namespace
             bool Casting() const override { return false; }
             bool WaypointPaused() const override { return false; }
             bool Anchor(Vector3&) const override { return false; }
+            bool CanFly() const override { return false; }
     };
 
     /// A Services stub whose route hands back a middle point within the drop tolerance of its
@@ -976,6 +1007,7 @@ namespace
             bool Casting() const override { return false; }
             bool WaypointPaused() const override { return false; }
             bool Anchor(Vector3&) const override { return false; }
+            bool CanFly() const override { return false; }
     };
 }
 
@@ -1335,11 +1367,170 @@ TEST(MotionBehaviour_PatrolSetNextWaypointInsideAnArrivalDropsTheQueuedArrivals)
         CHECK(trailing.roaming == Roaming::Keep);
         CHECK_EQ(b.LastReached(), 1u);
 
-        Step held = b.Tick(finalized, svc, 0);
-        CHECK(held.apply);
-        CHECK(held.intent.act == MoveIntent::Act::Hold);
-        CHECK_EQ(b.CurrentNode(), 1u);
+        // Node 1's own delay is zero, and the generator ran Stop(node.delay) as OnArrived's LAST
+        // line -- after the inform hook that called Pause. So the pause is overwritten by that
+        // zero and the drain prepares the next leg straight away, from node 2; the weld carries
+        // it on through to node 3, where the path's only wait is.
+        Step prepared = b.Tick(finalized, svc, 0);
+        CHECK(prepared.apply);
+        CHECK(prepared.intent.act == MoveIntent::Act::Move);
+        CHECK_EQ(prepared.intent.goal.x, 30.0f);
+        CHECK_EQ(b.CurrentNode(), 2u);
     }
+}
+
+TEST(MotionBehaviour_PatrolNodeDelayOutlivesAHooksSetNextWaypoint)
+{
+    // The generator's Stop(node.delay) was OnArrived's last line: it ran after MovementInform, so
+    // whatever the hook installed lost to the node's own delay. Node 2 waits 5 s and a hook fired
+    // from its inform redirects the patrol to node 3 with SetNextWaypoint's 1 ms -- the 5 s wins.
+    // (The delay sits on the weld's LAST node because that is the only place it can sit: a node
+    //  that waits ends the weld, and a one-waypoint segment is dropped, so a delay on the first
+    //  node would leave no tracked segment to arrive through at all.)
+    FakeServices svc;
+    svc.routeUsable = true;
+    svc.routeRouted = true;
+
+    PatrolBehaviour::Node n2 = MakeNode(2, 20.0f, 0.0f, 0.0f);
+    n2.delay = 5000;
+    PatrolBehaviour::Node n3 = MakeNode(3, 30.0f, 0.0f, 0.0f);
+    n3.delay = 5000;   // and this one keeps the redirect's own leg unwelded, so its goal is node 3 itself
+
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), n2, n3 };
+    p.inform.waypoint = 411;
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+
+    Sight start = Free();
+    start.position = Vector3(0.0f, 0.0f, 0.0f);
+    b.Tick(start, svc, 0);
+    CHECK_EQ(b.LegPointCount(), size_t(3));   // start, node 1, node 2: the weld ends at node 2's wait
+
+    // The spline is still running as it passes both endpoints, so the arrivals come from the
+    // segment alone -- no trailing entry follows them.
+    Sight midSpline = Free();
+    midSpline.status.traveling = true;
+    midSpline.status.pathIndex = 2;
+
+    Step atNode1 = b.Tick(midSpline, svc, 100);
+    CHECK(atNode1.again);
+    CHECK_EQ(atNode1.effects.size(), size_t(1));
+    CHECK_EQ(atNode1.effects[0].id, 1u);
+
+    Step atNode2 = b.Tick(midSpline, svc, 0);
+    CHECK(atNode2.again);
+    CHECK_EQ(atNode2.effects.size(), size_t(1));
+    CHECK_EQ(atNode2.effects[0].id, 2u);
+
+    CHECK(b.SetNextWaypoint(3));   // node 2's inform hook redirects the patrol, as it may
+
+    Step held = b.Tick(midSpline, svc, 0);
+    CHECK(held.apply);
+    CHECK(held.intent.act == MoveIntent::Act::Hold);   // the leg is gone and node 2's 5 s is running
+
+    CHECK(b.Tick(Free(), svc, 4999).intent.act == MoveIntent::Act::Hold);   // 1 ms left of the node's delay, not of the hook's
+
+    Step prepared = b.Tick(Free(), svc, 1);
+    CHECK(prepared.apply);
+    CHECK(prepared.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(prepared.intent.goal.x, 30.0f);
+    CHECK_EQ(b.CurrentNode(), 3u);
+}
+
+TEST(MotionBehaviour_PatrolAZeroDelayNodeDropsAHooksPause)
+{
+    // The same order, the other way round: node 1 does not wait at all, so the Stop(0) the
+    // generator ran after the inform overwrote a Pause the hook had just installed.
+    FakeServices svc;
+    svc.routeUsable = true;
+    svc.routeRouted = true;
+
+    PatrolBehaviour::Node n2 = MakeNode(2, 20.0f, 0.0f, 0.0f);
+    n2.delay = 5000;   // ends the weld at node 2, as above
+
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), n2, MakeNode(3, 30.0f, 0.0f, 0.0f) };
+    p.inform.waypoint = 411;
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+
+    Sight start = Free();
+    start.position = Vector3(0.0f, 0.0f, 0.0f);
+    b.Tick(start, svc, 0);
+    CHECK_EQ(b.LegPointCount(), size_t(3));
+
+    Sight midSpline = Free();
+    midSpline.status.traveling = true;
+    midSpline.status.pathIndex = 1;   // node 1's endpoint only: one segment arrival, no trailing entry
+
+    Step atNode1 = b.Tick(midSpline, svc, 100);
+    CHECK(atNode1.again);
+    CHECK_EQ(atNode1.effects.size(), size_t(1));
+    CHECK_EQ(atNode1.effects[0].id, 1u);
+
+    Step paused = b.Pause(2000);   // the hook of node 1's inform holds the patrol
+    CHECK(paused.stop);
+
+    Step drained = b.Tick(midSpline, svc, 0);
+    CHECK(drained.apply);
+    CHECK(drained.intent.act == MoveIntent::Act::Hold);   // the pause dropped the leg; nothing to re-state
+
+    Step prepared = b.Tick(Free(), svc, 100);             // 100 ms, not 2000: the node's zero delay won
+    CHECK(prepared.apply);
+    CHECK(prepared.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(prepared.intent.goal.x, 20.0f);
+    CHECK_EQ(b.CurrentNode(), 2u);
+}
+
+TEST(MotionBehaviour_PatrolReplaceNodesTakesEffectAtTheNextPrepare)
+{
+    // A GM's waypoint edit: the shell hands the patrol a freshly read path, and the patrol keeps
+    // walking -- its current node, its wait and the leg in flight are its own progress. The
+    // generator read the manager's node map live, which is what this reproduces.
+    FakeServices svc;   // routeUsable defaults false: a plain, unwelded leg each time
+
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f), MakeNode(3, 30.0f, 0.0f, 0.0f) };
+    p.inform.waypoint = 411;
+    p.revision = 3;
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+    CHECK_EQ(b.Revision(), 3u);
+
+    Step first = b.Tick(Free(), svc, 0);
+    CHECK(first.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(first.intent.goal.x, 10.0f);
+    CHECK_EQ(b.CurrentNode(), 1u);
+
+    // Node 2 moved ten yards further out, node 3 deleted.
+    std::vector<PatrolBehaviour::Node> edited;
+    edited.push_back(MakeNode(1, 10.0f, 0.0f, 0.0f));
+    edited.push_back(MakeNode(2, 30.0f, 0.0f, 0.0f));
+    b.ReplaceNodes(edited, 4);
+    CHECK_EQ(b.Revision(), 4u);
+    CHECK_EQ(b.CurrentNode(), 1u);   // the walk in flight is untouched by the edit
+
+    Sight finalized = Free();
+    finalized.status.traveling = false;
+    Step arrived = b.Tick(finalized, svc, 0);
+    CHECK(arrived.again);
+    CHECK_EQ(arrived.effects.size(), size_t(1));
+    CHECK_EQ(arrived.effects[0].id, 1u);
+
+    Step prepared = b.Tick(finalized, svc, 0);
+    CHECK(prepared.apply);
+    CHECK(prepared.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(prepared.intent.goal.x, 30.0f);   // the moved node 2, read at the prepare
+    CHECK_EQ(b.CurrentNode(), 2u);
+
+    // The whole path deleted under it: no nodes left, so the patrol holds where it stands.
+    b.ReplaceNodes(std::vector<PatrolBehaviour::Node>(), 5);
+    CHECK(!b.HasPath());
+    Step empty = b.Tick(Free(), svc, 0);
+    CHECK(empty.apply);
+    CHECK(empty.intent.act == MoveIntent::Act::Hold);
+    CHECK(empty.roaming == Roaming::ClearMove);
 }
 
 TEST(MotionBehaviour_PatrolPrepareRereadsCanMoveAfterTheNodesEffects)
