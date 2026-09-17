@@ -250,8 +250,8 @@ void NativeBehaviour::ApplyIntent(Unit& owner, Motion::Step const& step)
 }
 
 /**
- * @brief Both halves of a Step, for the hooks (Activate, Suspend, Resume, PerformStep): none of
- *        them runs inside a continuation, so there is no selection to re-check between them.
+ * @brief Both halves of a Step, for the hooks (Activate, Suspend, Resume, PerformStep): their
+ *        steps carry no intent to re-check, and each acts on the behaviour the facade just chose.
  * @param owner The moving unit.
  * @param step What the native returned.
  */

@@ -409,7 +409,7 @@ namespace Harness
         private:
             bool   m_hooked;
             size_t m_hookMark;
-            uint32 m_low;    ///< this scenario's own chicken, for the hook's and the scan's filter
+            uint32 m_low = 0;    ///< this scenario's own chicken, for the hook's and the scan's filter
         };
     }
 
