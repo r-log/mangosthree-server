@@ -37,9 +37,9 @@
 #include "IntentMovementGenerator.h"
 #include "MovementGenerator.h"
 #include "WaypointManager.h"
-#include "DBCStructure.h"
 #include "WaypointSmoothing.h"
 #include "movement/MoveSplineInitArgs.h"
+#include "FlightPathMovementGenerator.h"
 
 #include <vector>
 #include <set>
@@ -48,45 +48,6 @@ using Movement::PointsArray;
 
 #define FLIGHT_TRAVEL_UPDATE  100
 #define STOP_TIME_FOR_PLAYER  (3 * MINUTE * IN_MILLISECONDS)// 3 Minutes
-
-/**
- * @brief Base class for path movement generators
- *
- * Provides common functionality for path-based movement.
- *
- * @tparam T Type of the unit (Player or Creature)
- * @tparam P Type of the path
- */
-template<class T, class P>
-class PathMovementBase
-{
-    public:
-        /**
-         * @brief Constructor
-         */
-        PathMovementBase() : i_path(nullptr), i_currentNode(0) {}
-
-        /**
-         * @brief Virtual destructor
-         */
-        virtual ~PathMovementBase() {};
-
-        /**
-         * @brief Load path for the unit
-         * @param unit Reference to the unit
-         */
-        void LoadPath(T&);
-
-        /**
-         * @brief Get current node in the path
-         * @return Current node index
-         */
-        uint32 GetCurrentNode() const { return i_currentNode; }
-
-    protected:
-        P i_path; ///< Path for the movement
-        uint32 i_currentNode; ///< Current node in the path
-};
 
 /**
  * @brief Patrol: walk a list of waypoints, pausing, emoting and running scripts at the
@@ -206,117 +167,6 @@ class WaypointMovementGenerator final : public IntentMovementGenerator
         uint32 m_deadNodes = 0;      ///< Nodes skipped as unreachable in a row.
         bool m_forceNextLeg = false; ///< Walk the next leg unrouted: a whole lap was unreachable.
         bool m_approached = false; ///< A partial leg toward the node was walked: a block now is as close as it gets.
-};
-
-/**
- * @brief Flight path movement generator for players
- *
- * Generates movement of the player along taxi flight paths.
- * Handles ground and activities for the player during flight.
- */
-// Derives from MovementGenerator directly, like every other generator in this
-// tree. It used to go through MovementGeneratorMedium<Player, ...>, a CRTP
-// forwarder that overrode Initialize(Unit&) and re-dispatched to a typed
-// Initialize(Player&) here -- which meant this class hid the base's virtual at
-// six methods, and did the Unit-to-Player conversion with an unchecked C-style
-// cast whose accompanying AssertIsType<T>() was commented out.
-//
-// Every sibling had already been migrated off that template; this was the last
-// user of it, and the only source of 84 of the tree's 98 -Woverloaded-virtual
-// warnings. The downcast is now explicit and in one place per method.
-class FlightPathMovementGenerator
-    : public MovementGenerator,
-  public PathMovementBase<Player, TaxiPathNodeList const*>
-{
-    public:
-        /**
-         * @brief Constructor
-         * @param pathnodes Reference to path nodes
-         * @param startNode Starting node index
-         */
-        explicit FlightPathMovementGenerator(TaxiPathNodeList const& pathnodes, uint32 startNode = 0)
-        {
-            i_path = &pathnodes;
-            i_currentNode = startNode;
-        }
-
-        /**
-         * @brief Initialize the movement generator
-         * @param player Reference to the player
-         */
-        void Initialize(Unit& u) override;
-
-        /**
-         * @brief Finalize the movement generator
-         * @param player Reference to the player
-         */
-        void Finalize(Unit& u) override;
-
-        /**
-         * @brief Interrupt the movement generator
-         * @param player Reference to the player
-         */
-        void Interrupt(Unit& u) override;
-
-        /**
-         * @brief Reset the movement generator
-         * @param player Reference to the player
-         */
-        void Reset(Unit& u) override;
-
-        /**
-         * @brief Update the movement generator
-         * @param player Reference to the player
-         * @param diff Time difference in milliseconds
-         * @return True if update successful
-         */
-        bool Update(Unit& u, const uint32& diff) override;
-
-        /**
-         * @brief Get movement generator type
-         * @return FLIGHT_MOTION_TYPE
-         */
-        MovementGeneratorType GetMovementGeneratorType() const override { return FLIGHT_MOTION_TYPE; }
-
-        /**
-         * @brief Get the flight path
-         * @return Reference to path nodes
-         */
-        TaxiPathNodeList const& GetPath() { return *i_path; }
-
-        /**
-         * @brief Get node index at map end
-         * @return Node index at map end
-         */
-        uint32 GetPathAtMapEnd() const;
-
-        /**
-         * @brief Check if player has arrived at destination
-         * @return True if arrived
-         */
-        bool HasArrived() const { return (i_currentNode >= i_path->size()); }
-
-        /**
-         * @brief Set current node after teleport
-         */
-        void SetCurrentNodeAfterTeleport();
-
-        /**
-         * @brief Skip current node
-         */
-        void SkipCurrentNode() { ++i_currentNode; }
-        void DoEventIfAny(Player& player, TaxiPathNodeEntry const& node, bool departure);
-
-        /**
-         * @brief Get reset position for evade
-         * @param player Reference to the player
-         * @param x X-coordinate output
-         * @param y Y-coordinate output
-         * @param z Z-coordinate output
-         * @param o Orientation output
-         * @return True if reset position obtained
-         */
-        bool GetResetPosition(Unit& u, float& x, float& y, float& z, float& o) const override;
 };
 
 #endif // MANGOS_WAYPOINTMOVEMENTGENERATOR_H
