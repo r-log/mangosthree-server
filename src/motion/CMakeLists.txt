@@ -51,6 +51,8 @@ set(SRC_GRP_MOTION
     PatrolWelding.cpp
     TargetKinematics.h
     TargetKinematics.cpp
+    TrackingMoves.h
+    TrackingMoves.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 
