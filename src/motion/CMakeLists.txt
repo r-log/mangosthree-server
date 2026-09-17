@@ -47,6 +47,8 @@ set(SRC_GRP_MOTION
     SimpleMoves.cpp
     DefaultMoves.h
     DefaultMoves.cpp
+    PatrolWelding.h
+    PatrolWelding.cpp
 )
 source_group("motion" FILES ${SRC_GRP_MOTION})
 

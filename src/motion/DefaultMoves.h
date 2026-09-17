@@ -62,6 +62,104 @@ namespace Motion
             uint32  m_retries = 0;
             bool    m_lastRunning = false; ///< Suspend() has no Sight, so the walk restore reads the last tick's running state; equivalent to the generator's live read since the wander's own leg never sets UNIT_STAT_RUNNING, and a chase/fear sets it only after the wander is suspended.
     };
+
+    /// A waypoint patrol (design §4.2): the generator's node loop as continuation steps.
+    class PatrolBehaviour : public Behaviour
+    {
+        public:
+            struct Node
+            {
+                uint32  id = 0;
+                Vector3 pos;
+                float   orientation = 100.0f;   ///< 100 = none
+                uint32  delay = 0;
+                uint32  scriptId = 0;
+                uint32  emote = 0;
+                uint32  spell = 0;
+                std::vector<int32> textIds;     ///< the leading non-zero text ids (the generator's text branch fires on textid[0])
+                bool    textAnywhere = false;   ///< any of the five text ids non-zero (the generator's WaypointBehavior::isEmpty() rule)
+                uint32  model1 = 0;
+                uint32  model2 = 0;
+                /// The generator's `behavior != nullptr && !behavior->isEmpty()`: emote, spell, either model, or any text id.
+                bool HasBehavior() const { return emote || spell || model1 || model2 || textAnywhere; }
+            };
+            struct InformTypes
+            {
+                uint32 waypoint = 0;       ///< WAYPOINT_MOTION_TYPE
+                uint32 externalMove = 0;   ///< EXTERNAL_WAYPOINT_MOVE + pathId
+                uint32 externalStart = 0;  ///< EXTERNAL_WAYPOINT_MOVE_START + pathId
+                uint32 externalLast = 0;   ///< EXTERNAL_WAYPOINT_FINISHED_LAST + pathId
+            };
+            struct Params
+            {
+                int32  pathId = 0;
+                uint32 origin = 0;         ///< the shell's WaypointPathOrigin value, opaque here
+                bool   external = false;   ///< origin == PATH_FROM_EXTERNAL && pathId > 0: the raw inform types apply
+                bool   externalOrigin = false; ///< origin == PATH_FROM_EXTERNAL (any pathId): no welding, the path may be replaced under us
+                std::vector<Node> nodes;   ///< in path order (ascending id)
+                uint32 initialDelay = 0;
+                InformTypes inform;
+            };
+            explicit PatrolBehaviour(Params const& p);
+            Motion::Kind Kind() const override { return Motion::Kind::Patrol; }
+            Step Activate(Sight const& sight, Services& svc) override;
+            Step Suspend() override;
+            Step Resume(Sight const& sight, Services& svc, bool reset) override;
+            Step Tick(Sight const& sight, Services& svc, uint32 diff) override;
+            FinishReason EndReason(Sight const&) const override { return FinishReason::Expired; }
+            Outcome Finish(FinishReason why, Sight const& sight, Services& svc) override;
+            bool ResetPosition(Sight const& sight, Services& svc, Vector3& pos, float& o) const override;
+            // The facade's reads and commands (MotionMaster::HeldPatrol)
+            Step Pause(int32 ms);                       ///< the generator's Pause: stop, the segment cleared, the wait started unless one runs
+            void AddToPauseTime(int32 diff);
+            bool SetNextWaypoint(uint32 pointId);       ///< true when the node exists; the caller resets the driver's leg
+            uint32 CurrentNode() const { return m_currentNode; }
+            uint32 LastReached() const { return m_lastReached; }
+            int32  PathId() const { return m_p.pathId; }
+            uint32 Origin() const { return m_p.origin; }
+            bool   HasPath() const { return !m_p.nodes.empty(); }
+            size_t LegPointCount() const { return m_legPoints.size(); }   ///< the harness's welding measurement
+        private:
+            enum class Phase : uint8 { Fresh, Arrivals, PrepareInform };
+            struct SegmentWaypoint { uint32 pointId; size_t pathPointIndex; };
+            Node const* Find(uint32 id) const;
+            size_t IndexOf(uint32 id) const;             ///< nodes.size() when absent
+            bool Stopped(Services& svc) const { return m_wait > 0 || svc.WaypointPaused(); }
+            bool CanMove(Services& svc, uint32 diff);
+            void Stop(int32 ms) { m_wait = ms; }
+            void ClearSegment() { m_segment.clear(); m_segmentArrivals = 0; }
+            Step ArrivalStep(Services& svc);              ///< one node's state and effects, in the generator's order
+            Step StartPrepare(Sight const& sight, Services& svc);
+            Step PrepareLeg(Sight const& sight, Services& svc, size_t currIndex);
+            Step WalkPreparedLeg() const;
+            void BuildSmoothPath(Services& svc, Vector3 const& moverPos, size_t startIndex);
+            bool AppendLeg(Services& svc, Vector3 const& start, Node const& end);
+            void CollectArrivals(int32 pathIndex);       ///< the nodes the spline passed since the last tick, in order
+            struct Arrival { uint32 pointId; bool fromSegment; };   ///< fromSegment: ProcessSegmentProgress's arrivals clear the latch first
+            Params m_p;
+            uint32 m_currentNode = 0;
+            uint32 m_lastReached = 0;
+            int32  m_wait = 0;
+            bool   m_arrivalDone = false;
+            std::vector<SegmentWaypoint> m_segment;
+            size_t m_segmentArrivals = 0;
+            PointsArray m_legPoints;                     ///< owned; stable for the leg's life (Along is non-owning)
+            Vector3 m_legEnd;
+            Facing  m_legFacing;
+            bool    m_legWalk = true;
+            bool    m_haveLeg = false;
+            uint32  m_deadNodes = 0;
+            bool    m_forceNextLeg = false;
+            bool    m_approached = false;
+            // the continuation
+            Phase   m_phase = Phase::Fresh;
+            std::vector<Arrival> m_pendingArrivals;      ///< nodes to arrive at, in order
+            bool    m_finalizedSegment = false;          ///< the arrivals came from a finalized spline: prepare after them
+            bool    m_reachedLast = false;
+            uint32  m_nextAfterInform = 0;               ///< the node the prepare inform named
+            uint32  m_nodeBeforeInform = 0;              ///< m_currentNode when the prepare inform fired: a hook's SetNextWaypoint shows as a change
+            bool    m_lastRunning = false;
+    };
 }
 
 #endif

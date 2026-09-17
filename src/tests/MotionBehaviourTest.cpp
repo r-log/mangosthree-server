@@ -30,6 +30,8 @@
 #include "SimpleMoves.h"
 #include "DefaultMoves.h"
 
+#include <cmath>
+
 using namespace Motion;
 
 TEST(MotionBehaviour_IntentValuesAreKernelSafe)
@@ -641,4 +643,432 @@ TEST(MotionBehaviour_WanderStopsOnlyOnADisplacingFinish)
     CHECK(w.Finish(FinishReason::Overridden, running, svc).interrupt);
     CHECK(w.Finish(FinishReason::Cancelled, running, svc).interrupt);
     CHECK(!w.Finish(FinishReason::Expired, running, svc).interrupt);
+}
+
+namespace
+{
+    PatrolBehaviour::Node MakeNode(uint32 id, float x, float y, float z)
+    {
+        PatrolBehaviour::Node n;
+        n.id = id;
+        n.pos = Vector3(x, y, z);
+        return n;
+    }
+}
+
+TEST(MotionBehaviour_PatrolArrivesInTheGeneratorsOrder)
+{
+    FakeServices svc;
+    svc.routeUsable = true;
+    svc.routeRouted = true;   // every leg is a real route: welding is on the table
+
+    PatrolBehaviour::Node n1 = MakeNode(1, 10.0f, 0.0f, 0.0f);
+    PatrolBehaviour::Node n2 = MakeNode(2, 20.0f, 0.0f, 0.0f);
+    n2.scriptId = 5;
+    n2.emote = 6;
+    n2.textIds = { 100, 101 };
+    n2.textAnywhere = true;
+    n2.delay = 1000;
+    PatrolBehaviour::Node n3 = MakeNode(3, 30.0f, 0.0f, 0.0f);
+
+    PatrolBehaviour::Params p;
+    p.nodes = { n1, n2, n3 };
+    p.inform.waypoint = 411;
+
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+
+    Sight start = Free();
+    start.position = Vector3(0.0f, 0.0f, 0.0f);
+    Step first = b.Tick(start, svc, 100);
+    CHECK(first.apply);
+    CHECK(first.intent.act == MoveIntent::Act::Move);
+    // Node 1 carries no delay/script/behaviour, so the weld passes straight through it; node
+    // 2's script stops the weld there -- the leg's destination is node 2, not node 1.
+    CHECK_EQ(b.LegPointCount(), size_t(3));
+    CHECK_EQ(first.intent.goal.x, 20.0f);
+    CHECK(first.intent.Has(MOVE_REQUIRE_PATH));
+    CHECK(first.intent.Has(MOVE_WALK));
+    CHECK(first.roaming == Roaming::SetMove);
+    CHECK_EQ(first.effects.size(), size_t(1));
+    CHECK(first.effects[0].kind == Effect::SetWalk);
+    CHECK(first.effects[0].flag);
+
+    // The whole welded spline (start, node 1, node 2) finalizes at once: both endpoints are
+    // reached together.
+    Sight finalized = Free();
+    finalized.status.traveling = false;
+    finalized.status.pathIndex = 2;
+
+    Step atNode1 = b.Tick(finalized, svc, 100);
+    CHECK(atNode1.again);
+    CHECK(atNode1.roaming == Roaming::ClearMove);
+    CHECK_EQ(atNode1.effects.size(), size_t(1));
+    CHECK(atNode1.effects[0].kind == Effect::InformRaw);
+    CHECK_EQ(atNode1.effects[0].raw, 411u);
+    CHECK_EQ(atNode1.effects[0].id, 1u);
+
+    Step atNode2 = b.Tick(finalized, svc, 0);
+    CHECK(atNode2.again);
+    CHECK(atNode2.roaming == Roaming::ClearMove);
+    CHECK_EQ(atNode2.effects.size(), size_t(4));
+    CHECK(atNode2.effects[0].kind == Effect::RunScript);
+    CHECK_EQ(atNode2.effects[0].id, 5u);
+    CHECK(atNode2.effects[1].kind == Effect::Emote);
+    CHECK_EQ(atNode2.effects[1].id, 6u);
+    CHECK(atNode2.effects[2].kind == Effect::Say);
+    CHECK_EQ(atNode2.effects[2].id, 100u);   // Urand(0, 1) answers min = 0 -> textIds[0]
+    CHECK(atNode2.effects[3].kind == Effect::InformRaw);
+    CHECK_EQ(atNode2.effects[3].raw, 411u);
+    CHECK_EQ(atNode2.effects[3].id, 2u);
+
+    Step guarded = b.Tick(finalized, svc, 0);   // the trailing OnArrived, latch-guarded: nothing
+    CHECK(guarded.again);
+    CHECK(guarded.effects.empty());
+    CHECK(guarded.roaming == Roaming::Keep);
+
+    Step waiting = b.Tick(finalized, svc, 0);   // node 2's 1000 ms delay is still running
+    CHECK(waiting.apply);
+    CHECK(waiting.intent.act == MoveIntent::Act::Hold);
+
+    // The wait passed: prepare from node 2 toward node 3, node 3 has no behaviour either, so
+    // the weld keeps going and wraps clean around the cyclic path onto node 1, stopping only
+    // at node 2's own script -- the destination is node 2 again, by the long way round.
+    Step prepared = b.Tick(Free(), svc, 1000);
+    CHECK(prepared.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(b.LegPointCount(), size_t(4));   // start, node 3, node 1, node 2
+    CHECK_EQ(prepared.intent.goal.x, 20.0f);
+}
+
+TEST(MotionBehaviour_PatrolExternalPrepareInformIsABarrierAndHonoursSetNextWaypoint)
+{
+    FakeServices svc;   // routeUsable defaults false: an externally-scripted path never welds anyway
+
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 0.0f, 0.0f, 0.0f), MakeNode(2, 10.0f, 0.0f, 0.0f), MakeNode(3, 20.0f, 0.0f, 0.0f) };
+    p.external = true;
+    p.externalOrigin = true;
+    p.inform.externalMove = 700;
+    p.inform.externalStart = 701;
+    p.inform.externalLast = 702;
+
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+    b.Tick(Free(), svc, 0);                     // the first leg: straight to node 1, the starting node
+
+    Sight finalized = Free();
+    finalized.status.traveling = false;
+    b.Tick(finalized, svc, 0);                  // arrives at node 1: Raw(externalMove, 1), consumed
+
+    Step barrier = b.Tick(finalized, svc, 0);   // the arrivals phase drains; StartPrepare's external inform fires
+    CHECK(barrier.barrier);
+    CHECK(barrier.again);
+    CHECK_EQ(barrier.effects.size(), size_t(1));
+    CHECK(barrier.effects[0].kind == Effect::InformRaw);
+    CHECK_EQ(barrier.effects[0].raw, 701u);      // externalStart: node 2 was next
+    CHECK_EQ(barrier.effects[0].id, 2u);
+
+    CHECK(b.SetNextWaypoint(3));                 // the hook retargets the patrol, as it may
+
+    Step toNode3 = b.Tick(finalized, svc, 0);    // the barrier passed: the hook's node wins over the named one
+    CHECK(toNode3.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(toNode3.intent.goal.x, 20.0f);
+    CHECK_EQ(b.CurrentNode(), 3u);
+
+    // SetNextWaypoint's Reset(1) is the generator's own: the very next external tick sees the
+    // 1 ms wait not yet passed, and -- since it was called from inside the PrepareInform hook,
+    // one tick too late to affect the leg PrepareLeg just built -- re-runs StartPrepare once
+    // more (rebuilding the same leg, arrivalDone still false) before the leg actually gets to
+    // run.
+    Step rebuilt = b.Tick(finalized, svc, 1);
+    CHECK(rebuilt.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(rebuilt.intent.goal.x, 20.0f);
+
+    b.Tick(finalized, svc, 0);                   // arrives at node 3: Raw(externalMove, 3), consumed
+    Step wrap = b.Tick(finalized, svc, 0);       // node 3 is last: the wrap uses externalLast, naming node 1
+    CHECK(wrap.barrier);
+    CHECK_EQ(wrap.effects.size(), size_t(1));
+    CHECK(wrap.effects[0].kind == Effect::InformRaw);
+    CHECK_EQ(wrap.effects[0].raw, 702u);          // externalLast
+    CHECK_EQ(wrap.effects[0].id, 1u);             // wrapped back to node 1
+}
+
+TEST(MotionBehaviour_PatrolSkipsDeadNodesAndForcesALegAfterALap)
+{
+    FakeServices svc;   // routeUsable defaults false: a plain, unwelded leg each time
+
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 0.0f, 0.0f, 0.0f), MakeNode(2, 10.0f, 0.0f, 0.0f) };
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+
+    Step first = b.Tick(Blocked(), svc, 100);    // the first unreachable node: 50 ms, then on to node 2
+    CHECK(first.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(first.intent.goal.x, 10.0f);
+    CHECK(first.intent.Has(MOVE_REQUIRE_PATH));
+    CHECK_EQ(b.CurrentNode(), 2u);
+
+    Step second = b.Tick(Blocked(), svc, 100);   // a whole lap unreachable: the next leg is forced, unrouted
+    CHECK(second.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(second.intent.goal.x, 0.0f);
+    CHECK(!second.intent.Has(MOVE_REQUIRE_PATH));
+    CHECK_EQ(b.CurrentNode(), 1u);
+}
+
+TEST(MotionBehaviour_PatrolFacesOnlyAWaitingNode)
+{
+    FakeServices svc;
+    {
+        PatrolBehaviour::Node n = MakeNode(1, 5.0f, 0.0f, 0.0f);
+        n.orientation = 1.5f;
+        n.delay = 500;
+        PatrolBehaviour::Params p;
+        p.nodes = { n };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        Step t = b.Tick(Free(), svc, 100);
+        CHECK(t.intent.facing.mode == Facing::Mode::Angle);
+        CHECK_EQ(t.intent.facing.angle, 1.5f);
+    }
+    {
+        PatrolBehaviour::Node n = MakeNode(1, 5.0f, 0.0f, 0.0f);
+        n.orientation = 1.5f;   // a heading, but nothing to stop for: no facing
+        n.delay = 0;
+        PatrolBehaviour::Params p;
+        p.nodes = { n };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        Step t = b.Tick(Free(), svc, 100);
+        CHECK(t.intent.facing.mode == Facing::Mode::None);
+    }
+    {
+        PatrolBehaviour::Node n = MakeNode(1, 5.0f, 0.0f, 0.0f);
+        n.delay = 500;   // a wait, but no heading on the node (orientation left at 100 = none)
+        PatrolBehaviour::Params p;
+        p.nodes = { n };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        Step t = b.Tick(Free(), svc, 100);
+        CHECK(t.intent.facing.mode == Facing::Mode::None);
+    }
+}
+
+namespace
+{
+    /// A Services stub whose route always lands `SEAM` yards short of the requested goal --
+    /// mimicking a navmesh-adjusted endpoint -- so BuildSmoothPath's cross-leg seam check has
+    /// something to trip over.
+    class SeamServices : public Services
+    {
+        public:
+            bool RandomPoint(Vector3 const&, float, Vector3&) override { return false; }
+            bool Ground(Vector3 const&, float&) override { return false; }
+            float Frand(float min, float) override { return min; }
+            uint32 Urand(uint32 min, uint32) override { return min; }
+            int32 Irand(int32 min, int32) override { return min; }
+            RouteResult Route(Vector3 const& from, Vector3 const& to, PointsArray& points) override
+            {
+                RouteResult r;
+                r.usable = true;
+                r.routed = true;
+                points.clear();
+                points.push_back(from);
+                Vector3 end = to;
+                if (to.x > 15.0f)   // only the leg into node 3 lands short
+                {
+                    end.x -= 0.2f;
+                }
+                points.push_back(end);
+                return r;
+            }
+            bool Casting() const override { return false; }
+            bool WaypointPaused() const override { return false; }
+            bool Anchor(Vector3&) const override { return false; }
+    };
+
+    /// A Services stub whose route hands back a middle point within the drop tolerance of its
+    /// own endpoint, so the merge's within-leg near-duplicate filter has something to drop.
+    class DupPointServices : public Services
+    {
+        public:
+            bool RandomPoint(Vector3 const&, float, Vector3&) override { return false; }
+            bool Ground(Vector3 const&, float&) override { return false; }
+            float Frand(float min, float) override { return min; }
+            uint32 Urand(uint32 min, uint32) override { return min; }
+            int32 Irand(int32 min, int32) override { return min; }
+            RouteResult Route(Vector3 const& from, Vector3 const& to, PointsArray& points) override
+            {
+                RouteResult r;
+                r.usable = true;
+                r.routed = true;
+                points.clear();
+                points.push_back(from);
+                Vector3 near = to;
+                near.x -= 0.05f;   // under WAYPOINT_SMOOTHING_MIN_SEGMENT_LENGTH (0.1)
+                points.push_back(near);
+                points.push_back(to);
+                return r;
+            }
+            bool Casting() const override { return false; }
+            bool WaypointPaused() const override { return false; }
+            bool Anchor(Vector3&) const override { return false; }
+    };
+}
+
+TEST(MotionBehaviour_PatrolWeldingRules)
+{
+    // usable && !routed: a straight-line fallback is not welded through.
+    {
+        FakeServices svc;
+        svc.routeUsable = true;
+        svc.routeRouted = false;
+        PatrolBehaviour::Params p;
+        p.nodes = { MakeNode(1, 5.0f, 0.0f, 0.0f), MakeNode(2, 10.0f, 0.0f, 0.0f) };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        b.Tick(Free(), svc, 100);
+        CHECK_EQ(b.LegPointCount(), size_t(0));
+    }
+    // A seam >= 0.1 yd between two legs stops the weld from extending further, keeping what
+    // was already welded.
+    {
+        SeamServices svc;
+        PatrolBehaviour::Params p;
+        p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f), MakeNode(3, 30.0f, 0.0f, 0.0f) };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        Step t = b.Tick(Free(), svc, 100);
+        CHECK_EQ(b.LegPointCount(), size_t(3));   // start, node 1, node 2 -- the seam into node 3 stops it there
+        CHECK_EQ(t.intent.goal.x, 20.0f);
+    }
+    // The packable offset budget rolls a rejected point back rather than keeping a partial one.
+    {
+        FakeServices svc;
+        svc.routeUsable = true;
+        svc.routeRouted = true;
+        PatrolBehaviour::Params p;
+        p.nodes = { MakeNode(1, 50.0f, 0.0f, 0.0f), MakeNode(2, 100.0f, 0.0f, 0.0f), MakeNode(3, 300.0f, 0.0f, 0.0f) };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        Step t = b.Tick(Free(), svc, 100);
+        CHECK_EQ(b.LegPointCount(), size_t(3));   // 0, 50, 100 -- node 3 would blow the 200 yd XY span
+        CHECK_EQ(t.intent.goal.x, 100.0f);
+    }
+    // A full lap stops before welding the path onto itself.
+    {
+        FakeServices svc;
+        svc.routeUsable = true;
+        svc.routeRouted = true;
+        PatrolBehaviour::Params p;
+        p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f) };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        Step t = b.Tick(Free(), svc, 100);
+        CHECK_EQ(b.LegPointCount(), size_t(3));   // not 32-ish: the wrap back to node 1 is refused
+        CHECK_EQ(t.intent.goal.x, 20.0f);
+    }
+    // A near-duplicate point inside a single leg is dropped by the merge.
+    {
+        DupPointServices svc;
+        PatrolBehaviour::Params p;
+        p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f) };
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        b.Tick(Free(), svc, 100);
+        // Each leg's own endpoint lands 0.05 yd from the point already kept and is dropped: 3
+        // surviving points, not 5.
+        CHECK_EQ(b.LegPointCount(), size_t(3));
+    }
+}
+
+TEST(MotionBehaviour_PatrolResetPosition)
+{
+    FakeServices svc;
+    PatrolBehaviour::Node n1 = MakeNode(1, 0.0f, 0.0f, 0.0f);
+    PatrolBehaviour::Node n2 = MakeNode(2, 10.0f, 0.0f, 0.0f);
+    PatrolBehaviour::Node n3 = MakeNode(3, 10.0f, 10.0f, 0.0f);
+    n3.orientation = 1.25f;
+    PatrolBehaviour::Params p;
+    p.nodes = { n1, n2, n3 };
+
+    // The anchor: face the node the patrol was heading for, not the anchor's own facing.
+    {
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        CHECK(b.SetNextWaypoint(2));   // heading for node 2 at (10, 0, 0)
+        FakeServices anchored;
+        anchored.anchorSet = true;
+        anchored.anchorPoint = Vector3(0.0f, 0.0f, 0.0f);
+        Sight sight = Free();
+        sight.facing = 0.75f;
+        Vector3 pos;
+        float o = 0.5f;
+        CHECK(b.ResetPosition(sight, anchored, pos, o));
+        CHECK(pos == Vector3(0.0f, 0.0f, 0.0f));
+        CHECK_EQ(o, 0.0f);   // atan2(0, 10) == 0
+    }
+    // The last node reached, with a fixed orientation: the node's own heading, no bearing math.
+    {
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        CHECK(b.SetNextWaypoint(3));
+        FakeServices unwelded;   // routeUsable defaults false: an unwelded, single-node leg
+        b.Tick(Free(), unwelded, 1);            // SetNextWaypoint's 1 ms wait passes
+        Sight finalized = Free();
+        finalized.status.traveling = false;
+        b.Tick(finalized, unwelded, 0);         // arrives at node 3: m_lastReached = 3
+        CHECK_EQ(b.LastReached(), 3u);
+        Vector3 pos;
+        float o = 0.0f;
+        CHECK(b.ResetPosition(Free(), svc, pos, o));   // svc.Anchor answers false: no anchor
+        CHECK(pos == n3.pos);
+        CHECK_EQ(o, 1.25f);
+    }
+    // No orientation on the last reached node: the bearing from the previous node (wrapping to
+    // the last node in the path when the last reached one is the first).
+    {
+        PatrolBehaviour b(p);
+        b.Activate(Free(), svc);
+        CHECK(b.SetNextWaypoint(1));
+        FakeServices unwelded;
+        b.Tick(Free(), unwelded, 1);            // SetNextWaypoint's 1 ms wait passes
+        Sight finalized = Free();
+        finalized.status.traveling = false;
+        b.Tick(finalized, unwelded, 0);         // arrives at node 1: m_lastReached = 1
+        CHECK_EQ(b.LastReached(), 1u);
+        Vector3 pos;
+        float o = 0.0f;
+        CHECK(b.ResetPosition(Free(), svc, pos, o));
+        CHECK(pos == n1.pos);
+        float expected = std::atan2(n1.pos.y - n3.pos.y, n1.pos.x - n3.pos.x);
+        expected = (expected >= 0.0f) ? expected : 6.28318530718f + expected;
+        CHECK_EQ(o, expected);
+    }
+}
+
+TEST(MotionBehaviour_PatrolPauseAndPauseTime)
+{
+    FakeServices svc;
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 0.0f, 0.0f, 0.0f), MakeNode(2, 10.0f, 0.0f, 0.0f) };
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+
+    Step paused = b.Pause(1000);
+    CHECK(paused.stop);
+    CHECK(b.Tick(Free(), svc, 999).intent.act == MoveIntent::Act::Hold);   // 1 ms left
+
+    b.AddToPauseTime(-5000);   // extend the pause (a negative diff, as the shell passes it)
+    CHECK(b.Tick(Free(), svc, 999).intent.act == MoveIntent::Act::Hold);   // still held
+
+    b.AddToPauseTime(10000);   // cut the remaining wait short; clamped at 0, never negative
+    Step prepared = b.Tick(Free(), svc, 0);
+    CHECK(prepared.intent.act == MoveIntent::Act::Move);   // free: a fresh leg toward the same node
+
+    // A wait already running is left alone: Pause must not shorten it with a later, smaller one.
+    Step first = b.Pause(50);
+    CHECK(first.stop);
+    Step second = b.Pause(9999);
+    CHECK(second.stop);
+    CHECK(b.Tick(Free(), svc, 40).intent.act == MoveIntent::Act::Hold);   // 50 - 40 = 10 ms left, not 9999
 }
