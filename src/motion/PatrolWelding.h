@@ -5,11 +5,10 @@
 
 // The kernel's own copy of the waypoint-smoothing primitives (moved from
 // src/game/MotionGenerators/WaypointSmoothing.h, P5-B family 2 Task 3): the patrol native
-// welds its own legs through this port now. Namespaced (Motion) because the shell's
-// WaypointSmoothing.cpp still defines the same five functions at global scope until Task 4
-// deletes it with the generator, and src/game/CMakeLists.txt links `motion` into `game` --
-// an un-namespaced clash would land both definitions on mangosd's link line, resolved only
-// by archive order.
+// welds its own legs through this port now. Namespaced (Motion) because the shell's copy is
+// gone; the kernel owns the welding, and src/game/CMakeLists.txt links `motion` into `game`
+// -- an un-namespaced clash would land both definitions on mangosd's link line, resolved
+// only by archive order.
 
 namespace Motion
 {

@@ -34,10 +34,14 @@
 #include "Creature.h"
 #include "GridMap.h"
 #include "GameTime.h"
+#include "Common/TimeConstants.h"
 
-/// How long a patrol holds when a player starts talking to it (HoldForPlayer, below); the
-/// generator's own macro, the sole survivor once WaypointMovementGenerator.h was deleted.
-#define STOP_TIME_FOR_PLAYER  (3 * MINUTE * IN_MILLISECONDS)// 3 Minutes
+namespace
+{
+    /// How long a patrol holds when a player starts talking to it (HoldForPlayer, below); the
+    /// generator's own constant, the sole survivor once WaypointMovementGenerator.h was deleted.
+    const uint32 STOP_TIME_FOR_PLAYER = 3 * MINUTE * IN_MILLISECONDS;
+}
 
 /**
  * @brief Enables or disables walk mode for the creature.

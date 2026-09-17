@@ -260,7 +260,6 @@ class MotionMaster
         /// One Effect request, through the shell's own gate: a Jump on a rooted unit is refused.
         /// @return False when it was refused; nothing was bound and nothing will inform.
         bool RequestEffect(uint32 id, Motion::EffectLaunch const& launch);
-        void InstallFactory(Motion::Kind kind, MovementGenerator* generator, bool owned);
         void InstallFactoryNative(Motion::Kind kind, std::unique_ptr<Motion::Behaviour> native);
         bool Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned);
         bool BindNative(uint32 seqBefore, std::unique_ptr<Motion::Behaviour> native);

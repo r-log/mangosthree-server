@@ -26,10 +26,11 @@
 #ifndef MANGOS_FLIGHTPATHMOVEMENTGENERATOR_H
 #define MANGOS_FLIGHTPATHMOVEMENTGENERATOR_H
 
-/** @page PathMovementGenerator is used to generate movements
- * of waypoints and flight paths.  Each serves the purpose
- * of generate activities so that it generates updated
- * packets for the players.
+/** @page PathMovementGenerator is used to generate movement
+ * along flight paths, serving the purpose of generating
+ * activities so that it generates updated packets for the
+ * players. Waypoint movement is a native kernel behaviour now
+ * (Motion::PatrolBehaviour, src/motion/DefaultMoves.h).
  */
 
 #include "MovementGenerator.h"

@@ -79,6 +79,101 @@ namespace
         r.claim = claim;
         return r;
     }
+
+    /**
+     * @brief The shell's LoadPath: resolves the path and copies each node into the native's Params.
+     * @param creature The creature the path is loaded for.
+     * @param pathId The requested path id (0 for "the default path").
+     * @param source The requested path source; PATH_NO_PATH for "figure it out".
+     * @param initialDelay How long the patrol waits before its first leg.
+     * @param overwriteEntry An entry to load the path for instead of the creature's own; 0 for the creature's own.
+     * @param out Filled with the resolved path and its nodes.
+     * @return True when a non-empty path was resolved; false leaves `out` with no nodes (the
+     *         native then holds, exactly as the generator's unresolved LoadPath did).
+     */
+    bool BuildPatrolParams(Creature& creature, int32 pathId, WaypointPathOrigin source,
+                           uint32 initialDelay, uint32 overwriteEntry,
+                           Motion::PatrolBehaviour::Params& out)
+    {
+        DETAIL_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "LoadPath: loading waypoint path for %s", creature.GetGuidStr().c_str());
+        if (!overwriteEntry)
+        {
+            overwriteEntry = creature.GetEntry();
+        }
+
+        WaypointPathOrigin resolvedOrigin = source;
+        WaypointPath const* path = NULL;
+        if (source == PATH_NO_PATH && pathId == 0)
+        {
+            path = sWaypointMgr.GetDefaultPath(overwriteEntry, creature.GetGUIDLow(), &resolvedOrigin);
+        }
+        else
+        {
+            resolvedOrigin = (source == PATH_NO_PATH) ? PATH_FROM_ENTRY : source;
+            path = sWaypointMgr.GetPathFromOrigin(overwriteEntry, creature.GetGUIDLow(), pathId, resolvedOrigin);
+        }
+
+        out.pathId = pathId;
+        out.origin = uint32(resolvedOrigin);
+        out.external = resolvedOrigin == PATH_FROM_EXTERNAL && pathId > 0;
+        out.externalOrigin = resolvedOrigin == PATH_FROM_EXTERNAL;
+        out.initialDelay = initialDelay;
+        out.inform.waypoint = WAYPOINT_MOTION_TYPE;
+        out.inform.externalMove = EXTERNAL_WAYPOINT_MOVE + pathId;
+        out.inform.externalStart = EXTERNAL_WAYPOINT_MOVE_START + pathId;
+        out.inform.externalLast = EXTERNAL_WAYPOINT_FINISHED_LAST + pathId;
+
+        if (!path)
+        {
+            if (resolvedOrigin == PATH_FROM_EXTERNAL)
+            {
+                sLog.outErrorScriptLib("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
+            }
+            else
+            {
+                sLog.outErrorDb("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
+            }
+            return false;
+        }
+
+        if (path->empty())
+        {
+            return false;
+        }
+
+        for (WaypointPath::const_iterator itr = path->begin(); itr != path->end(); ++itr)
+        {
+            WaypointNode const& src = itr->second;
+            Motion::PatrolBehaviour::Node node;
+            node.id = itr->first;
+            node.pos = Motion::Vector3(src.x, src.y, src.z);
+            node.orientation = src.orientation;
+            node.delay = src.delay;
+            node.scriptId = src.script_id;
+            if (WaypointBehavior* behavior = src.behavior)
+            {
+                node.emote = behavior->emote;
+                node.spell = behavior->spell;
+                node.model1 = behavior->model1;
+                node.model2 = behavior->model2;
+                for (int i = 0; i < MAX_WAYPOINT_TEXT && behavior->textid[i]; ++i)
+                {
+                    node.textIds.push_back(behavior->textid[i]);
+                }
+                for (int i = 0; i < MAX_WAYPOINT_TEXT; ++i)
+                {
+                    if (behavior->textid[i])
+                    {
+                        node.textAnywhere = true;
+                        break;
+                    }
+                }
+            }
+            out.nodes.push_back(node);
+        }
+
+        return true;
+    }
 }
 
 // ---- Bound --------------------------------------------------------------------
@@ -597,24 +692,6 @@ bool MotionMaster::RequestEffect(uint32 id, Motion::EffectLaunch const& launch)
 }
 
 /**
- * @brief Installs the factory default; the caller owns the transaction.
- * @param kind The kind the default runs under.
- * @param generator The legacy generator to adapt.
- * @param owned True when the behaviour owns the generator.
- */
-void MotionMaster::InstallFactory(Motion::Kind kind, MovementGenerator* generator, bool owned)
-{
-    const uint32 before = m_arbiter.LastSeq();
-    m_arbiter.InstallDefault(kind);
-    const bool bound = Bind(kind, before, generator, owned);   // before the hooks, as Request does it
-    DeliverEvents();   // the clear's or the death's Finished events, and the swap's, with their own reasons
-    if (bound)
-    {
-        SweepStale(kind);
-    }
-}
-
-/**
  * @brief Installs a native factory default; the caller owns the transaction.
  * @param kind The kind the default runs under.
  * @param native The kernel behaviour the adapter drives.
@@ -632,12 +709,6 @@ void MotionMaster::InstallFactoryNative(Motion::Kind kind, std::unique_ptr<Motio
 }
 
 // ---- the facade ----------------------------------------------------------------
-
-/// The shell's path resolution and node copy for a patrol (MoveWaypoint's helper, defined
-/// alongside it below): forward-declared here for Initialize's WAYPOINT default.
-static bool BuildPatrolParams(Creature& creature, int32 pathId, WaypointPathOrigin source,
-                               uint32 initialDelay, uint32 overwriteEntry,
-                               Motion::PatrolBehaviour::Params& out);
 
 /**
  * @brief Initializes the MotionMaster.
@@ -990,100 +1061,6 @@ void MotionMaster::MoveFleeing(Unit* enemy, uint32 time, uint64 claim)
         : static_cast<MovementGenerator*>(new FleeingMovementGenerator(enemy->GetObjectGuid()));
     const uint64 identity = claim ? claim : Motion::ControlClaim(0, 1, enemy->GetObjectGuid().GetCounter());
     Request(R(Motion::Kind::Fear, 0, false, identity), generator, true);
-}
-
-/**
- * @brief The shell's LoadPath: resolves the path and copies each node into the native's Params.
- * @param creature The creature the path is loaded for.
- * @param pathId The requested path id (0 for "the default path").
- * @param source The requested path source; PATH_NO_PATH for "figure it out".
- * @param initialDelay How long the patrol waits before its first leg.
- * @param overwriteEntry An entry to load the path for instead of the creature's own; 0 for the creature's own.
- * @param out Filled with the resolved path and its nodes.
- * @return True when a non-empty path was resolved; false leaves `out` with no nodes (the
- *         native then holds, exactly as the generator's unresolved LoadPath did).
- */
-static bool BuildPatrolParams(Creature& creature, int32 pathId, WaypointPathOrigin source,
-                               uint32 initialDelay, uint32 overwriteEntry,
-                               Motion::PatrolBehaviour::Params& out)
-{
-    if (!overwriteEntry)
-    {
-        overwriteEntry = creature.GetEntry();
-    }
-
-    WaypointPathOrigin resolvedOrigin = source;
-    WaypointPath const* path = NULL;
-    if (source == PATH_NO_PATH && pathId == 0)
-    {
-        path = sWaypointMgr.GetDefaultPath(overwriteEntry, creature.GetGUIDLow(), &resolvedOrigin);
-    }
-    else
-    {
-        resolvedOrigin = (source == PATH_NO_PATH) ? PATH_FROM_ENTRY : source;
-        path = sWaypointMgr.GetPathFromOrigin(overwriteEntry, creature.GetGUIDLow(), pathId, resolvedOrigin);
-    }
-
-    out.pathId = pathId;
-    out.origin = uint32(resolvedOrigin);
-    out.external = resolvedOrigin == PATH_FROM_EXTERNAL && pathId > 0;
-    out.externalOrigin = resolvedOrigin == PATH_FROM_EXTERNAL;
-    out.initialDelay = initialDelay;
-    out.inform.waypoint = WAYPOINT_MOTION_TYPE;
-    out.inform.externalMove = EXTERNAL_WAYPOINT_MOVE + pathId;
-    out.inform.externalStart = EXTERNAL_WAYPOINT_MOVE_START + pathId;
-    out.inform.externalLast = EXTERNAL_WAYPOINT_FINISHED_LAST + pathId;
-
-    if (!path)
-    {
-        if (resolvedOrigin == PATH_FROM_EXTERNAL)
-        {
-            sLog.outErrorScriptLib("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
-        }
-        else
-        {
-            sLog.outErrorDb("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
-        }
-        return false;
-    }
-
-    if (path->empty())
-    {
-        return false;
-    }
-
-    for (WaypointPath::const_iterator itr = path->begin(); itr != path->end(); ++itr)
-    {
-        WaypointNode const& src = itr->second;
-        Motion::PatrolBehaviour::Node node;
-        node.id = itr->first;
-        node.pos = Motion::Vector3(src.x, src.y, src.z);
-        node.orientation = src.orientation;
-        node.delay = src.delay;
-        node.scriptId = src.script_id;
-        if (WaypointBehavior* behavior = src.behavior)
-        {
-            node.emote = behavior->emote;
-            node.spell = behavior->spell;
-            node.model1 = behavior->model1;
-            node.model2 = behavior->model2;
-            for (int i = 0; i < MAX_WAYPOINT_TEXT && behavior->textid[i]; ++i)
-            {
-                node.textIds.push_back(behavior->textid[i]);
-            }
-            for (int i = 0; i < MAX_WAYPOINT_TEXT; ++i)
-            {
-                if (behavior->textid[i])
-                {
-                    node.textAnywhere = true;
-                    break;
-                }
-            }
-        }
-        out.nodes.push_back(node);
-    }
-
-    return true;
 }
 
 /**
