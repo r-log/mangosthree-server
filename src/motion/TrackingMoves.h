@@ -51,7 +51,7 @@ namespace Motion
                 float  angle = 0.0f;        ///< the requested bearing relative to the target's facing; 0 = head-on
                 uint32 stateSet = 0;        ///< UNIT_STAT_CHASE or UNIT_STAT_FOLLOW (opaque)
                 uint32 stateMove = 0;       ///< UNIT_STAT_CHASE_MOVE or UNIT_STAT_FOLLOW_MOVE (opaque)
-                uint32 routineMs = 1000;    ///< the drift re-check cadence
+                uint32 routineMs = 1000;    ///< the drift re-check cadence; 0 re-checks on every tick
             };
             bool TracksTarget() const override { return true; }
             uint64 Target() const override { return m_p.target; }
@@ -77,18 +77,20 @@ namespace Motion
             virtual void  OnIdle(Sight const& sight, Step& s) = 0;       ///< an idle tick at the spot (the chase engages)
             virtual void  OnSuspendOrFinish(std::vector<Effect>& effects) = 0;///< the kind's teardown effects
             float Bearing(Sight const& sight, Vector3 const& centre) const;   ///< head-on: from the centre to the mover; else the target's facing + angle
+            /// The target's live distance from the leg's goal, against `edge`; a flier's and a
+            /// swimmer's is measured in three dimensions, anything on the ground in two.
+            bool DriftedBeyond(Sight const& sight, float edge) const;
             Params m_p;                       ///< the shared parameters, as the kind's own copy was built
         private:
             void ResetTracking();             ///< the generator's ResetTracking: forget the leg and the cadence
+            void LatchRelay(Sight const& sight);///< an ended leg's edge, held until a tick that may move spends it
             void Derive(Sight const& sight, Services& svc, RelayCause why, Step& s);///< one fresh standing spot, counted
             Vector3 m_dest;                   ///< the spot the last derive produced
             bool    m_haveDest = false;       ///< a spot has been derived at least once
-            bool    m_reached = false;        ///< the arrival at that spot was seen (once per approach)
-            bool    m_relayLatch = false;     ///< a cut or a partial leg ended: derive on the next tick that moves
-            RelayCause m_latchCause = RelayCause::Cut;///< which of the two the latch holds
+            bool    m_relayLatch = false;     ///< a cut, a partial or a refused leg: derive on the next tick that moves
+            RelayCause m_latchCause = RelayCause::Cut;///< which of the three the latch holds
             int32   m_routine = 0;            ///< ms until the next drift re-check
             RelayCounts m_relays;             ///< every derive, by cause: the GM dump's numbers
-            bool    m_lastRunning = false;    ///< the last tick's UNIT_STAT_RUNNING_STATE, as the default natives keep
     };
 
     /// A creature closing on its victim (design §4.1): retail's band and cadence; the lead an experiment.

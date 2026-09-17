@@ -1745,10 +1745,11 @@ TEST(MotionBehaviour_ChaseDerivesRetailsBandAndFacesItsVictim)
     CHECK_EQ(t.intent.flags, uint32(MOVE_REQUIRE_PATH));
     CHECK(t.intent.facing.mode == Facing::Mode::Target);
     CHECK_EQ(t.intent.facing.target, uint64(42));
-    REQUIRE(t.effects.size() == size_t(1));
+    REQUIRE(t.effects.size() == size_t(2));
     CHECK(t.effects[0].kind == Effect::StateRaw);
     CHECK_EQ(t.effects[0].setMask, 2u);                         // CHASE_MOVE, with the leg
     CHECK_EQ(t.effects[0].clearMask, 0u);
+    CHECK(t.effects[1].kind == Effect::EngageInReach);          // the mover has not set off yet: still idle
     REQUIRE(b.Relays() != 0);
     CHECK_EQ(b.Relays()->first, 1u);
     CHECK_EQ(b.Relays()->Total(), 1u);
@@ -1831,6 +1832,38 @@ TEST(MotionBehaviour_ChaseRechecksOnceASecondAndCountsRecoveries)
         CHECK_EQ(b.Relays()->partial, 1u);
     }
     {
+        // A refused leg: the driver found no route under REQUIRE_PATH (or a partial one that
+        // made no progress), laid nothing and never touched the leg goal. Without this cause
+        // the native would stand until the cadence expired, where the generator's next 100 ms
+        // poll re-derived at once.
+        FakeServices svc;
+        ChaseBehaviour b(Chasing());
+        b.Activate(Tracked(), svc);
+        const Vector3 goal = b.Tick(Tracked(), svc, 100).intent.goal;
+        Sight refused = Tracked();
+        refused.status.blocked = true;      // the once-only edge, as Blocked() carries it
+        refused.status.legGoal = goal;
+        Step t = b.Tick(refused, svc, 100);
+        CHECK(t.intent.act == MoveIntent::Act::Move);
+        CHECK_EQ(b.Relays()->blocked, 1u);
+        CHECK_EQ(b.Relays()->Total(), 2u);
+        CHECK_EQ(svc.calls.size(), size_t(2));                  // a second spot, on the tick of the refusal
+    }
+    {
+        // A tick carrying several edges counts one cause, most specific first.
+        FakeServices svc;
+        ChaseBehaviour b(Chasing());
+        b.Activate(Tracked(), svc);
+        const Vector3 goal = b.Tick(Tracked(), svc, 100).intent.goal;
+        Sight both = Tracked();
+        both.status.cut = true;
+        both.status.blocked = true;
+        both.status.legGoal = goal;
+        b.Tick(both, svc, 100);
+        CHECK_EQ(b.Relays()->cut, 1u);
+        CHECK_EQ(b.Relays()->blocked, 0u);
+    }
+    {
         // A finished leg whose victim has moved on, inside the cadence: the counted recovery
         // the generator only caught on its next 100 ms poll.
         FakeServices svc;
@@ -1906,6 +1939,23 @@ TEST(MotionBehaviour_ChaseHoldsForCastsAndStatesAndLosesItsVictim)
 
 TEST(MotionBehaviour_ChaseEngagesOnEveryIdleTick)
 {
+    {
+        // A chase begun already inside contact: the very first tick derives a spot AND
+        // engages, as the generator's ReachTarget did on any tick that was not traveling.
+        FakeServices svc;
+        ChaseBehaviour b(Chasing());
+        Sight inContact = Tracked();
+        inContact.target.position = Vector3(3.0f, 0.0f, 0.0f);
+        b.Activate(inContact, svc);
+        Step t = b.Tick(inContact, svc, 100);
+        CHECK(t.intent.act == MoveIntent::Act::Move);
+        REQUIRE(t.effects.size() == size_t(2));
+        CHECK(t.effects[0].kind == Effect::StateRaw);           // the _MOVE bit, with the leg
+        CHECK_EQ(t.effects[0].setMask, 2u);
+        CHECK(t.effects[1].kind == Effect::EngageInReach);      // and the attack, decided live
+        CHECK_EQ(b.Relays()->first, 1u);
+    }
+
     FakeServices svc;
     ChaseBehaviour b(Chasing());
     b.Activate(Tracked(), svc);
@@ -2094,4 +2144,137 @@ TEST(MotionBehaviour_FollowWalksWithItsLeaderAndAPetForcesTheDestination)
         Step t = b.Tick(standing, svc, 100);
         CHECK(!t.intent.Has(MOVE_WALK));
     }
+}
+
+TEST(MotionBehaviour_ChaseAtAnAngleAimsOffItsVictimsFacingAndBakesNoFacing)
+{
+    FakeServices svc;
+    ChaseBehaviour::ChaseParams p = Chasing();
+    p.angle = 0.5f;                                 // a flanking chase: a tank's add, a pet on a side
+    ChaseBehaviour b(p);
+    Sight s = Tracked();
+    s.target.facing = 1.0f;
+    b.Activate(s, svc);
+    Step t = b.Tick(s, svc, 100);
+    CHECK(Close(svc.spotAngle, 1.5f));              // the victim's facing + the angle, not the head-on bearing
+    CHECK(Close(svc.spotDistance, 3.5f));           // the band is the same
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK(t.intent.facing.mode == Facing::Mode::None);   // only a head-on chase turns to its victim
+}
+
+TEST(MotionBehaviour_TrackingDriftMeasuresHeightForFliersAndSwimmersOnly)
+{
+    // 4 yd from the leg's goal on the ground and 4 yd above it: 4.0 in two dimensions, well
+    // inside the 5.0 yd re-approach edge, but 5.66 in three, well past it.
+    Sight aloft = Tracked();
+    aloft.status.traveling = true;
+    aloft.status.legGoal = Vector3(6.0f, 0.0f, 0.0f);
+    aloft.target.position = Vector3(10.0f, 0.0f, 4.0f);
+    {
+        FakeServices svc;
+        ChaseBehaviour b(Chasing());
+        b.Activate(Tracked(), svc);
+        b.Tick(Tracked(), svc, 100);
+        for (int i = 0; i < 10; ++i)
+        {
+            b.Tick(aloft, svc, 100);                // a full cadence
+        }
+        CHECK_EQ(b.Relays()->Total(), 1u);          // a walker never looks up
+    }
+    {
+        FakeServices svc;
+        ChaseBehaviour b(Chasing());
+        b.Activate(Tracked(), svc);
+        b.Tick(Tracked(), svc, 100);
+        Sight flier = aloft;
+        flier.canFlyHint = true;
+        for (int i = 0; i < 10; ++i)
+        {
+            b.Tick(flier, svc, 100);
+        }
+        CHECK_EQ(b.Relays()->routine, 1u);
+    }
+    {
+        FakeServices svc;
+        ChaseBehaviour b(Chasing());
+        b.Activate(Tracked(), svc);
+        b.Tick(Tracked(), svc, 100);
+        Sight swimmer = aloft;
+        swimmer.swimming = true;                    // the water column, the same rule
+        for (int i = 0; i < 10; ++i)
+        {
+            b.Tick(swimmer, svc, 100);
+        }
+        CHECK_EQ(b.Relays()->routine, 1u);
+    }
+}
+
+TEST(MotionBehaviour_FollowRechecksOnItsOwnCadenceAndTolerance)
+{
+    // The generator's tolerance with the config honoured: 1.5 - 0.5 + 1.0 x (0.5 + 0.5),
+    // plus the leader's 0.5 radius again, is 2.5 yd; the cadence is 400 ms, not the chase's
+    // second.
+    FakeServices svc;
+    FollowBehaviour b(Following());
+    b.Activate(Leading(), svc);
+    b.Tick(Leading(), svc, 100);
+    CHECK_EQ(b.Relays()->first, 1u);
+
+    Sight inside = Leading();
+    inside.status.traveling = true;
+    inside.status.legGoal = Vector3(12.4f, 0.0f, 0.0f);     // the leader is 2.4 yd from it
+    for (int i = 0; i < 3; ++i)
+    {
+        b.Tick(inside, svc, 100);
+    }
+    CHECK_EQ(b.Relays()->Total(), 1u);                      // 300 ms: inside the cadence
+    b.Tick(inside, svc, 100);                               // 400 ms: it fires
+    CHECK_EQ(b.Relays()->Total(), 1u);                      // and finds the spot still good
+
+    Sight outside = inside;
+    outside.status.legGoal = Vector3(12.6f, 0.0f, 0.0f);    // 2.6 yd: past the tolerance
+    for (int i = 0; i < 4; ++i)
+    {
+        b.Tick(outside, svc, 100);
+    }
+    CHECK_EQ(b.Relays()->routine, 1u);
+    CHECK_EQ(b.Relays()->Total(), 2u);
+}
+
+TEST(MotionBehaviour_TrackingFallsBackToTheCentreWhenNoSpotIsFree)
+{
+    FakeServices svc;
+    svc.spotFails = true;                           // the selector found nothing free
+    ChaseBehaviour b(Chasing());
+    b.Activate(Tracked(), svc);
+    Step t = b.Tick(Tracked(), svc, 100);
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK(Close(t.intent.goal, Vector3(10.0f, 0.0f, 0.0f)));   // the centre itself, as NearPoint fell back
+    CHECK_EQ(b.Relays()->first, 1u);                           // the derive happened either way
+}
+
+TEST(MotionBehaviour_TrackingResumesOnlyOnAReset)
+{
+    FakeServices svc;
+    FollowBehaviour b(Following());
+    b.Activate(Leading(), svc);
+    b.Tick(Leading(), svc, 100);
+    CHECK_EQ(b.Relays()->first, 1u);
+
+    Step plain = b.Resume(Leading(), svc, false);
+    CHECK(!plain.apply);
+    CHECK(!plain.resetLeg);
+    CHECK(!plain.interrupt);
+    CHECK(plain.effects.empty());
+
+    Step reset = b.Resume(Leading(), svc, true);    // the generator's Reset was its Initialize
+    CHECK(reset.resetLeg);
+    CHECK(!reset.apply);
+    REQUIRE(reset.effects.size() == size_t(2));
+    CHECK(reset.effects[0].kind == Effect::SyncSpeed);
+    CHECK(reset.effects[1].kind == Effect::StateRaw);
+    CHECK_EQ(reset.effects[1].setMask, 4u);
+    Step t = b.Tick(Leading(), svc, 100);
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(b.Relays()->first, 2u);                // the reset forgot the spot: a first one again
 }

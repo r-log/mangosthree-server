@@ -117,11 +117,11 @@ namespace Motion
     };
 
     /// Why a tracking native derived a fresh spot (design §3: counted apart, GM-dumpable).
-    enum class RelayCause : uint8 { Routine, Cut, Partial, Finished, First };
+    enum class RelayCause : uint8 { Routine, Cut, Partial, Blocked, Finished, First };
     struct RelayCounts
     {
-        uint32 routine = 0, cut = 0, partial = 0, finished = 0, first = 0;
-        uint32 Total() const { return routine + cut + partial + finished + first; }
+        uint32 routine = 0, cut = 0, partial = 0, blocked = 0, finished = 0, first = 0;
+        uint32 Total() const { return routine + cut + partial + blocked + finished + first; }
         void Count(RelayCause c);
     };
     inline void RelayCounts::Count(RelayCause c)
@@ -131,6 +131,7 @@ namespace Motion
             case RelayCause::Routine:  ++routine;  break;
             case RelayCause::Cut:      ++cut;      break;
             case RelayCause::Partial:  ++partial;  break;
+            case RelayCause::Blocked:  ++blocked;  break;
             case RelayCause::Finished: ++finished; break;
             case RelayCause::First:    ++first;    break;
         }

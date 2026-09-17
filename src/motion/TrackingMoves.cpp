@@ -50,9 +50,22 @@ namespace Motion
     void TrackingBehaviour::ResetTracking()
     {
         m_haveDest = false;
-        m_reached = false;
         m_relayLatch = false;
         m_routine = 0;
+    }
+
+    void TrackingBehaviour::LatchRelay(Sight const& sight)
+    {
+        // The leg ran out at the far end of a partial route, was cut short by a stop, or was
+        // refused outright by the driver (no route under REQUIRE_PATH, or a partial one that
+        // makes no progress -- in which case the leg goal the drift test reads was never even
+        // touched). Each means: go on from here rather than from a spot we never reached. The
+        // edge is latched, because it may arrive on a tick that holds (a cast, a control
+        // state), and it is spent by the next tick that may move. One cause wins a tick that
+        // carries several, most specific first.
+        if (sight.status.cut)          { m_relayLatch = true; m_latchCause = RelayCause::Cut; }
+        else if (sight.status.partial) { m_relayLatch = true; m_latchCause = RelayCause::Partial; }
+        else if (sight.status.blocked) { m_relayLatch = true; m_latchCause = RelayCause::Blocked; }
     }
 
     float TrackingBehaviour::Bearing(Sight const& sight, Vector3 const& centre) const
@@ -67,7 +80,6 @@ namespace Motion
     Step TrackingBehaviour::Activate(Sight const& sight, Services& /*svc*/)
     {
         // Initialize: the kind's state bit (never the _MOVE one: that follows a laid leg), the tracking reset.
-        m_lastRunning = sight.runningState;
         ResetTracking();
         Step s;
         s.resetLeg = true;
@@ -107,6 +119,17 @@ namespace Motion
         return FinishReason::TargetLost;
     }
 
+    bool TrackingBehaviour::DriftedBeyond(Sight const& sight, float edge) const
+    {
+        // A flier cares about height too, and so does a swimmer in the water column; anything
+        // on the ground does not. The goal is the one the driver actually laid a leg to.
+        const Vector3& goal = sight.status.legGoal;
+        const Vector3& t = sight.target.position;
+        float d2 = (goal.x - t.x) * (goal.x - t.x) + (goal.y - t.y) * (goal.y - t.y);
+        if (sight.canFlyHint || sight.swimming) { d2 += (goal.z - t.z) * (goal.z - t.z); }
+        return d2 > edge * edge;
+    }
+
     void TrackingBehaviour::Derive(Sight const& sight, Services& svc, RelayCause why, Step& s)
     {
         const Vector3 centre = AimCentre(sight);
@@ -117,14 +140,12 @@ namespace Motion
         }
         m_dest = spot;
         m_haveDest = true;
-        m_reached = false;
         m_relays.Count(why);
         s.effects.push_back(Effect::State(m_p.stateMove, 0));
     }
 
     Step TrackingBehaviour::Tick(Sight const& sight, Services& svc, uint32 diff)
     {
-        m_lastRunning = sight.runningState;
         // 1. The target is gone.
         if (!sight.target.valid) { return Step::Of(MoveIntent::Done()); }
         // 2. The mover is dead.
@@ -133,7 +154,7 @@ namespace Motion
         const bool held = !sight.canMove || (UsesCombatMovement() && sight.combatMovementHeld) || LostTarget(sight);
         if (held)
         {
-            if (sight.status.partial || sight.status.cut) { m_relayLatch = true; m_latchCause = sight.status.cut ? RelayCause::Cut : RelayCause::Partial; }
+            LatchRelay(sight);
             Step s = Step::Of(MoveIntent::Hold());
             s.effects.push_back(Effect::State(0, m_p.stateMove));
             return s;
@@ -141,7 +162,7 @@ namespace Motion
         // 4. A cast with a cast time, or a channel: stop once, hold.
         if (svc.Casting())
         {
-            if (sight.status.partial || sight.status.cut) { m_relayLatch = true; m_latchCause = sight.status.cut ? RelayCause::Cut : RelayCause::Partial; }
+            LatchRelay(sight);
             Step s = Step::Of(MoveIntent::Hold());
             s.stop = sight.status.traveling;
             return s;
@@ -155,9 +176,14 @@ namespace Motion
             m_routine = int32(m_p.routineMs);
             if (m_haveDest && Drifted(sight)) { needDest = true; cause = RelayCause::Routine; }
         }
-        // 6. The event recoveries: a cut or a partial leg (latched, consumed on a tick that moves).
-        if (sight.status.partial || sight.status.cut) { m_relayLatch = true; m_latchCause = sight.status.cut ? RelayCause::Cut : RelayCause::Partial; }
-        if (m_relayLatch) { needDest = true; cause = m_latchCause; m_relayLatch = false; }
+        // 6. The event recoveries: a cut, a partial or a refused leg (latched, consumed on a tick that moves).
+        LatchRelay(sight);
+        if (m_relayLatch)
+        {
+            needDest = true;
+            if (m_haveDest) { cause = m_latchCause; }   // the very first spot is First, whatever edge shares its tick
+            m_relayLatch = false;
+        }
         // 7. A finished leg whose target has drifted (the driver reports arrived once). The
         //    generator had no such case: it caught the same drift on its next 100 ms poll,
         //    which this native's one-second cadence no longer offers, so the design counts
@@ -165,15 +191,15 @@ namespace Motion
         if (!needDest && sight.status.arrived && Drifted(sight)) { needDest = true; cause = RelayCause::Finished; }
         Step s;
         if (needDest) { Derive(sight, svc, cause, s); }
-        // 8. The arrival at the spot: once per approach.
-        const bool idle = !sight.status.traveling && !sight.status.partial;
-        if (idle && !m_reached && !needDest) { m_reached = true; }
-        // 9. Nothing changed: hold with the kind's facing; the chase engages while idle.
+        // 8. Standing still, whether or not a fresh spot was just derived: the kind's idle
+        //    work (the chase engages). The generator's ReachTarget ran on the same condition,
+        //    so a chase begun already inside contact attacks on its very first tick.
+        if (!sight.status.traveling && !sight.status.partial) { OnIdle(sight, s); }
+        // 9. Nothing changed: hold with the kind's facing.
         if (!needDest && !sight.status.traveling)
         {
             s.apply = true;
             s.intent = MoveIntent::Hold(FacingFor(sight, false));
-            if (idle) { OnIdle(sight, s); }
             return s;
         }
         // 10. The leg.
@@ -194,13 +220,9 @@ namespace Motion
 
     bool ChaseBehaviour::Drifted(Sight const& sight) const
     {
-        // The re-approach edge is the client's melee range from the leg's goal; fliers and swimmers care about height.
-        const Vector3& goal = sight.status.legGoal;
-        const Vector3& t = sight.target.position;
-        float d2 = (goal.x - t.x) * (goal.x - t.x) + (goal.y - t.y) * (goal.y - t.y);
-        if (sight.canFlyHint || sight.swimming) { d2 += (goal.z - t.z) * (goal.z - t.z); }
-        const float edge = m_p.offset + sight.target.meleeRange;
-        return d2 > edge * edge;
+        // The re-approach edge is the client's own melee range from the leg's goal (design
+        // §6.1); the band's asymmetry is deliberate, since closing enforces only the stop.
+        return DriftedBeyond(sight, m_p.offset + sight.target.meleeRange);
     }
 
     Vector3 ChaseBehaviour::AimCentre(Sight const& sight) const
@@ -239,14 +261,11 @@ namespace Motion
 
     bool FollowBehaviour::Drifted(Sight const& sight) const
     {
+        // The generator's tolerance, with the config honoured: the bounding radii are folded
+        // in exactly as WorldObject's own IsWithinDist2d/3d folds them.
         float allowed = m_f.recalcRange - sight.target.extent + FOLLOW_RECALCULATE_FACTOR * (sight.extent + sight.target.extent);
         if (m_p.offset > FOLLOW_DIST_GAP_FOR_DIST_FACTOR) { allowed += FOLLOW_DIST_RECALCULATE_FACTOR * m_p.offset; }
-        const Vector3& goal = sight.status.legGoal;
-        const Vector3& t = sight.target.position;
-        float d2 = (goal.x - t.x) * (goal.x - t.x) + (goal.y - t.y) * (goal.y - t.y);
-        if (sight.canFlyHint || sight.swimming) { d2 += (goal.z - t.z) * (goal.z - t.z); }
-        const float maxdist = allowed + sight.target.extent;
-        return d2 > maxdist * maxdist;
+        return DriftedBeyond(sight, allowed + sight.target.extent);
     }
 
     Vector3 FollowBehaviour::AimCentre(Sight const& sight) const
