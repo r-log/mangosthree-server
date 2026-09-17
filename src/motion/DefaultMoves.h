@@ -135,30 +135,34 @@ namespace Motion
             void BuildSmoothPath(Services& svc, Vector3 const& moverPos, size_t startIndex);
             bool AppendLeg(Services& svc, Vector3 const& start, Node const& end);
             void CollectArrivals(int32 pathIndex);       ///< the nodes the spline passed since the last tick, in order
-            struct Arrival { uint32 pointId; bool fromSegment; };   ///< fromSegment: ProcessSegmentProgress's arrivals clear the latch first
-            Params m_p;
-            uint32 m_currentNode = 0;
-            uint32 m_lastReached = 0;
-            int32  m_wait = 0;
-            bool   m_arrivalDone = false;
-            std::vector<SegmentWaypoint> m_segment;
-            size_t m_segmentArrivals = 0;
+            struct Arrival
+            {
+                uint32 pointId;     ///< the node reached; unused (0) when !fromSegment -- the latch alone decides the trailing arrival
+                bool   fromSegment; ///< ProcessSegmentProgress's arrivals clear the latch first
+            };
+            Params m_p;                                  ///< the loaded path and its origin/inform types
+            uint32 m_currentNode = 0;                    ///< the generator's m_currentNode: reached, or being walked to
+            uint32 m_lastReached = 0;                    ///< the generator's m_lastReachedWaypoint
+            int32  m_wait = 0;                            ///< the generator's m_nextMoveTime (TimeTracker), in raw milliseconds
+            bool   m_arrivalDone = false;                ///< the generator's m_isArrivalDone
+            std::vector<SegmentWaypoint> m_segment;      ///< the generator's m_segment: the smoothed leg's tracked waypoints, in order
+            size_t m_segmentArrivals = 0;                ///< the generator's m_segmentArrivals: how many of m_segment have been passed
             PointsArray m_legPoints;                     ///< owned; stable for the leg's life (Along is non-owning)
-            Vector3 m_legEnd;
-            Facing  m_legFacing;
-            bool    m_legWalk = true;
-            bool    m_haveLeg = false;
-            uint32  m_deadNodes = 0;
-            bool    m_forceNextLeg = false;
-            bool    m_approached = false;
+            Vector3 m_legEnd;                            ///< the generator's m_legEnd
+            Facing  m_legFacing;                         ///< the generator's m_legFacing
+            bool    m_legWalk = true;                    ///< the generator's m_legWalk
+            bool    m_haveLeg = false;                   ///< the generator's m_haveLeg
+            uint32  m_deadNodes = 0;                     ///< the generator's m_deadNodes: unreachable nodes skipped in a row
+            bool    m_forceNextLeg = false;              ///< the generator's m_forceNextLeg: a whole lap was unreachable, walk the next leg unrouted
+            bool    m_approached = false;                ///< the generator's m_approached: a partial leg already got as close as it gets
             // the continuation
-            Phase   m_phase = Phase::Fresh;
+            Phase   m_phase = Phase::Fresh;              ///< no generator counterpart: the generator ran OnArrived/PrepareMove to completion inline
             std::vector<Arrival> m_pendingArrivals;      ///< nodes to arrive at, in order
             bool    m_finalizedSegment = false;          ///< the arrivals came from a finalized spline: prepare after them
-            bool    m_reachedLast = false;
+            bool    m_reachedLast = false;                ///< the generator's local `reachedLast` in PrepareMove, kept across the barrier step
             uint32  m_nextAfterInform = 0;               ///< the node the prepare inform named
             uint32  m_nodeBeforeInform = 0;              ///< m_currentNode when the prepare inform fired: a hook's SetNextWaypoint shows as a change
-            bool    m_lastRunning = false;
+            bool    m_lastRunning = false;               ///< Suspend() has no Sight: the last tick's running state, as WanderBehaviour's m_lastRunning
     };
 }
 

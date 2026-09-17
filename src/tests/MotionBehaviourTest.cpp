@@ -722,6 +722,25 @@ TEST(MotionBehaviour_PatrolArrivesInTheGeneratorsOrder)
     CHECK_EQ(atNode2.effects[3].raw, 411u);
     CHECK_EQ(atNode2.effects[3].id, 2u);
 
+    // Node 2's two text ids draw exactly one Urand pick and touch no other RNG method: the
+    // shared stream is the native's alone, and its draw count is exactly what the generator drew.
+    {
+        int urandCount = 0, frandCount = 0, irandCount = 0, randomCount = 0, groundCount = 0;
+        for (std::string const& c : svc.calls)
+        {
+            if (c == "urand") { ++urandCount; }
+            else if (c == "frand") { ++frandCount; }
+            else if (c == "irand") { ++irandCount; }
+            else if (c == "random") { ++randomCount; }
+            else if (c == "ground") { ++groundCount; }
+        }
+        CHECK_EQ(urandCount, 1);
+        CHECK_EQ(frandCount, 0);
+        CHECK_EQ(irandCount, 0);
+        CHECK_EQ(randomCount, 0);
+        CHECK_EQ(groundCount, 0);
+    }
+
     Step guarded = b.Tick(finalized, svc, 0);   // the trailing OnArrived, latch-guarded: nothing
     CHECK(guarded.again);
     CHECK(guarded.effects.empty());
@@ -738,6 +757,30 @@ TEST(MotionBehaviour_PatrolArrivesInTheGeneratorsOrder)
     CHECK(prepared.intent.act == MoveIntent::Act::Move);
     CHECK_EQ(b.LegPointCount(), size_t(4));   // start, node 3, node 1, node 2
     CHECK_EQ(prepared.intent.goal.x, 20.0f);
+
+    // A node with exactly one text id draws no Urand: the pick only happens with two or more
+    // (a separate, single-node path, so the wraparound demonstration above stays untouched).
+    {
+        FakeServices oneText;
+        PatrolBehaviour::Node solo = MakeNode(1, 5.0f, 0.0f, 0.0f);
+        solo.textIds = { 200 };
+        solo.textAnywhere = true;
+        PatrolBehaviour::Params sp;
+        sp.nodes = { solo };
+        PatrolBehaviour ob(sp);
+        ob.Activate(Free(), oneText);
+        ob.Tick(Free(), oneText, 0);           // prepares the only leg
+        Sight finalizedSolo = Free();
+        finalizedSolo.status.traveling = false;
+        Step arrived = ob.Tick(finalizedSolo, oneText, 0);
+        CHECK_EQ(arrived.effects.size(), size_t(2));
+        CHECK(arrived.effects[0].kind == Effect::Say);
+        CHECK_EQ(arrived.effects[0].id, 200u);
+        CHECK(arrived.effects[1].kind == Effect::InformRaw);
+        bool sawUrand = false;
+        for (std::string const& c : oneText.calls) { if (c == "urand") { sawUrand = true; } }
+        CHECK(!sawUrand);
+    }
 }
 
 TEST(MotionBehaviour_PatrolExternalPrepareInformIsABarrierAndHonoursSetNextWaypoint)
@@ -1071,4 +1114,165 @@ TEST(MotionBehaviour_PatrolPauseAndPauseTime)
     Step second = b.Pause(9999);
     CHECK(second.stop);
     CHECK(b.Tick(Free(), svc, 40).intent.act == MoveIntent::Act::Hold);   // 50 - 40 = 10 ms left, not 9999
+}
+
+TEST(MotionBehaviour_PatrolArrivesMidSplineAndKeepsRoaming)
+{
+    FakeServices svc;
+    svc.routeUsable = true;
+    svc.routeRouted = true;   // every leg is a real route: the whole cyclic path welds into one spline
+
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f), MakeNode(3, 30.0f, 0.0f, 0.0f) };
+
+    PatrolBehaviour b(p);
+    b.Activate(Free(), svc);
+
+    Sight start = Free();
+    start.position = Vector3(0.0f, 0.0f, 0.0f);
+    Step first = b.Tick(start, svc, 0);
+    CHECK(first.apply);
+    CHECK(first.intent.act == MoveIntent::Act::Move);
+    // All three nodes are plain: the weld covers the whole cyclic path (the full-lap guard
+    // only refuses re-welding node 1 a second time) -- one spline of start + node 1 + node 2 +
+    // node 3.
+    CHECK_EQ(b.LegPointCount(), size_t(4));
+    CHECK(first.intent.path != nullptr);   // Along's non-owning pointer at the behaviour's own, stable array
+
+    // The spline is still running when it passes node 1's endpoint (index 1 of the 4 points).
+    Sight midSpline = Free();
+    midSpline.status.traveling = true;
+    midSpline.status.pathIndex = 1;
+
+    Step arriveNode1 = b.Tick(midSpline, svc, 100);
+    CHECK(arriveNode1.again);
+    CHECK(arriveNode1.roaming == Roaming::ClearMove);
+    CHECK_EQ(arriveNode1.effects.size(), size_t(1));
+    CHECK(arriveNode1.effects[0].kind == Effect::InformRaw);
+    CHECK_EQ(arriveNode1.effects[0].id, 1u);
+    CHECK_EQ(b.CurrentNode(), 1u);
+    CHECK_EQ(b.LastReached(), 1u);
+
+    // The arrivals phase drains (pathIndex hasn't reached node 2's endpoint yet: nothing more
+    // queued) and re-states the same, still-running leg with ROAMING_MOVE re-added.
+    Step drain = b.Tick(midSpline, svc, 0);
+    CHECK(drain.apply);
+    CHECK(drain.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(drain.intent.goal.x, 30.0f);   // the same leg goal: node 3
+    CHECK(drain.roaming == Roaming::SetMove);
+    CHECK(drain.effects.empty());
+    CHECK(!drain.again);
+
+    // A partial route: the leg is re-stated, not an arrival.
+    Step partial = b.Tick(Partial(), svc, 0);
+    CHECK(partial.apply);
+    CHECK(partial.intent.act == MoveIntent::Act::Move);
+
+    // Blocked after a partial approach is treated as arrived: a finalized path collects the
+    // remaining segment nodes (2 and 3), then the trailing current-node arrival is swallowed
+    // by the latch, then a fresh prepare follows.
+    Sight blockedFinal = Free();
+    blockedFinal.status.blocked = true;
+    blockedFinal.status.pathIndex = 3;
+
+    Step arriveNode2 = b.Tick(blockedFinal, svc, 0);
+    CHECK(arriveNode2.again);
+    CHECK_EQ(arriveNode2.effects.size(), size_t(1));
+    CHECK(arriveNode2.effects[0].kind == Effect::InformRaw);
+    CHECK_EQ(arriveNode2.effects[0].id, 2u);
+
+    Step arriveNode3 = b.Tick(blockedFinal, svc, 0);
+    CHECK(arriveNode3.again);
+    CHECK_EQ(arriveNode3.effects.size(), size_t(1));
+    CHECK(arriveNode3.effects[0].kind == Effect::InformRaw);
+    CHECK_EQ(arriveNode3.effects[0].id, 3u);
+
+    Step guardedTrailing = b.Tick(blockedFinal, svc, 0);
+    CHECK(guardedTrailing.again);
+    CHECK(guardedTrailing.effects.empty());
+
+    Step afterFinal = b.Tick(blockedFinal, svc, 0);
+    CHECK(afterFinal.apply);
+    CHECK(afterFinal.intent.act == MoveIntent::Act::Move);
+
+    // A cut Sight while a leg is held drops the segment and prepares a fresh leg at once,
+    // rather than falling into the arrival-collecting path below it.
+    {
+        FakeServices svc2;
+        svc2.routeUsable = true;
+        svc2.routeRouted = true;
+        PatrolBehaviour::Params p2;
+        p2.nodes = { MakeNode(1, 10.0f, 0.0f, 0.0f), MakeNode(2, 20.0f, 0.0f, 0.0f) };
+        PatrolBehaviour cutB(p2);
+        cutB.Activate(Free(), svc2);
+        Sight from0 = Free();
+        from0.position = Vector3(0.0f, 0.0f, 0.0f);
+        cutB.Tick(from0, svc2, 0);
+        CHECK_EQ(cutB.LegPointCount(), size_t(3));   // start, node 1, node 2
+
+        Sight cutSight = Free();
+        cutSight.status.cut = true;
+        cutSight.position = Vector3(5.0f, 0.0f, 0.0f);
+        Step afterCut = cutB.Tick(cutSight, svc2, 0);
+        CHECK(afterCut.apply);
+        CHECK(afterCut.intent.act == MoveIntent::Act::Move);   // a fresh prepare, not a hold or an arrival
+        CHECK_EQ(cutB.LegPointCount(), size_t(3));             // the old segment dropped, a clean weld rebuilt from the cut spot
+
+        svc2.casting = true;
+        Step held = cutB.Tick(Free(), svc2, 0);
+        CHECK(held.intent.act == MoveIntent::Act::Hold);
+        CHECK(held.effects.empty());
+        svc2.casting = false;
+
+        Sight noMove = Free();
+        noMove.canMove = false;
+        Step heldNoMove = cutB.Tick(noMove, svc2, 0);
+        CHECK(heldNoMove.intent.act == MoveIntent::Act::Hold);
+        CHECK(heldNoMove.roaming == Roaming::ClearMove);
+    }
+}
+
+TEST(MotionBehaviour_PatrolLifecycleSteps)
+{
+    FakeServices svc;
+    PatrolBehaviour::Params p;
+    p.nodes = { MakeNode(1, 0.0f, 0.0f, 0.0f) };
+    PatrolBehaviour b(p);
+
+    Step activated = b.Activate(Free(), svc);
+    CHECK(activated.roaming == Roaming::SetRoam);
+    CHECK_EQ(activated.effects.size(), size_t(1));
+    CHECK(activated.effects[0].kind == Effect::ClearWaypointPaused);
+    CHECK(activated.resetLeg);
+
+    Step resumedReset = b.Resume(Free(), svc, true);
+    CHECK(resumedReset.roaming == Roaming::SetRoam);
+    CHECK(resumedReset.effects.empty());
+    CHECK(resumedReset.resetLeg);
+
+    Step resumedNoReset = b.Resume(Free(), svc, false);
+    CHECK(!resumedNoReset.apply);
+    CHECK(resumedNoReset.roaming == Roaming::Keep);
+    CHECK(!resumedNoReset.resetLeg);
+    CHECK(!resumedNoReset.interrupt);
+
+    Sight running = Free();
+    running.runningState = true;
+    b.Tick(running, svc, 0);   // records m_lastRunning for Suspend()'s walk restore
+
+    Step suspended = b.Suspend();
+    CHECK(suspended.interrupt);
+    CHECK(suspended.roaming == Roaming::ClearBoth);
+    CHECK(suspended.effects.size() == 1 && suspended.effects[0].kind == Effect::SetWalk && !suspended.effects[0].flag);
+    CHECK(suspended.resetLeg);
+
+    Outcome superseded = b.Finish(FinishReason::Superseded, running, svc);
+    CHECK(superseded.interrupt);
+    CHECK(superseded.roaming == Roaming::ClearBoth);
+    CHECK(superseded.effects.size() == 1 && superseded.effects[0].kind == Effect::SetWalk && superseded.effects[0].flag == !running.runningState);
+
+    Outcome cleared = b.Finish(FinishReason::Cleared, running, svc);
+    CHECK(!cleared.interrupt);
+    CHECK(cleared.roaming == Roaming::ClearBoth);
+    CHECK(cleared.effects.size() == 1 && cleared.effects[0].kind == Effect::SetWalk && cleared.effects[0].flag == !running.runningState);
 }

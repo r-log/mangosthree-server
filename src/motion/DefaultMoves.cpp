@@ -352,6 +352,12 @@ namespace Motion
         if (at.HasBehavior())
         {
             if (at.model2) { s.effects.push_back(Effect(Effect::SetDisplay, Motion::Kind::Patrol, at.model2)); }
+            // The generator cleared the emote state here (line 496) before PrepareLeg's ROAMING_MOVE
+            // add; the shell performs a step's roaming write before its effects, so the order is
+            // reversed on this internal path -- unobservable, since nothing runs between the two in
+            // the same tick. The external path, the only one with a hook in between, keeps the
+            // generator's actual order (the hook ran before ROAMING_MOVE there too): ROAMING_MOVE is
+            // not set until the PrepareInform barrier's continuation calls PrepareLeg, after the hook.
             s.effects.push_back(Effect(Effect::ClearEmoteState));
         }
         if (m_arrivalDone)
@@ -390,7 +396,13 @@ namespace Motion
         Node const* finalNode = &m_p.nodes[currIndex];
         if (!m_legPoints.empty())
         {
-            finalNode = Find(m_segment.back().pointId);
+            // The id always exists (BuildSmoothPath only ever committed real node ids from
+            // m_p.nodes); the fallback to the node we started from is a kernel type never
+            // aborting the server, not a path this should ever actually take.
+            if (Node const* welded = Find(m_segment.back().pointId))
+            {
+                finalNode = welded;
+            }
         }
         m_legEnd = finalNode->pos;
         m_legFacing = (finalNode->orientation != 100.0f && finalNode->delay != 0)
@@ -524,6 +536,9 @@ namespace Motion
         }
         // A fresh tick: the generator's Intent in its order.
         if (sight.status.cut) { ClearSegment(); m_haveLeg = false; }
+        // The generator gated on UNIT_STAT_NOT_MOVE, which also holds UNIT_STAT_DISTRACTED; that
+        // bit only mirrors an active Distract command, which masks the patrol at the arbiter
+        // before it is ever ticked -- the narrower canMove is equivalent here.
         if (!sight.canMove || m_p.nodes.empty())
         {
             Step s = Step::Of(MoveIntent::Hold());
@@ -552,8 +567,15 @@ namespace Motion
         CollectArrivals(sight.status.pathIndex);
         if (m_finalizedSegment)
         {
-            m_pendingArrivals.push_back({m_currentNode, false});   // the generator's trailing OnArrived, latch-guarded in ArrivalStep
+            // The generator's trailing OnArrived, latch-guarded in ArrivalStep; the id is unused
+            // there when !fromSegment, so 0 rather than m_currentNode makes that explicit.
+            m_pendingArrivals.push_back({0, false});
         }
+        // A weld of up to WAYPOINT_SMOOTHING_MAX_LOOKAHEAD nodes crossed in one tick costs one
+        // continuation round per arrival, plus one for the trailing entry above: the shell's own
+        // round cap (its kMaxContinuation, not the kernel's) logs and defers whatever is left to
+        // the next tick rather than looping here -- the undrained entries simply stay in
+        // m_pendingArrivals until then, and a Suspend in between drops them outright.
         if (!m_pendingArrivals.empty())
         {
             m_phase = Phase::Arrivals;
