@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include "PlayerTaxi.h"
+#include "TaxiDestinationsString.h"
 #include "Player.h"
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
@@ -190,16 +191,17 @@ bool PlayerTaxi::LoadTaxiDestinationsFromString(const std::string& values, Team 
 {
     ClearTaxiDestinations();
 
-    Tokens tokens = StrSplit(values, " ");
-    for (auto iter = tokens.begin(); iter != tokens.end(); ++iter)
+    // The faction first, then the nodes (the saver's order). The loader read every token as the
+    // faction and then every token, the faction included, as a node, so the integrity check
+    // below always failed and a login mid-flight never resumed (P5-B family 5, design §6.7).
+    std::vector<uint32> nodes;
+    if (!TaxiDestinationsString::Parse(values, m_flightMasterFactionId, nodes))
     {
-        m_flightMasterFactionId = stoul(*iter);
+        return false;
     }
-
-    for (Tokens::iterator iter = tokens.begin(); iter != tokens.end(); ++iter)
+    for (size_t i = 0; i < nodes.size(); ++i)
     {
-        uint32 node = std::stoul(iter->c_str());
-        AddTaxiDestination(node);
+        AddTaxiDestination(nodes[i]);
     }
 
     if (m_TaxiDestinations.empty())
@@ -242,15 +244,7 @@ std::string PlayerTaxi::SaveTaxiDestinationsToString()
 
     MANGOS_ASSERT(m_TaxiDestinations.size() >= 2);
 
-    std::ostringstream ss;
-    ss << m_flightMasterFactionId << ' ';
-
-    for (size_t i = 0; i < m_TaxiDestinations.size(); ++i)
-    {
-        ss << m_TaxiDestinations[i] << " ";
-    }
-
-    return ss.str();
+    return TaxiDestinationsString::Format(m_flightMasterFactionId, GetTaxiDestinations());
 }
 
 uint32 PlayerTaxi::GetCurrentTaxiPath() const

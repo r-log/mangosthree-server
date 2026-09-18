@@ -30,6 +30,7 @@
 #include "TestHarness.h"
 #include "BehaviourModel.h"
 #include "TaxiMove.h"
+#include "../game/Object/TaxiDestinationsString.h"    // header-only: the suite links no game library
 
 #include <vector>
 
@@ -598,4 +599,39 @@ TEST(MotionTaxi_AStartPastTheEndAndAnIndexPastTheLegAreClamped)
     CHECK_EQ(ids[7], 104u);
     CHECK(s.apply && s.intent.act == MoveIntent::Act::Done);
     CHECK_EQ(u.CurrentNode(), size_t(4));
+}
+
+TEST(TaxiPersistence_RoundTripKeepsTheFactionAndTheRoute)
+{
+    // The character table's taxi_path column: the flight master's faction then the remaining
+    // nodes. The tree's loader read every token as the faction and then every token as a node.
+    std::vector<uint32> route;
+    route.push_back(5);
+    route.push_back(6);
+    route.push_back(7);
+    const std::string text = TaxiDestinationsString::Format(1234, route);
+    CHECK_STR(text.c_str(), "1234 5 6 7 ");
+    uint32 faction = 0;
+    std::vector<uint32> back;
+    CHECK(TaxiDestinationsString::Parse(text, faction, back));
+    CHECK_EQ(faction, 1234u);
+    REQUIRE(back.size() == size_t(3));
+    CHECK_EQ(back[0], 5u);
+    CHECK_EQ(back[1], 6u);
+    CHECK_EQ(back[2], 7u);
+    // An empty route saves as nothing and loads as nothing.
+    CHECK_STR(TaxiDestinationsString::Format(1234, std::vector<uint32>()).c_str(), "");
+    CHECK(TaxiDestinationsString::Parse("", faction, back));
+    CHECK_EQ(faction, 0u);
+    CHECK(back.empty());
+    // A faction alone is a route too short (the loader's integrity check reports it).
+    CHECK(TaxiDestinationsString::Parse("77", faction, back));
+    CHECK_EQ(faction, 77u);
+    CHECK(back.empty());
+    // Extra whitespace is tolerated; a token that is not a number is refused, not thrown.
+    CHECK(TaxiDestinationsString::Parse("  9  10   11 ", faction, back));
+    CHECK_EQ(faction, 9u);
+    REQUIRE(back.size() == size_t(2));
+    CHECK_EQ(back[1], 11u);
+    CHECK(!TaxiDestinationsString::Parse("12 x 3", faction, back));
 }

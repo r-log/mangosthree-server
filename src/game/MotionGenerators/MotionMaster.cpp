@@ -119,7 +119,7 @@ namespace
                            uint32 initialDelay, uint32 overwriteEntry,
                            Motion::PatrolBehaviour::Params& out)
     {
-        DETAIL_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "LoadPath: loading waypoint path for %s", creature.GetGuidStr().c_str());
+        DETAIL_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "BuildPatrolParams: loading waypoint path for %s", creature.GetGuidStr().c_str());
         if (!overwriteEntry)
         {
             overwriteEntry = creature.GetEntry();
