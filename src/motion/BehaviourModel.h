@@ -198,9 +198,8 @@ namespace Motion
             SetWalk,           ///< creature.SetWalk(flag, false)
             ClearWaypointPaused, ///< clearUnitState(UNIT_STAT_WAYPOINT_PAUSED)
             StateRaw,          ///< addUnitState(setMask) when non-zero, then clearUnitState(clearMask) when non-zero: the opaque unit-state masks a tracking native carries in its Params.
-                               ///< Performed for creatures only, like every effect (NativeBehaviour::PerformEffects returns early for a non-creature owner): a player owner
-                               ///< would carry the kind's bit in the kernel but never in its unit states. No caller passes a player to MoveChase or MoveFollow today, so the
-                               ///< gap is unreachable; a future one would have to lift the creature-only rule for the whole effects loop, not for this kind alone.
+                               ///< Performed for EVERY owner (Effect::AnyOwner): a feared or confused player carries its move bit exactly as the generators wrote it; the
+                               ///< shell's loop lifts the creature-only rule for this kind since P5-B family 4.
             SyncSpeed,         ///< a pet whose owner is the native's target: UpdateSpeed(MOVE_RUN/MOVE_WALK/MOVE_SWIM, true), the deleted SyncSpeedWithMaster
             EngageInReach,     ///< live predicate: the mover's live position against the target view's, 3D, within meleeRange -> Attack(target, true); re-emitted every idle tick, so a stale false never suppresses the attack. It skips only a target already being MELEED, not every victim: a ranged attacker's victim is upgraded to melee here, once (the deleted ReachTarget's own job), and Unit::Attack returns early afterwards
             RestoreTemporaryFaction, ///< if (GetTemporaryFactionFlags() & TEMPFACTION_RESTORE_REACH_HOME) ClearTemporaryFaction()
@@ -252,7 +251,7 @@ namespace Motion
         Roaming             roaming = Roaming::Keep;
         bool                interrupt = false; ///< performed by the shell only when it did not already suspend this behaviour; a suspended one was interrupted at its Suspend
         bool                stop = false;       ///< Unit::StopMoving(): the flee's player finish (nothing sent when no spline runs; an airborne one is left alone)
-        bool                stopForced = false; ///< Unit::StopMoving(true): the confuse's player finish (the stop always sent). Both performed for every owner, after the interrupt and before the effects
+        bool                stopForced = false; ///< Unit::StopMoving(true): the confuse's player finish (the stop always sent). Both performed for every owner, after the interrupt and before the effects; when both are set the forced stop is performed (one StopMoving(true))
         std::vector<Effect> effects;
     };
 

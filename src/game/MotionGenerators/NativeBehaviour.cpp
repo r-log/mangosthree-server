@@ -743,6 +743,10 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
                     creature.AI()->JustReachedHome();
                 }
                 break;
+            case Motion::Effect::ClearTarget:
+            case Motion::Effect::ClearFleeingFlag:
+            case Motion::Effect::RestoreGait:
+                break;   // the control moves' effects: performed by Task 3 of the family, inert until then
         }
     }
 }
@@ -851,7 +855,7 @@ bool NativeBehaviour::StandingSpot(Motion::Vector3 const& center, float distance
 // yet (no native asks for a fear source, a whole-point ground or a live claim read before
 // Task 2). The shell's own implementation is P5-B family 4 Task 3.
 bool NativeBehaviour::Fright(uint64 /*rawGuid*/, Motion::Vector3& /*position*/, float& /*distance*/) { return false; }
-bool NativeBehaviour::GroundPoint(Motion::Vector3 const& guess, Motion::Vector3& out) { out = guess; return true; }
+bool NativeBehaviour::GroundPoint(Motion::Vector3 const& /*guess*/, Motion::Vector3& /*out*/) { return false; }   // fails loud like its siblings; Task 3 supplies the body
 bool NativeBehaviour::ClaimHeld(Motion::Kind) const { return false; }
 
 bool NativeBehaviour::Anchor(Motion::Vector3& out) const
