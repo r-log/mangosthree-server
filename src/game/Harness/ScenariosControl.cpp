@@ -238,6 +238,14 @@ namespace Harness
                             if (!a->hasUnitState(UNIT_STAT_CONFUSED_MOVE)) { st->allBit = false; }
                         }
                         if (st->haveGoal && SameGoal(goal, st->lastGoal)) { return; }
+                        // A stop spline ends where the unit stands (the confuse's activation stops
+                        // a mover): not a lurch, so it is remembered and not counted.
+                        if (Dist2(goal.x, goal.y, a->Where().X(), a->Where().Y()) < 0.1f && !running)
+                        {
+                            st->haveGoal = true;
+                            st->lastGoal = goal;
+                            return;
+                        }
                         // A fresh lurch: a destination the last one did not have.
                         const float d = Dist2(st->ax, st->ay, goal.x, goal.y);
                         if (d > st->farthest) { st->farthest = d; }
@@ -268,9 +276,16 @@ namespace Harness
                         snprintf(within, sizeof(within), "%s(%u lurches, the farthest goal %.1f yd of the %.1f yd envelope)", st->farthest <= radius + 0.6f ? "OK" : "BUG", st->launches, st->farthest, radius);
                         snprintf(gait, sizeof(gait), "%s(walk=%d move=%d on every leg)", (st->allWalk && st->allBit) ? "OK" : "BUG", st->allWalk ? 1 : 0, st->allBit ? 1 : 0);
                     }
-                    if (st->launches < 3)
+                    if (st->launches == 0)
                     {
-                        snprintf(cadence, sizeof(cadence), "INVALID(%u lurches)", st->launches);
+                        snprintf(cadence, sizeof(cadence), "INVALID(no lurch)");
+                    }
+                    else if (st->launches < 3)
+                    {
+                        // The stagger of 800-1500 ms yields four to seven launches in 6 s, three
+                        // even with one unseen: fewer is a stagger that stalled, not a run too
+                        // short to measure.
+                        snprintf(cadence, sizeof(cadence), "BUG(%u lurches in 6 s)", st->launches);
                     }
                     else
                     {
@@ -382,29 +397,34 @@ namespace Harness
                         bool pass[2];
                         for (uint32 i = 0; i < 2; ++i)
                         {
-                            // The bearing away from the corpse, measured from where THIS bolt
-                            // launched (the wolf may have drifted between bolts): the bolt's own
-                            // bearing must sit within 0.45 rad of it. The distance band only
-                            // holds while the launch is still inside minQuiet (28 yd); past it
-                            // the drift-back leg uses a different formula, so the check is skipped.
+                            // The close band, from where THIS bolt launched (the wolf drifts
+                            // between bolts): a launch inside minQuiet (28 yd) bolts away from the
+                            // corpse within pi/8 (0.45 rad with the mesh's slack) for 0.4-1.3
+                            // times the distance left to the band (half a yard of slack for the
+                            // ground drop and the mesh, and the 30 yd path cap). A launch past
+                            // minQuiet mills about in any direction or drifts back, so neither the
+                            // bearing nor the length says anything about the corpse: it passes.
                             const float away = Bearing(st->cx, st->cy, bx[i], by[i]);
                             const float boltBearing = Bearing(bx[i], by[i], goal[i].x, goal[i].y);
                             const float off = AngleDiff(boltBearing, away);
-                            pass[i] = off <= 0.45f;
                             const float distFromCorpse = Dist2(st->cx, st->cy, bx[i], by[i]);
                             if (distFromCorpse <= 28.0f)
                             {
                                 const float dist = Dist2(bx[i], by[i], goal[i].x, goal[i].y);
-                                pass[i] = pass[i] && dist >= 8.0f && dist <= 30.5f;
-                                Log("bolt %u: %.0f deg off away from the corpse, %.1f yd", i + 1, off * 180.0f / M_PI_F, dist);
+                                const float lo = 0.4f * (28.0f - distFromCorpse) - 0.6f;
+                                float hi = 1.3f * (28.0f - distFromCorpse) + 0.6f;
+                                if (hi > 30.5f) { hi = 30.5f; }
+                                pass[i] = off <= 0.45f && dist >= lo && dist <= hi;
+                                Log("bolt %u: launched %.1f yd from the corpse, %.0f deg off away from it, %.1f yd of the %.1f-%.1f band", i + 1, distFromCorpse, off * 180.0f / M_PI_F, dist, lo, hi);
                             }
                             else
                             {
-                                Log("bolt %u launched %.1f yd from the corpse, past minQuiet: the distance band is skipped, %.0f deg off away from it", i + 1, distFromCorpse, off * 180.0f / M_PI_F);
+                                pass[i] = true;
+                                Log("bolt %u launched %.1f yd from the corpse, past minQuiet: no band to test, %.0f deg off away from it", i + 1, distFromCorpse, off * 180.0f / M_PI_F);
                             }
                         }
-                        if (pass[0] && pass[1]) { snprintf(bolt, sizeof(bolt), "OK(both bolts within 0.45 rad of away from the corpse)"); }
-                        else { snprintf(bolt, sizeof(bolt), "BUG(bolt %u not within 0.45 rad, or its distance out of [8.0, 30.5])", pass[0] ? 2u : 1u); }
+                        if (pass[0] && pass[1]) { snprintf(bolt, sizeof(bolt), "OK(every bolt launched inside minQuiet heads away from the corpse for its band's length)"); }
+                        else { snprintf(bolt, sizeof(bolt), "BUG(bolt %u: not within 0.45 rad of away from the corpse, or its length outside 0.4-1.3 x the distance left to the band)", pass[0] ? 2u : 1u); }
                     }
                     std::string text = std::string("fleeStarts=") + starts + " | corpseFrightens=" + bolt;
                     Verdict(text);
