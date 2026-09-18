@@ -33,6 +33,8 @@
 
 #include <memory>
 
+class Player;
+
 /**
  * A native kernel behaviour as a shell behaviour (P5-B family 1 design section 3): owns the
  * native and a MotionDriver, fills the Sight, applies the Step's intent through the driver
@@ -128,6 +130,8 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         void PerformEffects(Unit& owner, std::vector<Motion::Effect> const& effects);
         void Launch(Unit& owner, Motion::EffectLaunch const& launch);
         void Roam(Unit& owner, Motion::Roaming what);
+        /// The taxi's six kinds, a player's alone (Effect::Owners): dispatched to Player::Taxi*.
+        void PerformTaxi(Player& player, Motion::Effect const& e);
 
         std::unique_ptr<Motion::Behaviour> m_native;
         MotionDriver       m_driver;

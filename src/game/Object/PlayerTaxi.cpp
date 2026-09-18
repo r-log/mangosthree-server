@@ -573,3 +573,128 @@ void Player::ContinueTaxiFlight()
 
     GetSession()->SendDoFlight(mountDisplayId, path, startNode);
 }
+
+// ---- the taxi's six operations (P5-B family 5) ----------------------------------------------
+// The kernel's TaxiBehaviour (src/motion/TaxiMove.cpp) says WHEN; these say HOW, each in one
+// place and in retail's order (design/2026-09-18-movement-p5b5-taxi-design.md §5).
+
+/**
+ * @brief The takeoff: the stop, the control taken, the hostile references offline, the pet
+ *        unsummoned, the mount display written without UNIT_FLAG_MOUNT, the flight flags set.
+ * @param mountDisplayId The taxi mount's display id (0 for a spell taxi without one).
+ */
+void Player::TaxiTakeoff(uint32 mountDisplayId)
+{
+    // Retail's order (the family's notes A.6-A.7, A.11): a stop, the control update with
+    // AllowMove = 0, then UNIT_FIELD_FLAGS and the mount display in one update. UNIT_FLAG_MOUNT
+    // is not set on a taxi (0x10000C on the wire), so Unit::Mount is not used; what it did
+    // beside the flag is done here.
+    StopMoving();
+    SetClientControl(this, 0);
+    GetHostileRefManager().setOnlineOfflineState(false);
+    UnsummonPetTemporaryIfAny();
+    RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MOUNTING);
+    SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, mountDisplayId);
+    SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_TAXI_FLIGHT);
+}
+
+/**
+ * @brief A route hop's seam was left: the route advances; a taxi cheater learns the hub.
+ */
+void Player::TaxiSeamPassed()
+{
+    m_taxi.NextTaxiDestination();
+    // The hub joins a taxi cheater's mask, as the hop chaining did: a cheater who lands with
+    // the cheat off must still have a flight back.
+    const uint32 hub = m_taxi.GetTaxiSource();
+    if (hub && IsTaxiCheater() && m_taxi.SetTaximaskNode(hub))
+    {
+        WorldPacket data(SMSG_NEW_TAXI_PATH, 0);
+        GetSession()->SendPacket(&data);
+    }
+}
+
+/**
+ * @brief The map crossing: the far teleport onto the next map's first path node.
+ * @return False when the teleport was refused (the map cannot be entered).
+ */
+bool Player::TaxiCross(uint32 mapId, float x, float y, float z, float o)
+{
+    // Inside the motion update the teleport is deferred (SetDelayedTeleportFlagIfCan) and runs
+    // at the end of Update(); the Taxi binding survives the map change and
+    // WorldSession::HandleMoveWorldportAckOpcode resumes it through MotionMaster::TaxiContinue.
+    return TeleportTo(mapId, x, y, z, o);
+}
+
+/**
+ * @brief Stores the landing for Update() to perform once the teleport-deferral window has closed.
+ */
+void Player::ScheduleTaxiLanding(bool snap, float x, float y, float z, float o)
+{
+    m_taxiLandingPending = true;
+    m_taxiLandingSnap = snap;
+    m_taxiLanding = WorldLocation(GetMapId(), x, y, z, o);
+}
+
+/**
+ * @brief The landing, in retail's order: control on, the stop, the teleport onto the TaxiNodes
+ *        position, the flags and the mount display cleared, the pet back; then the server's own
+ *        bookkeeping (the hostile references, the hostile-area spell, the route).
+ */
+void Player::PerformTaxiLanding()
+{
+    if (!m_taxiLandingPending)
+    {
+        return;
+    }
+    // Taken before the first step: a re-entry from a hook below finds nothing pending, and an
+    // abort in between (TaxiAbort) clears the slot, so a landing runs once or never.
+    m_taxiLandingPending = false;
+    const bool snap = m_taxiLandingSnap;
+    const WorldLocation where = m_taxiLanding;
+
+    // The sniffed flight (the notes A.10-A.12): AllowMove = 1 first, a stop spline at the last
+    // path node, SMSG_MOVE_TELEPORT onto the node's TaxiNodes position (2.19 yd below the path,
+    // a 1 ms fall, no damage: the near teleport resets the fall reference), the flags cleared and
+    // the mount display zeroed in one update, the pet resummoned.
+    SetClientControl(this, 1);
+    StopMoving(true);
+    if (snap)
+    {
+        TeleportTo(where, TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
+    }
+    RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_TAXI_FLIGHT);
+    RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_NOT_MOUNTED);
+    SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, 0);
+    ResummonPetTemporaryUnSummonedIfAny();
+    // The generator's Finalize, which ran these only when the client's spline-done packet had
+    // already emptied the route (the race, design fact 5): now every landing runs them.
+    GetHostileRefManager().setOnlineOfflineState(true);
+    if (pvpInfo.inHostileArea)
+    {
+        CastSpell(this, 2479, true);
+    }
+    m_taxi.ClearTaxiDestinations();
+}
+
+/**
+ * @brief Every non-landing end of a flight: the flags and the mount display cleared, the pet
+ *        back, the hostile references online, the route cleared, the control returned.
+ */
+void Player::TaxiAbort()
+{
+    // The one deliberate second writer of a mirrored bit (the mirror agrees at the commit's end):
+    // the pet's resummon and the hostile-state change below must not see a flight in progress.
+    clearUnitState(UNIT_STAT_TAXI_FLIGHT);
+    m_taxiLandingPending = false;
+    RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_TAXI_FLIGHT);
+    RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_NOT_MOUNTED);
+    SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, 0);
+    ResummonPetTemporaryUnSummonedIfAny();
+    GetHostileRefManager().setOnlineOfflineState(true);
+    m_taxi.ClearTaxiDestinations();
+    // Every abort returns the client its mover, death included: no death or repop path grants
+    // it, and a ghost whose mover the takeoff revoked could not move (design §6.6). The grant
+    // is refused on its own while fleeing or confused, states the boarding refuses.
+    SetClientControl(this, 1);
+}
