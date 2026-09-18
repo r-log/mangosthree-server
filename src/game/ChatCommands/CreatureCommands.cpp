@@ -749,7 +749,7 @@ bool ChatHandler::HandleNpcSetMoveTypeCommand(char* args)
         pCreature = player->GetMap()->GetCreature(data->GetObjectGuid(lowguid));
     }
 
-    MovementGeneratorType move_type;
+    CreatureMovementType move_type;
     char* type_str = ExtractLiteralArg(&args);
     if (!type_str)
     {
@@ -758,15 +758,15 @@ bool ChatHandler::HandleNpcSetMoveTypeCommand(char* args)
 
     if (strncmp(type_str, "stay", strlen(type_str)) == 0)
     {
-        move_type = IDLE_MOTION_TYPE;
+        move_type = CREATURE_MOVEMENT_IDLE;
     }
     else if (strncmp(type_str, "random", strlen(type_str)) == 0)
     {
-        move_type = RANDOM_MOTION_TYPE;
+        move_type = CREATURE_MOVEMENT_RANDOM;
     }
     else if (strncmp(type_str, "way", strlen(type_str)) == 0)
     {
-        move_type = WAYPOINT_MOTION_TYPE;
+        move_type = CREATURE_MOVEMENT_WAYPOINT;
     }
     else
     {
@@ -915,10 +915,10 @@ bool ChatHandler::HandleNpcSpawnDistCommand(char* args)
         return false;
     }
 
-    MovementGeneratorType mtype = IDLE_MOTION_TYPE;
+    CreatureMovementType mtype = CREATURE_MOVEMENT_IDLE;
     if (option > 0.0f)
     {
-        mtype = RANDOM_MOTION_TYPE;
+        mtype = CREATURE_MOVEMENT_RANDOM;
     }
 
     Creature* pCreature = getSelectedCreature();
@@ -942,7 +942,7 @@ bool ChatHandler::HandleNpcSpawnDistCommand(char* args)
         pCreature->Respawn();
     }
 
-    WorldDatabase.PExecuteLog("UPDATE `creature` SET `spawndist`=%f, `MovementType`=%i WHERE `guid`=%u", option, mtype, u_guidlow);
+    WorldDatabase.PExecuteLog("UPDATE `creature` SET `spawndist`=%f, `MovementType`=%i WHERE `guid`=%u", option, int32(mtype), u_guidlow);
     PSendSysMessage(LANG_COMMAND_SPAWNDIST, option);
     return true;
 }

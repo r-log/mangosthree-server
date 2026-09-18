@@ -611,7 +611,7 @@ struct npc_artorius_the_doombringer : public CreatureScript
                     m_creature->NearTeleportTo(7909.71f, -4598.67f, 710.008f, 0.606013f);
                     if (!m_creature->GetMotionMaster()->IsPatrolling())
                     {
-                        m_creature->SetDefaultMovementType(WAYPOINT_MOTION_TYPE);
+                        m_creature->SetDefaultMovementType(CREATURE_MOVEMENT_WAYPOINT);
                         m_creature->GetMotionMaster()->Initialize();
                     }
 

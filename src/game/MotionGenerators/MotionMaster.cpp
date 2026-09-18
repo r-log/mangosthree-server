@@ -732,10 +732,12 @@ void MotionMaster::Initialize()
     {
         Creature* creature = (Creature*)m_owner;
         MANGOS_ASSERT(creature->GetCreatureInfo() != NULL);   // every creature reaching here has one: the default-type reads below assume it
-        const MovementGeneratorType wanted = creature->GetOwnerGuid().IsPlayer() ? FOLLOW_MOTION_TYPE : creature->GetDefaultMovementType();
-        if (wanted == RANDOM_MOTION_TYPE)
+        // A player's pet has no factory default: the old FOLLOW_MOTION_TYPE fell through to the
+        // idle below too, and the pet code installs its follow itself.
+        const CreatureMovementType wanted = creature->GetOwnerGuid().IsPlayer() ? CREATURE_MOVEMENT_IDLE : creature->GetDefaultMovementType();
+        if (wanted == CREATURE_MOVEMENT_RANDOM)
         {
-            // No factory is registered for RANDOM_MOTION_TYPE: the wander native is installed
+            // No factory is registered for a random default: the wander native is installed
             // directly, as the factory constructor built it (no vertical band).
             Geometry::Placement const& spawn = creature->Spawn();
             Motion::WanderBehaviour::Params p;
@@ -745,9 +747,9 @@ void MotionMaster::Initialize()
             InstallFactoryNative(Motion::Kind::Wander, std::unique_ptr<Motion::Behaviour>(new Motion::WanderBehaviour(p)));
             return;
         }
-        if (wanted == WAYPOINT_MOTION_TYPE)
+        if (wanted == CREATURE_MOVEMENT_WAYPOINT)
         {
-            // Likewise for WAYPOINT_MOTION_TYPE: the patrol native, loading the default path
+            // Likewise for a waypoint default: the patrol native, loading the default path
             // exactly as InitializeWaypointPath(pathId 0, PATH_NO_PATH) did; an unresolved path
             // is a patrol with no nodes, which holds, as the generator's did.
             Motion::PatrolBehaviour::Params p;

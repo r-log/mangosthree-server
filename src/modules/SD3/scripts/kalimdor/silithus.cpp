@@ -848,7 +848,7 @@ struct npc_solenor_the_slayer : public CreatureScript
                     m_creature->NearTeleportTo(-7724.21f, 1676.43f, 7.0571f, 4.80044f);
                     if (!m_creature->GetMotionMaster()->IsPatrolling())
                     {
-                        m_creature->SetDefaultMovementType(WAYPOINT_MOTION_TYPE);
+                        m_creature->SetDefaultMovementType(CREATURE_MOVEMENT_WAYPOINT);
                         m_creature->GetMotionMaster()->Initialize();
                     }
 

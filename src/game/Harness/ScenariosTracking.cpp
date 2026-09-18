@@ -137,7 +137,7 @@ namespace Harness
         /// nothing at all moves the actor except this file.
         void Park(Creature* c)
         {
-            c->SetDefaultMovementType(IDLE_MOTION_TYPE);
+            c->SetDefaultMovementType(CREATURE_MOVEMENT_IDLE);
             c->GetMotionMaster()->Initialize();
         }
 

@@ -285,7 +285,8 @@ struct boss_onyxia : public CreatureScript
 
         void MovementInform(Motion::Kind uiMoveType, uint32 uiPointId) override
         {
-            // the landing and the take-off arrive as FlyLand, the breath's points as Point (P5-C1)
+            // POINT_ID_LAND and POINT_ID_IN_AIR arrive as FlyLand (MoveFlyOrLand); POINT_ID_LIFTOFF,
+            // POINT_ID_INIT_NORTH and the breath's points as Point (MovePoint) (P5-C1)
             if ((uiMoveType != Motion::Kind::Point && uiMoveType != Motion::Kind::FlyLand) || !m_pInstance)
             {
                 return;
