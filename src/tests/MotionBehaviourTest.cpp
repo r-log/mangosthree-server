@@ -30,6 +30,7 @@
 #include "SimpleMoves.h"
 #include "DefaultMoves.h"
 #include "TrackingMoves.h"
+#include "ControlMoves.h"
 #include "Utilities/MathDefines.h"
 
 #include <cmath>
@@ -2484,4 +2485,512 @@ TEST(MotionBehaviour_ModelGrowsForTheControlMoves)
     CHECK(!PointBehaviour(PointTo(1.0f, 2.0f, 3.0f)).NeedsContactPoint());
     CHECK_EQ(PointBehaviour(charge).Variant(), 0u);
     CHECK(!IdleBehaviour().NeedsContactPoint());
+}
+
+namespace
+{
+    /// The flee's opaque move bit: 0x40000 (the shell's UNIT_STAT_FLEEING_MOVE); the confuse's 0x400.
+    FearBehaviour::Params Feared(uint32 timeLimitMs = 0)
+    {
+        FearBehaviour::Params p;
+        p.fright = 77;
+        p.timeLimitMs = timeLimitMs;
+        p.stateFleeingMove = 0x40000;
+        return p;
+    }
+    ConfusedBehaviour::Params Confusing(float radius = 10.0f)
+    {
+        ConfusedBehaviour::Params p;
+        p.stateConfusedMove = 0x400;
+        p.radius = radius;
+        return p;
+    }
+    /// A creature standing at (x, y), free to move.
+    Sight Standing(float x, float y)
+    {
+        Sight s = Free();
+        s.position = Vector3(x, y, 0.0f);
+        s.isCreature = true;
+        return s;
+    }
+    Sight Player(float x, float y)
+    {
+        Sight s = Standing(x, y);
+        s.isCreature = false;
+        return s;
+    }
+    /// The fright 6 yd east of the mover at the origin.
+    void FrightEast(FakeServices& svc)
+    {
+        svc.frightResolved = true;
+        svc.frightPosition = Vector3(6.0f, 0.0f, 0.0f);
+        svc.frightDistance = 6.0f;
+    }
+    bool CallsAre(FakeServices const& svc, std::vector<std::string> const& expected)
+    {
+        if (svc.calls.size() != expected.size())
+        {
+            return false;
+        }
+        for (size_t i = 0; i < expected.size(); ++i)
+        {
+            if (svc.calls[i] != expected[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+TEST(MotionBehaviour_FearHooksAreTheGeneratorsInitializeInterruptReset)
+{
+    FakeServices svc;
+    FearBehaviour f(Feared());
+    Sight s = Standing(0.0f, 0.0f);
+    Step a = f.Activate(s, svc);
+    CHECK(a.stop);                                   // the generator's add-then-StopMoving nets to a cleared bit: no StateRaw here
+    CHECK(!a.interrupt);
+    CHECK(a.resetLeg);
+    CHECK(!a.apply);
+    REQUIRE(a.effects.size() == size_t(2));
+    CHECK(a.effects[0].kind == Effect::SetWalk);
+    CHECK(!a.effects[0].flag);                       // a flee runs
+    CHECK(a.effects[1].kind == Effect::ClearTarget);
+    CHECK(svc.calls.empty());                        // no draw before the first tick
+    CHECK_EQ(f.Target(), uint64(77));
+    CHECK(!f.TracksTarget());                        // the fright is the port's, at the pick
+    CHECK(!f.NeedsContactPoint());
+    CHECK_EQ(f.Variant(), 0u);
+    CHECK_EQ(FearBehaviour(Feared(3000)).Variant(), 1u);
+    CHECK(f.EndReason(s) == FinishReason::Expired);
+    Step su = f.Suspend();
+    CHECK(su.interrupt && su.resetLeg && !su.stop && !su.apply);
+    REQUIRE(su.effects.size() == size_t(1));
+    CHECK(su.effects[0].kind == Effect::StateRaw);
+    CHECK_EQ(su.effects[0].setMask, 0u);
+    CHECK_EQ(su.effects[0].clearMask, 0x40000u);
+    Step r = f.Resume(s, svc, false);
+    CHECK(!r.stop && !r.resetLeg && r.effects.empty());   // a resume without a reset does nothing
+    Step rr = f.Resume(s, svc, true);
+    CHECK(rr.stop && rr.resetLeg);                   // a reset is the Initialize again
+    CHECK_EQ(rr.effects.size(), size_t(2));
+}
+
+TEST(MotionBehaviour_FearPickDrawsInTheGeneratorsOrder)
+{
+    FakeServices svc;
+    FrightEast(svc);
+    FearBehaviour f(Feared());
+    Sight s = Standing(0.0f, 0.0f);
+    f.Activate(s, svc);
+    Step t = f.Tick(s, svc, 100);                    // rest 0: the first pick at once
+    CHECK(CallsAre(svc, { "frand", "fright", "frand", "frand", "groundPoint", "urand" }));
+    CHECK(t.apply);
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(t.intent.flags, uint32(MOVE_REQUIRE_PATH));
+    CHECK(Close(t.intent.pathLengthLimit, 30.0f));
+    REQUIRE(t.effects.size() == size_t(1));
+    CHECK(t.effects[0].kind == Effect::StateRaw);
+    CHECK_EQ(t.effects[0].setMask, 0x40000u);
+    CHECK_EQ(t.effects[0].clearMask, 0u);
+    // The fake's Frand answers its minimum. Inside 28 yd: dist = 0.4 * (28 - 6) = 8.8 at the
+    // bearing from the fright to the mover (pi) plus the minimum jitter (-pi/8) = 7pi/8:
+    // west and a little north; the guess sits half a yard up.
+    CHECK(Close(svc.lastGuess.x, 8.8f * std::cos(7.0f * M_PI_F / 8.0f), 0.01f));
+    CHECK(Close(svc.lastGuess.y, 8.8f * std::sin(7.0f * M_PI_F / 8.0f), 0.01f));
+    CHECK(Close(svc.lastGuess.z, 0.5f));
+    CHECK(Close(t.intent.goal, svc.lastGuess));      // the fake hands the guess back whole
+    // Traveling: the leg re-stated, no draw, no length limit on the re-statement, no effect.
+    svc.calls.clear();
+    Sight moving = Standing(0.0f, 0.0f);
+    moving.status.traveling = true;
+    Step m = f.Tick(moving, svc, 100);
+    CHECK(m.intent.act == MoveIntent::Act::Move);
+    CHECK(Close(m.intent.goal, t.intent.goal));
+    CHECK(Close(m.intent.pathLengthLimit, 0.0f));
+    CHECK(m.effects.empty());
+    CHECK(svc.calls.empty());
+    // Standing again: the rest (urand's minimum, 800) counts only now; 700 in, still holding.
+    CHECK(f.Tick(s, svc, 700).intent.act == MoveIntent::Act::Hold);
+    CHECK(svc.calls.empty());
+    Step n = f.Tick(s, svc, 100);                    // 800: the next bolt
+    CHECK(n.intent.act == MoveIntent::Act::Move);
+    CHECK(CallsAre(svc, { "frand", "fright", "frand", "frand", "groundPoint", "urand" }));
+}
+
+TEST(MotionBehaviour_FearRefusedGroundAndBlockedLegRetryWithoutTheRestDraw)
+{
+    FakeServices svc;
+    FrightEast(svc);
+    svc.groundFails = true;
+    FearBehaviour f(Feared());
+    Sight s = Standing(0.0f, 0.0f);
+    f.Activate(s, svc);
+    Step t = f.Tick(s, svc, 100);
+    CHECK(CallsAre(svc, { "frand", "fright", "frand", "frand", "groundPoint" }));   // three frand, no urand
+    CHECK(t.intent.act == MoveIntent::Act::Hold);
+    CHECK(t.effects.empty());
+    svc.calls.clear();
+    CHECK(f.Tick(s, svc, 49).intent.act == MoveIntent::Act::Hold);   // the 50 ms retry
+    CHECK(svc.calls.empty());
+    f.Tick(s, svc, 1);
+    CHECK_EQ(svc.calls.size(), size_t(5));                          // picked again, refused again
+    // A leg the driver refused: the point forgotten, the retry set, and the tick FALLS THROUGH
+    // -- with a diff past 50 ms it picks again in the same tick (the generator's order).
+    svc.groundFails = false;
+    svc.calls.clear();
+    f.Tick(s, svc, 50);                                             // a point laid
+    CHECK_EQ(svc.calls.size(), size_t(6));
+    svc.calls.clear();
+    Sight blocked = Standing(0.0f, 0.0f);
+    blocked.status.blocked = true;
+    Step b = f.Tick(blocked, svc, 100);
+    CHECK(b.intent.act == MoveIntent::Act::Move);                   // the same tick picked again
+    CHECK_EQ(svc.calls.size(), size_t(6));
+    svc.calls.clear();
+    Sight blockedShort = Standing(0.0f, 0.0f);
+    blockedShort.status.blocked = true;
+    CHECK(f.Tick(blockedShort, svc, 20).intent.act == MoveIntent::Act::Hold);   // 20 of the 50: holding, no draw
+    CHECK(svc.calls.empty());
+}
+
+TEST(MotionBehaviour_FearBandsAndAnUnresolvedFright)
+{
+    // Beyond 43 yd: drift back, dist = 0.4 * 15 = 6 at (pi + pi - pi/4) = 7pi/4: toward the fright.
+    {
+        FakeServices svc;
+        svc.frightResolved = true;
+        svc.frightPosition = Vector3(50.0f, 0.0f, 0.0f);
+        svc.frightDistance = 50.0f;
+        FearBehaviour f(Feared());
+        Sight s = Standing(0.0f, 0.0f);
+        f.Activate(s, svc);
+        f.Tick(s, svc, 100);
+        CHECK(Close(svc.lastGuess.x, 6.0f * std::cos(7.0f * M_PI_F / 4.0f), 0.01f));
+        CHECK(Close(svc.lastGuess.y, 6.0f * std::sin(7.0f * M_PI_F / 4.0f), 0.01f));
+        CHECK(svc.lastGuess.x > 0.0f);
+    }
+    // Inside the band: dist = 0.6 * 15 = 9 at the second random draw (the fake's 0): due east.
+    {
+        FakeServices svc;
+        svc.frightResolved = true;
+        svc.frightPosition = Vector3(35.0f, 0.0f, 0.0f);
+        svc.frightDistance = 35.0f;
+        FearBehaviour f(Feared());
+        Sight s = Standing(0.0f, 0.0f);
+        f.Activate(s, svc);
+        f.Tick(s, svc, 100);
+        CHECK(CallsAre(svc, { "frand", "fright", "frand", "frand", "groundPoint", "urand" }));
+        CHECK(Close(svc.lastGuess, Vector3(9.0f, 0.0f, 0.5f), 0.01f));
+    }
+    // No fright at all: the first draw's bearing (0) holds, the close band from a zero distance:
+    // dist = 0.4 * 28 = 11.2, angle 0 - pi/8.
+    {
+        FakeServices svc;
+        FearBehaviour f(Feared());
+        Sight s = Standing(0.0f, 0.0f);
+        f.Activate(s, svc);
+        f.Tick(s, svc, 100);
+        CHECK(CallsAre(svc, { "frand", "fright", "frand", "frand", "groundPoint", "urand" }));   // the fright asked, found nothing
+        CHECK(Close(svc.lastGuess.x, 11.2f * std::cos(-M_PI_F / 8.0f), 0.01f));
+        CHECK(Close(svc.lastGuess.y, 11.2f * std::sin(-M_PI_F / 8.0f), 0.01f));
+    }
+    // A fright within 0.2 yd: resolved, but its bearing is not taken; the distance still counts.
+    {
+        FakeServices svc;
+        svc.frightResolved = true;
+        svc.frightPosition = Vector3(0.1f, 0.0f, 0.0f);
+        svc.frightDistance = 0.1f;
+        FearBehaviour f(Feared());
+        Sight s = Standing(0.0f, 0.0f);
+        f.Activate(s, svc);
+        f.Tick(s, svc, 100);
+        CHECK(Close(svc.lastGuess.x, 0.4f * 27.9f * std::cos(-M_PI_F / 8.0f), 0.01f));
+    }
+}
+
+TEST(MotionBehaviour_FearTimedClockEndsBeforeAnyDraw)
+{
+    FakeServices svc;
+    FrightEast(svc);
+    FearBehaviour f(Feared(1000));
+    Sight s = Standing(0.0f, 0.0f);
+    f.Activate(s, svc);
+    Step t = f.Tick(s, svc, 600);                    // 400 ms left: a bolt
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    svc.calls.clear();
+    Sight moving = Standing(0.0f, 0.0f);
+    moving.status.traveling = true;
+    CHECK(f.Tick(moving, svc, 300).intent.act == MoveIntent::Act::Move);   // 100 ms left
+    CHECK(svc.calls.empty());
+    Step d = f.Tick(s, svc, 100);                    // 0 left: Done, before the rest or a pick
+    CHECK(d.intent.act == MoveIntent::Act::Done);
+    CHECK(svc.calls.empty());
+    CHECK(d.effects.empty());
+    CHECK(f.EndReason(s) == FinishReason::Expired);
+    // A reset does not touch the clock: a fresh behaviour with the limit starts over, this one is spent.
+    FearBehaviour g(Feared(1000));
+    g.Activate(s, svc);
+    g.Resume(s, svc, true);
+    CHECK(g.Tick(s, svc, 999).intent.act == MoveIntent::Act::Move);
+    // A dead mover ends the untimed flee too.
+    FearBehaviour h(Feared());
+    h.Activate(s, svc);
+    Sight dead = Standing(0.0f, 0.0f);
+    dead.alive = false;
+    svc.calls.clear();
+    CHECK(h.Tick(dead, svc, 100).intent.act == MoveIntent::Act::Done);
+    CHECK(svc.calls.empty());
+}
+
+TEST(MotionBehaviour_FearFinishRecipesByReason)
+{
+    FakeServices svc;
+    Sight creature = Standing(0.0f, 0.0f);
+    Sight player = Player(0.0f, 0.0f);
+    // An aura's release (Cancelled) on a creature with no surviving fear claim: the interrupt,
+    // the bit cleared, then the gait restored LIVE, after the clear.
+    {
+        FearBehaviour f(Feared());
+        Outcome o = f.Finish(FinishReason::Cancelled, creature, svc);
+        CHECK(o.interrupt);
+        CHECK(!o.stop && !o.stopForced);
+        REQUIRE(o.effects.size() == size_t(2));
+        CHECK(o.effects[0].kind == Effect::StateRaw);
+        CHECK_EQ(o.effects[0].clearMask, 0x40000u);
+        CHECK(o.effects[1].kind == Effect::RestoreGait);
+    }
+    // The same with another fear claim surviving: the run is its, no restore.
+    {
+        svc.fearHeld = true;
+        FearBehaviour f(Feared());
+        Outcome o = f.Finish(FinishReason::Superseded, creature, svc);
+        CHECK(o.interrupt);
+        REQUIRE(o.effects.size() == size_t(1));
+        CHECK(o.effects[0].kind == Effect::StateRaw);
+        svc.fearHeld = false;
+    }
+    // A displacing finish on a player: no gait, no stop of its own (the interrupt stops it).
+    {
+        FearBehaviour f(Feared());
+        Outcome o = f.Finish(FinishReason::Overridden, player, svc);
+        CHECK(o.interrupt && !o.stop);
+        REQUIRE(o.effects.size() == size_t(1));
+        CHECK(o.effects[0].kind == Effect::StateRaw);
+    }
+    // The untimed Finalize (Expired, Died, Cleared) on a creature: the gait read BEFORE the
+    // clear, then the clear; no interrupt.
+    {
+        FearBehaviour f(Feared());
+        FinishReason const reasons[] = { FinishReason::Expired, FinishReason::Died, FinishReason::Cleared };
+        for (size_t i = 0; i < 3; ++i)
+        {
+            Outcome o = f.Finish(reasons[i], creature, svc);
+            CHECK(!o.interrupt && !o.stop);
+            REQUIRE(o.effects.size() == size_t(2));
+            CHECK(o.effects[0].kind == Effect::RestoreGait);
+            CHECK(o.effects[1].kind == Effect::StateRaw);
+            CHECK_EQ(o.effects[1].clearMask, 0x40000u);
+        }
+    }
+    // The untimed Finalize on a player: the soft stop, then the clear; no gait effect.
+    {
+        FearBehaviour f(Feared());
+        Outcome o = f.Finish(FinishReason::Died, player, svc);
+        CHECK(o.stop && !o.stopForced && !o.interrupt);
+        REQUIRE(o.effects.size() == size_t(1));
+        CHECK(o.effects[0].kind == Effect::StateRaw);
+    }
+    // The timed Finalize: the clear, the flag dropped when no fear claim survives, the re-engage;
+    // no gait restore unless step two asks.
+    {
+        FearBehaviour f(Feared(3000));
+        Outcome o = f.Finish(FinishReason::Expired, creature, svc);
+        CHECK(!o.interrupt && !o.stop);
+        REQUIRE(o.effects.size() == size_t(3));
+        CHECK(o.effects[0].kind == Effect::StateRaw);
+        CHECK(o.effects[1].kind == Effect::ClearFleeingFlag);
+        CHECK(o.effects[2].kind == Effect::AttackVictim);
+        svc.fearHeld = true;
+        Outcome held = f.Finish(FinishReason::Expired, creature, svc);
+        REQUIRE(held.effects.size() == size_t(2));
+        CHECK(held.effects[0].kind == Effect::StateRaw);
+        CHECK(held.effects[1].kind == Effect::AttackVictim);   // the flag is the survivor's
+        svc.fearHeld = false;
+        FearBehaviour::Params two = Feared(3000);
+        two.restoreGaitWhenTimed = true;
+        FearBehaviour g(two);
+        Outcome step2 = g.Finish(FinishReason::Expired, creature, svc);
+        REQUIRE(step2.effects.size() == size_t(4));
+        CHECK(step2.effects[0].kind == Effect::StateRaw);
+        CHECK(step2.effects[1].kind == Effect::ClearFleeingFlag);
+        CHECK(step2.effects[2].kind == Effect::RestoreGait);     // after the clear, before the re-engage
+        CHECK(step2.effects[3].kind == Effect::AttackVictim);
+        // A timed flee cancelled (the possession's take): the displacing recipe, as the untimed one.
+        Outcome cancelled = g.Finish(FinishReason::Cancelled, creature, svc);
+        CHECK(cancelled.interrupt);
+        REQUIRE(cancelled.effects.size() == size_t(2));
+        CHECK(cancelled.effects[1].kind == Effect::RestoreGait);
+    }
+}
+
+TEST(MotionBehaviour_ConfusedHooksKeepTheAnchorThroughAReset)
+{
+    FakeServices svc;
+    ConfusedBehaviour c(Confusing());
+    Sight s = Standing(3.0f, 4.0f);
+    Step a = c.Activate(s, svc);
+    CHECK(Close(c.Anchor(), Vector3(3.0f, 4.0f, 0.0f)));
+    CHECK(a.stop && a.resetLeg && !a.interrupt && !a.apply);
+    REQUIRE(a.effects.size() == size_t(1));
+    CHECK(a.effects[0].kind == Effect::StateRaw);   // after the stop: the bit ends SET
+    CHECK_EQ(a.effects[0].setMask, 0x400u);
+    CHECK_EQ(a.effects[0].clearMask, 0u);
+    CHECK(svc.calls.empty());
+    CHECK(c.EndReason(s) == FinishReason::Expired);
+    CHECK(!c.TracksTarget());
+    CHECK_EQ(c.Variant(), 0u);
+    // Held at activation (UNIT_STAT_NOT_MOVE: a root, a stun, a distract's stand): no stop, no bit, the leg still forgotten.
+    Sight held = Standing(3.0f, 4.0f);
+    held.notMove = true;
+    ConfusedBehaviour d(Confusing());
+    Step h = d.Activate(held, svc);
+    CHECK(!h.stop && h.resetLeg && h.effects.empty());
+    Sight dead = Standing(3.0f, 4.0f);
+    dead.alive = false;
+    ConfusedBehaviour e(Confusing());
+    Step dd = e.Activate(dead, svc);
+    CHECK(!dd.stop && dd.resetLeg && dd.effects.empty());
+    // The suspend: the interrupt, the bit cleared, the leg forgotten.
+    Step su = c.Suspend();
+    CHECK(su.interrupt && su.resetLeg && !su.stop);
+    REQUIRE(su.effects.size() == size_t(1));
+    CHECK_EQ(su.effects[0].clearMask, 0x400u);
+    // A reset from somewhere else: the stop and the bit again, the anchor untouched.
+    Sight elsewhere = Standing(30.0f, 40.0f);
+    Step r = c.Resume(elsewhere, svc, true);
+    CHECK(r.stop && r.resetLeg);
+    CHECK(Close(c.Anchor(), Vector3(3.0f, 4.0f, 0.0f)));
+    CHECK(c.Resume(elsewhere, svc, false).effects.empty());
+}
+
+TEST(MotionBehaviour_ConfusedLurchesFromTheAnchorAtAWalkAndSupersedesMidLeg)
+{
+    FakeServices svc;
+    ConfusedBehaviour c(Confusing(10.0f));
+    Sight s = Standing(3.0f, 4.0f);
+    c.Activate(s, svc);
+    Step t = c.Tick(s, svc, 100);                    // the stagger 0: a lurch at once
+    CHECK(CallsAre(svc, { "random", "urand" }));
+    CHECK(Close(svc.randomRadius, 10.0f));           // the radius passed through
+    CHECK(t.apply);
+    CHECK(t.intent.act == MoveIntent::Act::Move);
+    CHECK_EQ(t.intent.flags, uint32(MOVE_WALK));
+    CHECK(Close(t.intent.goal, Vector3(13.0f, 4.0f, 0.0f)));   // the fake: the anchor + the radius along x
+    REQUIRE(t.effects.size() == size_t(1));
+    CHECK(t.effects[0].kind == Effect::StateRaw);   // re-asserted every tick
+    CHECK_EQ(t.effects[0].setMask, 0x400u);
+    // Traveling: the lurch re-stated, the bit again, no draw; the stagger (800) counts meanwhile.
+    svc.calls.clear();
+    Sight moving = Standing(5.0f, 4.0f);
+    moving.status.traveling = true;
+    Step m = c.Tick(moving, svc, 700);
+    CHECK(m.intent.act == MoveIntent::Act::Move);
+    CHECK(Close(m.intent.goal, t.intent.goal));
+    CHECK_EQ(m.effects.size(), size_t(1));
+    CHECK(svc.calls.empty());
+    // 800 ms in and still traveling: a fresh point supersedes the leg being walked.
+    Step n = c.Tick(moving, svc, 100);
+    CHECK(n.intent.act == MoveIntent::Act::Move);
+    CHECK(CallsAre(svc, { "random", "urand" }));
+    // The anchor stays the pick's centre wherever the unit is.
+    CHECK(Close(n.intent.goal, Vector3(13.0f, 4.0f, 0.0f)));
+    // Standing with the stagger not passed: a hold, the bit still written.
+    svc.calls.clear();
+    Step h = c.Tick(s, svc, 100);
+    CHECK(h.intent.act == MoveIntent::Act::Hold);
+    CHECK_EQ(h.effects.size(), size_t(1));
+    CHECK(svc.calls.empty());
+}
+
+TEST(MotionBehaviour_ConfusedRetryDoublesAndABlockedTickAdvancesItTwice)
+{
+    FakeServices svc;
+    svc.randomFails = true;
+    ConfusedBehaviour c(Confusing());
+    Sight s = Standing(0.0f, 0.0f);
+    c.Activate(s, svc);
+    // Each refused pick draws through the port (random alone, no urand) and waits 50, 100, 200, 400, 800, 800.
+    const uint32 waits[] = { 50, 100, 200, 400, 800, 800 };
+    CHECK(c.Tick(s, svc, 100).intent.act == MoveIntent::Act::Hold);   // the first pick, refused: 50
+    CHECK(CallsAre(svc, { "random" }));
+    for (size_t i = 0; i < 6; ++i)
+    {
+        svc.calls.clear();
+        CHECK(c.Tick(s, svc, waits[i] - 1).intent.act == MoveIntent::Act::Hold);   // one short: no draw
+        CHECK(svc.calls.empty());
+        CHECK(c.Tick(s, svc, 1).intent.act == MoveIntent::Act::Hold);             // passed: the next refused pick
+        CHECK(CallsAre(svc, { "random" }));
+    }
+    // A blocked tick: the retry set once for the refusal, the tick falls through, the diff
+    // passes it, the pick is refused again and the retry advances a second time.
+    ConfusedBehaviour d(Confusing());
+    d.Activate(s, svc);
+    svc.calls.clear();
+    Sight blocked = Standing(0.0f, 0.0f);
+    blocked.status.blocked = true;
+    CHECK(d.Tick(blocked, svc, 100).intent.act == MoveIntent::Act::Hold);   // 50 set, passed, refused: 100 set
+    CHECK(CallsAre(svc, { "random" }));
+    svc.calls.clear();
+    CHECK(d.Tick(s, svc, 99).intent.act == MoveIntent::Act::Hold);          // holding the 100
+    CHECK(svc.calls.empty());
+    CHECK(d.Tick(s, svc, 1).intent.act == MoveIntent::Act::Hold);           // passed: refused again, 200 next
+    CHECK(CallsAre(svc, { "random" }));
+    svc.calls.clear();
+    CHECK(d.Tick(s, svc, 199).intent.act == MoveIntent::Act::Hold);
+    CHECK(svc.calls.empty());
+    // A lurch that gets laid ends the streak: the next refusal waits 50 again.
+    svc.randomFails = false;
+    CHECK(d.Tick(s, svc, 1).intent.act == MoveIntent::Act::Move);
+    Sight moving = Standing(0.0f, 0.0f);
+    moving.status.traveling = true;
+    d.Tick(moving, svc, 100);                                               // seen traveling: retries 0
+    svc.randomFails = true;
+    svc.calls.clear();
+    d.Tick(moving, svc, 700);                                               // the stagger (800) passed: refused, 50
+    CHECK(CallsAre(svc, { "random" }));
+    svc.calls.clear();
+    CHECK(d.Tick(s, svc, 49).intent.act == MoveIntent::Act::Hold);
+    CHECK(svc.calls.empty());
+    d.Tick(s, svc, 1);
+    CHECK(CallsAre(svc, { "random" }));
+}
+
+TEST(MotionBehaviour_ConfusedFinishRecipesByReason)
+{
+    FakeServices svc;
+    Sight creature = Standing(0.0f, 0.0f);
+    Sight player = Player(0.0f, 0.0f);
+    ConfusedBehaviour c(Confusing());
+    // Displacing: the interrupt and the explicit clear (the moving mask does not hold the bit); nothing else.
+    Outcome d = c.Finish(FinishReason::Cancelled, creature, svc);
+    CHECK(d.interrupt && !d.stop && !d.stopForced);
+    REQUIRE(d.effects.size() == size_t(1));
+    CHECK(d.effects[0].kind == Effect::StateRaw);
+    CHECK_EQ(d.effects[0].clearMask, 0x400u);
+    Outcome dp = c.Finish(FinishReason::Superseded, player, svc);
+    CHECK(dp.interrupt && !dp.stopForced);
+    // The Finalize (Expired, Died, Cleared): the clear; a player's forced stop, a creature's spline left alone.
+    FinishReason const reasons[] = { FinishReason::Expired, FinishReason::Died, FinishReason::Cleared };
+    for (size_t i = 0; i < 3; ++i)
+    {
+        Outcome o = c.Finish(reasons[i], creature, svc);
+        CHECK(!o.interrupt && !o.stop && !o.stopForced);
+        REQUIRE(o.effects.size() == size_t(1));
+        CHECK(o.effects[0].kind == Effect::StateRaw);
+        Outcome p = c.Finish(reasons[i], player, svc);
+        CHECK(p.stopForced && !p.stop && !p.interrupt);
+        CHECK_EQ(p.effects.size(), size_t(1));
+    }
 }
