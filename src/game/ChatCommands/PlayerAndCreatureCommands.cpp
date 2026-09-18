@@ -330,6 +330,7 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
                 break;
             }
             case FLEEING_MOTION_TYPE:  SendSysMessage(LANG_MOVEGENS_FEAR);    break;
+            case TIMED_FLEEING_MOTION_TYPE: SendSysMessage(LANG_MOVEGENS_FEAR); break;   // the low-health runner: a fear with a clock
             case DISTRACT_MOTION_TYPE: SendSysMessage(LANG_MOVEGENS_DISTRACT);  break;
             case EFFECT_MOTION_TYPE: SendSysMessage(LANG_MOVEGENS_EFFECT);  break;
             default:
