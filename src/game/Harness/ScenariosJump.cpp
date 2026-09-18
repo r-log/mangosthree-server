@@ -115,7 +115,7 @@ namespace Harness
                     for (size_t k = 0; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];
-                        if (r.guidLow == low && r.type == POINT_MOTION_TYPE && r.id == 77)
+                        if (r.guidLow == low && r.kind == Motion::Kind::Point && r.id == 77)
                         {
                             const float shortBy = Dist2(r.x, r.y, T1.x, T1.y);
                             char text[96];
@@ -252,7 +252,7 @@ namespace Harness
                     for (size_t k = mark; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];
-                        if (r.guidLow == low && r.type == EFFECT_MOTION_TYPE && r.id == 66) { lastFired = r; fired = true; }
+                        if (r.guidLow == low && r.kind == Motion::Kind::Effect && r.id == 66) { lastFired = r; fired = true; }
                     }
                     char const* mt = a ? TypeName(a) : "?";
                     std::string v;
@@ -333,7 +333,7 @@ namespace Harness
                     for (size_t k = mark; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];
-                        if (r.guidLow == low && r.type == EFFECT_MOTION_TYPE && r.id == 72) { informed = true; }
+                        if (r.guidLow == low && r.kind == Motion::Kind::Effect && r.id == 72) { informed = true; }
                     }
                     std::string v;
                     if (mn < 2.5f && informed)

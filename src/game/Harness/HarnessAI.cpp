@@ -26,7 +26,6 @@
 #include "HarnessAI.h"
 #include "Scenario.h"
 #include "Creature.h"
-#include "MotionMaster.h"
 
 namespace Harness
 {
@@ -43,14 +42,14 @@ namespace Harness
             return r;
         }
 
-        void Record(Scenario* scenario, Creature* creature, uint32 type, uint32 id)
+        void Record(Scenario* scenario, Creature* creature, Motion::Kind kind, uint32 id)
         {
             if (!scenario || !creature)
             {
                 return;
             }
             Inform r = At(creature, Inform::Event::Inform);
-            r.type = type;
+            r.kind = kind;
             r.id = id;
             scenario->Informs().push_back(r);
         }
@@ -95,16 +94,16 @@ namespace Harness
         return wrapped;
     }
 
-    void HarnessAI::MovementInform(uint32 type, uint32 id)
+    void HarnessAI::MovementInform(Motion::Kind kind, uint32 id)
     {
-        Record(m_scenario, m_creature, type, id);
+        Record(m_scenario, m_creature, kind, id);
         if (m_scenario)
         {
-            m_scenario->OnInform(m_creature, type, id);
+            m_scenario->OnInform(m_creature, kind, id);
         }
         if (m_wrapped)
         {
-            m_wrapped->MovementInform(type, id);
+            m_wrapped->MovementInform(kind, id);
         }
     }
 
@@ -288,11 +287,11 @@ namespace Harness
         }
     }
 
-    void HarnessAI::SummonedMovementInform(Creature* summoned, uint32 type, uint32 data)
+    void HarnessAI::SummonedMovementInform(Creature* summoned, Motion::Kind kind, uint32 data)
     {
         if (m_wrapped)
         {
-            m_wrapped->SummonedMovementInform(summoned, type, data);
+            m_wrapped->SummonedMovementInform(summoned, kind, data);
         }
     }
 

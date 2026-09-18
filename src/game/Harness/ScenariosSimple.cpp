@@ -72,12 +72,12 @@ namespace Harness
         };
 
         /// True when the wolf saw this inform since `mark`.
-        bool Informed(std::vector<Inform> const& informs, size_t mark, uint32 low, uint32 type, uint32 id)
+        bool Informed(std::vector<Inform> const& informs, size_t mark, uint32 low, Motion::Kind kind, uint32 id)
         {
             for (size_t k = mark; k < informs.size(); ++k)
             {
                 Inform const& r = informs[k];
-                if (r.guidLow == low && r.type == type && r.id == id)
+                if (r.guidLow == low && r.kind == kind && r.id == id)
                 {
                     return true;
                 }
@@ -183,7 +183,7 @@ namespace Harness
                     }
                     const float drift = Spread(held);
                     const float moved = Spread(after);
-                    const bool informed = Informed(Informs(), mark, low, EFFECT_MOTION_TYPE, 66);
+                    const bool informed = Informed(Informs(), mark, low, Motion::Kind::Effect, 66);
                     char text[420];
                     char noSpline[140];
                     if (drift < 0.5f && point) { snprintf(noSpline, sizeof(noSpline), "OK(stood within %.2f yd, POINT throughout)", drift); }
@@ -270,7 +270,7 @@ namespace Harness
                         Verdict("accepted=INVALID(the Bash did not stun) | lands=INVALID(the Bash did not stun) | informs=INVALID(the Bash did not stun)");
                         return;
                     }
-                    const bool informed = Informed(Informs(), mark, low, EFFECT_MOTION_TYPE, 67);
+                    const bool informed = Informed(Informs(), mark, low, Motion::Kind::Effect, 67);
                     char lands[140];
                     if (*closest < 2.5f) { snprintf(lands, sizeof(lands), "OK(came within %.2f yd of the jump point)", *closest); }
                     else { snprintf(lands, sizeof(lands), "BUG(closest %.2f yd: the arc never played)", *closest); }
@@ -579,7 +579,7 @@ namespace Harness
                         Verdict("endsWithoutStall=INVALID(the kobold was not despawned) | noInform=INVALID(the kobold was not despawned)");
                         return;
                     }
-                    const bool informed = Informed(Informs(), mark, low, POINT_MOTION_TYPE, 0);
+                    const bool informed = Informed(Informs(), mark, low, Motion::Kind::Point, 0);
                     // The default the arbiter reselects lays a leg of its own at once, so a finalized
                     // spline is not the evidence: what proves nothing stalled is that the charge's own
                     // 24 yd/s leg is no longer driving the wolf a second after it was retired.
@@ -638,7 +638,7 @@ namespace Harness
                 }
                 At(3500, [this, low, mark, closest]()
                 {
-                    const bool informed = Informed(Informs(), mark, low, POINT_MOTION_TYPE, 0);
+                    const bool informed = Informed(Informs(), mark, low, Motion::Kind::Point, 0);
                     char arrives[140];
                     if (*closest < 2.0f) { snprintf(arrives, sizeof(arrives), "OK(came within %.2f yd of the goal)", *closest); }
                     else { snprintf(arrives, sizeof(arrives), "BUG(closest %.2f yd)", *closest); }
@@ -716,9 +716,9 @@ namespace Harness
             /// NativeBehaviour::PerformOutcome's Effect::Inform case, before that same
             /// Outcome reaches Effect::ReengageVictim -- installing the follow here IS
             /// reentering the facade from inside the inform.
-            void OnInform(Creature* creature, uint32 type, uint32 id) override
+            void OnInform(Creature* creature, Motion::Kind kind, uint32 id) override
             {
-                if (type != EFFECT_MOTION_TYPE || id != 80 || m_installed) { return; }
+                if (kind != Motion::Kind::Effect || id != 80 || m_installed) { return; }
                 if (Creature* leader = Get(m_leader))
                 {
                     creature->GetMotionMaster()->MoveFollow(leader, 2.0f, 0.0f);
@@ -888,7 +888,7 @@ namespace Harness
                     for (size_t k = mark; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];
-                        if (r.guidLow == low && r.type == POINT_MOTION_TYPE && r.id == 3) { ++count; }
+                        if (r.guidLow == low && r.kind == Motion::Kind::Point && r.id == 3) { ++count; }
                     }
                     char noLeg[140];
                     if (drift < 0.5f && point) { snprintf(noLeg, sizeof(noLeg), "OK(stood within %.2f yd, POINT throughout)", drift); }

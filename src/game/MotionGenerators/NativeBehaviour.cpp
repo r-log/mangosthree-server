@@ -611,7 +611,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
             case Motion::Effect::Inform:
                 if (creature.AI())
                 {
-                    creature.AI()->MovementInform(Project(e.who), e.id);
+                    creature.AI()->MovementInform(e.who, e.id);
                 }
                 break;
             case Motion::Effect::SummonedInform:
@@ -629,7 +629,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
                 {
                     if (summoner->AI())
                     {
-                        summoner->AI()->SummonedMovementInform(&creature, Project(e.who), e.id);
+                        summoner->AI()->SummonedMovementInform(&creature, e.who, e.id);
                     }
                 }
                 break;

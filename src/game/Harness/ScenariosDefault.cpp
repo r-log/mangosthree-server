@@ -157,7 +157,7 @@ namespace Harness
                     for (size_t k = mark; k < Informs().size(); ++k)
                     {
                         Inform const& r = Informs()[k];
-                        if (r.guidLow == low && r.type == WAYPOINT_MOTION_TYPE) { ids.push_back(r.id); }
+                        if (r.guidLow == low && r.kind == Motion::Kind::Patrol) { ids.push_back(r.id); }
                     }
                     char welded[80];
                     if (*legAtOneFive > 2) { snprintf(welded, sizeof(welded), "welded=OK(%u points at +1.5 s)", uint32(*legAtOneFive)); }

@@ -29,6 +29,7 @@
 #include "Timeline.h"
 #include "ObjectGuid.h"
 #include "MotionMaster.h"
+#include "Arbiter.h"
 
 #include <string>
 #include <vector>
@@ -53,7 +54,7 @@ namespace Harness
     {
         enum class Event : uint8 { Inform, PathInform, ReachedHome, Died };
         Event  event = Event::Inform;
-        uint32 type = 0;                  ///< Inform: the MovementInform type (the legacy value until Task 2)
+        Motion::Kind kind = Motion::Kind::Idle;   ///< Inform: the kind that informed
         uint32 id = 0;                    ///< Inform: the id; PathInform: the node
         uint32 pathId = 0;                ///< PathInform: the external path's id
         Motion::PathEvent pathEvent = Motion::PathEvent::NodeReached;   ///< PathInform: what happened
@@ -107,7 +108,7 @@ namespace Harness
         /// A MovementInform the recording AI just saw, delivered synchronously from inside
         /// the inform: a scenario that must act while the generator's Update is still on
         /// the stack overrides this. The default records nothing more.
-        virtual void OnInform(Creature* /*creature*/, uint32 /*type*/, uint32 /*id*/) {}
+        virtual void OnInform(Creature* /*creature*/, Motion::Kind /*kind*/, uint32 /*id*/) {}
         /// An external waypoint path's progress, as MovementInform above but for the second hook.
         virtual void OnPathInform(Creature* /*creature*/, uint32 /*pathId*/, Motion::PathEvent /*event*/, uint32 /*node*/) {}
         void Reset();

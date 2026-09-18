@@ -263,19 +263,19 @@ class CreatureAI
         virtual void JustRespawned() {}
 
         /**
-         * Called at waypoint reached or point movement finished
-         * @param uiMovementType Type of the movement (enum MovementGeneratorType)
-         * @param uiData Data related to the finished movement (ie point-id)
+         * Called at a waypoint reached or a point movement finished
+         * @param kind The kind of the behaviour that finished or arrived (Motion::Kind: Point, Patrol, Effect, FlyLand, …)
+         * @param id The id the request carried (a point id, a waypoint's node)
          */
-        virtual void MovementInform(uint32 /*uiMovementType*/, uint32 /*uiData*/) {}
+        virtual void MovementInform(Motion::Kind /*kind*/, uint32 /*id*/) {}
 
         /**
-         * Called if a temporary summoned of m_creature reach a move point
-         * @param pSummoned Summoned Creature that finished some movement
-         * @param uiMotionType Type of the movement (enum MovementGeneratorType)
-         * @param uiData Data related to the finished movement (ie point-id)
+         * Called if a temporary summon of m_creature reached a move point
+         * @param summoned The summoned creature that finished a movement
+         * @param kind The kind of the behaviour that finished (Motion::Kind)
+         * @param id The id the request carried
          */
-        virtual void SummonedMovementInform(Creature* /*pSummoned*/, uint32 /*uiMotionType*/, uint32 /*uiData*/) {}
+        virtual void SummonedMovementInform(Creature* /*summoned*/, Motion::Kind /*kind*/, uint32 /*id*/) {}
 
         /**
          * Called as an external waypoint path (a script's MoveWaypoint with a path id) progresses:

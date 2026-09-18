@@ -289,9 +289,9 @@ namespace Harness
         public:
             DespawnAtNode() : Scenario("despawn-at-node", 18) {}
 
-            void OnInform(Creature* creature, uint32 type, uint32 id) override
+            void OnInform(Creature* creature, Motion::Kind kind, uint32 id) override
             {
-                if (creature && creature->GetObjectGuid() == m_walker && type == WAYPOINT_MOTION_TYPE && id == 2 && creature->IsAlive())
+                if (creature && creature->GetObjectGuid() == m_walker && kind == Motion::Kind::Patrol && id == 2 && creature->IsAlive())
                 {
                     OnNodeTwo(creature);
                 }
@@ -326,7 +326,7 @@ namespace Harness
                         if (*informedAt) { return; }
                         for (size_t k = 0; k < Informs().size(); ++k)
                         {
-                            if (((Informs()[k].event == Inform::Event::Inform && Informs()[k].type == WAYPOINT_MOTION_TYPE) ||
+                            if (((Informs()[k].event == Inform::Event::Inform && Informs()[k].kind == Motion::Kind::Patrol) ||
                                  (Informs()[k].event == Inform::Event::PathInform && Informs()[k].pathId == uint32(kExternalPath) && Informs()[k].pathEvent == Motion::PathEvent::NodeReached)) &&
                                 Informs()[k].id == 2)
                             {
