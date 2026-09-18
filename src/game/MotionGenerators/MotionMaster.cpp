@@ -30,7 +30,6 @@
 #include <sstream>
 #include "MotionMaster.h"
 #include "Behaviour.h"
-#include "LegacyBehaviour.h"
 #include "NativeBehaviour.h"
 #include "SimpleMoves.h"
 #include "DefaultMoves.h"
@@ -38,7 +37,6 @@
 #include "MovementIntent.h"
 #include "ControlMoves.h"
 #include "TaxiMove.h"
-#include "FlightPathMovementGenerator.h"
 #include "WaypointManager.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
@@ -48,6 +46,7 @@
 #include "Creature.h"
 #include "CreatureLinkingMgr.h"
 #include "Pet.h"
+#include "Player.h"
 #include "World.h"
 #include "DBCStores.h"
 #include "ObjectMgr.h"
@@ -157,11 +156,11 @@ namespace
         {
             if (resolvedOrigin == PATH_FROM_EXTERNAL)
             {
-                sLog.outErrorScriptLib("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
+                sLog.outErrorScriptLib("BuildPatrolParams: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
             }
             else
             {
-                sLog.outErrorDb("WaypointMovementGenerator::LoadPath: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
+                sLog.outErrorDb("BuildPatrolParams: %s doesn't have waypoint path %i", creature.GetGuidStr().c_str(), pathId);
             }
             return false;
         }
@@ -620,32 +619,6 @@ void MotionMaster::Retire(size_t index, Motion::FinishReason reason)
 }
 
 /**
- * @brief Binds the generator to the entry the request just produced.
- * @param kind The kind the request asked for.
- * @param seqBefore The arbiter's newest sequence before the request.
- * @param generator The legacy generator to adapt.
- * @param owned True when the behaviour owns (and deletes) the generator.
- * @return True when the model kept the entry and it now has a behaviour.
- */
-bool MotionMaster::Bind(Motion::Kind kind, uint32 seqBefore, MovementGenerator* generator, bool owned)
-{
-    // The arbiter stamps exactly once per Request/InstallDefault, so the entry this call
-    // produced -- when the model kept it -- is exactly seqBefore + 1. A refusal (a control
-    // with no identity: never stamped; an Idle default over an Idle command: stamped and
-    // dropped) leaves nothing holding that sequence.
-    if (!IsHeld(seqBefore + 1))
-    {
-        if (owned)
-        {
-            delete generator;
-        }
-        return false;
-    }
-    m_bound.push_back(Bound(seqBefore + 1, std::unique_ptr<MotionBehaviour>(new LegacyBehaviour(kind, generator, owned))));
-    return true;
-}
-
-/**
  * @brief Binds a native kernel behaviour to the entry the request just produced.
  * @param seqBefore The arbiter's newest sequence before the request.
  * @param native The kernel behaviour to adapt.
@@ -691,32 +664,6 @@ void MotionMaster::SweepStale(Motion::Kind kind)
 }
 
 /**
- * @brief One facade request: a transaction, the model, the hooks, the binding.
- * @param request The move request.
- * @param generator The legacy generator to adapt.
- * @param owned True when the behaviour owns the generator.
- */
-void MotionMaster::Request(Motion::MoveRequest const& request, MovementGenerator* generator, bool owned)
-{
-    Scope scope(*this, Motion::TransactionKind::Normal);
-    const uint32 before = m_arbiter.LastSeq();
-    m_arbiter.Request(request);
-    // The entry this request stamped is bound before any hook runs: a hook may issue a
-    // request of its own (a finalizer re-engaging combat), and that nested entry must not
-    // be able to claim this generator -- nor may a hook see the facade empty over a model
-    // that already holds the new selection.
-    const bool bound = Bind(request.kind, before, generator, owned);
-    // What the request finished (superseded, overridden, cancelled, a swapped default) is
-    // delivered now, with their own reasons and inside this transaction, as Mutate ran the
-    // displaced generator's hooks synchronously.
-    DeliverEvents();
-    if (bound)
-    {
-        SweepStale(request.kind);
-    }
-}
-
-/**
  * @brief One facade request whose behaviour is a native of the kernel.
  * @param request The move request.
  * @param native The kernel behaviour the adapter drives.
@@ -726,7 +673,10 @@ void MotionMaster::Request(Motion::MoveRequest const& request, std::unique_ptr<M
     Scope scope(*this, Motion::TransactionKind::Normal);
     const uint32 before = m_arbiter.LastSeq();
     m_arbiter.Request(request);
-    const bool bound = BindNative(before, std::move(native));   // before any hook runs, as the legacy path
+    // The entry this request stamped is bound before any hook runs: a hook may issue a
+    // request of its own, and that nested entry must not see the facade empty over a model
+    // that already holds the new selection.
+    const bool bound = BindNative(before, std::move(native));
     DeliverEvents();
     if (bound)
     {
@@ -814,16 +764,6 @@ void MotionMaster::Initialize()
     // default -- it never had a registered factory either): the idle native is the default,
     // as the shared idle singleton used to be.
     InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));
-}
-
-/**
- * @brief Gets the current movement generator.
- * @return Pointer to the selected behaviour's generator, or NULL (a native has none).
- */
-MovementGenerator const* MotionMaster::GetCurrent() const
-{
-    Bound const* bound = SelectedBound();
-    return bound ? bound->behaviour->Legacy() : NULL;
 }
 
 /**
@@ -1218,9 +1158,10 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
         uint32 path = 0;
         uint32 cost = 0;
         sObjectMgr.GetTaxiPath(route[hop - 1], route[hop], path, cost);
-        if (!path || path >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[path].empty())
+        if (!path || path >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[path].size() < (hop == 1 ? 1u : 2u))
         {
-            sLog.outError("%s attempt taxi over a missing path from node %u to node %u", m_owner->GetGuidStr().c_str(), route[hop - 1], route[hop]);
+            sLog.outError("%s attempt taxi over a missing or degenerate path from node %u to node %u", m_owner->GetGuidStr().c_str(), route[hop - 1], route[hop]);
+            static_cast<Player*>(m_owner)->m_taxi.ClearTaxiDestinations();
             return;
         }
         TaxiPathNodeList const& rows = sTaxiPathNodesByPath[path];
@@ -1242,6 +1183,7 @@ void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 start
     if (p.nodes.empty() || startNode >= p.nodes.size())
     {
         sLog.outError("%s attempt taxi from node %u of a route of %u path nodes", m_owner->GetGuidStr().c_str(), startNode, uint32(p.nodes.size()));
+        static_cast<Player*>(m_owner)->m_taxi.ClearTaxiDestinations();
         return;
     }
     // The landing snaps onto the destination's TaxiNodes position when it has one (a spell
@@ -1277,9 +1219,13 @@ void MotionMaster::TaxiContinue()
     {
         // Not the map the crossing aimed at (the transfer bounced back), or no crossing was
         // pending: the flight ends where the mover stands (TaxiAbort).
+        // reset = false as SendDoFlight's expiry: nothing lies under a taxi to re-lay; the
+        // battleground pop keeps the handler's MovementExpired() as the tree had it.
         MovementExpired(false);
         return;
     }
+    // No Evaluate().ticks gate as the other direct resumes carry: a taxi is never blocked
+    // (Mobility::Decide returns before the stun, the root and the possession for Selected::Taxi).
     bound->behaviour->Resume(*m_owner, true);   // the next map's leg; the flags and the revoke are still in place
 }
 
@@ -1513,30 +1459,14 @@ Motion::PatrolBehaviour const* MotionMaster::HeldPatrol() const
 }
 
 /**
- * @brief The held taxi flight.
- * @return The flight generator, or NULL.
- */
-FlightPathMovementGenerator* MotionMaster::HeldFlight()
-{
-    for (size_t i = 0; i < m_bound.size(); ++i)
-    {
-        if (m_bound[i].behaviour->LegacyType() == FLIGHT_MOTION_TYPE)
-        {
-            return static_cast<FlightPathMovementGenerator*>(m_bound[i].behaviour->Legacy());
-        }
-    }
-    return NULL;
-}
-
-/**
  * @brief The selected native's re-lay counters, by cause.
- * @return The counts, or NULL when the selection is a legacy binding or counts nothing
- *         (only the tracking natives keep them; design v2 §5: GM-dumpable).
+ * @return The counts, or NULL when the selection counts nothing (only the tracking
+ *         natives keep them; design v2 §5: GM-dumpable).
  */
 Motion::RelayCounts const* MotionMaster::SelectedRelays() const
 {
     Bound const* bound = SelectedBound();
-    if (!bound || bound->behaviour->Legacy())
+    if (!bound)
     {
         return NULL;
     }
@@ -1546,12 +1476,12 @@ Motion::RelayCounts const* MotionMaster::SelectedRelays() const
 /**
  * @brief The facing the selected native's driver last asked for.
  * @return The running leg's facing mode, or the hold's once the leg has finished;
- *         Motion::Facing::Mode::None when nothing is selected or the entry is a legacy binding.
+ *         Motion::Facing::Mode::None when nothing is selected.
  */
 Motion::Facing::Mode MotionMaster::SelectedLegFacingMode() const
 {
     Bound const* bound = SelectedBound();
-    if (!bound || bound->behaviour->Legacy())
+    if (!bound)
     {
         return Motion::Facing::Mode::None;
     }
@@ -1870,21 +1800,6 @@ void MotionMaster::RelocateSelected(float x, float y, float z, float o)
 }
 
 /**
- * @brief Whether this generator belongs to the selected behaviour.
- * @param generator The generator to test.
- * @return True when it is the selected behaviour's generator.
- */
-bool MotionMaster::IsSelected(MovementGenerator const* generator) const
-{
-    if (!generator)
-    {
-        return false;   // a native answers NULL for its generator: no caller owns that
-    }
-    Bound const* bound = SelectedBound();
-    return bound && bound->behaviour->Legacy() == generator;
-}
-
-/**
  * @brief Whether this arbiter sequence is the one selected right now.
  * @param seq The sequence to test (a native binding's own, from BindNative).
  * @return True when it is the current selection: a native's shell reads this after every
@@ -1923,9 +1838,7 @@ Unit* MotionMaster::ChaseTarget() const
 {
     std::optional<Motion::Held> const& combat = m_arbiter.Combat();
     Bound const* bound = combat ? Find(combat->seq) : NULL;
-    // A legacy binding answers nothing here, as SelectedRelays does: the cast below is a
-    // NativeBehaviour's, and a legacy entry is not one.
-    if (!bound || bound->behaviour->Legacy() || bound->behaviour->Kind() != Motion::Kind::Chase)
+    if (!bound || bound->behaviour->Kind() != Motion::Kind::Chase)
     {
         return NULL;
     }
@@ -1953,7 +1866,7 @@ Unit* MotionMaster::FollowTarget() const
 {
     std::optional<Motion::Held> const& current = m_arbiter.Default();
     Bound const* bound = (current && current->kind == Motion::Kind::Follow) ? Find(current->seq) : NULL;
-    if (!bound || bound->behaviour->Legacy())   // a legacy binding is not the NativeBehaviour the cast below reads
+    if (!bound)
     {
         return NULL;
     }
@@ -2031,7 +1944,6 @@ std::vector<MotionMaster::HeldView> MotionMaster::Held() const
         view.type = m_bound[i].behaviour->LegacyType();
         view.selected = &m_bound[i] == selected;
         view.reachable = m_bound[i].behaviour->Reachable();
-        view.generator = m_bound[i].behaviour->Legacy();
         view.target = m_bound[i].behaviour->TrackedTarget();
         out.push_back(view);
     }

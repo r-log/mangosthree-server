@@ -59,8 +59,6 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         void Finish(Unit& owner, Motion::FinishReason why) override;
         bool Tick(Unit& owner, uint32 diff) override;
         Motion::FinishReason EndReason(Unit& owner) const override;
-        MovementGenerator* Legacy() override { return NULL; }
-        MovementGenerator const* Legacy() const override { return NULL; }
         void SpeedChanged() override { m_driver.OnSpeedChanged(); }
         bool GetResetPosition(Unit& owner, float& x, float& y, float& z, float& o) const override;
         bool Reachable() const override { return m_driver.Reachable(); }
