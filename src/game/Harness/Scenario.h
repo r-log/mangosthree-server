@@ -133,8 +133,8 @@ namespace Harness
         void Load(float x, float y);
         /// The map's height at (x, y) near z; the caller's z when the map has none.
         float Ground(float x, float y, float z) const;
-        MovementGeneratorType Type(Creature* c) const;
-        char const* TypeName(Creature* c) const { return Harness::TypeName(uint32(Type(c))); }
+        Motion::Kind Type(Creature* c) const;
+        char const* TypeName(Creature* c) const { return Motion::KindName(Type(c)); }
         /// The current waypoint node when the top generator is a patrol, else 0.
         uint32 Node(Creature* c) const;
         /// The selected tracking native's re-lay counters (routine, cut, partial, blocked,

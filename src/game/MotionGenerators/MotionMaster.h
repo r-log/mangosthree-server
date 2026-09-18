@@ -212,6 +212,9 @@ class MotionMaster
         bool IsPatrolling() const;
         /// A taxi flight is held.
         bool IsOnTaxi() const;
+        /// The selected native's Behaviour::Variant(): 0 for every kind but the timed flee's 1
+        /// (the harness's timed-flee sample; the old TIMED_FLEEING_MOTION_TYPE projection).
+        uint32 SelectedVariant() const;
         /// The selected behaviour can reach its goal; true when nothing is selected
         /// (nothing could have reported a failed path: taunts stay where they are).
         bool IsReachable() const;

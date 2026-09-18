@@ -137,7 +137,7 @@ namespace Harness
 
             void Prepare() override
             {
-                struct Sample { uint32 t; float z; uint32 node; MovementGeneratorType mt; };
+                struct Sample { uint32 t; float z; uint32 node; Motion::Kind mt; };
                 Creature* c = Spawn(MOUSE_ENTRY, -2986.64f, -329.723f, 54.0748f, 0.0f);
                 if (!c) { Verdict("B7=INVALID(spawn failed)"); return; }
                 c->GetMotionMaster()->MoveWaypoint(kMousePath, PATH_FROM_EXTERNAL);
@@ -159,7 +159,7 @@ namespace Harness
                         s.mt = Type(a);
                         s.node = Node(a);
                         samples->push_back(s);
-                        Log("+%5ums %.1f %.1f z=%.1f mt=%s lastWP=%u", s.t, px, py, s.z, Harness::TypeName(s.mt), s.node);
+                        Log("+%5ums %.1f %.1f z=%.1f mt=%s lastWP=%u", s.t, px, py, s.z, Motion::KindName(s.mt), s.node);
                     });
                 }
                 At(41000, [this, samples, z0]()
@@ -206,7 +206,7 @@ namespace Harness
             void Prepare() override
             {
                 struct StunAt { bool set; float x, y; uint32 node; };
-                struct Sample { uint32 t; float d; uint32 node; MovementGeneratorType mt; };
+                struct Sample { uint32 t; float d; uint32 node; Motion::Kind mt; };
                 Creature* a = Spawn(CHICKEN, P0.x, P0.y, P0.z, 0.0f);
                 if (!a) { Verdict("stunnedPatrol=INVALID(spawn failed)"); return; }
                 const ObjectGuid g = a->GetObjectGuid();
@@ -242,7 +242,7 @@ namespace Harness
                         samples->push_back(s);
                         if (i % 5 == 0)
                         {
-                            Log("+%2us after the stun: %.1f yd from the stun spot, node %u, mt=%s", i, s.d, s.node, Harness::TypeName(s.mt));
+                            Log("+%2us after the stun: %.1f yd from the stun spot, node %u, mt=%s", i, s.d, s.node, Motion::KindName(s.mt));
                         }
                     });
                 }
@@ -257,7 +257,7 @@ namespace Harness
                     }
                     const bool hasLast = !samples->empty();
                     const uint32 lastNode = hasLast ? samples->back().node : stunAt->node;
-                    char const* lastMt = hasLast ? Harness::TypeName(samples->back().mt) : "?";
+                    char const* lastMt = hasLast ? Motion::KindName(samples->back().mt) : "?";
                     const bool advanced = hasLast && lastNode != stunAt->node;
                     std::string v;
                     if (moved && advanced)

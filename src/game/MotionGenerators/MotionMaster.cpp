@@ -1894,6 +1894,16 @@ bool MotionMaster::IsOnTaxi() const
 }
 
 /**
+ * @brief The selected native's variant.
+ * @return Behaviour::Variant() of the selected native, 0 when nothing is selected.
+ */
+uint32 MotionMaster::SelectedVariant() const
+{
+    Bound const* bound = SelectedBound();
+    return bound ? static_cast<NativeBehaviour const*>(bound->behaviour.get())->Native()->Variant() : 0;
+}
+
+/**
  * @brief Whether the selected behaviour can reach its goal.
  * @return The selected behaviour's answer; true when nothing is selected.
  */

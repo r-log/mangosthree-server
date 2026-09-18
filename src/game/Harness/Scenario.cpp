@@ -187,10 +187,10 @@ namespace Harness
         }
     }
 
-    MovementGeneratorType Scenario::Type(Creature* c) const
+    Motion::Kind Scenario::Type(Creature* c) const
     {
-        // The binding's projection, not a generator's: the simple moves are natives now.
-        return c ? c->GetMotionMaster()->GetCurrentMovementGeneratorType() : IDLE_MOTION_TYPE;
+        // The selected kind: the kernel's own answer, the label the verdicts print.
+        return c ? c->GetMotionMaster()->ActiveKind() : Motion::Kind::Idle;
     }
 
     uint32 Scenario::Node(Creature* c) const

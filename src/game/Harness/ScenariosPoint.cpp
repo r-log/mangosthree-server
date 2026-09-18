@@ -93,7 +93,7 @@ namespace Harness
                     // byte-identical, and the verdict body itself carries the evidence.
                     Creature* a = Get(g); if (!a) { return; }
                     *roamingAtPoint = a->hasUnitState(UNIT_STAT_ROAMING_MOVE);
-                    *projectionAtPoint = Type(a) == POINT_MOTION_TYPE;
+                    *projectionAtPoint = Type(a) == Motion::Kind::Point;
                     *sampledBefore = true;
                 });
                 At(2500, [this, g, h]()
@@ -186,7 +186,7 @@ namespace Harness
             {
                 m_informedAt88 = false;
                 m_roamingAtInform = false;
-                struct Sample { uint32 t; float d; MovementGeneratorType mt; bool roaming; };
+                struct Sample { uint32 t; float d; Motion::Kind mt; bool roaming; };
                 Creature* a = Spawn(WOLF, A4.x, A4.y, A4.z, 0.0f);
                 if (!a) { Verdict("longMovePoint=INVALID(spawn failed) | roamingBits=INVALID(spawn failed) | projection=INVALID(spawn failed)"); return; }
                 Load(B4.x, B4.y);
@@ -212,7 +212,7 @@ namespace Harness
                         s.mt = Type(a);
                         s.roaming = a->hasUnitState(UNIT_STAT_ROAMING_MOVE);   // captured silently: the record's log line for this scenario stays byte-identical
                         samples->push_back(s);
-                        Log("+%3us dist=%.1f mt=%s", s.t, s.d, Harness::TypeName(s.mt));
+                        Log("+%3us dist=%.1f mt=%s", s.t, s.d, Motion::KindName(s.mt));
                     });
                 }
                 At(500 + 21 * 5000, [this, low, samples, mark]()
@@ -259,7 +259,7 @@ namespace Harness
                     for (size_t k = 0; k < samples->size(); ++k)
                     {
                         Sample const& s = (*samples)[k];
-                        if (s.mt == POINT_MOTION_TYPE)
+                        if (s.mt == Motion::Kind::Point)
                         {
                             foundPoint = true;
                             if (s.roaming) { roamingWhilePoint = true; }
