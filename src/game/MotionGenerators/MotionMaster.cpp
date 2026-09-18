@@ -487,7 +487,7 @@ void MotionMaster::Reconcile()
         if (!bound->activated)
         {
             bound->activated = true;
-            bound->behaviour->Activate(*m_owner);   // never a reset: the stack never Reset a freshly pushed behaviour
+            bound->behaviour->Activate(*m_owner);   // never a reset: the stack never Reset a freshly pushed generator
         }
         else if (m_arbiter.Evaluate().ticks)
         {
@@ -907,7 +907,7 @@ void MotionMaster::MoveTargetedHome()
             return;
         }
         DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s targeted home", m_owner->GetGuidStr().c_str());
-        // The stack asked the behaviour beneath for the reset position from inside Home's
+        // The stack asked the generator beneath for the reset position from inside Home's
         // Initialize; here the default is the selection after the clear, so ask it now.
         float x, y, z, o;
         Bound const* current = SelectedBound();

@@ -106,7 +106,7 @@ namespace Harness
         std::vector<FoundActor> const& Found() const { return m_found; }
         std::vector<Inform>& Informs() { return m_informs; }
         /// A MovementInform the recording AI just saw, delivered synchronously from inside
-        /// the inform: a scenario that must act while the behaviour's Update is still on
+        /// the inform: a scenario that must act while the behaviour's Tick is still on
         /// the stack overrides this. The default records nothing more.
         virtual void OnInform(Creature* /*creature*/, Motion::Kind /*kind*/, uint32 /*id*/) {}
         /// An external waypoint path's progress, as MovementInform above but for the second hook.
@@ -137,7 +137,7 @@ namespace Harness
         Motion::Kind Type(Creature* c) const;
         /// Motion::KindName(Type(c)): the label the verdicts print (mt=...).
         char const* TypeName(Creature* c) const { return Motion::KindName(Type(c)); }
-        /// The current waypoint node when the default behaviour is a patrol, else 0.
+        /// The current waypoint node when the selected behaviour is a patrol, else 0.
         uint32 Node(Creature* c) const;
         /// The selected tracking native's re-lay counters (routine, cut, partial, blocked,
         /// finished, first), else NULL: nothing selected, a legacy binding, or a native that

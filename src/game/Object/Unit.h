@@ -502,7 +502,7 @@ enum DeathState
 };
 
 /**
- * internal state flags for some auras and movement generators, other. (Taken from comment)
+ * internal state flags for some auras and the movement behaviours, other.
  */
 enum UnitState
 {

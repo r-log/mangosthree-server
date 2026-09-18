@@ -265,7 +265,7 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
 
     MotionMaster* mm = unit->GetMotionMaster();
     float x = 0.0f, y = 0.0f, z = 0.0f;
-    mm->GetDestination(x, y, z);
+    const bool hasDestination = mm->GetDestination(x, y, z);
     std::vector<MotionMaster::HeldView> held = mm->Held();
     for (size_t i = 0; i < held.size(); ++i)
     {
@@ -294,7 +294,7 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
                 snprintf(tail, sizeof(tail), " -> <gone>");
             }
         }
-        else if (held[i].selected && (held[i].kind == Motion::Kind::Point || held[i].kind == Motion::Kind::Home))
+        else if (hasDestination && held[i].selected && (held[i].kind == Motion::Kind::Point || held[i].kind == Motion::Kind::Home))
         {
             snprintf(tail, sizeof(tail), " -> (%.2f %.2f %.2f)", x, y, z);
         }

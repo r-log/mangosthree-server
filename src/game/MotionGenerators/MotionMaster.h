@@ -263,7 +263,7 @@ class MotionMaster
         Unit*              m_owner;
         Motion::Arbiter    m_arbiter;
         std::vector<Bound> m_bound;
-        std::vector<std::unique_ptr<NativeBehaviour> > m_retired; ///< finished behaviours, destroyed at the end of the outermost commit (a behaviour ticking when its hook finished it must outlive its own Update)
+        std::vector<std::unique_ptr<NativeBehaviour> > m_retired; ///< finished behaviours, destroyed at the end of the outermost commit (a behaviour ticking when its hook finished it must outlive its own Tick)
         uint32             m_depth;          ///< open scopes
         Motion::TransactionKind m_scopeKind; ///< the kind the outermost commit runs under; a nested death raises it to Death
         PendingReset       m_pendingReset;
