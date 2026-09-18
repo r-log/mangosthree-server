@@ -101,6 +101,11 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         bool Anchor(Motion::Vector3& out) const override;
         bool CanFly() const override;
         bool StandingSpot(Motion::Vector3 const& center, float distance2d, float absAngle, Motion::Vector3& out) override;
+        // Placeholders only: Task 1 (P5-B family 4) grows the port; nothing calls these yet.
+        // The shell's own implementation is P5-B family 4 Task 3.
+        bool Fright(uint64 rawGuid, Motion::Vector3& position, float& distance) override;
+        bool GroundPoint(Motion::Vector3 const& guess, Motion::Vector3& out) override;
+        bool ClaimHeld(Motion::Kind kind) const override;
 
         /// The owner of the moment, for the Services implementations below: asserts m_unit was
         /// set (every hook sets it before the native can call back through the port).

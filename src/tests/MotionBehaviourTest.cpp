@@ -119,6 +119,7 @@ namespace
             bool RandomPoint(Vector3 const& centre, float radius, Vector3& out) override
             {
                 calls.push_back("random");
+                randomRadius = radius;
                 if (randomFails)
                 {
                     return false;
@@ -182,6 +183,32 @@ namespace
                               center.z);
                 return true;
             }
+            bool Fright(uint64 /*rawGuid*/, Vector3& position, float& distance) override
+            {
+                calls.push_back("fright");
+                if (!frightResolved)
+                {
+                    return false;
+                }
+                position = frightPosition;
+                distance = frightDistance;
+                return true;
+            }
+            bool GroundPoint(Vector3 const& guess, Vector3& out) override
+            {
+                calls.push_back("groundPoint");
+                lastGuess = guess;
+                if (groundFails)
+                {
+                    return false;
+                }
+                out = guess;   // the fake keeps the guess whole (the shell's drops it onto the floor)
+                return true;
+            }
+            bool ClaimHeld(Motion::Kind kind) const override   // a live read, never logged
+            {
+                return kind == Motion::Kind::Fear ? fearHeld : (kind == Motion::Kind::Confused ? confuseHeld : false);
+            }
 
             /// Restores every flag/value to its default and clears the call log.
             void Reset()
@@ -202,6 +229,14 @@ namespace
                 spotCenter = Vector3();
                 spotDistance = 0.0f;
                 spotAngle = 0.0f;
+                frightResolved = false;
+                frightPosition = Vector3();
+                frightDistance = 0.0f;
+                groundFails = false;
+                lastGuess = Vector3();
+                fearHeld = false;
+                confuseHeld = false;
+                randomRadius = 0.0f;
                 calls.clear();
             }
 
@@ -221,6 +256,14 @@ namespace
             Vector3 spotCenter;        ///< the centre of the last StandingSpot call.
             float spotDistance = 0.0f; ///< its distance2d.
             float spotAngle = 0.0f;    ///< its absAngle.
+            bool frightResolved = false;   ///< Fright answers a position and a distance.
+            Vector3 frightPosition;
+            float frightDistance = 0.0f;
+            bool groundFails = false;      ///< GroundPoint returns false instead of the point.
+            Vector3 lastGuess;             ///< the last guess GroundPoint was asked about.
+            bool fearHeld = false;         ///< ClaimHeld(Fear)
+            bool confuseHeld = false;      ///< ClaimHeld(Confused)
+            float randomRadius = 0.0f;     ///< the radius of the last RandomPoint ask.
             std::vector<std::string> calls;
     };
 
@@ -1003,6 +1046,9 @@ namespace
             bool Anchor(Vector3&) const override { return false; }
             bool CanFly() const override { return false; }
             bool StandingSpot(Vector3 const&, float, float, Vector3&) override { return false; }
+            bool Fright(uint64, Vector3&, float&) override { return false; }
+            bool GroundPoint(Vector3 const& guess, Vector3& out) override { out = guess; return true; }
+            bool ClaimHeld(Motion::Kind) const override { return false; }
     };
 
     /// A Services stub whose route hands back a middle point within the drop tolerance of its
@@ -1035,6 +1081,9 @@ namespace
             bool Anchor(Vector3&) const override { return false; }
             bool CanFly() const override { return false; }
             bool StandingSpot(Vector3 const&, float, float, Vector3&) override { return false; }
+            bool Fright(uint64, Vector3&, float&) override { return false; }
+            bool GroundPoint(Vector3 const& guess, Vector3& out) override { out = guess; return true; }
+            bool ClaimHeld(Motion::Kind) const override { return false; }
     };
 }
 
@@ -2413,4 +2462,26 @@ TEST(MotionBehaviour_HomeEndsOnArrivalOrBlockAndRestoresOnlyThen)
         Outcome o = b.Finish(FinishReason::Arrived, Free(), svc);
         CHECK(o.effects.empty());
     }
+}
+
+TEST(MotionBehaviour_ModelGrowsForTheControlMoves)
+{
+    // The per-effect owner rule: the state mirror is every owner's, the rest a creature's.
+    CHECK(Effect::AnyOwner(Effect::StateRaw));
+    CHECK(!Effect::AnyOwner(Effect::SetWalk));
+    CHECK(!Effect::AnyOwner(Effect::ClearTarget));
+    CHECK(!Effect::AnyOwner(Effect::ClearFleeingFlag));
+    CHECK(!Effect::AnyOwner(Effect::RestoreGait));
+    CHECK(!Effect::AnyOwner(Effect::AttackVictim));
+    Outcome o;
+    CHECK(!o.stop && !o.stopForced);
+    Sight s;
+    CHECK(!s.notMove);
+    // Only the charge asks for the contact point; a plain point and the idle do not.
+    PointBehaviour::Params charge = PointTo(1.0f, 2.0f, 3.0f);
+    charge.target = 42;
+    CHECK(PointBehaviour(charge).NeedsContactPoint());
+    CHECK(!PointBehaviour(PointTo(1.0f, 2.0f, 3.0f)).NeedsContactPoint());
+    CHECK_EQ(PointBehaviour(charge).Variant(), 0u);
+    CHECK(!IdleBehaviour().NeedsContactPoint());
 }

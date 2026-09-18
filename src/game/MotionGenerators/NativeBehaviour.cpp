@@ -847,6 +847,13 @@ bool NativeBehaviour::StandingSpot(Motion::Vector3 const& center, float distance
     return true;
 }
 
+// Placeholders only: Task 1 (P5-B family 4) grows the port so it builds; nothing calls these
+// yet (no native asks for a fear source, a whole-point ground or a live claim read before
+// Task 2). The shell's own implementation is P5-B family 4 Task 3.
+bool NativeBehaviour::Fright(uint64 /*rawGuid*/, Motion::Vector3& /*position*/, float& /*distance*/) { return false; }
+bool NativeBehaviour::GroundPoint(Motion::Vector3 const& guess, Motion::Vector3& out) { out = guess; return true; }
+bool NativeBehaviour::ClaimHeld(Motion::Kind) const { return false; }
+
 bool NativeBehaviour::Anchor(Motion::Vector3& out) const
 {
     if (U().GetTypeId() != TYPEID_UNIT)
