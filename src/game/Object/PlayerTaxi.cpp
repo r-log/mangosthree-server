@@ -552,36 +552,53 @@ void Player::ContinueTaxiFlight()
         return;
     }
 
-    // search appropriate start path node
-    uint32 startNode = 0;
-
+    // The closest segment among the rows on THIS map. A saved route may begin on another map (a
+    // logout right after a crossing: the deque's front is still the hop's old-map source), and a
+    // foreign row must neither seed the distances nor be compared against, or the search falls
+    // back to row 0 and the old map's leg is laid here. A player standing exactly on a node (the
+    // sum equals the segment) falls back to the range's first row, whose zero-length first
+    // segment the spline skips.
     TaxiPathNodeList const& nodeList = sTaxiPathNodesByPath[path];
+    uint32 rangeBegin = 0;
+    uint32 rangeEnd = 0;
+    for (uint32 i = 0; i < nodeList.size(); ++i)
+    {
+        if (nodeList[i].ContinentID == GetMapId())
+        {
+            rangeBegin = i;
+            rangeEnd = i + 1;
+            while (rangeEnd < nodeList.size() && nodeList[rangeEnd].ContinentID == GetMapId())
+            {
+                ++rangeEnd;
+            }
+            break;
+        }
+    }
+    if (rangeEnd == 0)
+    {
+        sLog.outError("Character %u resumes a taxi flight over path %u with no node on map %u; the route is dropped", GetGUIDLow(), path, GetMapId());
+        m_taxi.ClearTaxiDestinations();
+        return;
+    }
 
-    float distPrev = MAP_SIZE * MAP_SIZE;
-    float distNext =
-        (nodeList[0].Loc_0 - Where().X()) * (nodeList[0].Loc_0 - Where().X()) +
-        (nodeList[0].Loc_1 - Where().Y()) * (nodeList[0].Loc_1 - Where().Y()) +
-        (nodeList[0].Loc_2 - Where().Z()) * (nodeList[0].Loc_2 - Where().Z());
+    auto distanceSquaredTo = [this](TaxiPathNodeEntry const& n)
+    {
+        return (n.Loc_0 - Where().X()) * (n.Loc_0 - Where().X()) +
+               (n.Loc_1 - Where().Y()) * (n.Loc_1 - Where().Y()) +
+               (n.Loc_2 - Where().Z()) * (n.Loc_2 - Where().Z());
+    };
 
-    for (uint32 i = 1; i < nodeList.size(); ++i)
+    uint32 startNode = rangeBegin;
+    float distNext = distanceSquaredTo(nodeList[rangeBegin]);
+    for (uint32 i = rangeBegin + 1; i < rangeEnd; ++i)
     {
         TaxiPathNodeEntry const& node = nodeList[i];
         TaxiPathNodeEntry const& prevNode = nodeList[i - 1];
 
-        // skip nodes at another map
-        if (node.ContinentID != GetMapId())
-        {
-            continue;
-        }
+        const float distPrev = distNext;
+        distNext = distanceSquaredTo(node);
 
-        distPrev = distNext;
-
-        distNext =
-            (node.Loc_0 - Where().X()) * (node.Loc_0 - Where().X()) +
-            (node.Loc_1 - Where().Y()) * (node.Loc_1 - Where().Y()) +
-            (node.Loc_2 - Where().Z()) * (node.Loc_2 - Where().Z());
-
-        float distNodes =
+        const float distNodes =
             (node.Loc_0 - prevNode.Loc_0) * (node.Loc_0 - prevNode.Loc_0) +
             (node.Loc_1 - prevNode.Loc_1) * (node.Loc_1 - prevNode.Loc_1) +
             (node.Loc_2 - prevNode.Loc_2) * (node.Loc_2 - prevNode.Loc_2);

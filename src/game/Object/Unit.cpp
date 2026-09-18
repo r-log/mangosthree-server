@@ -7200,7 +7200,12 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
         if (player)
         {
             player->GetCamera().ResetView();
-            player->SetClientControl(player, 1);
+            // A flying body keeps its control revoked until the landing or the abort grants
+            // (P5-B family 5): a possession ending mid-flight hands back the camera alone.
+            if (!player->IsTaxiFlying())
+            {
+                player->SetClientControl(player, 1);
+            }
         }
         return;
     }
@@ -7219,7 +7224,10 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
         // sent only the first and left the client to recover on its own.
         player->SetClientControl(possessed, 0);
         player->GetCamera().ResetView();
-        player->SetClientControl(player, 1);
+        if (!player->IsTaxiFlying())   // a flying body: the landing or the abort grants (P5-B family 5)
+        {
+            player->SetClientControl(player, 1);
+        }
 
         if (possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())
         {
@@ -7249,7 +7257,10 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
     {
         Player* possessedPlayer = static_cast<Player *>(possessed);
         possessedPlayer->setFactionForRace(possessedPlayer->getRace());
-        possessedPlayer->SetClientControl(possessedPlayer, 1);
+        if (!possessedPlayer->IsTaxiFlying())   // a possessed passenger: the flight went on under the possession, and its landing or abort grants
+        {
+            possessedPlayer->SetClientControl(possessedPlayer, 1);
+        }
     }
     else if (possessedCreature)
     {

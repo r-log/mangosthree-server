@@ -5294,7 +5294,12 @@ void Player::Uncharm()
             GetCamera().ResetView();
             RemoveSpellsCausingAura(SPELL_AURA_MOD_INVISIBILITY);
             SetCharm(NULL);
-            SetClientControl(this, 1);
+            // Not while flying (a far crossing's RemoveFromWorld reaches here while the charm
+            // is held): the landing or the abort grants (P5-B family 5).
+            if (!IsTaxiFlying())
+            {
+                SetClientControl(this, 1);
+            }
         }
     }
 }
