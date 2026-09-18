@@ -169,6 +169,7 @@ namespace Motion
         bool       combatMovementHeld = false; ///< UNIT_STAT_NO_COMBAT_MOVEMENT
         bool       swimming = false;     ///< MOVEFLAG_SWIMMING
         bool       canFlyHint = false;   ///< a creature's Creature::CanFly(): the drift test adds the height term for fliers, as the generator's did
+        bool       suspended = false;   ///< Suspend() ran since the last Activate/Resume: the shell skips a finish's interrupt, and a native's displacing clear along with it (the generators' Interrupt carried the clear)
     };
 
     /// The roaming pair the shell mirrors for the point family (UNIT_STAT_ROAMING | ROAMING_MOVE) until a later family retires it.
@@ -238,7 +239,7 @@ namespace Motion
         Roaming    roaming = Roaming::Keep;
         bool       apply = false;     ///< hand `intent` to the driver (Move/Hold) or the launcher (Launch)
         MoveIntent intent;
-        std::vector<Effect> effects;  ///< performed by the shell after the stop/interrupt/roaming writes and before the intent, in order; creatures only
+        std::vector<Effect> effects;  ///< performed by the shell after the stop/interrupt/roaming writes and before the intent, in order; a creature's unless Effect::AnyOwner says otherwise
         bool       again = false;     ///< call Tick again at once (no elapsed time) instead of applying the intent; the round's Sight is one snapshot shared by every round of one Tick, but the Services reads (CanMove, Casting, WaypointPaused, Anchor) are live -- a native observes its own ClearWaypointPaused through the port, not the Sight
 
         static Step None() { return Step(); }

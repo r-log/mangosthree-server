@@ -30,20 +30,6 @@
 
 namespace Motion
 {
-    namespace
-    {
-        /// The 2D bearing from one frame point to another, normalised to [0, 2*PI): the
-        /// shell's Motion::AngleBetween (MotionFrame.h) repeated here, expression for
-        /// expression, because the kernel includes nothing from src/game. Distances survive a
-        /// change of frame; angles do not, which is why the port answers the fright's position
-        /// in the mover's frame and the bearing is taken here between frame points.
-        float BearingBetween(Vector3 const& from, Vector3 const& to)
-        {
-            const float a = std::atan2(to.y - from.y, to.x - from.x);
-            return (a >= 0.0f) ? a : (2 * M_PI_F + a);
-        }
-    }
-
     // ---- Fear -----------------------------------------------------------------------------
 
     Step FearBehaviour::Activate(Sight const&, Services&)
@@ -54,7 +40,6 @@ namespace Motion
         // forgotten. The timed clock is untouched: only construction sets it.
         m_rest = 0;
         m_havePoint = false;
-        m_suspended = false;
         Step s;
         s.stop = true;
         s.effects.push_back(Effect::Walk(false));
@@ -68,7 +53,6 @@ namespace Motion
         // The generator's Interrupt: InterruptMoving, the move bit alone cleared (the flee state
         // is the shell's mirror and outlives a suspension), no point, the leg forgotten.
         m_havePoint = false;
-        m_suspended = true;
         Step s;
         s.interrupt = true;
         s.effects.push_back(Effect::State(0, m_p.stateFleeingMove));
@@ -78,7 +62,6 @@ namespace Motion
 
     Step FearBehaviour::Resume(Sight const& sight, Services& svc, bool reset)
     {
-        m_suspended = false;
         return reset ? Activate(sight, svc) : Step::None();   // the generator's Reset is its Initialize: a fresh bearing from the current spot
     }
 
@@ -100,7 +83,7 @@ namespace Motion
             distFromCaster = frightDistance;
             if (distFromCaster > 0.2f)
             {
-                angleToCaster = BearingBetween(frightPosition, sight.position);
+                angleToCaster = AngleFromTo(frightPosition, sight.position);
             }
         }
 
@@ -142,7 +125,10 @@ namespace Motion
         // and returned Done before the base tick ran.
         if (m_p.timeLimitMs)
         {
-            m_totalLeft -= int32(diff);
+            if (m_totalLeft > 0)
+            {
+                m_totalLeft -= int32(diff);
+            }
             if (m_totalLeft <= 0)
             {
                 return Step::Of(MoveIntent::Done());
@@ -199,12 +185,13 @@ namespace Motion
             // The generator's Interrupt carried the move bit's clear, and the adapter skipped
             // Interrupt for a behaviour it had already suspended -- whose Suspend() cleared the
             // bit itself, so a bit set since then belongs to the claim that drives now and this
-            // finish must leave it alone. LegacyBehaviour's cleanup gait restore is unconditional
-            // on suspension, though, and runs LIVE, after the clear, unless another fear claim
-            // survives and keeps the run. The arbiter has erased the finishing claim already, so
-            // ClaimHeld answers for a survivor.
+            // finish must leave it alone (the Sight carries that: the shell fills `suspended`
+            // from its own Suspend()/Resume() bookkeeping). LegacyBehaviour's cleanup gait
+            // restore is unconditional on suspension, though, and runs LIVE, after the clear,
+            // unless another fear claim survives and keeps the run. The arbiter has erased the
+            // finishing claim already, so ClaimHeld answers for a survivor.
             o.interrupt = true;
-            if (!m_suspended)
+            if (!sight.suspended)
             {
                 o.effects.push_back(Effect::State(0, m_p.stateFleeingMove));
             }
@@ -218,14 +205,14 @@ namespace Motion
         {
             // The timed variant's Finalize (Expired, Died, Cleared): the move bit cleared, the
             // client-visible flag dropped when no fear claim remains (the low-health flee has
-            // no aura to clear it), and the panic over, back to whatever frightened us. No gait
-            // restore unless step two asks (design §6.5): the chase it starts sets the run.
+            // no aura to clear it), the gait restored unconditionally (design §6.5: the
+            // generator left the run), and the panic over, back to whatever frightened us.
             o.effects.push_back(Effect::State(0, m_p.stateFleeingMove));
             if (!svc.ClaimHeld(Motion::Kind::Fear))
             {
                 o.effects.push_back(Effect(Effect::ClearFleeingFlag));
             }
-            if (m_p.restoreGaitWhenTimed && sight.isCreature)
+            if (sight.isCreature)
             {
                 o.effects.push_back(Effect(Effect::RestoreGait));
             }
@@ -260,7 +247,6 @@ namespace Motion
     {
         m_stagger = 0;
         m_haveLurch = false;
-        m_suspended = false;
         Step s;
         s.resetLeg = true;
         if (!sight.alive || sight.notMove)
@@ -278,7 +264,6 @@ namespace Motion
         // The generator's Interrupt: InterruptMoving, the move bit cleared (the confused state
         // is the shell's mirror and outlives a suspension), no lurch, the leg forgotten.
         m_haveLurch = false;
-        m_suspended = true;
         Step s;
         s.interrupt = true;
         s.effects.push_back(Effect::State(0, m_p.stateConfusedMove));
@@ -288,7 +273,6 @@ namespace Motion
 
     Step ConfusedBehaviour::Resume(Sight const& sight, Services&, bool reset)
     {
-        m_suspended = false;
         return reset ? Restart(sight) : Step::None();   // the generator's Reset: the anchor is NOT re-captured
     }
 
@@ -366,9 +350,9 @@ namespace Motion
             // hold it, so this was its only write), and the adapter skipped Interrupt for a
             // behaviour it had already suspended -- whose Suspend() cleared the bit itself, so a
             // bit set since then belongs to the claim that drives now and this finish must leave
-            // it alone. Its cleanup did nothing else.
+            // it alone (the Sight carries that). Its cleanup did nothing else.
             o.interrupt = true;
-            if (!m_suspended)
+            if (!sight.suspended)
             {
                 o.effects.push_back(Effect::State(0, m_p.stateConfusedMove));
             }

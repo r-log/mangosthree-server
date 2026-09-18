@@ -67,7 +67,7 @@ namespace Harness
         // Every family registers its scenarios with their place in the old harness's
         // run order (S1=1, S2=2, S3=3, S5=4, S6=5, S7=6, S8=7, S9=8, S10=9, S11=10,
         // S12=11, S13=12, S15=13, S17=14, S19=15, S4=16); Start("all") sorts by it, so
-        // the call order here does not matter. Tasks 3-5 add their Register calls.
+        // the call order here does not matter.
         // The coverage family (RegisterCoverageScenarios) is orders 32-35: a vehicle
         // seat, a death and respawn, a possession, two feigns. The simple-move family
         // (RegisterSimpleScenarios) is orders 36-41: the refused arc, the arc under a

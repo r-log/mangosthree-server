@@ -70,7 +70,6 @@ namespace Motion
                 uint32       timeLimitMs = 0;         ///< the timed variant; 0 = until the claim is released
                 uint32       stateFleeingMove = 0;    ///< the shell's UNIT_STAT_FLEEING_MOVE, opaque here
                 FearGeometry geometry;
-                bool         restoreGaitWhenTimed = false; ///< design §6.5: the timed expiry restores the walk before re-engaging (the generator left the run)
             };
             explicit FearBehaviour(Params const& p) : m_p(p), m_totalLeft(int32(p.timeLimitMs)) {}
             Motion::Kind Kind() const override { return Motion::Kind::Fear; }
@@ -79,6 +78,8 @@ namespace Motion
             Step Resume(Sight const& sight, Services& svc, bool reset) override;
             Step Tick(Sight const& sight, Services& svc, uint32 diff) override;
             FinishReason EndReason(Sight const&) const override { return FinishReason::Expired; }   ///< the timed clock, or a dead mover
+            /// The timed Finalize restores a creature's gait unconditionally (design §6.5: the
+            /// generator left the run, and the chase it starts sets it again at once).
             Outcome Finish(FinishReason why, Sight const& sight, Services& svc) override;
             /// For the listing (HeldView::target): the fright is not tracked per tick, so TracksTarget() stays false.
             uint64 Target() const override { return m_p.fright; }
@@ -92,7 +93,6 @@ namespace Motion
             int32   m_rest = 0;          ///< ms left standing before the next bolt; <= 0 = passed; counts only while standing
             bool    m_havePoint = false;
             Vector3 m_point;
-            bool    m_suspended = false;  ///< Suspend() ran since the last Activate/Resume: the finish's interrupt is skipped by the adapter, and the generator's Interrupt, which carried the move bit's clear, did not run either
     };
 
     /// Disoriented staggering (design §4.2): a lurch toward a random point near where the unit
@@ -130,7 +130,6 @@ namespace Motion
             bool    m_haveLurch = false;
             Vector3 m_lurch;
             uint32  m_retries = 0;      ///< failed picks in a row; never reset by a restart (the generator's Initialize left it too)
-            bool    m_suspended = false;  ///< Suspend() ran since the last Activate/Resume: the finish's interrupt is skipped by the adapter, and the generator's Interrupt, which carried the move bit's clear, did not run either
     };
 }
 

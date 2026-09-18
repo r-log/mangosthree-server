@@ -2575,6 +2575,19 @@ TEST(MotionBehaviour_FearHooksAreTheGeneratorsInitializeInterruptReset)
     Step rr = f.Resume(s, svc, true);
     CHECK(rr.stop && rr.resetLeg);                   // a reset is the Initialize again
     CHECK_EQ(rr.effects.size(), size_t(2));
+    // Suspend()'s forgetting: after a laid leg, a suspend and a resume WITHOUT a reset must not
+    // re-state the stale leg. The tick falls to the rest countdown instead; with the rest still
+    // running it returns Hold and draws nothing.
+    FrightEast(svc);
+    f.Activate(s, svc);
+    f.Tick(s, svc, 100);                             // a bolt, rest 800
+    f.Suspend();
+    f.Resume(s, svc, false);
+    svc.calls.clear();
+    Sight moving = Standing(0.0f, 0.0f);
+    moving.status.traveling = true;
+    CHECK(f.Tick(moving, svc, 100).intent.act == MoveIntent::Act::Hold);
+    CHECK(svc.calls.empty());
 }
 
 TEST(MotionBehaviour_FearPickDrawsInTheGeneratorsOrder)
@@ -2729,11 +2742,15 @@ TEST(MotionBehaviour_FearTimedClockEndsBeforeAnyDraw)
     CHECK(svc.calls.empty());
     CHECK(d.effects.empty());
     CHECK(f.EndReason(s) == FinishReason::Expired);
-    // A reset does not touch the clock: a fresh behaviour with the limit starts over, this one is spent.
+    // The clock keeps its remaining time across a reset: it is not re-armed. Straddle the
+    // reset midway and let the two halves add to the limit.
     FearBehaviour g(Feared(1000));
     g.Activate(s, svc);
+    g.Tick(s, svc, 600);                                             // a bolt, 400 ms left
     g.Resume(s, svc, true);
-    CHECK(g.Tick(s, svc, 999).intent.act == MoveIntent::Act::Move);
+    svc.calls.clear();
+    CHECK(g.Tick(s, svc, 400).intent.act == MoveIntent::Act::Done);   // 600 + 400 = 1000 ends it, before any draw
+    CHECK(svc.calls.empty());
     // A dead mover ends the untimed flee too.
     FearBehaviour h(Feared());
     h.Activate(s, svc);
@@ -2802,33 +2819,26 @@ TEST(MotionBehaviour_FearFinishRecipesByReason)
         REQUIRE(o.effects.size() == size_t(1));
         CHECK(o.effects[0].kind == Effect::StateRaw);
     }
-    // The timed Finalize: the clear, the flag dropped when no fear claim survives, the re-engage;
-    // no gait restore unless step two asks.
+    // The timed Finalize: the clear, the flag dropped when no fear claim survives, the gait
+    // restored unconditionally (design §6.5: the generator left the run), the re-engage.
     {
         FearBehaviour f(Feared(3000));
         Outcome o = f.Finish(FinishReason::Expired, creature, svc);
         CHECK(!o.interrupt && !o.stop);
-        REQUIRE(o.effects.size() == size_t(3));
+        REQUIRE(o.effects.size() == size_t(4));
         CHECK(o.effects[0].kind == Effect::StateRaw);
         CHECK(o.effects[1].kind == Effect::ClearFleeingFlag);
-        CHECK(o.effects[2].kind == Effect::AttackVictim);
+        CHECK(o.effects[2].kind == Effect::RestoreGait);     // after the clear, before the re-engage
+        CHECK(o.effects[3].kind == Effect::AttackVictim);
         svc.fearHeld = true;
         Outcome held = f.Finish(FinishReason::Expired, creature, svc);
-        REQUIRE(held.effects.size() == size_t(2));
+        REQUIRE(held.effects.size() == size_t(3));
         CHECK(held.effects[0].kind == Effect::StateRaw);
-        CHECK(held.effects[1].kind == Effect::AttackVictim);   // the flag is the survivor's
+        CHECK(held.effects[1].kind == Effect::RestoreGait);
+        CHECK(held.effects[2].kind == Effect::AttackVictim);   // the flag is the survivor's
         svc.fearHeld = false;
-        FearBehaviour::Params two = Feared(3000);
-        two.restoreGaitWhenTimed = true;
-        FearBehaviour g(two);
-        Outcome step2 = g.Finish(FinishReason::Expired, creature, svc);
-        REQUIRE(step2.effects.size() == size_t(4));
-        CHECK(step2.effects[0].kind == Effect::StateRaw);
-        CHECK(step2.effects[1].kind == Effect::ClearFleeingFlag);
-        CHECK(step2.effects[2].kind == Effect::RestoreGait);     // after the clear, before the re-engage
-        CHECK(step2.effects[3].kind == Effect::AttackVictim);
         // A timed flee cancelled (the possession's take): the displacing recipe, as the untimed one.
-        Outcome cancelled = g.Finish(FinishReason::Cancelled, creature, svc);
+        Outcome cancelled = f.Finish(FinishReason::Cancelled, creature, svc);
         CHECK(cancelled.interrupt);
         REQUIRE(cancelled.effects.size() == size_t(2));
         CHECK(cancelled.effects[1].kind == Effect::RestoreGait);
@@ -2836,21 +2846,25 @@ TEST(MotionBehaviour_FearFinishRecipesByReason)
     // A displacing finish of an already-suspended behaviour: the generator's Interrupt, which
     // carried the move bit's clear, was skipped for a behaviour already suspended, and Suspend()
     // had cleared the bit itself -- a bit set since then belongs to the claim that drives now,
-    // so this finish must leave it alone; the gait restore stays unconditional on suspension.
+    // so this finish must leave it alone (read from the Sight's `suspended`, filled by the
+    // adapter from its own Suspend()/Resume() bookkeeping, not a second flag on the native); the
+    // gait restore stays unconditional on suspension.
     {
+        Sight suspended = creature;
+        suspended.suspended = true;
         FearBehaviour f(Feared());
         f.Activate(creature, svc);
         f.Suspend();
-        Outcome o = f.Finish(FinishReason::Cancelled, creature, svc);
+        Outcome o = f.Finish(FinishReason::Cancelled, suspended, svc);
         CHECK(o.interrupt);
         REQUIRE(o.effects.size() == size_t(1));
         CHECK(o.effects[0].kind == Effect::RestoreGait);
         svc.fearHeld = true;
-        Outcome held = f.Finish(FinishReason::Cancelled, creature, svc);
+        Outcome held = f.Finish(FinishReason::Cancelled, suspended, svc);
         CHECK(held.interrupt);
         CHECK(held.effects.empty());
         svc.fearHeld = false;
-        // Resumed without a reset: the adapter's own flag clears too, so the clear is back.
+        // Resumed without a reset: the Sight passed is no longer suspended, so the clear is back.
         f.Resume(creature, svc, false);
         Outcome resumed = f.Finish(FinishReason::Cancelled, creature, svc);
         REQUIRE(resumed.effects.size() == size_t(2));
@@ -2905,6 +2919,20 @@ TEST(MotionBehaviour_ConfusedHooksKeepTheAnchorThroughAReset)
     CHECK(r.stop && r.resetLeg);
     CHECK(Close(c.Anchor(), Vector3(3.0f, 4.0f, 0.0f)));
     CHECK(c.Resume(elsewhere, svc, false).effects.empty());
+    // Suspend()'s forgetting: after a laid leg, a suspend and a resume WITHOUT a reset must not
+    // re-state the stale lurch. traveling && haveLurch is false, so a Hold until the stagger
+    // passes, then a fresh lurch.
+    c.Activate(s, svc);
+    c.Tick(s, svc, 100);                             // a lurch, stagger 800
+    c.Suspend();
+    c.Resume(s, svc, false);
+    svc.calls.clear();
+    Sight moving = Standing(0.0f, 0.0f);
+    moving.status.traveling = true;
+    CHECK(c.Tick(moving, svc, 100).intent.act == MoveIntent::Act::Hold);
+    CHECK(svc.calls.empty());
+    CHECK(c.Tick(moving, svc, 700).intent.act == MoveIntent::Act::Move);
+    CHECK(CallsAre(svc, { "random", "urand" }));
 }
 
 TEST(MotionBehaviour_ConfusedLurchesFromTheAnchorAtAWalkAndSupersedesMidLeg)
@@ -3026,11 +3054,14 @@ TEST(MotionBehaviour_ConfusedFinishRecipesByReason)
         CHECK_EQ(p.effects.size(), size_t(1));
     }
     // A displacing finish of an already-suspended behaviour: Suspend() already cleared the
-    // bit, so the finish must leave it alone; resumed without a reset, the clear is back.
+    // bit, so the finish must leave it alone (read from the Sight's `suspended`); resumed
+    // without a reset, the clear is back.
     {
+        Sight suspended = creature;
+        suspended.suspended = true;
         c.Activate(creature, svc);
         c.Suspend();
-        Outcome o = c.Finish(FinishReason::Superseded, creature, svc);
+        Outcome o = c.Finish(FinishReason::Superseded, suspended, svc);
         CHECK(o.interrupt);
         CHECK(o.effects.empty());
         c.Resume(creature, svc, false);
@@ -3038,5 +3069,12 @@ TEST(MotionBehaviour_ConfusedFinishRecipesByReason)
         CHECK(resumed.interrupt);
         REQUIRE(resumed.effects.size() == size_t(1));
         CHECK(resumed.effects[0].kind == Effect::StateRaw);
+        // Suspended, then a reset: a reset re-activates, so the clear is back after a reset too.
+        c.Suspend();
+        c.Resume(creature, svc, true);
+        Outcome afterReset = c.Finish(FinishReason::Cancelled, creature, svc);
+        CHECK(afterReset.interrupt);
+        REQUIRE(afterReset.effects.size() == size_t(1));
+        CHECK(afterReset.effects[0].kind == Effect::StateRaw);
     }
 }

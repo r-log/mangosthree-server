@@ -25,7 +25,6 @@
 
 #include "LegacyBehaviour.h"
 #include "MovementGenerator.h"
-#include "Creature.h"
 #include "Unit.h"
 
 LegacyBehaviour::LegacyBehaviour(Motion::Kind kind, MovementGenerator* generator, bool owned)

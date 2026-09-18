@@ -1141,7 +1141,6 @@ void MotionMaster::MoveFleeing(Unit* enemy, uint32 time, uint64 claim)
     p.fright = enemy->GetObjectGuid().GetRawValue();   // resolved at each pick through the port; never a stored pointer
     p.timeLimitMs = m_owner->GetTypeId() != TYPEID_PLAYER ? time : 0;   // the generator chose its timed class by the same test
     p.stateFleeingMove = UNIT_STAT_FLEEING_MOVE;
-    p.restoreGaitWhenTimed = true;   // design §6.5: the runner walks again before it re-engages; its chase sets the run at once, and a runner left without a victim no longer keeps it
     const uint64 identity = claim ? claim : Motion::ControlClaim(0, 1, enemy->GetObjectGuid().GetCounter());
     // A refreshed aura of the same identity binds this fresh native and retires the running
     // one (the arbiter's in-place update, design fact 5): a fresh pick, a fresh rest, a fresh clock.

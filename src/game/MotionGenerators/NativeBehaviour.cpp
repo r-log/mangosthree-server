@@ -152,6 +152,7 @@ MovementGeneratorType NativeBehaviour::LegacyType() const
 Motion::Sight NativeBehaviour::See(Unit& owner, bool tick)
 {
     Motion::Sight s;
+    s.suspended = m_suspended;
     if (tick)
     {
         m_last = m_driver.BeginTick(owner);   // consumes the edges: once per tick
@@ -462,7 +463,7 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
             return false;
         }
         PerformOps(owner, step);
-        // IntentMovementGenerator::Update re-checked IsSelected(this) after EVERY Intent before
+        // The deleted IntentMovementGenerator::Update re-checked IsSelected(this) after EVERY Intent before
         // applying it, because a hook fired from inside (a waypoint inform) may have replaced the
         // generator. The same check, after every round's effects: a leg laid now would belong to
         // a behaviour that is no longer selected.
@@ -797,13 +798,12 @@ bool NativeBehaviour::RandomPoint(Motion::Vector3 const& centre, float radius, M
  */
 bool NativeBehaviour::Ground(Motion::Vector3 const& at, float& z)
 {
-    Motion::IMotionFrame const& frame = Motion::FrameFor(U());
-    const std::optional<Motion::Vector3> floor = frame.GroundPoint(U(), frame.MoverPosition(U()), at);
-    if (!floor)
+    Motion::Vector3 p;
+    if (!GroundPoint(at, p))
     {
         return false;
     }
-    z = floor->z;
+    z = p.z;
     return true;
 }
 

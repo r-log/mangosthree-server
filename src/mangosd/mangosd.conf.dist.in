@@ -292,6 +292,7 @@ Redirect.Stream1Crypt        = 1
 #        unit may lurch. TC's mechanism is a 2 yd offset and the measured stagger legs end
 #        within 0.6-5 yd of the application point; 10 was the unsourced value the server
 #        carried before the movement kernel's control moves.
+#        Bounds: 0.1 to 50.
 #        Default: 2
 #
 #    Movement.CaptureFile

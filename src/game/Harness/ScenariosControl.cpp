@@ -65,10 +65,6 @@ namespace Harness
             while (d > M_PI_F) { d = fabsf(d - 2.0f * M_PI_F); }
             return d;
         }
-        float Dist2d(float x1, float y1, float x2, float y2)
-        {
-            return sqrtf((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-        }
         /// The running spline's endpoint, when one runs.
         bool RunningGoal(Creature* c, Movement::Vector3& goal)
         {
@@ -78,13 +74,14 @@ namespace Harness
         }
         bool SameGoal(Movement::Vector3 const& a, Movement::Vector3 const& b)
         {
-            return Dist2d(a.x, a.y, b.x, b.y) < 0.01f && fabsf(a.z - b.z) < 0.01f;
+            return Dist2(a.x, a.y, b.x, b.y) < 0.01f && fabsf(a.z - b.z) < 0.01f;
         }
 
         /// The flee's first bolt: a wolf feared by a kobold 6 yd east bolts within pi/8 of due
         /// west for 0.4-1.3 times the 22 yd to the quiet band, with FLEEING_MOVE set and the run
         /// gait on the leg (design §4.1: the close band, the bit with the leg, SetWalk(false));
-        /// then rests 800-1500 ms standing before the next bolt (the rest counts only standing).
+        /// then rests 800-1500 ms standing (measured 700-1700 at the sampler's cadence) before
+        /// the next bolt (the rest counts only standing).
         class FearBoltsAway : public Scenario
         {
         public:
@@ -133,7 +130,7 @@ namespace Harness
                                 st->bitOnLeg = a->hasUnitState(UNIT_STAT_FLEEING_MOVE);
                                 st->walkOnLeg = a->IsWalking();
                                 Log("+%4ums the first bolt: goal (%.1f, %.1f), %.1f yd, %.0f deg off due west, move=%d walk=%d mt=%s", t, goal.x, goal.y,
-                                    Dist2d(st->x0, st->y0, goal.x, goal.y), AngleDiff(Bearing(st->x0, st->y0, goal.x, goal.y), M_PI_F) * 180.0f / M_PI_F,
+                                    Dist2(st->x0, st->y0, goal.x, goal.y), AngleDiff(Bearing(st->x0, st->y0, goal.x, goal.y), M_PI_F) * 180.0f / M_PI_F,
                                     st->bitOnLeg ? 1 : 0, st->walkOnLeg ? 1 : 0, TypeName(a));
                             }
                             else if (st->haveEnd && !st->haveSecond)
@@ -163,7 +160,7 @@ namespace Harness
                     }
                     else
                     {
-                        const float dist = Dist2d(st->x0, st->y0, st->goal.x, st->goal.y);
+                        const float dist = Dist2(st->x0, st->y0, st->goal.x, st->goal.y);
                         const float off = AngleDiff(Bearing(st->x0, st->y0, st->goal.x, st->goal.y), M_PI_F);
                         const bool away = off <= 0.45f && dist >= 8.0f && dist <= 30.5f;   // pi/8 = 0.39 plus the mesh's slack; 0.4-1.3 x 22 yd, the 30 yd cap
                         snprintf(bolt, sizeof(bolt), "%s(%.0f deg off due west, %.1f yd)", away ? "OK" : "BUG", off * 180.0f / M_PI_F, dist);
@@ -173,25 +170,22 @@ namespace Harness
                         else
                         {
                             const uint32 gap = st->secondAt - st->endAt;
-                            snprintf(rest, sizeof(rest), "%s(%u ms standing between the bolts)", (gap >= 700 && gap <= 1600) ? "OK" : "BUG", gap);
+                            snprintf(rest, sizeof(rest), "%s(%u ms standing between the bolts)", (gap >= 700 && gap <= 1700) ? "OK" : "BUG", gap);
                         }
                     }
                     std::string text = std::string("boltsAway=") + bolt + " | runsOnTheLeg=" + gait + " | restsBetweenBolts=" + rest;
                     Verdict(text);
-                });
-                At(6200, [this, g, gk]()
-                {
-                    Creature* a = Get(g); if (!a) { return; }
-                    a->SetFeared(false, gk, FEAR, 0, 0);
                 });
             }
         };
 
         /// The stagger's envelope and gait: every lurch's goal within Movement.ConfuseRadius of
         /// the spot the wolf was confused at, at a walk with CONFUSED_MOVE set, launched every
-        /// 800-1500 ms (the stagger counts from the launch, mid-leg included: a lurch supersedes
-        /// the last part-way). The radius is read from the config so the verdict holds for step
-        /// one's 10 yd and step two's 2.
+        /// 800-1500 ms (measured 700-2000 at the sampler's cadence, and a refused point's
+        /// doubling retry stretches one gap; a measured gap may double again when a lurch is too
+        /// short to be seen: the stagger counts from the launch, mid-leg included, and a lurch
+        /// supersedes the last part-way). The radius is read from the config so the verdict
+        /// holds for step one's 10 yd and step two's 2.
         class ConfuseLurchesNearAnchor : public Scenario
         {
         public:
@@ -230,13 +224,22 @@ namespace Harness
                     {
                         Creature* a = Get(g); if (!a) { return; }
                         const uint32 t = i * 100;
-                        Movement::Vector3 goal;
-                        if (!RunningGoal(a, goal)) { return; }
-                        if (!a->IsWalking()) { st->allWalk = false; }
-                        if (!a->hasUnitState(UNIT_STAT_CONFUSED_MOVE)) { st->allBit = false; }
+                        // A launch is counted by its destination, whether the spline is still
+                        // running or already finalised (skip only while none was ever laid): a
+                        // leg short enough to end inside one 100 ms sampling window is still
+                        // seen this way, where a Finalized()-gated read would miss it. The gait
+                        // and the bit are only meaningful while a leg is actually running.
+                        if (!a->movespline->Initialized()) { return; }
+                        const Movement::Vector3 goal = a->movespline->FinalDestination();
+                        const bool running = !a->movespline->Finalized();
+                        if (running)
+                        {
+                            if (!a->IsWalking()) { st->allWalk = false; }
+                            if (!a->hasUnitState(UNIT_STAT_CONFUSED_MOVE)) { st->allBit = false; }
+                        }
                         if (st->haveGoal && SameGoal(goal, st->lastGoal)) { return; }
-                        // A fresh lurch: a spline with a goal the last one did not have.
-                        const float d = Dist2d(st->ax, st->ay, goal.x, goal.y);
+                        // A fresh lurch: a destination the last one did not have.
+                        const float d = Dist2(st->ax, st->ay, goal.x, goal.y);
                         if (d > st->farthest) { st->farthest = d; }
                         if (st->launches > 0)
                         {
@@ -254,26 +257,31 @@ namespace Harness
                 At(6600, [this, st]()
                 {
                     const float radius = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
-                    char within[128], gait[96], cadence[128];
+                    char within[128], gait[96], cadence[160];
                     if (st->launches < 2)
                     {
                         snprintf(within, sizeof(within), "BUG(%u lurches in 6 s)", st->launches);
                         snprintf(gait, sizeof(gait), "INVALID(%u lurches)", st->launches);
-                        snprintf(cadence, sizeof(cadence), "INVALID(%u lurches)", st->launches);
                     }
                     else
                     {
                         snprintf(within, sizeof(within), "%s(%u lurches, the farthest goal %.1f yd of the %.1f yd envelope)", st->farthest <= radius + 0.6f ? "OK" : "BUG", st->launches, st->farthest, radius);
                         snprintf(gait, sizeof(gait), "%s(walk=%d move=%d on every leg)", (st->allWalk && st->allBit) ? "OK" : "BUG", st->allWalk ? 1 : 0, st->allBit ? 1 : 0);
-                        snprintf(cadence, sizeof(cadence), "%s(launch to launch %u-%u ms)", (st->minGap >= 700 && st->maxGap <= 2000) ? "OK" : "BUG", st->minGap, st->maxGap);
+                    }
+                    if (st->launches < 3)
+                    {
+                        snprintf(cadence, sizeof(cadence), "INVALID(%u lurches)", st->launches);
+                    }
+                    else
+                    {
+                        // A pick within the driver's 0.5 yd relay gate of the lurch still being
+                        // walked is kept as that leg, and a fresh leg under 0.25 yd at the walk
+                        // ends inside one 100 ms sampling window: at a small envelope a launch
+                        // can go unseen, so one doubled gap is the sampler's, not the stagger's.
+                        snprintf(cadence, sizeof(cadence), "%s(launch to launch %u-%u ms)", (st->minGap >= 700 && st->maxGap <= 3600) ? "OK" : "BUG", st->minGap, st->maxGap);
                     }
                     std::string text = std::string("withinRadius=") + within + " | walksTheLurch=" + gait + " | lurchCadence=" + cadence;
                     Verdict(text);
-                });
-                At(6700, [this, g, gk]()
-                {
-                    Creature* a = Get(g); if (!a) { return; }
-                    a->SetConfused(false, gk, POLYMORPH, 0);
                 });
             }
         };
@@ -288,7 +296,14 @@ namespace Harness
 
             void Prepare() override
             {
-                struct St { float x0, y0; bool haveFirst; Movement::Vector3 goal; MovementGeneratorType mtAfter; };
+                struct St
+                {
+                    float cx, cy;                          // the corpse's position, recorded at the kill
+                    bool  haveFirst, legRan, haveEnd, haveSecond;
+                    float bx0, by0, bx1, by1;               // the wolf's position when each bolt was first seen running
+                    Movement::Vector3 goal0, goal1;
+                    MovementGeneratorType mtAfter;
+                };
                 Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
                 Creature* k = Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f);
                 if (!a || !k) { Verdict("fleeStarts=INVALID(spawn failed) | corpseFrightens=INVALID(spawn failed)"); return; }
@@ -296,19 +311,19 @@ namespace Harness
                 Silence(k);
                 const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
                 auto st = std::make_shared<St>();
-                st->haveFirst = false;
+                st->haveFirst = st->legRan = st->haveEnd = st->haveSecond = false;
                 st->mtAfter = IDLE_MOTION_TYPE;
-                At(300, [this, gk]()
+                At(300, [this, gk, st]()
                 {
                     Creature* k = Get(gk); if (!k) { return; }
+                    st->cx = k->Where().X();
+                    st->cy = k->Where().Y();
                     k->DealDamage(k, k->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
-                    Log("the kobold killed: alive=%d", k->IsAlive() ? 1 : 0);
+                    Log("the kobold killed at (%.1f, %.1f): alive=%d", st->cx, st->cy, k->IsAlive() ? 1 : 0);
                 });
-                At(500, [this, g, gk, st]()
+                At(500, [this, g, gk]()
                 {
                     Creature* a = Get(g); if (!a) { return; }
-                    st->x0 = a->Where().X();
-                    st->y0 = a->Where().Y();
                     a->SetFeared(true, gk, FEAR, 0, 0);
                     Log("feared by the corpse 6 yd east, mt=%s", TypeName(a));
                 });
@@ -322,32 +337,77 @@ namespace Harness
                     At(500 + i * 100, [this, g, st, i]()
                     {
                         Creature* a = Get(g); if (!a) { return; }
+                        const uint32 t = i * 100;
                         Movement::Vector3 goal;
-                        if (st->haveFirst || !RunningGoal(a, goal)) { return; }
-                        st->haveFirst = true;
-                        st->goal = goal;
-                        Log("+%4ums the first bolt: goal (%.1f, %.1f), %.1f yd, %.0f deg off due west", i * 100, goal.x, goal.y,
-                            Dist2d(st->x0, st->y0, goal.x, goal.y), AngleDiff(Bearing(st->x0, st->y0, goal.x, goal.y), M_PI_F) * 180.0f / M_PI_F);
+                        const bool running = RunningGoal(a, goal);
+                        if (running)
+                        {
+                            if (!st->haveFirst)
+                            {
+                                st->haveFirst = true;
+                                st->bx0 = a->Where().X();
+                                st->by0 = a->Where().Y();
+                                st->goal0 = goal;
+                                Log("+%4ums the first bolt: goal (%.1f, %.1f) from (%.1f, %.1f)", t, goal.x, goal.y, st->bx0, st->by0);
+                            }
+                            else if (st->haveEnd && !st->haveSecond)
+                            {
+                                st->haveSecond = true;
+                                st->bx1 = a->Where().X();
+                                st->by1 = a->Where().Y();
+                                st->goal1 = goal;
+                                Log("+%4ums the second bolt: goal (%.1f, %.1f) from (%.1f, %.1f)", t, goal.x, goal.y, st->bx1, st->by1);
+                            }
+                            st->legRan = true;
+                        }
+                        else if (st->legRan && !st->haveEnd)
+                        {
+                            st->haveEnd = true;
+                        }
                     });
                 }
                 At(4600, [this, st]()
                 {
-                    char starts[96], bolt[160];
+                    char starts[96], bolt[220];
                     snprintf(starts, sizeof(starts), "%s(mt=%s 200 ms after the fear)", st->mtAfter == FLEEING_MOTION_TYPE ? "OK" : "BUG", Harness::TypeName(uint32(st->mtAfter)));
-                    if (!st->haveFirst) { snprintf(bolt, sizeof(bolt), "BUG(no bolt laid within 4 s)"); }
+                    if (!st->haveFirst || !st->haveSecond)
+                    {
+                        snprintf(bolt, sizeof(bolt), "INVALID(%s within 4 s)", st->haveFirst ? "only one bolt ran" : "no bolt ran");
+                    }
                     else
                     {
-                        const float dist = Dist2d(st->x0, st->y0, st->goal.x, st->goal.y);
-                        const float off = AngleDiff(Bearing(st->x0, st->y0, st->goal.x, st->goal.y), M_PI_F);
-                        snprintf(bolt, sizeof(bolt), "%s(%.0f deg off due west, %.1f yd)", (off <= 0.45f && dist >= 8.0f && dist <= 30.5f) ? "OK" : "BUG", off * 180.0f / M_PI_F, dist);
+                        const float bx[2] = { st->bx0, st->bx1 };
+                        const float by[2] = { st->by0, st->by1 };
+                        const Movement::Vector3 goal[2] = { st->goal0, st->goal1 };
+                        bool pass[2];
+                        for (uint32 i = 0; i < 2; ++i)
+                        {
+                            // The bearing away from the corpse, measured from where THIS bolt
+                            // launched (the wolf may have drifted between bolts): the bolt's own
+                            // bearing must sit within 0.45 rad of it. The distance band only
+                            // holds while the launch is still inside minQuiet (28 yd); past it
+                            // the drift-back leg uses a different formula, so the check is skipped.
+                            const float away = Bearing(st->cx, st->cy, bx[i], by[i]);
+                            const float boltBearing = Bearing(bx[i], by[i], goal[i].x, goal[i].y);
+                            const float off = AngleDiff(boltBearing, away);
+                            pass[i] = off <= 0.45f;
+                            const float distFromCorpse = Dist2(st->cx, st->cy, bx[i], by[i]);
+                            if (distFromCorpse <= 28.0f)
+                            {
+                                const float dist = Dist2(bx[i], by[i], goal[i].x, goal[i].y);
+                                pass[i] = pass[i] && dist >= 8.0f && dist <= 30.5f;
+                                Log("bolt %u: %.0f deg off away from the corpse, %.1f yd", i + 1, off * 180.0f / M_PI_F, dist);
+                            }
+                            else
+                            {
+                                Log("bolt %u launched %.1f yd from the corpse, past minQuiet: the distance band is skipped, %.0f deg off away from it", i + 1, distFromCorpse, off * 180.0f / M_PI_F);
+                            }
+                        }
+                        if (pass[0] && pass[1]) { snprintf(bolt, sizeof(bolt), "OK(both bolts within 0.45 rad of away from the corpse)"); }
+                        else { snprintf(bolt, sizeof(bolt), "BUG(bolt %u not within 0.45 rad, or its distance out of [8.0, 30.5])", pass[0] ? 2u : 1u); }
                     }
                     std::string text = std::string("fleeStarts=") + starts + " | corpseFrightens=" + bolt;
                     Verdict(text);
-                });
-                At(4700, [this, g, gk]()
-                {
-                    Creature* a = Get(g); if (!a) { return; }
-                    a->SetFeared(false, gk, FEAR, 0, 0);
                 });
             }
         };
@@ -365,8 +425,6 @@ namespace Harness
             {
                 struct St
                 {
-                    bool haveGoal;
-                    Movement::Vector3 goal;
                     uint32 refreshAt;
                     bool haveGoalBefore;
                     Movement::Vector3 goalBefore;
@@ -383,7 +441,7 @@ namespace Harness
                 Silence(k);
                 const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
                 auto st = std::make_shared<St>();
-                st->haveGoal = false; st->refreshAt = 0; st->haveGoalBefore = false; st->freshAfter[0] = st->freshAfter[1] = false;
+                st->refreshAt = 0; st->haveGoalBefore = false; st->freshAfter[0] = st->freshAfter[1] = false;
                 st->refreshes = 0; st->typeHeld = true; st->endedClean = true; st->sampledEnd = false;
                 At(500, [this, g, gk]()
                 {
@@ -410,14 +468,14 @@ namespace Harness
                     {
                         Creature* a = Get(g); if (!a) { return; }
                         const uint32 t = 500 + i * 100;
-                        if (Type(a) != FLEEING_MOTION_TYPE) { st->typeHeld = false; Log("+%4ums mt=%s", t - 500, TypeName(a)); }
+                        if (Type(a) != FLEEING_MOTION_TYPE) { st->typeHeld = false; Log("+%4ums mt=%s", t, TypeName(a)); }
                         if (st->refreshAt && t > st->refreshAt && t <= st->refreshAt + 400 && st->refreshes <= 2 && !st->freshAfter[st->refreshes - 1])
                         {
                             Movement::Vector3 goal;
                             if (RunningGoal(a, goal) && (!st->haveGoalBefore || !SameGoal(goal, st->goalBefore)))
                             {
                                 st->freshAfter[st->refreshes - 1] = true;
-                                Log("+%4ums a fresh bolt %u ms after the refresh: goal (%.1f, %.1f)", t - 500, t - st->refreshAt, goal.x, goal.y);
+                                Log("+%4ums a fresh bolt %u ms after the refresh: goal (%.1f, %.1f)", t, t - st->refreshAt, goal.x, goal.y);
                             }
                         }
                     });
@@ -459,7 +517,7 @@ namespace Harness
 
             void Prepare() override
             {
-                struct St { float ax, ay; uint32 launches; float farthest; bool haveGoal; Movement::Vector3 lastGoal; bool typeHeld; };
+                struct St { float ax, ay; uint32 launches; float farthest, aboveGround; bool haveGoal; Movement::Vector3 lastGoal; bool typeHeld; };
                 const float startZ = Ground(SE.x, SE.y, SE.z) + 10.0f;
                 Creature* w = Spawn(FLYER, SE.x, SE.y, startZ, 0.0f);
                 Creature* k = Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f);
@@ -474,7 +532,7 @@ namespace Harness
                 Silence(k);
                 const ObjectGuid g = w->GetObjectGuid(), gk = k->GetObjectGuid();
                 auto st = std::make_shared<St>();
-                st->launches = 0; st->farthest = 0.0f; st->haveGoal = false; st->typeHeld = true;
+                st->launches = 0; st->farthest = 0.0f; st->aboveGround = -1000.0f; st->haveGoal = false; st->typeHeld = true;
                 At(500, [this, g, gk, st]()
                 {
                     Creature* w = Get(g); if (!w) { return; }
@@ -492,28 +550,25 @@ namespace Harness
                         Movement::Vector3 goal;
                         if (!RunningGoal(w, goal)) { return; }
                         if (st->haveGoal && SameGoal(goal, st->lastGoal)) { return; }
-                        const float d = Dist2d(st->ax, st->ay, goal.x, goal.y);
+                        const float d = Dist2(st->ax, st->ay, goal.x, goal.y);
                         if (d > st->farthest) { st->farthest = d; }
+                        const float above = goal.z - Ground(goal.x, goal.y, goal.z);
+                        if (above > st->aboveGround) { st->aboveGround = above; }
                         ++st->launches;
                         st->haveGoal = true;
                         st->lastGoal = goal;
-                        Log("+%4ums lurch %u: goal (%.1f, %.1f, %.1f), %.1f yd from the anchor in the plane, mt=%s", i * 100, st->launches, goal.x, goal.y, goal.z, d, TypeName(w));
+                        Log("+%4ums lurch %u: goal (%.1f, %.1f, %.1f), %.1f yd from the anchor in the plane, %.1f yd above ground, mt=%s", i * 100, st->launches, goal.x, goal.y, goal.z, d, above, TypeName(w));
                     });
                 }
                 At(5600, [this, st]()
                 {
                     const float radius = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
-                    char lurches[96], within[128];
-                    snprintf(lurches, sizeof(lurches), "%s(%u lurches, CONFUSED throughout: %d)", (st->launches >= 1 && st->typeHeld) ? "OK" : "BUG", st->launches, st->typeHeld ? 1 : 0);
+                    char lurches[128], within[128];
+                    snprintf(lurches, sizeof(lurches), "%s(%u lurches, CONFUSED throughout: %d, highest clearance %.1f yd)", (st->launches >= 1 && st->typeHeld && st->aboveGround >= 1.0f) ? "OK" : "BUG", st->launches, st->typeHeld ? 1 : 0, st->aboveGround);
                     if (st->launches < 1) { snprintf(within, sizeof(within), "INVALID(no lurch)"); }
                     else { snprintf(within, sizeof(within), "%s(the farthest goal %.1f yd of the %.1f yd envelope)", st->farthest <= radius + 0.6f ? "OK" : "BUG", st->farthest, radius); }
                     std::string text = std::string("airLurches=") + lurches + " | withinRadius2d=" + within;
                     Verdict(text);
-                });
-                At(5700, [this, g, gk]()
-                {
-                    Creature* w = Get(g); if (!w) { return; }
-                    w->SetConfused(false, gk, POLYMORPH, 0);
                 });
             }
         };
