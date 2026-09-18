@@ -92,6 +92,7 @@ namespace Motion
             int32   m_rest = 0;          ///< ms left standing before the next bolt; <= 0 = passed; counts only while standing
             bool    m_havePoint = false;
             Vector3 m_point;
+            bool    m_suspended = false;  ///< Suspend() ran since the last Activate/Resume: the finish's interrupt is skipped by the adapter, and the generator's Interrupt, which carried the move bit's clear, did not run either
     };
 
     /// Disoriented staggering (design §4.2): a lurch toward a random point near where the unit
@@ -129,6 +130,7 @@ namespace Motion
             bool    m_haveLurch = false;
             Vector3 m_lurch;
             uint32  m_retries = 0;      ///< failed picks in a row; never reset by a restart (the generator's Initialize left it too)
+            bool    m_suspended = false;  ///< Suspend() ran since the last Activate/Resume: the finish's interrupt is skipped by the adapter, and the generator's Interrupt, which carried the move bit's clear, did not run either
     };
 }
 

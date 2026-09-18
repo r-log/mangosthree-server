@@ -2833,6 +2833,38 @@ TEST(MotionBehaviour_FearFinishRecipesByReason)
         REQUIRE(cancelled.effects.size() == size_t(2));
         CHECK(cancelled.effects[1].kind == Effect::RestoreGait);
     }
+    // A displacing finish of an already-suspended behaviour: the generator's Interrupt, which
+    // carried the move bit's clear, was skipped for a behaviour already suspended, and Suspend()
+    // had cleared the bit itself -- a bit set since then belongs to the claim that drives now,
+    // so this finish must leave it alone; the gait restore stays unconditional on suspension.
+    {
+        FearBehaviour f(Feared());
+        f.Activate(creature, svc);
+        f.Suspend();
+        Outcome o = f.Finish(FinishReason::Cancelled, creature, svc);
+        CHECK(o.interrupt);
+        REQUIRE(o.effects.size() == size_t(1));
+        CHECK(o.effects[0].kind == Effect::RestoreGait);
+        svc.fearHeld = true;
+        Outcome held = f.Finish(FinishReason::Cancelled, creature, svc);
+        CHECK(held.interrupt);
+        CHECK(held.effects.empty());
+        svc.fearHeld = false;
+        // Resumed without a reset: the adapter's own flag clears too, so the clear is back.
+        f.Resume(creature, svc, false);
+        Outcome resumed = f.Finish(FinishReason::Cancelled, creature, svc);
+        REQUIRE(resumed.effects.size() == size_t(2));
+        CHECK(resumed.effects[0].kind == Effect::StateRaw);
+        CHECK(resumed.effects[1].kind == Effect::RestoreGait);
+        // Suspended, then a reset: a reset re-activates, so the clear is back too.
+        f.Suspend();
+        f.Resume(creature, svc, true);
+        Outcome afterReset = f.Finish(FinishReason::Cancelled, creature, svc);
+        REQUIRE(afterReset.effects.size() == size_t(2));
+        CHECK(afterReset.effects[0].kind == Effect::StateRaw);
+        CHECK(afterReset.effects[1].kind == Effect::RestoreGait);
+    }
+    svc.fearHeld = false;   // later cases keep their assumptions
 }
 
 TEST(MotionBehaviour_ConfusedHooksKeepTheAnchorThroughAReset)
@@ -2992,5 +3024,19 @@ TEST(MotionBehaviour_ConfusedFinishRecipesByReason)
         Outcome p = c.Finish(reasons[i], player, svc);
         CHECK(p.stopForced && !p.stop && !p.interrupt);
         CHECK_EQ(p.effects.size(), size_t(1));
+    }
+    // A displacing finish of an already-suspended behaviour: Suspend() already cleared the
+    // bit, so the finish must leave it alone; resumed without a reset, the clear is back.
+    {
+        c.Activate(creature, svc);
+        c.Suspend();
+        Outcome o = c.Finish(FinishReason::Superseded, creature, svc);
+        CHECK(o.interrupt);
+        CHECK(o.effects.empty());
+        c.Resume(creature, svc, false);
+        Outcome resumed = c.Finish(FinishReason::Cancelled, creature, svc);
+        CHECK(resumed.interrupt);
+        REQUIRE(resumed.effects.size() == size_t(1));
+        CHECK(resumed.effects[0].kind == Effect::StateRaw);
     }
 }

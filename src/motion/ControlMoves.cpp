@@ -54,6 +54,7 @@ namespace Motion
         // forgotten. The timed clock is untouched: only construction sets it.
         m_rest = 0;
         m_havePoint = false;
+        m_suspended = false;
         Step s;
         s.stop = true;
         s.effects.push_back(Effect::Walk(false));
@@ -67,6 +68,7 @@ namespace Motion
         // The generator's Interrupt: InterruptMoving, the move bit alone cleared (the flee state
         // is the shell's mirror and outlives a suspension), no point, the leg forgotten.
         m_havePoint = false;
+        m_suspended = true;
         Step s;
         s.interrupt = true;
         s.effects.push_back(Effect::State(0, m_p.stateFleeingMove));
@@ -76,6 +78,7 @@ namespace Motion
 
     Step FearBehaviour::Resume(Sight const& sight, Services& svc, bool reset)
     {
+        m_suspended = false;
         return reset ? Activate(sight, svc) : Step::None();   // the generator's Reset is its Initialize: a fresh bearing from the current spot
     }
 
@@ -193,12 +196,18 @@ namespace Motion
         Outcome o;
         if (Displacing(why))
         {
-            // The generator's Interrupt (skipped by the adapter when it already suspended us)
-            // plus LegacyBehaviour's cleanup: the move bit cleared, then the gait restored
-            // LIVE, after the clear, unless another fear claim survives and keeps the run. The
-            // arbiter has erased the finishing claim already, so ClaimHeld answers for a survivor.
+            // The generator's Interrupt carried the move bit's clear, and the adapter skipped
+            // Interrupt for a behaviour it had already suspended -- whose Suspend() cleared the
+            // bit itself, so a bit set since then belongs to the claim that drives now and this
+            // finish must leave it alone. LegacyBehaviour's cleanup gait restore is unconditional
+            // on suspension, though, and runs LIVE, after the clear, unless another fear claim
+            // survives and keeps the run. The arbiter has erased the finishing claim already, so
+            // ClaimHeld answers for a survivor.
             o.interrupt = true;
-            o.effects.push_back(Effect::State(0, m_p.stateFleeingMove));
+            if (!m_suspended)
+            {
+                o.effects.push_back(Effect::State(0, m_p.stateFleeingMove));
+            }
             if (sight.isCreature && !svc.ClaimHeld(Motion::Kind::Fear))
             {
                 o.effects.push_back(Effect(Effect::RestoreGait));
@@ -251,6 +260,7 @@ namespace Motion
     {
         m_stagger = 0;
         m_haveLurch = false;
+        m_suspended = false;
         Step s;
         s.resetLeg = true;
         if (!sight.alive || sight.notMove)
@@ -268,6 +278,7 @@ namespace Motion
         // The generator's Interrupt: InterruptMoving, the move bit cleared (the confused state
         // is the shell's mirror and outlives a suspension), no lurch, the leg forgotten.
         m_haveLurch = false;
+        m_suspended = true;
         Step s;
         s.interrupt = true;
         s.effects.push_back(Effect::State(0, m_p.stateConfusedMove));
@@ -277,6 +288,7 @@ namespace Motion
 
     Step ConfusedBehaviour::Resume(Sight const& sight, Services&, bool reset)
     {
+        m_suspended = false;
         return reset ? Restart(sight) : Step::None();   // the generator's Reset: the anchor is NOT re-captured
     }
 
@@ -350,11 +362,16 @@ namespace Motion
         Outcome o;
         if (Displacing(why))
         {
-            // The generator's Interrupt (skipped by the adapter when it already suspended us):
-            // the move bit cleared explicitly, since the moving mask does not hold it; its
-            // cleanup did nothing else.
+            // The generator's Interrupt carried the move bit's clear (the moving mask does not
+            // hold it, so this was its only write), and the adapter skipped Interrupt for a
+            // behaviour it had already suspended -- whose Suspend() cleared the bit itself, so a
+            // bit set since then belongs to the claim that drives now and this finish must leave
+            // it alone. Its cleanup did nothing else.
             o.interrupt = true;
-            o.effects.push_back(Effect::State(0, m_p.stateConfusedMove));
+            if (!m_suspended)
+            {
+                o.effects.push_back(Effect::State(0, m_p.stateConfusedMove));
+            }
             return o;
         }
         // The Finalize (Expired, Died, Cleared): the move bit cleared; a player is left where it
