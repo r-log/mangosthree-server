@@ -732,7 +732,7 @@ void MotionMaster::Initialize()
     {
         Creature* creature = (Creature*)m_owner;
         MANGOS_ASSERT(creature->GetCreatureInfo() != NULL);   // every creature reaching here has one: the default-type reads below assume it
-        // A player's pet has no factory default: the old FOLLOW_MOTION_TYPE fell through to the
+        // A player's pet has no factory default: the old follow default fell through to the
         // idle below too, and the pet code installs its follow itself.
         const CreatureMovementType wanted = creature->GetOwnerGuid().IsPlayer() ? CREATURE_MOVEMENT_IDLE : creature->GetDefaultMovementType();
         if (wanted == CREATURE_MOVEMENT_RANDOM)
@@ -758,9 +758,8 @@ void MotionMaster::Initialize()
             return;
         }
     }
-    // Nothing registered for this creature's default type (and every player, and a Follow
-    // default -- it never had a registered factory either): the idle native is the default,
-    // as the shared idle singleton used to be.
+    // Nothing registered for this creature's default type, and every player: the idle native
+    // is the default, as the shared idle singleton used to be.
     InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));
 }
 
@@ -1101,7 +1100,7 @@ void MotionMaster::MoveWaypoint(int32 id, uint32 source, uint32 initialDelay, ui
         sLog.outError("Non-creature %s attempt to MoveWaypoint()", m_owner->GetGuidStr().c_str());
         return;
     }
-    if (GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
+    if (ActiveKind() == Motion::Kind::Patrol)
     {
         sLog.outError("Creature %s (Entry %u) attempt to MoveWaypoint() but creature is already using waypoint", m_owner->GetGuidStr().c_str(), m_owner->GetEntry());
         return;
@@ -1402,17 +1401,6 @@ void MotionMaster::MoveCharge(float x, float y, float z, float speed)
     p.speed = speed;
     p.informs = false;
     Request(R(Motion::Kind::Point, 0, true), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
-}
-
-/**
- * @brief The legacy type the selected behaviour projects onto (the GM prints and the harness
- *        labels, until P5-C retires the enum).
- * @return The selected behaviour's projection, IDLE_MOTION_TYPE when nothing is selected.
- */
-MovementGeneratorType MotionMaster::GetCurrentMovementGeneratorType() const
-{
-    Bound const* bound = SelectedBound();
-    return bound ? bound->behaviour->LegacyType() : IDLE_MOTION_TYPE;
 }
 
 /**
@@ -1951,7 +1939,6 @@ std::vector<MotionMaster::HeldView> MotionMaster::Held() const
     {
         HeldView view;
         view.kind = m_bound[i].behaviour->Kind();
-        view.type = m_bound[i].behaviour->LegacyType();
         view.selected = &m_bound[i] == selected;
         view.reachable = m_bound[i].behaviour->Reachable();
         view.target = m_bound[i].behaviour->TrackedTarget();

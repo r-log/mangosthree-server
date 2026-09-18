@@ -42,6 +42,8 @@
 #include "Unit.h"
 #include "Player.h"
 #include "DBCStores.h"
+#include <cstdio>
+#include <string>
 
 /**
  * @brief Handler for HandleDeMorphCommand command.
@@ -268,78 +270,37 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
     std::vector<MotionMaster::HeldView> held = mm->Held();
     for (size_t i = 0; i < held.size(); ++i)
     {
-        // The binding answers for itself: a tracked target is the entry's own guid, resolved here.
-        switch (held[i].type)
-        {
-            case IDLE_MOTION_TYPE:          SendSysMessage(LANG_MOVEGENS_IDLE);          break;
-            case RANDOM_MOTION_TYPE:        SendSysMessage(LANG_MOVEGENS_RANDOM);        break;
-            case WAYPOINT_MOTION_TYPE:      SendSysMessage(LANG_MOVEGENS_WAYPOINT);      break;
-            case CONFUSED_MOTION_TYPE:      SendSysMessage(LANG_MOVEGENS_CONFUSED);      break;
-
-            case CHASE_MOTION_TYPE:
-            {
-                Unit* target = ObjectLookup::GetUnit(*unit, ObjectGuid(held[i].target));
-
-                if (!target)
-                {
-                    SendSysMessage(LANG_MOVEGENS_CHASE_NULL);
-                }
-                else if (target->GetTypeId() == TYPEID_PLAYER)
-                {
-                    PSendSysMessage(LANG_MOVEGENS_CHASE_PLAYER, target->GetName(), target->GetGUIDLow());
-                }
-                else
-                {
-                    PSendSysMessage(LANG_MOVEGENS_CHASE_CREATURE, target->GetName(), target->GetGUIDLow());
-                }
-                break;
-            }
-            case FOLLOW_MOTION_TYPE:
-            {
-                Unit* target = ObjectLookup::GetUnit(*unit, ObjectGuid(held[i].target));
-
-                if (!target)
-                {
-                    SendSysMessage(LANG_MOVEGENS_FOLLOW_NULL);
-                }
-                else if (target->GetTypeId() == TYPEID_PLAYER)
-                {
-                    PSendSysMessage(LANG_MOVEGENS_FOLLOW_PLAYER, target->GetName(), target->GetGUIDLow());
-                }
-                else
-                {
-                    PSendSysMessage(LANG_MOVEGENS_FOLLOW_CREATURE, target->GetName(), target->GetGUIDLow());
-                }
-                break;
-            }
-            case HOME_MOTION_TYPE:
-                if (unit->GetTypeId() == TYPEID_UNIT)
-                {
-                    PSendSysMessage(LANG_MOVEGENS_HOME_CREATURE, x, y, z);
-                }
-                else
-                {
-                    SendSysMessage(LANG_MOVEGENS_HOME_PLAYER);
-                }
-                break;
-            case FLIGHT_MOTION_TYPE:   SendSysMessage(LANG_MOVEGENS_FLIGHT);  break;
-            case POINT_MOTION_TYPE:
-            {
-                PSendSysMessage(LANG_MOVEGENS_POINT, x, y, z);
-                break;
-            }
-            case FLEEING_MOTION_TYPE: case TIMED_FLEEING_MOTION_TYPE: SendSysMessage(LANG_MOVEGENS_FEAR); break;   // the timed flee is a fear with a clock
-            case DISTRACT_MOTION_TYPE: SendSysMessage(LANG_MOVEGENS_DISTRACT);  break;
-            case EFFECT_MOTION_TYPE: SendSysMessage(LANG_MOVEGENS_EFFECT);  break;
-            default:
-                PSendSysMessage(LANG_MOVEGENS_UNKNOWN, held[i].type);
-                break;
-        }
-
+        // One line per held entry in the debug dump's style: the layer, the kind, the marks,
+        // and what it tracks (the entry's own guid, resolved here) or where the selected one goes.
+        std::string line = std::string("  [") + Motion::LayerName(Motion::LayerOf(held[i].kind)) + "] " + Motion::KindName(held[i].kind);
         if (held[i].selected)
         {
-            SendSysMessage("   (selected)");
+            line += " (selected)";
         }
+        if (!held[i].reachable)
+        {
+            line += " (unreachable)";
+        }
+        char tail[128];
+        tail[0] = '\0';
+        if (held[i].target)
+        {
+            Unit* target = ObjectLookup::GetUnit(*unit, ObjectGuid(held[i].target));
+            if (target)
+            {
+                snprintf(tail, sizeof(tail), " -> %s %s (lowguid %u)", target->GetTypeId() == TYPEID_PLAYER ? "player" : "creature", target->GetName(), target->GetGUIDLow());
+            }
+            else
+            {
+                snprintf(tail, sizeof(tail), " -> <gone>");
+            }
+        }
+        else if (held[i].selected && (held[i].kind == Motion::Kind::Point || held[i].kind == Motion::Kind::Home))
+        {
+            snprintf(tail, sizeof(tail), " -> (%.2f %.2f %.2f)", x, y, z);
+        }
+        line += tail;
+        SendSysMessage(line.c_str());
     }
     return true;
 }

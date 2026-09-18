@@ -457,7 +457,6 @@ bool ChatHandler::HandleNpcAIInfoCommand(char* /*args*/)
                     strAI.empty() ? " - " : strAI.c_str(),
                     cstrAIClass ? cstrAIClass : " - ",
                     strScript.empty() ? " - " : strScript.c_str());
-    //PSendSysMessage("Motion Type: %u", pTarget->GetMotionMaster()->GetCurrentMovementGeneratorType());
     //PSendSysMessage("Casting Spell: %s", pTarget->IsNonMeleeSpellCasted(true) ? "yes" : "no");
 
     if (pTarget->AI())
@@ -1399,8 +1398,8 @@ namespace
         handler.PSendSysMessage("  in-world=%s active-object=%s",
                                 target->IsInWorld() ? "yes" : "no",
                                 target->IsActiveObject() ? "yes" : "no");
-        handler.PSendSysMessage("  movement-generator-type=%u in-combat=%s combat-timer=%u",
-                                uint32(target->GetMotionMaster()->GetCurrentMovementGeneratorType()),
+        handler.PSendSysMessage("  movement=%s in-combat=%s combat-timer=%u",
+                                Motion::KindName(target->GetMotionMaster()->ActiveKind()),
                                 target->IsInCombat() ? "yes" : "no",
                                 target->GetCombatTimer());
 
@@ -1480,8 +1479,8 @@ bool ChatHandler::HandleNpcWatchCommand(char* /*args*/)
     PSendSysMessage("  in-world=%s active-object=%s",
                     target->IsInWorld() ? "yes" : "no",
                     target->IsActiveObject() ? "yes" : "no");
-    PSendSysMessage("  movement-generator-type=%u in-combat=%s combat-timer=%u",
-                    uint32(target->GetMotionMaster()->GetCurrentMovementGeneratorType()),
+    PSendSysMessage("  movement=%s in-combat=%s combat-timer=%u",
+                    Motion::KindName(target->GetMotionMaster()->ActiveKind()),
                     target->IsInCombat() ? "yes" : "no",
                     target->GetCombatTimer());
 

@@ -39,9 +39,9 @@ class Player;
  * A native kernel behaviour as a shell behaviour (P5-B family 1 design section 3): owns the
  * native and a MotionDriver, fills the Sight, applies the Step's intent through the driver
  * or the launcher, writes the roaming pair, and performs an Outcome's recipe in order with
- * its predicates read live. The projection (the legacy type) is mapped here from the kind.
- * Since P5-B family 2 it is also the native's Motion::Services port: every draw and every
- * route the native asks for runs here, over the unit and the adapter's own path query.
+ * its predicates read live. Since P5-B family 2 it is also the native's Motion::Services
+ * port: every draw and every route the native asks for runs here, over the unit and the
+ * adapter's own path query.
  */
 class NativeBehaviour : public MotionBehaviour, private Motion::Services
 {
@@ -52,7 +52,6 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         NativeBehaviour& operator=(NativeBehaviour const&) = delete;
 
         Motion::Kind Kind() const override { return m_native->Kind(); }
-        MovementGeneratorType LegacyType() const override;
         void Activate(Unit& owner) override;
         void Suspend(Unit& owner) override;
         void Resume(Unit& owner, bool reset) override;
@@ -65,10 +64,6 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         /// Every native's Target(): a tracked one's, or the fear's fright, which it resolves at
         /// the pick rather than per tick and still names for the listing.
         uint64 TrackedTarget() const override { return m_native->Target(); }
-
-        /// The projection of a kind (the facade's legacy type answer); `variant` is the native's
-        /// Behaviour::Variant(), which only the timed flee sets (TIMED_FLEEING_MOTION_TYPE).
-        static MovementGeneratorType Project(Motion::Kind kind, uint32 variant = 0);
 
         /// The arbiter sequence this binding was given, set once by MotionMaster::BindNative
         /// right after construction: what the tick's per-round IsSelectedSequence re-check reads.

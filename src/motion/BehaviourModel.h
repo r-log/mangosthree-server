@@ -184,8 +184,8 @@ namespace Motion
     {
         enum Kind : uint8
         {
-            Inform,            ///< creature.AI()->MovementInform(projection of `who`, id)
-            SummonedInform,    ///< a temporary summon's creature summoner: SummonedMovementInform(projection, id)
+            Inform,            ///< creature.AI()->MovementInform(who, id)
+            SummonedInform,    ///< a temporary summon's creature summoner: SummonedMovementInform(the summon, who, id)
             ReengageVictim,    ///< live predicate: creature, alive, not confused/fleeing/no-combat-movement, not chasing/following, has a victim -> MoveChase(victim)
             CallAssistance,    ///< SetNoCallAssistance(false); CallAssistance()
             SeekAssistDistract,///< if alive: MoveSeekAssistanceDistract(the configured delay)

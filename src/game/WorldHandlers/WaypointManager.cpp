@@ -259,11 +259,11 @@ void WaypointManager::Load()
                 const CreatureData* cData = sObjectMgr.GetCreatureData(*itr);
                 const CreatureInfo* cInfo = ObjectMgr::GetCreatureTemplate(cData->id);
 
-                ERROR_DB_STRICT_LOG("Table creature_movement has waypoint for creature guid %u (entry %u), but MovementType is not MovementType 2 (waypoint). Make sure that this is actually used in a script!", *itr, cData->id);
+                ERROR_DB_STRICT_LOG("Table creature_movement has waypoint for creature guid %u (entry %u), but MovementType is not 2 (waypoint). Make sure that this is actually used in a script!", *itr, cData->id);
 
                 if (cInfo->MovementType == CREATURE_MOVEMENT_WAYPOINT)
                 {
-                    sLog.outErrorDb("    creature_template for this entry has MovementType MovementType 2 (waypoint), did you intend to use creature_movement_template ?");
+                    sLog.outErrorDb("    creature_template for this entry has MovementType 2 (waypoint), did you intend to use creature_movement_template ?");
                 }
             }
         }

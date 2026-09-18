@@ -48,7 +48,6 @@ class MotionBehaviour
     public:
         virtual ~MotionBehaviour() {}
         virtual Motion::Kind Kind() const = 0;
-        virtual MovementGeneratorType LegacyType() const = 0;       ///< the projection the facade reports
         virtual void Activate(Unit& owner) = 0;                     ///< first selection
         virtual void Suspend(Unit& owner) = 0;                      ///< masked by a higher layer
         virtual void Resume(Unit& owner, bool reset) = 0;           ///< the selection, at every commit; reset = the stack's Reset (a suspended behaviour clears its flag here)

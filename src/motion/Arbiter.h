@@ -41,8 +41,7 @@
  * decides whether a request issued from inside a hook survives (§4.3); a
  * fixed ring of decisions for the GM dump. Nothing here knows a unit, a
  * driver, a map or a clock: the shell above (P3-B) delivers the events this
- * class accumulates and tells it when a leg or a timer ended. The legacy
- * MovementGeneratorType conversions live with the shim, outside this seam.
+ * class accumulates and tells it when a leg or a timer ended.
  */
 namespace Motion
 {
