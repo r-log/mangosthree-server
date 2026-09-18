@@ -720,6 +720,12 @@ void World::LoadConfigSettings(bool reload)
     // heel point is laid. 0 is retail's own aim -- the leader's current position, no lead at all.
     setConfig(CONFIG_UINT32_MOVEMENT_FOLLOW_HORIZON_MS, "Movement.FollowHorizonMs", 400);
 
+    // The confuse's stagger envelope (P5-B family 4 design §6.4): how far from the spot it was
+    // confused at a unit may lurch. The value the tree carried before the natives is 10 yd
+    // (unsourced); step two of the family sets the retail-backed 2 yd (TC's mechanism, the
+    // measured legs).
+    setConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS, "Movement.ConfuseRadius", 10.0f);
+
     sLog.outString();
 }
 
