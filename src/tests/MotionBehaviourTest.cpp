@@ -569,7 +569,7 @@ TEST(MotionBehaviour_IdleDoesNothingAndFinishesSilently)
     CHECK(i.Finish(FinishReason::Superseded, Free(), g_svc).effects.empty());
 }
 
-TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsAPoint)
+TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsFlyLand)
 {
     PointBehaviour::Params p = PointTo(4.0f, 5.0f, 6.0f, 5);
     p.kind = Kind::FlyLand;

@@ -54,6 +54,8 @@ namespace Motion
         {
             public:
                 explicit UnitPathQuery(Unit const& mover) : m_path(&mover) {}
+                /// No caller today: TransportFrame inherits WorldFrame::CreatePathQuery. The deck's
+                /// documented entry for the vehicle phase (P4-C).
                 UnitPathQuery(Unit const& mover, uint32 deckMapId) : m_path(&mover, deckMapId) {}
 
                 bool Calculate(Vector3 const& start, Vector3 const& goal,

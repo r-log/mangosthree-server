@@ -29,7 +29,7 @@
 #include "Arbiter.h"          // Motion::Kind
 #include "MotionDriver.h"
 #include "BehaviourModel.h"   // the kernel's (src/motion is on the include path, as Arbiter.h is)
-#include "MoveIntent.h"       // Motion::EffectLaunch, Motion::Effect, Motion::Roaming, Motion::Facing
+#include "MoveIntent.h"       // Motion::EffectLaunch, Motion::Facing
 #include "Utilities/Errors.h" // MANGOS_ASSERT, for U()
 
 #include <memory>
@@ -51,7 +51,7 @@ class NativeBehaviour : private Motion::Services
 {
     public:
         explicit NativeBehaviour(std::unique_ptr<Motion::Behaviour> native);
-        ~NativeBehaviour();
+        ~NativeBehaviour() override; ///< Motion::Services' destructor is virtual: this one overrides it; the adapter is owned through unique_ptr<NativeBehaviour>
         NativeBehaviour(NativeBehaviour const&) = delete;
         NativeBehaviour& operator=(NativeBehaviour const&) = delete;
 

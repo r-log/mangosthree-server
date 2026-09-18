@@ -50,6 +50,8 @@ namespace Harness
     /// One event the recording AI saw: a MovementInform (the kind and the id the native gave),
     /// an external path's WaypointPathInform, the home reached, or the death; where the creature
     /// stood, and whose.
+    /// kind, id, pathId and pathEvent are meaningful only for the event named in each field's doc; a
+    /// ReachedHome or Died record carries their defaults (kind reads Idle).
     struct Inform
     {
         enum class Event : uint8 { Inform, PathInform, ReachedHome, Died };

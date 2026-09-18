@@ -42,6 +42,7 @@ namespace Harness
             return r;
         }
 
+        /// A MovementInform record: the kind and the id, at the creature's position.
         void Record(Scenario* scenario, Creature* creature, Motion::Kind kind, uint32 id)
         {
             if (!scenario || !creature)
@@ -54,6 +55,7 @@ namespace Harness
             scenario->Informs().push_back(r);
         }
 
+        /// A WaypointPathInform record: the path id, the event and the node.
         void RecordPath(Scenario* scenario, Creature* creature, uint32 pathId, Motion::PathEvent event, uint32 node)
         {
             if (!scenario || !creature)
@@ -67,6 +69,7 @@ namespace Harness
             scenario->Informs().push_back(r);
         }
 
+        /// A ReachedHome or Died record: the event alone.
         void RecordEvent(Scenario* scenario, Creature* creature, Inform::Event event)
         {
             if (!scenario || !creature)

@@ -280,7 +280,7 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
         {
             line += " (unreachable)";
         }
-        char tail[128];
+        char tail[256];
         tail[0] = '\0';
         if (held[i].target)
         {
