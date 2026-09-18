@@ -57,7 +57,7 @@ class NativeBehaviour : private Motion::Services
 
         Motion::Kind Kind() const { return m_native->Kind(); }
         void Activate(Unit& owner);           ///< first selection
-        void Suspend(Unit& owner);            ///< masked by a higher layer
+        void Suspend(Unit& owner);            ///< masked by a higher layer, or paused by the block
         void Resume(Unit& owner, bool reset); ///< the selection, at every commit; reset = the stack's Reset (a suspended behaviour clears its flag here)
         void Finish(Unit& owner, Motion::FinishReason why);
         bool Tick(Unit& owner, uint32 diff);  ///< false: the behaviour ended itself

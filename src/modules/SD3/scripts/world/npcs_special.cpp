@@ -1414,7 +1414,6 @@ struct npc_spring_rabbit : public CreatureScript
                 }
             }
 
-            // m_creature->GetMotionMaster()->MoveRandom(); // does not move around current position, hence not usefull right now
             m_creature->GetMotionMaster()->MoveIdle();
         }
 

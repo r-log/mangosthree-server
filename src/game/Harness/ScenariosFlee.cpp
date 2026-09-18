@@ -126,7 +126,7 @@ namespace Harness
         /// creature that has a victim.
         ///
         /// 1. A distract superseding an assistance distract runs the displaced
-        ///    generator's finalizer, which re-engages combat (AttackStart ->
+        ///    behaviour's finalizer, which re-engages combat (AttackStart ->
         ///    MoveChase) from inside the request that displaced it. The nested
         ///    chase must not take the binding the outer request stamped, or the
         ///    new distract is selected with no behaviour at all and the creature
@@ -654,7 +654,7 @@ namespace Harness
 
         /// P4-A: the low-health flee (a timed fear from the victim, spell 0) ends on its own
         /// and must leave no fleeing flag behind; today nothing cleared UNIT_FLAG_FLEEING after
-        /// it. The chase resumes through the timed generator's own re-engagement.
+        /// it. The chase resumes through the timed behaviour's own re-engagement.
         class TimedFleeCleans : public Scenario
         {
         public:
@@ -664,8 +664,11 @@ namespace Harness
             {
                 struct Sample
                 {
-                    uint32 t; Motion::Kind mt; bool flag; bool state;
-                    bool timed = false;   ///< the selected fear was the timed variant (SelectedVariant() == 1)
+                    uint32       t;
+                    Motion::Kind mt;
+                    bool         flag;
+                    bool         state;
+                    bool         timed = false;   ///< the selected fear was the timed variant (SelectedVariant() == 1)
                 };
                 Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
                 Creature* b = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
@@ -801,7 +804,7 @@ namespace Harness
                 auto rooted = std::make_shared<std::vector<Pt> >();
                 auto after = std::make_shared<std::vector<Pt> >();
                 auto keptFear = std::make_shared<bool>(true);
-                auto legAfter = std::make_shared<bool>(false);   // the generator laid a leg after the unroot (its move bit)
+                auto legAfter = std::make_shared<bool>(false);   // the behaviour laid a leg after the unroot (its move bit)
                 At(500, [this, g, gk]()
                 {
                     Creature* a = Get(g); if (!a) { return; }
@@ -858,7 +861,7 @@ namespace Harness
                         snprintf(text, sizeof(text), "rootHoldsFear=BUG(moved %.1f yd while rooted%s)", held, *keptFear ? "" : ", the fear was cut");
                     }
                     std::string body = text;
-                    // The gate reopened when the generator laid a leg again (its move bit) or the wolf
+                    // The gate reopened when the behaviour laid a leg again (its move bit) or the wolf
                     // got away; a bolt's length and the pauses between bolts are the flee geometry's.
                     if (*legAfter || resumed > 3.0f)
                     {

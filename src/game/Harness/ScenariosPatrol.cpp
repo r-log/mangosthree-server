@@ -128,7 +128,7 @@ namespace Harness
         /// S8: a patroller of our own on Mouse's four nodes (the world's Mouse,
         /// guid 261361, mirrored as an external path: the harness map is bare)
         /// lifted sixty yards off the mesh, where there is no navmesh under it.
-        /// B7 asks whether the waypoint generator ever lays a leg back down once
+        /// B7 asks whether the patrol behaviour ever lays a leg back down once
         /// its destination node turns out unreachable.
         class PatrolLifted : public Scenario
         {
@@ -280,7 +280,7 @@ namespace Harness
         };
 
         /// P3-C: a node hook that despawns its walker from inside the inform, while the
-        /// waypoint generator's Update is still on the stack. P3-B defers a finished
+        /// patrol behaviour's Update is still on the stack. P3-B defers a finished
         /// behaviour's destruction to the end of the outermost commit for exactly this;
         /// no scenario drove it until now. An external path reports through
         /// WaypointPathInform instead of MovementInform, so the hook listens on both.
@@ -364,7 +364,7 @@ namespace Harness
 
         private:
             /// The hook body, shared by the internal and the external path: node 2's arrival,
-            /// while the waypoint generator's Update is still on the stack.
+            /// while the patrol behaviour's Update is still on the stack.
             void OnNodeTwo(Creature* creature)
             {
                 Log("node %u inform: ForcedDespawn from inside the hook, mt=%s", 2u, TypeName(creature));

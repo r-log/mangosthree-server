@@ -76,8 +76,8 @@ namespace Harness
 
     /**
      * One headless scenario (design v2 §12): it spawns its actors, drives the
-     * MotionMaster facade from a step timeline, samples positions and generator
-     * types, and prints its verdict. The runner owns the map and the clock; the
+     * MotionMaster facade from a step timeline, samples positions and behaviour
+     * kinds, and prints its verdict. The runner owns the map and the clock; the
      * scenario re-resolves every actor by guid on each step, as the old Lua did.
      */
     class Scenario
@@ -106,7 +106,7 @@ namespace Harness
         std::vector<FoundActor> const& Found() const { return m_found; }
         std::vector<Inform>& Informs() { return m_informs; }
         /// A MovementInform the recording AI just saw, delivered synchronously from inside
-        /// the inform: a scenario that must act while the generator's Update is still on
+        /// the inform: a scenario that must act while the behaviour's Update is still on
         /// the stack overrides this. The default records nothing more.
         virtual void OnInform(Creature* /*creature*/, Motion::Kind /*kind*/, uint32 /*id*/) {}
         /// An external waypoint path's progress, as MovementInform above but for the second hook.
@@ -133,9 +133,11 @@ namespace Harness
         void Load(float x, float y);
         /// The map's height at (x, y) near z; the caller's z when the map has none.
         float Ground(float x, float y, float z) const;
+        /// The selected kind of the creature's facade (ActiveKind()), Idle for NULL.
         Motion::Kind Type(Creature* c) const;
+        /// Motion::KindName(Type(c)): the label the verdicts print (mt=...).
         char const* TypeName(Creature* c) const { return Motion::KindName(Type(c)); }
-        /// The current waypoint node when the top generator is a patrol, else 0.
+        /// The current waypoint node when the default behaviour is a patrol, else 0.
         uint32 Node(Creature* c) const;
         /// The selected tracking native's re-lay counters (routine, cut, partial, blocked,
         /// finished, first), else NULL: nothing selected, a legacy binding, or a native that

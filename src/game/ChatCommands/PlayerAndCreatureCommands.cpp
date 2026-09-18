@@ -35,7 +35,6 @@
 
 #include "Chat.h"
 #include "Language.h"
-#include "PathFinder.h"
 #include "ObjectLookup.h"
 #include "Geometry/Vector3.h"
 #include "WorldSession.h"
@@ -265,7 +264,7 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
     PSendSysMessage(LANG_MOVEGENS_LIST, (unit->GetTypeId() == TYPEID_PLAYER ? "Player" : "Creature"), unit->GetGUIDLow());
 
     MotionMaster* mm = unit->GetMotionMaster();
-    float x, y, z;
+    float x = 0.0f, y = 0.0f, z = 0.0f;
     mm->GetDestination(x, y, z);
     std::vector<MotionMaster::HeldView> held = mm->Held();
     for (size_t i = 0; i < held.size(); ++i)

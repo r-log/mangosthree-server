@@ -198,7 +198,7 @@ class MotionMaster
         /// A read for the GM harness, not a script entry point.
         Motion::Facing::Mode SelectedLegFacingMode() const;
 
-        /// One held entry for a listing: what it is, without asking a generator for it.
+        /// One held entry for a listing: what it is, without asking a behaviour for it.
         struct HeldView
         {
             Motion::Kind kind;                   ///< the kernel kind the entry runs under
@@ -263,7 +263,7 @@ class MotionMaster
         Unit*              m_owner;
         Motion::Arbiter    m_arbiter;
         std::vector<Bound> m_bound;
-        std::vector<std::unique_ptr<NativeBehaviour> > m_retired; ///< finished behaviours, destroyed at the end of the outermost commit (a generator ticking when its hook finished it must outlive its own Update)
+        std::vector<std::unique_ptr<NativeBehaviour> > m_retired; ///< finished behaviours, destroyed at the end of the outermost commit (a behaviour ticking when its hook finished it must outlive its own Update)
         uint32             m_depth;          ///< open scopes
         Motion::TransactionKind m_scopeKind; ///< the kind the outermost commit runs under; a nested death raises it to Death
         PendingReset       m_pendingReset;

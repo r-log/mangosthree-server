@@ -42,7 +42,6 @@
 #include "CellImpl.h"
 #include "TemporarySummon.h"
 #include "WaypointManager.h"
-#include "PathFinder.h"                                     // for mmap commands
 #include "Totem.h"
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"

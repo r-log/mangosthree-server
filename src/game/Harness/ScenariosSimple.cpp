@@ -66,8 +66,8 @@ namespace Harness
         /// One position sample with the facade reads a category needs.
         struct Sample
         {
-            uint32                t;
-            float                 x, y, z;
+            uint32       t;
+            float        x, y, z;
             Motion::Kind mt;
         };
 

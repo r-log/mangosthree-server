@@ -328,8 +328,7 @@ namespace Motion
             virtual Outcome Finish(FinishReason why, Sight const& sight, Services& svc) = 0;
             virtual bool TracksTarget() const { return false; }         ///< the Sight needs `target` (and `targetPoint`, the charge's)
             virtual uint64 Target() const { return 0; }                  ///< the tracked target's raw guid
-            /// A sub-type of the kind the shell's projection distinguishes and nothing else reads:
-            /// 0 for every native but the timed flee, whose legacy type was TIMED_FLEEING.
+            /// A sub-type of the kind, 0 for every native but the timed flee's 1: the facade's SelectedVariant() reads it for the harness.
             virtual uint32 Variant() const { return 0; }
             /// The Sight needs `targetPoint`, the charge's contact point: a free-spot search per tick
             /// that only the point native's charge reads, so only it pays for it.

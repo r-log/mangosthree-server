@@ -117,7 +117,7 @@ namespace Harness
         c->SetSpawn(pos);
         // No player stands on the harness map, and Map::Update ticks only the cells
         // around players plus the active objects: without this the actor is in the
-        // world but never updated, so its movement generators never run at all. The
+        // world but never updated, so its movement behaviours never run at all. The
         // flag is set before the add because Map::Add is the single registration
         // point for a new object; setting it afterwards would register through the
         // setter instead - either works, one is enough.
