@@ -305,8 +305,13 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
         return false;
     }
 
-    if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE))
+    // A flight in progress, or a passenger the kernel would not let board: stunned or rooted
+    // (retail's "busy", the reference §15.6), feared, confused or possessed (their Control claim
+    // would be masked by the flight and the landing's grant refused under it: design §6.9).
+    if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE) ||
+        hasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_ROOT | UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_CONTROLLED))
     {
+        GetSession()->SendActivateTaxiReply(ERR_TAXIPLAYERBUSY);
         return false;
     }
 
@@ -485,7 +490,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
     RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
 
     GetSession()->SendActivateTaxiReply(ERR_TAXIOK);
-    GetSession()->SendDoFlight(mount_display_id, sourcepath);
+    GetSession()->SendDoFlight(mount_display_id, m_taxi.GetTaxiDestinations(), 0);
 
     return true;
 }
@@ -529,6 +534,12 @@ void Player::ContinueTaxiFlight()
 
     uint32 mountDisplayId = sObjectMgr.GetTaxiMountDisplayId(sourceNode, GetTeam(), true);
     uint32 path = m_taxi.GetCurrentTaxiPath();
+    if (!path || path >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[path].empty())
+    {
+        sLog.outError("Character %u resumes a taxi flight over a missing path from node %u; the route is dropped", GetGUIDLow(), sourceNode);
+        m_taxi.ClearTaxiDestinations();
+        return;
+    }
 
     // search appropriate start path node
     uint32 startNode = 0;
@@ -571,7 +582,7 @@ void Player::ContinueTaxiFlight()
         }
     }
 
-    GetSession()->SendDoFlight(mountDisplayId, path, startNode);
+    GetSession()->SendDoFlight(mountDisplayId, m_taxi.GetTaxiDestinations(), startNode);
 }
 
 // ---- the taxi's six operations (P5-B family 5) ----------------------------------------------

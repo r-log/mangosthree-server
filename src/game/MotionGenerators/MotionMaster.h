@@ -135,7 +135,13 @@ class MotionMaster
         void MoveWaypoint(int32 id = 0, uint32 source = 0, uint32 initialDelay = 0, uint32 overwriteEntry = 0);
         /// Holds a waypoint patrol where it stands; true when the selected behaviour was a patrol and took the pause.
         bool PauseWaypoints(int32 ms);
-        void MoveTaxiFlight(uint32 path, uint32 pathnode);
+        /// A player's taxi flight over the whole resolved route (the node ids, the source first):
+        /// the hops welded into one native flight. startNode indexes the first hop's path nodes
+        /// (the closest segment on a resume); the mount display is written at the takeoff.
+        void MoveTaxiFlight(std::vector<uint32> const& route, uint32 startNode, uint32 mountDisplayId);
+        /// The worldport ack of a flight's map crossing: the next map's leg when this is the map the
+        /// crossing aimed at, else the flight expires where the mover stands.
+        void TaxiContinue();
         void MoveDistract(uint32 timeLimit);
         /// A jump or a knockback arc. @return False when it was refused: a rooted unit is never displaced by an arc.
         bool MoveJump(float x, float y, float z, float horizontalSpeed, float max_height, uint32 id = 0);

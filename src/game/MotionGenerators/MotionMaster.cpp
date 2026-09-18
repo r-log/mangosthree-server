@@ -37,6 +37,7 @@
 #include "TrackingMoves.h"
 #include "MovementIntent.h"
 #include "ControlMoves.h"
+#include "TaxiMove.h"
 #include "FlightPathMovementGenerator.h"
 #include "WaypointManager.h"
 #include "movement/MoveSpline.h"
@@ -49,6 +50,7 @@
 #include "Pet.h"
 #include "World.h"
 #include "DBCStores.h"
+#include "ObjectMgr.h"
 
 namespace
 {
@@ -1192,24 +1194,93 @@ bool MotionMaster::PauseWaypoints(int32 ms)
 }
 
 /**
- * @brief Moves the unit along a taxi flight path.
- * @param path ID of the flight path.
- * @param pathnode Node of the flight path.
+ * @brief A player's taxi flight over the whole route, as one native.
+ * @param route The node ids in order, the source first (PlayerTaxi::GetTaxiDestinations).
+ * @param startNode The first hop's path node the flight starts toward.
+ * @param mountDisplayId The taxi mount's display id.
  */
-void MotionMaster::MoveTaxiFlight(uint32 path, uint32 pathnode)
+void MotionMaster::MoveTaxiFlight(std::vector<uint32> const& route, uint32 startNode, uint32 mountDisplayId)
 {
     if (m_owner->GetTypeId() != TYPEID_PLAYER)
     {
-        sLog.outError("%s attempt taxi to (Path %u node %u)", m_owner->GetGuidStr().c_str(), path, pathnode);
+        sLog.outError("%s attempt taxi over %u nodes", m_owner->GetGuidStr().c_str(), uint32(route.size()));
         return;
     }
-    if (path >= sTaxiPathNodesByPath.size())
+    Motion::TaxiBehaviour::Params p;
+    p.speed = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
+    p.mountDisplayId = mountDisplayId;
+    p.startNode = startNode;
+    // The hops welded into one node array (design §5): the seam node once -- the incoming hop's
+    // last row, kept and marked -- and the outgoing hop's node 0 dropped, as the hop chaining's
+    // pathNode = 1 skipped it.
+    for (size_t hop = 1; hop < route.size(); ++hop)
     {
-        sLog.outError("%s attempt taxi to (nonexistent Path %u node %u)", m_owner->GetGuidStr().c_str(), path, pathnode);
+        uint32 path = 0;
+        uint32 cost = 0;
+        sObjectMgr.GetTaxiPath(route[hop - 1], route[hop], path, cost);
+        if (!path || path >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[path].empty())
+        {
+            sLog.outError("%s attempt taxi over a missing path from node %u to node %u", m_owner->GetGuidStr().c_str(), route[hop - 1], route[hop]);
+            return;
+        }
+        TaxiPathNodeList const& rows = sTaxiPathNodesByPath[path];
+        for (size_t i = (hop == 1 ? 0 : 1); i < rows.size(); ++i)
+        {
+            TaxiPathNodeEntry const& row = rows[i];
+            Motion::TaxiBehaviour::Node node;
+            node.mapId = row.ContinentID;
+            node.pos = Motion::Vector3(row.Loc_0, row.Loc_1, row.Loc_2);
+            node.arrivalEvent = row.ArrivalEventID;
+            node.departureEvent = row.DepartureEventID;
+            p.nodes.push_back(node);
+        }
+        if (hop + 1 < route.size())
+        {
+            p.nodes.back().seam = true;
+        }
+    }
+    if (p.nodes.empty() || startNode >= p.nodes.size())
+    {
+        sLog.outError("%s attempt taxi from node %u of a route of %u path nodes", m_owner->GetGuidStr().c_str(), startNode, uint32(p.nodes.size()));
         return;
     }
-    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s taxi to (Path %u node %u)", m_owner->GetGuidStr().c_str(), path, pathnode);
-    Request(R(Motion::Kind::Taxi), new FlightPathMovementGenerator(sTaxiPathNodesByPath[path], pathnode), true);
+    // The landing snaps onto the destination's TaxiNodes position when it has one (a spell
+    // taxi's node may not): the notes' SMSG_MOVE_TELEPORT 2.19 yd below the last path node.
+    if (TaxiNodesEntry const* destination = sTaxiNodesStore.LookupEntry(route.back()))
+    {
+        if (destination->Pos_0 != 0.0f || destination->Pos_1 != 0.0f || destination->Pos_2 != 0.0f)
+        {
+            p.hasLanding = true;
+            p.landing = Motion::Vector3(destination->Pos_0, destination->Pos_1, destination->Pos_2);
+        }
+    }
+    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s taxi from node %u to node %u (%u path nodes, from %u)",
+                     m_owner->GetGuidStr().c_str(), route.front(), route.back(), uint32(p.nodes.size()), startNode);
+    Request(R(Motion::Kind::Taxi), std::unique_ptr<Motion::Behaviour>(new Motion::TaxiBehaviour(p)));
+}
+
+/**
+ * @brief The worldport ack of a flight's map crossing: the next leg, or the end of the flight.
+ */
+void MotionMaster::TaxiContinue()
+{
+    Scope scope(*this, Motion::TransactionKind::Normal);
+    std::optional<Motion::Held> taxi = m_arbiter.Command(Motion::Layer::Taxi);
+    Bound* bound = taxi ? Find(taxi->seq) : NULL;
+    if (!bound || !bound->activated)
+    {
+        return;
+    }
+    NativeBehaviour* adapter = static_cast<NativeBehaviour*>(bound->behaviour.get());
+    Motion::TaxiBehaviour* flight = static_cast<Motion::TaxiBehaviour*>(adapter->Native());
+    if (!flight->CrossingLandedOn(m_owner->GetMapId()))
+    {
+        // Not the map the crossing aimed at (the transfer bounced back), or no crossing was
+        // pending: the flight ends where the mover stands (TaxiAbort).
+        MovementExpired(false);
+        return;
+    }
+    bound->behaviour->Resume(*m_owner, true);   // the next map's leg; the flags and the revoke are still in place
 }
 
 /**
