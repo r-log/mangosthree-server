@@ -190,7 +190,7 @@ namespace Motion
             CallAssistance,    ///< SetNoCallAssistance(false); CallAssistance()
             SeekAssistDistract,///< if alive: MoveSeekAssistanceDistract(the configured delay)
             AttackVictim,      ///< if a victim and alive: AttackStop(true); AI()->AttackStart(victim)
-            InformRaw,         ///< creature.AI()->MovementInform(raw, id): the raw type is the shell's constant handed in as a parameter
+            PathInform,        ///< creature.AI()->WaypointPathInform(raw = the path id, event, id = the node): an external path's progress
             RunScript,         ///< creature.GetMap()->ScriptsStart(DBS_ON_CREATURE_MOVEMENT, id, &creature, &creature)
             Emote,             ///< creature.HandleEmote(id)
             CastSpell,         ///< creature.CastSpell(&creature, id, false)
@@ -223,15 +223,16 @@ namespace Motion
         Kind         kind;
         Motion::Kind who;
         uint32       id;
-        uint32       raw;    ///< InformRaw's type; TaxiCross's map id
+        uint32       raw;    ///< PathInform's path id; TaxiCross's map id
+        PathEvent    event;  ///< PathInform's event
         bool         flag;   ///< SetWalk's value; TaxiEvent's departure; TaxiLand's snap
         uint32       setMask;   ///< StateRaw: the bits to add
         uint32       clearMask; ///< StateRaw: the bits to clear
         Vector3      point;     ///< TaxiCross: the node teleported onto; TaxiLand: the TaxiNodes position (world)
         float        angle;     ///< TaxiCross/TaxiLand: the facing the teleport keeps
         FinishReason reason;    ///< TaxiAbort: why the flight ended
-        Effect(Kind k, Motion::Kind w = Motion::Kind::Idle, uint32 i = 0) : kind(k), who(w), id(i), raw(0), flag(false), setMask(0), clearMask(0), angle(0.0f), reason(FinishReason::Arrived) {}
-        static Effect Raw(uint32 type, uint32 nodeId) { Effect e(InformRaw); e.raw = type; e.id = nodeId; return e; }
+        Effect(Kind k, Motion::Kind w = Motion::Kind::Idle, uint32 i = 0) : kind(k), who(w), id(i), raw(0), event(PathEvent::NodeReached), flag(false), setMask(0), clearMask(0), angle(0.0f), reason(FinishReason::Arrived) {}
+        static Effect Path(uint32 pathId, PathEvent event, uint32 node) { Effect e(PathInform); e.raw = pathId; e.event = event; e.id = node; return e; }
         static Effect Walk(bool walk) { Effect e(SetWalk); e.flag = walk; return e; }
         static Effect State(uint32 set, uint32 clear) { Effect e(StateRaw); e.setMask = set; e.clearMask = clear; return e; }
         static Effect Takeoff(uint32 mountDisplayId) { Effect e(TaxiTakeoff); e.id = mountDisplayId; return e; }
@@ -262,7 +263,7 @@ namespace Motion
                 case CallAssistance:
                 case SeekAssistDistract:
                 case AttackVictim:
-                case InformRaw:
+                case PathInform:
                 case RunScript:
                 case Emote:
                 case CastSpell:

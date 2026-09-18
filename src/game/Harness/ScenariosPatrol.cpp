@@ -282,9 +282,8 @@ namespace Harness
         /// P3-C: a node hook that despawns its walker from inside the inform, while the
         /// waypoint generator's Update is still on the stack. P3-B defers a finished
         /// behaviour's destruction to the end of the outermost commit for exactly this;
-        /// no scenario drove it until now. An external path informs with
-        /// EXTERNAL_WAYPOINT_MOVE plus its id, so the hook listens for that as well as
-        /// the plain waypoint type.
+        /// no scenario drove it until now. An external path reports through
+        /// WaypointPathInform instead of MovementInform, so the hook listens on both.
         class DespawnAtNode : public Scenario
         {
         public:
@@ -292,11 +291,17 @@ namespace Harness
 
             void OnInform(Creature* creature, uint32 type, uint32 id) override
             {
-                if (creature && creature->GetObjectGuid() == m_walker &&
-                    (type == WAYPOINT_MOTION_TYPE || type == EXTERNAL_WAYPOINT_MOVE + kExternalPath) && id == 2 && creature->IsAlive())
+                if (creature && creature->GetObjectGuid() == m_walker && type == WAYPOINT_MOTION_TYPE && id == 2 && creature->IsAlive())
                 {
-                    Log("node %u inform: ForcedDespawn from inside the hook, mt=%s", id, TypeName(creature));
-                    creature->ForcedDespawn();
+                    OnNodeTwo(creature);
+                }
+            }
+
+            void OnPathInform(Creature* creature, uint32 pathId, Motion::PathEvent event, uint32 node) override
+            {
+                if (creature && creature->GetObjectGuid() == m_walker && pathId == uint32(kExternalPath) && event == Motion::PathEvent::NodeReached && node == 2 && creature->IsAlive())
+                {
+                    OnNodeTwo(creature);
                 }
             }
 
@@ -321,7 +326,9 @@ namespace Harness
                         if (*informedAt) { return; }
                         for (size_t k = 0; k < Informs().size(); ++k)
                         {
-                            if ((Informs()[k].type == WAYPOINT_MOTION_TYPE || Informs()[k].type == EXTERNAL_WAYPOINT_MOVE + kExternalPath) && Informs()[k].id == 2)
+                            if (((Informs()[k].event == Inform::Event::Inform && Informs()[k].type == WAYPOINT_MOTION_TYPE) ||
+                                 (Informs()[k].event == Inform::Event::PathInform && Informs()[k].pathId == uint32(kExternalPath) && Informs()[k].pathEvent == Motion::PathEvent::NodeReached)) &&
+                                Informs()[k].id == 2)
                             {
                                 *informedAt = 500 + i * 500;
                                 Creature* a = Get(g);
@@ -356,6 +363,14 @@ namespace Harness
             }
 
         private:
+            /// The hook body, shared by the internal and the external path: node 2's arrival,
+            /// while the waypoint generator's Update is still on the stack.
+            void OnNodeTwo(Creature* creature)
+            {
+                Log("node %u inform: ForcedDespawn from inside the hook, mt=%s", 2u, TypeName(creature));
+                creature->ForcedDespawn();
+            }
+
             ObjectGuid m_walker;   ///< the walker this run spawned; the despawn hook acts on it alone
         };
     }

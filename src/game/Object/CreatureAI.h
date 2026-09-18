@@ -29,6 +29,7 @@
 #include "Dynamic/FactoryHolder.h"
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
+#include "Arbiter.h"
 
 class WorldObject;
 class GameObject;
@@ -275,6 +276,17 @@ class CreatureAI
          * @param uiData Data related to the finished movement (ie point-id)
          */
         virtual void SummonedMovementInform(Creature* /*pSummoned*/, uint32 /*uiMotionType*/, uint32 /*uiData*/) {}
+
+        /**
+         * Called as an external waypoint path (a script's MoveWaypoint with a path id) progresses:
+         * a node reached, a node left for the next one, the last node's wait ended. The harness's
+         * recording decorator is the one consumer; the old EXTERNAL_WAYPOINT_* codes never
+         * reached a script.
+         * @param pathId The external path's id
+         * @param event What happened
+         * @param node The node reached or left, or the first node the wrap returns to
+         */
+        virtual void WaypointPathInform(uint32 /*pathId*/, Motion::PathEvent /*event*/, uint32 /*node*/) {}
 
         /**
          * Called at text emote receive from player

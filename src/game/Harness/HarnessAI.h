@@ -57,6 +57,7 @@ namespace Harness
         CreatureAI* Release();
 
         void MovementInform(uint32 type, uint32 id) override;
+        void WaypointPathInform(uint32 pathId, Motion::PathEvent event, uint32 node) override;
         void JustReachedHome() override;
         void JustDied(Unit* killer) override;
 

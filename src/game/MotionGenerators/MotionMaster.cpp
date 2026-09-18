@@ -147,10 +147,6 @@ namespace
         out.external = resolvedOrigin == PATH_FROM_EXTERNAL && pathId > 0;
         out.externalOrigin = resolvedOrigin == PATH_FROM_EXTERNAL;
         out.initialDelay = initialDelay;
-        out.inform.waypoint = WAYPOINT_MOTION_TYPE;
-        out.inform.externalMove = EXTERNAL_WAYPOINT_MOVE + pathId;
-        out.inform.externalStart = EXTERNAL_WAYPOINT_MOVE_START + pathId;
-        out.inform.externalLast = EXTERNAL_WAYPOINT_FINISHED_LAST + pathId;
 
         if (!path)
         {

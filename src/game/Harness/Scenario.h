@@ -46,15 +46,20 @@ namespace Harness
     /// The distance from the first sample to the farthest one: how far the unit got.
     float Spread(std::vector<Pt> const& samples);
 
-    /// One MovementInform the recording AI saw: the generator type, the id the
-    /// script gave, where the creature stood, and whose.
+    /// One event the recording AI saw: a MovementInform (the kind and the id the native gave),
+    /// an external path's WaypointPathInform, the home reached, or the death; where the creature
+    /// stood, and whose.
     struct Inform
     {
-        uint32 type;
-        uint32 id;
-        float  x;
-        float  y;
-        uint32 guidLow;
+        enum class Event : uint8 { Inform, PathInform, ReachedHome, Died };
+        Event  event = Event::Inform;
+        uint32 type = 0;                  ///< Inform: the MovementInform type (the legacy value until Task 2)
+        uint32 id = 0;                    ///< Inform: the id; PathInform: the node
+        uint32 pathId = 0;                ///< PathInform: the external path's id
+        Motion::PathEvent pathEvent = Motion::PathEvent::NodeReached;   ///< PathInform: what happened
+        float  x = 0.0f;
+        float  y = 0.0f;
+        uint32 guidLow = 0;
     };
 
     /// One creature Find resolved: its guid, whether the world already had it
@@ -103,6 +108,8 @@ namespace Harness
         /// the inform: a scenario that must act while the generator's Update is still on
         /// the stack overrides this. The default records nothing more.
         virtual void OnInform(Creature* /*creature*/, uint32 /*type*/, uint32 /*id*/) {}
+        /// An external waypoint path's progress, as MovementInform above but for the second hook.
+        virtual void OnPathInform(Creature* /*creature*/, uint32 /*pathId*/, Motion::PathEvent /*event*/, uint32 /*node*/) {}
         void Reset();
 
     protected:

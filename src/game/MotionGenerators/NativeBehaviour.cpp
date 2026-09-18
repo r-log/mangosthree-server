@@ -674,10 +674,10 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
                     }
                 }
                 break;
-            case Motion::Effect::InformRaw:
+            case Motion::Effect::PathInform:
                 if (creature.AI())
                 {
-                    creature.AI()->MovementInform(e.raw, e.id);
+                    creature.AI()->WaypointPathInform(e.raw, e.event, e.id);
                 }
                 break;
             case Motion::Effect::RunScript:

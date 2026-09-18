@@ -32,23 +32,49 @@ namespace Harness
 {
     namespace
     {
-        /// Not a MovementGeneratorType: the marker the old harness used for a death.
-        const uint32 kDiedType = 0xFFFF;
-
         /// One recorded event, at the creature's position as the hook saw it.
+        Inform At(Creature* creature, Inform::Event event)
+        {
+            Inform r;
+            r.event = event;
+            r.x = creature->Where().X();
+            r.y = creature->Where().Y();
+            r.guidLow = creature->GetGUIDLow();
+            return r;
+        }
+
         void Record(Scenario* scenario, Creature* creature, uint32 type, uint32 id)
         {
             if (!scenario || !creature)
             {
                 return;
             }
-            Inform r;
+            Inform r = At(creature, Inform::Event::Inform);
             r.type = type;
             r.id = id;
-            r.x = creature->Where().X();
-            r.y = creature->Where().Y();
-            r.guidLow = creature->GetGUIDLow();
             scenario->Informs().push_back(r);
+        }
+
+        void RecordPath(Scenario* scenario, Creature* creature, uint32 pathId, Motion::PathEvent event, uint32 node)
+        {
+            if (!scenario || !creature)
+            {
+                return;
+            }
+            Inform r = At(creature, Inform::Event::PathInform);
+            r.pathId = pathId;
+            r.pathEvent = event;
+            r.id = node;
+            scenario->Informs().push_back(r);
+        }
+
+        void RecordEvent(Scenario* scenario, Creature* creature, Inform::Event event)
+        {
+            if (!scenario || !creature)
+            {
+                return;
+            }
+            scenario->Informs().push_back(At(creature, event));
         }
     }
 
@@ -82,9 +108,22 @@ namespace Harness
         }
     }
 
+    void HarnessAI::WaypointPathInform(uint32 pathId, Motion::PathEvent event, uint32 node)
+    {
+        RecordPath(m_scenario, m_creature, pathId, event, node);
+        if (m_scenario)
+        {
+            m_scenario->OnPathInform(m_creature, pathId, event, node);
+        }
+        if (m_wrapped)
+        {
+            m_wrapped->WaypointPathInform(pathId, event, node);
+        }
+    }
+
     void HarnessAI::JustReachedHome()
     {
-        Record(m_scenario, m_creature, HOME_MOTION_TYPE, 0);
+        RecordEvent(m_scenario, m_creature, Inform::Event::ReachedHome);
         if (m_wrapped)
         {
             m_wrapped->JustReachedHome();
@@ -93,7 +132,7 @@ namespace Harness
 
     void HarnessAI::JustDied(Unit* killer)
     {
-        Record(m_scenario, m_creature, kDiedType, 0);
+        RecordEvent(m_scenario, m_creature, Inform::Event::Died);
         if (m_wrapped)
         {
             m_wrapped->JustDied(killer);

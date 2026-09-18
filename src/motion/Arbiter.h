@@ -58,6 +58,12 @@ namespace Motion
         Count
     };
 
+    /// An external waypoint path's progress (a script's MoveWaypoint with a path id > 0), the
+    /// patrol's own vocabulary for the AI hook CreatureAI::WaypointPathInform: the old
+    /// EXTERNAL_WAYPOINT_MOVE / _MOVE_START / _FINISHED_LAST codes, which no AI but the
+    /// harness's recording decorator ever consumed.
+    enum class PathEvent : uint8 { NodeReached, NodeLeft, LastWaitEnded };
+
     enum class Layer : uint8 { Default, Combat, Scripted, Distract, Control, Forced, Taxi, Count };
 
     enum class Policy : uint8 { Supersede, Suspend, Override };
