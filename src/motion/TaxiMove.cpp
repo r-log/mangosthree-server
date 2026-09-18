@@ -30,7 +30,7 @@
 namespace Motion
 {
     TaxiBehaviour::TaxiBehaviour(Params const& p)
-        : m_p(p), m_node(p.startNode), m_legStart(p.startNode), m_legEnd(p.startNode), m_crossing(false)
+        : m_p(p), m_node(p.startNode), m_legStart(p.startNode), m_legEnd(p.startNode), m_crossing(false), m_crossingConfirmed(false)
     {
         if (m_p.nodes.empty())
         {
@@ -88,6 +88,7 @@ namespace Motion
     Step TaxiBehaviour::Activate(Sight const& /*sight*/, Services& /*svc*/)
     {
         m_crossing = false;
+        m_crossingConfirmed = false;
         Step s = LayLeg();
         // Before the leg: the shell's takeoff in retail's order (the stop, the control taken,
         // the mount display and the flags), then the flight spline.
@@ -108,10 +109,22 @@ namespace Motion
         }
         if (m_crossing)
         {
+            if (!m_crossingConfirmed)
+            {
+                // A reset while the far teleport is in flight (nothing on the tree asks one: Clear
+                // finishes a taxi and a taxi is never blocked): hold until the ack names the map.
+                return Step::None();
+            }
             // The worldport ack: the teleport put the mover ON the new map's first node, so the
             // leg starts from the one after it (the generator's SetCurrentNodeAfterTeleport +
             // SkipCurrentNode). Landed on the route's last node: nothing to fly, the next tick ends.
             m_crossing = false;
+            m_crossingConfirmed = false;
+            std::vector<Effect> seam;
+            if (m_p.nodes[m_legEnd].seam)
+            {
+                seam.push_back(Effect::Seam());   // the node the teleport landed on is a hub the leg skips: the route still advances (finding 2)
+            }
             m_node = m_legEnd + 1;
             if (m_node >= m_p.nodes.size())
             {
@@ -119,8 +132,12 @@ namespace Motion
                 m_legPoints.clear();
                 Step s;
                 s.resetLeg = true;
+                s.effects = seam;
                 return s;
             }
+            Step leg = LayLeg();
+            leg.effects.insert(leg.effects.begin(), seam.begin(), seam.end());
+            return leg;
         }
         return LayLeg();
     }
@@ -131,7 +148,8 @@ namespace Motion
         // left, then the arrival of the node reached, in alternation; the reached node's own
         // departure waits for the next advance and the last node's never fires. A seam node fires
         // its arrival only (the generator broke on its arrival and the next hop started at node 1)
-        // and advances the route when it is left.
+        // and advances the route when it is left; a seam left across a map cut is fired by the
+        // crossing or the resume instead (there is no tick that leaves it here).
         while (m_node < target && m_node + 1 < m_p.nodes.size())
         {
             Node const& left = m_p.nodes[m_node];
@@ -183,6 +201,10 @@ namespace Motion
             // The map's leg ran out short of the route: the crossing, once, then the hold until
             // the ack. The node advances on the resume, not here: a refused teleport must not skip it.
             m_crossing = true;
+            if (m_p.nodes[m_legEnd - 1].seam)
+            {
+                s.effects.push_back(Effect::Seam());   // the leg's last node is a hub left across the teleport: the route advances before the crossing
+            }
             Node const& first = m_p.nodes[m_legEnd];
             s.effects.push_back(Effect::Cross(first.mapId, first.pos, sight.facing));
             s.intent = MoveIntent::Hold();
@@ -235,8 +257,13 @@ namespace Motion
         return true;
     }
 
-    bool TaxiBehaviour::CrossingLandedOn(uint32 mapId) const
+    bool TaxiBehaviour::CrossingLandedOn(uint32 mapId)
     {
-        return m_crossing && m_legEnd < m_p.nodes.size() && m_p.nodes[m_legEnd].mapId == mapId;
+        const bool landed = m_crossing && m_legEnd < m_p.nodes.size() && m_p.nodes[m_legEnd].mapId == mapId;
+        if (landed)
+        {
+            m_crossingConfirmed = true;
+        }
+        return landed;
     }
 }

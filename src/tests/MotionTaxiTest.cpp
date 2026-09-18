@@ -496,3 +496,106 @@ TEST(MotionTaxi_HooksAndResetPosition)
     CHECK(d.apply && d.intent.act == MoveIntent::Act::Done);
     CHECK(!e.ResetPosition(At(0, false), g_null, pos, o));
 }
+
+TEST(MotionTaxi_AResetWhileCrossingHoldsUntilTheAckConfirmsTheMap)
+{
+    TaxiBehaviour::Params p;
+    for (uint32 i = 0; i < 4; ++i)
+    {
+        p.nodes.push_back(N(1, float(i) * 100.0f));
+    }
+    for (uint32 i = 4; i < 7; ++i)
+    {
+        p.nodes.push_back(N(2, 1000.0f + float(i - 4) * 100.0f));
+    }
+    TaxiBehaviour t(p);
+    t.Activate(At(0, false), g_null);
+    Step c = t.Tick(ArrivedAt(4), g_null, 100);
+    REQUIRE(Count(c.effects, Effect::TaxiCross) == size_t(1));
+    // A reset before any ack confirmed the map: nothing laid, nothing advanced, still crossing.
+    Step r0 = t.Resume(At(0, false), g_null, true);
+    CHECK(!r0.apply && !r0.resetLeg && r0.effects.empty());
+    CHECK(t.Crossing());
+    CHECK_EQ(t.CurrentNode(), size_t(3));
+    // The wrong map confirms nothing; the right one latches, and the resume lays the next leg.
+    CHECK(!t.CrossingLandedOn(1));
+    Step r1 = t.Resume(At(0, false), g_null, true);
+    CHECK(!r1.apply && t.Crossing());
+    CHECK(t.CrossingLandedOn(2));
+    Step r2 = t.Resume(At(0, false), g_null, true);
+    REQUIRE(IsMoveAlongTheLeg(r2));
+    CHECK_EQ(r2.intent.path->size(), size_t(3));
+    CHECK(!t.Crossing());
+    CHECK_EQ(t.CurrentNode(), size_t(5));
+    // The latch is consumed: a later reset re-lays the current leg as an ordinary reset does.
+    Step r3 = t.Resume(At(0, false), g_null, true);
+    REQUIRE(IsMoveAlongTheLeg(r3));
+    CHECK_EQ(r3.intent.path->size(), size_t(3));
+    CHECK_EQ(t.CurrentNode(), size_t(5));
+}
+
+TEST(MotionTaxi_ASeamAtAMapCutStillAdvancesTheRoute)
+{
+    // The hub is the leg's last node before the cut: the seam fires with the crossing.
+    TaxiBehaviour::Params p;
+    p.nodes.push_back(N(1, 0.0f));
+    p.nodes.push_back(N(1, 100.0f, 0, 0, true));
+    p.nodes.push_back(N(2, 1000.0f));
+    p.nodes.push_back(N(2, 1100.0f));
+    TaxiBehaviour t(p);
+    t.Activate(At(0, false), g_null);
+    Step c = t.Tick(ArrivedAt(2), g_null, 100);
+    REQUIRE(c.effects.size() == size_t(2));
+    CHECK(c.effects[0].kind == Effect::TaxiSeam);
+    CHECK(c.effects[1].kind == Effect::TaxiCross);
+    CHECK(t.CrossingLandedOn(2));
+    Step r = t.Resume(At(0, false), g_null, true);
+    CHECK(r.effects.empty());
+    REQUIRE(IsMoveAlongTheLeg(r));
+    CHECK_EQ(r.intent.path->size(), size_t(2));
+    // The hub is the new map's first node, which the resume skips: the seam fires with the resume.
+    TaxiBehaviour::Params q;
+    q.nodes.push_back(N(1, 0.0f));
+    q.nodes.push_back(N(1, 100.0f));
+    q.nodes.push_back(N(2, 1000.0f, 0, 0, true));
+    q.nodes.push_back(N(2, 1100.0f));
+    q.nodes.push_back(N(2, 1200.0f));
+    TaxiBehaviour u(q);
+    u.Activate(At(0, false), g_null);
+    Step c2 = u.Tick(ArrivedAt(2), g_null, 100);
+    REQUIRE(c2.effects.size() == size_t(1));
+    CHECK(c2.effects[0].kind == Effect::TaxiCross);
+    CHECK(u.CrossingLandedOn(2));
+    Step r2 = u.Resume(At(0, false), g_null, true);
+    REQUIRE(r2.effects.size() == size_t(1));
+    CHECK(r2.effects[0].kind == Effect::TaxiSeam);
+    REQUIRE(IsMoveAlongTheLeg(r2));
+    CHECK_EQ(r2.intent.path->size(), size_t(3));
+    CHECK_EQ(u.CurrentNode(), size_t(3));
+}
+
+TEST(MotionTaxi_AStartPastTheEndAndAnIndexPastTheLegAreClamped)
+{
+    // A start node past the route: clamped to the last node, a two-point leg onto it, then Done.
+    TaxiBehaviour::Params p = FiveNodes();
+    p.startNode = 9;
+    TaxiBehaviour t(p);
+    CHECK_EQ(t.CurrentNode(), size_t(4));
+    Step a = t.Activate(At(0, false), g_null);
+    REQUIRE(IsMoveAlongTheLeg(a));
+    CHECK_EQ(a.intent.path->size(), size_t(2));
+    CHECK_EQ((*a.intent.path)[1].x, 400.0f);
+    Step e = t.Tick(ArrivedAt(1), g_null, 100);
+    CHECK(e.effects.empty());
+    CHECK(e.apply && e.intent.act == MoveIntent::Act::Done);
+    // An index past the leg's points: capped at the leg's last node, every event once, Done.
+    TaxiBehaviour u(FiveNodes());
+    u.Activate(At(0, false), g_null);
+    Step s = u.Tick(At(99), g_null, 100);
+    std::vector<uint32> ids = EventIds(s.effects);
+    REQUIRE(ids.size() == size_t(8));
+    CHECK_EQ(ids[0], 200u);
+    CHECK_EQ(ids[7], 104u);
+    CHECK(s.apply && s.intent.act == MoveIntent::Act::Done);
+    CHECK_EQ(u.CurrentNode(), size_t(4));
+}

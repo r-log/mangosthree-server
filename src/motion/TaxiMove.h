@@ -77,8 +77,9 @@ namespace Motion
             bool ResetPosition(Sight const& sight, Services& svc, Vector3& pos, float& o) const override;
 
             /// The worldport ack (MotionMaster::TaxiContinue): true when a crossing is pending and
-            /// this is the map it aimed at, so the resume lays the next leg; false ends the flight.
-            bool CrossingLandedOn(uint32 mapId) const;
+            /// this is the map it aimed at; the confirmation is latched so the resume that follows
+            /// lays the next leg. An unconfirmed reset while crossing holds where the mover is.
+            bool CrossingLandedOn(uint32 mapId);
             size_t CurrentNode() const { return m_node; }   ///< the node the mover has reached (the tests, the GM dump)
             bool Crossing() const { return m_crossing; }    ///< waiting for the worldport ack
 
@@ -99,6 +100,7 @@ namespace Motion
             size_t      m_legEnd;      ///< one past its last node
             PointsArray m_legPoints;   ///< the leg's geometry: stable for the leg's life (the intent points at it)
             bool        m_crossing;    ///< the map's leg arrived short of the route's end; the teleport is the shell's
+            bool        m_crossingConfirmed;   ///< CrossingLandedOn said yes since the crossing was emitted
     };
 }
 
