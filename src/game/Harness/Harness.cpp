@@ -53,6 +53,7 @@ namespace Harness
     void RegisterSimpleScenarios(Runner& r);
     void RegisterDefaultScenarios(Runner& r);
     void RegisterTrackingScenarios(Runner& r);
+    void RegisterControlScenarios(Runner& r);
 
     namespace
     {
@@ -76,7 +77,10 @@ namespace Harness
         // MOVE_START hook that redirects the next node (P5-B family 2 Task 5). The
         // tracking family (RegisterTrackingScenarios) is orders 48-53: the chase's re-lay
         // budget and where it stops, the follow's pace, band and facings, and the evade
-        // that waits under a root (P5-B family 3 Task 5).
+        // that waits under a root (P5-B family 3 Task 5). The control family
+        // (RegisterControlScenarios) is orders 54-58: the flee's first bolt and its rest,
+        // the stagger's envelope and gait, a corpse as a fright, a refreshed aura restarting
+        // the flee, and the stagger in the air (P5-B family 4 Task 5).
         RegisterJumpScenarios(*this);
         RegisterPointScenarios(*this);
         RegisterHomeScenarios(*this);
@@ -89,6 +93,7 @@ namespace Harness
         RegisterPatrolScenarios(*this);
         RegisterDefaultScenarios(*this);
         RegisterTrackingScenarios(*this);
+        RegisterControlScenarios(*this);
     }
 
     Runner::~Runner()
