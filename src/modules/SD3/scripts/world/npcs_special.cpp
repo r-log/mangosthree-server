@@ -1388,9 +1388,9 @@ struct npc_spring_rabbit : public CreatureScript
             }
         }
 
-        void MovementInform(uint32 uiMovementType, uint32 uiData) override
+        void MovementInform(Motion::Kind uiMovementType, uint32 uiData) override
         {
-            if (uiMovementType != POINT_MOTION_TYPE || uiData != 1)
+            if (uiMovementType != Motion::Kind::Point || uiData != 1)
             {
                 return;
             }

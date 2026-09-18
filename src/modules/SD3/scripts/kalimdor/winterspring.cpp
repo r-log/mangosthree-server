@@ -260,9 +260,9 @@ struct npc_ranshalla : public CreatureScript
             }
         }
 
-        void SummonedMovementInform(Creature* pSummoned, uint32 uiType, uint32 uiPointId) override
+        void SummonedMovementInform(Creature* pSummoned, Motion::Kind uiType, uint32 uiPointId) override
         {
-            if (uiType != POINT_MOTION_TYPE || pSummoned->GetEntry() != NPC_PRIESTESS_ELUNE || uiPointId != 1)
+            if (uiType != Motion::Kind::Point || pSummoned->GetEntry() != NPC_PRIESTESS_ELUNE || uiPointId != 1)
             {
                 return;
             }
