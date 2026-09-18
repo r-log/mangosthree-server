@@ -3680,7 +3680,7 @@ class Player : public Unit
         void ResummonPetTemporaryUnSummonedIfAny() { m_petMgr.ResummonTemporaryUnsummonedIfAny(); }
         uint32 GetStableSlots() const { return m_petMgr.GetStableSlots(); }
         void SetStableSlots(uint32 slots) { m_petMgr.SetStableSlots(slots); }
-        bool IsPetNeedBeTemporaryUnsummoned() const { return !IsInWorld() || !IsAlive() || IsMounted() /*+in flight*/; }
+        bool IsPetNeedBeTemporaryUnsummoned() const { return !IsInWorld() || !IsAlive() || IsMounted() || IsTaxiFlying(); }
 
         // Send cinematic start to the client
         void SendCinematicStart(uint32 CinematicSequenceId);

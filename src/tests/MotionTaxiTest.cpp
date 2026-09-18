@@ -624,7 +624,7 @@ TEST(TaxiPersistence_RoundTripKeepsTheFactionAndTheRoute)
     CHECK(TaxiDestinationsString::Parse("", faction, back));
     CHECK_EQ(faction, 0u);
     CHECK(back.empty());
-    // A faction alone is a route too short (the loader's integrity check reports it).
+    // A faction alone is an empty route to the loader (it returns true with no nodes); the saver never writes one.
     CHECK(TaxiDestinationsString::Parse("77", faction, back));
     CHECK_EQ(faction, 77u);
     CHECK(back.empty());

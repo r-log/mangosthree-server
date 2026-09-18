@@ -65,9 +65,10 @@ namespace Motion
             /// The takeoff (the shell's stop, revoke, mount and flags) and the first map's leg.
             Step Activate(Sight const& sight, Services& svc) override;
             Step Suspend() override;   ///< inert: the arbiter never masks a taxi; the generator's Interrupt was empty
-            /// reset: after a crossing, the next map's leg from the node after the one the teleport
-            /// landed on (the generator's SkipCurrentNode); otherwise the current leg re-laid
-            /// (the generator's Reset). No takeoff either way.
+            /// reset: after a confirmed crossing (CrossingLandedOn), the next map's leg from the node
+            /// after the one the teleport landed on (the generator's SkipCurrentNode), the seam fired
+            /// first when that node is a hub; an unconfirmed reset while crossing holds where the mover
+            /// is; otherwise the current leg re-laid (the generator's Reset). No takeoff either way.
             Step Resume(Sight const& sight, Services& svc, bool reset) override;
             Step Tick(Sight const& sight, Services& svc, uint32 diff) override;
             FinishReason EndReason(Sight const& sight) const override;   ///< Arrived, or the cut/refused leg's own reason

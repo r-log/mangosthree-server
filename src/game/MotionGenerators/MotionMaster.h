@@ -212,7 +212,7 @@ class MotionMaster
         bool IsPatrolling() const;
         /// A taxi flight is held.
         bool IsOnTaxi() const;
-        /// The selected behaviour's generator can reach its goal; true when nothing is selected
+        /// The selected behaviour can reach its goal; true when nothing is selected
         /// (nothing could have reported a failed path: taunts stay where they are).
         bool IsReachable() const;
         /// The combat-started event row (design v2 §4.2): a new combat cancels the Distract layer; ignored from inside a movement operation.

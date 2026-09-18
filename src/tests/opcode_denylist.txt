@@ -1,6 +1,6 @@
 # Opcode denylist -- generated 2026-08-31
 #
-# 38 opcode names whose value disagrees with every independent 4.3.4
+# 37 opcode names whose value disagrees with every independent 4.3.4
 # source, and which nothing currently builds or dispatches. They are inert
 # TODAY. Adopting one without correcting its value ships a silent no-op:
 # an SMSG the client discards, or a CMSG handler that never runs.

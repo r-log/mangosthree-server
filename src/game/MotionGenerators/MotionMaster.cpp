@@ -615,7 +615,7 @@ void MotionMaster::Retire(size_t index, Motion::FinishReason reason)
     {
         gone->Finish(*m_owner, reason);
     }
-    m_retired.push_back(std::move(gone));   // a generator whose own Update fired this hook must outlive it
+    m_retired.push_back(std::move(gone));   // a behaviour whose own Tick fired this hook must outlive it
 }
 
 /**
@@ -1224,8 +1224,9 @@ void MotionMaster::TaxiContinue()
         MovementExpired(false);
         return;
     }
-    // No Evaluate().ticks gate as the other direct resumes carry: a taxi is never blocked
-    // (Mobility::Decide returns before the stun, the root and the possession for Selected::Taxi).
+    // No Evaluate().ticks gate as the other direct resumes carry: a taxi is never blocked by a
+    // stun, a root or a possession (Mobility::Decide returns before them for Selected::Taxi);
+    // only death precedes it, and a dead passenger's flight is finished, never resumed.
     bound->behaviour->Resume(*m_owner, true);   // the next map's leg; the flags and the revoke are still in place
 }
 
@@ -1406,8 +1407,9 @@ void MotionMaster::MoveCharge(float x, float y, float z, float speed)
 }
 
 /**
- * @brief Gets the type of the current movement generator.
- * @return The type of the selected behaviour's generator.
+ * @brief The legacy type the selected behaviour projects onto (the GM prints and the harness
+ *        labels, until P5-C retires the enum).
+ * @return The selected behaviour's projection, IDLE_MOTION_TYPE when nothing is selected.
  */
 MovementGeneratorType MotionMaster::GetCurrentMovementGeneratorType() const
 {

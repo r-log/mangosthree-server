@@ -2973,8 +2973,8 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
         return false;
     }
 
-    // player can not attack in mount state
-    if (GetTypeId() == TYPEID_PLAYER && IsMounted())
+    // player can not attack in mount state or on a taxi (no UNIT_FLAG_MOUNT on a passenger since P5-B family 5)
+    if (GetTypeId() == TYPEID_PLAYER && (IsMounted() || IsTaxiFlying()))
     {
         return false;
     }

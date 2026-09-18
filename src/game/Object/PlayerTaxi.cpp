@@ -195,10 +195,12 @@ bool PlayerTaxi::LoadTaxiDestinationsFromString(const std::string& values, Team 
     // faction and then every token, the faction included, as a node, so the integrity check
     // below always failed and a login mid-flight never resumed (P5-B family 5, design §6.7).
     std::vector<uint32> nodes;
-    if (!TaxiDestinationsString::Parse(values, m_flightMasterFactionId, nodes))
+    uint32 faction = 0;
+    if (!TaxiDestinationsString::Parse(values, faction, nodes))
     {
         return false;
     }
+    m_flightMasterFactionId = faction;
     for (size_t i = 0; i < nodes.size(); ++i)
     {
         AddTaxiDestination(nodes[i]);
@@ -299,19 +301,32 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
         return false;
     }
 
-    // A flight in progress, or a passenger the kernel would not let board: stunned or rooted
-    // (retail's "busy", the reference §15.6), feared, confused or possessed (their Control claim
-    // would be masked by the flight and the landing's grant refused under it: design §6.9).
+    // A flight in progress, or a passenger whose Control claim the flight would mask and whose
+    // landing grant would be refused under it (design §6.9): feared, confused or possessed. Both
+    // origins, since the mover argument holds for a scripted flight too; the reply is the flight
+    // master's alone (a spell taxi has no taxi window open to show it).
     if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE) ||
-        hasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_ROOT | UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_CONTROLLED))
+        hasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_CONTROLLED))
     {
-        GetSession()->SendActivateTaxiReply(ERR_TAXIPLAYERBUSY);
+        if (npc)
+        {
+            GetSession()->SendActivateTaxiReply(ERR_TAXIPLAYERBUSY);
+        }
         return false;
     }
 
     // taximaster case
     if (npc)
     {
+        // Stunned or rooted: retail's flight master answers "busy" (the reference §15.6, the taxi
+        // notes E.34). A scripted or spell flight on a stunned player is admitted: the kernel
+        // flies it (Mobility::Decide returns before the stun and the root for a taxi).
+        if (hasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_ROOT))
+        {
+            GetSession()->SendActivateTaxiReply(ERR_TAXIPLAYERBUSY);
+            return false;
+        }
+
         // not let cheating with start flight mounted
         if (IsMounted())
         {
@@ -416,7 +431,9 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
         lastnode = nodes[i];
         sObjectMgr.GetTaxiPath(prevnode, lastnode, path, cost);
 
-        if (!path)
+        // A path with no rows (6 of 1,601) or a later hop with a single row cannot be flown:
+        // refused here, before the fare is charged (the weld would refuse it after).
+        if (!path || path >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[path].size() < (i == 1 ? 1u : 2u))
         {
             m_taxi.ClearTaxiDestinations();
             return false;
@@ -608,6 +625,10 @@ void Player::TaxiTakeoff(uint32 mountDisplayId)
  */
 void Player::TaxiSeamPassed()
 {
+    if (m_taxi.empty())
+    {
+        return;   // a route cleared under a flight (a replaced flight's abort): nothing to advance
+    }
     m_taxi.NextTaxiDestination();
     // The hub joins a taxi cheater's mask, as the hop chaining did: a cheater who lands with
     // the cheat off must still have a flight back.
@@ -664,7 +685,9 @@ void Player::PerformTaxiLanding()
     // the mount display zeroed in one update, the pet resummoned.
     SetClientControl(this, 1);
     StopMoving(true);
-    if (snap)
+    // A teleport deferred earlier in this update (an aura's) wins over the snap: the near
+    // teleport below would overwrite its destination and clear its flag.
+    if (snap && !IsHasDelayedTeleport())
     {
         TeleportTo(where, TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
     }
