@@ -561,7 +561,7 @@ void NativeBehaviour::PerformOutcome(Unit& owner, Motion::Outcome const& outcome
 /**
  * @brief The effects loop, in the order given: an Outcome's finishing recipe or a Step's
  *        mid-tick set (the shell performs these before the intent). A creature's effect is
- *        skipped for a player owner, per kind (Effect::AnyOwner): a feared or confused player
+ *        skipped for a player owner, per kind (Effect::Owners): a feared or confused player
  *        carries its state mirror exactly as a creature does, and nothing else of the recipe.
  * @param owner The moving unit.
  * @param effects The effects to perform, in order.
@@ -573,10 +573,15 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
         return;
     }
     Creature* creaturePtr = owner.GetTypeId() == TYPEID_UNIT ? static_cast<Creature*>(&owner) : NULL;
+    const uint8 mine = creaturePtr ? Motion::Effect::OwnerCreature : Motion::Effect::OwnerPlayer;
     for (size_t i = 0; i < effects.size(); ++i)
     {
         Motion::Effect const& e = effects[i];
-        if (Motion::Effect::AnyOwner(e.kind))
+        if (!(Motion::Effect::Owners(e.kind) & mine))
+        {
+            continue;   // a creature's effect on a player owner, or a player's on a creature: skipped, as the generators returned before their informs and re-engages
+        }
+        if (e.kind == Motion::Effect::StateRaw)
         {
             // Opaque masks: the native carries the generators' own UNIT_STAT bits in its
             // Params and never interprets them. Set first, then clear, so a recipe that
@@ -593,7 +598,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
         }
         if (!creaturePtr)
         {
-            continue;   // a creature's effect on a player owner: skipped, as the generators returned before their informs and re-engages
+            continue;   // a player's kinds are dispatched in Task 3 (PerformTaxi); nothing emits one yet
         }
         Creature& creature = *creaturePtr;
         switch (e.kind)
@@ -773,6 +778,13 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
                 // displacing finish, before the native's own clear on the untimed Finalize.
                 creature.SetWalk(!creature.hasUnitState(UNIT_STAT_RUNNING_STATE), false);
                 break;
+            case Motion::Effect::TaxiTakeoff:
+            case Motion::Effect::TaxiEvent:
+            case Motion::Effect::TaxiSeam:
+            case Motion::Effect::TaxiCross:
+            case Motion::Effect::TaxiLand:
+            case Motion::Effect::TaxiAbort:
+                break;   // a player's kinds: never reach a creature (Effect::Owners)
         }
     }
 }

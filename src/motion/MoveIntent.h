@@ -80,7 +80,8 @@ namespace Motion
         MOVE_FLY          = 0x02, ///< Catmull-Rom spline + flying animation.
         MOVE_STRAIGHT     = 0x04, ///< Do not route: go straight there.
         MOVE_FORCE_DEST   = 0x08, ///< Arrive at the exact goal even if unroutable.
-        MOVE_REQUIRE_PATH = 0x10  ///< Refuse the leg when the router found no real path.
+        MOVE_REQUIRE_PATH = 0x10, ///< Refuse the leg when the router found no real path.
+        MOVE_SMOOTH       = 0x20  ///< An uncompressed Catmull-Rom path (SetSmooth): the taxi's shape, and any leg past the packed path's +-255 yd (design v2 §5).
     };
 
     /// How an Effect launches its spline at first selection (a jump, a knockback arc, a fall).

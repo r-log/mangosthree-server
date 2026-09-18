@@ -124,7 +124,7 @@ class NativeBehaviour : public MotionBehaviour, private Motion::Services
         void Perform(Unit& owner, Motion::Step const& step);
         void PerformOutcome(Unit& owner, Motion::Outcome const& outcome);
         /// The effects loop, in order: an Outcome's recipe or a Step's mid-tick set. A creature's
-        /// effects are skipped for a player owner; Effect::AnyOwner names the ones every owner gets.
+        /// effects are skipped for a player owner; Effect::Owners names each kind's owners.
         void PerformEffects(Unit& owner, std::vector<Motion::Effect> const& effects);
         void Launch(Unit& owner, Motion::EffectLaunch const& launch);
         void Roam(Unit& owner, Motion::Roaming what);
