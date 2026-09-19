@@ -905,6 +905,108 @@ namespace Harness
                 });
             }
         };
+
+        /// S59 (P5-C2's characterization): S42's outcome order -- MovementInform first,
+        /// ReengageVictim second, in one Outcome -- with a fear applied from inside the inform
+        /// instead of a follow. ReengageVictim reads the control state as of the last settled
+        /// commit (the mirrored unit-state bits before P5-C2, the published state after it), not
+        /// the arbiter's live claims, so the fear the inform just applied is not yet seen: it
+        /// requests the chase, which the arbiter holds masked beneath the fear, and the fear's
+        /// end resumes that masked chase. chaseHeldUnderFear proves the chase is held while the
+        /// fear drives; a reader that saw the nested claim live would have stepped aside and left
+        /// no chase to hold.
+        class InformFearsMidOutcome : public Scenario
+        {
+        public:
+            InformFearsMidOutcome() : Scenario("inform-fears-mid-outcome", 59) {}
+
+            void Prepare() override
+            {
+                m_kobold = ObjectGuid();
+                m_feared = false;
+                Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+                Creature* k = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
+                if (!w || !k) { Verdict("chaseHeldUnderFear=INVALID(spawn failed)"); return; }
+                w->SetMaxHealth(500000); w->SetHealth(500000); k->SetMaxHealth(500000); k->SetHealth(500000);
+                m_kobold = k->GetObjectGuid();
+                const ObjectGuid g = w->GetObjectGuid();
+                const ObjectGuid gk = k->GetObjectGuid();
+                auto called = std::make_shared<bool>(false);
+                auto samplesUnderFear = std::make_shared<uint32>(0);
+                auto chasingUnderFear = std::make_shared<uint32>(0);
+                At(500, [this, g, gk]()
+                {
+                    Creature* w = Get(g); Creature* k = Get(gk); if (!w || !k) { return; }
+                    w->Attack(k, true);
+                    w->AddThreat(k, 1000.0f);
+                    Log("Attack + AddThreat on the kobold: victim=%d mt=%s chasing=%d", w->getVictim() ? 1 : 0, TypeName(w),
+                        w->GetMotionMaster()->IsChasing() ? 1 : 0);
+                });
+                At(1000, [this, g, called]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    const float x = w->Where().X(), y = w->Where().Y(), z = w->Where().Z();
+                    *called = w->GetMotionMaster()->MoveJump(x, y + 12.0f, Ground(x, y + 12.0f, z), 7.5f, 5.0f, 81);
+                    Log("MoveJump(81) 12 yd sideways with a victim set: accepted=%d mt=%s", *called ? 1 : 0, TypeName(w));
+                });
+                for (uint32 t = 3000; t <= 3750; t += 250)   // the arc has landed (about 1.6 s after 1000 ms): the fear drives
+                {
+                    At(t, [this, g, t, samplesUnderFear, chasingUnderFear]()
+                    {
+                        Creature* w = Get(g); if (!w) { return; }
+                        const bool chasing = w->GetMotionMaster()->IsChasing();
+                        if (Type(w) == Motion::Kind::Fear)
+                        {
+                            ++*samplesUnderFear;
+                            if (chasing) { ++*chasingUnderFear; }
+                        }
+                        Log("+%5ums mt=%s chasing=%d feared=%d", t, TypeName(w), chasing ? 1 : 0, m_feared ? 1 : 0);
+                    });
+                }
+                At(4000, [this, g, gk]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    w->SetFeared(false, gk, kFear, 0, 0);
+                    Log("fear released: mt=%s chasing=%d", TypeName(w), w->GetMotionMaster()->IsChasing() ? 1 : 0);
+                });
+                At(5000, [this, g, called, samplesUnderFear, chasingUnderFear]()
+                {
+                    Creature* w = Get(g);
+                    if (!w || !*called) { Verdict("chaseHeldUnderFear=INVALID(jump refused or lost)"); return; }
+                    if (!m_feared) { Verdict("chaseHeldUnderFear=INVALID(the inform never applied the fear)"); return; }
+                    char held[160];
+                    if (*samplesUnderFear == 0)
+                    {
+                        snprintf(held, sizeof(held), "INVALID(no sample under the fear)");
+                    }
+                    else
+                    {
+                        snprintf(held, sizeof(held), "%s(chasing in %u of %u samples under the fear)",
+                                 *chasingUnderFear == *samplesUnderFear ? "OK" : "BUG", *chasingUnderFear, *samplesUnderFear);
+                    }
+                    char resumed[120];
+                    snprintf(resumed, sizeof(resumed), "%s(mt=%s)", Type(w) == Motion::Kind::Chase ? "OK" : "BUG", TypeName(w));
+                    Verdict(std::string("chaseHeldUnderFear=") + held + " | chaseResumesAfterFear=" + resumed);
+                });
+            }
+
+            /// The recording hook (Scenario.h), called synchronously from inside
+            /// NativeBehaviour::PerformOutcome's Effect::Inform case, before that same Outcome
+            /// reaches Effect::ReengageVictim: the fear applied here is a nested facade call.
+            void OnInform(Creature* creature, Motion::Kind kind, uint32 id) override
+            {
+                if (kind != Motion::Kind::Effect || id != 81 || m_feared) { return; }
+                creature->SetFeared(true, m_kobold, kFear, 0, 0);
+                m_feared = true;
+                Log("OnInform EFFECT 81: SetFeared applied mid-outcome, mt=%s chasing=%d", TypeName(creature),
+                    creature->GetMotionMaster()->IsChasing() ? 1 : 0);
+            }
+
+        private:
+            static const uint32 kFear = 5782;   ///< Fear (rank 1), applied by hand as the block scenarios do
+            ObjectGuid m_kobold;
+            bool       m_feared;
+        };
     }
 
     void RegisterSimpleScenarios(Runner& r)
@@ -918,5 +1020,6 @@ namespace Harness
         r.Register(new InformReentersFacade());
         r.Register(new FlyerFallsAtDeath());
         r.Register(new PointUnderBlockLaysNothing());
+        r.Register(new InformFearsMidOutcome());
     }
 }
