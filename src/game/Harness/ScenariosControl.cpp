@@ -127,7 +127,7 @@ namespace Harness
                             {
                                 st->haveFirst = true;
                                 st->goal = goal;
-                                st->bitOnLeg = a->hasUnitState(UNIT_STAT_FLEEING_MOVE);
+                                st->bitOnLeg = a->GetMotionMaster()->Latches().fearLeg;
                                 st->walkOnLeg = a->IsWalking();
                                 Log("+%4ums the first bolt: goal (%.1f, %.1f), %.1f yd, %.0f deg off due west, move=%d walk=%d mt=%s", t, goal.x, goal.y,
                                     Dist2(st->x0, st->y0, goal.x, goal.y), AngleDiff(Bearing(st->x0, st->y0, goal.x, goal.y), M_PI_F) * 180.0f / M_PI_F,
@@ -145,7 +145,7 @@ namespace Harness
                         {
                             st->haveEnd = true;
                             st->endAt = t;
-                            Log("+%4ums the first bolt ended, move=%d", t, a->hasUnitState(UNIT_STAT_FLEEING_MOVE) ? 1 : 0);
+                            Log("+%4ums the first bolt ended, move=%d", t, a->GetMotionMaster()->Latches().fearLeg ? 1 : 0);
                         }
                     });
                 }
@@ -235,7 +235,7 @@ namespace Harness
                         if (running)
                         {
                             if (!a->IsWalking()) { st->allWalk = false; }
-                            if (!a->hasUnitState(UNIT_STAT_CONFUSED_MOVE)) { st->allBit = false; }
+                            if (!a->GetMotionMaster()->Latches().confusedLeg) { st->allBit = false; }
                         }
                         if (st->haveGoal && SameGoal(goal, st->lastGoal)) { return; }
                         // A stop spline ends where the unit stands (the confuse's activation stops
@@ -259,7 +259,7 @@ namespace Harness
                         st->lastLaunchAt = t;
                         st->haveGoal = true;
                         st->lastGoal = goal;
-                        Log("+%4ums lurch %u: goal (%.1f, %.1f), %.1f yd from the anchor, walk=%d move=%d mt=%s", t, st->launches, goal.x, goal.y, d, a->IsWalking() ? 1 : 0, a->hasUnitState(UNIT_STAT_CONFUSED_MOVE) ? 1 : 0, TypeName(a));
+                        Log("+%4ums lurch %u: goal (%.1f, %.1f), %.1f yd from the anchor, walk=%d move=%d mt=%s", t, st->launches, goal.x, goal.y, d, a->IsWalking() ? 1 : 0, a->GetMotionMaster()->Latches().confusedLeg ? 1 : 0, TypeName(a));
                     });
                 }
                 At(6600, [this, st]()

@@ -57,6 +57,13 @@ namespace
     /// prepare that drains the phase, with room to spare -- one tick drains any weld.
     constexpr uint32 kMaxContinuation = uint32(Motion::WAYPOINT_SMOOTHING_MAX_LOOKAHEAD) + 8;
 
+    /// The shell's running state (the old UNIT_STAT_RUNNING_STATE): a chase's or a fear's leg
+    /// latched (MotionMaster::LatchBank::RunningLeg), or the creature's RUNNING gait.
+    bool RunningState(Unit const& unit)
+    {
+        return unit.GetMotionMaster()->Latches().RunningLeg() || unit.hasUnitState(UNIT_STAT_RUNNING);
+    }
+
     /// A unit's LIVE placement -- position AND facing -- in its own coordinate space: the
     /// running spline's interpolated point and the heading it carries there, else the placement.
     /// Boarded, a spline's coordinates are seat-local (Unit::CommitSplinePosition) -- which is
@@ -125,7 +132,7 @@ Motion::Sight NativeBehaviour::See(Unit& owner, bool tick)
     s.notMove = owner.Blocked(Motion::kNotMoveReasons) || owner.IsFeigningDeath();   // the old NOT_MOVE
     s.landed = owner.movespline->Finalized() && !owner.movespline->Cut();
     s.alive = owner.IsAlive();
-    s.runningState = owner.hasUnitState(UNIT_STAT_RUNNING_STATE);
+    s.runningState = RunningState(owner);
     s.levitating = owner.IsLevitating();
     s.extent = owner.Where().Extent();
     s.isCreature = owner.GetTypeId() == TYPEID_UNIT;
@@ -726,7 +733,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
             case Motion::Effect::RestoreGait:
                 // Read LIVE, at this place in the recipe: after the interrupt's clear on a
                 // displacing finish, before the native's own clear on the untimed Finalize.
-                creature.SetWalk(!creature.hasUnitState(UNIT_STAT_RUNNING_STATE), false);
+                creature.SetWalk(!RunningState(creature), false);
                 break;
             case Motion::Effect::TaxiTakeoff:
             case Motion::Effect::TaxiEvent:

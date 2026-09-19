@@ -3988,7 +3988,12 @@ class Unit : public WorldObject
         MotionMaster* GetMotionMaster() { return &i_motionMaster; }
         MotionMaster const* GetMotionMaster() const { return &i_motionMaster; }
 
-        bool IsStopped() const { return !(hasUnitState(UNIT_STAT_MOVING)); }
+        /// No leg in flight (the old UNIT_STAT_MOVING, negated): no roaming, chase, follow or fear
+        /// leg is latched (MotionMaster::LatchBank::Moving); the confuse's lurch was never counted.
+        bool IsStopped() const { return !i_motionMaster.Latches().Moving(); }
+        /// A follow native is active (the old UNIT_STAT_FOLLOW): latched at its activation, cleared
+        /// at its suspension or its finish (MotionMaster::LatchBank::follow).
+        bool FollowLatched() const { return i_motionMaster.Latches().follow; }
         void StopMoving(bool forceSendStop = false);
         void InterruptMoving(bool forceSendStop = false);
         bool CommitSplinePosition(); ///< Take the running spline's position: the seat pose at once, the placement on the next Update. False when no spline runs.

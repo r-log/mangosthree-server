@@ -92,7 +92,7 @@ namespace Harness
                     // Silent (no Log line added): the record's log for this scenario stays
                     // byte-identical, and the verdict body itself carries the evidence.
                     Creature* a = Get(g); if (!a) { return; }
-                    *roamingAtPoint = a->hasUnitState(UNIT_STAT_ROAMING_MOVE);
+                    *roamingAtPoint = a->GetMotionMaster()->Latches().roamingLeg;
                     *projectionAtPoint = Type(a) == Motion::Kind::Point;
                     *sampledBefore = true;
                 });
@@ -117,7 +117,7 @@ namespace Harness
                 At(6500, [this, g, roamingAfterClear, sampledAfter]()   // same world tick, right after Clear() above (Timeline.cpp: same-`at` steps run in registration order within one Advance) -- before Random's own Activate (next tick) can reclaim the bit; silent, same reason as the mid-leg sample
                 {
                     Creature* a = Get(g); if (!a) { return; }
-                    *roamingAfterClear = a->hasUnitState(UNIT_STAT_ROAMING_MOVE);
+                    *roamingAfterClear = a->GetMotionMaster()->Latches().roamingLeg;
                     *sampledAfter = true;
                 });
                 At(8000, [this, mark, roamingAtPoint, projectionAtPoint, roamingAfterClear, sampledBefore, sampledAfter]()
@@ -210,7 +210,7 @@ namespace Harness
                         s.t = i * 5;
                         s.d = Dist2(a->Where().X(), a->Where().Y(), B4.x, B4.y);
                         s.mt = Type(a);
-                        s.roaming = a->hasUnitState(UNIT_STAT_ROAMING_MOVE);   // captured silently: the record's log line for this scenario stays byte-identical
+                        s.roaming = a->GetMotionMaster()->Latches().roamingLeg;   // captured silently: the record's log line for this scenario stays byte-identical
                         samples->push_back(s);
                         Log("+%3us dist=%.1f mt=%s", s.t, s.d, Motion::KindName(s.mt));
                     });
@@ -300,7 +300,7 @@ namespace Harness
             void OnInform(Creature* creature, Motion::Kind kind, uint32 id) override
             {
                 if (kind != Motion::Kind::Point || id != 88 || m_informedAt88) { return; }
-                m_roamingAtInform = creature->hasUnitState(UNIT_STAT_ROAMING_MOVE);
+                m_roamingAtInform = creature->GetMotionMaster()->Latches().roamingLeg;
                 m_informedAt88 = true;
             }
 
