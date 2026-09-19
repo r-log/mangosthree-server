@@ -1763,10 +1763,10 @@ class Unit : public WorldObject
         bool CanFreeMove() const
         {
             // kNoFreeMoveReasons is the old UNIT_STAT_NO_FREE_MOVE less its feign bit, which the
-            // mirror carries as UNIT_STAT_DIED: a real death does not deny free movement, as on
-            // master, only a feign does.
+            // published state carries apart (IsFeigningDeath): a real death does not deny free
+            // movement, only a feign does.
             return !(GetMotionMaster()->Mobility().reasons & Motion::kNoFreeMoveReasons) &&
-                   !hasUnitState(UNIT_STAT_DIED) && !GetOwnerGuid();
+                   !IsFeigningDeath() && !GetOwnerGuid();
         }
 
         /**
@@ -1778,6 +1778,8 @@ class Unit : public WorldObject
          * @return true if any of them was held
          */
         bool Blocked(uint32 reasons) const { return (i_motionMaster.Published().reasons & reasons) != 0; }
+        /// A UnitState passed here would be read as reason bits (UNIT_STAT_STUNNED is ReasonPossessed's bit): refused at compile time.
+        bool Blocked(UnitState) const = delete;
         /// Feigning death, as of the last settled movement commit: the old UNIT_STAT_DIED (a feign alone; a real death is IsAlive()'s).
         bool IsFeigningDeath() const { return i_motionMaster.Published().feign; }
         /// Rooted, stunned or feigning death: the old UNIT_STAT_CAN_NOT_MOVE.
@@ -2644,10 +2646,11 @@ class Unit : public WorldObject
 
         /**
          * Is this unit flying in taxi?
-         * @return true if the Unit has the state \ref UNIT_STAT_TAXI_FLIGHT (is flying in taxi), false otherwise
-         * \see hasUnitState
+         * @return true if a taxi flight was held at the last settled movement commit (and its
+         *         abort has not published its end early, Player::TaxiAbort), false otherwise
+         * \see Blocked
          */
-        bool IsTaxiFlying()  const { return hasUnitState(UNIT_STAT_TAXI_FLIGHT); }
+        bool IsTaxiFlying()  const { return Blocked(Motion::ReasonOnTaxi); }
 
         /**
          * Checks to see if a creature, whilst moving along a path, has reached a specific waypoint, or near to
@@ -2837,7 +2840,7 @@ class Unit : public WorldObject
          * flag will be removed when the creature for some reason enters combat
          * - \ref Unit::IsAlive is equal to inverseAlive
          * - \ref Unit::IsInWorld is false
-         * - the \ref Unit has the state (\ref Unit::hasUnitState) \ref  UnitState::UNIT_STAT_DIED
+         * - the \ref Unit is feigning death (\ref Unit::IsFeigningDeath)
          * - the \ref Unit is flying in a taxi (\ref Unit::IsTaxiFlying)
          * @param inverseAlive This is needed for some spells which need
          * to be casted at dead targets (aoe) (Taken from source comment)

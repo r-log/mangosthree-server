@@ -734,7 +734,7 @@ void MotionMaster::Initialize()
     m_owner->StopMoving();
     Scope scope(*this, Motion::TransactionKind::ClearAll);
     m_arbiter.Clear(true);
-    if (m_owner->GetTypeId() == TYPEID_UNIT && !m_owner->hasUnitState(UNIT_STAT_CONTROLLED))
+    if (m_owner->GetTypeId() == TYPEID_UNIT && !m_owner->Blocked(Motion::ReasonPossessed))
     {
         Creature* creature = (Creature*)m_owner;
         MANGOS_ASSERT(creature->GetCreatureInfo() != NULL);   // every creature reaching here has one: the default-type reads below assume it

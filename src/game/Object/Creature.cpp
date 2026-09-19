@@ -2576,7 +2576,7 @@ bool Creature::CanAssistTo(const Unit* u, const Unit* enemy, bool checkfaction /
  */
 bool Creature::CanInitiateAttack()
 {
-    if (hasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_DIED))
+    if (Blocked(Motion::ReasonStunned) || IsFeigningDeath())
     {
         return false;
     }
