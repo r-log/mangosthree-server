@@ -1941,7 +1941,7 @@ TEST(MotionBehaviour_ChaseHoldsForCastsAndStatesAndLosesItsVictim)
     CHECK(underCast.effects.empty());
     Step stillCasting = b.Tick(Tracked(), svc, 100);
     CHECK(stillCasting.intent.act == MoveIntent::Act::Hold);
-    CHECK(stillCasting.stop);                           // unconditional: StopMoving also clears the _MOVE bits
+    CHECK(stillCasting.stop);                           // unconditional: StopMoving also clears the moving legs
     svc.casting = false;
 
     Sight rooted = Tracked();
@@ -1984,10 +1984,10 @@ TEST(MotionBehaviour_ChaseHoldsForCastsAndStatesAndLosesItsVictim)
 TEST(MotionBehaviour_ACastStopsAStandingChaserToo)
 {
     // The generator's gate was `if (!owner.IsStopped()) owner.StopMoving();` and IsStopped()
-    // reads the _MOVE unit states, not the spline: a chaser standing at its spot with CHASE_MOVE
-    // still set was stopped too, and StopMoving clears the moving legs before it returns early
-    // on a finalized spline (Unit::StopMoving). So the stop is unconditional here; the shell puts
-    // nothing on the wire for a spline that has already run out.
+    // read the _MOVE unit states (today the moving leg latches), not the spline: a chaser standing
+    // at its spot with its chase leg still latched was stopped too, and StopMoving clears the
+    // moving legs before it returns early on a finalized spline (Unit::StopMoving). So the stop is
+    // unconditional here; the shell puts nothing on the wire for a spline that has already run out.
     FakeServices svc;
     ChaseBehaviour b(Chasing());
     b.Activate(Tracked(), svc);

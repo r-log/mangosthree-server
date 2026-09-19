@@ -165,9 +165,9 @@ class MotionMaster
         /// A Step's or an Outcome's roaming write (Motion::Roaming): the roaming pair, whoever emits it
         /// (the wander, the patrol, the point family).
         void WriteRoaming(Motion::Roaming what);
-        /// The Home native's first-tick wipe (Effect::WipeLatches): the dynamic unit-state bits
-        /// (UNIT_STAT_ALL_DYN_STATES: every latch, and the melee, attack-player and isolated bits) and
-        /// the published block with them (P5-C2), as the mask the native used to carry cleared.
+        /// The Home native's first-tick wipe (Effect::WipeLatches): every latch (ClearAllLatches), the
+        /// published block (P5-C2) and the dynamic unit-state bits that remain (UNIT_STAT_ALL_DYN_STATES:
+        /// the melee, attack-player and isolated bits), as the mask the native used to carry cleared.
         void WipeLatches();
 
         /// The natives' latches (P5-C3): what a chase, a follow, the roaming family, a fear and a

@@ -253,7 +253,7 @@ namespace Motion
         {
             return s;   // the generator returned before its stop and its bit (UNIT_STAT_NOT_MOVE: root, stun, death, a distract's stand)
         }
-        // The stop first, then the bit: the moving mask does not hold CONFUSED_MOVE, so it ends SET.
+        // The stop first, then the latch: a stop's ClearMovingLatches never clears the confuse's leg, so it ends SET.
         s.stop = true;
         s.effects.push_back(Effect::Latch(LatchLeg, 0));
         return s;

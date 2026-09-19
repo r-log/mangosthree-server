@@ -59,10 +59,10 @@ namespace Harness
         /// kobold" already said so, unchanged from the record), so "after the point
         /// finished" is read where the point actually does relinquish control: the
         /// same world tick as Clear(), before the reselected default (Random, which
-        /// reuses the same bit for its own wander) has had a tick to run -- confirmed
-        /// empirically: hasUnitState reads 0 in that same tick and 1 by the next one.
+        /// reuses the same latch for its own wander) has had a tick to run -- confirmed
+        /// empirically: the roaming leg latch reads 0 in that same tick and 1 by the next one.
         /// Type() itself flips to RANDOM synchronously within Clear(), one tick ahead
-        /// of the roaming bit, so it cannot serve as this category's own "after" read.
+        /// of the roaming leg latch, so it cannot serve as this category's own "after" read.
         class PointInformAfterInterrupt : public Scenario
         {
         public:

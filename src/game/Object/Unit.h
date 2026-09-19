@@ -3964,7 +3964,7 @@ class Unit : public WorldObject
         /// leg is latched (MotionMaster::LatchBank::Moving); the confuse's lurch was never counted.
         bool IsStopped() const { return !i_motionMaster.Latches().Moving(); }
         /// A follow native is active (the old UNIT_STAT_FOLLOW): latched at its activation, cleared
-        /// at its suspension or its finish (MotionMaster::LatchBank::follow).
+        /// at its suspension or its finish, or by a whole-state wipe (MotionMaster::LatchBank::follow).
         bool FollowLatched() const { return i_motionMaster.Latches().follow; }
         void StopMoving(bool forceSendStop = false);
         void InterruptMoving(bool forceSendStop = false);

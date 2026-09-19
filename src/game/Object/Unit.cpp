@@ -5810,7 +5810,7 @@ void Unit::StopMoving(bool forceSendStop /*=false*/)
         return;
     }
 
-    // Gate on the spline, not on the *_MOVE states: home legs, effects and raw script
+    // Gate on the spline, not on the leg latches (the old *_MOVE states): home legs, effects and raw script
     // splines set none, and skipping them left the spline running.
     if (movespline->Finalized() && !forceSendStop)
     {
