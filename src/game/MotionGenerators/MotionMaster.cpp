@@ -1723,21 +1723,29 @@ void MotionMaster::WriteLatches(Motion::Kind kind, uint8 set, uint8 clear)
 {
     uint32 presenceBit = 0;
     uint32 legBit = 0;
+    bool* presence = NULL;
+    bool* leg = NULL;
     switch (kind)
     {
         case Motion::Kind::Chase:
             presenceBit = UNIT_STAT_CHASE;
             legBit = UNIT_STAT_CHASE_MOVE;
+            presence = &m_latches.chase;
+            leg = &m_latches.chaseLeg;
             break;
         case Motion::Kind::Follow:
             presenceBit = UNIT_STAT_FOLLOW;
             legBit = UNIT_STAT_FOLLOW_MOVE;
+            presence = &m_latches.follow;
+            leg = &m_latches.followLeg;
             break;
         case Motion::Kind::Fear:
             legBit = UNIT_STAT_FLEEING_MOVE;
+            leg = &m_latches.fearLeg;
             break;
         case Motion::Kind::Confused:
             legBit = UNIT_STAT_CONFUSED_MOVE;
+            leg = &m_latches.confusedLeg;
             break;
         case Motion::Kind::Idle:
         case Motion::Kind::Wander:
@@ -1753,6 +1761,7 @@ void MotionMaster::WriteLatches(Motion::Kind kind, uint8 set, uint8 clear)
         case Motion::Kind::Count:
             break;   // no channel: the roaming pair is WriteRoaming's, the Home's wipe WipeLatches'
     }
+    // P5-C3 dual write (Task 4 keeps only the bank): the bits ...
     const uint32 setMask = ((set & Motion::LatchPresence) ? presenceBit : 0u) | ((set & Motion::LatchLeg) ? legBit : 0u);
     const uint32 clearMask = ((clear & Motion::LatchPresence) ? presenceBit : 0u) | ((clear & Motion::LatchLeg) ? legBit : 0u);
     if (setMask)
@@ -1763,6 +1772,23 @@ void MotionMaster::WriteLatches(Motion::Kind kind, uint8 set, uint8 clear)
     {
         m_owner->clearUnitState(clearMask);
     }
+    // ... and the bank, in the same order: set first, then clear.
+    if (presence && (set & Motion::LatchPresence))
+    {
+        *presence = true;
+    }
+    if (leg && (set & Motion::LatchLeg))
+    {
+        *leg = true;
+    }
+    if (presence && (clear & Motion::LatchPresence))
+    {
+        *presence = false;
+    }
+    if (leg && (clear & Motion::LatchLeg))
+    {
+        *leg = false;
+    }
 }
 
 /**
@@ -1771,22 +1797,30 @@ void MotionMaster::WriteLatches(Motion::Kind kind, uint8 set, uint8 clear)
  */
 void MotionMaster::WriteRoaming(Motion::Roaming what)
 {
+    // P5-C3 dual write (Task 4 keeps only the bank).
     switch (what)
     {
         case Motion::Roaming::SetBoth:
             m_owner->addUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+            m_latches.roaming = true;
+            m_latches.roamingLeg = true;
             break;
         case Motion::Roaming::ClearMove:
             m_owner->clearUnitState(UNIT_STAT_ROAMING_MOVE);
+            m_latches.roamingLeg = false;
             break;
         case Motion::Roaming::ClearBoth:
             m_owner->clearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+            m_latches.roaming = false;
+            m_latches.roamingLeg = false;
             break;
         case Motion::Roaming::SetRoam:
             m_owner->addUnitState(UNIT_STAT_ROAMING);
+            m_latches.roaming = true;
             break;
         case Motion::Roaming::SetMove:
             m_owner->addUnitState(UNIT_STAT_ROAMING_MOVE);
+            m_latches.roamingLeg = true;
             break;
         case Motion::Roaming::Keep:
             break;
@@ -1801,6 +1835,24 @@ void MotionMaster::WipeLatches()
 {
     m_owner->clearUnitState(UNIT_STAT_ALL_DYN_STATES);
     ClearPublished();
+    ClearAllLatches();
+}
+
+/**
+ * @brief P5-C3 scaffolding, deleted with the bits: the latch bank as the unit-state bits it
+ *        replaces, for Unit::CheckLatchShadow.
+ * @return The UNIT_STAT_ bits the bank's latches stand for.
+ */
+uint32 MotionMaster::LatchesAsLegacyBits() const
+{
+    return (m_latches.chase ? uint32(UNIT_STAT_CHASE) : 0u) |
+           (m_latches.chaseLeg ? uint32(UNIT_STAT_CHASE_MOVE) : 0u) |
+           (m_latches.follow ? uint32(UNIT_STAT_FOLLOW) : 0u) |
+           (m_latches.followLeg ? uint32(UNIT_STAT_FOLLOW_MOVE) : 0u) |
+           (m_latches.roaming ? uint32(UNIT_STAT_ROAMING) : 0u) |
+           (m_latches.roamingLeg ? uint32(UNIT_STAT_ROAMING_MOVE) : 0u) |
+           (m_latches.fearLeg ? uint32(UNIT_STAT_FLEEING_MOVE) : 0u) |
+           (m_latches.confusedLeg ? uint32(UNIT_STAT_CONFUSED_MOVE) : 0u);
 }
 
 /**

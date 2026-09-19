@@ -5800,9 +5800,28 @@ bool Unit::IsRooted() const
     return i_motionMaster.Inhibited(Motion::Inhibition::Rooted);
 }
 
+/**
+ * @brief P5-C3 scaffolding, deleted with the bits: a read of a latched unit-state bit must see
+ *        what the facade's latch bank says, at every read, for the whole dual-write window.
+ * @param f The mask the reader passed to hasUnitState.
+ */
+void Unit::CheckLatchShadow(uint32 f) const
+{
+    const uint32 latched = f & (UNIT_STAT_CHASE | UNIT_STAT_CHASE_MOVE | UNIT_STAT_FOLLOW | UNIT_STAT_FOLLOW_MOVE |
+                                UNIT_STAT_FLEEING_MOVE | UNIT_STAT_CONFUSED_MOVE | UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+    const uint32 bits = m_state & latched;
+    const uint32 bank = i_motionMaster.LatchesAsLegacyBits() & latched;
+    if (bits != bank)
+    {
+        sLog.outString("MVTEST LATCH MISMATCH %s asks 0x%08X: bits 0x%08X, latches 0x%08X",
+                       GetGuidStr().c_str(), f, bits, bank);
+    }
+}
+
 void Unit::StopMoving(bool forceSendStop /*=false*/)
 {
     clearUnitState(UNIT_STAT_MOVING);
+    i_motionMaster.ClearMovingLatches();   // the legs the moving mask held (P5-C3)
 
     // not need send any packets if not in world
     if (!IsInWorld())

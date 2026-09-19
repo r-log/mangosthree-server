@@ -1702,7 +1702,20 @@ class Unit : public WorldObject
          * @return true if the state is set, false otherwise
          * \see UnitState
          */
-        bool hasUnitState(uint32 f) const { return (m_state & f); }
+        bool hasUnitState(uint32 f) const
+        {
+            // P5-C3 scaffolding, deleted with the bits: a read of a latched bit checks that the
+            // facade's latch bank agrees (a mismatch prints an MVTEST line, which breaks the harness diff).
+            if (f & (UNIT_STAT_CHASE | UNIT_STAT_CHASE_MOVE | UNIT_STAT_FOLLOW | UNIT_STAT_FOLLOW_MOVE |
+                     UNIT_STAT_FLEEING_MOVE | UNIT_STAT_CONFUSED_MOVE | UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE))
+            {
+                CheckLatchShadow(f);
+            }
+            return (m_state & f);
+        }
+        /// P5-C3 scaffolding, deleted with the bits: prints an MVTEST mismatch line when a read's
+        /// latched bits and the facade's latch bank disagree.
+        void CheckLatchShadow(uint32 f) const;
         /**
          * Unsets a certain unit state
          * @param f the state to remove

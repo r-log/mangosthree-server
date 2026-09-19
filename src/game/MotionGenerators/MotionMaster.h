@@ -170,6 +170,44 @@ class MotionMaster
         /// the published block with them (P5-C2), as the mask the native used to carry cleared.
         void WipeLatches();
 
+        /// The natives' latches (P5-C3): what a chase, a follow, the roaming family, a fear and a
+        /// confuse hold and run, written in each recipe's order by WriteLatches, WriteRoaming and
+        /// WipeLatches, and cleared by the stops (ClearMovingLatches) and the whole-state wipes
+        /// (ClearAllLatches). One bank per unit, shared and destructive as the unit-state bits it
+        /// replaces were: a Point's finish clears the roaming pair whoever set it, and a native
+        /// finishing after Retire erased its binding still writes its own leg.
+        struct LatchBank
+        {
+            bool chase = false;        ///< a chase native is active (the old UNIT_STAT_CHASE)
+            bool chaseLeg = false;     ///< a chase leg runs (the old UNIT_STAT_CHASE_MOVE)
+            bool follow = false;       ///< a follow native is active (the old UNIT_STAT_FOLLOW)
+            bool followLeg = false;    ///< a follow leg runs (the old UNIT_STAT_FOLLOW_MOVE)
+            bool roaming = false;      ///< a wander, a patrol or a point-family native is active (the old UNIT_STAT_ROAMING)
+            bool roamingLeg = false;   ///< its leg runs (the old UNIT_STAT_ROAMING_MOVE)
+            bool fearLeg = false;      ///< a fear's leg runs (the old UNIT_STAT_FLEEING_MOVE)
+            bool confusedLeg = false;  ///< a confuse's lurch runs (the old UNIT_STAT_CONFUSED_MOVE)
+            /// A leg in flight (the old UNIT_STAT_MOVING): the confuse's lurch is not counted, as it never was.
+            bool Moving() const { return roamingLeg || chaseLeg || followLeg || fearLeg; }
+            /// A chase's or a fear's leg (the old UNIT_STAT_RUNNING_STATE, less the creature's RUNNING gait).
+            bool RunningLeg() const { return chaseLeg || fearLeg; }
+        };
+        /// The natives' latches as of the last write (P5-C3; see LatchBank).
+        LatchBank const& Latches() const { return m_latches; }
+        /// A stop from outside (Unit::StopMoving, the pet AI's opener, the two pet cast handlers, the
+        /// distract effect): the legs the old UNIT_STAT_MOVING held, the confuse's lurch excepted.
+        void ClearMovingLatches()
+        {
+            m_latches.roamingLeg = false;
+            m_latches.chaseLeg = false;
+            m_latches.followLeg = false;
+            m_latches.fearLeg = false;
+        }
+        /// A whole-state wipe (a respawn's, a revive's or a pet revive's clearUnitState(UNIT_STAT_ALL_STATE),
+        /// and the Home's WipeLatches): every latch.
+        void ClearAllLatches() { m_latches = LatchBank(); }
+        /// P5-C3 scaffolding, deleted with the bits: the bank as the unit-state bits it replaces.
+        uint32 LatchesAsLegacyBits() const;
+
         void PropagateSpeedChange();
         /// Jumps the held patrol to a given node; it moves there on the next tick. @return False when the node does not exist.
         bool SetNextWaypoint(uint32 pointId);
@@ -307,6 +345,7 @@ class MotionMaster
         uint32             m_exposedSeq;     ///< WhenExposed: the entry an expiry exposed
         bool               m_clientRooted;   ///< what ProjectClientRoot last told the owner
         PublishedState     m_published;      ///< the block as of the last commit (P5-C2)
+        LatchBank          m_latches;        ///< the natives' latches (P5-C3)
 };
 
 #endif // MANGOS_MOTIONMASTER_H
