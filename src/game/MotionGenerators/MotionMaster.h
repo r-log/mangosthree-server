@@ -142,10 +142,11 @@ class MotionMaster
             uint8 reasons = 0;     ///< Motion::Reason bits: Rooted, Stunned, Possessed, Feared, Confused, Distracted, OnTaxi; never Dead (a real death is IsAlive()'s)
             bool  feign   = false; ///< a Dead source other than the death's own (Sources(Dead) minus kDeathSource): a feign
         };
+        /// The block as of the last commit: the published state (see PublishedState).
         PublishedState const& Published() const { return m_published; }
         /// An outside wipe of the unit's state (a respawn's or a revive's clearUnitState(UNIT_STAT_ALL_STATE),
         /// the Home native's first-tick UNIT_STAT_ALL_DYN_STATES clear): the published state goes
-        /// with it at once, as the old mirrored bits went with it, and the next settled commit
+        /// with it at once, as the old mirrored bits went with it, and the next commit
         /// publishes again what the sources still hold (the death keeps its Seat, FixedVehicle and
         /// Possession sources).
         void ClearPublished() { m_published = PublishedState(); }
@@ -273,7 +274,7 @@ class MotionMaster
         void Retire(size_t index, Motion::FinishReason reason);
         /// The client root follows the aggregate of Rooted and Stunned: SetRoot on its edges only.
         void ProjectClientRoot();
-        /// Publishes the shell's view of the block at the end of a settled commit (P5-C2).
+        /// Publishes the shell's view of the block at the end of every commit, settled or not (P5-C2).
         void Publish();
         /// The held patrol native wherever it sits (default slot, masked or not), else NULL.
         Motion::PatrolBehaviour* HeldPatrol();

@@ -1703,7 +1703,8 @@ void MotionMaster::ProjectClientRoot()
 
 /**
  * @brief Publishes the shell's view of the block (P5-C2): the arbiter's reasons at the end of a
- * settled commit, where the P5-A unit-state mirror wrote its bits, and the feign apart; assigned whole.
+ * commit (settled, or the unsettled fallback's), where the P5-A unit-state mirror wrote its bits,
+ * and the feign apart; assigned whole.
  */
 void MotionMaster::Publish()
 {

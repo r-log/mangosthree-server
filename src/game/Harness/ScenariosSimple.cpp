@@ -908,13 +908,14 @@ namespace Harness
 
         /// S59 (P5-C2's characterization): S42's outcome order -- MovementInform first,
         /// ReengageVictim second, in one Outcome -- with a fear applied from inside the inform
-        /// instead of a follow. ReengageVictim reads the control state as of the last settled
+        /// instead of a follow. ReengageVictim reads the control state as of the last
         /// commit (the mirrored unit-state bits before P5-C2, the published state after it), not
         /// the arbiter's live claims, so the fear the inform just applied is not yet seen: it
         /// requests the chase, which the arbiter holds masked beneath the fear, and the fear's
         /// end resumes that masked chase. chaseHeldUnderFear proves the chase is held while the
-        /// fear drives; a reader that saw the nested claim live would have stepped aside and left
-        /// no chase to hold.
+        /// fear drives (a reader that saw the nested claim live would have stepped aside and left
+        /// no chase to hold); chaseResumesAfterFear only checks the chase is selected after the
+        /// release, which a fresh chase from the release path would also pass.
         class InformFearsMidOutcome : public Scenario
         {
         public:
@@ -926,7 +927,7 @@ namespace Harness
                 m_feared = false;
                 Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
                 Creature* k = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
-                if (!w || !k) { Verdict("chaseHeldUnderFear=INVALID(spawn failed)"); return; }
+                if (!w || !k) { Verdict("chaseHeldUnderFear=INVALID(spawn failed) | chaseResumesAfterFear=INVALID(spawn failed)"); return; }
                 w->SetMaxHealth(500000); w->SetHealth(500000); k->SetMaxHealth(500000); k->SetHealth(500000);
                 m_kobold = k->GetObjectGuid();
                 const ObjectGuid g = w->GetObjectGuid();
@@ -972,8 +973,8 @@ namespace Harness
                 At(5000, [this, g, called, samplesUnderFear, chasingUnderFear]()
                 {
                     Creature* w = Get(g);
-                    if (!w || !*called) { Verdict("chaseHeldUnderFear=INVALID(jump refused or lost)"); return; }
-                    if (!m_feared) { Verdict("chaseHeldUnderFear=INVALID(the inform never applied the fear)"); return; }
+                    if (!w || !*called) { Verdict("chaseHeldUnderFear=INVALID(jump refused or lost) | chaseResumesAfterFear=INVALID(jump refused or lost)"); return; }
+                    if (!m_feared) { Verdict("chaseHeldUnderFear=INVALID(the inform never applied the fear) | chaseResumesAfterFear=INVALID(the inform never applied the fear)"); return; }
                     char held[160];
                     if (*samplesUnderFear == 0)
                     {

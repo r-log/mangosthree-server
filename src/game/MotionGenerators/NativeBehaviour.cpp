@@ -554,8 +554,8 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
                 owner.clearUnitState(e.clearMask);
                 if (e.clearMask == UNIT_STAT_ALL_DYN_STATES)
                 {
-                    // The Home native's first-tick wipe clears the mirrored bits too, until the
-                    // commit's end writes them again: the published state goes with it (P5-C2).
+                    // The Home native's first-tick wipe takes the published state with it, as it
+                    // took the old mirrored bits; the commit's end publishes again (P5-C2).
                     owner.GetMotionMaster()->ClearPublished();
                 }
             }
@@ -602,7 +602,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
             case Motion::Effect::ReengageVictim:
             {
                 // The installs are read live, after the inform ran (its AI callback may have installed
-                // a chase or a follow); the control state as of the last settled commit, as the
+                // a chase or a follow); the control state is read as of the last commit, as the old
                 // mirrored bits were: a fear the inform applied is not yet seen (inform-fears-mid-outcome).
                 if (!owner.IsAlive() || owner.Blocked(Motion::ReasonConfused | Motion::ReasonFeared) ||
                     owner.hasUnitState(UNIT_STAT_NO_COMBAT_MOVEMENT))

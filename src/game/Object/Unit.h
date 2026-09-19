@@ -514,7 +514,7 @@ enum UnitState
     UNIT_STAT_ATTACK_PLAYER   = 0x00000002,                 // unit attack player or player's controlled unit and have contested pvpv timer setup, until timer expire, combat end and etc
     UNIT_STAT_ISOLATED        = 0x00000020,                 // area auras do not affect other players, Aura::HandleAuraModSchoolImmunity
 
-    // a behaviour's presence, with non-persistent mirror states for stop support
+    // a behaviour's presence and its leg, written by the natives' StateRaw effects
     // (can be cleared temporarily by a stop command or another behaviour taking hold)
     // the _MOVE bits are a leg's, not the behaviour's: a stop from outside clears them
     UNIT_STAT_CONFUSED_MOVE   = 0x00000400,
@@ -1725,16 +1725,16 @@ class Unit : public WorldObject
 
         /**
          * The shell's view of the kernel's block (P5-C2): whether any of these Motion::Reason bits
-         * was held at the end of the last settled movement commit (MotionMaster::Published). A
+         * was held at the end of the last movement commit (MotionMaster::Published). A
          * reader inside a nested facade call sees the previous commit's answer, as the unit-state
          * bits it replaces did; the kernel's live state is MotionMaster::Inhibited/HoldsControl.
          * @param reasons Motion::Reason bits (Motion::ReasonStunned, ...) or a named mask
          * @return true if any of them was held
          */
         bool Blocked(uint32 reasons) const { return (i_motionMaster.Published().reasons & reasons) != 0; }
-        /// A UnitState passed here would be read as reason bits (UNIT_STAT_STUNNED is ReasonPossessed's bit): refused at compile time.
+        /// A UnitState passed here would be read as reason bits (UNIT_STAT_ISOLATED is ReasonConfused's bit): refused at compile time.
         bool Blocked(UnitState) const = delete;
-        /// Feigning death, as of the last settled movement commit: the old UNIT_STAT_DIED (a feign alone; a real death is IsAlive()'s).
+        /// Feigning death, as of the last movement commit: the old UNIT_STAT_DIED (a feign alone; a real death is IsAlive()'s).
         bool IsFeigningDeath() const { return i_motionMaster.Published().feign; }
         /// Rooted, stunned or feigning death: the old UNIT_STAT_CAN_NOT_MOVE.
         bool CannotMove() const { return Blocked(Motion::kCannotMoveReasons) || IsFeigningDeath(); }
@@ -2600,7 +2600,7 @@ class Unit : public WorldObject
 
         /**
          * Is this unit flying in taxi?
-         * @return true if a taxi flight was held at the last settled movement commit (and its
+         * @return true if a taxi flight was held at the last movement commit (and its
          *         abort has not published its end early, Player::TaxiAbort), false otherwise
          * \see Blocked
          */
