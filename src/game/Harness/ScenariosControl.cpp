@@ -78,7 +78,7 @@ namespace Harness
         }
 
         /// The flee's first bolt: a wolf feared by a kobold 6 yd east bolts within pi/8 of due
-        /// west for 0.4-1.3 times the 22 yd to the quiet band, with FLEEING_MOVE set and the run
+        /// west for 0.4-1.3 times the 22 yd to the quiet band, with the fear's leg latched and the run
         /// gait on the leg (design §4.1: the close band, the bit with the leg, SetWalk(false));
         /// then rests 800-1500 ms standing (measured 700-1700 at the sampler's cadence) before
         /// the next bolt (the rest counts only standing).
@@ -180,7 +180,7 @@ namespace Harness
         };
 
         /// The stagger's envelope and gait: every lurch's goal within Movement.ConfuseRadius of
-        /// the spot the wolf was confused at, at a walk with CONFUSED_MOVE set, launched every
+        /// the spot the wolf was confused at, at a walk with the confuse's leg latched, launched every
         /// 800-1500 ms (measured 700-2000 at the sampler's cadence, and a refused point's
         /// doubling retry stretches one gap; a measured gap may double again when a lurch is too
         /// short to be seen: the stagger counts from the launch, mid-leg included, and a lurch

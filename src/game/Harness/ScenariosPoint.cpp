@@ -50,7 +50,7 @@ namespace Harness
 
         /// S5: a POINT leg interrupted by a real chase and then cleared must not
         /// spuriously inform for the point it never reached (B4). roamingBits and
-        /// projection (task 5) read the shell's own bookkeeping: UNIT_STAT_ROAMING_MOVE
+        /// projection (task 5) read the shell's own bookkeeping: the roaming leg latch
         /// is set while the point leg runs (mid-leg, before the Attack+MoveChase at
         /// 2.5 s), and Type() reads POINT while the point is the selection. The
         /// Attack+MoveChase at 2.5 s does not in fact win the claim against a Point
@@ -170,11 +170,11 @@ namespace Harness
         /// "while running" half comes from the same 5 s samples the distance check
         /// already takes (mt and the roaming bit, side by side); the "after" half
         /// cannot wait for a later coarse sample -- this wolf's own default motion
-        /// (creature_template.MovementType 1, Random) reclaims UNIT_STAT_ROAMING_MOVE
+        /// (creature_template.MovementType 1, Random) reclaims the roaming leg latch
         /// for its own wander the moment it is reselected, so a sample taken seconds
         /// later would read true again for an unrelated reason. OnInform (Scenario.h:105)
         /// fires synchronously from inside NativeBehaviour::PerformOutcome, which clears
-        /// the roaming pair (Roam(outcome.roaming)) before it walks the effects that
+        /// the roaming pair (MotionMaster::WriteRoaming(outcome.roaming)) before it walks the effects that
         /// deliver the inform -- so reading the bit from inside the POINT 88 callback
         /// catches the point's own release before any later reselect can touch it.
         class LongPoint : public Scenario
@@ -292,7 +292,7 @@ namespace Harness
             }
 
             /// The recording hook (Scenario.h:105), fired synchronously from inside
-            /// NativeBehaviour::PerformOutcome for the POINT 88 inform: Roam(outcome.roaming)
+            /// NativeBehaviour::PerformOutcome for the POINT 88 inform: MotionMaster::WriteRoaming(outcome.roaming)
             /// (PerformOutcome, before the effects loop) has already cleared the roaming pair
             /// by the time this runs, so this is the earliest possible read of the point's own
             /// release, before the wolf's default Random re-claims the same bit for its own

@@ -280,7 +280,7 @@ void NativeBehaviour::Launch(Unit& owner, Motion::EffectLaunch const& launch)
 /**
  * @brief Performs a Step's shell operations: stop/interrupt/resetLeg, the roaming write, then
  *        the effects. The generators stopped and cleared their unit-state bits before their
- *        SetWalk, and a waypoint arrival's hook saw ROAMING_MOVE already cleared -- the
+ *        SetWalk, and a waypoint arrival's hook saw the roaming leg latch already cleared -- the
  *        effects run after the roaming write and before the intent.
  * @param owner The moving unit.
  * @param step What the native returned.

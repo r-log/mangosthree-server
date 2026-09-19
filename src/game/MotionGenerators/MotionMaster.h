@@ -205,8 +205,6 @@ class MotionMaster
         /// A whole-state wipe (a respawn's, a revive's or a pet revive's clearUnitState(UNIT_STAT_ALL_STATE),
         /// and the Home's WipeLatches): every latch.
         void ClearAllLatches() { m_latches = LatchBank(); }
-        /// P5-C3 scaffolding, deleted with the bits: the bank as the unit-state bits it replaces.
-        uint32 LatchesAsLegacyBits() const;
 
         void PropagateSpeedChange();
         /// Jumps the held patrol to a given node; it moves there on the next tick. @return False when the node does not exist.

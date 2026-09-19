@@ -50,8 +50,8 @@ namespace Motion
 
     Step FearBehaviour::Suspend()
     {
-        // The generator's Interrupt: InterruptMoving, the move bit alone cleared (the flee state
-        // is the shell's mirror and outlives a suspension), no point, the leg forgotten.
+        // The generator's Interrupt: InterruptMoving, the leg latch alone cleared (the flee state
+        // is the shell's published block and outlives a suspension), no point, the leg forgotten.
         m_havePoint = false;
         Step s;
         s.interrupt = true;
@@ -261,8 +261,8 @@ namespace Motion
 
     Step ConfusedBehaviour::Suspend()
     {
-        // The generator's Interrupt: InterruptMoving, the move bit cleared (the confused state
-        // is the shell's mirror and outlives a suspension), no lurch, the leg forgotten.
+        // The generator's Interrupt: InterruptMoving, the leg latch cleared (the confused state
+        // is the shell's published block and outlives a suspension), no lurch, the leg forgotten.
         m_haveLurch = false;
         Step s;
         s.interrupt = true;
@@ -291,8 +291,8 @@ namespace Motion
 
     Step ConfusedBehaviour::Tick(Sight const& sight, Services& svc, uint32 diff)
     {
-        // No mobility guard (design fact 6). The bit is re-asserted every tick: a stop from
-        // elsewhere clears the mirror and the generator wrote it back at the top of each Intent.
+        // No mobility guard (design fact 6). The leg latch is re-asserted every tick: a wipe from
+        // elsewhere may clear it, and the generator wrote its bit back at the top of each Intent.
         Step s;
         s.effects.push_back(Effect::Latch(LatchLeg, 0));
 
