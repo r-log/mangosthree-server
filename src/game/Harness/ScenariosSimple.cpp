@@ -230,12 +230,12 @@ namespace Harness
                 {
                     Creature* w = Get(g); if (!w) { return; }
                     w->CastSpell(w, STUN, true);
-                    Log("Bash on the standing wolf: stun=%d rooted=%d mt=%s", w->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0, w->IsRooted() ? 1 : 0, TypeName(w));
+                    Log("Bash on the standing wolf: stun=%d rooted=%d mt=%s", w->Blocked(Motion::ReasonStunned) ? 1 : 0, w->IsRooted() ? 1 : 0, TypeName(w));
                 });
                 At(1500, [this, g, accepted, called, jump, stunAtJump]()
                 {
                     Creature* w = Get(g); if (!w) { return; }
-                    *stunAtJump = w->hasUnitState(UNIT_STAT_STUNNED);
+                    *stunAtJump = w->Blocked(Motion::ReasonStunned);
                     const float x = w->Where().X(), y = w->Where().Y(), z = w->Where().Z();
                     jump->x = x + 12.0f; jump->y = y; jump->z = Ground(x + 12.0f, y, z);
                     *accepted = w->GetMotionMaster()->MoveJump(jump->x, jump->y, jump->z, 7.5f, 5.0f, 67);
@@ -247,11 +247,11 @@ namespace Harness
                     At(t, [this, g, jump, closest, stunAtFirst, t]()
                     {
                         Creature* w = Get(g); if (!w) { return; }
-                        if (t == 1700) { *stunAtFirst = w->hasUnitState(UNIT_STAT_STUNNED); }
+                        if (t == 1700) { *stunAtFirst = w->Blocked(Motion::ReasonStunned); }
                         const float d = Dist2(w->Where().X(), w->Where().Y(), jump->x, jump->y);
                         if (d < *closest) { *closest = d; }
                         Log("+%5ums %.2f %.2f mt=%s stun=%d dJump=%.2f spline=%d", t, w->Where().X(), w->Where().Y(), TypeName(w),
-                            w->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0, d, w->movespline->Finalized() ? 0 : 1);
+                            w->Blocked(Motion::ReasonStunned) ? 1 : 0, d, w->movespline->Finalized() ? 0 : 1);
                     });
                 }
                 for (uint32 t = 5500; t <= 8500; t += 500)   // the Bash runs out here: the Effect ticks again and finishes
@@ -259,7 +259,7 @@ namespace Harness
                     At(t, [this, g, t]()
                     {
                         Creature* w = Get(g); if (!w) { return; }
-                        Log("after +%5ums mt=%s stun=%d", t, TypeName(w), w->hasUnitState(UNIT_STAT_STUNNED) ? 1 : 0);
+                        Log("after +%5ums mt=%s stun=%d", t, TypeName(w), w->Blocked(Motion::ReasonStunned) ? 1 : 0);
                     });
                 }
                 At(9000, [this, low, mark, accepted, called, closest, stunAtJump, stunAtFirst]()
