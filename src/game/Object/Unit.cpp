@@ -5800,6 +5800,24 @@ bool Unit::IsRooted() const
     return i_motionMaster.Inhibited(Motion::Inhibition::Rooted);
 }
 
+/**
+ * @brief P5-C2 scaffolding, deleted with the mirror: a read of a mirrored unit-state bit must see
+ * what the published state says, at every read, for the whole dual-write window.
+ * @param f The mask the reader passed to hasUnitState.
+ */
+void Unit::CheckPublishedShadow(uint32 f) const
+{
+    const uint32 mirrored = f & (UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED | UNIT_STAT_CONTROLLED |
+                                 UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_DISTRACTED | UNIT_STAT_TAXI_FLIGHT);
+    const uint32 bits = m_state & mirrored;
+    const uint32 published = i_motionMaster.PublishedAsLegacyBits() & mirrored;
+    if (bits != published)
+    {
+        sLog.outString("MVTEST PUBLISHED MISMATCH %s asks 0x%08X: bits 0x%08X, published 0x%08X",
+                       GetGuidStr().c_str(), f, bits, published);
+    }
+}
+
 void Unit::StopMoving(bool forceSendStop /*=false*/)
 {
     clearUnitState(UNIT_STAT_MOVING);

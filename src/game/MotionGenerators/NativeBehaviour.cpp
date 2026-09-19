@@ -552,6 +552,12 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
             if (e.clearMask)
             {
                 owner.clearUnitState(e.clearMask);
+                if (e.clearMask == UNIT_STAT_ALL_DYN_STATES)
+                {
+                    // The Home native's first-tick wipe clears the mirrored bits too, until the
+                    // commit's end writes them again: the published state goes with it (P5-C2).
+                    owner.GetMotionMaster()->ClearPublished();
+                }
             }
             continue;
         }

@@ -58,6 +58,11 @@ namespace
     const uint32 kMirrorBits = UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED | UNIT_STAT_CONTROLLED |
                                UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_DISTRACTED | UNIT_STAT_TAXI_FLIGHT;
 
+    /// Every reason but Dead: a real death never set a unit-state bit, and IsAlive() answers it.
+    const uint8 kPublishedReasons = Motion::ReasonRooted | Motion::ReasonStunned | Motion::ReasonPossessed |
+                                    Motion::ReasonFeared | Motion::ReasonConfused | Motion::ReasonDistracted |
+                                    Motion::ReasonOnTaxi;
+
     /// A leash radius below this is meaningless and would make every hop degenerate (the generator's own floor).
     const float MIN_WANDER_RADIUS = 0.1f;
 
@@ -351,6 +356,7 @@ void MotionMaster::Commit(std::optional<Motion::Transaction>& transaction)
         if (!m_arbiter.HasEvents())
         {
             MirrorUnitState();        // the bits are right after every settled commit (P5-A)
+            Publish();                // the published state, at the same point (P5-C2)
             m_retired.clear();
             return;
         }
@@ -361,6 +367,7 @@ void MotionMaster::Commit(std::optional<Motion::Transaction>& transaction)
     DeliverEvents();
     Reconcile();   // whatever this queues stays in the arbiter's queue; the next facade call's commit delivers it
     MirrorUnitState();
+    Publish();
     m_retired.clear();
 }
 
@@ -1756,6 +1763,44 @@ void MotionMaster::MirrorUnitState()
             m_owner->clearUnitState(bits[i].state);
         }
     }
+}
+
+/**
+ * @brief Publishes the shell's view of the block (P5-C2): the arbiter's reasons at the end of a
+ * settled commit, where the mirror writes its bits, and the feign apart. Assigned whole: the
+ * mirror leaves the owner's mirrored bits exactly equal to what the arbiter holds, and so does this.
+ */
+void MotionMaster::Publish()
+{
+    PublishedState next;
+    next.reasons = static_cast<uint8>(m_arbiter.Reasons() & kPublishedReasons);
+    std::vector<uint64> const& dead = m_arbiter.Sources(Motion::Inhibition::Dead);
+    for (size_t i = 0; i < dead.size(); ++i)
+    {
+        if (dead[i] != Motion::kDeathSource)
+        {
+            next.feign = true;
+        }
+    }
+    m_published = next;
+}
+
+/**
+ * @brief P5-C2 scaffolding (deleted with the mirror): the published state as the legacy bits.
+ * @return The UNIT_STAT_* bits the mirror holds when it agrees with the published state.
+ */
+uint32 MotionMaster::PublishedAsLegacyBits() const
+{
+    uint32 bits = 0;
+    if (m_published.reasons & Motion::ReasonRooted)     { bits |= UNIT_STAT_ROOT; }
+    if (m_published.reasons & Motion::ReasonStunned)    { bits |= UNIT_STAT_STUNNED; }
+    if (m_published.feign)                              { bits |= UNIT_STAT_DIED; }
+    if (m_published.reasons & Motion::ReasonPossessed)  { bits |= UNIT_STAT_CONTROLLED; }
+    if (m_published.reasons & Motion::ReasonFeared)     { bits |= UNIT_STAT_FLEEING; }
+    if (m_published.reasons & Motion::ReasonConfused)   { bits |= UNIT_STAT_CONFUSED; }
+    if (m_published.reasons & Motion::ReasonDistracted) { bits |= UNIT_STAT_DISTRACTED; }
+    if (m_published.reasons & Motion::ReasonOnTaxi)     { bits |= UNIT_STAT_TAXI_FLIGHT; }
+    return bits;
 }
 
 /**

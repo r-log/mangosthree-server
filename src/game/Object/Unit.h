@@ -1733,7 +1733,20 @@ class Unit : public WorldObject
          * @return true if the state is set, false otherwise
          * \see UnitState
          */
-        bool hasUnitState(uint32 f) const { return (m_state & f); }
+        bool hasUnitState(uint32 f) const
+        {
+            // P5-C2 scaffolding, deleted with the mirror: a read of a mirrored bit checks that the
+            // published state agrees (a mismatch prints an MVTEST line, which breaks the harness diff).
+            if (f & (UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED | UNIT_STAT_CONTROLLED |
+                     UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_DISTRACTED | UNIT_STAT_TAXI_FLIGHT))
+            {
+                CheckPublishedShadow(f);
+            }
+            return (m_state & f);
+        }
+        /// P5-C2 scaffolding, deleted with the mirror: prints an MVTEST mismatch line when a read's
+        /// mirrored bits and the published state disagree.
+        void CheckPublishedShadow(uint32 f) const;
         /// The raw state bits, for the movement mirror's changed-bits write.
         uint32 GetUnitState() const { return m_state; }
         /**
@@ -1755,6 +1768,24 @@ class Unit : public WorldObject
             return !(GetMotionMaster()->Mobility().reasons & Motion::kNoFreeMoveReasons) &&
                    !hasUnitState(UNIT_STAT_DIED) && !GetOwnerGuid();
         }
+
+        /**
+         * The shell's view of the kernel's block (P5-C2): whether any of these Motion::Reason bits
+         * was held at the end of the last settled movement commit (MotionMaster::Published). A
+         * reader inside a nested facade call sees the previous commit's answer, as the unit-state
+         * bits it replaces did; the kernel's live state is MotionMaster::Inhibited/HoldsControl.
+         * @param reasons Motion::Reason bits (Motion::ReasonStunned, ...) or a named mask
+         * @return true if any of them was held
+         */
+        bool Blocked(uint32 reasons) const { return (i_motionMaster.Published().reasons & reasons) != 0; }
+        /// Feigning death, as of the last settled movement commit: the old UNIT_STAT_DIED (a feign alone; a real death is IsAlive()'s).
+        bool IsFeigningDeath() const { return i_motionMaster.Published().feign; }
+        /// Rooted, stunned or feigning death: the old UNIT_STAT_CAN_NOT_MOVE.
+        bool CannotMove() const { return Blocked(Motion::kCannotMoveReasons) || IsFeigningDeath(); }
+        /// Stunned, feared, confused or feigning death: the old UNIT_STAT_CAN_NOT_REACT.
+        bool CannotReact() const { return Blocked(Motion::kCannotReactReasons) || IsFeigningDeath(); }
+        /// Feared or possessed: the old UNIT_STAT_LOST_CONTROL.
+        bool LostControl() const { return Blocked(Motion::kLostControlReasons); }
 
         /**
          * Gets the level for this unit

@@ -731,6 +731,7 @@ void Player::TaxiAbort()
     // The one deliberate second writer of a mirrored bit (the mirror agrees at the commit's end):
     // the pet's resummon and the hostile-state change below must not see a flight in progress.
     clearUnitState(UNIT_STAT_TAXI_FLIGHT);
+    GetMotionMaster()->PublishTaxiEnded();
     m_taxiLandingPending = false;
     RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_TAXI_FLIGHT);
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_NOT_MOUNTED);
