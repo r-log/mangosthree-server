@@ -291,7 +291,7 @@ class MotionMaster
         PendingReset       m_pendingReset;
         uint32             m_exposedSeq;     ///< WhenExposed: the entry an expiry exposed
         bool               m_clientRooted;   ///< what ProjectClientRoot last told the owner
-        PublishedState     m_published;      ///< the block as of the last settled commit (P5-C2)
+        PublishedState     m_published;      ///< the block as of the last commit (P5-C2)
 };
 
 #endif // MANGOS_MOTIONMASTER_H

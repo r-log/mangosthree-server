@@ -514,7 +514,7 @@ enum UnitState
     UNIT_STAT_ATTACK_PLAYER   = 0x00000002,                 // unit attack player or player's controlled unit and have contested pvpv timer setup, until timer expire, combat end and etc
     UNIT_STAT_ISOLATED        = 0x00000020,                 // area auras do not affect other players, Aura::HandleAuraModSchoolImmunity
 
-    // a behaviour's presence and its leg, written by the natives' StateRaw effects
+    // a behaviour's presence and its leg, written by the natives (StateRaw effects; the roaming pair through Step::roaming)
     // (can be cleared temporarily by a stop command or another behaviour taking hold)
     // the _MOVE bits are a leg's, not the behaviour's: a stop from outside clears them
     UNIT_STAT_CONFUSED_MOVE   = 0x00000400,
