@@ -83,7 +83,7 @@ namespace Motion
             /// generator built one router per pass; the mesh router is stateful and reuses a
             /// previous poly path.
             virtual void ResetRoute() = 0;
-            /// Live: the unit may move (`!UNIT_STAT_CAN_NOT_MOVE`); the generator re-read it
+            /// Live: the unit may move (the shell's `!Unit::CannotMove()`, as of the last settled commit); the generator re-read it
             /// after a node's effects, which may have rooted or stunned the unit.
             virtual bool CanMove() const = 0;
             virtual bool Casting() const = 0;          ///< a non-melee spell in progress (the patrol holds)
@@ -153,9 +153,9 @@ namespace Motion
         MoveStatus status;           ///< the driver's view of the live leg
         Vector3    position;         ///< world
         float      facing = 0.0f;
-        bool       canReact = true;  ///< !(CAN_NOT_REACT | NOT_MOVE): the generators' Initialize guard
-        bool       canMove = true;   ///< !CAN_NOT_MOVE
-        bool       notMove = false;  ///< UNIT_STAT_NOT_MOVE: root, stun, death or a distract's stand (the confuse's activation guard; one bit more than !canMove)
+        bool       canReact = true;  ///< not stunned, feared, confused, rooted, distracted or feigning (the old !(CAN_NOT_REACT | NOT_MOVE)): the generators' Initialize guard
+        bool       canMove = true;   ///< !Unit::CannotMove() (the old !CAN_NOT_MOVE)
+        bool       notMove = false;  ///< root, stun, a feign or a distract's stand (the old UNIT_STAT_NOT_MOVE) (the confuse's activation guard; one bit more than !canMove)
         bool       landed = false;   ///< the Effect's spline ran out uncut (Finalized && !Cut)
         bool       alive = true;
         bool       hasTarget = false; ///< a tracked target exists (the charge)

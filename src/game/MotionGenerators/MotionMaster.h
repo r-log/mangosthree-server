@@ -122,7 +122,8 @@ class MotionMaster
 
         /// An outside reason a behaviour may not move the unit (P5-A, spec §6): the one game-side
         /// path to the kernel's block. Inside one scope it feeds the arbiter, projects the client
-        /// root (rooted or stunned: SetRoot on the aggregate's edge only) and writes the unit-state mirror.
+        /// root (rooted or stunned: SetRoot on the aggregate's edge only) and publishes the block
+        /// at the commit's end (Published).
         void Inhibit(Motion::Inhibition what, uint64 source);
         void Uninhibit(Motion::Inhibition what, uint64 source);
         /// Whether any source holds this reason: the one answer to "is this unit rooted".
@@ -130,11 +131,12 @@ class MotionMaster
         /// What the selected behaviour may do right now, and why not.
         Motion::MobilityDecision Mobility() const { return m_arbiter.Evaluate(); }
 
-        /// The shell's view of the kernel's block (P5-C2): what the arbiter held at the end of the
-        /// last settled commit, where the unit-state mirror wrote its bits. Never refreshed inside
-        /// a transaction, so a reader in a nested facade call (an inform's AI callback, a
-        /// finisher's effect) sees the previous commit's answer, as it saw the mirrored bits; the
-        /// arbiter's live state is the kernel's own (Inhibited, HoldsControl, Mobility).
+        /// The shell's view of the kernel's block (P5-C2): what the arbiter held at the end of
+        /// every commit (settled, or the unsettled fallback's), where the P5-A unit-state mirror
+        /// wrote its bits. Never refreshed inside a transaction, so a reader in a nested facade
+        /// call (an inform's AI callback, a finisher's effect) sees the previous commit's answer,
+        /// as it saw the mirrored bits; the arbiter's live state is the kernel's own (Inhibited,
+        /// HoldsControl, Mobility).
         struct PublishedState
         {
             uint8 reasons = 0;     ///< Motion::Reason bits: Rooted, Stunned, Possessed, Feared, Confused, Distracted, OnTaxi; never Dead (a real death is IsAlive()'s)
@@ -143,16 +145,14 @@ class MotionMaster
         PublishedState const& Published() const { return m_published; }
         /// An outside wipe of the unit's state (a respawn's or a revive's clearUnitState(UNIT_STAT_ALL_STATE),
         /// the Home native's first-tick UNIT_STAT_ALL_DYN_STATES clear): the published state goes
-        /// with it at once, as the mirrored bits did, and the next settled commit publishes again
-        /// what the sources still hold (the death keeps its Seat, FixedVehicle and Possession sources).
+        /// with it at once, as the old mirrored bits went with it, and the next settled commit
+        /// publishes again what the sources still hold (the death keeps its Seat, FixedVehicle and
+        /// Possession sources).
         void ClearPublished() { m_published = PublishedState(); }
         /// Player::TaxiAbort's early publication: the flight's end is published before the commit
         /// that finishes it, so the pet's resummon (Player::IsPetNeedBeTemporaryUnsummoned) and the
         /// hostile-state change after it see no flight; the commit's own publication agrees.
         void PublishTaxiEnded() { m_published.reasons = static_cast<uint8>(m_published.reasons & ~Motion::ReasonOnTaxi); }
-        /// P5-C2 scaffolding, deleted with the mirror: the published state as the eight unit-state
-        /// bits the mirror writes, for Unit::CheckPublishedShadow.
-        uint32 PublishedAsLegacyBits() const;
 
         void PropagateSpeedChange();
         /// Jumps the held patrol to a given node; it moves there on the next tick. @return False when the node does not exist.
@@ -273,11 +273,6 @@ class MotionMaster
         void Retire(size_t index, Motion::FinishReason reason);
         /// The client root follows the aggregate of Rooted and Stunned: SetRoot on its edges only.
         void ProjectClientRoot();
-        /// The old unit-state bits, written here and nowhere else: the kernel's mirror for scripts
-        /// and the client. Reads the owner's own bits (Unit::GetUnitState()) and writes only what
-        /// differs, so an outside wipe of the unit state (a respawn's clearUnitState) heals at the
-        /// next commit instead of leaving a mirrored bit stuck stale.
-        void MirrorUnitState();
         /// Publishes the shell's view of the block at the end of a settled commit (P5-C2).
         void Publish();
         /// The held patrol native wherever it sits (default slot, masked or not), else NULL.

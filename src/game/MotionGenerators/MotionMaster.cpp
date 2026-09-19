@@ -54,10 +54,6 @@ namespace
 {
     const uint64 kScriptConfuse = Motion::ControlClaim(0, 2, 1);   ///< MoveConfused() with no identity (no script calls it today)
     const uint32 kMaxCommitRounds = 8; ///< finalizers re-entering the facade during a commit
-    /// The eight bits MirrorUnitState owns; compared against the owner's own state, not a cache.
-    const uint32 kMirrorBits = UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED | UNIT_STAT_CONTROLLED |
-                               UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_DISTRACTED | UNIT_STAT_TAXI_FLIGHT;
-
     /// Every reason but Dead: a real death never set a unit-state bit, and IsAlive() answers it.
     const uint8 kPublishedReasons = Motion::ReasonRooted | Motion::ReasonStunned | Motion::ReasonPossessed |
                                     Motion::ReasonFeared | Motion::ReasonConfused | Motion::ReasonDistracted |
@@ -355,8 +351,7 @@ void MotionMaster::Commit(std::optional<Motion::Transaction>& transaction)
         Reconcile();                  // activate or resume the selection; may queue more
         if (!m_arbiter.HasEvents())
         {
-            MirrorUnitState();        // the bits are right after every settled commit (P5-A)
-            Publish();                // the published state, at the same point (P5-C2)
+            Publish();                // the published block, after every settled commit (P5-C2; the P5-A mirror's place)
             m_retired.clear();
             return;
         }
@@ -366,7 +361,6 @@ void MotionMaster::Commit(std::optional<Motion::Transaction>& transaction)
     transaction.reset();
     DeliverEvents();
     Reconcile();   // whatever this queues stays in the arbiter's queue; the next facade call's commit delivers it
-    MirrorUnitState();
     Publish();
     m_retired.clear();
 }
@@ -1708,67 +1702,8 @@ void MotionMaster::ProjectClientRoot()
 }
 
 /**
- * @brief Writes the unit-state bits the kernel now owns: the inhibitions and the arbiter's entries.
- * DIED mirrors a feign (real death never set the bit before and IsAlive() is the game's answer).
- * Compares against the owner's own bits (GetUnitState() & kMirrorBits) rather than a cache, so an
- * outside wipe of the unit state (a respawn's clearUnitState(UNIT_STAT_ALL_STATE)) heals at the
- * next commit instead of leaving a source death does not drop (a fixed vehicle's root) unmirrored
- * for good.
- */
-void MotionMaster::MirrorUnitState()
-{
-    struct Bit { uint32 state; bool on; };
-    std::vector<uint64> const& dead = m_arbiter.Sources(Motion::Inhibition::Dead);
-    bool feign = false;
-    for (size_t i = 0; i < dead.size(); ++i)
-    {
-        if (dead[i] != Motion::kDeathSource)
-        {
-            feign = true;
-        }
-    }
-    const Bit bits[] =
-    {
-        { UNIT_STAT_ROOT,        m_arbiter.Inhibited(Motion::Inhibition::Rooted) },
-        { UNIT_STAT_STUNNED,     m_arbiter.Inhibited(Motion::Inhibition::Stunned) },
-        { UNIT_STAT_DIED,        feign },
-        { UNIT_STAT_CONTROLLED,  m_arbiter.Inhibited(Motion::Inhibition::Possessed) },
-        { UNIT_STAT_FLEEING,     m_arbiter.HasClaim(Motion::Kind::Fear) },
-        { UNIT_STAT_CONFUSED,    m_arbiter.HasClaim(Motion::Kind::Confused) },
-        { UNIT_STAT_DISTRACTED,  m_arbiter.HasCommand(Motion::Layer::Distract) },
-        { UNIT_STAT_TAXI_FLIGHT, m_arbiter.HasCommand(Motion::Layer::Taxi) },
-    };
-    uint32 mask = 0;
-    for (size_t i = 0; i < sizeof(bits) / sizeof(bits[0]); ++i)
-    {
-        if (bits[i].on)
-        {
-            mask |= bits[i].state;
-        }
-    }
-    const uint32 current = m_owner->GetUnitState() & kMirrorBits;
-    const uint32 changed = mask ^ current;
-    for (size_t i = 0; i < sizeof(bits) / sizeof(bits[0]); ++i)
-    {
-        if (!(changed & bits[i].state))
-        {
-            continue;
-        }
-        if (bits[i].on)
-        {
-            m_owner->addUnitState(bits[i].state);
-        }
-        else
-        {
-            m_owner->clearUnitState(bits[i].state);
-        }
-    }
-}
-
-/**
  * @brief Publishes the shell's view of the block (P5-C2): the arbiter's reasons at the end of a
- * settled commit, where the mirror writes its bits, and the feign apart. Assigned whole: the
- * mirror leaves the owner's mirrored bits exactly equal to what the arbiter holds, and so does this.
+ * settled commit, where the P5-A unit-state mirror wrote its bits, and the feign apart; assigned whole.
  */
 void MotionMaster::Publish()
 {
@@ -1783,24 +1718,6 @@ void MotionMaster::Publish()
         }
     }
     m_published = next;
-}
-
-/**
- * @brief P5-C2 scaffolding (deleted with the mirror): the published state as the legacy bits.
- * @return The UNIT_STAT_* bits the mirror holds when it agrees with the published state.
- */
-uint32 MotionMaster::PublishedAsLegacyBits() const
-{
-    uint32 bits = 0;
-    if (m_published.reasons & Motion::ReasonRooted)     { bits |= UNIT_STAT_ROOT; }
-    if (m_published.reasons & Motion::ReasonStunned)    { bits |= UNIT_STAT_STUNNED; }
-    if (m_published.feign)                              { bits |= UNIT_STAT_DIED; }
-    if (m_published.reasons & Motion::ReasonPossessed)  { bits |= UNIT_STAT_CONTROLLED; }
-    if (m_published.reasons & Motion::ReasonFeared)     { bits |= UNIT_STAT_FLEEING; }
-    if (m_published.reasons & Motion::ReasonConfused)   { bits |= UNIT_STAT_CONFUSED; }
-    if (m_published.reasons & Motion::ReasonDistracted) { bits |= UNIT_STAT_DISTRACTED; }
-    if (m_published.reasons & Motion::ReasonOnTaxi)     { bits |= UNIT_STAT_TAXI_FLIGHT; }
-    return bits;
 }
 
 /**

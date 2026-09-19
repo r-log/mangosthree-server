@@ -245,7 +245,7 @@ namespace
             bool routeRouted = false;
             bool routePartial = false;
             bool routeProgresses = false;
-            bool canMove = true;       ///< the live !UNIT_STAT_CAN_NOT_MOVE the prepare re-reads.
+            bool canMove = true;       ///< the live !Unit::CannotMove() the prepare re-reads.
             bool casting = false;
             bool waypointPaused = false;
             bool anchorSet = false;

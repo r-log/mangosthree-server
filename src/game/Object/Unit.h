@@ -502,27 +502,21 @@ enum DeathState
 };
 
 /**
- * internal state flags for some auras and the movement behaviours, other.
+ * internal state flags for some auras and the movement behaviours, other. The kernel's block
+ * (rooted, stunned, a feign, possessed, feared, confused, distracted, on a taxi) is not here: the
+ * facade publishes it (MotionMaster::Published) and Unit reads it through Blocked,
+ * IsFeigningDeath, CannotMove, CannotReact, LostControl and IsTaxiFlying (P5-C2).
  */
 enum UnitState
 {
     // persistent state (applied by aura/etc until expire)
     UNIT_STAT_MELEE_ATTACKING = 0x00000001,                 // unit is melee attacking someone Unit::Attack
     UNIT_STAT_ATTACK_PLAYER   = 0x00000002,                 // unit attack player or player's controlled unit and have contested pvpv timer setup, until timer expire, combat end and etc
-    UNIT_STAT_DIED            = 0x00000004,                 // Unit::SetFeignDeath
-    UNIT_STAT_STUNNED         = 0x00000008,                 // Aura::HandleAuraModStun
-    UNIT_STAT_ROOT            = 0x00000010,                 // Aura::HandleAuraModRoot
     UNIT_STAT_ISOLATED        = 0x00000020,                 // area auras do not affect other players, Aura::HandleAuraModSchoolImmunity
-    UNIT_STAT_CONTROLLED      = 0x00000040,                 // Aura::HandleAuraModPossess
-
-    // a behaviour's presence: held all the time a behaviour of the kind is held, independent of its leg
-    UNIT_STAT_TAXI_FLIGHT     = 0x00000080,                 // player is in flight mode; the bit follows the Taxi entry and is continuous across a far teleport
-    UNIT_STAT_DISTRACTED      = 0x00000100,                 // the distract native active
 
     // a behaviour's presence, with non-persistent mirror states for stop support
     // (can be cleared temporarily by a stop command or another behaviour taking hold)
     // the _MOVE bits are a leg's, not the behaviour's: a stop from outside clears them
-    UNIT_STAT_CONFUSED        = 0x00000200,                 // the confused native active/onstack
     UNIT_STAT_CONFUSED_MOVE   = 0x00000400,
     UNIT_STAT_ROAMING         = 0x00000800,                 // the wander native/a point behaviour/the patrol native active (now always set)
     UNIT_STAT_ROAMING_MOVE    = 0x00001000,
@@ -530,7 +524,6 @@ enum UnitState
     UNIT_STAT_CHASE_MOVE      = 0x00004000,
     UNIT_STAT_FOLLOW          = 0x00008000,                 // the follow native active
     UNIT_STAT_FOLLOW_MOVE     = 0x00010000,
-    UNIT_STAT_FLEEING         = 0x00020000,                 // the fear native active/onstack
     UNIT_STAT_FLEEING_MOVE    = 0x00040000,
     // More room for other MMGens
 
@@ -540,30 +533,6 @@ enum UnitState
     UNIT_STAT_WAYPOINT_PAUSED       = 0x04000000,           // Waypoint-Movement paused genericly (ie by script)
 
     UNIT_STAT_IGNORE_PATHFINDING    = 0x10000000,           // do not use pathfinding in any movement behaviour
-
-    // masks (only for check)
-
-    // can't move currently
-    UNIT_STAT_CAN_NOT_MOVE    = UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED,
-
-    // stay by different reasons
-    UNIT_STAT_NOT_MOVE        = UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED |
-                                UNIT_STAT_DISTRACTED,
-
-    // stay or scripted movement for effect( = in player case you can't move by client command)
-    UNIT_STAT_NO_FREE_MOVE    = UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED |
-                                UNIT_STAT_TAXI_FLIGHT |
-                                UNIT_STAT_CONFUSED | UNIT_STAT_FLEEING,
-
-    // not react at move in sight or other
-    UNIT_STAT_CAN_NOT_REACT   = UNIT_STAT_STUNNED | UNIT_STAT_DIED |
-                                UNIT_STAT_CONFUSED | UNIT_STAT_FLEEING,
-
-    // AI disabled by some reason
-    UNIT_STAT_LOST_CONTROL    = UNIT_STAT_FLEEING | UNIT_STAT_CONTROLLED,
-
-    // above 2 state cases
-    UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL  = UNIT_STAT_CAN_NOT_REACT | UNIT_STAT_LOST_CONTROL,
 
     // masks (for check or reset)
 
@@ -1733,22 +1702,7 @@ class Unit : public WorldObject
          * @return true if the state is set, false otherwise
          * \see UnitState
          */
-        bool hasUnitState(uint32 f) const
-        {
-            // P5-C2 scaffolding, deleted with the mirror: a read of a mirrored bit checks that the
-            // published state agrees (a mismatch prints an MVTEST line, which breaks the harness diff).
-            if (f & (UNIT_STAT_ROOT | UNIT_STAT_STUNNED | UNIT_STAT_DIED | UNIT_STAT_CONTROLLED |
-                     UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_DISTRACTED | UNIT_STAT_TAXI_FLIGHT))
-            {
-                CheckPublishedShadow(f);
-            }
-            return (m_state & f);
-        }
-        /// P5-C2 scaffolding, deleted with the mirror: prints an MVTEST mismatch line when a read's
-        /// mirrored bits and the published state disagree.
-        void CheckPublishedShadow(uint32 f) const;
-        /// The raw state bits, for the movement mirror's changed-bits write.
-        uint32 GetUnitState() const { return m_state; }
+        bool hasUnitState(uint32 f) const { return (m_state & f); }
         /**
          * Unsets a certain unit state
          * @param f the state to remove
