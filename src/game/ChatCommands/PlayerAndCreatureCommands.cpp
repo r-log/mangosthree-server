@@ -294,7 +294,7 @@ bool ChatHandler::HandleMovegensCommand(char* /*args*/)
                 snprintf(tail, sizeof(tail), " -> <gone>");
             }
         }
-        else if (hasDestination && held[i].selected && (held[i].kind == Motion::Kind::Point || held[i].kind == Motion::Kind::Home))
+        else if (hasDestination && held[i].selected && (held[i].kind == Motion::Kind::Point || held[i].kind == Motion::Kind::FlyLand || held[i].kind == Motion::Kind::Home))
         {
             snprintf(tail, sizeof(tail), " -> (%.2f %.2f %.2f)", x, y, z);
         }
