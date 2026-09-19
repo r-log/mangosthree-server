@@ -49,6 +49,7 @@ namespace Motion
     class PatrolBehaviour; ///< the waypoint patrol native (src/motion/DefaultMoves.h)
     struct EffectLaunch;   ///< a jump, a knockback arc or a fall (src/motion/MoveIntent.h); the .cpp has the definition
     struct RelayCounts;    ///< a tracking native's re-lays by cause (src/motion/BehaviourModel.h)
+    enum class Roaming : uint8; ///< a Step's or an Outcome's roaming write (src/motion/BehaviourModel.h)
 
     /**
      * @brief The identity of a Control claim: the aura that holds it.
@@ -154,6 +155,20 @@ class MotionMaster
         /// that finishes it, so the pet's resummon (Player::IsPetNeedBeTemporaryUnsummoned) and the
         /// hostile-state change after it see no flight; the commit's own publication agrees.
         void PublishTaxiEnded() { m_published.reasons = static_cast<uint8>(m_published.reasons & ~Motion::ReasonOnTaxi); }
+
+        /// A native's Latch effect (P5-C3): the LatchBit bits set, then cleared, on the channel the
+        /// emitting native's kind names -- a chase's or a follow's presence and leg, a fear's or a
+        /// confuse's leg; nothing for any other kind. Shared and destructive, as the unit-state bits
+        /// they replace were: a clear clears the channel whoever set it, and a native finishing after
+        /// Retire erased its binding still writes it.
+        void WriteLatches(Motion::Kind kind, uint8 set, uint8 clear);
+        /// A Step's or an Outcome's roaming write (Motion::Roaming): the roaming pair, whoever emits it
+        /// (the wander, the patrol, the point family).
+        void WriteRoaming(Motion::Roaming what);
+        /// The Home native's first-tick wipe (Effect::WipeLatches): the dynamic unit-state bits
+        /// (UNIT_STAT_ALL_DYN_STATES: every latch, and the melee, attack-player and isolated bits) and
+        /// the published block with them (P5-C2), as the mask the native used to carry cleared.
+        void WipeLatches();
 
         void PropagateSpeedChange();
         /// Jumps the held patrol to a given node; it moves there on the next tick. @return False when the node does not exist.

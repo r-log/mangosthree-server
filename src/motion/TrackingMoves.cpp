@@ -82,7 +82,7 @@ namespace Motion
         // rate only while that bit is set (UnitSpeed.cpp) -- a sync ahead of the bit reads the
         // pet's own rate and the follower never matches its master. The chase's Walk(false)
         // then trails its bit too, harmlessly: SetWalk reads no unit state.
-        s.effects.push_back(Effect::State(m_p.stateSet, 0));
+        s.effects.push_back(Effect::Latch(LatchPresence, 0));
         OnActivate(sight, s);
         return s;
     }
@@ -99,7 +99,7 @@ namespace Motion
         Step s;
         s.interrupt = true;
         s.resetLeg = true;
-        s.effects.push_back(Effect::State(0, m_p.stateSet | m_p.stateMove));
+        s.effects.push_back(Effect::Latch(0, LatchBoth));
         OnSuspendOrFinish(s.effects);
         return s;
     }
@@ -108,7 +108,7 @@ namespace Motion
     {
         Outcome o;
         o.interrupt = Displacing(why);   // the generator's Interrupt stopped the mover; Finalize did not
-        o.effects.push_back(Effect::State(0, m_p.stateSet | m_p.stateMove));
+        o.effects.push_back(Effect::Latch(0, LatchBoth));
         OnSuspendOrFinish(o.effects);
         return o;
     }
@@ -140,7 +140,7 @@ namespace Motion
         m_dest = spot;
         m_haveDest = true;
         m_relays.Count(why);
-        s.effects.push_back(Effect::State(m_p.stateMove, 0));
+        s.effects.push_back(Effect::Latch(LatchLeg, 0));
     }
 
     Step TrackingBehaviour::Tick(Sight const& sight, Services& svc, uint32 diff)
@@ -155,7 +155,7 @@ namespace Motion
         {
             LatchRelay(sight);
             Step s = Step::Of(MoveIntent::Hold());
-            s.effects.push_back(Effect::State(0, m_p.stateMove));
+            s.effects.push_back(Effect::Latch(0, LatchLeg));
             return s;
         }
         // 4. A cast with a cast time, or a channel: stop (every casting tick; the shell sends no packet once stopped), hold.
@@ -316,7 +316,7 @@ namespace Motion
         if (!m_cleared)
         {
             m_cleared = true;
-            s.effects.push_back(Effect::State(0, m_p.stateClear));
+            s.effects.push_back(Effect(Effect::WipeLatches));
         }
         // A creature that could not be sent home at all still counts as home: evade must always terminate.
         if (sight.status.arrived || sight.status.blocked)

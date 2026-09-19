@@ -233,24 +233,6 @@ void NativeBehaviour::SeeTarget(Unit& owner, Unit& target, Motion::TargetView& v
 }
 
 /**
- * @brief The roaming pair the point family still mirrors, until a later family retires it.
- * @param owner The moving unit.
- * @param what The write the native asked for.
- */
-void NativeBehaviour::Roam(Unit& owner, Motion::Roaming what)
-{
-    switch (what)
-    {
-        case Motion::Roaming::SetBoth:   owner.addUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE); break;
-        case Motion::Roaming::ClearMove: owner.clearUnitState(UNIT_STAT_ROAMING_MOVE); break;
-        case Motion::Roaming::ClearBoth: owner.clearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE); break;
-        case Motion::Roaming::SetRoam:   owner.addUnitState(UNIT_STAT_ROAMING); break;
-        case Motion::Roaming::SetMove:   owner.addUnitState(UNIT_STAT_ROAMING_MOVE); break;
-        case Motion::Roaming::Keep:      break;
-    }
-}
-
-/**
  * @brief The Effect's spline: the driver lays legs, so an arc is launched here.
  * @param owner The moving unit.
  * @param launch The jump or the fall the native asked for.
@@ -310,7 +292,7 @@ void NativeBehaviour::PerformOps(Unit& owner, Motion::Step const& step)
     {
         m_driver.ResetLeg();
     }
-    Roam(owner, step.roaming);
+    owner.GetMotionMaster()->WriteRoaming(step.roaming);
     PerformEffects(owner, step.effects);
 }
 
@@ -417,7 +399,7 @@ bool NativeBehaviour::Tick(Unit& owner, uint32 diff)
         const Motion::Step step = m_native->Tick(sight, *this, elapsed);
         if (step.apply && step.intent.act == Motion::MoveIntent::Act::Done)
         {
-            Roam(owner, step.roaming);
+            owner.GetMotionMaster()->WriteRoaming(step.roaming);
             PerformEffects(owner, step.effects);
             return false;
         }
@@ -505,7 +487,7 @@ bool NativeBehaviour::GetResetPosition(Unit& owner, float& x, float& y, float& z
  */
 void NativeBehaviour::PerformOutcome(Unit& owner, Motion::Outcome const& outcome)
 {
-    Roam(owner, outcome.roaming);
+    owner.GetMotionMaster()->WriteRoaming(outcome.roaming);
     if (outcome.interrupt && !m_suspended)
     {
         owner.InterruptMoving();   // a suspended behaviour was interrupted at its Suspend
@@ -521,7 +503,7 @@ void NativeBehaviour::PerformOutcome(Unit& owner, Motion::Outcome const& outcome
  * @brief The effects loop, in the order given: an Outcome's finishing recipe or a Step's
  *        mid-tick set (the shell performs these before the intent). A creature's effect is
  *        skipped for a player owner, per kind (Effect::Owners): a feared or confused player
- *        carries its state mirror exactly as a creature does, and nothing else of the recipe.
+ *        carries its latches exactly as a creature does, and nothing else of the recipe.
  * @param owner The moving unit.
  * @param effects The effects to perform, in order.
  */
@@ -540,25 +522,19 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
         {
             continue;   // a creature's effect on a player owner, or a player's on a creature: skipped, as the generators returned before their informs and re-engages
         }
-        if (e.kind == Motion::Effect::StateRaw)
+        if (e.kind == Motion::Effect::Latches)
         {
-            // Opaque masks: the native carries the generators' own UNIT_STAT bits in its
-            // Params and never interprets them. Set first, then clear, so a recipe that
-            // does both to one bit ends cleared, as the generators' order did.
-            if (e.setMask)
-            {
-                owner.addUnitState(e.setMask);
-            }
-            if (e.clearMask)
-            {
-                owner.clearUnitState(e.clearMask);
-                if (e.clearMask == UNIT_STAT_ALL_DYN_STATES)
-                {
-                    // The Home native's first-tick wipe takes the published state with it, as it
-                    // took the old mirrored bits; the commit's end publishes again (P5-C2).
-                    owner.GetMotionMaster()->ClearPublished();
-                }
-            }
+            // The native names its own presence and leg; the facade maps its kind to the
+            // channel. Set first, then clear, so a write that does both to one latch ends
+            // cleared, as the generators' order did.
+            owner.GetMotionMaster()->WriteLatches(m_native->Kind(), e.latchSet, e.latchClear);
+            continue;
+        }
+        if (e.kind == Motion::Effect::WipeLatches)
+        {
+            // The Home native's first-tick wipe: the latches, the dynamic unit-state bits and
+            // the published state (P5-C2; the commit's end publishes again).
+            owner.GetMotionMaster()->WipeLatches();
             continue;
         }
         if (!creaturePtr)
@@ -680,7 +656,8 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
             case Motion::Effect::ClearWaypointPaused:
                 creature.clearUnitState(UNIT_STAT_WAYPOINT_PAUSED);
                 break;
-            case Motion::Effect::StateRaw:
+            case Motion::Effect::Latches:
+            case Motion::Effect::WipeLatches:
                 break;   // performed above, for every owner
             case Motion::Effect::SyncSpeed:
                 // The deleted SyncSpeedWithMaster: only a pet following its OWNER copies its

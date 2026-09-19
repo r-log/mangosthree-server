@@ -85,7 +85,7 @@ namespace
      * @param target The unit to trail.
      * @param dist The requested distance behind it.
      * @param angle The requested bearing relative to its facing.
-     * @return The Params, with the state bits, the cadence, the horizon and the config tolerance.
+     * @return The Params, with the cadence, the horizon and the config tolerance.
      */
     Motion::FollowBehaviour::FollowParams MakeFollowParams(Unit const& target, float dist, float angle)
     {
@@ -93,8 +93,6 @@ namespace
         p.target = target.GetObjectGuid().GetRawValue();   // resolved per tick; never a stored pointer (design v2 §3.2)
         p.offset = dist;
         p.angle = angle;
-        p.stateSet = UNIT_STAT_FOLLOW;
-        p.stateMove = UNIT_STAT_FOLLOW_MOVE;
         p.routineMs = 400;    // retail's measured re-lay cluster, in place of the generator's 50 ms poll
         // One cadence of lead on a trusted velocity by default: the heel point (design §6.3).
         // Movement.FollowHorizonMs = 0 turns it off, which is retail's own aim and the baseline
@@ -923,9 +921,6 @@ void MotionMaster::MoveTargetedHome()
         Motion::HomeBehaviour::Params p;
         p.home = Motion::Vector3(x, y, z);
         p.facing = o;
-        // The mask the generator cleared at initialisation; the native clears it on its first
-        // tick instead, which under a block is after the lift (design §6.5).
-        p.stateClear = UNIT_STAT_ALL_DYN_STATES;
         Request(R(Motion::Kind::Home), std::unique_ptr<Motion::Behaviour>(new Motion::HomeBehaviour(p)));
     }
     else if (m_owner->GetTypeId() == TYPEID_UNIT && ((Creature*)m_owner)->GetCharmerOrOwnerGuid())
@@ -955,7 +950,6 @@ void MotionMaster::MoveConfused(uint64 claim)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s move confused", m_owner->GetGuidStr().c_str());
     Motion::ConfusedBehaviour::Params p;
-    p.stateConfusedMove = UNIT_STAT_CONFUSED_MOVE;
     p.radius = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_CONFUSE_RADIUS);
     Request(R(Motion::Kind::Confused, 0, false, claim ? claim : kScriptConfuse), std::unique_ptr<Motion::Behaviour>(new Motion::ConfusedBehaviour(p)));
 }
@@ -977,8 +971,6 @@ void MotionMaster::MoveChase(Unit* target, float dist, float angle)
     p.target = target->GetObjectGuid().GetRawValue();   // resolved per tick; never a stored pointer (design v2 §3.2)
     p.offset = dist;
     p.angle = angle;
-    p.stateSet = UNIT_STAT_CHASE;
-    p.stateMove = UNIT_STAT_CHASE_MOVE;
     p.routineMs = 1000;   // retail's observed ~1 Hz drift re-check, in place of the generator's 100 ms poll
     p.lead = sWorld.getConfig(CONFIG_BOOL_MOVEMENT_CHASE_LEAD);   // the experiment (Movement.ChaseLead), off by default
     p.leadMs = 500;
@@ -1079,7 +1071,6 @@ void MotionMaster::MoveFleeing(Unit* enemy, uint32 time, uint64 claim)
     Motion::FearBehaviour::Params p;
     p.fright = enemy->GetObjectGuid().GetRawValue();   // resolved at each pick through the port; never a stored pointer
     p.timeLimitMs = m_owner->GetTypeId() != TYPEID_PLAYER ? time : 0;   // the generator chose its timed class by the same test
-    p.stateFleeingMove = UNIT_STAT_FLEEING_MOVE;
     const uint64 identity = claim ? claim : Motion::ControlClaim(0, 1, enemy->GetObjectGuid().GetCounter());
     // A refreshed aura of the same identity binds this fresh native and retires the running
     // one (the arbiter's in-place update, design fact 5): a fresh pick, a fresh rest, a fresh clock.
@@ -1719,6 +1710,97 @@ void MotionMaster::Publish()
         }
     }
     m_published = next;
+}
+
+/**
+ * @brief A native's Latch effect (P5-C3) on the channel its kind names: set first, then clear, so
+ *        a write that does both to one latch ends cleared, as the generators' order did.
+ * @param kind The emitting native's kind.
+ * @param set Motion::LatchBit bits to set.
+ * @param clear Motion::LatchBit bits to clear.
+ */
+void MotionMaster::WriteLatches(Motion::Kind kind, uint8 set, uint8 clear)
+{
+    uint32 presenceBit = 0;
+    uint32 legBit = 0;
+    switch (kind)
+    {
+        case Motion::Kind::Chase:
+            presenceBit = UNIT_STAT_CHASE;
+            legBit = UNIT_STAT_CHASE_MOVE;
+            break;
+        case Motion::Kind::Follow:
+            presenceBit = UNIT_STAT_FOLLOW;
+            legBit = UNIT_STAT_FOLLOW_MOVE;
+            break;
+        case Motion::Kind::Fear:
+            legBit = UNIT_STAT_FLEEING_MOVE;
+            break;
+        case Motion::Kind::Confused:
+            legBit = UNIT_STAT_CONFUSED_MOVE;
+            break;
+        case Motion::Kind::Idle:
+        case Motion::Kind::Wander:
+        case Motion::Kind::Patrol:
+        case Motion::Kind::Point:
+        case Motion::Kind::FlyLand:
+        case Motion::Kind::Home:
+        case Motion::Kind::AssistRun:
+        case Motion::Kind::Distract:
+        case Motion::Kind::AssistDistract:
+        case Motion::Kind::Effect:
+        case Motion::Kind::Taxi:
+        case Motion::Kind::Count:
+            break;   // no channel: the roaming pair is WriteRoaming's, the Home's wipe WipeLatches'
+    }
+    const uint32 setMask = ((set & Motion::LatchPresence) ? presenceBit : 0u) | ((set & Motion::LatchLeg) ? legBit : 0u);
+    const uint32 clearMask = ((clear & Motion::LatchPresence) ? presenceBit : 0u) | ((clear & Motion::LatchLeg) ? legBit : 0u);
+    if (setMask)
+    {
+        m_owner->addUnitState(setMask);
+    }
+    if (clearMask)
+    {
+        m_owner->clearUnitState(clearMask);
+    }
+}
+
+/**
+ * @brief A Step's or an Outcome's roaming write (P5-C3): the roaming pair, whoever emits it.
+ * @param what The write the native asked for.
+ */
+void MotionMaster::WriteRoaming(Motion::Roaming what)
+{
+    switch (what)
+    {
+        case Motion::Roaming::SetBoth:
+            m_owner->addUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+            break;
+        case Motion::Roaming::ClearMove:
+            m_owner->clearUnitState(UNIT_STAT_ROAMING_MOVE);
+            break;
+        case Motion::Roaming::ClearBoth:
+            m_owner->clearUnitState(UNIT_STAT_ROAMING | UNIT_STAT_ROAMING_MOVE);
+            break;
+        case Motion::Roaming::SetRoam:
+            m_owner->addUnitState(UNIT_STAT_ROAMING);
+            break;
+        case Motion::Roaming::SetMove:
+            m_owner->addUnitState(UNIT_STAT_ROAMING_MOVE);
+            break;
+        case Motion::Roaming::Keep:
+            break;
+    }
+}
+
+/**
+ * @brief The Home native's first-tick wipe (P5-C3): the dynamic unit-state bits, and the published
+ *        block with them (P5-C2), as the StateRaw clear of UNIT_STAT_ALL_DYN_STATES did.
+ */
+void MotionMaster::WipeLatches()
+{
+    m_owner->clearUnitState(UNIT_STAT_ALL_DYN_STATES);
+    ClearPublished();
 }
 
 /**
