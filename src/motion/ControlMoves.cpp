@@ -172,7 +172,14 @@ namespace Motion
         m_havePoint = true;
         m_rest = int32(svc.Urand(m_p.geometry.restMin, m_p.geometry.restMax));
 
-        Step s = Step::Of(MoveIntent::Move(m_point, MOVE_REQUIRE_PATH).WithinLength(m_p.geometry.legLimit));
+        // The bolt ends facing the way it ran, and it SAYS so on the wire. Retail
+        // fear legs carry splineflags 0x30000000, whose Final_Angle (0x10000000) is the
+        // orientation the client is to hold once the spline ends; ours carried 0x00000000,
+        // naming no final facing at all and leaving the client to decide for itself what a
+        // creature does on arrival. Measured from the user's live capture of 2026-09-20
+        // against the 2011 retail dumps (peer/retail-fear-movement-2026-09-20.md).
+        const Facing along = Facing::ToAngle(AngleFromTo(sight.position, m_point));
+        Step s = Step::Of(MoveIntent::Move(m_point, MOVE_REQUIRE_PATH, along).WithinLength(m_p.geometry.legLimit));
         s.effects.push_back(Effect::Latch(LatchLeg, 0));   // the generator added the bit before its Move
         return s;
     }
