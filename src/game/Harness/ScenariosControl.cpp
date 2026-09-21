@@ -886,6 +886,160 @@ namespace Harness
         }
     };
 
+    /// S65 (the ruling of 2026-09-21): the OTHER half of the fear's x1.25 -- who must NOT get it.
+    ///
+    /// Creature::DoFleeToGetAssistance, the AI's own low-health runner, reaches Unit::SetFeared
+    /// with no spell of its own and so raises Motion::ReasonFeared exactly as a fear aura does.
+    /// It is not a fear EFFECT: retail's evidence for the quarter is entirely aura batches and
+    /// the wiki's "All Fear effects", and we have none at all for a mob running away by itself.
+    /// A gate on the reason would have given every low-health runner 0.66 x 1.25 = 0.825 of its
+    /// rate -- and, because that flee is the TIMED variant and expires on its own without ever
+    /// calling SetFeared(false), would have left the quarter hanging on it until something
+    /// unrelated recalculated. The gate is the published auraFear instead, which reads the
+    /// claim's own spell field and therefore goes when the claim goes, however it goes.
+    ///
+    /// Without this scenario the low-health path has no coverage at all and the next person to
+    /// touch Unit::UpdateSpeed can put the reason back with nothing to stop them.
+    class LowHealthFleeSpeed : public Scenario
+    {
+    public:
+        LowHealthFleeSpeed() : Scenario("low-health-flee-speed", 64) {}
+
+        void Prepare() override
+        {
+            /// The assistance cut Unit::UpdateSpeed applies to a creature that has searched for
+            /// help ("best guessed value, so this will be 33% reduction"). It is what a
+            /// low-health runner's rate SHOULD be; 0.66 x 1.25 = 0.825 is the regression.
+            const float kAssistCut = 0.66f;
+            struct St
+            {
+                float  before;         ///< the run speed before any of this
+                float  minFlee;        ///< the least and the most it read while the flee's claim was held
+                float  maxFlee;
+                uint32 fleeSamples;    ///< samples with the claim held
+                bool   auraEver;       ///< IsFearedByAura() on any of them (it must never be true)
+                float  afterFlee;      ///< the rate on the first sample after the claim went, with NO recalculation in between
+                bool   afterSeen;
+                float  lifted;         ///< the rate once the assistance cut is lifted and the speed recalculated
+                bool   liftedSeen;
+                bool   victim;         ///< the wolf had a victim when the flee was asked for
+            };
+            Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+            Creature* k = Spawn(KOBOLD, SE.x + 20.0f, SE.y, Ground(SE.x + 20.0f, SE.y, SE.z), 3.1f);
+            if (!w || !k) { Verdict("aiFleeNoBoost=INVALID(spawn failed) | aiFleeRestores=INVALID(spawn failed)"); return; }
+            w->SetMaxHealth(500000); w->SetHealth(500000); k->SetMaxHealth(500000); k->SetHealth(500000);
+            Silence(w);
+            Silence(k);
+            const ObjectGuid g = w->GetObjectGuid(), gk = k->GetObjectGuid();
+            auto st = std::make_shared<St>();
+            st->before = st->afterFlee = st->lifted = 0.0f;
+            st->minFlee = 1.0e9f;
+            st->maxFlee = -1.0e9f;
+            st->fleeSamples = 0;
+            st->auraEver = st->afterSeen = st->liftedSeen = st->victim = false;
+
+            At(500, [this, g, gk, st]()
+            {
+                Creature* w = Get(g); Creature* k = Get(gk); if (!w || !k) { return; }
+                st->before = w->GetSpeed(MOVE_RUN);
+                w->Attack(k, true);
+                w->AddThreat(k, 1000.0f);
+                Log("Attack + AddThreat on the kobold 20 yd east: victim=%d run speed %.4f yd/s", w->getVictim() ? 1 : 0, st->before);
+            });
+            At(1000, [this, g, st]()
+            {
+                Creature* w = Get(g); if (!w) { return; }
+                st->victim = w->getVictim() != NULL;
+                // The AI's own entry point, not Unit::SetFeared: the whole point is that this
+                // path reaches SetFeared by itself, with no spell, and must be told apart there.
+                w->DoFleeToGetAssistance();
+                Log("DoFleeToGetAssistance: feared=%d auraFeared=%d run speed %.4f yd/s (x%.3f), mt=%s",
+                    w->Blocked(Motion::ReasonFeared) ? 1 : 0, w->IsFearedByAura() ? 1 : 0, w->GetSpeed(MOVE_RUN),
+                    st->before > 0.0f ? w->GetSpeed(MOVE_RUN) / st->before : 0.0f, TypeName(w));
+            });
+            // The flee lasts CreatureFamilyFleeDelay (7000 ms by default), so it ends around
+            // +8000; the sampling runs past that to catch the rate with the claim gone.
+            for (uint32 i = 1; i <= 79; ++i)
+            {
+                At(1000 + i * 100, [this, g, st, i]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    const uint32 t = i * 100;
+                    const float s = w->GetSpeed(MOVE_RUN);
+                    if (w->Blocked(Motion::ReasonFeared))
+                    {
+                        ++st->fleeSamples;
+                        if (w->IsFearedByAura()) { st->auraEver = true; }
+                        if (s < st->minFlee) { st->minFlee = s; }
+                        if (s > st->maxFlee) { st->maxFlee = s; }
+                    }
+                    else if (st->fleeSamples && !st->afterSeen)
+                    {
+                        // The first reading after the claim went, and nothing has recalculated
+                        // the speed in between: a quarter left hanging would still be here.
+                        st->afterSeen = true;
+                        st->afterFlee = s;
+                        Log("+%5ums the flee's claim has gone: run speed %.4f yd/s (x%.3f), mt=%s", t, s,
+                            st->before > 0.0f ? s / st->before : 0.0f, TypeName(w));
+                    }
+                    if (i % 20 == 0)
+                    {
+                        Log("+%5ums feared=%d auraFeared=%d run speed %.4f yd/s (x%.3f)", t, w->Blocked(Motion::ReasonFeared) ? 1 : 0,
+                            w->IsFearedByAura() ? 1 : 0, s, st->before > 0.0f ? s / st->before : 0.0f);
+                    }
+                });
+            }
+            At(9100, [this, g, st]()
+            {
+                Creature* w = Get(g); if (!w) { return; }
+                // Lift the assistance cut and recalculate: with nothing of the flee left, the
+                // rate must be exactly what it was before any of this.
+                w->SetNoSearchAssistance(false);
+                w->UpdateSpeed(MOVE_RUN, true);
+                st->lifted = w->GetSpeed(MOVE_RUN);
+                st->liftedSeen = true;
+                Log("+ 8100ms the assistance cut lifted and the speed recalculated: %.4f yd/s (x%.3f)",
+                    st->lifted, st->before > 0.0f ? st->lifted / st->before : 0.0f);
+            });
+            At(9500, [this, st, kAssistCut]()
+            {
+                char noBoost[300], restores[260];
+                if (!st->victim || st->fleeSamples < 10 || st->before <= 0.0f)
+                {
+                    // No victim, or an assistant was found within 30 yd and MoveSeekAssistance
+                    // was taken instead: the fear path never ran and there is nothing to read.
+                    snprintf(noBoost, sizeof(noBoost), "INVALID(the low-health flee never held: victim=%d, %u samples, base %.4f)",
+                             st->victim ? 1 : 0, st->fleeSamples, st->before);
+                    snprintf(restores, sizeof(restores), "INVALID(the low-health flee never held)");
+                }
+                else
+                {
+                    const float lo = st->minFlee / st->before, hi = st->maxFlee / st->before;
+                    const bool flat = lo > kAssistCut - 0.01f && hi < kAssistCut + 0.01f;
+                    snprintf(noBoost, sizeof(noBoost),
+                             "%s(x%.3f-%.3f of the unfeared %.4f yd/s over %u samples with ReasonFeared held, auraFeared %s; the assistance cut x%.2f, NOT x%.3f)",
+                             (flat && !st->auraEver) ? "OK" : "BUG", lo, hi, st->before, st->fleeSamples,
+                             st->auraEver ? "TRUE" : "never true", kAssistCut, kAssistCut * 1.25f);
+                    if (!st->afterSeen || !st->liftedSeen)
+                    {
+                        snprintf(restores, sizeof(restores), "INVALID(the flee had not ended by +8000ms: afterSeen=%d liftedSeen=%d)",
+                                 st->afterSeen ? 1 : 0, st->liftedSeen ? 1 : 0);
+                    }
+                    else
+                    {
+                        const float after = st->afterFlee / st->before, back = st->lifted / st->before;
+                        const bool nothingStuck = after > kAssistCut - 0.01f && after < kAssistCut + 0.01f;
+                        const bool restored = back > 0.995f && back < 1.005f;
+                        snprintf(restores, sizeof(restores),
+                                 "%s(x%.3f with the claim gone and nothing recalculated, x%.3f once the assistance cut is lifted)",
+                                 (nothingStuck && restored) ? "OK" : "BUG", after, back);
+                    }
+                }
+                Verdict(std::string("aiFleeNoBoost=") + noBoost + " | aiFleeRestores=" + restores);
+            });
+        }
+    };
+
 
     namespace
     {
@@ -1077,6 +1231,7 @@ namespace Harness
         r.Register(new ConfuseInTheAir());
         r.Register(new FearAuraMoves());
         r.Register(new FearCadenceAndSpeed());
+        r.Register(new LowHealthFleeSpeed());
         r.Register(new PlayerFear());
     }
 }

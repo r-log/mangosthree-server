@@ -1701,6 +1701,9 @@ void MotionMaster::Publish()
 {
     PublishedState next;
     next.reasons = static_cast<uint8>(m_arbiter.Reasons() & kPublishedReasons);
+    // An aura's fear apart from the AI's own low-health flee, which raises the same reason.
+    // Read from the claims, so it ends exactly when the claim does, however the claim ends.
+    next.auraFear = m_arbiter.HasAuraClaim(Motion::Kind::Fear);
     std::vector<uint64> const& dead = m_arbiter.Sources(Motion::Inhibition::Dead);
     for (size_t i = 0; i < dead.size(); ++i)
     {

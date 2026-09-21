@@ -142,11 +142,21 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio, bool ignore
             // (the cap and the slow's minimum-speed floor are the two that do not, and both
             // should bound the boosted speed, not be bounded by it).
             //
+            // An AURA fear only, not Blocked(Motion::ReasonFeared). Retail's evidence is
+            // entirely about fear EFFECTS -- the dumps' aura batches, and the wiki's "All Fear
+            // effects" -- and a mob running away at low health is not one: it is the AI's own
+            // Creature::DoFleeToGetAssistance, which reaches Unit::SetFeared with no spell and
+            // already cuts its own speed to 0.66. Gating on the reason would give it
+            // 0.66 x 1.25 = 0.825 on evidence we do not have, and, because that timed flee
+            // expires on its own and never calls SetFeared(false), would leave the quarter
+            // hanging on it until something unrelated recalculated. The claim knows which it
+            // is, and the claim is what goes away when the flee ends.
+            //
             // Read through the shell's published block, as Unit::IsTaxiFlying is: the live
             // arbiter is not readable from every caller of UpdateSpeed, and the answer only has
             // to be right at the end of the commit that lands or lifts the fear -- which is when
             // Unit::SetFeared calls back here.
-            if (Blocked(Motion::ReasonFeared))
+            if (IsFearedByAura())
             {
                 stack_bonus     *= kFearRunSpeedFactor;
                 non_stack_bonus *= kFearRunSpeedFactor;
@@ -354,25 +364,31 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
 
         // Retail's quarter, in the aura's own batch (kFearRunSpeedFactor). AFTER MoveFleeing,
         // never before: UpdateSpeed reads the block the kernel PUBLISHES at the end of a commit,
-        // and MoveFleeing's own commit is what puts ReasonFeared there. The flee's first bolt is
-        // laid on the next tick, not in that commit, so the boost is in place before it.
+        // and MoveFleeing's own commit is what puts this claim there. The flee's first bolt is
+        // laid on the next tick, not in that commit, so the boost is in place before it. The
+        // AI's low-health flee reaches this line too and gets nothing: its claim names no spell,
+        // so the published auraFear stays false and the recalculation changes no rate.
         UpdateSpeed(MOVE_RUN, true);
     }
     else
     {
         const bool released = GetMotionMaster()->ReleaseControl(claim);
+
+        // The quarter goes back with the aura, as the dumps' 8.6805 -> 6.9444 does. BEFORE the
+        // surviving-fear return below, not after it: what must go is the AURA's boost, and the
+        // survivor may be the AI's low-health flee, which is not entitled to it. ReleaseControl's
+        // own commit has already published the block without this claim, so the recalculation
+        // reads the truth; when the survivor is another fear AURA it recomputes the same rate and
+        // SetSpeedRate sends nothing. Also before the end of control further down, so the chase
+        // or the run home that lays is routed at the restored speed.
+        UpdateSpeed(MOVE_RUN, true);
+
         if (GetMotionMaster()->HoldsControl(Motion::Kind::Fear))
         {
             return;   // another fear drives (reference §3.6): the flag stays, control stays taken
         }
 
         RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
-
-        // The quarter goes back with the aura, as the dumps' 8.6805 -> 6.9444 does. Before the
-        // end of control below, so the chase or the run home it lays is routed at the restored
-        // speed; ReleaseControl's own commit has already published the block without
-        // ReasonFeared, and a surviving fear returned above without touching the speed.
-        UpdateSpeed(MOVE_RUN, true);
 
         // The end of control runs for the claim that just went: a removal that released
         // nothing (a fear refused at apply, a second prevent-fleeing aura's loop) changes no
