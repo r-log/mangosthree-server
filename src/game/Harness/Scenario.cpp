@@ -135,6 +135,18 @@ namespace Harness
 
     Player* Scenario::SpawnPlayer(float x, float y, float z, float o)
     {
+        // The determinism guarantee says so itself rather than waiting to be asked. The runner
+        // reads UsesPlayer() to decide both where a scenario sorts in the queue and whether to
+        // reset the map's grids behind it; a scenario that spawns a player without overriding
+        // the flag would run mid-queue with no reset after it, and every scenario following it
+        // would read grids it did not establish -- a silent baseline drift nobody could
+        // attribute. Refused before the session exists, so there is nothing to unwind.
+        if (!UsesPlayer())
+        {
+            // Scenario::Log already prefixes the scenario's own name, so the line names it.
+            Log("ERR spawn player refused: this scenario calls SpawnPlayer but does not override UsesPlayer() to true; without it the runner neither sorts it last nor resets the map behind it");
+            return NULL;
+        }
         Map* map = GetMap();
         if (!map)
         {
@@ -214,14 +226,17 @@ namespace Harness
         player->SetMap(map);
         player->Place().MoveTo(x, y, z, o);
 
-        if (!map->Add(player))
-        {
-            session->SetPlayer(NULL);
-            delete player;
-            delete session;
-            Log("ERR spawn player %u at %.1f %.1f: map add refused", guidlow, x, y);
-            return NULL;
-        }
+        // An assertion, not a recovery. Map::Add(Player*) returns true unconditionally
+        // (Map.cpp:687-719), and by the point it could return anything else the player has
+        // already been linked into m_mapRefManager and added to his cell -- so the obvious
+        // recovery, deleting him, would leave a freed player in the map's reference list and
+        // in the grid, and be a worse bug than the failure it handled. There is no correct
+        // unwind to write against a branch that cannot be taken; whoever gives Map::Add a real
+        // failure path owes this call site a real unwind with it. MANGOS_ASSERT is fatal in
+        // Release too and evaluates its condition exactly once (Errors.h:45-70), so the add
+        // still happens.
+        const bool added = map->Add(player);
+        MANGOS_ASSERT(added);
 
         // Map::Add does NOT do this, and ObjectLookup resolves a player guid only through the
         // registry (ObjectLookup.cpp:37-49), so without it nothing -- a pet's owner least of all --

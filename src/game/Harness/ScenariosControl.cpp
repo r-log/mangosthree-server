@@ -699,7 +699,13 @@ namespace Harness
     class PlayerFear : public Scenario
     {
     public:
-        PlayerFear() : Scenario("player-fear", 63) {}
+        /// Order 900, not 63. Player scenarios take the 900 block precisely so they always sort
+        /// last: the runner refuses `MVTEST all` when a player scenario is queued before one
+        /// that holds no player (Harness.cpp Start), and with contiguous orders 1..63 the very
+        /// next family registered would take 64, fire that guard and break `all` until somebody
+        /// renumbered. A reserved high block makes the ordering promise hold by construction, so
+        /// the creature families can go on growing from 64 without ever colliding with it.
+        PlayerFear() : Scenario("player-fear", 900) {}
 
         /// The runner owes a player scenario two things: the last place in the queue and the
         /// map's grids reset behind it. A player in world promotes the grids around him to full

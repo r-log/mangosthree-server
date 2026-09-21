@@ -38,6 +38,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "WorldSession.h"
+#include "GameTime.h"
 #include "Database/DatabaseEnv.h"
 
 #include <algorithm>
@@ -407,6 +408,28 @@ namespace Harness
                 continue;
             }
             WorldSession* session = player->GetSession();
+            // The session's movers go back now, while the player is still alive and still
+            // his session's _player. Nothing else does it for him: Unit::RemoveFromWorld
+            // skips the revoke for a player on purpose ("revoked by LogoutPlayer",
+            // Unit.cpp:4965-4969) and the harness never logs anybody out. Left undone,
+            // ~Unit reports "still had a mover session" once per player run, and
+            // ~WorldSession folds an added/removed pair that never balanced into the
+            // process-wide authority totals -- poisoning the one signal (added != removed)
+            // the campaign reads to spot a leaked mover.
+            // The two neighbouring placements are both wrong, so this one is exact:
+            // after `delete session` below it is a use-after-free, since RevokeAllMovers
+            // dereferences _player (WorldSession.cpp:168-180) and Map::Remove(player, true)
+            // has already deleted him; after SetPlayer(NULL) it is a silent no-op, since
+            // _player is NULL and `removed` is still never counted.
+            // `now` is the same clock every other revoke passes -- LogoutPlayer
+            // (WorldSession.cpp:806) and Unit::RemoveFromWorld both pass
+            // GameTime::GetGameTimeMS() -- and it stays deterministic here because
+            // GameMSTime is refreshed from WorldClock, which only Step() moves while the
+            // harness runs.
+            if (session)
+            {
+                session->RevokeAllMovers(GameTime::GetGameTimeMS());
+            }
             sPlayerRegistry.Remove(player);
             // FindMap, not GetMap: the lookup above no longer filters on IsInWorld, so it can
             // hand back a player whose map reference has already been cleared (Map::Remove ends
@@ -435,7 +458,11 @@ namespace Harness
         // Start's own reset here and log it in the same words, guarded exactly as Start
         // guards it: a live GM's own full map is left alone, and a real player's own grid
         // is never force-deleted out from under him.
-        if (s->UsesPlayer())
+        // The condition trusts the flag OR the evidence: SpawnPlayer now refuses a scenario
+        // that has not declared UsesPlayer(), but a player that got onto the map some other
+        // way still gets his grids reset behind him rather than leaving the next scenario to
+        // inherit them.
+        if (s->UsesPlayer() || !s->SpawnedPlayers().empty())
         {
             if (!m_map->IsBare())
             {
