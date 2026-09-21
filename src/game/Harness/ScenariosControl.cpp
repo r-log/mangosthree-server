@@ -1190,6 +1190,150 @@ namespace Harness
         }
     };
 
+    /// S66 (the possession ruling of 2026-09-21): the fear's x1.25 must follow the CLAIM, by
+    /// every route the claim can end, not only the two that go through Unit::SetFeared.
+    ///
+    /// The case that prompted it: Unit::TakePossessOf, when a player takes his own pet, calls
+    /// `possessed->GetMotionMaster()->CancelControl(Motion::Kind::Fear)` (Unit.cpp:7149). That
+    /// ends the claim without ever reaching SetFeared(false), so the published auraFear drops
+    /// and, before the fix, nothing recalculated the run speed: the quarter stayed on the unit
+    /// until something unrelated happened to recompute it.
+    ///
+    /// Patching that one call was refused, and rightly: it is merely the third route anyone has
+    /// thought of (round 1 gated on the wrong flag and missed the AI flee, round 2 fixed
+    /// SetFeared's two routes and missed this). The speed now follows the published flag --
+    /// MotionMaster::Publish recalculates MOVE_RUN whenever auraFear CHANGES -- so Release,
+    /// CancelControl, Clear(true), the death and anything nobody has enumerated are all covered
+    /// by construction. This scenario proves two routes that Unit::SetFeared does not own.
+    ///
+    /// WHAT IT CANNOT REACH: the real pet-possession path needs a Player possessing HIS OWN pet
+    /// (Unit.cpp:7143 `ownPet`), which is machinery the harness does not have -- a creature
+    /// possessing a creature, which S34 does exercise, never enters that branch. So the
+    /// scenario makes the same facade call TakePossessOf makes, on the same arbiter, rather
+    /// than inventing a pet. The call under test is identical; only its preconditions are not.
+    class FearSpeedFollowsTheClaim : public Scenario
+    {
+    public:
+        FearSpeedFollowsTheClaim() : Scenario("fear-speed-follows-the-claim", 65) {}
+
+        void Prepare() override
+        {
+            struct St
+            {
+                float  before;        ///< the run speed with no fear at all
+                float  boostedA;      ///< with the first fear held
+                float  afterCancel;   ///< the first reading after CancelControl, with nothing else touched
+                float  worstCancel;   ///< the highest reading over the whole window after it
+                bool   auraA;         ///< IsFearedByAura() just before the cancel
+                bool   cancelSeen;
+                float  boostedB;      ///< with the second fear held
+                float  afterDeath;    ///< the first reading after the death, likewise untouched
+                float  worstDeath;
+                bool   auraB;         ///< IsFearedByAura() just before the death
+                bool   deathSeen;
+                bool   diedClean;     ///< the wolf really did die
+            };
+            Creature* w = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+            Creature* k = Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f);
+            if (!w || !k) { Verdict("possessTakeRestores=INVALID(spawn failed) | deathRouteRestores=INVALID(spawn failed)"); return; }
+            Silence(w);
+            Silence(k);
+            const ObjectGuid g = w->GetObjectGuid(), gk = k->GetObjectGuid();
+            auto st = std::make_shared<St>();
+            st->before = st->boostedA = st->afterCancel = st->boostedB = st->afterDeath = 0.0f;
+            st->worstCancel = st->worstDeath = 0.0f;
+            st->auraA = st->auraB = st->cancelSeen = st->deathSeen = st->diedClean = false;
+
+            At(500, [this, g, gk, st]()
+            {
+                Creature* w = Get(g); if (!w) { return; }
+                st->before = w->GetSpeed(MOVE_RUN);
+                w->SetFeared(true, gk, FEAR, 0, 0);
+                Log("feared: run speed %.4f -> %.4f yd/s, auraFeared=%d", st->before, w->GetSpeed(MOVE_RUN), w->IsFearedByAura() ? 1 : 0);
+            });
+            // ROUTE 1: the possession take's own call, on the same facade, mid-fear.
+            At(1000, [this, g, st]()
+            {
+                Creature* w = Get(g); if (!w) { return; }
+                st->boostedA = w->GetSpeed(MOVE_RUN);
+                st->auraA = w->IsFearedByAura();
+                w->GetMotionMaster()->CancelControl(Motion::Kind::Fear);
+                Log("+ 500ms CancelControl(Fear), as TakePossessOf calls it: auraFeared %d -> %d, run speed %.4f -> %.4f yd/s",
+                    st->auraA ? 1 : 0, w->IsFearedByAura() ? 1 : 0, st->boostedA, w->GetSpeed(MOVE_RUN));
+            });
+            for (uint32 i = 1; i <= 5; ++i)
+            {
+                At(1000 + i * 100, [this, g, st]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    // Nothing in this window touches the unit: no aura lands, no speed is set,
+                    // no recalculation is asked for. Whatever the rate reads here is what the
+                    // cancel left behind.
+                    const float s = w->GetSpeed(MOVE_RUN);
+                    if (!st->cancelSeen) { st->cancelSeen = true; st->afterCancel = s; }
+                    if (s > st->worstCancel) { st->worstCancel = s; }
+                });
+            }
+            // ROUTE 2: the death, which ends every claim through Arbiter::Die and likewise never
+            // reaches Unit::SetFeared. A fresh fear first, so there is a quarter to give back.
+            At(2000, [this, g, gk, st]()
+            {
+                Creature* w = Get(g); if (!w) { return; }
+                w->SetFeared(true, gk, FEAR, 0, 0);
+                Log("+1500ms feared again: run speed %.4f yd/s, auraFeared=%d", w->GetSpeed(MOVE_RUN), w->IsFearedByAura() ? 1 : 0);
+            });
+            At(2500, [this, g, st]()
+            {
+                Creature* w = Get(g); if (!w) { return; }
+                st->boostedB = w->GetSpeed(MOVE_RUN);
+                st->auraB = w->IsFearedByAura();
+                w->DealDamage(w, w->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                st->diedClean = !w->IsAlive();
+                Log("+2000ms killed mid-fear: alive=%d auraFeared %d -> %d, run speed %.4f -> %.4f yd/s",
+                    w->IsAlive() ? 1 : 0, st->auraB ? 1 : 0, w->IsFearedByAura() ? 1 : 0, st->boostedB, w->GetSpeed(MOVE_RUN));
+            });
+            for (uint32 i = 1; i <= 5; ++i)
+            {
+                At(2500 + i * 100, [this, g, st]()
+                {
+                    Creature* w = Get(g); if (!w) { return; }
+                    const float s = w->GetSpeed(MOVE_RUN);
+                    if (!st->deathSeen) { st->deathSeen = true; st->afterDeath = s; }
+                    if (s > st->worstDeath) { st->worstDeath = s; }
+                });
+            }
+            At(3400, [this, st]()
+            {
+                char cancel[300], death[300];
+                if (st->before <= 0.0f || !st->auraA || st->boostedA < st->before * 1.2f || !st->cancelSeen)
+                {
+                    // Without a boost to give back there is nothing to test: say so rather than
+                    // pass because the rate happened to be right all along.
+                    snprintf(cancel, sizeof(cancel), "INVALID(no aura fear to cancel: base %.4f, auraFeared=%d, boosted %.4f, samples=%d)",
+                             st->before, st->auraA ? 1 : 0, st->boostedA, st->cancelSeen ? 1 : 0);
+                }
+                else
+                {
+                    const float held = st->boostedA / st->before, back = st->afterCancel / st->before, worst = st->worstCancel / st->before;
+                    snprintf(cancel, sizeof(cancel), "%s(x%.3f while held, x%.3f on the first reading after CancelControl and never above x%.3f, with nothing else touched)",
+                             (back > 0.995f && back < 1.005f && worst < 1.005f) ? "OK" : "BUG", held, back, worst);
+                }
+                if (!st->auraB || !st->diedClean || st->boostedB < st->before * 1.2f || !st->deathSeen)
+                {
+                    snprintf(death, sizeof(death), "INVALID(no aura fear to end by the death: auraFeared=%d died=%d boosted %.4f samples=%d)",
+                             st->auraB ? 1 : 0, st->diedClean ? 1 : 0, st->boostedB, st->deathSeen ? 1 : 0);
+                }
+                else
+                {
+                    const float held = st->boostedB / st->before, back = st->afterDeath / st->before, worst = st->worstDeath / st->before;
+                    snprintf(death, sizeof(death), "%s(x%.3f while held, x%.3f on the first reading after the death and never above x%.3f)",
+                             (back > 0.995f && back < 1.005f && worst < 1.005f) ? "OK" : "BUG", held, back, worst);
+                }
+                Verdict(std::string("possessTakeRestores=") + cancel + " | deathRouteRestores=" + death);
+            });
+        }
+    };
+
 
     namespace
     {
@@ -1382,6 +1526,7 @@ namespace Harness
         r.Register(new FearAuraMoves());
         r.Register(new FearCadenceAndSpeed());
         r.Register(new LowHealthFleeSpeed());
+        r.Register(new FearSpeedFollowsTheClaim());
         r.Register(new PlayerFear());
     }
 }

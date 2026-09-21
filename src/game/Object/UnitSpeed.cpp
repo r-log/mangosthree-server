@@ -360,28 +360,28 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
 
         Unit* caster = IsInWorld() ? GetMap()->GetUnit(casterGuid) : NULL;
 
+        // Retail's quarter (kFearRunSpeedFactor) needs no call from here. MoveFleeing's own
+        // commit publishes the claim, and MotionMaster::Publish recalculates MOVE_RUN whenever
+        // the published auraFear changes -- which is the only mechanism, deliberately: a second
+        // one here would be right for this route and silently absent for every other, which is
+        // the mistake that cost two rounds. It also lands correctly when this function runs
+        // inside an already-open facade scope (an inform's callback applying a fear): the
+        // published block is not refreshed until the OUTERMOST commit, so a call placed here
+        // would read the stale block and compute the unboosted rate, where the publish hook
+        // fires at that outermost commit and gets it right.
         GetMotionMaster()->MoveFleeing(caster, time, claim);   // caster==NULL processed in MoveFleeing
-
-        // Retail's quarter, in the aura's own batch (kFearRunSpeedFactor). AFTER MoveFleeing,
-        // never before: UpdateSpeed reads the block the kernel PUBLISHES at the end of a commit,
-        // and MoveFleeing's own commit is what puts this claim there. The flee's first bolt is
-        // laid on the next tick, not in that commit, so the boost is in place before it. The
-        // AI's low-health flee reaches this line too and gets nothing: its claim names no spell,
-        // so the published auraFear stays false and the recalculation changes no rate.
-        UpdateSpeed(MOVE_RUN, true);
     }
     else
     {
+        // The quarter goes back with the aura, as the dumps' 8.6805 -> 6.9444 does -- inside
+        // this call, but not from a line in it: ReleaseControl's own commit publishes the block
+        // without this claim, and MotionMaster::Publish recalculates MOVE_RUN there. That is
+        // before everything below, so the end of control lays its chase or its run home at the
+        // restored speed; it is correct when a surviving claim is the AI's low-health flee,
+        // which is not entitled to the quarter and which the early return below would have
+        // skipped; and it needs no line here for the routes that never reach this function at
+        // all (the possession take's CancelControl, a full Clear, the death).
         const bool released = GetMotionMaster()->ReleaseControl(claim);
-
-        // The quarter goes back with the aura, as the dumps' 8.6805 -> 6.9444 does. BEFORE the
-        // surviving-fear return below, not after it: what must go is the AURA's boost, and the
-        // survivor may be the AI's low-health flee, which is not entitled to it. ReleaseControl's
-        // own commit has already published the block without this claim, so the recalculation
-        // reads the truth; when the survivor is another fear AURA it recomputes the same rate and
-        // SetSpeedRate sends nothing. Also before the end of control further down, so the chase
-        // or the run home that lays is routed at the restored speed.
-        UpdateSpeed(MOVE_RUN, true);
 
         if (GetMotionMaster()->HoldsControl(Motion::Kind::Fear))
         {
