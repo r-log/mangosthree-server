@@ -110,6 +110,41 @@ namespace Harness
         }
     }
 
+    void Runner::ResetGrids()
+    {
+        // Boot force-loads the grids of map 1's always-active creatures
+        // (ObjectMgr::LoadActiveEntities); a bare map skips their spawns but still loads
+        // their terrain, vmap and mmap tiles, and those grids' unload timers start in real
+        // time at boot. A run starting after a real-time delay that differs between two
+        // launches would then see a boot-loaded grid near the scenario area unload at a
+        // different virtual moment each time, so terrain and vmap queries at its edge would
+        // answer differently. A bare map holds no objects yet, so unloading every grid is
+        // safe: from here every grid loads on demand at a deterministic virtual moment (a
+        // scenario's `Load` call or an actor's spawn) and its unload timer counts from there.
+        // The terrain caches' reclaim passes were phased the same way -- the fused tile
+        // cache's sweep and the navmesh purge both fell at boot-phased virtual moments -- so
+        // RestartTerrainCleanUp reclaims every unheld tile now and restarts both, so the
+        // passes count from here too.
+        if (!m_map->IsBare())
+        {
+            // A live GM may still run scenarios on a full map; only the launcher's
+            // headless, stepped runs need the map bare to read alike twice (P0-D).
+            sLog.outString("MVTEST WARN: map %u carries the world's spawns; two runs will not read alike (the launcher sets Movement.HarnessBareMap = %u)", kMapId, kMapId);
+        }
+        else if (m_map->HavePlayers())
+        {
+            // UnloadAll(true) force-deletes a player's own NGridType, so a GM logged in on
+            // the bare map keeps its grids instead.
+            sLog.outString("MVTEST WARN: map %u has players; grids kept, two runs will not read alike", kMapId);
+        }
+        else
+        {
+            m_map->UnloadAll(true);
+            m_map->RestartTerrainCleanUp();
+            sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment, terrain reclaim restarted", kMapId);
+        }
+    }
+
     bool Runner::Start(std::string const& what, uint32 seedBase)
     {
         if (Running() || m_settle)
@@ -177,27 +212,36 @@ namespace Harness
         // guid that a real character already owns would have the run write over him the first
         // time anything saved. The registry cannot answer this: an offline character is invisible
         // to it, so the characters table is the only witness.
-        QueryResult* taken = CharacterDatabase.PQuery(
-            "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
-            kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
-        // A guard that fails open is not a guard: a lost connection or a missing table returns
-        // NULL, and reading that as "the block is free" is exactly the case where the answer is
-        // unknown and a real character may be standing in it. Refuse instead.
-        if (!taken)
+        // Asked only of a queue that actually holds a player scenario, which `lastPlayerScenario`
+        // above is non-NULL for exactly when it does. The 62-plus scenarios that hold no player
+        // draw nothing from the block, and giving every one of them a new refusal path for a
+        // character-database outage would be a failure mode bought for nothing. Nor can a
+        // scenario slip a player past the gate: SpawnPlayer refuses outright unless the scenario
+        // declares UsesPlayer() (Scenario.cpp), which is the same flag this reads.
+        if (lastPlayerScenario)
         {
-            sLog.outString("MVTEST refused: the harness guid block %u..%u could not be checked against `characters` (no result: connection or schema)",
-                           kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
-            m_queue.clear();
-            return false;
-        }
-        const uint32 rows = taken->Fetch()[0].GetUInt32();
-        delete taken;
-        if (rows)
-        {
-            sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",
-                           rows, kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
-            m_queue.clear();
-            return false;
+            QueryResult* taken = CharacterDatabase.PQuery(
+                "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
+                kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+            // A guard that fails open is not a guard: a lost connection or a missing table returns
+            // NULL, and reading that as "the block is free" is exactly the case where the answer is
+            // unknown and a real character may be standing in it. Refuse instead.
+            if (!taken)
+            {
+                sLog.outString("MVTEST refused: the harness guid block %u..%u could not be checked against `characters` (no result: connection or schema)",
+                               kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+                m_queue.clear();
+                return false;
+            }
+            const uint32 rows = taken->Fetch()[0].GetUInt32();
+            delete taken;
+            if (rows)
+            {
+                sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",
+                               rows, kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+                m_queue.clear();
+                return false;
+            }
         }
         m_map = sMapMgr.CreateMap(kMapId, NULL);
         if (!m_map)
@@ -207,42 +251,7 @@ namespace Harness
             return false;
         }
         sLog.outString("MVTEST map %u bare=%d", kMapId, m_map->IsBare() ? 1 : 0);
-        if (!m_map->IsBare())
-        {
-            // A live GM may still run scenarios on a full map; only the launcher's
-            // headless, stepped runs need the map bare to read alike twice (P0-D).
-            sLog.outString("MVTEST WARN: map %u carries the world's spawns; two runs will not read alike (the launcher sets Movement.HarnessBareMap = %u)", kMapId, kMapId);
-        }
-        else
-        {
-            // Boot force-loads the grids of map 1's always-active creatures
-            // (ObjectMgr::LoadActiveEntities); a bare map skips their spawns but
-            // still loads their terrain, vmap and mmap tiles, and those grids'
-            // unload timers start in real time at boot. A run starting after a
-            // real-time delay that differs between two launches would then see a
-            // boot-loaded grid near the scenario area unload at a different
-            // virtual moment each time, so terrain and vmap queries at its edge
-            // would answer differently. A bare map holds no objects yet, so
-            // unloading every grid here is safe: from here every grid loads on
-            // demand at a deterministic virtual moment (a scenario's `Load` call
-            // or an actor's spawn) and its unload timer counts from there. The
-            // terrain caches' reclaim passes were phased the same way -- the fused
-            // tile cache's sweep and the navmesh purge both fell at boot-phased
-            // virtual moments -- so RestartTerrainCleanUp below reclaims every
-            // unheld tile now and restarts both, so the passes count from here too.
-            // UnloadAll(true) force-deletes a player's own NGridType, so a GM
-            // logged in on the bare map keeps its grids instead.
-            if (m_map->HavePlayers())
-            {
-                sLog.outString("MVTEST WARN: map %u has players; grids kept, two runs will not read alike", kMapId);
-            }
-            else
-            {
-                m_map->UnloadAll(true);
-                m_map->RestartTerrainCleanUp();
-                sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment, terrain reclaim restarted", kMapId);
-            }
-        }
+        ResetGrids();
         // The chicken's square (S7, S19), the old runner's template rows, as an
         // external path under the harness's own path id: id 0 is the one a script
         // would use for entry 621's external path, and AddExternalNode keys by
@@ -478,30 +487,15 @@ namespace Harness
         // The player himself is gone now, above, but a player promotes the grids around
         // him to full state and changes Map::Update's own visitation order for as long as
         // he was in world (F4); the grids he touched and their expiry phases are still
-        // whatever he left them at. Whatever runs next must not inherit that, so repeat
-        // Start's own reset here and log it in the same words, guarded exactly as Start
-        // guards it: a live GM's own full map is left alone, and a real player's own grid
-        // is never force-deleted out from under him.
+        // whatever he left them at. Whatever runs next must not inherit that, so the same
+        // reset Start makes runs again here -- the same call, so the two cannot drift apart.
         // The condition trusts the flag OR the evidence: SpawnPlayer now refuses a scenario
         // that has not declared UsesPlayer(), but a player that got onto the map some other
         // way still gets his grids reset behind him rather than leaving the next scenario to
         // inherit them.
         if (s->UsesPlayer() || !s->SpawnedPlayers().empty())
         {
-            if (!m_map->IsBare())
-            {
-                sLog.outString("MVTEST WARN: map %u carries the world's spawns; two runs will not read alike (the launcher sets Movement.HarnessBareMap = %u)", kMapId, kMapId);
-            }
-            else if (m_map->HavePlayers())
-            {
-                sLog.outString("MVTEST WARN: map %u has players; grids kept, two runs will not read alike", kMapId);
-            }
-            else
-            {
-                m_map->UnloadAll(true);
-                m_map->RestartTerrainCleanUp();
-                sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment, terrain reclaim restarted", kMapId);
-            }
+            ResetGrids();
         }
         ++m_verdicts;
         ++m_index;
