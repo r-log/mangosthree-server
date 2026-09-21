@@ -83,8 +83,11 @@ namespace Harness
         /// The flee's first bolt: a wolf feared by a kobold 6 yd east bolts within pi/8 of due
         /// west for 0.4-1.3 times the 22 yd to the quiet band, with the fear's leg latched and the run
         /// gait on the leg (design §4.1: the close band, the bit with the leg, SetWalk(false));
-        /// then rests 800-1500 ms standing (measured 700-1700 at the sampler's cadence) before
-        /// the next bolt (the rest counts only standing).
+        /// then the next bolt, on one of the two cadences the flee has had since 2026-09-21 --
+        /// CHAINED straight on (no standing seen, or under 300 ms of it) or RESTED 800-1500 ms
+        /// standing (measured 700-1700 at the sampler's cadence, and the rest counts only while
+        /// standing). Which one this seed draws is the coin's business, not this scenario's;
+        /// S64 fear-cadence-and-speed is the one that measures how often each falls.
         class FearBoltsAway : public Scenario
         {
         public:
@@ -96,6 +99,7 @@ namespace Harness
                 {
                     float x0, y0;
                     bool haveFirst, legRan, haveEnd, haveSecond, bitOnLeg, walkOnLeg;
+                    bool chainedToSecond;   ///< the second bolt was laid without the wolf ever being SEEN standing
                     uint32 endAt, secondAt;
                     Movement::Vector3 goal;
                 };
@@ -107,6 +111,7 @@ namespace Harness
                 const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
                 auto st = std::make_shared<St>();
                 st->haveFirst = st->legRan = st->haveEnd = st->haveSecond = st->bitOnLeg = st->walkOnLeg = false;
+                st->chainedToSecond = false;
                 st->endAt = st->secondAt = 0;
                 At(500, [this, g, gk, st]()
                 {
@@ -136,11 +141,16 @@ namespace Harness
                                     Dist2(st->x0, st->y0, goal.x, goal.y), AngleDiff(Bearing(st->x0, st->y0, goal.x, goal.y), M_PI_F) * 180.0f / M_PI_F,
                                     st->bitOnLeg ? 1 : 0, st->walkOnLeg ? 1 : 0, TypeName(a));
                             }
-                            else if (st->haveEnd && !st->haveSecond)
+                            // A fresh destination, whether or not the wolf was ever SEEN standing
+                            // between the two: a chained bolt is laid inside one 100 ms sampling
+                            // window, so waiting for the standing would miss it entirely.
+                            else if (!st->haveSecond && !SameGoal(goal, st->goal))
                             {
                                 st->haveSecond = true;
                                 st->secondAt = t;
-                                Log("+%4ums the second bolt, %u ms after the first ended", t, t - st->endAt);
+                                st->chainedToSecond = !st->haveEnd;
+                                if (st->haveEnd) { Log("+%4ums the second bolt, %u ms after the first ended", t, t - st->endAt); }
+                                else { Log("+%4ums the second bolt, chained: the wolf was never seen standing", t); }
                             }
                             st->legRan = true;
                         }
@@ -168,12 +178,18 @@ namespace Harness
                         const bool away = off <= 0.45f && dist >= 8.0f && dist <= 30.5f;   // pi/8 = 0.39 plus the mesh's slack; 0.4-1.3 x 22 yd, the 30 yd cap
                         snprintf(bolt, sizeof(bolt), "%s(%.0f deg off due west, %.1f yd)", away ? "OK" : "BUG", off * 180.0f / M_PI_F, dist);
                         snprintf(gait, sizeof(gait), "%s(move=%d walk=%d on the leg)", (st->bitOnLeg && !st->walkOnLeg) ? "OK" : "BUG", st->bitOnLeg ? 1 : 0, st->walkOnLeg ? 1 : 0);
-                        if (!st->haveEnd) { snprintf(rest, sizeof(rest), "INVALID(the first bolt never ended)"); }
-                        else if (!st->haveSecond) { snprintf(rest, sizeof(rest), "BUG(no second bolt after the first ended at +%ums)", st->endAt); }
+                        if (!st->haveSecond) { snprintf(rest, sizeof(rest), "BUG(no second bolt within 5.5 s)"); }
+                        else if (st->chainedToSecond)
+                        {
+                            // The chained branch: the coin said no rest, so the next bolt went
+                            // out as this one ended and the sampler never caught the wolf standing.
+                            snprintf(rest, sizeof(rest), "OK(chained: the second bolt at +%ums, no standing seen)", st->secondAt);
+                        }
                         else
                         {
+                            // Either branch is right; only a rest OUTSIDE the band is a bug.
                             const uint32 gap = st->secondAt - st->endAt;
-                            snprintf(rest, sizeof(rest), "%s(%u ms standing between the bolts)", (gap >= 700 && gap <= 1700) ? "OK" : "BUG", gap);
+                            snprintf(rest, sizeof(rest), "%s(%u ms standing between the bolts)", (gap <= 300 || (gap >= 700 && gap <= 1700)) ? "OK" : "BUG", gap);
                         }
                     }
                     std::string text = std::string("boltsAway=") + bolt + " | runsOnTheLeg=" + gait + " | restsBetweenBolts=" + rest;
@@ -368,13 +384,18 @@ namespace Harness
                                 st->goal0 = goal;
                                 Log("+%4ums the first bolt: goal (%.1f, %.1f) from (%.1f, %.1f)", t, goal.x, goal.y, st->bx0, st->by0);
                             }
-                            else if (st->haveEnd && !st->haveSecond)
+                            // A fresh destination, not "seen standing then running again": since
+                            // 2026-09-21 about half the bolts are CHAINED into the next inside
+                            // one 100 ms sampling window, and a detector that waits for the
+                            // standing simply never finds a second bolt on those runs.
+                            else if (!st->haveSecond && !SameGoal(goal, st->goal0))
                             {
                                 st->haveSecond = true;
                                 st->bx1 = a->Where().X();
                                 st->by1 = a->Where().Y();
                                 st->goal1 = goal;
-                                Log("+%4ums the second bolt: goal (%.1f, %.1f) from (%.1f, %.1f)", t, goal.x, goal.y, st->bx1, st->by1);
+                                Log("+%4ums the second bolt: goal (%.1f, %.1f) from (%.1f, %.1f)%s", t, goal.x, goal.y, st->bx1, st->by1,
+                                    st->haveEnd ? "" : " (chained: never seen standing)");
                             }
                             st->legRan = true;
                         }
@@ -670,6 +691,201 @@ namespace Harness
             }
         };
 
+    /// S64 (the cadence note of 2026-09-21, design/2026-09-20-fear-cadence-and-speed.md): the two
+    /// numbers a feared unit's flee is measured by, against retail's own.
+    ///
+    /// CADENCE. Retail's 27 consecutive-leg gaps inside confirmed MOD_FEAR aura windows
+    /// (Cataclysm 4.0.6a dumps, peer/retail-fear-movement-2026-09-20.md) read
+    /// median +114 ms, p75 +1341, max +7791, with about 52% of them at or under 300 ms: retail
+    /// CHAINS about half its legs straight on and rests after the other half. The throwaway
+    /// diagnostic of 2026-09-20 measured ours over the same 20 s on the same bare map: 7 legs,
+    /// 6 gaps, mean 1033 ms, and ZERO chained -- we rested after every single leg. This scenario
+    /// is that diagnostic made permanent, so a change that flattens the cadence back to one mode
+    /// reads BUG instead of passing unnoticed.
+    ///
+    /// SPEED. Retail sends `SMSG_SPLINE_SET_RUN_SPEED 6.9444 -> 8.6805` in the fear aura's own
+    /// batch and puts it back at removal -- a flat x1.25 for the aura's life, which our core did
+    /// not do at all. The check is a ratio, not a number, so it holds for any creature template,
+    /// and it is taken again after a BARE RECALCULATION mid-flee (Unit::UpdateSpeed with nothing
+    /// else changed, which is what any unrelated aura change triggers): that is the whole reason
+    /// the quarter lives inside UpdateSpeed's own arithmetic rather than being poked in from
+    /// Unit::SetFeared, and the only way to prove it from here.
+    ///
+    /// The fear is the direct entry point with no time limit, not the spell (S60 covers the
+    /// spell's own effects): the cadence needs twenty uninterrupted seconds, and the aura's
+    /// duration is not this scenario's subject.
+    class FearCadenceAndSpeed : public Scenario
+    {
+    public:
+        FearCadenceAndSpeed() : Scenario("fear-cadence-and-speed", 63) {}
+
+        void Prepare() override
+        {
+            struct St
+            {
+                // The cadence
+                bool     running;          ///< a leg was under way at the previous sample
+                bool     haveEnd;          ///< the standing since the last leg ended was SEEN
+                uint32   endAt;            ///< when it was first seen standing
+                uint32   legs;             ///< legs counted
+                uint32   gaps;             ///< gaps counted (legs - 1)
+                uint32   chained;          ///< of those, at or under 300 ms
+                uint32   gapSum;           ///< for the mean
+                Movement::Vector3 goal;    ///< the goal of the leg under way
+                // The speed
+                float    before;           ///< the run speed before the fear landed
+                float    minFeared;        ///< the least and the most it read while feared
+                float    maxFeared;
+                uint32   fearedSamples;
+                float    afterRecalc;      ///< what it read on the sample after the bare UpdateSpeed
+                bool     recalcSeen;
+                float    after;            ///< the run speed once the fear had gone
+                bool     afterSeen;
+                bool     held;             ///< the claim was held on at least one sample
+            };
+            Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
+            Creature* k = Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f);
+            if (!a || !k) { Verdict("chainedGaps=INVALID(spawn failed) | fearRunSpeed=INVALID(spawn failed) | speedRestored=INVALID(spawn failed)"); return; }
+            Silence(a);
+            Silence(k);
+            const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
+            auto st = std::make_shared<St>();
+            st->running = st->haveEnd = st->recalcSeen = st->afterSeen = st->held = false;
+            st->endAt = st->legs = st->gaps = st->chained = st->gapSum = st->fearedSamples = 0;
+            st->before = st->after = st->afterRecalc = 0.0f;
+            st->minFeared = 1.0e9f;
+            st->maxFeared = -1.0e9f;
+
+            At(500, [this, g, gk, st]()
+            {
+                Creature* a = Get(g); if (!a) { return; }
+                st->before = a->GetSpeed(MOVE_RUN);
+                a->SetFeared(true, gk, FEAR, 0, 0);
+                Log("feared by the kobold 6 yd east: run speed %.4f -> %.4f yd/s (x%.3f), mt=%s",
+                    st->before, a->GetSpeed(MOVE_RUN), st->before > 0.0f ? a->GetSpeed(MOVE_RUN) / st->before : 0.0f, TypeName(a));
+            });
+            // 100 ms for twenty seconds, the diagnostic's own cadence on the same bare map.
+            for (uint32 i = 1; i <= 200; ++i)
+            {
+                At(500 + i * 100, [this, g, st, i]()
+                {
+                    Creature* a = Get(g); if (!a) { return; }
+                    const uint32 t = i * 100;
+                    if (a->Blocked(Motion::ReasonFeared))
+                    {
+                        st->held = true;
+                        ++st->fearedSamples;
+                        const float s = a->GetSpeed(MOVE_RUN);
+                        if (s < st->minFeared) { st->minFeared = s; }
+                        if (s > st->maxFeared) { st->maxFeared = s; }
+                    }
+                    Movement::Vector3 goal;
+                    const bool running = RunningGoal(a, goal);
+                    if (!running)
+                    {
+                        if (st->running) { st->running = false; st->haveEnd = true; st->endAt = t; }
+                        return;
+                    }
+                    // A leg is new when none ran at the last sample, or when the one that ran
+                    // has a different destination -- the second half is what a CHAINED bolt
+                    // looks like, laid inside one 100 ms window so the sampler never sees the
+                    // unit standing. A goal half a yard from where the unit stands is the
+                    // activation's stop spline, not a bolt: a stop ends exactly where the unit
+                    // is, while the first sample of a real leg is at most 100 ms -- about a
+                    // yard at the feared run -- along it.
+                    if (st->running && SameGoal(goal, st->goal)) { return; }
+                    if (Dist2(goal.x, goal.y, a->Where().X(), a->Where().Y()) <= 0.5f) { return; }
+                    uint32 gap = 0;
+                    if (st->legs)
+                    {
+                        gap = st->haveEnd ? t - st->endAt : 0;   // never seen standing = chained inside the window
+                        ++st->gaps;
+                        st->gapSum += gap;
+                        if (gap <= 300) { ++st->chained; }
+                    }
+                    ++st->legs;
+                    st->running = true;
+                    st->haveEnd = false;
+                    st->goal = goal;
+                    Log("+%5ums leg %u starts: goal (%.1f, %.1f), gap since the last leg %u ms%s", t, st->legs, goal.x, goal.y,
+                        st->legs > 1 ? gap : 0u, (st->legs > 1 && gap <= 300) ? " (chained)" : "");
+                });
+            }
+            // A bare recalculation mid-flee, with nothing else changed: the quarter must survive
+            // it, because that is exactly what an unrelated aura landing on the unit would do.
+            At(10500, [this, g, st]()
+            {
+                Creature* a = Get(g); if (!a) { return; }
+                a->UpdateSpeed(MOVE_RUN, true);
+                st->afterRecalc = a->GetSpeed(MOVE_RUN);
+                st->recalcSeen = true;
+                Log("+10000ms a bare UpdateSpeed(MOVE_RUN) mid-flee: run speed %.4f yd/s (x%.3f of the unfeared rate)",
+                    st->afterRecalc, st->before > 0.0f ? st->afterRecalc / st->before : 0.0f);
+            });
+            At(20700, [this, g, gk, st]()
+            {
+                Creature* a = Get(g); if (!a) { return; }
+                a->SetFeared(false, gk, FEAR, 0, 0);
+                Log("+20200ms the fear released: feared=%d run speed %.4f yd/s, mt=%s",
+                    a->Blocked(Motion::ReasonFeared) ? 1 : 0, a->GetSpeed(MOVE_RUN), TypeName(a));
+            });
+            for (uint32 i = 1; i <= 5; ++i)
+            {
+                At(20700 + i * 100, [this, g, st]()
+                {
+                    Creature* a = Get(g); if (!a) { return; }
+                    if (a->Blocked(Motion::ReasonFeared)) { return; }
+                    st->after = a->GetSpeed(MOVE_RUN);
+                    st->afterSeen = true;
+                });
+            }
+            At(21400, [this, st]()
+            {
+                char cadence[280], speed[280], restored[200];
+                // Retail: 52% of 27 gaps at or under 300 ms. Over a run this short the count is
+                // a small sample of a one-in-two coin, so the band is wide on purpose: what it
+                // must catch is a cadence with ONE mode again -- all rested (the state before
+                // 2026-09-21: 0 of 6) or all chained.
+                if (st->gaps < 4)
+                {
+                    snprintf(cadence, sizeof(cadence), "INVALID(only %u gaps over %u legs in 20 s)", st->gaps, st->legs);
+                }
+                else
+                {
+                    const float share = 100.0f * float(st->chained) / float(st->gaps);
+                    snprintf(cadence, sizeof(cadence), "%s(%u of %u gaps at or under 300 ms = %.0f%%, retail 52%%; mean gap %u ms over %u legs)",
+                             (share >= 20.0f && share <= 85.0f) ? "OK" : "BUG", st->chained, st->gaps, share, st->gapSum / st->gaps, st->legs);
+                }
+                if (!st->held || st->fearedSamples < 10 || st->before <= 0.0f)
+                {
+                    snprintf(speed, sizeof(speed), "INVALID(the fear never held: %u samples, unfeared speed %.4f)", st->fearedSamples, st->before);
+                    snprintf(restored, sizeof(restored), "INVALID(the fear never held)");
+                }
+                else
+                {
+                    const float lo = st->minFeared / st->before, hi = st->maxFeared / st->before;
+                    const float rc = st->recalcSeen ? st->afterRecalc / st->before : 0.0f;
+                    const bool flat = lo > 1.2450f && hi < 1.2550f;
+                    const bool survived = st->recalcSeen && rc > 1.2450f && rc < 1.2550f;
+                    snprintf(speed, sizeof(speed), "%s(x%.3f-%.3f of the unfeared %.4f yd/s over %u samples, x%.3f after a bare recalculation; retail x1.250)",
+                             (flat && survived) ? "OK" : "BUG", lo, hi, st->before, st->fearedSamples, rc);
+                    if (!st->afterSeen)
+                    {
+                        snprintf(restored, sizeof(restored), "INVALID(no sample after the release)");
+                    }
+                    else
+                    {
+                        const float back = st->after / st->before;
+                        snprintf(restored, sizeof(restored), "%s(x%.3f of the unfeared rate within 500 ms of the release)",
+                                 (back > 0.995f && back < 1.005f) ? "OK" : "BUG", back);
+                    }
+                }
+                std::string text = std::string("chainedGaps=") + cadence + " | fearRunSpeed=" + speed + " | speedRestored=" + restored;
+                Verdict(text);
+            });
+        }
+    };
+
 
     namespace
     {
@@ -860,6 +1076,7 @@ namespace Harness
         r.Register(new FearRefreshSameClaim());
         r.Register(new ConfuseInTheAir());
         r.Register(new FearAuraMoves());
+        r.Register(new FearCadenceAndSpeed());
         r.Register(new PlayerFear());
     }
 }

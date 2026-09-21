@@ -63,6 +63,18 @@
 // Base movement-speed table; defined in Unit.cpp.
 extern float baseMoveSpeed[MAX_MOVE_TYPE];
 
+namespace
+{
+    /// A feared unit runs a quarter faster for as long as the fear holds.
+    ///
+    /// Retail, in the Cataclysm 4.0.6a dumps analysed in peer/retail-fear-movement-2026-09-20.md,
+    /// sends `SMSG_SPLINE_SET_RUN_SPEED 6.9444 -> 8.6805` inside the fear aura's OWN batch and
+    /// `8.6805 -> 6.9444` when the aura is removed: 8.6805 / 6.9444 = 1.25 exactly, on the FINAL
+    /// speed. warcraft.wiki.gg says the same in words: "All Fear effects also increase the
+    /// afflicted target's run speed by 25%, making it harder to catch feared targets."
+    const float kFearRunSpeedFactor = 1.25f;
+}
+
 /**
  * @brief Recalculates movement speed for a move type from active modifiers.
  *
@@ -112,6 +124,32 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio, bool ignore
                 main_speed_mod  = GetMaxPositiveAuraModifier(SPELL_AURA_MOD_INCREASE_SPEED);
                 stack_bonus     = GetTotalAuraMultiplier(SPELL_AURA_MOD_SPEED_ALWAYS);
                 non_stack_bonus = (100.0f + GetMaxPositiveAuraModifier(SPELL_AURA_MOD_SPEED_NOT_STACK)) / 100.0f;
+            }
+            // The fear's own quarter (kFearRunSpeedFactor). It lives HERE, inside the
+            // recalculation, and not as a SetSpeedRate poke from Unit::SetFeared: this function
+            // rebuilds the rate from scratch on every aura change, so a flat poke would be
+            // silently clobbered by the next thing that recalculates and its restore would fight
+            // whatever else had moved meanwhile. Computed here instead, it survives every
+            // recalculation and composes exactly as an aura-driven modifier would.
+            //
+            // BOTH candidates are scaled, because `bonus` below is max(non_stack_bonus,
+            // stack_bonus): folding the quarter into one of them alone would let a larger
+            // modifier of the other kind swallow the fear's bonus through that max. Scaling both
+            // by the same positive factor leaves the max's choice alone and lifts its value, so
+            // this is exactly `speed *= 1.25` applied at the top of the run-speed arithmetic --
+            // above the normalisation cap, the slow, the assistance cut and the creature
+            // template's SpeedRun, every one of which is a multiplication that commutes with it
+            // (the cap and the slow's minimum-speed floor are the two that do not, and both
+            // should bound the boosted speed, not be bounded by it).
+            //
+            // Read through the shell's published block, as Unit::IsTaxiFlying is: the live
+            // arbiter is not readable from every caller of UpdateSpeed, and the answer only has
+            // to be right at the end of the commit that lands or lifts the fear -- which is when
+            // Unit::SetFeared calls back here.
+            if (Blocked(Motion::ReasonFeared))
+            {
+                stack_bonus     *= kFearRunSpeedFactor;
+                non_stack_bonus *= kFearRunSpeedFactor;
             }
             break;
         }
@@ -313,6 +351,12 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
         Unit* caster = IsInWorld() ? GetMap()->GetUnit(casterGuid) : NULL;
 
         GetMotionMaster()->MoveFleeing(caster, time, claim);   // caster==NULL processed in MoveFleeing
+
+        // Retail's quarter, in the aura's own batch (kFearRunSpeedFactor). AFTER MoveFleeing,
+        // never before: UpdateSpeed reads the block the kernel PUBLISHES at the end of a commit,
+        // and MoveFleeing's own commit is what puts ReasonFeared there. The flee's first bolt is
+        // laid on the next tick, not in that commit, so the boost is in place before it.
+        UpdateSpeed(MOVE_RUN, true);
     }
     else
     {
@@ -323,6 +367,12 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
         }
 
         RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING);
+
+        // The quarter goes back with the aura, as the dumps' 8.6805 -> 6.9444 does. Before the
+        // end of control below, so the chase or the run home it lays is routed at the restored
+        // speed; ReleaseControl's own commit has already published the block without
+        // ReasonFeared, and a surviving fear returned above without touching the speed.
+        UpdateSpeed(MOVE_RUN, true);
 
         // The end of control runs for the claim that just went: a removal that released
         // nothing (a fear refused at apply, a second prevent-fleeing aura's loop) changes no
