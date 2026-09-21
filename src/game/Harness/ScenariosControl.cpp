@@ -1350,6 +1350,17 @@ namespace Harness
             WorldSession* s = p->GetSession();
             return s && s->Movers().IsMember(p->GetObjectGuid().GetRawValue()) && p->MoverSession() == s;
         }
+
+        /// player-fear's two fixed moments, as the TIMELINE counts them: absolute offsets from
+        /// the scenario's own start, which is what Scenario::At takes.
+        ///
+        /// ONE TIME BASE IN THE LOG, and it is not this one. Every "+Nms" line the scenario
+        /// prints is N ms AFTER THE CAST, because that is the event every reading is about; the
+        /// sampler's own `t` has always been that, and a step that logs an absolute moment must
+        /// subtract the cast. Mixing the two is how the record came to carry a line reading
+        /// "+4000ms the aura pulled" for something that happened 3500 ms after the cast.
+        const uint32 kFearCastAt = 500;
+        const uint32 kFearPullAt = 4000;
     }
 
     /// S63 (the harness's first player): the fear's CONTROL HANDOFF, the half of Unit::SetFeared
@@ -1358,8 +1369,8 @@ namespace Harness
     /// back (UnitSpeed.cpp:357-364); until today the only witness to either was a human in a
     /// game client. A kobold casts 5782 -- the spell, as S60 does, not the entry point every
     /// other scenario calls -- at a session-less harness player, the scenario samples for six
-    /// seconds and pulls the aura at +4 s so the handback falls inside that window rather than
-    /// waiting on the spell's own duration.
+    /// seconds and pulls the aura 3.5 s after the cast (kFearPullAt, absolute +4 s) so the
+    /// handback falls inside that window rather than waiting on the spell's own duration.
     class PlayerFear : public Scenario
     {
     public:
@@ -1386,11 +1397,13 @@ namespace Harness
                 bool   selfBefore;        ///< his own mover before the cast (the spawn's grant held)
                 bool   auraLanded;        ///< the 5782 holder was on him 100 ms after the cast
                 uint32 fearedSamples;     ///< samples with the fear's claim held
-                uint32 afterSamples;      ///< samples after it went
+                uint32 afterSamples;      ///< samples since the claim was LAST seen held
                 bool   selfWhileFeared;   ///< still his own mover on one of those first samples
                 bool   allSelfAfter;      ///< his own mover on every one of the second
                 bool   taxi;              ///< IsTaxiFlying() on any sample
-                uint32 endedAt;           ///< when the claim was first seen gone
+                uint32 endedAt;           ///< when the claim went for the last time
+                uint32 flickers;          ///< times the claim went unpublished mid-fear and came back
+                uint32 discarded;         ///< samples those re-anchorings took back out of the after-window
             };
             Player* p = SpawnPlayer(SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
             Creature* k = p ? Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f) : NULL;
@@ -1406,9 +1419,10 @@ namespace Harness
             st->selfBefore = st->auraLanded = st->selfWhileFeared = st->taxi = false;
             st->allSelfAfter = true;
             st->fearedSamples = st->afterSamples = st->endedAt = 0;
+            st->flickers = st->discarded = 0;
             Log("the player %s stands at (%.1f, %.1f), the kobold 6 yd east", g.GetString().c_str(), p->Where().X(), p->Where().Y());
 
-            At(500, [this, g, gk, st]()
+            At(kFearCastAt, [this, g, gk, st]()
             {
                 Player* p = sPlayerRegistry.Find(g);
                 Creature* k = Get(gk);
@@ -1423,7 +1437,7 @@ namespace Harness
                 k->CastSpell(p, FEAR, true);
                 Log("the kobold casts %u on the player at (%.1f, %.1f): his own mover before it=%d", FEAR, st->x0, st->y0, st->selfBefore ? 1 : 0);
             });
-            At(600, [this, g, st]()
+            At(kFearCastAt + 100, [this, g, st]()
             {
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                 st->auraLanded = p->HasAura(FEAR);
@@ -1431,17 +1445,19 @@ namespace Harness
                     p->Blocked(Motion::ReasonFeared) ? 1 : 0, p->IsRooted() ? 1 : 0, OwnMover(p) ? 1 : 0);
             });
             // Registered before the sampler so it runs first at its own moment (the timeline
-            // orders a tie by insertion): the sample at +4000 is then already an after-sample.
-            At(4000, [this, g, st]()
+            // orders a tie by insertion): the sample at +3500 after the cast is then already an
+            // after-sample.
+            At(kFearPullAt, [this, g, st]()
             {
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                 p->RemoveAurasDueToSpell(FEAR);
-                Log("+4000ms the aura pulled: aura=%d feared=%d his own mover=%d taxi=%d", p->HasAura(FEAR) ? 1 : 0,
+                Log("+%4ums after the cast the aura pulled: aura=%d feared=%d his own mover=%d taxi=%d",
+                    kFearPullAt - kFearCastAt, p->HasAura(FEAR) ? 1 : 0,
                     p->Blocked(Motion::ReasonFeared) ? 1 : 0, OwnMover(p) ? 1 : 0, p->IsTaxiFlying() ? 1 : 0);
             });
             for (uint32 i = 1; i <= 60; ++i)
             {
-                At(500 + i * 100, [this, g, st, i]()
+                At(kFearCastAt + i * 100, [this, g, st, i]()
                 {
                     Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                     const uint32 t = i * 100;
@@ -1456,6 +1472,24 @@ namespace Harness
                     {
                         ++st->fearedSamples;
                         if (self) { st->selfWhileFeared = true; }
+                        // THE AFTER-WINDOW IS ANCHORED TO THE END OF THE FEAR, not to the first
+                        // gap in it. A claim that reads unpublished on one sample and published
+                        // again on the next was a flicker inside the fear, not the handback, and
+                        // everything counted since that gap belongs to the fear's own window --
+                        // where the control is CORRECTLY revoked. Counted as after-samples they
+                        // would read "not his own mover after the aura went" and this category
+                        // would print BUG on a working server: the one construction in this
+                        // scenario that can produce a false BUG rather than a false OK, and the
+                        // pattern the confuse, feign-death and stun slices will copy. So the
+                        // window re-anchors here, and what it discards is counted and said.
+                        if (st->afterSamples)
+                        {
+                            ++st->flickers;
+                            st->discarded += st->afterSamples;
+                        }
+                        st->afterSamples = 0;
+                        st->endedAt = 0;
+                        st->allSelfAfter = true;
                     }
                     else if (st->fearedSamples)
                     {
@@ -1470,9 +1504,9 @@ namespace Harness
                     }
                 });
             }
-            At(6600, [this, st]()
+            At(kFearCastAt + 6100, [this, st]()
             {
-                char taken[200], flees[96], returned[176], taxi[80];
+                char taken[200], flees[96], returned[288], taxi[80];
                 if (!st->fearedSamples)
                 {
                     snprintf(taken, sizeof(taken), "INVALID(the fear never held: aura=%d)", st->auraLanded ? 1 : 0);
@@ -1493,19 +1527,34 @@ namespace Harness
                     // Ten yards is the line between fleeing and standing, as S60 reads it: a
                     // bolt is 11-36 yd and the first is under way well inside four seconds.
                     snprintf(flees, sizeof(flees), "%s(%.1f yd from where he was feared)", st->far2 >= 10.0f ? "OK" : "BUG", st->far2);
-                    if (st->afterSamples < 5)
+                    // The flicker note, appended to whichever branch fires below. A claim that
+                    // went unpublished mid-fear and came back is worth seeing even though the
+                    // window no longer counts it -- it is a finding about the claim, just not
+                    // this category's -- and on a healthy run there is nothing to say, so the
+                    // line reads as it always has.
+                    char flicker[112];
+                    if (st->flickers)
                     {
-                        snprintf(returned, sizeof(returned), "INVALID(only %u samples after the aura went)", st->afterSamples);
-                    }
-                    else if (st->allSelfAfter)
-                    {
-                        snprintf(returned, sizeof(returned), "OK(his own mover again from the first of the %u samples after the aura went, %u ms after the cast)",
-                                 st->afterSamples, st->endedAt);
+                        snprintf(flicker, sizeof(flicker), "; the claim flickered %u time(s) mid-fear, re-anchoring the window past %u sample(s)",
+                                 st->flickers, st->discarded);
                     }
                     else
                     {
-                        snprintf(returned, sizeof(returned), "BUG(not his own mover on every one of the %u samples after the aura went, %u ms after the cast)",
-                                 st->afterSamples, st->endedAt);
+                        flicker[0] = '\0';
+                    }
+                    if (st->afterSamples < 5)
+                    {
+                        snprintf(returned, sizeof(returned), "INVALID(only %u samples after the aura went%s)", st->afterSamples, flicker);
+                    }
+                    else if (st->allSelfAfter)
+                    {
+                        snprintf(returned, sizeof(returned), "OK(his own mover again from the first of the %u samples after the aura went, %u ms after the cast%s)",
+                                 st->afterSamples, st->endedAt, flicker);
+                    }
+                    else
+                    {
+                        snprintf(returned, sizeof(returned), "BUG(not his own mover on every one of the %u samples after the aura went, %u ms after the cast%s)",
+                                 st->afterSamples, st->endedAt, flicker);
                     }
                 }
                 snprintf(taxi, sizeof(taxi), "%s(IsTaxiFlying() %s throughout)", st->taxi ? "BUG" : "OK", st->taxi ? "held" : "false");
