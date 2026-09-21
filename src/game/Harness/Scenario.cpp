@@ -150,9 +150,40 @@ namespace Harness
         }
         const uint32 guidlow = kHarnessPlayerGuidFirst + uint32(m_players.size());
 
-        // A null socket and a null mailbox are safe: WorldSession null-guards both, and this
-        // session is never registered with World, so nothing ever calls Update() on it -- which
-        // is the one trap (WorldSession.cpp:602-610 would log the player straight back out).
+        // The body is a human warrior. That choice is load-bearing, so it is checked rather than
+        // trusted: Create fires REPLACE INTO character_phase_data for any race/class whose
+        // playercreateinfo row carries a phase map (Player.cpp:909-912), and this player has no
+        // character row to own such a write. The human warrior's phaseMap is 0 on the database
+        // this was written against, but playercreateinfo is a table a server owner may edit, so
+        // the "the harness never writes to the character database" constraint enforces itself
+        // here instead of resting on what one database happens to hold. Refused before the
+        // session exists, so there is nothing to unwind.
+        const uint8 race = RACE_HUMAN;
+        const uint8 class_ = CLASS_WARRIOR;
+        PlayerInfo const* pInfo = sObjectMgr.GetPlayerInfo(race, class_);
+        if (!pInfo)
+        {
+            Log("ERR spawn player %u: no playercreateinfo for race %u class %u", guidlow, race, class_);
+            return NULL;
+        }
+        if (pInfo->phaseMap != 0)
+        {
+            Log("ERR spawn player %u refused: race %u class %u has playercreateinfo.phaseMap %u, and Create would write character_phase_data for a character that does not exist",
+                guidlow, race, class_, pInfo->phaseMap);
+            return NULL;
+        }
+
+        // A null socket and a null mailbox are safe, but NOT because the session is left alone:
+        // Map::Update calls pSession->Update(updater) for every in-world player on the map
+        // (Map.cpp:913-924), so this session is updated from the tick its player is added. What
+        // makes that harmless is the filter and the null socket, not the absence of the call.
+        // MapSessionFilter::ProcessLogout() is false (WorldSession.h:284-287), so the logout
+        // block at WorldSession.cpp:599-611 -- which logs out exactly a session whose socket is
+        // gone -- is skipped; and with m_Socket null the packet loop (WorldSession.cpp:458) and
+        // UpdateSecondStream (WorldSession.cpp:1545-1548) each return before doing anything.
+        // The consequence for whoever builds on this: because that loop is gated on m_Socket, a
+        // harness session can never dispatch a mailbox packet. Pushing a WorldPacket into
+        // m_mailbox will NOT work -- drive the server through its own methods instead.
         WorldSession* session = new WorldSession(kHarnessAccountId, "harness", nullptr, nullptr,
                                                  SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
 
@@ -160,10 +191,10 @@ namespace Harness
         session->SetPlayer(player);                      // as login does (CharacterHandler.cpp:771)
         player->GetMotionMaster()->Initialize();         // as login does, before the player ever moves
 
-        // Human warrior: playercreateinfo.phaseMap is 0 for it, so Create's REPLACE INTO
-        // character_phase_data (Player.cpp:909-912) cannot fire. Only 7 rows in that table carry a
-        // phase map at all, and none of them is this one.
-        if (!player->Create(guidlow, "HarnessMover", RACE_HUMAN, CLASS_WARRIOR, GENDER_MALE, 0, 0, 0, 0, 0, 0))
+        // The phase-map refusal above is what makes this call safe to make against any database:
+        // with phaseMap 0 the REPLACE INTO character_phase_data at Player.cpp:909-912 cannot
+        // fire, and nothing else in Create touches the character database.
+        if (!player->Create(guidlow, "HarnessMover", race, class_, GENDER_MALE, 0, 0, 0, 0, 0, 0))
         {
             session->SetPlayer(NULL);
             delete player;

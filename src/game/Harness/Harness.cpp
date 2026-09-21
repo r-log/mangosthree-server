@@ -156,17 +156,24 @@ namespace Harness
         QueryResult* taken = CharacterDatabase.PQuery(
             "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
             kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
-        if (taken)
+        // A guard that fails open is not a guard: a lost connection or a missing table returns
+        // NULL, and reading that as "the block is free" is exactly the case where the answer is
+        // unknown and a real character may be standing in it. Refuse instead.
+        if (!taken)
         {
-            const uint32 rows = taken->Fetch()[0].GetUInt32();
-            delete taken;
-            if (rows)
-            {
-                sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",
-                               rows, kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
-                m_queue.clear();
-                return false;
-            }
+            sLog.outString("MVTEST refused: the harness guid block %u..%u could not be checked against `characters` (no result: connection or schema)",
+                           kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+            m_queue.clear();
+            return false;
+        }
+        const uint32 rows = taken->Fetch()[0].GetUInt32();
+        delete taken;
+        if (rows)
+        {
+            sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",
+                           rows, kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+            m_queue.clear();
+            return false;
         }
         m_map = sMapMgr.CreateMap(kMapId, NULL);
         if (!m_map)
@@ -361,17 +368,38 @@ namespace Harness
         // cascade -- the online flag, the group and guild broadcasts -- against a character that
         // never existed. Map::Remove(player, true) deletes the player itself (DeleteFromWorld,
         // Map.cpp:479-483), so the session pointer is taken while he is still alive.
+        // inWorld = false, and a miss is an error rather than a shrug: the default lookup hides
+        // a player who is registered but out of the world, and skipping him leaks both him and
+        // his session. Worse than a leak -- Scenario::Reset clears the scenario's list and the
+        // guids restart at kHarnessPlayerGuidFirst, so the next scenario builds a second live
+        // Player on the same guid and PlayerRegistry::Add overwrites the entry, putting the
+        // leaked one permanently out of reach of this loop and of everything else.
         std::vector<ObjectGuid> const& players = s->SpawnedPlayers();
         for (size_t i = 0; i < players.size(); ++i)
         {
-            Player* player = sPlayerRegistry.Find(players[i]);
+            Player* player = sPlayerRegistry.Find(players[i], false);
             if (!player)
             {
+                sLog.outString("MVTEST ERR %s: harness player %s is not in the registry at teardown; it and its session are leaked, and the next scenario will reuse the guid",
+                               s->Name(), players[i].GetString().c_str());
                 continue;
             }
             WorldSession* session = player->GetSession();
             sPlayerRegistry.Remove(player);
-            player->GetMap()->Remove(player, true);
+            // FindMap, not GetMap: the lookup above no longer filters on IsInWorld, so it can
+            // hand back a player whose map reference has already been cleared (Map::Remove ends
+            // in ResetMap), and GetMap asserts on that. Off every map there is no removal left
+            // to make -- delete him here, as Map::DeleteFromWorld would have.
+            if (Map* map = player->FindMap())
+            {
+                map->Remove(player, true);
+            }
+            else
+            {
+                sLog.outString("MVTEST ERR %s: harness player %s held no map at teardown; deleted without a map removal",
+                               s->Name(), players[i].GetString().c_str());
+                delete player;
+            }
             if (session)
             {
                 session->SetPlayer(NULL);
