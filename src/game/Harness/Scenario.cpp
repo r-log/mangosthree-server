@@ -32,6 +32,10 @@
 #include "Map.h"
 #include "GridMap.h"
 #include "Log.h"
+#include "Player.h"
+#include "PlayerRegistry.h"
+#include "WorldSession.h"
+#include "Auth/BigNumber.h"
 
 #include <cstdarg>
 #include <cstdio>
@@ -65,6 +69,7 @@ namespace Harness
         m_timeline = Timeline();
         m_finished = false;
         m_spawned.clear();
+        m_players.clear();
         m_found.clear();
         m_informs.clear();
     }
@@ -126,6 +131,79 @@ namespace Harness
         c->SetAI(new HarnessAI(c, c->AI(), this));
         m_spawned.push_back(c->GetObjectGuid());
         return c;
+    }
+
+    Player* Scenario::SpawnPlayer(float x, float y, float z, float o)
+    {
+        Map* map = GetMap();
+        if (!map)
+        {
+            Log("ERR spawn player: no map");
+            return NULL;
+        }
+        // The reserved block is what Runner::Start proved free of real characters; a guid past
+        // its end was never checked, so it is not ours to hand out.
+        if (m_players.size() >= kHarnessPlayerGuidCount)
+        {
+            Log("ERR spawn player: the harness guid block holds only %u", kHarnessPlayerGuidCount);
+            return NULL;
+        }
+        const uint32 guidlow = kHarnessPlayerGuidFirst + uint32(m_players.size());
+
+        // A null socket and a null mailbox are safe: WorldSession null-guards both, and this
+        // session is never registered with World, so nothing ever calls Update() on it -- which
+        // is the one trap (WorldSession.cpp:602-610 would log the player straight back out).
+        WorldSession* session = new WorldSession(kHarnessAccountId, "harness", nullptr, nullptr,
+                                                 SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+
+        Player* player = new Player(session);
+        session->SetPlayer(player);                      // as login does (CharacterHandler.cpp:771)
+        player->GetMotionMaster()->Initialize();         // as login does, before the player ever moves
+
+        // Human warrior: playercreateinfo.phaseMap is 0 for it, so Create's REPLACE INTO
+        // character_phase_data (Player.cpp:909-912) cannot fire. Only 7 rows in that table carry a
+        // phase map at all, and none of them is this one.
+        if (!player->Create(guidlow, "HarnessMover", RACE_HUMAN, CLASS_WARRIOR, GENDER_MALE, 0, 0, 0, 0, 0, 0))
+        {
+            session->SetPlayer(NULL);
+            delete player;
+            delete session;
+            Log("ERR spawn player %u: create failed", guidlow);
+            return NULL;
+        }
+
+        player->SetSaveTimer(0xFFFFFFFF);                // never let Player::Update save a character
+                                                         // that does not exist
+
+        // Create put him on his race's start map at his race's start point; put him where the
+        // scenario asked for, on the harness map, before Map::Add reads the placement.
+        // SetMap alone carries the map identity here -- it writes the map and instance ids and
+        // re-bases the placement frame (WorldObjectSummon.cpp:66-74), which is all the
+        // SetLocationMapId the design named would have done, and that one is protected anyway.
+        player->SetMap(map);
+        player->Place().MoveTo(x, y, z, o);
+
+        if (!map->Add(player))
+        {
+            session->SetPlayer(NULL);
+            delete player;
+            delete session;
+            Log("ERR spawn player %u at %.1f %.1f: map add refused", guidlow, x, y);
+            return NULL;
+        }
+
+        // Map::Add does NOT do this, and ObjectLookup resolves a player guid only through the
+        // registry (ObjectLookup.cpp:37-49), so without it nothing -- a pet's owner least of all --
+        // can find him.
+        sPlayerRegistry.Add(player);
+
+        // The initial self grant. RevokeMover flips a unit to ServerDriven only when its mover
+        // session is this one (WorldSession.cpp:161-164), so a fear's revoke against an ungranted
+        // player is a silent no-op and the scenario would pass while proving nothing.
+        player->SetClientControl(player, 1);
+
+        m_players.push_back(player->GetObjectGuid());
+        return player;
     }
 
     Creature* Scenario::Find(uint32 lowGuid, uint32 entry)

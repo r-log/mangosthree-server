@@ -36,6 +36,7 @@
 
 class Creature;
 class Map;
+class Player;
 
 namespace Harness
 {
@@ -102,6 +103,10 @@ namespace Harness
         void Abandon(char const* reason = "BROKEN(no verdict: the timeline ran dry)") { Verdict(reason); }
         /// Every guid Spawn handed out: the runner despawns them at the end.
         std::vector<ObjectGuid> const& Spawned() const { return m_spawned; }
+        /// Every guid SpawnPlayer handed out. Kept apart from Spawned() because a player
+        /// leaves by a different door: the runner unregisters him, removes him from the map
+        /// and deletes his session, where a creature is simply unsummoned.
+        std::vector<ObjectGuid> const& SpawnedPlayers() const { return m_players; }
         /// Every creature Find resolved and activated: the runner hands each back
         /// whole at the end (a Find'd creature is the world's own; it is never
         /// despawned).
@@ -122,6 +127,13 @@ namespace Harness
         /// the recording AI installed; NULL (and a logged ERR) when the template is
         /// missing or the create fails.
         Creature* Spawn(uint32 entry, float x, float y, float z, float o);
+        /// A Player with no client behind him, on the harness map: a real Player object on a
+        /// real WorldSession whose socket and mailbox are null, holding a guid out of the
+        /// harness's own reserved block and never written to the database. He exists so the
+        /// player-only halves of the kernel - the control handoff above all - get a scenario
+        /// instead of a manual live test. NULL when there is no map, when the block is spent,
+        /// or when the create fails.
+        Player* SpawnPlayer(float x, float y, float z, float o);
         /// A creature from the world database (S8's patroller), on the harness map.
         Creature* Find(uint32 lowGuid, uint32 entry);
         Creature* Get(ObjectGuid guid) const;
@@ -157,6 +169,7 @@ namespace Harness
         Timeline                m_timeline;
         bool                    m_finished;
         std::vector<ObjectGuid> m_spawned;
+        std::vector<ObjectGuid> m_players;
         std::vector<FoundActor> m_found;
         std::vector<Inform>     m_informs;
     };

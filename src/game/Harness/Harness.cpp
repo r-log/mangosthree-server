@@ -35,6 +35,10 @@
 #include "WorldClock.h"
 #include "RNGen.h"
 #include "World.h"
+#include "Player.h"
+#include "PlayerRegistry.h"
+#include "WorldSession.h"
+#include "Database/DatabaseEnv.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -144,6 +148,25 @@ namespace Harness
             sLog.outString("MVTEST refused: %u session(s) online; a run steps the world and its seconds, and a client's respawn and aura stamps would straddle the step back (run from the console on an empty realm)", n);
             m_queue.clear();
             return false;
+        }
+        // A scenario's player takes a guid straight out of the harness's reserved block, and a
+        // guid that a real character already owns would have the run write over him the first
+        // time anything saved. The registry cannot answer this: an offline character is invisible
+        // to it, so the characters table is the only witness.
+        QueryResult* taken = CharacterDatabase.PQuery(
+            "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
+            kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+        if (taken)
+        {
+            const uint32 rows = taken->Fetch()[0].GetUInt32();
+            delete taken;
+            if (rows)
+            {
+                sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",
+                               rows, kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+                m_queue.clear();
+                return false;
+            }
         }
         m_map = sMapMgr.CreateMap(kMapId, NULL);
         if (!m_map)
@@ -330,6 +353,29 @@ namespace Harness
                 {
                     m_map->AddToActive(c);
                 }
+            }
+        }
+        // The scenario's players go last, after every actor that could still be pointing at one
+        // has left. Before the session goes: ~WorldSession runs LogoutPlayer(true) when a player
+        // is still attached (WorldSession.cpp:296-298), which would drive the whole logout
+        // cascade -- the online flag, the group and guild broadcasts -- against a character that
+        // never existed. Map::Remove(player, true) deletes the player itself (DeleteFromWorld,
+        // Map.cpp:479-483), so the session pointer is taken while he is still alive.
+        std::vector<ObjectGuid> const& players = s->SpawnedPlayers();
+        for (size_t i = 0; i < players.size(); ++i)
+        {
+            Player* player = sPlayerRegistry.Find(players[i]);
+            if (!player)
+            {
+                continue;
+            }
+            WorldSession* session = player->GetSession();
+            sPlayerRegistry.Remove(player);
+            player->GetMap()->Remove(player, true);
+            if (session)
+            {
+                session->SetPlayer(NULL);
+                delete session;
             }
         }
         ++m_verdicts;
