@@ -143,6 +143,28 @@ namespace Harness
                 return false;
             }
         }
+        // A player promotes the grids around it to full state and changes Map::Update's
+        // own visitation order for as long as he is in world (F4). End resets the map
+        // behind a player scenario once it ends (below), but that reset cannot help a
+        // scenario the queue already ran before it -- by then the promoted grids and
+        // their expiry phases were already read. The queue is the one place that can see
+        // every scenario's order at once, so it is the one place that can promise this
+        // rather than leave it for a reader to remember when registering a new family.
+        Scenario* lastPlayerScenario = NULL;
+        for (size_t i = 0; i < m_queue.size(); ++i)
+        {
+            if (m_queue[i]->UsesPlayer())
+            {
+                lastPlayerScenario = m_queue[i];
+            }
+            else if (lastPlayerScenario)
+            {
+                sLog.outString("MVTEST refused: %s (a player scenario) is queued before %s; a player scenario must run after every scenario that does not, so the grids it promotes are never read by one that follows it",
+                               lastPlayerScenario->Name(), m_queue[i]->Name());
+                m_queue.clear();
+                return false;
+            }
+        }
         if (uint32 n = sWorld.GetActiveSessionCount())
         {
             sLog.outString("MVTEST refused: %u session(s) online; a run steps the world and its seconds, and a client's respawn and aura stamps would straddle the step back (run from the console on an empty realm)", n);
@@ -404,6 +426,30 @@ namespace Harness
             {
                 session->SetPlayer(NULL);
                 delete session;
+            }
+        }
+        // The player himself is gone now, above, but a player promotes the grids around
+        // him to full state and changes Map::Update's own visitation order for as long as
+        // he was in world (F4); the grids he touched and their expiry phases are still
+        // whatever he left them at. Whatever runs next must not inherit that, so repeat
+        // Start's own reset here and log it in the same words, guarded exactly as Start
+        // guards it: a live GM's own full map is left alone, and a real player's own grid
+        // is never force-deleted out from under him.
+        if (s->UsesPlayer())
+        {
+            if (!m_map->IsBare())
+            {
+                sLog.outString("MVTEST WARN: map %u carries the world's spawns; two runs will not read alike (the launcher sets Movement.HarnessBareMap = %u)", kMapId, kMapId);
+            }
+            else if (m_map->HavePlayers())
+            {
+                sLog.outString("MVTEST WARN: map %u has players; grids kept, two runs will not read alike", kMapId);
+            }
+            else
+            {
+                m_map->UnloadAll(true);
+                m_map->RestartTerrainCleanUp();
+                sLog.outString("MVTEST map %u grids reset: every grid loads at a scenario's own moment, terrain reclaim restarted", kMapId);
             }
         }
         ++m_verdicts;

@@ -107,6 +107,13 @@ namespace Harness
         /// leaves by a different door: the runner unregisters him, removes him from the map
         /// and deletes his session, where a creature is simply unsummoned.
         std::vector<ObjectGuid> const& SpawnedPlayers() const { return m_players; }
+        /// True for a scenario that puts a player on the map (SpawnPlayer). A player
+        /// promotes the grids around it to full state and changes Map::Update's own
+        /// visitation order for as long as he is in world, so the runner requires every
+        /// scenario answering true here to run after every scenario that does not, and
+        /// resets the map's grids behind it once it ends. Default false; a scenario that
+        /// calls SpawnPlayer overrides it to true.
+        virtual bool UsesPlayer() const { return false; }
         /// Every creature Find resolved and activated: the runner hands each back
         /// whole at the end (a Find'd creature is the world's own; it is never
         /// despawned).
