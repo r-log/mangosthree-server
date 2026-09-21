@@ -2684,6 +2684,15 @@ TEST(MotionBehaviour_FearChainsTheNextBoltWhenTheCoinSaysSo)
         public:
             uint32 Urand(uint32 /*min*/, uint32 max) override { calls.push_back("urand"); return max; }
     };
+    // The DEFAULT itself, pinned. Nothing else here can: the minimum-answering fake takes the
+    // rested branch and the maximum-answering one the chained branch for any chainPercent in
+    // 1..99, and the harness's distribution band admits anything from 20% to 85%. A default
+    // quietly moved from 50 to 80 would pass every other assertion in the tree, so the number
+    // retail's ~52% chose is asserted outright.
+    CHECK_EQ(FearGeometry().chainPercent, 50u);
+    CHECK_EQ(FearGeometry().restMin, 800u);
+    CHECK_EQ(FearGeometry().restMax, 1500u);
+
     TopServices svc;
     FrightEast(svc);
     FearBehaviour f(Feared());

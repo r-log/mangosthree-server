@@ -1138,6 +1138,24 @@ TEST(MotionArbiter_Claims_AnAuraClaimIsToldFromTheAIsOwnFlee)
     m.Clear(true);                                           // a full reset takes the claims with it
     CHECK(!m.HasAuraClaim(Kind::Fear));
     m.DrainEvents();
+
+    // The other ordering, which is the one that tells "any HELD aura claim" from "the SELECTED
+    // claim": the aura first, then a NEWER AI flee, which wins the selection because the newest
+    // claim of a kind outranks the older. An implementation that read only the selection would
+    // answer false here and pass every assertion above.
+    Arbiter n;
+    n.InstallDefault(Kind::Idle);
+    n.Request(Claim(Kind::Fear, auraFear));
+    n.Request(Claim(Kind::Fear, aiFlee));
+    REQUIRE(n.Selected().has_value());
+    CHECK_EQ(static_cast<int>(n.Selected()->claim), static_cast<int>(aiFlee));   // the AI's flee drives
+    CHECK(n.HasAuraClaim(Kind::Fear));                       // and the aura is still HELD beneath it
+    CHECK(n.Release(aiFlee));                                // the flee ends, the aura drives again
+    CHECK(n.HasAuraClaim(Kind::Fear));
+    CHECK(n.Release(auraFear));                              // only the aura's own release ends it
+    CHECK(!n.HasAuraClaim(Kind::Fear));
+    CHECK(!n.HasClaim(Kind::Fear));
+    n.DrainEvents();
 }
 
 TEST(MotionArbiter_Claims_ClearUnderAClaimKeepsItSelected_ReleaseResumesTheDefault)

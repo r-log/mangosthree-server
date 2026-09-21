@@ -80,6 +80,30 @@ namespace Harness
             return Dist2(a.x, a.y, b.x, b.y) < 0.01f && fabsf(a.z - b.z) < 0.01f;
         }
 
+        /// A stop spline ends exactly where the unit is standing; the shortest flee bolt this
+        /// geometry draws from inside the quiet band is 8 yd. Half a yard tells them apart.
+        const float kStopSplineYd = 0.5f;
+
+        /// "Standing on the leg's own endpoint", the proof a leg FINISHED when the sampler sees
+        /// a fresh goal without ever having seen the unit standing.
+        ///
+        /// A fresh goal on its own proves nothing of the sort. The only reason a fear's goal
+        /// cannot change part-way through a leg today is the production guard at
+        /// ControlMoves.cpp:152-155 (`if (sight.status.traveling && m_havePoint) return
+        /// Move(m_point)`) -- which is one of the things these scenarios exist to protect. With
+        /// that guard gone the behaviour re-picks every tick and never finishes a leg, and a
+        /// detector that called every fresh goal a chained bolt would score a run of pure
+        /// re-routes as a healthy cadence. So a chain has to show the unit AT the endpoint of
+        /// the leg it is chaining from.
+        ///
+        /// Two yards, from the sampler's own resolution: it runs at 100 ms, and a feared wolf
+        /// covers about 0.75 yd in that (6.0 yd/s x 1.25 = 7.5 yd/s), so a leg that ended
+        /// cleanly can be up to one window -- under a yard -- along its successor by the time
+        /// that successor is first seen. Two yards is that window with room for the ground drop
+        /// beneath a goal, and still a quarter of the shortest bolt, so a genuine mid-leg
+        /// re-pick cannot hide inside it.
+        const float kLegArrivedYd = 2.0f;
+
         /// The flee's first bolt: a wolf feared by a kobold 6 yd east bolts within pi/8 of due
         /// west for 0.4-1.3 times the 22 yd to the quiet band, with the fear's leg latched and the run
         /// gait on the leg (design §4.1: the close band, the bit with the leg, SetWalk(false));
@@ -100,6 +124,8 @@ namespace Harness
                     float x0, y0;
                     bool haveFirst, legRan, haveEnd, haveSecond, bitOnLeg, walkOnLeg;
                     bool chainedToSecond;   ///< the second bolt was laid without the wolf ever being SEEN standing
+                    bool rerouted;          ///< a fresh goal appeared while the wolf was nowhere near the first bolt's endpoint
+                    float rerouteYd;        ///< how far from it, for the verdict
                     uint32 endAt, secondAt;
                     Movement::Vector3 goal;
                 };
@@ -111,7 +137,8 @@ namespace Harness
                 const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
                 auto st = std::make_shared<St>();
                 st->haveFirst = st->legRan = st->haveEnd = st->haveSecond = st->bitOnLeg = st->walkOnLeg = false;
-                st->chainedToSecond = false;
+                st->chainedToSecond = st->rerouted = false;
+                st->rerouteYd = 0.0f;
                 st->endAt = st->secondAt = 0;
                 At(500, [this, g, gk, st]()
                 {
@@ -143,14 +170,34 @@ namespace Harness
                             }
                             // A fresh destination, whether or not the wolf was ever SEEN standing
                             // between the two: a chained bolt is laid inside one 100 ms sampling
-                            // window, so waiting for the standing would miss it entirely.
+                            // window, so waiting for the standing would miss it entirely. But a
+                            // fresh goal is only a SECOND BOLT if the first one finished, and
+                            // when the standing was never seen the proof of that is the wolf
+                            // being at the first bolt's own endpoint (kLegArrivedYd). Anywhere
+                            // else and this is a re-pick part-way through the first bolt -- the
+                            // regression the traveling guard prevents -- which must read BUG,
+                            // not be counted as a chain.
                             else if (!st->haveSecond && !SameGoal(goal, st->goal))
                             {
-                                st->haveSecond = true;
-                                st->secondAt = t;
-                                st->chainedToSecond = !st->haveEnd;
-                                if (st->haveEnd) { Log("+%4ums the second bolt, %u ms after the first ended", t, t - st->endAt); }
-                                else { Log("+%4ums the second bolt, chained: the wolf was never seen standing", t); }
+                                const float fromEnd = Dist2(st->goal.x, st->goal.y, a->Where().X(), a->Where().Y());
+                                if (!st->haveEnd && fromEnd > kLegArrivedYd)
+                                {
+                                    if (!st->rerouted)
+                                    {
+                                        st->rerouted = true;
+                                        st->rerouteYd = fromEnd;
+                                        Log("+%4ums RE-ROUTE: a fresh goal (%.1f, %.1f) while the wolf is %.1f yd from the first bolt's endpoint -- that bolt never finished",
+                                            t, goal.x, goal.y, fromEnd);
+                                    }
+                                }
+                                else
+                                {
+                                    st->haveSecond = true;
+                                    st->secondAt = t;
+                                    st->chainedToSecond = !st->haveEnd;
+                                    if (st->haveEnd) { Log("+%4ums the second bolt, %u ms after the first ended", t, t - st->endAt); }
+                                    else { Log("+%4ums the second bolt, chained: the wolf was never seen standing, and it is %.1f yd from the first bolt's endpoint", t, fromEnd); }
+                                }
                             }
                             st->legRan = true;
                         }
@@ -178,7 +225,14 @@ namespace Harness
                         const bool away = off <= 0.45f && dist >= 8.0f && dist <= 30.5f;   // pi/8 = 0.39 plus the mesh's slack; 0.4-1.3 x 22 yd, the 30 yd cap
                         snprintf(bolt, sizeof(bolt), "%s(%.0f deg off due west, %.1f yd)", away ? "OK" : "BUG", off * 180.0f / M_PI_F, dist);
                         snprintf(gait, sizeof(gait), "%s(move=%d walk=%d on the leg)", (st->bitOnLeg && !st->walkOnLeg) ? "OK" : "BUG", st->bitOnLeg ? 1 : 0, st->walkOnLeg ? 1 : 0);
-                        if (!st->haveSecond) { snprintf(rest, sizeof(rest), "BUG(no second bolt within 5.5 s)"); }
+                        if (st->rerouted)
+                        {
+                            // The traveling guard is gone (or the leg was refused): the goal
+                            // moved while the wolf was still on its way to the last one, so
+                            // there is no second BOLT to time, only a leg that never finished.
+                            snprintf(rest, sizeof(rest), "BUG(a fresh goal %.1f yd from the first bolt's endpoint: the bolt never finished, so nothing here is a rest or a chain)", st->rerouteYd);
+                        }
+                        else if (!st->haveSecond) { snprintf(rest, sizeof(rest), "BUG(no second bolt within 5.5 s)"); }
                         else if (st->chainedToSecond)
                         {
                             // The chained branch: the coin said no rest, so the next bolt went
@@ -333,7 +387,10 @@ namespace Harness
                 struct St
                 {
                     float cx, cy;                          // the corpse's position, recorded at the kill
+                    bool  haveCorpse;                      // ...which only happens if the kobold was still resolvable then
                     bool  haveFirst, legRan, haveEnd, haveSecond;
+                    bool  rerouted;                        // a fresh goal while the wolf was nowhere near the first bolt's endpoint
+                    float rerouteYd;
                     float bx0, by0, bx1, by1;               // the wolf's position when each bolt was first seen running
                     Movement::Vector3 goal0, goal1;
                     Motion::Kind mtAfter;
@@ -346,12 +403,18 @@ namespace Harness
                 const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
                 auto st = std::make_shared<St>();
                 st->haveFirst = st->legRan = st->haveEnd = st->haveSecond = false;
+                st->haveCorpse = st->rerouted = false;
+                // Not left to chance: if the kobold cannot be resolved at +300 ms the corpse's
+                // position is never recorded, and every bearing this scenario computes would be
+                // taken from an uninitialised one. haveCorpse makes that an INVALID verdict.
+                st->cx = st->cy = st->rerouteYd = 0.0f;
                 st->mtAfter = Motion::Kind::Idle;
                 At(300, [this, gk, st]()
                 {
                     Creature* k = Get(gk); if (!k) { return; }
                     st->cx = k->Where().X();
                     st->cy = k->Where().Y();
+                    st->haveCorpse = true;
                     k->DealDamage(k, k->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
                     Log("the kobold killed at (%.1f, %.1f): alive=%d", st->cx, st->cy, k->IsAlive() ? 1 : 0);
                 });
@@ -387,15 +450,34 @@ namespace Harness
                             // A fresh destination, not "seen standing then running again": since
                             // 2026-09-21 about half the bolts are CHAINED into the next inside
                             // one 100 ms sampling window, and a detector that waits for the
-                            // standing simply never finds a second bolt on those runs.
+                            // standing simply never finds a second bolt on those runs. But when
+                            // the standing was never seen, the proof that the first bolt ENDED
+                            // is the wolf standing on its endpoint (kLegArrivedYd); a fresh goal
+                            // taken from anywhere else is a re-pick part-way through the bolt,
+                            // and this scenario must report that rather than measure the
+                            // bearing of a leg that never happened.
                             else if (!st->haveSecond && !SameGoal(goal, st->goal0))
                             {
-                                st->haveSecond = true;
-                                st->bx1 = a->Where().X();
-                                st->by1 = a->Where().Y();
-                                st->goal1 = goal;
-                                Log("+%4ums the second bolt: goal (%.1f, %.1f) from (%.1f, %.1f)%s", t, goal.x, goal.y, st->bx1, st->by1,
-                                    st->haveEnd ? "" : " (chained: never seen standing)");
+                                const float fromEnd = Dist2(st->goal0.x, st->goal0.y, a->Where().X(), a->Where().Y());
+                                if (!st->haveEnd && fromEnd > kLegArrivedYd)
+                                {
+                                    if (!st->rerouted)
+                                    {
+                                        st->rerouted = true;
+                                        st->rerouteYd = fromEnd;
+                                        Log("+%4ums RE-ROUTE: a fresh goal (%.1f, %.1f) while the wolf is %.1f yd from the first bolt's endpoint -- that bolt never finished",
+                                            t, goal.x, goal.y, fromEnd);
+                                    }
+                                }
+                                else
+                                {
+                                    st->haveSecond = true;
+                                    st->bx1 = a->Where().X();
+                                    st->by1 = a->Where().Y();
+                                    st->goal1 = goal;
+                                    Log("+%4ums the second bolt: goal (%.1f, %.1f) from (%.1f, %.1f)%s", t, goal.x, goal.y, st->bx1, st->by1,
+                                        st->haveEnd ? "" : " (chained: never seen standing, and on the first bolt's endpoint)");
+                                }
                             }
                             st->legRan = true;
                         }
@@ -409,7 +491,17 @@ namespace Harness
                 {
                     char starts[96], bolt[220];
                     snprintf(starts, sizeof(starts), "%s(mt=%s 200 ms after the fear)", st->mtAfter == Motion::Kind::Fear ? "OK" : "BUG", Motion::KindName(st->mtAfter));
-                    if (!st->haveFirst || !st->haveSecond)
+                    if (!st->haveCorpse)
+                    {
+                        // Every bearing below is taken FROM the corpse; without its position
+                        // there is nothing to measure, and a zeroed one would measure nonsense.
+                        snprintf(bolt, sizeof(bolt), "INVALID(the corpse's position was never recorded)");
+                    }
+                    else if (st->rerouted)
+                    {
+                        snprintf(bolt, sizeof(bolt), "BUG(a fresh goal %.1f yd from the first bolt's endpoint: the bolt never finished, so its bearing from the corpse means nothing)", st->rerouteYd);
+                    }
+                    else if (!st->haveFirst || !st->haveSecond)
                     {
                         snprintf(bolt, sizeof(bolt), "INVALID(%s within 4 s)", st->haveFirst ? "only one bolt ran" : "no bolt ran");
                     }
@@ -731,6 +823,8 @@ namespace Harness
                 uint32   gaps;             ///< gaps counted (legs - 1)
                 uint32   chained;          ///< of those, at or under 300 ms
                 uint32   gapSum;           ///< for the mean
+                uint32   reroutes;         ///< fresh goals taken while the unit was NOT at the running leg's endpoint
+                float    worstReroute;     ///< the farthest of them, for the verdict
                 Movement::Vector3 goal;    ///< the goal of the leg under way
                 // The speed
                 float    before;           ///< the run speed before the fear landed
@@ -742,6 +836,8 @@ namespace Harness
                 float    after;            ///< the run speed once the fear had gone
                 bool     afterSeen;
                 bool     held;             ///< the claim was held on at least one sample
+                bool     heldAtRelease;    ///< ReasonFeared, read in the release step BEFORE the release
+                bool     auraAtRelease;    ///< IsFearedByAura(), likewise
             };
             Creature* a = Spawn(WOLF, SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
             Creature* k = Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f);
@@ -751,8 +847,9 @@ namespace Harness
             const ObjectGuid g = a->GetObjectGuid(), gk = k->GetObjectGuid();
             auto st = std::make_shared<St>();
             st->running = st->haveEnd = st->recalcSeen = st->afterSeen = st->held = false;
-            st->endAt = st->legs = st->gaps = st->chained = st->gapSum = st->fearedSamples = 0;
-            st->before = st->after = st->afterRecalc = 0.0f;
+            st->heldAtRelease = st->auraAtRelease = false;
+            st->endAt = st->legs = st->gaps = st->chained = st->gapSum = st->fearedSamples = st->reroutes = 0;
+            st->before = st->after = st->afterRecalc = st->worstReroute = 0.0f;
             st->minFeared = 1.0e9f;
             st->maxFeared = -1.0e9f;
 
@@ -771,10 +868,18 @@ namespace Harness
                 {
                     Creature* a = Get(g); if (!a) { return; }
                     const uint32 t = i * 100;
-                    if (a->Blocked(Motion::ReasonFeared))
+                    if (!a->Blocked(Motion::ReasonFeared))
                     {
-                        st->held = true;
-                        ++st->fearedSamples;
+                        // The FEAR's cadence is what this measures, so the legs are counted only
+                        // while the fear drives. Nothing should end it inside this window -- the
+                        // claim is untimed and released at +20200 -- but if anything ever did,
+                        // the home run and the wander that follow lay legs of their own, and
+                        // counting those would put somebody else's cadence in the verdict.
+                        return;
+                    }
+                    st->held = true;
+                    ++st->fearedSamples;
+                    {
                         const float s = a->GetSpeed(MOVE_RUN);
                         if (s < st->minFeared) { st->minFeared = s; }
                         if (s > st->maxFeared) { st->maxFeared = s; }
@@ -789,12 +894,35 @@ namespace Harness
                     // A leg is new when none ran at the last sample, or when the one that ran
                     // has a different destination -- the second half is what a CHAINED bolt
                     // looks like, laid inside one 100 ms window so the sampler never sees the
-                    // unit standing. A goal half a yard from where the unit stands is the
+                    // unit standing. A goal kStopSplineYd from where the unit stands is the
                     // activation's stop spline, not a bolt: a stop ends exactly where the unit
                     // is, while the first sample of a real leg is at most 100 ms -- about a
                     // yard at the feared run -- along it.
                     if (st->running && SameGoal(goal, st->goal)) { return; }
-                    if (Dist2(goal.x, goal.y, a->Where().X(), a->Where().Y()) <= 0.5f) { return; }
+                    if (Dist2(goal.x, goal.y, a->Where().X(), a->Where().Y()) <= kStopSplineYd) { return; }
+                    // The soundness check this whole distribution rests on (kLegArrivedYd). A
+                    // fresh goal while a leg was running is a CHAIN only if that leg finished,
+                    // and the proof is the unit standing on its endpoint. Without this, a
+                    // behaviour that re-picked every tick and never finished a leg -- exactly
+                    // what happens if the traveling guard at ControlMoves.cpp:152-155 goes --
+                    // would be scored as a healthy 40%-chained cadence, and the category would
+                    // be emitting a number that looks like evidence and is not.
+                    if (st->running)
+                    {
+                        const float fromEnd = Dist2(st->goal.x, st->goal.y, a->Where().X(), a->Where().Y());
+                        if (fromEnd > kLegArrivedYd)
+                        {
+                            ++st->reroutes;
+                            if (fromEnd > st->worstReroute) { st->worstReroute = fromEnd; }
+                            if (st->reroutes <= 3)
+                            {
+                                Log("+%5ums RE-ROUTE %u: a fresh goal (%.1f, %.1f) while the unit is %.1f yd from the running leg's own endpoint -- that leg never finished",
+                                    t, st->reroutes, goal.x, goal.y, fromEnd);
+                            }
+                            st->goal = goal;   // the leg that runs now; not a leg completed, not a gap
+                            return;
+                        }
+                    }
                     uint32 gap = 0;
                     if (st->legs)
                     {
@@ -825,8 +953,14 @@ namespace Harness
             At(20700, [this, g, gk, st]()
             {
                 Creature* a = Get(g); if (!a) { return; }
+                // Read BEFORE the release, and the verdict refuses to speak without them:
+                // "unfeared and at base speed afterwards" is also what an aura that expired
+                // early looks like, which is the very failure speedRestored exists to catch.
+                st->heldAtRelease = a->Blocked(Motion::ReasonFeared);
+                st->auraAtRelease = a->IsFearedByAura();
                 a->SetFeared(false, gk, FEAR, 0, 0);
-                Log("+20200ms the fear released: feared=%d run speed %.4f yd/s, mt=%s",
+                Log("+20200ms the fear released (held just before it: feared=%d auraFeared=%d): feared=%d run speed %.4f yd/s, mt=%s",
+                    st->heldAtRelease ? 1 : 0, st->auraAtRelease ? 1 : 0,
                     a->Blocked(Motion::ReasonFeared) ? 1 : 0, a->GetSpeed(MOVE_RUN), TypeName(a));
             });
             for (uint32 i = 1; i <= 5; ++i)
@@ -846,14 +980,21 @@ namespace Harness
                 // a small sample of a one-in-two coin, so the band is wide on purpose: what it
                 // must catch is a cadence with ONE mode again -- all rested (the state before
                 // 2026-09-21: 0 of 6) or all chained.
-                if (st->gaps < 4)
+                if (st->reroutes)
+                {
+                    // Legs that never finished: the share below would be computed over
+                    // something that is not a cadence at all, so it is not computed.
+                    snprintf(cadence, sizeof(cadence), "BUG(%u re-route(s), the farthest %.1f yd from the running leg's own endpoint: legs are not finishing, so there is no cadence to measure)",
+                             st->reroutes, st->worstReroute);
+                }
+                else if (st->gaps < 4)
                 {
                     snprintf(cadence, sizeof(cadence), "INVALID(only %u gaps over %u legs in 20 s)", st->gaps, st->legs);
                 }
                 else
                 {
                     const float share = 100.0f * float(st->chained) / float(st->gaps);
-                    snprintf(cadence, sizeof(cadence), "%s(%u of %u gaps at or under 300 ms = %.0f%%, retail 52%%; mean gap %u ms over %u legs)",
+                    snprintf(cadence, sizeof(cadence), "%s(%u of %u gaps at or under 300 ms = %.0f%%, retail 52%%; mean gap %u ms over %u legs, no re-routes)",
                              (share >= 20.0f && share <= 85.0f) ? "OK" : "BUG", st->chained, st->gaps, share, st->gapSum / st->gaps, st->legs);
                 }
                 if (!st->held || st->fearedSamples < 10 || st->before <= 0.0f)
@@ -869,14 +1010,23 @@ namespace Harness
                     const bool survived = st->recalcSeen && rc > 1.2450f && rc < 1.2550f;
                     snprintf(speed, sizeof(speed), "%s(x%.3f-%.3f of the unfeared %.4f yd/s over %u samples, x%.3f after a bare recalculation; retail x1.250)",
                              (flat && survived) ? "OK" : "BUG", lo, hi, st->before, st->fearedSamples, rc);
-                    if (!st->afterSeen)
+                    if (!st->heldAtRelease || !st->auraAtRelease)
+                    {
+                        // The aura had already gone before the scheduled release, so whatever
+                        // the rate reads afterwards cannot be attributed to the release: an
+                        // aura that expired early would otherwise pass this category, and that
+                        // is precisely what it is here to catch.
+                        snprintf(restored, sizeof(restored), "INVALID(the fear was not held at the release: feared=%d auraFeared=%d just before it)",
+                                 st->heldAtRelease ? 1 : 0, st->auraAtRelease ? 1 : 0);
+                    }
+                    else if (!st->afterSeen)
                     {
                         snprintf(restored, sizeof(restored), "INVALID(no sample after the release)");
                     }
                     else
                     {
                         const float back = st->after / st->before;
-                        snprintf(restored, sizeof(restored), "%s(x%.3f of the unfeared rate within 500 ms of the release)",
+                        snprintf(restored, sizeof(restored), "%s(x%.3f of the unfeared rate within 500 ms of a release that lifted a held aura)",
                                  (back > 0.995f && back < 1.005f) ? "OK" : "BUG", back);
                     }
                 }
