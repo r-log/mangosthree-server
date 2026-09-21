@@ -430,6 +430,10 @@ namespace Harness
         //    the online flag, the group and guild broadcasts -- against a character that never
         //    existed, through a pointer that by now is freed.
         // 5. delete session.
+        //
+        // Steps 4 and 5 are NOT unconditional. They are right for the player this teardown
+        // ended itself, and right for one it finds already destroyed, and WRONG for one that
+        // may still be alive -- each branch below says which it is and why.
         std::vector<OwnedPlayer> const& players = s->SpawnedPlayers();
         for (size_t i = 0; i < players.size(); ++i)
         {
@@ -461,27 +465,57 @@ namespace Harness
                                    s->Name(), owned.guid.GetString().c_str());
                     delete owned.player;
                 }
+                // Steps 4 and 5, and only on this branch: the player we owned is gone by our
+                // own hand, so nothing can be reaching for the session any more.
+                if (owned.session)
+                {
+                    owned.session->SetPlayer(NULL);
+                    delete owned.session;
+                }
+            }
+            else if (state == Ownership::Destroyed)
+            {
+                // Nothing answers the guid, and in this tree only one thing ever unregisters a
+                // player: Map::DeleteFromWorld (Map.cpp:481, the sole caller of
+                // PlayerRegistry::Remove outside this teardown), whose next statement deletes
+                // him. So the object really is gone, no live player can still be reaching for
+                // this session, and closing it is the correct end rather than a leak. SetPlayer
+                // is a plain assignment (WorldSession.h:480-483), so it is safe over a _player
+                // that is already freed, and it is what keeps ~WorldSession's LogoutPlayer(true)
+                // off that freed memory.
+                sLog.outString("MVTEST ERR %s: harness player %s was destroyed by something else before the teardown reached him; he is not touched, and the session the scenario allocated is closed here",
+                               s->Name(), owned.guid.GetString().c_str());
+                if (owned.session)
+                {
+                    owned.session->SetPlayer(NULL);
+                    delete owned.session;
+                }
             }
             else
             {
-                // Said, and said precisely, rather than shrugged at: this record is the only
-                // thing left that knows the player existed, so if something else ended him the
-                // run's own log is where that has to surface.
-                sLog.outString("MVTEST ERR %s: harness player %s %s before the teardown reached him; he is not touched, and only the session the scenario allocated is closed",
-                               s->Name(), owned.guid.GetString().c_str(),
-                               state == Ownership::Destroyed ? "was destroyed by something else"
-                                                             : "was replaced in the registry by another player object");
-            }
-            // Either way, the session is closed here. It is the scenario's own allocation and
-            // nothing else in the server frees it -- Map::DeleteFromWorld deletes only the
-            // player -- so skipping it on the unhappy path would leak the very thing this record
-            // exists to hold on to. SetPlayer is a plain assignment (WorldSession.h:480-483), so
-            // it is safe over a _player that is already gone, and it is what keeps
-            // ~WorldSession's LogoutPlayer(true) off freed memory.
-            if (owned.session)
-            {
-                owned.session->SetPlayer(NULL);
-                delete owned.session;
+                // Replaced: another object answers the guid. That says our player was replaced
+                // IN THE REGISTRY -- it does NOT say he died. He may be alive and in the map
+                // this instant, and Map::Update calls plr->GetSession()->Update(...) for every
+                // in-world player on it (Map.cpp:913-923), so deleting this session would hand
+                // a live player a freed one on the very next tick. A leaked session is bad; a
+                // live player holding a freed session is worse, so THE SESSION IS LEFT ALONE,
+                // deliberately, and the line below says so in as many words.
+                //
+                // Not detached either. SetPlayer(NULL) would not crash -- a harness session's
+                // Update is a no-op whatever _player holds, since the packet loop and
+                // UpdateSecondStream both return on the null socket and MapSessionFilter never
+                // runs the logout -- but it would buy nothing and cost something. Nothing will
+                // ever delete this session now, so there is no ~WorldSession to protect from
+                // the pointer; and the player's own m_session cannot be cleared from here
+                // without touching a player we have just decided we may not touch, so detaching
+                // would leave a live player whose session denies him, which any code doing
+                // GetSession()->GetPlayer() would then read as nobody.
+                //
+                // The leak is visible twice over: this line, and the mover authority totals,
+                // which a session that is never destroyed never folds back, so the campaign's
+                // added != removed signal will also be off by this player's grants.
+                sLog.outString("MVTEST ERR %s: harness player %s was replaced in the registry by another player object before the teardown reached him; he is not touched and HIS SESSION IS LEAKED ON PURPOSE -- he may still be alive and in the map, and Map::Update would call straight into a freed session. Do not 'fix' this into a delete. The classification is a best effort: it compares the pointer this scenario recorded with what the registry answers now, and an address can be handed out twice",
+                               s->Name(), owned.guid.GetString().c_str());
             }
         }
         // The player himself is gone now, above, but a player promotes the grids around

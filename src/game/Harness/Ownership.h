@@ -55,14 +55,29 @@
  * merely found something there would hand the teardown somebody else's player to
  * unregister, remove from the map and delete, which is a worse bug than the leak it was
  * trying to avoid.
+ *
+ * WHAT THIS IS NOT. It is a best effort, and the caller must treat each answer as what it
+ * literally says rather than as a verdict on the object's life:
+ *
+ *  - `Destroyed` does mean the object is gone, because the only thing in this tree that
+ *    unregisters a player is `Map::DeleteFromWorld`, which deletes him on its next line.
+ *  - `Replaced` means ONLY that the registry now answers that guid with a different
+ *    object. It does NOT mean ours died: he may be alive, in the map, and being updated
+ *    every tick. Nothing may be freed on his behalf on the strength of this answer.
+ *  - `Held` is an address comparison, and an address can be handed out twice: if our
+ *    player were destroyed and a new one allocated at the same place and registered on the
+ *    same guid, this would read `Held` and the caller would tear the new one down. Closing
+ *    that would take a generation stamp on the record, which nothing in the harness needs
+ *    today -- no scenario removes its own player at all -- so it is named here rather than
+ *    built and left unused.
  */
 namespace Harness
 {
     enum class Ownership : uint8
     {
         Held,        ///< the registry still holds the very object the record kept: tear it down whole
-        Destroyed,   ///< nothing is registered on that guid; something else has already ended him
-        Replaced     ///< another player object answers that guid; ours is gone, and that one is not ours to touch
+        Destroyed,   ///< nothing is registered on that guid; something else has already deleted him
+        Replaced     ///< another object answers that guid; ours may yet be ALIVE, so free nothing on its account
     };
 
     /**

@@ -104,6 +104,9 @@ TEST(HarnessOwnership_a_different_object_on_the_guid_is_not_ours_to_touch)
     // The harness hands out guids from one small reserved block and restarts at the bottom
     // of it for every scenario, so a later player can answer an earlier one's guid. Presence
     // is not identity: tearing THAT one down would be worse than the leak it avoided.
+    // And this outcome says nothing about whether OUR player is still alive -- he may be, and
+    // being updated every tick -- so the teardown frees nothing on the strength of it, not
+    // even the session it allocated itself.
     CHECK(Harness::ClassifyOwnership(kOwnedPlayer, kAnotherPlayer) == Harness::Ownership::Replaced);
     // And the classification is not symmetric in some accidental way: swap the roles and it
     // is still the record's pointer that decides.

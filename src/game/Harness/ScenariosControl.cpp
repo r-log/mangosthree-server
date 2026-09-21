@@ -1402,8 +1402,10 @@ namespace Harness
                 bool   allSelfAfter;      ///< his own mover on every one of the second
                 bool   taxi;              ///< IsTaxiFlying() on any sample
                 uint32 endedAt;           ///< when the claim went for the last time
-                uint32 flickers;          ///< times the claim went unpublished mid-fear and came back
+                bool   pulled;            ///< the scenario's own RemoveAurasDueToSpell has run
+                uint32 flickers;          ///< times the claim went unpublished BEFORE the pull and came back
                 uint32 discarded;         ///< samples those re-anchorings took back out of the after-window
+                uint32 backAfterPull;     ///< samples with the claim published AFTER the pull: a failure, never a flicker
             };
             Player* p = SpawnPlayer(SE.x, SE.y, Ground(SE.x, SE.y, SE.z), 0.0f);
             Creature* k = p ? Spawn(KOBOLD, SE.x + 6.0f, SE.y, Ground(SE.x + 6.0f, SE.y, SE.z), 3.1f) : NULL;
@@ -1419,7 +1421,8 @@ namespace Harness
             st->selfBefore = st->auraLanded = st->selfWhileFeared = st->taxi = false;
             st->allSelfAfter = true;
             st->fearedSamples = st->afterSamples = st->endedAt = 0;
-            st->flickers = st->discarded = 0;
+            st->pulled = false;
+            st->flickers = st->discarded = st->backAfterPull = 0;
             Log("the player %s stands at (%.1f, %.1f), the kobold 6 yd east", g.GetString().c_str(), p->Where().X(), p->Where().Y());
 
             At(kFearCastAt, [this, g, gk, st]()
@@ -1451,6 +1454,10 @@ namespace Harness
             {
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                 p->RemoveAurasDueToSpell(FEAR);
+                // The moment that divides the scenario in two for the sampler below: before it,
+                // a gap in the claim is a flicker inside a fear that is still meant to be
+                // running; after it, the claim coming back at all is a failure.
+                st->pulled = true;
                 Log("+%4ums after the cast the aura pulled: aura=%d feared=%d his own mover=%d taxi=%d",
                     kFearPullAt - kFearCastAt, p->HasAura(FEAR) ? 1 : 0,
                     p->Blocked(Motion::ReasonFeared) ? 1 : 0, OwnMover(p) ? 1 : 0, p->IsTaxiFlying() ? 1 : 0);
@@ -1468,20 +1475,20 @@ namespace Harness
                     // for every other reading here.
                     if (p->IsTaxiFlying()) { st->taxi = true; }
                     const bool self = OwnMover(p);
-                    if (p->Blocked(Motion::ReasonFeared))
+                    const bool claimHeld = p->Blocked(Motion::ReasonFeared);
+                    if (claimHeld && !st->pulled)
                     {
                         ++st->fearedSamples;
                         if (self) { st->selfWhileFeared = true; }
                         // THE AFTER-WINDOW IS ANCHORED TO THE END OF THE FEAR, not to the first
                         // gap in it. A claim that reads unpublished on one sample and published
-                        // again on the next was a flicker inside the fear, not the handback, and
-                        // everything counted since that gap belongs to the fear's own window --
-                        // where the control is CORRECTLY revoked. Counted as after-samples they
-                        // would read "not his own mover after the aura went" and this category
-                        // would print BUG on a working server: the one construction in this
-                        // scenario that can produce a false BUG rather than a false OK, and the
-                        // pattern the confuse, feign-death and stun slices will copy. So the
-                        // window re-anchors here, and what it discards is counted and said.
+                        // again on the next -- BEFORE the scenario pulls the aura, while the
+                        // fear is still meant to be running -- was a flicker, not the handback,
+                        // and everything counted since that gap belongs to the fear's own
+                        // window, where the control is CORRECTLY revoked. Counted as
+                        // after-samples they would read "not his own mover after the aura went"
+                        // and this category would print BUG on a working server. So the window
+                        // re-anchors here, and what it discards is counted and said.
                         if (st->afterSamples)
                         {
                             ++st->flickers;
@@ -1490,6 +1497,22 @@ namespace Harness
                         st->afterSamples = 0;
                         st->endedAt = 0;
                         st->allSelfAfter = true;
+                    }
+                    else if (claimHeld)
+                    {
+                        // The claim is published AFTER the scenario pulled the aura. That is not
+                        // a flicker in anything: the fear was ended, on purpose, at a moment this
+                        // scenario chose, so a claim standing again is a failure in its own right
+                        // and is reported as one. Above all it must NOT re-anchor -- the failing
+                        // control samples gathered since the pull are exactly the evidence a
+                        // re-anchoring would erase, turning a genuine BUG into OK, which is the
+                        // worse direction to be wrong in: a test that cries wolf gets looked at,
+                        // one that sleeps does not.
+                        // Nor does it touch fearedSamples or selfWhileFeared. Those two answer
+                        // controlTaken, which asks about the revoke at ONSET; a stale claim long
+                        // after the pull is controlReturned's finding, and letting it reach the
+                        // other category would make one event print BUG twice, once falsely.
+                        ++st->backAfterPull;
                     }
                     else if (st->fearedSamples)
                     {
@@ -1535,14 +1558,22 @@ namespace Harness
                     char flicker[112];
                     if (st->flickers)
                     {
-                        snprintf(flicker, sizeof(flicker), "; the claim flickered %u time(s) mid-fear, re-anchoring the window past %u sample(s)",
+                        snprintf(flicker, sizeof(flicker), "; the claim flickered %u time(s) before the pull, re-anchoring the window past %u sample(s)",
                                  st->flickers, st->discarded);
                     }
                     else
                     {
                         flicker[0] = '\0';
                     }
-                    if (st->afterSamples < 5)
+                    // First, and ahead of the sample-count INVALID: a claim standing again after
+                    // the aura was pulled is a hard failure, and reporting "too few samples"
+                    // over the top of it would hide the one thing that went wrong.
+                    if (st->backAfterPull)
+                    {
+                        snprintf(returned, sizeof(returned), "BUG(the fear's claim was published again on %u sample(s) AFTER the aura was pulled, so the fear did not end when it was ended; of the %u control sample(s) since the pull he was his own mover on %s%s)",
+                                 st->backAfterPull, st->afterSamples, st->allSelfAfter ? "all" : "not all", flicker);
+                    }
+                    else if (st->afterSamples < 5)
                     {
                         snprintf(returned, sizeof(returned), "INVALID(only %u samples after the aura went%s)", st->afterSamples, flicker);
                     }
