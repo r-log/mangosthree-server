@@ -25,6 +25,7 @@
 
 #include "Harness.h"
 #include "Scenario.h"
+#include "Ownership.h"
 #include "HarnessAI.h"
 #include "MapManager.h"
 #include "Map.h"
@@ -386,69 +387,92 @@ namespace Harness
             }
         }
         // The scenario's players go last, after every actor that could still be pointing at one
-        // has left. Before the session goes: ~WorldSession runs LogoutPlayer(true) when a player
-        // is still attached (WorldSession.cpp:296-298), which would drive the whole logout
-        // cascade -- the online flag, the group and guild broadcasts -- against a character that
-        // never existed. Map::Remove(player, true) deletes the player itself (DeleteFromWorld,
-        // Map.cpp:479-483), so the session pointer is taken while he is still alive.
-        // inWorld = false, and a miss is an error rather than a shrug: the default lookup hides
-        // a player who is registered but out of the world, and skipping him leaks both him and
-        // his session. Worse than a leak -- Scenario::Reset clears the scenario's list and the
-        // guids restart at kHarnessPlayerGuidFirst, so the next scenario builds a second live
-        // Player on the same guid and PlayerRegistry::Add overwrites the entry, putting the
-        // leaked one permanently out of reach of this loop and of everything else.
-        std::vector<ObjectGuid> const& players = s->SpawnedPlayers();
+        // has left, and they are torn down from the scenario's OWN record of each of them --
+        // the Player and the WorldSession it allocated under him -- and not from a lookup. The
+        // player registry indexes logged-in players; it is not an ownership table, and using it
+        // as one loses the session the moment anything ends the player by the normal door:
+        // Map::Remove(player, true) ends in Map::DeleteFromWorld, which unregisters and deletes
+        // him (Map.cpp:479-483) and never looks at a session allocated separately, so the lookup
+        // would miss, and the session -- which nothing else in the server frees -- would dangle
+        // over freed memory with the next scenario about to build a second Player on the same
+        // reserved guid.
+        //
+        // THE ORDER BELOW IS EXACT, and every step of it was paid for:
+        //
+        // 1. RevokeAllMovers while the player is still alive and still his session's _player.
+        //    Nothing else does it for him: Unit::RemoveFromWorld skips the revoke for a player
+        //    on purpose ("revoked by LogoutPlayer", Unit.cpp:4965-4969) and the harness never
+        //    logs anybody out. Left undone, ~Unit reports "still had a mover session" once per
+        //    player run, and ~WorldSession folds an added/removed pair that never balanced into
+        //    the process-wide authority totals -- poisoning the one signal (added != removed)
+        //    the campaign reads to spot a leaked mover. Both neighbouring placements are wrong:
+        //    after `delete session` it is a use-after-free, since RevokeAllMovers dereferences
+        //    _player (WorldSession.cpp:168-180) and the removal has already deleted him, and it
+        //    also resolves the other members through ObjectLookup, which reads the registry;
+        //    after SetPlayer(NULL) it is a silent no-op, with `removed` still never counted.
+        //    `now` is the same clock every other revoke passes -- LogoutPlayer
+        //    (WorldSession.cpp:806) and Unit::RemoveFromWorld both pass
+        //    GameTime::GetGameTimeMS() -- and it stays deterministic here because GameMSTime is
+        //    refreshed from WorldClock, which only Step() moves while the harness runs.
+        // 2. The registry removal, while the guid still resolves to him.
+        // 3. Map::Remove(player, true), which deletes the player itself.
+        // 4. SetPlayer(NULL): ~WorldSession runs LogoutPlayer(true) when a player is still
+        //    attached (WorldSession.cpp:293-298), which would drive the whole logout cascade --
+        //    the online flag, the group and guild broadcasts -- against a character that never
+        //    existed, through a pointer that by now is freed.
+        // 5. delete session.
+        std::vector<OwnedPlayer> const& players = s->SpawnedPlayers();
         for (size_t i = 0; i < players.size(); ++i)
         {
-            Player* player = sPlayerRegistry.Find(players[i], false);
-            if (!player)
+            OwnedPlayer const& owned = players[i];
+            // Asked before anything follows the pointer, because by here it may be freed
+            // memory: the registry is the witness that the object is still alive, and identity
+            // is what is compared rather than presence. Ownership.h carries the argument for
+            // both, and the inWorld = false lookup is part of it.
+            const Ownership state = ClassifyOwnership(owned.player, sPlayerRegistry.Find(owned.guid, false));
+            if (state == Ownership::Held)
             {
-                sLog.outString("MVTEST ERR %s: harness player %s is not in the registry at teardown; it and its session are leaked, and the next scenario will reuse the guid",
-                               s->Name(), players[i].GetString().c_str());
-                continue;
-            }
-            WorldSession* session = player->GetSession();
-            // The session's movers go back now, while the player is still alive and still
-            // his session's _player. Nothing else does it for him: Unit::RemoveFromWorld
-            // skips the revoke for a player on purpose ("revoked by LogoutPlayer",
-            // Unit.cpp:4965-4969) and the harness never logs anybody out. Left undone,
-            // ~Unit reports "still had a mover session" once per player run, and
-            // ~WorldSession folds an added/removed pair that never balanced into the
-            // process-wide authority totals -- poisoning the one signal (added != removed)
-            // the campaign reads to spot a leaked mover.
-            // The two neighbouring placements are both wrong, so this one is exact:
-            // after `delete session` below it is a use-after-free, since RevokeAllMovers
-            // dereferences _player (WorldSession.cpp:168-180) and Map::Remove(player, true)
-            // has already deleted him; after SetPlayer(NULL) it is a silent no-op, since
-            // _player is NULL and `removed` is still never counted.
-            // `now` is the same clock every other revoke passes -- LogoutPlayer
-            // (WorldSession.cpp:806) and Unit::RemoveFromWorld both pass
-            // GameTime::GetGameTimeMS() -- and it stays deterministic here because
-            // GameMSTime is refreshed from WorldClock, which only Step() moves while the
-            // harness runs.
-            if (session)
-            {
-                session->RevokeAllMovers(GameTime::GetGameTimeMS());
-            }
-            sPlayerRegistry.Remove(player);
-            // FindMap, not GetMap: the lookup above no longer filters on IsInWorld, so it can
-            // hand back a player whose map reference has already been cleared (Map::Remove ends
-            // in ResetMap), and GetMap asserts on that. Off every map there is no removal left
-            // to make -- delete him here, as Map::DeleteFromWorld would have.
-            if (Map* map = player->FindMap())
-            {
-                map->Remove(player, true);
+                if (owned.session)
+                {
+                    owned.session->RevokeAllMovers(GameTime::GetGameTimeMS());
+                }
+                sPlayerRegistry.Remove(owned.player);
+                // FindMap, not GetMap: the classification above does not filter on IsInWorld, so
+                // the record can still be Held for a player whose map reference has already been
+                // cleared (Map::Remove ends in ResetMap), and GetMap asserts on that. Off every
+                // map there is no removal left to make -- delete him here, as
+                // Map::DeleteFromWorld would have.
+                if (Map* map = owned.player->FindMap())
+                {
+                    map->Remove(owned.player, true);
+                }
+                else
+                {
+                    sLog.outString("MVTEST ERR %s: harness player %s held no map at teardown; deleted without a map removal",
+                                   s->Name(), owned.guid.GetString().c_str());
+                    delete owned.player;
+                }
             }
             else
             {
-                sLog.outString("MVTEST ERR %s: harness player %s held no map at teardown; deleted without a map removal",
-                               s->Name(), players[i].GetString().c_str());
-                delete player;
+                // Said, and said precisely, rather than shrugged at: this record is the only
+                // thing left that knows the player existed, so if something else ended him the
+                // run's own log is where that has to surface.
+                sLog.outString("MVTEST ERR %s: harness player %s %s before the teardown reached him; he is not touched, and only the session the scenario allocated is closed",
+                               s->Name(), owned.guid.GetString().c_str(),
+                               state == Ownership::Destroyed ? "was destroyed by something else"
+                                                             : "was replaced in the registry by another player object");
             }
-            if (session)
+            // Either way, the session is closed here. It is the scenario's own allocation and
+            // nothing else in the server frees it -- Map::DeleteFromWorld deletes only the
+            // player -- so skipping it on the unhappy path would leak the very thing this record
+            // exists to hold on to. SetPlayer is a plain assignment (WorldSession.h:480-483), so
+            // it is safe over a _player that is already gone, and it is what keeps
+            // ~WorldSession's LogoutPlayer(true) off freed memory.
+            if (owned.session)
             {
-                session->SetPlayer(NULL);
-                delete session;
+                owned.session->SetPlayer(NULL);
+                delete owned.session;
             }
         }
         // The player himself is gone now, above, but a player promotes the grids around
