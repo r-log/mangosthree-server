@@ -643,9 +643,172 @@ namespace Harness
         }
     };
 
+    /**
+     * S70 (order 910): the stop retail sends when there is nothing to cancel.
+     *
+     * The harness has no sessions, so it cannot see the wire. What it CAN see is the writer's own
+     * footprint: MoveSplineInit::StopHere ends in move_spline.Initialize(args), so a stop that
+     * went out leaves the unit's spline carrying a NEW id and finalized, and one that did not
+     * leaves the id exactly where it was. That is the same launched-spline proxy S67 counts legs
+     * with, read synchronously on either side of the call instead of sampled.
+     *
+     * Both operations are driven directly -- Player::TaxiTakeoff and Player::PerformTaxiLanding,
+     * the two places the design puts a stop in front of a control change -- because the proxy has
+     * to be read on the instant and the kernel's own activation happens between ticks. The BYTES
+     * are pinned by the suite instead (MotionWriters_the_point_carrying_stop_*), and the fact that
+     * these packets reach a client at all is on the live checklist.
+     */
+    class TaxiStopsAtTheTransitions : public Scenario
+    {
+    public:
+        TaxiStopsAtTheTransitions() : Scenario("taxi-stops-at-the-transitions", 910) {}
+        bool UsesPlayer() const override { return true; }
+
+        void Prepare() override
+        {
+            struct St
+            {
+                bool   takeoffRan = false;
+                bool   splineBefore = true;   ///< !Finalized() going into the takeoff: must be false
+                uint32 idBeforeTakeoff = 0;
+                uint32 idAfterTakeoff = 0;
+                bool   finalizedAfterTakeoff = false;
+                bool   controlBeforeTakeoff = false;
+                bool   controlAfterTakeoff = true;
+                bool   landingRan = false;
+                uint32 idBeforeLanding = 0;
+                uint32 idAfterLanding = 0;
+                bool   finalizedAfterLanding = false;
+                bool   controlAfterLanding = false;
+                bool   splineBeforeLanding = true;
+            };
+
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z), 0.0f);
+            if (!p)
+            {
+                Verdict(Invalid("spawn failed"));
+                return;
+            }
+            const ObjectGuid g = p->GetObjectGuid();
+            auto st = std::make_shared<St>();
+
+            At(500, [this, g, st]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                // THE RETAIL SETUP, and the reason the old Stop() sent nothing: the passenger has
+                // been standing still under his own control and no server spline has ever been
+                // laid for him, so MoveSplineInit::Stop's Finalized() guard returns early.
+                st->splineBefore = !p->movespline->Finalized();
+                st->idBeforeTakeoff = p->movespline->GetId();
+                st->controlBeforeTakeoff = OwnMover(p);
+                st->takeoffRan = true;
+                p->TaxiTakeoff(TaxiMount(p));
+                st->idAfterTakeoff = p->movespline->GetId();
+                st->finalizedAfterTakeoff = p->movespline->Finalized();
+                st->controlAfterTakeoff = OwnMover(p);
+                Log(" 500ms THE TAKEOFF: spline id %u -> %u, finalized=%d, own mover %d -> %d, flags 0x%08x",
+                    st->idBeforeTakeoff, st->idAfterTakeoff, st->finalizedAfterTakeoff ? 1 : 0,
+                    st->controlBeforeTakeoff ? 1 : 0, st->controlAfterTakeoff ? 1 : 0,
+                    p->GetUInt32Value(UNIT_FIELD_FLAGS));
+            });
+            At(1500, [this, g, st]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                // The landing's own condition: the flight's spline expired ~180 ms ago, so there
+                // is again nothing for a stop to cancel. Nothing has been laid here at all, which
+                // is the same thing as far as the guard is concerned.
+                st->splineBeforeLanding = !p->movespline->Finalized();
+                st->idBeforeLanding = p->movespline->GetId();
+                p->ScheduleTaxiLanding(false, p->Where().X(), p->Where().Y(), p->Where().Z(), p->Where().Facing());
+                st->landingRan = true;
+                p->PerformTaxiLanding();
+                st->idAfterLanding = p->movespline->GetId();
+                st->finalizedAfterLanding = p->movespline->Finalized();
+                st->controlAfterLanding = OwnMover(p);
+                Log("1500ms THE LANDING: spline id %u -> %u, finalized=%d, own mover=%d, flags 0x%08x",
+                    st->idBeforeLanding, st->idAfterLanding, st->finalizedAfterLanding ? 1 : 0,
+                    st->controlAfterLanding ? 1 : 0, p->GetUInt32Value(UNIT_FIELD_FLAGS));
+            });
+            At(2000, [this, st]()
+            {
+                char take[416], land[416], order[352];
+                if (!st->takeoffRan || !st->landingRan)
+                {
+                    snprintf(take, sizeof(take), "INVALID(the takeoff or the landing step never ran: takeoff=%d landing=%d)", st->takeoffRan ? 1 : 0, st->landingRan ? 1 : 0);
+                    snprintf(land, sizeof(land), "INVALID(the takeoff or the landing step never ran)");
+                    snprintf(order, sizeof(order), "INVALID(the takeoff or the landing step never ran)");
+                }
+                else
+                {
+                    if (st->splineBefore)
+                    {
+                        snprintf(take, sizeof(take), "INVALID(a spline was already running into the takeoff, so an ordinary Stop() would have sent one too and this proves nothing)");
+                    }
+                    else if (st->idAfterTakeoff == st->idBeforeTakeoff)
+                    {
+                        snprintf(take, sizeof(take), "BUG(the takeoff left the spline id at %u: nothing was written, which is what MoveSplineInit::Stop's Finalized() guard does)", st->idBeforeTakeoff);
+                    }
+                    else if (!st->finalizedAfterTakeoff)
+                    {
+                        snprintf(take, sizeof(take), "BUG(the takeoff wrote spline %u but left it running; a stop is a finalized spline)", st->idAfterTakeoff);
+                    }
+                    else
+                    {
+                        snprintf(take, sizeof(take), "OK(no spline was running and the takeoff still wrote one: id %u -> %u, finalized)", st->idBeforeTakeoff, st->idAfterTakeoff);
+                    }
+                    if (st->splineBeforeLanding)
+                    {
+                        snprintf(land, sizeof(land), "INVALID(a spline was running into the landing, so this is not the expired-flight case the design is about)");
+                    }
+                    else if (st->idAfterLanding == st->idBeforeLanding)
+                    {
+                        snprintf(land, sizeof(land), "BUG(the landing left the spline id at %u: nothing was written)", st->idBeforeLanding);
+                    }
+                    else if (!st->finalizedAfterLanding)
+                    {
+                        snprintf(land, sizeof(land), "BUG(the landing wrote spline %u but left it running)", st->idAfterLanding);
+                    }
+                    else
+                    {
+                        snprintf(land, sizeof(land), "OK(the flight's spline had expired and the landing still wrote one: id %u -> %u, finalized)", st->idBeforeLanding, st->idAfterLanding);
+                    }
+                    // --- stopThenControl: the order, which is the whole point of the pair. The
+                    // stop must be written BEFORE the control changes, in both directions.
+                    if (!st->controlBeforeTakeoff)
+                    {
+                        snprintf(order, sizeof(order), "INVALID(he did not have his own mover going into the takeoff, so the revoke had nothing to take)");
+                    }
+                    else if (st->controlAfterTakeoff)
+                    {
+                        snprintf(order, sizeof(order), "BUG(the takeoff did not revoke his mover, so the stop it wrote did not precede a control change)");
+                    }
+                    else if (!st->controlAfterLanding)
+                    {
+                        snprintf(order, sizeof(order), "BUG(the landing did not grant his mover back, so the stop it wrote did not precede a control change)");
+                    }
+                    else
+                    {
+                        snprintf(order, sizeof(order), "OK(a stop written and then the mover revoked at the takeoff, a stop written and then the mover granted at the landing: retail's (stop, control) mirrored)");
+                    }
+                }
+                Verdict(std::string("takeoffStopsWithNoSpline=") + take +
+                        " | landingStopsWithNoSpline=" + land + " | stopThenControl=" + order);
+            });
+        }
+
+    private:
+        static std::string Invalid(char const* why)
+        {
+            std::string w = std::string("INVALID(") + why + ")";
+            return "takeoffStopsWithNoSpline=" + w + " | landingStopsWithNoSpline=" + w +
+                   " | stopThenControl=" + w;
+        }
+    };
+
     void RegisterTaxiScenarios(Runner& r)
     {
         r.Register(new TaxiDeathClearsTheFlight());
         r.Register(new TaxiResumeByLandingTime());
+        r.Register(new TaxiStopsAtTheTransitions());
     }
 }

@@ -45,6 +45,7 @@
 #include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "MapManager.h"
+#include "movement/MoveSplineInit.h"
 
 #include <cmath>
 #include <limits>
@@ -700,6 +701,12 @@ void Player::TaxiTakeoff(uint32 mountDisplayId)
     // is not set on a taxi (0x10000C on the wire), so Unit::Mount is not used; what it did
     // beside the flag is done here.
     StopMoving();
+    // The stop retail actually sends here, and StopMoving does not: the passenger has been
+    // standing still under his own control, so no spline exists to cancel and Stop() returns
+    // early. Retail sends a point-carrying stop anyway, immediately before the revoke -- the
+    // `(stop, revoke)` pair of peer/retail-taxi-flights-2026-09-22.md §2 -- pinning where he is
+    // at the instant the wheel is taken from him. Backlog §4.7, design 2026-09-22 §3.
+    Movement::MoveSplineInit(*this).StopHere();
     SetClientControl(this, 0);
     GetHostileRefManager().setOnlineOfflineState(false);
     UnsummonPetTemporaryIfAny();
@@ -751,7 +758,7 @@ void Player::ScheduleTaxiLanding(bool snap, float x, float y, float z, float o)
 }
 
 /**
- * @brief The landing, in retail's order: control on, the stop, the teleport onto the TaxiNodes
+ * @brief The landing, in retail's order: the stop, control on, the teleport onto the TaxiNodes
  *        position, the flags and the mount display cleared, the pet back; then the server's own
  *        bookkeeping (the hostile references, the hostile-area spell, the route).
  */
@@ -767,10 +774,17 @@ void Player::PerformTaxiLanding()
     const bool snap = m_taxiLandingSnap;
     const WorldLocation where = m_taxiLanding;
 
-    // The sniffed flight (the notes A.10-A.12): AllowMove = 1 first, a stop spline at the last
-    // path node, SMSG_MOVE_TELEPORT onto the node's TaxiNodes position (2.19 yd below the path,
-    // a 1 ms fall, no damage: the near teleport resets the fall reference), the flags cleared and
-    // the mount display zeroed in one update, the pet resummoned.
+    // The sniffed flight: a stop spline at the last path node, AllowMove = 1, SMSG_MOVE_TELEPORT
+    // onto the node's TaxiNodes position (2.19 yd below the path, a 1 ms fall, no damage: the
+    // near teleport resets the fall reference), the flags cleared and the mount display zeroed
+    // in one update, the pet resummoned.
+    //
+    // STOP BEFORE GRANT, correcting the notes' A.11: the capture file has packets 205463 (stop),
+    // 205464 (grant), 205465 (stop), 205466 (grant), so the landing is the exact mirror of the
+    // takeoff's `(stop, revoke)` -- peer/retail-taxi-flights-2026-09-22.md §7. The flight's
+    // spline expired ~180 ms ago, so StopMoving below sends nothing whatever it is passed;
+    // StopHere is the form that goes out with nothing to cancel (§3.3).
+    Movement::MoveSplineInit(*this).StopHere();
     SetClientControl(this, 1);
     StopMoving(true);
     // A teleport deferred earlier in this update (an aura's) wins over the snap: the near

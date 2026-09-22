@@ -1213,10 +1213,12 @@ class Player : public Unit
         /// The landing, scheduled by the flight's finish and performed by Update() once the
         /// teleport-deferral window has closed; `snap` when the destination node carries a position.
         void ScheduleTaxiLanding(bool snap, float x, float y, float z, float o);
-        /// Retail's landing order (the notes A.10-A.12): the control back, the stop, the teleport
-        /// onto the TaxiNodes position with the fall reference reset, the flags and the mount display
-        /// cleared, the pet back; then the hostile references online, the hostile-area spell, the
-        /// route cleared. Taken and cleared before its first step: runs once or never.
+        /// Retail's landing order: the stop, the control back, the teleport onto the TaxiNodes
+        /// position with the fall reference reset, the flags and the mount display cleared, the pet
+        /// back; then the hostile references online, the hostile-area spell, the route cleared. STOP
+        /// BEFORE GRANT, correcting the notes' A.11 from the capture itself
+        /// (peer/retail-taxi-flights-2026-09-22.md §7). Taken and cleared before its first step:
+        /// runs once or never.
         void PerformTaxiLanding();
         /// Every non-landing end of a flight (death, a summon, a battleground, a cut leg, a replaced
         /// flight): the flags and the mount display cleared, the pet back, the hostile references
