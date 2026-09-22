@@ -246,6 +246,22 @@ namespace Movement
              */
             Location ComputePosition() const;
 
+            /// The direction the mover is travelling in at the spline's current time: the
+            /// spline's own derivative there, normalised, in the spline's coordinates. Zero
+            /// when the spline has no usable one.
+            ///
+            /// For the LINEAR mode this is the running segment's direction, which is also the
+            /// direction of the chord from the live position to CurrentDestination() -- the two
+            /// agree, because the live position lies on that segment. For a CATMULL-ROM they do
+            /// not: the chord runs to a point the curve reaches by bending away from it first,
+            /// so the chord is not a heading and this is. That difference is the whole reason
+            /// this exists (Motion::ClassifyTargetMotion).
+            ///
+            /// The vertical is the SPLINE's. A parabolic or falling leg has its z rewritten
+            /// after the fact by ComputePosition, and this does not know about it -- which is
+            /// harmless, because a ballistic spline is never extrapolated anyway.
+            Vector3 ComputeDirection() const;
+
             /**
              * @brief Gets the ID of the spline.
              * @return uint32 The ID of the spline.
