@@ -2069,6 +2069,11 @@ void Player::ProcessDelayedOperations()
         {
             m_taxi.AddTaxiDestination(m_bgData.taxiPath[0]);
             m_taxi.AddTaxiDestination(m_bgData.taxiPath[1]);
+            // Before ClearTaxiPath, which drops it with the nodes: ContinueTaxiFlight asks the
+            // stamp whether the contract is still running (design 2026-09-22 §2). Zero -- a
+            // logout taken inside the instance, whose stored path has no room for it -- reads
+            // as landed and puts him down at the destination he paid for.
+            m_taxi.SetLandingTime(m_bgData.taxiLanding);
             m_bgData.ClearTaxiPath();
 
             ContinueTaxiFlight();

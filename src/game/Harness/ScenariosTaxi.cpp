@@ -67,6 +67,15 @@ namespace Harness
         const uint32 SOURCE_NODE = 402;
         const uint32 DEST_NODE   = 22;
 
+        /// The two-node route as the taxi takes it.
+        std::vector<uint32> Route()
+        {
+            std::vector<uint32> route;
+            route.push_back(SOURCE_NODE);
+            route.push_back(DEST_NODE);
+            return route;
+        }
+
         /// The mount display the takeoff writes, 0 when the DBC or the world database cannot
         /// answer -- which every verdict below reports rather than passing over.
         uint32 TaxiMount(Player* p)
@@ -90,6 +99,17 @@ namespace Harness
             p->m_taxi.AddTaxiDestination(SOURCE_NODE);
             p->m_taxi.AddTaxiDestination(DEST_NODE);
             p->GetSession()->SendDoFlight(TaxiMount(p), p->m_taxi.GetTaxiDestinations(), startNode);
+        }
+
+        /// The flight put down the way the flight master's reboarding and the battleground's
+        /// port put one down; leaves no taxi state behind.
+        void Unboard(Player* p)
+        {
+            while (p->GetMotionMaster()->IsOnTaxi())
+            {
+                p->GetMotionMaster()->MovementExpired(false);
+            }
+            p->m_taxi.ClearTaxiDestinations();
         }
 
     }
@@ -334,8 +354,298 @@ namespace Harness
         }
     };
 
+    /**
+     * S69 (order 909): the resume decided by the landing time, not by where the passenger stands.
+     *
+     * The user's model (design 2026-09-22 §2): a flight is a paid contract to the destination. The
+     * scenario drives Player::ContinueTaxiFlight -- the ONE check all three callers come through,
+     * the login and the battleground and dungeon returns -- twice over the same route, once with a
+     * landing time still ahead and once with one already past, and reads what it did.
+     *
+     * TIME IS SET, NOT WAITED FOR. The stamp is a server-time second on the route, so putting one
+     * in the past or the future is the honest way to ask the question; burning fifty seconds of
+     * virtual clock to watch a flight expire would test the clock, not the decision. The decision
+     * itself is pinned independently by the suite (TaxiResume_* in MotionTaxiTest.cpp), and the
+     * login path is not driven here at all -- it loads from the character database, which the
+     * harness has no row in. That gap is named, not papered over.
+     */
+    class TaxiResumeByLandingTime : public Scenario
+    {
+    public:
+        TaxiResumeByLandingTime() : Scenario("taxi-resume-by-landing-time", 909) {}
+        bool UsesPlayer() const override { return true; }
+
+        void Prepare() override
+        {
+            struct St
+            {
+                bool   airRan = false;
+                bool   airFlying = false;      ///< a flight was standing after the airborne resume
+                bool   airOnTaxi = false;
+                uint32 airMount = 0;
+                float  airX = 0.0f, airY = 0.0f;   ///< where the resume put him
+                float  startX = 0.0f, startY = 0.0f;
+                uint32 airSamples = 0;
+                uint32 airNotFlying = 0;
+                bool   landRan = false;
+                bool   landFlying = true;      ///< a flight standing after the landed resume would be the bug
+                bool   landOnTaxi = true;
+                bool   landRoute = true;
+                uint32 landMount = 1;
+                float  landX = 0.0f, landY = 0.0f, landZ = 0.0f;
+                float  destX = 0.0f, destY = 0.0f, destZ = 0.0f;
+                uint32 landDestMap = 0;                     ///< where the landed resume ASKED to be put
+                float  landDestX = 0.0f, landDestY = 0.0f, landDestZ = 0.0f;
+                bool   landTeleporting = false;             ///< IsBeingTeleportedNear() after it
+                uint32 landSamples = 0;
+                uint32 landTaxiBack = 0;
+                uint32 stampAtTakeoff = 0;     ///< what the takeoff itself wrote
+                uint32 nowAtTakeoff = 0;
+                uint32 total = 0;              ///< the welded route's flyable length, yards
+            };
+
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z), 0.0f);
+            if (!p)
+            {
+                Verdict(Invalid("spawn failed"));
+                return;
+            }
+            const ObjectGuid g = p->GetObjectGuid();
+            auto st = std::make_shared<St>();
+            if (TaxiNodesEntry const* dest = sTaxiNodesStore.LookupEntry(DEST_NODE))
+            {
+                st->destX = dest->Pos_0;
+                st->destY = dest->Pos_1;
+                st->destZ = dest->Pos_2;
+            }
+            std::vector<TaxiRouteNode> welded;
+            if (TaxiRoute::Weld(Route(), welded))
+            {
+                st->total = uint32(TaxiResume::Length(welded, 0) + 0.5f);
+            }
+
+            // ---- the stamp the takeoff writes ----------------------------------------------
+            At(400, [this, g, st]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                st->nowAtTakeoff = uint32(sWorld.GetGameTime());
+                Board(p);
+                st->stampAtTakeoff = p->m_taxi.GetLandingTime();
+                Log(" 400ms the takeoff stamped the landing: now=%u landing=%u (%u s of contract over %u yd)",
+                    st->nowAtTakeoff, st->stampAtTakeoff,
+                    st->stampAtTakeoff > st->nowAtTakeoff ? st->stampAtTakeoff - st->nowAtTakeoff : 0, st->total);
+                Unboard(p);
+            });
+
+            // ---- (a) a landing still ahead: back on the mount -------------------------------
+            At(900, [this, g, st]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                st->startX = p->Where().X();
+                st->startY = p->Where().Y();
+                p->m_taxi.ClearTaxiDestinations();
+                p->m_taxi.AddTaxiDestination(SOURCE_NODE);
+                p->m_taxi.AddTaxiDestination(DEST_NODE);
+                // Half the route flown: the contract has as many seconds left as half its length
+                // buys at the taxi speed. This is exactly what a short dungeon pop leaves behind.
+                const float speed = sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED);
+                p->m_taxi.SetLandingTime(uint32(sWorld.GetGameTime()) + uint32(float(st->total) * 0.5f / speed));
+                p->ContinueTaxiFlight();
+                st->airRan = true;
+                st->airFlying = p->IsTaxiFlying();
+                st->airOnTaxi = p->GetMotionMaster()->IsOnTaxi();
+                st->airMount = p->GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID);
+                st->airX = p->Where().X();
+                st->airY = p->Where().Y();
+                Log(" 900ms RESUME with the landing ahead: onTaxi=%d flying=%d mount=%u, he moved from (%.0f, %.0f) to (%.0f, %.0f)",
+                    st->airOnTaxi ? 1 : 0, st->airFlying ? 1 : 0, st->airMount,
+                    st->startX, st->startY, st->airX, st->airY);
+            });
+            for (uint32 t = 1100; t <= 2400; t += 100)
+            {
+                At(t, [this, g, st, t]()
+                {
+                    Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                    ++st->airSamples;
+                    if (!p->IsTaxiFlying() || !p->GetMotionMaster()->IsOnTaxi()) { ++st->airNotFlying; }
+                    if (t % 500 == 0)
+                    {
+                        Log("%4ums resumed flight: onTaxi=%d flying=%d at (%.0f, %.0f, %.0f)", t,
+                            p->GetMotionMaster()->IsOnTaxi() ? 1 : 0, p->IsTaxiFlying() ? 1 : 0,
+                            p->Where().X(), p->Where().Y(), p->Where().Z());
+                    }
+                });
+            }
+
+            // ---- (b) a landing already past: down at the destination -------------------------
+            At(2600, [this, g, st]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                Unboard(p);
+                p->m_taxi.AddTaxiDestination(SOURCE_NODE);
+                p->m_taxi.AddTaxiDestination(DEST_NODE);
+                // A stamp in the past: the fifteen-minute battleground on a fifty-second flight.
+                p->m_taxi.SetLandingTime(uint32(sWorld.GetGameTime()) - 60);
+                p->ContinueTaxiFlight();
+                st->landRan = true;
+                st->landFlying = p->IsTaxiFlying();
+                st->landOnTaxi = p->GetMotionMaster()->IsOnTaxi();
+                st->landRoute = !p->m_taxi.empty();
+                st->landMount = p->GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID);
+                st->landX = p->Where().X();
+                st->landY = p->Where().Y();
+                st->landZ = p->Where().Z();
+                // WHERE THE TELEPORT WAS AIMED, which is the reading that survives headless. A
+                // same-map TeleportTo hands the move to CMSG_MOVE_TELEPORT_ACK: SendTeleportPacket
+                // names the destination to the client and puts the server's own position back
+                // (Player.cpp:1679), and a harness session has no socket to ack with. Where()
+                // below is therefore still the old spot BY DESIGN, and what the flight was ended
+                // AT is read here instead.
+                st->landDestMap = p->GetTeleportDest().mapid;
+                st->landDestX = p->GetTeleportDest().coord_x;
+                st->landDestY = p->GetTeleportDest().coord_y;
+                st->landDestZ = p->GetTeleportDest().coord_z;
+                st->landTeleporting = p->IsBeingTeleportedNear();
+                Log("2600ms RESUME with the landing past: onTaxi=%d flying=%d route=%d mount=%u | teleport asked for map %u (%.0f, %.0f, %.0f), pending=%d; node %u is at (%.0f, %.0f, %.0f) and he still stands at (%.0f, %.0f, %.0f) until a client acks",
+                    st->landOnTaxi ? 1 : 0, st->landFlying ? 1 : 0, st->landRoute ? 1 : 0, st->landMount,
+                    st->landDestMap, st->landDestX, st->landDestY, st->landDestZ, st->landTeleporting ? 1 : 0,
+                    DEST_NODE, st->destX, st->destY, st->destZ, st->landX, st->landY, st->landZ);
+            });
+            for (uint32 t = 2800; t <= 4000; t += 100)
+            {
+                At(t, [this, g, st, t]()
+                {
+                    Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                    ++st->landSamples;
+                    if (p->IsTaxiFlying() || p->GetMotionMaster()->IsOnTaxi() || !p->m_taxi.empty() ||
+                        p->GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID))
+                    {
+                        ++st->landTaxiBack;
+                    }
+                    if (t % 500 == 0)
+                    {
+                        Log("%4ums after the landed resume: onTaxi=%d flying=%d route=%d at (%.0f, %.0f, %.0f)", t,
+                            p->GetMotionMaster()->IsOnTaxi() ? 1 : 0, p->IsTaxiFlying() ? 1 : 0,
+                            p->m_taxi.empty() ? 0 : 1, p->Where().X(), p->Where().Y(), p->Where().Z());
+                    }
+                });
+            }
+            At(4300, [this, g]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (p) { Unboard(p); }
+            });
+            At(4500, [this, st]()
+            {
+                char stamp[352], air[416], land[448];
+                if (!st->total)
+                {
+                    snprintf(stamp, sizeof(stamp), "INVALID(the route %u -> %u did not weld: the DBC has no path for it on this install)", SOURCE_NODE, DEST_NODE);
+                    snprintf(air, sizeof(air), "INVALID(the route did not weld)");
+                    snprintf(land, sizeof(land), "INVALID(the route did not weld)");
+                }
+                else
+                {
+                    // --- takeoffStampsTheLanding: the contract's clock, written once, at the
+                    // click. Everything else here is about reading it back.
+                    const uint32 speed = uint32(sWorld.getConfig(CONFIG_FLOAT_MOVEMENT_TAXI_SPEED));
+                    const uint32 expect = speed ? (st->total + speed / 2) / speed : 0;
+                    const uint32 got = st->stampAtTakeoff > st->nowAtTakeoff ? st->stampAtTakeoff - st->nowAtTakeoff : 0;
+                    if (!st->stampAtTakeoff)
+                    {
+                        snprintf(stamp, sizeof(stamp), "BUG(the takeoff wrote no landing time at all, so every resume of this flight would read as landed)");
+                    }
+                    else if (got + 1 < expect || got > expect + 1)
+                    {
+                        snprintf(stamp, sizeof(stamp), "BUG(the takeoff stamped %u s of flight for %u yd at %u yd/s, which should be about %u s)", got, st->total, speed, expect);
+                    }
+                    else
+                    {
+                        snprintf(stamp, sizeof(stamp), "OK(%u yd of welded route at %u yd/s stamped as %u s of contract, landing at %u)", st->total, speed, got, st->stampAtTakeoff);
+                    }
+                    // --- resumeAheadOfLandingFlies.
+                    if (!st->airRan)
+                    {
+                        snprintf(air, sizeof(air), "INVALID(the airborne resume step never ran)");
+                    }
+                    else if (!st->airOnTaxi || !st->airFlying)
+                    {
+                        snprintf(air, sizeof(air), "BUG(the resume with the landing still ahead did not put him back in the air: onTaxi=%d flying=%d)", st->airOnTaxi ? 1 : 0, st->airFlying ? 1 : 0);
+                    }
+                    else if (!st->airMount)
+                    {
+                        snprintf(air, sizeof(air), "BUG(he was flying with no mount display, so the takeoff half of the resume did not run)");
+                    }
+                    else if (st->airSamples < 10)
+                    {
+                        snprintf(air, sizeof(air), "INVALID(only %u samples after the airborne resume)", st->airSamples);
+                    }
+                    else if (st->airNotFlying)
+                    {
+                        snprintf(air, sizeof(air), "BUG(the resumed flight was down again on %u of the %u samples after it)", st->airNotFlying, st->airSamples);
+                    }
+                    else
+                    {
+                        // He resumes FROM WHERE HE STANDS, flying to the node the clock chose --
+                        // the design's own named fallback, and the reason there is no distance to
+                        // assert here. WHICH node the clock chooses is pinned by the suite
+                        // (TaxiResume_BeforeTheLandingIsThePointTheRouteHasReached); what this
+                        // proves is that a contract still running puts him back in the air at all.
+                        snprintf(air, sizeof(air), "OK(back on the mount with display %u and flying on all %u samples, from where he stood at (%.0f, %.0f))",
+                                 st->airMount, st->airSamples, st->airX, st->airY);
+                    }
+                    // --- resumePastLandingLandsAtTheDestination.
+                    if (!st->landRan)
+                    {
+                        snprintf(land, sizeof(land), "INVALID(the landed resume step never ran)");
+                    }
+                    else if (st->landOnTaxi || st->landFlying || st->landRoute || st->landMount)
+                    {
+                        snprintf(land, sizeof(land), "BUG(a flight was standing after a landing time already past: onTaxi=%d flying=%d route=%d mount=%u)",
+                                 st->landOnTaxi ? 1 : 0, st->landFlying ? 1 : 0, st->landRoute ? 1 : 0, st->landMount);
+                    }
+                    else if (!st->landTeleporting)
+                    {
+                        snprintf(land, sizeof(land), "BUG(the flight ended but no teleport was issued: he was left standing at (%.0f, %.0f) instead of being sent to the destination he paid for)",
+                                 st->landX, st->landY);
+                    }
+                    else
+                    {
+                        const float off = Dist2(st->landDestX, st->landDestY, st->destX, st->destY);
+                        if (st->landDestMap != 1 || off > 5.0f)
+                        {
+                            snprintf(land, sizeof(land), "BUG(the teleport was aimed at map %u (%.0f, %.0f), %.0f yd from node %u's own position (%.0f, %.0f))",
+                                     st->landDestMap, st->landDestX, st->landDestY, off, DEST_NODE, st->destX, st->destY);
+                        }
+                        else if (st->landSamples < 8 || st->landTaxiBack)
+                        {
+                            snprintf(land, sizeof(land), "%s(%u samples after the landed resume, taxi state standing again on %u of them)",
+                                     st->landTaxiBack ? "BUG" : "INVALID", st->landSamples, st->landTaxiBack);
+                        }
+                        else
+                        {
+                            snprintf(land, sizeof(land), "OK(no flight, no route, no mount, and a teleport issued to %.2f yd of node %u's own position on map %u; no taxi state on any of the %u samples after it -- the move itself waits on CMSG_MOVE_TELEPORT_ACK, which a sessionless harness cannot send)",
+                                     off, DEST_NODE, st->landDestMap, st->landSamples);
+                        }
+                    }
+                }
+                Verdict(std::string("takeoffStampsTheLanding=") + stamp +
+                        " | resumeAheadOfLandingFlies=" + air +
+                        " | resumePastLandingLandsAtTheDestination=" + land);
+            });
+        }
+
+    private:
+        static std::string Invalid(char const* why)
+        {
+            std::string w = std::string("INVALID(") + why + ")";
+            return "takeoffStampsTheLanding=" + w + " | resumeAheadOfLandingFlies=" + w +
+                   " | resumePastLandingLandsAtTheDestination=" + w;
+        }
+    };
+
     void RegisterTaxiScenarios(Runner& r)
     {
         r.Register(new TaxiDeathClearsTheFlight());
+        r.Register(new TaxiResumeByLandingTime());
     }
 }
