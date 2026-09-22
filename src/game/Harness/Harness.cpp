@@ -60,6 +60,7 @@ namespace Harness
     void RegisterDefaultScenarios(Runner& r);
     void RegisterTrackingScenarios(Runner& r);
     void RegisterControlScenarios(Runner& r);
+    void RegisterChaseLeadScenarios(Runner& r);
     void RegisterTaxiScenarios(Runner& r);
 
     namespace
@@ -87,7 +88,10 @@ namespace Harness
         // that waits under a root (P5-B family 3 Task 5). The control family
         // (RegisterControlScenarios) is orders 54-58: the flee's first bolt and its rest,
         // the stagger's envelope and gait, a corpse as a fright, a refreshed aura restarting
-        // the flee, and the stagger in the air (P5-B family 4 Task 5).
+        // the flee, and the stagger in the air (P5-B family 4 Task 5). The chase-lead family
+        // (RegisterChaseLeadScenarios) is orders 68-71: one target motion each -- a steady
+        // run, a stop, a reversal, a ring -- run twice, with Movement.ChaseLead forced off and
+        // then on, which is the measurement the flag's own conf text asks for.
         RegisterJumpScenarios(*this);
         RegisterPointScenarios(*this);
         RegisterHomeScenarios(*this);
@@ -101,6 +105,7 @@ namespace Harness
         RegisterDefaultScenarios(*this);
         RegisterTrackingScenarios(*this);
         RegisterControlScenarios(*this);
+        RegisterChaseLeadScenarios(*this);
         // The taxi-contract family (RegisterTaxiScenarios) is orders 908-911, at the tail of
         // the player block: the death that clears a flight, the resume decided by the landing
         // time, the stops retail sends at the two control changes, and the 4.2.0 pet rule.
