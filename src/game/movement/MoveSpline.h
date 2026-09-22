@@ -283,6 +283,15 @@ namespace Movement
              */
             const Vector3 FinalDestination() const { return Initialized() ? spline.getPoint(spline.last()) : Vector3();}
 
+            /// The leg's control points, read-only and exactly as the spline holds them:
+            /// SplineBase::InitCatmullRom wraps the caller's points in two guards, so index 0
+            /// is a virtual point a yard behind the start and the last is a duplicate of the
+            /// end -- the route itself is [1, size - 1). The protected getPath() above is
+            /// PacketBuilder's; this is for a reader who wants to know what geometry a leg
+            /// actually went out with (the harness's smooth-ground-corner measures its
+            /// interpolated position against exactly these points).
+            const MySpline::ControlArray& PathPoints() const { return spline.getPoints(); }
+
             /**
              * @brief Gets the current destination of the spline.
              * @return const Vector3 The current destination of the spline.
