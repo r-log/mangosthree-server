@@ -7186,6 +7186,14 @@ bool Unit::TakePossessOf(Unit* possessed)
         possessedCreature = static_cast<Creature *>(possessed);
     }
 
+    // A BODY THAT WAS SITTING CANNOT BE STEERED (live test 2026-09-22, B1 bonus): mind-control
+    // an AFK creature and the possessor gets the camera and the mover but no right-click turn,
+    // because the client refuses to turn a unit whose stand state is not STAND and nothing on
+    // this path ever stood it up. The take is the moment to do it -- before the control grant
+    // below, so the body is already standing when the client is handed it, the same way
+    // SpellAuraControl.cpp:509 stands a unit up as its stun takes hold.
+    possessed->SetStandState(UNIT_STAND_STATE_STAND);
+
     if (player)
     {
         const bool ownPet = possessedCreature && possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid();
