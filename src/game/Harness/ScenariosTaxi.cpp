@@ -112,6 +112,53 @@ namespace Harness
             p->m_taxi.ClearTaxiDestinations();
         }
 
+        // ---- the mounts -----------------------------------------------------------------
+        //
+        // Picked by reading MountCapability.dbc and MountType.dbc against
+        // Unit::GetMountCapability, which walks Capability[23] down to Capability[0] and returns
+        // the first row whose riding skill, movement state, map, area, aura and spell all pass.
+        //
+        //   30174 Riding Turtle      mount type 231 = [231, 265]. Capability 265 wants area 5146
+        //                            and is skipped on Mulgore, so this resolves to capability
+        //                            231: Flags 0x1d -- no 0x2 -- SpeedModSpell 86496 (auras 32
+        //                            and 58). A GROUND mount, and every row of its type is
+        //                            RequiredRidingSkill 0, so no skill can move it.
+        //   32235                    mount type 248 = [226, 227, 241, 242, 243, 238, 239, 240,
+        //                            244..252]: a FLYING mount for Azeroth, and the one fixture
+        //                            that resolves BOTH ways on this map.
+        //                              riding 150, no licence -> capability 227, Flags 0x1d, no
+        //                                0x2. Every flying row is gated past it: 250..252 want
+        //                                map 646, 247..249 want spell 90267, 244..246 want map
+        //                                0, 238..240 want map 571 and aura 54197, 241..243 want
+        //                                map 530. THE SPEC'S CASE -- a flying mount where flight
+        //                                is forbidden -- and the pet must stay.
+        //                              riding 225 and the licence KNOWN -> capability 247,
+        //                                Flags 0x7, SpeedModSpell 86459. The pet must go.
+        //   90267                    Flight Master's License. It is rows 244..252's
+        //                            RequiredSpell, NOT their RequiredAura, so the gate is
+        //                            Player::HasSpell and the way to open it is to learn it --
+        //                            which is just as well, since 90267's only SpellEffect row
+        //                            is Effect 3 with EffectAura 0 and it raises no aura at all.
+        //
+        // Both mount spells carry 1 500 ms of cast time (SpellCastTimes row 16) and a triggered
+        // cast does NOT skip it, so every reading of the applied state is taken two seconds
+        // later rather than in the cast's own step.
+        const uint32 GROUND_MOUNT = 30174;
+        const uint32 GROUNDED_FLYER = 32235;
+        const uint32 GROUNDED_FLYER_SKILL = 150;   // capability 227's RequiredRidingSkill
+        const uint32 LICENSED_SKILL = 225;         // capability 247's RequiredRidingSkill
+        const uint32 LICENSED_CAPABILITY = 247;    // the flying row the zone holds him back from
+        const uint32 FLIGHT_LICENCE = 90267;       // its RequiredSpell
+        const uint32 IMP = 416;                    // the warlock's imp, the pet S67 builds
+
+        /// The aura's own question, asked the way Aura::HandleAuraMounted asks it: the mount
+        /// type from the spell's EffectMiscValueB, then the capability, then `Flags & 0x2`.
+        MountCapabilityEntry const* CapabilityOf(Player* p, uint32 spellId)
+        {
+            SpellEntry const* spell = sSpellStore.LookupEntry(spellId);
+            SpellEffectEntry const* eff = spell ? spell->GetSpellEffect(EFFECT_INDEX_0) : NULL;
+            return eff ? p->GetMountCapability(uint32(eff->EffectMiscValue_1)) : NULL;
+        }
     }
 
     /**
@@ -805,10 +852,443 @@ namespace Harness
         }
     };
 
+    /**
+     * S71 (order 911): the 4.2.0 pet rule -- a permanent pet stays out and follows on a ground
+     * mount, and goes only on lift-off with a flying one.
+     *
+     * THE HALF THAT WAS BROKEN IS THE GROUND HALF, which is why it is the half proven end to end
+     * here. Unit::Mount's "Flying case" tested the MOUNT SPELL for
+     * SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED, an aura no 4.3.4 mount spell carries -- the speed
+     * moved to the capability's SpeedModSpell, where aura 207 lives now -- so the test was dead,
+     * every mount fell into the arm below it, and that arm unsummoned any controlled
+     * non-temporary pet. The decision now comes from the resolved MountCapabilityEntry, which is
+     * already gated on the map, the zone, the riding skill and the licence aura.
+     *
+     * THE FIXTURE IS ONE MOUNT SPELL RESOLVING BOTH WAYS. Spell 32235 is a flying mount; on map 1
+     * with riding skill 150 and no Flight Master's License it resolves to capability 227 (Flags
+     * 0x1d, no 0x2) because every flying row of mount type 248 is gated on a map or an aura it
+     * does not have, and with skill 225 and spell 90267 applied the same spell resolves to
+     * capability 247 (Flags 0x7). That is the design's "verify the capability resolves to a
+     * non-flying entry there rather than assuming", shown rather than asserted, and it is what
+     * makes phase 2 a real case and not a ground mount wearing a flying name.
+     *
+     * WHAT IS NOT PROVEN HERE, AND WHY. The flying arm's despawn itself is not driven: a real
+     * Pet::Unsummon ends in SavePetToDB, which would INSERT a character_pet row for a character
+     * that does not exist, and the harness must never write to the character database. Phase 3
+     * therefore reads the capability the aura WOULD hand down -- the one input the change added
+     * -- and stops there; the arm behind it is the single unchanged line
+     * UnsummonPetTemporaryIfAny(), and the despawn is on the live checklist. For the same reason
+     * the negative check for this item must NOT be run headless: reverting the ground arm makes
+     * the harness write that row.
+     */
+    class MountKeepsThePetOnTheGround : public Scenario
+    {
+    public:
+        MountKeepsThePetOnTheGround() : Scenario("mount-keeps-the-pet-on-the-ground", 911) {}
+        bool UsesPlayer() const override { return true; }
+
+        /// One mount phase: the capability read the way the aura reads it, then the apply, then
+        /// the window under the mount.
+        struct Phase
+        {
+            bool   castRan = false;
+            bool   readRan = false;
+            uint32 spell = 0;
+            uint32 capabilityId = 0;    ///< what GetMountCapability answered here, 0 for none
+            uint32 capabilityFlags = 0;
+            bool   canFly = false;      ///< the predicate the aura passes down: Flags & 0x2
+            bool   petBefore = false;   ///< his own live pet the instant before the cast
+            bool   aura = false;        ///< the mount aura landed (these spells take 1.5 s to cast)
+            bool   mounted = false;
+            bool   petAfter = false;
+            uint32 tempNumber = 0;      ///< GetTemporaryUnsummonedPetNumber(): non-zero only if the unsummon arm ran
+            uint32 samples = 0;
+            uint32 petGone = 0;
+            uint32 unmounted = 0;       ///< samples on which the mount was not on him after all
+            bool   petAtDismount = false;
+        };
+
+        void Prepare() override
+        {
+            struct St
+            {
+                bool   built = false;
+                uint32 petNumber = 0;
+                Phase  ground;      ///< a plain ground mount
+                Phase  grounded;    ///< a FLYING mount where flight is forbidden
+                bool   gateRan = false;
+                bool   licence = false;        ///< spell 90267 known once the gate is opened
+                uint32 openedCapability = 0;   ///< what spell 32235 resolves to then
+                uint32 openedFlags = 0;
+                bool   openedCanFly = false;
+            };
+
+            Player* p = SpawnPlayer(P0.x, P0.y, Ground(P0.x, P0.y, P0.z), 0.0f);
+            Pet* pet = p ? BuildPet(p) : NULL;
+            if (!p || !pet)
+            {
+                Verdict(Invalid("spawn failed"));
+                return;
+            }
+            const ObjectGuid g = p->GetObjectGuid(), gp = pet->GetObjectGuid();
+            auto st = std::make_shared<St>();
+            st->built = true;
+            st->petNumber = pet->GetCharmInfo()->GetPetNumber();
+            st->ground.spell = GROUND_MOUNT;
+            st->grounded.spell = GROUNDED_FLYER;
+            Log("the player %s stands at (%.1f, %.1f) with his own pet (entry %u, number %u): IsPet=%d controlled=%d his pet guid=%d",
+                g.GetString().c_str(), p->Where().X(), p->Where().Y(), IMP, st->petNumber,
+                pet->IsPet() ? 1 : 0, pet->isControlled() ? 1 : 0, p->GetPetGuid() == gp ? 1 : 0);
+
+            // ---- phase 1: a plain ground mount --------------------------------------------
+            // 1 500 ms of cast time (SpellCastTimes row 16) and a TRIGGERED cast does not skip
+            // it -- Spell::Prepare only shortcuts a triggered spell whose timer is already zero
+            // -- so every reading of the applied state is taken two seconds later, not in the
+            // cast's own step the way an instant spell's would be.
+            Cast(500, g, gp, st, &St::ground, "the ground mount");
+            ReadApply(2500, g, gp, st, &St::ground);
+            Sample(2600, 4500, g, gp, st, &St::ground);
+            Pull(4500, g, gp, st, &St::ground);
+
+            // ---- phase 2: a FLYING mount where flight is forbidden --------------------------
+            At(4800, [this, g]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                // Capability 227's RequiredRidingSkill, as the CURRENT value: GetMountCapability
+                // compares against GetSkillValue, not the maximum. Without it mount type 248
+                // resolves to nothing at all here and Spell::CheckCast refuses the mount outright
+                // (SpellChecks.cpp:1700), which is a different finding from the one under test.
+                p->SetSkill(SKILL_RIDING, GROUNDED_FLYER_SKILL, GROUNDED_FLYER_SKILL);
+                Log("4800ms riding skill set to %u (current=%u)", GROUNDED_FLYER_SKILL, p->GetSkillValue(SKILL_RIDING));
+            });
+            Cast(5000, g, gp, st, &St::grounded, "the flying mount where flight is forbidden");
+            ReadApply(7000, g, gp, st, &St::grounded);
+            Sample(7100, 9000, g, gp, st, &St::grounded);
+            Pull(9000, g, gp, st, &St::grounded);
+
+            // ---- phase 3: the SAME mount once the zone stops forbidding flight ---------------
+            //
+            // Phase 2 only means something if spell 32235 really can fly and was held to the
+            // ground by this zone; if its mount type had no flying row reachable here at all, a
+            // pet that stayed would be evidence about a ground mount. So the gate is OPENED and
+            // the same spell asked again. Nothing is cast and no pet is touched: learning a spell
+            // and raising a skill are memory-only on a player the harness never saves.
+            At(9300, [this, g, st]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                st->gateRan = true;
+                p->SetSkill(SKILL_RIDING, LICENSED_SKILL, LICENSED_SKILL);
+                p->learnSpell(FLIGHT_LICENCE, false);
+                st->licence = p->HasSpell(FLIGHT_LICENCE);
+                Log("9300ms the gate opened: riding %u, %u known = %d",
+                    p->GetSkillValue(SKILL_RIDING), FLIGHT_LICENCE, st->licence ? 1 : 0);
+            });
+            At(9800, [this, g, st]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                if (MountCapabilityEntry const* cap = CapabilityOf(p, GROUNDED_FLYER))
+                {
+                    st->openedCapability = cap->ID;
+                    st->openedFlags = cap->Flags;
+                    st->openedCanFly = (cap->Flags & 0x2) != 0;
+                }
+                Log("9800ms the same spell asked again: %u now resolves to capability %u flags 0x%02x canFly=%d (it was %u flags 0x%02x)",
+                    GROUNDED_FLYER, st->openedCapability, st->openedFlags, st->openedCanFly ? 1 : 0,
+                    st->grounded.capabilityId, st->grounded.capabilityFlags);
+            });
+
+            // ---- the pet released, S67's own recipe: the owner guid FIRST -------------------
+            At(10200, [this, g, gp]()
+            {
+                Player* p = sPlayerRegistry.Find(g);
+                Pet* pet = FindPet(gp);
+                if (!pet)
+                {
+                    Log("ERR cleanup: the pet was already gone");
+                    return;
+                }
+                // Closes SavePetToDB's third gate for every path out of here at once, including
+                // the ones that are not obvious (Pet::Update unsummoning a pet whose owner it
+                // cannot resolve). Nothing this scenario does may reach the character database.
+                pet->SetOwnerGuid(ObjectGuid());
+                if (p && p->GetPetGuid() == pet->GetObjectGuid()) { p->SetPet(NULL); }
+                pet->Unsummon(PET_SAVE_NOT_IN_SLOT);
+                Log("10200ms the pet released and unsummoned");
+            });
+            At(10600, [this, st]()
+            {
+                char ground[512], forbidden[512], licensed[448];
+                if (!st->built)
+                {
+                    Verdict(Invalid("the pet was not built"));
+                    return;
+                }
+                Read(st->ground, "a plain ground mount", 231, ground, sizeof(ground));
+                Read(st->grounded, "a flying mount in a zone that forbids flight", 227, forbidden, sizeof(forbidden));
+                // --- theSameMountFliesOnceTheGateOpens: what makes phase 2 a case at all, and
+                // the design's "verify the capability resolves to a non-flying entry there
+                // rather than assuming" shown rather than asserted. ONE spell, both answers.
+                if (!st->gateRan)
+                {
+                    snprintf(licensed, sizeof(licensed), "INVALID(the gate step never ran)");
+                }
+                else if (!st->licence)
+                {
+                    snprintf(licensed, sizeof(licensed), "INVALID(spell %u could not be learned, so the gate was never opened and the comparison cannot be made)", FLIGHT_LICENCE);
+                }
+                else if (!st->openedCapability)
+                {
+                    snprintf(licensed, sizeof(licensed), "BUG(with riding %u and %u known, spell %u resolved no capability at all)", LICENSED_SKILL, FLIGHT_LICENCE, GROUNDED_FLYER);
+                }
+                else if (st->openedCapability != LICENSED_CAPABILITY || !st->openedCanFly)
+                {
+                    snprintf(licensed, sizeof(licensed), "BUG(with the gate open, spell %u resolved capability %u flags 0x%02x canFly=%d; the DBC rows say %u with 0x2 set)",
+                             GROUNDED_FLYER, st->openedCapability, st->openedFlags, st->openedCanFly ? 1 : 0, LICENSED_CAPABILITY);
+                }
+                else if (st->openedCapability == st->grounded.capabilityId)
+                {
+                    snprintf(licensed, sizeof(licensed), "BUG(the gate changed nothing: spell %u resolved capability %u both with and without it)", GROUNDED_FLYER, st->openedCapability);
+                }
+                else
+                {
+                    snprintf(licensed, sizeof(licensed), "OK(ONE spell, %u, answering both ways on this map: capability %u flags 0x%02x without %u known -- a flying mount held to the ground by the zone, whose pet stayed -- and capability %u flags 0x%02x with it, which can fly. The gate is inside GetMountCapability exactly as the design assumed, so the pet rule never has to know about zones)",
+                             GROUNDED_FLYER, st->grounded.capabilityId, st->grounded.capabilityFlags,
+                             FLIGHT_LICENCE, st->openedCapability, st->openedFlags);
+                }
+                Verdict(std::string("groundMountKeepsThePet=") + ground +
+                        " | forbiddenFlightKeepsThePet=" + forbidden +
+                        " | theSameMountFliesOnceTheGateOpens=" + licensed);
+            });
+        }
+
+    private:
+        template <class St>
+        void Cast(uint32 at, ObjectGuid g, ObjectGuid gp, std::shared_ptr<St> st, Phase St::* which, char const* what)
+        {
+            At(at, [this, g, gp, st, which, what, at]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                Phase& ph = st.get()->*which;
+                Pet* pet = FindPet(gp);
+                ph.petBefore = pet && pet->IsAlive() && p->GetPetGuid() == gp;
+                // Read BEFORE the cast, because this is the answer Aura::HandleAuraMounted
+                // resolves and hands to Unit::Mount, and because Spell::CheckCast refuses a
+                // mount whose capability is null before any of it happens.
+                if (MountCapabilityEntry const* cap = CapabilityOf(p, ph.spell))
+                {
+                    ph.capabilityId = cap->ID;
+                    ph.capabilityFlags = cap->Flags;
+                    ph.canFly = (cap->Flags & 0x2) != 0;
+                }
+                ph.castRan = true;
+                SelfCast(p, ph.spell);
+                Log("%4ums %s cast (spell %u): capability %u flags 0x%02x canFly=%d, pet his=%d -- 1.5 s of cast time to run",
+                    at, what, ph.spell, ph.capabilityId, ph.capabilityFlags, ph.canFly ? 1 : 0,
+                    ph.petBefore ? 1 : 0);
+            });
+        }
+
+        template <class St>
+        void ReadApply(uint32 at, ObjectGuid g, ObjectGuid gp, std::shared_ptr<St> st, Phase St::* which)
+        {
+            At(at, [this, g, gp, st, which, at]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                Phase& ph = st.get()->*which;
+                Pet* pet = FindPet(gp);
+                ph.readRan = true;
+                ph.aura = p->HasAura(ph.spell);
+                ph.mounted = p->IsMounted();
+                ph.tempNumber = p->GetTemporaryUnsummonedPetNumber();
+                ph.petAfter = pet && pet->IsAlive() && p->GetPetGuid() == gp;
+                Log("%4ums the mount landed: aura=%d mounted=%d display %u | pet his=%d, temporary pet number %u",
+                    at, ph.aura ? 1 : 0, ph.mounted ? 1 : 0, p->GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID),
+                    ph.petAfter ? 1 : 0, ph.tempNumber);
+            });
+        }
+
+        template <class St>
+        void Sample(uint32 from, uint32 to, ObjectGuid g, ObjectGuid gp, std::shared_ptr<St> st, Phase St::* which)
+        {
+            for (uint32 t = from; t < to; t += 100)
+            {
+                At(t, [this, g, gp, st, which, t]()
+                {
+                    Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                    Phase& ph = st.get()->*which;
+                    Pet* pet = FindPet(gp);
+                    ++ph.samples;
+                    if (!pet || !pet->IsAlive() || p->GetPetGuid() != gp) { ++ph.petGone; }
+                    if (!p->IsMounted()) { ++ph.unmounted; }
+                    if (t % 500 == 0)
+                    {
+                        Log("%4ums mounted=%d pet present=%d his=%d temporary number %u at (%.1f, %.1f)", t,
+                            p->IsMounted() ? 1 : 0, pet ? 1 : 0, p->GetPetGuid() == gp ? 1 : 0,
+                            p->GetTemporaryUnsummonedPetNumber(),
+                            pet ? pet->Where().X() : 0.0f, pet ? pet->Where().Y() : 0.0f);
+                    }
+                });
+            }
+        }
+
+        template <class St>
+        void Pull(uint32 at, ObjectGuid g, ObjectGuid gp, std::shared_ptr<St> st, Phase St::* which)
+        {
+            At(at, [this, g, gp, st, which, at]()
+            {
+                Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
+                Phase& ph = st.get()->*which;
+                p->RemoveAurasDueToSpell(ph.spell);
+                Pet* pet = FindPet(gp);
+                ph.petAtDismount = pet && pet->IsAlive() && p->GetPetGuid() == gp;
+                Log("%4ums the mount aura %u pulled: mounted=%d pet still his=%d temporary number %u",
+                    at, ph.spell, p->IsMounted() ? 1 : 0, ph.petAtDismount ? 1 : 0,
+                    p->GetTemporaryUnsummonedPetNumber());
+            });
+        }
+
+        /// One ground phase's verdict. `expect` is the capability row the DBC says this fixture
+        /// must resolve to here; anything else is a broken FIXTURE, reported as INVALID, not a
+        /// broken rule.
+        void Read(Phase const& ph, char const* what, uint32 expect, char* out, size_t size) const
+        {
+            if (!ph.castRan || !ph.readRan)
+            {
+                snprintf(out, size, "INVALID(the %s steps never ran: cast=%d read=%d)", what, ph.castRan ? 1 : 0, ph.readRan ? 1 : 0);
+                return;
+            }
+            if (ph.capabilityId != expect)
+            {
+                snprintf(out, size, "INVALID(spell %u resolved capability %u here, not the %u the MountCapability rows say for this map, skill and licence: the fixture is not what it claims)",
+                         ph.spell, ph.capabilityId, expect);
+                return;
+            }
+            if (ph.canFly)
+            {
+                snprintf(out, size, "INVALID(capability %u flags 0x%02x reads as flying here, so this is not the ground case it was built to be)",
+                         ph.capabilityId, ph.capabilityFlags);
+                return;
+            }
+            if (!ph.petBefore)
+            {
+                snprintf(out, size, "INVALID(he had no live pet of his own going into %s, so there was nothing for the mount to keep)", what);
+                return;
+            }
+            if (!ph.aura || !ph.mounted)
+            {
+                snprintf(out, size, "INVALID(the cast of %u left him aura=%d mounted=%d, so Unit::Mount's pet branch was never entered)",
+                         ph.spell, ph.aura ? 1 : 0, ph.mounted ? 1 : 0);
+                return;
+            }
+            if (ph.tempNumber)
+            {
+                snprintf(out, size, "BUG(%s recorded temporary pet number %u: UnsummonPetTemporaryIfAny ran on a GROUND capability (%u, flags 0x%02x) and the pet was despawned)",
+                         what, ph.tempNumber, ph.capabilityId, ph.capabilityFlags);
+                return;
+            }
+            if (!ph.petAfter)
+            {
+                snprintf(out, size, "BUG(the pet was gone once %s had landed, on ground capability %u flags 0x%02x)",
+                         what, ph.capabilityId, ph.capabilityFlags);
+                return;
+            }
+            if (ph.samples < 10)
+            {
+                snprintf(out, size, "INVALID(only %u samples while %s was on him)", ph.samples, what);
+                return;
+            }
+            if (ph.unmounted)
+            {
+                snprintf(out, size, "INVALID(the mount was off him again on %u of the %u samples, so the window does not measure a mounted player)", ph.unmounted, ph.samples);
+                return;
+            }
+            if (ph.petGone)
+            {
+                snprintf(out, size, "BUG(the pet was not his live pet on %u of the %u samples while %s was on him)", ph.petGone, ph.samples, what);
+                return;
+            }
+            if (!ph.petAtDismount)
+            {
+                snprintf(out, size, "BUG(the pet was gone by the time the mount aura was pulled)");
+                return;
+            }
+            snprintf(out, size, "OK(capability %u flags 0x%02x has no 0x2 here, no temporary pet number was recorded, and the pet was his live pet once the mount had landed, on all %u samples under it, and still after the dismount)",
+                     ph.capabilityId, ph.capabilityFlags, ph.samples);
+        }
+
+        /// HIGHGUID_PET lives in its own store; Scenario::Get answers only HIGHGUID_UNIT.
+        Pet* FindPet(ObjectGuid guid) const
+        {
+            Map* map = GetMap();
+            return map ? map->GetPet(guid) : NULL;
+        }
+
+        /**
+         * A player-owned pet in memory with no `character_pet` row and no write to the character
+         * database: Spell::DoSummonPet's own recipe minus its closing SavePetToDB, exactly as
+         * S67's player-owned-pet-possession builds one. The order is load-bearing in the same
+         * three places: SetOwnerGuid before AIM_Initialize (a player's pet takes the Idle factory
+         * default), SetOwnerGuid before InitStatsForLevel (which resolves GetOwner()), and
+         * SetActiveObjectState before Map::Add.
+         */
+        Pet* BuildPet(Player* owner)
+        {
+            Map* map = GetMap();
+            CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(IMP);
+            if (!map || !owner || !cinfo)
+            {
+                Log("ERR pet: no map, no owner, or no creature template %u", IMP);
+                return NULL;
+            }
+            const float x = owner->Where().X() + 4.0f;
+            const float y = owner->Where().Y();
+            Load(x, y);
+            Pet* pet = new Pet(SUMMON_PET);
+            CreatureCreatePos pos(map, x, y, Ground(x, y, owner->Where().Z()), 0.0f, 1);
+            const uint32 petNumber = sObjectMgr.GeneratePetNumber();
+            if (!pet->Create(map->GenerateLocalLowGuid(HIGHGUID_PET), pos, cinfo, petNumber))
+            {
+                delete pet;
+                Log("ERR pet: Pet::Create failed for entry %u", IMP);
+                return NULL;
+            }
+            pet->SetSpawn(pos);
+            pet->SetOwnerGuid(owner->GetObjectGuid());
+            pet->SetCreatorGuid(owner->GetObjectGuid());
+            pet->setFaction(owner->getFaction());
+            pet->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, 0);
+            pet->InitStatsForLevel(owner->getLevel());
+            pet->GetCharmInfo()->SetPetNumber(petNumber, pet->isControlled());
+            pet->GetCharmInfo()->SetReactState(REACT_DEFENSIVE);
+            pet->InitPetCreateSpells();
+            pet->SetActiveObjectState(true);
+            map->Add((Creature*)pet);
+            pet->AIM_Initialize();
+            // The factory AI dropped from under the recording decorator, as Scenario::Silence
+            // does it for a spawned actor: PetAI::UpdateAI draws from urand for its autocast pick
+            // and would perturb the seeded stream every other scenario shares.
+            pet->SetAI(new HarnessAI(pet, pet->AI(), this));
+            if (HarnessAI* recording = dynamic_cast<HarnessAI*>(pet->AI()))
+            {
+                delete recording->Release();
+            }
+            owner->SetPet(pet);
+            return pet;
+        }
+
+        static std::string Invalid(char const* why)
+        {
+            std::string w = std::string("INVALID(") + why + ")";
+            return "groundMountKeepsThePet=" + w + " | forbiddenFlightKeepsThePet=" + w +
+                   " | theSameMountFliesOnceTheGateOpens=" + w;
+        }
+    };
+
     void RegisterTaxiScenarios(Runner& r)
     {
         r.Register(new TaxiDeathClearsTheFlight());
         r.Register(new TaxiResumeByLandingTime());
         r.Register(new TaxiStopsAtTheTransitions());
+        r.Register(new MountKeepsThePetOnTheGround());
     }
 }
