@@ -31,6 +31,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "Item.h"
 #include "UpdateData.h"

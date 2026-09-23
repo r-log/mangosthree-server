@@ -27,6 +27,7 @@
 #include "OutdoorPvPHP.h"
 #include "WorldPacket.h"
 #include "World.h"
+#include "BattleGround.h"
 #include "Object.h"
 #include "Creature.h"
 #include "GameObject.h"

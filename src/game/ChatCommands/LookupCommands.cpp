@@ -38,6 +38,7 @@
 #include <sstream>
 #include <string>
 #include "Chat.h"
+#include "AchievementMgr.h"
 #include "ObjectMgr.h"
 #include "Language.h"
 #include "AccountMgr.h"

@@ -41,6 +41,7 @@
 #include "Bag.h"
 #include "Creature.h"
 #include "Player.h"
+#include "Pet.h"
 #include "GameObject.h"
 #include "Corpse.h"
 #include "QuestDef.h"

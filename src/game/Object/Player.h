@@ -80,14 +80,11 @@
 #include "SpellCooldownMgr.h" // SpellCooldownMgr is held by value on Player; brings in SpellCooldown/SpellCooldowns + owns the cooldown map
 
 #include "QuestDef.h"
-#include "Group.h"
-#include "Pet.h"
+#include "GroupReference.h"
 #include "PetMgr.h"
 #include "MapReference.h"
 #include "Util.h"                                           // for Tokens typedef
-#include "AchievementMgr.h"
 #include "ReputationMgr.h"
-#include "BattleGround.h"
 #include "SharedDefines.h"
 
 #include<string>
@@ -109,7 +106,6 @@ class Item;
 struct AreaTrigger;
 
 #include <memory>
-#include "CinematicFlyover.h"
 #include "Cell.h"
 
 // Decoupling D3: named by pointer or reference only. The .cpp files that use them include them.
@@ -117,6 +113,12 @@ class QueryResult;
 class SqlQueryHolder;
 class WorldSession;
 struct TrainerSpell;
+class Group;
+class BattleGround;
+class Pet;
+class AchievementMgr;
+class CinematicFlyover;
+struct CreatureInfo;
 
 typedef std::deque<Mail*> PlayerMails;
 
@@ -3670,7 +3672,7 @@ class Player : public Unit
         void ApplyDeferredIntroPvP();
 
         // Set the cinematic flyover manager
-        void SetCinematicFlyover(std::unique_ptr<CinematicFlyover> flyover) { m_cinematicFlyover = std::move(flyover); }
+        void SetCinematicFlyover(std::unique_ptr<CinematicFlyover> flyover);
 
         // Check if the player has a specific at-login flag
         bool HasAtLoginFlag(AtLoginFlags f) const { return m_atLoginFlags & f; }
@@ -3849,8 +3851,8 @@ class Player : public Unit
         void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index); }
         void InitRunes() { m_runeMgr.Init(); }
 
-        AchievementMgr const& GetAchievementMgr() const { return m_achievementMgr; }
-        AchievementMgr& GetAchievementMgr() { return m_achievementMgr; }
+        AchievementMgr const& GetAchievementMgr() const { return *m_achievementMgr; }
+        AchievementMgr& GetAchievementMgr() { return *m_achievementMgr; }
         void UpdateAchievementCriteria(AchievementCriteriaTypes type, uint32 miscvalue1 = 0, uint32 miscvalue2 = 0, Unit* unit = NULL, uint32 time = 0);
         void StartTimedAchievementCriteria(AchievementCriteriaTypes type, uint32 timedRequirementId, time_t startTime = 0);
 
@@ -4283,7 +4285,7 @@ class Player : public Unit
 
         PetMgr m_petMgr;  // owns m_stableSlots + m_temporaryUnsummonedPetNumber + 5 pet-lifecycle helpers
 
-        AchievementMgr m_achievementMgr;
+        std::unique_ptr<AchievementMgr> m_achievementMgr;
         ReputationMgr  m_reputationMgr;
 
         uint32 m_timeSyncCounter;

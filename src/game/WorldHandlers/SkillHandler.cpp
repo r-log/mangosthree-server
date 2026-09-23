@@ -43,6 +43,8 @@
 #include "DBCStores.h"
 #include "Opcodes.h"
 #include "Log.h"
+#include "Creature.h"
+#include "Pet.h"
 #include "Player.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"

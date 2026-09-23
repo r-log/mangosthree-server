@@ -31,6 +31,7 @@
  *        Player.h is unchanged.
  */
 
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "Log.h"
 #include "Opcodes.h"

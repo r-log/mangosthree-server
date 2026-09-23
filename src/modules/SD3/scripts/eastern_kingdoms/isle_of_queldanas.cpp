@@ -36,6 +36,7 @@ npc_converted_sentry
 EndContentData */
 
 #include "precompiled.h"
+#include "Pet.h"
 
 /*######
 ## npc_converted_sentry

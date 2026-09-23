@@ -55,6 +55,8 @@
 #include "Policies/Singleton.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "BattleGround.h"
+#include "Group.h"
 #include "Transports.h"
 #include "GridDefines.h"
 #include "World.h"

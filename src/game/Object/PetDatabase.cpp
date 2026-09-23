@@ -29,6 +29,7 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "WorldPacket.h"
+#include "Group.h"
 #include "ObjectMgr.h"
 #include "SpellMgr.h"
 #include "Formulas.h"

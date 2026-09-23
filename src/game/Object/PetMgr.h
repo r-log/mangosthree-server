@@ -27,9 +27,10 @@
 #define MANGOS_H_PETMGR
 
 #include "Platform/Define.h"
-#include "Pet.h"  // PetSaveMode enum + MAX_PET_STABLES constant
+#include "SharedDefines.h"
 
 class Player;
+class Pet;
 
 /**
  * PetMgr — owns a Player's pet-ownership metadata: the stable-slot

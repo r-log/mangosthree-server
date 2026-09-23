@@ -47,6 +47,7 @@
 #include "precompiled.h"
 #include "escort_ai.h"
 #include "follower_ai.h"
+#include "Pet.h"
 
 /*####
 # npc_kerlonian

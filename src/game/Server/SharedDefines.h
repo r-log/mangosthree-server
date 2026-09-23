@@ -3638,6 +3638,20 @@ enum PartyResult
     ERR_PARTY_LFG_TELEPORT_IN_COMBAT = 30
 };
 
+/// Lived in Pet.h until decoupling D3; PetMgr and Player name the slots without the pet.
+#define MAX_PET_STABLES         5   ///< Cata 4.0.1 unified hunter stable to 5 free slots; was 4 in WotLK.
+
+enum PetSaveMode
+{
+    PET_SAVE_AS_DELETED        = -1,                        // not saved in fact
+    PET_SAVE_AS_CURRENT        =  0,                        // in current slot (with player)
+    PET_SAVE_FIRST_STABLE_SLOT =  1,
+    PET_SAVE_LAST_STABLE_SLOT  =  MAX_PET_STABLES,          // last in DB stable slot index (including), all higher have same meaning as PET_SAVE_NOT_IN_SLOT
+    PET_SAVE_NOT_IN_SLOT       =  100,                      // for avoid conflict with stable size grow will use 100
+    PET_SAVE_REAGENTS          =  101,                      // PET_SAVE_NOT_IN_SLOT with reagents return
+    PET_SAVE_NEW_PET           =  102                       ///< Cata tame: ask SavePetToDB to allocate the next free active slot 0..PET_SLOT_LAST_ACTIVE_SLOT and rewrite this mode in place. Returns with m_petSlot == PET_SAVE_NOT_IN_SLOT and no row written when the active roster is full -- caller checks via GetSlot().
+};
+
 // indexes of BattlemasterList.dbc
 enum BattleGroundTypeId
 {
@@ -3663,6 +3677,23 @@ enum BattleGroundTypeId
     //BATTLEGROUND_UNK1          = 441,                     // icecrown citadel
     //BATTLEGROUND_UNK2          = 443,                     // ruby sanctum
     //BATTLEGROUND_UNK3          = 656,                     // rated eye of the storm
+};
+
+/// Lived in BattleGround.h until decoupling D3; Player.h queues by it without the battleground.
+enum BattleGroundQueueTypeId
+{
+    BATTLEGROUND_QUEUE_NONE = 0,            ///< No queue type
+    BATTLEGROUND_QUEUE_AV = 1,              ///< Alterac Valley queue
+    BATTLEGROUND_QUEUE_WS = 2,              ///< Warsong Gulch queue
+    BATTLEGROUND_QUEUE_AB = 3,              ///< Arathi Basin queue
+    BATTLEGROUND_QUEUE_EY = 4,
+    BATTLEGROUND_QUEUE_SA = 5,
+    BATTLEGROUND_QUEUE_IC = 6,
+    BATTLEGROUND_QUEUE_TP = 7,
+    BATTLEGROUND_QUEUE_BG = 8,
+    BATTLEGROUND_QUEUE_2v2 = 9,
+    BATTLEGROUND_QUEUE_3v3 = 10,
+    BATTLEGROUND_QUEUE_5v5 = 11,
 };
 
 #define MAX_BATTLEGROUND_TYPE_ID 121

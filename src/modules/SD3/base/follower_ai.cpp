@@ -33,6 +33,7 @@ EndScriptData */
 
 #include "precompiled.h"
 #include "follower_ai.h"
+#include "Pet.h"
 
 const float MAX_PLAYER_DISTANCE = 100.0f;
 

@@ -3,8 +3,10 @@
 Transitive include weight and reach for the decoupling campaign's counters (design section 8).
 For each header: the number of headers in its transitive closure, and the number of game .cpp
 files whose own closure contains it, i.e. the translation units a change to it rebuilds.
-Includes are resolved relative to the including file first, then by basename against every
-header under src/, which is how the flat include directories of the game target resolve them.
+Includes are resolved the way the flat include directories of the game target resolve them:
+relative to the including file first, then path-qualified against each top-level directory
+(game, motion, shared, proto, mangosd, realmd), then as a full path, then by basename -- against
+any file type, not just headers.
 """
 import collections
 import os
@@ -20,7 +22,7 @@ by_name = {}
 all_files = []
 for d in DIRS:
     for dirpath, _, names in os.walk(os.path.join(ROOT, d)):
-        for name in names:
+        for name in sorted(names):
             rel = os.path.relpath(os.path.join(dirpath, name), ROOT).replace("\\", "/")
             # Index every file type the gate's resolve_include() would find (it has no
             # extension filter), so a header that includes a .inc resolves the same way here.

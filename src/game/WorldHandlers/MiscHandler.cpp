@@ -59,6 +59,7 @@
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Log.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "World.h"
 #include "CinematicFlyover.h"

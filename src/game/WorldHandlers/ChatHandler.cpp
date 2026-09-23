@@ -54,6 +54,7 @@
 #include "Group.h"
 #include "Guild.h"
 #include "GuildMgr.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "SpellAuras.h"
 #include "Language.h"

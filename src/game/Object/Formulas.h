@@ -29,6 +29,7 @@
 #include <cmath>
 #include "DBCStores.h"
 #include "World.h"
+#include "Creature.h"
 
 namespace MaNGOS
 {

@@ -48,6 +48,7 @@ EndContentData */
 #include "escort_ai.h"
 #include "world_map_ebon_hold.h"
 #include "pet_ai.h"
+#include "Pet.h"
 
 // four guards spawned for the outro
 static sSpawnLocation aGuardsSpawnLoc[MAX_LIGHT_GUARDS] =

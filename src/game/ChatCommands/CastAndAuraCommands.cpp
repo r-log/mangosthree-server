@@ -38,6 +38,7 @@
 #include "Language.h"
 #include "SpellAuras.h"
 #include "SpellMgr.h"
+#include "Creature.h"
 #include "Player.h"
 #include "DBCStores.h"
 #include "WorldSession.h"

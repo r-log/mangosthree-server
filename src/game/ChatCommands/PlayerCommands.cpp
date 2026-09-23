@@ -39,6 +39,7 @@
 #include <string>
 #include <list>
 #include "Chat.h"
+#include "AchievementMgr.h"
 #include "ObjectMgr.h"
 #include "Language.h"
 #include "World.h"

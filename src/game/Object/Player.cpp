@@ -314,7 +314,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(this), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -3791,6 +3791,14 @@ void Player::ApplyDeferredIntroPvP()
 }
 
 /**
+ * @brief Sets (or clears) the player's cinematic flyover manager.
+ */
+void Player::SetCinematicFlyover(std::unique_ptr<CinematicFlyover> flyover)
+{
+    m_cinematicFlyover = std::move(flyover);
+}
+
+/**
  * @brief Gets the faction team associated with a race.
  *
  * @param race The race identifier to evaluate.
@@ -4590,7 +4598,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
 
     SendEquipmentSetList();
 
-    m_achievementMgr.SendAllAchievementData();
+    m_achievementMgr->SendAllAchievementData();
 
     data.Initialize(SMSG_LOGIN_SETTIMESPEED, 4 + 4 + 4);
     data << uint32(secsToTimeBitFields(sWorld.GetGameTime()));

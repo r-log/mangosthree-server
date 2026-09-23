@@ -39,6 +39,7 @@
 
 #include <string>
 #include "Object.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "BattleGround.h"
 #include "BattleGroundMgr.h"
