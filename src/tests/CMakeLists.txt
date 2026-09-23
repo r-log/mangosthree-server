@@ -35,7 +35,6 @@ set(SRC_GRP_TESTS
     PendingChangesTest.cpp
     TimeBaseTest.cpp
     MotionWritersTest.cpp
-    ${CMAKE_SOURCE_DIR}/src/game/movement/spline.cpp
     MotionStateTest.cpp
     HarnessTest.cpp
     WorldClockTest.cpp
@@ -56,6 +55,7 @@ set(SRC_GRP_TESTS
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
     NullDatabaseTest.cpp
+    GameLinkTest.cpp
     AuthCryptTest.cpp
     ClientParserTest.cpp
     TerrainModelTest.cpp
@@ -64,10 +64,6 @@ set(SRC_GRP_TESTS
     NavBinningTest.cpp
     DynamicCollisionTest.cpp
     PlacementTest.cpp
-    ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers/DynamicCollision.cpp
-    ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers/GameObjectModel.cpp
-    ${CMAKE_SOURCE_DIR}/src/game/Server/SessionMailbox.cpp
-    ${CMAKE_SOURCE_DIR}/src/game/Harness/Timeline.cpp
     ByteBufferStressTest.cpp
     CodecStressTest.cpp
     PacketCodecTest.cpp
@@ -104,10 +100,6 @@ add_executable(mangos_tests ${SRC_GRP_TESTS})
 
 target_include_directories(mangos_tests
     PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/game/WorldHandlers
-        ${CMAKE_SOURCE_DIR}/src/game/Server
-        ${CMAKE_SOURCE_DIR}/src/game/MotionGenerators
-        ${CMAKE_SOURCE_DIR}/src/game/Harness
         ${CMAKE_SOURCE_DIR}/src/game/movement
         ${CMAKE_SOURCE_DIR}/src/realmd
         ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src)
@@ -116,6 +108,7 @@ target_compile_definitions(mangos_tests PRIVATE MANGOS_TEST_DATA_DIR="${CMAKE_CU
 
 target_link_libraries(mangos_tests
     PRIVATE
+        game
         motion
         proto
         shared_db
