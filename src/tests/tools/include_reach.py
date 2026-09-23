@@ -21,7 +21,8 @@ INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[">]', re.M)
 by_name = {}
 all_files = []
 for d in DIRS:
-    for dirpath, _, names in os.walk(os.path.join(ROOT, d)):
+    for dirpath, dirnames, names in os.walk(os.path.join(ROOT, d)):
+        dirnames.sort()
         for name in sorted(names):
             rel = os.path.relpath(os.path.join(dirpath, name), ROOT).replace("\\", "/")
             # Index every file type the gate's resolve_include() would find (it has no

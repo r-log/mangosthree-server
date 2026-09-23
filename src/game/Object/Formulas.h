@@ -28,6 +28,7 @@
 
 #include <cmath>
 #include "DBCStores.h"
+#include "Log.h"
 #include "World.h"
 #include "Creature.h"
 

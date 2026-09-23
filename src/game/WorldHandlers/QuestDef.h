@@ -26,7 +26,6 @@
 
 #include <cmath>
 #include "Platform/Define.h"
-#include "Database/DatabaseEnv.h"
 
 #include <string>
 #include <vector>
@@ -34,6 +33,8 @@
 class Player;
 
 class ObjectMgr;
+
+class Field;
 
 #define MAX_QUEST_LOG_SIZE 25
 

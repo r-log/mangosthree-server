@@ -88,7 +88,7 @@ class PetMgr
 
         /// PET_SAVE_AS_CURRENT-style dismissal. If the owner currently
         /// has a controlled pet, asks it to unsummon with the given
-        /// mode (see PetSaveMode in PetDefines.h).
+        /// mode (see PetSaveMode in SharedDefines.h).
         void Remove(PetSaveMode mode);
 
         /// SMSG_PET_SPELLS with an empty guid — clears the pet action

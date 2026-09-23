@@ -29,6 +29,7 @@
 #include "Platform/Define.h"
 #include <string>
 #include <vector>
+#include "Log.h"
 #include "QuestDef.h"
 #include "NPCHandler.h"
 #include "ObjectGuid.h"

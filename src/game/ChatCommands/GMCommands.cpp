@@ -37,6 +37,7 @@
 #include <string>
 #include <list>
 #include "Chat.h"
+#include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "Language.h"
 #include "PlayerRegistry.h"

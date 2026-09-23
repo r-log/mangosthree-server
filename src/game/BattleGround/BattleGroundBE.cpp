@@ -29,6 +29,7 @@
 #include "BattleGroundBE.h"
 #include "WorldPacket.h"
 #include "Language.h"
+#include "Log.h"
 
 BattleGroundBE::BattleGroundBE()
 {
