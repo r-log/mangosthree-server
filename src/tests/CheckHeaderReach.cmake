@@ -30,9 +30,8 @@ endforeach()
 # Each entry: "<header relative to src/game>|<forbidden suffix>,<forbidden suffix>,..."
 # Commas, not semicolons: a semicolon inside a quoted argument splits the CMake list.
 # A forbidden suffix matches any reached path that ends with "/<suffix>".
-# Database/DatabaseEnv.h joins this rule in D3 PR 3b, when QuestDef.h stops including it (Quest::Quest(Field*)).
 set(REACH_RULES
-    "Object/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,WorldHandlers/NPCHandler.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h"
+    "Object/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,WorldHandlers/NPCHandler.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h"
     "Object/Unit.h|")
 set(MOTION_ONLY_HEADER "")
 set(MOTION_ALLOWED "Mobility.h")

@@ -35,8 +35,10 @@
 
 #include <string>
 #include "Chat.h"
+#include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "Language.h"
+#include "Log.h"
 #include "PlayerRegistry.h"
 #include "Creature.h"
 #include "Pet.h"

@@ -26,6 +26,7 @@
 #include "GuardAI.h"
 #include "Errors.h"
 #include "Creature.h"
+#include "Log.h"
 #include "Map.h"
 #include "Player.h"
 #include "World.h"

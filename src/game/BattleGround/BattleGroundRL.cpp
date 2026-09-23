@@ -29,6 +29,7 @@
 #include "BattleGroundRL.h"
 #include "Language.h"
 #include "WorldPacket.h"
+#include "Log.h"
 
 BattleGroundRL::BattleGroundRL()
 {

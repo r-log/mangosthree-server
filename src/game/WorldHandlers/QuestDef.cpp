@@ -44,6 +44,7 @@
  */
 
 #include "QuestDef.h"
+#include "Database/DatabaseEnv.h"
 #include "Player.h"
 #include "World.h"
 #include "DBCStores.h"

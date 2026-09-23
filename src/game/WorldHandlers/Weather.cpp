@@ -30,6 +30,7 @@
 #include "Weather.h"
 #include "Player.h"
 #include "ProgressBar.h"
+#include "Database/DatabaseEnv.h"
 #include "Map.h"
 #include "World.h"
 #include "WorldPacket.h"

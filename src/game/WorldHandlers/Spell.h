@@ -57,6 +57,7 @@
 #include <map>
 #include <list>
 #include "GridDefines.h"
+#include "Log.h"
 #include "SharedDefines.h"
 #include "DBCEnums.h"
 #include "ObjectGuid.h"

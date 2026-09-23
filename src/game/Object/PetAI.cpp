@@ -28,6 +28,7 @@
 #include "PetAI.h"
 #include "Errors.h"
 #include "Group.h"
+#include "Log.h"
 #include "Pet.h"
 #include "Player.h"
 #include "DBCStores.h"
