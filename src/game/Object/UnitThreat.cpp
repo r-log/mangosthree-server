@@ -66,10 +66,10 @@
 #include "movement/MoveSpline.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
+#include "MotionMaster.h"
 
 #include <math.h>
 #include <stdarg.h>
-#include "MotionMaster.h"
 
 /*########################################
 ########                          ########

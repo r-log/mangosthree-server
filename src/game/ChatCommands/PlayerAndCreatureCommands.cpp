@@ -41,9 +41,9 @@
 #include "Unit.h"
 #include "Player.h"
 #include "DBCStores.h"
+#include "MotionMaster.h"
 #include <cstdio>
 #include <string>
-#include "MotionMaster.h"
 
 /**
  * @brief Handler for HandleDeMorphCommand command.

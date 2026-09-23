@@ -30,13 +30,13 @@
 #include "Weather.h"
 #include "Player.h"
 #include "ProgressBar.h"
-#include "Database/DatabaseEnv.h"
 #include "Map.h"
 #include "World.h"
 #include "WorldPacket.h"
 #include "Log.h"
 #include "Util.h"
 #include "WorldSession.h"
+#include "Database/DatabaseEnv.h"
 
 /// Create the Weather object
 Weather::Weather(uint32 zone, WeatherZoneChances const* weatherChances) :

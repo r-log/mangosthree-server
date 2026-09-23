@@ -70,8 +70,8 @@
 #include "LootMgr.h"
 #include "movement/typedefs.h"
 #include "movement/JumpArc.h"
-#include <random>
 #include "MotionMaster.h"
+#include <random>
 
 /**
  * @brief Adds flat threat from the caster to the unit target.

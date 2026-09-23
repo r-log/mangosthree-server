@@ -45,10 +45,10 @@
 #include "CellImpl.h"
 #include "movement/MoveSplineInit.h"
 #include "GameTime.h"
+#include "MotionMaster.h"
 #include <fstream>
 #include <map>
 #include <typeinfo>
-#include "MotionMaster.h"
 
 /**
  * @brief Handler for HandleMmapPathCommand command.

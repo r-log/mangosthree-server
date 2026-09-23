@@ -74,9 +74,9 @@
 #include "Calendar.h"
 #include "DisableMgr.h"
 #include "GameTime.h"
+#include "State.h"
 
 #include <cmath>
-#include "State.h"
 
 /**
  * @brief Forces or clears rooted movement for the player.

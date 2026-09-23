@@ -39,13 +39,13 @@
 #include "Log.h"
 #include "movement/MoveSpline.h"
 #include "Utilities/MathDefines.h"
+#include "State.h"
 
 #include <cmath>
 #include <cstdio>
 #include <string>
 #include <memory>
 #include <vector>
-#include "State.h"
 
 // The control family (P5-B family 4 Task 5), orders 54-58: the flee's first bolt and its rest,
 // the stagger's envelope and gait, a corpse as a fright, a refreshed aura restarting the flee,

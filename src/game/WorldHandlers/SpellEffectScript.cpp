@@ -69,8 +69,8 @@
 #include "Vehicle.h"
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"
-#include <random>
 #include "MotionMaster.h"
+#include <random>
 
 /**
  * @brief Executes script-driven spell effect behavior for special cases.
