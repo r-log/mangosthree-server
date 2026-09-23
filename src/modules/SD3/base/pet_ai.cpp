@@ -33,6 +33,7 @@ EndScriptData */
 
 #include "precompiled.h"
 #include "pet_ai.h"
+#include "Pet.h"
 
 /**
  * @brief Constructor for ScriptedPetAI.

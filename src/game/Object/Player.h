@@ -80,14 +80,12 @@
 #include "SpellCooldownMgr.h" // SpellCooldownMgr is held by value on Player; brings in SpellCooldown/SpellCooldowns + owns the cooldown map
 
 #include "QuestDef.h"
-#include "Group.h"
-#include "Pet.h"
+#include "GroupReference.h"
 #include "PetMgr.h"
 #include "MapReference.h"
 #include "Util.h"                                           // for Tokens typedef
 #include "AchievementMgr.h"
 #include "ReputationMgr.h"
-#include "BattleGround.h"
 #include "SharedDefines.h"
 
 #include<string>
@@ -117,6 +115,9 @@ class QueryResult;
 class SqlQueryHolder;
 class WorldSession;
 struct TrainerSpell;
+class Group;
+class BattleGround;
+class Pet;
 
 typedef std::deque<Mail*> PlayerMails;
 

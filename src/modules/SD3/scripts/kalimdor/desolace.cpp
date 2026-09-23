@@ -43,6 +43,7 @@
 
 #include "precompiled.h"
 #include "escort_ai.h"
+#include "Pet.h"
 
 /*######
 ## npc_aged_dying_ancient_kodo

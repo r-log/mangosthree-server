@@ -37,6 +37,7 @@
 #include "Chat.h"
 #include "Language.h"
 #include "World.h"
+#include "Creature.h"
 #include "MoveMap.h"
 #include "PathFinder.h" // for mmap manager
 #include "GridNotifiers.h"

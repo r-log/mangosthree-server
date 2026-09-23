@@ -38,6 +38,8 @@
 #include "DBCStores.h"
 #include "Language.h"
 #include "PlayerRegistry.h"
+#include "Creature.h"
+#include "Pet.h"
 #include "Player.h"
 #include "World.h"
 #include "WorldSession.h"

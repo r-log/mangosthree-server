@@ -27,6 +27,7 @@
 #include "Utilities/MathDefines.h"
 #include "PetAI.h"
 #include "Errors.h"
+#include "Group.h"
 #include "Pet.h"
 #include "Player.h"
 #include "DBCStores.h"

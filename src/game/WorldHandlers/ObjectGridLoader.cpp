@@ -49,6 +49,7 @@
 #include "CorpseManager.h"
 #include "ObjectMgr.h"
 #include "MapPersistentStateMgr.h"
+#include "BattleGround.h"
 #include "Creature.h"
 #include "GameObject.h"
 #include "DynamicObject.h"
