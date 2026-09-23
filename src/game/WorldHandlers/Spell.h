@@ -62,6 +62,7 @@
 #include "ObjectGuid.h"
 #include "LootMgr.h"
 #include "Unit.h"
+#include "Creature.h"
 #include "Player.h"
 
 class WorldSession;
