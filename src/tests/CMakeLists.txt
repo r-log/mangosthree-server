@@ -55,6 +55,7 @@ set(SRC_GRP_TESTS
     GlobalWmoEvictionTest.cpp
     ConnectToTest.cpp
     DatabaseConcurrencyTest.cpp
+    NullDatabaseTest.cpp
     AuthCryptTest.cpp
     ClientParserTest.cpp
     TerrainModelTest.cpp
