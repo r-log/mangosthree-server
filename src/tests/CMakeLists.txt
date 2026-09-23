@@ -118,6 +118,14 @@ target_link_libraries(mangos_tests
         Threads::Threads
 )
 
+# Decoupling D1 (server #80): the test binary links the game library. Every decoupling PR's
+# tests stand on this; a tidy-up that drops the link takes them all out with it. Read the real
+# link set, not the text of this file.
+get_target_property(MANGOS_TESTS_LINKS mangos_tests LINK_LIBRARIES)
+if(NOT "game" IN_LIST MANGOS_TESTS_LINKS)
+    message(FATAL_ERROR "mangos_tests no longer links the game library (decoupling D1, server #80)")
+endif()
+
 if(WITH_CRYPTO_TESTS)
     target_compile_definitions(mangos_tests PRIVATE MANGOS_CRYPTO_TESTS=1)
 
