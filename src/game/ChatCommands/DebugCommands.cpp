@@ -62,6 +62,8 @@
 #include "TransportMap.h"
 #include "Transports.h"
 #include "Harness.h"
+#include "MotionMaster.h"
+#include "State.h"
 
 /**
  * @brief Handler for HandleDebugSendSpellFailCommand command.

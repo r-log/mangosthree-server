@@ -74,6 +74,7 @@
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"
 #include <random>
+#include "MotionMaster.h"
 
 /**
  * @brief Executes spell-specific dummy effect behavior.

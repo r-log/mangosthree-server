@@ -74,6 +74,7 @@
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"
 #include <random>
+#include "MotionMaster.h"
 
 /**
  * @brief Teaches a spell to the target player or pet.

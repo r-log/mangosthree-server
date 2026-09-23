@@ -43,6 +43,7 @@
 #include "DBCStores.h"
 #include <cstdio>
 #include <string>
+#include "MotionMaster.h"
 
 /**
  * @brief Handler for HandleDeMorphCommand command.

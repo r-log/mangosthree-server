@@ -76,6 +76,7 @@
 #include "GameTime.h"
 
 #include <cmath>
+#include "State.h"
 
 /**
  * @brief Forces or clears rooted movement for the player.
@@ -84,7 +85,7 @@
  */
 void Player::SetRoot(bool enable)
 {
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::Root, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Root, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -94,7 +95,7 @@ void Player::SetRoot(bool enable)
  */
 void Player::SetWaterWalk(bool enable)
 {
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::WaterWalk, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::WaterWalk, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -107,7 +108,7 @@ void Player::SetLevitate(bool enable)
 {
     // Gravity off is what "levitate" means on the wire (design v2 §7's matrix); the
     // legacy builder sent the opposite gravity opcode.
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::GravityDisabled, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::GravityDisabled, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -117,7 +118,7 @@ void Player::SetLevitate(bool enable)
  */
 void Player::SetCanFly(bool enable)
 {
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::CanFly, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::CanFly, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -127,7 +128,7 @@ void Player::SetCanFly(bool enable)
  */
 void Player::SetFeatherFall(bool enable)
 {
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::FeatherFall, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::FeatherFall, enable), GameTime::GetGameTimeMS()));
     if (!enable)
     {
         SetFallInformation(0, Where().Z());
@@ -141,5 +142,5 @@ void Player::SetFeatherFall(bool enable)
  */
 void Player::SetHover(bool enable)
 {
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::Hover, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Hover, enable), GameTime::GetGameTimeMS()));
 }

@@ -34,6 +34,7 @@
 #include "Player.h"
 #include "UpdateMask.h"
 #include "Path.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Handles a client request for the known status of a taxi node.

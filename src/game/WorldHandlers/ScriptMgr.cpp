@@ -54,6 +54,7 @@
 #include "WaypointManager.h"
 #include "World.h"
 #include <DBCStores.h>
+#include "Path.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Cell.h"

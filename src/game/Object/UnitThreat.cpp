@@ -69,6 +69,7 @@
 
 #include <math.h>
 #include <stdarg.h>
+#include "MotionMaster.h"
 
 /*########################################
 ########                          ########

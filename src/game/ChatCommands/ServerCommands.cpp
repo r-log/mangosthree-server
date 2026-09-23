@@ -51,6 +51,7 @@
 #include "WorldSession.h"
 #include "GameTime.h"
 #include "Player.h"
+#include "State.h"
 
 /**
  * @brief Handler for HandleServerInfoCommand command.

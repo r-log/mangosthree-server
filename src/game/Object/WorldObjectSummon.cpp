@@ -52,6 +52,7 @@
 #include "CreatureLinkingMgr.h"
 #include "Chat.h"
 #include "GameTime.h"
+#include "MotionMaster.h"
 
 /**
  * @file WorldObjectSummon.cpp

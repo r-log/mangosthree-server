@@ -40,6 +40,7 @@
 #include "ProgressBar.h"
 #include "SQLStorages.h"
 #include "DBCStores.h"
+#include "Path.h"
 
 struct SQLGameObjectLoader : public SQLStorageLoaderBase<SQLGameObjectLoader, SQLHashStorage>
 {

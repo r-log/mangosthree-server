@@ -50,6 +50,7 @@
 #include "MapManager.h"
 #include "TemporarySummon.h"
 #include "WorldSession.h"
+#include "MotionMaster.h"
 
 void ObjectMgr::LoadVehicleAccessory()
 {

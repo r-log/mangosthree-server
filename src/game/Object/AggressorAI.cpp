@@ -31,6 +31,7 @@
 #include "Map.h"
 
 #include "Log.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Determines whether AggressorAI can control the given creature.

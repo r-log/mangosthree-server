@@ -35,6 +35,7 @@
 #include <list>
 #include "Utilities/PackedValues.h"
 #include "DBCStores.h"
+#include "Path.h"
 #include "DB2Stores.h"
 #include "Policies/Singleton.h"
 #include "Log.h"

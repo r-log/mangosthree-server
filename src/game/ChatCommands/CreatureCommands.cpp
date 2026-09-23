@@ -45,6 +45,7 @@
 #include "Totem.h"
 #include "ObjectMgr.h"
 #include "ObjectLookup.h"
+#include "MotionMaster.h"
 
 #ifdef _DEBUG_VMAPS
 #endif

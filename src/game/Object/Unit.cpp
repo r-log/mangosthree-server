@@ -29,6 +29,8 @@
 #include <list>
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
+#include "MotionMaster.h"
+#include "State.h"
 #include "Log.h"
 #include "OpcodeTable.h"
 #include "WorldPacket.h"
@@ -149,6 +151,18 @@ void MovementInfo::Write(ByteBuffer& data, uint16 opcode) const
     Wire::Encode(data, sequence, status);
 }
 
+WorldPacket& operator<< (WorldPacket& buf, MovementInfo const& mi)
+{
+    mi.Write(buf, buf.GetOpcode());
+    return buf;
+}
+
+WorldPacket& operator>> (WorldPacket& buf, MovementInfo& mi)
+{
+    mi.Read(buf, buf.GetOpcode());
+    return buf;
+}
+
 ////////////////////////////////////////////////////////////
 // Methods of class GlobalCooldownMgr
 
@@ -185,12 +199,12 @@ void GlobalCooldownMgr::CancelGlobalCooldown(SpellEntry const* spellInfo)
 Unit::Unit() :
     movespline(new Movement::MoveSpline()),
     m_charmInfo(NULL),
-    i_motionMaster(this),
+    i_motionMaster(std::make_unique<MotionMaster>(this)),
     m_regenTimer(0),
     m_vehicleInfo(NULL),
     m_ThreatManager(this),
     m_HostileRefManager(this),
-    m_motion(Motion::Mode::ServerDriven, MotionPolicy(), Motion::Kinematics()), m_motionDropped(0), m_moverSession(NULL)
+    m_motion(std::make_unique<Motion::State>(Motion::Mode::ServerDriven, MotionPolicy(), Motion::Kinematics())), m_motionDropped(0), m_moverSession(NULL)
 {
     m_objectType |= TYPEMASK_UNIT;
     m_objectTypeId = TYPEID_UNIT;
@@ -276,7 +290,7 @@ Unit::Unit() :
 
     // The kernel starts from the unit's speeds; the flags are false and the height 0
     // until a setter says otherwise. Server-driven until a Player says it is not.
-    m_motion = Motion::State(Motion::Mode::ServerDriven, MotionPolicy(), InitialKinematics());
+    *m_motion = Motion::State(Motion::Mode::ServerDriven, MotionPolicy(), InitialKinematics());
 
     // remove aurastates allowing special moves
     for (int i = 0; i < MAX_REACTIVE; ++i)
@@ -305,6 +319,33 @@ Motion::Kinematics Unit::InitialKinematics() const
     }
     return k;
 }
+
+MotionMaster* Unit::GetMotionMaster() { return i_motionMaster.get(); }
+MotionMaster const* Unit::GetMotionMaster() const { return i_motionMaster.get(); }
+
+bool Unit::IsStopped() const { return !i_motionMaster->Latches().Moving(); }
+
+bool Unit::FollowLatched() const { return i_motionMaster->Latches().follow; }
+
+void Unit::PropagateSpeedChange() { GetMotionMaster()->PropagateSpeedChange(); }
+
+Motion::State& Unit::MotionState() { AssertMotionOwner(); return *m_motion; }
+Motion::State const& Unit::MotionState() const { return *m_motion; }
+
+bool Unit::CanFreeMove() const
+{
+    // kNoFreeMoveReasons is the old UNIT_STAT_NO_FREE_MOVE less its feign bit, which the
+    // published state carries apart (IsFeigningDeath): a real death does not deny free
+    // movement, only a feign does.
+    return !(GetMotionMaster()->Mobility().reasons & Motion::kNoFreeMoveReasons) &&
+           !IsFeigningDeath() && !GetOwnerGuid();
+}
+
+bool Unit::Blocked(uint32 reasons) const { return (i_motionMaster->Published().reasons & reasons) != 0; }
+
+bool Unit::IsFeigningDeath() const { return i_motionMaster->Published().feign; }
+
+bool Unit::IsFearedByAura() const { return i_motionMaster->Published().auraFear; }
 
 bool Unit::IsClientMover() const
 {
@@ -440,14 +481,14 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
     // Design v2 §6.2: the pending-change machine's timeouts, in the map phase, for any
     // unit a client moves (a player, a possessed creature). A server-driven unit has
     // nothing pending.
-    if (m_motion.GetMode() == Motion::Mode::ClientDriven && m_motion.Pending().Size() > 0)
+    if (m_motion->GetMode() == Motion::Mode::ClientDriven && m_motion->Pending().Size() > 0)
     {
         const uint32 now = GameTime::GetGameTimeMS();
-        SendEmissions(m_motion.Tick(now));
+        SendEmissions(m_motion->Tick(now));
         Player* owner = m_moverSession ? m_moverSession->GetPlayer() : NULL;
-        if (m_motion.ResyncRequested())
+        if (m_motion->ResyncRequested())
         {
-            m_motion.ClearResync();
+            m_motion->ClearResync();
             if (GetTypeId() == TYPEID_PLAYER)
             {
                 Player* player = (Player*)this;
@@ -463,9 +504,9 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
                               GetGuidStr().c_str(), owner ? owner->GetName() : "no session");
             }
         }
-        if (m_motion.KickRequested())
+        if (m_motion->KickRequested())
         {
-            m_motion.ClearKick();
+            m_motion->ClearKick();
             if (m_moverSession)
             {
                 BASIC_LOG("Player %s from account id %u kicked for not acknowledging movement changes of %s",
@@ -557,7 +598,7 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
     }
 
     UpdateSplineMovement(p_time);
-    i_motionMaster.UpdateMotion(p_time);
+    i_motionMaster->UpdateMotion(p_time);
 }
 
 /**
@@ -2962,6 +3003,16 @@ FactionTemplateEntry const* Unit::getFactionTemplateEntry() const
     return entry;
 }
 
+bool Unit::IsContestedGuard() const
+{
+    if (FactionTemplateEntry const* entry = getFactionTemplateEntry())
+    {
+        return entry->IsContestedGuardFaction();
+    }
+
+    return false;
+}
+
 /**
  * @brief Starts attacking a victim.
  *
@@ -4535,7 +4586,7 @@ void Unit::SetDeathState(DeathState s)
         UnsummonAllTotems();
 
         StopMoving();
-        i_motionMaster.Die();
+        i_motionMaster->Die();
 
         // Unsummon vehicle accessories
         if (IsVehicle())
@@ -4567,7 +4618,7 @@ void Unit::SetDeathState(DeathState s)
 
     if (s == JUST_ALIVED || s == ALIVE)
     {
-        i_motionMaster.Uninhibit(Motion::Inhibition::Dead, Motion::kDeathSource);
+        i_motionMaster->Uninhibit(Motion::Inhibition::Dead, Motion::kDeathSource);
     }
 
     m_deathState = s;
@@ -5840,12 +5891,12 @@ void Unit::SendPetAIReaction()
  */
 bool Unit::IsRooted() const
 {
-    return i_motionMaster.Inhibited(Motion::Inhibition::Rooted);
+    return i_motionMaster->Inhibited(Motion::Inhibition::Rooted);
 }
 
 void Unit::StopMoving(bool forceSendStop /*=false*/)
 {
-    i_motionMaster.ClearMovingLatches();   // the legs the moving mask held (P5-C3)
+    i_motionMaster->ClearMovingLatches();   // the legs the moving mask held (P5-C3)
 
     // not need send any packets if not in world
     if (!IsInWorld())
@@ -7068,7 +7119,7 @@ void Unit::SendCollisionHeightUpdate(float height)
     // The 4.3.4 layout with a real counter (the legacy writer sent the WotLK shape on a
     // game-time counter and threw this parameter away for a second lookup). Both callers
     // are the mount and dismount paths: reason 1, "mount".
-    SendEmissions(m_motion.Apply(Motion::HeightChange(height, 1), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::HeightChange(height, 1), GameTime::GetGameTimeMS()));
 }
 
 // This will create a new creature and set the current unit as the controller of that new creature

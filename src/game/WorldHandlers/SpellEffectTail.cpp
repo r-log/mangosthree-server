@@ -72,6 +72,7 @@
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"
 #include <random>
+#include "MotionMaster.h"
 
 /**
  * @brief Removes auras from the target that match the specified mechanic.

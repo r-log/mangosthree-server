@@ -48,6 +48,7 @@
 #include <fstream>
 #include <map>
 #include <typeinfo>
+#include "MotionMaster.h"
 
 /**
  * @brief Handler for HandleMmapPathCommand command.

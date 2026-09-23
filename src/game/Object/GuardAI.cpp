@@ -30,6 +30,7 @@
 #include "Map.h"
 #include "Player.h"
 #include "World.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Determines whether GuardAI can control the given creature.

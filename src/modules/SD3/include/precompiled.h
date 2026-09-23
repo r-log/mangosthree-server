@@ -38,6 +38,10 @@
 #include "Object.h"
 #include "ObjectGuid.h"
 #include "Unit.h"
+// Decoupling D3d fallout: Unit.h now only forward-declares MotionMaster; every script that
+// calls GetMotionMaster() (hundreds do) needs the complete type, so it is named here once
+// rather than in each script file, the same reasoning as Common.h's pieces below.
+#include "MotionMaster.h"
 #include "Creature.h"
 #include "CreatureAI.h"
 #include "GameObject.h"

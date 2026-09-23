@@ -84,6 +84,8 @@
 #include "wire/MoverCodec.h"
 
 #include <cmath>
+#include "MotionMaster.h"
+#include "State.h"
 
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
@@ -318,7 +320,7 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(t
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
-    m_motion.SetMode(Motion::Mode::ClientDriven, GameTime::GetGameTimeMS());
+    m_motion->SetMode(Motion::Mode::ClientDriven, GameTime::GetGameTimeMS());
 
     m_transport = 0;
 
@@ -1675,7 +1677,7 @@ void Player::SendTeleportPacket(float oldX, float oldY, float oldZ, float oldO)
     params.transportGuid = transportGuid.GetRawValue();
     // The packet names the destination; the player stays where it was until the ack
     // lands (HandleMoveTeleportAckOpcode moves it), as before.
-    std::vector<Motion::Emission> const emissions = m_motion.Apply(Motion::TeleportChange(params), GameTime::GetGameTimeMS());
+    std::vector<Motion::Emission> const emissions = m_motion->Apply(Motion::TeleportChange(params), GameTime::GetGameTimeMS());
     Place().MoveTo(oldX, oldY, oldZ, oldO);
     SendEmissions(emissions);
 }
@@ -6347,11 +6349,11 @@ void Player::ResetTimeSync()
 void Player::StartMovementEpoch()
 {
     const uint32 now = GameTime::GetGameTimeMS();
-    m_motion.NewEpoch(now);
-    std::vector<Motion::Change> const snapshot = m_motion.Snapshot();
+    m_motion->NewEpoch(now);
+    std::vector<Motion::Change> const snapshot = m_motion->Snapshot();
     for (size_t i = 0; i < snapshot.size(); ++i)
     {
-        SendEmissions(m_motion.Apply(snapshot[i], now));
+        SendEmissions(m_motion->Apply(snapshot[i], now));
     }
 }
 

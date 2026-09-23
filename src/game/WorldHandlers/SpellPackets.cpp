@@ -77,6 +77,7 @@
 #include "TemporarySummon.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Sends the cast result for this spell to the appropriate receiver.
