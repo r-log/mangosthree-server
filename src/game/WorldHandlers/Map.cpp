@@ -78,6 +78,7 @@
 #include "Chat.h"
 #include "Weather.h"
 #include "LivingWorldCellEnvelope.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Map destructor

@@ -87,6 +87,8 @@
 #include <mutex>
 #include <utility>
 #include <cstdarg>
+#include "MotionMaster.h"
+#include "State.h"
 
 namespace
 {

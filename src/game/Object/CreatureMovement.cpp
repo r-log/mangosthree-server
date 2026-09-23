@@ -35,6 +35,8 @@
 #include "GridMap.h"
 #include "GameTime.h"
 #include "Common/TimeConstants.h"
+#include "MotionMaster.h"
+#include "State.h"
 
 namespace
 {
@@ -86,7 +88,7 @@ void Creature::SetWalk(bool enable, bool asDefault)
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_WALK_MODE);
     }
 
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::Gait, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Gait, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -105,7 +107,7 @@ void Creature::SetLevitate(bool enable)
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_LEVITATING);
     }
 
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::GravityDisabled, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::GravityDisabled, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -129,7 +131,7 @@ void Creature::SetSwim(bool enable)
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_SWIMMING);
     }
 
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::Swim, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Swim, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -218,7 +220,7 @@ void Creature::SetCanFly(bool enable)
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_CAN_FLY);
     }
 
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::CanFly, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::CanFly, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -237,7 +239,7 @@ void Creature::SetFeatherFall(bool enable)
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_SAFE_FALL);
     }
 
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::FeatherFall, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::FeatherFall, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -256,7 +258,7 @@ void Creature::SetHover(bool enable)
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_HOVER);
     }
 
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::Hover, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Hover, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -277,7 +279,7 @@ void Creature::SetRoot(bool enable)
 
     // Server-driven: confirmed at once, the spline form to everyone in range (nothing
     // while out of the world, as before).
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::Root, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Root, enable), GameTime::GetGameTimeMS()));
 }
 
 /**
@@ -296,5 +298,5 @@ void Creature::SetWaterWalk(bool enable)
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_WATERWALKING);
     }
 
-    SendEmissions(m_motion.Apply(Motion::FlagChange(Motion::ChangeType::WaterWalk, enable), GameTime::GetGameTimeMS()));
+    SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::WaterWalk, enable), GameTime::GetGameTimeMS()));
 }

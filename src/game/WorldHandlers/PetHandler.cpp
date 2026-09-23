@@ -57,6 +57,7 @@
 #include "Pet.h"
 #include "SpellAuras.h"
 #include "TemporarySummon.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Handles pet action bar commands, reactions, and spell casts.

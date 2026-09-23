@@ -29,13 +29,18 @@
 #include <unordered_map>
 #include "Common/Locales.h"
 #include "DBCEnums.h"
-#include "Path.h"
 #include "Platform/Define.h"
 #include "SharedDefines.h"
 
 #include <map>
 #include <set>
 #include <vector>
+
+// Decoupling D3d fallout: Path is a class template (WorldHandlers/Path.h); the alias below
+// only needs it declared, not defined, so callers that use TaxiPathNodeList's own methods
+// (resize, size, empty, set, operator[]) bring the complete type themselves.
+template < typename PathElem, typename PathNode >
+class Path;
 
 // Structures using to access raw DBC data and required packing to portability
 

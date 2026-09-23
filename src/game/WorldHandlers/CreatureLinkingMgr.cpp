@@ -52,6 +52,7 @@
 #include "SharedDefines.h"
 #include "Creature.h"
 #include "CreatureAI.h"
+#include "MotionMaster.h"
 
 
 #define INVALID_MAP_ID      0xFFFFFFFF

@@ -29,6 +29,7 @@
 #include "Creature.h"
 #include "Map.h"
 #include "Log.h"
+#include "MotionMaster.h"
 
 #define REACTOR_VISIBLE_RANGE (26.46f)
 

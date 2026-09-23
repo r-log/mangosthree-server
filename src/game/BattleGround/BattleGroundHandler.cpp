@@ -55,6 +55,7 @@
 #include "World.h"
 #include "DisableMgr.h"
 #include "GameTime.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Handles the CMSG_BATTLEMASTER_HELLO opcode.

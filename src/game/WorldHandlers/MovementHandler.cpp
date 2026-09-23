@@ -81,6 +81,8 @@
 #include "wire/MoverCodec.h"
 #include "Change.h"
 #include "PacketMatrix.h"
+#include "MotionMaster.h"
+#include "State.h"
 
 /**
  * @brief Handles the packet-based worldport acknowledgement.

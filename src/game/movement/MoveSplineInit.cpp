@@ -34,6 +34,7 @@
 #include "TransportMap.h"
 #include "Map.h"
 #include <atomic>
+#include "WorldPacket.h"
 
 namespace
 {

@@ -71,6 +71,7 @@
 #include "movement/typedefs.h"
 #include "movement/JumpArc.h"
 #include <random>
+#include "MotionMaster.h"
 
 /**
  * @brief Sends a resurrection request to a dead player target.

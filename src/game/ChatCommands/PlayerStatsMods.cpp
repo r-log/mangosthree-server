@@ -32,6 +32,7 @@
 #include "World.h"
 #include "AccountMgr.h"
 #include "SQLStorages.h"
+#include "WorldPacket.h"
 
 /**
  * @file PlayerStatsMods.cpp

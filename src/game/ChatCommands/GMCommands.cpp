@@ -47,6 +47,7 @@
 #include "Weather.h"
 #include "World.h"
 #include "WorldSession.h"
+#include "State.h"
 
 /**
  * @brief Handler for HandlePInfoCommand command.

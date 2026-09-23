@@ -59,6 +59,8 @@
 
 #include <math.h>
 #include <stdarg.h>
+#include "MotionMaster.h"
+#include "State.h"
 
 // Base movement-speed table; defined in Unit.cpp.
 extern float baseMoveSpeed[MAX_MOVE_TYPE];
@@ -314,7 +316,7 @@ void Unit::SetSpeedRate(UnitMoveType mtype, float rate, bool forced, bool ignore
         // one the spline form, at once, to everyone. `forced` no longer picks a packet
         // (every player change is negotiated now); it still reaches the controlled
         // units below as it did.
-        SendEmissions(m_motion.Apply(Motion::SpeedChange(uint8(mtype), GetSpeed(mtype)), GameTime::GetGameTimeMS()));
+        SendEmissions(m_motion->Apply(Motion::SpeedChange(uint8(mtype), GetSpeed(mtype)), GameTime::GetGameTimeMS()));
     }
 
     CallForAllControlledUnits(SetSpeedRateHelper(mtype, forced, ignoreChange), CONTROLLED_PET | CONTROLLED_GUARDIANS | CONTROLLED_CHARM | CONTROLLED_MINIPET);

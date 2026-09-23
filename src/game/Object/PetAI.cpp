@@ -37,6 +37,7 @@
 #include "Creature.h"
 #include "World.h"
 #include "Util.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Determines whether PetAI can control the given creature.

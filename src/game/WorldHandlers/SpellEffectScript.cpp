@@ -70,6 +70,7 @@
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"
 #include <random>
+#include "MotionMaster.h"
 
 /**
  * @brief Executes script-driven spell effect behavior for special cases.

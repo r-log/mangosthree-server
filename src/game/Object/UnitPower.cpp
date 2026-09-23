@@ -38,6 +38,7 @@
 #include "Pet.h"
 #include "Group.h"
 #include "DBCStores.h"
+#include "WorldPacket.h"
 
 /**
  * @brief Looks up the power-array index used by a given class for a power type.

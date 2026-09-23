@@ -73,14 +73,26 @@
 #include "ThreatManager.h"
 #include "HostileRefManager.h"
 #include "Utilities/EventProcessor.h"
-#include "MotionMaster.h"
-#include "State.h"
+#include "Mobility.h"
+#include <memory>
 #include "DBCStructure.h"
-#include "Path.h"
-#include "WorldPacket.h"
 #include "Timer.h"
 
 #include <list>
+
+// Decoupling D3: the movement kernel is held by pointer and named through Mobility.h, the one
+// motion header the shell may include; State, Kinematics, Emission and TimeoutPolicy are
+// complete only in the .cpp files that use them (debate F5). WorldPacket is complete where the
+// packets are built.
+class MotionMaster;
+class WorldPacket;
+namespace Motion
+{
+    class State;
+    struct Kinematics;
+    struct Emission;
+    struct TimeoutPolicy;
+}
 
 /**
  * @brief Spell interrupt flags
@@ -911,17 +923,9 @@ class MovementInfo
         uint32   vehicleId;
 };
 
-inline WorldPacket& operator<< (WorldPacket& buf, MovementInfo const& mi)
-{
-    mi.Write(buf, buf.GetOpcode());
-    return buf;
-}
+WorldPacket& operator<< (WorldPacket& buf, MovementInfo const& mi);
 
-inline WorldPacket& operator>> (WorldPacket& buf, MovementInfo& mi)
-{
-    mi.Read(buf, buf.GetOpcode());
-    return buf;
-}
+WorldPacket& operator>> (WorldPacket& buf, MovementInfo& mi);
 
 namespace Movement
 {
@@ -1699,14 +1703,7 @@ class Unit : public WorldObject
          * @return true if the client can move by client control, false otherwise
          * \see UnitState
          */
-        bool CanFreeMove() const
-        {
-            // kNoFreeMoveReasons is the old UNIT_STAT_NO_FREE_MOVE less its feign bit, which the
-            // published state carries apart (IsFeigningDeath): a real death does not deny free
-            // movement, only a feign does.
-            return !(GetMotionMaster()->Mobility().reasons & Motion::kNoFreeMoveReasons) &&
-                   !IsFeigningDeath() && !GetOwnerGuid();
-        }
+        bool CanFreeMove() const;
 
         /**
          * The shell's view of the kernel's block (P5-C2): whether any of these Motion::Reason bits
@@ -1716,11 +1713,11 @@ class Unit : public WorldObject
          * @param reasons Motion::Reason bits (Motion::ReasonStunned, ...) or a named mask
          * @return true if any of them was held
          */
-        bool Blocked(uint32 reasons) const { return (i_motionMaster.Published().reasons & reasons) != 0; }
+        bool Blocked(uint32 reasons) const;
         /// A UnitState passed here would be read as reason bits (UNIT_STAT_ISOLATED is ReasonConfused's bit): refused at compile time.
         bool Blocked(UnitState) const = delete;
         /// Feigning death, as of the last movement commit: the old UNIT_STAT_DIED (a feign alone; a real death is IsAlive()'s).
-        bool IsFeigningDeath() const { return i_motionMaster.Published().feign; }
+        bool IsFeigningDeath() const;
         /**
          * Feared by an AURA, as of the last movement commit: a Fear claim whose identity names
          * a spell. Blocked(Motion::ReasonFeared) answers a wider question -- the AI's own
@@ -1730,7 +1727,7 @@ class Unit : public WorldObject
          * @return true if a fear aura's claim was held at the last movement commit
          * \see Blocked
          */
-        bool IsFearedByAura() const { return i_motionMaster.Published().auraFear; }
+        bool IsFearedByAura() const;
         /// Rooted, stunned or feigning death: the old UNIT_STAT_CAN_NOT_MOVE.
         bool CannotMove() const { return Blocked(Motion::kCannotMoveReasons) || IsFeigningDeath(); }
         /// Stunned, feared, confused or feigning death: the old UNIT_STAT_CAN_NOT_REACT.
@@ -2021,15 +2018,7 @@ class Unit : public WorldObject
          * players not belonging to our "side" ally/horde.
          * @return true if this Unit is a guard in a contested area, false otherwise
          */
-        bool IsContestedGuard() const
-        {
-            if (FactionTemplateEntry const* entry = getFactionTemplateEntry())
-            {
-                return entry->IsContestedGuardFaction();
-            }
-
-            return false;
-        }
+        bool IsContestedGuard() const;
         /**
          * Is PVP enabled?
          * @return true if this Unit is eligible for PVP fighting
@@ -3971,15 +3960,15 @@ class Unit : public WorldObject
 
         float CalculateLevelPenalty(SpellEntry const* spellProto) const;
 
-        MotionMaster* GetMotionMaster() { return &i_motionMaster; }
-        MotionMaster const* GetMotionMaster() const { return &i_motionMaster; }
+        MotionMaster* GetMotionMaster();
+        MotionMaster const* GetMotionMaster() const;
 
         /// No leg in flight (the old UNIT_STAT_MOVING, negated): no roaming, chase, follow or fear
         /// leg is latched (MotionMaster::LatchBank::Moving); the confuse's lurch was never counted.
-        bool IsStopped() const { return !i_motionMaster.Latches().Moving(); }
+        bool IsStopped() const;
         /// A follow native is active (the old UNIT_STAT_FOLLOW): latched at its activation, cleared
         /// at its suspension or its finish, or by a whole-state wipe (MotionMaster::LatchBank::follow).
-        bool FollowLatched() const { return i_motionMaster.Latches().follow; }
+        bool FollowLatched() const;
         void StopMoving(bool forceSendStop = false);
         void InterruptMoving(bool forceSendStop = false);
         bool CommitSplinePosition(); ///< Take the running spline's position: the seat pose at once, the placement on the next Update. False when no spline runs.
@@ -3999,7 +3988,7 @@ class Unit : public WorldObject
         void SendPetAIReaction();
         ///----------End of Pet responses methods----------
 
-        void PropagateSpeedChange() { GetMotionMaster()->PropagateSpeedChange(); }
+        void PropagateSpeedChange();
 
         // reactive attacks
         void ClearAllReactives();
@@ -4019,8 +4008,8 @@ class Unit : public WorldObject
         /// confirmed kinematics and the pending changes. Client-driven while a session
         /// moves it (MoverSession()), server-driven otherwise; the mode and the session
         /// flip together through WorldSession::GrantMover / RevokeMover.
-        Motion::State&       MotionState()       { AssertMotionOwner(); return m_motion; }
-        Motion::State const& MotionState() const { return m_motion; }
+        Motion::State&       MotionState();
+        Motion::State const& MotionState() const;
         /// Design v2 §10.4: a unit's kernel is touched only outside the map phase or
         /// by the worker updating its map. Counts a violation (asserts under MANGOS_DEBUG).
         void AssertMotionOwner() const;
@@ -4124,7 +4113,7 @@ class Unit : public WorldObject
 
         virtual SpellSchoolMask GetMeleeDamageSchoolMask() const;
 
-        MotionMaster i_motionMaster;
+        std::unique_ptr<MotionMaster> i_motionMaster;
 
         uint32 m_reactiveTimer[MAX_REACTIVE];
         uint32 m_regenTimer;
@@ -4175,7 +4164,7 @@ class Unit : public WorldObject
         // m_HostileRefManager so the constructor's initialiser list -- which
         // follows it there too -- matches the members' declaration order.
         // Protected, not private: Player::Player() sets its own mode directly.
-        Motion::State m_motion;
+        std::unique_ptr<Motion::State> m_motion;
         uint32        m_motionDropped;
         WorldSession* m_moverSession;
         static Motion::TimeoutPolicy MotionPolicy();

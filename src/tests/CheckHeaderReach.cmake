@@ -1,10 +1,14 @@
 # Decoupling D3 (server #77): the god headers do not reach the layers they forward-declare.
 # For each rule "header|forbidden,forbidden,..." the transitive includes of the header are
 # walked: an include resolves relative to the including file first, then by basename against
-# every directory under src/game, src/shared, src/proto and src/motion -- the same resolution
-# the counter tool (src/tests/tools/include_reach.py) uses, which is stricter than the compiler
-# and so cannot be bypassed by an include the compiler would not find. The walk must not touch
-# a forbidden header. Object/Unit.h has one more rule: nothing under src/motion but Mobility.h.
+# every directory under the four roots this gate globs -- src/game, src/shared, src/proto and
+# src/motion -- the same resolution the counter tool (src/tests/tools/include_reach.py) uses.
+# The tool indexes two more roots (src/mangosd, src/realmd) for its own basename fallback, but
+# neither root defines a header this gate's rules or the game target can reach, so the two
+# resolutions agree on every measured number; the tool's wider index is stricter than the
+# compiler and so cannot be bypassed by an include the compiler would not find. The walk must
+# not touch a forbidden header. Object/Unit.h has one more rule: nothing under src/motion but
+# Mobility.h.
 # The PCH is never read: with it on, every translation unit sees the world and this check
 # would mean nothing.
 # Run standalone (-P), this script sees none of the top-level project's policies: without this,
@@ -32,8 +36,8 @@ endforeach()
 # A forbidden suffix matches any reached path that ends with "/<suffix>".
 set(REACH_RULES
     "Object/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,WorldHandlers/NPCHandler.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h"
-    "Object/Unit.h|")
-set(MOTION_ONLY_HEADER "")
+    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,Object/Player.h,Server/WorldSession.h,proto/WorldPacket.h,WorldHandlers/Path.h")
+set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
 function(resolve_include INCLUDE FROM_DIR OUT_VAR)

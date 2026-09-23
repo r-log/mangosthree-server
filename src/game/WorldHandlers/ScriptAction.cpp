@@ -45,6 +45,7 @@
 #include "Mail.h"
 #include "WaypointManager.h"
 #include "CorpseManager.h"
+#include "MotionMaster.h"
 
 // /////////////////////////////////////////////////////////
 //              DB SCRIPT ENGINE

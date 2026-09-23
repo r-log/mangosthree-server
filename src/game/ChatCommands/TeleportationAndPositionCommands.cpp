@@ -45,6 +45,7 @@
 #include "Player.h"
 #include "MapPersistentStateMgr.h"
 #include "WorldSession.h"
+#include "MotionMaster.h"
 
 #ifdef _DEBUG_VMAPS
 #endif

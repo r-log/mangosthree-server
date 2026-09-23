@@ -75,6 +75,7 @@
 #include "CellImpl.h"
 #include "Language.h"
 #include "MapManager.h"
+#include "MotionMaster.h"
 
 #define NULL_AURA_SLOT 0xFF
 

@@ -69,6 +69,7 @@
 #include "LFGPackets.h"
 #include "GameTime.h"
 #include "Timer.h"
+#include "MotionMaster.h"
 
 // config option SkipCinematics supported values
 enum CinematicsSkipMode

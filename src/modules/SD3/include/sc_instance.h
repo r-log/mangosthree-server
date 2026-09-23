@@ -28,6 +28,7 @@
 #define SC_INSTANCE_H
 
 #include "InstanceData.h"
+#include "Log.h"
 #include "Map.h"
 #include "system/ScriptDevMgr.h"
 

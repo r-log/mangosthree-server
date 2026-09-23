@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include "PlayerTaxi.h"
+#include "Path.h"
 #include "TaxiDestinationsString.h"
 #include "TaxiRoute.h"
 #include "Player.h"
@@ -50,6 +51,7 @@
 #include <cmath>
 #include <limits>
 #include <sstream>
+#include "MotionMaster.h"
 
 void PlayerTaxi::InitTaxiNodes(uint32 race, uint32 chrClass, uint8 level)
 {

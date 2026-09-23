@@ -42,6 +42,7 @@
 #include "InstanceData.h"
 #include "Chat.h"
 #include "Language.h"
+#include "MotionMaster.h"
 
 /**
  * @brief Updates the repeat timer for an EventAI event.

@@ -57,6 +57,7 @@
 #include "MassMailMgr.h"
 #include "SpellMgr.h"
 #include "Policies/Singleton.h"
+#include "WorldPacket.h"
 
 
 /**

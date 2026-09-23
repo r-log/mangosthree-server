@@ -6,7 +6,10 @@ files whose own closure contains it, i.e. the translation units a change to it r
 Includes are resolved the way the flat include directories of the game target resolve them:
 relative to the including file first, then path-qualified against each top-level directory
 (game, motion, shared, proto, mangosd, realmd), then as a full path, then by basename -- against
-any file type, not just headers.
+any file type, not just headers. The header-reach gate (CheckHeaderReach.cmake) globs only the
+first four of these roots (game, motion, shared, proto); it does not need mangosd or realmd
+because no rule or game-target header reaches a header defined there, so the two tools agree on
+every measured number.
 """
 import collections
 import os
@@ -39,7 +42,7 @@ def resolve_target(inc, local):
     if "/" in inc:
         # A path-qualified include (e.g. "Auth/Sha1.h") is tried against each top-level
         # directory before falling back to a basename match: the tree has Auth/ vs Crypto/
-        # Sha1.h/Md5.h collisions, and basename-first-wins is os.walk order, platform-dependent.
+        # Sha1.h/Md5.h collisions, and basename-first-wins would be ambiguous between them.
         for d in DIRS:
             candidate = by_name.get(f"{d}/{inc}")
             if candidate:
