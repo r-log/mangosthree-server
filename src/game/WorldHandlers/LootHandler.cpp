@@ -49,6 +49,7 @@
 #include "Corpse.h"
 #include "Creature.h"
 #include "GameObject.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "ObjectGuid.h"

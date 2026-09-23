@@ -51,6 +51,7 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "World.h"
 #include "ObjectMgr.h"

@@ -25,6 +25,7 @@
 
 #include "ReputationMgr.h"
 #include "DBCStores.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "WorldPacket.h"
 #include "ObjectMgr.h"

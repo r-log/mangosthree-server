@@ -34,6 +34,7 @@
 #include "AccountMgr.h"
 #include "PlayerDump.h"
 #include "SpellMgr.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "Opcodes.h"
 #include "GameObject.h"

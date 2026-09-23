@@ -48,6 +48,7 @@
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "Item.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "World.h"
 #include "WorldPacket.h"

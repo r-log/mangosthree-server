@@ -50,6 +50,7 @@
 #include "Opcodes.h"
 #include "World.h"
 #include "ObjectMgr.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "GossipDef.h"
 #include "QuestDef.h"

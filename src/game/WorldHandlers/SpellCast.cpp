@@ -56,6 +56,7 @@
 #include "World.h"
 #include "ObjectMgr.h"
 #include "SpellMgr.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "Pet.h"
 #include "Unit.h"

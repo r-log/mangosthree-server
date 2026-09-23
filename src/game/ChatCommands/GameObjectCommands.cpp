@@ -42,6 +42,7 @@
 #include "Geometry/Quat.h"
 #include "MapManager.h"
 #include "GameEventMgr.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "GameObject.h"
 #include "ObjectLookup.h"

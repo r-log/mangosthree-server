@@ -49,6 +49,7 @@
 #include "World.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "AuctionHouseMgr.h"
 #include "Mail.h"

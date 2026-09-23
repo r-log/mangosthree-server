@@ -40,6 +40,7 @@
  */
 
 #include "Platform/Define.h"
+#include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"

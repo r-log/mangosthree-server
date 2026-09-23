@@ -52,6 +52,7 @@
 #include "WorldSession.h"
 #include "World.h"
 #include "ObjectMgr.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "SpellAuras.h"
 #include "Group.h"

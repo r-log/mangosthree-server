@@ -27,7 +27,9 @@
 #define MANGOS_H_MAPREFERENCE
 
 #include "Utilities/LinkedReference/Reference.h"
-#include "Map.h"
+
+class Map;
+class Player;
 
 /**
  * @brief Map reference class
@@ -42,34 +44,21 @@ class MapReference : public Reference<Map, Player>
          *
          * Called from link().
          */
-        void targetObjectBuildLink() override
-        {
-            getTarget()->m_mapRefManager.insertFirst(this);
-            getTarget()->m_mapRefManager.incSize();
-        }
+        void targetObjectBuildLink() override;
 
         /**
          * @brief Destroy link to target object
          *
          * Called from unlink().
          */
-        void targetObjectDestroyLink() override
-        {
-            if (isValid())
-            {
-                getTarget()->m_mapRefManager.decSize();
-            }
-        }
+        void targetObjectDestroyLink() override;
 
         /**
          * @brief Destroy link from source object
          *
          * Called from invalidate().
          */
-        void sourceObjectDestroyLink() override
-        {
-            getTarget()->m_mapRefManager.decSize();
-        }
+        void sourceObjectDestroyLink() override;
 
     public:
         /**

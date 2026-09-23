@@ -313,7 +313,7 @@ void Player::SaveToDB()
     _SaveActions();
     _SaveAuras();
     _SaveSkills();
-    m_achievementMgr.SaveToDB();
+    m_achievementMgr->SaveToDB();
     m_reputationMgr.SaveToDB();
     _SaveCurrencies();
     _SaveEquipmentSets();

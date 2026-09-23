@@ -40,6 +40,7 @@
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "World.h"
 #include "WorldPacket.h"

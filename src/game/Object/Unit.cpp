@@ -38,6 +38,7 @@
 #include "ObjectGuid.h"
 #include "SpellMgr.h"
 #include "QuestDef.h"
+#include "AchievementMgr.h"
 #include "Player.h"
 #include "Creature.h"
 #include "Spell.h"
