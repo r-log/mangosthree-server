@@ -88,8 +88,8 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     // including case when player is out of world
     bool at_same_transport =
         GetTypeId() == TYPEID_PLAYER &&  u->GetTypeId() == TYPEID_PLAYER &&
-        !((Player*)this)->GetSession()->PlayerLogout() && !((Player*)u)->GetSession()->PlayerLogout() &&
-        !((Player*)this)->GetSession()->PlayerLoading() && !((Player*)u)->GetSession()->PlayerLoading() &&
+        !((Player*)this)->IsLoggingOut() && !((Player*)u)->IsLoggingOut() &&
+        !((Player*)this)->IsLoading() && !((Player*)u)->IsLoading() &&
         ((Player*)this)->GetTransport() && ((Player*)this)->GetTransport() == ((Player*)u)->GetTransport();
 
     // not in world

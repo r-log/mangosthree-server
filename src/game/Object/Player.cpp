@@ -3748,6 +3748,22 @@ void Player::SendDirectMessage(WorldPacket* data) const
 }
 
 /**
+ * @brief Decoupling D5a: whether the player's session is still loading.
+ */
+bool Player::IsLoading() const
+{
+    return GetSession()->PlayerLoading();
+}
+
+/**
+ * @brief Decoupling D5a: whether the player's session is logging out.
+ */
+bool Player::IsLoggingOut() const
+{
+    return GetSession()->PlayerLogout();
+}
+
+/**
  * @brief Starts a cinematic sequence for the player client.
  *
  * @param CinematicSequenceId The cinematic sequence identifier.
