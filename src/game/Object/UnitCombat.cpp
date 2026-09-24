@@ -25,6 +25,7 @@
 
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
+#include "combat/MeleeChances.h"
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
@@ -988,81 +989,52 @@ SpellMissInfo Unit::SpellHitResult(Unit* pVictim, SpellEntry const* spell, bool 
  */
 float Unit::MeleeMissChanceCalc(const Unit* pVictim, WeaponAttackType attType) const
 {
-    if (!pVictim)
-    {
-        return 0.0f;
-    }
+    bool const hasVictim = pVictim != NULL;                                     // E2a
 
-    // Base misschance 5%
-    float missChance = 5.0f;
-
-    // DualWield - white damage has additional 19% miss penalty
-    if (haveOffhandWeapon() && attType != RANGED_ATTACK)
+    bool hasOffhandWeapon = false;
+    bool isNormalSpellActive = false;
+    bool hasMeleeSpell = false;
+    uint16 attackerSkill = 0;
+    uint16 victimDefenseSkill = 0;
+    bool victimIsPlayer = false;
+    int32 victimRangedHitChanceMod = 0;
+    int32 victimMeleeHitChanceMod = 0;
+    if (hasVictim)                                                              // E2b, the early return's guard: every read below wants a victim
     {
-        bool isNormal = false;
-        for (uint32 i = CURRENT_FIRST_NON_MELEE_SPELL; i < CURRENT_MAX_SPELL; ++i)
+        hasOffhandWeapon = haveOffhandWeapon();                                 // E2a
+        if (hasOffhandWeapon && attType != RANGED_ATTACK)                       // E2b, same guard
         {
-            if (m_currentSpells[i] && (GetSpellSchoolMask(m_currentSpells[i]->m_spellInfo) & SPELL_SCHOOL_MASK_NORMAL))
+            for (uint32 i = CURRENT_FIRST_NON_MELEE_SPELL; i < CURRENT_MAX_SPELL; ++i)
             {
-                isNormal = true;
-                break;
+                if (m_currentSpells[i] && (GetSpellSchoolMask(m_currentSpells[i]->m_spellInfo) & SPELL_SCHOOL_MASK_NORMAL))
+                {
+                    isNormalSpellActive = true;
+                    break;
+                }
             }
+            hasMeleeSpell = m_currentSpells[CURRENT_MELEE_SPELL] != NULL;
         }
-        if (!isNormal && !m_currentSpells[CURRENT_MELEE_SPELL])
+
+        attackerSkill = GetMaxSkillValueForLevel(pVictim);                      // E2b, GetLevelForTarget is virtual
+        victimDefenseSkill = pVictim->GetMaxSkillValueForLevel(this);           // E2b, the same virtual on the victim
+        victimIsPlayer = pVictim->GetTypeId() == TYPEID_PLAYER;                 // E2a
+
+        // Each arm below walks one aura list, as the original does: gathering both
+        // would double the work on every swing.
+        if (attType == RANGED_ATTACK)
         {
-            missChance += 19.0f;
+            victimRangedHitChanceMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE);   // E2a
+        }
+        else
+        {
+            victimMeleeHitChanceMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_HIT_CHANCE);     // E2a
         }
     }
 
-    int32 skillDiff = int32(GetMaxSkillValueForLevel(pVictim)) - int32(pVictim->GetMaxSkillValueForLevel(this));
-
-    // PvP - PvE melee chances
-    // TODO: implement diminishing returns for defense from player's defense rating
-    // pure skill diff is not sufficient since 3.x anymore, but exact formulas hard to research
-    if (pVictim->GetTypeId() == TYPEID_PLAYER)
-    {
-        missChance -= skillDiff * 0.04f;
-    }
-    else if (skillDiff < -10)
-    {
-        missChance -= (skillDiff + 10) * 0.4f - 1.0f;
-    }
-    else
-    {
-        missChance -=  skillDiff * 0.1f;
-    }
-
-    // Hit chance bonus from attacker based on ratings and auras
-    if (attType == RANGED_ATTACK)
-    {
-        missChance -= m_modRangedHitChance;
-    }
-    else
-    {
-        missChance -= m_modMeleeHitChance;
-    }
-
-    // Modify miss chance by victim auras
-    if (attType == RANGED_ATTACK)
-    {
-        missChance -= pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_HIT_CHANCE);
-    }
-    else
-    {
-        missChance -= pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_HIT_CHANCE);
-    }
-
-    // Limit miss chance from 0 to 60%
-    if (missChance < 0.0f)
-    {
-        return 0.0f;
-    }
-    if (missChance > 60.0f)
-    {
-        return 60.0f;
-    }
-
-    return missChance;
+    return Combat::MeleeMissChance(hasVictim, attType, hasOffhandWeapon, isNormalSpellActive,
+                                   hasMeleeSpell, attackerSkill, victimDefenseSkill,
+                                   victimIsPlayer, m_modRangedHitChance, m_modMeleeHitChance,
+                                   victimRangedHitChanceMod, victimMeleeHitChanceMod);
 }
 
 /**
@@ -1072,27 +1044,30 @@ float Unit::MeleeMissChanceCalc(const Unit* pVictim, WeaponAttackType attType) c
  */
 float Unit::GetUnitDodgeChance() const
 {
-    if (Blocked(Motion::ReasonStunned))
+    bool const isStunned = Blocked(Motion::ReasonStunned);                              // E2a
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                 // E2a
+
+    float playerDodgePercentage = 0.0f;
+    bool isTotem = false;
+    int32 dodgeAuraMod = 0;
+    if (!isStunned)                                                                     // the early return's guard
     {
-        return 0.0f;
-    }
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        return GetFloatValue(PLAYER_DODGE_PERCENTAGE);
-    }
-    else
-    {
-        if (((Creature const*)this)->IsTotem())
+        if (isPlayer)
         {
-            return 0.0f;
+            playerDodgePercentage = GetFloatValue(PLAYER_DODGE_PERCENTAGE);             // E2b, same guard: a PLAYER_ field
         }
         else
         {
-            float dodge = 5.0f;
-            dodge += GetTotalAuraModifier(SPELL_AURA_MOD_DODGE_PERCENT);
-            return dodge > 0.0f ? dodge : 0.0f;
+            isTotem = ((Creature const*)this)->IsTotem();                               // E2b, same guard: the downcast
+            if (!isTotem)
+            {
+                dodgeAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_DODGE_PERCENT);      // E2a, kept under its original branch
+            }
         }
     }
+
+    return Combat::UnitDodgeChance(isStunned, isPlayer, playerDodgePercentage, isTotem,
+                                   dodgeAuraMod);
 }
 
 /**
@@ -1102,40 +1077,50 @@ float Unit::GetUnitDodgeChance() const
  */
 float Unit::GetUnitParryChance() const
 {
-    if (IsNonMeleeSpellCasted(false) || Blocked(Motion::ReasonStunned))
-    {
-        return 0.0f;
-    }
+    bool const isCastingNonMeleeSpell = IsNonMeleeSpellCasted(false);                   // E2a
+    bool const isStunned = Blocked(Motion::ReasonStunned);                              // E2a
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                 // E2a
+    bool const isCreature = GetTypeId() == TYPEID_UNIT;                                 // E2a
 
-    float chance = 0.0f;
-
-    if (GetTypeId() == TYPEID_PLAYER)
+    bool canParry = false;
+    bool hasParryWeapon = false;
+    float playerParryPercentage = 0.0f;
+    uint32 creatureType = 0;
+    int32 parryAuraMod = 0;
+    if (!isCastingNonMeleeSpell && !isStunned)                                          // the early return's guard
     {
-        Player const* player = (Player const*)this;
-        if (player->CanParry())
+        if (isPlayer)
         {
-            Item* tmpitem = player->GetWeaponForAttack(BASE_ATTACK, true, true);
-            if (!tmpitem)
+            Player const* player = (Player const*)this;                                 // E2b, same guard: the downcast
+            canParry = player->CanParry();
+            if (canParry)
             {
-                tmpitem = player->GetWeaponForAttack(OFF_ATTACK, true, true);
-            }
+                Item* tmpitem = player->GetWeaponForAttack(BASE_ATTACK, true, true);    // E2b, nullable, same guard
+                if (!tmpitem)
+                {
+                    tmpitem = player->GetWeaponForAttack(OFF_ATTACK, true, true);
+                }
 
-            if (tmpitem)
+                if (tmpitem)
+                {
+                    hasParryWeapon = true;
+                    playerParryPercentage = GetFloatValue(PLAYER_PARRY_PERCENTAGE);     // E2b, same guard: a PLAYER_ field
+                }
+            }
+        }
+        else if (isCreature)
+        {
+            creatureType = GetCreatureType();                                           // E2a, kept under its original branch
+            if (creatureType == CREATURE_TYPE_HUMANOID)
             {
-                chance = GetFloatValue(PLAYER_PARRY_PERCENTAGE);
+                parryAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_PARRY_PERCENT);      // E2a, kept under its original branch
             }
         }
     }
-    else if (GetTypeId() == TYPEID_UNIT)
-    {
-        if (GetCreatureType() == CREATURE_TYPE_HUMANOID)
-        {
-            chance = 5.0f;
-            chance += GetTotalAuraModifier(SPELL_AURA_MOD_PARRY_PERCENT);
-        }
-    }
 
-    return chance > 0.0f ? chance : 0.0f;
+    return Combat::UnitParryChance(isCastingNonMeleeSpell, isStunned, isPlayer, isCreature,
+                                   canParry, hasParryWeapon, playerParryPercentage,
+                                   creatureType, parryAuraMod);
 }
 
 /**
@@ -1145,38 +1130,49 @@ float Unit::GetUnitParryChance() const
  */
 float Unit::GetUnitBlockChance() const
 {
-    if (IsNonMeleeSpellCasted(false) || Blocked(Motion::ReasonStunned))
-    {
-        return 0.0f;
-    }
+    bool const isCastingNonMeleeSpell = IsNonMeleeSpellCasted(false);                       // E2a
+    bool const isStunned = Blocked(Motion::ReasonStunned);                                  // E2a
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                     // E2a
 
-    if (GetTypeId() == TYPEID_PLAYER)
+    bool canBlock = false;
+    bool canUseOffhandWeapon = false;
+    bool hasUnbrokenOffhandItem = false;
+    float playerBlockPercentage = 0.0f;
+    bool isTotem = false;
+    int32 blockAuraMod = 0;
+    if (!isCastingNonMeleeSpell && !isStunned)                                              // the early return's guard
     {
-        Player const* player = (Player const*)this;
-        if (player->CanBlock() && player->CanUseEquippedWeapon(OFF_ATTACK))
+        if (isPlayer)
         {
-            Item* tmpitem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
-            if (tmpitem && !tmpitem->IsBroken())
+            Player const* player = (Player const*)this;                                     // E2b, same guard: the downcast
+            canBlock = player->CanBlock();
+            if (canBlock)                                                                   // the body's && short-circuits here
             {
-                return GetFloatValue(PLAYER_BLOCK_PERCENTAGE);
+                canUseOffhandWeapon = player->CanUseEquippedWeapon(OFF_ATTACK);
             }
-        }
-        // is player but has no block ability or no not broken shield equipped
-        return 0.0f;
-    }
-    else
-    {
-        if (((Creature const*)this)->IsTotem())
-        {
-            return 0.0f;
+            if (canBlock && canUseOffhandWeapon)
+            {
+                Item* tmpitem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);  // E2b, nullable, same guard
+                if (tmpitem && !tmpitem->IsBroken())
+                {
+                    hasUnbrokenOffhandItem = true;
+                    playerBlockPercentage = GetFloatValue(PLAYER_BLOCK_PERCENTAGE);         // E2b, same guard: a PLAYER_ field
+                }
+            }
         }
         else
         {
-            float block = 5.0f;
-            block += GetTotalAuraModifier(SPELL_AURA_MOD_BLOCK_CHANCE_PERCENT);
-            return block > 0.0f ? block : 0.0f;
+            isTotem = ((Creature const*)this)->IsTotem();                                   // E2b, same guard: the downcast
+            if (!isTotem)
+            {
+                blockAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_BLOCK_CHANCE_PERCENT);   // E2a, kept under its original branch
+            }
         }
     }
+
+    return Combat::UnitBlockChance(isCastingNonMeleeSpell, isStunned, isPlayer, canBlock,
+                                   canUseOffhandWeapon, hasUnbrokenOffhandItem,
+                                   playerBlockPercentage, isTotem, blockAuraMod);
 }
 
 /**
@@ -1188,48 +1184,39 @@ float Unit::GetUnitBlockChance() const
  */
 float Unit::GetUnitCriticalChance(WeaponAttackType attackType, const Unit* pVictim) const
 {
-    float crit;
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                     // E2a
 
-    if (GetTypeId() == TYPEID_PLAYER)
+    float playerOffhandCrit = 0.0f;
+    float playerMainhandCrit = 0.0f;
+    float playerRangedCrit = 0.0f;
+    int32 critAuraMod = 0;
+    if (isPlayer)                                                                           // E2b, same guard: PLAYER_ fields
     {
-        switch (attackType)
-        {
-            case OFF_ATTACK:
-                crit = GetFloatValue(PLAYER_OFFHAND_CRIT_PERCENTAGE);
-                break;
-            case BASE_ATTACK:
-                crit = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
-                break;
-            case RANGED_ATTACK:
-                crit = GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE);
-                break;
-                // Just for good manner
-            default:
-                crit = 0.0f;
-                break;
-        }
+        playerOffhandCrit = GetFloatValue(PLAYER_OFFHAND_CRIT_PERCENTAGE);
+        playerMainhandCrit = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
+        playerRangedCrit = GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE);
     }
     else
     {
-        crit = 5.0f;
-        crit += GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
+        critAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);                    // E2a, kept under its original branch
     }
 
-    // flat aura mods
+    // Each arm below walks one aura list, as the original does.
+    int32 victimRangedCritMod = 0;
+    int32 victimMeleeCritMod = 0;
     if (attackType == RANGED_ATTACK)
     {
-        crit += pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE);
+        victimRangedCritMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE);   // E2a
     }
     else
     {
-        crit += pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE);
+        victimMeleeCritMod = pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE);     // E2a
     }
 
-    crit += pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE);
+    int32 const victimSpellAndWeaponCritMod =
+        pVictim->GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_SPELL_AND_WEAPON_CRIT_CHANCE);               // E2a
 
-    if (crit < 0.0f)
-    {
-        crit = 0.0f;
-    }
-    return crit;
+    return Combat::UnitCriticalChance(attackType, isPlayer, playerOffhandCrit, playerMainhandCrit,
+                                      playerRangedCrit, critAuraMod, victimRangedCritMod,
+                                      victimMeleeCritMod, victimSpellAndWeaponCritMod);
 }

@@ -83,6 +83,7 @@ CMakeCache.txt
 CMakeFiles
 ipch
 ANALIZA*.txt
+__pycache__/
 
 # recastnavigation directory needs exception
 !/dep/recastnavigation/RecastDemo/Build/

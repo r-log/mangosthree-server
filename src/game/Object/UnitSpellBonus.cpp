@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include "Unit.h"
+#include "combat/SpellBonus.h"
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
@@ -1059,17 +1060,9 @@ uint32 Unit::SpellCriticalDamageBonus(SpellEntry const* spellProto, uint32 damag
  */
 uint32 Unit::SpellCriticalHealingBonus(SpellEntry const* spellProto, uint32 damage, Unit* pVictim)
 {
-    // Calculate critical bonus
-    int32 crit_bonus = damage;
+    float const criticalHealingMultiplier = GetTotalAuraMultiplier(SPELL_AURA_MOD_CRITICAL_HEALING_AMOUNT);   // E2a
 
-    if (crit_bonus > 0)
-    {
-        damage += crit_bonus;
-    }
-
-    damage = int32(damage * GetTotalAuraMultiplier(SPELL_AURA_MOD_CRITICAL_HEALING_AMOUNT));
-
-    return damage;
+    return Combat::SpellCriticalHealingBonus(damage, criticalHealingMultiplier);
 }
 
 /**

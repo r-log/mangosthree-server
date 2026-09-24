@@ -67,6 +67,8 @@ set(SRC_GRP_TESTS
     ByteBufferStressTest.cpp
     CodecStressTest.cpp
     PacketCodecTest.cpp
+    CombatLeafTest.cpp
+    CombatGoldenVectors.h
 )
 
 if(WITH_NET_TESTS)
