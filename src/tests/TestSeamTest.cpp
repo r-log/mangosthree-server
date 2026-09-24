@@ -34,34 +34,8 @@
 
 #include <string>
 
-namespace
-{
-    /**
-     * Detaches however the scope is left.
-     *
-     * A REQUIRE that fires returns from the test case, so an explicit DetachTestConnections()
-     * at the end of the body is not reached — and the global would be left pointing at stack
-     * objects that die at the closing brace, which every later test in the binary would then
-     * use. The guard makes the failure mode of a failing assertion "one red test" rather than
-     * "one red test and a corrupt process".
-     */
-    struct AttachedFakes
-    {
-        AttachedFakes(Database& database, SqlConnection* query, SqlConnection* async,
-                      SqlResultQueue* results)
-            : m_database(database)
-        {
-            m_database.AttachTestConnections(query, async, results);
-        }
-
-        ~AttachedFakes() { m_database.DetachTestConnections(); }
-
-        AttachedFakes(AttachedFakes const&) = delete;
-        AttachedFakes& operator=(AttachedFakes const&) = delete;
-
-        Database& m_database;
-    };
-}
+// AttachedFakes now lives in FakeDatabase.h: decoupling D7b's handler tests attach to the
+// same global and need the same guard.
 
 TEST(TestSeam_GlobalCharacterDatabaseAnswersFromFakes)
 {

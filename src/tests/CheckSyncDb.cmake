@@ -8,9 +8,9 @@
 # (TickGuard, `.server database`) is what measures those, because only a run knows which
 # chains the tick actually walks. The two together are the proof; neither alone is.
 #
-# CONVERTED_FILES is EMPTY in D7a, which converts nothing -- the gate is built here so the
-# conversion PRs have somewhere to append. The self-tests below still run, so the gate is
-# known to work before it has anything to guard.
+# CONVERTED_FILES was empty in D7a, which converted nothing -- the gate was built there so
+# the conversion PRs had somewhere to append. The self-tests below run before the scan, so
+# the gate is known to work whether or not it has anything to guard.
 #
 # Run standalone (-P), this script sees none of the top-level project's policies. The
 # project requires CMake >= 3.18, so that is also the floor here.
@@ -22,6 +22,7 @@ endif()
 
 # Repo-relative paths. Later PRs append one line per converted file.
 set(CONVERTED_FILES
+    src/game/WorldHandlers/PetitionsHandler.cpp             # decoupling D7b
 )
 
 # Per file, the exact lines (trimmed) that are allowed to keep a direct call -- a startup

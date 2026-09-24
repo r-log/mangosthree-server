@@ -237,6 +237,34 @@ class FakeConnection final : public SqlConnection
 };
 
 /**
+ * @brief Attaches fakes to a database for a scope, and detaches however the scope is left.
+ *
+ * A REQUIRE that fires returns from the test case, so an explicit DetachTestConnections()
+ * at the end of the body is not reached -- and a GLOBAL database would be left pointing at
+ * stack objects that die at the closing brace, which every later test in the binary would
+ * then use. The guard makes the failure mode of a failing assertion "one red test" rather
+ * than "one red test and a corrupt process".
+ *
+ * Lived in TestSeamTest.cpp until decoupling D7b needed it for the handler tests as well.
+ */
+struct AttachedFakes
+{
+    AttachedFakes(Database& database, SqlConnection* query, SqlConnection* async,
+                  SqlResultQueue* results)
+        : m_database(database)
+    {
+        m_database.AttachTestConnections(query, async, results);
+    }
+
+    ~AttachedFakes() { m_database.DetachTestConnections(); }
+
+    AttachedFakes(AttachedFakes const&) = delete;
+    AttachedFakes& operator=(AttachedFakes const&) = delete;
+
+    Database& m_database;
+};
+
+/**
  * @brief A Database wired to two FakeConnections and a real SqlResultQueue.
  *
  * Built through the production seam (AttachTestConnections), so what the tests exercise is
