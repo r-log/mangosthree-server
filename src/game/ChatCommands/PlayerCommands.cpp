@@ -40,6 +40,7 @@
 #include <list>
 #include "Chat.h"
 #include "AchievementMgr.h"
+#include "CharacterCache.h"
 #include "ObjectMgr.h"
 #include "Language.h"
 #include "World.h"
@@ -474,6 +475,12 @@ void ChatHandler::HandleCharacterDeletedRestoreHelper(DeletedInfo const& delInfo
 
     CharacterDatabase.PExecute("UPDATE `characters` SET `name`='%s', `account`='%u', `deleteDate`=NULL, `deleteInfos_Name`=NULL, `deleteInfos_Account`=NULL WHERE `deleteDate` IS NOT NULL AND `guid` = %u",
                                delInfo.name.c_str(), delInfo.accountId, delInfo.lowguid);
+
+    // Decoupling D7c: the restore puts the name and the account back on a row the soft
+    // delete had emptied, which is the inverse of what Player::DeleteFromDB's case 1 did.
+    const ObjectGuid restored(HIGHGUID_PLAYER, delInfo.lowguid);
+    sCharacterCache.UpdateName(restored, delInfo.name);
+    sCharacterCache.UpdateAccount(restored, delInfo.accountId);
 }
 
 /**
@@ -682,6 +689,10 @@ void ChatHandler::HandleCharacterLevel(Player* player, ObjectGuid player_guid, u
     {
         // update level and XP at level, all other will be updated at loading
         CharacterDatabase.PExecute("UPDATE `characters` SET `level` = '%u', `xp` = 0 WHERE `guid` = '%u'", newlevel, player_guid.GetCounter());
+
+        // Decoupling D7c: the offline half of `.character level` writes the level itself,
+        // so it is a setter in its own right.
+        sCharacterCache.UpdateLevel(player_guid, uint8(newlevel));
     }
 }
 

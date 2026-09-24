@@ -47,6 +47,7 @@
 #include "Language.h"
 #include "SpellMgr.h"
 #include "Calendar.h"
+#include "CharacterCache.h"
 #include "GameTime.h"
 #include "Timer.h"
 
@@ -147,6 +148,10 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uin
     CharacterDatabase.PExecute("UPDATE `characters` SET `name` = '%s', `at_login` = `at_login` & ~ %u WHERE `guid` ='%u'", newname.c_str(), uint32(AT_LOGIN_RENAME), guidLow);
     CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` ='%u'", guidLow);
     CharacterDatabase.CommitTransaction();
+
+    // Decoupling D7c: the name that answers GetPlayerGuidByName / GetPlayerNameByGUID is
+    // the one just written, from this moment on.
+    sCharacterCache.UpdateName(guid, newname);
 
     sLog.outChar("Account: %d (IP: %s) Character:[%s] (guid:%u) Changed name to: %s", session->GetAccountId(), session->GetRemoteAddress().c_str(), oldname.c_str(), guidLow, newname.c_str());
 
@@ -395,6 +400,10 @@ void WorldSession::HandleCharCustomizeOpcode(WorldPacket& recv_data)
         SendPacket(&data);
         return;
     }
+
+    // Decoupling D7c: before the escaping, because what the cache indexes is the name the
+    // player typed, not the form the statement needs.
+    sCharacterCache.UpdateName(guid, newname);
 
     CharacterDatabase.escape_string(newname);
     Player::Customize(guid, gender, skin, face, hairStyle, hairColor, facialHair);

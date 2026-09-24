@@ -39,6 +39,7 @@
 #include "Language.h"
 #include "World.h"
 #include "Calendar.h"
+#include "CharacterCache.h"
 #include "PlayerRegistry.h"
 
 /**
@@ -107,6 +108,9 @@ void MemberSlot::ChangeRank(uint32 newRank)
     }
 
     CharacterDatabase.PExecute("UPDATE `guild_member` SET `rank`='%u' WHERE `guid`='%u'", newRank, guid.GetCounter());
+
+    // Decoupling D7c: Player::GetRankFromDB reads the cached rank, so it moves here.
+    sCharacterCache.UpdateGuildRank(guid, newRank);
 }
 
 //// Guild /////////////////////////////////////////////////
@@ -188,6 +192,15 @@ bool Guild::Create(Player* leader, std::string gname)
     CharacterDatabase.BeginTransaction();
     // CharacterDatabase.PExecute("DELETE FROM `guild` WHERE `guildid`='%u'", Id); - MAX(guildid)+1 not exist
     CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guildid`='%u'", m_Id);
+
+    // Decoupling D7c: this DELETE is not the no-op the comment above it suggests. The id is
+    // new to the `guild` table, but `guild_member` can hold rows for a guild id that never
+    // had (or no longer has) a `guild` row, and Guild::LoadMembersFromDB only sweeps the
+    // orphans it walks past -- any whose id is above the highest real guild is still there
+    // when GenerateGuildId() hands that id out. The cache indexed those rows at load, so it
+    // has to forget them here, or their characters would read as members of this new guild.
+    sCharacterCache.ClearGuild(m_Id);
+
     CharacterDatabase.PExecute("INSERT INTO `guild` (`guildid`,`name`,`leaderguid`,`info`,`motd`,`createdate`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,`BackgroundColor`,`BankMoney`) "
                                "VALUES('%u','%s','%u', '%s', '%s','" UI64FMTD "','%u','%u','%u','%u','%u','" UI64FMTD "')",
                                m_Id, gname.c_str(), m_LeaderGuid.GetCounter(), dbGINFO.c_str(), dbMOTD.c_str(), uint64(m_CreatedDate), m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor, m_BackgroundColor, m_GuildBankMoney);
@@ -304,6 +317,10 @@ bool Guild::AddMember(ObjectGuid plGuid, uint32 plRank)
 
     CharacterDatabase.PExecute("INSERT INTO `guild_member` (`guildid`,`guid`,`rank`,`pnote`,`offnote`) VALUES ('%u', '%u', '%u','%s','%s')",
                                m_Id, lowguid, newmember.RankId, dbPnote.c_str(), dbOFFnote.c_str());
+
+    // Decoupling D7c: the guild id and the rank that Player::GetGuildIdFromDB and
+    // Player::GetRankFromDB answer with are the ones this row just got.
+    sCharacterCache.UpdateGuild(plGuid, m_Id, newmember.RankId);
 
     // If player not in game data in data field will be loaded from guild tables, no need to update it!!
     if (pl)
@@ -547,6 +564,9 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
             // there is in table guild_member record which doesn't have guildid in guild table, report error
             sLog.outErrorDb("Guild %u does not exist but it has a record in guild_member table, deleting it!", guildId);
             CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guildid` = '%u'", guildId);
+            // Decoupling D7c: the cache is loaded before the guilds are, so it still holds
+            // the memberships this startup repair is deleting.
+            sCharacterCache.ClearGuild(guildId);
             continue;
         }
 
@@ -588,6 +608,7 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
         {
             sLog.outError("%s has a broken data in field `characters`.`data`, deleting him from guild!", newmember.guid.GetString().c_str());
             CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guid` = '%u'", lowguid);
+            sCharacterCache.UpdateGuild(newmember.guid, 0);      // decoupling D7c
             continue;
         }
         if (!newmember.ZoneId)
@@ -601,6 +622,7 @@ bool Guild::LoadMembersFromDB(QueryResult* guildMembersResult)
         {
             sLog.outError("%s has a broken data in field `characters`.`class`, deleting him from guild!", newmember.guid.GetString().c_str());
             CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guid` = '%u'", lowguid);
+            sCharacterCache.UpdateGuild(newmember.guid, 0);      // decoupling D7c
             continue;
         }
 
@@ -704,6 +726,10 @@ bool Guild::DelMember(ObjectGuid guid, bool isDisbanding)
     }
 
     CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guid` = '%u'", lowguid);
+
+    // Decoupling D7c: no row, no guild -- and Guild::Disband reaches here for every member,
+    // so a disband clears them all through this one call.
+    sCharacterCache.UpdateGuild(guid, 0);
 
     if (!isDisbanding)
     {

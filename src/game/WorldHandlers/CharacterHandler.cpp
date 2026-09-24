@@ -54,6 +54,7 @@
 #include "World.h"
 #include "ObjectMgr.h"
 #include "AchievementMgr.h"
+#include "CharacterCache.h"
 #include "Player.h"
 #include "CinematicFlyover.h"
 #include "Guild.h"
@@ -554,6 +555,21 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recv_data)
 
     // Player created, save it now
     pNewChar->SaveToDB();
+
+    // Decoupling D7c: the `characters` row exists from here on, so the cache has to know
+    // about it from here on -- the same values the INSERT above just wrote.
+    {
+        CharacterCacheEntry cached;
+        cached.guid        = pNewChar->GetObjectGuid();
+        cached.accountId   = GetAccountId();
+        cached.name        = pNewChar->GetName();
+        cached.race        = pNewChar->getRace();
+        cached.playerClass = pNewChar->getClass();
+        cached.level       = uint8(pNewChar->getLevel());
+        cached.zoneId      = pNewChar->GetCachedZoneId();
+        sCharacterCache.Add(cached);
+    }
+
     charcount += 1;
 
     LoginDatabase.PExecute("DELETE FROM `realmcharacters` WHERE `acctid`= '%u' AND `realmid`= '%u'", GetAccountId(), realmID);
