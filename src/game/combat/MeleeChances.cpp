@@ -280,4 +280,24 @@ namespace Combat
             }
         }
     }
+
+    int32 MagicSpellBaseHitChance(bool victimIsPlayer, uint32 victimLevel, uint32 attackerLevel)
+    {
+        // PvP - PvE spell misschances per leveldif > 2
+        int32 lchance = victimIsPlayer ? 7 : 11;
+        int32 leveldif = int32(victimLevel) - int32(attackerLevel);
+
+        // Base hit chance from attacker and victim levels
+        int32 modHitChance;
+        if (leveldif < 3)
+        {
+            modHitChance = 96 - leveldif;
+        }
+        else
+        {
+            modHitChance = 94 - (leveldif - 2) * lchance;
+        }
+
+        return modHitChance;
+    }
 }

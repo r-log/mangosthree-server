@@ -26,6 +26,7 @@
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
 #include "combat/MeleeChances.h"
+#include "combat/WeaponDamage.h"
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
@@ -402,45 +403,23 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
  */
 uint32 Unit::CalculateDamage(WeaponAttackType attType, bool normalized)
 {
-    float min_damage, max_damage;
-
-    if (normalized && GetTypeId() == TYPEID_PLAYER)
+    // The Player downcast is E2b, so it stays here under its original guard; the six
+    // UNIT_FIELD reads are plain array indices, so they are gathered unconditionally.
+    bool const isNormalizedPlayer = (normalized && GetTypeId() == TYPEID_PLAYER);
+    float playerMinDamage = 0.0f;
+    float playerMaxDamage = 0.0f;
+    if (isNormalizedPlayer)
     {
-        ((Player*)this)->CalculateMinMaxDamage(attType, normalized, min_damage, max_damage);
-    }
-    else
-    {
-        switch (attType)
-        {
-            case RANGED_ATTACK:
-                min_damage = GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE);
-                max_damage = GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE);
-                break;
-            case BASE_ATTACK:
-                min_damage = GetFloatValue(UNIT_FIELD_MINDAMAGE);
-                max_damage = GetFloatValue(UNIT_FIELD_MAXDAMAGE);
-                break;
-            case OFF_ATTACK:
-                min_damage = GetFloatValue(UNIT_FIELD_MINOFFHANDDAMAGE);
-                max_damage = GetFloatValue(UNIT_FIELD_MAXOFFHANDDAMAGE);
-                break;
-                // Just for good manner
-            default:
-                min_damage = 0.0f;
-                max_damage = 0.0f;
-                break;
-        }
+        ((Player*)this)->CalculateMinMaxDamage(attType, normalized, playerMinDamage, playerMaxDamage);
     }
 
-    if (min_damage > max_damage)
-    {
-        std::swap(min_damage, max_damage);
-    }
-
-    if (max_damage == 0.0f)
-    {
-        max_damage = 5.0f;
-    }
+    Combat::WeaponDamageRange const range = Combat::SelectWeaponDamageRange(attType, isNormalizedPlayer,
+            playerMinDamage, playerMaxDamage,
+            GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE), GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE),
+            GetFloatValue(UNIT_FIELD_MINDAMAGE), GetFloatValue(UNIT_FIELD_MAXDAMAGE),
+            GetFloatValue(UNIT_FIELD_MINOFFHANDDAMAGE), GetFloatValue(UNIT_FIELD_MAXOFFHANDDAMAGE));
+    float min_damage = range.min_damage;
+    float max_damage = range.max_damage;
 
     return urand((uint32)min_damage, (uint32)max_damage);
 }
@@ -825,20 +804,13 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* pVictim, SpellEntry const* spell)
     }
 
     SpellSchoolMask schoolMask = GetSpellSchoolMask(spell);
-    // PvP - PvE spell misschances per leveldif > 2
-    int32 lchance = pVictim->GetTypeId() == TYPEID_PLAYER ? 7 : 11;
-    int32 leveldif = int32(pVictim->GetLevelForTarget(this)) - int32(GetLevelForTarget(pVictim));
+    // GetLevelForTarget is virtual on both sides, so both reads stay here (E2b) and keep
+    // the original's order.
+    bool const victimIsPlayer = (pVictim->GetTypeId() == TYPEID_PLAYER);
+    uint32 const victimLevel = pVictim->GetLevelForTarget(this);
+    uint32 const attackerLevel = GetLevelForTarget(pVictim);
 
-    // Base hit chance from attacker and victim levels
-    int32 modHitChance;
-    if (leveldif < 3)
-    {
-        modHitChance = 96 - leveldif;
-    }
-    else
-    {
-        modHitChance = 94 - (leveldif - 2) * lchance;
-    }
+    int32 modHitChance = Combat::MagicSpellBaseHitChance(victimIsPlayer, victimLevel, attackerLevel);
 
     // Spellmod from SPELLMOD_RESIST_MISS_CHANCE
     if (Player* modOwner = GetSpellModOwner())
