@@ -157,7 +157,7 @@ class CreatureAI
 
         /**
          * Called for reaction at stopping attack at no attackers or targets
-         * This is called usually in Unit::SelectHostileTarget, if no more target exists
+         * This is called usually in Creature::SelectHostileTarget, if no more target exists
          */
         virtual void EnterEvadeMode() {}
 
@@ -300,7 +300,7 @@ class CreatureAI
         /**
          * Called when creature attack expected (if creature can and no have current victim)
          * Note: for reaction at hostile action must be called AttackedBy function.
-         * Note: Usually called by MoveInLineOfSight, in Unit::SelectHostileTarget or when the AI is forced to attack an enemy
+         * Note: Usually called by MoveInLineOfSight, in Creature::SelectHostileTarget or when the AI is forced to attack an enemy
          * @param pWho Unit* who is possible target
          */
         virtual void AttackStart(Unit* /*pWho*/) {}

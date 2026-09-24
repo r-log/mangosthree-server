@@ -3768,9 +3768,9 @@ class Unit : public WorldObject
         float ApplyTotalThreatModifier(float threat, SpellSchoolMask schoolMask = SPELL_SCHOOL_MASK_NORMAL);
         void DeleteThreatList();
         bool IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea) const;
-        bool SelectHostileTarget();
-        void TauntApply(Unit* pVictim);
-        void TauntFadeOut(Unit* taunter);
+        // SelectHostileTarget, TauntApply and TauntFadeOut are declared on Creature
+        // (decoupling D5e, server #134): each opened with MANGOS_ASSERT(GetTypeId() ==
+        // TYPEID_UNIT), so only a Creature could ever execute them.
         void FixateTarget(Unit* pVictim);
         ObjectGuid GetFixateTargetGuid() const { return m_fixateTargetGuid; }
         ThreatManager& GetThreatManager() { return m_ThreatManager; }
@@ -4177,6 +4177,11 @@ class Unit : public WorldObject
 
         ObjectGuid m_TotemSlot[MAX_TOTEM_SLOT];
 
+    protected:
+        // Protected, not private, since decoupling D5e (server #134): Creature's
+        // SelectHostileTarget and TauntFadeOut read and clear it, while Unit::FixateTarget --
+        // whose callers hold a Unit* -- still writes it. Declared in its original position so
+        // the member order the constructor relies on is unchanged.
         ObjectGuid m_fixateTargetGuid;                      //< Stores the Guid of a fixated target
 
     private:                                                // Error traps for some wrong args using

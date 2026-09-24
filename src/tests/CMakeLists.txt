@@ -69,6 +69,7 @@ set(SRC_GRP_TESTS
     PacketCodecTest.cpp
     CombatLeafTest.cpp
     CombatGoldenVectors.h
+    CreatureThreatTest.cpp
 )
 
 if(WITH_NET_TESTS)
