@@ -1362,10 +1362,14 @@ def s12_candidates():
 
 def s13_candidates():
     out = []
-    # both lchance arms x a level spread that covers leveldif < 3 and the PvE penalty
+    # Both lchance arms x a level spread that covers leveldif < 3 and the PvE penalty.
+    # The attacker levels 58 and 59 are what put leveldif 1 and 2 in the table against a
+    # level-60 victim, and leveldif 1 is the only row that pins the `< 3` boundary: at
+    # leveldif 2 the two arms agree (96 - 2 == 94 - 0 * lchance == 94), so a mutation to
+    # `leveldif < 2` is invisible without it.
     for victim_is_player in (True, False):
         for victim_level in (1, 10, 40, 60, 70, 80, 83, 85, 88):
-            for attacker_level in (1, 60, 80, 85):
+            for attacker_level in (1, 58, 59, 60, 80, 85):
                 out.append((victim_is_player, victim_level, attacker_level))
     return out
 
