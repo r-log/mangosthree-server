@@ -25,6 +25,8 @@
 
 #include "combat/WeaponDamage.h"
 
+#include <utility>                                              // std::swap
+
 namespace Combat
 {
     void CalculateMinMaxDamage(WeaponAttackType attType, float attackSpeedMultiplier,
@@ -75,5 +77,168 @@ namespace Combat
 
         min_damage = ((base_value + weapon_mindamage) * base_pct + total_value) * total_pct;
         max_damage = ((base_value + weapon_maxdamage) * base_pct + total_value) * total_pct;
+    }
+
+    MeleeDamageTakenParts MeleeDamageTaken(WeaponAttackType attType, int32 rangedDamageTakenMod,
+                                           int32 meleeDamageTakenMod, int32 damageTakenSchoolMod,
+                                           float damagePercentTakenMultiplier,
+                                           float mechanicDamageTakenMultiplier,
+                                           float rangedDamageTakenPct, float meleeDamageTakenPct,
+                                           bool isAreaOfEffectSpell,
+                                           float aoeDamageAvoidanceMultiplier, bool isPet,
+                                           float petAoeDamageAvoidanceMultiplier)
+    {
+        // FLAT damage bonus auras
+        // =======================
+        int32 TakenFlat = 0;
+
+        // ..taken flat (base at attack power for marked target and base at attack power for creature type)
+        if (attType == RANGED_ATTACK)
+        {
+            TakenFlat += rangedDamageTakenMod;
+        }
+        else
+        {
+            TakenFlat += meleeDamageTakenMod;
+        }
+
+        // ..taken flat (by school mask)
+        TakenFlat += damageTakenSchoolMod;
+
+        // PERCENT damage auras
+        // ====================
+        float TakenPercent  = 1.0f;
+
+        // ..taken pct (by school mask)
+        TakenPercent *= damagePercentTakenMultiplier;
+
+        // ..taken pct (by mechanic mask)
+        TakenPercent *= mechanicDamageTakenMultiplier;
+
+        // ..taken pct (melee/ranged)
+        if (attType == RANGED_ATTACK)
+        {
+            TakenPercent *= rangedDamageTakenPct;
+        }
+        else
+        {
+            TakenPercent *= meleeDamageTakenPct;
+        }
+
+        // ..taken pct (aoe avoidance)
+        if (isAreaOfEffectSpell)
+        {
+            TakenPercent *= aoeDamageAvoidanceMultiplier;
+            if (isPet)
+            {
+                TakenPercent *= petAoeDamageAvoidanceMultiplier;
+            }
+        }
+
+        MeleeDamageTakenParts result;
+        result.TakenFlat = TakenFlat;
+        result.TakenPercent = TakenPercent;
+        return result;
+    }
+
+    MeleeDamageDoneParts MeleeDamageDoneBase(int32 DoneFlat, int32 APbonus, WeaponAttackType attType,
+                                             int32 damageDoneCreatureMod,
+                                             int32 victimRangedApAttackerBonus,
+                                             int32 rangedApVersusMod,
+                                             int32 victimMeleeApAttackerBonus,
+                                             int32 meleeApVersusMod)
+    {
+        // ..done flat (by creature type mask)
+        DoneFlat += damageDoneCreatureMod;
+
+        // ..done flat (base at attack power for marked target and base at attack power for creature type)
+        if (attType == RANGED_ATTACK)
+        {
+            APbonus += victimRangedApAttackerBonus;
+            APbonus += rangedApVersusMod;
+        }
+        else
+        {
+            APbonus += victimMeleeApAttackerBonus;
+            APbonus += meleeApVersusMod;
+        }
+
+        // PERCENT damage auras
+        // ====================
+        float DonePercent   = 1.0f;
+
+        MeleeDamageDoneParts result;
+        result.DoneFlat = DoneFlat;
+        result.APbonus = APbonus;
+        result.DonePercent = DonePercent;
+        return result;
+    }
+
+    float MeleeDamageDoneWeaponBased(float DoneTotal, int32 APbonus, int32 DoneFlat,
+                                     float apMultiplier, float damageTotalPct)
+    {
+        DoneTotal += int32(APbonus / 14.0f * apMultiplier);
+
+        // for weapon damage based spells we still have to apply damage done percent mods
+        // (that are already included into pdamage) to not-yet included DoneFlat
+        // e.g. from doneVersusCreature, apBonusVs...
+        DoneTotal += DoneFlat;
+
+        DoneTotal *= damageTotalPct;
+
+        return DoneTotal;
+    }
+
+    WeaponDamageRange SelectWeaponDamageRange(WeaponAttackType attType, bool isNormalizedPlayer,
+                                              float playerMinDamage, float playerMaxDamage,
+                                              float minRangedDamage, float maxRangedDamage,
+                                              float minBaseDamage, float maxBaseDamage,
+                                              float minOffhandDamage, float maxOffhandDamage)
+    {
+        float min_damage, max_damage;
+
+        if (isNormalizedPlayer)
+        {
+            min_damage = playerMinDamage;
+            max_damage = playerMaxDamage;
+        }
+        else
+        {
+            switch (attType)
+            {
+                case RANGED_ATTACK:
+                    min_damage = minRangedDamage;
+                    max_damage = maxRangedDamage;
+                    break;
+                case BASE_ATTACK:
+                    min_damage = minBaseDamage;
+                    max_damage = maxBaseDamage;
+                    break;
+                case OFF_ATTACK:
+                    min_damage = minOffhandDamage;
+                    max_damage = maxOffhandDamage;
+                    break;
+                    // Just for good manner
+                default:
+                    min_damage = 0.0f;
+                    max_damage = 0.0f;
+                    break;
+            }
+        }
+
+        if (min_damage > max_damage)
+        {
+            std::swap(min_damage, max_damage);
+        }
+
+        if (max_damage == 0.0f)
+        {
+            max_damage = 5.0f;
+        }
+
+        WeaponDamageRange result;
+        result.min_damage = min_damage;
+        result.max_damage = max_damage;
+        return result;
     }
 }

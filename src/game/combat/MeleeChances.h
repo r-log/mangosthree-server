@@ -168,6 +168,21 @@ namespace Combat
     float UnitBlockChance(bool isCastingNonMeleeSpell, bool isStunned, bool isPlayer,
                           bool canBlock, bool canUseOffhandWeapon, bool hasUnbrokenOffhandItem,
                           float playerBlockPercentage, bool isTotem, int32 blockAuraMod);
+
+    /**
+     * @brief The base chance a spell has to hit, from the attacker and victim levels.
+     *
+     * The block inside Unit::MagicSpellHitResult, src/game/Object/UnitCombat.cpp:828-841
+     * at 82e9c4f65, moved verbatim. The modifier block that follows stays in the host:
+     * its spellmod, its per-mechanic victim reads and its roll are none of them scalar.
+     *
+     * @param victimIsPlayer pVictim->GetTypeId() == TYPEID_PLAYER, which picks the
+     *        PvP (7) or PvE (11) miss chance per level difference.
+     * @param victimLevel pVictim->GetLevelForTarget(this) -- virtual, so the host reads it.
+     * @param attackerLevel GetLevelForTarget(pVictim) -- likewise.
+     * @return The base hit chance in whole percent, before any modifier.
+     */
+    int32 MagicSpellBaseHitChance(bool victimIsPlayer, uint32 victimLevel, uint32 attackerLevel);
 }
 
 #endif // MANGOSSERVER_COMBAT_MELEECHANCES_H

@@ -25,8 +25,10 @@
 
 // GENERATED FILE -- do not edit by hand.
 // Generator: src/tests/tools/gen_combat_vectors.py, whose Python transcribes the
-// ORIGINAL member bodies at commit ce20c27db, BEFORE decoupling D5b moved them
-// under src/game/combat/. Regenerate with
+// ORIGINAL bodies BEFORE they moved under src/game/combat/: the nine whole-function
+// leaves at commit ce20c27db (decoupling D5b), and the ten pure sub-blocks inside the
+// orchestration functions at commit 82e9c4f65 (decoupling D5c). Each table names its
+// own source above. Regenerate with
 //     python src/tests/tools/gen_combat_vectors.py
 // The margins are ABSOLUTE. A vector is rejected when the float the C++ truncates
 // lies 0 < d < 1e-3 from an integer, or when an UNCLAMPED result came within 1e-5
@@ -666,8 +668,1087 @@ namespace golden
     };
     static const size_t kMinMaxDamageVectorCount = sizeof(kMinMaxDamageVectors) / sizeof(kMinMaxDamageVectors[0]);
 
-    /// 450 vectors over 9 leaves.
-    static const size_t kCombatVectorTotal = 450;
+    /// SpellCritDamageBonusBase, UnitSpellBonus.cpp:995-1010 (Unit::SpellCriticalDamageBonus) at 82e9c4f65.
+    struct SpellCritDamageBonusBaseVector
+    {
+        uint32 damage;
+        uint32 dmgClass;
+        int32 critDamageBonusPct;
+        int32 expected;
+    };
+
+    static const SpellCritDamageBonusBaseVector kSpellCritDamageBonusBaseVectors[] =
+    {
+        { 0, 0, -100, 0 },   // exact
+        { 1, 0, -100, -1 },   // exact
+        { 101, 0, -100, -101 },   // exact
+        { 1001, 0, -100, -1001 },   // exact
+        { 20000, 0, -100, -20000 },   // exact
+        { 0, 0, -75, 0 },   // exact
+        { 1, 0, -75, 0 },
+        { 101, 0, -75, -63 },
+        { 1001, 0, -75, -625 },
+        { 20000, 0, -75, -12500 },   // exact
+        { 0, 0, -50, 0 },   // exact
+        { 1, 0, -50, 0 },
+        { 101, 0, -50, -25 },
+        { 1001, 0, -50, -250 },
+        { 20000, 0, -50, -5000 },   // exact
+        { 0, 0, -25, 0 },   // exact
+        { 1, 0, -25, 0 },
+        { 101, 0, -25, 13 },
+        { 1001, 0, -25, 125 },
+        { 20000, 0, -25, 2500 },   // exact
+        { 0, 0, 0, 0 },   // exact
+        { 1, 0, 0, 0 },   // exact
+        { 101, 0, 0, 50 },   // exact
+        { 1001, 0, 0, 500 },   // exact
+        { 20000, 0, 0, 10000 },   // exact
+        { 0, 0, 25, 0 },   // exact
+        { 1, 0, 25, 0 },
+        { 101, 0, 25, 87 },
+        { 1001, 0, 25, 875 },
+        { 20000, 0, 25, 17500 },   // exact
+        { 0, 0, 50, 0 },   // exact
+        { 1, 0, 50, 0 },
+        { 101, 0, 50, 125 },
+        { 1001, 0, 50, 1250 },
+        { 20000, 0, 50, 25000 },   // exact
+        { 0, 0, 100, 0 },   // exact
+        { 1, 0, 100, 1 },   // exact
+        { 101, 0, 100, 201 },   // exact
+        { 1001, 0, 100, 2001 },   // exact
+        { 20000, 0, 100, 40000 },   // exact
+        { 0, 0, 200, 0 },   // exact
+        { 1, 0, 200, 2 },   // exact
+        { 101, 0, 200, 352 },   // exact
+        { 1001, 0, 200, 3502 },   // exact
+        { 20000, 0, 200, 70000 },   // exact
+        { 0, 1, -100, 0 },   // exact
+        { 1, 1, -100, -1 },   // exact
+        { 101, 1, -100, -101 },   // exact
+        { 1001, 1, -100, -1001 },   // exact
+        { 20000, 1, -100, -20000 },   // exact
+        { 0, 1, -75, 0 },   // exact
+        { 1, 1, -75, 0 },
+        { 101, 1, -75, -63 },
+        { 1001, 1, -75, -625 },
+        { 20000, 1, -75, -12500 },   // exact
+        { 0, 1, -50, 0 },   // exact
+        { 1, 1, -50, 0 },
+        { 101, 1, -50, -25 },
+        { 1001, 1, -50, -250 },
+        { 20000, 1, -50, -5000 },   // exact
+        { 0, 1, -25, 0 },   // exact
+        { 1, 1, -25, 0 },
+        { 101, 1, -25, 13 },
+        { 1001, 1, -25, 125 },
+        { 20000, 1, -25, 2500 },   // exact
+        { 0, 1, 0, 0 },   // exact
+        { 1, 1, 0, 0 },   // exact
+        { 101, 1, 0, 50 },   // exact
+        { 1001, 1, 0, 500 },   // exact
+        { 20000, 1, 0, 10000 },   // exact
+        { 0, 1, 25, 0 },   // exact
+        { 1, 1, 25, 0 },
+        { 101, 1, 25, 87 },
+        { 1001, 1, 25, 875 },
+        { 20000, 1, 25, 17500 },   // exact
+        { 0, 1, 50, 0 },   // exact
+        { 1, 1, 50, 0 },
+        { 101, 1, 50, 125 },
+        { 1001, 1, 50, 1250 },
+        { 20000, 1, 50, 25000 },   // exact
+        { 0, 1, 100, 0 },   // exact
+        { 1, 1, 100, 1 },   // exact
+        { 101, 1, 100, 201 },   // exact
+        { 1001, 1, 100, 2001 },   // exact
+        { 20000, 1, 100, 40000 },   // exact
+        { 0, 1, 200, 0 },   // exact
+        { 1, 1, 200, 2 },   // exact
+        { 101, 1, 200, 352 },   // exact
+        { 1001, 1, 200, 3502 },   // exact
+        { 20000, 1, 200, 70000 },   // exact
+        { 0, 2, -100, 0 },   // exact
+        { 1, 2, -100, -1 },   // exact
+        { 101, 2, -100, -101 },   // exact
+        { 1001, 2, -100, -1001 },   // exact
+        { 20000, 2, -100, -20000 },   // exact
+        { 0, 2, -75, 0 },   // exact
+        { 1, 2, -75, 0 },
+        { 101, 2, -75, -50 },
+        { 1001, 2, -75, -500 },
+        { 20000, 2, -75, -10000 },   // exact
+        { 0, 2, -50, 0 },   // exact
+        { 1, 2, -50, 0 },   // exact
+        { 101, 2, -50, 0 },   // exact
+        { 1001, 2, -50, 0 },   // exact
+        { 20000, 2, -50, 0 },   // exact
+        { 0, 2, -25, 0 },   // exact
+        { 1, 2, -25, 1 },
+        { 101, 2, -25, 51 },
+        { 1001, 2, -25, 501 },
+        { 20000, 2, -25, 10000 },   // exact
+        { 0, 2, 0, 0 },   // exact
+        { 1, 2, 0, 1 },   // exact
+        { 101, 2, 0, 101 },   // exact
+        { 1001, 2, 0, 1001 },   // exact
+        { 20000, 2, 0, 20000 },   // exact
+        { 0, 2, 25, 0 },   // exact
+        { 1, 2, 25, 1 },
+        { 101, 2, 25, 151 },
+        { 1001, 2, 25, 1501 },
+        { 20000, 2, 25, 30000 },   // exact
+        { 0, 2, 50, 0 },   // exact
+        { 1, 2, 50, 2 },   // exact
+        { 101, 2, 50, 202 },   // exact
+        { 1001, 2, 50, 2002 },   // exact
+        { 20000, 2, 50, 40000 },   // exact
+        { 0, 2, 100, 0 },   // exact
+        { 1, 2, 100, 3 },   // exact
+        { 101, 2, 100, 303 },   // exact
+        { 1001, 2, 100, 3003 },   // exact
+        { 20000, 2, 100, 60000 },   // exact
+        { 0, 2, 200, 0 },   // exact
+        { 1, 2, 200, 5 },   // exact
+        { 101, 2, 200, 505 },   // exact
+        { 1001, 2, 200, 5005 },   // exact
+        { 20000, 2, 200, 100000 },   // exact
+        { 0, 3, -100, 0 },   // exact
+        { 1, 3, -100, -1 },   // exact
+        { 101, 3, -100, -101 },   // exact
+        { 1001, 3, -100, -1001 },   // exact
+        { 20000, 3, -100, -20000 },   // exact
+        { 0, 3, -75, 0 },   // exact
+        { 1, 3, -75, 0 },
+        { 101, 3, -75, -50 },
+        { 1001, 3, -75, -500 },
+        { 20000, 3, -75, -10000 },   // exact
+        { 0, 3, -50, 0 },   // exact
+        { 1, 3, -50, 0 },   // exact
+        { 101, 3, -50, 0 },   // exact
+        { 1001, 3, -50, 0 },   // exact
+        { 20000, 3, -50, 0 },   // exact
+        { 0, 3, -25, 0 },   // exact
+        { 1, 3, -25, 1 },
+        { 101, 3, -25, 51 },
+        { 1001, 3, -25, 501 },
+        { 20000, 3, -25, 10000 },   // exact
+        { 0, 3, 0, 0 },   // exact
+        { 1, 3, 0, 1 },   // exact
+        { 101, 3, 0, 101 },   // exact
+        { 1001, 3, 0, 1001 },   // exact
+        { 20000, 3, 0, 20000 },   // exact
+        { 0, 3, 25, 0 },   // exact
+        { 1, 3, 25, 1 },
+        { 101, 3, 25, 151 },
+        { 1001, 3, 25, 1501 },
+        { 20000, 3, 25, 30000 },   // exact
+        { 0, 3, 50, 0 },   // exact
+        { 1, 3, 50, 2 },   // exact
+        { 101, 3, 50, 202 },   // exact
+        { 1001, 3, 50, 2002 },   // exact
+        { 20000, 3, 50, 40000 },   // exact
+        { 0, 3, 100, 0 },   // exact
+        { 1, 3, 100, 3 },   // exact
+        { 101, 3, 100, 303 },   // exact
+        { 1001, 3, 100, 3003 },   // exact
+        { 20000, 3, 100, 60000 },   // exact
+        { 0, 3, 200, 0 },   // exact
+        { 1, 3, 200, 5 },   // exact
+        { 101, 3, 200, 505 },   // exact
+        { 1001, 3, 200, 5005 },   // exact
+        { 20000, 3, 200, 100000 },   // exact
+        { 7, 1, 10, 4 },   // exact
+        { 333, 1, 10, 215 },
+        { 100000, 1, 10, 65000 },   // exact
+        { 7, 1, 33, 6 },
+        { 333, 1, 33, 330 },
+        { 100000, 1, 33, 99500 },
+        { 7, 1, -10, 2 },   // exact
+        { 333, 1, -10, 117 },
+        { 100000, 1, -10, 35000 },   // exact
+        { 7, 1, -33, 0 },
+        { 333, 1, -33, 2 },
+        { 100000, 1, -33, 500 },
+        { 7, 2, 10, 8 },
+        { 333, 2, 10, 399 },
+        { 100000, 2, 10, 120000 },   // exact
+        { 7, 2, 33, 11 },
+        { 333, 2, 33, 552 },
+        { 100000, 2, 33, 166000 },   // exact
+        { 7, 2, -10, 6 },
+        { 333, 2, -10, 267 },
+        { 100000, 2, -10, 80000 },   // exact
+        { 7, 2, -33, 3 },
+        { 333, 2, -33, 114 },
+        { 100000, 2, -33, 34000 },   // exact
+        { 2000000, 1, 50, 2500000 },   // exact
+        { 100000000, 1, 50, 125000000 },   // exact
+        { 2000000, 2, 50, 4000000 },   // exact
+        { 100000000, 2, 50, 200000000 },   // exact
+    };
+    static const size_t kSpellCritDamageBonusBaseVectorCount = sizeof(kSpellCritDamageBonusBaseVectors) / sizeof(kSpellCritDamageBonusBaseVectors[0]);
+
+    /// SpellCritDamageBonusTaken, UnitSpellBonus.cpp:1018-1050 (Unit::SpellCriticalDamageBonus) at 82e9c4f65.
+    struct SpellCritDamageBonusTakenVector
+    {
+        uint32 damage;
+        int32 critBonus;
+        bool hasVictim;
+        uint32 dmgClass;
+        bool isRangedAttack;
+        int32 victimRangedCritDamageMod;
+        int32 victimMeleeCritDamageMod;
+        int32 victimSpellCritDamageMod;
+        uint32 expected;
+    };
+
+    static const SpellCritDamageBonusTakenVector kSpellCritDamageBonusTakenVectors[] =
+    {
+        { 0, 0, false, 1, false, 0, 0, 0, 0 },
+        { 100, 50, false, 1, false, 0, 0, 0, 150 },
+        { 1000, 1000, false, 1, false, 0, 0, 0, 2000 },
+        { 2000000, 1000000, false, 1, false, 0, 0, 0, 3000000 },
+        { 1000, 500, true, 2, true, -100, 0, 0, 1000 },   // exact
+        { 1001, 333, true, 2, true, -100, 0, 0, 1001 },   // exact
+        { 1000, 500, true, 2, true, -50, 0, 0, 1250 },   // exact
+        { 1001, 333, true, 2, true, -50, 0, 0, 1167 },
+        { 1000, 500, true, 2, true, -25, 0, 0, 1375 },   // exact
+        { 1001, 333, true, 2, true, -25, 0, 0, 1250 },
+        { 1000, 500, true, 2, true, 0, 0, 0, 1500 },
+        { 1001, 333, true, 2, true, 0, 0, 0, 1334 },
+        { 1000, 500, true, 2, true, 25, 0, 0, 1625 },   // exact
+        { 1001, 333, true, 2, true, 25, 0, 0, 1417 },
+        { 1000, 500, true, 2, true, 50, 0, 0, 1750 },   // exact
+        { 1001, 333, true, 2, true, 50, 0, 0, 1500 },
+        { 1000, 500, true, 2, true, 100, 0, 0, 2000 },   // exact
+        { 1001, 333, true, 2, true, 100, 0, 0, 1667 },   // exact
+        { 1000, 500, true, 2, false, 0, -100, 0, 1000 },   // exact
+        { 1001, 333, true, 2, false, 0, -100, 0, 1001 },   // exact
+        { 1000, 500, true, 2, false, 0, -50, 0, 1250 },   // exact
+        { 1001, 333, true, 2, false, 0, -50, 0, 1167 },
+        { 1000, 500, true, 2, false, 0, -25, 0, 1375 },   // exact
+        { 1001, 333, true, 2, false, 0, -25, 0, 1250 },
+        { 1000, 500, true, 2, false, 0, 0, 0, 1500 },
+        { 1001, 333, true, 2, false, 0, 0, 0, 1334 },
+        { 1000, 500, true, 2, false, 0, 25, 0, 1625 },   // exact
+        { 1001, 333, true, 2, false, 0, 25, 0, 1417 },
+        { 1000, 500, true, 2, false, 0, 50, 0, 1750 },   // exact
+        { 1001, 333, true, 2, false, 0, 50, 0, 1500 },
+        { 1000, 500, true, 2, false, 0, 100, 0, 2000 },   // exact
+        { 1001, 333, true, 2, false, 0, 100, 0, 1667 },   // exact
+        { 1000, 500, true, 3, true, -100, 0, 0, 1000 },   // exact
+        { 1001, 333, true, 3, true, -100, 0, 0, 1001 },   // exact
+        { 1000, 500, true, 3, true, -50, 0, 0, 1250 },   // exact
+        { 1001, 333, true, 3, true, -50, 0, 0, 1167 },
+        { 1000, 500, true, 3, true, -25, 0, 0, 1375 },   // exact
+        { 1001, 333, true, 3, true, -25, 0, 0, 1250 },
+        { 1000, 500, true, 3, true, 0, 0, 0, 1500 },
+        { 1001, 333, true, 3, true, 0, 0, 0, 1334 },
+        { 1000, 500, true, 3, true, 25, 0, 0, 1625 },   // exact
+        { 1001, 333, true, 3, true, 25, 0, 0, 1417 },
+        { 1000, 500, true, 3, true, 50, 0, 0, 1750 },   // exact
+        { 1001, 333, true, 3, true, 50, 0, 0, 1500 },
+        { 1000, 500, true, 3, true, 100, 0, 0, 2000 },   // exact
+        { 1001, 333, true, 3, true, 100, 0, 0, 1667 },   // exact
+        { 1000, 500, true, 3, false, 0, -100, 0, 1000 },   // exact
+        { 1001, 333, true, 3, false, 0, -100, 0, 1001 },   // exact
+        { 1000, 500, true, 3, false, 0, -50, 0, 1250 },   // exact
+        { 1001, 333, true, 3, false, 0, -50, 0, 1167 },
+        { 1000, 500, true, 3, false, 0, -25, 0, 1375 },   // exact
+        { 1001, 333, true, 3, false, 0, -25, 0, 1250 },
+        { 1000, 500, true, 3, false, 0, 0, 0, 1500 },
+        { 1001, 333, true, 3, false, 0, 0, 0, 1334 },
+        { 1000, 500, true, 3, false, 0, 25, 0, 1625 },   // exact
+        { 1001, 333, true, 3, false, 0, 25, 0, 1417 },
+        { 1000, 500, true, 3, false, 0, 50, 0, 1750 },   // exact
+        { 1001, 333, true, 3, false, 0, 50, 0, 1500 },
+        { 1000, 500, true, 3, false, 0, 100, 0, 2000 },   // exact
+        { 1001, 333, true, 3, false, 0, 100, 0, 1667 },   // exact
+        { 1000, 500, true, 0, false, 0, 0, -100, 1000 },   // exact
+        { 1001, 333, true, 0, false, 0, 0, -100, 1001 },   // exact
+        { 1000, 500, true, 0, false, 0, 0, -50, 1250 },   // exact
+        { 1001, 333, true, 0, false, 0, 0, -50, 1167 },
+        { 1000, 500, true, 0, false, 0, 0, -25, 1375 },   // exact
+        { 1001, 333, true, 0, false, 0, 0, -25, 1250 },
+        { 1000, 500, true, 0, false, 0, 0, 0, 1500 },
+        { 1001, 333, true, 0, false, 0, 0, 0, 1334 },
+        { 1000, 500, true, 0, false, 0, 0, 25, 1625 },   // exact
+        { 1001, 333, true, 0, false, 0, 0, 25, 1417 },
+        { 1000, 500, true, 0, false, 0, 0, 50, 1750 },   // exact
+        { 1001, 333, true, 0, false, 0, 0, 50, 1500 },
+        { 1000, 500, true, 0, false, 0, 0, 100, 2000 },   // exact
+        { 1001, 333, true, 0, false, 0, 0, 100, 1667 },   // exact
+        { 1000, 500, true, 1, false, 0, 0, -100, 1000 },   // exact
+        { 1001, 333, true, 1, false, 0, 0, -100, 1001 },   // exact
+        { 1000, 500, true, 1, false, 0, 0, -50, 1250 },   // exact
+        { 1001, 333, true, 1, false, 0, 0, -50, 1167 },
+        { 1000, 500, true, 1, false, 0, 0, -25, 1375 },   // exact
+        { 1001, 333, true, 1, false, 0, 0, -25, 1250 },
+        { 1000, 500, true, 1, false, 0, 0, 0, 1500 },
+        { 1001, 333, true, 1, false, 0, 0, 0, 1334 },
+        { 1000, 500, true, 1, false, 0, 0, 25, 1625 },   // exact
+        { 1001, 333, true, 1, false, 0, 0, 25, 1417 },
+        { 1000, 500, true, 1, false, 0, 0, 50, 1750 },   // exact
+        { 1001, 333, true, 1, false, 0, 0, 50, 1500 },
+        { 1000, 500, true, 1, false, 0, 0, 100, 2000 },   // exact
+        { 1001, 333, true, 1, false, 0, 0, 100, 1667 },   // exact
+        { 1000, 0, true, 2, false, 0, 0, 0, 1000 },
+        { 1000, 0, true, 1, false, 50, 0, 50, 1000 },   // exact
+        { 1000, -1, true, 2, false, 0, 0, 0, 1000 },
+        { 1000, -1, true, 1, false, 50, 0, 50, 1000 },
+        { 1000, -500, true, 2, false, 0, 0, 0, 1000 },
+        { 1000, -500, true, 1, false, 50, 0, 50, 1000 },   // exact
+    };
+    static const size_t kSpellCritDamageBonusTakenVectorCount = sizeof(kSpellCritDamageBonusTakenVectors) / sizeof(kSpellCritDamageBonusTakenVectors[0]);
+
+    /// SpellDamageTakenPercent, UnitSpellBonus.cpp:633-644 (Unit::SpellDamageBonusTaken) at 82e9c4f65.
+    struct SpellDamageTakenPercentVector
+    {
+        float takenTotalMod;
+        float mechanicDamageTakenMultiplier;
+        bool isAreaOfEffectSpell;
+        float aoeDamageAvoidanceMultiplier;
+        bool isPet;
+        float petAoeDamageAvoidanceMultiplier;
+        float expected;
+    };
+
+    static const SpellDamageTakenPercentVector kSpellDamageTakenPercentVectors[] =
+    {
+        { 1.0f, 1.0f, false, 1.0f, false, 1.0f, 1.0f },
+        { 1.0f, 1.0f, true, 0.8f, false, 1.0f, 0.8f },
+        { 1.0f, 1.0f, true, 0.8f, true, 0.6f, 0.48000002f },
+        { 1.0f, 1.0f, true, 1.0f, true, 1.0f, 1.0f },
+        { 1.0f, 0.75f, false, 1.0f, false, 1.0f, 0.75f },
+        { 1.0f, 0.75f, true, 0.8f, false, 1.0f, 0.6f },
+        { 1.0f, 0.75f, true, 0.8f, true, 0.6f, 0.36f },
+        { 1.0f, 0.75f, true, 1.0f, true, 1.0f, 0.75f },
+        { 1.0f, 1.3f, false, 1.0f, false, 1.0f, 1.3f },
+        { 1.0f, 1.3f, true, 0.8f, false, 1.0f, 1.04f },
+        { 1.0f, 1.3f, true, 0.8f, true, 0.6f, 0.624f },
+        { 1.0f, 1.3f, true, 1.0f, true, 1.0f, 1.3f },
+        { 0.5f, 1.0f, false, 1.0f, false, 1.0f, 0.5f },
+        { 0.5f, 1.0f, true, 0.8f, false, 1.0f, 0.4f },
+        { 0.5f, 1.0f, true, 0.8f, true, 0.6f, 0.24000001f },
+        { 0.5f, 1.0f, true, 1.0f, true, 1.0f, 0.5f },
+        { 0.5f, 0.75f, false, 1.0f, false, 1.0f, 0.375f },
+        { 0.5f, 0.75f, true, 0.8f, false, 1.0f, 0.3f },
+        { 0.5f, 0.75f, true, 0.8f, true, 0.6f, 0.18f },
+        { 0.5f, 0.75f, true, 1.0f, true, 1.0f, 0.375f },
+        { 0.5f, 1.3f, false, 1.0f, false, 1.0f, 0.65f },
+        { 0.5f, 1.3f, true, 0.8f, false, 1.0f, 0.52f },
+        { 0.5f, 1.3f, true, 0.8f, true, 0.6f, 0.312f },
+        { 0.5f, 1.3f, true, 1.0f, true, 1.0f, 0.65f },
+        { 1.25f, 1.0f, false, 1.0f, false, 1.0f, 1.25f },
+        { 1.25f, 1.0f, true, 0.8f, false, 1.0f, 1.0f },
+        { 1.25f, 1.0f, true, 0.8f, true, 0.6f, 0.6f },
+        { 1.25f, 1.0f, true, 1.0f, true, 1.0f, 1.25f },
+        { 1.25f, 0.75f, false, 1.0f, false, 1.0f, 0.9375f },
+        { 1.25f, 0.75f, true, 0.8f, false, 1.0f, 0.75f },
+        { 1.25f, 0.75f, true, 0.8f, true, 0.6f, 0.45000002f },
+        { 1.25f, 0.75f, true, 1.0f, true, 1.0f, 0.9375f },
+        { 1.25f, 1.3f, false, 1.0f, false, 1.0f, 1.625f },
+        { 1.25f, 1.3f, true, 0.8f, false, 1.0f, 1.3000001f },
+        { 1.25f, 1.3f, true, 0.8f, true, 0.6f, 0.7800001f },
+        { 1.25f, 1.3f, true, 1.0f, true, 1.0f, 1.625f },
+        { 2.0f, 1.0f, false, 1.0f, false, 1.0f, 2.0f },
+        { 2.0f, 1.0f, true, 0.8f, false, 1.0f, 1.6f },
+        { 2.0f, 1.0f, true, 0.8f, true, 0.6f, 0.96000004f },
+        { 2.0f, 1.0f, true, 1.0f, true, 1.0f, 2.0f },
+        { 2.0f, 0.75f, false, 1.0f, false, 1.0f, 1.5f },
+        { 2.0f, 0.75f, true, 0.8f, false, 1.0f, 1.2f },
+        { 2.0f, 0.75f, true, 0.8f, true, 0.6f, 0.72f },
+        { 2.0f, 0.75f, true, 1.0f, true, 1.0f, 1.5f },
+        { 2.0f, 1.3f, false, 1.0f, false, 1.0f, 2.6f },
+        { 2.0f, 1.3f, true, 0.8f, false, 1.0f, 2.08f },
+        { 2.0f, 1.3f, true, 0.8f, true, 0.6f, 1.248f },
+        { 2.0f, 1.3f, true, 1.0f, true, 1.0f, 2.6f },
+        { 0.9f, 1.0f, false, 1.0f, false, 1.0f, 0.9f },
+        { 0.9f, 1.0f, true, 0.8f, false, 1.0f, 0.71999997f },
+        { 0.9f, 1.0f, true, 0.8f, true, 0.6f, 0.432f },
+        { 0.9f, 1.0f, true, 1.0f, true, 1.0f, 0.9f },
+        { 0.9f, 0.75f, false, 1.0f, false, 1.0f, 0.67499995f },
+        { 0.9f, 0.75f, true, 0.8f, false, 1.0f, 0.53999996f },
+        { 0.9f, 0.75f, true, 0.8f, true, 0.6f, 0.324f },
+        { 0.9f, 0.75f, true, 1.0f, true, 1.0f, 0.67499995f },
+        { 0.9f, 1.3f, false, 1.0f, false, 1.0f, 1.17f },
+        { 0.9f, 1.3f, true, 0.8f, false, 1.0f, 0.936f },
+        { 0.9f, 1.3f, true, 0.8f, true, 0.6f, 0.5616f },
+        { 0.9f, 1.3f, true, 1.0f, true, 1.0f, 1.17f },
+    };
+    static const size_t kSpellDamageTakenPercentVectorCount = sizeof(kSpellDamageTakenPercentVectors) / sizeof(kSpellDamageTakenPercentVectors[0]);
+
+    /// SpellHealingTakenPercent, UnitSpellBonus.cpp:1245-1259 (Unit::SpellHealingBonusTaken) at 82e9c4f65.
+    struct SpellHealingTakenPercentVector
+    {
+        int32 healingPctNegative;
+        int32 healingPctPositive;
+        float expected;
+    };
+
+    static const SpellHealingTakenPercentVector kSpellHealingTakenPercentVectors[] =
+    {
+        { 0, 0, 1.0f },
+        { 0, 10, 1.1f },
+        { 0, 25, 1.25f },
+        { 0, 50, 1.5f },
+        { 0, 100, 2.0f },
+        { 0, 200, 3.0f },
+        { -10, 0, 0.9f },
+        { -10, 10, 0.99f },
+        { -10, 25, 1.125f },
+        { -10, 50, 1.3499999f },
+        { -10, 100, 1.8f },
+        { -10, 200, 2.6999998f },
+        { -25, 0, 0.75f },
+        { -25, 10, 0.82500005f },
+        { -25, 25, 0.9375f },
+        { -25, 50, 1.125f },
+        { -25, 100, 1.5f },
+        { -25, 200, 2.25f },
+        { -50, 0, 0.5f },
+        { -50, 10, 0.55f },
+        { -50, 25, 0.625f },
+        { -50, 50, 0.75f },
+        { -50, 100, 1.0f },
+        { -50, 200, 1.5f },
+        { -75, 0, 0.25f },
+        { -75, 10, 0.275f },
+        { -75, 25, 0.3125f },
+        { -75, 50, 0.375f },
+        { -75, 100, 0.5f },
+        { -75, 200, 0.75f },
+        { -100, 0, 0.0f },
+        { -100, 10, 0.0f },
+        { -100, 25, 0.0f },
+        { -100, 50, 0.0f },
+        { -100, 100, 0.0f },
+        { -100, 200, 0.0f },
+        { -150, 0, -0.5f },
+        { -150, 10, -0.55f },
+        { -150, 25, -0.625f },
+        { -150, 50, -0.75f },
+        { -150, 100, -1.0f },
+        { -150, 200, -1.5f },
+    };
+    static const size_t kSpellHealingTakenPercentVectorCount = sizeof(kSpellHealingTakenPercentVectors) / sizeof(kSpellHealingTakenPercentVectors[0]);
+
+    /// MeleeDamageTaken, UnitSpellBonus.cpp:1877-1922 (Unit::MeleeDamageBonusTaken) at 82e9c4f65.
+    struct MeleeDamageTakenVector
+    {
+        uint32 attType;
+        int32 rangedDamageTakenMod;
+        int32 meleeDamageTakenMod;
+        int32 damageTakenSchoolMod;
+        float damagePercentTakenMultiplier;
+        float mechanicDamageTakenMultiplier;
+        float rangedDamageTakenPct;
+        float meleeDamageTakenPct;
+        bool isAreaOfEffectSpell;
+        float aoeDamageAvoidanceMultiplier;
+        bool isPet;
+        float petAoeDamageAvoidanceMultiplier;
+        int32 expectedTakenFlat;
+        float expectedTakenPercent;
+    };
+
+    static const MeleeDamageTakenVector kMeleeDamageTakenVectors[] =
+    {
+        { 0, 0, 0, 0, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 0, 1.0f },
+        { 0, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 0, 1.0560001f },
+        { 0, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 0, 0.79200006f },
+        { 0, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 0, 0.39600003f },
+        { 0, 25, -40, 10, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, -30, 1.0f },
+        { 0, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, -30, 1.0560001f },
+        { 0, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, -30, 0.79200006f },
+        { 0, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, -30, 0.39600003f },
+        { 0, -15, 30, -5, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 25, 1.0f },
+        { 0, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 25, 1.0560001f },
+        { 0, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 25, 0.79200006f },
+        { 0, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 25, 0.39600003f },
+        { 1, 0, 0, 0, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 0, 1.0f },
+        { 1, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 0, 1.0560001f },
+        { 1, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 0, 0.79200006f },
+        { 1, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 0, 0.39600003f },
+        { 1, 25, -40, 10, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, -30, 1.0f },
+        { 1, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, -30, 1.0560001f },
+        { 1, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, -30, 0.79200006f },
+        { 1, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, -30, 0.39600003f },
+        { 1, -15, 30, -5, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 25, 1.0f },
+        { 1, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 25, 1.0560001f },
+        { 1, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 25, 0.79200006f },
+        { 1, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 25, 0.39600003f },
+        { 2, 0, 0, 0, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 0, 1.0f },
+        { 2, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 0, 0.864f },
+        { 2, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 0, 0.648f },
+        { 2, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 0, 0.324f },
+        { 2, 25, -40, 10, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 35, 1.0f },
+        { 2, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 35, 0.864f },
+        { 2, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 35, 0.648f },
+        { 2, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 35, 0.324f },
+        { 2, -15, 30, -5, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, -20, 1.0f },
+        { 2, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, -20, 0.864f },
+        { 2, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, -20, 0.648f },
+        { 2, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, -20, 0.324f },
+        { 3, 0, 0, 0, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 0, 1.0f },
+        { 3, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 0, 1.0560001f },
+        { 3, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 0, 0.79200006f },
+        { 3, 0, 0, 0, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 0, 0.39600003f },
+        { 3, 25, -40, 10, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, -30, 1.0f },
+        { 3, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, -30, 1.0560001f },
+        { 3, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, -30, 0.79200006f },
+        { 3, 25, -40, 10, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, -30, 0.39600003f },
+        { 3, -15, 30, -5, 1.0f, 1.0f, 1.0f, 1.0f, false, 1.0f, false, 1.0f, 25, 1.0f },
+        { 3, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, false, 1.0f, false, 1.0f, 25, 1.0560001f },
+        { 3, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, false, 1.0f, 25, 0.79200006f },
+        { 3, -15, 30, -5, 0.8f, 1.2f, 0.9f, 1.1f, true, 0.75f, true, 0.5f, 25, 0.39600003f },
+    };
+    static const size_t kMeleeDamageTakenVectorCount = sizeof(kMeleeDamageTakenVectors) / sizeof(kMeleeDamageTakenVectors[0]);
+
+    /// MeleeDamageDoneBase, UnitSpellBonus.cpp:1577-1594 (Unit::MeleeDamageBonusDone) at 82e9c4f65.
+    struct MeleeDamageDoneBaseVector
+    {
+        int32 doneFlat;
+        int32 apBonus;
+        uint32 attType;
+        int32 damageDoneCreatureMod;
+        int32 victimRangedApAttackerBonus;
+        int32 rangedApVersusMod;
+        int32 victimMeleeApAttackerBonus;
+        int32 meleeApVersusMod;
+        int32 expectedDoneFlat;
+        int32 expectedApBonus;
+        float expectedDonePercent;
+    };
+
+    static const MeleeDamageDoneBaseVector kMeleeDamageDoneBaseVectors[] =
+    {
+        { 0, 0, 0, 0, 120, 60, 90, 45, 0, 135, 1.0f },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0f },
+        { 0, 0, 0, 35, 120, 60, 90, 45, 35, 135, 1.0f },
+        { 0, 0, 0, 35, 0, 0, 0, 0, 35, 0, 1.0f },
+        { 0, 0, 0, -35, 120, 60, 90, 45, -35, 135, 1.0f },
+        { 0, 0, 0, -35, 0, 0, 0, 0, -35, 0, 1.0f },
+        { 150, 40, 0, 0, 120, 60, 90, 45, 150, 175, 1.0f },
+        { 150, 40, 0, 0, 0, 0, 0, 0, 150, 40, 1.0f },
+        { 150, 40, 0, 35, 120, 60, 90, 45, 185, 175, 1.0f },
+        { 150, 40, 0, 35, 0, 0, 0, 0, 185, 40, 1.0f },
+        { 150, 40, 0, -35, 120, 60, 90, 45, 115, 175, 1.0f },
+        { 150, 40, 0, -35, 0, 0, 0, 0, 115, 40, 1.0f },
+        { -60, -25, 0, 0, 120, 60, 90, 45, -60, 110, 1.0f },
+        { -60, -25, 0, 0, 0, 0, 0, 0, -60, -25, 1.0f },
+        { -60, -25, 0, 35, 120, 60, 90, 45, -25, 110, 1.0f },
+        { -60, -25, 0, 35, 0, 0, 0, 0, -25, -25, 1.0f },
+        { -60, -25, 0, -35, 120, 60, 90, 45, -95, 110, 1.0f },
+        { -60, -25, 0, -35, 0, 0, 0, 0, -95, -25, 1.0f },
+        { 2000000000, 0, 0, 0, 120, 60, 90, 45, 2000000000, 135, 1.0f },
+        { 2000000000, 0, 0, 0, 0, 0, 0, 0, 2000000000, 0, 1.0f },
+        { 2000000000, 0, 0, 35, 120, 60, 90, 45, 2000000035, 135, 1.0f },
+        { 2000000000, 0, 0, 35, 0, 0, 0, 0, 2000000035, 0, 1.0f },
+        { 2000000000, 0, 0, -35, 120, 60, 90, 45, 1999999965, 135, 1.0f },
+        { 2000000000, 0, 0, -35, 0, 0, 0, 0, 1999999965, 0, 1.0f },
+        { 0, 0, 1, 0, 120, 60, 90, 45, 0, 135, 1.0f },
+        { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1.0f },
+        { 0, 0, 1, 35, 120, 60, 90, 45, 35, 135, 1.0f },
+        { 0, 0, 1, 35, 0, 0, 0, 0, 35, 0, 1.0f },
+        { 0, 0, 1, -35, 120, 60, 90, 45, -35, 135, 1.0f },
+        { 0, 0, 1, -35, 0, 0, 0, 0, -35, 0, 1.0f },
+        { 150, 40, 1, 0, 120, 60, 90, 45, 150, 175, 1.0f },
+        { 150, 40, 1, 0, 0, 0, 0, 0, 150, 40, 1.0f },
+        { 150, 40, 1, 35, 120, 60, 90, 45, 185, 175, 1.0f },
+        { 150, 40, 1, 35, 0, 0, 0, 0, 185, 40, 1.0f },
+        { 150, 40, 1, -35, 120, 60, 90, 45, 115, 175, 1.0f },
+        { 150, 40, 1, -35, 0, 0, 0, 0, 115, 40, 1.0f },
+        { -60, -25, 1, 0, 120, 60, 90, 45, -60, 110, 1.0f },
+        { -60, -25, 1, 0, 0, 0, 0, 0, -60, -25, 1.0f },
+        { -60, -25, 1, 35, 120, 60, 90, 45, -25, 110, 1.0f },
+        { -60, -25, 1, 35, 0, 0, 0, 0, -25, -25, 1.0f },
+        { -60, -25, 1, -35, 120, 60, 90, 45, -95, 110, 1.0f },
+        { -60, -25, 1, -35, 0, 0, 0, 0, -95, -25, 1.0f },
+        { 2000000000, 0, 1, 0, 120, 60, 90, 45, 2000000000, 135, 1.0f },
+        { 2000000000, 0, 1, 0, 0, 0, 0, 0, 2000000000, 0, 1.0f },
+        { 2000000000, 0, 1, 35, 120, 60, 90, 45, 2000000035, 135, 1.0f },
+        { 2000000000, 0, 1, 35, 0, 0, 0, 0, 2000000035, 0, 1.0f },
+        { 2000000000, 0, 1, -35, 120, 60, 90, 45, 1999999965, 135, 1.0f },
+        { 2000000000, 0, 1, -35, 0, 0, 0, 0, 1999999965, 0, 1.0f },
+        { 0, 0, 2, 0, 120, 60, 90, 45, 0, 180, 1.0f },
+        { 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1.0f },
+        { 0, 0, 2, 35, 120, 60, 90, 45, 35, 180, 1.0f },
+        { 0, 0, 2, 35, 0, 0, 0, 0, 35, 0, 1.0f },
+        { 0, 0, 2, -35, 120, 60, 90, 45, -35, 180, 1.0f },
+        { 0, 0, 2, -35, 0, 0, 0, 0, -35, 0, 1.0f },
+        { 150, 40, 2, 0, 120, 60, 90, 45, 150, 220, 1.0f },
+        { 150, 40, 2, 0, 0, 0, 0, 0, 150, 40, 1.0f },
+        { 150, 40, 2, 35, 120, 60, 90, 45, 185, 220, 1.0f },
+        { 150, 40, 2, 35, 0, 0, 0, 0, 185, 40, 1.0f },
+        { 150, 40, 2, -35, 120, 60, 90, 45, 115, 220, 1.0f },
+        { 150, 40, 2, -35, 0, 0, 0, 0, 115, 40, 1.0f },
+        { -60, -25, 2, 0, 120, 60, 90, 45, -60, 155, 1.0f },
+        { -60, -25, 2, 0, 0, 0, 0, 0, -60, -25, 1.0f },
+        { -60, -25, 2, 35, 120, 60, 90, 45, -25, 155, 1.0f },
+        { -60, -25, 2, 35, 0, 0, 0, 0, -25, -25, 1.0f },
+        { -60, -25, 2, -35, 120, 60, 90, 45, -95, 155, 1.0f },
+        { -60, -25, 2, -35, 0, 0, 0, 0, -95, -25, 1.0f },
+        { 2000000000, 0, 2, 0, 120, 60, 90, 45, 2000000000, 180, 1.0f },
+        { 2000000000, 0, 2, 0, 0, 0, 0, 0, 2000000000, 0, 1.0f },
+        { 2000000000, 0, 2, 35, 120, 60, 90, 45, 2000000035, 180, 1.0f },
+        { 2000000000, 0, 2, 35, 0, 0, 0, 0, 2000000035, 0, 1.0f },
+        { 2000000000, 0, 2, -35, 120, 60, 90, 45, 1999999965, 180, 1.0f },
+        { 2000000000, 0, 2, -35, 0, 0, 0, 0, 1999999965, 0, 1.0f },
+        { 0, 0, 3, 0, 120, 60, 90, 45, 0, 135, 1.0f },
+        { 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1.0f },
+        { 0, 0, 3, 35, 120, 60, 90, 45, 35, 135, 1.0f },
+        { 0, 0, 3, 35, 0, 0, 0, 0, 35, 0, 1.0f },
+        { 0, 0, 3, -35, 120, 60, 90, 45, -35, 135, 1.0f },
+        { 0, 0, 3, -35, 0, 0, 0, 0, -35, 0, 1.0f },
+        { 150, 40, 3, 0, 120, 60, 90, 45, 150, 175, 1.0f },
+        { 150, 40, 3, 0, 0, 0, 0, 0, 150, 40, 1.0f },
+        { 150, 40, 3, 35, 120, 60, 90, 45, 185, 175, 1.0f },
+        { 150, 40, 3, 35, 0, 0, 0, 0, 185, 40, 1.0f },
+        { 150, 40, 3, -35, 120, 60, 90, 45, 115, 175, 1.0f },
+        { 150, 40, 3, -35, 0, 0, 0, 0, 115, 40, 1.0f },
+        { -60, -25, 3, 0, 120, 60, 90, 45, -60, 110, 1.0f },
+        { -60, -25, 3, 0, 0, 0, 0, 0, -60, -25, 1.0f },
+        { -60, -25, 3, 35, 120, 60, 90, 45, -25, 110, 1.0f },
+        { -60, -25, 3, 35, 0, 0, 0, 0, -25, -25, 1.0f },
+        { -60, -25, 3, -35, 120, 60, 90, 45, -95, 110, 1.0f },
+        { -60, -25, 3, -35, 0, 0, 0, 0, -95, -25, 1.0f },
+        { 2000000000, 0, 3, 0, 120, 60, 90, 45, 2000000000, 135, 1.0f },
+        { 2000000000, 0, 3, 0, 0, 0, 0, 0, 2000000000, 0, 1.0f },
+        { 2000000000, 0, 3, 35, 120, 60, 90, 45, 2000000035, 135, 1.0f },
+        { 2000000000, 0, 3, 35, 0, 0, 0, 0, 2000000035, 0, 1.0f },
+        { 2000000000, 0, 3, -35, 120, 60, 90, 45, 1999999965, 135, 1.0f },
+        { 2000000000, 0, 3, -35, 0, 0, 0, 0, 1999999965, 0, 1.0f },
+    };
+    static const size_t kMeleeDamageDoneBaseVectorCount = sizeof(kMeleeDamageDoneBaseVectors) / sizeof(kMeleeDamageDoneBaseVectors[0]);
+
+    /// MeleeDamageDoneWeaponBased, UnitSpellBonus.cpp:1814-1831 (Unit::MeleeDamageBonusDone) at 82e9c4f65.
+    struct MeleeDamageDoneWeaponBasedVector
+    {
+        float doneTotal;
+        int32 apBonus;
+        int32 doneFlat;
+        float apMultiplier;
+        float damageTotalPct;
+        float expected;
+    };
+
+    static const MeleeDamageDoneWeaponBasedVector kMeleeDamageDoneWeaponBasedVectors[] =
+    {
+        { 0.0f, 0, 250, 1.0f, 1.0f, 250.0f },   // exact
+        { 0.0f, 0, 250, 1.7f, 1.0f, 250.0f },   // exact
+        { 0.0f, 0, 250, 2.4f, 1.0f, 250.0f },   // exact
+        { 0.0f, 0, 250, 2.8f, 1.0f, 250.0f },   // exact
+        { 0.0f, 0, 250, 3.3f, 1.0f, 250.0f },   // exact
+        { 0.0f, 7, 250, 1.0f, 1.0f, 250.0f },
+        { 0.0f, 7, 250, 1.7f, 1.0f, 250.0f },
+        { 0.0f, 7, 250, 2.4f, 1.0f, 251.0f },
+        { 0.0f, 7, 250, 2.8f, 1.0f, 251.0f },
+        { 0.0f, 7, 250, 3.3f, 1.0f, 251.0f },
+        { 0.0f, 100, 250, 1.0f, 1.0f, 257.0f },
+        { 0.0f, 100, 250, 1.7f, 1.0f, 262.0f },
+        { 0.0f, 100, 250, 2.4f, 1.0f, 267.0f },
+        { 0.0f, 100, 250, 2.8f, 1.0f, 270.0f },   // exact
+        { 0.0f, 100, 250, 3.3f, 1.0f, 273.0f },
+        { 0.0f, 333, 250, 1.0f, 1.0f, 273.0f },
+        { 0.0f, 333, 250, 1.7f, 1.0f, 290.0f },
+        { 0.0f, 333, 250, 2.4f, 1.0f, 307.0f },
+        { 0.0f, 333, 250, 2.8f, 1.0f, 316.0f },
+        { 0.0f, 333, 250, 3.3f, 1.0f, 328.0f },
+        { 0.0f, 1000, 250, 1.0f, 1.0f, 321.0f },
+        { 0.0f, 1000, 250, 1.7f, 1.0f, 371.0f },
+        { 0.0f, 1000, 250, 2.4f, 1.0f, 421.0f },
+        { 0.0f, 1000, 250, 2.8f, 1.0f, 450.0f },   // exact
+        { 0.0f, 1000, 250, 3.3f, 1.0f, 485.0f },
+        { 0.0f, 2500, 250, 1.0f, 1.0f, 428.0f },
+        { 0.0f, 2500, 250, 1.7f, 1.0f, 553.0f },
+        { 0.0f, 2500, 250, 2.4f, 1.0f, 678.0f },
+        { 0.0f, 2500, 250, 2.8f, 1.0f, 750.0f },   // exact
+        { 0.0f, 2500, 250, 3.3f, 1.0f, 839.0f },
+        { 0.0f, -133, 250, 1.0f, 1.0f, 241.0f },
+        { 0.0f, -133, 250, 1.7f, 1.0f, 234.0f },
+        { 0.0f, -133, 250, 2.4f, 1.0f, 228.0f },
+        { 0.0f, -133, 250, 2.8f, 1.0f, 224.0f },
+        { 0.0f, -133, 250, 3.3f, 1.0f, 219.0f },
+        { 0.0f, -333, 250, 1.0f, 1.0f, 227.0f },
+        { 0.0f, -333, 250, 1.7f, 1.0f, 210.0f },
+        { 0.0f, -333, 250, 2.4f, 1.0f, 193.0f },
+        { 0.0f, -333, 250, 2.8f, 1.0f, 184.0f },
+        { 0.0f, -333, 250, 3.3f, 1.0f, 172.0f },
+        { 0.0f, 333, 0, 2.4f, 1.0f, 57.0f },
+        { 0.0f, 333, 0, 2.4f, 1.15f, 65.549995f },
+        { 0.0f, 333, 0, 2.4f, 0.85f, 48.45f },
+        { 0.0f, 333, 250, 2.4f, 1.15f, 353.05f },
+        { 0.0f, 333, 250, 2.4f, 0.85f, 260.95f },
+        { 0.0f, 333, -80, 2.4f, 1.0f, -23.0f },
+        { 0.0f, 333, -80, 2.4f, 1.15f, -26.449999f },
+        { 0.0f, 333, -80, 2.4f, 0.85f, -19.550001f },
+        { 12.5f, 333, 0, 2.4f, 1.0f, 69.5f },
+        { 12.5f, 333, 0, 2.4f, 1.15f, 79.924995f },
+        { 12.5f, 333, 0, 2.4f, 0.85f, 59.075f },
+        { 12.5f, 333, 250, 2.4f, 1.0f, 319.5f },
+        { 12.5f, 333, 250, 2.4f, 1.15f, 367.425f },
+        { 12.5f, 333, 250, 2.4f, 0.85f, 271.575f },
+        { 12.5f, 333, -80, 2.4f, 1.0f, -10.5f },
+        { 12.5f, 333, -80, 2.4f, 1.15f, -12.075f },
+        { 12.5f, 333, -80, 2.4f, 0.85f, -8.925f },
+        { -30.0f, 333, 0, 2.4f, 1.0f, 27.0f },
+        { -30.0f, 333, 0, 2.4f, 1.15f, 31.05f },
+        { -30.0f, 333, 0, 2.4f, 0.85f, 22.95f },
+        { -30.0f, 333, 250, 2.4f, 1.0f, 277.0f },
+        { -30.0f, 333, 250, 2.4f, 1.15f, 318.55f },
+        { -30.0f, 333, 250, 2.4f, 0.85f, 235.45001f },
+        { -30.0f, 333, -80, 2.4f, 1.0f, -53.0f },
+        { -30.0f, 333, -80, 2.4f, 1.15f, -60.949997f },
+        { -30.0f, 333, -80, 2.4f, 0.85f, -45.050003f },
+        { 0.0f, 140, 0, 1.0f, 1.0f, 10.0f },   // exact
+        { 0.0f, 1400, 0, 1.0f, 1.0f, 100.0f },   // exact
+    };
+    static const size_t kMeleeDamageDoneWeaponBasedVectorCount = sizeof(kMeleeDamageDoneWeaponBasedVectors) / sizeof(kMeleeDamageDoneWeaponBasedVectors[0]);
+
+    /// SpellLegacyScalingPoints, Unit.cpp:4721-4736 (Unit::CalculateSpellDamage) at 82e9c4f65.
+    struct SpellLegacyScalingPointsVector
+    {
+        uint32 level;
+        uint32 spellLevel;
+        uint32 maxLevel;
+        uint32 baseLevel;
+        float basePointsPerLevel;
+        bool hasEffBasePoints;
+        int32 effBasePoints;
+        int32 effectBasePoints;
+        int32 effectDieSides;
+        float effectPointsPerResource;
+        uint32 expectedLevel;
+        int32 expectedBasePoints;
+        int32 expectedRandomPoints;
+        float expectedComboDamage;
+    };
+
+    static const SpellLegacyScalingPointsVector kSpellLegacyScalingPointsVectors[] =
+    {
+        { 1, 0, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 1, 121, 7, 0.0f },   // exact
+        { 1, 0, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 1, 52, 7, 1.5f },
+        { 1, 1, 60, 1, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 1, 1, 60, 1, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 1, 20, 0, 70, 1.0f, false, 0, 120, 7, 0.0f, 50, 170, 7, 0.0f },   // exact
+        { 1, 20, 0, 70, 2.5f, true, 51, 120, 7, 1.5f, 50, 175, 7, 1.5f },   // exact
+        { 1, 40, 80, 60, 1.0f, false, 0, 120, 7, 0.0f, 20, 140, 7, 0.0f },   // exact
+        { 1, 40, 80, 60, 2.5f, true, 51, 120, 7, 1.5f, 20, 100, 7, 1.5f },   // exact
+        { 1, 60, 60, 60, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 1, 60, 60, 60, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 1, 85, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 1, 85, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 59, 0, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 59, 179, 7, 0.0f },   // exact
+        { 59, 0, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 59, 197, 7, 1.5f },
+        { 59, 1, 60, 1, 1.0f, false, 0, 120, 7, 0.0f, 58, 178, 7, 0.0f },   // exact
+        { 59, 1, 60, 1, 2.5f, true, 51, 120, 7, 1.5f, 58, 195, 7, 1.5f },   // exact
+        { 59, 20, 0, 70, 1.0f, false, 0, 120, 7, 0.0f, 50, 170, 7, 0.0f },   // exact
+        { 59, 20, 0, 70, 2.5f, true, 51, 120, 7, 1.5f, 50, 175, 7, 1.5f },   // exact
+        { 59, 40, 80, 60, 1.0f, false, 0, 120, 7, 0.0f, 20, 140, 7, 0.0f },   // exact
+        { 59, 40, 80, 60, 2.5f, true, 51, 120, 7, 1.5f, 20, 100, 7, 1.5f },   // exact
+        { 59, 60, 60, 60, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 59, 60, 60, 60, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 59, 85, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 59, 85, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 60, 0, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 60, 180, 7, 0.0f },   // exact
+        { 60, 0, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 60, 200, 7, 1.5f },   // exact
+        { 60, 1, 60, 1, 1.0f, false, 0, 120, 7, 0.0f, 59, 179, 7, 0.0f },   // exact
+        { 60, 1, 60, 1, 2.5f, true, 51, 120, 7, 1.5f, 59, 197, 7, 1.5f },
+        { 60, 20, 0, 70, 1.0f, false, 0, 120, 7, 0.0f, 50, 170, 7, 0.0f },   // exact
+        { 60, 20, 0, 70, 2.5f, true, 51, 120, 7, 1.5f, 50, 175, 7, 1.5f },   // exact
+        { 60, 40, 80, 60, 1.0f, false, 0, 120, 7, 0.0f, 20, 140, 7, 0.0f },   // exact
+        { 60, 40, 80, 60, 2.5f, true, 51, 120, 7, 1.5f, 20, 100, 7, 1.5f },   // exact
+        { 60, 60, 60, 60, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 60, 60, 60, 60, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 60, 85, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 60, 85, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 61, 0, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 61, 181, 7, 0.0f },   // exact
+        { 61, 0, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 61, 202, 7, 1.5f },
+        { 61, 1, 60, 1, 1.0f, false, 0, 120, 7, 0.0f, 59, 179, 7, 0.0f },   // exact
+        { 61, 1, 60, 1, 2.5f, true, 51, 120, 7, 1.5f, 59, 197, 7, 1.5f },
+        { 61, 20, 0, 70, 1.0f, false, 0, 120, 7, 0.0f, 50, 170, 7, 0.0f },   // exact
+        { 61, 20, 0, 70, 2.5f, true, 51, 120, 7, 1.5f, 50, 175, 7, 1.5f },   // exact
+        { 61, 40, 80, 60, 1.0f, false, 0, 120, 7, 0.0f, 21, 141, 7, 0.0f },   // exact
+        { 61, 40, 80, 60, 2.5f, true, 51, 120, 7, 1.5f, 21, 102, 7, 1.5f },
+        { 61, 60, 60, 60, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 61, 60, 60, 60, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 61, 85, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 61, 85, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 85, 0, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 85, 205, 7, 0.0f },   // exact
+        { 85, 0, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 85, 262, 7, 1.5f },
+        { 85, 1, 60, 1, 1.0f, false, 0, 120, 7, 0.0f, 59, 179, 7, 0.0f },   // exact
+        { 85, 1, 60, 1, 2.5f, true, 51, 120, 7, 1.5f, 59, 197, 7, 1.5f },
+        { 85, 20, 0, 70, 1.0f, false, 0, 120, 7, 0.0f, 65, 185, 7, 0.0f },   // exact
+        { 85, 20, 0, 70, 2.5f, true, 51, 120, 7, 1.5f, 65, 212, 7, 1.5f },
+        { 85, 40, 80, 60, 1.0f, false, 0, 120, 7, 0.0f, 40, 160, 7, 0.0f },   // exact
+        { 85, 40, 80, 60, 2.5f, true, 51, 120, 7, 1.5f, 40, 150, 7, 1.5f },   // exact
+        { 85, 60, 60, 60, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 85, 60, 60, 60, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 85, 85, 0, 0, 1.0f, false, 0, 120, 7, 0.0f, 0, 120, 7, 0.0f },   // exact
+        { 85, 85, 0, 0, 2.5f, true, 51, 120, 7, 1.5f, 0, 50, 7, 1.5f },   // exact
+        { 1, 20, 0, 0, 0.0f, false, 0, -300, -5, 0.0f, 0, -300, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, 0.0f, true, 1, -300, -5, 0.0f, 0, 0, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 0.0f, false, 0, -300, -5, 0.0f, 40, -300, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 0.0f, true, 1, -300, -5, 0.0f, 40, 0, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, 0.0f, false, 0, -300, -5, 0.0f, 41, -300, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, 0.0f, true, 1, -300, -5, 0.0f, 41, 0, -5, 0.0f },   // exact
+        { 85, 20, 0, 0, 0.0f, false, 0, -300, -5, 0.0f, 65, -300, -5, 0.0f },   // exact
+        { 85, 20, 0, 0, 0.0f, true, 1, -300, -5, 0.0f, 65, 0, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, 0.5f, false, 0, -300, -5, 0.0f, 0, -300, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, 0.5f, true, 1, -300, -5, 0.0f, 0, 0, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 0.5f, false, 0, -300, -5, 0.0f, 40, -280, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 0.5f, true, 1, -300, -5, 0.0f, 40, 20, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, 0.5f, false, 0, -300, -5, 0.0f, 41, -280, -5, 0.0f },
+        { 61, 20, 0, 0, 0.5f, true, 1, -300, -5, 0.0f, 41, 20, -5, 0.0f },
+        { 85, 20, 0, 0, 0.5f, false, 0, -300, -5, 0.0f, 65, -268, -5, 0.0f },
+        { 85, 20, 0, 0, 0.5f, true, 1, -300, -5, 0.0f, 65, 32, -5, 0.0f },
+        { 1, 20, 0, 0, 1.0f, false, 0, -300, -5, 0.0f, 0, -300, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, 1.0f, true, 1, -300, -5, 0.0f, 0, 0, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 1.0f, false, 0, -300, -5, 0.0f, 40, -260, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 1.0f, true, 1, -300, -5, 0.0f, 40, 40, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, 1.0f, false, 0, -300, -5, 0.0f, 41, -259, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, 1.0f, true, 1, -300, -5, 0.0f, 41, 41, -5, 0.0f },   // exact
+        { 85, 20, 0, 0, 1.0f, false, 0, -300, -5, 0.0f, 65, -235, -5, 0.0f },   // exact
+        { 85, 20, 0, 0, 1.0f, true, 1, -300, -5, 0.0f, 65, 65, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, 2.5f, false, 0, -300, -5, 0.0f, 0, -300, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, 2.5f, true, 1, -300, -5, 0.0f, 0, 0, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 2.5f, false, 0, -300, -5, 0.0f, 40, -200, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, 2.5f, true, 1, -300, -5, 0.0f, 40, 100, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, 2.5f, false, 0, -300, -5, 0.0f, 41, -198, -5, 0.0f },
+        { 61, 20, 0, 0, 2.5f, true, 1, -300, -5, 0.0f, 41, 102, -5, 0.0f },
+        { 85, 20, 0, 0, 2.5f, false, 0, -300, -5, 0.0f, 65, -138, -5, 0.0f },
+        { 85, 20, 0, 0, 2.5f, true, 1, -300, -5, 0.0f, 65, 162, -5, 0.0f },
+        { 1, 20, 0, 0, -1.5f, false, 0, -300, -5, 0.0f, 0, -300, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, -1.5f, true, 1, -300, -5, 0.0f, 0, 0, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, -1.5f, false, 0, -300, -5, 0.0f, 40, -360, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, -1.5f, true, 1, -300, -5, 0.0f, 40, -60, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, -1.5f, false, 0, -300, -5, 0.0f, 41, -361, -5, 0.0f },
+        { 61, 20, 0, 0, -1.5f, true, 1, -300, -5, 0.0f, 41, -61, -5, 0.0f },
+        { 85, 20, 0, 0, -1.5f, false, 0, -300, -5, 0.0f, 65, -397, -5, 0.0f },
+        { 85, 20, 0, 0, -1.5f, true, 1, -300, -5, 0.0f, 65, -97, -5, 0.0f },
+        { 1, 20, 0, 0, -0.5f, false, 0, -300, -5, 0.0f, 0, -300, -5, 0.0f },   // exact
+        { 1, 20, 0, 0, -0.5f, true, 1, -300, -5, 0.0f, 0, 0, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, -0.5f, false, 0, -300, -5, 0.0f, 40, -320, -5, 0.0f },   // exact
+        { 60, 20, 0, 0, -0.5f, true, 1, -300, -5, 0.0f, 40, -20, -5, 0.0f },   // exact
+        { 61, 20, 0, 0, -0.5f, false, 0, -300, -5, 0.0f, 41, -320, -5, 0.0f },
+        { 61, 20, 0, 0, -0.5f, true, 1, -300, -5, 0.0f, 41, -20, -5, 0.0f },
+        { 85, 20, 0, 0, -0.5f, false, 0, -300, -5, 0.0f, 65, -332, -5, 0.0f },
+        { 85, 20, 0, 0, -0.5f, true, 1, -300, -5, 0.0f, 65, -32, -5, 0.0f },
+        { 70, 1, 0, 1, 1.0f, true, -100, 999, 3, 2.0f, 69, -32, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, false, -100, 999, 3, 2.0f, 69, 1068, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, true, 0, 999, 3, 2.0f, 69, 68, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, false, 0, 999, 3, 2.0f, 69, 1068, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, true, 1, 999, 3, 2.0f, 69, 69, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, false, 1, 999, 3, 2.0f, 69, 1068, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, true, 51, 999, 3, 2.0f, 69, 119, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, false, 51, 999, 3, 2.0f, 69, 1068, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, true, 1000, 999, 3, 2.0f, 69, 1068, 3, 2.0f },   // exact
+        { 70, 1, 0, 1, 1.0f, false, 1000, 999, 3, 2.0f, 69, 1068, 3, 2.0f },   // exact
+        { 60, 1, 0, 1, 1.0f, false, 0, 42, 0, 1.0f, 59, 101, 0, 1.0f },   // exact
+        { 60, 1, 0, 1, 1.0f, false, 0, 42, 1, 1.0f, 59, 101, 1, 1.0f },   // exact
+        { 60, 1, 0, 1, 1.0f, false, 0, 42, 2, 1.0f, 59, 101, 2, 1.0f },   // exact
+        { 60, 1, 0, 1, 1.0f, false, 0, 42, 10, 1.0f, 59, 101, 10, 1.0f },   // exact
+        { 60, 1, 0, 1, 1.0f, false, 0, 42, -3, 1.0f, 59, 101, -3, 1.0f },   // exact
+        { 10, 0, 0, 0, 3.7f, false, 0, 0, 1, 0.0f, 10, 37, 1, 0.0f },   // exact
+        { 11, 0, 0, 0, 3.7f, false, 0, 0, 1, 0.0f, 11, 40, 1, 0.0f },
+        { 60, 0, 0, 0, 3.7f, false, 0, 0, 1, 0.0f, 60, 222, 1, 0.0f },   // exact
+        { 61, 0, 0, 0, 3.7f, false, 0, 0, 1, 0.0f, 61, 225, 1, 0.0f },
+    };
+    static const size_t kSpellLegacyScalingPointsVectorCount = sizeof(kSpellLegacyScalingPointsVectors) / sizeof(kSpellLegacyScalingPointsVectors[0]);
+
+    /// MagicSpellBaseHitChance, UnitCombat.cpp:828-841 (Unit::MagicSpellHitResult) at 82e9c4f65.
+    struct MagicSpellBaseHitChanceVector
+    {
+        bool victimIsPlayer;
+        uint32 victimLevel;
+        uint32 attackerLevel;
+        int32 expected;
+    };
+
+    static const MagicSpellBaseHitChanceVector kMagicSpellBaseHitChanceVectors[] =
+    {
+        { true, 1, 1, 96 },
+        { true, 1, 58, 153 },
+        { true, 1, 59, 154 },
+        { true, 1, 60, 155 },
+        { true, 1, 80, 175 },
+        { true, 1, 85, 180 },
+        { true, 10, 1, 45 },
+        { true, 10, 58, 144 },
+        { true, 10, 59, 145 },
+        { true, 10, 60, 146 },
+        { true, 10, 80, 166 },
+        { true, 10, 85, 171 },
+        { true, 40, 1, -165 },
+        { true, 40, 58, 114 },
+        { true, 40, 59, 115 },
+        { true, 40, 60, 116 },
+        { true, 40, 80, 136 },
+        { true, 40, 85, 141 },
+        { true, 60, 1, -305 },
+        { true, 60, 58, 94 },
+        { true, 60, 59, 95 },
+        { true, 60, 60, 96 },
+        { true, 60, 80, 116 },
+        { true, 60, 85, 121 },
+        { true, 70, 1, -375 },
+        { true, 70, 58, 24 },
+        { true, 70, 59, 31 },
+        { true, 70, 60, 38 },
+        { true, 70, 80, 106 },
+        { true, 70, 85, 111 },
+        { true, 80, 1, -445 },
+        { true, 80, 58, -46 },
+        { true, 80, 59, -39 },
+        { true, 80, 60, -32 },
+        { true, 80, 80, 96 },
+        { true, 80, 85, 101 },
+        { true, 83, 1, -466 },
+        { true, 83, 58, -67 },
+        { true, 83, 59, -60 },
+        { true, 83, 60, -53 },
+        { true, 83, 80, 87 },
+        { true, 83, 85, 98 },
+        { true, 85, 1, -480 },
+        { true, 85, 58, -81 },
+        { true, 85, 59, -74 },
+        { true, 85, 60, -67 },
+        { true, 85, 80, 73 },
+        { true, 85, 85, 96 },
+        { true, 88, 1, -501 },
+        { true, 88, 58, -102 },
+        { true, 88, 59, -95 },
+        { true, 88, 60, -88 },
+        { true, 88, 80, 52 },
+        { true, 88, 85, 87 },
+        { false, 1, 1, 96 },
+        { false, 1, 58, 153 },
+        { false, 1, 59, 154 },
+        { false, 1, 60, 155 },
+        { false, 1, 80, 175 },
+        { false, 1, 85, 180 },
+        { false, 10, 1, 17 },
+        { false, 10, 58, 144 },
+        { false, 10, 59, 145 },
+        { false, 10, 60, 146 },
+        { false, 10, 80, 166 },
+        { false, 10, 85, 171 },
+        { false, 40, 1, -313 },
+        { false, 40, 58, 114 },
+        { false, 40, 59, 115 },
+        { false, 40, 60, 116 },
+        { false, 40, 80, 136 },
+        { false, 40, 85, 141 },
+        { false, 60, 1, -533 },
+        { false, 60, 58, 94 },
+        { false, 60, 59, 95 },
+        { false, 60, 60, 96 },
+        { false, 60, 80, 116 },
+        { false, 60, 85, 121 },
+        { false, 70, 1, -643 },
+        { false, 70, 58, -16 },
+        { false, 70, 59, -5 },
+        { false, 70, 60, 6 },
+        { false, 70, 80, 106 },
+        { false, 70, 85, 111 },
+        { false, 80, 1, -753 },
+        { false, 80, 58, -126 },
+        { false, 80, 59, -115 },
+        { false, 80, 60, -104 },
+        { false, 80, 80, 96 },
+        { false, 80, 85, 101 },
+        { false, 83, 1, -786 },
+        { false, 83, 58, -159 },
+        { false, 83, 59, -148 },
+        { false, 83, 60, -137 },
+        { false, 83, 80, 83 },
+        { false, 83, 85, 98 },
+        { false, 85, 1, -808 },
+        { false, 85, 58, -181 },
+        { false, 85, 59, -170 },
+        { false, 85, 60, -159 },
+        { false, 85, 80, 61 },
+        { false, 85, 85, 96 },
+        { false, 88, 1, -841 },
+        { false, 88, 58, -214 },
+        { false, 88, 59, -203 },
+        { false, 88, 60, -192 },
+        { false, 88, 80, 28 },
+        { false, 88, 85, 83 },
+    };
+    static const size_t kMagicSpellBaseHitChanceVectorCount = sizeof(kMagicSpellBaseHitChanceVectors) / sizeof(kMagicSpellBaseHitChanceVectors[0]);
+
+    /// SelectWeaponDamageRange, UnitCombat.cpp:405-443 (Unit::CalculateDamage) at 82e9c4f65.
+    struct SelectWeaponDamageRangeVector
+    {
+        uint32 attType;
+        bool isNormalizedPlayer;
+        float playerMinDamage;
+        float playerMaxDamage;
+        float minRangedDamage;
+        float maxRangedDamage;
+        float minBaseDamage;
+        float maxBaseDamage;
+        float minOffhandDamage;
+        float maxOffhandDamage;
+        float expectedMin;
+        float expectedMax;
+    };
+
+    static const SelectWeaponDamageRangeVector kSelectWeaponDamageRangeVectors[] =
+    {
+        { 0, true, 0.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 0.0f, 5.0f },
+        { 1, true, 0.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 0.0f, 5.0f },
+        { 2, true, 0.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 0.0f, 5.0f },
+        { 3, true, 0.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 0.0f, 5.0f },
+        { 0, true, 55.0f, 93.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 1, true, 55.0f, 93.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 2, true, 55.0f, 93.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 3, true, 55.0f, 93.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 0, true, 93.0f, 55.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 1, true, 93.0f, 55.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 2, true, 93.0f, 55.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 3, true, 93.0f, 55.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 55.0f, 93.0f },
+        { 0, true, 120.5f, 120.5f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 120.5f, 120.5f },
+        { 1, true, 120.5f, 120.5f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 120.5f, 120.5f },
+        { 2, true, 120.5f, 120.5f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 120.5f, 120.5f },
+        { 3, true, 120.5f, 120.5f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 120.5f, 120.5f },
+        { 0, true, -3.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, -3.0f, 5.0f },
+        { 1, true, -3.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, -3.0f, 5.0f },
+        { 2, true, -3.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, -3.0f, 5.0f },
+        { 3, true, -3.0f, 0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, -3.0f, 5.0f },
+        { 0, false, 77.0f, 88.0f, 30.0f, 45.0f, 55.0f, 93.0f, 21.0f, 38.0f, 55.0f, 93.0f },
+        { 0, false, 77.0f, 88.0f, 45.0f, 30.0f, 93.0f, 55.0f, 38.0f, 21.0f, 55.0f, 93.0f },
+        { 0, false, 77.0f, 88.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f },
+        { 0, false, 77.0f, 88.0f, 12.5f, 0.0f, 17.25f, 0.0f, 9.5f, 0.0f, 0.0f, 17.25f },
+        { 0, false, 77.0f, 88.0f, -3.0f, 0.0f, -7.5f, 0.0f, -1.25f, 0.0f, -7.5f, 5.0f },
+        { 0, false, 77.0f, 88.0f, 1.5f, 1.5f, 2.25f, 2.25f, 4.75f, 4.75f, 2.25f, 2.25f },
+        { 1, false, 77.0f, 88.0f, 30.0f, 45.0f, 55.0f, 93.0f, 21.0f, 38.0f, 21.0f, 38.0f },
+        { 1, false, 77.0f, 88.0f, 45.0f, 30.0f, 93.0f, 55.0f, 38.0f, 21.0f, 21.0f, 38.0f },
+        { 1, false, 77.0f, 88.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f },
+        { 1, false, 77.0f, 88.0f, 12.5f, 0.0f, 17.25f, 0.0f, 9.5f, 0.0f, 0.0f, 9.5f },
+        { 1, false, 77.0f, 88.0f, -3.0f, 0.0f, -7.5f, 0.0f, -1.25f, 0.0f, -1.25f, 5.0f },
+        { 1, false, 77.0f, 88.0f, 1.5f, 1.5f, 2.25f, 2.25f, 4.75f, 4.75f, 4.75f, 4.75f },
+        { 2, false, 77.0f, 88.0f, 30.0f, 45.0f, 55.0f, 93.0f, 21.0f, 38.0f, 30.0f, 45.0f },
+        { 2, false, 77.0f, 88.0f, 45.0f, 30.0f, 93.0f, 55.0f, 38.0f, 21.0f, 30.0f, 45.0f },
+        { 2, false, 77.0f, 88.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f },
+        { 2, false, 77.0f, 88.0f, 12.5f, 0.0f, 17.25f, 0.0f, 9.5f, 0.0f, 0.0f, 12.5f },
+        { 2, false, 77.0f, 88.0f, -3.0f, 0.0f, -7.5f, 0.0f, -1.25f, 0.0f, -3.0f, 5.0f },
+        { 2, false, 77.0f, 88.0f, 1.5f, 1.5f, 2.25f, 2.25f, 4.75f, 4.75f, 1.5f, 1.5f },
+        { 3, false, 77.0f, 88.0f, 30.0f, 45.0f, 55.0f, 93.0f, 21.0f, 38.0f, 0.0f, 5.0f },
+        { 3, false, 77.0f, 88.0f, 45.0f, 30.0f, 93.0f, 55.0f, 38.0f, 21.0f, 0.0f, 5.0f },
+        { 3, false, 77.0f, 88.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f },
+        { 3, false, 77.0f, 88.0f, 12.5f, 0.0f, 17.25f, 0.0f, 9.5f, 0.0f, 0.0f, 5.0f },
+        { 3, false, 77.0f, 88.0f, -3.0f, 0.0f, -7.5f, 0.0f, -1.25f, 0.0f, 0.0f, 5.0f },
+        { 3, false, 77.0f, 88.0f, 1.5f, 1.5f, 2.25f, 2.25f, 4.75f, 4.75f, 0.0f, 5.0f },
+    };
+    static const size_t kSelectWeaponDamageRangeVectorCount = sizeof(kSelectWeaponDamageRangeVectors) / sizeof(kSelectWeaponDamageRangeVectors[0]);
+
+    /// 1345 vectors over 19 leaves.
+    static const size_t kCombatVectorTotal = 1345;
 }
 
 #endif // MANGOS_H_TESTS_COMBAT_GOLDEN_VECTORS

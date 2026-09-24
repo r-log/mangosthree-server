@@ -30,6 +30,7 @@
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
 #include "combat/MeleeChances.h"
+#include "combat/SpellBonus.h"
 #include "MotionMaster.h"
 #include "State.h"
 #include "Log.h"
@@ -4718,22 +4719,19 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
     }
     else
     {
-        spellLevel = spellProto->GetSpellLevel();
-        uint32 maxLevel = spellProto->GetMaxLevel();
-        uint32 baseLevel = spellProto->GetBaseLevel();
+        spellLevel = spellProto->GetSpellLevel();                                       // E2a, reaches the DBC store
+        uint32 maxLevel = spellProto->GetMaxLevel();                                    // E2a
+        uint32 baseLevel = spellProto->GetBaseLevel();                                  // E2a
 
-        if (maxLevel)
-        {
-            level = std::min(level, maxLevel);
-        }
-        level = std::max(level, baseLevel);
-        level = std::max(level, spellLevel) - spellLevel;
-
-        float basePointsPerLevel = spellEffect->EffectRealPointsPerLevel;
-        basePoints = effBasePoints ? *effBasePoints - 1 : spellEffect->EffectBasePoints;
-        basePoints += int32(level * basePointsPerLevel);
-        int32 randomPoints = int32(spellEffect->EffectDieSides);
-        comboDamage = spellEffect->EffectPointsPerResource;
+        Combat::SpellLegacyScaling const legacy = Combat::SpellLegacyScalingPoints(
+                level, spellLevel, maxLevel, baseLevel, spellEffect->EffectRealPointsPerLevel,
+                effBasePoints != NULL, effBasePoints ? *effBasePoints : 0,
+                spellEffect->EffectBasePoints, spellEffect->EffectDieSides,
+                spellEffect->EffectPointsPerResource);
+        level = legacy.level;
+        basePoints = legacy.basePoints;
+        int32 randomPoints = legacy.randomPoints;
+        comboDamage = legacy.comboDamage;
 
         switch (randomPoints)
         {
