@@ -697,6 +697,13 @@ class Creature : public Unit
 
         CreatureAI* AI() { return i_AI; }
 
+        // Threat methods only a Creature can execute (decoupling D5e, server #134): each
+        // moved here from Unit unchanged, where it opened with MANGOS_ASSERT(GetTypeId() ==
+        // TYPEID_UNIT). Defined in CreatureThreat.cpp.
+        bool SelectHostileTarget();
+        void TauntApply(Unit* pVictim);
+        void TauntFadeOut(Unit* taunter);
+
         void SetWalk(bool enable, bool asDefault = true);
         /// Stop where it stands and, for a patrol, hold the leg a while so the player can talk.
         void HoldForPlayer();

@@ -44,6 +44,7 @@
  */
 
 #include "Platform/Define.h"
+#include "Utilities/Errors.h"
 #include "Common/TimeConstants.h"
 #include <ctime>
 #include "Database/DatabaseEnv.h"
@@ -1113,14 +1114,21 @@ void Aura::HandleModTaunt(bool apply, bool Real)
         return;
     }
 
+    // TauntApply and TauntFadeOut live on Creature since decoupling D5e (server #134); each
+    // carried MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT) as its first statement, so the assert
+    // that guarded the receiver's type is now at the call, same condition, same abort.
+    // CanHaveThreatList() above already returns false for anything but a Creature.
+    Creature* creature = target->ToCreature();
+    MANGOS_ASSERT(creature);
+
     if (apply)
     {
-        target->TauntApply(caster);
+        creature->TauntApply(caster);
     }
     else
     {
         // When taunt aura fades out, mob will switch to previous target if current has less than 1.1 * secondthreat
-        target->TauntFadeOut(caster);
+        creature->TauntFadeOut(caster);
     }
 }
 

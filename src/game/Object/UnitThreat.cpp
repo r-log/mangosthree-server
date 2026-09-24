@@ -25,11 +25,14 @@
 
 /**
  * @file UnitThreat.cpp
- * @brief Unit threat/aggro system, taunt and hostile-target selection split
- *        out of Unit.cpp.
+ * @brief Unit's side of the threat/aggro system: whether a unit can hold a threat
+ *        list, adding to and deleting it, the threat modifier, the second-choice
+ *        test, target fixation, and the SMSG_THREAT_* packets.
  *
- * Pure file move (cohesion split): method bodies are byte-identical and the
- * declarations remain in Unit.h. No behaviour change.
+ * Originally a pure file move out of Unit.cpp (bodies byte-identical, declarations
+ * left in Unit.h). Since decoupling D5e (server #134) the three methods only a
+ * Creature could execute -- SelectHostileTarget, TauntApply and TauntFadeOut -- live
+ * on Creature, in CreatureThreat.cpp. What remains here is what a Player runs too.
  */
 
 #include "Utilities/Errors.h"
@@ -49,7 +52,6 @@
 #include "Group.h"
 #include "SpellAuras.h"
 #include "MapManager.h"
-#include "CreatureAI.h"
 #include "TemporarySummon.h"
 #include "Formulas.h"
 #include "Pet.h"
@@ -57,16 +59,13 @@
 #include "Totem.h"
 #include "Vehicle.h"
 #include "BattleGround/BattleGround.h"
-#include "InstanceData.h"
 #include "OutdoorPvP/OutdoorPvP.h"
 #include "MapPersistentStateMgr.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "movement/MoveSplineInit.h"
 #include "movement/MoveSpline.h"
-#include "CreatureLinkingMgr.h"
 #include "GameTime.h"
-#include "MotionMaster.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -157,108 +156,6 @@ void Unit::DeleteThreatList()
 }
 
 //======================================================================
-
-void Unit::TauntApply(Unit* taunter)
-{
-    MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT);
-
-    if (!taunter || (taunter->GetTypeId() == TYPEID_PLAYER && ((Player*)taunter)->isGameMaster()))
-    {
-        return;
-    }
-
-    if (!CanHaveThreatList())
-    {
-        return;
-    }
-
-    Unit* target = getVictim();
-
-    if (target && target == taunter)
-    {
-        return;
-    }
-
-    // Only attack taunter if this is a valid target
-    if (!(Blocked(Motion::ReasonStunned) || IsFeigningDeath()) && !IsSecondChoiceTarget(taunter, true))
-    {
-        if (GetTargetGuid() || !target)
-        {
-            SetInFront(taunter);
-        }
-
-        if (((Creature*)this)->AI())
-        {
-            ((Creature*)this)->AI()->AttackStart(taunter);
-        }
-    }
-
-    m_ThreatManager.tauntApply(taunter);
-}
-
-//======================================================================
-
-void Unit::TauntFadeOut(Unit* taunter)
-{
-    MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT);
-
-    if (!taunter || (taunter->GetTypeId() == TYPEID_PLAYER && ((Player*)taunter)->isGameMaster()))
-    {
-        return;
-    }
-
-    if (!CanHaveThreatList())
-    {
-        return;
-    }
-
-    Unit* target = getVictim();
-
-    if (!target || target != taunter)
-    {
-        return;
-    }
-
-    if (m_ThreatManager.isThreatListEmpty())
-    {
-        m_fixateTargetGuid.Clear();
-
-        if (((Creature*)this)->AI())
-        {
-            ((Creature*)this)->AI()->EnterEvadeMode();
-        }
-
-        if (InstanceData* mapInstance = GetInstanceData())
-        {
-            mapInstance->OnCreatureEvade((Creature*)this);
-        }
-
-        if (m_isCreatureLinkingTrigger)
-        {
-            GetMap()->GetCreatureLinkingHolder()->DoCreatureLinkingEvent(LINKING_EVENT_EVADE, (Creature*)this);
-        }
-
-        return;
-    }
-
-    m_ThreatManager.tauntFadeOut(taunter);
-    target = m_ThreatManager.getHostileTarget();
-
-    if (target && target != taunter)
-    {
-        if (GetTargetGuid())
-        {
-            SetInFront(target);
-        }
-
-        if (((Creature*)this)->AI())
-        {
-            ((Creature*)this)->AI()->AttackStart(target);
-        }
-    }
-}
-
-//======================================================================
 /// if pVictim is given, the npc will fixate onto pVictim, if NULL it will remove current fixation
 void Unit::FixateTarget(Unit* pVictim)
 {
@@ -272,7 +169,12 @@ void Unit::FixateTarget(Unit* pVictim)
     }
 
     // Start attacking the fixated target or the next proper one
-    SelectHostileTarget();
+    // SelectHostileTarget lives on Creature since decoupling D5e (server #134); it carried
+    // MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT) as its first statement, so the assert that
+    // guarded this call is now at the call, with the same condition and the same abort.
+    Creature* creature = ToCreature();
+    MANGOS_ASSERT(creature);
+    creature->SelectHostileTarget();
 }
 
 //======================================================================
@@ -285,164 +187,6 @@ bool Unit::IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea) const
         pTarget->IsImmunedToDamage(GetMeleeDamageSchoolMask()) ||
         pTarget->hasNegativeAuraWithInterruptFlag(AURA_INTERRUPT_FLAG_DAMAGE) ||
         checkThreatArea && ((Creature*)this)->IsOutOfThreatArea(pTarget);
-}
-
-//======================================================================
-
-bool Unit::SelectHostileTarget()
-{
-    // function provides main threat functionality
-    // next-victim-selection algorithm and evade mode are called
-    // threat list sorting etc.
-
-    MANGOS_ASSERT(GetTypeId() == TYPEID_UNIT);
-
-    if (!this->IsAlive())
-    {
-        return false;
-    }
-
-    // This function only useful once AI has been initialized
-    if (!((Creature*)this)->AI())
-    {
-        return false;
-    }
-
-    Unit* target = NULL;
-    Unit* oldTarget = getVictim();
-
-    // first check if we should fixate a target
-    if (m_fixateTargetGuid)
-    {
-        if (oldTarget && oldTarget->GetObjectGuid() == m_fixateTargetGuid)
-        {
-            target = oldTarget;
-        }
-        else
-        {
-            Unit* pFixateTarget = GetMap()->GetUnit(m_fixateTargetGuid);
-            if (pFixateTarget && pFixateTarget->IsAlive() && !IsSecondChoiceTarget(pFixateTarget, true))
-            {
-                target = pFixateTarget;
-            }
-        }
-    }
-    // then checking if we have some taunt on us
-    if (!target)
-    {
-        const AuraList& tauntAuras = GetAurasByType(SPELL_AURA_MOD_TAUNT);
-        Unit* caster;
-
-        // Find first available taunter target
-        // Auras are pushed_back, last caster will be on the end
-        for (AuraList::const_reverse_iterator aura = tauntAuras.rbegin(); aura != tauntAuras.rend(); ++aura)
-        {
-            if ((caster = (*aura)->GetCaster()) && caster->Where().ShareFrame(this->Where()) &&
-                caster->IsTargetableForAttack() && caster->isInAccessablePlaceFor((Creature*)this) &&
-                !IsSecondChoiceTarget(caster, true))
-            {
-                target = caster;
-                break;
-            }
-        }
-    }
-
-    // No valid fixate target, taunt aura or taunt aura caster is dead, standard target selection
-    if (!target && !m_ThreatManager.isThreatListEmpty())
-    {
-        target = m_ThreatManager.getHostileTarget();
-    }
-
-    if (target)
-    {
-        if (!(Blocked(Motion::ReasonStunned) || IsFeigningDeath()))
-        {
-            // PACIFIED creatures (training dummies, etc.) keep their spawn
-            // orientation. PACIFIED already gates attack initiation, so visual
-            // auto-facing here is purely cosmetic AND it falsifies the angle-of-
-            // attack rules in RollMeleeOutcomeAgainst (the from-behind gate for
-            // parry/block) for any player testing combat against the creature.
-            if (!HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED))
-            {
-                SetInFront(target);
-            }
-            if (oldTarget != target)
-            {
-                ((Creature*)this)->AI()->AttackStart(target);
-            }
-
-            // check if currently selected target is reachable
-            // NOTE: path alrteady generated from AttackStart()
-            if (!GetMotionMaster()->IsReachable())
-            {
-                // remove all taunts
-                RemoveSpellsCausingAura(SPELL_AURA_MOD_TAUNT);
-
-                if (m_ThreatManager.getThreatList().size() < 2)
-                {
-                    // only one target in list: keep trying and evade once the
-                    // no-path grace timer expires (see Creature::Update)
-                    ((Creature*)this)->SetCannotReachTarget(true);
-                }
-                else
-                {
-                    // remove unreachable target from our threat list
-                    // next iteration we will select next possible target
-                    m_HostileRefManager.deleteReference(target);
-                    m_ThreatManager.modifyThreatPercent(target, -101);
-
-                    // remove target from current attacker, do not exit combat settings
-                    AttackStop(true);
-
-                    return false;
-                }
-            }
-            else
-            {
-                ((Creature*)this)->SetCannotReachTarget(false);
-            }
-        }
-        return true;
-    }
-
-    // no target but something prevent go to evade mode
-    if (!IsInCombat() || HasAuraType(SPELL_AURA_MOD_TAUNT))
-    {
-        return false;
-    }
-
-    // last case when creature don't must go to evade mode:
-    // it in combat but attacker not make any damage and not enter to aggro radius to have record in threat list
-    // for example at owner command to pet attack some far away creature
-    // Note: creature not have targeted movement generator but have attacker in this case
-    // (what runs now: a chase masked by a fear or an effect still scans its attackers, as the
-    // stack's top-based check did, instead of evading out from under the mask)
-    if (GetMotionMaster()->ActiveKind() != Motion::Kind::Chase)
-    {
-        for (AttackerSet::const_iterator itr = m_attackers.begin(); itr != m_attackers.end(); ++itr)
-        {
-            if ((*itr)->Where().ShareFrame(this->Where()) && (*itr)->IsTargetableForAttack() && (*itr)->isInAccessablePlaceFor((Creature*)this))
-            {
-                return false;
-            }
-        }
-    }
-
-    // enter in evade mode in other case
-    m_fixateTargetGuid.Clear();
-    ((Creature*)this)->AI()->EnterEvadeMode();
-
-    if (InstanceData* mapInstance = GetInstanceData())
-    {
-        mapInstance->OnCreatureEvade((Creature*)this);
-    }
-
-    if (m_isCreatureLinkingTrigger)
-    {
-        GetMap()->GetCreatureLinkingHolder()->DoCreatureLinkingEvent(LINKING_EVENT_EVADE, (Creature*)this);
-    }
-
-    return false;
 }
 
 void Unit::SendThreatUpdate()
