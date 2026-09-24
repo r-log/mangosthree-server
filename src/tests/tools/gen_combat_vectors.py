@@ -640,10 +640,16 @@ def l1_candidates():
 
 def l2_candidates():
     out = []
-    # damage == 0 is the ONLY input inside the defined domain that takes the
-    # `if (crit_bonus > 0)` FALSE arm, and its result is the exact integer 0.
+    # Two ways into the `if (crit_bonus > 0)` FALSE arm, which skips the doubling.
+    # The obvious one is damage == 0.
     for mult in (0.0, 1.0, 1.07, 2.0):
         out.append((0, mult))
+    # The other is the C-5 narrowing: `int32 crit_bonus = damage` on a uint32 above
+    # INT32_MAX wraps NEGATIVE, so the test fails and the heal is not doubled, while
+    # the multiply below still uses the full uint32. Both tuples stay inside the
+    # domain of int32(float) and land on whole numbers.
+    out.append((3000000000, 0.5))        # crit_bonus = -1294967296 -> 3e9 * 0.5
+    out.append((4000000000, 0.25))       # crit_bonus =  -294967296 -> 4e9 * 0.25
     for damage in (1, 2, 3, 5, 7, 11, 13, 17, 23, 37, 53, 101, 151, 211, 401):
         for mult in (0.61, 0.87, 1.07, 1.33, 2.17):
             out.append((damage, mult))

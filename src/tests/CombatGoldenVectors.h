@@ -147,6 +147,8 @@ namespace golden
         { 0, 1.0f, 0 },   // exact
         { 0, 1.07f, 0 },   // exact
         { 0, 2.0f, 0 },   // exact
+        { 3000000000, 0.5f, 1500000000 },   // exact
+        { 4000000000, 0.25f, 1000000000 },   // exact
         { 1, 0.61f, 1 },
         { 1, 0.87f, 1 },
         { 1, 1.07f, 2 },
@@ -664,8 +666,8 @@ namespace golden
     };
     static const size_t kMinMaxDamageVectorCount = sizeof(kMinMaxDamageVectors) / sizeof(kMinMaxDamageVectors[0]);
 
-    /// 448 vectors over 9 leaves.
-    static const size_t kCombatVectorTotal = 448;
+    /// 450 vectors over 9 leaves.
+    static const size_t kCombatVectorTotal = 450;
 }
 
 #endif // MANGOS_H_TESTS_COMBAT_GOLDEN_VECTORS
