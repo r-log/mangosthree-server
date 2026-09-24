@@ -29,6 +29,7 @@
 #include <list>
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
+#include "combat/MeleeChances.h"
 #include "MotionMaster.h"
 #include "State.h"
 #include "Log.h"
@@ -6373,31 +6374,24 @@ void Unit::UpdateAuraForGroup(uint8 slot)
  */
 float Unit::GetAPMultiplier(WeaponAttackType attType, bool normalized)
 {
-    if (!normalized || GetTypeId() != TYPEID_PLAYER)
+    uint32 const attackTime = GetAttackTime(attType);                                       // E2a
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                     // E2a
+
+    bool hasWeapon = false;
+    uint32 weaponInventoryType = 0;
+    uint32 weaponSubClass = 0;
+    if (normalized && isPlayer)                                                             // E2b, same guard
     {
-        return float(GetAttackTime(attType)) / 1000.0f;
+        if (Item* Weapon = ((Player*)this)->GetWeaponForAttack(attType, true, false))
+        {
+            hasWeapon = true;
+            weaponInventoryType = Weapon->GetProto()->InventoryType;
+            weaponSubClass = Weapon->GetProto()->SubClass;
+        }
     }
 
-    Item* Weapon = ((Player*)this)->GetWeaponForAttack(attType, true, false);
-    if (!Weapon)
-    {
-        return 2.4f;                                         // fist attack
-    }
-
-    switch (Weapon->GetProto()->InventoryType)
-    {
-        case INVTYPE_2HWEAPON:
-            return 3.3f;
-        case INVTYPE_RANGED:
-        case INVTYPE_RANGEDRIGHT:
-        case INVTYPE_THROWN:
-            return 2.8f;
-        case INVTYPE_WEAPON:
-        case INVTYPE_WEAPONMAINHAND:
-        case INVTYPE_WEAPONOFFHAND:
-        default:
-            return Weapon->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER ? 1.7f : 2.4f;
-    }
+    return Combat::APMultiplier(attackTime, isPlayer, normalized, hasWeapon,
+                                weaponInventoryType, weaponSubClass);
 }
 
 /**

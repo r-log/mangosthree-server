@@ -29,6 +29,7 @@
 #include <vector>
 #include "DBCStores.h"
 #include "Unit.h"
+#include "combat/WeaponDamage.h"
 #include "Player.h"
 #include "Pet.h"
 #include "Creature.h"
@@ -467,45 +468,39 @@ void Player::CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, fl
             break;
     }
 
-    float att_speed = GetAPMultiplier(attType, normalized);
+    float const att_speed = GetAPMultiplier(attType, normalized);                        // E2a
+    float const modifierBaseValue = GetModifierValue(unitMod, BASE_VALUE);               // E2a
+    float const modifierBasePct = GetModifierValue(unitMod, BASE_PCT);                   // E2a
+    float const modifierTotalValue = GetModifierValue(unitMod, TOTAL_VALUE);             // E2a
+    float const modifierTotalPct = GetModifierValue(unitMod, TOTAL_PCT);                 // E2a
+    float const totalAttackPower = GetTotalAttackPowerValue(attType);                    // E2a
+    float const weaponMinDamage = GetWeaponDamageRange(attType, MINDAMAGE);              // E2a
+    float const weaponMaxDamage = GetWeaponDamageRange(attType, MAXDAMAGE);              // E2a
+    bool const isInFeralForm = IsInFeralForm();                                          // E2a
 
-    float base_value  = GetModifierValue(unitMod, BASE_VALUE) + GetTotalAttackPowerValue(attType) / 14.0f * att_speed;
-    float base_pct    = GetModifierValue(unitMod, BASE_PCT);
-    float total_value = GetModifierValue(unitMod, TOTAL_VALUE);
-    float total_pct   = GetModifierValue(unitMod, TOTAL_PCT);
-
-    float weapon_mindamage = GetWeaponDamageRange(attType, MINDAMAGE);
-    float weapon_maxdamage = GetWeaponDamageRange(attType, MAXDAMAGE);
-
-    if (IsInFeralForm())                                    // check if player is druid and in cat or bear forms, non main hand attacks not allowed for this mode so not check attack type
+    ShapeshiftForm shapeshiftForm = FORM_NONE;
+    uint32 attackTime = 0;
+    bool canUseEquippedWeapon = false;
+    float ammoDPS = 0.0f;
+    if (isInFeralForm)
     {
-        float weaponSpeed = GetAttackTime(attType) / 1000.0f;
-
-        switch (GetShapeshiftForm())
+        attackTime = GetAttackTime(attType);                                             // E2a, kept under its original branch
+        shapeshiftForm = GetShapeshiftForm();                                            // E2a, kept under its original branch
+    }
+    else
+    {
+        canUseEquippedWeapon = CanUseEquippedWeapon(attType);                            // E2a, kept under its original branch
+        if (canUseEquippedWeapon && attType == RANGED_ATTACK)
         {
-            case FORM_CAT:
-                weapon_mindamage = weapon_mindamage / weaponSpeed;
-                weapon_maxdamage = weapon_maxdamage / weaponSpeed;
-                break;
-            case FORM_BEAR:
-                weapon_mindamage = weapon_mindamage / weaponSpeed + weapon_mindamage / 2.5f;
-                weapon_maxdamage = weapon_maxdamage / weaponSpeed + weapon_maxdamage / 2.5f;
-                break;
+            ammoDPS = GetAmmoDPS();                                                      // E2a, kept under its original branch
         }
     }
-    else if (!CanUseEquippedWeapon(attType))                // check if player not in form but still can't use weapon (broken/etc)
-    {
-        weapon_mindamage = BASE_MINDAMAGE;
-        weapon_maxdamage = BASE_MAXDAMAGE;
-    }
-    else if (attType == RANGED_ATTACK)                      // add ammo DPS to ranged damage
-    {
-        weapon_mindamage += GetAmmoDPS() * att_speed;
-        weapon_maxdamage += GetAmmoDPS() * att_speed;
-    }
 
-    min_damage = ((base_value + weapon_mindamage) * base_pct + total_value) * total_pct;
-    max_damage = ((base_value + weapon_maxdamage) * base_pct + total_value) * total_pct;
+    Combat::CalculateMinMaxDamage(attType, att_speed, modifierBaseValue, modifierBasePct,
+                                  modifierTotalValue, modifierTotalPct, totalAttackPower,
+                                  weaponMinDamage, weaponMaxDamage, isInFeralForm,
+                                  shapeshiftForm, canUseEquippedWeapon, attackTime, ammoDPS,
+                                  BASE_MINDAMAGE, BASE_MAXDAMAGE, min_damage, max_damage);
 }
 
 /**

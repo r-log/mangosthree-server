@@ -36,7 +36,15 @@ endforeach()
 # A forbidden suffix matches any reached path that ends with "/<suffix>".
 set(REACH_RULES
     "Object/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,WorldHandlers/NPCHandler.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h"
-    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,Object/Player.h,Server/WorldSession.h,proto/WorldPacket.h,WorldHandlers/Path.h")
+    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,Object/Player.h,Server/WorldSession.h,proto/WorldPacket.h,WorldHandlers/Path.h"
+    # Decoupling D5b (server #132): the combat leaves are arithmetic over values. A
+    # combat header that reaches the object layer has stopped being one, and the
+    # golden vectors in src/tests/CombatGoldenVectors.h could no longer be checked by
+    # a test that links nothing.
+    "combat/ArmorReduction.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    "combat/MeleeChances.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    "combat/SpellBonus.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    "combat/WeaponDamage.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

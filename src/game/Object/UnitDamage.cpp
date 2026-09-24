@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include "Unit.h"
+#include "combat/ArmorReduction.h"
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
@@ -70,54 +71,20 @@
  */
 uint32 Unit::CalcArmorReducedDamage(Unit* pVictim, const uint32 damage)
 {
-    uint32 newdamage = 0;
-    float armor = (float)pVictim->GetArmor();
+    uint32 const victimArmor = pVictim->GetArmor();                                                                                   // E2a
+    int32 const targetResistanceMod = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_NORMAL);     // E2a
+    bool const isPlayer = GetTypeId() == TYPEID_PLAYER;                                                                               // E2a
+    uint32 const victimLevel = pVictim->getLevel();                                                                                   // E2a, read twice by the body
+    uint32 const attackerLevel = getLevel();                                                                                          // E2a, read twice by the body
 
-    // Ignore enemy armor by SPELL_AURA_MOD_TARGET_RESISTANCE aura
-    armor += GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_NORMAL);
-
-    // Apply Player CR_ARMOR_PENETRATION rating and percent talents
-    if (GetTypeId() == TYPEID_PLAYER)
+    float armorPenetrationPct = 0.0f;
+    if (isPlayer)
     {
-        float maxArmorPen = 400 + 85 * pVictim->getLevel();
-        if (getLevel() > 59)
-        {
-            maxArmorPen += 4.5f * 85 * (pVictim->getLevel() - 59);
-        }
-        // Cap ignored armor to this value
-        maxArmorPen = std::min(((armor + maxArmorPen) / 3), armor);
-        // Also, armor penetration is limited to 100% since 3.1.2, before greater values did
-        // continue to give benefit for targets with more armor than the above cap
-        float armorPenPct = std::min(100.f, ((Player*)this)->GetArmorPenetrationPct());
-        armor -= maxArmorPen * armorPenPct / 100.0f;
+        armorPenetrationPct = ((Player*)this)->GetArmorPenetrationPct();                                                              // E2b, same guard
     }
 
-    if (armor < 0.0f)
-    {
-        armor = 0.0f;
-    }
-
-    float levelModifier = (float)getLevel();
-    if (levelModifier > 59)
-    {
-        levelModifier = levelModifier + (4.5f * (levelModifier - 59));
-    }
-
-    float tmpvalue = 0.1f * armor / (8.5f * levelModifier + 40);
-    tmpvalue = tmpvalue / (1.0f + tmpvalue);
-
-    if (tmpvalue < 0.0f)
-    {
-        tmpvalue = 0.0f;
-    }
-    if (tmpvalue > 0.75f)
-    {
-        tmpvalue = 0.75f;
-    }
-
-    newdamage = uint32(damage - (damage * tmpvalue));
-
-    return (newdamage > 1) ? newdamage : 1;
+    return Combat::ArmorReducedDamage(damage, victimArmor, targetResistanceMod, isPlayer,
+                                      attackerLevel, victimLevel, armorPenetrationPct);
 }
 
 /**
