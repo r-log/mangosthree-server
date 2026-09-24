@@ -19,20 +19,34 @@ performs rather than computing in Python's arbitrary precision:
   int(x)   Python's truncation toward zero, which is the C++ float->integer conversion.
 
 REJECTION. A vector is only worth pinning if every toolchain the tree builds on
-computes the same answer. Two classes of input are therefore dropped:
+computes the same answer. The margins are ABSOLUTE, not relative. A relative margin
+looks principled -- it tracks the ulp, which grows with the value -- but it throws away
+the two cases that carry no risk at all, and with them whole branches: above 2^23 every
+float already IS an integer, so a relative rule rejects every large `damage` input even
+though the truncation there is exact on every toolchain, and it rejects an exact 0.0f
+clamp result for sitting 0.0 from its own edge.
 
-  * truncation boundaries -- a vector whose float->integer conversion input sits
-    within 1e-4 RELATIVE of an integer. There a one-ulp difference between MSVC,
-    glibc and aarch64 changes the integer, and the test compares integers exactly.
-    Above 2^23 every float IS an integer, so the rule drops the very large `damage`
-    inputs wholesale; that is the rule working, and the report says so.
-  * clamp edges -- a COMPUTED float that sits within 1e-5 of a clamp edge (relative,
-    with a floor of 1.0 so an edge at 0 keeps an absolute 1e-5). "Computed" is
-    load-bearing: a value that is a float literal or an unmodified input parameter is
-    bit-identical on every toolchain and has no rounding that could differ, so
-    comparing THAT against an edge is not a portability risk. Checking those too
-    would reject, for instance, every "this unit cannot parry" vector, whose chance
-    is the literal 0.0f the body assigns. Each skipped site is commented below.
+  * truncation -- let v be the float the C++ truncates, after the f32 emulation above.
+    KEEP when |v - nearest integer| >= 1e-3: a one-ulp difference cannot cross that.
+    KEEP when v's fractional part is exactly 0: the conversion is exact and every
+    toolchain agrees, however large v is. Such rows are flagged `exact` in the
+    generated table. REJECT only the genuinely fragile middle, 0 < |v - nearest| < 1e-3.
+    A conversion whose input lies outside the range where the C++ conversion is defined
+    is rejected separately, and says so.
+  * clamp edges -- a result that sits on an edge BECAUSE the clamp fired is the edge
+    value itself, exactly, so it is kept. REJECT only an UNCLAMPED result that came
+    within an absolute 1e-5 of an edge it did not reach: 0 < d < 1e-5, the same shape
+    as the truncation rule. A distance of exactly 0 is kept, and it is safe for a
+    stronger reason than exactness -- at every clamp site in these nine leaves the two
+    arms AGREE there (`tmpvalue > 0.75f` and `tmpvalue = 0.75f` both leave 0.75,
+    `chance > 0.0f ? chance : 0.0f` at chance == 0 leaves 0 either way), so no
+    perturbation across the edge can change the answer. This is what pins L1's
+    `armor < 0` arm: the clamp drives tmpvalue to exactly 0.0, which then sits on the
+    NEXT clamp's edge without firing it. A value that is a float
+    literal or an unmodified input parameter is not checked at all: it is bit-identical
+    on every toolchain and has no rounding that could differ, and checking it would
+    reject, for instance, every "this unit cannot parry" vector, whose chance is the
+    literal 0.0f the body assigns. Each skipped site is commented below.
 
 Usage:
     python src/tests/tools/gen_combat_vectors.py
@@ -70,8 +84,8 @@ import sys
 
 BASE_COMMIT = "ce20c27db"
 
-TRUNC_TOLERANCE = 1e-4
-CLAMP_TOLERANCE = 1e-5
+TRUNC_TOLERANCE = 1e-3          # absolute, around the nearest integer
+CLAMP_TOLERANCE = 1e-5          # absolute, around a clamp edge the result did not reach
 
 
 # ---------------------------------------------------------------------------
@@ -130,15 +144,22 @@ class Result(object):
     def __init__(self, values):
         self.values = values if isinstance(values, tuple) else (values,)
         self.truncs = []            # (float, low, high) the body converts to an integer
-        self.clamps = []            # (computed value, clamp edge) pairs
+        self.clamps = []            # (computed value, clamp edge, whether the clamp fired)
+        self.exact = False          # a truncation whose input is already a whole number
 
     def trunc(self, value, low, high):
         """A C++ float->integer conversion, with the range where it is defined."""
         self.truncs.append((value, low, high))
+        if value == int(value):
+            self.exact = True
         return int(value)
 
-    def clamp_edge(self, value, edge):
-        self.clamps.append((value, edge))
+    def clamp_edge(self, value, edge, fired):
+        """`value` met a clamp at `edge`; `fired` when the clamp replaced it with the edge.
+
+        A fired clamp yields the edge exactly, so it needs no margin -- only a near miss
+        is fragile."""
+        self.clamps.append((value, edge, fired))
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +194,7 @@ def armor_reduced_damage(damage, victim_armor, target_resistance_mod, is_player,
                                 + f32(f32(f32(4.5) * 85) * f32(u32(victim_level - 59))))
         # maxArmorPen = std::min(((armor + maxArmorPen) / 3), armor);
         third = f32(f32(armor + max_armor_pen) / 3)
-        out.clamp_edge(third, armor)                 # both sides computed
+        out.clamp_edge(third, armor, not third < armor)   # fired = the min took `armor`
         max_armor_pen = third if third < armor else armor
         # float armorPenPct = std::min(100.f, ((Player*)this)->GetArmorPenetrationPct());
         # armor_penetration_pct is an unmodified input, so this edge is not checked.
@@ -182,7 +203,7 @@ def armor_reduced_damage(damage, victim_armor, target_resistance_mod, is_player,
         armor = f32(armor - f32(f32(max_armor_pen * armor_pen_pct) / f32(100.0)))
 
     # if (armor < 0.0f) { armor = 0.0f; }
-    out.clamp_edge(armor, 0.0)
+    out.clamp_edge(armor, 0.0, armor < 0.0)
     if armor < 0.0:
         armor = f32(0.0)
 
@@ -197,10 +218,10 @@ def armor_reduced_damage(damage, victim_armor, target_resistance_mod, is_player,
     # tmpvalue = tmpvalue / (1.0f + tmpvalue);
     tmpvalue = f32(tmpvalue / f32(f32(1.0) + tmpvalue))
 
-    out.clamp_edge(tmpvalue, 0.0)
+    out.clamp_edge(tmpvalue, 0.0, tmpvalue < 0.0)
     if tmpvalue < 0.0:
         tmpvalue = f32(0.0)
-    out.clamp_edge(tmpvalue, 0.75)
+    out.clamp_edge(tmpvalue, 0.75, tmpvalue > f32(0.75))
     if tmpvalue > f32(0.75):
         tmpvalue = f32(0.75)
 
@@ -331,11 +352,11 @@ def melee_miss_chance(has_victim, att_type, has_offhand_weapon, is_normal_spell_
         miss_chance = f32(miss_chance - f32(victim_melee_hit_chance_mod))
 
     # Limit miss chance from 0 to 60%
-    out.clamp_edge(miss_chance, 0.0)
+    out.clamp_edge(miss_chance, 0.0, miss_chance < 0.0)
     if miss_chance < 0.0:
         out.values = (f32(0.0),)
         return out
-    out.clamp_edge(miss_chance, 60.0)
+    out.clamp_edge(miss_chance, 60.0, miss_chance > f32(60.0))
     if miss_chance > f32(60.0):
         out.values = (f32(60.0),)
         return out
@@ -380,7 +401,7 @@ def unit_critical_chance(attack_type, is_player, player_offhand_crit, player_mai
 
     crit = f32(crit + f32(victim_spell_and_weapon_crit_mod))
 
-    out.clamp_edge(crit, 0.0)
+    out.clamp_edge(crit, 0.0, crit < 0.0)
     if crit < 0.0:
         crit = f32(0.0)
 
@@ -418,7 +439,7 @@ def unit_dodge_chance(is_stunned, is_player, player_dodge_percentage, is_totem,
 
     dodge = f32(5.0)
     dodge = f32(dodge + f32(dodge_aura_mod))
-    out.clamp_edge(dodge, 0.0)
+    out.clamp_edge(dodge, 0.0, not dodge > 0.0)
     out.values = (dodge if dodge > 0.0 else f32(0.0),)
     return out
 
@@ -461,7 +482,7 @@ def unit_parry_chance(is_casting_non_melee_spell, is_stunned, is_player, is_crea
             computed = True
 
     if computed:
-        out.clamp_edge(chance, 0.0)
+        out.clamp_edge(chance, 0.0, not chance > 0.0)
     out.values = (chance if chance > 0.0 else f32(0.0),)
     return out
 
@@ -504,7 +525,7 @@ def unit_block_chance(is_casting_non_melee_spell, is_stunned, is_player, can_blo
 
     block = f32(5.0)
     block = f32(block + f32(block_aura_mod))
-    out.clamp_edge(block, 0.0)
+    out.clamp_edge(block, 0.0, not block > 0.0)
     out.values = (block if block > 0.0 else f32(0.0),)
     return out
 
@@ -575,23 +596,32 @@ def calculate_min_max_damage(att_type, attack_speed_multiplier, modifier_base_va
 # ---------------------------------------------------------------------------
 
 def l1_candidates():
-    # `damage` is mostly 1001 rather than 1000: the truncation rule is RELATIVE, so a
-    # result that lands on a whole number is rejected however exact it is, and
-    # 1000 * 0.75 is a whole number. 1001 keeps the same branches with a fraction.
+    # Both spellings of `damage` matter now that the truncation margin is absolute:
+    # 1001 lands the result between two integers, 1000 lands it on one (1000 * 0.75 is
+    # whole), and both are pinnable -- the second as an `exact` row.
     out = []
     # creature attacker (the armour-penetration block skipped), levels x armour
     for level in (1, 59, 60, 61, 85):
         for armor in (1, 3000, 12000, 50000):
             out.append((1001, armor, 0, False, level, level, 0.0))
-    # damage sweep. 0 and the two big values are kept as candidates so the rejection
-    # report records why the brief's coverage values cannot be pinned.
+    # damage sweep, the brief's coverage values included: 0 and the two big ones are
+    # exact conversions, not fragile ones, and are pinned as such.
     for damage in (0, 1, 2, 3, 5, 1000, 1001, 2003, 4001, 2000000, 2000000000):
         out.append((damage, 3000, 0, False, 60, 60, 0.0))
-    # SPELL_AURA_MOD_TARGET_RESISTANCE: -50 drives armour below zero (the < 0 clamp)
+    # the same large inputs against the clamp and the level arms
+    for damage in (2000000, 2000000000):
+        out.append((damage, 50000, 0, False, 1, 1, 0.0))        # the 0.75 clamp
+        out.append((damage, 12000, 0, False, 85, 85, 0.0))
+        out.append((damage, 1, 0, True, 85, 85, 25.0))
+    # SPELL_AURA_MOD_TARGET_RESISTANCE: -50 drives armour below zero (the < 0 clamp,
+    # which forces tmpvalue to 0 and the result to `damage` itself -- an exact row)
     for mod in (-50, 0, 50):
         out.append((1001, 1, mod, False, 60, 60, 0.0))
         out.append((1001, 12000, mod, False, 85, 85, 0.0))
         out.append((1001, 50000, mod, True, 85, 85, 25.0))
+    for damage in (1, 2, 1001, 2000000000):
+        out.append((damage, 40, -50, False, 60, 60, 0.0))        # armour 40 - 50 = -10
+        out.append((damage, 0, -1, False, 85, 85, 0.0))          # armour 0 - 1 = -1
     # the player branch: penetration percent x the attacker/victim level pairs, so both
     # `getLevel() > 59` arms and the uint32 wrap at victimLevel < 59 are exercised
     for pct in (0.0, 25.0, 150.0):
@@ -609,19 +639,22 @@ def l1_candidates():
 
 
 def l2_candidates():
-    # The body doubles `damage` and then truncates the product, so the pinnable inputs
-    # are small: the truncation rule is relative, and above roughly 5000 its tolerance
-    # exceeds half a unit, which no result can clear. The larger candidates below are
-    # kept so the report shows exactly that.
     out = []
+    # damage == 0 is the ONLY input inside the defined domain that takes the
+    # `if (crit_bonus > 0)` FALSE arm, and its result is the exact integer 0.
+    for mult in (0.0, 1.0, 1.07, 2.0):
+        out.append((0, mult))
     for damage in (1, 2, 3, 5, 7, 11, 13, 17, 23, 37, 53, 101, 151, 211, 401):
         for mult in (0.61, 0.87, 1.07, 1.33, 2.17):
             out.append((damage, mult))
-    # the brief's coverage values: 0 sits on a truncation boundary, 1000 and 2000000
-    # are past the relative tolerance, and 2000000000 doubles past INT32_MAX, where
-    # int32(float) is undefined.
-    for mult in (1.0, 1.5, 1.07):
-        for damage in (0, 1000, 2000000, 2000000000):
+    # whole-number products: exact conversions, pinned as `exact` rows
+    for damage in (1, 2, 1000, 20000, 2000000):
+        for mult in (0.5, 1.0, 1.5, 2.0):
+            out.append((damage, mult))
+    # up to INT32_MAX. The body doubles `damage` first, so the multiplier has to keep
+    # the product inside int32; the ones that do not are reported as out of domain.
+    for damage in (1073741823, 1500000000, 2000000000, 2147483646, 2147483647):
+        for mult in (0.1, 0.25, 0.4, 0.5):
             out.append((damage, mult))
     return out
 
@@ -913,14 +946,17 @@ def reject_reason(result):
         if not (low <= value <= high):
             return ("float->integer input %r is outside [%d, %d], where the C++ conversion"
                     " is undefined" % (value, low, high))
-        nearest = round(value)
-        if abs(value - nearest) <= TRUNC_TOLERANCE * max(1.0, abs(value)):
-            return ("float->integer input %r is %.3g from the boundary %d (<= 1e-4 relative)"
-                    % (value, abs(value - nearest), int(nearest)))
-    for value, edge in result.clamps:
-        if abs(value - edge) <= CLAMP_TOLERANCE * max(1.0, abs(edge)):
-            return ("computed %r is %.3g from the clamp edge %r (<= 1e-5 relative)"
-                    % (value, abs(value - edge), edge))
+        distance = abs(value - round(value))
+        if 0.0 < distance < TRUNC_TOLERANCE:
+            return ("float->integer input %r is %.3g from the boundary %d (absolute, < 1e-3)"
+                    % (value, distance, int(round(value))))
+    for value, edge, fired in result.clamps:
+        if fired:
+            continue                # the clamp replaced the value with the edge, exactly
+        distance = abs(value - edge)
+        if 0.0 < distance < CLAMP_TOLERANCE:
+            return ("computed %r came within %.3g of the clamp edge %r without reaching it"
+                    " (absolute, < 1e-5)" % (value, distance, edge))
     return None
 
 
@@ -992,9 +1028,11 @@ def main(argv):
                  % BASE_COMMIT)
     lines.append("// under src/game/combat/. Regenerate with")
     lines.append("//     python src/tests/tools/gen_combat_vectors.py")
-    lines.append("// The generator rejects any vector whose float->integer conversion sits within")
-    lines.append("// 1e-4 relative of an integer, or whose computed float sits within 1e-5 of a")
-    lines.append("// clamp edge, so every value below is one that MSVC, gcc and aarch64 agree on.")
+    lines.append("// The margins are ABSOLUTE. A vector is rejected when the float the C++ truncates")
+    lines.append("// lies 0 < d < 1e-3 from an integer, or when an UNCLAMPED result came within 1e-5")
+    lines.append("// of a clamp edge it did not reach. A whole-number conversion and a fired clamp are")
+    lines.append("// exact on every toolchain and are kept; the `// exact` rows are the former.")
+    lines.append("// So every value below is one that MSVC, gcc and aarch64 agree on.")
     lines.append("")
     lines.append("#ifndef MANGOS_H_TESTS_COMBAT_GOLDEN_VECTORS")
     lines.append("#define MANGOS_H_TESTS_COMBAT_GOLDEN_VECTORS")
@@ -1021,7 +1059,7 @@ def main(argv):
             if reason:
                 rejected.append((tup, reason))
             else:
-                kept.append((tup, result.values))
+                kept.append((tup, result.values, result.exact))
 
         if len(kept) < 24:
             raise SystemExit("%s kept only %d vectors, the floor is 24"
@@ -1041,10 +1079,10 @@ def main(argv):
         lines.append("")
         lines.append("    static const %sVector k%sVectors[] =" % (name, name))
         lines.append("    {")
-        for tup, values in kept:
+        for tup, values, exact in kept:
             cells = [render(v, kind) for v, (_, kind) in zip(tup, leaf["fields"])]
             cells += [render(v, kind) for v, (_, kind) in zip(values, leaf["results"])]
-            lines.append("        { %s }," % ", ".join(cells))
+            lines.append("        { %s },%s" % (", ".join(cells), "   // exact" if exact else ""))
         lines.append("    };")
         lines.append("    static const size_t k%sVectorCount ="
                      " sizeof(k%sVectors) / sizeof(k%sVectors[0]);" % (name, name, name))

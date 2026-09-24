@@ -28,9 +28,11 @@
 // ORIGINAL member bodies at commit ce20c27db, BEFORE decoupling D5b moved them
 // under src/game/combat/. Regenerate with
 //     python src/tests/tools/gen_combat_vectors.py
-// The generator rejects any vector whose float->integer conversion sits within
-// 1e-4 relative of an integer, or whose computed float sits within 1e-5 of a
-// clamp edge, so every value below is one that MSVC, gcc and aarch64 agree on.
+// The margins are ABSOLUTE. A vector is rejected when the float the C++ truncates
+// lies 0 < d < 1e-3 from an integer, or when an UNCLAMPED result came within 1e-5
+// of a clamp edge it did not reach. A whole-number conversion and a fired clamp are
+// exact on every toolchain and are kept; the `// exact` rows are the former.
+// So every value below is one that MSVC, gcc and aarch64 agree on.
 
 #ifndef MANGOS_H_TESTS_COMBAT_GOLDEN_VECTORS
 #define MANGOS_H_TESTS_COMBAT_GOLDEN_VECTORS
@@ -54,6 +56,7 @@ namespace golden
 
     static const ArmorReducedDamageVector kArmorReducedDamageVectors[] =
     {
+        { 1001, 1, 0, false, 1, 1, 0.0f, 998 },
         { 1001, 3000, 0, false, 1, 1, 0.0f, 250 },
         { 1001, 12000, 0, false, 1, 1, 0.0f, 250 },
         { 1001, 50000, 0, false, 1, 1, 0.0f, 250 },
@@ -69,8 +72,11 @@ namespace golden
         { 1001, 3000, 0, false, 61, 61, 0.0f, 679 },
         { 1001, 12000, 0, false, 61, 61, 0.0f, 346 },
         { 1001, 50000, 0, false, 61, 61, 0.0f, 250 },
+        { 1001, 1, 0, false, 85, 85, 0.0f, 1000 },
+        { 1001, 3000, 0, false, 85, 85, 0.0f, 855 },
         { 1001, 12000, 0, false, 85, 85, 0.0f, 594 },
         { 1001, 50000, 0, false, 85, 85, 0.0f, 260 },
+        { 0, 3000, 0, false, 60, 60, 0.0f, 1 },   // exact
         { 1, 3000, 0, false, 60, 60, 0.0f, 1 },
         { 2, 3000, 0, false, 60, 60, 0.0f, 1 },
         { 3, 3000, 0, false, 60, 60, 0.0f, 1 },
@@ -78,12 +84,29 @@ namespace golden
         { 1000, 3000, 0, false, 60, 60, 0.0f, 662 },
         { 2003, 3000, 0, false, 60, 60, 0.0f, 1326 },
         { 4001, 3000, 0, false, 60, 60, 0.0f, 2649 },
+        { 2000000, 3000, 0, false, 60, 60, 0.0f, 1324514 },
+        { 2000000000, 3000, 0, false, 60, 60, 0.0f, 1324514560 },   // exact
+        { 2000000, 50000, 0, false, 1, 1, 0.0f, 500000 },   // exact
+        { 2000000, 12000, 0, false, 85, 85, 0.0f, 1188366 },
+        { 2000000, 1, 0, true, 85, 85, 25.0f, 1999914 },
+        { 2000000000, 50000, 0, false, 1, 1, 0.0f, 500000000 },   // exact
+        { 2000000000, 12000, 0, false, 85, 85, 0.0f, 1188366592 },   // exact
+        { 2000000000, 1, 0, true, 85, 85, 25.0f, 1999914624 },   // exact
+        { 1001, 1, -50, false, 60, 60, 0.0f, 1001 },   // exact
         { 1001, 12000, -50, false, 85, 85, 0.0f, 595 },
         { 1001, 50000, -50, true, 85, 85, 25.0f, 284 },
         { 1001, 50000, 0, true, 85, 85, 25.0f, 283 },
         { 1001, 1, 50, false, 60, 60, 0.0f, 992 },
         { 1001, 12000, 50, false, 85, 85, 0.0f, 593 },
         { 1001, 50000, 50, true, 85, 85, 25.0f, 283 },
+        { 1, 40, -50, false, 60, 60, 0.0f, 1 },   // exact
+        { 1, 0, -1, false, 85, 85, 0.0f, 1 },   // exact
+        { 2, 40, -50, false, 60, 60, 0.0f, 2 },   // exact
+        { 2, 0, -1, false, 85, 85, 0.0f, 2 },   // exact
+        { 1001, 40, -50, false, 60, 60, 0.0f, 1001 },   // exact
+        { 1001, 0, -1, false, 85, 85, 0.0f, 1001 },   // exact
+        { 2000000000, 40, -50, false, 60, 60, 0.0f, 2000000000 },   // exact
+        { 2000000000, 0, -1, false, 85, 85, 0.0f, 2000000000 },   // exact
         { 1001, 12000, 0, true, 59, 59, 0.0f, 311 },
         { 1001, 12000, 0, true, 60, 60, 0.0f, 329 },
         { 1001, 12000, 0, true, 61, 40, 0.0f, 346 },
@@ -98,8 +121,10 @@ namespace golden
         { 1001, 12000, 0, true, 85, 1, 25.0f, 661 },
         { 1001, 12000, 0, true, 59, 59, 150.0f, 466 },
         { 1001, 12000, 0, true, 60, 60, 150.0f, 493 },
+        { 1001, 12000, 0, true, 61, 40, 150.0f, 1001 },   // exact
         { 1001, 12000, 0, true, 85, 85, 150.0f, 892 },
         { 1001, 12000, 0, true, 60, 85, 150.0f, 733 },
+        { 1001, 12000, 0, true, 85, 1, 150.0f, 1001 },   // exact
         { 2003, 12000, 0, false, 1, 1, 0.0f, 500 },
         { 1001, 50000, 0, true, 1, 1, 150.0f, 250 },
         { 1, 50000, 0, false, 1, 1, 0.0f, 1 },
@@ -118,6 +143,10 @@ namespace golden
 
     static const SpellCriticalHealingBonusVector kSpellCriticalHealingBonusVectors[] =
     {
+        { 0, 0.0f, 0 },   // exact
+        { 0, 1.0f, 0 },   // exact
+        { 0, 1.07f, 0 },   // exact
+        { 0, 2.0f, 0 },   // exact
         { 1, 0.61f, 1 },
         { 1, 0.87f, 1 },
         { 1, 1.07f, 2 },
@@ -172,6 +201,7 @@ namespace golden
         { 53, 0.87f, 92 },
         { 53, 1.07f, 113 },
         { 53, 1.33f, 140 },
+        { 53, 2.17f, 230 },
         { 101, 0.61f, 123 },
         { 101, 0.87f, 175 },
         { 101, 1.07f, 216 },
@@ -192,6 +222,44 @@ namespace golden
         { 401, 1.07f, 858 },
         { 401, 1.33f, 1066 },
         { 401, 2.17f, 1740 },
+        { 1, 0.5f, 1 },   // exact
+        { 1, 1.0f, 2 },   // exact
+        { 1, 1.5f, 3 },   // exact
+        { 1, 2.0f, 4 },   // exact
+        { 2, 0.5f, 2 },   // exact
+        { 2, 1.0f, 4 },   // exact
+        { 2, 1.5f, 6 },   // exact
+        { 2, 2.0f, 8 },   // exact
+        { 1000, 0.5f, 1000 },   // exact
+        { 1000, 1.0f, 2000 },   // exact
+        { 1000, 1.5f, 3000 },   // exact
+        { 1000, 2.0f, 4000 },   // exact
+        { 20000, 0.5f, 20000 },   // exact
+        { 20000, 1.0f, 40000 },   // exact
+        { 20000, 1.5f, 60000 },   // exact
+        { 20000, 2.0f, 80000 },   // exact
+        { 2000000, 0.5f, 2000000 },   // exact
+        { 2000000, 1.0f, 4000000 },   // exact
+        { 2000000, 1.5f, 6000000 },   // exact
+        { 2000000, 2.0f, 8000000 },   // exact
+        { 1073741823, 0.1f, 214748368 },   // exact
+        { 1073741823, 0.25f, 536870912 },   // exact
+        { 1073741823, 0.4f, 858993472 },   // exact
+        { 1073741823, 0.5f, 1073741824 },   // exact
+        { 1500000000, 0.1f, 300000000 },   // exact
+        { 1500000000, 0.25f, 750000000 },   // exact
+        { 1500000000, 0.4f, 1200000000 },   // exact
+        { 1500000000, 0.5f, 1500000000 },   // exact
+        { 2000000000, 0.1f, 400000000 },   // exact
+        { 2000000000, 0.25f, 1000000000 },   // exact
+        { 2000000000, 0.4f, 1600000000 },   // exact
+        { 2000000000, 0.5f, 2000000000 },   // exact
+        { 2147483646, 0.1f, 429496736 },   // exact
+        { 2147483646, 0.25f, 1073741824 },   // exact
+        { 2147483646, 0.4f, 1717986944 },   // exact
+        { 2147483647, 0.1f, 429496736 },   // exact
+        { 2147483647, 0.25f, 1073741824 },   // exact
+        { 2147483647, 0.4f, 1717986944 },   // exact
     };
     static const size_t kSpellCriticalHealingBonusVectorCount = sizeof(kSpellCriticalHealingBonusVectors) / sizeof(kSpellCriticalHealingBonusVectors[0]);
 
@@ -357,6 +425,7 @@ namespace golden
         { 1, true, 33.0f, 41.0f, 19.0f, 0, 3, 5, 7, 45.0f },
         { 1, true, 33.0f, 41.0f, 19.0f, 0, -2, -4, 2, 31.0f },
         { 2, true, 0.0f, 0.0f, 0.0f, 0, 3, 5, 7, 10.0f },
+        { 2, true, 0.0f, 0.0f, 0.0f, 0, -2, -4, 2, 0.0f },
         { 2, true, 5.0f, 12.5f, 7.25f, 0, 3, 5, 7, 17.25f },
         { 2, true, 5.0f, 12.5f, 7.25f, 0, -2, -4, 2, 7.25f },
         { 2, true, 33.0f, 41.0f, 19.0f, 0, 3, 5, 7, 29.0f },
@@ -595,8 +664,8 @@ namespace golden
     };
     static const size_t kMinMaxDamageVectorCount = sizeof(kMinMaxDamageVectors) / sizeof(kMinMaxDamageVectors[0]);
 
-    /// 381 vectors over 9 leaves.
-    static const size_t kCombatVectorTotal = 381;
+    /// 448 vectors over 9 leaves.
+    static const size_t kCombatVectorTotal = 448;
 }
 
 #endif // MANGOS_H_TESTS_COMBAT_GOLDEN_VECTORS
