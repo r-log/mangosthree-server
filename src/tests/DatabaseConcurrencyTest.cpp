@@ -24,106 +24,11 @@
  */
 
 #include "TestHarness.h"
-#include "Database/QueryResult.h"
-#include "Database/Database.h"
+#include "FakeDatabase.h"
 
-#include <atomic>
-#include <chrono>
 #include <string>
 #include <thread>
 #include <vector>
-
-namespace
-{
-class FakeConnection final : public SqlConnection
-{
-    public:
-        explicit FakeConnection(Database& database)
-            : SqlConnection(database)
-        {
-        }
-
-        bool Initialize(const char*) override { return true; }
-
-        QueryResult* Query(const char*) override
-        {
-            Enter();
-            queryEntered.store(true);
-            if (coordinateEscape)
-            {
-                while (!escapeAttempting.load())
-                    std::this_thread::yield();
-                std::this_thread::sleep_for(
-                    std::chrono::milliseconds(20));
-            }
-            else
-            {
-                std::this_thread::sleep_for(
-                    std::chrono::milliseconds(1));
-            }
-            Leave();
-            return nullptr;
-        }
-
-        QueryNamedResult* QueryNamed(const char*) override
-        {
-            return nullptr;
-        }
-
-        bool Execute(const char*) override { return true; }
-
-        unsigned long escape_string(
-            char* to, const char* from,
-            unsigned long length) override
-        {
-            Enter();
-            for (unsigned long i = 0; i < length; ++i)
-                to[i] = from[i];
-            to[length] = '\0';
-            Leave();
-            return length;
-        }
-
-        void Enter()
-        {
-            if (active.fetch_add(1) != 0)
-                overlap.store(true);
-        }
-
-        void Leave()
-        {
-            active.fetch_sub(1);
-        }
-
-        std::atomic<int> active{0};
-        std::atomic<bool> overlap{false};
-        std::atomic<bool> queryEntered{false};
-        std::atomic<bool> escapeAttempting{false};
-        bool coordinateEscape = false;
-};
-
-class FakeDatabase final : public Database
-{
-    public:
-        FakeDatabase()
-        {
-            m_connection = new FakeConnection(*this);
-            m_pQueryConnections.push_back(m_connection);
-            m_nQueryConnPoolSize = 1;
-        }
-
-        FakeConnection& Connection() { return *m_connection; }
-
-    protected:
-        SqlConnection* CreateConnection() override
-        {
-            return new FakeConnection(*this);
-        }
-
-    private:
-        FakeConnection* m_connection = nullptr;
-};
-}
 
 TEST(Database_queries_serialize_on_connection_lock)
 {

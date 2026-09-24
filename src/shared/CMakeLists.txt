@@ -61,6 +61,8 @@ set(SRC_GRP_DATABASE
   Database/SqlOperations.h
   Database/SqlPreparedStatement.cpp
   Database/SqlPreparedStatement.h
+  Database/TickGuard.cpp
+  Database/TickGuard.h
 )
 source_group("Database" FILES ${SRC_GRP_DATABASE})
 
@@ -267,4 +269,12 @@ target_link_libraries(shared_db
     PUBLIC
         shared
         MySQL::MySQL
+)
+
+# Decoupling D7a: with MANGOS_STRICT_TICK on, the tick guard asserts instead of only
+# counting. Off by default, so nothing changes; a conversion PR turns it on locally (or in a
+# dedicated CI job) once a family is meant to be clean.
+target_compile_definitions(shared_db
+    PUBLIC
+        $<$<BOOL:${MANGOS_STRICT_TICK}>:MANGOS_STRICT_TICK>
 )

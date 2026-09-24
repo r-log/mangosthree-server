@@ -731,10 +731,20 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recv_data)
         return;
     }
 
-    CharacterDatabase.DelayQueryHolder([](QueryResult* result, SqlQueryHolder* h)
-                                       {
-                                           chrHandler.HandlePlayerLoginCallback(result, h);
-                                       }, holder);
+    // The holder is the callback's to free, so a refusal is ours: DelayQueryHolder() answers
+    // false without queueing once the database is shutting down (decoupling D7a), and nothing
+    // would ever run its queries or its callback. Same unwind as the Initialize() failure
+    // above -- free it and let the login fail rather than leak it and leave the session stuck
+    // in the loading state.
+    if (!CharacterDatabase.DelayQueryHolder([](QueryResult* result, SqlQueryHolder* h)
+                                            {
+                                                chrHandler.HandlePlayerLoginCallback(result, h);
+                                            }, holder))
+    {
+        delete holder;                                      // delete all unprocessed queries
+        m_playerLoading = false;
+        return;
+    }
 }
 
 /**

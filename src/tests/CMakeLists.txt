@@ -53,8 +53,11 @@ set(SRC_GRP_TESTS
     ${CMAKE_SOURCE_DIR}/src/tools/loadtest/src/Replay.cpp
     GlobalWmoEvictionTest.cpp
     ConnectToTest.cpp
+    FakeDatabase.h
     DatabaseConcurrencyTest.cpp
     NullDatabaseTest.cpp
+    TickGuardTest.cpp
+    TestSeamTest.cpp
     GameLinkTest.cpp
     AuthCryptTest.cpp
     ClientParserTest.cpp
@@ -165,6 +168,8 @@ add_test(NAME header_reach
 
 add_test(NAME session_seam COMMAND ${CMAKE_COMMAND} -DSOURCE_ROOT=${CMAKE_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckSessionSeam.cmake)
 
+add_test(NAME sync_db COMMAND ${CMAKE_COMMAND} -DSOURCE_ROOT=${CMAKE_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckSyncDb.cmake)
+
 add_test(NAME warden_dormant_boundary
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
@@ -227,6 +232,11 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME subtype_downcasts
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
             --gate subtype_sites=0 ${CMAKE_SOURCE_DIR}/src/game)
+
+    # Decoupling D7a: the synchronous-call inventory is a hint generator, not a ratchet, so
+    # only its own scanner is gated -- an inventory that miscounts is worse than none.
+    add_test(NAME sync_db_sites_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/sync_db_sites.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

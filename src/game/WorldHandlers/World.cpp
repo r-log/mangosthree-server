@@ -52,6 +52,7 @@
 #include <atomic>
 #include "World.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/TickGuard.h"
 #include "Config/Config.h"
 #include "Platform/Define.h"
 #include "Log.h"
@@ -929,6 +930,11 @@ void World::DetectDBCLang()
 /// Update the World !
 void World::Update(uint32 diff)
 {
+    // Decoupling D7: for this whole body, this thread is the tick. Every synchronous
+    // database acquisition made under it -- directly or through any chain below --
+    // is counted, and `.server database` prints the total.
+    TickGuard::Scope tickGuard;
+
     ///- Update the different timers
     for (int i = 0; i < WUPDATE_COUNT; ++i)
     {
