@@ -69,6 +69,7 @@
 #include "Object.h"
 #include "Opcodes.h"
 #include "SpellAuraDefines.h"
+#include "spells/AuraContainer.h"
 #include "UpdateFields.h"
 #include "SharedDefines.h"
 #include "ThreatManager.h"
@@ -1359,25 +1360,26 @@ class Unit : public WorldObject
         static_assert(std::is_same<Unit::AttackerSet::key_compare, ObjectGuidPointerLess>::value, "the unit's attacker set walks by guid (P0-D)");
         /**
          * A multimap from spell ids to \ref SpellAuraHolder, multiple \ref SpellAuraHolder can have
-         * the same id (ie: the same key)
+         * the same id (ie: the same key). Owned by \ref AuraContainer since decoupling D5d; the
+         * name stays so the callers of \ref Unit::GetSpellAuraHolderMap do not have to change.
          */
-        typedef std::multimap < uint32 /*spellId*/, SpellAuraHolder* > SpellAuraHolderMap;
+        typedef AuraContainer::HolderMap SpellAuraHolderMap;
         /**
          * A pair of two iterators to a \ref SpellAuraHolderMap which is used in conjunction
          * with the std::multimap::equal_range which gives all \ref SpellAuraHolder that have the same
          * spellid in this case, the first member is the iterator to the beginning, and the
          * second member is the iterator to the end.
          */
-        typedef std::pair<SpellAuraHolderMap::iterator, SpellAuraHolderMap::iterator> SpellAuraHolderBounds;
+        typedef AuraContainer::HolderBounds SpellAuraHolderBounds;
         /// Same thing as \ref SpellAuraHolderBounds but with const_iterator instead of iterator
-        typedef std::pair<SpellAuraHolderMap::const_iterator, SpellAuraHolderMap::const_iterator> SpellAuraHolderConstBounds;
-        typedef std::list<SpellAuraHolder*> SpellAuraHolderList;
+        typedef AuraContainer::HolderConstBounds SpellAuraHolderConstBounds;
+        typedef AuraContainer::HolderList SpellAuraHolderList;
         /**
-         * List of \ref Aura used in \ref Unit::GetAurasByType and more and also in the members
-         * \ref Unit::m_modAuras and \ref Unit::m_deletedAuras
+         * List of \ref Aura used in \ref Unit::GetAurasByType and more and also inside
+         * \ref Unit::m_auras, which holds the per-type lists and the deferred-deletion lists
          * \see Aura
          */
-        typedef std::list<Aura*> AuraList;
+        typedef AuraContainer::AuraList AuraList;
         /**
          * List of \ref DiminishingReturn used for calculation of the same thing.
          * \see DiminishingReturn
@@ -2661,14 +2663,14 @@ class Unit : public WorldObject
          */
         SpellAuraHolderBounds GetSpellAuraHolderBounds(uint32 spell_id)
         {
-            return m_spellAuraHolders.equal_range(spell_id);
+            return m_auras.Bounds(spell_id);
         }
         /**
          * Same as \ref Unit::GetSpellAuraHolderBounds
          */
         SpellAuraHolderConstBounds GetSpellAuraHolderBounds(uint32 spell_id) const
         {
-            return m_spellAuraHolders.equal_range(spell_id);
+            return m_auras.Bounds(spell_id);
         }
 
         /**
@@ -2699,14 +2701,14 @@ class Unit : public WorldObject
         bool HasAura(uint32 spellId, SpellEffectIndex effIndex) const;
         /**
          * Checks if we have at least one \ref Aura that is associated with the given spell id via
-         * the \ref Unit::m_spellAuraHolders multimap. Generalized version of the other
+         * the holder multimap in \ref Unit::m_auras. Generalized version of the other
          * \ref Unit::HasAura
          * @param spellId the spell id to look for
          * @return true if there was at least one \ref Aura associated with the id, false otherwise
          */
         bool HasAura(uint32 spellId) const
         {
-            return m_spellAuraHolders.find(spellId) != m_spellAuraHolders.end();
+            return m_auras.Holders().find(spellId) != m_auras.Holders().end();
         }
         bool HasAuraOfDifficulty(uint32 spellId) const;
 
@@ -3470,7 +3472,7 @@ class Unit : public WorldObject
          */
         bool AddSpellAuraHolder(SpellAuraHolder* holder);
         /**
-         * Adds a \ref Aura to \ref Unit::m_modAuras
+         * Adds a \ref Aura to the per-type list in \ref Unit::m_auras
          * @param aura the \ref Aura to add
          */
         void AddAuraToModList(Aura* aura);
@@ -3813,16 +3815,16 @@ class Unit : public WorldObject
         SpellAuraHolder* GetSpellAuraHolder(uint32 spellid) const;
         SpellAuraHolder* GetSpellAuraHolder(uint32 spellid, ObjectGuid casterGUID) const;
 
-        SpellAuraHolderMap&       GetSpellAuraHolderMap()       { return m_spellAuraHolders; }
-        SpellAuraHolderMap const& GetSpellAuraHolderMap() const { return m_spellAuraHolders; }
+        SpellAuraHolderMap&       GetSpellAuraHolderMap()       { return m_auras.Holders(); }
+        SpellAuraHolderMap const& GetSpellAuraHolderMap() const { return m_auras.Holders(); }
         /**
          * Get's a list of all the \ref Aura s of the given \ref AuraType that are currently
          * affecting this \ref Unit.
          * @param type the aura type we want to find
          * @return A list of the auras currently applied to the \ref Unit with the given \ref AuraType
-         * \see Unit::m_modAuras
+         * \see AuraContainer::ByType
          */
-        AuraList const& GetAurasByType(AuraType type) const { return m_modAuras[type]; }
+        AuraList const& GetAurasByType(AuraType type) const { return m_auras.ByType(type); }
         void ApplyAuraProcTriggerDamage(Aura* aura, bool apply);
 
         int32 GetTotalAuraModifier(AuraType auratype) const;
@@ -4088,10 +4090,11 @@ class Unit : public WorldObject
 
         DeathState m_deathState; ///< The current state of life/death for this \ref Unit
 
-        SpellAuraHolderMap m_spellAuraHolders;
-        SpellAuraHolderMap::iterator m_spellAuraHoldersUpdateIterator; // != end() in Unit::m_spellAuraHolders update and point to next element
-        AuraList m_deletedAuras;                            // auras removed while in ApplyModifier and waiting deleted
-        SpellAuraHolderList m_deletedHolders;
+        // Decoupling D5d (server #136): the holder multimap, the iterator Unit::Update walks
+        // it with, the two deferred-deletion lists and the per-type m_modAuras array are one
+        // object. It sits where m_spellAuraHolders sat, so every member's construction order
+        // but m_modAuras' is unchanged, and m_modAuras is a plain array of empty lists.
+        AuraContainer m_auras;
 
         // Store Auras for which the target must be tracked
         TrackedAuraTargetMap m_trackedAuraTargets[MAX_TRACKED_AURA_TYPES];
@@ -4105,7 +4108,6 @@ class Unit : public WorldObject
         bool m_isSorted;
         uint32 m_transform;
 
-        AuraList m_modAuras[TOTAL_AURAS];
         float m_auraModifiersGroup[UNIT_MOD_END][MODIFIER_TYPE_END];
         float m_weaponDamage[MAX_ATTACK][2];
         bool m_canModifyStats;

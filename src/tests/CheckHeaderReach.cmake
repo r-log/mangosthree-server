@@ -44,7 +44,13 @@ set(REACH_RULES
     "combat/ArmorReduction.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
     "combat/MeleeChances.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
     "combat/SpellBonus.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
-    "combat/WeaponDamage.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h")
+    "combat/WeaponDamage.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    # Decoupling D5d (server #136): the aura container is Unit's storage, and Unit.h includes
+    # it. It stores Aura* and SpellAuraHolder* without ever dereferencing one, so it must
+    # forward-declare both; the moment it reaches SpellAuras.h or the object layer the
+    # sentinel-pointer test in src/tests/AuraContainerTest.cpp stops being possible, and
+    # Unit.h's own include graph has grown a cycle.
+    "spells/AuraContainer.h|Object/Unit.h,Object/Object.h,WorldHandlers/SpellAuras.h,Server/DBCStructure.h,Server/WorldSession.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

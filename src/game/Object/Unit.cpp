@@ -235,7 +235,6 @@ Unit::Unit() :
     // m_Aura = NULL;
     // m_AurasCheck = 2000;
     // m_removeAuraTimer = 4;
-    m_spellAuraHoldersUpdateIterator = m_spellAuraHolders.end();
     m_AuraFlags = 0;
 
     m_Visibility = VISIBILITY_ON;
@@ -448,8 +447,7 @@ Unit::~Unit()
     // those should be already removed at "RemoveFromWorld()" call
     MANGOS_ASSERT(m_gameObj.size() == 0);
     MANGOS_ASSERT(m_dynObjGUIDs.size() == 0);
-    MANGOS_ASSERT(m_deletedAuras.size() == 0);
-    MANGOS_ASSERT(m_deletedHolders.size() == 0);
+    MANGOS_ASSERT(m_auras.DeferredEmpty());
 }
 
 /**
@@ -821,10 +819,10 @@ bool InMeleeReach(Unit const& attacker, Unit const& victim, float flat_mod)
  */
 void Unit::RemoveSpellsCausingAura(AuraType auraType)
 {
-    for (AuraList::const_iterator iter = m_modAuras[auraType].begin(); iter != m_modAuras[auraType].end();)
+    for (AuraList::const_iterator iter = m_auras.ByType(auraType).begin(); iter != m_auras.ByType(auraType).end();)
     {
         RemoveAurasDueToSpell((*iter)->GetId());
-        iter = m_modAuras[auraType].begin();
+        iter = m_auras.ByType(auraType).begin();
     }
 }
 
@@ -836,7 +834,7 @@ void Unit::RemoveSpellsCausingAura(AuraType auraType)
  */
 void Unit::RemoveSpellsCausingAura(AuraType auraType, SpellAuraHolder* except)
 {
-    for (AuraList::const_iterator iter = m_modAuras[auraType].begin(); iter != m_modAuras[auraType].end();)
+    for (AuraList::const_iterator iter = m_auras.ByType(auraType).begin(); iter != m_auras.ByType(auraType).end();)
     {
         // skip `except` aura
         if ((*iter)->GetHolder() == except)
@@ -846,7 +844,7 @@ void Unit::RemoveSpellsCausingAura(AuraType auraType, SpellAuraHolder* except)
         }
 
         RemoveAurasDueToSpell((*iter)->GetId(), except);
-        iter = m_modAuras[auraType].begin();
+        iter = m_auras.ByType(auraType).begin();
     }
 }
 
@@ -858,12 +856,12 @@ void Unit::RemoveSpellsCausingAura(AuraType auraType, SpellAuraHolder* except)
  */
 void Unit::RemoveSpellsCausingAura(AuraType auraType, ObjectGuid casterGuid)
 {
-    for (AuraList::const_iterator iter = m_modAuras[auraType].begin(); iter != m_modAuras[auraType].end();)
+    for (AuraList::const_iterator iter = m_auras.ByType(auraType).begin(); iter != m_auras.ByType(auraType).end();)
     {
         if ((*iter)->GetCasterGuid() == casterGuid)
         {
             RemoveSpellAuraHolder((*iter)->GetHolder());
-            iter = m_modAuras[auraType].begin();
+            iter = m_auras.ByType(auraType).begin();
         }
         else
         {
@@ -2196,23 +2194,22 @@ void Unit::_UpdateSpells(uint32 time)
     }
 
     // update auras
-    // m_AurasUpdateIterator can be updated in inderect called code at aura remove to skip next planned to update but removed auras
-    for (m_spellAuraHoldersUpdateIterator = m_spellAuraHolders.begin(); m_spellAuraHoldersUpdateIterator != m_spellAuraHolders.end();)
+    // the container's update iterator can be moved on by AuraContainer::EraseHolder from indirectly
+    // called code at aura remove, to skip an entry that was planned to update but has been removed
+    for (SpellAuraHolder* i_holder = m_auras.BeginUpdate(); i_holder; i_holder = m_auras.NextUpdate())
     {
-        SpellAuraHolder* i_holder = m_spellAuraHoldersUpdateIterator->second;
-        ++m_spellAuraHoldersUpdateIterator;                 // need shift to next for allow update if need into aura update
-        i_holder->UpdateHolder(time);
+        i_holder->UpdateHolder(time);                       // the walk already shifted to the next element, so a removal from in here is safe
     }
 
     // remove expired auras
-    for (SpellAuraHolderMap::iterator iter = m_spellAuraHolders.begin(); iter != m_spellAuraHolders.end();)
+    for (SpellAuraHolderMap::iterator iter = m_auras.Holders().begin(); iter != m_auras.Holders().end();)
     {
         SpellAuraHolder* holder = iter->second;
 
         if (!(holder->IsPermanent() || holder->IsPassive()) && holder->GetAuraDuration() == 0)
         {
             RemoveSpellAuraHolder(holder, AURA_REMOVE_BY_EXPIRE);
-            iter = m_spellAuraHolders.begin();
+            iter = m_auras.Holders().begin();
         }
         else
         {
@@ -6283,7 +6280,7 @@ Unit* Unit::SelectRandomFriendlyTarget(Unit* except /*= NULL*/, float radius /*=
  */
 bool Unit::hasNegativeAuraWithInterruptFlag(uint32 flag)
 {
-    for (SpellAuraHolderMap::const_iterator iter = m_spellAuraHolders.begin(); iter != m_spellAuraHolders.end(); ++iter)
+    for (SpellAuraHolderMap::const_iterator iter = m_auras.Holders().begin(); iter != m_auras.Holders().end(); ++iter)
     {
         if (!iter->second->IsPositive() && iter->second->GetSpellProto()->GetAuraInterruptFlags() & flag)
         {
@@ -6799,18 +6796,25 @@ bool Unit::IsIgnoreUnitState(SpellEntry const* spell, IgnoreUnitState ignoreStat
  */
 void Unit::CleanupDeletedAuras()
 {
-    for (SpellAuraHolderList::const_iterator iter = m_deletedHolders.begin(); iter != m_deletedHolders.end(); ++iter)
+    // The lists are taken BEFORE the delete loops, so no destructor reached from here may queue a
+    // deferred deletion: such a pointer would land in the emptied container and survive to the next
+    // call -- and, at the last call before the unit dies, trip ~Unit's DeferredEmpty() assert.
+    // Nothing does today: Aura::~Aura and its three subclasses' destructors are empty, and
+    // ~SpellAuraHolder only deletes its three m_auras[i], which are Auras.
+    AuraList deletedAuras;
+    SpellAuraHolderList deletedHolders;
+    m_auras.TakeDeferred(deletedAuras, deletedHolders);
+
+    for (SpellAuraHolderList::const_iterator iter = deletedHolders.begin(); iter != deletedHolders.end(); ++iter)
     {
         delete *iter;
     }
-    m_deletedHolders.clear();
 
     // really delete auras "deleted" while processing its ApplyModify code
-    for (AuraList::const_iterator itr = m_deletedAuras.begin(); itr != m_deletedAuras.end(); ++itr)
+    for (AuraList::const_iterator itr = deletedAuras.begin(); itr != deletedAuras.end(); ++itr)
     {
         delete *itr;
     }
-    m_deletedAuras.clear();
 }
 
 /**
@@ -6839,8 +6843,8 @@ bool Unit::CheckAndIncreaseCastCounter()
  */
 SpellAuraHolder* Unit::GetSpellAuraHolder(uint32 spellid) const
 {
-    SpellAuraHolderMap::const_iterator itr = m_spellAuraHolders.find(spellid);
-    return itr != m_spellAuraHolders.end() ? itr->second : NULL;
+    SpellAuraHolderMap::const_iterator itr = m_auras.Holders().find(spellid);
+    return itr != m_auras.Holders().end() ? itr->second : NULL;
 }
 
 /**
