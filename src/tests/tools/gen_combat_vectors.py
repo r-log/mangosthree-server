@@ -2,10 +2,12 @@
 """gen_combat_vectors.py [output-path]
 
 Generate src/tests/CombatGoldenVectors.h: golden vectors for the nine combat leaves
-that decoupling D5b moves out of Unit/Player into src/game/combat/.
+that decoupling D5b moves out of Unit/Player into src/game/combat/, and for the ten
+pure sub-blocks INSIDE the orchestration functions that D5c moves next to them.
 
-Every function below is a transcription of the ORIGINAL member body as it stood at
-ce20c27db, BEFORE the move -- each docstring cites file:lines at that commit. The
+Every function below is a transcription of the ORIGINAL body as it stood BEFORE the
+move -- at ce20c27db for the nine D5b leaves, at 82e9c4f65 for the ten D5c blocks, and
+each docstring cites file:lines at the commit that applies to it. The
 transcription is deliberately literal: it keeps the branches, the clamps, the casts
 and the order of the arithmetic, and it models the fixed-width conversions the C++
 performs rather than computing in Python's arbitrary precision:
@@ -37,7 +39,7 @@ clamp result for sitting 0.0 from its own edge.
     value itself, exactly, so it is kept. REJECT only an UNCLAMPED result that came
     within an absolute 1e-5 of an edge it did not reach: 0 < d < 1e-5, the same shape
     as the truncation rule. A distance of exactly 0 is kept, and it is safe for a
-    stronger reason than exactness -- at every clamp site in these nine leaves the two
+    stronger reason than exactness -- at every clamp site in these bodies the two
     arms AGREE there (`tmpvalue > 0.75f` and `tmpvalue = 0.75f` both leave 0.75,
     `chance > 0.0f ? chance : 0.0f` at chance == 0 leaves 0 either way), so no
     perturbation across the edge can change the answer. This is what pins L1's
@@ -82,7 +84,8 @@ import os
 import struct
 import sys
 
-BASE_COMMIT = "ce20c27db"
+BASE_COMMIT = "ce20c27db"       # D5b: the nine whole-function leaves
+D5C_BASE_COMMIT = "82e9c4f65"   # D5c: the ten sub-blocks inside the orchestrators
 
 TRUNC_TOLERANCE = 1e-3          # absolute, around the nearest integer
 CLAMP_TOLERANCE = 1e-5          # absolute, around a clamp edge the result did not reach
@@ -131,6 +134,11 @@ ITEM_SUBCLASS_WEAPON_SWORD = 7      # ItemPrototype.h:305
 
 CREATURE_TYPE_BEAST = 1             # SharedDefines.h:2769
 CREATURE_TYPE_HUMANOID = 7          # SharedDefines.h:2775
+
+SPELL_DAMAGE_CLASS_NONE = 0         # SharedDefines.h:1584
+SPELL_DAMAGE_CLASS_MAGIC = 1        # SharedDefines.h:1586
+SPELL_DAMAGE_CLASS_MELEE = 2        # SharedDefines.h:1588
+SPELL_DAMAGE_CLASS_RANGED = 3       # SharedDefines.h:1590
 
 FORM_NONE = 0x00                    # SharedDefines.h:3439
 FORM_CAT = 0x01                     # SharedDefines.h:3440
@@ -591,6 +599,387 @@ def calculate_min_max_damage(att_type, attack_speed_multiplier, modifier_base_va
     return out
 
 
+# ===========================================================================
+# D5c -- the ten pure sub-blocks INSIDE the orchestration functions. Every
+# transcription below is of the ORIGINAL host body at D5C_BASE_COMMIT, BEFORE
+# the move, and each docstring cites file:lines at that commit.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# S4 -- the crit bonus by damage class, inside Unit::SpellCriticalDamageBonus
+# ---------------------------------------------------------------------------
+
+def spell_crit_damage_bonus_base(damage, dmg_class, crit_damage_bonus_pct):
+    """UnitSpellBonus.cpp:995-1010 at 82e9c4f65 (Unit::SpellCriticalDamageBonus).
+
+    spellProto->GetDmgClass() -> dmg_class, and the E2a aggregator
+    GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_CRIT_DAMAGE_BONUS,
+    GetSpellSchoolMask(spellProto)) -> crit_damage_bonus_pct.
+    """
+    out = Result(0)
+
+    # switch (spellProto->GetDmgClass())
+    if dmg_class in (SPELL_DAMAGE_CLASS_MELEE, SPELL_DAMAGE_CLASS_RANGED):
+        # crit_bonus = damage;                 -- uint32 -> int32
+        crit_bonus = i32(damage)
+    else:
+        # crit_bonus = damage / 2;             -- uint32 division, then -> int32
+        crit_bonus = i32(damage // 2)
+
+    # crit_bonus += int32((damage + crit_bonus) * float(pctBonus / 100.0f));
+    # `damage + crit_bonus` is uint32 arithmetic: the int32 converts to uint32 first.
+    total = u32(damage + u32(crit_bonus))
+    factor = f32(f32(crit_damage_bonus_pct) / f32(100.0))
+    pre = f32(f32(total) * factor)
+    crit_bonus = i32(crit_bonus + out.trunc(pre, -(1 << 31), (1 << 31) - 1))
+
+    out.values = (crit_bonus,)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S5 -- the crit bonus modifiers, inside Unit::SpellCriticalDamageBonus
+# ---------------------------------------------------------------------------
+
+def spell_crit_damage_bonus_taken(damage, crit_bonus, has_victim, dmg_class,
+                                  is_ranged_attack, victim_ranged_crit_damage_mod,
+                                  victim_melee_crit_damage_mod, victim_spell_crit_damage_mod):
+    """UnitSpellBonus.cpp:1018-1050 at 82e9c4f65 (Unit::SpellCriticalDamageBonus).
+
+    pVictim != NULL -> has_victim (the `return damage += crit_bonus` early return stays
+    in the free function), spellProto->GetDmgClass() -> dmg_class,
+    GetWeaponAttackType(spellProto) == RANGED_ATTACK -> is_ranged_attack, and the three
+    victim aggregators -> the three victim_*_crit_damage_mod, each 0 on the arm the body
+    never reads.
+    """
+    out = Result(0)
+
+    # if (!pVictim) { return damage += crit_bonus; }
+    if not has_victim:
+        out.values = (u32(damage + u32(crit_bonus)),)
+        return out
+
+    # int32 critPctDamageMod = 0;
+    crit_pct_damage_mod = 0
+    if dmg_class >= SPELL_DAMAGE_CLASS_MELEE:
+        if is_ranged_attack:
+            crit_pct_damage_mod = i32(crit_pct_damage_mod + victim_ranged_crit_damage_mod)
+        else:
+            crit_pct_damage_mod = i32(crit_pct_damage_mod + victim_melee_crit_damage_mod)
+    else:
+        crit_pct_damage_mod = i32(crit_pct_damage_mod + victim_spell_crit_damage_mod)
+
+    # if (critPctDamageMod != 0) { crit_bonus = int32(crit_bonus * float((100.0f + critPctDamageMod) / 100.0f)); }
+    if crit_pct_damage_mod != 0:
+        factor = f32(f32(f32(100.0) + f32(crit_pct_damage_mod)) / f32(100.0))
+        pre = f32(f32(crit_bonus) * factor)
+        crit_bonus = out.trunc(pre, -(1 << 31), (1 << 31) - 1)
+
+    # if (crit_bonus > 0) { damage += crit_bonus; }
+    if crit_bonus > 0:
+        damage = u32(damage + u32(crit_bonus))
+
+    out.values = (damage,)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S6 -- the taken-mod composition, inside Unit::SpellDamageBonusTaken
+# ---------------------------------------------------------------------------
+
+def spell_damage_taken_percent(taken_total_mod, mechanic_damage_taken_multiplier,
+                               is_area_of_effect_spell, aoe_damage_avoidance_multiplier,
+                               is_pet, pet_aoe_damage_avoidance_multiplier):
+    """UnitSpellBonus.cpp:633-644 at 82e9c4f65 (Unit::SpellDamageBonusTaken).
+
+    GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT,
+    GetAllSpellMechanicMask(spellProto)) -> mechanic_damage_taken_multiplier,
+    IsAreaOfEffectSpell(spellProto) -> is_area_of_effect_spell, the two
+    GetTotalAuraMultiplierByMiscMask aggregators -> the two avoidance multipliers, and
+    the E2b `GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet()` -> is_pet.
+    No integer conversion and no clamp: nothing here can be rejected.
+    """
+    out = Result(0.0)
+
+    # TakenTotalMod *= GetTotalAuraMultiplierByMiscValueForMask(...);
+    taken_total_mod = f32(taken_total_mod * mechanic_damage_taken_multiplier)
+
+    # if (IsAreaOfEffectSpell(spellProto)) { ... }
+    if is_area_of_effect_spell:
+        taken_total_mod = f32(taken_total_mod * aoe_damage_avoidance_multiplier)
+        if is_pet:
+            taken_total_mod = f32(taken_total_mod * pet_aoe_damage_avoidance_multiplier)
+
+    out.values = (taken_total_mod,)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S7 -- TakenTotalMod, inside Unit::SpellHealingBonusTaken
+# ---------------------------------------------------------------------------
+
+def spell_healing_taken_percent(healing_pct_negative, healing_pct_positive):
+    """UnitSpellBonus.cpp:1245-1259 at 82e9c4f65 (Unit::SpellHealingBonusTaken).
+
+    GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT) -> healing_pct_negative and
+    GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT) -> healing_pct_positive, both
+    int32 as the aggregators return; the body's own float() casts stay in the block.
+    The `if (minval)` / `if (maxval)` tests compare a float converted from a small int32,
+    which is exact on every toolchain, so neither is a clamp-edge candidate.
+    """
+    out = Result(0.0)
+
+    # float TakenTotalMod = 1.0f;
+    taken_total_mod = f32(1.0)
+
+    # float minval = float(GetMaxNegativeAuraModifier(SPELL_AURA_MOD_HEALING_PCT));
+    minval = f32(healing_pct_negative)
+    if minval != 0.0:
+        taken_total_mod = f32(taken_total_mod
+                              * f32(f32(f32(100.0) + minval) / f32(100.0)))
+
+    # float maxval = float(GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HEALING_PCT));
+    maxval = f32(healing_pct_positive)
+    if maxval != 0.0:
+        taken_total_mod = f32(taken_total_mod
+                              * f32(f32(f32(100.0) + maxval) / f32(100.0)))
+
+    out.values = (taken_total_mod,)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S8 -- flat and percent taken, inside Unit::MeleeDamageBonusTaken
+# ---------------------------------------------------------------------------
+
+def melee_damage_taken(att_type, ranged_damage_taken_mod, melee_damage_taken_mod,
+                       damage_taken_school_mod, damage_percent_taken_multiplier,
+                       mechanic_damage_taken_multiplier, ranged_damage_taken_pct,
+                       melee_damage_taken_pct, is_area_of_effect_spell,
+                       aoe_damage_avoidance_multiplier, is_pet,
+                       pet_aoe_damage_avoidance_multiplier):
+    """UnitSpellBonus.cpp:1877-1922 at 82e9c4f65 (Unit::MeleeDamageBonusTaken).
+
+    The six aggregators of the original become the six scalars, each 0 or 1.0f on the arm
+    the body never reads; `spellProto && IsAreaOfEffectSpell(spellProto)` ->
+    is_area_of_effect_spell; the E2b `((Creature*)this)->IsPet()` -> is_pet.
+    """
+    out = Result(0)
+
+    # int32 TakenFlat = 0;
+    taken_flat = 0
+
+    # ..taken flat (melee/ranged)
+    if att_type == RANGED_ATTACK:
+        taken_flat = i32(taken_flat + ranged_damage_taken_mod)
+    else:
+        taken_flat = i32(taken_flat + melee_damage_taken_mod)
+
+    # ..taken flat (by school mask)
+    taken_flat = i32(taken_flat + damage_taken_school_mod)
+
+    # float TakenPercent = 1.0f;
+    taken_percent = f32(1.0)
+
+    # ..taken pct (by school mask), then (by mechanic mask)
+    taken_percent = f32(taken_percent * damage_percent_taken_multiplier)
+    taken_percent = f32(taken_percent * mechanic_damage_taken_multiplier)
+
+    # ..taken pct (melee/ranged)
+    if att_type == RANGED_ATTACK:
+        taken_percent = f32(taken_percent * ranged_damage_taken_pct)
+    else:
+        taken_percent = f32(taken_percent * melee_damage_taken_pct)
+
+    # ..taken pct (aoe avoidance)
+    if is_area_of_effect_spell:
+        taken_percent = f32(taken_percent * aoe_damage_avoidance_multiplier)
+        if is_pet:
+            taken_percent = f32(taken_percent * pet_aoe_damage_avoidance_multiplier)
+
+    out.values = (taken_flat, taken_percent)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S9 -- the done flat/AP/percent base, inside Unit::MeleeDamageBonusDone
+# ---------------------------------------------------------------------------
+
+def melee_damage_done_base(done_flat, ap_bonus, att_type, damage_done_creature_mod,
+                           victim_ranged_ap_attacker_bonus, ranged_ap_versus_mod,
+                           victim_melee_ap_attacker_bonus, melee_ap_versus_mod):
+    """UnitSpellBonus.cpp:1577-1594 at 82e9c4f65 (Unit::MeleeDamageBonusDone).
+
+    DoneFlat and APbonus arrive with whatever the earlier `!isWeaponDamageBasedSpell`
+    aura loop left in them; the four aggregators become the four scalars, each 0 on the
+    arm the body never reads. Pure int32 arithmetic plus the `float DonePercent = 1.0f;`
+    the block declares: nothing here can be rejected.
+    """
+    out = Result(0)
+
+    # DoneFlat += GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_DAMAGE_DONE_CREATURE, creatureTypeMask);
+    done_flat = i32(done_flat + damage_done_creature_mod)
+
+    if att_type == RANGED_ATTACK:
+        ap_bonus = i32(ap_bonus + victim_ranged_ap_attacker_bonus)
+        ap_bonus = i32(ap_bonus + ranged_ap_versus_mod)
+    else:
+        ap_bonus = i32(ap_bonus + victim_melee_ap_attacker_bonus)
+        ap_bonus = i32(ap_bonus + melee_ap_versus_mod)
+
+    # float DonePercent = 1.0f;
+    done_percent = f32(1.0)
+
+    out.values = (done_flat, ap_bonus, done_percent)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S10 -- the weapon-damage-based branch, inside Unit::MeleeDamageBonusDone
+# ---------------------------------------------------------------------------
+
+def melee_damage_done_weapon_based(done_total, ap_bonus, done_flat, ap_multiplier,
+                                   damage_total_pct):
+    """UnitSpellBonus.cpp:1814-1831 at 82e9c4f65 (Unit::MeleeDamageBonusDone).
+
+    GetAPMultiplier(attType, normalized) -> ap_multiplier (so the gathered
+    IsSpellHaveEffect(spellProto, SPELL_EFFECT_NORMALIZED_WEAPON_DMG) that feeds it has
+    no counterpart here), and GetModifierValue(unitMod, TOTAL_PCT) -> damage_total_pct,
+    which is why the `switch (attType)` that only chooses unitMod stays in the host.
+    """
+    out = Result(0.0)
+
+    # DoneTotal += int32(APbonus / 14.0f * GetAPMultiplier(attType, normalized));
+    pre = f32(f32(f32(ap_bonus) / f32(14.0)) * ap_multiplier)
+    done_total = f32(done_total + f32(out.trunc(pre, -(1 << 31), (1 << 31) - 1)))
+
+    # DoneTotal += DoneFlat;
+    done_total = f32(done_total + f32(done_flat))
+
+    # DoneTotal *= GetModifierValue(unitMod, TOTAL_PCT);
+    done_total = f32(done_total * damage_total_pct)
+
+    out.values = (done_total,)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S12 -- the legacy level clamps and base points, inside Unit::CalculateSpellDamage
+# ---------------------------------------------------------------------------
+
+def spell_legacy_scaling_points(level, spell_level, max_level, base_level,
+                                base_points_per_level, has_eff_base_points, eff_base_points,
+                                effect_base_points, effect_die_sides,
+                                effect_points_per_resource):
+    """Unit.cpp:4721-4736 at 82e9c4f65 (Unit::CalculateSpellDamage).
+
+    spellProto->GetSpellLevel()/GetMaxLevel()/GetBaseLevel() -> spell_level/max_level/
+    base_level, the four spellEffect fields -> base_points_per_level/effect_base_points/
+    effect_die_sides/effect_points_per_resource, and the nullable `int32 const*
+    effBasePoints` -> has_eff_base_points + eff_base_points, resolved by the host.
+    All level arithmetic is uint32, as the original's locals are.
+    """
+    out = Result(0)
+
+    # if (maxLevel) { level = std::min(level, maxLevel); }
+    if max_level:
+        level = min(level, max_level)
+    # level = std::max(level, baseLevel);
+    level = max(level, base_level)
+    # level = std::max(level, spellLevel) - spellLevel;
+    level = u32(max(level, spell_level) - spell_level)
+
+    # basePoints = effBasePoints ? *effBasePoints - 1 : spellEffect->EffectBasePoints;
+    base_points = i32(eff_base_points - 1) if has_eff_base_points else effect_base_points
+    # basePoints += int32(level * basePointsPerLevel);
+    pre = f32(f32(level) * base_points_per_level)
+    base_points = i32(base_points + out.trunc(pre, -(1 << 31), (1 << 31) - 1))
+
+    # int32 randomPoints = int32(spellEffect->EffectDieSides);
+    random_points = effect_die_sides
+    # comboDamage = spellEffect->EffectPointsPerResource;
+    combo_damage = effect_points_per_resource
+
+    out.values = (level, base_points, random_points, combo_damage)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S13 -- the base spell hit chance, inside Unit::MagicSpellHitResult
+# ---------------------------------------------------------------------------
+
+def magic_spell_base_hit_chance(victim_is_player, victim_level, attacker_level):
+    """UnitCombat.cpp:828-841 at 82e9c4f65 (Unit::MagicSpellHitResult).
+
+    pVictim->GetTypeId() == TYPEID_PLAYER -> victim_is_player, and the two VIRTUAL
+    GetLevelForTarget calls (E2b, gathered by the host) -> victim_level and
+    attacker_level. Pure int32 arithmetic: nothing here can be rejected.
+    """
+    out = Result(0)
+
+    # int32 lchance = pVictim->GetTypeId() == TYPEID_PLAYER ? 7 : 11;
+    lchance = 7 if victim_is_player else 11
+    # int32 leveldif = int32(pVictim->GetLevelForTarget(this)) - int32(GetLevelForTarget(pVictim));
+    leveldif = i32(i32(victim_level) - i32(attacker_level))
+
+    if leveldif < 3:
+        mod_hit_chance = i32(96 - leveldif)
+    else:
+        mod_hit_chance = i32(94 - i32(i32(leveldif - 2) * lchance))
+
+    out.values = (mod_hit_chance,)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# S14 -- the min/max selection and swap, inside Unit::CalculateDamage
+# ---------------------------------------------------------------------------
+
+def select_weapon_damage_range(att_type, is_normalized_player, player_min_damage,
+                               player_max_damage, min_ranged_damage, max_ranged_damage,
+                               min_base_damage, max_base_damage, min_offhand_damage,
+                               max_offhand_damage):
+    """UnitCombat.cpp:405-443 at 82e9c4f65 (Unit::CalculateDamage).
+
+    `normalized && GetTypeId() == TYPEID_PLAYER` -> is_normalized_player, the E2b
+    ((Player*)this)->CalculateMinMaxDamage out-parameters -> player_min_damage and
+    player_max_damage (gathered by the host under that same guard), and the six
+    GetFloatValue(UNIT_FIELD_...) reads -> the six field parameters.
+
+    Neither decision below is a clamp-edge candidate: `min_damage > max_damage` and
+    `max_damage == 0.0f` both test values that are unmodified inputs or the literal the
+    default arm assigns, which are bit-identical on every toolchain.
+    """
+    out = Result(0.0)
+
+    if is_normalized_player:
+        min_damage = player_min_damage
+        max_damage = player_max_damage
+    elif att_type == RANGED_ATTACK:
+        min_damage = min_ranged_damage
+        max_damage = max_ranged_damage
+    elif att_type == BASE_ATTACK:
+        min_damage = min_base_damage
+        max_damage = max_base_damage
+    elif att_type == OFF_ATTACK:
+        min_damage = min_offhand_damage
+        max_damage = max_offhand_damage
+    else:
+        min_damage = f32(0.0)
+        max_damage = f32(0.0)
+
+    # if (min_damage > max_damage) { std::swap(min_damage, max_damage); }
+    if min_damage > max_damage:
+        min_damage, max_damage = max_damage, min_damage
+
+    # if (max_damage == 0.0f) { max_damage = 5.0f; }
+    if max_damage == 0.0:
+        max_damage = f32(5.0)
+
+    out.values = (min_damage, max_damage)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # candidate inputs -- at least 24 surviving tuples per leaf, every branch and clamp
 # ---------------------------------------------------------------------------
@@ -831,6 +1220,176 @@ def l9_candidates():
     return out
 
 
+def s4_candidates():
+    out = []
+    # every damage class the switch distinguishes x a percentage sweep. The percentages
+    # are multiples of 25 so pctBonus/100.0f is exactly representable and the product's
+    # distance to an integer is a property of `damage` alone.
+    for dmg_class in (SPELL_DAMAGE_CLASS_NONE, SPELL_DAMAGE_CLASS_MAGIC,
+                      SPELL_DAMAGE_CLASS_MELEE, SPELL_DAMAGE_CLASS_RANGED):
+        for pct in (-100, -75, -50, -25, 0, 25, 50, 100, 200):
+            for damage in (0, 1, 101, 1001, 20000):
+                out.append((damage, dmg_class, pct))
+    # percentages that are NOT representable: some of these land inside the truncation
+    # margin and are reported as rejected, which is the rule doing its job
+    for dmg_class in (SPELL_DAMAGE_CLASS_MAGIC, SPELL_DAMAGE_CLASS_MELEE):
+        for pct in (10, 33, -10, -33):
+            for damage in (7, 333, 100000):
+                out.append((damage, dmg_class, pct))
+    # above 2^23 every float is already an integer: exact conversions, pinned as such
+    for dmg_class in (SPELL_DAMAGE_CLASS_MAGIC, SPELL_DAMAGE_CLASS_MELEE):
+        for damage in (2000000, 100000000):
+            out.append((damage, dmg_class, 50))
+    return out
+
+
+def s5_candidates():
+    out = []
+    # !pVictim: the early return that never touches critPctDamageMod
+    for damage, crit in ((0, 0), (100, 50), (1000, 1000), (2000000, 1000000)):
+        out.append((damage, crit, False, SPELL_DAMAGE_CLASS_MAGIC, False, 0, 0, 0))
+    # GetDmgClass() >= SPELL_DAMAGE_CLASS_MELEE: the ranged and the melee victim mods
+    for dmg_class in (SPELL_DAMAGE_CLASS_MELEE, SPELL_DAMAGE_CLASS_RANGED):
+        for is_ranged in (True, False):
+            for mod in (-100, -50, -25, 0, 25, 50, 100):
+                victim_ranged = mod if is_ranged else 0
+                victim_melee = 0 if is_ranged else mod
+                out.append((1000, 500, True, dmg_class, is_ranged,
+                            victim_ranged, victim_melee, 0))
+                out.append((1001, 333, True, dmg_class, is_ranged,
+                            victim_ranged, victim_melee, 0))
+    # below SPELL_DAMAGE_CLASS_MELEE: the victim's spell crit damage mod
+    for dmg_class in (SPELL_DAMAGE_CLASS_NONE, SPELL_DAMAGE_CLASS_MAGIC):
+        for mod in (-100, -50, -25, 0, 25, 50, 100):
+            out.append((1000, 500, True, dmg_class, False, 0, 0, mod))
+            out.append((1001, 333, True, dmg_class, False, 0, 0, mod))
+    # the `crit_bonus > 0` FALSE arm, which leaves damage alone
+    for crit in (0, -1, -500):
+        out.append((1000, crit, True, SPELL_DAMAGE_CLASS_MELEE, False, 0, 0, 0))
+        out.append((1000, crit, True, SPELL_DAMAGE_CLASS_MAGIC, False, 50, 0, 50))
+    return out
+
+
+def s6_candidates():
+    out = []
+    for taken in (1.0, 0.5, 1.25, 2.0, 0.9):
+        for mechanic in (1.0, 0.75, 1.3):
+            out.append((taken, mechanic, False, 1.0, False, 1.0))
+            out.append((taken, mechanic, True, 0.8, False, 1.0))
+            out.append((taken, mechanic, True, 0.8, True, 0.6))
+            out.append((taken, mechanic, True, 1.0, True, 1.0))
+    return out
+
+
+def s7_candidates():
+    out = []
+    # minval 0 skips the first multiply, maxval 0 the second; -100 drives the factor to 0
+    for minval in (0, -10, -25, -50, -75, -100, -150):
+        for maxval in (0, 10, 25, 50, 100, 200):
+            out.append((minval, maxval))
+    return out
+
+
+def s8_candidates():
+    out = []
+    for att in (BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK, MAX_ATTACK):
+        for flat_ranged, flat_melee, flat_school in ((0, 0, 0), (25, -40, 10), (-15, 30, -5)):
+            out.append((att, flat_ranged, flat_melee, flat_school,
+                        1.0, 1.0, 1.0, 1.0, False, 1.0, False, 1.0))
+            out.append((att, flat_ranged, flat_melee, flat_school,
+                        0.8, 1.2, 0.9, 1.1, False, 1.0, False, 1.0))
+            out.append((att, flat_ranged, flat_melee, flat_school,
+                        0.8, 1.2, 0.9, 1.1, True, 0.75, False, 1.0))
+            out.append((att, flat_ranged, flat_melee, flat_school,
+                        0.8, 1.2, 0.9, 1.1, True, 0.75, True, 0.5))
+    return out
+
+
+def s9_candidates():
+    out = []
+    for att in (BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK, MAX_ATTACK):
+        for done_flat, ap_bonus in ((0, 0), (150, 40), (-60, -25), (2000000000, 0)):
+            for creature_mod in (0, 35, -35):
+                out.append((done_flat, ap_bonus, att, creature_mod, 120, 60, 90, 45))
+                out.append((done_flat, ap_bonus, att, creature_mod, 0, 0, 0, 0))
+    return out
+
+
+def s10_candidates():
+    out = []
+    # APbonus deliberately off the multiples of 14: a whole quotient times an inexact
+    # multiplier is exactly the fragile case the truncation margin rejects
+    for ap_bonus in (0, 7, 100, 333, 1000, 2500, -133, -333):
+        for multiplier in (1.0, 1.7, 2.4, 2.8, 3.3):
+            out.append((0.0, ap_bonus, 250, multiplier, 1.0))
+    for done_total in (0.0, 12.5, -30.0):
+        for done_flat in (0, 250, -80):
+            for total_pct in (1.0, 1.15, 0.85):
+                out.append((done_total, 333, done_flat, 2.4, total_pct))
+    # whole-number products: exact conversions, pinned as `exact` rows
+    for ap_bonus in (140, 1400):
+        out.append((0.0, ap_bonus, 0, 1.0, 1.0))
+    return out
+
+
+def s12_candidates():
+    out = []
+    # the level clamps: the caster's level against the spell's own bounds, at 1/59/60/61/85
+    for level in (1, 59, 60, 61, 85):
+        for max_level, base_level, spell_level in ((0, 0, 0), (60, 1, 1), (0, 70, 20),
+                                                   (80, 60, 40), (60, 60, 60), (0, 0, 85)):
+            out.append((level, spell_level, max_level, base_level, 1.0,
+                        False, 0, 120, 7, 0.0))
+            out.append((level, spell_level, max_level, base_level, 2.5,
+                        True, 51, 120, 7, 1.5))
+    # EffectRealPointsPerLevel, positive, negative and the exact-zero case
+    for points_per_level in (0.0, 0.5, 1.0, 2.5, -1.5, -0.5):
+        for level in (1, 60, 61, 85):
+            out.append((level, 20, 0, 0, points_per_level, False, 0, -300, -5, 0.0))
+            out.append((level, 20, 0, 0, points_per_level, True, 1, -300, -5, 0.0))
+    # effBasePoints present (`*effBasePoints - 1`) and absent (EffectBasePoints)
+    for eff_base_points in (-100, 0, 1, 51, 1000):
+        out.append((70, 1, 0, 1, 1.0, True, eff_base_points, 999, 3, 2.0))
+        out.append((70, 1, 0, 1, 1.0, False, eff_base_points, 999, 3, 2.0))
+    # EffectDieSides and EffectPointsPerResource pass straight through the block
+    for die_sides in (0, 1, 2, 10, -3):
+        out.append((60, 1, 0, 1, 1.0, False, 0, 42, die_sides, 1.0))
+    # a points-per-level that is not representable: some of these are rejected
+    for level in (10, 11, 60, 61):
+        out.append((level, 0, 0, 0, 3.7, False, 0, 0, 1, 0.0))
+    return out
+
+
+def s13_candidates():
+    out = []
+    # both lchance arms x a level spread that covers leveldif < 3 and the PvE penalty
+    for victim_is_player in (True, False):
+        for victim_level in (1, 10, 40, 60, 70, 80, 83, 85, 88):
+            for attacker_level in (1, 60, 80, 85):
+                out.append((victim_is_player, victim_level, attacker_level))
+    return out
+
+
+def s14_candidates():
+    out = []
+    # the normalized-player arm: the six field reads are the ones the body never takes
+    for player_min, player_max in ((0.0, 0.0), (55.0, 93.0), (93.0, 55.0),
+                                   (120.5, 120.5), (-3.0, 0.0)):
+        for att in (BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK, MAX_ATTACK):
+            out.append((att, True, player_min, player_max,
+                        10.0, 20.0, 30.0, 40.0, 50.0, 60.0))
+    # every switch arm, MAX_ATTACK reaching the `default:` label, then the swap and the
+    # `max_damage == 0.0f` floor, including a negative minimum the swap leaves alone
+    for att in (BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK, MAX_ATTACK):
+        out.append((att, False, 77.0, 88.0, 30.0, 45.0, 55.0, 93.0, 21.0, 38.0))
+        out.append((att, False, 77.0, 88.0, 45.0, 30.0, 93.0, 55.0, 38.0, 21.0))
+        out.append((att, False, 77.0, 88.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+        out.append((att, False, 77.0, 88.0, 12.5, 0.0, 17.25, 0.0, 9.5, 0.0))
+        out.append((att, False, 77.0, 88.0, -3.0, 0.0, -7.5, 0.0, -1.25, 0.0))
+        out.append((att, False, 77.0, 88.0, 1.5, 1.5, 2.25, 2.25, 4.75, 4.75))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # the leaf table
 # ---------------------------------------------------------------------------
@@ -939,6 +1498,112 @@ LEAVES = [
                    ("baseMaxDamage", F)],
         "results": [("expectedMin", F), ("expectedMax", F)],
     },
+
+    # --- D5c: the ten sub-blocks, transcribed from the hosts at 82e9c4f65 -----------
+    {
+        "name": "SpellCritDamageBonusBase",
+        "source": "UnitSpellBonus.cpp:995-1010 (Unit::SpellCriticalDamageBonus) at 82e9c4f65",
+        "fn": spell_crit_damage_bonus_base,
+        "candidates": s4_candidates,
+        "fields": [("damage", U32), ("dmgClass", U32), ("critDamageBonusPct", I32)],
+        "results": [("expected", I32)],
+    },
+    {
+        "name": "SpellCritDamageBonusTaken",
+        "source": "UnitSpellBonus.cpp:1018-1050 (Unit::SpellCriticalDamageBonus) at 82e9c4f65",
+        "fn": spell_crit_damage_bonus_taken,
+        "candidates": s5_candidates,
+        "fields": [("damage", U32), ("critBonus", I32), ("hasVictim", B),
+                   ("dmgClass", U32), ("isRangedAttack", B),
+                   ("victimRangedCritDamageMod", I32), ("victimMeleeCritDamageMod", I32),
+                   ("victimSpellCritDamageMod", I32)],
+        "results": [("expected", U32)],
+    },
+    {
+        "name": "SpellDamageTakenPercent",
+        "source": "UnitSpellBonus.cpp:633-644 (Unit::SpellDamageBonusTaken) at 82e9c4f65",
+        "fn": spell_damage_taken_percent,
+        "candidates": s6_candidates,
+        "fields": [("takenTotalMod", F), ("mechanicDamageTakenMultiplier", F),
+                   ("isAreaOfEffectSpell", B), ("aoeDamageAvoidanceMultiplier", F),
+                   ("isPet", B), ("petAoeDamageAvoidanceMultiplier", F)],
+        "results": [("expected", F)],
+    },
+    {
+        "name": "SpellHealingTakenPercent",
+        "source": "UnitSpellBonus.cpp:1245-1259 (Unit::SpellHealingBonusTaken) at 82e9c4f65",
+        "fn": spell_healing_taken_percent,
+        "candidates": s7_candidates,
+        "fields": [("healingPctNegative", I32), ("healingPctPositive", I32)],
+        "results": [("expected", F)],
+    },
+    {
+        "name": "MeleeDamageTaken",
+        "source": "UnitSpellBonus.cpp:1877-1922 (Unit::MeleeDamageBonusTaken) at 82e9c4f65",
+        "fn": melee_damage_taken,
+        "candidates": s8_candidates,
+        "fields": [("attType", U32), ("rangedDamageTakenMod", I32),
+                   ("meleeDamageTakenMod", I32), ("damageTakenSchoolMod", I32),
+                   ("damagePercentTakenMultiplier", F),
+                   ("mechanicDamageTakenMultiplier", F), ("rangedDamageTakenPct", F),
+                   ("meleeDamageTakenPct", F), ("isAreaOfEffectSpell", B),
+                   ("aoeDamageAvoidanceMultiplier", F), ("isPet", B),
+                   ("petAoeDamageAvoidanceMultiplier", F)],
+        "results": [("expectedTakenFlat", I32), ("expectedTakenPercent", F)],
+    },
+    {
+        "name": "MeleeDamageDoneBase",
+        "source": "UnitSpellBonus.cpp:1577-1594 (Unit::MeleeDamageBonusDone) at 82e9c4f65",
+        "fn": melee_damage_done_base,
+        "candidates": s9_candidates,
+        "fields": [("doneFlat", I32), ("apBonus", I32), ("attType", U32),
+                   ("damageDoneCreatureMod", I32),
+                   ("victimRangedApAttackerBonus", I32), ("rangedApVersusMod", I32),
+                   ("victimMeleeApAttackerBonus", I32), ("meleeApVersusMod", I32)],
+        "results": [("expectedDoneFlat", I32), ("expectedApBonus", I32),
+                    ("expectedDonePercent", F)],
+    },
+    {
+        "name": "MeleeDamageDoneWeaponBased",
+        "source": "UnitSpellBonus.cpp:1814-1831 (Unit::MeleeDamageBonusDone) at 82e9c4f65",
+        "fn": melee_damage_done_weapon_based,
+        "candidates": s10_candidates,
+        "fields": [("doneTotal", F), ("apBonus", I32), ("doneFlat", I32),
+                   ("apMultiplier", F), ("damageTotalPct", F)],
+        "results": [("expected", F)],
+    },
+    {
+        "name": "SpellLegacyScalingPoints",
+        "source": "Unit.cpp:4721-4736 (Unit::CalculateSpellDamage) at 82e9c4f65",
+        "fn": spell_legacy_scaling_points,
+        "candidates": s12_candidates,
+        "fields": [("level", U32), ("spellLevel", U32), ("maxLevel", U32),
+                   ("baseLevel", U32), ("basePointsPerLevel", F),
+                   ("hasEffBasePoints", B), ("effBasePoints", I32),
+                   ("effectBasePoints", I32), ("effectDieSides", I32),
+                   ("effectPointsPerResource", F)],
+        "results": [("expectedLevel", U32), ("expectedBasePoints", I32),
+                    ("expectedRandomPoints", I32), ("expectedComboDamage", F)],
+    },
+    {
+        "name": "MagicSpellBaseHitChance",
+        "source": "UnitCombat.cpp:828-841 (Unit::MagicSpellHitResult) at 82e9c4f65",
+        "fn": magic_spell_base_hit_chance,
+        "candidates": s13_candidates,
+        "fields": [("victimIsPlayer", B), ("victimLevel", U32), ("attackerLevel", U32)],
+        "results": [("expected", I32)],
+    },
+    {
+        "name": "SelectWeaponDamageRange",
+        "source": "UnitCombat.cpp:405-443 (Unit::CalculateDamage) at 82e9c4f65",
+        "fn": select_weapon_damage_range,
+        "candidates": s14_candidates,
+        "fields": [("attType", U32), ("isNormalizedPlayer", B), ("playerMinDamage", F),
+                   ("playerMaxDamage", F), ("minRangedDamage", F),
+                   ("maxRangedDamage", F), ("minBaseDamage", F), ("maxBaseDamage", F),
+                   ("minOffhandDamage", F), ("maxOffhandDamage", F)],
+        "results": [("expectedMin", F), ("expectedMax", F)],
+    },
 ]
 
 
@@ -1030,9 +1695,12 @@ def main(argv):
     lines.append("")
     lines.append("// GENERATED FILE -- do not edit by hand.")
     lines.append("// Generator: src/tests/tools/gen_combat_vectors.py, whose Python transcribes the")
-    lines.append("// ORIGINAL member bodies at commit %s, BEFORE decoupling D5b moved them"
+    lines.append("// ORIGINAL bodies BEFORE they moved under src/game/combat/: the nine whole-function")
+    lines.append("// leaves at commit %s (decoupling D5b), and the ten pure sub-blocks inside the"
                  % BASE_COMMIT)
-    lines.append("// under src/game/combat/. Regenerate with")
+    lines.append("// orchestration functions at commit %s (decoupling D5c). Each table names its"
+                 % D5C_BASE_COMMIT)
+    lines.append("// own source above. Regenerate with")
     lines.append("//     python src/tests/tools/gen_combat_vectors.py")
     lines.append("// The margins are ABSOLUTE. A vector is rejected when the float the C++ truncates")
     lines.append("// lies 0 < d < 1e-3 from an integer, or when an UNCLAMPED result came within 1e-5")
