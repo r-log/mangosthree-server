@@ -304,7 +304,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     {
         // cast at creature (or GO) quest objectives update at successful cast finished (+channel finished)
         // ignore pets or autorepeat/melee casts for speed (not exist quest for spells (hm... )
-        if (real_caster && !((Creature*)unit)->IsPet() && !IsAutoRepeat() && !IsNextMeleeSwingSpell() && !IsChannelActive())
+        if (real_caster && !unit->IsPet() && !IsAutoRepeat() && !IsNextMeleeSwingSpell() && !IsChannelActive())
         {
             if (Player* p = real_caster->GetCharmerOrOwnerPlayerOrPlayerItself())
             {

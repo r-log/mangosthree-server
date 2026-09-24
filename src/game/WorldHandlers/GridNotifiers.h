@@ -1068,7 +1068,7 @@ namespace MaNGOS
                 }
 
                 // ignore totems as AoE targets
-                if (u->GetTypeId() == TYPEID_UNIT && ((Creature*)u)->IsTotem())
+                if (u->IsTotem())
                 {
                     return false;
                 }
@@ -1111,7 +1111,7 @@ namespace MaNGOS
                     return false;
                 }
 
-                if (u->GetTypeId() == TYPEID_UNIT && ((Creature*)u)->IsTotem())
+                if (u->IsTotem())
                 {
                     return false;
                 }

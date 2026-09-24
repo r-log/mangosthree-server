@@ -2123,6 +2123,11 @@ class Unit : public WorldObject
         bool IsVehicle() const { return m_vehicleInfo != NULL; }
         void SetVehicleId(uint32 entry, uint32 overwriteNpcEntry);
 
+        /// Creature answers by subtype; anything else is neither. Decoupling D5f: the
+        /// `GetTypeId() == TYPEID_UNIT && ((Creature*)x)->IsPet()` pattern became this call.
+        virtual bool IsPet() const { return false; }
+        virtual bool IsTotem() const { return false; }
+
         /**
          * Returns the maximum skill value the given Unit can have. Ie: the sword skill can
          * be maxed to 300 at level 60. And when you start a level 1 character you maximum

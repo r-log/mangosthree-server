@@ -1116,7 +1116,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         ((Player*)pVictim)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_RECEIVED, damage);
     }
 
-    if (pVictim->GetTypeId() == TYPEID_UNIT && !((Creature*)pVictim)->IsPet() && !((Creature*)pVictim)->HasLootRecipient())
+    if (pVictim->GetTypeId() == TYPEID_UNIT && !pVictim->IsPet() && !((Creature*)pVictim)->HasLootRecipient())
     {
         ((Creature*)pVictim)->SetLootRecipient(this);
     }
@@ -2928,7 +2928,7 @@ void Unit::SetPowerType(Powers new_powertype)
             ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_POWER_TYPE);
         }
     }
-    else if (((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -2942,7 +2942,7 @@ void Unit::SetPowerType(Powers new_powertype)
     }
 
     // special cases for power type switching (druid and pets only)
-    if (GetTypeId() == TYPEID_PLAYER || (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet()))
+    if (GetTypeId() == TYPEID_PLAYER || IsPet())
     {
         uint32 maxValue = GetCreatePowers(new_powertype);
         uint32 curValue = maxValue;
@@ -3818,7 +3818,7 @@ int32 Unit::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* spellPro
 
     Unit* unit = this;
 
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
+    if (GetTypeId() == TYPEID_UNIT && IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
     {
         unit = GetOwner();
     }
@@ -4361,7 +4361,7 @@ void Unit::SetInCombatState(bool PvP, Unit* enemy)
 
     SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
 
-    if (IsCharmed() || (GetTypeId() != TYPEID_PLAYER && ((Creature*)this)->IsPet()))
+    if (IsCharmed() || IsPet())
     {
         SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
     }
@@ -4427,7 +4427,7 @@ void Unit::ClearInCombat()
     m_CombatTimer = 0;
     RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
 
-    if (IsCharmed() || (GetTypeId() != TYPEID_PLAYER && ((Creature*)this)->IsPet()))
+    if (IsCharmed() || IsPet())
     {
         RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
     }
@@ -4970,7 +4970,7 @@ void Unit::SetHealth(uint32 val)
             ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_CUR_HP);
         }
     }
-    else if (((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -5002,7 +5002,7 @@ void Unit::SetMaxHealth(uint32 val)
             ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_MAX_HP);
         }
     }
-    else if (((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -5814,7 +5814,7 @@ Player* Unit::GetSpellModOwner() const
     {
         return (Player*)this;
     }
-    if (((Creature*)this)->IsPet() || ((Creature*)this)->IsTotem())
+    if (IsPet() || IsTotem())
     {
         Unit* owner = GetOwner();
         if (owner && owner->GetTypeId() == TYPEID_PLAYER)
@@ -6034,7 +6034,7 @@ void Unit::SetDisplayId(uint32 modelId)
 
     UpdateModelData();
 
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet())
+    if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (!pet->isControlled())
@@ -6348,7 +6348,7 @@ void Unit::UpdateAuraForGroup(uint8 slot)
             player->SetAuraUpdateMask(slot);
         }
     }
-    else if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -6697,7 +6697,7 @@ float Unit::GetCombatRatingReduction(CombatRating cr) const
     {
         return ((Player const*)this)->GetRatingBonusValue(cr);
     }
-    else if (((Creature const*)this)->IsPet())
+    else if (IsPet())
     {
         // Player's pet get 100% resilience from owner
         if (Unit* owner = GetOwner())
@@ -7309,33 +7309,14 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
         return;
     }
 
-    // UNCONDITIONAL, AND THE POSSESSED CAN BE A PLAYER. The reaching path has a name: spell
-    // 605, Mind Control -- SPELL_AURA_MOD_POSSESS on TARGET_CHAIN_DAMAGE (SpellEffect.dbc,
-    // 4.3.4a), so its target is an enemy unit and in PvP that is a Player. Its expiry runs
-    // Aura::HandleModPossess(apply=false), which calls `caster->ResetControlState()`
-    // (SpellAuraControl.cpp:126), and GetCharm() then answers with that player. The 4.3.4
-    // client data has 48 MOD_POSSESS effects and four of them take that target.
-    //
-    // WHAT ACTUALLY HAPPENS, and why this is documented rather than changed: the cast itself
-    // reads nothing, and exactly one line below follows the pointer as a Creature --
-    // `possessedCreature->IsPet()` in the pet branch, which reads Creature::m_subtype. Through
-    // a Player* that is a wrong-type read, but it cannot fault (sizeof(Creature) 9296 <=
-    // sizeof(Player) 12816, measured on this build, so the member's offset is inside the
-    // Player allocation) and it cannot change the outcome: the branch is
-    // `IsPet() && GetObjectGuid() == GetPetGuid()`, and a possessed player's guid is a
-    // HIGHGUID_PLAYER one while GetPetGuid() is a pet's, so whatever garbage m_subtype reads
-    // as, the conjunction is false and the `else` (RemovePetActionBar) is the same branch a
-    // correct cast would take. The tail below is already type-correct -- the possessed player
-    // is caught by the TYPEID_PLAYER test at the bottom before `else if (possessedCreature)`
-    // is ever reached.
-    //
-    // The narrow fix is `possessed->GetTypeId() == TYPEID_UNIT ? static_cast<Creature*>(...)
-    // : NULL` plus a null test on the pet branch, which is behaviour-identical by the argument
-    // above and would make the `else if (possessedCreature)` below a real guard instead of a
-    // tautology. It is left for a change that can carry its own scenario -- a player
-    // possessing a player, which the harness has never built -- rather than riding along
-    // untested in a housekeeping pass.
-    Creature* possessedCreature = static_cast<Creature *>(possessed);
+    // THE POSSESSED CAN BE A PLAYER: spell 605, Mind Control -- SPELL_AURA_MOD_POSSESS on
+    // TARGET_CHAIN_DAMAGE (SpellEffect.dbc, 4.3.4a) -- so its expiry, Aura::HandleModPossess
+    // (apply=false) -> `caster->ResetControlState()`, reaches here with GetCharm() answering
+    // a Player. The pet question below is asked through Unit::IsPet(), which answers false for
+    // anything that is not a Creature (decoupling D5f), so the read is typed; the Creature
+    // pointer is a checked one, which makes the `else if (possessedCreature)` tail a real
+    // guard instead of a tautology.
+    Creature* possessedCreature = possessed->ToCreature();
 
     possessed->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
     possessed->SetCharmerGuid(ObjectGuid());
@@ -7358,16 +7339,16 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
             player->SetClientControl(player, 1);
         }
 
-        if (possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())
+        if (possessed->IsPet() && possessed->GetObjectGuid() == GetPetGuid())
         {
             // out of range pet dismissed
-            if (!InReach(*possessedCreature, *this, possessedCreature->GetMap()->GetVisibilityDistance()))
+            if (!InReach(*possessed, *this, possessed->GetMap()->GetVisibilityDistance()))
             {
                 player->RemovePet(PET_SAVE_REAGENTS);
             }
             else
             {
-                possessedCreature->GetMotionMaster()->MoveFollow(this, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
+                possessed->GetMotionMaster()->MoveFollow(this, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
             }
 
             return;

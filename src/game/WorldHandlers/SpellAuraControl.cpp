@@ -149,7 +149,7 @@ void Aura::HandleModPossessPet(bool apply, bool Real)
     }
 
     Unit* target = GetTarget();
-    if (target->GetTypeId() != TYPEID_UNIT || !((Creature*)target)->IsPet())
+    if (target->GetTypeId() != TYPEID_UNIT || !target->IsPet())
     {
         return;
     }
@@ -300,7 +300,7 @@ void Aura::HandleModCharm(bool apply, bool Real)
             CreatureInfo const* cinfo = ((Creature*)target)->GetCreatureInfo();
 
             // restore faction
-            if (((Creature*)target)->IsPet())
+            if (target->IsPet())
             {
                 if (Unit* owner = target->GetOwner())
                 {

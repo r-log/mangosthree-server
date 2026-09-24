@@ -107,7 +107,7 @@ void WorldSession::HandlePetAction(WorldPacket& recv_data)
             return;
         }
     }
-    else if (((Creature*)pet)->IsPet())
+    else if (pet->IsPet())
     {
         // pet can have action bar disabled
         if (((Pet*)pet)->GetModeFlags() & PET_MODE_DISABLE_ACTIONS)
@@ -171,7 +171,7 @@ void WorldSession::HandlePetAction(WorldPacket& recv_data)
                             {
                                 ((Creature*)pet)->AI()->AttackStart(targetUnit);
                                  // 10% chance to play special warlock pet attack talk, else growl
-                                if (((Creature*)pet)->IsPet() && ((Pet*)pet)->getPetType() == SUMMON_PET && roll_chance_i(10))
+                                if (pet->IsPet() && ((Pet*)pet)->getPetType() == SUMMON_PET && roll_chance_i(10))
                                 {
                                     pet->SendPetTalk((uint32)PET_TALK_ATTACK);
                                 }
@@ -303,7 +303,7 @@ void WorldSession::HandlePetAction(WorldPacket& recv_data)
 
                 ((Creature*)pet)->AI()->AttackStart(unit_target);
                  // 10% chance to play special warlock pet attack talk, else growl
-                if (((Creature*)pet)->IsPet() && ((Pet*)pet)->getPetType() == SUMMON_PET && pet != unit_target && roll_chance_i(10))
+                if (pet->IsPet() && ((Pet*)pet)->getPetType() == SUMMON_PET && pet != unit_target && roll_chance_i(10))
                 {
                     pet->SendPetTalk((uint32)PET_TALK_ATTACK);
                 }

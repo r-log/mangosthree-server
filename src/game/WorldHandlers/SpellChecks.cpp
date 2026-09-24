@@ -259,8 +259,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         // spell attribs for player channeled spells
         if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_UNK14)
             && m_spellInfo->HasAttribute(SPELL_ATTR_EX5_UNK13)
-            && target->GetTypeId() == TYPEID_UNIT
-            && ((Creature*)target)->IsTotem())
+            && target->IsTotem())
         {
             return SPELL_FAILED_IMMUNE;
         }
@@ -1895,7 +1894,7 @@ SpellCastResult Spell::CheckPetCast(Unit* target)
         return SPELL_FAILED_AFFECTING_COMBAT;
     }
 
-    if (m_caster->GetTypeId() == TYPEID_UNIT && (((Creature*)m_caster)->IsPet() || m_caster->IsCharmed()))
+    if (m_caster->GetTypeId() == TYPEID_UNIT && (m_caster->IsPet() || m_caster->IsCharmed()))
     {
         // dead owner (currently only ghouled players can have alive pet casting)
         Unit* charmer = m_caster->GetCharmerOrOwner();

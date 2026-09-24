@@ -159,7 +159,7 @@ inline void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
         return;
     }
 
-    if (target->GetTypeId() == TYPEID_UNIT && ((Creature*)target)->IsTotem())
+    if (target->IsTotem())
     {
         return;
     }
