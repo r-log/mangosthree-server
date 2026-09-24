@@ -46,6 +46,8 @@
 #include "MapPersistentStateMgr.h"
 #include "CorpseManager.h"
 #include "movement/WireParity.h"
+#include "Database/DatabaseEnv.h"
+#include "Database/TickGuard.h"
 #include "MapPhase.h"
 #include "Authority.h"
 #include "WorldSession.h"
@@ -233,6 +235,28 @@ bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
                     authority.badSelect + retired.badSelect.load(), authority.badDeselect + retired.badDeselect.load(),
                     authority.notActive + retired.notActive.load(), authority.notMember + retired.notMember.load(),
                     authority.unresolved + retired.unresolved.load());
+    return true;
+}
+
+/**
+ * @brief Handler for HandleServerDatabaseCommand command.
+ *
+ * Prints what the world tick and the map-update workers waited on: the tick guard's
+ * process-wide count of synchronous database acquisitions made while one of those
+ * scopes was held (decoupling D7), and the three delay threads' queue depths -- the
+ * other half of the same picture, since work moved off the tick has to be drained
+ * somewhere.
+ *
+ * @param args Command arguments.
+ * @returns True if the command executed successfully, false otherwise.
+ */
+bool ChatHandler::HandleServerDatabaseCommand(char* /*args*/)
+{
+    PSendSysMessage("sync db acquisitions on tick threads: %u", TickGuard::Violations());
+    PSendSysMessage("delay-thread queue depth: login %u, world %u, character %u",
+                    uint32(LoginDatabase.GetDelayQueueDepth()),
+                    uint32(WorldDatabase.GetDelayQueueDepth()),
+                    uint32(CharacterDatabase.GetDelayQueueDepth()));
     return true;
 }
 

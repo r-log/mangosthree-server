@@ -32,6 +32,7 @@
 
 #include "Map.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/TickGuard.h"
 #include "Log.h"
 #include <exception>
 #include <mutex>
@@ -184,6 +185,9 @@ void MapUpdater::workerLoop()
         // still releases, and the players on them keep playing.
         try
         {
+            // Decoupling D7: a worker is "the tick" only while it is running a map, not
+            // while it waits for one -- so the scope wraps this call and nothing else.
+            TickGuard::Scope tickGuard;
             task.first->Update(task.second);
         }
         catch (const std::exception& e)

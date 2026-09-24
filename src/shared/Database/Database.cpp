@@ -281,6 +281,71 @@ void Database::ProcessResultQueue()
     }
 }
 
+size_t Database::GetDelayQueueDepth() const
+{
+    // The pointee is not const here, and LockedQueue::size() takes its own lock, so this
+    // is const in the sense that matters: it changes nothing about the database.
+    return m_threadBody ? m_threadBody->QueueDepth() : 0;
+}
+
+// ---- test seam (mangos_tests only; NO production caller) ----
+
+void Database::AttachTestConnections(SqlConnection* query, SqlConnection* async, SqlResultQueue* results)
+{
+    // Whatever a previous attachment left behind goes first, so Attach/Attach is not a leak.
+    DetachTestConnections();
+
+    m_pQueryConnections.push_back(query);
+    m_nQueryConnPoolSize = 1;
+    m_pAsyncConn = async;
+    m_pResultQueue = results;
+
+    // What Initialize() -> InitDelayThread() builds, minus the thread. The TSS slot is what
+    // Execute()/BeginTransaction() dereference; the body is what AsyncQuery() and
+    // DelayQueryHolder() queue onto. Both are ours to delete in Detach; the thread itself is
+    // deliberately absent, so nothing runs until ExecuteQueuedForTest() says so.
+    m_TransStorage = new DBTransHelperTSS();
+    m_threadBody = new SqlDelayThread(this, async);
+}
+
+void Database::DetachTestConnections()
+{
+    // The body first, while the async connection it drains through is still ours to use:
+    // ~SqlDelayThread() runs whatever is still queued.
+    delete m_threadBody;
+    m_threadBody = NULL;
+
+    delete m_TransStorage;
+    m_TransStorage = NULL;
+
+    // Handed to us, never owned: the caller destroys all three.
+    m_pQueryConnections.clear();
+    m_nQueryConnPoolSize = 1;
+    m_pAsyncConn = NULL;
+    m_pResultQueue = NULL;
+}
+
+void Database::ExecuteQueuedForTest()
+{
+    if (m_threadBody)
+    {
+        m_threadBody->ProcessRequests();
+    }
+}
+
+void Database::HaltDelayThreadForTest()
+{
+    // Exactly what HaltDelayThread() leaves behind, minus the thread it has to stop and join:
+    // the worker body and the per-thread transaction slot are gone, the connections and the
+    // result queue are untouched. Nothing here can run, so ~SqlDelayThread()'s sweep of the
+    // queue is the last thing that does -- as on a real halt.
+    delete m_threadBody;
+    m_threadBody = NULL;
+
+    delete m_TransStorage;
+    m_TransStorage = NULL;
+}
+
 void Database::escape_string(std::string& str)
 {
     if (str.empty())
@@ -293,6 +358,11 @@ void Database::escape_string(std::string& str)
         return;
     }
 
+    if (TickGuard::Active())
+    {
+        TickGuard::Violation("escape_string");
+    }
+
     // It DOES matter which connection, and it matters that the lock is held:
     // mysql_real_escape_string reads the connection's character set, and connection
     // zero may be running a query on another thread at the same moment. The old
@@ -303,8 +373,17 @@ void Database::escape_string(std::string& str)
     str = buf.get();
 }
 
-SqlConnection* Database::getQueryConnection()
+SqlConnection* Database::getQueryConnection(const char* sql /*= ""*/)
 {
+    // The one counted point for the whole pooled-query family: Query and QueryNamed come
+    // through here after their D1 null guard and before they take the connection's lock,
+    // and PQuery/PQueryNamed only format and call those -- so a PQuery counts once, with
+    // its formatted SQL.
+    if (TickGuard::Active())
+    {
+        TickGuard::Violation(sql);
+    }
+
     int nCount = 0;
 
     if (m_nQueryCounter == long(1 << 31))
@@ -324,6 +403,11 @@ void Database::Ping()
     if (!m_pAsyncConn || m_pQueryConnections.empty())       // never Initialize()d: nothing to ping
     {
         return;
+    }
+
+    if (TickGuard::Active())
+    {
+        TickGuard::Violation("Ping");
     }
 
     const char* sql = "SELECT 1";
@@ -429,7 +513,9 @@ QueryNamedResult* Database::PQueryNamed(const char* format, ...)
 
 bool Database::Execute(const char* sql)
 {
-    if (!m_pAsyncConn)
+    // Not just !m_pAsyncConn: after HaltDelayThread() the connection outlives the transaction
+    // slot and the worker, and the shutdown drain can reach this from a callback (D7a fix 1).
+    if (!CanDelayWork())
     {
         return false;
     }
@@ -504,12 +590,24 @@ bool Database::AsyncQuery(std::function<void(QueryResult*)> callback, const char
         return false;
     }
 
+    // Past BeginShutdown() the result queue is drained exactly once more, on the world
+    // thread; a callback queued after that pass would never run. Refuse instead.
+    if (m_shutdown.load())
+    {
+        return false;
+    }
+
     return m_threadBody->Delay(new SqlQuery(sql, new MaNGOS::QueryCallback(std::move(callback)), m_pResultQueue));
 }
 
 bool Database::AsyncPQuery(std::function<void(QueryResult*)> callback, const char* format, ...)
 {
     if (!format)
+    {
+        return false;
+    }
+
+    if (m_shutdown.load())                                  // do not even format it
     {
         return false;
     }
@@ -535,12 +633,17 @@ bool Database::DelayQueryHolder(std::function<void(QueryResult*, SqlQueryHolder*
         return false;
     }
 
+    if (m_shutdown.load())
+    {
+        return false;
+    }
+
     return holder->Execute(new MaNGOS::QueryHolderCallback(std::move(callback), holder), m_threadBody, m_pResultQueue);
 }
 
 bool Database::BeginTransaction()
 {
-    if (!m_pAsyncConn || !m_TransStorage)
+    if (!CanDelayWork())
     {
         return false;
     }
@@ -553,7 +656,7 @@ bool Database::BeginTransaction()
 
 bool Database::CommitTransaction()
 {
-    if (!m_pAsyncConn)
+    if (!CanDelayWork())
     {
         return false;
     }
@@ -577,7 +680,7 @@ bool Database::CommitTransaction()
 
 bool Database::CommitTransactionDirect()
 {
-    if (!m_pAsyncConn)
+    if (!CanDelayWork())
     {
         return false;
     }
@@ -598,7 +701,7 @@ bool Database::CommitTransactionDirect()
 
 bool Database::CommitTransactionChecked()
 {
-    if (!m_pAsyncConn)
+    if (!CanDelayWork())
     {
         return false;
     }
@@ -606,6 +709,14 @@ bool Database::CommitTransactionChecked()
     if (!(*m_TransStorage)->get())
     {
         return false;
+    }
+
+    // One count for the whole call, after the guards and before every one of the three
+    // paths below -- each of which blocks: two execute the transaction on this thread,
+    // and the third parks on the future until the delay thread has run it.
+    if (TickGuard::Active())
+    {
+        TickGuard::Violation("CommitTransactionChecked");
     }
 
     // Async not available (startup, or -t): run it here and return the REAL result.
@@ -644,7 +755,7 @@ bool Database::CommitTransactionChecked()
 
 bool Database::RollbackTransaction()
 {
-    if (!m_pAsyncConn)
+    if (!CanDelayWork())
     {
         return false;
     }
@@ -795,8 +906,12 @@ bool Database::CheckDatabaseVersion(DatabaseTypes database)
 
 bool Database::ExecuteStmt(const SqlStatementID& id, SqlStmtParameters* params)
 {
-    if (!m_pAsyncConn)
+    // The caller hands ownership over (SqlStatement::Execute() detaches its parameters and
+    // every path below passes them to something that frees them), so a refusal has to free
+    // them too -- the old !m_pAsyncConn return leaked them.
+    if (!CanDelayWork())
     {
+        delete params;
         return false;
     }
 
@@ -824,7 +939,22 @@ bool Database::ExecuteStmt(const SqlStatementID& id, SqlStmtParameters* params)
 bool Database::DirectExecuteStmt(const SqlStatementID& id, SqlStmtParameters* params)
 {
     MANGOS_ASSERT(params);
+    // Ownership first, so every return below frees the parameters instead of leaking them.
     std::shared_ptr<SqlStmtParameters> p(params);
+
+    // The D1 null guard this point was missing: getAsyncConnection() may be NULL (never
+    // Initialize()d, or already halted) and SqlConnection::Lock would dereference it. The
+    // count belongs after it, like every other counted point -- a statement that never
+    // reaches a connection never waited on one.
+    if (!m_pAsyncConn)
+    {
+        return false;
+    }
+
+    if (TickGuard::Active())
+    {
+        TickGuard::Violation("DirectExecuteStmt");
+    }
     // execute statement
     SqlConnection::Lock _guard(getAsyncConnection());
     return _guard->ExecuteStmt(id.ID(), *params);

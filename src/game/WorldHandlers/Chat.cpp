@@ -744,6 +744,7 @@ ChatCommand* ChatHandler::getCommandTable()
     static ChatCommand serverCommandTable[] =
     {
         { "corpses",        SEC_GAMEMASTER,     true,  &ChatHandler::HandleServerCorpsesCommand,       "", NULL },
+        { "database",       SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleServerDatabaseCommand,      "", NULL },
         { "exit",           SEC_CONSOLE,        true,  &ChatHandler::HandleServerExitCommand,          "", NULL },
         { "idlerestart",    SEC_ADMINISTRATOR,  true,  NULL,                                           "", serverIdleRestartCommandTable },
         { "idleshutdown",   SEC_ADMINISTRATOR,  true,  NULL,                                           "", serverIdleShutdownCommandTable },

@@ -58,11 +58,18 @@ class SqlDelayThread : public MaNGOS::Runnable
         /// the caller would block on its promise forever.
         bool IsRunning() const { return m_running; }
 
-    private:
+        /// How many operations are waiting. Read by Database::GetDelayQueueDepth(), which
+        /// `.server database` prints next to the tick guard's count: a tick that stopped
+        /// waiting has only moved the work if this number stays bounded.
+        size_t QueueDepth() { return m_sqlQueue.size(); }
 
         /**
-         * @brief process all enqueued requests
+         * @brief process all enqueued requests, on the CALLING thread
          *
+         * The loop's own body, and the destructor's last sweep. Public because
+         * Database::ExecuteQueuedForTest() (mangos_tests only; no production caller) drives
+         * a delay thread that was never started with it, so the real queueing and callback
+         * paths can run in the test binary.
          */
         void ProcessRequests();
 

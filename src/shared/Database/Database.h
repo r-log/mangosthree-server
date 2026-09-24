@@ -32,6 +32,7 @@
 #include <string>
 #include "Threading/Threading.h"
 #include "Database/SqlDelayThread.h"
+#include "Database/TickGuard.h"
 #include "Threading/ThreadLocalStore.h"
 
 #include <atomic>
@@ -302,7 +303,9 @@ class Database
             {
                 return NULL;
             }
-            SqlConnection::Lock guard(getQueryConnection());
+            // The SQL is handed to getQueryConnection() only so the tick guard can name
+            // the statement it counted (decoupling D7a); the connection choice ignores it.
+            SqlConnection::Lock guard(getQueryConnection(sql));
             return guard->Query(sql);
         }
 
@@ -318,7 +321,7 @@ class Database
             {
                 return NULL;
             }
-            SqlConnection::Lock guard(getQueryConnection());
+            SqlConnection::Lock guard(getQueryConnection(sql));
             return guard->QueryNamed(sql);
         }
 
@@ -348,6 +351,15 @@ class Database
             if (!m_pAsyncConn)
             {
                 return false;
+            }
+
+            // The whole direct-execute family is counted here, once per call: DirectPExecute
+            // formats and comes straight through, and Execute() falls back to this when async
+            // transactions are not allowed yet. Counting in DirectPExecute as well would count
+            // one acquisition twice.
+            if (TickGuard::Active())
+            {
+                TickGuard::Violation(sql);
             }
 
             SqlConnection::Lock guard(m_pAsyncConn);
@@ -523,6 +535,72 @@ class Database
          */
         void AllowAsyncTransactions() { m_bAllowAsyncTransactions = true; }
 
+        /**
+         * @brief Refuse further async work, so nothing queued now is discarded later.
+         *
+         * Shutdown runs: BeginShutdown() on all three databases, the sessions are kicked
+         * and saved, HaltDelayThread() flushes what is left (each finished operation
+         * enqueues its callback), and one last ProcessResultQueue() runs those callbacks
+         * on the world thread. That last pass is only bounded if nothing new can be
+         * queued behind it -- which is what this flag buys. AsyncQuery/AsyncPQuery/
+         * DelayQueryHolder answer false from here on; Execute()/PExecute() and the
+         * transactions still work, because the save path that runs after this call needs
+         * them and they carry no callback to discard.
+         */
+        void BeginShutdown() { m_shutdown.store(true); }
+
+        /// True once BeginShutdown() has been called (decoupling D7a).
+        bool IsShuttingDown() const { return m_shutdown.load(); }
+
+        /**
+         * @brief How many operations are waiting in the delay thread's queue.
+         *
+         * Zero on a database with no delay thread. Printed by `.server database` as the
+         * other half of the tick picture: a tick that never waits is not an improvement
+         * if the work simply piles up behind the worker.
+         */
+        size_t GetDelayQueueDepth() const;
+
+        // ---- test seam (mangos_tests only; NO production caller) ----
+        //
+        // Hands the database a query connection, an async connection and a result queue
+        // instead of Initialize()ing one, so the real Query/AsyncPQuery/DelayQueryHolder/
+        // ProcessResultQueue/escape_string paths can run in the unit test binary against
+        // fakes. The database owns NOTHING it is handed here: the caller keeps and
+        // destroys all three, and MUST call DetachTestConnections() before this Database
+        // is destroyed, or ~Database()'s StopServer() would delete objects it does not own.
+        //
+        // The delay thread body is constructed but never started: AsyncQuery() and
+        // DelayQueryHolder() queue onto it as usual, and the test drives execution itself
+        // with ExecuteQueuedForTest() (see the comment there).
+
+        /// Wire this database to the three objects above, as Initialize() would.
+        void AttachTestConnections(SqlConnection* query, SqlConnection* async, SqlResultQueue* results);
+
+        /// Back to the un-initialised state (operator bool() is false again).
+        void DetachTestConnections();
+
+        /**
+         * @brief Run everything queued on the delay thread, on the CALLING thread.
+         *
+         * mangos_tests only. This is what the delay thread's loop does once
+         * (SqlDelayThread::ProcessRequests): each queued operation runs against the async
+         * connection and, for a query, pushes its callback into the result queue --
+         * ProcessResultQueue() then invokes it, exactly as the world thread does.
+         */
+        void ExecuteQueuedForTest();
+
+        /**
+         * @brief Leave an attached database in the state HaltDelayThread() leaves a real one.
+         *
+         * mangos_tests only. The worker and the per-thread transaction slot are gone; the
+         * connections and the result queue are still there. That asymmetric state is the one
+         * the shutdown drain runs callbacks in, so it is the one the write-refusal test has to
+         * reproduce — the seam's body was never started, so `HaltDelayThread()` itself returns
+         * early on it and cannot be used.
+         */
+        void HaltDelayThreadForTest();
+
     protected:
         /**
          * @brief
@@ -531,7 +609,7 @@ class Database
         Database() :
             m_TransStorage(NULL),m_nQueryConnPoolSize(1), m_pAsyncConn(NULL), m_pResultQueue(NULL),
             m_threadBody(NULL), m_delayThread(NULL), m_bAllowAsyncTransactions(false),
-            m_iStmtIndex(-1), m_logSQL(false), m_pingIntervallms(0)
+            m_shutdown(false), m_iStmtIndex(-1), m_logSQL(false), m_pingIntervallms(0)
         {
             m_nQueryCounter = -1;
         }
@@ -614,11 +692,31 @@ class Database
 
         ///< DB connections
         /**
+         * @brief Is the deferred-write machinery there at all?
+         *
+         * The async connection, the per-thread transaction slot and the delay thread body are
+         * created together (`Initialize()` -> `InitDelayThread()`) and destroyed together
+         * (`HaltDelayThread()`), and every write path needs all three: the slot to see whether
+         * a transaction is open, the body to queue onto, the connection to run on.
+         *
+         * Between the halts and the process's exit the connection is still alive while the
+         * other two are NULL, and D7a's shutdown drain now runs callbacks in exactly that
+         * window — a callback that writes (`_UpdateRealmCharCount` reaching `PExecute`) would
+         * have dereferenced a NULL `m_TransStorage`. So the D1 null-guard treatment has to
+         * cover all three, not only the connection. A write refused here is a write the old
+         * code discarded unrun anyway, because nothing was left to execute it.
+         *
+         * @return bool true when a write may still be accepted
+         */
+        bool CanDelayWork() const { return m_pAsyncConn && m_TransStorage && m_threadBody; }
+
+        /**
          * @brief round-robin connection selection
          *
+         * @param sql the statement about to run, for the tick guard's log line only
          * @return SqlConnection
          */
-        SqlConnection* getQueryConnection();
+        SqlConnection* getQueryConnection(const char* sql = "");
         /**
          * @brief for now return one single connection for async requests
          *
@@ -664,6 +762,8 @@ class Database
         MaNGOS::Thread*  m_delayThread;                  /**< Pointer to executer thread */
 
         bool m_bAllowAsyncTransactions;                     /**< flag which specifies if async transactions are enabled */
+
+        std::atomic<bool> m_shutdown;                       /**< BeginShutdown(): no new async work is accepted */
 
         // PREPARED STATEMENT REGISTRY
         /**

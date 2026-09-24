@@ -462,11 +462,36 @@ int Master::Run()
 
     WorldLoop();
 
+    // Decoupling D7a. Everything from here to the last ProcessResultQueue() below runs on
+    // this, the world/main thread -- the same thread WorldLoop() ran on, and the same one
+    // World::UpdateResultQueue() drained from during the run.
+    //
+    // First: no new async work. From this point AsyncQuery/AsyncPQuery/DelayQueryHolder
+    // answer false without queueing, so the drain at the end of this sequence is the last
+    // one that can ever be needed. Execute()/PExecute() and the transactions are NOT
+    // refused -- the save below is built on them, and they carry no callback to lose.
+    LoginDatabase.BeginShutdown();
+    WorldDatabase.BeginShutdown();
+    CharacterDatabase.BeginShutdown();
+
+    // Then the sessions are kicked and saved, exactly as before.
     ShutdownWorld();
     StopServices();
 
     ClearOnlineAccounts();
+
+    // StopDatabases() is the three HaltDelayThread() calls: each stops its worker, waits
+    // for it, and lets ~SqlDelayThread() sweep whatever was queued while it was stopping.
+    // Every query that finishes in that sweep pushes its callback into the result queue.
     StopDatabases();
+
+    // ...which nothing would ever run: the world loop is over, and the result queues are
+    // deleted with the databases. One final pass, here, on the world thread, so no async
+    // callback is discarded. Safe to be the last one, because BeginShutdown() closed the
+    // door on anything new being queued behind it.
+    LoginDatabase.ProcessResultQueue();
+    WorldDatabase.ProcessResultQueue();
+    CharacterDatabase.ProcessResultQueue();
 
     WorldDatabase.ThreadEnd();
 

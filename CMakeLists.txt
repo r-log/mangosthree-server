@@ -40,6 +40,7 @@ option(WITH_NET_TESTS       "Build the socket tests (slow; never in CI)"    OFF)
 option(WITH_CRYPTO_TESTS    "Build the crypto vector and stress tests (CI)" OFF)
 option(DEBUG                "Enable debug build (only on non IDEs)"         OFF)
 option(WITHOUT_GIT          "Disable Git revision detection"                OFF)
+option(MANGOS_STRICT_TICK   "Assert on a synchronous DB acquisition on a tick thread" OFF)
 message("")
 message(
   "This script builds the MaNGOS server.
@@ -60,6 +61,11 @@ message(
                             default: src/shared/Crypto is frozen, and its ~3k lines of
                             vector tables are compile time paid on every local build
                             for code that does not change. CI turns it on.
+    MANGOS_STRICT_TICK      Turn the tick guard's count into an assert (decoupling D7):
+                            a synchronous database acquisition made while the world
+                            tick or a map update holds the guard aborts instead of
+                            being counted. Off by default -- the count is the
+                            instrument, the assert is for proving one family clean.
     DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
    Scripting engines:
     SCRIPT_LIB_SD3          Compile with support for ScriptDev3 scripts

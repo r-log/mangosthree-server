@@ -28,6 +28,7 @@
 /// (Database.cpp:314) and locked the garbage it read (Database.h:185).
 
 #include "TestHarness.h"
+#include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 
 #include <string>
@@ -71,5 +72,61 @@ TEST(NullDatabase_PingReturns)
 {
     DatabaseMysql db;
     db.Ping();
+    CHECK(!db);
+}
+
+// Decoupling D7a, fix round 1. D1 guarded "never Initialize()d", where everything is NULL
+// together. HaltDelayThread() leaves a second, asymmetric state: the async connection is still
+// alive while the per-thread transaction slot and the worker are gone. Nothing used to run in
+// that window, because the callbacks queued during the halt were discarded -- D7a's shutdown
+// drain now runs them, and a callback that writes (World::_UpdateRealmCharCount reaching
+// LoginDatabase.PExecute) dereferenced the NULL slot on its way to Execute(). Every write path
+// has to refuse there, which is what the old discard amounted to anyway.
+TEST(HaltedDatabase_WritesAreRefusedInsteadOfCrashing)
+{
+    FakeDatabase db;
+
+    // Attached, the write paths work.
+    CHECK(db.Execute("UPDATE `characters` SET `online` = 0"));
+    CHECK(db.PExecute("UPDATE `characters` SET `online` = %u", 0u));
+    CHECK(db.BeginTransaction());
+    CHECK(db.CommitTransactionDirect());        // leaves the transaction slot clean again
+
+    db.HaltDelayThreadForTest();                // exactly what StopDatabases() leaves behind
+
+    // The connection is still there; the slot and the worker are not.
+    CHECK(bool(db));
+    CHECK(!db.Execute("UPDATE `characters` SET `online` = 0"));
+    CHECK(!db.PExecute("UPDATE `characters` SET `online` = %u", 0u));
+    CHECK(!db.PExecuteLog("UPDATE `characters` SET `online` = %u", 0u));
+    CHECK(!db.BeginTransaction());
+    CHECK(!db.CommitTransaction());
+    CHECK(!db.CommitTransactionDirect());
+    CHECK(!db.CommitTransactionChecked());
+    CHECK(!db.RollbackTransaction());
+
+    // The prepared-statement path too. SqlStatement::Execute() detaches its parameters and
+    // hands ownership over, so the refusal frees them rather than leaking them.
+    SqlStatementID id;
+    SqlStatement queued = db.CreateStatement(id, "UPDATE `characters` SET `online` = ?");
+    queued.addUInt32(0);
+    CHECK(!queued.Execute());
+}
+
+// The same D1 treatment for the one point that had no null guard at all: DirectExecuteStmt
+// locked getAsyncConnection() without asking whether it was NULL.
+TEST(NullDatabase_DirectStatementAnswersFalse)
+{
+    DatabaseMysql db;
+
+    SqlStatementID id;
+    SqlStatement direct = db.CreateStatement(id, "UPDATE `characters` SET `online` = ?");
+    direct.addUInt32(0);
+    CHECK(!direct.DirectExecute());
+
+    SqlStatement queued = db.CreateStatement(id, "UPDATE `characters` SET `online` = ?");
+    queued.addUInt32(0);
+    CHECK(!queued.Execute());
+
     CHECK(!db);
 }
