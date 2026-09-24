@@ -73,8 +73,8 @@
 #include "Vehicle.h"
 #include "Geometry/Vector3.h"
 #include "LootMgr.h"
-#include <random>
 #include "MotionMaster.h"
+#include <random>
 
 /**
  * @brief Executes spell-specific dummy effect behavior.

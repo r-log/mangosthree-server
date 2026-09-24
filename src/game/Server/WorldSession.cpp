@@ -82,13 +82,13 @@
 #include "SessionLinks.h"
 #include "WorldNetwork.h"
 #include "zlib.h"
+#include "MotionMaster.h"
+#include "State.h"
 
 #include <chrono>
 #include <mutex>
 #include <utility>
 #include <cstdarg>
-#include "MotionMaster.h"
-#include "State.h"
 
 namespace
 {

@@ -56,11 +56,11 @@
 #include "movement/MoveSpline.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
+#include "MotionMaster.h"
+#include "State.h"
 
 #include <math.h>
 #include <stdarg.h>
-#include "MotionMaster.h"
-#include "State.h"
 
 // Base movement-speed table; defined in Unit.cpp.
 extern float baseMoveSpeed[MAX_MOVE_TYPE];

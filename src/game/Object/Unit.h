@@ -65,6 +65,7 @@
 #include <map>
 #include <set>
 #include <ctime>
+#include <memory>
 #include "Object.h"
 #include "Opcodes.h"
 #include "SpellAuraDefines.h"
@@ -74,7 +75,6 @@
 #include "HostileRefManager.h"
 #include "Utilities/EventProcessor.h"
 #include "Mobility.h"
-#include <memory>
 #include "DBCStructure.h"
 #include "Timer.h"
 

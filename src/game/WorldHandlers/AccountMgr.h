@@ -29,6 +29,7 @@
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
 #include <string>
+#include "Policies/Singleton.h"
 
 /**
  * @brief Account operation result enumeration

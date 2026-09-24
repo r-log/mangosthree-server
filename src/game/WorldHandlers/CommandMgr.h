@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include "Policies/Singleton.h"
 struct CommandHelpLocale
 {
     std::vector<std::string> HelpText;

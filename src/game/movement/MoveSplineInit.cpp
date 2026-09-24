@@ -33,8 +33,8 @@
 #include "Vehicle.h"
 #include "TransportMap.h"
 #include "Map.h"
-#include <atomic>
 #include "WorldPacket.h"
+#include <atomic>
 
 namespace
 {

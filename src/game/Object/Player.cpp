@@ -82,10 +82,10 @@
 #include "Calendar.h"
 #include "DisableMgr.h"
 #include "wire/MoverCodec.h"
-
-#include <cmath>
 #include "MotionMaster.h"
 #include "State.h"
+
+#include <cmath>
 
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 

@@ -35,6 +35,7 @@
 #include "SharedDefines.h"
 #include "Timer.h"
 #include "Util.h"
+#include "Policies/Singleton.h"
 
 class Player;
 class Map;

@@ -82,6 +82,12 @@ target_compile_definitions(game
         $<$<BOOL:${SCRIPT_LIB_SD3}>:ENABLE_SD3>
 )
 
+if(MSVC)
+    # Strict conformance: the compiler then checks non-dependent names in template bodies at
+    # definition time, as gcc and clang do, so the local build proves what the clang CI job proves.
+    target_compile_options(game PRIVATE /permissive-)
+endif()
+
 target_link_libraries(game
     PUBLIC
         terrain
