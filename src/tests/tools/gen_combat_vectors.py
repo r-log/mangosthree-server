@@ -1051,6 +1051,10 @@ def main(argv):
         rejected = []
         seen = set()
         for tup in leaf["candidates"]():
+            # A candidate is typed as a Python double but the C++ reads a `float`, and
+            # cfloat() emits that float32; evaluate what the C++ will actually be given.
+            tup = tuple(f32(value) if kind[1] == "f" else value
+                        for value, (_, kind) in zip(tup, leaf["fields"]))
             if tup in seen:
                 continue
             seen.add(tup)
