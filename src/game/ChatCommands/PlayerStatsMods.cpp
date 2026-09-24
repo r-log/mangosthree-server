@@ -341,7 +341,7 @@ bool ChatHandler::HandleModifyTalentCommand(char* args)
         ((Player*)target)->SendTalentsInfoData(false);
         return true;
     }
-    else if (((Creature*)target)->IsPet())
+    else if (target->IsPet())
     {
         Unit* owner = target->GetOwner();
         if (owner && owner->GetTypeId() == TYPEID_PLAYER && ((Pet*)target)->isControlled())

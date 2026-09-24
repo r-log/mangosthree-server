@@ -92,7 +92,7 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio, bool ignore
         case MOVE_RUN:
         case MOVE_WALK:
         case MOVE_SWIM:
-            if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet() && FollowLatched())
+            if (IsPet() && FollowLatched())
             {
                 if (Unit* owner = GetOwner())
                 {

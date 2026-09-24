@@ -602,7 +602,7 @@ AreaAura::AreaAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* cu
     }
 
     // totems are immune to any kind of area auras
-    if (target->GetTypeId() == TYPEID_UNIT && ((Creature*)target)->IsTotem())
+    if (target->IsTotem())
     {
         m_modifier.m_auraname = SPELL_AURA_NONE;
     }
@@ -4751,7 +4751,7 @@ bool SpellAuraHolder::IsWeaponBuffCoexistableWith(SpellAuraHolder const* ref) co
  */
 bool SpellAuraHolder::IsNeedVisibleSlot(Unit const* caster) const
 {
-    bool totemAura = caster && caster->GetTypeId() == TYPEID_UNIT && ((Creature*)caster)->IsTotem();
+    bool totemAura = caster && caster->IsTotem();
 
     if (m_spellProto->GetProcFlags())
     {

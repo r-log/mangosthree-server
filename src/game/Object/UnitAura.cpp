@@ -1424,7 +1424,7 @@ void Unit::RemoveSpellAuraHolder(SpellAuraHolder* holder, AuraRemoveMode mode)
     Totem* statue = NULL;
     Unit* caster = holder->GetCaster();
     if (IsChanneledSpell(AurSpellInfo) && caster)
-        if (caster->GetTypeId() == TYPEID_UNIT && ((Creature*)caster)->IsTotem() && ((Totem*)caster)->GetTotemType() == TOTEM_STATUE)
+        if (caster->GetTypeId() == TYPEID_UNIT && caster->IsTotem() && ((Totem*)caster)->GetTotemType() == TOTEM_STATUE)
         {
             statue = ((Totem*)caster);
         }

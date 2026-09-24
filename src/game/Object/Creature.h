@@ -619,8 +619,8 @@ class Creature : public Unit
         uint32 GetEquipmentId() const { return m_equipmentId; }
 
         CreatureSubtype GetSubtype() const { return m_subtype; }
-        bool IsPet() const { return m_subtype == CREATURE_SUBTYPE_PET; }
-        bool IsTotem() const { return m_subtype == CREATURE_SUBTYPE_TOTEM; }
+        bool IsPet() const override { return m_subtype == CREATURE_SUBTYPE_PET; }
+        bool IsTotem() const override { return m_subtype == CREATURE_SUBTYPE_TOTEM; }
         bool IsTemporarySummon() const { return m_subtype == CREATURE_SUBTYPE_TEMPORARY_SUMMON; }
 
         bool IsCorpse() const { return GetDeathState() ==  CORPSE; }

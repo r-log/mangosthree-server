@@ -112,8 +112,7 @@ namespace
      */
     bool IsPlanted(Unit const* minion)
     {
-        return minion->GetTypeId() == TYPEID_UNIT &&
-               static_cast<Creature const*>(minion)->IsTotem();
+        return minion->IsTotem();
     }
 
     /**

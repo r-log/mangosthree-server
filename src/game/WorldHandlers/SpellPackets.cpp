@@ -239,8 +239,7 @@ void Spell::SendSpellStart()
         castFlags |= CAST_FLAG_UNKNOWN19;
     }
 
-    if ((m_caster->GetTypeId() == TYPEID_PLAYER ||
-        m_caster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_caster)->IsPet()) &&
+    if ((m_caster->GetTypeId() == TYPEID_PLAYER || m_caster->IsPet()) &&
         m_spellInfo->PowerType != POWER_HEALTH)
         castFlags |= CAST_FLAG_PREDICTED_POWER;
 
@@ -351,8 +350,7 @@ void Spell::SendSpellGo()
 
     uint32 castFlags = CAST_FLAG_UNKNOWN9;
 
-    if ((m_caster->GetTypeId() == TYPEID_PLAYER ||
-        m_caster->GetTypeId() == TYPEID_UNIT && ((Creature*)m_caster)->IsPet()) &&
+    if ((m_caster->GetTypeId() == TYPEID_PLAYER || m_caster->IsPet()) &&
         m_spellInfo->PowerType != POWER_HEALTH)
         castFlags |= CAST_FLAG_PREDICTED_POWER;
 

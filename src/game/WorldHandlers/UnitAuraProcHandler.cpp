@@ -5055,7 +5055,7 @@ SpellAuraProcResult Unit::HandleSpellMagnetAuraProc(Unit* /*pVictim*/, uint32 da
     if (triggeredByAura->GetId() == 8178)                   // Grounding Totem Effect
     {
         // for spells that doesn't do damage but need to destroy totem anyway
-        if ((!damage || damage < GetHealth()) && GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem())
+        if ((!damage || damage < GetHealth()) && IsTotem())
         {
             DealDamage(this, GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
             return SPELL_AURA_PROC_OK;

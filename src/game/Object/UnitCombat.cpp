@@ -313,8 +313,8 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
     // capped at 40%. Yields 6%/12%/18%/24% at +0/+1/+2/+3 levels and 40% at the +6 NPC ceiling.
     // Only white melee from a player/pet attacker against a higher-level mob can glance.
     if (attType != RANGED_ATTACK &&
-        (GetTypeId() == TYPEID_PLAYER || ((Creature*)this)->IsPet()) &&
-        pVictim->GetTypeId() != TYPEID_PLAYER && !((Creature*)pVictim)->IsPet() &&
+        (GetTypeId() == TYPEID_PLAYER || IsPet()) &&
+        pVictim->GetTypeId() != TYPEID_PLAYER && !pVictim->IsPet() &&
         getLevel() < pVictim->GetLevelForTarget(this))
     {
         // cap possible value (with bonuses > max skill)
@@ -1030,7 +1030,7 @@ float Unit::GetUnitDodgeChance() const
         }
         else
         {
-            isTotem = ((Creature const*)this)->IsTotem();                               // E2b, same guard: the downcast
+            isTotem = IsTotem();                                                        // E2b, same guard: the subtype read
             if (!isTotem)
             {
                 dodgeAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_DODGE_PERCENT);      // E2a, kept under its original branch
@@ -1134,7 +1134,7 @@ float Unit::GetUnitBlockChance() const
         }
         else
         {
-            isTotem = ((Creature const*)this)->IsTotem();                                   // E2b, same guard: the downcast
+            isTotem = IsTotem();                                                            // E2b, same guard: the subtype read
             if (!isTotem)
             {
                 blockAuraMod = GetTotalAuraModifier(SPELL_AURA_MOD_BLOCK_CHANCE_PERCENT);   // E2a, kept under its original branch

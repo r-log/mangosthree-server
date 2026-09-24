@@ -168,7 +168,7 @@ void Unit::SetPowerByIndex(uint32 powerIndex, int32 val)
             ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_CUR_POWER);
         }
     }
-    else if (((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -223,7 +223,7 @@ void Unit::SetMaxPowerByIndex(uint32 powerIndex, int32 val)
             ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_MAX_POWER);
         }
     }
-    else if (((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -261,7 +261,7 @@ void Unit::ApplyPowerMod(Powers power, uint32 val, bool apply)
             ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_CUR_POWER);
         }
     }
-    else if (((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -294,7 +294,7 @@ void Unit::ApplyMaxPowerMod(Powers power, uint32 val, bool apply)
             ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_MAX_POWER);
         }
     }
-    else if (((Creature*)this)->IsPet())
+    else if (IsPet())
     {
         Pet* pet = ((Pet*)this);
         if (pet->isControlled())
@@ -345,7 +345,7 @@ uint32 Unit::GetCreatePowers(Powers power) const
             {
                 return POWER_FOCUS_DEFAULT;
             }
-            return (GetTypeId() == TYPEID_PLAYER || !((Creature const*)this)->IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : POWER_FOCUS_DEFAULT);
+            return (GetTypeId() == TYPEID_PLAYER || !IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : POWER_FOCUS_DEFAULT);
         case POWER_ENERGY:      return POWER_ENERGY_DEFAULT;
         case POWER_RUNE:        return (GetTypeId() == TYPEID_PLAYER && ((Player const*)this)->getClass() == CLASS_DEATH_KNIGHT ? POWER_RUNE_DEFAULT : 0);
         case POWER_RUNIC_POWER: return (GetTypeId() == TYPEID_PLAYER && ((Player const*)this)->getClass() == CLASS_DEATH_KNIGHT ? POWER_RUNIC_POWER_DEFAULT : 0);

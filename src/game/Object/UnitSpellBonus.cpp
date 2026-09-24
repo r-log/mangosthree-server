@@ -82,7 +82,7 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
     float coeff = 1.0f;
 
     // Not apply this to creature casted spells
-    if (GetTypeId() == TYPEID_UNIT && !((Creature*)this)->IsPet())
+    if (GetTypeId() == TYPEID_UNIT && !IsPet())
     {
         coeff = 1.0f;
     }
@@ -144,7 +144,7 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
     }
 
     // For totems get damage bonus from owner (statue isn't totem in fact)
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
+    if (GetTypeId() == TYPEID_UNIT && IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
     {
         if (Unit* owner = GetOwner())
         {
@@ -157,7 +157,7 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
     int32 DoneTotal = 0;
 
     // Creature damage
-    if (GetTypeId() == TYPEID_UNIT && !((Creature*)this)->IsPet())
+    if (GetTypeId() == TYPEID_UNIT && !IsPet())
     {
         DoneTotalMod *= ((Creature*)this)->_GetSpellDamageMod(((Creature*)this)->GetCreatureInfo()->Rank);
     }
@@ -550,7 +550,7 @@ uint32 Unit::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, u
 
     // Pets just add their bonus damage to their spell damage
     // note that their spell damage is just gain of their own auras
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet())
+    if (IsPet())
     {
         DoneAdvertisedBenefit += ((Pet*)this)->GetBonusDamage();
     }
@@ -635,7 +635,7 @@ uint32 Unit::SpellDamageBonusTaken(Unit* pCaster, SpellEntry const* spellProto, 
     float const mechanicDamageTakenMultiplier = GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, GetAllSpellMechanicMask(spellProto));   // E2a
 
     // Mod damage taken from AoE spells: the avoidance reads stay under the original
-    // guards, and the pet test is a downcast, so it stays here too (E2b).
+    // guards, and the pet test reads this unit's subtype, so it stays here too (E2b).
     bool const isAreaOfEffectSpell = IsAreaOfEffectSpell(spellProto);
     float aoeDamageAvoidanceMultiplier = 1.0f;
     bool isPet = false;
@@ -643,7 +643,7 @@ uint32 Unit::SpellDamageBonusTaken(Unit* pCaster, SpellEntry const* spellProto, 
     if (isAreaOfEffectSpell)
     {
         aoeDamageAvoidanceMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_AOE_DAMAGE_AVOIDANCE, schoolMask);
-        isPet = (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet());
+        isPet = IsPet();
         if (isPet)
         {
             petAoeDamageAvoidanceMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_PET_AOE_DAMAGE_AVOIDANCE, schoolMask);
@@ -1067,7 +1067,7 @@ uint32 Unit::SpellCriticalHealingBonus(SpellEntry const* spellProto, uint32 dama
 uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, int32 healamount, DamageEffectType damagetype, uint32 stack)
 {
     // For totems get healing bonus from owner (statue isn't totem in fact)
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
+    if (GetTypeId() == TYPEID_UNIT && IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
         if (Unit* owner = GetOwner())
         {
             return owner->SpellHealingBonusDone(pVictim, spellProto, healamount, damagetype, stack);
@@ -1553,7 +1553,7 @@ uint32 Unit::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackTyp
         }
 
         // Pets just add their bonus damage to their melee damage
-        if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet())
+        if (IsPet())
         {
             DoneFlat += ((Pet*)this)->GetBonusDamage();
         }
@@ -1883,7 +1883,7 @@ uint32 Unit::MeleeDamageBonusTaken(Unit* pCaster, uint32 pdamage, WeaponAttackTy
     float const damagePercentTakenMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);                          // E2a
     float const mechanicDamageTakenMultiplier = GetTotalAuraMultiplierByMiscValueForMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, mechanicMask);      // E2a
 
-    // ..taken pct (aoe avoidance): the pet test is a downcast, so it stays here (E2b)
+    // ..taken pct (aoe avoidance): the pet test reads this unit's subtype, so it stays here (E2b)
     bool const isAreaOfEffectSpell = spellProto && IsAreaOfEffectSpell(spellProto);
     float aoeDamageAvoidanceMultiplier = 1.0f;
     bool isPet = false;
@@ -1891,7 +1891,7 @@ uint32 Unit::MeleeDamageBonusTaken(Unit* pCaster, uint32 pdamage, WeaponAttackTy
     if (isAreaOfEffectSpell)
     {
         aoeDamageAvoidanceMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_AOE_DAMAGE_AVOIDANCE, schoolMask);
-        isPet = (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsPet());
+        isPet = IsPet();
         if (isPet)
         {
             petAoeDamageAvoidanceMultiplier = GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_PET_AOE_DAMAGE_AVOIDANCE, schoolMask);

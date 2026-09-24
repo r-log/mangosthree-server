@@ -70,6 +70,7 @@ set(SRC_GRP_TESTS
     CombatLeafTest.cpp
     CombatGoldenVectors.h
     CreatureThreatTest.cpp
+    UnitSubtypeTest.cpp
 )
 
 if(WITH_NET_TESTS)
@@ -212,6 +213,22 @@ add_test(NAME headless_console
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckHeadlessConsole.cmake)
+
+# Decoupling D5f (server #135), ratchet R-C: the campaign's downcast counter becomes a gate.
+# subtype_sites is 0 after D5f and must stay 0 -- the `GetTypeId() == TYPEID_UNIT &&
+# ((Creature*)x)->IsPet()` pattern is now a virtual call. The self-test entry keeps the
+# counter itself honest, since the gate is only worth as much as its regexes.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME downcast_counter_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py --self-test)
+
+    add_test(NAME subtype_downcasts
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py
+            --gate subtype_sites=0 ${CMAKE_SOURCE_DIR}/src/game)
+else()
+    message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
+endif()
 
 if(WIN32)
     get_filename_component(

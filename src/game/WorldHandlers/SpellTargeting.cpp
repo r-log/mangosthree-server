@@ -848,7 +848,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             break;
         case TARGET_NONCOMBAT_PET:
             if (Unit* target = m_targets.getUnitTarget())
-                if (target->GetTypeId() == TYPEID_UNIT && ((Creature*)target)->IsPet() && ((Pet*)target)->getPetType() == MINI_PET)
+                if (target->GetTypeId() == TYPEID_UNIT && target->IsPet() && ((Pet*)target)->getPetType() == MINI_PET)
                 {
                     targetUnitMap.push_back(target);
                 }
@@ -1003,7 +1003,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 }
                 else if (m_caster->GetTypeId() == TYPEID_PLAYER)
                 {
-                    if (targetOwner == m_caster && target->GetTypeId() == TYPEID_UNIT && ((Creature*)target)->IsPet())
+                    if (targetOwner == m_caster && target->IsPet())
                     {
                         targetUnitMap.push_back(target);
                         break;
@@ -1017,7 +1017,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     if (targetOwner)
                     {
                         if (targetOwner->GetTypeId() == TYPEID_PLAYER &&
-                            target->GetTypeId() == TYPEID_UNIT && (((Creature*)target)->IsPet()) &&
+                            target->IsPet() &&
                             target->GetOwnerGuid() == targetOwner->GetObjectGuid() &&
                             pGroup->IsMember(((Player*)targetOwner)->GetObjectGuid()))
                         {
@@ -1201,7 +1201,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 {
                     if (target->GetTypeId() != TYPEID_PLAYER)
                     {
-                        if (((Creature*)target)->IsPet())
+                        if (target->IsPet())
                         {
                             Unit* targetOwner = target->GetOwner();
                             if (targetOwner->GetTypeId() == TYPEID_PLAYER)
