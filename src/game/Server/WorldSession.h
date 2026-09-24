@@ -68,6 +68,7 @@ class Player;
 class Unit;
 class WorldPacket;
 class QueryResult;
+class SqlQueryHolder;
 class LoginQueryHolder;
 class CharacterHandler;
 class GMTicket;
@@ -840,14 +841,57 @@ class WorldSession
         void HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data);
         void HandlePartyAssignmentOpcode(WorldPacket& recv_data);
 
+        // The petition handlers and their continuations (decoupling D7b). None of these
+        // handlers waits on the database: each queues its reads and is answered a tick
+        // later by the matching callback, which runs on the world thread out of
+        // UpdateResultQueue(). The callbacks are static and take identities rather than
+        // pointers -- the session they belong to is re-found and compared, because the one
+        // that sent the request may be gone by the time the answer arrives.
         void HandlePetitionBuyOpcode(WorldPacket& recv_data);
+        static void QueuePetitionBuyRead(uint32 accountId, proto::SessionId sessionId,
+                                         ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name);
+        static void HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                              proto::SessionId sessionId, ObjectGuid playerGuid,
+                                              ObjectGuid npcGuid, std::string name);
+
         void HandlePetitionShowSignOpcode(WorldPacket& recv_data);
+        static void HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                                   proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                   ObjectGuid petitionGuid);
+
         void HandlePetitionQueryOpcode(WorldPacket& recv_data);
+        static void SendPetitionQueryCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                              proto::SessionId sessionId, ObjectGuid petitionguid);
+
         void HandlePetitionRenameOpcode(WorldPacket& recv_data);
+        static void HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                 ObjectGuid petitionGuid, std::string newname);
+
         void HandlePetitionSignOpcode(WorldPacket& recv_data);
+        static void HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                               proto::SessionId sessionId, ObjectGuid playerGuid,
+                                               ObjectGuid petitionGuid);
+        static void QueuePetitionSignHolder(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
+                                            ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 maxSigns);
+        static uint32 PetitionSignOutcome(bool signedBefore, bool signedAfter);
+        static void HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                 ObjectGuid petitionGuid, ObjectGuid ownerGuid);
+
         void HandlePetitionDeclineOpcode(WorldPacket& recv_data);
+        static void HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                  proto::SessionId sessionId, ObjectGuid playerGuid);
+
         void HandleOfferPetitionOpcode(WorldPacket& recv_data);
+        static void HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                                proto::SessionId sessionId, ObjectGuid ownGuid,
+                                                ObjectGuid petitionGuid, ObjectGuid playerGuid);
+
         void HandleTurnInPetitionOpcode(WorldPacket& recv_data);
+        static void HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                 ObjectGuid petitionGuid);
 
         void HandleGuildQueryOpcode(WorldPacket& recvPacket);
         void HandleGuildCreateOpcode(WorldPacket& recvPacket);
