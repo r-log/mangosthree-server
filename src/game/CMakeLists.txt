@@ -34,6 +34,9 @@ source_group("References" FILES ${SRC_GRP_REFERENCES})
 file(GLOB SRC_GRP_SERVER Server/*.cpp Server/*.h)
 source_group("Server" FILES ${SRC_GRP_SERVER})
 
+file(GLOB SRC_GRP_SPELLS spells/*.cpp spells/*.h)
+source_group("Spells" FILES ${SRC_GRP_SPELLS})
+
 file(GLOB SRC_GRP_TIME Time/*.cpp Time/*.h)
 source_group("Time" FILES ${SRC_GRP_TIME})
 
@@ -58,6 +61,7 @@ add_library(game STATIC
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
+    ${SRC_GRP_SPELLS}
     ${SRC_GRP_TIME}
     ${SRC_GRP_TOOL}
     ${SRC_GRP_WORLD_HANDLERS}
@@ -77,6 +81,7 @@ target_include_directories(game
         OutdoorPvP
         References
         Server
+        ${CMAKE_CURRENT_SOURCE_DIR}/spells
         Time
         Tools
         WorldHandlers

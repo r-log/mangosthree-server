@@ -71,6 +71,7 @@ set(SRC_GRP_TESTS
     CombatGoldenVectors.h
     CreatureThreatTest.cpp
     UnitSubtypeTest.cpp
+    AuraContainerTest.cpp
 )
 
 if(WITH_NET_TESTS)
