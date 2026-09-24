@@ -47,7 +47,6 @@
 #include "Platform/Define.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
@@ -224,7 +223,7 @@ void Aura::HandlePeriodicEnergize(bool apply, bool Real)
     Unit* target = GetTarget();
 
     // For prevent double apply bonuses
-    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->GetSession()->PlayerLoading());
+    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->IsLoading());
 
     if (apply && !loading)
     {
@@ -289,7 +288,7 @@ void Aura::HandleAuraPeriodicDummy(bool apply, bool Real)
     Unit* target = GetTarget();
 
     // For prevent double apply bonuses
-    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->GetSession()->PlayerLoading());
+    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->IsLoading());
 
     switch(GetSpellProto()->GetSpellFamilyName())
     {
@@ -347,7 +346,7 @@ void Aura::HandlePeriodicHeal(bool apply, bool /*Real*/)
     Unit* target = GetTarget();
 
     // For prevent double apply bonuses
-    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->GetSession()->PlayerLoading());
+    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->IsLoading());
 
     // Custom damage calculation after
     if (apply)
@@ -405,7 +404,7 @@ void Aura::HandleDamagePercentTaken(bool apply, bool Real)
     }
 
     // For prevent double apply bonuses
-    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->GetSession()->PlayerLoading());
+    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->IsLoading());
 
     if (apply)
     {
@@ -448,7 +447,7 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
     SpellClassOptionsEntry const* classOptions = spellProto->GetSpellClassOptions();
 
     // For prevent double apply bonuses
-    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->GetSession()->PlayerLoading());
+    bool loading = (target->GetTypeId() == TYPEID_PLAYER && ((Player*)target)->IsLoading());
 
     // Custom damage calculation after
     if (apply)
@@ -608,7 +607,7 @@ void Aura::HandlePeriodicLeech(bool apply, bool /*Real*/)
     m_isPeriodic = apply;
 
     // For prevent double apply bonuses
-    bool loading = (GetTarget()->GetTypeId() == TYPEID_PLAYER && ((Player*)GetTarget())->GetSession()->PlayerLoading());
+    bool loading = (GetTarget()->GetTypeId() == TYPEID_PLAYER && ((Player*)GetTarget())->IsLoading());
 
     // Custom damage calculation after
     if (apply)
@@ -650,7 +649,7 @@ void Aura::HandlePeriodicHealthFunnel(bool apply, bool /*Real*/)
     m_isPeriodic = apply;
 
     // For prevent double apply bonuses
-    bool loading = (GetTarget()->GetTypeId() == TYPEID_PLAYER && ((Player*)GetTarget())->GetSession()->PlayerLoading());
+    bool loading = (GetTarget()->GetTypeId() == TYPEID_PLAYER && ((Player*)GetTarget())->IsLoading());
 
     // Custom damage calculation after
     if (apply)

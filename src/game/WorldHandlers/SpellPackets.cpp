@@ -96,7 +96,7 @@ void Spell::SendCastResult(SpellCastResult result)
         return;
     }
 
-    if (((Player*)m_caster)->GetSession()->PlayerLoading()) // don't send cast results at loading time
+    if (((Player*)m_caster)->IsLoading()) // don't send cast results at loading time
     {
         return;
     }
@@ -218,7 +218,7 @@ void Spell::SendCastResult(Player* caster, SpellEntry const* spellInfo, uint8 ca
         default:
             break;
     }
-    caster->GetSession()->SendPacket(&data);
+    caster->SendDirectMessage(&data);
 }
 
 /**
@@ -923,7 +923,7 @@ void Spell::SendResurrectRequest(Player* target)
     data << uint8(m_caster->GetTypeId() == TYPEID_PLAYER ? 0 : 1);
     data << uint32(m_spellInfo->ID);
 
-    target->GetSession()->SendPacket(&data);
+    target->SendDirectMessage(&data);
 }
 
 void Spell::SendPlaySpellVisual(uint32 SpellID)
@@ -936,5 +936,5 @@ void Spell::SendPlaySpellVisual(uint32 SpellID)
     WorldPacket data;
     m_caster->BuildSendPlayVisualPacket(&data, SpellID, false);
 
-    ((Player*)m_caster)->GetSession()->SendPacket(&data);
+    ((Player*)m_caster)->SendDirectMessage(&data);
 }

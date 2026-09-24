@@ -3035,6 +3035,11 @@ class Player : public Unit
         // Check if the player is being teleported
         bool IsBeingTeleported() const { return mSemaphoreTeleport_Near || mSemaphoreTeleport_Far; }
 
+        // Decoupling D5a: the aura and spell packet code asks Player, not the session, whether
+        // the player is loading or logging out.
+        bool IsLoading() const;
+        bool IsLoggingOut() const;
+
         // Check if the player is being teleported near
         bool IsBeingTeleportedNear() const { return mSemaphoreTeleport_Near; }
 
