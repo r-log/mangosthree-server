@@ -64,6 +64,7 @@
 #include "UpdateFields.h"
 #include "ObjectMgr.h"
 #include "AccountMgr.h"
+#include "GMTicketMgr.h"
 
 /**
  * @struct DumpTable
@@ -858,6 +859,15 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
                 if (!changenth(line, 1, newguid))           // character_*.guid update
                 {
                     ROLLBACK(DUMP_FILE_BROKEN);
+                }
+                // Decoupling D7i, fix round 1: GMTicketMgr::Create now chooses ticket ids
+                // itself, so a ticket row written here must raise its counter. (Column 1
+                // of `character_ticket` is `ticket_id`, not the owner, so the line above
+                // overwrites the ticket id with the new character guid -- a pre-existing
+                // defect this PR does not fix; the counter follows whatever lands.)
+                if (tn == "character_ticket")
+                {
+                    sTicketMgr.NoteTicketIdInUse(uint32(atoi(getnth(line, 1).c_str())));
                 }
                 break;
 

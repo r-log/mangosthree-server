@@ -838,10 +838,15 @@ class WorldSession
         void HandleEmoteOpcode(WorldPacket& recvPacket);
         void HandleContactListOpcode(WorldPacket& recvPacket);
         void HandleAddFriendOpcode(WorldPacket& recvPacket);
-        static void HandleAddFriendOpcodeCallBack(QueryResult* result, uint32 accountId, std::string friendNote);
+        /// Decoupling D7i: the body of the old HandleAddFriendOpcodeCallBack. The
+        /// `SELECT guid, race FROM characters WHERE name` it used to wait for is a
+        /// CharacterCache lookup (D7c), so this runs in the handler's own tick and the
+        /// session it answers is `this` instead of one re-found by account id.
+        void CompleteAddFriend(ObjectGuid friendGuid, Team team, std::string const& friendNote);
         void HandleDelFriendOpcode(WorldPacket& recvPacket);
         void HandleAddIgnoreOpcode(WorldPacket& recvPacket);
-        static void HandleAddIgnoreOpcodeCallBack(QueryResult* result, uint32 accountId);
+        /// Decoupling D7i, the ignore twin of CompleteAddFriend.
+        void CompleteAddIgnore(ObjectGuid ignoreGuid);
         void HandleDelIgnoreOpcode(WorldPacket& recvPacket);
         void HandleSetContactNotesOpcode(WorldPacket& recvPacket);
         void HandleBugOpcode(WorldPacket& recvPacket);
@@ -1255,6 +1260,11 @@ class WorldSession
         void HandleRealmSplitOpcode(WorldPacket& recv_data);
         void HandleTimeSyncResp(WorldPacket& recv_data);
         void HandleWhoisOpcode(WorldPacket& recv_data);
+        /// Decoupling D7i: the `account` row CMSG_WHOIS waited for. The opcode is
+        /// SEC_ADMINISTRATOR-gated but is not a chat command, so no AdminScope can cover
+        /// it and it is a continuation instead.
+        static void HandleWhoisCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                        proto::SessionId sessionId, std::string charname);
         void HandleResetInstancesOpcode(WorldPacket& recv_data);
         void HandleHearthandResurrect(WorldPacket& recv_data);
 

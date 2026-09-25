@@ -44,6 +44,20 @@ set(CONVERTED_FILES
     src/game/Object/GuildBank.cpp                           # decoupling D7g
     src/game/WorldHandlers/Chat.cpp                         # decoupling D7h
     src/game/Harness/Harness.cpp                            # decoupling D7h
+    src/game/WorldHandlers/Map.cpp                          # decoupling D7i
+    src/game/WorldHandlers/InstanceData.cpp                 # decoupling D7i
+    src/game/WorldHandlers/InstanceDataCache.cpp            # decoupling D7i
+    src/game/WorldHandlers/MapPersistentStateMgr.cpp        # decoupling D7i
+    src/game/BattleGround/BattleGroundReward.cpp            # decoupling D7i
+    src/game/BattleGround/BattleGroundMgr.cpp               # decoupling D7i
+    src/game/WorldHandlers/PetHandler.cpp                   # decoupling D7i
+    src/game/WorldHandlers/MiscHandlerSocial.cpp            # decoupling D7i
+    src/game/WorldHandlers/MiscHandler.cpp                  # decoupling D7i
+    src/game/Object/SocialMgr.cpp                           # decoupling D7i
+    src/game/Object/GMTicketMgr.cpp                         # decoupling D7i
+    src/game/Object/AuctionHouseMgr.cpp                     # decoupling D7i
+    src/game/WorldHandlers/AccountMgr.cpp                   # decoupling D7i
+    src/game/ChatCommands/AccountCommands.cpp               # decoupling D7i
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -236,6 +250,123 @@ set(ALLOW_GuildBank_cpp
 set(ALLOW_Chat_cpp
     # --- start-up (World::SetInitialWorldSettings) and `.reload command`: ChatHandler::LoadCommandTable ---
     "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;")
+
+# Decoupling D7i. The player-reachable residual and the one tick-autonomous site:
+#
+#   Map.cpp                     -- Map::CreateInstanceData's two `SELECT data FROM
+#                                  instance/world`, one per map created (every continent at
+#                                  start-up, every transport deck, every dungeon entered),
+#                                  read InstanceDataCache. NO allow list.
+#   InstanceData.cpp            -- InstanceData::SaveToDB's escape is bound and its two
+#                                  UPDATEs mirror into that cache. Its only call. NO allow list.
+#   InstanceDataCache.cpp       -- the cache itself. TWO allowed lines, its own start-up reads.
+#   MapPersistentStateMgr.cpp   -- DungeonResetScheduler::Update's DirectPExecute is queued
+#                                  (the one site in the residual that needed no human at all),
+#                                  and DungeonPersistentState::SaveToDB's escape is a bound
+#                                  INSERT that mirrors into the cache. THIRTEEN allowed lines,
+#                                  all start-up: LoadResetTimes, PackInstances and the two
+#                                  respawn loaders.
+#   BattleGroundReward.cpp      -- BattleGround::EndBattleGround's `SELECT MAX(id) FROM
+#                                  pvpstats_battlegrounds` is an in-memory counter. NO allow list.
+#   BattleGroundMgr.cpp         -- where that counter is primed. THREE allowed lines, all
+#                                  start-up (the new one, the template loader, the arena-point
+#                                  distribution time).
+#   PetHandler.cpp              -- HandlePetRename's six escapes are bound. NO allow list.
+#   MiscHandlerSocial.cpp       -- HandleAddFriendOpcode / HandleAddIgnoreOpcode resolve the
+#                                  name through CharacterCache instead of escaping it for a
+#                                  `characters` read. NO allow list.
+#   MiscHandler.cpp             -- HandleBugOpcode's two escapes are bound; HandleWhoisOpcode's
+#                                  `account` read is a continuation (it is SEC_ADMINISTRATOR
+#                                  work, but an OPCODE, so no AdminScope can reach it). NO allow list.
+#   SocialMgr.cpp               -- PlayerSocial::SetFriendNote's escape is bound. Its only
+#                                  blocking call, so NO allow list.
+#   GMTicketMgr.cpp             -- SaveSurveyData, SetText, SetResponseText and Create lose
+#                                  four escapes, and Create loses its DirectPExecute AND the
+#                                  SELECT that read the new id back: the id is a counter now.
+#                                  THREE allowed lines, all LoadGMTickets'.
+#   AuctionHouseMgr.cpp         -- SendAuctionWonMail's `sAccountMgr.GetSecurity()` for an
+#                                  OFFLINE bidder is a continuation that writes the gm.log
+#                                  line when the answer arrives. THREE allowed lines, the
+#                                  start-up auction loaders.
+#   AccountMgr.cpp              -- CheckPassword is gone; `.account password` goes through
+#                                  QueueChangePasswordChecked, which reads `username` and
+#                                  `sha_pass_hash` once, asynchronously, and does the whole
+#                                  verify-and-change in the callback. NINE allowed lines: the
+#                                  GM/console entry points (DeleteAccount, ChangeUsername,
+#                                  GetId, GetSecurity, GetName, GetCharactersCount), which
+#                                  ChatHandler::ExecuteCommand's AdminScope covers.
+#   AccountCommands.cpp         -- the command above. TWO allowed lines, `.account onlinelist`
+#                                  and `.account characters`, both SEC_ADMINISTRATOR.
+set(ALLOW_InstanceDataCache_cpp
+    # --- start-up: InstanceDataCache::LoadFromDB, from World::SetInitialWorldSettings ---
+    "if (QueryResult* result = CharacterDatabase.Query(\"SELECT `id`, `map`, `data` FROM `instance`\"))"
+    "if (QueryResult* result = CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\"))")
+
+set(ALLOW_MapPersistentStateMgr_cpp
+    # --- start-up: DungeonResetScheduler::LoadResetTimes, from MapPersistentStateManager::LoadCreatureRespawnTimes' caller chain ---
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `id`, `map`, `difficulty`, `resettime` FROM `instance` WHERE `resettime` > 0\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`respawntime`), `instance` FROM `creature_respawn` WHERE `instance` > 0 GROUP BY `instance`\")\;"
+    "CharacterDatabase.DirectPExecute(\"UPDATE `instance` SET `resettime` = '\" UI64FMTD \"' WHERE `id` = '%u'\", uint64(resettime), instance)\;"
+    "result = CharacterDatabase.Query(\"SELECT `mapid`, `difficulty`, `resettime` FROM `instance_reset`\")\;"
+    "CharacterDatabase.DirectPExecute(\"DELETE FROM `instance_reset` WHERE `mapid` = '%u' AND `difficulty` = '%u'\", mapid, difficulty)\;"
+    "CharacterDatabase.DirectPExecute(\"UPDATE `instance_reset` SET `resettime` = '\" UI64FMTD \"' WHERE `mapid` = '%u' AND `difficulty` = '%u'\", newresettime, mapid, difficulty)\;"
+    "CharacterDatabase.DirectPExecute(\"INSERT INTO `instance_reset` VALUES ('%u','%u','\" UI64FMTD \"')\", mapid, difficulty, (uint64)t)\;"
+    "CharacterDatabase.DirectPExecute(\"UPDATE `instance_reset` SET `resettime` = '\" UI64FMTD \"' WHERE mapid = '%u' AND difficulty= '%u'\", (uint64)t, mapid, difficulty)\;"
+    # --- start-up: MapPersistentStateManager::PackInstances ---
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `id` FROM `instance`\")\;"
+    # --- start-up: MapPersistentStateManager::LoadCreatureRespawnTimes / LoadGameobjectRespawnTimes ---
+    "CharacterDatabase.DirectExecute(\"DELETE FROM `creature_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `creature_respawn` LEFT JOIN `instance` ON `instance` = `id`\")\;"
+    "CharacterDatabase.DirectExecute(\"DELETE FROM `gameobject_respawn` WHERE `respawntime` <= UNIX_TIMESTAMP(NOW())\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `respawntime`, `map`, `instance`, `difficulty`, `resettime`, `encountersMask` FROM `gameobject_respawn` LEFT JOIN `instance` ON `instance` = `id`\")\;")
+
+set(ALLOW_BattleGroundMgr_cpp
+    # --- start-up: BattleGroundMgr::LoadHighestPvPStatsId, from World::SetInitialWorldSettings ---
+    "if (QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `pvpstats_battlegrounds`\"))"
+    # --- start-up: BattleGroundMgr::CreateInitialBattleGrounds / InitAutomaticArenaPointDistribution ---
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `MinPlayersPerTeam`,`MaxPlayersPerTeam`,`AllianceStartLoc`,`AllianceStartO`,`HordeStartLoc`,`HordeStartO`, `StartMaxDist` FROM `battleground_template`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `NextArenaPointDistributionTime` FROM `saved_variables`\")\;")
+
+# GMTicketMgr::LoadGMTickets' own SELECT was written across several lines, which would have
+# forced a loose allowance (the bare `QueryResult* result = CharacterDatabase.Query(`); fix
+# round 1 put it on one line so every entry here is an exact statement. The middle one is
+# the ticket counter's AUTO_INCREMENT seed.
+set(ALLOW_GMTicketMgr_cpp
+    # --- start-up: GMTicketMgr::LoadGMTickets, from World::SetInitialWorldSettings ---
+    "if (QueryResult* highest = CharacterDatabase.Query(\"SELECT MAX(`ticket_id`) FROM `character_ticket`\"))"
+    "if (QueryResult* next = CharacterDatabase.Query(\"SELECT `AUTO_INCREMENT` FROM `information_schema`.`TABLES` WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'character_ticket'\"))"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `guid`, `ticket_text`, `response_text`, UNIX_TIMESTAMP(`ticket_lastchange`), `ticket_id` FROM `character_ticket` WHERE `resolved` = 0 ORDER BY `ticket_id` ASC\")\;")
+
+set(ALLOW_AuctionHouseMgr_cpp
+    # --- start-up: AuctionHouseMgr::LoadAuctionItems / LoadAuctions ---
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `data`,`text`,`itemguid`,`item_template` FROM `auction` JOIN `item_instance` ON `itemguid` = `guid`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT COUNT(*) FROM `auction`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT `id`,`houseid`,`itemguid`,`item_template`,`item_count`,`item_randompropertyid`,`itemowner`,`buyoutprice`,`time`,`moneyTime`,`buyguid`,`lastbid`,`startbid`,`deposit` FROM `auction`\")\;")
+
+# AccountMgr's nine are GM or console work, every one of them reached through
+# ChatHandler::ExecuteCommand and therefore inside the AdminScope D7i widened. The first
+# entry is one line of text that appears in TWO functions (DeleteAccount and ChangeUsername
+# open with the same existence check), which is what an allow list compared as exact text
+# does; both are administrative.
+set(ALLOW_AccountMgr_cpp
+    # --- AccountMgr::DeleteAccount (`.account delete`) and AccountMgr::ChangeUsername ---
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT 1 FROM `account` WHERE `id`='%u'\", accid)\;"
+    "result = CharacterDatabase.PQuery(\"SELECT `guid` FROM `characters` WHERE `account`='%u'\", accid)\;"
+    "LoginDatabase.escape_string(safe_new_uname)\;"
+    # --- AccountMgr::GetId (`.ban account`, `.account onlinelist`, the account arg extractor) ---
+    "LoginDatabase.escape_string(username)\;"
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id` FROM `account` WHERE `username` = '%s'\", username.c_str())\;"
+    # --- AccountMgr::GetSecurity (ChatHandler::HasLowerSecurity) ---
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `gmlevel` FROM `account` WHERE `id` = '%u'\", acc_id)\;"
+    # --- AccountMgr::GetName (`.pinfo`, `.baninfo`, `.character deleted restore`) ---
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `username` FROM `account` WHERE `id` = '%u'\", acc_id)\;"
+    # --- AccountMgr::GetCharactersCount (`.character deleted restore`, `.pdump load`) ---
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'\", acc_id)\;")
+
+set(ALLOW_AccountCommands_cpp
+    # --- `.account onlinelist` and `.account characters`, both SEC_ADMINISTRATOR ---
+    "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmID)\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u\", account_id)\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

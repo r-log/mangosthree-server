@@ -24,6 +24,7 @@
  */
 
 #include "Utilities/Errors.h"
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -121,6 +122,44 @@ uint64 AuctionHouseMgr::GetAuctionDeposit(AuctionHouseEntry const* entry, uint32
     return uint64(deposit * sWorld.getConfig(CONFIG_FLOAT_RATE_AUCTION_DEPOSIT));
 }
 
+namespace
+{
+    /**
+     * @brief The gm.log line for a staff member winning an auction.
+     *
+     * Decoupling D7i: one body, two callers. The bidder who is ONLINE is answered from his
+     * own session and writes the line in the same tick, as before; the bidder who is
+     * OFFLINE needs his security level from the login database, and writes it from that
+     * read's continuation. The text, its arguments and their order are the old ones.
+     *
+     * @param bidderAccId   The winning bidder's account id.
+     * @param bidderName    The winning bidder's character name.
+     * @param ownerGuid     The auction owner's guid (may be empty).
+     * @param owner         The owner's Player when he is online, else NULL.
+     * @param itemTemplate  The item entry that was won.
+     * @param itemCount     How many of it.
+     * @param bid           What was paid.
+     */
+    void WriteAuctionWonGmLog(uint32 bidderAccId, std::string const& bidderName, ObjectGuid ownerGuid,
+                              Player* owner, uint32 itemTemplate, uint32 itemCount, uint64 bid)
+    {
+        std::string owner_name;
+        if (owner)
+        {
+            owner_name = owner->GetName();
+        }
+        else if (ownerGuid && !sObjectMgr.GetPlayerNameByGUID(ownerGuid, owner_name))
+        {
+            owner_name = sObjectMgr.GetMangosStringForDBCLocale(LANG_UNKNOWN);
+        }
+
+        uint32 owner_accid = sObjectMgr.GetPlayerAccountIdByGUID(ownerGuid);
+
+        sLog.outCommand(bidderAccId, "GM %s (Account: %u) won item in auction (Entry: %u Count: %u) and pay money: " UI64FMTD ". Original owner %s (Account: %u)",
+                        bidderName.c_str(), bidderAccId, itemTemplate, itemCount, bid, owner_name.c_str(), owner_accid);
+    }
+}
+
 // does not clear ram
 /**
  * @brief Sends the winning bidder mail for a completed auction.
@@ -146,44 +185,59 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
     // data for gm.log
     if (sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
     {
-        AccountTypes bidder_security = SEC_PLAYER;
-        std::string bidder_name;
         if (bidder)
         {
             bidder_accId = bidder->GetSession()->GetAccountId();
-            bidder_security = bidder->GetSession()->GetSecurity();
-            bidder_name = bidder->GetName();
+            if (bidder->GetSession()->GetSecurity() > SEC_PLAYER)
+            {
+                WriteAuctionWonGmLog(bidder_accId, bidder->GetName(), ownerGuid, auction_owner,
+                                     auction->itemTemplate, auction->itemCount, auction->bid);
+            }
         }
         else
         {
             bidder_accId = sObjectMgr.GetPlayerAccountIdByGUID(bidder_guid);
-            bidder_security = bidder_accId ? sAccountMgr.GetSecurity(bidder_accId) : SEC_PLAYER;
 
-            if (bidder_security > SEC_PLAYER)               // not do redundant DB requests
+            // Decoupling D7i. `sAccountMgr.GetSecurity(bidder_accId)` was a synchronous
+            // `account` read on the LOGIN database, reached from here whenever an auction
+            // with an OFFLINE bidder ended -- the one path that made AccountMgr::GetSecurity
+            // player-reachable rather than GM-only work. The gm.log line is all it fed, so
+            // the line is written by a continuation and the auction's own completion below
+            // does not wait for it. Everything the line needs is captured by value now,
+            // because `auction` may well be gone by the time the answer arrives.
+            if (bidder_accId)
             {
-                if (!sObjectMgr.GetPlayerNameByGUID(bidder_guid, bidder_name))
-                {
-                    bidder_name = sObjectMgr.GetMangosStringForDBCLocale(LANG_UNKNOWN);
-                }
-            }
-        }
+                const uint32 logAccId = bidder_accId;
+                const ObjectGuid logBidderGuid = bidder_guid;
+                const ObjectGuid logOwnerGuid = ownerGuid;
+                const uint32 logItemTemplate = auction->itemTemplate;
+                const uint32 logItemCount = auction->itemCount;
+                const uint64 logBid = auction->bid;
 
-        if (bidder_security > SEC_PLAYER)
-        {
-            std::string owner_name;
-            if (auction_owner)
-            {
-                owner_name = auction_owner->GetName();
-            }
-            else if (ownerGuid && !sObjectMgr.GetPlayerNameByGUID(ownerGuid, owner_name))
-            {
-                owner_name = sObjectMgr.GetMangosStringForDBCLocale(LANG_UNKNOWN);
-            }
+                LoginDatabase.AsyncPQuery([logAccId, logBidderGuid, logOwnerGuid, logItemTemplate, logItemCount, logBid](QueryResult* result)
+                                          {
+                                              std::unique_ptr<QueryResult> row(result);
+                                              // No row is AccountMgr::GetSecurity's own "return SEC_PLAYER",
+                                              // and SEC_PLAYER writes nothing -- the same silence as before (C4).
+                                              if (!row || AccountTypes((*row)[0].GetInt32()) <= SEC_PLAYER)
+                                              {
+                                                  return;
+                                              }
 
-            uint32 owner_accid = sObjectMgr.GetPlayerAccountIdByGUID(ownerGuid);
+                                              std::string bidderName;
+                                              if (!sObjectMgr.GetPlayerNameByGUID(logBidderGuid, bidderName))
+                                              {
+                                                  bidderName = sObjectMgr.GetMangosStringForDBCLocale(LANG_UNKNOWN);
+                                              }
 
-            sLog.outCommand(bidder_accId, "GM %s (Account: %u) won item in auction (Entry: %u Count: %u) and pay money: " UI64FMTD ". Original owner %s (Account: %u)",
-                            bidder_name.c_str(), bidder_accId, auction->itemTemplate, auction->itemCount, auction->bid, owner_name.c_str(), owner_accid);
+                                              // The owner may have logged in or out since; the name is
+                                              // resolved from the registry again, exactly as it would have
+                                              // been on the old same-tick path (C3).
+                                              Player* owner = sObjectMgr.GetPlayer(logOwnerGuid);
+                                              WriteAuctionWonGmLog(logAccId, bidderName, logOwnerGuid, owner,
+                                                                   logItemTemplate, logItemCount, logBid);
+                                          }, "SELECT `gmlevel` FROM `account` WHERE `id` = '%u'", bidder_accId);
+            }
         }
     }
     else if (!bidder)

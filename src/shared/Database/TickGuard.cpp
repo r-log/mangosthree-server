@@ -114,7 +114,7 @@ namespace TickGuard
 
     void Violation(char const* sql)
     {
-        // An administrative reload: counted, on its own line, and neither logged nor
+        // An administrative command: counted, on its own line, and neither logged nor
         // asserted. `.reload all` re-runs about a hundred loaders, and a log line per
         // acquisition would bury whatever the operator ran the reload to look at --
         // while the assert would turn a supported command into a crash.

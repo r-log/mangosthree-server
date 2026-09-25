@@ -28,6 +28,7 @@
 
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
+#include <functional>
 #include <string>
 #include "Policies/Singleton.h"
 
@@ -108,12 +109,28 @@ class AccountMgr
         AccountOpResult ChangePassword(uint32 accid, std::string new_passwd);
 
         /**
-         * @brief Check password
-         * @param accid Account ID
-         * @param passwd Password to check
-         * @return True if password matches
+         * @brief Verify the old password and change it, without blocking the tick.
+         *
+         * Decoupling D7i. `.account password` is a SEC_PLAYER command, so
+         * ChatHandler::ExecuteCommand's AdminScope does not cover it and it may not wait
+         * on MySQL. It used to wait THREE times: CheckPassword's own `SELECT 1 ... AND
+         * sha_pass_hash =`, the GetName() inside it, and the GetName() inside
+         * ChangePassword. All three are this one `SELECT username, sha_pass_hash` and the
+         * work that follows it, in the callback.
+         *
+         * The verdicts the callback receives are exactly the old ones, in the old ORDER:
+         * a wrong old password is reported before the new password's length is looked at,
+         * because CheckPassword ran before ChangePassword did.
+         *
+         * @param accid       Account ID.
+         * @param oldPasswd   The password to verify.
+         * @param newPasswd   The password to set once it verifies.
+         * @param callback    Called on the world thread with (did the old password match,
+         *                    what the change returned). `result` means nothing when the
+         *                    first is false.
          */
-        bool CheckPassword(uint32 accid, std::string passwd);
+        void QueueChangePasswordChecked(uint32 accid, std::string oldPasswd, std::string newPasswd,
+                                        std::function<void(bool oldPasswordMatched, AccountOpResult result)> callback);
 
         /**
          * @brief Get account ID by username
@@ -151,6 +168,21 @@ class AccountMgr
          * @return SHA hash string
          */
         std::string CalculateShaPassHash(std::string& name, std::string& password);
+
+        /**
+         * @brief Whether a computed password hash equals a stored one.
+         *
+         * Decoupling D7i. The comparison used to be MySQL's, inside
+         * `... AND sha_pass_hash = '<hash>'`, and `account`.`sha_pass_hash` is
+         * `utf8_general_ci` -- so it ignored case. This does the same, rather than the
+         * `==` that would quietly start rejecting a row somebody had written in lower
+         * case. Static and public so the rule can be tested on both sides without a
+         * database.
+         *
+         * @param expected The hash computed from the name and the password offered.
+         * @param stored   The hash the `account` row holds.
+         */
+        static bool PasswordHashMatches(std::string const& expected, std::string const& stored);
 };
 
 /* A macro that creates a global variable called `sAccountMgr` that is an instance of the `AccountMgr` class. */

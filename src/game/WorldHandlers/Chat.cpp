@@ -1384,6 +1384,24 @@ ChatCommandSearchResult ChatHandler::FindCommand(ChatCommand* table, char const*
 }
 
 /**
+ * Whether a dispatched command counts as administrative (decoupling D7i).
+ *
+ * The one predicate behind the tree's one TickGuard::AdminScope. Chat.h documents the
+ * reasoning; the whole of it is here so that a test can exercise both sides of it without
+ * a session, a world or a database.
+ *
+ * The floor is "above SEC_PLAYER" (Ruling 27): every staff command is inside, moderators
+ * included (`.go creature` and `.go object` are SEC_MODERATOR and read the database), and
+ * SEC_CONSOLE is above it, so every console command is too. A SEC_PLAYER command is
+ * outside -- including a staff command an operator has lowered to security 0 in the
+ * `command` table, because that lowering makes it player-reachable and it must assert.
+ */
+bool ChatHandler::IsAdministrativeCommand(ChatCommand const* command)
+{
+    return command != NULL && command->SecurityLevel > SEC_PLAYER;
+}
+
+/**
  * Execute (sub)command available for chat handler access level with options in command line string
  *
  * @param text  Command line string that will parsed for (sub)command search and command specific data
@@ -1412,11 +1430,15 @@ void ChatHandler::ExecuteCommand(const char* text)
             // acquisitions are counted apart (`.server database` prints them on their own
             // line) and do not assert under MANGOS_STRICT_TICK.
             //
-            // The test is `parentCommand`, not the command line's text: FindCommand hands
-            // back the owner of the child table a command was found in, so `.reload spell_chain`
-            // and an abbreviation like `.relo spell_chain` both arrive here with the `reload`
-            // entry as their parent, and no other table's owner is named `reload`.
-            TickGuard::AdminScope administrativeReload(parentCommand && strcmp(parentCommand->Name, "reload") == 0);
+            // Decoupling D7i widens the PREDICATE, not the site: `.reload` was never the
+            // only command that blocks the tick by design. `.pinfo`, `.baninfo`, `.banlist`,
+            // `.list item/object/creature`, `.lookup player/account`, `.gobject near/target`,
+            // `.additem`, `.wp`, `.character deleted list/restore`, `.pdump load/write`,
+            // `.tele add` and the moderators' `.go creature/object` all do, and none of them is
+            // SEC_PLAYER. The test is now
+            // the command's own required security -- see ChatHandler::IsAdministrativeCommand
+            // for what that includes and, more importantly, what it deliberately does not.
+            TickGuard::AdminScope administrativeCommand(IsAdministrativeCommand(command));
 
             if ((this->*(command->Handler))((char*)text))   // text content destroyed at call
             {

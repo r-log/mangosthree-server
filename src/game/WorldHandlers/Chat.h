@@ -35,6 +35,7 @@
 #include <list>
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
+#include "AccountMgr.h"
 
 struct AchievementEntry;
 struct AchievementCriteriaEntry;
@@ -119,6 +120,39 @@ class ChatHandler
         // function with different implementation for chat/console
         virtual const char* GetMangosString(int32 entry) const;
         const char* GetOnOffStr(bool value) const;
+
+        /**
+         * @brief Whether a dispatched command counts as administrative (decoupling D7h/D7i).
+         *
+         * ExecuteCommand opens the tree's ONE TickGuard::AdminScope on this answer, so the
+         * acquisitions an administrative command makes are counted on their own line and do
+         * not assert under MANGOS_STRICT_TICK. D7h asked "is the parent command `reload`";
+         * D7i widens it to the command's own required security being above SEC_PLAYER
+         * (Ruling 27), which is what actually separates staff work from a player's: every
+         * `.reload`, `.pinfo`, `.banlist`, `.lookup account`, `.pdump` and the moderators'
+         * `.go creature/object` block the tick by design.
+         *
+         * A SEC_PLAYER command NEVER enters the scope -- `.account password` is the one in
+         * this tree that used to block, and D7i converted it instead.
+         *
+         * `SecurityLevel` is the RUNTIME level, i.e. the hardcoded table's value as the
+         * `command` table may have overridden it (ChatHandler::LoadCommandTable). A realm
+         * that lowers a staff command to SEC_PLAYER has made it reachable by people the
+         * tick's contract is about, and this answers `false` for it.
+         *
+         * Static and public so it can be tested without a session: the scope it feeds
+         * cannot be constructed outside Chat.cpp (src/tests/CheckSyncDb.cmake), but the
+         * predicate that decides it can.
+         */
+        static bool IsAdministrativeCommand(ChatCommand const* command);
+
+        /// Decoupling D7i: `.account password`'s replies, from its continuation. Re-finds
+        /// the session AND the character (fix round 1: a rested logout leaves the session
+        /// with no player, and the replies dereference it) and drops the replies when either
+        /// is gone. `sessionId` is a proto::SessionId, which is a uint32 (AccountCommands.cpp
+        /// static_asserts it) -- spelled out here so this header need not reach the gateway.
+        static void FinishAccountPasswordCommand(uint32 accountId, uint32 sessionId, ObjectGuid playerGuid,
+                                                 bool oldPasswordMatched, AccountOpResult result);
 
         virtual void SendSysMessage(const char* str);
 

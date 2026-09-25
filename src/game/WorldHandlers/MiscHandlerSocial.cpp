@@ -46,6 +46,7 @@
 #include "ScriptMgr.h"
 #include "zlib.h"
 #include "PlayerRegistry.h"
+#include "CharacterCache.h"
 #include "Object.h"
 #include "BattleGround/BattleGround.h"
 #include "OutdoorPvP/OutdoorPvP.h"
@@ -94,39 +95,39 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
         return;
     }
 
-    CharacterDatabase.escape_string(friendName);            // prevent SQL injection - normal name don't must changed by this call
-
     DEBUG_LOG("WORLD: %s asked to add friend : '%s'",
               GetPlayer()->GetName(), friendName.c_str());
 
-    uint32 accountId = GetAccountId();
-    CharacterDatabase.AsyncPQuery([accountId, friendNote](QueryResult* result)
-                                  {
-                                      WorldSession::HandleAddFriendOpcodeCallBack(result, accountId, friendNote);
-                                  }, "SELECT `guid`, `race` FROM `characters` WHERE `name` = '%s'", friendName.c_str());
-}
-
-/**
- * @brief Completes an add-friend request after the character lookup.
- *
- * @param result The async query result.
- * @param accountId The requesting account id.
- */
-void WorldSession::HandleAddFriendOpcodeCallBack(QueryResult* result, uint32 accountId, std::string friendNote)
-{
-    if (!result)
+    // Decoupling D7i: the escape and the `SELECT guid, race FROM characters WHERE name`
+    // it protected are one CharacterCache lookup (D7c's fold table reproduces the column's
+    // utf8_general_ci comparison), so the answer is here in the handler's own tick. No
+    // cache entry is the old NULL result: the request is dropped with no reply at all,
+    // exactly as before.
+    CharacterCacheRef cached = sCharacterCache.GetByName(friendName);
+    if (!cached)
     {
         return;
     }
 
-    uint32 friendLowGuid = (*result)[0].GetUInt32();
-    ObjectGuid friendGuid = ObjectGuid(HIGHGUID_PLAYER, friendLowGuid);
-    Team team = Player::TeamForRace((*result)[1].GetUInt8());
+    CompleteAddFriend(cached->guid, Player::TeamForRace(cached->race), friendNote);
+}
 
-    delete result;
-
-    WorldSession* session = sWorld.FindSession(accountId);
-    if (!session || !session->GetPlayer())
+/**
+ * @brief Completes an add-friend request once the character has been resolved.
+ *
+ * Decoupling D7i: this is the old HandleAddFriendOpcodeCallBack's body, unchanged below
+ * the lookup. What it used to do first -- decode the row and re-find the session by
+ * account id -- the caller has already done: the row is a CharacterCache entry and the
+ * session is this one, because no tick passes between the packet and this call.
+ *
+ * @param friendGuid The resolved character guid.
+ * @param team The resolved character's team.
+ * @param friendNote The note the client sent with the request.
+ */
+void WorldSession::CompleteAddFriend(ObjectGuid friendGuid, Team team, std::string const& friendNote)
+{
+    WorldSession* session = this;
+    if (!session->GetPlayer())
     {
         return;
     }
@@ -211,38 +212,30 @@ void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recv_data)
         return;
     }
 
-    CharacterDatabase.escape_string(IgnoreName);            // prevent SQL injection - normal name don't must changed by this call
-
     DEBUG_LOG("WORLD: %s asked to Ignore: '%s'",
               GetPlayer()->GetName(), IgnoreName.c_str());
 
-    uint32 accountId = GetAccountId();
-    CharacterDatabase.AsyncPQuery([accountId](QueryResult* result)
-                                  {
-                                      WorldSession::HandleAddIgnoreOpcodeCallBack(result, accountId);
-                                  }, "SELECT `guid` FROM `characters` WHERE `name` = '%s'", IgnoreName.c_str());
-}
-
-/**
- * @brief Completes an add-ignore request after the character lookup.
- *
- * @param result The async query result.
- * @param accountId The requesting account id.
- */
-void WorldSession::HandleAddIgnoreOpcodeCallBack(QueryResult* result, uint32 accountId)
-{
-    if (!result)
+    // Decoupling D7i, the twin of HandleAddFriendOpcode above.
+    CharacterCacheRef cached = sCharacterCache.GetByName(IgnoreName);
+    if (!cached)
     {
         return;
     }
 
-    uint32 ignoreLowGuid = (*result)[0].GetUInt32();
-    ObjectGuid ignoreGuid = ObjectGuid(HIGHGUID_PLAYER, ignoreLowGuid);
+    CompleteAddIgnore(cached->guid);
+}
 
-    delete result;
-
-    WorldSession* session = sWorld.FindSession(accountId);
-    if (!session || !session->GetPlayer())
+/**
+ * @brief Completes an add-ignore request once the character has been resolved.
+ *
+ * Decoupling D7i, the twin of CompleteAddFriend above.
+ *
+ * @param ignoreGuid The resolved character guid.
+ */
+void WorldSession::CompleteAddIgnore(ObjectGuid ignoreGuid)
+{
+    WorldSession* session = this;
+    if (!session->GetPlayer())
     {
         return;
     }

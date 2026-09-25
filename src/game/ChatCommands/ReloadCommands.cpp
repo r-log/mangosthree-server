@@ -277,8 +277,18 @@ bool ChatHandler::HandleReloadAllLocalesCommand(char* /*args*/)
 bool ChatHandler::HandleReloadConfigCommand(char* /*args*/)
 {
     sLog.outString("Re-Loading config settings...");
+    const bool statisticsWereOn = sWorld.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS);
     sWorld.LoadConfigSettings(true);
     sMapMgr.InitializeVisibilityDistanceInfo();
+
+    // Decoupling D7i, fix round 1: the battleground statistics id counter is primed at
+    // start-up only when the statistics are on. Switching them on here would otherwise
+    // hand out ids from 1 over an existing table. The read runs inside this command's
+    // AdminScope, so it is counted as administrative and does not assert.
+    if (!statisticsWereOn && sWorld.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
+    {
+        sBattleGroundMgr.LoadHighestPvPStatsId();
+    }
     SendGlobalSysMessage("World config settings reloaded.", SEC_MODERATOR);
     return true;
 }

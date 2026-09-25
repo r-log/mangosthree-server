@@ -68,6 +68,7 @@
 #include "ArenaTeam.h"
 #include "AuctionHouseMgr.h"
 #include "CharacterCache.h"
+#include "InstanceDataCache.h"
 #include "ObjectMgr.h"
 #include "CreatureEventAIMgr.h"
 #include "GuildMgr.h"
@@ -336,6 +337,14 @@ void World::SetInitialWorldSettings()
     /// those deletes tells the cache.
     sLog.outString("Loading the character cache...");
     sCharacterCache.LoadFromDB();
+
+    ///- Decoupling D7i: `instance`.`data` and `world`.`data`, which Map::CreateInstanceData
+    /// used to SELECT once per map created -- on the tick, for every continent, transport
+    /// deck and dungeon. Loaded here because CleanupInstances() and PackInstances() above
+    /// have already deleted and renumbered what they were going to, and the first map is
+    /// not created until sMapMgr.LoadTransports(), far below.
+    sLog.outString("Loading instance script data...");
+    sInstanceDataCache.LoadFromDB();
 
     sLog.outString("Loading Page Texts...");
     sObjectMgr.LoadPageTexts();
@@ -779,6 +788,13 @@ void World::SetInitialWorldSettings()
     ///- Initialize Battlegrounds
     sLog.outString("Starting BattleGround System");
     sBattleGroundMgr.CreateInitialBattleGrounds();
+    if (getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
+    {
+        // Decoupling D7i: the next `pvpstats_battlegrounds` id, read once here instead of
+        // once per battleground that ends, on the tick. Behind the same config test the
+        // old site was behind, so a realm with the statistics off never touches the table.
+        sBattleGroundMgr.LoadHighestPvPStatsId();
+    }
     sBattleGroundMgr.InitAutomaticArenaPointDistribution();
 
     ///- Initialize Outdoor PvP

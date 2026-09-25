@@ -216,7 +216,7 @@ class GMTicketMgr
 {
     public:
         //TODO: Make the default value a config option instead
-        GMTicketMgr() : m_TicketSystemOn(true), m_GMTicketMap(), m_GMTicketIdMap()
+        GMTicketMgr() : m_TicketSystemOn(true), m_GMTicketMap(), m_GMTicketIdMap(), m_highestTicketId(0)
         {  }
         ~GMTicketMgr() {  }
 
@@ -315,6 +315,21 @@ class GMTicketMgr
         void Create(ObjectGuid guid, const char* text);
 
         /**
+         * Decoupling D7i, fix round 1: a `character_ticket` row with this id now exists
+         * that Create did not write -- `.pdump load` inserts the dumped character's
+         * tickets with whatever id its line carries -- so the next id Create hands out
+         * must be above it, or its queued INSERT would collide on the primary key.
+         * @param ticketId The `ticket_id` just inserted
+         */
+        void NoteTicketIdInUse(uint32 ticketId)
+        {
+            if (ticketId > m_highestTicketId)
+            {
+                m_highestTicketId = ticketId;
+            }
+        }
+
+        /**
          * Turns on/off accepting tickets globally.
          * If this is off, the client will see a message telling them that filing tickets is currently unavailable.
          * @param accept True to accept tickets, false to not accept tickets
@@ -330,6 +345,20 @@ class GMTicketMgr
         bool m_TicketSystemOn; ///< Whether the ticket system is on or off
         GMTicketMap m_GMTicketMap; ///< Map of player GUIDs to GM tickets
         GMTicketIdMap m_GMTicketIdMap; ///< Map of ticket IDs to GM tickets
+
+        /**
+         * Decoupling D7i: the highest `character_ticket`.`ticket_id` in the table.
+         *
+         * GMTicketMgr::Create used to INSERT with a DirectPExecute and then SELECT the
+         * row back, synchronously and on the tick, only to learn the id the AUTO_INCREMENT
+         * column had handed it. The id is chosen here instead and written with the row, so
+         * the INSERT can be queued like every other write.
+         *
+         * It is the MAXIMUM over the whole table, not over the tickets LoadGMTickets keeps:
+         * that query is `WHERE resolved = 0`, and reusing a resolved ticket's id would
+         * collide on the primary key.
+         */
+        uint32 m_highestTicketId;
 };
 
 #define sTicketMgr MaNGOS::Singleton<GMTicketMgr>::Instance()

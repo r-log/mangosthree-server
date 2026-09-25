@@ -191,21 +191,16 @@ void BattleGround::EndBattleGround(Team winner)
     if (isBattleGround() && sWorld.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
     {
         static SqlStatementID insPvPstatsBattleground;
-        QueryResult* result;
 
         SqlStatement stmt = CharacterDatabase.CreateStatement(insPvPstatsBattleground, "INSERT INTO pvpstats_battlegrounds (id, winner_team, bracket_id, type, date) VALUES (?, ?, ?, ?, NOW())");
 
         uint8 battleground_bracket = GetMinLevel() / 10;
         uint8 battleground_type = (uint8)GetTypeID();
 
-        // query next id
-        result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `pvpstats_battlegrounds`");
-        if (result)
-        {
-            Field* fields = result->Fetch();
-            battleground_id = fields[0].GetUInt64() + 1;
-            delete result;
-        }
+        // Decoupling D7i: the next id came from `SELECT MAX(id)` here, on the tick, at the
+        // end of every battleground. It is an in-memory counter now, read once at start-up
+        // (BattleGroundMgr::LoadHighestPvPStatsId) behind this same config test.
+        battleground_id = sBattleGroundMgr.GenerateNextPvPStatsId();
 
         stmt.PExecute(battleground_id, bgScoresWinner, battleground_bracket, battleground_type);
     }

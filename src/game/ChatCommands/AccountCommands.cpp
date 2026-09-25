@@ -37,6 +37,7 @@
  */
 
 #include <string>
+#include <type_traits>
 #include "World.h"
 #include "Chat.h"
 #include "Language.h"
@@ -104,35 +105,84 @@ bool ChatHandler::HandleAccountPasswordCommand(char* args)
         return false;
     }
 
-    if (!sAccountMgr.CheckPassword(GetAccountId(), password_old))
+    // Decoupling D7i. This is a SEC_PLAYER command, so ChatHandler::ExecuteCommand's
+    // AdminScope never covers it and it may not wait on MySQL. The verification and the
+    // change are one continuation now; everything above reads memory only, so a request
+    // that cannot succeed still never reaches the database (D7b's contract).
+    //
+    // The command answers the dispatcher immediately, with the value every one of its old
+    // paths ended on -- `SetSentErrorMessage(true); return false;` -- so no help text is
+    // printed either way, exactly as before. The replies below are the old replies, with
+    // the old text, one tick later.
+    const uint32 accountId = GetAccountId();
+    const proto::SessionId sessionId = m_session->GetSessionId();
+    Player* requester = m_session->GetPlayer();
+    const ObjectGuid playerGuid = requester ? requester->GetObjectGuid() : ObjectGuid();
+
+    sAccountMgr.QueueChangePasswordChecked(accountId, password_old, password_new,
+                                           [accountId, sessionId, playerGuid](bool oldPasswordMatched, AccountOpResult result)
+                                           {
+                                               ChatHandler::FinishAccountPasswordCommand(accountId, sessionId, playerGuid,
+                                                                                         oldPasswordMatched, result);
+                                           });
+
+    SetSentErrorMessage(true);
+    return false;
+}
+
+static_assert(std::is_same<proto::SessionId, uint32>::value,
+              "ChatHandler::FinishAccountPasswordCommand takes the session id as a uint32");
+
+/**
+ * @brief The replies to `.account password`, once the account row has been read (D7i).
+ *
+ * Fix round 1 (Ruling 28): the replies go through a ChatHandler built on the session, and
+ * ChatHandler::SendSysMessage and LogCommand both dereference `m_session->GetPlayer()`. A
+ * player who logs out between the command and the answer (a rested logout is instant) is
+ * still on the SAME session, at character select, with no player -- so the session alone
+ * is not enough. The character that typed the command is re-found too (C1/C2), and when
+ * either is gone the replies are dropped.
+ *
+ * Nothing else is dropped with them: AccountMgr::QueueChangePasswordChecked queues the
+ * UPDATE in its own callback BEFORE it calls this one, so a matching old password changes
+ * the password whether or not anybody is left to be told.
+ *
+ * Static so a test can drive it with nobody seated (src/tests/TickGuardTest.cpp).
+ */
+void ChatHandler::FinishAccountPasswordCommand(uint32 accountId, uint32 sessionId, ObjectGuid playerGuid,
+                                               bool oldPasswordMatched, AccountOpResult result)
+{
+    WorldSession* session = NULL;
+    Player* player = NULL;
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player))
     {
-        SendSysMessage(LANG_COMMAND_WRONGOLDPASSWORD);
-        SetSentErrorMessage(true);
-        return false;
+        return;
     }
 
-    AccountOpResult result = sAccountMgr.ChangePassword(GetAccountId(), password_new);
+    ChatHandler handler(session);
+
+    if (!oldPasswordMatched)
+    {
+        handler.SendSysMessage(LANG_COMMAND_WRONGOLDPASSWORD);
+        return;
+    }
 
     switch (result)
     {
         case AOR_OK:
-            SendSysMessage(LANG_COMMAND_PASSWORD);
+            handler.SendSysMessage(LANG_COMMAND_PASSWORD);
             break;
         case AOR_PASS_TOO_LONG:
-            SendSysMessage(LANG_PASSWORD_TOO_LONG);
-            SetSentErrorMessage(true);
-            return false;
+            handler.SendSysMessage(LANG_PASSWORD_TOO_LONG);
+            return;
         case AOR_NAME_NOT_EXIST:                            // not possible case, don't want get account name for output
         default:
-            SendSysMessage(LANG_COMMAND_NOTCHANGEPASSWORD);
-            SetSentErrorMessage(true);
-            return false;
+            handler.SendSysMessage(LANG_COMMAND_NOTCHANGEPASSWORD);
+            return;
     }
 
     // OK, but avoid normal report for hide passwords, but log use command for anyone
-    LogCommand(".account password *** *** ***");
-    SetSentErrorMessage(true);
-    return false;
+    handler.LogCommand(".account password *** *** ***");
 }
 
 /**

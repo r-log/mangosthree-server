@@ -84,7 +84,7 @@
  *
  * Initializes all battleground containers and sets testing mode to false.
  */
-BattleGroundMgr::BattleGroundMgr() : m_AutoDistributionTimeChecker(0), m_ArenaTesting(false)
+BattleGroundMgr::BattleGroundMgr() : m_AutoDistributionTimeChecker(0), m_highestPvPStatsId(0), m_ArenaTesting(false)
 {
     for (uint8 i = BATTLEGROUND_TYPE_NONE; i < MAX_BATTLEGROUND_TYPE_ID; ++i)
     {
@@ -1014,6 +1014,28 @@ uint32 BattleGroundMgr::CreateBattleGround(BattleGroundTypeId bgTypeId, bool IsA
 
     // return some not-null value, bgTypeId is good enough for me
     return bgTypeId;
+}
+
+/**
+ * @brief Primes the `pvpstats_battlegrounds` id counter once, at start-up (decoupling D7i).
+ *
+ * Also re-run by `.reload config` when the statistics are switched on (fix round 1).
+ */
+void BattleGroundMgr::LoadHighestPvPStatsId()
+{
+    uint64 highest = 0;
+
+    // Decoupling D7i. The old read lived in BattleGround::EndBattleGround, behind exactly
+    // this config test, and a NULL result there left the id at 1 -- so a missing or empty
+    // table answers 0 here and GenerateNextPvPStatsId() hands out 1, as it always did.
+    if (QueryResult* result = CharacterDatabase.Query("SELECT MAX(`id`) FROM `pvpstats_battlegrounds`"))
+    {
+        highest = (*result)[0].GetUInt64();
+        delete result;
+    }
+
+    m_highestPvPStatsId.store(highest);
+    sLog.outString(">> Next battleground statistics id is " UI64FMTD, highest + 1);
 }
 
 /**
