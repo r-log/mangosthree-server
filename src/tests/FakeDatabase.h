@@ -249,19 +249,29 @@ class FakeConnection final : public SqlConnection
  */
 struct AttachedFakes
 {
+    /// @param asyncWrites true makes Execute/PExecute/ExecuteStmt QUEUE onto the attached
+    ///        delay-thread body, which is what the server does (Master.cpp calls
+    ///        AllowAsyncTransactions() at start-up). The default is false, which is the
+    ///        direct shape every case written before decoupling D7f asserts against.
     AttachedFakes(Database& database, SqlConnection* query, SqlConnection* async,
-                  SqlResultQueue* results)
-        : m_database(database)
+                  SqlResultQueue* results, bool asyncWrites = false)
+        : m_database(database), m_wasAsync(database.AllowsAsyncTransactions())
     {
         m_database.AttachTestConnections(query, async, results);
+        m_database.SetAllowAsyncTransactionsForTest(asyncWrites);
     }
 
-    ~AttachedFakes() { m_database.DetachTestConnections(); }
+    ~AttachedFakes()
+    {
+        m_database.SetAllowAsyncTransactionsForTest(m_wasAsync);
+        m_database.DetachTestConnections();
+    }
 
     AttachedFakes(AttachedFakes const&) = delete;
     AttachedFakes& operator=(AttachedFakes const&) = delete;
 
     Database& m_database;
+    bool      m_wasAsync;
 };
 
 /**

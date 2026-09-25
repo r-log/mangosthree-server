@@ -60,9 +60,17 @@ void Guild::CreateRank(std::string name_, uint32 rights)
         // create bank rights with 0
         CharacterDatabase.PExecute("INSERT INTO `guild_bank_right` (`guildid`,`TabId`,`rid`) VALUES ('%u','%u','%u')", m_Id, i, new_rank_id);
     }
-    // name now can be used for encoding to DB
-    CharacterDatabase.escape_string(name_);
-    CharacterDatabase.PExecute("INSERT INTO `guild_rank` (`guildid`,`rid`,`rname`,`rights`) VALUES ('%u', '%u', '%s', '%u')", m_Id, new_rank_id, name_.c_str(), rights);
+    // Decoupling D7f (C5): the rank name is bound, not escaped. Guild::Create reaches this
+    // five times through CreateDefaultGuildRanks, inside the tick, and each escape_string
+    // used to take query connection zero's lock there.
+    static SqlStatementID insRank;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insRank,
+                          "INSERT INTO `guild_rank` (`guildid`,`rid`,`rname`,`rights`) VALUES (?,?,?,?)");
+    insert.addUInt32(m_Id);
+    insert.addUInt32(new_rank_id);
+    insert.addString(name_);
+    insert.addUInt32(rights);
+    insert.Execute();
 }
 
 /**
@@ -193,9 +201,14 @@ void Guild::SetRankName(uint32 rankId, std::string name_)
 
     m_Ranks[rankId].Name = name_;
 
-    // name now can be used for encoding to DB
-    CharacterDatabase.escape_string(name_);
-    CharacterDatabase.PExecute("UPDATE `guild_rank` SET `rname`='%s' WHERE `rid`='%u' AND `guildid`='%u'", name_.c_str(), rankId, m_Id);
+    // Decoupling D7f (C5): bound, not escaped.
+    static SqlStatementID updRankName;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(updRankName,
+                        "UPDATE `guild_rank` SET `rname` = ? WHERE `rid` = ? AND `guildid` = ?");
+    stmt.addString(name_);
+    stmt.addUInt32(rankId);
+    stmt.addUInt32(m_Id);
+    stmt.Execute();
 }
 
 /**

@@ -362,11 +362,12 @@ TEST(CharacterOpsAsync_DeleteBodyRunsFromTheHolderAndReadsOnlyTheDeclaredResidua
     CHECK(Recorded(async, "DELETE FROM `character_pet` WHERE `owner` = '42'"));
     CHECK(Recorded(async, "DELETE FROM `petition` WHERE `ownerguid` = '42'"));
 
-    // And the ONE read it still makes is the residual this PR declares: LeaveAllArenaTeams'
-    // arena_team_member lookup (PlayerBattleGround.cpp), which D7c named and D7d did not widen
-    // its scope to convert. If a later PR converts it, this becomes 0 and this case says so.
-    REQUIRE(query.executed.size() == size_t(1));
-    CHECK(StartsWith(query.executed[0], "SELECT `arena_team_member`.`arenateamid` FROM `arena_team_member`"));
+    // And it makes NO read at all. D7d left exactly one here -- LeaveAllArenaTeams'
+    // `arena_team_member` lookup (PlayerBattleGround.cpp), the residual it declared -- and
+    // this assertion was written to turn red when a later PR converted it. D7f did: the
+    // three arena team ids are cached columns, so the whole delete body now blocks on
+    // nothing and escapes nothing.
+    CHECK_EQ(query.executed.size(), size_t(0));
 }
 
 TEST(CharacterOpsAsync_DeleteMailCursorGivesEachMailItsOwnItemRunAndNobodyElseS)

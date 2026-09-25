@@ -945,12 +945,16 @@ void WorldSession::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> 
                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
                                                 ObjectGuid petitionGuid, ObjectGuid ownerGuid)
 {
+    // The insert has ALREADY run, back to back with the two snapshots, by the time this
+    // continuation is reached: the signature is in the table whether or not the signer is
+    // still here. His own copy of the reply needs him; the OWNER's copy does not, and
+    // dropping it with him would leave the charter's owner looking at a signature list that
+    // is one short until he re-opens it. So the re-find is not a gate any more (D7f) -- it
+    // decides only whether the signer is told, and every packet below is built from the
+    // captured guid, which SMSG_PETITION_SIGN_RESULTS is all that carries.
     WorldSession* session = NULL;
     Player* player = NULL;
-    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
-    {
-        return;
-    }
+    bool signerHere = FindRequester(accountId, sessionId, playerGuid, session, player);
 
     std::unique_ptr<QueryResult> before(holder->GetResult(PETITION_SIGNED_BEFORE));
     std::unique_ptr<QueryResult> after(holder->GetResult(PETITION_SIGNED_AFTER));
@@ -959,18 +963,24 @@ void WorldSession::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> 
 
     if (outcome == PETITION_SIGN_PETITION_FULL)
     {
-        // close at signer side
-        player->SendPetitionSignResult(petitionGuid, player, PETITION_SIGN_PETITION_FULL);
+        // close at signer side (no owner copy for a full petition, as before)
+        if (signerHere)
+        {
+            player->SendPetitionSignResult(petitionGuid, playerGuid, PETITION_SIGN_PETITION_FULL);
+        }
         return;
     }
 
     if (outcome == PETITION_SIGN_OK)
     {
-        DEBUG_LOG("PETITION SIGN: %s by %s", petitionGuid.GetString().c_str(), player->GetGuidStr().c_str());
+        DEBUG_LOG("PETITION SIGN: %s by %s", petitionGuid.GetString().c_str(), playerGuid.GetString().c_str());
     }
 
     // close at signer side
-    player->SendPetitionSignResult(petitionGuid, player, outcome);
+    if (signerHere)
+    {
+        player->SendPetitionSignResult(petitionGuid, playerGuid, outcome);
+    }
 
     // update signs count on charter, required testing...
     // Item *item = _player->GetItemByGuid(petitionguid));
@@ -980,7 +990,7 @@ void WorldSession::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> 
     // update for owner if online
     if (Player* owner = sPlayerRegistry.Find(ownerGuid))
     {
-        owner->SendPetitionSignResult(petitionGuid, player, outcome);
+        owner->SendPetitionSignResult(petitionGuid, playerGuid, outcome);
     }
 }
 
@@ -999,14 +1009,12 @@ void WorldSession::HandlePetitionDeclineOpcode(WorldPacket& recv_data)
 
     DEBUG_LOG("Petition %s declined by %s", petitionGuid.GetString().c_str(), _player->GetGuidStr().c_str());
 
-    uint32 accountId = GetAccountId();
-    proto::SessionId sessionId = GetSessionId();
     ObjectGuid playerGuid = _player->GetObjectGuid();
 
-    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid](QueryResult* result)
+    CharacterDatabase.AsyncPQuery([playerGuid](QueryResult* result)
                                   {
                                       WorldSession::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult>(result),
-                                                                                  accountId, sessionId, playerGuid);
+                                                                                  playerGuid);
                                   },
                                   "SELECT `ownerguid` FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
 }
@@ -1014,21 +1022,17 @@ void WorldSession::HandlePetitionDeclineOpcode(WorldPacket& recv_data)
 /**
  * @brief Tells the petition owner that the offer was declined.
  *
+ * The one packet this continuation sends goes to the OWNER, not to the requester, and it
+ * names the decliner by GUID -- so it is built from the captured guid and the requester is
+ * neither re-found nor needed (D7f). Dropping it because the decliner logged out in the
+ * intervening tick would leave the owner's charter UI waiting for an answer that has
+ * already been given; before the read was queued at all, the owner always got it.
+ *
  * @param result The petition's owner row.
- * @param accountId The declining account.
- * @param sessionId The session the request arrived on.
  * @param playerGuid The declining player.
  */
-void WorldSession::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
-                                                 proto::SessionId sessionId, ObjectGuid playerGuid)
+void WorldSession::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid)
 {
-    WorldSession* session = NULL;
-    Player* player = NULL;
-    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
-    {
-        return;
-    }
-
     if (!result)
     {
         return;
@@ -1040,7 +1044,7 @@ void WorldSession::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> re
     if (Player* owner = sPlayerRegistry.Find(ownerguid))    // petition owner online
     {
         WorldPacket data(MSG_PETITION_DECLINE, 8);
-        data << player->GetObjectGuid();
+        data << playerGuid;
         owner->GetSession()->SendPacket(&data);
     }
 }
@@ -1212,10 +1216,11 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recv_data)
 /**
  * @brief Creates the guild once the petition and its signatures are known.
  *
- * The guild creation chain itself (Guild::Create and Guild::AddMember, and what they reach)
- * is unchanged and still synchronous: it runs here, inside the continuation, and the tick
- * guard counts it. Converting that chain is D7f's job, not this PR's -- turn-in's OWN reads
- * are what move here.
+ * The guild creation chain (Guild::Create and Guild::AddMember, and what they reach) runs
+ * here, inside the continuation, and since D7f it acquires nothing: the guild's own INSERTs
+ * and the five default ranks are prepared statements, an offline signer's row comes from
+ * the character cache, and each new member's petition signatures are read by a continuation
+ * of their own (Player::QueueRemovePetitionsAndSigns).
  *
  * @param holder The staged reads.
  * @param accountId The requesting account.

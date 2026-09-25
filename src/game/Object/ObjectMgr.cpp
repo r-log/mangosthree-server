@@ -35,6 +35,7 @@
 #include "LivingWorldAnchorPolicy.h"
 #include "MotionGenerators/MotionMaster.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
 #include "Policies/Singleton.h"
 
 #include "SQLStorages.h"
@@ -660,6 +661,21 @@ GossipText const* ObjectMgr::GetGossipText(uint32 Text_ID) const
 }
 
 
+namespace
+{
+    /// The slots of the expired-mail holder (decoupling D7f). Two independent reads over
+    /// the same `expire_time` cut-off, run back to back on the delay thread under one
+    /// connection lock -- so both see the same set of mails, which the two statements this
+    /// replaced (a blocking mail SELECT, then one item SELECT per mail, interleaved with
+    /// the returns and deletes themselves) did not.
+    enum ExpiredMailSlot
+    {
+        EXPIRED_MAIL_ROWS   = 0,
+        EXPIRED_MAIL_ITEMS  = 1,
+        EXPIRED_MAIL_COUNT  = 2
+    };
+}
+
 // not very fast function but it is called only once a day, or on starting-up
 /// @param serverUp true if the server is already running, false when the server is started
 void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
@@ -675,8 +691,59 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
     {
         CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `expire_time` < '" UI64FMTD "' AND `has_items` = '0' AND `body` = ''", (uint64)basetime);
     }
-    //                                                      0    1             2        3          4           5             6     7         8
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `id`,`messageType`,`sender`,`receiver`,`has_items`,`expire_time`,`cod`,`checked`,`mailTemplateId` FROM `mail` WHERE `expire_time` < '" UI64FMTD "'", (uint64)basetime);
+
+    // Decoupling D7f: this runs on the WUPDATE_AUCTIONS mail timer inside World::Update as
+    // well as at start-up, so its two reads are in the tick. Both are staged here and the
+    // returns and deletes happen in the continuation below.
+    //
+    // Slot 1 is the one statement that is not a copy of an old one. The old body issued
+    // `SELECT item_guid,item_template FROM mail_items WHERE mail_id = M` INSIDE its mail
+    // loop -- a read whose key it cannot know before the mail rows answer, so it cannot be
+    // staged as it stood. It becomes ONE join over the same set of mails, ordered by
+    // `mail_id`, walked as a cursor: each mail consumes the contiguous run of rows carrying
+    // its own id, and a mail that consumes nothing (an online receiver) is stepped over at
+    // the top of the next iteration, because both results ascend in the same key. That is
+    // the shape D7d's character delete uses for the same problem.
+    SqlQueryHolder* holder = new SqlQueryHolder;
+    holder->SetSize(EXPIRED_MAIL_COUNT);
+    //                                       0     1              2         3           4            5              6      7          8
+    holder->SetPQuery(EXPIRED_MAIL_ROWS, "SELECT `id`,`messageType`,`sender`,`receiver`,`has_items`,`expire_time`,`cod`,`checked`,`mailTemplateId` FROM `mail` WHERE `expire_time` < '" UI64FMTD "' ORDER BY `id`", (uint64)basetime);
+    //                                        0                        1                            2
+    holder->SetPQuery(EXPIRED_MAIL_ITEMS, "SELECT `mail_items`.`item_guid`,`mail_items`.`item_template`,`mail_items`.`mail_id` "
+                      "FROM `mail_items` JOIN `mail` ON `mail_items`.`mail_id` = `mail`.`id` "
+                      "WHERE `mail`.`expire_time` < '" UI64FMTD "' AND `mail`.`has_items` <> 0 "
+                      "ORDER BY `mail_items`.`mail_id`, `mail_items`.`item_guid`", (uint64)basetime);
+
+    if (!CharacterDatabase.DelayQueryHolder([basetime, serverUp](QueryResult* /*result*/, SqlQueryHolder* h)
+                                            {
+                                                ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                          basetime, serverUp);
+                                            }, holder))
+    {
+        delete holder;                                      // the database is shutting down
+    }
+}
+
+/**
+ * @brief Returns or deletes the expired mails, once both reads have answered.
+ *
+ * The old body, with its per-mail item read replaced by a cursor over slot 1 and its two
+ * `delete result` calls replaced by the holder's unique_ptrs. Every write it makes was
+ * already queued (PExecute), so nothing here acquires anything.
+ *
+ * @param holder   The two staged reads.
+ * @param basetime The expiry cut-off the reads were staged with, which the returned mails'
+ *                 new expiry and delivery times are computed from -- captured rather than
+ *                 recomputed, so a mail cannot be given a window that disagrees with the
+ *                 set it was selected in.
+ * @param serverUp The flag the caller passed, verbatim: it decides whether a mail whose
+ *                 receiver is online is left alone.
+ */
+void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> holder, uint64 basetime, bool serverUp)
+{
+    std::unique_ptr<QueryResult> result(holder->GetResult(EXPIRED_MAIL_ROWS));
+    std::unique_ptr<QueryResult> resultItems(holder->GetResult(EXPIRED_MAIL_ITEMS));
+
     if (!result)
     {
         BarGoLink bar(1);
@@ -695,6 +762,10 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
     uint32 count = 0;
     Field* fields;
 
+    /// The item cursor. A result comes back already standing on its first row, so there is
+    /// a row to read exactly while this is true.
+    bool haveItemRow = (resultItems != NULL);
+
     do
     {
         bar.step();
@@ -702,6 +773,14 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
         fields = result->Fetch();
         Mail* m = new Mail;
         m->messageID = fields[0].GetUInt32();
+
+        // Step over the item rows of any mail EARLIER than this one: a mail whose items
+        // were not consumed (its receiver was online) left its run standing.
+        while (haveItemRow && resultItems->Fetch()[2].GetUInt32() < m->messageID)
+        {
+            haveItemRow = resultItems->NextRow();
+        }
+
         m->messageType = fields[1].GetUInt8();
         m->sender = fields[2].GetUInt32();
         m->receiverGuid = ObjectGuid(HIGHGUID_PLAYER, fields[3].GetUInt32());
@@ -727,21 +806,23 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
         // delete or return mail:
         if (has_items)
         {
-            QueryResult* resultItems = CharacterDatabase.PQuery("SELECT `item_guid`,`item_template` FROM `mail_items` WHERE `mail_id`='%u'", m->messageID);
-            if (resultItems)
+            // This mail's own run of the joined item result: contiguous, because both
+            // results ascend in `mail_id`. AddItem copies the two numbers out, so nothing
+            // holds a Field* across the NextRow that overwrites it.
+            while (haveItemRow)
             {
-                do
+                Field* fields2 = resultItems->Fetch();
+                if (fields2[2].GetUInt32() != m->messageID)
                 {
-                    Field* fields2 = resultItems->Fetch();
-
-                    uint32 item_guid_low = fields2[0].GetUInt32();
-                    uint32 item_template = fields2[1].GetUInt32();
-
-                    m->AddItem(item_guid_low, item_template);
+                    break;
                 }
-                while (resultItems->NextRow());
 
-                delete resultItems;
+                uint32 item_guid_low = fields2[0].GetUInt32();
+                uint32 item_template = fields2[1].GetUInt32();
+
+                m->AddItem(item_guid_low, item_template);
+
+                haveItemRow = resultItems->NextRow();
             }
             // if it is mail from non-player, or if it's already return mail, it shouldn't be returned, but deleted
             if (m->messageType != MAIL_NORMAL || (m->checked & (MAIL_CHECK_MASK_COD_PAYMENT | MAIL_CHECK_MASK_RETURNED)))
@@ -775,7 +856,6 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
         ++count;
     }
     while (result->NextRow());
-    delete result;
 
     sLog.outString(">> Loaded %u mails", count);
     sLog.outString();

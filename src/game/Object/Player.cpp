@@ -3430,9 +3430,8 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
  * The delete itself, once every read it needs has answered (decoupling D7d).
  *
  * This is the body DeleteFromDB() used to run inside the tick, in the same order, with its
- * five reads taken out of `holder` instead of issued one at a time. The one read it still
- * makes is LeaveAllArenaTeams()' (PlayerBattleGround.cpp), which is D7c's declared residual
- * and not this function's to convert.
+ * five reads taken out of `holder` instead of issued one at a time. Since D7f it makes no
+ * read at all -- LeaveAllArenaTeams() reads the character cache's three arena slots.
  *
  * @param holder           the staged reads, answered
  * @param playerguid       the character being deleted
@@ -3496,7 +3495,8 @@ void Player::DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, Obje
     }
 
     // remove signs from petitions (also remove petitions if owner); the rows come out of the
-    // holder, so this path reads nothing -- the synchronous overload is Guild::AddMember's.
+    // holder, so this path reads nothing -- Guild::AddMember gets the same rows from its own
+    // queued read (Player::QueueRemovePetitionsAndSigns).
     {
         std::unique_ptr<QueryResult> resultSigns(holder->GetResult(PLAYER_DELETE_READ_PETITION_SIGNS));
         RemovePetitionsAndSigns(playerguid, resultSigns.get());
@@ -4496,21 +4496,34 @@ void Player::SendProficiency(ItemClass itemClass, uint32 itemSubclassMask)
 }
 
 /**
- * @brief Removes petition ownership and signatures associated with a player.
+ * @brief Queues the removal of a player's petition ownership and signatures.
  *
- * The synchronous shape, kept for Guild::AddMember (`Guild.cpp`), which still calls it from
- * inside the tick -- that whole chain is D7f's, and this line is allow-listed in
- * src/tests/CheckSyncDb.cmake until D7f converts it. The character-delete path does NOT come
- * through here: it stages the same statement into its own holder and calls the overload
- * below with the rows (decoupling D7d).
+ * The queueing shape, for Guild::AddMember (`Guild.cpp`), which calls it from inside the
+ * tick: it stages the signature read and returns, and the continuation a tick later does
+ * exactly what the rows-fed overload below does. Nothing AddMember does afterwards depends
+ * on the answer, so this is C4's independent read rather than a chained continuation
+ * (decoupling D7f; it replaced a blocking PQuery that was the last allow line Player.cpp
+ * had in src/tests/CheckSyncDb.cmake).
+ *
+ * No identity is captured and none is re-found: this work is about `petition` rows keyed on
+ * a guid, not about a session, and it has to happen whether or not the character who caused
+ * it is still online -- which is also why a dropped continuation here would leave the rows
+ * in place (the same outcome a shutdown at this instant has today).
+ *
+ * The character-delete path does NOT come through here: it stages the same statement into
+ * its own holder and calls the overload below with the rows (decoupling D7d).
  *
  * @param guid The player GUID whose petition data should be removed.
  */
-void Player::RemovePetitionsAndSigns(ObjectGuid guid)
+void Player::QueueRemovePetitionsAndSigns(ObjectGuid guid)
 {
-    std::unique_ptr<QueryResult> signs(
-        CharacterDatabase.PQuery("SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'", guid.GetCounter()));
-    RemovePetitionsAndSigns(guid, signs.get());
+    CharacterDatabase.AsyncPQuery([guid](QueryResult* result)
+                                  {
+                                      std::unique_ptr<QueryResult> signs(result);
+                                      Player::RemovePetitionsAndSigns(guid, signs.get());
+                                  },
+                                  "SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'",
+                                  guid.GetCounter());
 }
 
 /**
@@ -4543,6 +4556,15 @@ void Player::RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs)
         }
         while (result->NextRow());
 
+        // ORDER MATTERS, and since D7b it is an ordering between two QUEUED operations
+        // rather than between a blocking read and a queued write. SendPetitionQueryOpcode
+        // above stages an AsyncPQuery that counts this petition's signatures; the DELETE
+        // below removes this player's. Both ride the ONE CharacterDatabase delay thread,
+        // which drains its queue strictly FIFO (SqlDelayThread::ProcessRequests), so every
+        // count staged in the loop is executed before this DELETE and the owner is shown
+        // the signature list as it stood when he still had the signature. Queue the DELETE
+        // first -- or put it on a connection of its own -- and the owner would be told a
+        // count that has already dropped.
         CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `playerguid` = '%u'", lowguid);
     }
 
@@ -6975,13 +6997,38 @@ void Player::DoInteraction(ObjectGuid const& interactObjGuid)
 }
 
 
+/**
+ * @brief Builds SMSG_PETITION_SIGN_RESULTS.
+ *
+ * The packet names the signer by GUID and carries no name, so it can be built for a signer
+ * who is no longer online -- which is what lets the charter OWNER be told about a signature
+ * whose signer logged out while the request was in flight (decoupling D7f). Split out so
+ * the layout can be asserted without a Player.
+ *
+ * @param data        The packet to fill.
+ * @param petitionGuid The charter.
+ * @param signerGuid  The character the result is about.
+ * @param result      One of the PETITION_SIGN_* codes.
+ */
+void Player::BuildPetitionSignResult(WorldPacket& data, ObjectGuid petitionGuid,
+                                     ObjectGuid signerGuid, uint32 result)
+{
+    data.Initialize(SMSG_PETITION_SIGN_RESULTS, 8 + 8 + 4);
+    data << petitionGuid;
+    data << signerGuid;
+    data << uint32(result);
+}
+
+void Player::SendPetitionSignResult(ObjectGuid petitionGuid, ObjectGuid signerGuid, uint32 result)
+{
+    WorldPacket data;
+    BuildPetitionSignResult(data, petitionGuid, signerGuid, result);
+    GetSession()->SendPacket(&data);
+}
+
 void Player::SendPetitionSignResult(ObjectGuid petitionGuid, Player* player, uint32 result)
 {
-    WorldPacket data(SMSG_PETITION_SIGN_RESULTS, 8 + 8 + 4);
-    data << petitionGuid;
-    data << player->GetObjectGuid();
-    data << uint32(result);
-    GetSession()->SendPacket(&data);
+    SendPetitionSignResult(petitionGuid, player->GetObjectGuid(), result);
 }
 
 void Player::SendPetitionTurnInResult(uint32 result)

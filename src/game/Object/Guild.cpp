@@ -72,9 +72,13 @@ void MemberSlot::SetPNOTE(std::string pnote)
 {
     Pnote = pnote;
 
-    // pnote now can be used for encoding to DB
-    CharacterDatabase.escape_string(pnote);
-    CharacterDatabase.PExecute("UPDATE `guild_member` SET `pnote` = '%s' WHERE `guid` = '%u'", pnote.c_str(), guid.GetCounter());
+    // Decoupling D7f (C5): bound, not escaped. Database::escape_string takes query
+    // connection zero's lock on the world thread; a prepared statement carries the note
+    // as a parameter and does whatever escaping is needed on the delay thread.
+    static SqlStatementID updPnote;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(updPnote,
+                        "UPDATE `guild_member` SET `pnote` = ? WHERE `guid` = ?");
+    stmt.PExecute(pnote.c_str(), guid.GetCounter());
 }
 
 /**
@@ -86,9 +90,11 @@ void MemberSlot::SetOFFNOTE(std::string offnote)
 {
     OFFnote = offnote;
 
-    // offnote now can be used for encoding to DB
-    CharacterDatabase.escape_string(offnote);
-    CharacterDatabase.PExecute("UPDATE `guild_member` SET `offnote` = '%s' WHERE `guid` = '%u'", offnote.c_str(), guid.GetCounter());
+    // Decoupling D7f (C5): bound, not escaped -- see MemberSlot::SetPNOTE above.
+    static SqlStatementID updOffnote;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(updOffnote,
+                        "UPDATE `guild_member` SET `offnote` = ? WHERE `guid` = ?");
+    stmt.PExecute(offnote.c_str(), guid.GetCounter());
 }
 
 /**
@@ -181,14 +187,6 @@ bool Guild::Create(Player* leader, std::string gname)
 
     DEBUG_LOG("GUILD: creating guild %s to leader: %s", gname.c_str(), m_LeaderGuid.GetString().c_str());
 
-    // gname already assigned to Guild::name, use it to encode string for DB
-    CharacterDatabase.escape_string(gname);
-
-    std::string dbGINFO = GINFO;
-    std::string dbMOTD = MOTD;
-    CharacterDatabase.escape_string(dbGINFO);
-    CharacterDatabase.escape_string(dbMOTD);
-
     CharacterDatabase.BeginTransaction();
     // CharacterDatabase.PExecute("DELETE FROM `guild` WHERE `guildid`='%u'", Id); - MAX(guildid)+1 not exist
     CharacterDatabase.PExecute("DELETE FROM `guild_member` WHERE `guildid`='%u'", m_Id);
@@ -201,9 +199,27 @@ bool Guild::Create(Player* leader, std::string gname)
     // has to forget them here, or their characters would read as members of this new guild.
     sCharacterCache.ClearGuild(m_Id);
 
-    CharacterDatabase.PExecute("INSERT INTO `guild` (`guildid`,`name`,`leaderguid`,`info`,`motd`,`createdate`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,`BackgroundColor`,`BankMoney`) "
-                               "VALUES('%u','%s','%u', '%s', '%s','" UI64FMTD "','%u','%u','%u','%u','%u','" UI64FMTD "')",
-                               m_Id, gname.c_str(), m_LeaderGuid.GetCounter(), dbGINFO.c_str(), dbMOTD.c_str(), uint64(m_CreatedDate), m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor, m_BackgroundColor, m_GuildBankMoney);
+    // Decoupling D7f (C5): the guild name, its info text and its MOTD are bound, not
+    // escaped -- the three escape_string calls that used to stand here each took query
+    // connection zero's lock on the world thread. The statement joins the transaction
+    // opened above exactly as the PExecute it replaces did.
+    static SqlStatementID insGuild;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insGuild,
+                          "INSERT INTO `guild` (`guildid`,`name`,`leaderguid`,`info`,`motd`,`createdate`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`,`BackgroundColor`,`BankMoney`) "
+                          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)");
+    insert.addUInt32(m_Id);
+    insert.addString(gname);
+    insert.addUInt32(m_LeaderGuid.GetCounter());
+    insert.addString(GINFO);
+    insert.addString(MOTD);
+    insert.addUInt64(uint64(m_CreatedDate));
+    insert.addUInt32(m_EmblemStyle);
+    insert.addUInt32(m_EmblemColor);
+    insert.addUInt32(m_BorderStyle);
+    insert.addUInt32(m_BorderColor);
+    insert.addUInt32(m_BackgroundColor);
+    insert.addUInt64(m_GuildBankMoney);
+    insert.Execute();
     CharacterDatabase.CommitTransaction();
 
     CreateDefaultGuildRanks(lSession->GetSessionDbLocaleIndex());
@@ -257,7 +273,12 @@ bool Guild::AddMember(ObjectGuid plGuid, uint32 plRank)
 
     // remove all player signs from another petitions
     // this will be prevent attempt joining player to many guilds and corrupt guild data integrity
-    Player::RemovePetitionsAndSigns(plGuid);
+    //
+    // Decoupling D7f: queued, not blocking. The signature rows are read asynchronously and
+    // the removal runs in the continuation a tick later; nothing below depends on the
+    // answer (this touches `petition`/`petition_sign`, the rest of AddMember touches
+    // `guild_member`), which is what makes it C4's independent read rather than a chain.
+    Player::QueueRemovePetitionsAndSigns(plGuid);
 
     uint32 lowguid = plGuid.GetCounter();
 
@@ -276,20 +297,21 @@ bool Guild::AddMember(ObjectGuid plGuid, uint32 plRank)
     }
     else
     {
-        //                                                     0    1     2     3    4
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `name`,`level`,`class`,`zone`,`account` FROM `characters` WHERE `guid` = '%u'", lowguid);
-        if (!result)
+        // Decoupling D7f: `name`, `level`, `class`, `zone` and `account` are all cached
+        // columns since D7c, so the offline invitee's row is read from memory instead of
+        // blocking the tick on `SELECT ... FROM characters WHERE guid`. A character with
+        // no cache entry is one with no row, which is the old !result branch.
+        CharacterCacheRef cached = sCharacterCache.GetByGuid(plGuid);
+        if (!cached)
         {
             return false;                                    // player doesn't exist
         }
 
-        Field* fields    = result->Fetch();
-        newmember.Name   = fields[0].GetCppString();
-        newmember.Level  = fields[1].GetUInt8();
-        newmember.Class  = fields[2].GetUInt8();
-        newmember.ZoneId = fields[3].GetUInt32();
-        newmember.accountId = fields[4].GetInt32();
-        delete result;
+        newmember.Name   = cached->name;
+        newmember.Level  = cached->level;
+        newmember.Class  = cached->playerClass;
+        newmember.ZoneId = cached->zoneId;
+        newmember.accountId = cached->accountId;
 
         if (newmember.Level < 1 || newmember.Level > STRONG_MAX_LEVEL ||
             !((1 << (newmember.Class - 1)) & CLASSMASK_ALL_PLAYABLE))
@@ -310,13 +332,16 @@ bool Guild::AddMember(ObjectGuid plGuid, uint32 plRank)
     }
     members[lowguid] = newmember;
 
-    std::string dbPnote   = newmember.Pnote;
-    std::string dbOFFnote = newmember.OFFnote;
-    CharacterDatabase.escape_string(dbPnote);
-    CharacterDatabase.escape_string(dbOFFnote);
-
-    CharacterDatabase.PExecute("INSERT INTO `guild_member` (`guildid`,`guid`,`rank`,`pnote`,`offnote`) VALUES ('%u', '%u', '%u','%s','%s')",
-                               m_Id, lowguid, newmember.RankId, dbPnote.c_str(), dbOFFnote.c_str());
+    // Decoupling D7f (C5): the two notes are bound, not escaped.
+    static SqlStatementID insMember;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insMember,
+                          "INSERT INTO `guild_member` (`guildid`,`guid`,`rank`,`pnote`,`offnote`) VALUES (?,?,?,?,?)");
+    insert.addUInt32(m_Id);
+    insert.addUInt32(lowguid);
+    insert.addUInt32(newmember.RankId);
+    insert.addString(newmember.Pnote);
+    insert.addString(newmember.OFFnote);
+    insert.Execute();
 
     // Decoupling D7c: the guild id and the rank that Player::GetGuildIdFromDB and
     // Player::GetRankFromDB answer with are the ones this row just got.
@@ -345,9 +370,11 @@ void Guild::SetMOTD(std::string motd)
 {
     MOTD = motd;
 
-    // motd now can be used for encoding to DB
-    CharacterDatabase.escape_string(motd);
-    CharacterDatabase.PExecute("UPDATE `guild` SET `motd`='%s' WHERE `guildid`='%u'", motd.c_str(), m_Id);
+    // Decoupling D7f (C5): bound, not escaped.
+    static SqlStatementID updMotd;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(updMotd,
+                        "UPDATE `guild` SET `motd` = ? WHERE `guildid` = ?");
+    stmt.PExecute(motd.c_str(), m_Id);
 }
 
 /**
@@ -359,9 +386,11 @@ void Guild::SetGINFO(std::string ginfo)
 {
     GINFO = ginfo;
 
-    // ginfo now can be used for encoding to DB
-    CharacterDatabase.escape_string(ginfo);
-    CharacterDatabase.PExecute("UPDATE `guild` SET `info`='%s' WHERE `guildid`='%u'", ginfo.c_str(), m_Id);
+    // Decoupling D7f (C5): bound, not escaped.
+    static SqlStatementID updGinfo;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(updGinfo,
+                        "UPDATE `guild` SET `info` = ? WHERE `guildid` = ?");
+    stmt.PExecute(ginfo.c_str(), m_Id);
 }
 
 /**
@@ -524,12 +553,19 @@ bool Guild::LoadRanksFromDB(QueryResult* guildRanksResult)
         sLog.outError("Guild %u has broken `guild_rank` data, repairing...", m_Id);
         CharacterDatabase.BeginTransaction();
         CharacterDatabase.PExecute("DELETE FROM `guild_rank` WHERE `guildid`='%u'", m_Id);
+        // Decoupling D7f (C5): bound, not escaped. This repair runs at start-up only
+        // (GuildMgr::LoadGuilds), but the statement is the same shape as Guild::CreateRank's
+        // and there is no reason for the one path to keep an escape the other has lost.
+        static SqlStatementID insRank;
         for (size_t i = 0; i < m_Ranks.size(); ++i)
         {
-            std::string name = m_Ranks[i].Name;
-            uint32 rights = m_Ranks[i].Rights;
-            CharacterDatabase.escape_string(name);
-            CharacterDatabase.PExecute("INSERT INTO `guild_rank` (`guildid`,`rid`,`rname`,`rights`) VALUES ('%u', '%u', '%s', '%u')", m_Id, uint32(i), name.c_str(), rights);
+            SqlStatement insert = CharacterDatabase.CreateStatement(insRank,
+                                  "INSERT INTO `guild_rank` (`guildid`,`rid`,`rname`,`rights`) VALUES (?,?,?,?)");
+            insert.addUInt32(m_Id);
+            insert.addUInt32(uint32(i));
+            insert.addString(m_Ranks[i].Name);
+            insert.addUInt32(m_Ranks[i].Rights);
+            insert.Execute();
         }
         CharacterDatabase.CommitTransaction();
     }
