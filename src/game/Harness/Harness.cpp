@@ -71,7 +71,8 @@ namespace Harness
         const uint32 kMapId = 1;   ///< Kalimdor: the old scenarios' Mulgore plains
     }
 
-    Runner::Runner() : m_index(0), m_elapsed(0), m_settle(0), m_sinceTick(0), m_verdicts(0), m_seedBase(kSeedBase), m_map(NULL)
+    Runner::Runner() : m_index(0), m_elapsed(0), m_settle(0), m_sinceTick(0), m_verdicts(0), m_seedBase(kSeedBase), m_map(NULL),
+                       m_pending(false), m_pendingSeed(kSeedBase), m_startToken(0)
     {
         // Every family registers its scenarios with their place in the old harness's
         // run order (S1=1, S2=2, S3=3, S5=4, S6=5, S7=6, S8=7, S9=8, S10=9, S11=10,
@@ -188,7 +189,10 @@ namespace Harness
 
     bool Runner::Start(std::string const& what, uint32 seedBase)
     {
-        if (Running() || m_settle)
+        // m_pending is its own reason: Running() is false while a staged queue waits for
+        // its guid-block read, and a second Start would otherwise build over it and leave
+        // the first read's answer to arrive against a queue nobody staged.
+        if (Running() || m_settle || m_pending)
         {
             sLog.outString("MVTEST refused: a run is in progress (%s)", Status().c_str());
             return false;
@@ -259,31 +263,105 @@ namespace Harness
         // character-database outage would be a failure mode bought for nothing. Nor can a
         // scenario slip a player past the gate: SpawnPlayer refuses outright unless the scenario
         // declares UsesPlayer() (Scenario.cpp), which is the same flag this reads.
+        //
+        // Decoupling D7h: the read is asynchronous now, so this call ends here for a queue
+        // that holds a player scenario and the run begins in OnGuidBlockChecked one tick
+        // later. Nothing is started, nothing is stepped and no map is created until the
+        // answer is in, so the refusals below still come before any of it -- the only
+        // difference a reader sees is that they arrive a tick after the command, on the
+        // log, with the text they always had.
+        m_pendingSeed = seedBase;
         if (lastPlayerScenario)
         {
-            QueryResult* taken = CharacterDatabase.PQuery(
-                "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
-                kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
-            // A guard that fails open is not a guard: a lost connection or a missing table returns
-            // NULL, and reading that as "the block is free" is exactly the case where the answer is
-            // unknown and a real character may be standing in it. Refuse instead.
-            if (!taken)
+            m_pending = true;
+            const uint32 token = ++m_startToken;
+            if (!CharacterDatabase.AsyncPQuery([token](QueryResult* result)
+                                               {
+                                                   sHarness.OnGuidBlockChecked(std::unique_ptr<QueryResult>(result), token);
+                                               },
+                                               "SELECT COUNT(*) FROM `characters` WHERE `guid` BETWEEN %u AND %u",
+                                               kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1))
             {
+                // The database refused to queue it (a shutdown is under way), so no callback
+                // will ever come. That is the unknown answer, which this guard refuses on.
                 sLog.outString("MVTEST refused: the harness guid block %u..%u could not be checked against `characters` (no result: connection or schema)",
                                kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+                m_pending = false;
                 m_queue.clear();
                 return false;
             }
-            const uint32 rows = taken->Fetch()[0].GetUInt32();
-            delete taken;
-            if (rows)
-            {
-                sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",
-                               rows, kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
-                m_queue.clear();
-                return false;
-            }
+            return true;
         }
+        // No player scenario: nothing was deferred, so this path is what it always was --
+        // including its answer when the map cannot be created.
+        return Launch();
+    }
+
+    /**
+     * The guid-block read's answer. The world thread runs it, from
+     * World::UpdateResultQueue, one tick (or a few) after the Start that staged it.
+     */
+    void Runner::OnGuidBlockChecked(std::unique_ptr<QueryResult> taken, uint32 token)
+    {
+        // C2: the answer is for a queue, not for the runner. A stop, or a Start that
+        // refused after this read was staged, makes it stale -- run it and the wrong
+        // scenarios would begin.
+        if (!m_pending || token != m_startToken)
+        {
+            return;
+        }
+        m_pending = false;
+
+        // The last drain (Master::Run, after the delay threads are halted) runs whatever
+        // was still queued when the stop came -- on a world whose maps are being unloaded.
+        // Starting a run there would create a map behind the shutdown's back.
+        if (World::IsStopped())
+        {
+            sLog.outString("MVTEST refused: the server is shutting down");
+            m_queue.clear();
+            return;
+        }
+
+        // A guard that fails open is not a guard: a lost connection or a missing table returns
+        // NULL, and reading that as "the block is free" is exactly the case where the answer is
+        // unknown and a real character may be standing in it. Refuse instead.
+        if (!taken)
+        {
+            sLog.outString("MVTEST refused: the harness guid block %u..%u could not be checked against `characters` (no result: connection or schema)",
+                           kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+            m_queue.clear();
+            return;
+        }
+        const uint32 rows = taken->Fetch()[0].GetUInt32();
+        if (rows)
+        {
+            sLog.outString("MVTEST refused: %u character(s) occupy the harness guid block %u..%u",
+                           rows, kHarnessPlayerGuidFirst, kHarnessPlayerGuidFirst + kHarnessPlayerGuidCount - 1);
+            m_queue.clear();
+            return;
+        }
+        // C3: a tick has passed, so the one thing that could have changed under us is
+        // re-asked. Everything else Start checked is a property of the queue it built,
+        // and nothing may touch that queue while a read is pending.
+        if (uint32 n = sWorld.GetActiveSessionCount())
+        {
+            sLog.outString("MVTEST refused: %u session(s) online; a run steps the world and its seconds, and a client's respawn and aura stamps would straddle the step back (run from the console on an empty realm)", n);
+            m_queue.clear();
+            return;
+        }
+        // The value is nobody's to read here: the command that asked was answered a tick
+        // ago, and a failure has already cleared the queue and written its refusal.
+        Launch();
+    }
+
+    /**
+     * The map, the grids, the external paths, the stepped clock and the first scenario.
+     *
+     * @return false only when the harness map could not be created.
+     */
+    bool Runner::Launch()
+    {
+        const uint32 seedBase = m_pendingSeed;
         m_map = sMapMgr.CreateMap(kMapId, NULL);
         if (!m_map)
         {
@@ -374,6 +452,10 @@ namespace Harness
         if (m_settle)
         {
             return "settling";
+        }
+        if (m_pending)
+        {
+            return "starting (waiting for the guid-block check)";
         }
         if (!Running())
         {

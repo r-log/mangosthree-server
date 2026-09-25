@@ -130,6 +130,13 @@ class ChatHandler
         bool ParseCommands(const char* text);
         ChatCommand const* FindCommand(char const* text);
 
+        /// Decoupling D7h: applies the `command` table's security and help overrides to
+        /// the hardcoded command table. Called once by World::SetInitialWorldSettings,
+        /// before the first tick, and again by `.reload command` (under
+        /// TickGuard::AdminScope). It is the ONLY reader of the `command` table, and it
+        /// must never be called from inside World::Update by anything else.
+        static void LoadCommandTable();
+
         bool isValidChatMessage(const char* msg);
         bool HasSentErrorMessage() { return sentErrorMessage;}
 
@@ -813,8 +820,6 @@ class ChatHandler
     private:
         WorldSession* m_session;                            // != NULL for chat command call and NULL for CLI command
 
-        // common global flag
-        static bool load_command_table;
         bool sentErrorMessage;
 };
 

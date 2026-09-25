@@ -120,6 +120,13 @@ target_include_directories(mangos_tests
 
 target_compile_definitions(mangos_tests PRIVATE MANGOS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/goldens")
 
+# Decoupling D7h. TickGuard::Strict() reaches this binary the long way, through shared_db's
+# PUBLIC MANGOS_STRICT_TICK; this is the same option taking the short way, straight onto the
+# test target. TickGuard_StrictMatchesTheBuildConfiguration compares the two, so a build
+# configured to arm the guard cannot quietly end up with an unarmed one.
+target_compile_definitions(mangos_tests
+    PRIVATE $<$<BOOL:${MANGOS_STRICT_TICK}>:MANGOS_TESTS_STRICT_TICK_CONFIGURED>)
+
 target_link_libraries(mangos_tests
     PRIVATE
         game

@@ -30,10 +30,12 @@
 #include "Policies/Singleton.h"
 #include "Timeline.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
 class Map;
+class QueryResult;
 
 namespace Harness
 {
@@ -127,17 +129,41 @@ namespace Harness
 
         /// `all`, or one scenario's name; `seedBase` is the console's optional second
         /// argument. False when unknown or a run is in progress.
+        ///
+        /// A queue that holds a player scenario does NOT start in this call: the guid
+        /// block it draws its players from is checked against the `characters` table,
+        /// and that read is asynchronous (decoupling D7h), so the run begins in the
+        /// callback, one tick later. `true` here means "accepted and staged", and a
+        /// refusal from the check still arrives on the log with the text it always had.
         bool Start(std::string const& what, uint32 seedBase = kSeedBase);
         std::string Status() const;
         void Update(uint32 diff);
         void SeedMapUpdate();   ///< right before the harness map's update, while a scenario is running: the world thread's generator takes TickSeed(seedBase, order, elapsed)
         Map* GetMap() const { return m_map; }
         void Register(Scenario* scenario) { m_registry.push_back(scenario); }
-        bool Running() const { return m_index < m_queue.size(); }
+        /// A staged run is not a running one: the queue is built but nothing has begun,
+        /// the clock is still real, and Update() must leave it alone.
+        bool Running() const { return !m_pending && m_index < m_queue.size(); }
+
+        /// The guid-block read's continuation. Public because a lambda handed to
+        /// CharacterDatabase.AsyncPQuery calls it through the singleton; `token` is what
+        /// identifies the staged queue, so an answer for a queue that has since been
+        /// superseded is dropped instead of starting the wrong run.
+        void OnGuidBlockChecked(std::unique_ptr<QueryResult> taken, uint32 token);
 
     private:
         void Begin(Scenario* s);
         void End(Scenario* s);
+        /// Everything Start used to do after the guid-block check: the map, the grids,
+        /// the external paths, the stepped clock and the first scenario. One function,
+        /// because it is reached two ways -- straight from Start for a queue with no
+        /// player scenario, and from the read's continuation for one that has.
+        ///
+        /// False when the harness map could not be created, which is what Start returned
+        /// before this was split out: on the no-player path the console must still answer
+        /// `harness: could not start ...` for that failure, not `harness: started ...`.
+        /// The continuation has nobody to answer and ignores it.
+        bool Launch();
         /// The harness map's grids put back to a known state, and the ONE place that decision
         /// is written: Start makes it before the first scenario and End again behind a player
         /// scenario, and the two have to agree to the word -- the same three branches and the
@@ -154,6 +180,9 @@ namespace Harness
         uint32                 m_verdicts;
         uint32                 m_seedBase;      ///< the run's seed base (Start's second argument): each scenario seeds from SeedFor(m_seedBase, order)
         Map*                   m_map;
+        bool                   m_pending;       ///< a queue is built and its guid-block read is outstanding: not idle, not running
+        uint32                 m_pendingSeed;   ///< the seed base Start was given, held until the read answers
+        uint32                 m_startToken;    ///< incremented by every Start that stages a read; the callback's ticket
     };
 }
 
