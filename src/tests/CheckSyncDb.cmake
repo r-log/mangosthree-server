@@ -23,6 +23,8 @@ endif()
 # Repo-relative paths. Later PRs append one line per converted file.
 set(CONVERTED_FILES
     src/game/WorldHandlers/PetitionsHandler.cpp             # decoupling D7b
+    src/game/Object/PlayerDbLookup.cpp                      # decoupling D7c
+    src/game/Object/ObjectMgr.cpp                           # decoupling D7c
 )
 
 # Per file, the exact lines (trimmed) that are allowed to keep a direct call -- a startup
@@ -36,6 +38,54 @@ set(CONVERTED_FILES
 #
 #   set(ALLOW_PetitionsHandler_cpp
 #       "CharacterDatabase.escape_string(name)\;")
+
+# Decoupling D7c. PlayerDbLookup.cpp has NO allow list: all six of its lookups read the
+# character cache now, so nothing in it may block again.
+#
+# ObjectMgr.cpp's five offline lookups (GetPlayerGuidByName, GetPlayerNameByGUID,
+# GetPlayerTeamByGUID, GetPlayerAccountIdByGUID, GetPlayerAccountIdByPlayerName) read the
+# same cache and likewise have NO entry here -- if one of them ever queries again, this
+# gate names the line. What is allowed is the rest of the file, which is start-up work:
+# every line below is inside a Load*/Pack*/SetHighestGuids that World::SetInitialWorldSettings
+# calls once, before the tick exists.
+#
+# The two exceptions are named as such: ObjectMgr::ReturnOrDeleteOldMails runs at start-up
+# (World.cpp, serverUp=false) AND on the mail timer inside World::Update, so its two reads
+# are a declared residual of D7c, not a start-up path. Converting them is a later PR's job;
+# they are allowed here so that the five lookups can be gated at all.
+set(ALLOW_ObjectMgr_cpp
+    # --- residual: ObjectMgr::ReturnOrDeleteOldMails, also called from World::Update ---
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `id`,`messageType`,`sender`,`receiver`,`has_items`,`expire_time`,`cod`,`checked`,`mailTemplateId` FROM `mail` WHERE `expire_time` < '\" UI64FMTD \"'\", (uint64)basetime)\;"
+    "QueryResult* resultItems = CharacterDatabase.PQuery(\"SELECT `item_guid`,`item_template` FROM `mail_items` WHERE `mail_id`='%u'\", m->messageID)\;"
+    # --- ObjectMgr::LoadQuestAreaTriggers / LoadTavernAreaTriggers ---
+    "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d\", QA_AREATRIGGER)\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id` FROM `areatrigger_tavern`\")\;"
+    # --- ObjectMgr::PackGroupIds ---
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `groupId` FROM `groups`\")\;"
+    # --- ObjectMgr::SetHighestGuids ---
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `characters`\")\;"
+    "result = WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `creature`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `item_instance`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `instance`\")\;"
+    "result = WorldDatabase.Query(\"SELECT MAX(`guid`) FROM `gameobject`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `auction`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `mail`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`guid`) FROM `corpse`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`arenateamid`) FROM `arena_team`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`setguid`) FROM `character_equipmentsets`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`guildid`) FROM `guild`\")\;"
+    "result = CharacterDatabase.Query(\"SELECT MAX(`groupId`) FROM `groups`\")\;"
+    # --- ObjectMgr::LoadExplorationBaseXP / LoadPetNames / LoadPetNumber / LoadCorpses ---
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `level`,`basexp` FROM `exploration_basexp`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `word`,`entry`,`half` FROM `pet_name_generation`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT MAX(`id`) FROM `character_pet`\")\;"
+    "QueryResult* result = CharacterDatabase.Query(\"SELECT `corpse`.`guid`, `player`, `corpse`.`position_x`, `corpse`.`position_y`, `corpse`.`position_z`, `corpse`.`orientation`, `corpse`.`map`, \""
+    # --- ObjectMgr::LoadPointsOfInterest / LoadQuestPOI / LoadMailLevelRewards / LoadHotfixData ---
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `entry`, `x`, `y`, `icon`, `flags`, `data`, `icon_name` FROM `points_of_interest`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `questId`, `poiId`, `objIndex`, `mapId`, `mapAreaId`, `floorId`, `unk3`, `unk4` FROM `quest_poi`\")\;"
+    "QueryResult* points = WorldDatabase.Query(\"SELECT `questId`, `poiId`, `x`, `y` FROM `quest_poi_points`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`\")\;"
+    "QueryResult* result = WorldDatabase.Query(\"SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data\")\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

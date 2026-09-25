@@ -58,6 +58,7 @@
 #include <set>
 #include <sstream>
 #include "PlayerDump.h"
+#include "CharacterCache.h"
 #include "Database/DatabaseEnv.h"
 #include "SQLStorages.h"
 #include "UpdateFields.h"
@@ -755,6 +756,13 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
     std::map<uint32, uint32> eqsets;
     char buf[32000] = "";
 
+    // Decoupling D7c: what the `characters` line carries, picked up as it goes past and
+    // handed to the character cache once the transaction has committed.
+    std::string cachedName;
+    uint8 cachedRace = 0;
+    uint8 cachedClass = 0;
+    uint8 cachedLevel = 0;
+
     typedef std::map<uint32, uint32> PetIds;                // old->new petid relation
     typedef PetIds::value_type PetIdsPair;
     PetIds petids;
@@ -906,6 +914,28 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
 
                     nameInvalidated = true;
                 }
+
+                // Decoupling D7c: this line IS the `characters` row, so it is where the
+                // character cache learns about the character -- otherwise every offline
+                // lookup would deny it exists until the next restart. Taken from the line
+                // rather than read back afterwards, which would have been one more
+                // synchronous query inside the tick.
+                //
+                // Only the head of the row is used: guid, account and name are the three
+                // fields this loader already addresses by position and gets right, and
+                // race, class and level sit immediately behind them (verified against the
+                // live `characters` table: ordinals 1..7 are guid, account, name, race,
+                // class, gender, level). `zone` is NOT taken, and deliberately: it is at
+                // ordinal 38, on the far side of the one positional assumption in this file
+                // that has already drifted -- `at_login` is written at index 36 above while
+                // the table puts it at 37 -- so a zone read from there could be some other
+                // column's number. It stays 0 until the next start-up reads the row
+                // properly, and the only caller of Player::GetZoneIdFromDB is a start-up
+                // repair, which runs after that read.
+                cachedName  = getnth(line, 3);
+                cachedRace  = uint8(atoi(getnth(line, 4).c_str()));
+                cachedClass = uint8(atoi(getnth(line, 5).c_str()));
+                cachedLevel = uint8(atoi(getnth(line, 7).c_str()));
 
                 break;
             }
@@ -1112,6 +1142,32 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
     }
 
     CharacterDatabase.CommitTransaction();
+
+    // Decoupling D7c: the row exists now, so the cache is told about it. Nothing is read
+    // back; every field below was taken off the `characters` line as it was written.
+    if (!cachedName.empty())
+    {
+        if (cachedLevel < 1 || cachedLevel > STRONG_MAX_LEVEL ||
+            !((1 << (cachedClass - 1)) & CLASSMASK_ALL_PLAYABLE))
+        {
+            // Loud rather than silent: the only way to get here with a dump the version
+            // check accepted is that the head of the `characters` row has moved, which
+            // would also have moved what this loader rewrites.
+            sLog.outError("LoadPlayerDump: the `characters` row for guid %u reads back as race %u, class %u, level %u -- "
+                          "the character cache is taking it as it stands, but those columns look wrong",
+                          guid, uint32(cachedRace), uint32(cachedClass), uint32(cachedLevel));
+        }
+
+        CharacterCacheEntry cached;
+        cached.guid        = ObjectGuid(HIGHGUID_PLAYER, guid);
+        cached.accountId   = account;
+        cached.name        = cachedName;
+        cached.race        = cachedRace;
+        cached.playerClass = cachedClass;
+        cached.level       = cachedLevel;
+        cached.zoneId      = 0;                             // see the DTT_CHARACTER case
+        sCharacterCache.Add(cached);
+    }
 
     // FIXME: current code with post-updating guids not safe for future per-map threads
     sObjectMgr.m_ItemGuids.Set(sObjectMgr.m_ItemGuids.GetNextAfterMaxUsed() + items.size());

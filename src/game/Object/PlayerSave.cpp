@@ -76,6 +76,7 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "Calendar.h"
+#include "CharacterCache.h"
 #include "DisableMgr.h"
 
 #include <cmath>
@@ -1097,6 +1098,10 @@ void Player::SavePositionInDB(ObjectGuid guid, uint32 mapid, float x, float y, f
        << "`transguid`='0',`taxi_path`='' WHERE `guid`='" << guid.GetCounter() << "'";
     DEBUG_LOG("%s", ss.str().c_str());
     CharacterDatabase.Execute(ss.str().c_str());
+
+    // Decoupling D7c: this is the one place a `characters` zone is written for a character
+    // who is not logged in (a GM teleporting an offline target), so it is a setter too.
+    sCharacterCache.UpdateZone(guid, zone);
 }
 
 void Player::_SaveEquipmentSets()

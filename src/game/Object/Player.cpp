@@ -80,6 +80,7 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "Calendar.h"
+#include "CharacterCache.h"
 #include "DisableMgr.h"
 #include "wire/MoverCodec.h"
 #include "MotionMaster.h"
@@ -2566,6 +2567,10 @@ void Player::GiveLevel(uint32 level)
 
     SetLevel(level);
 
+    // Decoupling D7c: at the setter, not at the save -- so an offline lookup taken after
+    // this character logs out reads what the save will have written.
+    sCharacterCache.UpdateLevel(GetObjectGuid(), uint8(level));
+
     UpdateSkillsForLevel();
 
     // save base values (bonuses already included in stored stats
@@ -3534,11 +3539,19 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
             CharacterDatabase.PExecute("DELETE FROM `guild_bank_eventlog` WHERE `PlayerGuid` = '%u'", lowguid);
             CharacterDatabase.PExecute("DELETE FROM `character_currencies` WHERE `guid` = '%u'", lowguid);
             CharacterDatabase.CommitTransaction();
+
+            // Decoupling D7c: the row is gone, so the cached character is gone with it.
+            sCharacterCache.Remove(playerguid);
             break;
         }
         // The character gets unlinked from the account, the name gets freed up and appears as deleted ingame
         case 1:
             CharacterDatabase.PExecute("UPDATE `characters` SET `deleteInfos_Name`=`name`, `deleteInfos_Account`=`account`, `deleteDate`='" UI64FMTD "', `name`='', `account`=0 WHERE `guid`=%u", uint64(time(NULL)), lowguid);
+
+            // Decoupling D7c: the row survives with an empty name and no account, which is
+            // what the lookups used to read back off it. The cache says the same.
+            sCharacterCache.UpdateName(playerguid, "");
+            sCharacterCache.UpdateAccount(playerguid, 0);
             break;
         default:
             sLog.outError("Player::DeleteFromDB: Unsupported delete method: %u.", charDelete_method);

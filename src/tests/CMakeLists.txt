@@ -59,6 +59,7 @@ set(SRC_GRP_TESTS
     TickGuardTest.cpp
     TestSeamTest.cpp
     PetitionAsyncTest.cpp
+    CharacterCacheTest.cpp
     GameLinkTest.cpp
     AuthCryptTest.cpp
     ClientParserTest.cpp

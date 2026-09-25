@@ -72,6 +72,7 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "Calendar.h"
+#include "CharacterCache.h"
 #include "DisableMgr.h"
 
 #include <cmath>
@@ -276,6 +277,10 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea)
 
     m_zoneUpdateId    = newZone;
     m_zoneUpdateTimer = ZONE_UPDATE_INTERVAL;
+
+    // Decoupling D7c: the cached zone follows the setter, so the value an offline lookup
+    // reads after this character logs out is the one the next save will write.
+    sCharacterCache.UpdateZone(GetObjectGuid(), newZone);
 
     // zone changed, so area changed as well, update it
     UpdateArea(newArea);

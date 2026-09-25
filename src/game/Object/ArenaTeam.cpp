@@ -30,6 +30,7 @@
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "ArenaTeam.h"
+#include "CharacterCache.h"
 #include "World.h"
 #include "Player.h"
 #include "WorldSession.h"
@@ -117,6 +118,13 @@ bool ArenaTeam::Create(ObjectGuid captainGuid, ArenaType type, std::string arena
     CharacterDatabase.BeginTransaction();
     // CharacterDatabase.PExecute("DELETE FROM `arena_team` WHERE `arenateamid`='%u'", m_TeamId); - MAX(arenateam)+1 not exist
     CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid`='%u'", m_TeamId);
+
+    // Decoupling D7c: the same case as Guild::Create -- `arena_team_member` can hold rows
+    // for a team id with no `arena_team` row, ArenaTeam::LoadMembersFromDB only sweeps the
+    // orphans it walks past, and GenerateArenaTeamId() can hand out an id those leftovers
+    // already use. The cache indexed them at load and forgets them here.
+    sCharacterCache.ClearArenaTeam(m_TeamId);
+
     CharacterDatabase.PExecute("INSERT INTO `arena_team` (`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`) "
                                "VALUES('%u','%s','%u','%u','%u','%u','%u','%u','%u')",
                                m_TeamId, arenaTeamName.c_str(), m_CaptainGuid.GetCounter(), m_Type, m_BackgroundColor, m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor);
@@ -210,6 +218,9 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
 
     CharacterDatabase.PExecute("INSERT INTO `arena_team_member` (`arenateamid`, `guid`, `personal_rating`) VALUES ('%u', '%u', '%u')", m_TeamId, newmember.guid.GetCounter(), newmember.personal_rating);
 
+    // Decoupling D7c: Player::GetArenaTeamIdFromDB reads this slot out of the cache.
+    sCharacterCache.UpdateArenaTeam(playerGuid, GetSlot(), m_TeamId);
+
     if (pl)
     {
         pl->SetInArenaTeam(m_TeamId, GetSlot(), GetType());
@@ -283,6 +294,9 @@ bool ArenaTeam::LoadMembersFromDB(QueryResult* arenaTeamMembersResult)
             // there is in table arena_team_member record which doesn't have arenateamid in arena_team table, report error
             sLog.outErrorDb("ArenaTeam %u does not exist but it has record in arena_team_member table, deleting it!", arenaTeamId);
             CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid` = '%u'", arenaTeamId);
+            // Decoupling D7c: the cache is loaded before the arena teams are, so it still
+            // holds the memberships this startup repair is deleting.
+            sCharacterCache.ClearArenaTeam(arenaTeamId);
             continue;
         }
 
@@ -377,6 +391,10 @@ void ArenaTeam::DelMember(ObjectGuid guid)
     }
 
     CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid` = '%u' AND `guid` = '%u'", GetId(), guid.GetCounter());
+
+    // Decoupling D7c: no row, no team -- and ArenaTeam::Disband reaches here for every
+    // member, so a disband clears them all through this one call.
+    sCharacterCache.UpdateArenaTeam(guid, GetSlot(), 0);
 }
 
 void ArenaTeam::Disband(WorldSession* session)

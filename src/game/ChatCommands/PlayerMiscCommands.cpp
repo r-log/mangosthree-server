@@ -41,6 +41,7 @@
 #include "Log.h"
 #include "PlayerRegistry.h"
 #include "Creature.h"
+#include "CharacterCache.h"
 #include "Pet.h"
 #include "Player.h"
 #include "World.h"
@@ -219,6 +220,11 @@ bool ChatHandler::HandleResetLevelCommand(char* args)
     target->_ApplyAllLevelScaleItemMods(false);
 
     target->SetLevel(start_level);
+
+    // Decoupling D7c: `.reset level` is the one level change that does not go through
+    // Player::GiveLevel, so it tells the cache itself.
+    sCharacterCache.UpdateLevel(target->GetObjectGuid(), uint8(start_level));
+
     target->InitRunes();
     target->InitStatsForLevel(true);
     target->InitTaxiNodesForLevel();

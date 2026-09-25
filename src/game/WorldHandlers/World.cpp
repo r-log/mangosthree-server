@@ -67,6 +67,7 @@
 #include "AchievementMgr.h"
 #include "ArenaTeam.h"
 #include "AuctionHouseMgr.h"
+#include "CharacterCache.h"
 #include "ObjectMgr.h"
 #include "CreatureEventAIMgr.h"
 #include "GuildMgr.h"
@@ -325,6 +326,16 @@ void World::SetInitialWorldSettings()
     ///- Init highest guids before any guid using table loading to prevent using not initialized guids in some code.
     sObjectMgr.SetHighestGuids();                           // must be after packing instances
     sLog.outString();
+
+    ///- Decoupling D7c: every offline player fact comes from here, so it is loaded before
+    /// anything that asks for one. That is earlier than it looks: AuctionHouseMgr::LoadAuctions
+    /// resolves every owner's name, Guild::LoadMembersFromDB repairs a broken `zone` through
+    /// Player::GetZoneIdFromDB, CalendarMgr::LoadCalendarsFromDB asks for guild ids, and
+    /// ObjectGuid::GetString() names a player in every log line that mentions one.
+    /// The guild and arena loaders delete the orphan rows they meet as they go, and each of
+    /// those deletes tells the cache.
+    sLog.outString("Loading the character cache...");
+    sCharacterCache.LoadFromDB();
 
     sLog.outString("Loading Page Texts...");
     sObjectMgr.LoadPageTexts();

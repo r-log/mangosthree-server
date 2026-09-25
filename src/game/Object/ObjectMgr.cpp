@@ -47,6 +47,7 @@
 #include "World.h"
 #include "Group.h"
 #include "ArenaTeam.h"
+#include "CharacterCache.h"
 #include "Transports.h"
 #include "ProgressBar.h"
 #include "Language.h"
@@ -330,23 +331,22 @@ ArenaTeam* ObjectMgr::GetArenaTeamByCaptain(ObjectGuid guid) const
 }
 
 
+/**
+ * Decoupling D7c: the five lookups below answered from `characters` with a blocking
+ * PQuery whenever the character was not logged in. They read CharacterCache now, which
+ * holds those rows in memory. The online path is unchanged and still comes first.
+ */
+
 // name must be checked to correctness (if received) before call this function
 ObjectGuid ObjectMgr::GetPlayerGuidByName(std::string name) const
 {
-    ObjectGuid guid;
-
-    CharacterDatabase.escape_string(name);
-
-    // Player name safe to sending to DB (checked at login) and this function using
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `guid` FROM `characters` WHERE `name` = '%s'", name.c_str());
-    if (result)
+    // The `characters`.`name` column is case-insensitive, and so is the cache's index.
+    if (CharacterCacheRef entry = sCharacterCache.GetByName(name))
     {
-        guid = ObjectGuid(HIGHGUID_PLAYER, (*result)[0].GetUInt32());
-
-        delete result;
+        return entry->guid;
     }
 
-    return guid;
+    return ObjectGuid();
 }
 
 /**
@@ -365,14 +365,9 @@ bool ObjectMgr::GetPlayerNameByGUID(ObjectGuid guid, std::string& name) const
         return true;
     }
 
-    uint32 lowguid = guid.GetCounter();
-
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `name` FROM `characters` WHERE `guid` = '%u'", lowguid);
-
-    if (result)
+    if (CharacterCacheRef entry = sCharacterCache.GetByGuid(guid))
     {
-        name = (*result)[0].GetCppString();
-        delete result;
+        name = entry->name;
         return true;
     }
 
@@ -393,18 +388,7 @@ Team ObjectMgr::GetPlayerTeamByGUID(ObjectGuid guid) const
         return Player::TeamForRace(player->getRace());
     }
 
-    uint32 lowguid = guid.GetCounter();
-
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `race` FROM `characters` WHERE `guid` = '%u'", lowguid);
-
-    if (result)
-    {
-        uint8 race = (*result)[0].GetUInt8();
-        delete result;
-        return Player::TeamForRace(race);
-    }
-
-    return TEAM_NONE;
+    return sCharacterCache.GetTeam(guid);
 }
 
 /**
@@ -426,17 +410,7 @@ uint32 ObjectMgr::GetPlayerAccountIdByGUID(ObjectGuid guid) const
         return player->GetSession()->GetAccountId();
     }
 
-    uint32 lowguid = guid.GetCounter();
-
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `guid` = '%u'", lowguid);
-    if (result)
-    {
-        uint32 acc = (*result)[0].GetUInt32();
-        delete result;
-        return acc;
-    }
-
-    return 0;
+    return sCharacterCache.GetAccountId(guid);
 }
 
 /**
@@ -447,12 +421,9 @@ uint32 ObjectMgr::GetPlayerAccountIdByGUID(ObjectGuid guid) const
  */
 uint32 ObjectMgr::GetPlayerAccountIdByPlayerName(const std::string& name) const
 {
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `account` FROM `characters` WHERE `name` = '%s'", name.c_str());
-    if (result)
+    if (CharacterCacheRef entry = sCharacterCache.GetByName(name))
     {
-        uint32 acc = (*result)[0].GetUInt32();
-        delete result;
-        return acc;
+        return entry->accountId;
     }
 
     return 0;

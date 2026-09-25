@@ -72,29 +72,35 @@
 #include "SQLStorages.h"
 #include "Vehicle.h"
 #include "Calendar.h"
+#include "CharacterCache.h"
 #include "DisableMgr.h"
 
 #include <cmath>
 
 /**
- * @brief Loads a player's guild identifier from the database.
+ * Decoupling D7c: these six lookups answered from `characters`, `guild_member` and
+ * `arena_team_member` with a blocking PQuery, inside the tick, every time a caller
+ * asked about a character who was not logged in. They now read CharacterCache, which
+ * holds the same rows in memory and is kept current at every setter that writes one.
  *
- * @param guid The player GUID to query.
+ * The names keep the `FromDB` suffix because 17 call sites spell them that way and this
+ * PR does not touch callers; what changed is where the answer comes from, not what it is.
+ */
+
+/**
+ * @brief Reads a player's guild identifier from the character cache.
+ *
+ * @param guid The player GUID to look up.
  * @return The guild identifier, or zero if none is found.
  */
 uint32 Player::GetGuildIdFromDB(ObjectGuid guid)
 {
-    uint32 lowguid = guid.GetCounter();
-
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `guildid` FROM `guild_member` WHERE `guid`='%u'", lowguid);
-    if (!result)
+    if (CharacterCacheRef entry = sCharacterCache.GetByGuid(guid))
     {
-        return 0;
+        return entry->guildId;
     }
 
-    uint32 id = result->Fetch()[0].GetUInt32();
-    delete result;
-    return id;
+    return 0;
 }
 
 ObjectGuid Player::GetGuildGuidFromDB(ObjectGuid guid)
@@ -110,102 +116,93 @@ ObjectGuid Player::GetGuildGuidFromDB(ObjectGuid guid)
 }
 
 /**
- * @brief Loads a player's guild rank from the database.
+ * @brief Reads a player's guild rank from the character cache.
  *
- * @param guid The player GUID to query.
+ * @param guid The player GUID to look up.
  * @return The guild rank, or zero if none is found.
  */
 uint32 Player::GetRankFromDB(ObjectGuid guid)
 {
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `rank` FROM `guild_member` WHERE `guid`='%u'", guid.GetCounter());
-    if (result)
+    if (CharacterCacheRef entry = sCharacterCache.GetByGuid(guid))
     {
-        uint32 v = result->Fetch()[0].GetUInt32();
-        delete result;
-        return v;
+        // A cached rank is only meaningful while the character is in a guild; the entry
+        // clears it when the guild goes, so a non-member reads 0 exactly as the missing
+        // `guild_member` row used to.
+        return entry->guildRank;
     }
-    else
-    {
-        return 0;
-    }
+
+    return 0;
 }
 
 uint32 Player::GetArenaTeamIdFromDB(ObjectGuid guid, ArenaType type)
 {
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `arena_team_member`.`arenateamid` FROM `arena_team_member` JOIN `arena_team` ON `arena_team_member`.`arenateamid` = `arena_team`.`arenateamid` WHERE `guid`='%u' AND `type`='%u' LIMIT 1", guid.GetCounter(), type);
-    if (!result)
+    const uint8 slot = ArenaTeam::GetSlotByType(type);
+    if (slot >= MAX_ARENA_SLOT)
     {
         return 0;
     }
 
-    uint32 id = (*result)[0].GetUInt32();
-    delete result;
-    return id;
+    if (CharacterCacheRef entry = sCharacterCache.GetByGuid(guid))
+    {
+        return entry->arenaTeamId[slot];
+    }
+
+    return 0;
 }
 
 /**
- * @brief Loads or derives a player's saved zone identifier from the database.
+ * @brief Reads, or derives, a player's saved zone identifier.
  *
- * @param guid The player GUID to query.
+ * @param guid The player GUID to look up.
  * @return The resolved zone identifier, or zero on failure.
  */
 uint32 Player::GetZoneIdFromDB(ObjectGuid guid)
 {
-    uint32 lowguid = guid.GetCounter();
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `zone` FROM `characters` WHERE `guid`='%u'", lowguid);
-    if (!result)
+    CharacterCacheRef entry = sCharacterCache.GetByGuid(guid);
+    if (!entry)
     {
         return 0;
     }
-    Field* fields = result->Fetch();
-    uint32 zone = fields[0].GetUInt32();
-    delete result;
 
-    if (!zone)
+    uint32 zone = entry->zoneId;
+    if (zone)
     {
-        // stored zone is zero, use generic and slow zone detection
-        result = CharacterDatabase.PQuery("SELECT `map`,`position_x`,`position_y`,`position_z` FROM `characters` WHERE `guid`='%u'", lowguid);
-        if (!result)
-        {
-            return 0;
-        }
-        fields = result->Fetch();
-        uint32 map = fields[0].GetUInt32();
-        float posx = fields[1].GetFloat();
-        float posy = fields[2].GetFloat();
-        float posz = fields[3].GetFloat();
-        delete result;
+        return zone;
+    }
 
-        zone = sTerrainMgr.GetZoneId(map, posx, posy, posz);
+    // Stored zone is zero: the generic and slow zone detection, from the position the
+    // cache kept for exactly this case. The terrain call and the write-back are the ones
+    // this function has always made -- only the two SELECTs in front of them are gone.
+    uint32 map = 0;
+    float posx = 0.0f, posy = 0.0f, posz = 0.0f;
+    if (!sCharacterCache.GetPositionForZonelessCharacter(guid, map, posx, posy, posz))
+    {
+        return 0;
+    }
 
-        if (zone > 0)
-        {
-            CharacterDatabase.PExecute("UPDATE `characters` SET `zone`='%u' WHERE `guid`='%u'", zone, lowguid);
-        }
+    zone = sTerrainMgr.GetZoneId(map, posx, posy, posz);
+
+    if (zone > 0)
+    {
+        CharacterDatabase.PExecute("UPDATE `characters` SET `zone`='%u' WHERE `guid`='%u'", zone, guid.GetCounter());
+        sCharacterCache.UpdateZone(guid, zone);
     }
 
     return zone;
 }
 
 /**
- * @brief Loads a player's level from the database.
+ * @brief Reads a player's level from the character cache.
  *
- * @param guid The player GUID to query.
+ * @param guid The player GUID to look up.
  * @return The stored level, or zero on failure.
  */
 uint32 Player::GetLevelFromDB(ObjectGuid guid)
 {
-    uint32 lowguid = guid.GetCounter();
-
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `level` FROM `characters` WHERE `guid`='%u'", lowguid);
-    if (!result)
+    if (CharacterCacheRef entry = sCharacterCache.GetByGuid(guid))
     {
-        return 0;
+        return entry->level;
     }
 
-    Field* fields = result->Fetch();
-    uint32 level = fields[0].GetUInt32();
-    delete result;
-
-    return level;
+    return 0;
 }
