@@ -34,6 +34,7 @@
 #include "Opcodes.h"
 #include "MapPersistentStateMgr.h"
 #include "Calendar.h"
+#include "CharacterCache.h"
 #include "ObjectMgr.h"
 #include "SocialMgr.h"
 #include "World.h"
@@ -449,13 +450,11 @@ void WorldSession::HandleCalendarUpdateEvent(WorldPacket& recv_data)
 
         sCalendarMgr.SendCalendarEventUpdateAlert(event, oldEventTime);
 
-        // query construction
-        CharacterDatabase.escape_string(title);
-        CharacterDatabase.escape_string(description);
-        CharacterDatabase.PExecute("UPDATE `calendar_events` SET "
-                                   "`type`=%hu, `flags`=%u, `dungeonId`=%d, `eventTime`=%lu, `title`='%s', `description`='%s'"
-                                   "WHERE `eventid` = " UI64FMTD,
-                                   type, flags, dungeonId, event->EventTime, title.c_str(), description.c_str(), eventId);
+        // Decoupling D7g (C5): the title and the description are BOUND, not escaped. The two
+        // escape_string calls that stood here took query connection zero's lock on the world
+        // thread; the six columns written are the six the PExecute wrote, read off the event
+        // this handler assigned them to a dozen lines above.
+        CalendarMgr::WriteEventUpdateToDB(*event);
     }
     else
     {
@@ -511,133 +510,215 @@ void WorldSession::HandleCalendarEventInvite(WorldPacket& recv_data)
     ObjectGuid playerGuid = _player->GetObjectGuid();
     DEBUG_LOG("WORLD: Received opcode CMSG_CALENDAR_EVENT_INVITE [%s]", playerGuid.GetString().c_str());
 
-    uint64 eventId;
-
     // TODO it seem its not inviteID but event->CreatorGuid
     uint64 inviteId;
-    std::string name;
-    bool isPreInvite;
-    bool isGuildEvent;
 
-    ObjectGuid inviteeGuid;
-    uint32 inviteeTeam = 0;
-    uint32 inviteeGuildId = 0;
-    bool isIgnored = false;
+    CalendarInviteRequest request;
+    request.playerGuid = playerGuid;
 
-    recv_data >> eventId >> inviteId >> name >> isPreInvite >> isGuildEvent;
+    recv_data >> request.eventId >> inviteId >> request.name >> request.isPreInvite >> request.isGuildEvent;
 
-    if (Player* player = sPlayerRegistry.FindByName(name.c_str()))
+    if (Player* player = sPlayerRegistry.FindByName(request.name.c_str()))
     {
-        // Invitee is online
-        inviteeGuid = player->GetObjectGuid();
-        inviteeTeam = player->GetTeam();
-        inviteeGuildId = player->GetGuildId();
-        if (player->GetSocial()->HasIgnore(playerGuid))
+        // Invitee is online: everything below is memory, so this half of the handler still
+        // answers in the tick it arrived in.
+        request.inviteeGuid = player->GetObjectGuid();
+        request.inviteeTeam = player->GetTeam();
+        request.inviteeGuildId = player->GetGuildId();
+
+        FinishCalendarEventInvite(_player, request, player->GetSocial()->HasIgnore(playerGuid));
+        return;
+    }
+
+    // Invitee offline. Decoupling D7g: the `SELECT guid,race FROM characters WHERE name`
+    // (and the escape_string that made its `%s` safe) is a character-cache lookup since
+    // D7c -- guid, race and the guild id are all cached, and GetByName compares the way
+    // the utf8_general_ci column did.
+    CharacterCacheRef cached = sCharacterCache.GetByName(request.name);
+    if (!cached)
+    {
+        // No cache entry is no `characters` row: the old "result was NULL" path, which fell
+        // through with an empty invitee guid and answered CALENDAR_ERROR_PLAYER_NOT_FOUND.
+        FinishCalendarEventInvite(_player, request, false);
+        return;
+    }
+
+    ResolveCalendarInvitee(*cached, request);
+
+    // The one fact about an OFFLINE invitee that is not cached: whether he ignores the
+    // inviter. `character_social` is the invitee's own list, loaded into PlayerSocial at HIS
+    // login, so an online inviter cannot answer it from memory and it is not a per-login
+    // cache this session could carry either. It becomes a continuation (C1-C5): the read is
+    // queued, nothing has been mutated in front of it (this handler only sends packets and,
+    // at its very end, creates the invite), and the rest of the handler runs a tick later.
+    QueueCalendarInviteIgnoreRead(GetAccountId(), GetSessionId(), request);
+}
+
+/**
+ * @brief Fills the invitee's three fields from his cache entry (decoupling D7g).
+ *
+ * The whole of what `SELECT guid,race FROM characters WHERE name` plus
+ * Player::GetGuildIdFromDB used to fetch, in one place so that the handler and the test that
+ * pins it read the same three assignments rather than two copies that can drift apart.
+ *
+ * @param cached The invitee's character-cache entry.
+ * @param request The invite being built.
+ */
+void WorldSession::ResolveCalendarInvitee(CharacterCacheEntry const& cached, CalendarInviteRequest& request)
+{
+    request.inviteeGuid = cached.guid;
+    request.inviteeTeam = Player::TeamForRace(cached.race);
+    request.inviteeGuildId = cached.guildId;
+}
+
+/**
+ * @brief Stages the calendar invite's only read (decoupling D7g).
+ *
+ * Split out of the handler so it can be driven on its own: everything it needs is in its
+ * arguments, so a test can queue exactly what a real request queues without a Player.
+ *
+ * @param accountId The inviting account.
+ * @param sessionId The session the request arrived on.
+ * @param request The invite, with the invitee already resolved from the character cache.
+ */
+void WorldSession::QueueCalendarInviteIgnoreRead(uint32 accountId, proto::SessionId sessionId,
+                                                 CalendarInviteRequest request)
+{
+    CharacterDatabase.AsyncPQuery([accountId, sessionId, request](QueryResult* result)
+                                  {
+                                      WorldSession::HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult>(result),
+                                                                                       accountId, sessionId, request);
+                                  },
+                                  "SELECT `flags` FROM `character_social` WHERE `guid` = %u AND `friend` = %u",
+                                  request.inviteeGuid.GetCounter(), request.playerGuid.GetCounter());
+}
+
+/**
+ * @brief Finishes the invite once the offline invitee's ignore flag is known.
+ *
+ * @param result The invitee's `character_social` row for the inviter, if there is one.
+ * @param accountId The inviting account.
+ * @param sessionId The session the request arrived on.
+ * @param request The invite as the handler captured it.
+ */
+void WorldSession::HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                      proto::SessionId sessionId, CalendarInviteRequest request)
+{
+    WorldSession* session = NULL;
+    Player* player = NULL;
+    if (!FindRequesterPlayer(accountId, sessionId, request.playerGuid, session, player))
+    {
+        return;
+    }
+
+    bool isIgnored = false;
+    if (result)
+    {
+        Field* fields = result->Fetch();
+        if (fields[0].GetUInt8() & SOCIAL_FLAG_IGNORED)
         {
             isIgnored = true;
         }
     }
-    else
-    {
-        // Invitee offline, get data from database
-        CharacterDatabase.escape_string(name);
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `guid`,`race` FROM `characters` WHERE `name` = '%s'", name.c_str());
-        if (result)
-        {
-            Field* fields = result->Fetch();
-            inviteeGuid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
-            inviteeTeam = Player::TeamForRace(fields[1].GetUInt8());
-            inviteeGuildId = Player::GetGuildIdFromDB(inviteeGuid);
-            delete result;
 
-            result = CharacterDatabase.PQuery("SELECT `flags` FROM `character_social` WHERE `guid` = %u AND `friend` = %u", inviteeGuid.GetCounter(), playerGuid.GetCounter());
-            if (result)
-            {
-                Field* fields = result->Fetch();
-                if (fields[0].GetUInt8() & SOCIAL_FLAG_IGNORED)
-                {
-                    isIgnored = true;
-                }
-                delete result;
-            }
-        }
+    // Decoupling D7g (C3): the invitee was resolved from the character cache in the handler's
+    // tick; a delete continuation can have removed the character since.
+    if (!sCharacterCache.GetByGuid(request.inviteeGuid))
+    {
+        sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_PLAYER_NOT_FOUND);
+        return;
     }
 
-    if (inviteeGuid.IsEmpty())
+    FinishCalendarEventInvite(player, request, isIgnored);
+}
+
+/**
+ * @brief The whole of CMSG_CALENDAR_EVENT_INVITE below its two lookups, verbatim.
+ *
+ * Shared by the online path (called in the arriving tick) and the offline path (called from
+ * the continuation a tick later), so neither can drift from the other.
+ *
+ * @param player The inviter, re-found through the registry on the deferred path.
+ * @param request The invite, with the invitee resolved.
+ * @param isIgnored Whether the invitee ignores the inviter.
+ */
+void WorldSession::FinishCalendarEventInvite(Player* player, CalendarInviteRequest const& request, bool isIgnored)
+{
+    if (request.inviteeGuid.IsEmpty())
     {
-        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_PLAYER_NOT_FOUND);
+        sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_PLAYER_NOT_FOUND);
         return;
     }
 
     if (isIgnored)
     {
-        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_IGNORING_YOU_S, name.c_str());
+        sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_IGNORING_YOU_S, request.name.c_str());
         return;
     }
 
-    if (_player->GetTeam() != inviteeTeam && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CALENDAR))
+    if (player->GetTeam() != request.inviteeTeam && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CALENDAR))
     {
-        sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_NOT_ALLIED);
+        sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_NOT_ALLIED);
         return;
     }
 
-    if (!isPreInvite)
+    if (!request.isPreInvite)
     {
-        if (CalendarEvent* event = sCalendarMgr.GetEventById(eventId))
+        if (CalendarEvent* event = sCalendarMgr.GetEventById(request.eventId))
         {
             // Only the creator or a moderator may add people, which is the rule
             // HandleCalendarUpdateEvent already applies to editing the event.
             // Without it any player could attach anyone to any event id, and the
             // invitation arrives naming the event's owner rather than the sender.
-            if (playerGuid != event->CreatorGuid)
+            if (request.playerGuid != event->CreatorGuid)
             {
-                CalendarInvite* inviterInvite = event->GetInviteByGuid(playerGuid);
+                CalendarInvite* inviterInvite = event->GetInviteByGuid(request.playerGuid);
                 if (inviterInvite == NULL)
                 {
-                    sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_NOT_INVITED);
+                    sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_NOT_INVITED);
                     return;
                 }
 
                 if (inviterInvite->Rank != CALENDAR_RANK_MODERATOR &&
                     inviterInvite->Rank != CALENDAR_RANK_OWNER)
                 {
-                    sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_PERMISSIONS);
+                    sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_PERMISSIONS);
                     return;
                 }
             }
 
-            if (event->IsGuildEvent() && event->GuildId == inviteeGuildId)
+            if (event->IsGuildEvent() && event->GuildId == request.inviteeGuildId)
             {
                 // we can't invite guild members to guild events
-                sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_NO_GUILD_INVITES);
+                sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_NO_GUILD_INVITES);
                 return;
             }
 
-            sCalendarMgr.AddInvite(event, playerGuid, inviteeGuid, CALENDAR_STATUS_INVITED, CALENDAR_RANK_PLAYER, "", time(NULL));
+            sCalendarMgr.AddInvite(event, request.playerGuid, request.inviteeGuid, CALENDAR_STATUS_INVITED, CALENDAR_RANK_PLAYER, "", time(NULL));
         }
         else
         {
-            sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_EVENT_INVALID);
+            sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_EVENT_INVALID);
         }
     }
     else
     {
-        if (isGuildEvent && inviteeGuildId == _player->GetGuildId())
+        if (request.isGuildEvent && request.inviteeGuildId == player->GetGuildId())
         {
-            sCalendarMgr.SendCalendarCommandResult(_player, CALENDAR_ERROR_NO_GUILD_INVITES);
+            sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_NO_GUILD_INVITES);
             return;
         }
 
         // create a temp invite to send it back to client
         CalendarInvite invite;
-        invite.SenderGuid = playerGuid;
-        invite.InviteeGuid = inviteeGuid;
+        invite.SenderGuid = request.playerGuid;
+        invite.InviteeGuid = request.inviteeGuid;
         invite.Status = CALENDAR_STATUS_INVITED;
         invite.Rank = CALENDAR_RANK_PLAYER;
         invite.LastUpdateTime = time(NULL);
 
         sCalendarMgr.SendCalendarEventInvite(&invite);
-        DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "PREINVITE> sender[%s], Invitee[%s]", playerGuid.GetString().c_str(), inviteeGuid.GetString().c_str());
+        DEBUG_FILTER_LOG(LOG_FILTER_CALENDAR, "PREINVITE> sender[%s], Invitee[%s]", request.playerGuid.GetString().c_str(), request.inviteeGuid.GetString().c_str());
     }
 }
 

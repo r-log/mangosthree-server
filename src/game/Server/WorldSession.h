@@ -59,6 +59,7 @@ struct ItemPrototype;
 struct AuctionEntry;
 struct AuctionHouseEntry;
 struct DeclinedName;
+struct CharacterCacheEntry;
 
 class ObjectGuid;
 class Creature;
@@ -704,6 +705,25 @@ class WorldSession
         // session id, which a reconnect changes. FindRequesterSession() is that check.
         static WorldSession* FindRequesterSession(uint32 accountId, proto::SessionId sessionId);
 
+        /**
+         * @brief The same check for a continuation that also needs the CHARACTER (D7b, C1).
+         *
+         * FindRequesterSession() plus the guid: the player reached through the session is
+         * compared against the one the registry has under that guid, so a character swap on
+         * the same session is caught as well. Lived as a file-local helper in
+         * PetitionsHandler.cpp until D7g needed it in three more files.
+         *
+         * Both out-parameters are NULL on failure (the player is the session's own character
+         * in the one case where a live session holds a different one); neither means anything
+         * after a false return, and no caller reads one.
+         *
+         * @return false when either is gone or has been replaced -- the continuation then
+         *         does nothing, which is what happens today when a player logs out with a
+         *         request in flight.
+         */
+        static bool FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
+                                        WorldSession*& session, Player*& player);
+
         /// Everything CMSG_CHAR_CREATE carries, captured by value into the continuations.
         struct CharCreateRequest
         {
@@ -1025,7 +1045,31 @@ class WorldSession
         void HandleAuctionListPendingSales(WorldPacket& recv_data);
 
         void HandleGetMailList(WorldPacket& recv_data);
+
+        /// Everything CMSG_SEND_MAIL carries, captured by value into the continuation
+        /// (decoupling D7g), plus the receiver guid the handler resolved from memory.
+        struct MailSendRequest
+        {
+            ObjectGuid mailboxGuid;
+            ObjectGuid receiverGuid;
+            std::vector<ObjectGuid> itemGuids;
+            uint64 money = 0;
+            uint64 COD = 0;
+            std::string receiver;
+            std::string subject;
+            std::string body;
+            uint32 unk1 = 0;
+            uint32 unk2 = 0;
+        };
+
         void HandleSendMail(WorldPacket& recv_data);
+        static void QueueSendMailboxCountRead(uint32 accountId, proto::SessionId sessionId,
+                                              ObjectGuid playerGuid, MailSendRequest request);
+        static void HandleSendMailCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                           proto::SessionId sessionId, ObjectGuid playerGuid,
+                                           MailSendRequest request);
+        void ProcessSendMail(MailSendRequest const& request, uint8 offlineMailsCount);
+
         void HandleMailTakeMoney(WorldPacket& recv_data);
         void HandleMailTakeItem(WorldPacket& recv_data);
         void HandleMailMarkAsRead(WorldPacket& recv_data);
@@ -1059,6 +1103,11 @@ class WorldSession
 
         void HandleUseItemOpcode(WorldPacket& recvPacket);
         void HandleOpenItemOpcode(WorldPacket& recvPacket);
+        static void QueueOpenWrappedItemRead(uint32 accountId, proto::SessionId sessionId,
+                                             ObjectGuid playerGuid, ObjectGuid itemGuid);
+        static void HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                  proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                  ObjectGuid itemGuid);
         void HandleCastSpellOpcode(WorldPacket& recvPacket);
         void HandleCancelCastOpcode(WorldPacket& recvPacket);
         void HandleCancelAuraOpcode(WorldPacket& recvPacket);
@@ -1264,7 +1313,27 @@ class WorldSession
         void HandleCalendarUpdateEvent(WorldPacket& recv_data);
         void HandleCalendarRemoveEvent(WorldPacket& recv_data);
         void HandleCalendarCopyEvent(WorldPacket& recv_data);
+        /// Everything CMSG_CALENDAR_EVENT_INVITE carries, plus the invitee the handler
+        /// resolved from the character cache (decoupling D7g).
+        struct CalendarInviteRequest
+        {
+            ObjectGuid playerGuid;                          ///< the inviter
+            ObjectGuid inviteeGuid;                         ///< empty = no such character
+            uint32 inviteeTeam = 0;
+            uint32 inviteeGuildId = 0;
+            uint64 eventId = 0;
+            std::string name;
+            bool isPreInvite = false;
+            bool isGuildEvent = false;
+        };
+
         void HandleCalendarEventInvite(WorldPacket& recv_data);
+        static void ResolveCalendarInvitee(CharacterCacheEntry const& cached, CalendarInviteRequest& request);
+        static void QueueCalendarInviteIgnoreRead(uint32 accountId, proto::SessionId sessionId,
+                                                  CalendarInviteRequest request);
+        static void HandleCalendarInviteIgnoreCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                       proto::SessionId sessionId, CalendarInviteRequest request);
+        static void FinishCalendarEventInvite(Player* player, CalendarInviteRequest const& request, bool isIgnored);
         void HandleCalendarEventRsvp(WorldPacket& recv_data);
         void HandleCalendarEventRemoveInvite(WorldPacket& recv_data);
         void HandleCalendarEventStatus(WorldPacket& recv_data);

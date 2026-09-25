@@ -319,16 +319,36 @@ void MailDraft::SendMailTo(MailReceiver const& receiver, MailSender const& sende
     time_t expire_time = deliver_time + expire_delay;
 
     // Add to DB
-    std::string safe_subject = GetSubject();
-    CharacterDatabase.escape_string(safe_subject);
-
-    std::string safe_body = GetBody();
-    CharacterDatabase.escape_string(safe_body);
-
+    //
+    // Decoupling D7g (C5): the subject and the body are BOUND, not escaped. The two
+    // escape_string calls that stood here each took query connection zero's lock on the
+    // calling thread, and SendMailTo is reached from inside the tick by everything that
+    // posts a mail -- CMSG_SEND_MAIL, quest rewards, auction results, the mass mailer, the
+    // calendar and a dozen GM commands. Fixing it here fixes all of them at once; the
+    // binding (and, on the plain-statement fallback, the escaping) happens on the delay
+    // thread inside SqlPreparedRequest::ExecuteLocked. The statement joins the transaction
+    // opened below exactly as the PExecute it replaces did.
     CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("INSERT INTO `mail` (`id`,`messageType`,`stationery`,`mailTemplateId`,`sender`,`receiver`,`subject`,`body`,`has_items`,`expire_time`,`deliver_time`,`money`,`cod`,`checked`) "
-                               "VALUES ('%u', '%u', '%u', '%u', '%u', '%u', '%s', '%s', '%u', '" UI64FMTD "','" UI64FMTD "', '%u', '%u', '%u')",
-                               mailId, sender.GetMailMessageType(), sender.GetStationery(), GetMailTemplateId(), sender.GetSenderId(), receiver.GetPlayerGuid().GetCounter(), safe_subject.c_str(), safe_body.c_str(), (has_items ? 1 : 0), (uint64)expire_time, (uint64)deliver_time, m_money, m_COD, checked);
+
+    static SqlStatementID insMail;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insMail,
+                          "INSERT INTO `mail` (`id`,`messageType`,`stationery`,`mailTemplateId`,`sender`,`receiver`,`subject`,`body`,`has_items`,`expire_time`,`deliver_time`,`money`,`cod`,`checked`) "
+                          "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    insert.addUInt32(mailId);
+    insert.addUInt32(uint32(sender.GetMailMessageType()));
+    insert.addUInt32(uint32(sender.GetStationery()));
+    insert.addUInt32(uint32(GetMailTemplateId()));
+    insert.addUInt32(sender.GetSenderId());
+    insert.addUInt32(receiver.GetPlayerGuid().GetCounter());
+    insert.addString(GetSubject());
+    insert.addString(GetBody());
+    insert.addUInt32(has_items ? 1 : 0);
+    insert.addUInt64(uint64(expire_time));
+    insert.addUInt64(uint64(deliver_time));
+    insert.addUInt64(m_money);
+    insert.addUInt64(m_COD);
+    insert.addUInt32(uint32(checked));
+    insert.Execute();
 
     for (MailItemMap::const_iterator mailItemIter = m_items.begin(); mailItemIter != m_items.end(); ++mailItemIter)
     {

@@ -112,9 +112,6 @@ bool ArenaTeam::Create(ObjectGuid captainGuid, ArenaType type, std::string arena
 
     m_TeamId = sObjectMgr.GenerateArenaTeamId();
 
-    // ArenaTeamName already assigned to ArenaTeam::name, use it to encode string for DB
-    CharacterDatabase.escape_string(arenaTeamName);
-
     CharacterDatabase.BeginTransaction();
     // CharacterDatabase.PExecute("DELETE FROM `arena_team` WHERE `arenateamid`='%u'", m_TeamId); - MAX(arenateam)+1 not exist
     CharacterDatabase.PExecute("DELETE FROM `arena_team_member` WHERE `arenateamid`='%u'", m_TeamId);
@@ -125,9 +122,25 @@ bool ArenaTeam::Create(ObjectGuid captainGuid, ArenaType type, std::string arena
     // already use. The cache indexed them at load and forgets them here.
     sCharacterCache.ClearArenaTeam(m_TeamId);
 
-    CharacterDatabase.PExecute("INSERT INTO `arena_team` (`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`) "
-                               "VALUES('%u','%s','%u','%u','%u','%u','%u','%u','%u')",
-                               m_TeamId, arenaTeamName.c_str(), m_CaptainGuid.GetCounter(), m_Type, m_BackgroundColor, m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor);
+    // Decoupling D7g (C5): the team name is BOUND, not escaped -- the exact twin of
+    // Guild::Create's three bound strings (D7f). m_Name is the name the escape_string call
+    // that stood above used to mangle a local copy of; the statement joins the transaction
+    // opened above exactly as the PExecute it replaces did.
+    static SqlStatementID insArenaTeam;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insArenaTeam,
+                          "INSERT INTO `arena_team` (`arenateamid`,`name`,`captainguid`,`type`,`BackgroundColor`,`EmblemStyle`,`EmblemColor`,`BorderStyle`,`BorderColor`) "
+                          "VALUES(?,?,?,?,?,?,?,?,?)");
+    insert.addUInt32(m_TeamId);
+    insert.addString(m_Name);
+    insert.addUInt32(m_CaptainGuid.GetCounter());
+    insert.addUInt32(uint32(m_Type));
+    insert.addUInt32(m_BackgroundColor);
+    insert.addUInt32(m_EmblemStyle);
+    insert.addUInt32(m_EmblemColor);
+    insert.addUInt32(m_BorderStyle);
+    insert.addUInt32(m_BorderColor);
+    insert.Execute();
+
     CharacterDatabase.PExecute("INSERT INTO `arena_team_stats` (`arenateamid`, `rating`, `games_week`, `wins_week`, `games_season`, `wins_season`, `rank`) VALUES "
                                "('%u', '%u', '%u', '%u', '%u', '%u', '%u')", m_TeamId, m_stats.rating, m_stats.games_week, m_stats.wins_week, m_stats.games_season, m_stats.wins_season, m_stats.rank);
 
@@ -162,16 +175,19 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
     }
     else
     {
-        //                                                      0       1
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `name`, `class` FROM `characters` WHERE `guid`='%u'", playerGuid.GetCounter());
-        if (!result)
+        // Decoupling D7g: `name` and `class` are cached columns since D7c, so the offline
+        // member is read from memory instead of blocking the tick on
+        // `SELECT name, class FROM characters WHERE guid`. The twin of Guild::AddMember's
+        // conversion in D7f. A character with no cache entry is a character with no
+        // `characters` row, which is the old `if (!result) return false` branch.
+        CharacterCacheRef cached = sCharacterCache.GetByGuid(playerGuid);
+        if (!cached)
         {
             return false;
         }
 
-        plName = (*result)[0].GetCppString();
-        plClass = (*result)[1].GetUInt8();
-        delete result;
+        plName = cached->name;
+        plClass = cached->playerClass;
 
         // check if player already in arenateam of that size
         if (Player::GetArenaTeamIdFromDB(playerGuid, GetType()) != 0)

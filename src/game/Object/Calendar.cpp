@@ -368,19 +368,61 @@ CalendarEvent* CalendarMgr::AddEvent(ObjectGuid const& guid, std::string title, 
     newEvent.Flags = flags;
     newEvent.GuildId = guildId;
 
-    CharacterDatabase.escape_string(title);
-    CharacterDatabase.escape_string(description);
-    CharacterDatabase.PExecute("INSERT INTO `calendar_events` VALUES (" UI64FMTD ", %u, %u, %u, %u, %d, %u, '%s', '%s')",
-                               nId,
-                               guid.GetCounter(),
-                               guildId,
-                               type,
-                               flags,
-                               dungeonId,
-                               uint32(eventTime),
-                               title.c_str(),
-                               description.c_str());
+    WriteEventToDB(newEvent);
     return &newEvent;
+}
+
+/**
+ * @brief The INSERT behind AddEvent, with the two strings bound (decoupling D7g, C5).
+ *
+ * The nine values are the nine the PExecute this replaces formatted, in the same order and
+ * from the same event; the column list is spelled out rather than left positional, and it is
+ * the list CalendarMgr::LoadCalendarsFromDB reads back.
+ *
+ * @param event The event as it was just stored in memory.
+ */
+void CalendarMgr::WriteEventToDB(CalendarEvent const& event)
+{
+    static SqlStatementID insEvent;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insEvent,
+                          "INSERT INTO `calendar_events` (`eventId`,`creatorGuid`,`guildId`,`type`,`flags`,`dungeonId`,`eventTime`,`title`,`description`) "
+                          "VALUES(?,?,?,?,?,?,?,?,?)");
+    insert.addUInt64(event.EventId);
+    insert.addUInt32(event.CreatorGuid.GetCounter());
+    insert.addUInt32(event.GuildId);
+    insert.addUInt32(uint32(event.Type));
+    insert.addUInt32(event.Flags);
+    insert.addInt32(event.DungeonId);
+    insert.addUInt32(uint32(event.EventTime));
+    insert.addString(event.Title);
+    insert.addString(event.Description);
+    insert.Execute();
+}
+
+/**
+ * @brief The UPDATE behind CMSG_CALENDAR_UPDATE_EVENT, with the two strings bound (D7g, C5).
+ *
+ * The six columns and the key are the six the handler's PExecute set, read off the event the
+ * handler has just mutated rather than off the packet -- they are the same values, because
+ * every one of them was assigned to the event immediately above the write.
+ *
+ * @param event The event as it now stands in memory.
+ */
+void CalendarMgr::WriteEventUpdateToDB(CalendarEvent const& event)
+{
+    static SqlStatementID updEvent;
+    SqlStatement update = CharacterDatabase.CreateStatement(updEvent,
+                          "UPDATE `calendar_events` SET "
+                          "`type`=?, `flags`=?, `dungeonId`=?, `eventTime`=?, `title`=?, `description`=? "
+                          "WHERE `eventId`=?");
+    update.addUInt32(uint32(event.Type));
+    update.addUInt32(event.Flags);
+    update.addInt32(event.DungeonId);
+    update.addUInt32(uint32(event.EventTime));
+    update.addString(event.Title);
+    update.addString(event.Description);
+    update.addUInt64(event.EventId);
+    update.Execute();
 }
 
 // remove event by its id

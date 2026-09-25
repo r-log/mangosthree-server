@@ -42,11 +42,13 @@
  */
 
 #include <string>
+#include <utility>
 #include "Mail.h"
 #include "Language.h"
 #include "Log.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
+#include "CharacterCache.h"
 #include "Item.h"
 #include "AchievementMgr.h"
 #include "Player.h"
@@ -133,16 +135,13 @@ bool WorldSession::CheckMailBox(ObjectGuid guid)
 void WorldSession::HandleSendMail(WorldPacket& recv_data)
 {
     sLog.outError("WORLD: CMSG_SEND_MAIL");
-    ObjectGuid mailboxGuid;
-    uint64 money, COD;
-    std::string receiver, subject, body;
+    MailSendRequest request;
     uint8 receiverLen, subjectLen, bodyLen;
-    uint32 unk1, unk2;
 
-    recv_data >> unk1;                                      // stationery?
-    recv_data >> unk2;                                      // 0x00000000
+    recv_data >> request.unk1;                              // stationery?
+    recv_data >> request.unk2;                              // 0x00000000
 
-    recv_data >> COD >> money;                              // cod and money
+    recv_data >> request.COD >> request.money;              // cod and money
 
     bodyLen = recv_data.ReadBits(12);
     subjectLen = recv_data.ReadBits(9);
@@ -155,43 +154,213 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
         return;
     }
 
-    recv_data.ReadGuidMask<0>(mailboxGuid);
+    recv_data.ReadGuidMask<0>(request.mailboxGuid);
 
-    ObjectGuid itemGuids[MAX_MAIL_ITEMS];
+    request.itemGuids.resize(items_count);
     for (uint8 i = 0; i < items_count; ++i)
     {
-        recv_data.ReadGuidMask<2, 6, 3, 7, 1, 0, 4, 5>(itemGuids[i]);
+        recv_data.ReadGuidMask<2, 6, 3, 7, 1, 0, 4, 5>(request.itemGuids[i]);
     }
 
-    recv_data.ReadGuidMask<3, 4>(mailboxGuid);
+    recv_data.ReadGuidMask<3, 4>(request.mailboxGuid);
 
     receiverLen = recv_data.ReadBits(7);
 
-    recv_data.ReadGuidMask<2, 6, 1, 7, 5>(mailboxGuid);
+    recv_data.ReadGuidMask<2, 6, 1, 7, 5>(request.mailboxGuid);
 
-    recv_data.ReadGuidBytes<4>(mailboxGuid);
+    recv_data.ReadGuidBytes<4>(request.mailboxGuid);
 
     for (uint8 i = 0; i < items_count; ++i)
     {
-        recv_data.ReadGuidBytes<6, 1, 7, 2>(itemGuids[i]);
+        recv_data.ReadGuidBytes<6, 1, 7, 2>(request.itemGuids[i]);
         recv_data.read_skip<uint8>();                       // item slot in mail, not used
-        recv_data.ReadGuidBytes<3, 0, 4, 5>(itemGuids[i]);
+        recv_data.ReadGuidBytes<3, 0, 4, 5>(request.itemGuids[i]);
     }
 
-    recv_data.ReadGuidBytes<7, 3, 6, 5>(mailboxGuid);
+    recv_data.ReadGuidBytes<7, 3, 6, 5>(request.mailboxGuid);
 
-    subject = recv_data.ReadString(subjectLen);
-    receiver = recv_data.ReadString(receiverLen);
+    request.subject = recv_data.ReadString(subjectLen);
+    request.receiver = recv_data.ReadString(receiverLen);
 
-    recv_data.ReadGuidBytes<2, 0>(mailboxGuid);
+    recv_data.ReadGuidBytes<2, 0>(request.mailboxGuid);
 
-    body = recv_data.ReadString(bodyLen);
+    request.body = recv_data.ReadString(bodyLen);
 
-    recv_data.ReadGuidBytes<1>(mailboxGuid);
+    recv_data.ReadGuidBytes<1>(request.mailboxGuid);
 
     DEBUG_LOG("WORLD: CMSG_SEND_MAIL receiver '%s' subject '%s' body '%s' mailbox " UI64FMTD " money " UI64FMTD " COD " UI64FMTD " unkt1 %u unk2 %u",
-        receiver.c_str(), subject.c_str(), body.c_str(), mailboxGuid.GetRawValue(), money, COD, unk1, unk2);
+        request.receiver.c_str(), request.subject.c_str(), request.body.c_str(), request.mailboxGuid.GetRawValue(),
+        request.money, request.COD, request.unk1, request.unk2);
     // packet read complete, now do check
+
+    // Decoupling D7g: the receiver is resolved HERE, out of memory alone -- normalizePlayerName
+    // is a string operation and ObjectMgr::GetPlayerGuidByName has read the character cache
+    // since D7c -- because the guards below and the decision to defer both need the guid.
+    //
+    // The normalisation writes back only when it SUCCEEDS, which the in-place call it replaces
+    // could not do: WStrToUtf8 clears the string it was given when the name is not valid UTF-8.
+    // In the old order that clearing happened after the `receiver.empty()` test and before the
+    // "recipient not found" log, so it could only ever blank a log line; here the test comes
+    // after, so the raw name has to survive a failed normalisation or a garbage name would
+    // return silently instead of answering MAIL_ERR_RECIPIENT_NOT_FOUND.
+    std::string normalized = request.receiver;
+    if (normalizePlayerName(normalized))
+    {
+        request.receiver = normalized;
+        request.receiverGuid = sObjectMgr.GetPlayerGuidByName(request.receiver);
+    }
+
+    Player* pl = _player;
+
+    // Every check below reads memory only, so it stays here: a request that cannot succeed
+    // never reaches the database at all (D7b's contract, HandlePetitionBuyOpcode). They are
+    // the old handler's guards, in the old order, sending the old replies -- and each of them
+    // runs AGAIN in ProcessSendMail (C3), because on the deferred path a tick passes before
+    // anything is charged. Running them twice in one tick costs nothing and sends nothing: the
+    // first copy returns on failure, so only one reply ever leaves.
+    if (!CheckMailBox(request.mailboxGuid))
+    {
+        return;
+    }
+
+    if (request.receiver.empty())
+    {
+        return;
+    }
+
+    if (!request.receiverGuid)
+    {
+        DEBUG_LOG("%s is sending mail to %s (GUID: nonexistent!) with subject %s and body %s includes %u items, " UI64FMTD " copper and " UI64FMTD " COD copper with unk1 = %u, unk2 = %u",
+                   pl->GetGuidStr().c_str(), request.receiver.c_str(), request.subject.c_str(), request.body.c_str(),
+                   items_count, request.money, request.COD, request.unk1, request.unk2);
+        pl->SendMailResult(0, MAIL_SEND, MAIL_ERR_RECIPIENT_NOT_FOUND);
+        return;
+    }
+
+    if (pl->GetObjectGuid() == request.receiverGuid)
+    {
+        pl->SendMailResult(0, MAIL_SEND, MAIL_ERR_CANNOT_SEND_TO_SELF);
+        return;
+    }
+
+    // safeguard against possible money dupe
+    if (request.money && request.COD)
+    {
+        pl->SendMailResult(0, MAIL_SEND, MAIL_ERR_INTERNAL_ERROR);
+        return;
+    }
+
+    uint32 cost = items_count ? 30 * items_count : 30;      // price hardcoded in client
+
+    uint64 reqmoney = cost + request.money;
+
+    if (pl->GetMoney() < reqmoney)
+    {
+        pl->SendMailResult(0, MAIL_SEND, MAIL_ERR_NOT_ENOUGH_MONEY);
+        return;
+    }
+
+    if (!sObjectMgr.GetPlayer(request.receiverGuid))
+    {
+        // An OFFLINE receiver is the one case that used to block the tick: his mailbox count
+        // is a `SELECT COUNT(*) FROM mail`, and it is not a cached fact (it changes with every
+        // mail anyone sends him and he is not here to keep it). It becomes a continuation
+        // (C1-C5): the read is queued and everything below runs a tick later. Nothing is
+        // mutated in front of it -- the money and the items only move after the count is
+        // tested -- so there is no C3 reorder, only a re-validation.
+        QueueSendMailboxCountRead(GetAccountId(), GetSessionId(), pl->GetObjectGuid(), std::move(request));
+        return;
+    }
+
+    // An online receiver answers from memory (Player::GetMailSize), so this stays in the tick
+    // it arrived in.
+    ProcessSendMail(request, 0);
+}
+
+/**
+ * @brief Stages the send-mail handler's only read (decoupling D7g).
+ *
+ * Split out of the handler so it can be driven on its own: everything it needs is in its
+ * arguments, so a test can queue exactly what a real request queues without a Player.
+ *
+ * @param accountId The sending account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The sender.
+ * @param request The parsed mail, moved into the continuation.
+ */
+void WorldSession::QueueSendMailboxCountRead(uint32 accountId, proto::SessionId sessionId,
+                                             ObjectGuid playerGuid, MailSendRequest request)
+{
+    // Read the one number the statement needs BEFORE the move: the order in which a call's
+    // arguments are evaluated is unspecified, so the lambda could be built first.
+    uint32 const receiverLow = request.receiverGuid.GetCounter();
+
+    // The request carries three strings and a vector; it is moved into the capture and moved
+    // again out of it, so a deferred send copies it once (at the parse) instead of four times.
+    // `mutable` is what makes the second move a move: a lambda's operator() is const by
+    // default, and std::move on a const member yields a const rvalue, which copies.
+    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, request = std::move(request)](QueryResult* result) mutable
+                                  {
+                                      WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult>(result),
+                                                                           accountId, sessionId, playerGuid,
+                                                                           std::move(request));
+                                  },
+                                  "SELECT COUNT(*) FROM `mail` WHERE `receiver` = '%u'",
+                                  receiverLow);
+}
+
+/**
+ * @brief Sends the mail once the offline receiver's mailbox count is known.
+ *
+ * @param result The single COUNT(*) row.
+ * @param accountId The sending account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The sender.
+ * @param request The parsed mail.
+ */
+void WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                          proto::SessionId sessionId, ObjectGuid playerGuid,
+                                          MailSendRequest request)
+{
+    WorldSession* session = NULL;
+    Player* player = NULL;
+    if (!FindRequesterPlayer(accountId, sessionId, playerGuid, session, player))
+    {
+        return;
+    }
+
+    uint8 mailsCount = 0;
+    if (result)
+    {
+        mailsCount = result->Fetch()[0].GetUInt32();
+    }
+
+    session->ProcessSendMail(request, mailsCount);
+}
+
+/**
+ * @brief The whole of CMSG_SEND_MAIL below its packet read, verbatim (decoupling D7g).
+ *
+ * Shared by the two paths: an online receiver runs it in the arriving tick, an offline one
+ * from the continuation a tick later. The first six guards below are the memory-only ones the
+ * handler has ALREADY run and refused on -- they are repeated here because C3 asks a deferred
+ * handler to re-validate: a tick has passed, so the mailbox may be out of range, the money may
+ * be spent and the items may be gone. On the same-tick path they simply pass a second time.
+ *
+ * @param request The parsed mail, with the receiver already resolved.
+ * @param offlineMailsCount The offline receiver's mailbox count; unread when he is online.
+ */
+void WorldSession::ProcessSendMail(MailSendRequest const& request, uint8 offlineMailsCount)
+{
+    ObjectGuid const& mailboxGuid = request.mailboxGuid;
+    uint64 const money = request.money;
+    uint64 const COD = request.COD;
+    std::string const& receiver = request.receiver;
+    std::string const& subject = request.subject;
+    std::string const& body = request.body;
+    uint32 const unk1 = request.unk1;
+    uint32 const unk2 = request.unk2;
+    uint8 const items_count = uint8(request.itemGuids.size());
 
     if (!CheckMailBox(mailboxGuid))
     {
@@ -205,11 +374,7 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
 
     Player* pl = _player;
 
-    ObjectGuid rc;
-    if (normalizePlayerName(receiver))
-    {
-        rc = sObjectMgr.GetPlayerGuidByName(receiver);
-    }
+    ObjectGuid rc = request.receiverGuid;
 
     if (!rc)
     {
@@ -258,12 +423,10 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
     else
     {
         rc_team = sObjectMgr.GetPlayerTeamByGUID(rc);
-        if (QueryResult* result = CharacterDatabase.PQuery("SELECT COUNT(*) FROM `mail` WHERE `receiver` = '%u'", rc.GetCounter()))
-        {
-            Field* fields = result->Fetch();
-            mails_count = fields[0].GetUInt32();
-            delete result;
-        }
+        // Decoupling D7g: the `SELECT COUNT(*) FROM mail WHERE receiver` that stood here was
+        // staged by the handler and its answer is this argument. A receiver who logged IN
+        // during that tick takes the branch above instead, with his live mailbox.
+        mails_count = offlineMailsCount;
     }
 
     // do not allow to have more than 100 mails in mailbox.. mails count is in opcode uint8!!! - so max can be 255..
@@ -284,17 +447,29 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
                         ? receive->GetSession()->GetAccountId()
                         : sObjectMgr.GetPlayerAccountIdByGUID(rc);
 
+    // Decoupling D7g (C3): the receiver was resolved from the character cache in the handler's
+    // tick; a delete continuation can have removed the character since. Refuse before anything
+    // is charged -- the same refusal the handler gives an unknown name.
+    if (!receive && !sCharacterCache.GetByGuid(rc))
+    {
+        pl->SendMailResult(0, MAIL_SEND, MAIL_ERR_RECIPIENT_NOT_FOUND);
+        return;
+    }
+
     Item* items[MAX_MAIL_ITEMS];
 
     for (uint8 i = 0; i < items_count; ++i)
     {
-        if (!itemGuids[i].IsItem())
+        if (!request.itemGuids[i].IsItem())
         {
             pl->SendMailResult(0, MAIL_SEND, MAIL_ERR_MAIL_ATTACHMENT_INVALID);
             return;
         }
 
-        Item* item = pl->GetItemByGuid(itemGuids[i]);
+        // Re-found by guid, never carried across a tick as a pointer (C1): on the deferred
+        // path an item may have been sold, destroyed or moved since the request arrived, and
+        // this is the same lookup the handler always made.
+        Item* item = pl->GetItemByGuid(request.itemGuids[i]);
 
         // prevent sending bag with items (cheat: can be placed in bag after adding equipped empty bag to mail)
         if (!item)
