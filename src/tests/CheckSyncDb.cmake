@@ -28,6 +28,10 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/CharacterHandler.cpp             # decoupling D7d
     src/game/WorldHandlers/CharacterHandlerCustomize.cpp    # decoupling D7d
     src/game/Object/Player.cpp                              # decoupling D7d
+    src/game/Object/PetDatabase.cpp                         # decoupling D7e
+    src/game/Object/PetSpells.cpp                           # decoupling D7e
+    src/game/WorldHandlers/NPCHandler.cpp                   # decoupling D7e
+    src/game/WorldHandlers/SpellChecks.cpp                  # decoupling D7e
 )
 
 # Per file, the exact lines (trimmed) that are allowed to keep a direct call -- a startup
@@ -110,6 +114,22 @@ set(ALLOW_ObjectMgr_cpp
 set(ALLOW_Player_cpp
     # --- residual: Guild::AddMember's caller, PR D7f ---
     "CharacterDatabase.PQuery(\"SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'\", guid.GetCounter()))\;")
+
+# Decoupling D7e. FOUR files, and NONE of them has an allow list -- the whole pet subsystem's
+# reads are gone:
+#
+#   PetDatabase.cpp   -- LoadPetFromDB's five `character_pet` branches, its declined-name read
+#                        and SavePetToDB's free-slot scan all read PlayerPetCache.
+#   PetSpells.cpp     -- _LoadAuras / _LoadSpells / _LoadSpellCooldowns and both of
+#                        resetTalentsForAllPetsOf's reads likewise.
+#   NPCHandler.cpp    -- the five stable-handler reads (the stable list, the set-pet-slot
+#                        source and displaced pets, unstable, swap). The file had no other
+#                        blocking call.
+#   SpellChecks.cpp   -- the Tame Beast roster COUNT. Its only blocking call.
+#
+# The pet WRITES stay where they are: they are queued (PExecute / prepared statements), which
+# this gate does not match, and each one now updates the cache beside itself. If a read ever
+# comes back to any of these four files, the gate names the line.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

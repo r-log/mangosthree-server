@@ -810,39 +810,37 @@ void WorldSession::SendStablePet(ObjectGuid guid)
     // CMSG_SET_PET_SLOT. Restricting the query to 0..4 like the
     // pre-Cata code would make any stable-only pet vanish from the
     // panel the moment the player dragged it past slot 4.
-    //                                                      0        1     2        3        4       5
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `owner`, `id`, `entry`, `level`, `name`, `slot` FROM `character_pet` WHERE `owner` = '%u' AND `slot` >= '%u' AND `slot` <= '%u' AND `id` <> '%u' ORDER BY `slot`",
-                          _player->GetGUIDLow(), uint32(PET_SLOT_FIRST), uint32(PET_SLOT_LAST_STABLE_SLOT), activePetId);
+    // Decoupling D7e: the character's cached `character_pet` rows in place of
+    // `SELECT ... WHERE owner = X AND slot >= PET_SLOT_FIRST AND slot <= PET_SLOT_LAST_STABLE_SLOT
+    // AND id <> activePetId ORDER BY slot`. The cache orders by (slot, id), so two pets parked
+    // in one slot -- which the table permits, having no unique key on (owner, slot) -- come
+    // back in a reproducible order rather than the storage engine's.
+    std::vector<PetCacheRow const*> const stabled =
+        _player->GetPetCache().RowsInSlotRange(uint32(PET_SLOT_FIRST), uint32(PET_SLOT_LAST_STABLE_SLOT), activePetId);
 
-    if (result)
+    for (size_t i = 0; i < stabled.size(); ++i)
     {
-        do
+        PetCacheRow const& row = *stabled[i];
+
+        // character_pet.slot 1..MAX_PET_STABLES maps directly onto
+        // Call Pet 2..N+1 in the Cata client. Pets stored beyond the
+        // Call Pet range get PET_STABLE_INACTIVE for forward parity,
+        // even though 4.3.4 has no such slots today.
+        uint32 petSlot = row.slot;
+        uint8 flags = PET_STABLE_ACTIVE;
+        if (petSlot > uint32(PET_SLOT_LAST_ACTIVE_SLOT))
         {
-            Field* fields = result->Fetch();
-
-            // character_pet.slot 1..MAX_PET_STABLES maps directly onto
-            // Call Pet 2..N+1 in the Cata client. Pets stored beyond the
-            // Call Pet range get PET_STABLE_INACTIVE for forward parity,
-            // even though 4.3.4 has no such slots today.
-            uint32 petSlot = fields[5].GetUInt32();
-            uint8 flags = PET_STABLE_ACTIVE;
-            if (petSlot > uint32(PET_SLOT_LAST_ACTIVE_SLOT))
-            {
-                flags |= PET_STABLE_INACTIVE;
-            }
-
-            data << int32(petSlot);
-            data << uint32(fields[1].GetUInt32());          // petnumber
-            data << uint32(fields[2].GetUInt32());          // creature entry
-            data << uint32(fields[3].GetUInt32());          // level
-            data << fields[4].GetString();                  // name
-            data << uint8(flags);
-
-            ++num;
+            flags |= PET_STABLE_INACTIVE;
         }
-        while (result->NextRow());
 
-        delete result;
+        data << int32(petSlot);
+        data << uint32(row.id);                             // petnumber
+        data << uint32(row.entry);                          // creature entry
+        data << uint32(row.level);                          // level
+        data << row.name;                                   // name
+        data << uint8(flags);
+
+        ++num;
     }
 
     data.put<uint8>(wpos, num);                             // set real data to placeholder
@@ -962,19 +960,18 @@ void WorldSession::HandleStablePet(WorldPacket& recv_data)
     // player so a forged packet can't reassign another character's
     // pet. Capture the creature entry and the current slot for the
     // tameable-exotic check and the swap logic below.
-    QueryResult* result = CharacterDatabase.PQuery(
-        "SELECT `entry`, `slot` FROM `character_pet` WHERE `owner` = '%u' AND `id` = '%u'",
-        _player->GetGUIDLow(), petId);
-    if (!result)
+    // Decoupling D7e: `SELECT entry, slot FROM character_pet WHERE owner = X AND id = P`,
+    // from the character's cache.
+    PlayerPetCache& petCache = _player->GetPetCache();
+    PetCacheRow const* sourceRow = petCache.FindById(petId);
+    if (!sourceRow)
     {
         SendStableResult(STABLE_ERR_STABLE);
         return;
     }
 
-    Field* fields = result->Fetch();
-    uint32 creatureEntry = fields[0].GetUInt32();
-    int32 old_slot = int32(fields[1].GetUInt32());
-    delete result;
+    uint32 creatureEntry = sourceRow->entry;
+    int32 old_slot = int32(sourceRow->slot);
 
     CreatureInfo const* creatureInfo = ObjectMgr::GetCreatureTemplate(creatureEntry);
     if (!creatureInfo || !creatureInfo->isTameable(true))
@@ -1014,14 +1011,11 @@ void WorldSession::HandleStablePet(WorldPacket& recv_data)
     // Find the pet (if any) currently occupying new_slot, so we can
     // swap their slots atomically. character_pet has no unique key
     // on (owner, slot) so we have to walk it explicitly.
-    QueryResult* swapResult = CharacterDatabase.PQuery(
-        "SELECT `id` FROM `character_pet` WHERE `owner` = '%u' AND `slot` = '%u' AND `id` <> '%u'",
-        _player->GetGUIDLow(), uint32(new_slot), petId);
+    // Decoupling D7e: `SELECT id FROM character_pet WHERE owner = X AND slot = S AND id <> P`.
     uint32 displacedPetId = 0;
-    if (swapResult)
+    if (PetCacheRow const* displaced = petCache.FindBySlotExcept(uint32(new_slot), petId))
     {
-        displacedPetId = swapResult->Fetch()[0].GetUInt32();
-        delete swapResult;
+        displacedPetId = displaced->id;
     }
 
     // Symmetric to the active-pet check above: if the swap would
@@ -1040,10 +1034,12 @@ void WorldSession::HandleStablePet(WorldPacket& recv_data)
         CharacterDatabase.PExecute(
             "UPDATE `character_pet` SET `slot` = '%u' WHERE `owner` = '%u' AND `id` = '%u'",
             uint32(old_slot), _player->GetGUIDLow(), displacedPetId);
+        petCache.SetSlot(displacedPetId, uint32(old_slot));
     }
     CharacterDatabase.PExecute(
         "UPDATE `character_pet` SET `slot` = '%u' WHERE `owner` = '%u' AND `id` = '%u'",
         uint32(new_slot), _player->GetGUIDLow(), petId);
+    petCache.SetSlot(petId, uint32(new_slot));
     CharacterDatabase.CommitTransaction();
 
     // Keep the in-world Pet's m_petSlot in sync so any subsequent
@@ -1097,13 +1093,12 @@ void WorldSession::HandleUnstablePet(WorldPacket& recv_data)
     uint32 creature_id = 0;
 
     {
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `entry` FROM `character_pet` WHERE `owner` = '%u' AND `id` = '%u' AND `slot` >='%u' AND `slot` <= '%u'",
-                              _player->GetGUIDLow(), petnumber, PET_SAVE_FIRST_STABLE_SLOT, PET_SAVE_LAST_STABLE_SLOT);
-        if (result)
+        // Decoupling D7e: `SELECT entry FROM character_pet WHERE owner = X AND id = P
+        // AND slot >= PET_SAVE_FIRST_STABLE_SLOT AND slot <= PET_SAVE_LAST_STABLE_SLOT`.
+        if (PetCacheRow const* row = _player->GetPetCache().FindByIdInSlotRange(
+                petnumber, uint32(PET_SAVE_FIRST_STABLE_SLOT), uint32(PET_SAVE_LAST_STABLE_SLOT)))
         {
-            Field* fields = result->Fetch();
-            creature_id = fields[0].GetUInt32();
-            delete result;
+            creature_id = row->entry;
         }
     }
 
@@ -1198,6 +1193,14 @@ void WorldSession::HandleStableRevivePet(WorldPacket& recv_data)
 
     // Revive all dead pets in the stable by setting their health to full
     // The character_pet table stores pet health; setting it to non-zero revives it
+    //
+    // Decoupling D7e, and NOT this PR's to fix: both statements below name a column
+    // `maxhealth` that `character_pet` does not have (its columns are `curhealth` and
+    // `curmana`; verified against the live table, which answers
+    // "ERROR 1054 Unknown column 'maxhealth' in 'field list'"). They therefore change no row
+    // today, and the pet cache is deliberately not updated here -- mirroring a statement that
+    // writes nothing would put the cache AHEAD of the table. Whoever gives this handler a
+    // working statement owes it a `PlayerPetCache::SetCurHealth`-shaped update beside it.
     CharacterDatabase.PExecute(
         "UPDATE `character_pet` SET `curhealth` = `maxhealth` "
         "WHERE `owner` = '%u' AND `curhealth` = 0 AND `slot` >= %u AND `slot` <= %u",
@@ -1246,19 +1249,16 @@ void WorldSession::HandleStableSwapPet(WorldPacket& recv_data)
     }
 
     // find swapped pet slot in stable
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `slot`,`entry` FROM `character_pet` WHERE `owner` = '%u' AND `id` = '%u'",
-                          _player->GetGUIDLow(), pet_number);
-    if (!result)
+    // Decoupling D7e: `SELECT slot, entry FROM character_pet WHERE owner = X AND id = P`.
+    PetCacheRow const* swapRow = _player->GetPetCache().FindById(pet_number);
+    if (!swapRow)
     {
         SendStableResult(STABLE_ERR_STABLE);
         return;
     }
 
-    Field* fields = result->Fetch();
-
-    uint32 slot        = fields[0].GetUInt32();
-    uint32 creature_id = fields[1].GetUInt32();
-    delete result;
+    uint32 slot        = swapRow->slot;
+    uint32 creature_id = swapRow->entry;
 
     if (!creature_id)
     {

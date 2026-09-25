@@ -135,6 +135,12 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     Object::_Create(guid.GetCounter(), 0, HIGHGUID_PLAYER);
 
+    // Decoupling D7e: the pet rows arrive with the character. Filled here, first thing after
+    // the character row is accepted, so that everything downstream -- Pet::LoadPetFromDB from
+    // Player::LoadPet, the stable handlers, the tame check -- has it without asking the
+    // database. Nothing inside LoadFromDB reads it; the position is for the reader.
+    _LoadPetCache(holder);
+
     m_name = fields[2].GetCppString();
 
     // check name limitations

@@ -226,6 +226,23 @@ bool LoginQueryHolder::Initialize()
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADCURRENCIES,      "SELECT `id`, `totalCount`, `weekCount`, `seasonCount`, `flags` FROM `character_currencies` WHERE `guid` = '%u'", m_guid.GetCounter());
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADCUFPROFILES,     "SELECT `id`, `name`, `frameHeight`, `frameWidth`, `sortBy`, `healthText`, `boolOptions`, `topPoint`, `bottomPoint`, `leftPoint`, `topOffset`, `bottomOffset`, `leftOffset` FROM `character_cuf_profiles` WHERE `guid` = '%u'", m_guid.GetCounter());
 
+    // Decoupling D7e: the five pet tables. `character_pet` and `character_pet_declinedname`
+    // carry an `owner` column and are read directly; `pet_aura`, `pet_spell` and
+    // `pet_spell_cooldown` are keyed on the PET id, so they reach the character through
+    // `character_pet`.
+    //
+    // Every one of them is ordered, and the order is the point: the per-pet statements these
+    // replace read one pet at a time through each table's PRIMARY KEY, so the rows came back
+    // in key order. Ordering by (guid, key) here gives each pet's run the same order it had,
+    // which is what makes _LoadSpells / _LoadAuras / _LoadSpellCooldowns see what they saw.
+    // `character_pet` had no ORDER BY at all and was answered by an index scan on `owner`,
+    // which walks the primary key -- `ORDER BY id` says so out loud.
+    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETS,            "SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType` FROM `character_pet` WHERE `owner` = '%u' ORDER BY `id`", m_guid.GetCounter());
+    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETAURAS,        "SELECT `pet_aura`.`guid`, `pet_aura`.`caster_guid`, `pet_aura`.`item_guid`, `pet_aura`.`spell`, `pet_aura`.`stackcount`, `pet_aura`.`remaincharges`, `pet_aura`.`basepoints0`, `pet_aura`.`basepoints1`, `pet_aura`.`basepoints2`, `pet_aura`.`periodictime0`, `pet_aura`.`periodictime1`, `pet_aura`.`periodictime2`, `pet_aura`.`maxduration`, `pet_aura`.`remaintime`, `pet_aura`.`effIndexMask` FROM `pet_aura` JOIN `character_pet` ON `pet_aura`.`guid` = `character_pet`.`id` WHERE `character_pet`.`owner` = '%u' ORDER BY `pet_aura`.`guid`, `pet_aura`.`caster_guid`, `pet_aura`.`item_guid`, `pet_aura`.`spell`", m_guid.GetCounter());
+    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETSPELLS,       "SELECT `pet_spell`.`guid`, `pet_spell`.`spell`, `pet_spell`.`active` FROM `pet_spell` JOIN `character_pet` ON `pet_spell`.`guid` = `character_pet`.`id` WHERE `character_pet`.`owner` = '%u' ORDER BY `pet_spell`.`guid`, `pet_spell`.`spell`", m_guid.GetCounter());
+    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETSPELLCOOLDOWNS, "SELECT `pet_spell_cooldown`.`guid`, `pet_spell_cooldown`.`spell`, `pet_spell_cooldown`.`time` FROM `pet_spell_cooldown` JOIN `character_pet` ON `pet_spell_cooldown`.`guid` = `character_pet`.`id` WHERE `character_pet`.`owner` = '%u' ORDER BY `pet_spell_cooldown`.`guid`, `pet_spell_cooldown`.`spell`", m_guid.GetCounter());
+    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADPETDECLINEDNAMES, "SELECT `id`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional` FROM `character_pet_declinedname` WHERE `owner` = '%u' ORDER BY `id`", m_guid.GetCounter());
+
     return res;
 }
 

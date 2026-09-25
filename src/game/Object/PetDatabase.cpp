@@ -26,6 +26,8 @@
 #include <sstream>
 #include <string>
 #include "Pet.h"
+#include "Player.h"
+#include "PlayerPetCache.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "WorldPacket.h"
@@ -58,64 +60,58 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
 
     uint32 ownerid = owner->GetGUIDLow();
 
-    QueryResult* result;
+    // Decoupling D7e: the five mutually exclusive SELECTs on `character_pet` became five
+    // lookups over the character's own cached rows, which the login holder loaded with the
+    // character. Same branches in the same order and with the same WHERE clauses; the owner
+    // is implicit, because the cache holds this character's rows and no others.
+    //
+    // A NULL row means what a NULL QueryResult meant. The row is COPIED rather than pointed
+    // at: the auto-promote block below rewrites slots in the cache, which would move the
+    // fields still being read out of it.
+    PlayerPetCache const& petCache = owner->GetPetCache();
+    PetCacheRow const* found;
 
     if (petnumber)
-        // known petnumber entry                   0     1        2(?)     3          4        5      6             7       8       9          10           11         12        13          14                   15                   16                17
-        result = CharacterDatabase.PQuery("SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType` "
-                                          "FROM `character_pet` WHERE `owner` = '%u' AND `id` = '%u'",
-                                          ownerid, petnumber);
+        // known petnumber entry -- WHERE `owner` = X AND `id` = P
+        found = petCache.FindById(petnumber);
     else if (current)
-        // current pet (slot 0)                    0     1        2(?)     3          4        5      6             7       8       9          10           11         12        13          14                   15                   16                17
-        result = CharacterDatabase.PQuery("SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType` "
-                                          "FROM `character_pet` WHERE `owner` = '%u' AND `slot` = '%u'",
-                                          ownerid, PET_SAVE_AS_CURRENT);
+        // current pet (slot 0) -- WHERE `owner` = X AND `slot` = PET_SAVE_AS_CURRENT
+        found = petCache.FindBySlot(uint32(PET_SAVE_AS_CURRENT));
     else if (slot >= 0)
         // Cata Call Pet 1..N: load the pet at this specific active slot
-        // (0..PET_SLOT_LAST_ACTIVE_SLOT). Caller is Spell::CheckCast for
-        // the hunter Call Pet spell family in a future commit on this
-        // branch; until then this branch is unreachable and the existing
-        // dispatch falls through as before.
-        //                                         0     1        2(?)     3          4        5      6             7       8       9          10           11         12        13          14                   15                   16                17
-        result = CharacterDatabase.PQuery("SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType` "
-                                          "FROM `character_pet` WHERE `owner` = '%u' AND `slot` = '%u'",
-                                          ownerid, uint32(slot));
+        // (0..PET_SLOT_LAST_ACTIVE_SLOT) -- WHERE `owner` = X AND `slot` = S
+        found = petCache.FindBySlot(uint32(slot));
     else if (petentry)
         // known petentry entry (unique for summoned pet, but non unique for hunter pet (only from current or not stabled pets)
-        //                                         0     1        2(?)     3          4        5      6             7       8       9          10           11         12        13          14                   15                   16                17
-        result = CharacterDatabase.PQuery("SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType` "
-                                          "FROM `character_pet` WHERE `owner` = '%u' AND `entry` = '%u' AND (`slot` = '%u' OR `slot` > '%u') ",
-                                          ownerid, petentry, PET_SAVE_AS_CURRENT, PET_SAVE_LAST_STABLE_SLOT);
+        // WHERE `owner` = X AND `entry` = E AND (`slot` = PET_SAVE_AS_CURRENT OR `slot` > PET_SAVE_LAST_STABLE_SLOT)
+        found = petCache.FindByEntryCurrentOrUnslotted(petentry);
     else
         // any current or other non-stabled pet (for hunter "call pet")
-        //                                         0     1        2(?)     3          4        5      6             7       8       9          10           11         12        13          14                   15                   16                17
-        result = CharacterDatabase.PQuery("SELECT `id`, `entry`, `owner`, `modelid`, `level`, `exp`, `Reactstate`, `slot`, `name`, `renamed`, `curhealth`, `curmana`, `abdata`, `savetime`, `resettalents_cost`, `resettalents_time`, `CreatedBySpell`, `PetType` "
-                                          "FROM `character_pet` WHERE `owner` = '%u' AND (`slot` = '%u' OR `slot` > '%u') ",
-                                          ownerid, PET_SAVE_AS_CURRENT, PET_SAVE_LAST_STABLE_SLOT);
+        // WHERE `owner` = X AND (`slot` = PET_SAVE_AS_CURRENT OR `slot` > PET_SAVE_LAST_STABLE_SLOT)
+        found = petCache.FindCurrentOrUnslotted();
 
-    if (!result)
+    if (!found)
     {
         return false;
     }
 
-    Field* fields = result->Fetch();
+    PetCacheRow const fields = *found;
 
     // Record the slot column on the Pet instance. Future commits on this
     // branch (audit IDs C2 / D-row hunter re-saves) read m_petSlot to keep
     // each tamed pet parked at its Call Pet 1..N slot across re-saves and
-    // dismisses. Capturing it here (after `result` is known non-null and
-    // the row exists, but before any early-out) means every successful
+    // dismisses. Capturing it here (after the cached row is known to
+    // exist, but before any early-out) means every successful
     // load -- by petnumber, current-flag, explicit slot, petentry, or
     // legacy fallback -- gets the same accurate value. Harmless for the
     // early-out failure paths below: a Pet object that returns false
     // gets discarded by the caller, m_petSlot included.
-    m_petSlot = int32(fields[7].GetUInt32());
+    m_petSlot = int32(fields.slot);
 
     // update for case of current pet "slot = 0"
-    petentry = fields[1].GetUInt32();
+    petentry = fields.entry;
     if (!petentry)
     {
-        delete result;
         return false;
     }
 
@@ -123,11 +119,10 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     if (!creatureInfo)
     {
         sLog.outError("Pet entry %u does not exist but used at pet load (owner: %s).", petentry, owner->GetGuidStr().c_str());
-        delete result;
         return false;
     }
 
-    uint32 summon_spell_id = fields[16].GetUInt32();
+    uint32 summon_spell_id = fields.createdBySpell;
     SpellEntry const* spellInfo = sSpellStore.LookupEntry(summon_spell_id);
 
     bool is_temporary_summoned = spellInfo && GetSpellDuration(spellInfo) > 0;
@@ -135,21 +130,19 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     // check temporary summoned pets like mage water elemental
     if (current && is_temporary_summoned)
     {
-        delete result;
         return false;
     }
 
-    PetType pet_type = PetType(fields[17].GetUInt8());
+    PetType pet_type = PetType(fields.petType);
     if (pet_type == HUNTER_PET)
     {
         if (!creatureInfo->isTameable(owner->CanTameExoticPets()))
         {
-            delete result;
             return false;
         }
     }
 
-    uint32 pet_number = fields[0].GetUInt32();
+    uint32 pet_number = fields.id;
 
     Map* map = owner->GetMap();
 
@@ -158,7 +151,6 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     uint32 guid = pos.GetMap()->GenerateLocalLowGuid(HIGHGUID_PET);
     if (!Create(guid, pos, creatureInfo, pet_number))
     {
-        delete result;
         return false;
     }
 
@@ -172,18 +164,17 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     {
         AIM_Initialize();
         pos.GetMap()->Add((Creature*)this);
-        delete result;
         return true;
     }
 
     m_charmInfo->SetPetNumber(pet_number, isControlled());
 
     SetOwnerGuid(owner->GetObjectGuid());
-    SetDisplayId(fields[3].GetUInt32());
-    SetNativeDisplayId(fields[3].GetUInt32());
-    uint32 petlevel = fields[4].GetUInt32();
+    SetDisplayId(fields.modelId);
+    SetNativeDisplayId(fields.modelId);
+    uint32 petlevel = fields.level;
     SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
-    SetName(fields[8].GetString());
+    SetName(fields.name);
 
     // Defensive name fallback. The starter pet rows created by
     // WorldSession::HandleCharCreateOpcode (CharacterHandler.cpp) write
@@ -227,7 +218,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
 
     if (getPetType() == HUNTER_PET)
     {
-        SetByteFlag(UNIT_FIELD_BYTES_2, 2, fields[9].GetBool() ? UNIT_CAN_BE_ABANDONED : UNIT_CAN_BE_RENAMED | UNIT_CAN_BE_ABANDONED);
+        SetByteFlag(UNIT_FIELD_BYTES_2, 2, (fields.renamed != 0) ? UNIT_CAN_BE_ABANDONED : UNIT_CAN_BE_RENAMED | UNIT_CAN_BE_ABANDONED);
         SetPowerType(POWER_FOCUS);
     }
     else if (getPetType() != SUMMON_PET)
@@ -248,13 +239,13 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     InitTalentForLevel();                                   // set original talents points before spell loading
 
     SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, uint32(time(NULL)));
-    SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, fields[5].GetUInt32());
+    SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, fields.exp);
     SetCreatorGuid(owner->GetObjectGuid());
 
-    m_charmInfo->SetReactState(ReactStates(fields[6].GetUInt8()));
+    m_charmInfo->SetReactState(ReactStates(fields.reactState));
 
-    uint32 savedhealth = fields[10].GetUInt32();
-    uint32 savedpower = fields[11].GetUInt32();
+    uint32 savedhealth = fields.curHealth;
+    uint32 savedpower = fields.curMana;
 
     // set current pet as current
     // 0=current
@@ -280,7 +271,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     // SUMMON_PET / GUARDIAN_PET / MINI_PET keep the legacy auto-promote
     // -- they have no Call Pet 1..N concept and the warlock pet pool
     // still expects loading from slot 100 to mean "becomes active."
-    if (getPetType() != HUNTER_PET && fields[7].GetUInt32() != 0)
+    if (getPetType() != HUNTER_PET && fields.slot != 0)
     {
         CharacterDatabase.BeginTransaction();
 
@@ -294,24 +285,30 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
         stmt.PExecute(uint32(PET_SAVE_AS_CURRENT), ownerid, m_charmInfo->GetPetNumber());
 
         CharacterDatabase.CommitTransaction();
+
+        // The cache carries the same two updates, in the same order. `fields` is a copy, so
+        // the slot it holds is the one the row had before this block -- which is what the
+        // rest of the function still wants.
+        PlayerPetCache& writable = owner->GetPetCache();
+        writable.MoveSlot(uint32(PET_SAVE_AS_CURRENT), uint32(PET_SAVE_NOT_IN_SLOT), m_charmInfo->GetPetNumber());
+        writable.SetSlot(m_charmInfo->GetPetNumber(), uint32(PET_SAVE_AS_CURRENT));
     }
 
     // load action bar, if data broken will fill later by default spells.
     if (!is_temporary_summoned)
     {
-        m_charmInfo->LoadPetActionBar(fields[12].GetCppString());
+        m_charmInfo->LoadPetActionBar(fields.abData);
     }
 
     // since last save (in seconds)
-    uint32 timediff = uint32(time(NULL) - fields[13].GetUInt64());
+    uint32 timediff = uint32(time(NULL) - fields.saveTime);
 
-    m_resetTalentsCost = fields[14].GetUInt32();
-    m_resetTalentsTime = fields[15].GetUInt64();
+    m_resetTalentsCost = fields.resetTalentsCost;
+    m_resetTalentsTime = fields.resetTalentsTime;
 
-    delete result;
 
     // load spells/cooldowns/auras
-    _LoadAuras(timediff);
+    _LoadAuras(timediff, petCache);
 
     // init AB
     if (is_temporary_summoned)
@@ -340,12 +337,12 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
     AIM_Initialize();
 
     // Spells should be loaded after pet is added to map, because in CheckCast is check on it
-    _LoadSpells();
+    _LoadSpells(petCache);
     InitLevelupSpellsForLevel();
 
     CleanupActionBar();                                     // remove unknown spells from action bar after load
 
-    _LoadSpellCooldowns();
+    _LoadSpellCooldowns(petCache);
 
     owner->SetPet(this);                                    // in DB stored only full controlled creature
     DEBUG_LOG("New Pet has guid %u", GetGUIDLow());
@@ -363,20 +360,18 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
 
     if (owner->GetTypeId() == TYPEID_PLAYER && getPetType() == HUNTER_PET)
     {
-        result = CharacterDatabase.PQuery("SELECT `genitive`, `dative`, `accusative`, `instrumental`, `prepositional` FROM `character_pet_declinedname` WHERE `owner` = '%u' AND `id` = '%u'", owner->GetGUIDLow(), GetCharmInfo()->GetPetNumber());
-
-        if (result)
+        // Decoupling D7e: `SELECT ... FROM character_pet_declinedname WHERE owner = X AND id = P`.
+        // The cache holds this character's rows keyed by pet id, so the owner half of the
+        // WHERE clause is the cache itself.
+        if (PetCacheDeclinedName const* declined = petCache.FindDeclinedName(GetCharmInfo()->GetPetNumber()))
         {
             delete m_declinedname;
             m_declinedname = new DeclinedName;
 
-            Field* fields2 = result->Fetch();
             for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
             {
-                m_declinedname->name[i] = fields2[i].GetCppString();
+                m_declinedname->name[i] = declined->name[i];
             }
-
-            delete result;
         }
     }
 
@@ -416,6 +411,11 @@ void Pet::SavePetToDB(PetSaveMode mode)
         return;
     }
 
+    // Decoupling D7e: the owner is online by the three gates above, so it has a pet cache.
+    // Every statement this function queues below is mirrored into it at the same place, in
+    // the same order, so the next LoadPetFromDB reads what this save wrote.
+    PlayerPetCache& petCache = pOwner->GetPetCache();
+
     // Cata multi-pet allocator. Resolves PET_SAVE_NEW_PET (== 102) into
     // a concrete active-roster slot 0..PET_SLOT_LAST_ACTIVE_SLOT by
     // scanning character_pet for the first vacant slot in that range.
@@ -431,22 +431,17 @@ void Pet::SavePetToDB(PetSaveMode mode)
     // its own.
     if (mode == PET_SAVE_NEW_PET)
     {
-        uint32 ownerLowForNewPet = GetOwnerGuid().GetCounter();
+        // Decoupling D7e: the vacancy scan reads the owner's cached rows instead of
+        // `SELECT slot FROM character_pet WHERE owner = X AND slot <= PET_SLOT_LAST_ACTIVE_SLOT`.
         bool occupied[PET_SLOT_LAST_ACTIVE_SLOT + 1] = {};
-        if (QueryResult* used = CharacterDatabase.PQuery(
-                "SELECT `slot` FROM `character_pet` WHERE `owner` = '%u' AND `slot` <= '%u'",
-                ownerLowForNewPet, uint32(PET_SLOT_LAST_ACTIVE_SLOT)))
+        PlayerPetCache::RowMap const& rows = petCache.Rows();
+        for (PlayerPetCache::RowMap::const_iterator itr = rows.begin(); itr != rows.end(); ++itr)
         {
-            do
+            uint32 s = itr->second.slot;
+            if (s <= uint32(PET_SLOT_LAST_ACTIVE_SLOT))
             {
-                uint32 s = used->Fetch()[0].GetUInt32();
-                if (s <= uint32(PET_SLOT_LAST_ACTIVE_SLOT))
-                {
-                    occupied[s] = true;
-                }
+                occupied[s] = true;
             }
-            while (used->NextRow());
-            delete used;
         }
         int32 freeSlot = -1;
         for (int32 s = 0; s <= PET_SLOT_LAST_ACTIVE_SLOT; ++s)
@@ -544,9 +539,9 @@ void Pet::SavePetToDB(PetSaveMode mode)
 
         // save pet's data as one single transaction
         CharacterDatabase.BeginTransaction();
-        _SaveSpells();
-        _SaveSpellCooldowns();
-        _SaveAuras();
+        _SaveSpells(petCache);
+        _SaveSpellCooldowns(petCache);
+        _SaveAuras(petCache);
 
         uint32 ownerLow = GetOwnerGuid().GetCounter();
         // remove current data
@@ -555,6 +550,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
 
         SqlStatement stmt = CharacterDatabase.CreateStatement(delPet, "DELETE FROM `character_pet` WHERE `owner` = ? AND `id` = ?");
         stmt.PExecute(ownerLow, m_charmInfo->GetPetNumber());
+        petCache.EraseRow(m_charmInfo->GetPetNumber());
 
         // prevent duplicate using slot (except PET_SAVE_NOT_IN_SLOT)
         if (mode <= PET_SAVE_LAST_STABLE_SLOT)
@@ -563,6 +559,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
 
             stmt = CharacterDatabase.CreateStatement(updPet, "UPDATE `character_pet` SET `slot` = ? WHERE `owner` = ? AND `slot` = ?");
             stmt.PExecute(uint32(PET_SAVE_NOT_IN_SLOT), ownerLow, uint32(mode));
+            petCache.MoveSlot(uint32(mode), uint32(PET_SAVE_NOT_IN_SLOT), 0);
         }
 
         // Cata multi-pet hunter cleanup: reap orphan rows
@@ -595,6 +592,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
 
             stmt = CharacterDatabase.CreateStatement(del, "DELETE FROM `character_pet` WHERE `owner` = ? AND `slot` > ? AND `id` <> ?");
             stmt.PExecute(ownerLow, uint32(PET_SAVE_LAST_STABLE_SLOT), m_charmInfo->GetPetNumber());
+            petCache.EraseRowsAboveSlot(uint32(PET_SAVE_LAST_STABLE_SLOT), m_charmInfo->GetPetNumber());
         }
 
         // save pet
@@ -621,9 +619,16 @@ void Pet::SavePetToDB(PetSaveMode mode)
             ss << uint32(m_charmInfo->GetActionBarEntry(i)->GetType()) << " "
                << uint32(m_charmInfo->GetActionBarEntry(i)->GetAction()) << " ";
         };
+        // Taken before the bind: SqlStatement::addString(std::ostringstream&) EMPTIES the
+        // stream it is handed (SqlPreparedStatement.h), so ss.str() afterwards is "".
+        const std::string abData = ss.str();
         savePet.addString(ss);
 
-        savePet.addUInt64(uint64(time(NULL)));
+        // One reading of the clock, so the row the cache holds and the row the INSERT writes
+        // carry the same `savetime` -- which is what the next load's `timediff` is measured
+        // from.
+        const uint64 saveTime = uint64(time(NULL));
+        savePet.addUInt64(saveTime);
         savePet.addUInt32(uint32(m_resetTalentsCost));
         savePet.addUInt64(uint64(m_resetTalentsTime));
         savePet.addUInt32(GetUInt32Value(UNIT_CREATED_BY_SPELL));
@@ -631,11 +636,38 @@ void Pet::SavePetToDB(PetSaveMode mode)
 
         savePet.Execute();
         CharacterDatabase.CommitTransaction();
+
+        // The same row, into the cache. Built from the same values in the same order as the
+        // INSERT's parameters, so a reviewer can read the two side by side.
+        PetCacheRow row;
+        row.id               = m_charmInfo->GetPetNumber();
+        row.entry            = GetEntry();
+        row.owner            = ownerLow;
+        row.modelId          = GetNativeDisplayId();
+        row.level            = getLevel();
+        row.exp              = GetUInt32Value(UNIT_FIELD_PETEXPERIENCE);
+        row.reactState       = uint8(m_charmInfo->GetReactState());
+        row.slot             = uint32(mode);
+        row.name             = m_name;
+        row.renamed          = uint8(HasByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED) ? 0 : 1);
+        row.curHealth        = curhealth;
+        row.curMana          = curpower;
+        row.abData           = abData;
+        row.saveTime         = saveTime;
+        row.resetTalentsCost = uint32(m_resetTalentsCost);
+        row.resetTalentsTime = uint64(m_resetTalentsTime);
+        row.createdBySpell   = GetUInt32Value(UNIT_CREATED_BY_SPELL);
+        row.petType          = uint8(getPetType());
+        petCache.SetRow(row);
     }
     else
     {
         RemoveAllAuras(AURA_REMOVE_BY_DELETE);
         DeleteFromDB(m_charmInfo->GetPetNumber());
+        // Pet::DeleteFromDB is a static with no owner, and its other caller
+        // (Player::DeleteFromDB) runs for a character who is offline and has no cache. This
+        // is the one call site with a live owner, so the five-table sweep is mirrored here.
+        petCache.ErasePet(m_charmInfo->GetPetNumber());
     }
 }
 

@@ -1030,12 +1030,13 @@ SpellCastResult Spell::CheckCast(bool strict)
                 // any race between cast-start and effect-time (player
                 // gains a pet mid-cast somehow), but the user-visible
                 // failure now fires immediately.
-                if (QueryResult* roster = CharacterDatabase.PQuery(
-                        "SELECT COUNT(*) FROM `character_pet` WHERE `owner` = '%u' AND `slot` <= '%u'",
-                        plrCaster->GetGUIDLow(), uint32(PET_SLOT_LAST_ACTIVE_SLOT)))
+                //
+                // Decoupling D7e: the count comes from the caster's cached `character_pet`
+                // rows instead of `SELECT COUNT(*) ... WHERE owner = X AND slot <= S`. A
+                // COUNT always returned a row, so the old `if (result)` was never the
+                // decision -- the comparison below is, and it is unchanged.
                 {
-                    uint32 owned = roster->Fetch()[0].GetUInt32();
-                    delete roster;
+                    uint32 owned = plrCaster->GetPetCache().CountRowsUpToSlot(uint32(PET_SLOT_LAST_ACTIVE_SLOT));
                     if (owned > uint32(PET_SLOT_LAST_ACTIVE_SLOT))
                     {
                         plrCaster->SendPetTameFailure(PETTAME_TOOMANY);
