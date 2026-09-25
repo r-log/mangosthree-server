@@ -127,6 +127,33 @@ typedef std::deque<Mail*> PlayerMails;
 #define PLAYER_EXPLORED_ZONES_SIZE  156
 
 /**
+ * @brief The slots of the character-delete holder (decoupling D7d).
+ *
+ * Player::DeleteFromDB used to issue these reads one by one while the tick waited; they are
+ * now staged into a single SqlQueryHolder up front (C4), so the whole body runs in one
+ * continuation with the reads it needs already answered. The first two are read for every
+ * delete method; the last four only for method 0, which is the only one that returns mail,
+ * unsummons pets and cleans friend lists.
+ *
+ * PLAYER_DELETE_READ_OWNER is the CMSG_CHAR_DELETE handler's own ownership read, appended
+ * to the SAME holder so a delete costs one round trip and not two. Nothing else uses it,
+ * which is why the count above it stops at PLAYER_DELETE_READ_COUNT.
+ */
+enum PlayerDeleteReadSlot
+{
+    PLAYER_DELETE_READ_GROUP                = 0,
+    PLAYER_DELETE_READ_PETITION_SIGNS       = 1,
+    PLAYER_DELETE_READ_COD_MAIL             = 2,
+    PLAYER_DELETE_READ_COD_MAIL_ITEMS       = 3,
+    PLAYER_DELETE_READ_PETS                 = 4,
+    PLAYER_DELETE_READ_FRIENDS              = 5,
+    PLAYER_DELETE_READ_COUNT                = 6,
+
+    PLAYER_DELETE_READ_OWNER                = 6,
+    PLAYER_DELETE_READ_WITH_OWNER_COUNT     = 7
+};
+
+/**
  * @brief Player underwater state enumeration
  *
  * 2^n internal values, they are never sent to the client.
@@ -2122,17 +2149,41 @@ class Player : public Unit
         // Set a uint32 value in an array
         static void SetUInt32ValueInArray(Tokens& data, uint16 index, uint32 value);
         static void SetFloatValueInArray(Tokens& data, uint16 index, float value);
-        static void Customize(ObjectGuid guid, uint8 gender, uint8 skin, uint8 face, uint8 hairStyle, uint8 hairColor, uint8 facialHair);
+        // Writes the appearance an offline character was customized to. `playerBytes2` is
+        // the value of that column as the caller's holder read it (decoupling D7d): this
+        // function reads nothing itself, because it runs inside a continuation.
+        static void Customize(ObjectGuid guid, uint8 gender, uint8 skin, uint8 face, uint8 hairStyle, uint8 hairColor, uint8 facialHair, uint32 playerBytes2);
         static void SavePositionInDB(ObjectGuid guid, uint32 mapid, float x, float y, float z, float o, uint32 zone);
 
-        // Delete a player from the database
+        // Which CharDelete.Method a delete of this character will use: the config, unless
+        // `deleteFinally` or the minimum-level rule forces 0. Reads the character cache,
+        // not the database (decoupling D7c/D7d), so the staging below can branch on it.
+        static uint32 DeleteMethodFor(ObjectGuid playerguid, bool deleteFinally);
+
+        // Stages every read DeleteFromDBFromHolder() needs into `holder`, which must already
+        // be sized to at least PLAYER_DELETE_READ_COUNT. The four method-0 slots are staged
+        // only for method 0, which is the only method that reads them -- exactly the reads
+        // the synchronous body used to issue.
+        static void StageDeleteReads(SqlQueryHolder* holder, uint32 lowguid, uint32 charDeleteMethod);
+
+        // Delete a player from the database. Queues its reads and returns (decoupling D7d);
+        // the delete itself happens in DeleteFromDBFromHolder() one tick later.
         static void DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRealmChars = true, bool deleteFinally = false);
+
+        // The old DeleteFromDB body, fed by the holder its reads were staged into. Public so
+        // the CMSG_CHAR_DELETE handler can share one holder with its own ownership read and
+        // send SMSG_CHAR_DELETE after this returns.
+        static void DeleteFromDBFromHolder(std::unique_ptr<SqlQueryHolder> holder, ObjectGuid playerguid,
+                                           uint32 accountId, bool updateRealmChars, uint32 charDeleteMethod);
 
         // Delete old characters from the database
         static void DeleteOldCharacters();
 
         // Delete old characters from the database, keeping characters for a specified number of days
         static void DeleteOldCharacters(uint32 keepDays);
+
+        // The guid list DeleteOldCharacters() asked for, one DeleteFromDB() per row.
+        static void DeleteOldCharactersCallback(std::unique_ptr<QueryResult> result);
 
         bool m_mailsUpdated; // Indicates if mails have been updated
 
@@ -2631,7 +2682,13 @@ class Player : public Unit
         static uint32 GetRankFromDB(ObjectGuid guid);
         int GetGuildIdInvited() const { return m_GuildIdInvited; }
         ObjectGuid GetGuildInviterGuid() const { return m_GuildInviterGuid; }
+        // Reads this character's petition signatures and then removes them. Still
+        // synchronous, because Guild::AddMember calls it from inside the tick and that
+        // chain is D7f's; the line is allow-listed in src/tests/CheckSyncDb.cmake.
         static void RemovePetitionsAndSigns(ObjectGuid guid);
+        // The same work, with the signature rows handed in -- what the character-delete
+        // holder feeds it, so the delete path reads nothing (decoupling D7d).
+        static void RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs);
         void SendPetitionSignResult(ObjectGuid petitionGuid, Player* player, uint32 result);
         void SendPetitionTurnInResult(uint32 result);
 
