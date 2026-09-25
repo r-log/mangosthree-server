@@ -39,7 +39,10 @@
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
+#include "AccountMgr.h"
+#include "Chat.h"
 
+#include <cctype>
 #include <cstdio>
 #include <string>
 #include <thread>
@@ -285,4 +288,84 @@ TEST(TickGuard_StrictMatchesTheBuildConfiguration)
 #else
     CHECK(!TickGuard::Strict());
 #endif
+}
+
+/// Decoupling D7i. The predicate behind the tree's ONE TickGuard::AdminScope, on both
+/// sides. It cannot be tested through ExecuteCommand (that needs a session, a world and a
+/// command table), and the scope itself may not be constructed outside Chat.cpp -- so what
+/// is tested is the thing that decides: ChatHandler::IsAdministrativeCommand.
+///
+/// The floor is "above SEC_PLAYER" (Ruling 27): every staff command, moderators included,
+/// is inside; a SEC_PLAYER command never enters the scope, so a player-reachable
+/// acquisition is still counted as the tick's and still asserts under MANGOS_STRICT_TICK.
+TEST(TickGuard_AdministrativeCommandIsAnyStaffLevel)
+{
+    ChatCommand playerCommand("password", SEC_PLAYER, false, NULL, "", NULL);
+    ChatCommand moderatorCommand("go creature", SEC_MODERATOR, true, NULL, "", NULL);
+    ChatCommand gamemasterCommand("pinfo", SEC_GAMEMASTER, true, NULL, "", NULL);
+    ChatCommand administratorCommand("reload", SEC_ADMINISTRATOR, true, NULL, "", NULL);
+    ChatCommand consoleCommand("server exit", SEC_CONSOLE, true, NULL, "", NULL);
+
+    CHECK(!ChatHandler::IsAdministrativeCommand(&playerCommand));
+    CHECK(ChatHandler::IsAdministrativeCommand(&moderatorCommand));
+    CHECK(ChatHandler::IsAdministrativeCommand(&gamemasterCommand));
+    CHECK(ChatHandler::IsAdministrativeCommand(&administratorCommand));
+    CHECK(ChatHandler::IsAdministrativeCommand(&consoleCommand));
+
+    // The dispatcher only reaches the scope on CHAT_COMMAND_OK, where `command` is never
+    // NULL -- but the predicate is the thing a future caller will reach for, so it answers
+    // for NULL rather than dereferencing it.
+    CHECK(!ChatHandler::IsAdministrativeCommand(NULL));
+}
+
+/// Decoupling D7i. `SecurityLevel` is the RUNTIME level: ChatHandler::LoadCommandTable
+/// overwrites it from the `command` table, so a realm may lower a staff command to
+/// SEC_PLAYER. The predicate then answers false, and that is deliberate -- a command a
+/// player can run is player-reachable however it started life, and it must assert.
+TEST(TickGuard_AdministrativeCommandFollowsTheDatabaseOverride)
+{
+    ChatCommand goCreature("creature", SEC_MODERATOR, true, NULL, "", NULL);
+    CHECK(ChatHandler::IsAdministrativeCommand(&goCreature));
+
+    goCreature.SecurityLevel = SEC_PLAYER;                  // what `command`.`security` = 0 does
+    CHECK(!ChatHandler::IsAdministrativeCommand(&goCreature));
+}
+
+/// Decoupling D7i. `.account password`'s hash comparison moved out of SQL and into C++,
+/// and `account`.`sha_pass_hash` is utf8_general_ci -- so it has to keep ignoring case.
+TEST(TickGuard_PasswordHashComparisonIgnoresCaseLikeTheColumn)
+{
+    const std::string upper = "5A105E8B9D40E1329780D62EA2265D8A";
+    std::string lower = upper;
+    for (size_t i = 0; i < lower.size(); ++i)
+    {
+        lower[i] = char(std::tolower(static_cast<unsigned char>(lower[i])));
+    }
+
+    CHECK(AccountMgr::PasswordHashMatches(upper, upper));
+    CHECK(AccountMgr::PasswordHashMatches(upper, lower));
+    CHECK(AccountMgr::PasswordHashMatches(lower, upper));
+
+    CHECK(!AccountMgr::PasswordHashMatches(upper, ""));
+    CHECK(!AccountMgr::PasswordHashMatches(upper, upper + "0"));
+    CHECK(!AccountMgr::PasswordHashMatches(upper, "5A105E8B9D40E1329780D62EA2265D8B"));
+}
+
+/// Decoupling D7i, fix round 1. `.account password`'s replies are sent from a continuation,
+/// through a ChatHandler that dereferences the session's player. The continuation must
+/// re-find the session AND the character and drop the replies when either is gone. No
+/// session can be seated in this binary, so what is driven here is the outer half of the
+/// rested-logout case -- the requester is gone -- on every verdict path; before the fix the
+/// same call with a seated, playerless session crashed in ChatHandler::SendSysMessage.
+TEST(TickGuard_AccountPasswordRepliesAreDroppedWhenTheRequesterIsGone)
+{
+    const ObjectGuid requester(HIGHGUID_PLAYER, uint32(42));
+
+    ChatHandler::FinishAccountPasswordCommand(17, 1, requester, false, AOR_NAME_NOT_EXIST);
+    ChatHandler::FinishAccountPasswordCommand(17, 1, requester, true, AOR_OK);
+    ChatHandler::FinishAccountPasswordCommand(17, 1, requester, true, AOR_PASS_TOO_LONG);
+    ChatHandler::FinishAccountPasswordCommand(17, 1, requester, true, AOR_DB_INTERNAL_ERROR);
+
+    // Reaching this line is the assertion: nothing was dereferenced.
+    CHECK(true);
 }

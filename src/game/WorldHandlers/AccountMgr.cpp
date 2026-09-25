@@ -41,6 +41,9 @@
  * @see AccountMgr for the singleton interface
  */
 
+#include <algorithm>
+#include <cctype>
+#include <memory>
 #include <string>
 #include "AccountMgr.h"
 #include "Database/DatabaseEnv.h"
@@ -393,32 +396,80 @@ uint32 AccountMgr::GetCharactersCount(uint32 acc_id)
 }
 
 /**
- * It takes a username and password, and returns true if the password is correct
+ * Decoupling D7i: the `.account password` path, off the tick.
  *
- * @param accid The account ID of the account you want to check the password for.
- * @param passwd The password that the user entered.
+ * What the three synchronous reads did, in one asynchronous one:
  *
- * @return The account id of the account that is being logged in.
+ *   CheckPassword  -> GetName(accid, username), then
+ *                     `SELECT 1 FROM account WHERE id = ? AND sha_pass_hash = ?`
+ *   ChangePassword -> GetName(accid, username), then the UPDATE
+ *
+ * Both names came from the same row this reads, and the hash comparison the SELECT made
+ * in SQL is made here in C++ -- CASE-INSENSITIVELY, because `account`.`sha_pass_hash` is
+ * `utf8_general_ci` and that is how the column compared. (hexEncodeByteArray writes upper
+ * case and realmd stores what it writes, so this only matters for a row somebody edited
+ * by hand -- which is exactly the case where quietly disagreeing with the old code would
+ * be worst.)
+ *
+ * @param accid The account ID.
+ * @param oldPasswd The password to verify.
+ * @param newPasswd The password to set once it verifies.
+ * @param callback (did the old password match, what the change returned).
  */
-bool AccountMgr::CheckPassword(uint32 accid, std::string passwd)
+void AccountMgr::QueueChangePasswordChecked(uint32 accid, std::string oldPasswd, std::string newPasswd,
+                                            std::function<void(bool, AccountOpResult)> callback)
 {
-    std::string username;
-    if (!GetName(accid, username))
+    if (!LoginDatabase.AsyncPQuery([accid, oldPasswd, newPasswd, callback](QueryResult* result) mutable
+                                   {
+                                       std::unique_ptr<QueryResult> row(result);
+                                       if (!row)
+                                       {
+                                           // GetName() found no account: CheckPassword answered false,
+                                           // which is the wrong-old-password reply (C4).
+                                           callback(false, AOR_NAME_NOT_EXIST);
+                                           return;
+                                       }
+
+                                       // ChangePassword hashed the name EXACTLY as GetName returned it,
+                                       // while CheckPassword upper-cased its own copy first. Both are kept.
+                                       std::string storedName = (*row)[0].GetCppString();
+                                       std::string storedHash = (*row)[1].GetCppString();
+
+                                       std::string checkName = storedName;
+                                       Utf8ToUpperOnlyLatin(oldPasswd);
+                                       Utf8ToUpperOnlyLatin(checkName);
+
+                                       std::string expected = sAccountMgr.CalculateShaPassHash(checkName, oldPasswd);
+                                       if (!PasswordHashMatches(expected, storedHash))
+                                       {
+                                           callback(false, AOR_NAME_NOT_EXIST);
+                                           return;
+                                       }
+
+                                       // ...and here ChangePassword's own body, with the name in hand.
+                                       if (utf8length(newPasswd) > MAX_ACCOUNT_STR)
+                                       {
+                                           callback(true, AOR_PASS_TOO_LONG);
+                                           return;
+                                       }
+
+                                       Utf8ToUpperOnlyLatin(newPasswd);
+
+                                       // also reset s and v to force update at next realmd login
+                                       if (!LoginDatabase.PExecute("UPDATE `account` SET `v`='0', `s`='0', `sha_pass_hash`='%s' WHERE `id`='%u'",
+                                                                   sAccountMgr.CalculateShaPassHash(storedName, newPasswd).c_str(), accid))
+                                       {
+                                           callback(true, AOR_DB_INTERNAL_ERROR);
+                                           return;
+                                       }
+
+                                       callback(true, AOR_OK);
+                                   }, "SELECT `username`, `sha_pass_hash` FROM `account` WHERE `id`='%u'", accid))
     {
-        return false;
+        // LoginDatabase::BeginShutdown is the only way that fails, and it is the same
+        // unknown answer a missing row is (C4).
+        callback(false, AOR_NAME_NOT_EXIST);
     }
-
-    Utf8ToUpperOnlyLatin(passwd);
-    Utf8ToUpperOnlyLatin(username);
-
-    QueryResult* result = LoginDatabase.PQuery("SELECT 1 FROM `account` WHERE `id`='%u' AND `sha_pass_hash`='%s'", accid, CalculateShaPassHash(username, passwd).c_str());
-    if (result)
-    {
-        delete result;
-        return true;
-    }
-
-    return false;
 }
 
 /**
@@ -430,6 +481,17 @@ bool AccountMgr::CheckPassword(uint32 accid, std::string passwd)
  *
  * @return The SHA1 hash of the username and password.
  */
+bool AccountMgr::PasswordHashMatches(std::string const& expected, std::string const& stored)
+{
+    return expected.size() == stored.size() &&
+           std::equal(expected.begin(), expected.end(), stored.begin(),
+                      [](char left, char right)
+                      {
+                          return std::toupper(static_cast<unsigned char>(left)) ==
+                                 std::toupper(static_cast<unsigned char>(right));
+                      });
+}
+
 std::string AccountMgr::CalculateShaPassHash(std::string& name, std::string& password)
 {
     Sha1Hash sha;

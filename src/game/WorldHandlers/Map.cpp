@@ -58,6 +58,7 @@
 #include "GridStates.h"
 #include "CellImpl.h"
 #include "InstanceData.h"
+#include "InstanceDataCache.h"
 #include "GridNotifiersImpl.h"
 #include "Transports.h"
 #include "TransportMap.h"
@@ -2267,28 +2268,25 @@ void Map::CreateInstanceData(bool load)
 
     if (load)
     {
-        // TODO: make a global storage for this
-        QueryResult* result;
+        // Decoupling D7i: this is the "global storage for this" the old TODO asked for.
+        // Two synchronous SELECTs used to run here, on whichever thread created the map --
+        // and on the tick that is every continent at start-up, every transport deck and
+        // every dungeon a player zones into. InstanceDataCache holds both columns and is
+        // kept current by every writer of them, so the map creation stays same-tick and
+        // waits for nothing.
+        const InstanceScriptData row = Instanceable()
+                                       ? sInstanceDataCache.GetInstance(i_InstanceId)
+                                       : sInstanceDataCache.GetWorld(GetId());
 
-        if (Instanceable())
+        if (row.present)
         {
-            result = CharacterDatabase.PQuery("SELECT `data` FROM `instance` WHERE `id` = '%u'", i_InstanceId);
-        }
-        else
-        {
-            result = CharacterDatabase.PQuery("SELECT `data` FROM `world` WHERE `map` = '%u'", GetId());
-        }
-
-        if (result)
-        {
-            Field* fields = result->Fetch();
-            const char* data = fields[0].GetString();
-            if (data)
+            // `isNull` is the old `const char* data = fields[0].GetString(); if (data)`:
+            // a row whose `data` column is SQL NULL loads nothing, an empty one loads "".
+            if (!row.isNull)
             {
                 DEBUG_LOG("Loading instance data for `%s` (Map: %u Instance: %u)", sScriptMgr.GetScriptName(i_script_id), GetId(), i_InstanceId);
-                i_data->Load(data);
+                i_data->Load(row.value.c_str());
             }
-            delete result;
         }
         else
         {
@@ -2296,6 +2294,7 @@ void Map::CreateInstanceData(bool load)
             if (!Instanceable())
             {
                 CharacterDatabase.PExecute("INSERT INTO `world` VALUES ('%u', '')", GetId());
+                sInstanceDataCache.SetWorld(GetId(), "");   // the cache invariant: beside the write
             }
         }
     }
@@ -2305,80 +2304,6 @@ void Map::CreateInstanceData(bool load)
         i_data->Initialize();
     }
 }
-/*
-void Map::CreateInstanceData(bool load)
-{
-    if (i_data != NULL)
-    {
-        return;
-    }
-
-    if (Instanceable())
-    {
-        if (InstanceTemplate const* mInstance = ObjectMgr::GetInstanceTemplate(GetId()))
-        {
-            i_script_id = mInstance->script_id;
-        }
-    }
-    else
-    {
-        if (WorldTemplate const* mInstance = ObjectMgr::GetWorldTemplate(GetId()))
-        {
-            i_script_id = mInstance->script_id;
-        }
-    }
-
-    if (!i_script_id)
-    {
-        return;
-    }
-
-    i_data = sScriptMgr.CreateInstanceData(this);
-    if (!i_data)
-    {
-        return;
-    }
-
-    if (load)
-    {
-        // TODO: make a global storage for this
-        QueryResult* result;
-
-        if (Instanceable())
-        {
-            result = CharacterDatabase.PQuery("SELECT data FROM instance WHERE id = '%u'", i_InstanceId);
-        }
-        else
-        {
-            result = CharacterDatabase.PQuery("SELECT data FROM world WHERE map = '%u'", GetId());
-        }
-
-        if (result)
-        {
-            Field* fields = result->Fetch();
-            const char* data = fields[0].GetString();
-            if (data)
-            {
-                DEBUG_LOG("Loading instance data for `%s` (Map: %u Instance: %u)", sScriptMgr.GetScriptName(i_script_id), GetId(), i_InstanceId);
-                i_data->Load(data);
-            }
-            delete result;
-        }
-        else
-        {
-            // for non-instanceable map always add data to table if not found, later code expected that for map in `word` exist always after load
-            if (!Instanceable())
-            {
-                CharacterDatabase.PExecute("INSERT INTO world VALUES ('%u', '')", GetId());
-            }
-        }
-    }
-    else
-    {
-        DEBUG_LOG("New instance data, \"%s\" ,initialized!", sScriptMgr.GetScriptName(i_script_id));
-        i_data->Initialize();
-    }
-} */
 
 /**
  * @brief Teleports every player on the map to the requested fallback location.

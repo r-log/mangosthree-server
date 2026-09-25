@@ -57,6 +57,7 @@ set(SRC_GRP_TESTS
     DatabaseConcurrencyTest.cpp
     NullDatabaseTest.cpp
     TickGuardTest.cpp
+    InstanceDataCacheTest.cpp
     TestSeamTest.cpp
     PetitionAsyncTest.cpp
     CharacterCacheTest.cpp

@@ -53,6 +53,7 @@
 #include <list>
 #include "Utilities/PackedValues.h"
 #include "MapPersistentStateMgr.h"
+#include "InstanceDataCache.h"
 
 #include "SQLStorages.h"
 #include "Player.h"
@@ -373,11 +374,29 @@ void DungeonPersistentState::SaveToDB()
         if (iData && iData->Save())
         {
             data = iData->Save();
-            CharacterDatabase.escape_string(data);
         }
     }
 
-    CharacterDatabase.PExecute("INSERT INTO `instance` VALUES ('%u', '%u', '" UI64FMTD "', '%u', '%u', '%s')", GetInstanceId(), GetMapId(), (uint64)GetResetTimeForDB(), GetDifficulty(), GetCompletedEncountersMask(), data.c_str());
+    // Decoupling D7i: the escape is a bound parameter (C5). The column list is explicit
+    // where the old statement relied on table order; the six names and their order are
+    // `instance`'s own (id, map, resettime, difficulty, encountersMask, data), which is
+    // what MapPersistentStateManager::LoadResetTimes and InstanceDataCache::LoadFromDB
+    // read back.
+    static SqlStatementID insInstance;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insInstance,
+                          "INSERT INTO `instance` (`id`, `map`, `resettime`, `difficulty`, `encountersMask`, `data`) "
+                          "VALUES (?, ?, ?, ?, ?, ?)");
+    insert.addUInt32(GetInstanceId());
+    insert.addUInt32(GetMapId());
+    insert.addUInt64(uint64(GetResetTimeForDB()));
+    insert.addUInt32(GetDifficulty());
+    insert.addUInt32(GetCompletedEncountersMask());
+    insert.addString(data);
+    insert.Execute();
+
+    // The cache invariant (D7c, D7i): beside the write, with the unescaped string.
+    sInstanceDataCache.SetInstance(GetInstanceId(), data);
+    sInstanceDataCache.SetInstanceMap(GetInstanceId(), GetMapId());
 }
 
 /**
@@ -754,7 +773,19 @@ void DungeonResetScheduler::Update()
 
                 time_t next_reset = DungeonResetScheduler::CalculateNextResetTime(mapDiff, resetTime);
 
-                CharacterDatabase.DirectPExecute("UPDATE `instance_reset` SET `resettime` = '" UI64FMTD "' WHERE `mapid` = '%u' AND `difficulty` = '%u'", uint64(next_reset), uint32(event.mapid), uint32(event.difficulty));
+                // Decoupling D7i: queued, not Direct. This is the ONE site in the residual
+                // that needed no human at all -- DungeonResetScheduler::Update runs from
+                // sMapPersistentStateMgr.Update() inside World::Update, so an idle server
+                // blocked its own tick on MySQL at every global instance reset. The write
+                // was never read back: the new reset time is carried in memory by the
+                // SetResetTimeFor() below, and the row is read again only by
+                // DungeonResetScheduler::LoadResetTimes at the next start-up. It has been
+                // Direct since it was written (dcb451e16, "[10549] At schedule second reset
+                // update real reset time", in what was then InstanceSaveMgr.cpp), with no
+                // comment saying why -- and MapPersistentStateManager::_ResetOrWarnAll
+                // writes the SAME statement on the SAME table with a plain PExecute, which
+                // is the tree's own evidence that nothing here needs it Direct.
+                CharacterDatabase.PExecute("UPDATE `instance_reset` SET `resettime` = '" UI64FMTD "' WHERE `mapid` = '%u' AND `difficulty` = '%u'", uint64(next_reset), uint32(event.mapid), uint32(event.difficulty));
 
                 SetResetTimeFor(event.mapid, event.difficulty, next_reset);
 
@@ -930,6 +961,8 @@ void MapPersistentStateManager::DeleteInstanceFromDB(uint32 instanceid)
         CharacterDatabase.PExecute("DELETE FROM `creature_respawn` WHERE `instance` = '%u'", instanceid);
         CharacterDatabase.PExecute("DELETE FROM `gameobject_respawn` WHERE `instance` = '%u'", instanceid);
         CharacterDatabase.CommitTransaction();
+
+        sInstanceDataCache.RemoveInstance(instanceid);      // decoupling D7i: beside the write
     }
 }
 
@@ -1225,6 +1258,8 @@ void MapPersistentStateManager::_ResetOrWarnAll(uint32 mapid, Difficulty difficu
         CharacterDatabase.PExecute("DELETE FROM `group_instance` USING `group_instance` LEFT JOIN `instance` ON `group_instance`.`instance` = `id` WHERE `map` = '%u'", mapid);
         CharacterDatabase.PExecute("DELETE FROM `instance` WHERE `map` = '%u'", mapid);
         CharacterDatabase.CommitTransaction();
+
+        sInstanceDataCache.RemoveInstancesOfMap(mapid);     // decoupling D7i: beside the write
 
         // calculate the next reset time
         time_t next_reset = DungeonResetScheduler::CalculateNextResetTime(mapDiff, now + timeLeft);

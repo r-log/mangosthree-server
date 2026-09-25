@@ -67,6 +67,7 @@
 #include "BattleGround.h"
 
 #include <mutex>
+#include <atomic>
 
 /**
  * @brief Container for storing battleground instances.
@@ -615,6 +616,30 @@ class BattleGroundMgr
         void CreateInitialBattleGrounds();
 
         /**
+         * @brief Reads the highest `pvpstats_battlegrounds`.`id` once, at start-up.
+         *
+         * Decoupling D7i. BattleGround::EndBattleGround used to run
+         * `SELECT MAX(id) FROM pvpstats_battlegrounds` on the tick, at the end of every
+         * battleground, to pick the next row's id. The table's id is not
+         * AUTO_INCREMENT, so somebody has to choose it; the choice is made here instead,
+         * in the ObjectMgr::SetHighestGuids shape.
+         *
+         * Called only when CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS is on, which is what
+         * the old site tested before it read -- so a realm without the statistics table
+         * still never touches it.
+         */
+        void LoadHighestPvPStatsId();
+
+        /**
+         * @brief The next `pvpstats_battlegrounds`.`id`, and the one after it next time.
+         *
+         * Reproduces the old `MAX(id) + 1`: with no rows (or no read, which is what the
+         * old NULL result meant) the first answer is 1, exactly as the old
+         * `uint64 battleground_id = 1` default.
+         */
+        uint64 GenerateNextPvPStatsId() { return m_highestPvPStatsId.fetch_add(1) + 1; }
+
+        /**
          * @brief Deletes all battlegrounds.
          */
         void DeleteAllBattleGrounds();
@@ -797,6 +822,9 @@ class BattleGroundMgr
         uint32 m_NextRatingDiscardUpdate;
         time_t m_NextAutoDistributionTime;
         uint32 m_AutoDistributionTimeChecker;
+        /**< decoupling D7i: the highest `pvpstats_battlegrounds`.`id` handed out so far. Atomic because
+             BattleGround::EndBattleGround runs on the map-update workers, several at once (fix round 1). */
+        std::atomic<uint64> m_highestPvPStatsId;
         bool   m_ArenaTesting;
         bool   m_Testing; /**< Flag indicating if testing mode is enabled. */
 };

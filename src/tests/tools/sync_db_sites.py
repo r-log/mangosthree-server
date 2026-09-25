@@ -14,10 +14,21 @@ or an `if` block inside a function is still attributed to that function.
 
 The hint is a shape, NOT a verdict:
 
-  handler-named   the function name matches Handle\\w+(Opcode|Command)$
+  handler-named   the function name matches Handle\\w+Opcode$
+  command-named   it matches Handle\\w+Command$
   startup-named   it matches ^(Load\\w*|Initialize|Init\\w*|CleanupInstances|PackInstances|
                   CheckDatabaseVersion)$
   other           anything else
+
+Decoupling D7i split command-named out of handler-named. A chat command's handler and an
+opcode's handler are not the same kind of site: a command is dispatched by
+ChatHandler::ExecuteCommand, which opens a TickGuard::AdminScope when the command's
+required security is above SEC_PLAYER, so a blocking call inside one is
+administrative work counted apart rather than a tick violation. An opcode handler has no
+such cover. The hint cannot READ that security level (it lives in the hardcoded tables and
+in the `command` table), so this is still only a shape -- and plenty of administrative
+sites sit in helpers (HandleBanListHelper, LookupPlayerSearchCommand,
+GetDeletedCharacterInfoList) that match nothing and stay "other".
 
 A startup-named function may still be called from the tick, and a handler-named one may
 run on a login thread. Which sites actually cost the tick is what the runtime counter
@@ -64,7 +75,8 @@ SITE_RE = re.compile(
     r"|Ping|CommitTransactionChecked|escape_string)\s*\("
 )
 
-HANDLER_RE = re.compile(r"Handle\w+(Opcode|Command)$")
+HANDLER_RE = re.compile(r"Handle\w+Opcode$")
+COMMAND_RE = re.compile(r"Handle\w+Command$")
 STARTUP_RE = re.compile(
     r"^(Load\w*|Initialize|Init\w*|CleanupInstances|PackInstances|CheckDatabaseVersion)$"
 )
@@ -82,7 +94,7 @@ APIS = [
     "Query", "PQuery", "QueryNamed", "PQueryNamed", "DirectExecute", "DirectPExecute",
     "DirectExecuteStmt", "Ping", "CommitTransactionChecked", "escape_string",
 ]
-HINTS = ["handler-named", "startup-named", "other"]
+HINTS = ["handler-named", "command-named", "startup-named", "other"]
 
 
 def strip_comments(text):
@@ -203,6 +215,8 @@ def hint_for(name):
     bare = name.rsplit("::", 1)[-1]
     if HANDLER_RE.search(bare):
         return "handler-named"
+    if COMMAND_RE.search(bare):
+        return "command-named"
     if STARTUP_RE.match(bare):
         return "startup-named"
     return "other"
@@ -235,6 +249,31 @@ def self_test():
     ]
     if rows != expected:
         failures.append("handler with two queries: expected %s, got %s" % (expected, rows))
+
+    # Decoupling D7i: a chat command's handler is NOT an opcode handler. The two hints are
+    # separate because ChatHandler::ExecuteCommand covers one of them with an AdminScope.
+    command = (
+        "bool ChatHandler::HandlePInfoCommand(char* args)\n"
+        "{\n"
+        "    QueryResult* r = CharacterDatabase.PQuery(\"SELECT 1\");\n"
+        "}\n"
+    )
+    rows = scan_text(command)
+    expected = [(3, "CharacterDatabase", "PQuery", "ChatHandler::HandlePInfoCommand", "command-named")]
+    if rows != expected:
+        failures.append("command handler: expected %s, got %s" % (expected, rows))
+
+    # ...and a helper a command calls is neither: it matches nothing and stays "other".
+    command_helper = (
+        "void ChatHandler::HandleBanListHelper(QueryResult* result)\n"
+        "{\n"
+        "    QueryResult* r = LoginDatabase.PQuery(\"SELECT 1\");\n"
+        "}\n"
+    )
+    rows = scan_text(command_helper)
+    expected = [(3, "LoginDatabase", "PQuery", "ChatHandler::HandleBanListHelper", "other")]
+    if rows != expected:
+        failures.append("command helper: expected %s, got %s" % (expected, rows))
 
     startup = (
         "void ObjectMgr::LoadCreatures()\n"

@@ -64,23 +64,25 @@ namespace TickGuard
     };
 
     /// RAII, thread-local exactly like Scope, and entered at ONE site in the tree:
-    /// ChatHandler::ExecuteCommand, around a `.reload <table>` command's handler
-    /// (decoupling D7h).
+    /// ChatHandler::ExecuteCommand, around the handler of a command whose required
+    /// security is above SEC_PLAYER (decoupling D7h, widened by D7i, Ruling 27).
     ///
     /// Every `.reload` re-runs a start-up loader synchronously, on the world thread,
-    /// inside World::Update. That is what the command IS: an administrator asking a
-    /// running server to stall while it re-reads a table. Those acquisitions are real
-    /// and are still counted -- in a counter of their own, which `.server database`
-    /// prints on its own line -- but they do not assert under MANGOS_STRICT_TICK,
-    /// because the tick's contract is about what the world does by itself, not about
-    /// what an administrator deliberately asks it to wait for.
+    /// inside World::Update, and `.pinfo`, `.banlist`, `.lookup account`, `.list item`
+    /// and `.pdump` read the database the same way. That is what those commands ARE: an
+    /// administrator asking a running server to stall while it answers. Those
+    /// acquisitions are real and are still counted -- in a counter of their own, which
+    /// `.server database` prints on its own line -- but they do not assert under
+    /// MANGOS_STRICT_TICK, because the tick's contract is about what the world does by
+    /// itself and what a PLAYER can make it do, not about what an administrator
+    /// deliberately asks it to wait for.
     ///
     /// A scope is code, not a comment, and its worth depends on staying at one site:
     /// src/tests/CheckSyncDb.cmake fails the build if `TickGuard::AdminScope` appears
     /// anywhere but that one line.
     ///
     /// `enter` is the dispatcher's test, so the one site can be an unconditional
-    /// declaration: a command that is not a reload constructs a scope that does
+    /// declaration: a command that is not administrative constructs a scope that does
     /// nothing.
     struct AdminScope
     {

@@ -167,9 +167,16 @@ void PlayerSocial::SetFriendNote(ObjectGuid friend_guid, std::string note)
 
     utf8truncate(note, 48);                                 // DB and client size limitation
 
-    std::string safe_note = note;
-    CharacterDatabase.escape_string(safe_note);
-    CharacterDatabase.PExecute("UPDATE `character_social` SET `note` = '%s' WHERE `guid` = '%u' AND `friend` = '%u'", safe_note.c_str(), m_playerLowGuid, friend_guid.GetCounter());
+    // Decoupling D7i: the escaped copy is a bound parameter (C5). The in-memory note below
+    // is, and always was, the unescaped string.
+    static SqlStatementID updFriendNote;
+    SqlStatement update = CharacterDatabase.CreateStatement(updFriendNote,
+                          "UPDATE `character_social` SET `note` = ? WHERE `guid` = ? AND `friend` = ?");
+    update.addString(note);
+    update.addUInt32(m_playerLowGuid);
+    update.addUInt32(friend_guid.GetCounter());
+    update.Execute();
+
     m_playerSocialMap[friend_guid.GetCounter()].Note = note;
 }
 

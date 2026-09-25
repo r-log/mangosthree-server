@@ -43,6 +43,7 @@
 #include "Utilities/Errors.h"
 #include <string>
 #include "InstanceData.h"
+#include "InstanceDataCache.h"
 #include "Database/DatabaseEnv.h"
 #include "Map.h"
 #include "Log.h"
@@ -74,16 +75,33 @@ void InstanceData::SaveToDB() const
         return;
     }
 
-    std::string data = Save();
-    CharacterDatabase.escape_string(data);
+    // Decoupling D7i: the escape is a bound parameter (C5), and the write tells
+    // InstanceDataCache beside itself -- the same string, unescaped, because that is what
+    // the table ends up holding once the server's own parser has undone the escaping. The
+    // mirror is an UPDATE too: it changes an existing entry and creates none (fix round 1).
+    const std::string data = Save();
 
     if (instance->Instanceable())
     {
-        CharacterDatabase.PExecute("UPDATE `instance` SET `data` = '%s' WHERE `id` = '%u'", data.c_str(), instance->GetInstanceId());
+        static SqlStatementID updInstanceData;
+        SqlStatement update = CharacterDatabase.CreateStatement(updInstanceData,
+                              "UPDATE `instance` SET `data` = ? WHERE `id` = ?");
+        update.addString(data);
+        update.addUInt32(instance->GetInstanceId());
+        update.Execute();
+
+        sInstanceDataCache.UpdateInstance(instance->GetInstanceId(), data);
     }
     else
     {
-        CharacterDatabase.PExecute("UPDATE `world` SET `data` = '%s' WHERE `map` = '%u'", data.c_str(), instance->GetId());
+        static SqlStatementID updWorldData;
+        SqlStatement update = CharacterDatabase.CreateStatement(updWorldData,
+                              "UPDATE `world` SET `data` = ? WHERE `map` = ?");
+        update.addString(data);
+        update.addUInt32(instance->GetId());
+        update.Execute();
+
+        sInstanceDataCache.UpdateWorld(instance->GetId(), data);
     }
 }
 

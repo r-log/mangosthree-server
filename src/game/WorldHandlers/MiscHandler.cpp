@@ -66,6 +66,7 @@
 #include "GuildMgr.h"
 #include "ObjectMgr.h"
 #include "WorldSession.h"
+#include <memory>
 #include "Auth/BigNumber.h"
 #include "Auth/Sha1.h"
 #include "UpdateData.h"
@@ -613,9 +614,14 @@ void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
     DEBUG_LOG("%s", type.c_str());
     DEBUG_LOG("%s", content.c_str());
 
-    CharacterDatabase.escape_string(type);
-    CharacterDatabase.escape_string(content);
-    CharacterDatabase.PExecute("INSERT INTO `bugreport` (`type`,`content`) VALUES('%s', '%s')", type.c_str(), content.c_str());
+    // Decoupling D7i: two escapes on the tick, on a packet any player may send, become
+    // two bound parameters (C5).
+    static SqlStatementID insBugReport;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insBugReport,
+                          "INSERT INTO `bugreport` (`type`,`content`) VALUES(?, ?)");
+    insert.addString(type);
+    insert.addString(content);
+    insert.Execute();
 }
 
 /**
@@ -1513,10 +1519,44 @@ void WorldSession::HandleWhoisOpcode(WorldPacket& recv_data)
 
     uint32 accid = plr->GetSession()->GetAccountId();
 
-    QueryResult* result = LoginDatabase.PQuery("SELECT `username`,`email`,`last_ip` FROM `account` WHERE `id`=%u", accid);
+    // Decoupling D7i. This is the one SEC_ADMINISTRATOR site in the residual that is an
+    // OPCODE, not a chat command, so ChatHandler::ExecuteCommand's AdminScope can never
+    // reach it: it is converted instead. Everything above reads memory only, so a request
+    // that cannot succeed still never reaches the database (D7b's contract).
+    const uint32 requesterAccount = GetAccountId();
+    const proto::SessionId requesterSession = GetSessionId();
+    if (!LoginDatabase.AsyncPQuery([requesterAccount, requesterSession, charname](QueryResult* result)
+                                   {
+                                       WorldSession::HandleWhoisCallback(std::unique_ptr<QueryResult>(result), requesterAccount, requesterSession, charname);
+                                   }, "SELECT `username`,`email`,`last_ip` FROM `account` WHERE `id`=%u", accid))
+    {
+        // The only way that fails is LoginDatabase::BeginShutdown, which is the same
+        // unknown answer a NULL result is, so it takes the same reply (C4).
+        SendNotification(LANG_ACCOUNT_FOR_PLAYER_NOT_FOUND, charname.c_str());
+    }
+}
+
+/**
+ * @brief Sends the whois answer once the account row has arrived.
+ *
+ * @param result The account row, or NULL when there is none.
+ * @param accountId The requesting account id.
+ * @param sessionId The requesting session id (C2: an answer for a session that has been
+ *                  replaced by a reconnect is dropped).
+ * @param charname The character the request named.
+ */
+void WorldSession::HandleWhoisCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                       proto::SessionId sessionId, std::string charname)
+{
+    WorldSession* session = FindRequesterSession(accountId, sessionId);
+    if (!session)
+    {
+        return;
+    }
+
     if (!result)
     {
-        SendNotification(LANG_ACCOUNT_FOR_PLAYER_NOT_FOUND, charname.c_str());
+        session->SendNotification(LANG_ACCOUNT_FOR_PLAYER_NOT_FOUND, charname.c_str());
         return;
     }
 
@@ -1541,11 +1581,13 @@ void WorldSession::HandleWhoisOpcode(WorldPacket& recv_data)
 
     WorldPacket data(SMSG_WHOIS, msg.size() + 1);
     data << msg;
-    _player->GetSession()->SendPacket(&data);
+    session->SendPacket(&data);
 
-    delete result;
-
-    DEBUG_LOG("Received whois command from player %s for character %s", GetPlayer()->GetName(), charname.c_str());
+    // C3: the player may have left in the intervening tick, and the old code read his name
+    // straight off _player. The log line is the only user of it, so it says so instead.
+    Player* requester = session->GetPlayer();
+    DEBUG_LOG("Received whois command from player %s for character %s",
+              requester ? requester->GetName() : "<logged out>", charname.c_str());
 }
 
 void WorldSession::HandleComplainOpcode(WorldPacket& recv_data)

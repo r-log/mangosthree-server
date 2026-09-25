@@ -24,6 +24,7 @@
  */
 
 #include "Platform/Define.h"
+#include <algorithm>
 #include <cstring>
 #include <ctime>
 #include <string>
@@ -72,17 +73,23 @@ void GMTicket::SaveSurveyData(WorldPacket& recvData) const
     recvData >> comment;                                   // additional comment
     DEBUG_LOG("SURVEY: comment %s", comment.c_str());
 
-    // Save survey data to database
-    std::string escapedComment = comment;
-    CharacterDatabase.escape_string(escapedComment);
-    CharacterDatabase.PExecute("INSERT INTO `gm_surveys` (`guid`, `surveyid`, `main_survey`, "
-                               "`answer1`, `answer2`, `answer3`, `answer4`, `answer5`, "
-                               "`answer6`, `answer7`, `answer8`, `answer9`, `answer10`, `comment`) "
-                               "VALUES (%u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, '%s')",
-                               m_guid.GetCounter(), m_ticketId, surveyId,
-                               result[0], result[1], result[2], result[3], result[4],
-                               result[5], result[6], result[7], result[8], result[9],
-                               escapedComment.c_str());
+    // Save survey data to database. Decoupling D7i: the comment is a bound parameter (C5),
+    // on a path any player walks -- CMSG_GMSURVEY_SUBMIT after a ticket is closed.
+    static SqlStatementID insGmSurvey;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insGmSurvey,
+                          "INSERT INTO `gm_surveys` (`guid`, `surveyid`, `main_survey`, "
+                          "`answer1`, `answer2`, `answer3`, `answer4`, `answer5`, "
+                          "`answer6`, `answer7`, `answer8`, `answer9`, `answer10`, `comment`) "
+                          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.addUInt32(m_guid.GetCounter());
+    insert.addUInt32(m_ticketId);
+    insert.addUInt32(surveyId);
+    for (int i = 0; i < 10; ++i)
+    {
+        insert.addUInt32(result[i]);
+    }
+    insert.addString(comment);
+    insert.Execute();
 }
 
 /**
@@ -113,11 +120,15 @@ void GMTicket::SetText(const char* text)
     m_text = text ? text : "";
     m_lastUpdate = time(NULL);
 
-    std::string escapedString = m_text;
-    CharacterDatabase.escape_string(escapedString);
-    CharacterDatabase.PExecute("UPDATE `character_ticket` SET `ticket_text` = '%s' "
-                               "WHERE `guid` = '%u' AND `ticket_id` = %u",
-                               escapedString.c_str(), m_guid.GetCounter(), m_ticketId);
+    // Decoupling D7i: bound parameter (C5). CMSG_GMTICKET_UPDATETEXT, a player's own edit.
+    static SqlStatementID updTicketText;
+    SqlStatement update = CharacterDatabase.CreateStatement(updTicketText,
+                          "UPDATE `character_ticket` SET `ticket_text` = ? "
+                          "WHERE `guid` = ? AND `ticket_id` = ?");
+    update.addString(m_text);
+    update.addUInt32(m_guid.GetCounter());
+    update.addUInt32(m_ticketId);
+    update.Execute();
 }
 
 /**
@@ -134,11 +145,18 @@ void GMTicket::SetResponseText(const char* text)
     {
         m_lastUpdate = time(NULL);
 
-        std::string escapedString = m_responseText;
-        CharacterDatabase.escape_string(escapedString);
-        CharacterDatabase.PExecute("UPDATE `character_ticket` SET `response_text` = '%s' "
-            "WHERE `guid` = '%u' and `ticket_id` = %u",
-            escapedString.c_str(), m_guid.GetCounter(), m_ticketId);
+        // Decoupling D7i. This one is GM-only (`.ticket respond`), so ExecuteCommand's
+        // widened AdminScope already covers it -- it is converted anyway, because it is
+        // the same three lines as GMTicket::SetText above and leaving one escape behind in
+        // a converted file would cost the gate an allow line for nothing.
+        static SqlStatementID updTicketResponse;
+        SqlStatement update = CharacterDatabase.CreateStatement(updTicketResponse,
+                              "UPDATE `character_ticket` SET `response_text` = ? "
+                              "WHERE `guid` = ? and `ticket_id` = ?");
+        update.addString(m_responseText);
+        update.addUInt32(m_guid.GetCounter());
+        update.addUInt32(m_ticketId);
+        update.Execute();
     }
 }
 
@@ -193,12 +211,35 @@ void GMTicketMgr::LoadGMTickets()
 {
     m_GMTicketMap.clear();                                  // For reload case
 
-    QueryResult* result = CharacterDatabase.Query(
-    //       0       1              2                3                                    4
-    "SELECT `guid`, `ticket_text`, `response_text`, UNIX_TIMESTAMP(`ticket_lastchange`), `ticket_id` "
-    "FROM `character_ticket` "
-    "WHERE `resolved` = 0 "
-    "ORDER BY `ticket_id` ASC");
+    // Decoupling D7i: the id GMTicketMgr::Create hands the next ticket. Read here, at
+    // start-up, instead of by the synchronous SELECT-after-INSERT Create used to run on
+    // the tick. Over the WHOLE table, because the loader below reads only the unresolved
+    // rows and a resolved row's id is still taken.
+    //
+    // Fix round 1: and never below the table's own AUTO_INCREMENT. The column is still
+    // AUTO_INCREMENT, and InnoDB (MariaDB 10.4) persists that counter across a restart
+    // only as MAX + 1 recomputed at open -- but a row that was inserted and then deleted
+    // while the server ran has already moved it past MAX. Seeding from
+    // max(MAX(ticket_id), AUTO_INCREMENT - 1) is what AUTO_INCREMENT itself would have
+    // handed out next, so ids stay identical to the column's within a run and across one.
+    uint32 highestRow = 0;
+    if (QueryResult* highest = CharacterDatabase.Query("SELECT MAX(`ticket_id`) FROM `character_ticket`"))
+    {
+        highestRow = (*highest)[0].GetUInt32();
+        delete highest;
+    }
+
+    uint32 autoIncrementNext = 0;
+    if (QueryResult* next = CharacterDatabase.Query("SELECT `AUTO_INCREMENT` FROM `information_schema`.`TABLES` WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'character_ticket'"))
+    {
+        autoIncrementNext = (*next)[0].GetUInt32();         // NULL (no counter) reads as 0
+        delete next;
+    }
+
+    m_highestTicketId = std::max(highestRow, autoIncrementNext ? autoIncrementNext - 1 : 0u);
+
+    //                                                 0       1              2                3                                    4
+    QueryResult* result = CharacterDatabase.Query("SELECT `guid`, `ticket_text`, `response_text`, UNIX_TIMESTAMP(`ticket_lastchange`), `ticket_id` FROM `character_ticket` WHERE `resolved` = 0 ORDER BY `ticket_id` ASC");
 
     if (!result)
     {
@@ -244,33 +285,26 @@ void GMTicketMgr::LoadGMTickets()
  */
 void GMTicketMgr::Create(ObjectGuid guid, const char* text)
 {
-    std::string escapedText = text;
-    CharacterDatabase.escape_string(escapedText);
-    CharacterDatabase.BeginTransaction();
-    //This needs to be Direct (not placed in queue) as we need the id of it soon afterwards
-    CharacterDatabase.DirectPExecute("INSERT INTO `character_ticket` "
-                                     "(`guid`, `ticket_text`) "
-                                     "VALUES "
-                                     "(%u,   '%s')",
-                                     guid.GetCounter(), escapedText.c_str());
+    // Decoupling D7i. This was the worst shape in the player-reachable residual: a
+    // synchronous INSERT ("This needs to be Direct ... as we need the id of it soon
+    // afterwards") followed by a synchronous SELECT to read back the id AUTO_INCREMENT had
+    // just chosen -- both on the world thread, inside World::Update, on a packet any
+    // player may send.
+    //
+    // The id is chosen here instead, from the counter LoadGMTickets primed at start-up,
+    // and written WITH the row, so one queued INSERT does the whole job. The value is the
+    // same one the read used to come back with: the old SELECT ordered by `ticket_id` DESC
+    // and took the first, which is the row the INSERT had just added, and AUTO_INCREMENT
+    // hands out MAX + 1 exactly as this counter does. The escape is a bound parameter (C5).
+    const uint32 ticketId = ++m_highestTicketId;
 
-    // Get the id of the ticket, needed for logging whispers
-    // Limiting to the the most recent ticket of the player and avoid potential multiple returns
-    // if there is inconsistent data in table (e.g : more than 1 ticket unsolved for the same player (should never happen but..who knows..)
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `ticket_id`, `guid`, `resolved` "
-                                                   "FROM `character_ticket` "
-                                                   "WHERE `guid` = %u AND `resolved` = 0 ORDER BY `ticket_id` DESC LIMIT 1;",
-                                                   guid.GetCounter());
-
-    CharacterDatabase.CommitTransaction();
-
-    if (!result)
-    {
-        return;
-    }
-
-    Field* fields = result->Fetch();
-    uint32 ticketId = fields[0].GetUInt32();
+    static SqlStatementID insTicket;
+    SqlStatement insert = CharacterDatabase.CreateStatement(insTicket,
+                          "INSERT INTO `character_ticket` (`ticket_id`, `guid`, `ticket_text`) VALUES (?, ?, ?)");
+    insert.addUInt32(ticketId);
+    insert.addUInt32(guid.GetCounter());
+    insert.addString(text);
+    insert.Execute();
 
     //This implicitly creates a new instance since we're using operator[]
     GMTicket& ticket = m_GMTicketMap[guid];

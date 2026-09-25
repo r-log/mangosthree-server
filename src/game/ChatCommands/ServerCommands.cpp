@@ -258,7 +258,7 @@ bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
 bool ChatHandler::HandleServerDatabaseCommand(char* /*args*/)
 {
     PSendSysMessage("sync db acquisitions on tick threads: %u", TickGuard::Violations());
-    PSendSysMessage("inside administrative reloads: %u", TickGuard::AdminViolations());
+    PSendSysMessage("inside administrative commands: %u", TickGuard::AdminViolations());
     PSendSysMessage("delay-thread queue depth: login %u, world %u, character %u",
                     uint32(LoginDatabase.GetDelayQueueDepth()),
                     uint32(WorldDatabase.GetDelayQueueDepth()),

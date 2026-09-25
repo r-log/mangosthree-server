@@ -678,38 +678,54 @@ void WorldSession::HandlePetRename(WorldPacket& recv_data)
     }
 
     // Decoupling D7e: the two tables this handler writes are both in the character's pet
-    // cache, so each statement gets its mirror beside it. The escaped copies are what goes
-    // to the database; the cache gets the names the player typed, because that is what the
-    // database ends up holding once the escape is undone by the server's own parser.
+    // cache, so each statement gets its mirror beside it.
+    //
+    // Decoupling D7i: the six escapes are gone -- five declined-name cases and the name --
+    // and every string is a bound parameter (C5). That is also why the cache no longer
+    // needs its own copies of them: nothing mutates `name` or `declinedname` any more, so
+    // the value the statement binds and the value the cache takes are the same object.
     PlayerPetCache& petCache = _player->GetPetCache();
     const uint32 renamedPetNumber = pet->GetCharmInfo()->GetPetNumber();
-
-    PetCacheDeclinedName cachedDeclined;
-    if (isdeclined)
-    {
-        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-        {
-            cachedDeclined.name[i] = declinedname.name[i];
-        }
-    }
-    const std::string cachedName = name;
 
     CharacterDatabase.BeginTransaction();
     if (isdeclined)
     {
+        static SqlStatementID delDeclinedName;
+        SqlStatement remove = CharacterDatabase.CreateStatement(delDeclinedName,
+                              "DELETE FROM `character_pet_declinedname` WHERE `owner` = ? AND `id` = ?");
+        remove.addUInt32(_player->GetGUIDLow());
+        remove.addUInt32(renamedPetNumber);
+        remove.Execute();
+
+        static SqlStatementID insDeclinedName;
+        SqlStatement insert = CharacterDatabase.CreateStatement(insDeclinedName,
+                              "INSERT INTO `character_pet_declinedname` (`id`, `owner`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) "
+                              "VALUES (?, ?, ?, ?, ?, ?, ?)");
+        insert.addUInt32(renamedPetNumber);
+        insert.addUInt32(_player->GetGUIDLow());
         for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
         {
-            CharacterDatabase.escape_string(declinedname.name[i]);
+            insert.addString(declinedname.name[i]);
         }
-        CharacterDatabase.PExecute("DELETE FROM `character_pet_declinedname` WHERE `owner` = '%u' AND `id` = '%u'", _player->GetGUIDLow(), pet->GetCharmInfo()->GetPetNumber());
-        CharacterDatabase.PExecute("INSERT INTO `character_pet_declinedname` (`id`, `owner`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) VALUES ('%u','%u','%s','%s','%s','%s','%s')",
-                                   pet->GetCharmInfo()->GetPetNumber(), _player->GetGUIDLow(), declinedname.name[0].c_str(), declinedname.name[1].c_str(), declinedname.name[2].c_str(), declinedname.name[3].c_str(), declinedname.name[4].c_str());
+        insert.Execute();
+
+        PetCacheDeclinedName cachedDeclined;
+        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        {
+            cachedDeclined.name[i] = declinedname.name[i];
+        }
         petCache.SetDeclinedName(renamedPetNumber, cachedDeclined);
     }
 
-    CharacterDatabase.escape_string(name);
-    CharacterDatabase.PExecute("UPDATE `character_pet` SET `name` = '%s', `renamed` = '1' WHERE `owner` = '%u' AND `id` = '%u'", name.c_str(), _player->GetGUIDLow(), pet->GetCharmInfo()->GetPetNumber());
-    petCache.SetNameRenamed(renamedPetNumber, cachedName, 1);
+    static SqlStatementID updPetName;
+    SqlStatement update = CharacterDatabase.CreateStatement(updPetName,
+                          "UPDATE `character_pet` SET `name` = ?, `renamed` = '1' WHERE `owner` = ? AND `id` = ?");
+    update.addString(name);
+    update.addUInt32(_player->GetGUIDLow());
+    update.addUInt32(renamedPetNumber);
+    update.Execute();
+
+    petCache.SetNameRenamed(renamedPetNumber, name, 1);
     CharacterDatabase.CommitTransaction();
 
     pet->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, uint32(time(NULL)));
