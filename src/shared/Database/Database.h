@@ -581,6 +581,23 @@ class Database
         void DetachTestConnections();
 
         /**
+         * @brief Queue writes rather than run them directly, as the server does.
+         *
+         * mangos_tests only. Master.cpp calls AllowAsyncTransactions() once the server is
+         * up, so in production Execute()/PExecute()/ExecuteStmt() all hand their work to
+         * the delay thread. Nothing calls it in the test binary, so writes there go
+         * straight down DirectExecute()/DirectExecuteStmt() instead -- and the latter is a
+         * counted acquisition, which would make a case that drives a prepared statement
+         * inside a TickGuard::Scope report a violation the server does not have.
+         *
+         * A case that needs the production shape turns this on for its scope and hands the
+         * old value back (AttachedFakes does both), so the tests that were written against
+         * the direct shape are untouched.
+         */
+        bool AllowsAsyncTransactions() const { return m_bAllowAsyncTransactions; }
+        void SetAllowAsyncTransactionsForTest(bool allow) { m_bAllowAsyncTransactions = allow; }
+
+        /**
          * @brief Run everything queued on the delay thread, on the CALLING thread.
          *
          * mangos_tests only. This is what the delay thread's loop does once

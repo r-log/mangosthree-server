@@ -947,7 +947,12 @@ class ObjectMgr
             return itr != mFishingBaseForArea.end() ? itr->second : 0;
         }
 
+        // The expired-mail sweep. It runs on the mail timer inside World::Update as well as
+        // at start-up, so it stages its two reads and the returns and deletes happen in the
+        // continuation a tick later (decoupling D7f).
         void ReturnOrDeleteOldMails(bool serverUp);
+        static void ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> holder,
+                                                   uint64 basetime, bool serverUp);
 
         void SetHighestGuids();
 

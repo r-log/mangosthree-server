@@ -73,6 +73,7 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
+#include "CharacterCache.h"
 
 #include <cmath>
 /**
@@ -108,25 +109,28 @@ void Player::FillBGWeekendWorldStates(WorldPacket& data, uint32& count)
 
 void Player::LeaveAllArenaTeams(ObjectGuid guid)
 {
-    uint32 lowguid = guid.GetCounter();
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `arena_team_member`.`arenateamid` FROM `arena_team_member` JOIN `arena_team` ON `arena_team_member`.`arenateamid` = `arena_team`.`arenateamid` WHERE `guid`='%u'", lowguid);
-    if (!result)
+    // Decoupling D7f: the character cache holds one arena team id per slot (D7c), loaded
+    // from the same `arena_team_member` JOIN `arena_team` this used to issue and kept
+    // current at ArenaTeam::AddMember / DelMember -- so the teams a character belongs to
+    // are read from memory instead of blocking the tick on MySQL.
+    //
+    // The entry is a snapshot: DelMember below calls sCharacterCache.UpdateArenaTeam, which
+    // publishes a NEW entry rather than editing this one, so walking the three slots while
+    // they are being cleared is safe by construction.
+    CharacterCacheRef cached = sCharacterCache.GetByGuid(guid);
+    if (!cached)
     {
         return;
     }
 
-    do
+    for (uint8 slot = 0; slot < CHARACTER_CACHE_ARENA_SLOTS; ++slot)
     {
-        Field* fields = result->Fetch();
-        if (uint32 at_id = fields[0].GetUInt32())
+        if (uint32 at_id = cached->arenaTeamId[slot])
             if (ArenaTeam* at = sObjectMgr.GetArenaTeamById(at_id))
             {
                 at->DelMember(guid);
             }
     }
-    while (result->NextRow());
-
-    delete result;
 }
 
 /**

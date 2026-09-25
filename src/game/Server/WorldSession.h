@@ -932,8 +932,9 @@ class WorldSession
                                                  ObjectGuid petitionGuid, ObjectGuid ownerGuid);
 
         void HandlePetitionDeclineOpcode(WorldPacket& recv_data);
-        static void HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
-                                                  proto::SessionId sessionId, ObjectGuid playerGuid);
+        // No identity: the only packet it sends goes to the petition's OWNER and names the
+        // decliner by guid, so it must survive a decliner who logged out (decoupling D7f).
+        static void HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid);
 
         void HandleOfferPetitionOpcode(WorldPacket& recv_data);
         static void HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,

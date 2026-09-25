@@ -2694,13 +2694,20 @@ class Player : public Unit
         static uint32 GetRankFromDB(ObjectGuid guid);
         int GetGuildIdInvited() const { return m_GuildIdInvited; }
         ObjectGuid GetGuildInviterGuid() const { return m_GuildInviterGuid; }
-        // Reads this character's petition signatures and then removes them. Still
-        // synchronous, because Guild::AddMember calls it from inside the tick and that
-        // chain is D7f's; the line is allow-listed in src/tests/CheckSyncDb.cmake.
-        static void RemovePetitionsAndSigns(ObjectGuid guid);
+        // Stages this character's petition signatures and removes them in the continuation.
+        // Guild::AddMember calls it from inside the tick and nothing it does afterwards
+        // depends on the answer, so it queues and returns (decoupling D7f).
+        static void QueueRemovePetitionsAndSigns(ObjectGuid guid);
         // The same work, with the signature rows handed in -- what the character-delete
-        // holder feeds it, so the delete path reads nothing (decoupling D7d).
+        // holder feeds it, so the delete path reads nothing (decoupling D7d), and what the
+        // queued form above hands its continuation's rows to.
         static void RemovePetitionsAndSigns(ObjectGuid guid, QueryResult* signs);
+        // SMSG_PETITION_SIGN_RESULTS. The GUID form is the one a continuation uses: it
+        // needs no Player, so the charter owner still hears about a signature whose signer
+        // logged out while the request was in flight (decoupling D7f).
+        static void BuildPetitionSignResult(WorldPacket& data, ObjectGuid petitionGuid,
+                                            ObjectGuid signerGuid, uint32 result);
+        void SendPetitionSignResult(ObjectGuid petitionGuid, ObjectGuid signerGuid, uint32 result);
         void SendPetitionSignResult(ObjectGuid petitionGuid, Player* player, uint32 result);
         void SendPetitionTurnInResult(uint32 result);
 

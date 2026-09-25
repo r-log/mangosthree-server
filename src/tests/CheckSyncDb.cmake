@@ -32,6 +32,9 @@ set(CONVERTED_FILES
     src/game/Object/PetSpells.cpp                           # decoupling D7e
     src/game/WorldHandlers/NPCHandler.cpp                   # decoupling D7e
     src/game/WorldHandlers/SpellChecks.cpp                  # decoupling D7e
+    src/game/Object/Guild.cpp                               # decoupling D7f
+    src/game/Object/GuildRank.cpp                           # decoupling D7f
+    src/game/Object/PlayerBattleGround.cpp                  # decoupling D7f
 )
 
 # Per file, the exact lines (trimmed) that are allowed to keep a direct call -- a startup
@@ -56,14 +59,11 @@ set(CONVERTED_FILES
 # every line below is inside a Load*/Pack*/SetHighestGuids that World::SetInitialWorldSettings
 # calls once, before the tick exists.
 #
-# The two exceptions are named as such: ObjectMgr::ReturnOrDeleteOldMails runs at start-up
-# (World.cpp, serverUp=false) AND on the mail timer inside World::Update, so its two reads
-# are a declared residual of D7c, not a start-up path. Converting them is a later PR's job;
-# they are allowed here so that the five lookups can be gated at all.
+# D7c's two declared exceptions -- ObjectMgr::ReturnOrDeleteOldMails' mail and mail-items
+# reads, which run on the mail timer inside World::Update as well as at start-up -- are
+# GONE: D7f stages both into one holder and does the returns and deletes in a continuation,
+# so this list is now start-up work and nothing else.
 set(ALLOW_ObjectMgr_cpp
-    # --- residual: ObjectMgr::ReturnOrDeleteOldMails, also called from World::Update ---
-    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `id`,`messageType`,`sender`,`receiver`,`has_items`,`expire_time`,`cod`,`checked`,`mailTemplateId` FROM `mail` WHERE `expire_time` < '\" UI64FMTD \"'\", (uint64)basetime)\;"
-    "QueryResult* resultItems = CharacterDatabase.PQuery(\"SELECT `item_guid`,`item_template` FROM `mail_items` WHERE `mail_id`='%u'\", m->messageID)\;"
     # --- ObjectMgr::LoadQuestAreaTriggers / LoadTavernAreaTriggers ---
     "QueryResult* result = WorldDatabase.PQuery(\"SELECT `entry`, `quest` FROM `quest_relations` WHERE `actor` = %d\", QA_AREATRIGGER)\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `id` FROM `areatrigger_tavern`\")\;"
@@ -98,22 +98,14 @@ set(ALLOW_ObjectMgr_cpp
 # character create, delete, customize, rename and declined names all read through holders or
 # async queries now, and all five escapes are gone, so nothing in either file may block again.
 #
-# Player.cpp has exactly ONE allowed line, and it is not this PR's:
-#
-#   Player::RemovePetitionsAndSigns(ObjectGuid) -- the SYNCHRONOUS overload, which exists only
-#   for Guild::AddMember (src/game/Object/Guild.cpp), still called from inside the tick. That
-#   chain is PR D7f's (the D7b report's turn-in residual); D7d converted the character-delete
-#   caller by giving the function a second overload that takes the rows out of the delete
-#   holder, and left this one alone rather than reaching into D7f's scope. When D7f converts
-#   Guild::AddMember, this overload and this line go with it.
-#
-# Everything else Player.cpp used to block on is converted: DeleteFromDB's five reads (group,
-# COD mail, those mails' items, pets, friends) are staged into one holder by StageDeleteReads;
-# DeleteOldCharacters' guid list is an AsyncPQuery; and Player::Customize's `playerBytes2` read
-# is staged by the customize handler next to its own.
-set(ALLOW_Player_cpp
-    # --- residual: Guild::AddMember's caller, PR D7f ---
-    "CharacterDatabase.PQuery(\"SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'\", guid.GetCounter()))\;")
+# Player.cpp has NO allow list either, as of D7f. D7d left it exactly one line -- the
+# synchronous Player::RemovePetitionsAndSigns(ObjectGuid), which existed only for
+# Guild::AddMember -- and D7f replaced that overload with Player::QueueRemovePetitionsAndSigns,
+# which stages the same statement asynchronously. Everything else Player.cpp used to block on
+# was already converted: DeleteFromDB's five reads (group, COD mail, those mails' items, pets,
+# friends) are staged into one holder by StageDeleteReads; DeleteOldCharacters' guid list is an
+# AsyncPQuery; and Player::Customize's `playerBytes2` read is staged by the customize handler
+# next to its own.
 
 # Decoupling D7e. FOUR files, and NONE of them has an allow list -- the whole pet subsystem's
 # reads are gone:
@@ -130,6 +122,29 @@ set(ALLOW_Player_cpp
 # The pet WRITES stay where they are: they are queued (PExecute / prepared statements), which
 # this gate does not match, and each one now updates the cache beside itself. If a read ever
 # comes back to any of these four files, the gate names the line.
+
+# Decoupling D7f. The guild-creation chain:
+#
+#   Guild.cpp          -- Guild::Create's three escapes (name, info, MOTD) and Guild::AddMember's
+#                         two (the member's notes) are prepared statements with the strings bound;
+#                         AddMember's offline `SELECT name,level,class,zone,account` reads the
+#                         character cache; and the four note/text setters (SetPNOTE, SetOFFNOTE,
+#                         SetMOTD, SetGINFO), which the guild handlers reach from inside the tick,
+#                         lost their escapes the same way.
+#   GuildRank.cpp      -- Guild::CreateRank (five times per guild created, through
+#                         CreateDefaultGuildRanks) and Guild::SetRankName likewise. NO allow list.
+#   PlayerBattleGround -- Player::LeaveAllArenaTeams' `arena_team_member` lookup reads the
+#                         cache's three arena slots. It was the file's ONLY blocking call, so
+#                         NO allow list.
+#
+# Guild.cpp has exactly ONE allowed line: Guild::LoadGuildEventLogFromDB, which GuildMgr::LoadGuilds
+# calls once per guild at start-up (World::SetInitialWorldSettings) and nothing else calls at all.
+# Its sibling repair in Guild::LoadRanksFromDB is also start-up-only and was converted anyway --
+# it is the same INSERT as CreateRank's, and there was no reason to let one path keep an escape
+# the other had lost.
+set(ALLOW_Guild_cpp
+    # --- start-up: Guild::LoadGuildEventLogFromDB, from GuildMgr::LoadGuilds ---
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, GUILD_EVENTLOG_MAX_RECORDS)\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 
