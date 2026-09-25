@@ -349,8 +349,14 @@ bool ChatHandler::HandleReloadAutoBroadcastCommand(char* /*args*/)
  */
 bool ChatHandler::HandleReloadCommandCommand(char* /*args*/)
 {
-    load_command_table = true;
-    SendGlobalSysMessage("DB table `command` will be reloaded at next chat command use.", SEC_MODERATOR);
+    // Decoupling D7h: this used to raise a flag and let the NEXT chat command pay for the
+    // read -- which put the acquisition on a tick nobody had asked to stall, and outside
+    // the AdminScope the reload dispatcher opens around this handler. It reloads here
+    // instead, like every other `.reload` in this file, so the wait belongs to the command
+    // that asked for it.
+    sLog.outString("Re-Loading `command` table...");
+    LoadCommandTable();
+    SendGlobalSysMessage("DB table `command` reloaded.", SEC_MODERATOR);
     return true;
 }
 

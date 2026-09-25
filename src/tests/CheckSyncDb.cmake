@@ -42,7 +42,25 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/SpellHandler.cpp                 # decoupling D7g
     src/game/Object/ArenaTeam.cpp                           # decoupling D7g
     src/game/Object/GuildBank.cpp                           # decoupling D7g
+    src/game/WorldHandlers/Chat.cpp                         # decoupling D7h
+    src/game/Harness/Harness.cpp                            # decoupling D7h
 )
+
+# The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
+# under src/. The scope suppresses the strict-mode assert and moves the acquisitions it
+# covers into a counter of their own, so a second one in the server would be a hole that no
+# runtime counter could ever show. Checked below, after the file scan, over the whole of
+# src/ -- a named list would only ever find what somebody remembered to list.
+#
+#   src/game/WorldHandlers/Chat.cpp -- ChatHandler::ExecuteCommand, around a `.reload <table>`
+#                                      handler. THE site: the reload dispatcher.
+#   src/tests/TickGuardTest.cpp     -- the cases that prove the scope counts apart, nests,
+#                                      and does nothing when it is not entered. Named here
+#                                      rather than skipping the whole of src/tests/, so a
+#                                      scope opened in some other test still fails this.
+set(ADMIN_SCOPE_FILES
+    src/game/WorldHandlers/Chat.cpp
+    src/tests/TickGuardTest.cpp)
 
 # Per file, the exact lines (trimmed) that are allowed to keep a direct call -- a startup
 # path in a file that is otherwise converted, say. Named ALLOW_<file name with every
@@ -200,7 +218,32 @@ set(ALLOW_GuildBank_cpp
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, tabId, GUILD_BANK_MAX_LOGS)\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, GUILD_BANK_MONEY_LOGS_TAB, GUILD_BANK_MAX_LOGS)\;")
 
+# Decoupling D7h. Chat.cpp and Harness.cpp, the D7a baseline's last two tick acquisitions:
+#
+#   Chat.cpp     -- the `command` table's security and help overrides used to be read
+#                   lazily, inside getCommandTable(), so the first chat or console command
+#                   of a process paid a blocking SELECT on the world thread. The read is
+#                   ChatHandler::LoadCommandTable() now, called by
+#                   World::SetInitialWorldSettings before the tick exists and by
+#                   `.reload command` under TickGuard::AdminScope. ONE allowed line, that
+#                   loader's own query; the lazy branch is gone, so nothing else in this
+#                   file may block.
+#   Harness.cpp  -- Runner::Start's `SELECT COUNT(*) FROM characters WHERE guid BETWEEN`,
+#                   the reserved-guid-block check for a queue holding a player scenario, is
+#                   an AsyncPQuery whose continuation (Runner::OnGuidBlockChecked) makes the
+#                   same three refusals, with the same text, before anything starts. It was
+#                   the file's only blocking call, so NO allow list.
+set(ALLOW_Chat_cpp
+    # --- start-up (World::SetInitialWorldSettings) and `.reload command`: ChatHandler::LoadCommandTable ---
+    "QueryResult* result = WorldDatabase.Query(\"SELECT `id`, `command_text`,`security`,`help_text` FROM `command`\")\;")
+
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
+
+# A CONSTRUCTION of a TickGuard::AdminScope -- the type name followed by a variable name and
+# an open paren. Prose that merely names the type ("under TickGuard::AdminScope", "opens a
+# TickGuard::AdminScope, and") cannot match it, which is what lets the comments explaining
+# the rule live next to the rule.
+set(ADMIN_SCOPE_RE "TickGuard::AdminScope[ \t]+[A-Za-z_][A-Za-z_0-9]*[ \t]*\\(")
 
 # Self-test: the regex is exercised against a positive and a negative string for every
 # spelling it has to recognise, and the allow-line rule is exercised both ways, before the
@@ -236,6 +279,13 @@ assert_regex("a queued execute is not a synchronous one" "CharacterDatabase.PExe
 assert_regex("a held query holder is not a synchronous one" "CharacterDatabase.DelayQueryHolder(cb, holder);" "${SYNC_DB_RE}" OFF)
 assert_regex("another object's Query is not one of the three" "sObjectMgr.Query(\"SELECT 1\");" "${SYNC_DB_RE}" OFF)
 assert_regex("a mention without a call is not a call" "// CharacterDatabase.PQuery is what this replaced" "${SYNC_DB_RE}" OFF)
+
+assert_regex("an AdminScope declaration" "    TickGuard::AdminScope administrativeReload(parentCommand && strcmp(parentCommand->Name, \"reload\") == 0);" "${ADMIN_SCOPE_RE}" ON)
+assert_regex("an AdminScope declaration with no space before the paren" "TickGuard::AdminScope s(true);" "${ADMIN_SCOPE_RE}" ON)
+assert_regex("prose naming the type is not a second site" " * line) and do not assert under TickGuard::AdminScope." "${ADMIN_SCOPE_RE}" OFF)
+assert_regex("prose naming the type before a comma is not a second site" "// the ONE site that opens a TickGuard::AdminScope, and the gate says so" "${ADMIN_SCOPE_RE}" OFF)
+assert_regex("the declaration in the guard's own header is not a use" "        explicit AdminScope(bool enter);" "${ADMIN_SCOPE_RE}" OFF)
+assert_regex("a block comment in front of a real scope does not hide it" "/* enter */ TickGuard::AdminScope sneaky(true);" "${ADMIN_SCOPE_RE}" ON)
 
 # Whether a line calls a blocking entry point that its file is not allowed to keep. The
 # allowed lines are compared as exact (trimmed) text, so an allowance covers the one line
@@ -312,4 +362,52 @@ if(VIOLATIONS)
         "src/tests/CheckSyncDb.cmake and say in the PR why.")
 endif()
 
-message(STATUS "sync db: ${CONVERTED_COUNT} converted file(s) clean, self-test OK")
+# The AdminScope single-site rule (decoupling D7h). The whole of src/ is scanned, not a
+# named list, because the point is to catch a scope opened somewhere nobody thought to
+# look.
+file(GLOB_RECURSE ADMIN_SCOPE_SOURCES
+    "${SOURCE_ROOT}/src/*.cpp" "${SOURCE_ROOT}/src/*.h" "${SOURCE_ROOT}/src/*.hpp")
+set(ADMIN_SCOPE_SITES "")
+foreach(FILE_PATH IN LISTS ADMIN_SCOPE_SOURCES)
+    file(STRINGS "${FILE_PATH}" LINES REGEX "TickGuard::AdminScope")
+    foreach(LINE IN LISTS LINES)
+        string(STRIP "${LINE}" TRIMMED)
+        # A commented-out declaration is not a scope: the compiler never sees it. Only the
+        # two shapes that make the WHOLE line a comment are skipped -- `//` and a doc
+        # comment's continuation `*`. A block-comment OPENER is deliberately NOT skipped:
+        # `/* enter */ TickGuard::AdminScope sneaky(true);` is real code with a comment in
+        # front of it, and skipping the line would hide it. Prose that opens a block comment
+        # and names the type still cannot match ADMIN_SCOPE_RE, which needs the type followed
+        # by an identifier and an open paren.
+        if(TRIMMED MATCHES "^(//|\\*)")
+            continue()
+        endif()
+        if(LINE MATCHES "${ADMIN_SCOPE_RE}")
+            file(RELATIVE_PATH REL_FILE "${SOURCE_ROOT}" "${FILE_PATH}")
+            list(APPEND ADMIN_SCOPE_SITES "${REL_FILE}")
+        endif()
+    endforeach()
+endforeach()
+
+# By file, not by line: the test constructs three, and counting them would make the gate
+# fail the next time a case is added rather than the next time a scope escapes.
+list(REMOVE_DUPLICATES ADMIN_SCOPE_SITES)
+list(SORT ADMIN_SCOPE_SITES)
+set(ADMIN_SCOPE_EXPECTED ${ADMIN_SCOPE_FILES})
+list(SORT ADMIN_SCOPE_EXPECTED)
+
+if(NOT "${ADMIN_SCOPE_SITES}" STREQUAL "${ADMIN_SCOPE_EXPECTED}")
+    string(REPLACE ";" "\n  " ADMIN_SCOPE_REPORT "${ADMIN_SCOPE_SITES}")
+    string(REPLACE ";" "\n  " ADMIN_SCOPE_WANTED "${ADMIN_SCOPE_EXPECTED}")
+    message(FATAL_ERROR
+        "TickGuard::AdminScope is constructed somewhere it may not be (decoupling D7h).\n"
+        "Expected, and only:\n  ${ADMIN_SCOPE_WANTED}\n"
+        "Found:\n  ${ADMIN_SCOPE_REPORT}\n"
+        "The scope suppresses the MANGOS_STRICT_TICK assert and moves the acquisitions it\n"
+        "covers into a counter of their own, so a second one in the server hides tick work\n"
+        "from both this gate and `.server database`. If a new administrative family really\n"
+        "needs one, say so in the PR and add its file to ADMIN_SCOPE_FILES, deliberately.")
+endif()
+
+list(LENGTH ADMIN_SCOPE_SOURCES ADMIN_SCOPE_SCANNED)
+message(STATUS "sync db: ${CONVERTED_COUNT} converted file(s) clean, AdminScope in the 2 named file(s) only (${ADMIN_SCOPE_SCANNED} file(s) scanned), self-test OK")

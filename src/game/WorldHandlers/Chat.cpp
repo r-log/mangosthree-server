@@ -48,6 +48,7 @@
 #include "Chat.h"
 #include "Language.h"
 #include "Database/DatabaseEnv.h"
+#include "Database/TickGuard.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Opcodes.h"
@@ -96,10 +97,12 @@
 // |color|Htitle:id|h[name]|h|r
 // |color|Htrade:spell_id:cur_value:max_value:unk3int:unk3str|h[name]|h|r - client, spellbook profession icon shift-click
 
-bool ChatHandler::load_command_table = true;
-
 /**
  * @brief Builds and returns the root command table used by the chat handler.
+ *
+ * The hardcoded table only. The `command` table's security and help overrides are
+ * applied by LoadCommandTable(), which World::SetInitialWorldSettings calls once
+ * before the first tick (decoupling D7h) -- this function no longer reads anything.
  *
  * @return ChatCommand* The top-level command table.
  */
@@ -919,29 +922,58 @@ ChatCommand* ChatHandler::getCommandTable()
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
 
-    if (load_command_table)
-    {
-        load_command_table = false;
-
-        // check hardcoded part integrity
-        CheckIntegrity(commandTable, NULL);
-
-        QueryResult* result = WorldDatabase.Query("SELECT `id`, `command_text`,`security`,`help_text` FROM `command`");
-        if (result)
-        {
-            do
-            {
-                Field* fields = result->Fetch();
-                uint32 id = fields[0].GetUInt32();
-                std::string name = fields[1].GetCppString();
-                SetDataForCommandInTable(commandTable, id, name.c_str(), fields[2].GetUInt16(), fields[3].GetCppString());
-            }
-            while (result->NextRow());
-            delete result;
-        }
-    }
-
     return commandTable;
+}
+
+/**
+ * @brief Applies the `command` table's security and help overrides to the hardcoded table.
+ *
+ * Decoupling D7h. This used to be a lazy branch inside getCommandTable(), so the first
+ * chat or console command of a process paid one blocking SELECT on the world thread,
+ * inside World::Update. It now runs from exactly two places, neither of them the tick:
+ *
+ *   - World::SetInitialWorldSettings, in the "Loading ..." sequence, before the first
+ *     World::Update exists;
+ *   - `.reload command` (ChatHandler::HandleReloadCommandCommand), which is an
+ *     administrative reload like every other one and runs under TickGuard::AdminScope.
+ *
+ * The lazy branch is GONE rather than kept as a fallback: those two are the only ways
+ * to reach the unloaded state at all -- the flag that used to mark it was set at static
+ * initialisation and by `.reload command`, and nothing else in the tree touched it --
+ * so a fallback could never run, and a blocking call that can never run is a line the
+ * gate would have to allow for nothing.
+ *
+ * The query, the rows applied, their order and the overrides are what they were: the
+ * same statement, run once.
+ *
+ * Static, and it uses a session-less handler of its own, because there is no
+ * ChatHandler at start-up. That is safe for exactly these three helpers and is not a
+ * licence to call others: getCommandTable() reads no member, CheckIntegrity() only
+ * writes to the error log, and SetDataForCommandInTable() searches with
+ * allAvailable = true, which is what short-circuits isAvailable() and with it the only
+ * dereference of m_session on the path.
+ */
+void ChatHandler::LoadCommandTable()
+{
+    ChatHandler handler;
+    ChatCommand* commandTable = handler.getCommandTable();
+
+    // check hardcoded part integrity
+    handler.CheckIntegrity(commandTable, NULL);
+
+    QueryResult* result = WorldDatabase.Query("SELECT `id`, `command_text`,`security`,`help_text` FROM `command`");
+    if (result)
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            uint32 id = fields[0].GetUInt32();
+            std::string name = fields[1].GetCppString();
+            handler.SetDataForCommandInTable(commandTable, id, name.c_str(), fields[2].GetUInt16(), fields[3].GetCppString());
+        }
+        while (result->NextRow());
+        delete result;
+    }
 }
 
 ChatHandler::ChatHandler(WorldSession* session) : m_session(session), sentErrorMessage(false) {}
@@ -1372,6 +1404,20 @@ void ChatHandler::ExecuteCommand(const char* text)
         case CHAT_COMMAND_OK:
         {
             SetSentErrorMessage(false);
+
+            // Decoupling D7h: the ONE site in the tree that opens a TickGuard::AdminScope,
+            // and src/tests/CheckSyncDb.cmake fails the build if a second appears. Every
+            // `.reload <table>` re-runs a start-up loader synchronously, on the world
+            // thread, inside World::Update -- that is what the command is for. Those
+            // acquisitions are counted apart (`.server database` prints them on their own
+            // line) and do not assert under MANGOS_STRICT_TICK.
+            //
+            // The test is `parentCommand`, not the command line's text: FindCommand hands
+            // back the owner of the child table a command was found in, so `.reload spell_chain`
+            // and an abbreviation like `.relo spell_chain` both arrive here with the `reload`
+            // entry as their parent, and no other table's owner is named `reload`.
+            TickGuard::AdminScope administrativeReload(parentCommand && strcmp(parentCommand->Name, "reload") == 0);
+
             if ((this->*(command->Handler))((char*)text))   // text content destroyed at call
             {
                 if (command->SecurityLevel > SEC_PLAYER)

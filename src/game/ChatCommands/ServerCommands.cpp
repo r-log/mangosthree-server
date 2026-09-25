@@ -247,12 +247,18 @@ bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
  * other half of the same picture, since work moved off the tick has to be drained
  * somewhere.
  *
+ * The second line is the `.reload <table>` family's own count (decoupling D7h): those
+ * acquisitions really do happen on the world thread inside World::Update, so hiding
+ * them would be a lie, but they are an administrator's deliberate stall and not the
+ * world waiting on itself, so they are not added to the first number.
+ *
  * @param args Command arguments.
  * @returns True if the command executed successfully, false otherwise.
  */
 bool ChatHandler::HandleServerDatabaseCommand(char* /*args*/)
 {
     PSendSysMessage("sync db acquisitions on tick threads: %u", TickGuard::Violations());
+    PSendSysMessage("inside administrative reloads: %u", TickGuard::AdminViolations());
     PSendSysMessage("delay-thread queue depth: login %u, world %u, character %u",
                     uint32(LoginDatabase.GetDelayQueueDepth()),
                     uint32(WorldDatabase.GetDelayQueueDepth()),

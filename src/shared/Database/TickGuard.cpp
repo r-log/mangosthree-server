@@ -37,9 +37,17 @@ namespace
     /// deck) opens a second one on the same thread.
     thread_local uint32 t_depth = 0;
 
+    /// Per thread as well, and a depth for the same reason: `.reload all` runs one
+    /// reload handler after another, and a nested scope must not end the outer one.
+    thread_local uint32 t_adminDepth = 0;
+
     /// Process-wide: the world thread and every map-update worker add to the same
     /// number, which is what `.server database` prints.
     std::atomic<uint32> s_violations(0);
+
+    /// The acquisitions made inside an AdminScope, kept apart so that the first
+    /// number stays the honest measure of what the world waits for on its own.
+    std::atomic<uint32> s_adminViolations(0);
 
     /// How many of them carry their SQL into the log. Enough to name the offenders
     /// of one run; past that the count is the record.
@@ -62,9 +70,30 @@ namespace TickGuard
         --t_depth;
     }
 
+    AdminScope::AdminScope(bool enter) : m_entered(enter)
+    {
+        if (m_entered)
+        {
+            ++t_adminDepth;
+        }
+    }
+
+    AdminScope::~AdminScope()
+    {
+        if (m_entered)
+        {
+            --t_adminDepth;
+        }
+    }
+
     bool Active()
     {
         return t_depth > 0;
+    }
+
+    bool AdminActive()
+    {
+        return t_adminDepth > 0;
     }
 
     uint32 Violations()
@@ -72,13 +101,29 @@ namespace TickGuard
         return s_violations.load();
     }
 
+    uint32 AdminViolations()
+    {
+        return s_adminViolations.load();
+    }
+
     void ResetViolations()
     {
         s_violations.store(0);
+        s_adminViolations.store(0);
     }
 
     void Violation(char const* sql)
     {
+        // An administrative reload: counted, on its own line, and neither logged nor
+        // asserted. `.reload all` re-runs about a hundred loaders, and a log line per
+        // acquisition would bury whatever the operator ran the reload to look at --
+        // while the assert would turn a supported command into a crash.
+        if (t_adminDepth > 0)
+        {
+            ++s_adminViolations;
+            return;
+        }
+
         const uint32 n = ++s_violations;
 
         if (n <= LOGGED_VIOLATIONS)

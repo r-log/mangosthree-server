@@ -63,10 +63,61 @@ namespace TickGuard
         Scope& operator=(Scope const&) = delete;
     };
 
+    /// RAII, thread-local exactly like Scope, and entered at ONE site in the tree:
+    /// ChatHandler::ExecuteCommand, around a `.reload <table>` command's handler
+    /// (decoupling D7h).
+    ///
+    /// Every `.reload` re-runs a start-up loader synchronously, on the world thread,
+    /// inside World::Update. That is what the command IS: an administrator asking a
+    /// running server to stall while it re-reads a table. Those acquisitions are real
+    /// and are still counted -- in a counter of their own, which `.server database`
+    /// prints on its own line -- but they do not assert under MANGOS_STRICT_TICK,
+    /// because the tick's contract is about what the world does by itself, not about
+    /// what an administrator deliberately asks it to wait for.
+    ///
+    /// A scope is code, not a comment, and its worth depends on staying at one site:
+    /// src/tests/CheckSyncDb.cmake fails the build if `TickGuard::AdminScope` appears
+    /// anywhere but that one line.
+    ///
+    /// `enter` is the dispatcher's test, so the one site can be an unconditional
+    /// declaration: a command that is not a reload constructs a scope that does
+    /// nothing.
+    struct AdminScope
+    {
+        explicit AdminScope(bool enter);
+        ~AdminScope();
+
+        AdminScope(AdminScope const&) = delete;
+        AdminScope& operator=(AdminScope const&) = delete;
+
+    private:
+        bool m_entered;
+    };
+
     bool Active();                  ///< true when the CALLING thread holds a Scope
+    bool AdminActive();             ///< true when the CALLING thread holds an entered AdminScope
     uint32 Violations();            ///< process-wide count since start (or since the last reset)
-    void ResetViolations();         ///< back to zero (the tests, and a future `.server database reset`)
+    uint32 AdminViolations();       ///< the same, for acquisitions made inside an AdminScope
+    void ResetViolations();         ///< both counters back to zero (the tests, and a future `.server database reset`)
     void Violation(char const* sql);///< counts one acquisition; the first sixteen are logged
+
+    /// Whether this build was configured with -DMANGOS_STRICT_TICK=ON, i.e. whether
+    /// Violation() aborts the process instead of only counting. The option reaches
+    /// every consumer through shared_db's PUBLIC compile definition, so this answers
+    /// for the guard's own translation unit as well as for the caller's.
+    ///
+    /// It exists so that code which must behave differently under an armed guard can
+    /// say so in C++ rather than in a #ifdef at each site -- the test suite's cases
+    /// that deliberately provoke a violation are the first such callers, since under
+    /// a strict build they would abort the whole binary.
+    constexpr bool Strict()
+    {
+#ifdef MANGOS_STRICT_TICK
+        return true;
+#else
+        return false;
+#endif
+    }
 }
 
 #endif

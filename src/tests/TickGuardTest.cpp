@@ -26,14 +26,41 @@
 /// Decoupling D7a: the tick guard counts what the tick waits for. Each case here runs the
 /// real Database entry points against fake connections, so what is asserted is the
 /// production counting path, not a model of it.
+///
+/// Decoupling D7h: four of these cases exist to provoke a violation, and under
+/// MANGOS_STRICT_TICK a violation aborts the process -- the binary would die on the first
+/// of them instead of reporting. Each stands down through SkippedUnderStrict(), which is
+/// the reason TickGuard::Strict() is in the header at all, and says so on stdout so a
+/// strict run's output is not mistaken for a full one. What the strict build proves
+/// instead is the abort itself, and that is proved by inducing one in a server (the PR's
+/// induced-failure run), not by a unit test that would have to survive its own abort.
 
 #include "TestHarness.h"
 #include "FakeDatabase.h"
 #include "Database/DatabaseEnv.h"
 #include "Database/TickGuard.h"
 
+#include <cstdio>
 #include <string>
 #include <thread>
+
+namespace
+{
+    /// Whether this case must stand down because the guard is armed, and a line saying so
+    /// when it does. A silent `return` would make a strict run's `ok` indistinguishable
+    /// from a real pass, which is exactly the reassurance a strict CI leg must not give.
+    /// `name` is the case's own name: the TEST macro defines the body as a function called
+    /// after the case, so __func__ cannot drift from it.
+    bool SkippedUnderStrict(const char* name)
+    {
+        if (!TickGuard::Strict())
+        {
+            return false;
+        }
+        std::printf("  skip %s (strict build: this case provokes a violation, which aborts)\n", name);
+        return true;
+    }
+}
 
 TEST(TickGuard_QueryOutsideAScopeIsNotCounted)
 {
@@ -48,6 +75,11 @@ TEST(TickGuard_QueryOutsideAScopeIsNotCounted)
 
 TEST(TickGuard_QueryInsideAScopeIsCountedOnce)
 {
+    if (SkippedUnderStrict(__func__))
+    {
+        return;
+    }
+
     TickGuard::ResetViolations();
     FakeDatabase database;
 
@@ -64,6 +96,11 @@ TEST(TickGuard_QueryInsideAScopeIsCountedOnce)
 
 TEST(TickGuard_EscapeStringInsideAScopeIsCounted)
 {
+    if (SkippedUnderStrict(__func__))
+    {
+        return;
+    }
+
     TickGuard::ResetViolations();
     FakeDatabase database;
 
@@ -154,6 +191,11 @@ TEST(TickGuard_NullDatabaseInsideAScopeCountsNothing)
 
 TEST(TickGuard_ResetViolationsClearsTheCount)
 {
+    if (SkippedUnderStrict(__func__))
+    {
+        return;
+    }
+
     TickGuard::ResetViolations();
     FakeDatabase database;
 
@@ -166,4 +208,81 @@ TEST(TickGuard_ResetViolationsClearsTheCount)
 
     TickGuard::ResetViolations();
     CHECK_EQ(TickGuard::Violations(), 0u);
+}
+
+/// Decoupling D7h. An administrative reload (`.reload <table>`) runs a start-up loader
+/// synchronously inside World::Update, deliberately. Under an AdminScope those
+/// acquisitions go to their own counter, leave the tick's count alone, and -- the reason
+/// the scope exists at all -- do not assert, so this case runs in a strict build too.
+TEST(TickGuard_AdminScopeCountsApartAndDoesNotAssert)
+{
+    TickGuard::ResetViolations();
+    FakeDatabase database;
+
+    CHECK(!TickGuard::AdminActive());
+    {
+        TickGuard::Scope scope;                 // the world tick, as always
+        TickGuard::AdminScope admin(true);      // ...inside which a reload handler runs
+        CHECK(TickGuard::Active());
+        CHECK(TickGuard::AdminActive());
+
+        // `.reload all` calls one loader after another, and a nested scope must not end
+        // the outer one: the depth is what makes that true.
+        {
+            TickGuard::AdminScope nested(true);
+            CHECK(TickGuard::AdminActive());
+            database.PQuery("SELECT %u FROM `spell_chain`", 1u);
+        }
+        CHECK(TickGuard::AdminActive());
+        std::string value("name'");
+        database.escape_string(value);
+    }
+    CHECK(!TickGuard::AdminActive());
+
+    CHECK_EQ(TickGuard::Violations(), 0u);
+    CHECK_EQ(TickGuard::AdminViolations(), 2u);
+
+    // And both counters reset together.
+    TickGuard::ResetViolations();
+    CHECK_EQ(TickGuard::Violations(), 0u);
+    CHECK_EQ(TickGuard::AdminViolations(), 0u);
+}
+
+/// A scope constructed with `false` is the dispatcher's non-reload case: it must not
+/// suppress anything, or every chat command would stop being counted.
+TEST(TickGuard_AdminScopeNotEnteredSuppressesNothing)
+{
+    if (SkippedUnderStrict(__func__))
+    {
+        return;
+    }
+
+    TickGuard::ResetViolations();
+    FakeDatabase database;
+
+    {
+        TickGuard::Scope scope;
+        TickGuard::AdminScope admin(false);
+        CHECK(!TickGuard::AdminActive());
+        database.PQuery("SELECT %u FROM `characters`", 5u);
+    }
+
+    CHECK_EQ(TickGuard::Violations(), 1u);
+    CHECK_EQ(TickGuard::AdminViolations(), 0u);
+}
+
+/// Decoupling D7h. TickGuard::Strict() must answer what this build was configured with.
+/// It reaches the guard through shared_db's PUBLIC compile definition; the expectation it
+/// is compared against is put on the test target directly by src/tests/CMakeLists.txt from
+/// the same CMake option. Two independent paths from one switch: if the definition stops
+/// propagating through the library -- a PRIVATE where a PUBLIC was, a target that stops
+/// linking shared_db -- the two disagree and this fails, instead of the guard silently
+/// going quiet in a build that was asked to arm it.
+TEST(TickGuard_StrictMatchesTheBuildConfiguration)
+{
+#ifdef MANGOS_TESTS_STRICT_TICK_CONFIGURED
+    CHECK(TickGuard::Strict());
+#else
+    CHECK(!TickGuard::Strict());
+#endif
 }

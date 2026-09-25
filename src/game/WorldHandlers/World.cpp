@@ -606,6 +606,14 @@ void World::SetInitialWorldSettings()
     sLog.outString(">>> Localization strings loaded");
     sLog.outString();
 
+    // Decoupling D7h: the `command` table's security and help overrides. This used to be
+    // read lazily, on the first chat or console command of the process -- i.e. on the world
+    // thread, inside World::Update. Here it is start-up work like every other loader, and
+    // the tick never waits for it. `.reload command` re-runs the same function.
+    sLog.outString("Loading chat command overrides...");
+    ChatHandler::LoadCommandTable();
+    sLog.outString();
+
     ///- Load dynamic data tables from the database
     sLog.outString("Loading Auctions...");
     sAuctionMgr.LoadAuctionItems();
