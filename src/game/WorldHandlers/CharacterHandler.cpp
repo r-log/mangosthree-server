@@ -160,6 +160,45 @@ WorldSession* WorldSession::FindRequesterSession(uint32 accountId, proto::Sessio
     return session;
 }
 
+/**
+ * @brief Re-find the session AND the character a queued request came from (D7b, C1).
+ *
+ * The session check above plus the guid: the player reached through the session is compared
+ * against the one the registry has under that guid, so a character swap on the same session
+ * (a logout and a login of a different character between the request and the answer) is
+ * caught as well as a reconnect. This was a file-local helper in PetitionsHandler.cpp from
+ * D7b until D7g needed exactly the same four lines in the calendar, mail and item handlers;
+ * PetitionsHandler's FindRequester() now forwards to it.
+ *
+ * @param accountId The requesting account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The character the request was made by.
+ * @param session Out: the re-found session, NULL on failure.
+ * @param player Out: the re-found player, NULL on failure -- except when the session is live
+ *        but holds a different character, where it is that character. Both are written before
+ *        the test that rejects them, so neither means anything after a false return, and no
+ *        caller reads one. (The file-local helper this replaced left the session set on a
+ *        session-id mismatch instead of clearing it; nothing looked, then either.)
+ * @return false when either is gone or has been replaced.
+ */
+bool WorldSession::FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
+                                       WorldSession*& session, Player*& player)
+{
+    session = FindRequesterSession(accountId, sessionId);
+    if (!session)
+    {
+        return false;
+    }
+
+    player = session->GetPlayer();
+    if (!player || player != sPlayerRegistry.Find(playerGuid))
+    {
+        return false;
+    }
+
+    return true;
+}
+
 class LoginQueryHolder : public SqlQueryHolder
 {
     private:

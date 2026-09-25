@@ -284,35 +284,110 @@ void WorldSession::HandleOpenItemOpcode(WorldPacket& recvPacket)
 
     if (pItem->HasFlag(ITEM_FIELD_FLAGS, ITEM_DYNFLAG_WRAPPED))// wrapped?
     {
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `entry`, `flags` FROM `character_gifts` WHERE `item_guid` = '%u'", pItem->GetGUIDLow());
-        if (result)
-        {
-            Field* fields = result->Fetch();
-            uint32 entry = fields[0].GetUInt32();
-            uint32 flags = fields[1].GetUInt32();
-
-            pItem->SetGuidValue(ITEM_FIELD_GIFTCREATOR, ObjectGuid());
-            pItem->SetEntry(entry);
-            pItem->SetUInt32Value(ITEM_FIELD_FLAGS, flags);
-            pItem->SetState(ITEM_CHANGED, pUser);
-            delete result;
-        }
-        else
-        {
-            sLog.outError("Wrapped item %u don't have record in character_gifts table and will deleted", pItem->GetGUIDLow());
-            pUser->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
-            return;
-        }
-
-        static SqlStatementID delGifts ;
-
-        SqlStatement stmt = CharacterDatabase.CreateStatement(delGifts, "DELETE FROM `character_gifts` WHERE `item_guid` = ?");
-        stmt.PExecute(pItem->GetGUIDLow());
+        // Decoupling D7g (C1-C5): the gift row is read asynchronously and the item is
+        // unwrapped in the continuation a tick later. Nothing durable is mutated in front of
+        // the read, so there is nothing to reorder -- the whole of the unwrap (the entry,
+        // the flags, the gift-creator field, the row delete, and the "no row, destroy it"
+        // branch) is what moves.
+        //
+        // A per-login cache of the player's `character_gifts` rows was the alternative the
+        // plan allowed. It was rejected on the measured volume: the live realm's
+        // `character_gifts` holds 0 rows against 1130 characters and 9932 items, so that
+        // cache would add a statement to the hottest path there is (every login) to save one
+        // tick on an action almost nobody performs, and it would need invalidating at every
+        // wrap as well as at every open.
+        QueueOpenWrappedItemRead(GetAccountId(), GetSessionId(), pUser->GetObjectGuid(), pItem->GetObjectGuid());
     }
     else
     {
         pUser->SendLoot(pItem->GetObjectGuid(), LOOT_CORPSE);
     }
+}
+
+/**
+ * @brief Stages the wrapped item's gift-row read (decoupling D7g).
+ *
+ * Split out of the handler so it can be driven on its own: everything it needs is in its
+ * arguments, so a test can queue exactly what a real request queues without a Player.
+ *
+ * @param accountId The opening account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The player opening the gift.
+ * @param itemGuid The wrapped item.
+ */
+void WorldSession::QueueOpenWrappedItemRead(uint32 accountId, proto::SessionId sessionId,
+                                            ObjectGuid playerGuid, ObjectGuid itemGuid)
+{
+    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, itemGuid](QueryResult* result)
+                                  {
+                                      WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult>(result),
+                                                                                  accountId, sessionId, playerGuid, itemGuid);
+                                  },
+                                  "SELECT `entry`, `flags` FROM `character_gifts` WHERE `item_guid` = '%u'",
+                                  itemGuid.GetCounter());
+}
+
+/**
+ * @brief Unwraps the gift once its row is known.
+ *
+ * @param result The item's `character_gifts` row, if it has one.
+ * @param accountId The opening account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The player opening the gift.
+ * @param itemGuid The wrapped item.
+ */
+void WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                 ObjectGuid itemGuid)
+{
+    WorldSession* session = NULL;
+    Player* pUser = NULL;
+    if (!FindRequesterPlayer(accountId, sessionId, playerGuid, session, pUser))
+    {
+        return;
+    }
+
+    // The item is re-found by guid, never carried across a tick as a pointer: in the
+    // meantime it can have been mailed, traded, sold or destroyed, and the Item object
+    // freed with it.
+    Item* pItem = pUser->GetItemByGuid(itemGuid);
+    if (!pItem)
+    {
+        return;
+    }
+
+    // ... and it may already have been unwrapped. Two CMSG_OPEN_ITEM packets for the same
+    // item in one tick queue two reads, and the second answer arrives after the first
+    // continuation has cleared the flag. Unwrapping twice would be harmless (the same entry
+    // and the same flags), but the second one has no gift row left to describe, so it would
+    // take the "no record, destroy it" branch and eat the item.
+    if (!pItem->HasFlag(ITEM_FIELD_FLAGS, ITEM_DYNFLAG_WRAPPED))
+    {
+        return;
+    }
+
+    if (result)
+    {
+        Field* fields = result->Fetch();
+        uint32 entry = fields[0].GetUInt32();
+        uint32 flags = fields[1].GetUInt32();
+
+        pItem->SetGuidValue(ITEM_FIELD_GIFTCREATOR, ObjectGuid());
+        pItem->SetEntry(entry);
+        pItem->SetUInt32Value(ITEM_FIELD_FLAGS, flags);
+        pItem->SetState(ITEM_CHANGED, pUser);
+    }
+    else
+    {
+        sLog.outError("Wrapped item %u don't have record in character_gifts table and will deleted", pItem->GetGUIDLow());
+        pUser->DestroyItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
+        return;
+    }
+
+    static SqlStatementID delGifts ;
+
+    SqlStatement stmt = CharacterDatabase.CreateStatement(delGifts, "DELETE FROM `character_gifts` WHERE `item_guid` = ?");
+    stmt.PExecute(pItem->GetGUIDLow());
 }
 
 /**

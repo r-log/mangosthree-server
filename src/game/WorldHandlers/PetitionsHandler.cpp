@@ -138,19 +138,9 @@ namespace
     bool FindRequester(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
                        WorldSession*& session, Player*& player)
     {
-        session = sWorld.FindSession(accountId);
-        if (!session || session->GetSessionId() != sessionId)
-        {
-            return false;
-        }
-
-        player = session->GetPlayer();
-        if (!player || player != sPlayerRegistry.Find(playerGuid))
-        {
-            return false;
-        }
-
-        return true;
+        // The body moved to WorldSession::FindRequesterPlayer in D7g, unchanged, when the
+        // calendar, mail and item continuations needed the same four lines.
+        return WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player);
     }
 
     /**

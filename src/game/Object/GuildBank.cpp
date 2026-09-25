@@ -291,9 +291,18 @@ void Guild::SetGuildBankTabInfo(uint8 TabId, std::string Name, std::string Icon)
     m_TabListMap[TabId]->Name = Name;
     m_TabListMap[TabId]->Icon = Icon;
 
-    CharacterDatabase.escape_string(Name);
-    CharacterDatabase.escape_string(Icon);
-    CharacterDatabase.PExecute("UPDATE `guild_bank_tab` SET `TabName`='%s',`TabIcon`='%s' WHERE `guildid`='%u' AND `TabId`='%u'", Name.c_str(), Icon.c_str(), m_Id, uint32(TabId));
+    // Decoupling D7g (C5): the tab's name and its icon are BOUND, not escaped -- the twin
+    // of Guild::SetMOTD / SetGINFO, converted in D7f. CMSG_GUILD_BANK_UPDATE_TAB arrives on
+    // the world thread, so each escape_string took query connection zero's lock inside the
+    // tick. The in-memory copies above are the unescaped strings, exactly as before.
+    static SqlStatementID updTabInfo;
+    SqlStatement update = CharacterDatabase.CreateStatement(updTabInfo,
+                          "UPDATE `guild_bank_tab` SET `TabName`=?,`TabIcon`=? WHERE `guildid`=? AND `TabId`=?");
+    update.addString(Name);
+    update.addString(Icon);
+    update.addUInt32(m_Id);
+    update.addUInt32(uint32(TabId));
+    update.Execute();
 }
 
 uint32 Guild::GetBankRights(uint32 rankId, uint8 TabId) const
@@ -1195,8 +1204,15 @@ void Guild::SetGuildBankTabText(uint8 TabId, std::string text)
 
     m_TabListMap[TabId]->Text = text;
 
-    CharacterDatabase.escape_string(text);
-    CharacterDatabase.PExecute("UPDATE `guild_bank_tab` SET `TabText`='%s' WHERE `guildid`='%u' AND `TabId`='%u'", text.c_str(), m_Id, uint32(TabId));
+    // Decoupling D7g (C5): the tab text is BOUND, not escaped. It is truncated to 500 bytes
+    // above and stored in memory unescaped, both unchanged; only the write differs.
+    static SqlStatementID updTabText;
+    SqlStatement update = CharacterDatabase.CreateStatement(updTabText,
+                          "UPDATE `guild_bank_tab` SET `TabText`=? WHERE `guildid`=? AND `TabId`=?");
+    update.addString(text);
+    update.addUInt32(m_Id);
+    update.addUInt32(uint32(TabId));
+    update.Execute();
 
     // announce
     SendGuildBankTabText(NULL, TabId);

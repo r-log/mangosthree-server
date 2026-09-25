@@ -35,6 +35,13 @@ set(CONVERTED_FILES
     src/game/Object/Guild.cpp                               # decoupling D7f
     src/game/Object/GuildRank.cpp                           # decoupling D7f
     src/game/Object/PlayerBattleGround.cpp                  # decoupling D7f
+    src/game/WorldHandlers/CalendarHandler.cpp              # decoupling D7g
+    src/game/Object/Calendar.cpp                            # decoupling D7g
+    src/game/WorldHandlers/Mail.cpp                         # decoupling D7g
+    src/game/WorldHandlers/MailHandler.cpp                  # decoupling D7g
+    src/game/WorldHandlers/SpellHandler.cpp                 # decoupling D7g
+    src/game/Object/ArenaTeam.cpp                           # decoupling D7g
+    src/game/Object/GuildBank.cpp                           # decoupling D7g
 )
 
 # Per file, the exact lines (trimmed) that are allowed to keep a direct call -- a startup
@@ -145,6 +152,53 @@ set(ALLOW_ObjectMgr_cpp
 set(ALLOW_Guild_cpp
     # --- start-up: Guild::LoadGuildEventLogFromDB, from GuildMgr::LoadGuilds ---
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid1`, `PlayerGuid2`, `NewRank`, `TimeStamp` FROM `guild_eventlog` WHERE `guildid`=%u ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, GUILD_EVENTLOG_MAX_RECORDS)\;")
+
+# Decoupling D7g. The calendar, mail and wrapped-item residual the D7a inventory named, plus
+# the arena twins of D7f's two guild sites and the guild bank's escapes:
+#
+#   CalendarHandler.cpp -- HandleCalendarEventInvite's escape and its `SELECT guid,race FROM
+#                          characters WHERE name` read the character cache; the invitee's
+#                          `character_social` ignore flag, which nothing caches, is a
+#                          continuation; HandleCalendarUpdateEvent's two escapes became
+#                          CalendarMgr::WriteEventUpdateToDB's bound UPDATE. NO allow list.
+#   Calendar.cpp        -- CalendarMgr::AddEvent's two escapes became WriteEventToDB's bound
+#                          INSERT. FOUR allowed lines, all inside LoadCalendarsFromDB.
+#   Mail.cpp            -- MailDraft::SendMailTo's subject and body are bound. That is the
+#                          whole file's blocking surface, and it is the one place every mail
+#                          in the server is written, so quest rewards, auctions, the mass
+#                          mailer, the calendar and the GM commands all lost it at once.
+#                          NO allow list.
+#   MailHandler.cpp     -- HandleSendMail's offline `SELECT COUNT(*) FROM mail` is a
+#                          continuation. Its only blocking call, so NO allow list.
+#   SpellHandler.cpp    -- HandleOpenItemOpcode's `character_gifts` read is a continuation.
+#                          Its only blocking call, so NO allow list.
+#   ArenaTeam.cpp       -- ArenaTeam::Create's name escape is bound and AddMember's
+#                          `SELECT name,class FROM characters` reads the cache: the twins of
+#                          Guild::Create and Guild::AddMember (D7f). The file had no other
+#                          blocking call -- its start-up loaders are handed their results by
+#                          ObjectMgr::LoadArenaTeams -- so NO allow list.
+#   GuildBank.cpp       -- Guild::SetGuildBankTabInfo's two escapes and SetGuildBankTabText's
+#                          one are bound. FOUR allowed lines, the start-up bank reads.
+#
+# Calendar.cpp's four are CalendarMgr::LoadCalendarsFromDB's, which World::SetInitialWorldSettings
+# calls once before the tick exists; the two TRUNCATEs are its repair for a half-empty pair of
+# tables and run from the same function.
+set(ALLOW_Calendar_cpp
+    # --- start-up: CalendarMgr::LoadCalendarsFromDB, from World::SetInitialWorldSettings ---
+    "QueryResult* eventsQuery = CharacterDatabase.Query(\"SELECT `eventId`, `creatorGuid`, `guildId`, `type`, `flags`, `dungeonId`, `eventTime`, `title`, `description` FROM `calendar_events` ORDER BY `eventId`\")\;"
+    "QueryResult* invitesQuery = CharacterDatabase.Query(\"SELECT `inviteId`, `eventId`, `inviteeGuid`, `senderGuid`, `status`, `lastUpdateTime`, `rank` FROM `calendar_invites` ORDER BY `inviteId`\")\;"
+    "CharacterDatabase.DirectExecute(\"TRUNCATE TABLE calendar_events\")\;"
+    "CharacterDatabase.DirectExecute(\"TRUNCATE TABLE calendar_invites\")\;")
+
+# GuildBank.cpp's four are Guild::LoadGuildBankFromDB's two and Guild::LoadGuildBankEventLogFromDB's
+# two, which GuildMgr::LoadGuilds calls once per guild at start-up and nothing else calls at all.
+set(ALLOW_GuildBank_cpp
+    # --- start-up: Guild::LoadGuildBankFromDB, from GuildMgr::LoadGuilds ---
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `TabId`, `TabName`, `TabIcon`, `TabText` FROM `guild_bank_tab` WHERE `guildid`='%u' ORDER BY `TabId`\", m_Id)\;"
+    "result = CharacterDatabase.PQuery(\"SELECT `data`, `text`, `TabId`, `SlotId`, `item_guid`, `item_entry` FROM `guild_bank_item` JOIN `item_instance` ON `item_guid` = `guid` WHERE `guildid`='%u' ORDER BY `TabId`\", m_Id)\;"
+    # --- start-up: Guild::LoadGuildBankEventLogFromDB, from GuildMgr::LoadGuilds ---
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, tabId, GUILD_BANK_MAX_LOGS)\;"
+    "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `LogGuid`, `EventType`, `PlayerGuid`, `ItemOrMoney`, `ItemStackCount`, `DestTabId`, `TimeStamp` FROM `guild_bank_eventlog` WHERE `guildid`='%u' AND `TabId`='%u' ORDER BY `TimeStamp` DESC,`LogGuid` DESC LIMIT %u\", m_Id, GUILD_BANK_MONEY_LOGS_TAB, GUILD_BANK_MAX_LOGS)\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 
