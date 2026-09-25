@@ -25,6 +25,9 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/PetitionsHandler.cpp             # decoupling D7b
     src/game/Object/PlayerDbLookup.cpp                      # decoupling D7c
     src/game/Object/ObjectMgr.cpp                           # decoupling D7c
+    src/game/WorldHandlers/CharacterHandler.cpp             # decoupling D7d
+    src/game/WorldHandlers/CharacterHandlerCustomize.cpp    # decoupling D7d
+    src/game/Object/Player.cpp                              # decoupling D7d
 )
 
 # Per file, the exact lines (trimmed) that are allowed to keep a direct call -- a startup
@@ -86,6 +89,27 @@ set(ALLOW_ObjectMgr_cpp
     "QueryResult* points = WorldDatabase.Query(\"SELECT `questId`, `poiId`, `x`, `y` FROM `quest_poi_points`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`\")\;"
     "QueryResult* result = WorldDatabase.Query(\"SELECT entry, type, UNIX_TIMESTAMP(hotfixDate) FROM hotfix_data\")\;")
+
+# Decoupling D7d. CharacterHandler.cpp and CharacterHandlerCustomize.cpp have NO allow list:
+# character create, delete, customize, rename and declined names all read through holders or
+# async queries now, and all five escapes are gone, so nothing in either file may block again.
+#
+# Player.cpp has exactly ONE allowed line, and it is not this PR's:
+#
+#   Player::RemovePetitionsAndSigns(ObjectGuid) -- the SYNCHRONOUS overload, which exists only
+#   for Guild::AddMember (src/game/Object/Guild.cpp), still called from inside the tick. That
+#   chain is PR D7f's (the D7b report's turn-in residual); D7d converted the character-delete
+#   caller by giving the function a second overload that takes the rows out of the delete
+#   holder, and left this one alone rather than reaching into D7f's scope. When D7f converts
+#   Guild::AddMember, this overload and this line go with it.
+#
+# Everything else Player.cpp used to block on is converted: DeleteFromDB's five reads (group,
+# COD mail, those mails' items, pets, friends) are staged into one holder by StageDeleteReads;
+# DeleteOldCharacters' guid list is an AsyncPQuery; and Player::Customize's `playerBytes2` read
+# is staged by the customize handler next to its own.
+set(ALLOW_Player_cpp
+    # --- residual: Guild::AddMember's caller, PR D7f ---
+    "CharacterDatabase.PQuery(\"SELECT `ownerguid`,`petitionguid` FROM `petition_sign` WHERE `playerguid` = '%u'\", guid.GetCounter()))\;")
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

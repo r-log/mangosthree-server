@@ -689,12 +689,64 @@ class WorldSession
         void HandleWardenDataOpcode(WorldPacket& recv_data); // authenticated drain; legacy Warden is intentionally absent
 
         void HandleCharEnumOpcode(WorldPacket& recvPacket);
-        void HandleCharDeleteOpcode(WorldPacket& recvPacket);
-        void HandleCharCreateOpcode(WorldPacket& recvPacket);
         void HandlePlayerLoginOpcode(WorldPacket& recvPacket);
         void HandleCharEnum(QueryResult* result);
         void HandlePlayerLogin(LoginQueryHolder* holder);
         void HandleReorderCharactersOpcode(WorldPacket& recvPacket);
+
+        // The character create, delete and customize continuations (decoupling D7d). The
+        // same shape D7b gave the petition handlers: the handler queues its reads and
+        // returns, and a static callback -- identities only, never a pointer across a tick
+        // -- is answered a tick later out of UpdateResultQueue() on the world thread.
+        //
+        // These three operations have no Player at all (the character is not loaded), so
+        // the identity that has to survive is the session's alone: the account id plus the
+        // session id, which a reconnect changes. FindRequesterSession() is that check.
+        static WorldSession* FindRequesterSession(uint32 accountId, proto::SessionId sessionId);
+
+        /// Everything CMSG_CHAR_CREATE carries, captured by value into the continuations.
+        struct CharCreateRequest
+        {
+            std::string name;
+            uint8 race = 0;
+            uint8 playerClass = 0;
+            uint8 gender = 0;
+            uint8 skin = 0;
+            uint8 face = 0;
+            uint8 hairStyle = 0;
+            uint8 hairColor = 0;
+            uint8 facialHair = 0;
+            uint8 outfitId = 0;
+        };
+
+        /// Everything CMSG_CHAR_CUSTOMIZE carries beyond the character guid.
+        struct CharCustomizeRequest
+        {
+            std::string newname;
+            uint8 gender = 0;
+            uint8 skin = 0;
+            uint8 face = 0;
+            uint8 hairStyle = 0;
+            uint8 hairColor = 0;
+            uint8 facialHair = 0;
+        };
+
+        void HandleCharCreateOpcode(WorldPacket& recvPacket);
+        static uint8 CharCreateChecksInMemory(WorldSession* session, CharCreateRequest& request);
+        static void QueueCharCreateAccountRead(uint32 accountId, proto::SessionId sessionId,
+                                               CharCreateRequest request);
+        static void HandleCharCreateAccountCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                                    proto::SessionId sessionId, CharCreateRequest request);
+        static void QueueCharCreateRealmReads(uint32 accountId, proto::SessionId sessionId,
+                                              CharCreateRequest request);
+        static void HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                             proto::SessionId sessionId, CharCreateRequest request);
+
+        void HandleCharDeleteOpcode(WorldPacket& recvPacket);
+        static void QueueCharDeleteReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid);
+        static void HandleCharDeleteCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                             proto::SessionId sessionId, ObjectGuid guid,
+                                             uint32 charDeleteMethod);
 
         // played time
         void HandlePlayedTime(WorldPacket& recvPacket);
@@ -1101,8 +1153,18 @@ class WorldSession
         void HandleSetActionBarTogglesOpcode(WorldPacket& recv_data);
 
         void HandleCharRenameOpcode(WorldPacket& recv_data);
-        static void HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uint32 accountId, std::string newname);
+        static void HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uint32 accountId,
+                                                         proto::SessionId sessionId, std::string newname);
         void HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data);
+
+        // Customize (decoupling D7d): the at_login flag and the appearance row are read by
+        // one holder, and everything the handler did after them -- the name checks, the
+        // cache update, the writes and the reply -- runs in the continuation.
+        static void QueueCharCustomizeReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid,
+                                            CharCustomizeRequest request);
+        static void HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                                proto::SessionId sessionId, ObjectGuid guid,
+                                                CharCustomizeRequest request);
 
         void HandleTotemDestroyed(WorldPacket& recv_data);
 

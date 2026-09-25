@@ -25,9 +25,12 @@
 
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include "Database/DatabaseEnv.h"
+#include "Database/SqlOperations.h"
 #include "WorldPacket.h"
 #include "SharedDefines.h"
 #include "WorldSession.h"
@@ -55,6 +58,28 @@
  * @file CharacterHandlerCustomize.cpp
  * @brief Cohesion split of CharacterHandler.cpp -- character customization and client-settings opcode handlers: rename, declined names, alter appearance, remove glyph, customize, equipment sets, reorder characters, currency flags and load screen. Same WorldSession class; no behaviour change. CMake file(GLOB) picks this file up automatically; WorldSession.h is unchanged.
  */
+
+namespace
+{
+    /// The slots of the customize handler's holder (decoupling D7d). Both statements are
+    /// keyed on the character guid alone, so neither needs the other's answer: one holder,
+    /// one round trip, where the handler used to block twice -- once for `at_login` and
+    /// once inside Player::Customize for `playerBytes2`.
+    enum CharCustomizeSlot
+    {
+        CHAR_CUSTOMIZE_AT_LOGIN      = 0,
+        CHAR_CUSTOMIZE_PLAYER_BYTES2 = 1,
+        CHAR_CUSTOMIZE_COUNT         = 2
+    };
+
+    /// The one-byte SMSG_CHAR_CUSTOMIZE failure answer.
+    void SendCharCustomizeResult(WorldSession* session, uint8 result)
+    {
+        WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1);
+        data << uint8(result);
+        session->SendPacket(&data);
+    }
+}
 
 /**
  * @brief Validates and starts the asynchronous character rename flow.
@@ -96,31 +121,50 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recv_data)
         return;
     }
 
-    std::string escaped_newname = newname;
-    CharacterDatabase.escape_string(escaped_newname);
+    // Decoupling D7d (C5): the `NOT EXISTS (... WHERE name = '%s')` subquery is the only
+    // reason this handler escaped a string on the world thread. Since D7c the same question
+    // is answered from the character cache, whose name index folds exactly the way the
+    // `characters`.`name` collation (utf8_general_ci) compares -- so the check moves up here,
+    // into memory, and the statement below carries numbers only. A taken name answered
+    // CHAR_CREATE_ERROR before (the subquery made the SELECT return nothing, and a NULL result
+    // is what the callback maps to that code); it answers the same thing, a tick earlier.
+    if (sObjectMgr.GetPlayerGuidByName(newname))
+    {
+        WorldPacket data(SMSG_CHAR_RENAME, 1);
+        data << uint8(CHAR_CREATE_ERROR);
+        SendPacket(&data);
+        return;
+    }
 
-    // make sure that the character belongs to the current account, that rename at login is enabled
-    // and that there is no character with the desired new name
+    // make sure that the character belongs to the current account and that rename at login
+    // is enabled
     uint32 accountId = GetAccountId();
-    CharacterDatabase.AsyncPQuery([accountId, newname](QueryResult* result)
+    proto::SessionId sessionId = GetSessionId();
+    CharacterDatabase.AsyncPQuery([accountId, sessionId, newname](QueryResult* result)
                                   {
-                                      WorldSession::HandleChangePlayerNameOpcodeCallBack(result, accountId, newname);
+                                      WorldSession::HandleChangePlayerNameOpcodeCallBack(result, accountId, sessionId, newname);
                                   },
-                                  "SELECT `guid`, `name` FROM `characters` WHERE `guid` = %u AND `account` = %u AND (`at_login` & %u) = %u AND NOT EXISTS (SELECT NULL FROM `characters` WHERE `name` = '%s')",
-                                  guid.GetCounter(), GetAccountId(), AT_LOGIN_RENAME, AT_LOGIN_RENAME, escaped_newname.c_str()
+                                  "SELECT `guid`, `name` FROM `characters` WHERE `guid` = %u AND `account` = %u AND (`at_login` & %u) = %u",
+                                  guid.GetCounter(), GetAccountId(), AT_LOGIN_RENAME, AT_LOGIN_RENAME
                                  );
 }
 
 /**
  * @brief Finalizes a character rename after the database validation query completes.
  *
+ * Decoupling D7d: the account id alone was not an identity -- a reconnect in the tick between
+ * the request and this answer is a NEW session on the same account, and it would have been
+ * handed a rename it never asked for. FindRequesterSession() compares the session id too (C1).
+ *
  * @param result The rename validation query result.
  * @param accountId The session account id.
+ * @param sessionId The session the request arrived on.
  * @param newname The requested new character name.
  */
-void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uint32 accountId, std::string newname)
+void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uint32 accountId,
+                                                        proto::SessionId sessionId, std::string newname)
 {
-    WorldSession* session = sWorld.FindSession(accountId);
+    WorldSession* session = FindRequesterSession(accountId, sessionId);
     if (!session)
     {
         if (result)
@@ -144,8 +188,31 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uin
 
     delete result;
 
+    // C3, and it is not optional. The handler checked the name against the cache in the tick
+    // the request arrived in; this runs a tick later, and in between the name can have been
+    // taken -- by a second rename to the same name on another session (whose own handler check
+    // also passed, because neither had written yet), or by a create whose continuation added it
+    // to the cache. The statement above no longer carries the `NOT EXISTS` subquery that used
+    // to answer this on the delay thread AFTER the first UPDATE, so the question has to be
+    // asked again here, immediately before the write. Same refusal the handler sends.
+    if (sObjectMgr.GetPlayerGuidByName(newname))
+    {
+        WorldPacket data(SMSG_CHAR_RENAME, 1);
+        data << uint8(CHAR_CREATE_ERROR);
+        session->SendPacket(&data);
+        return;
+    }
+
+    // C5: the name is bound, not pasted. Whatever the connection has to do with it -- a real
+    // bind, or the escaping the plain fallback does -- happens inside the delay thread's own
+    // operation, never here. (The old statement pasted the UNESCAPED name; only the SELECT
+    // above was given the escaped copy.)
+    static SqlStatementID renameCharacter;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(renameCharacter,
+                        "UPDATE `characters` SET `name` = ?, `at_login` = `at_login` & ~ ? WHERE `guid` = ?");
+
     CharacterDatabase.BeginTransaction();
-    CharacterDatabase.PExecute("UPDATE `characters` SET `name` = '%s', `at_login` = `at_login` & ~ %u WHERE `guid` ='%u'", newname.c_str(), uint32(AT_LOGIN_RENAME), guidLow);
+    stmt.PExecute(newname.c_str(), uint32(AT_LOGIN_RENAME), guidLow);
     CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` ='%u'", guidLow);
     CharacterDatabase.CommitTransaction();
 
@@ -230,15 +297,22 @@ void WorldSession::HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data)
         return;
     }
 
+    // C5 (decoupling D7d): the five declined forms were escaped here, on the world thread --
+    // five Database::escape_string() calls, each of which takes query connection zero's lock.
+    // They are bound instead, and whatever escaping the connection needs happens inside the
+    // delay thread's own operation.
+    static SqlStatementID insertDeclinedName;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(insertDeclinedName,
+                        "INSERT INTO `character_declinedname` (`guid`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) VALUES (?,?,?,?,?,?)");
+    stmt.addUInt32(guid.GetCounter());
     for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
     {
-        CharacterDatabase.escape_string(declinedname.name[i]);
+        stmt.addString(declinedname.name[i]);
     }
 
     CharacterDatabase.BeginTransaction();
     CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` = '%u'", guid.GetCounter());
-    CharacterDatabase.PExecute("INSERT INTO `character_declinedname` (`guid`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) VALUES ('%u','%s','%s','%s','%s','%s')",
-                               guid.GetCounter(), declinedname.name[0].c_str(), declinedname.name[1].c_str(), declinedname.name[2].c_str(), declinedname.name[3].c_str(), declinedname.name[4].c_str());
+    stmt.Execute();
     CharacterDatabase.CommitTransaction();
 
     WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
@@ -332,62 +406,120 @@ void WorldSession::HandleRemoveGlyphOpcode(WorldPacket& recv_data)
     }
 }
 
+/**
+ * @brief Starts the asynchronous character customize flow (decoupling D7d).
+ *
+ * Nothing is checked or written here: both reads the old handler blocked on are staged into
+ * one holder and every decision it made is made in the continuation, in the same order.
+ *
+ * @param recv_data The received opcode packet.
+ */
 void WorldSession::HandleCharCustomizeOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-    std::string newname;
+    CharCustomizeRequest request;
 
     recv_data >> guid;
-    recv_data >> newname;
+    recv_data >> request.newname;
 
-    uint8 gender, skin, face, hairStyle, hairColor, facialHair;
-    recv_data >> gender >> skin >> hairColor >> hairStyle >> facialHair >> face;
+    recv_data >> request.gender >> request.skin >> request.hairColor >> request.hairStyle >> request.facialHair >> request.face;
 
-    QueryResult* result = CharacterDatabase.PQuery("SELECT `at_login` FROM `characters` WHERE `guid` = '%u'", guid.GetCounter());
+    QueueCharCustomizeReads(GetAccountId(), GetSessionId(), guid, request);
+}
+
+/**
+ * @brief Stages the customize handler's two reads (decoupling D7d, C4).
+ *
+ * @param accountId The requesting account.
+ * @param sessionId The session the request arrived on.
+ * @param guid      The character being customized.
+ * @param request   The requested name and appearance.
+ */
+void WorldSession::QueueCharCustomizeReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid,
+                                           CharCustomizeRequest request)
+{
+    SqlQueryHolder* holder = new SqlQueryHolder;
+    holder->SetSize(CHAR_CUSTOMIZE_COUNT);
+    holder->SetPQuery(CHAR_CUSTOMIZE_AT_LOGIN,
+                      "SELECT `at_login` FROM `characters` WHERE `guid` = '%u'", guid.GetCounter());
+    //                                                       0
+    holder->SetPQuery(CHAR_CUSTOMIZE_PLAYER_BYTES2,
+                      "SELECT `playerBytes2` FROM `characters` WHERE `guid` = '%u'", guid.GetCounter());
+
+    // DelayQueryHolder() answers false without queueing once the database is shutting down
+    // (decoupling D7a), and the holder is the callback's to free -- so free it here instead.
+    if (!CharacterDatabase.DelayQueryHolder([accountId, sessionId, guid, request]
+                                           (QueryResult* /*result*/, SqlQueryHolder* h)
+                                           {
+                                               WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder>(h),
+                                                                                         accountId, sessionId, guid, request);
+                                           }, holder))
+    {
+        delete holder;                                      // delete all unprocessed queries
+    }
+}
+
+/**
+ * @brief Applies the customize, once the character's flags and appearance are known.
+ *
+ * Every check is the handler's, in the handler's order, with the handler's reply: the
+ * at_login flag, then the name's validity, then the reserved list, then whether the name is
+ * taken. The cache update still sits immediately in front of the write it describes, and the
+ * write no longer escapes the name on this thread (C5).
+ *
+ * @param holder    The two staged reads, answered.
+ * @param accountId The requesting account.
+ * @param sessionId The session the request arrived on.
+ * @param guid      The character being customized.
+ * @param request   The requested name and appearance.
+ */
+void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
+                                               proto::SessionId sessionId, ObjectGuid guid,
+                                               CharCustomizeRequest request)
+{
+    WorldSession* session = FindRequesterSession(accountId, sessionId);
+    if (!session || !holder)
+    {
+        return;
+    }
+
+    std::string newname = request.newname;
+
+    std::unique_ptr<QueryResult> result(holder->GetResult(CHAR_CUSTOMIZE_AT_LOGIN));
     if (!result)
     {
-        WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1);
-        data << uint8(CHAR_CREATE_ERROR);
-        SendPacket(&data);
+        SendCharCustomizeResult(session, CHAR_CREATE_ERROR);
         return;
     }
 
     Field* fields = result->Fetch();
     uint32 at_loginFlags = fields[0].GetUInt32();
-    delete result;
+    result.reset();
 
     if (!(at_loginFlags & AT_LOGIN_CUSTOMIZE))
     {
-        WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1);
-        data << uint8(CHAR_CREATE_ERROR);
-        SendPacket(&data);
+        SendCharCustomizeResult(session, CHAR_CREATE_ERROR);
         return;
     }
 
     // prevent character rename to invalid name
     if (!normalizePlayerName(newname))
     {
-        WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1);
-        data << uint8(CHAR_NAME_NO_NAME);
-        SendPacket(&data);
+        SendCharCustomizeResult(session, CHAR_NAME_NO_NAME);
         return;
     }
 
     uint8 res = ObjectMgr::CheckPlayerName(newname, true);
     if (res != CHAR_NAME_SUCCESS)
     {
-        WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1);
-        data << uint8(res);
-        SendPacket(&data);
+        SendCharCustomizeResult(session, res);
         return;
     }
 
     // check name limitations
-    if (GetSecurity() == SEC_PLAYER && sObjectMgr.IsReservedName(newname))
+    if (session->GetSecurity() == SEC_PLAYER && sObjectMgr.IsReservedName(newname))
     {
-        WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1);
-        data << uint8(CHAR_NAME_RESERVED);
-        SendPacket(&data);
+        SendCharCustomizeResult(session, CHAR_NAME_RESERVED);
         return;
     }
 
@@ -395,35 +527,45 @@ void WorldSession::HandleCharCustomizeOpcode(WorldPacket& recv_data)
     ObjectGuid newguid = sObjectMgr.GetPlayerGuidByName(newname);
     if (newguid && newguid != guid)
     {
-        WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1);
-        data << uint8(CHAR_CREATE_NAME_IN_USE);
-        SendPacket(&data);
+        SendCharCustomizeResult(session, CHAR_CREATE_NAME_IN_USE);
         return;
     }
 
-    // Decoupling D7c: before the escaping, because what the cache indexes is the name the
-    // player typed, not the form the statement needs.
+    // Decoupling D7c: immediately before the write it describes, and the name it indexes is
+    // the one the player typed -- which is now also the one the statement binds.
     sCharacterCache.UpdateName(guid, newname);
 
-    CharacterDatabase.escape_string(newname);
-    Player::Customize(guid, gender, skin, face, hairStyle, hairColor, facialHair);
-    CharacterDatabase.PExecute("UPDATE `characters` SET `name` = '%s', `at_login` = `at_login` & ~ %u WHERE `guid` ='%u'", newname.c_str(), uint32(AT_LOGIN_CUSTOMIZE), guid.GetCounter());
+    // Player::Customize used to read `playerBytes2` itself; the value comes out of this
+    // holder now. No row means no such character, which is what made the old call return
+    // without writing -- the same thing skipping it does.
+    std::unique_ptr<QueryResult> resultBytes(holder->GetResult(CHAR_CUSTOMIZE_PLAYER_BYTES2));
+    if (resultBytes)
+    {
+        Player::Customize(guid, request.gender, request.skin, request.face, request.hairStyle,
+                          request.hairColor, request.facialHair, resultBytes->Fetch()[0].GetUInt32());
+    }
+
+    // C5: the name is bound, not escaped here.
+    static SqlStatementID renameCustomized;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(renameCustomized,
+                        "UPDATE `characters` SET `name` = ?, `at_login` = `at_login` & ~ ? WHERE `guid` = ?");
+    stmt.PExecute(newname.c_str(), uint32(AT_LOGIN_CUSTOMIZE), guid.GetCounter());
     CharacterDatabase.PExecute("DELETE FROM `character_declinedname` WHERE `guid` ='%u'", guid.GetCounter());
 
-    std::string IP_str = GetRemoteAddress();
-    sLog.outChar("Account: %d (IP: %s), Character %s customized to: %s", GetAccountId(), IP_str.c_str(), guid.GetString().c_str(), newname.c_str());
+    std::string IP_str = session->GetRemoteAddress();
+    sLog.outChar("Account: %d (IP: %s), Character %s customized to: %s", accountId, IP_str.c_str(), guid.GetString().c_str(), newname.c_str());
 
     WorldPacket data(SMSG_CHAR_CUSTOMIZE, 1 + 8 + (newname.size() + 1) + 6);
     data << uint8(RESPONSE_SUCCESS);
     data << ObjectGuid(guid);
     data << newname;
-    data << uint8(gender);
-    data << uint8(skin);
-    data << uint8(face);
-    data << uint8(hairStyle);
-    data << uint8(hairColor);
-    data << uint8(facialHair);
-    SendPacket(&data);
+    data << uint8(request.gender);
+    data << uint8(request.skin);
+    data << uint8(request.face);
+    data << uint8(request.hairStyle);
+    data << uint8(request.hairColor);
+    data << uint8(request.facialHair);
+    session->SendPacket(&data);
 
     sWorld.InvalidatePlayerDataToAllClient(guid);
 }
