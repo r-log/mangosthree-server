@@ -677,6 +677,23 @@ void WorldSession::HandlePetRename(WorldPacket& recv_data)
         }
     }
 
+    // Decoupling D7e: the two tables this handler writes are both in the character's pet
+    // cache, so each statement gets its mirror beside it. The escaped copies are what goes
+    // to the database; the cache gets the names the player typed, because that is what the
+    // database ends up holding once the escape is undone by the server's own parser.
+    PlayerPetCache& petCache = _player->GetPetCache();
+    const uint32 renamedPetNumber = pet->GetCharmInfo()->GetPetNumber();
+
+    PetCacheDeclinedName cachedDeclined;
+    if (isdeclined)
+    {
+        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        {
+            cachedDeclined.name[i] = declinedname.name[i];
+        }
+    }
+    const std::string cachedName = name;
+
     CharacterDatabase.BeginTransaction();
     if (isdeclined)
     {
@@ -687,10 +704,12 @@ void WorldSession::HandlePetRename(WorldPacket& recv_data)
         CharacterDatabase.PExecute("DELETE FROM `character_pet_declinedname` WHERE `owner` = '%u' AND `id` = '%u'", _player->GetGUIDLow(), pet->GetCharmInfo()->GetPetNumber());
         CharacterDatabase.PExecute("INSERT INTO `character_pet_declinedname` (`id`, `owner`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) VALUES ('%u','%u','%s','%s','%s','%s','%s')",
                                    pet->GetCharmInfo()->GetPetNumber(), _player->GetGUIDLow(), declinedname.name[0].c_str(), declinedname.name[1].c_str(), declinedname.name[2].c_str(), declinedname.name[3].c_str(), declinedname.name[4].c_str());
+        petCache.SetDeclinedName(renamedPetNumber, cachedDeclined);
     }
 
     CharacterDatabase.escape_string(name);
     CharacterDatabase.PExecute("UPDATE `character_pet` SET `name` = '%s', `renamed` = '1' WHERE `owner` = '%u' AND `id` = '%u'", name.c_str(), _player->GetGUIDLow(), pet->GetCharmInfo()->GetPetNumber());
+    petCache.SetNameRenamed(renamedPetNumber, cachedName, 1);
     CharacterDatabase.CommitTransaction();
 
     pet->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, uint32(time(NULL)));

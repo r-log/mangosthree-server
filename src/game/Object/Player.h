@@ -882,6 +882,14 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOADMONTHLYQUESTSTATUS,
     PLAYER_LOGIN_QUERY_LOADCURRENCIES,
     PLAYER_LOGIN_QUERY_LOADCUFPROFILES,
+    // Decoupling D7e: the five pet tables, one statement each, all keyed on this character.
+    // They fill PlayerPetCache so that Pet::LoadPetFromDB can build the pet in the tick it
+    // is asked for without waiting on the database.
+    PLAYER_LOGIN_QUERY_LOADPETS,
+    PLAYER_LOGIN_QUERY_LOADPETAURAS,
+    PLAYER_LOGIN_QUERY_LOADPETSPELLS,
+    PLAYER_LOGIN_QUERY_LOADPETSPELLCOOLDOWNS,
+    PLAYER_LOGIN_QUERY_LOADPETDECLINEDNAMES,
 
     MAX_PLAYER_LOGIN_QUERY
 };
@@ -2519,6 +2527,10 @@ class Player : public Unit
         // Load spell cooldowns from the database
         void _LoadSpellCooldowns(QueryResult* result) { m_spellCooldownMgr.LoadFromDB(result); }
 
+        // Decoupling D7e: fill the per-character pet cache from the login holder's five
+        // pet results. Called from LoadFromDB; nothing else fills the cache.
+        void _LoadPetCache(SqlQueryHolder* holder);
+
         // Save spell cooldowns to the database
         void _SaveSpellCooldowns() { m_spellCooldownMgr.SaveToDB(); }
         void SetLastPotionId(uint32 item_id) { m_lastPotionId = item_id; }
@@ -3760,6 +3772,13 @@ class Player : public Unit
         uint32 GetStableSlots() const { return m_petMgr.GetStableSlots(); }
         void SetStableSlots(uint32 slots) { m_petMgr.SetStableSlots(slots); }
         bool IsPetNeedBeTemporaryUnsummoned() const { return !IsInWorld() || !IsAlive() || IsMounted() || IsTaxiFlying(); }
+
+        // Decoupling D7e: the character's rows from character_pet, pet_aura, pet_spell,
+        // pet_spell_cooldown and character_pet_declinedname, loaded with the character by
+        // the login holder. Pet::LoadPetFromDB, the stable handlers and the tame check read
+        // it; every write to those tables for an online character updates it.
+        PlayerPetCache& GetPetCache() { return m_petMgr.GetPetCache(); }
+        PlayerPetCache const& GetPetCache() const { return m_petMgr.GetPetCache(); }
 
         // Send cinematic start to the client
         void SendCinematicStart(uint32 CinematicSequenceId);

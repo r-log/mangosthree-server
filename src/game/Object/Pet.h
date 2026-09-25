@@ -62,6 +62,7 @@
 #include "ObjectGuid.h"
 
 struct ItemPrototype;
+class PlayerPetCache;                                       // decoupling D7e: by reference only
 #include "Creature.h"
 #include "SharedDefines.h"
 #include "Unit.h"
@@ -321,12 +322,16 @@ class Pet : public Creature
         void CastOwnerTalentAuras();
         void CastPetAura(PetAura const* aura);
 
-        void _LoadSpellCooldowns();
-        void _SaveSpellCooldowns();
-        void _LoadAuras(uint32 timediff);
-        void _SaveAuras();
-        void _LoadSpells();
-        void _SaveSpells();
+        // Decoupling D7e: the three _Load* helpers read the owner's PlayerPetCache instead of
+        // issuing a SELECT, and the three _Save* helpers write their rows back into it at the
+        // same place they queue their statements. Every caller of all six is inside
+        // LoadPetFromDB / SavePetToDB, which both have the owner in hand.
+        void _LoadSpellCooldowns(PlayerPetCache const& cache);
+        void _SaveSpellCooldowns(PlayerPetCache& cache);
+        void _LoadAuras(uint32 timediff, PlayerPetCache const& cache);
+        void _SaveAuras(PlayerPetCache& cache);
+        void _LoadSpells(PlayerPetCache const& cache);
+        void _SaveSpells(PlayerPetCache& cache);
 
         bool addSpell(uint32 spell_id, ActiveStates active = ACT_DECIDE, PetSpellState state = PETSPELL_NEW, PetSpellType type = PETSPELL_NORMAL);
         bool learnSpell(uint32 spell_id);

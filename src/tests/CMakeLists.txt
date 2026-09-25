@@ -61,6 +61,7 @@ set(SRC_GRP_TESTS
     PetitionAsyncTest.cpp
     CharacterCacheTest.cpp
     CharacterOpsAsyncTest.cpp
+    PetCacheTest.cpp
     GameLinkTest.cpp
     AuthCryptTest.cpp
     ClientParserTest.cpp

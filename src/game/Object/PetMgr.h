@@ -27,6 +27,7 @@
 #define MANGOS_H_PETMGR
 
 #include "Platform/Define.h"
+#include "PlayerPetCache.h"
 #include "SharedDefines.h"
 
 class Player;
@@ -112,10 +113,19 @@ class PetMgr
         /// stash either way (success or "not yet").
         void ResummonTemporaryUnsummonedIfAny();
 
+        /// Decoupling D7e: this character's rows from the five pet tables, loaded by the
+        /// login holder and kept current at every write. `Pet::LoadPetFromDB` and the stable
+        /// handlers read it instead of blocking on a SELECT. Empty for a Player that never
+        /// went through a login holder (a character being created, the movement harness's
+        /// mover) -- which reads exactly as "this character has no pet rows" did.
+        PlayerPetCache& GetPetCache() { return m_petCache; }
+        PlayerPetCache const& GetPetCache() const { return m_petCache; }
+
     private:
         Player* m_owner;
         uint32  m_stableSlots;
         uint32  m_temporaryUnsummonedPetNumber;
+        PlayerPetCache m_petCache;
 };
 
 #endif // MANGOS_H_PETMGR
