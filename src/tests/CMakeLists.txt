@@ -85,6 +85,9 @@ set(SRC_GRP_TESTS
     QuestStatusMgrTest.cpp
     QuestPredicateTest.cpp
     TalentMgrTest.cpp
+    ItemFixture.h
+    ItemFixture.cpp
+    ItemFixtureTest.cpp
 )
 
 if(WITH_NET_TESTS)
