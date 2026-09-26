@@ -62,6 +62,15 @@
  *
  * THE ONE DEFINED UB. The monthly "changed" flag used to be left uninitialised until the
  * monthly load ran, and a save before any load read it. Both flags start `false` here.
+ *
+ * THE ACCEPTANCE RULES (decoupling D4b). Six of the rules that decide whether a quest may be
+ * taken -- status, timed, exclusive group, next chain, previous chain, previous quest -- are
+ * decided here and returned as a `QuestVerdict`. The owner keeps a wrapper per rule that sends
+ * the "cannot take quest" response with the verdict's reason when it was asked to, so the
+ * packet leaves exactly where and when it did. The inputs the rules used to read from global
+ * stores are parameters: the template lookup, the exclusive-group lookup, and for the
+ * exclusive group the owner's daily rule as a callback (the dailies live in update fields and
+ * stay with the owner).
  */
 
 class QueryResult;
@@ -69,6 +78,32 @@ class Field;
 class Quest;
 
 typedef std::map<uint32, QuestStatusData> QuestStatusMap;
+
+/**
+ * @brief What one acceptance rule decided.
+ *
+ * Success is `satisfied`, never a reason value: `INVALIDREASON_DONT_HAVE_REQ` is 0 and is itself
+ * a failure reason (the client's default "you don't meet the requirements"). `reason` is read
+ * only when `satisfied` is false; a satisfied verdict carries `INVALIDREASON_DONT_HAVE_REQ`
+ * there only because the enum has no success value.
+ */
+struct QuestVerdict
+{
+    bool satisfied;
+    QuestFailedReasons reason;
+
+    static QuestVerdict Satisfied()
+    {
+        QuestVerdict verdict = { true, INVALIDREASON_DONT_HAVE_REQ };
+        return verdict;
+    }
+
+    static QuestVerdict Failed(QuestFailedReasons why)
+    {
+        QuestVerdict verdict = { false, why };
+        return verdict;
+    }
+};
 
 /// What `QuestStatusMgr::FillRow` did with one `character_queststatus` row.
 struct QuestRowResult
@@ -85,6 +120,15 @@ class QuestStatusMgr
     public:
         typedef std::function<Quest const*(uint32)> TemplateLookup;
         typedef std::set<uint32> QuestSet;
+        /// The same types as the object manager's exclusive quest groups (group id -> quest id),
+        /// spelled here because this header may not include the object manager.
+        typedef std::multimap<int32, uint32> ExclusiveGroupMap;
+        typedef std::pair<ExclusiveGroupMap::const_iterator, ExclusiveGroupMap::const_iterator> ExclusiveGroupBounds;
+        /// The quests of one exclusive group (production: GetExclusiveQuestGroupsMapBounds).
+        typedef std::function<ExclusiveGroupBounds(int32)> ExclusiveGroupLookup;
+        /// The owner's daily rule, asked without a response: true when the quest is not a
+        /// daily, or is a daily not done today with a free daily slot.
+        typedef std::function<bool(Quest const*)> DailyCheck;
 
         QuestStatusMgr();
 
@@ -115,6 +159,25 @@ class QuestStatusMgr
         uint32 GetReqKillOrCastCurrentCount(uint32 quest_id, int32 entry, TemplateLookup const& lookup);
         bool SatisfyQuestWeek(Quest const* qInfo) const;
         bool SatisfyQuestMonth(Quest const* qInfo) const;
+
+        /*** acceptance rules: a verdict each, the owner sends the response ***/
+
+        /// Fails with `INVALIDREASON_QUEST_ALREADY_ON` when the quest has a row whose status is not NONE.
+        QuestVerdict SatisfyQuestStatus(Quest const* qInfo) const;
+        /// Fails with `INVALIDREASON_QUEST_ONLY_ONE_TIMED` when a timed quest is running and this one is timed.
+        QuestVerdict SatisfyQuestTimed(Quest const* qInfo) const;
+        /// A positive exclusive group: fails with `INVALIDREASON_DONT_HAVE_REQ` when another quest of
+        /// the group fails `dailyCheck` or the weekly rule, or is complete or incomplete.
+        QuestVerdict SatisfyQuestExclusiveGroup(Quest const* qInfo, TemplateLookup const& lookup,
+                                                ExclusiveGroupLookup const& groups, DailyCheck const& dailyCheck) const;
+        /// Fails with `INVALIDREASON_DONT_HAVE_REQ` when the next quest in the chain is complete or incomplete.
+        QuestVerdict SatisfyQuestNextChain(Quest const* qInfo) const;
+        /// Fails with `INVALIDREASON_DONT_HAVE_REQ` when an earlier quest of the chain is current.
+        QuestVerdict SatisfyQuestPrevChain(Quest const* qInfo) const;
+        /// The `prevQuests` rule (rewarded positive, current negative, exclusive-group completeness);
+        /// every failure is `INVALIDREASON_DONT_HAVE_REQ`.
+        QuestVerdict SatisfyQuestPreviousQuest(Quest const* qInfo, TemplateLookup const& lookup,
+                                               ExclusiveGroupLookup const& groups) const;
 
         /*** writes ***/
 

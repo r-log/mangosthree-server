@@ -1320,129 +1320,23 @@ bool Player::SatisfyQuestLog(bool msg) const
 /**
  * @brief Checks whether previous-quest requirements for a quest are satisfied.
  *
+ * Decided by QuestStatusMgr::SatisfyQuestPreviousQuest (decoupling D4b); this sends the response
+ * with the verdict's reason when `msg` is set, as the old body did on each failure.
+ *
  * @param qInfo The quest to validate.
  * @param msg True to emit failure feedback when checks fail.
  * @return True if previous-quest requirements are met; otherwise, false.
  */
 bool Player::SatisfyQuestPreviousQuest(Quest const* qInfo, bool msg) const
 {
-    // No previous quest (might be first quest in a series)
-    if (qInfo->prevQuests.empty())
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestPreviousQuest(qInfo, ObjectMgr::QuestTemplateLookup(),
+        ObjectMgr::QuestExclusiveGroupLookup());
+    if (!verdict.satisfied && msg)
     {
-        return true;
+        SendCanTakeQuestResponse(verdict.reason);
     }
 
-    for (Quest::PrevQuests::const_iterator iter = qInfo->prevQuests.begin(); iter != qInfo->prevQuests.end(); ++iter)
-    {
-        uint32 prevId = abs(*iter);
-
-        QuestStatusMap::const_iterator i_prevstatus = m_questStatusMgr.Map().find(prevId);
-        Quest const* qPrevInfo = sObjectMgr.GetQuestTemplate(prevId);
-
-        if (qPrevInfo && i_prevstatus != m_questStatusMgr.Map().end())
-        {
-            // If any of the positive previous quests completed, return true
-            if (*iter > 0 && i_prevstatus->second.m_rewarded)
-            {
-                // skip one-from-all exclusive group
-                if (qPrevInfo->GetExclusiveGroup() >= 0)
-                {
-                    return true;
-                }
-
-                // each-from-all exclusive group ( < 0)
-                // given a group with 2+ quests, and one of those has a branch that is not restricted by the group, return true
-                if (qInfo->GetPrevQuestId() != 0 && qPrevInfo->GetNextQuestId() != qInfo->GetPrevQuestId())
-                {
-                    return true;
-                }
-
-                // can be start if only all quests in prev quest exclusive group completed and rewarded
-                ExclusiveQuestGroupsMapBounds bounds = sObjectMgr.GetExclusiveQuestGroupsMapBounds(qPrevInfo->GetExclusiveGroup());
-
-                MANGOS_ASSERT(bounds.first != bounds.second); // always must be found if qPrevInfo->ExclusiveGroup != 0
-
-                for (ExclusiveQuestGroupsMap::const_iterator iter2 = bounds.first; iter2 != bounds.second; ++iter2)
-                {
-                    uint32 exclude_Id = iter2->second;
-
-                    // skip checked quest id, only state of other quests in group is interesting
-                    if (exclude_Id == prevId)
-                    {
-                        continue;
-                    }
-
-                    QuestStatusMap::const_iterator i_exstatus = m_questStatusMgr.Map().find(exclude_Id);
-
-                    // alternative quest from group also must be completed and rewarded(reported)
-                    if (i_exstatus == m_questStatusMgr.Map().end() || !i_exstatus->second.m_rewarded)
-                    {
-                        if (msg)
-                        {
-                            SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
-                        }
-
-                        return false;
-                    }
-                }
-                return true;
-            }
-            // If any of the negative previous quests active, return true
-            if (*iter < 0 && IsCurrentQuest(prevId))
-            {
-                // skip one-from-all exclusive group
-                if (qPrevInfo->GetExclusiveGroup() >= 0)
-                {
-                    return true;
-                }
-
-                // each-from-all exclusive group ( < 0)
-                // given a group with 2+ quests, and one of those has a branch that is not restricted by the group, return true
-                if (qInfo->GetPrevQuestId() != 0 && qPrevInfo->GetNextQuestId() != abs(qInfo->GetPrevQuestId()))
-                {
-                    return true;
-                }
-
-                // each-from-all exclusive group ( < 0)
-                // can be start if only all quests in prev quest exclusive group active
-                ExclusiveQuestGroupsMapBounds bounds = sObjectMgr.GetExclusiveQuestGroupsMapBounds(qPrevInfo->GetExclusiveGroup());
-
-                MANGOS_ASSERT(bounds.first != bounds.second); // always must be found if qPrevInfo->ExclusiveGroup != 0
-
-                for (ExclusiveQuestGroupsMap::const_iterator iter2 = bounds.first; iter2 != bounds.second; ++iter2)
-                {
-                    uint32 exclude_Id = iter2->second;
-
-                    // skip checked quest id, only state of other quests in group is interesting
-                    if (exclude_Id == prevId)
-                    {
-                        continue;
-                    }
-
-                    // alternative quest from group also must be active
-                    if (!IsCurrentQuest(exclude_Id))
-                    {
-                        if (msg)
-                        {
-                            SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
-                        }
-
-                        return false;
-                    }
-                }
-                return true;
-            }
-        }
-    }
-
-    // Has only positive prev. quests in non-rewarded state
-    // and negative prev. quests in non-active state
-    if (msg)
-    {
-        SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
-    }
-
-    return false;
+    return verdict.satisfied;
 }
 
 /**
@@ -1540,29 +1434,29 @@ bool Player::SatisfyQuestReputation(Quest const* qInfo, bool msg) const
 /**
  * @brief Checks whether the quest is not already active in the player's log.
  *
+ * Decided by QuestStatusMgr::SatisfyQuestStatus (decoupling D4b); this sends the response
+ * with the verdict's reason when `msg` is set, as the old body did on each failure.
+ *
  * @param qInfo The quest to validate.
  * @param msg True to emit failure feedback when checks fail.
  * @return True if the quest status allows accepting it; otherwise, false.
  */
 bool Player::SatisfyQuestStatus(Quest const* qInfo, bool msg) const
 {
-    QuestStatusMap::const_iterator itr = m_questStatusMgr.Map().find(qInfo->GetQuestId());
-
-    if (itr != m_questStatusMgr.Map().end() && itr->second.m_status != QUEST_STATUS_NONE)
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestStatus(qInfo);
+    if (!verdict.satisfied && msg)
     {
-        if (msg)
-        {
-            SendCanTakeQuestResponse(INVALIDREASON_QUEST_ALREADY_ON);
-        }
-
-        return false;
+        SendCanTakeQuestResponse(verdict.reason);
     }
 
-    return true;
+    return verdict.satisfied;
 }
 
 /**
  * @brief Checks whether the player can accept another timed quest.
+ *
+ * Decided by QuestStatusMgr::SatisfyQuestTimed (decoupling D4b); this sends the response
+ * with the verdict's reason when `msg` is set, as the old body did on each failure.
  *
  * @param qInfo The quest to validate.
  * @param msg True to emit failure feedback when checks fail.
@@ -1570,21 +1464,20 @@ bool Player::SatisfyQuestStatus(Quest const* qInfo, bool msg) const
  */
 bool Player::SatisfyQuestTimed(Quest const* qInfo, bool msg) const
 {
-    if (!m_questStatusMgr.TimedQuests().empty() && qInfo->HasSpecialFlag(QUEST_SPECIAL_FLAG_TIMED))
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestTimed(qInfo);
+    if (!verdict.satisfied && msg)
     {
-        if (msg)
-        {
-            SendCanTakeQuestResponse(INVALIDREASON_QUEST_ONLY_ONE_TIMED);
-        }
-
-        return false;
+        SendCanTakeQuestResponse(verdict.reason);
     }
 
-    return true;
+    return verdict.satisfied;
 }
 
 /**
  * @brief Checks whether exclusive-group rules allow the quest to be accepted.
+ *
+ * Decided by QuestStatusMgr::SatisfyQuestExclusiveGroup (decoupling D4b); this sends the response
+ * with the verdict's reason when `msg` is set, as the old body did on each failure.
  *
  * @param qInfo The quest to validate.
  * @param msg True to emit failure feedback when checks fail.
@@ -1592,58 +1485,25 @@ bool Player::SatisfyQuestTimed(Quest const* qInfo, bool msg) const
  */
 bool Player::SatisfyQuestExclusiveGroup(Quest const* qInfo, bool msg) const
 {
-    // non positive exclusive group, if > 0 then can be start if any other quest in exclusive group already started/completed
-    if (qInfo->GetExclusiveGroup() <= 0)
+    QuestStatusMgr::DailyCheck const dailyCheck = [this](Quest const* quest)
     {
-        return true;
+        return SatisfyQuestDay(quest, false);
+    };
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestExclusiveGroup(qInfo, ObjectMgr::QuestTemplateLookup(),
+        ObjectMgr::QuestExclusiveGroupLookup(), dailyCheck);
+    if (!verdict.satisfied && msg)
+    {
+        SendCanTakeQuestResponse(verdict.reason);
     }
 
-    ExclusiveQuestGroupsMapBounds bounds = sObjectMgr.GetExclusiveQuestGroupsMapBounds(qInfo->GetExclusiveGroup());
-
-    MANGOS_ASSERT(bounds.first != bounds.second);           // must always be found if qInfo->ExclusiveGroup != 0
-
-    for (ExclusiveQuestGroupsMap::const_iterator iter = bounds.first; iter != bounds.second; ++iter)
-    {
-        uint32 exclude_Id = iter->second;
-
-        // skip checked quest id, only state of other quests in group is interesting
-        if (exclude_Id == qInfo->GetQuestId())
-        {
-            continue;
-        }
-
-        // not allow have daily quest if daily quest from exclusive group already recently completed
-        Quest const* Nquest = sObjectMgr.GetQuestTemplate(exclude_Id);
-        if (!SatisfyQuestDay(Nquest, false) || !m_questStatusMgr.SatisfyQuestWeek(Nquest))
-        {
-            if (msg)
-            {
-                SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
-            }
-
-            return false;
-        }
-
-        QuestStatusMap::const_iterator i_exstatus = m_questStatusMgr.Map().find(exclude_Id);
-
-        // alternative quest already started or completed
-        if (i_exstatus != m_questStatusMgr.Map().end() &&
-           (i_exstatus->second.m_status == QUEST_STATUS_COMPLETE || i_exstatus->second.m_status == QUEST_STATUS_INCOMPLETE))
-        {
-            if (msg)
-            {
-                SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
-            }
-
-            return false;
-        }
-    }
-
-    return true;
+    return verdict.satisfied;
 }
 
 /**
  * @brief Checks whether later quests in the chain do not block acceptance.
+ *
+ * Decided by QuestStatusMgr::SatisfyQuestNextChain (decoupling D4b); this sends the response
+ * with the verdict's reason when `msg` is set, as the old body did on each failure.
  *
  * @param qInfo The quest to validate.
  * @param msg True to emit failure feedback when checks fail.
@@ -1651,32 +1511,20 @@ bool Player::SatisfyQuestExclusiveGroup(Quest const* qInfo, bool msg) const
  */
 bool Player::SatisfyQuestNextChain(Quest const* qInfo, bool msg) const
 {
-    if (!qInfo->GetNextQuestInChain())
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestNextChain(qInfo);
+    if (!verdict.satisfied && msg)
     {
-        return true;
+        SendCanTakeQuestResponse(verdict.reason);
     }
 
-    // next quest in chain already started or completed
-    QuestStatusMap::const_iterator itr = m_questStatusMgr.Map().find(qInfo->GetNextQuestInChain());
-    if (itr != m_questStatusMgr.Map().end() &&
-       (itr->second.m_status == QUEST_STATUS_COMPLETE || itr->second.m_status == QUEST_STATUS_INCOMPLETE))
-    {
-        if (msg)
-        {
-            SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
-        }
-
-        return false;
-    }
-
-    // check for all quests further up the chain
-    // only necessary if there are quest chains with more than one quest that can be skipped
-    // return SatisfyQuestNextChain( qInfo->GetNextQuestInChain(), msg );
-    return true;
+    return verdict.satisfied;
 }
 
 /**
  * @brief Checks whether previous-chain quests do not block acceptance.
+ *
+ * Decided by QuestStatusMgr::SatisfyQuestPrevChain (decoupling D4b); this sends the response
+ * with the verdict's reason when `msg` is set, as the old body did on each failure.
  *
  * @param qInfo The quest to validate.
  * @param msg True to emit failure feedback when checks fail.
@@ -1684,35 +1532,13 @@ bool Player::SatisfyQuestNextChain(Quest const* qInfo, bool msg) const
  */
 bool Player::SatisfyQuestPrevChain(Quest const* qInfo, bool msg) const
 {
-    // No previous quest in chain
-    if (qInfo->prevChainQuests.empty())
+    QuestVerdict const verdict = m_questStatusMgr.SatisfyQuestPrevChain(qInfo);
+    if (!verdict.satisfied && msg)
     {
-        return true;
+        SendCanTakeQuestResponse(verdict.reason);
     }
 
-    for (Quest::PrevChainQuests::const_iterator iter = qInfo->prevChainQuests.begin(); iter != qInfo->prevChainQuests.end(); ++iter)
-    {
-        uint32 prevId = *iter;
-
-        // If any of the previous quests in chain active, return false
-        if (IsCurrentQuest(prevId))
-        {
-            if (msg)
-            {
-                SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
-            }
-
-            return false;
-        }
-
-        // check for all quests further down the chain
-        // only necessary if there are quest chains with more than one quest that can be skipped
-        // if ( !SatisfyQuestPrevChain( prevId, msg ) )
-        //    return false;
-    }
-
-    // No previous quest in chain active
-    return true;
+    return verdict.satisfied;
 }
 
 bool Player::SatisfyQuestDay(Quest const* qInfo, bool msg) const

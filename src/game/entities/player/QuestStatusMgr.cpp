@@ -27,9 +27,13 @@
 #include "Common/TimeConstants.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "Utilities/Errors.h"
+
+#include <cstdlib>
 
 // Every body below moved here in decoupling D4a from the character object's quest, load and
-// save files. The statements, their order and their values are the old ones; what changed is
+// save files (the acceptance rules came in D4b; their own note says what changed in them).
+// The statements, their order and their values are the old ones; what changed is
 // where the inputs come from:
 // the quest template through `lookup` (it was sObjectMgr.GetQuestTemplate), the game time
 // through `now` (it was sWorld.GetGameTime(), which does not move inside a tick), and the
@@ -191,6 +195,277 @@ bool QuestStatusMgr::SatisfyQuestMonth(Quest const* qInfo) const
 
     // if not found in cooldown list
     return m_monthlyQuests.find(qInfo->GetQuestId()) == m_monthlyQuests.end();
+}
+
+// The acceptance rules below moved here in decoupling D4b from the character object's quest
+// file. Each body is the old one with every "send the cannot-take response if asked, then
+// return false" replaced by returning a failed verdict with that reason, and every "return
+// true" by a satisfied verdict; the owner's wrapper sends the response. The reads, lookups
+// and early returns are in the old order. The inputs that came from global stores are the
+// parameters: `lookup` (was sObjectMgr.GetQuestTemplate), `groups` (was
+// sObjectMgr.GetExclusiveQuestGroupsMapBounds) and `dailyCheck` (was the owner's
+// SatisfyQuestDay(quest, false)).
+
+/**
+ * @brief Checks whether the quest is not already active in the quest log.
+ *
+ * @param qInfo The quest to validate.
+ * @return Satisfied, or failed with INVALIDREASON_QUEST_ALREADY_ON.
+ */
+QuestVerdict QuestStatusMgr::SatisfyQuestStatus(Quest const* qInfo) const
+{
+    QuestStatusMap::const_iterator itr = m_status.find(qInfo->GetQuestId());
+
+    if (itr != m_status.end() && itr->second.m_status != QUEST_STATUS_NONE)
+    {
+        return QuestVerdict::Failed(INVALIDREASON_QUEST_ALREADY_ON);
+    }
+
+    return QuestVerdict::Satisfied();
+}
+
+/**
+ * @brief Checks whether another timed quest may be accepted.
+ *
+ * @param qInfo The quest to validate.
+ * @return Satisfied, or failed with INVALIDREASON_QUEST_ONLY_ONE_TIMED.
+ */
+QuestVerdict QuestStatusMgr::SatisfyQuestTimed(Quest const* qInfo) const
+{
+    if (!m_timedQuests.empty() && qInfo->HasSpecialFlag(QUEST_SPECIAL_FLAG_TIMED))
+    {
+        return QuestVerdict::Failed(INVALIDREASON_QUEST_ONLY_ONE_TIMED);
+    }
+
+    return QuestVerdict::Satisfied();
+}
+
+/**
+ * @brief Checks whether exclusive-group rules allow the quest to be accepted.
+ *
+ * @param qInfo The quest to validate.
+ * @param lookup The quest template lookup.
+ * @param groups The exclusive-group lookup.
+ * @param dailyCheck The owner's daily rule, asked without a response.
+ * @return Satisfied, or failed with INVALIDREASON_DONT_HAVE_REQ.
+ */
+QuestVerdict QuestStatusMgr::SatisfyQuestExclusiveGroup(Quest const* qInfo, TemplateLookup const& lookup,
+                                                        ExclusiveGroupLookup const& groups, DailyCheck const& dailyCheck) const
+{
+    // non positive exclusive group, if > 0 then can be start if any other quest in exclusive group already started/completed
+    if (qInfo->GetExclusiveGroup() <= 0)
+    {
+        return QuestVerdict::Satisfied();
+    }
+
+    ExclusiveGroupBounds bounds = groups(qInfo->GetExclusiveGroup());
+
+    MANGOS_ASSERT(bounds.first != bounds.second);           // must always be found if qInfo->ExclusiveGroup != 0
+
+    for (ExclusiveGroupMap::const_iterator iter = bounds.first; iter != bounds.second; ++iter)
+    {
+        uint32 exclude_Id = iter->second;
+
+        // skip checked quest id, only state of other quests in group is interesting
+        if (exclude_Id == qInfo->GetQuestId())
+        {
+            continue;
+        }
+
+        // not allow have daily quest if daily quest from exclusive group already recently completed
+        Quest const* Nquest = lookup(exclude_Id);
+        if (!dailyCheck(Nquest) || !SatisfyQuestWeek(Nquest))
+        {
+            return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
+        }
+
+        QuestStatusMap::const_iterator i_exstatus = m_status.find(exclude_Id);
+
+        // alternative quest already started or completed
+        if (i_exstatus != m_status.end() &&
+           (i_exstatus->second.m_status == QUEST_STATUS_COMPLETE || i_exstatus->second.m_status == QUEST_STATUS_INCOMPLETE))
+        {
+            return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
+        }
+    }
+
+    return QuestVerdict::Satisfied();
+}
+
+/**
+ * @brief Checks whether later quests in the chain do not block acceptance.
+ *
+ * @param qInfo The quest to validate.
+ * @return Satisfied, or failed with INVALIDREASON_DONT_HAVE_REQ.
+ */
+QuestVerdict QuestStatusMgr::SatisfyQuestNextChain(Quest const* qInfo) const
+{
+    if (!qInfo->GetNextQuestInChain())
+    {
+        return QuestVerdict::Satisfied();
+    }
+
+    // next quest in chain already started or completed
+    QuestStatusMap::const_iterator itr = m_status.find(qInfo->GetNextQuestInChain());
+    if (itr != m_status.end() &&
+       (itr->second.m_status == QUEST_STATUS_COMPLETE || itr->second.m_status == QUEST_STATUS_INCOMPLETE))
+    {
+        return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
+    }
+
+    // check for all quests further up the chain
+    // only necessary if there are quest chains with more than one quest that can be skipped
+    // return SatisfyQuestNextChain( qInfo->GetNextQuestInChain(), msg );
+    return QuestVerdict::Satisfied();
+}
+
+/**
+ * @brief Checks whether previous-chain quests do not block acceptance.
+ *
+ * @param qInfo The quest to validate.
+ * @return Satisfied, or failed with INVALIDREASON_DONT_HAVE_REQ.
+ */
+QuestVerdict QuestStatusMgr::SatisfyQuestPrevChain(Quest const* qInfo) const
+{
+    // No previous quest in chain
+    if (qInfo->prevChainQuests.empty())
+    {
+        return QuestVerdict::Satisfied();
+    }
+
+    for (Quest::PrevChainQuests::const_iterator iter = qInfo->prevChainQuests.begin(); iter != qInfo->prevChainQuests.end(); ++iter)
+    {
+        uint32 prevId = *iter;
+
+        // If any of the previous quests in chain active, return false
+        if (IsCurrentQuest(prevId))
+        {
+            return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
+        }
+
+        // check for all quests further down the chain
+        // only necessary if there are quest chains with more than one quest that can be skipped
+        // if ( !SatisfyQuestPrevChain( prevId, msg ) )
+        //    return false;
+    }
+
+    // No previous quest in chain active
+    return QuestVerdict::Satisfied();
+}
+
+/**
+ * @brief Checks whether previous-quest requirements for a quest are satisfied.
+ *
+ * @param qInfo The quest to validate.
+ * @param lookup The quest template lookup.
+ * @param groups The exclusive-group lookup.
+ * @return Satisfied, or failed with INVALIDREASON_DONT_HAVE_REQ.
+ */
+QuestVerdict QuestStatusMgr::SatisfyQuestPreviousQuest(Quest const* qInfo, TemplateLookup const& lookup,
+                                                       ExclusiveGroupLookup const& groups) const
+{
+    // No previous quest (might be first quest in a series)
+    if (qInfo->prevQuests.empty())
+    {
+        return QuestVerdict::Satisfied();
+    }
+
+    for (Quest::PrevQuests::const_iterator iter = qInfo->prevQuests.begin(); iter != qInfo->prevQuests.end(); ++iter)
+    {
+        uint32 prevId = abs(*iter);
+
+        QuestStatusMap::const_iterator i_prevstatus = m_status.find(prevId);
+        Quest const* qPrevInfo = lookup(prevId);
+
+        if (qPrevInfo && i_prevstatus != m_status.end())
+        {
+            // If any of the positive previous quests completed, return true
+            if (*iter > 0 && i_prevstatus->second.m_rewarded)
+            {
+                // skip one-from-all exclusive group
+                if (qPrevInfo->GetExclusiveGroup() >= 0)
+                {
+                    return QuestVerdict::Satisfied();
+                }
+
+                // each-from-all exclusive group ( < 0)
+                // given a group with 2+ quests, and one of those has a branch that is not restricted by the group, return true
+                if (qInfo->GetPrevQuestId() != 0 && qPrevInfo->GetNextQuestId() != qInfo->GetPrevQuestId())
+                {
+                    return QuestVerdict::Satisfied();
+                }
+
+                // can be start if only all quests in prev quest exclusive group completed and rewarded
+                ExclusiveGroupBounds bounds = groups(qPrevInfo->GetExclusiveGroup());
+
+                MANGOS_ASSERT(bounds.first != bounds.second); // always must be found if qPrevInfo->ExclusiveGroup != 0
+
+                for (ExclusiveGroupMap::const_iterator iter2 = bounds.first; iter2 != bounds.second; ++iter2)
+                {
+                    uint32 exclude_Id = iter2->second;
+
+                    // skip checked quest id, only state of other quests in group is interesting
+                    if (exclude_Id == prevId)
+                    {
+                        continue;
+                    }
+
+                    QuestStatusMap::const_iterator i_exstatus = m_status.find(exclude_Id);
+
+                    // alternative quest from group also must be completed and rewarded(reported)
+                    if (i_exstatus == m_status.end() || !i_exstatus->second.m_rewarded)
+                    {
+                        return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
+                    }
+                }
+                return QuestVerdict::Satisfied();
+            }
+            // If any of the negative previous quests active, return true
+            if (*iter < 0 && IsCurrentQuest(prevId))
+            {
+                // skip one-from-all exclusive group
+                if (qPrevInfo->GetExclusiveGroup() >= 0)
+                {
+                    return QuestVerdict::Satisfied();
+                }
+
+                // each-from-all exclusive group ( < 0)
+                // given a group with 2+ quests, and one of those has a branch that is not restricted by the group, return true
+                if (qInfo->GetPrevQuestId() != 0 && qPrevInfo->GetNextQuestId() != abs(qInfo->GetPrevQuestId()))
+                {
+                    return QuestVerdict::Satisfied();
+                }
+
+                // each-from-all exclusive group ( < 0)
+                // can be start if only all quests in prev quest exclusive group active
+                ExclusiveGroupBounds bounds = groups(qPrevInfo->GetExclusiveGroup());
+
+                MANGOS_ASSERT(bounds.first != bounds.second); // always must be found if qPrevInfo->ExclusiveGroup != 0
+
+                for (ExclusiveGroupMap::const_iterator iter2 = bounds.first; iter2 != bounds.second; ++iter2)
+                {
+                    uint32 exclude_Id = iter2->second;
+
+                    // skip checked quest id, only state of other quests in group is interesting
+                    if (exclude_Id == prevId)
+                    {
+                        continue;
+                    }
+
+                    // alternative quest from group also must be active
+                    if (!IsCurrentQuest(exclude_Id))
+                    {
+                        return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
+                    }
+                }
+                return QuestVerdict::Satisfied();
+            }
+        }
+    }
+
+    // Has only positive prev. quests in non-rewarded state
+    // and negative prev. quests in non-active state
+    return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
 }
 
 /**

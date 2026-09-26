@@ -75,6 +75,7 @@
 #include "DisableMgr.h"
 
 #include <limits>
+#include <type_traits>
 
 /**
  * @brief GetQuestTemplate as the lookup QuestStatusMgr takes (decoupling D4a).
@@ -86,6 +87,24 @@ QuestStatusMgr::TemplateLookup const& ObjectMgr::QuestTemplateLookup()
     static QuestStatusMgr::TemplateLookup const lookup = [](uint32 questId)
     {
         return sObjectMgr.GetQuestTemplate(questId);
+    };
+    return lookup;
+}
+
+// QuestStatusMgr.h may not include this manager's header, so it spells the bounds type itself.
+static_assert(std::is_same<ExclusiveQuestGroupsMapBounds, QuestStatusMgr::ExclusiveGroupBounds>::value,
+              "QuestStatusMgr::ExclusiveGroupBounds must be ObjectMgr's ExclusiveQuestGroupsMapBounds");
+
+/**
+ * @brief GetExclusiveQuestGroupsMapBounds as the lookup QuestStatusMgr takes (decoupling D4b).
+ *
+ * One object for the process, like QuestTemplateLookup().
+ */
+QuestStatusMgr::ExclusiveGroupLookup const& ObjectMgr::QuestExclusiveGroupLookup()
+{
+    static QuestStatusMgr::ExclusiveGroupLookup const lookup = [](int32 groupId)
+    {
+        return sObjectMgr.GetExclusiveQuestGroupsMapBounds(groupId);
     };
     return lookup;
 }

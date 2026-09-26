@@ -680,6 +680,8 @@ class ObjectMgr
         }
         /// Decoupling D4a: GetQuestTemplate in the shape QuestStatusMgr takes it.
         static QuestStatusMgr::TemplateLookup const& QuestTemplateLookup();
+        /// Decoupling D4b: GetExclusiveQuestGroupsMapBounds in the shape QuestStatusMgr takes it.
+        static QuestStatusMgr::ExclusiveGroupLookup const& QuestExclusiveGroupLookup();
 
         uint32 GetQuestForAreaTrigger(uint32 Trigger_ID) const
         {
