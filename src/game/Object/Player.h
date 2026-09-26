@@ -80,6 +80,7 @@
 #include "SpellCooldownMgr.h" // SpellCooldownMgr is held by value on Player; brings in SpellCooldown/SpellCooldowns + owns the cooldown map
 
 #include "QuestDef.h"
+#include "QuestStatusMgr.h" // QuestStatusMgr is held by value on Player; brings in the QuestStatusMap typedef
 #include "GroupReference.h"
 #include "PetMgr.h"
 #include "MapReference.h"
@@ -587,8 +588,6 @@ enum AtLoginFlags
     AT_LOGIN_RESET_PET_TALENTS    = 0x10,
     AT_LOGIN_FIRST                = 0x20,
 };
-
-typedef std::map<uint32, QuestStatusData> QuestStatusMap;
 
 // Offsets for quest slots
 enum QuestSlotOffsets
@@ -1939,8 +1938,6 @@ class Player : public Unit
 
         // Check if the player satisfies the daily requirements for a quest
         bool SatisfyQuestDay(Quest const* qInfo, bool msg) const;
-        bool SatisfyQuestWeek(Quest const* qInfo, bool msg) const;
-        bool SatisfyQuestMonth(Quest const* qInfo, bool msg) const;
         bool CanGiveQuestSourceItemIfNeed(Quest const* pQuest, ItemPosCountVec* dest = NULL) const;
 
         // Give the quest source item if needed
@@ -1960,8 +1957,6 @@ class Player : public Unit
 
         // Set the daily quest status
         void SetDailyQuestStatus(uint32 quest_id);
-        void SetWeeklyQuestStatus(uint32 quest_id);
-        void SetMonthlyQuestStatus(uint32 quest_id);
         void ResetDailyQuestStatus();
         void ResetWeeklyQuestStatus();
         void ResetMonthlyQuestStatus();
@@ -2099,11 +2094,8 @@ class Player : public Unit
         // Set the in-game time
         void SetInGameTime(uint32 time) { m_ingametime = time; }
 
-        // Add a timed quest
-        void AddTimedQuest(uint32 quest_id) { m_timedquests.insert(quest_id); }
-
         // Remove a timed quest
-        void RemoveTimedQuest(uint32 quest_id) { m_timedquests.erase(quest_id); }
+        void RemoveTimedQuest(uint32 quest_id) { m_questStatusMgr.RemoveTimedQuest(quest_id); }
 
         /// Return collision height sent to client
         float GetCollisionHeight(bool mounted) const;
@@ -2255,7 +2247,7 @@ class Player : public Unit
         // Get the player's quest status map
         QuestStatusMap& getQuestStatusMap()
         {
-            return mQuestStatus;
+            return m_questStatusMgr.Map();
         };
 
         // Get the player's current selection GUID
@@ -3982,12 +3974,6 @@ class Player : public Unit
         /***                    QUEST SYSTEM                   ***/
         /*********************************************************/
 
-        // We allow only one timed quest active at the same time. Below can then be simple value instead of set.
-        typedef std::set<uint32> QuestSet;
-        QuestSet m_timedquests;
-        QuestSet m_weeklyquests;
-        QuestSet m_monthlyquests;
-
         ObjectGuid m_dividerGuid; // Divider GUID
         uint32 m_ingametime; // In-game time
 
@@ -4021,8 +4007,6 @@ class Player : public Unit
 
         // Load daily quest status from the database
         void _LoadDailyQuestStatus(QueryResult* result);
-        void _LoadWeeklyQuestStatus(QueryResult* result);
-        void _LoadMonthlyQuestStatus(QueryResult* result);
         void _LoadGroup(QueryResult* result);
 
         // Load player skills from the database
@@ -4061,13 +4045,8 @@ class Player : public Unit
         // Save player mail to the database
         void _SaveMail();
 
-        // Save quest status to the database
-        void _SaveQuestStatus();
-
         // Save daily quest status to the database
         void _SaveDailyQuestStatus();
-        void _SaveWeeklyQuestStatus();
-        void _SaveMonthlyQuestStatus();
         void _SaveSkills();
         void _SaveSpells();
         void _SaveEquipmentSets();
@@ -4138,7 +4117,8 @@ class Player : public Unit
         ObjectGuid m_comboTargetGuid; // Combo target GUID
         int8 m_comboPoints; // Combo points
 
-        QuestStatusMap mQuestStatus; // Quest status map
+        // Quest status: the status map, the timed/weekly/monthly sets and their save flags
+        QuestStatusMgr m_questStatusMgr;
 
         SkillStatusMap mSkillStatus;
 
@@ -4193,8 +4173,6 @@ class Player : public Unit
         TradeData* m_trade; // Trade data
 
         bool   m_DailyQuestChanged;
-        bool   m_WeeklyQuestChanged;
-        bool   m_MonthlyQuestChanged;
 
         uint32 m_drunkTimer;
         uint32 m_weaponChangeTimer;

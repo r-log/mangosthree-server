@@ -58,6 +58,8 @@ set(CONVERTED_FILES
     src/game/Object/AuctionHouseMgr.cpp                     # decoupling D7i
     src/game/WorldHandlers/AccountMgr.cpp                   # decoupling D7i
     src/game/ChatCommands/AccountCommands.cpp               # decoupling D7i
+    src/game/entities/player/QuestStatusMgr.h               # decoupling D4a
+    src/game/entities/player/QuestStatusMgr.cpp             # decoupling D4a
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -367,6 +369,12 @@ set(ALLOW_AccountCommands_cpp
     # --- `.account onlinelist` and `.account characters`, both SEC_ADMINISTRATOR ---
     "QueryResult* result = LoginDatabase.PQuery(\"SELECT `id`, `username`, `last_ip`, `gmlevel`, `expansion` FROM `account` WHERE `active_realm_id` = %u\", realmID)\;"
     "QueryResult* result = CharacterDatabase.PQuery(\"SELECT `guid`, `name`, `race`, `class`, `level` FROM `characters` WHERE `account` = %u\", account_id)\;")
+
+# Decoupling D4a. QuestStatusMgr.h and QuestStatusMgr.cpp have NO allow list. The quest status
+# saves moved there from PlayerSave.cpp (INSERT/UPDATE `character_queststatus`, DELETE+INSERT
+# `character_queststatus_weekly` / `_monthly`) and they stay queued prepared statements
+# (SqlStatement Execute/PExecute), run from Player::SaveToDB. A blocking call in either file
+# is exactly what strict tick mode would abort on.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

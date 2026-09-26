@@ -1023,7 +1023,7 @@ void Player::LoadPet()
  */
 void Player::_LoadQuestStatus(QueryResult* result)
 {
-    mQuestStatus.clear();
+    m_questStatusMgr.ClearStatus();
 
     uint32 slot = 0;
 
@@ -1034,62 +1034,16 @@ void Player::_LoadQuestStatus(QueryResult* result)
     {
         do
         {
-            Field* fields = result->Fetch();
-
-            uint32 quest_id = fields[0].GetUInt32();
-            // used to be new, no delete?
-            Quest const* pQuest = sObjectMgr.GetQuestTemplate(quest_id);
-            if (pQuest)
+            // Decoupling D4a: the manager fills THIS row, and it is applied below before the
+            // next row is read. Applying a rewarded row casts spells, and a quest-complete
+            // effect reaches AreaExploredOrEventHappens, which reads and writes a later row --
+            // so the load must stay one pass, row by row, as it always was.
+            QuestRowResult row = m_questStatusMgr.FillRow(result->Fetch(), sWorld.GetGameTime(), GetName(), ObjectMgr::QuestTemplateLookup());
+            if (row.accepted)
             {
-                // find or create
-                QuestStatusData& questStatusData = mQuestStatus[quest_id];
-
-                uint32 qstatus = fields[1].GetUInt32();
-                if (qstatus < MAX_QUEST_STATUS)
-                {
-                    questStatusData.m_status = QuestStatus(qstatus);
-                }
-                else
-                {
-                    questStatusData.m_status = QUEST_STATUS_NONE;
-                    sLog.outError("Player %s have invalid quest %d status (%d), replaced by QUEST_STATUS_NONE(0).", GetName(), quest_id, qstatus);
-                }
-
-                questStatusData.m_rewarded = (fields[2].GetUInt8() > 0);
-                questStatusData.m_explored = (fields[3].GetUInt8() > 0);
-
-                time_t quest_time = time_t(fields[4].GetUInt64());
-
-                if (pQuest->HasSpecialFlag(QUEST_SPECIAL_FLAG_TIMED) && !GetQuestRewardStatus(quest_id) && questStatusData.m_status != QUEST_STATUS_NONE)
-                {
-                    AddTimedQuest(quest_id);
-
-                    if (quest_time <= sWorld.GetGameTime())
-                    {
-                        questStatusData.m_timer = 1;
-                    }
-                    else
-                    {
-                        questStatusData.m_timer = uint32(quest_time - sWorld.GetGameTime()) * IN_MILLISECONDS;
-                    }
-                }
-                else
-                {
-                    quest_time = 0;
-                }
-
-                questStatusData.m_creatureOrGOcount[0] = fields[5].GetUInt32();
-                questStatusData.m_creatureOrGOcount[1] = fields[6].GetUInt32();
-                questStatusData.m_creatureOrGOcount[2] = fields[7].GetUInt32();
-                questStatusData.m_creatureOrGOcount[3] = fields[8].GetUInt32();
-                questStatusData.m_itemcount[0] = fields[9].GetUInt32();
-                questStatusData.m_itemcount[1] = fields[10].GetUInt32();
-                questStatusData.m_itemcount[2] = fields[11].GetUInt32();
-                questStatusData.m_itemcount[3] = fields[12].GetUInt32();
-                questStatusData.m_itemcount[4] = fields[13].GetUInt32();
-                questStatusData.m_itemcount[5] = fields[14].GetUInt32();
-
-                questStatusData.uState = QUEST_UNCHANGED;
+                uint32 quest_id = row.questId;
+                Quest const* pQuest = row.quest;
+                QuestStatusData& questStatusData = m_questStatusMgr.Entry(quest_id);
 
                 // add to quest log
                 if (slot < MAX_QUEST_LOG_SIZE &&
@@ -1098,7 +1052,7 @@ void Player::_LoadQuestStatus(QueryResult* result)
                           questStatusData.m_status == QUEST_STATUS_FAILED) &&
                          (!questStatusData.m_rewarded || pQuest->IsRepeatable())))
                 {
-                    SetQuestSlot(slot, quest_id, uint32(quest_time));
+                    SetQuestSlot(slot, quest_id, row.slotTime);
 
                     if (questStatusData.m_explored)
                     {
@@ -1201,69 +1155,6 @@ void Player::_LoadDailyQuestStatus(QueryResult* result)
     }
 
     m_DailyQuestChanged = false;
-}
-
-void Player::_LoadWeeklyQuestStatus(QueryResult* result)
-{
-    m_weeklyquests.clear();
-
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT quest FROM character_queststatus_weekly WHERE guid = '%u'", GetGUIDLow());
-
-    if (result)
-    {
-        do
-        {
-            Field* fields = result->Fetch();
-
-            uint32 quest_id = fields[0].GetUInt32();
-
-            Quest const* pQuest = sObjectMgr.GetQuestTemplate(quest_id);
-            if (!pQuest)
-            {
-                continue;
-            }
-
-            m_weeklyquests.insert(quest_id);
-
-            DEBUG_LOG("Weekly quest {%u} cooldown for player (GUID: %u)", quest_id, GetGUIDLow());
-        }
-        while (result->NextRow());
-
-        delete result;
-    }
-    m_WeeklyQuestChanged = false;
-}
-
-void Player::_LoadMonthlyQuestStatus(QueryResult* result)
-{
-    m_monthlyquests.clear();
-
-    // QueryResult *result = CharacterDatabase.PQuery("SELECT quest FROM character_queststatus_weekly WHERE guid = '%u'", GetGUIDLow());
-
-    if (result)
-    {
-        do
-        {
-            Field* fields = result->Fetch();
-
-            uint32 quest_id = fields[0].GetUInt32();
-
-            Quest const* pQuest = sObjectMgr.GetQuestTemplate(quest_id);
-            if (!pQuest)
-            {
-                continue;
-            }
-
-            m_monthlyquests.insert(quest_id);
-
-            DEBUG_LOG("Monthly quest {%u} cooldown for player (GUID: %u)", quest_id, GetGUIDLow());
-        }
-        while (result->NextRow());
-
-        delete result;
-    }
-
-    m_MonthlyQuestChanged = false;
 }
 
 /**

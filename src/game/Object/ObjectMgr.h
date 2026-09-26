@@ -45,6 +45,7 @@
 #include "GameObject.h"
 #include "Corpse.h"
 #include "QuestDef.h"
+#include "QuestStatusMgr.h" // QuestTemplateLookup() returns a QuestStatusMgr::TemplateLookup
 #include "ItemPrototype.h"
 #include "NPCHandler.h"
 #include "Database/DatabaseEnv.h"
@@ -677,6 +678,8 @@ class ObjectMgr
         {
             return mQuestTemplates;
         }
+        /// Decoupling D4a: GetQuestTemplate in the shape QuestStatusMgr takes it.
+        static QuestStatusMgr::TemplateLookup const& QuestTemplateLookup();
 
         uint32 GetQuestForAreaTrigger(uint32 Trigger_ID) const
         {
