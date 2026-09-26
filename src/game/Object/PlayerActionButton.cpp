@@ -82,10 +82,10 @@
  */
 void Player::SendInitialActionButtons() const
 {
-    DETAIL_LOG("Initializing Action Buttons for '%u' spec '%u'", GetGUIDLow(), m_activeSpec);
+    DETAIL_LOG("Initializing Action Buttons for '%u' spec '%u'", GetGUIDLow(), m_talentMgr.ActiveSpec());
 
     WorldPacket data(SMSG_ACTION_BUTTONS, 1 + (MAX_ACTION_BUTTONS * 4));
-    ActionButtonList const& currentActionButtonList = m_actionButtons[m_activeSpec];
+    ActionButtonList const& currentActionButtonList = m_actionButtons[m_talentMgr.ActiveSpec()];
     for (uint8 button = 0; button < MAX_ACTION_BUTTONS; ++button)
     {
         /* Try and get each action button the player could have */
@@ -105,12 +105,12 @@ void Player::SendInitialActionButtons() const
     }
     data << uint8(1);                                       // talent spec amount (in packet)
     GetSession()->SendPacket(&data);
-    DETAIL_LOG("Action Buttons for '%u' spec '%u' Initialized", GetGUIDLow(), m_activeSpec);
+    DETAIL_LOG("Action Buttons for '%u' spec '%u' Initialized", GetGUIDLow(), m_talentMgr.ActiveSpec());
 }
 
 void Player::SendLockActionButtons() const
 {
-    DETAIL_LOG("Locking Action Buttons for '%u' spec '%u'", GetGUIDLow(), m_activeSpec);
+    DETAIL_LOG("Locking Action Buttons for '%u' spec '%u'", GetGUIDLow(), m_talentMgr.ActiveSpec());
     WorldPacket data(SMSG_ACTION_BUTTONS, 1);
     // sending 2 locks actions bars, neither user can remove buttons, nor client removes buttons at spell unlearn
     // they remain locked until server sends new action buttons
@@ -279,7 +279,7 @@ void Player::removeActionButton(uint8 spec, uint8 button)
 
 ActionButton const* Player::GetActionButton(uint8 button)
 {
-    ActionButtonList& currentActionButtonList = m_actionButtons[m_activeSpec];
+    ActionButtonList& currentActionButtonList = m_actionButtons[m_talentMgr.ActiveSpec()];
     ActionButtonList::iterator buttonItr = currentActionButtonList.find(button);
     if (buttonItr == currentActionButtonList.end() || buttonItr->second.uState == ACTIONBUTTON_DELETED)
     {

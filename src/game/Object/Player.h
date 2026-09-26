@@ -81,6 +81,7 @@
 
 #include "QuestDef.h"
 #include "QuestStatusMgr.h" // QuestStatusMgr is held by value on Player; brings in the QuestStatusMap typedef
+#include "TalentMgr.h"      // TalentMgr is held by value on Player; brings in PlayerSpellState, PlayerTalent and PlayerTalentMap
 #include "GroupReference.h"
 #include "PetMgr.h"
 #include "MapReference.h"
@@ -182,17 +183,7 @@ enum BuyBankSlotResult
 };
 
 // PlayerCurrencyFlag / PlayerCurrencyState / PlayerCurrency moved to CurrencyMgr.h (2026-05-12).
-
-/**
- * @brief Player spell state enumeration
- */
-enum PlayerSpellState
-{
-    PLAYERSPELL_UNCHANGED = 0, ///< Spell unchanged
-    PLAYERSPELL_CHANGED = 1,   ///< Spell changed
-    PLAYERSPELL_NEW = 2,       ///< New spell
-    PLAYERSPELL_REMOVED = 3    ///< Spell removed
-};
+// PlayerSpellState moved to TalentMgr.h (decoupling D4c): the talent map needs it there.
 
 /**
  * @brief Structure to hold player spell information
@@ -205,16 +196,10 @@ struct PlayerSpell
     bool disabled : 1;          ///< First rank has been learned as a result of talent learn but currently talent unlearned, save max learned ranks
 };
 
-struct PlayerTalent
-{
-    TalentEntry const* talentEntry;
-    uint32 currentRank;
-    PlayerSpellState state;
-};
+// PlayerTalent and the PlayerTalentMap typedef moved to TalentMgr.h (decoupling D4c).
 
 // PlayerCurrenciesMap typedef moved to CurrencyMgr.h (2026-05-12).
 typedef std::unordered_map<uint32, PlayerSpell> PlayerSpellMap;
-typedef std::unordered_map<uint32, PlayerTalent> PlayerTalentMap;
 
 // SpellCooldown / SpellCooldowns moved to SpellCooldownMgr.h
 
@@ -2358,7 +2343,6 @@ class Player : public Unit
 
         // Check if the player has a specific spell
         bool HasSpell(uint32 spell) const override;
-        bool HasTalent(uint32 spell, uint8 spec) const;
         bool HasActiveSpell(uint32 spell) const;            // show in spellbook
 
         // Check if the player has an active spell
@@ -2404,18 +2388,16 @@ class Player : public Unit
         // Learn a high-rank spell
         void learnSpellHighRank(uint32 spellid);
 
-        uint32 GetFreeTalentPoints() const { return m_freeTalentPoints; }
-        void SetFreeTalentPoints(uint32 points) { m_freeTalentPoints = points; }
+        uint32 GetFreeTalentPoints() const { return m_talentMgr.FreePoints(); }
+        void SetFreeTalentPoints(uint32 points) { m_talentMgr.SetFreePoints(points); }
         // Get the player's free talent points
 
         // Set the player's free talent points
 
         // Update the player's free talent points
         void UpdateFreeTalentPoints(bool resetIfNeed = true);
-        uint32 GetPrimaryTalentTree(uint8 spec) const { return m_talentsPrimaryTree[spec]; }
-        void SetPrimaryTalentTree(uint8 spec, uint32 tree) { m_talentsPrimaryTree[spec] = tree; }
+        uint32 GetPrimaryTalentTree(uint8 spec) const { return m_talentMgr.PrimaryTree(spec); }
         bool resetTalents(bool no_cost = false, bool all_specs = false);
-        uint32 resetTalentsCost() const;
         void InitTalentForLevel();
         void BuildPlayerTalentsInfoData(WorldPacket* data);
         void BuildPetTalentsInfoData(WorldPacket* data);
@@ -2424,13 +2406,9 @@ class Player : public Unit
         bool LearnTalent(uint32 talentId, uint32 talentRank);
         void LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRank);
 
-        uint32 CalculateTalentsPoints() const;
-
         // Dual Spec
-        uint8 GetActiveSpec() { return m_activeSpec; }
-        void SetActiveSpec(uint8 spec) { m_activeSpec = spec; }
-        uint8 GetSpecsCount() { return m_specsCount; }
-        void SetSpecsCount(uint8 count) { m_specsCount = count; }
+        uint8 GetActiveSpec() { return m_talentMgr.ActiveSpec(); }
+        uint8 GetSpecsCount() { return m_talentMgr.SpecsCount(); }
         void ActivateSpec(uint8 specNum);
         void UpdateSpecCount(uint8 count);
 
@@ -2440,8 +2418,8 @@ class Player : public Unit
         void SetGlyphSlot(uint8 slot, uint32 slottype) { SetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + slot, slottype); }
         uint32 GetGlyphSlot(uint8 slot) const { return GetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + slot); }
         void InitGlyphsForLevel() { m_glyphMgr.InitGlyphsForLevel(); }
-        void SetGlyph(uint8 slot, uint32 glyph) { m_glyphMgr.SetGlyph(m_activeSpec, slot, glyph); }
-        uint32 GetGlyph(uint8 slot) { return m_glyphMgr.GetGlyph(m_activeSpec, slot); }
+        void SetGlyph(uint8 slot, uint32 glyph) { m_glyphMgr.SetGlyph(m_talentMgr.ActiveSpec(), slot, glyph); }
+        uint32 GetGlyph(uint8 slot) { return m_glyphMgr.GetGlyph(m_talentMgr.ActiveSpec(), slot); }
         void ApplyGlyph(uint8 slot, bool apply) { m_glyphMgr.ApplyGlyph(slot, apply); }
         void ApplyGlyphs(bool apply) { m_glyphMgr.ApplyAll(apply); }
 
@@ -2468,7 +2446,6 @@ class Player : public Unit
         // Get the player's spell cooldown map
         SpellCooldowns const& GetSpellCooldownMap() const { return m_spellCooldownMgr.GetSpellCooldownMap(); }
 
-        PlayerTalent const* GetKnownTalentById(int32 talentId) const;
         SpellEntry const* GetKnownTalentRankById(int32 talentId) const;
 
         void AddSpellMod(Aura* aura, bool apply);
@@ -2677,8 +2654,6 @@ class Player : public Unit
         uint32 GetGuildId() const { return GetGuildGuid().GetCounter(); }
         ObjectGuid GetGuildGuid() const { return GetGuidValue(OBJECT_FIELD_DATA); }
         std::string GetGuildName() const;
-        uint32     GetTalentResetCost() const;
-        time_t GetTalentResetTime() const;
         static uint32 GetGuildIdFromDB(ObjectGuid guid);
         static ObjectGuid GetGuildGuidFromDB(ObjectGuid guid);
         void SendGuildDeclined(std::string name, bool autodecline);
@@ -3865,7 +3840,6 @@ class Player : public Unit
 
         // Set the aura update mask
         void SetAuraUpdateMask(uint8 slot) { m_auraUpdateMask |= (uint64(1) << slot); }
-        uint32     GetNextResetTalentsCost() const;
 
         // Get the next random raid member within a radius
         Player* GetNextRandomRaidMember(float radius);
@@ -4053,7 +4027,6 @@ class Player : public Unit
         void _SaveBGData();
         void _SaveGlyphs() { m_glyphMgr.Save(); }
         void _SaveCUFProfiles();
-        void _SaveTalents();
         void _SaveStats();
 
         // Set create bits for the update mask
@@ -4126,15 +4099,13 @@ class Player : public Unit
 
         PlayerMails m_mail;
         PlayerSpellMap m_spells;
-        PlayerTalentMap m_talents[MAX_TALENT_SPEC_COUNT];
-        uint32 m_talentsPrimaryTree[MAX_TALENT_SPEC_COUNT];
+        // Talents and specs: the per-spec talent maps, primary trees, active spec and spec count,
+        // free and used points, and the last paid reset's cost and time
+        TalentMgr m_talentMgr;
         SpellCooldownMgr m_spellCooldownMgr;
         uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
         uint32 m_GuildIdInvited; // Guild ID invited
         uint32 m_ArenaTeamIdInvited; // Arena team ID invited
-
-        uint8 m_activeSpec;
-        uint8 m_specsCount;
 
         ActionButtonList m_actionButtons[MAX_TALENT_SPEC_COUNT];
 
@@ -4208,10 +4179,7 @@ class Player : public Unit
         // Transports
         Transport* m_transport; // Player transport
 
-        uint32 m_freeTalentPoints;
-        uint32 m_resetTalentsCost;
-        time_t m_resetTalentsTime;
-        uint32 m_usedTalentCount;
+        // Written by the quest load and the quest reward; read by the talent-point calculation.
         uint32 m_questRewardTalentCount;
 
         // Social

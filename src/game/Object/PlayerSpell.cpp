@@ -365,31 +365,10 @@ bool Player::addSpell(uint32 spell_id, bool active, bool learning, bool dependen
     if (talentPos)
     {
         // update talent map
-        PlayerTalentMap::iterator iter = m_talents[m_activeSpec].find(talentPos->talent_id);
-        if (iter != m_talents[m_activeSpec].end())
-        {
-            // check if ranks different or removed
-            if ((*iter).second.state == PLAYERSPELL_REMOVED || talentPos->rank != (*iter).second.currentRank)
-            {
-                (*iter).second.currentRank = talentPos->rank;
-
-                if ((*iter).second.state != PLAYERSPELL_NEW)
-                {
-                    (*iter).second.state = PLAYERSPELL_CHANGED;
-                }
-            }
-        }
-        else
-        {
-            PlayerTalent talent;
-            talent.currentRank = talentPos->rank;
-            talent.talentEntry = sTalentStore.LookupEntry(talentPos->talent_id);
-            talent.state       = IsInWorld() ? PLAYERSPELL_NEW : PLAYERSPELL_UNCHANGED;
-            m_talents[m_activeSpec][talentPos->talent_id] = talent;
-        }
+        m_talentMgr.LearnRank(talentPos->talent_id, talentPos->rank, IsInWorld());
 
         // update used talent points count
-        m_usedTalentCount += GetTalentSpellCost(talentPos);
+        m_talentMgr.SpendPoints(GetTalentSpellCost(talentPos));
         UpdateFreeTalentPoints(false);
     }
 
@@ -665,34 +644,13 @@ void Player::removeSpell(uint32 spell_id, bool disabled, bool learn_low_rank, bo
     if (talentPos)
     {
         // update talent map
-        PlayerTalentMap::iterator iter = m_talents[m_activeSpec].find(talentPos->talent_id);
-        if (iter != m_talents[m_activeSpec].end())
-        {
-            if ((*iter).second.state != PLAYERSPELL_NEW)
-            {
-                (*iter).second.state = PLAYERSPELL_REMOVED;
-            }
-            else
-            {
-                m_talents[m_activeSpec].erase(iter);
-            }
-        }
-        else
+        if (!m_talentMgr.UnlearnRank(talentPos->talent_id))
         {
             sLog.outError("removeSpell: Player (GUID: %u) has talent spell (id: %u) but doesn't have talent", GetGUIDLow(), spell_id);
         }
 
         // free talent points
-        uint32 talentCosts = GetTalentSpellCost(talentPos);
-
-        if (talentCosts < m_usedTalentCount)
-        {
-            m_usedTalentCount -= talentCosts;
-        }
-        else
-        {
-            m_usedTalentCount = 0;
-        }
+        m_talentMgr.RefundPoints(GetTalentSpellCost(talentPos));
 
         UpdateFreeTalentPoints(false);
     }
@@ -878,52 +836,6 @@ void Player::removeSpell(uint32 spell_id, bool disabled, bool learn_low_rank, bo
 }
 
 /**
- * @brief Calculates the current cost to reset the player's talents.
- *
- * @return The reset cost in copper.
- */
-uint32 Player::resetTalentsCost() const
-{
-    // The first time reset costs 1 gold
-    if (m_resetTalentsCost < 1 * GOLD)
-    {
-        return 1 * GOLD;
-    }
-    // then 5 gold
-    else if (m_resetTalentsCost < 5 * GOLD)
-    {
-        return 5 * GOLD;
-    }
-    // After that it increases in increments of 5 gold
-    else if (m_resetTalentsCost < 10 * GOLD)
-    {
-        return 10 * GOLD;
-    }
-    else
-    {
-        time_t months = (sWorld.GetGameTime() - m_resetTalentsTime) / MONTH;
-        if (months > 0)
-        {
-            // This cost will be reduced by a rate of 5 gold per month
-            int32 new_cost = int32((m_resetTalentsCost) - 5 * GOLD * months);
-            // to a minimum of 10 gold.
-            return uint32(new_cost < 10 * GOLD ? 10 * GOLD : new_cost);
-        }
-        else
-        {
-            // After that it increases in increments of 5 gold
-            int32 new_cost = m_resetTalentsCost + 5 * GOLD;
-            // until it hits a cap of 50 gold.
-            if (new_cost > 50 * GOLD)
-            {
-                new_cost = 50 * GOLD;
-            }
-            return new_cost;
-        }
-    }
-}
-
-/**
  * @brief Resets all learned talents for the player's class.
  *
  * @param no_cost True to skip charging the reset fee.
@@ -937,7 +849,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
         RemoveAtLoginFlag(AT_LOGIN_RESET_TALENTS, true);
     }
 
-    if (m_usedTalentCount == 0 && !all_specs)
+    if (m_talentMgr.UsedPoints() == 0 && !all_specs)
     {
         UpdateFreeTalentPoints(false);                      // for fix if need counter
         return false;
@@ -947,7 +859,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
 
     if (!no_cost)
     {
-        cost = resetTalentsCost();
+        cost = m_talentMgr.ResetTalentsCost(sWorld.GetGameTime());
 
         if (GetMoney() < cost)
         {
@@ -956,7 +868,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
         }
     }
 
-    for (PlayerTalentMap::iterator iter = m_talents[m_activeSpec].begin(); iter != m_talents[m_activeSpec].end();)
+    for (PlayerTalentMap::iterator iter = m_talentMgr.Talents(m_talentMgr.ActiveSpec()).begin(); iter != m_talentMgr.Talents(m_talentMgr.ActiveSpec()).end();)
     {
         if (iter->second.state == PLAYERSPELL_REMOVED)
         {
@@ -968,7 +880,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
 
         if (!talentInfo)
         {
-            m_talents[m_activeSpec].erase(iter++);
+            m_talentMgr.Talents(m_talentMgr.ActiveSpec()).erase(iter++);
             continue;
         }
 
@@ -976,7 +888,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
 
         if (!talentTabInfo)
         {
-            m_talents[m_activeSpec].erase(iter++);
+            m_talentMgr.Talents(m_talentMgr.ActiveSpec()).erase(iter++);
             continue;
         }
 
@@ -995,7 +907,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
                 removeSpell(talentInfo->SpellRank[j], !IsPassiveSpell(talentInfo->SpellRank[j]), false);
             }
 
-        iter = m_talents[m_activeSpec].begin();
+        iter = m_talentMgr.Talents(m_talentMgr.ActiveSpec()).begin();
     }
 
     // Remove spec specific spells
@@ -1016,12 +928,12 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
 
     for (uint8 spec = 0; spec < MAX_TALENT_SPEC_COUNT; ++spec)
     {
-        if (!all_specs && spec != m_activeSpec)
+        if (!all_specs && spec != m_talentMgr.ActiveSpec())
         {
             continue;
         }
 
-        m_talentsPrimaryTree[spec] = 0;
+        m_talentMgr.SetPrimaryTree(spec, 0);
     }
 
     // for not current spec just mark removed all saved to DB case and drop not saved
@@ -1029,12 +941,12 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
     {
         for (uint8 spec = 0; spec < MAX_TALENT_SPEC_COUNT; ++spec)
         {
-            if (spec == m_activeSpec)
+            if (spec == m_talentMgr.ActiveSpec())
             {
                 continue;
             }
 
-            for (PlayerTalentMap::iterator iter = m_talents[spec].begin(); iter != m_talents[spec].end();)
+            for (PlayerTalentMap::iterator iter = m_talentMgr.Talents(spec).begin(); iter != m_talentMgr.Talents(spec).end();)
             {
                 switch (iter->second.state)
                 {
@@ -1042,7 +954,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
                         ++iter;
                         break;
                     case PLAYERSPELL_NEW:
-                        m_talents[spec].erase(iter++);
+                        m_talentMgr.Talents(spec).erase(iter++);
                         break;
                     default:
                         iter->second.state = PLAYERSPELL_REMOVED;
@@ -1061,8 +973,8 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
         GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_GOLD_SPENT_FOR_TALENTS, cost);
         GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_NUMBER_OF_TALENT_RESETS, 1);
 
-        m_resetTalentsCost = cost;
-        m_resetTalentsTime = time(NULL);
+        m_talentMgr.SetResetCost(cost);
+        m_talentMgr.SetResetTime(time(NULL));
     }
 
     // Update talent tree role-dependent mana regen

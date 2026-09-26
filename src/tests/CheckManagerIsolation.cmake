@@ -73,6 +73,8 @@ set(GAME_DIR "${SOURCE_ROOT}/src/game")
 set(MANAGER_FILES
     entities/player/QuestStatusMgr.h                        # decoupling D4a
     entities/player/QuestStatusMgr.cpp                      # decoupling D4a
+    entities/player/TalentMgr.h                             # decoupling D4c
+    entities/player/TalentMgr.cpp                           # decoupling D4c
 )
 
 # The character's own files once they live under entities/player/ (D4j). They name the class by

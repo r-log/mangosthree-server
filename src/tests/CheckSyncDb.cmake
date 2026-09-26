@@ -60,6 +60,8 @@ set(CONVERTED_FILES
     src/game/ChatCommands/AccountCommands.cpp               # decoupling D7i
     src/game/entities/player/QuestStatusMgr.h               # decoupling D4a
     src/game/entities/player/QuestStatusMgr.cpp             # decoupling D4a
+    src/game/entities/player/TalentMgr.h                    # decoupling D4c
+    src/game/entities/player/TalentMgr.cpp                  # decoupling D4c
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -375,6 +377,11 @@ set(ALLOW_AccountCommands_cpp
 # `character_queststatus_weekly` / `_monthly`) and they stay queued prepared statements
 # (SqlStatement Execute/PExecute), run from Player::SaveToDB. A blocking call in either file
 # is exactly what strict tick mode would abort on.
+#
+# Decoupling D4c. TalentMgr.h and TalentMgr.cpp have NO allow list either. The talent save moved
+# there from PlayerSave.cpp (DELETE+INSERT `character_talent`, queued prepared statements run
+# from Player::SaveToDB), and so did the six DELETEs of the talent load's row checks
+# (CharacterDatabase.PExecute, queued once async writes are on), run from the login.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

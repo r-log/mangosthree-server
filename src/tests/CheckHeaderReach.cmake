@@ -61,7 +61,15 @@ set(REACH_RULES
     # Decoupling D4b: and no global the manager could reach for instead of a parameter -- the
     # world (sWorld: game time, config) and the object registries that replaced the old
     # ObjectAccessor.h (sPlayerRegistry, ObjectLookup, sCorpseManager).
-    "entities/player/QuestStatusMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Object/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h")
+    # Decoupling D4c: and the map manager (sMapMgr), which no manager needs either.
+    "entities/player/QuestStatusMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Object/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h"
+    # Decoupling D4c: the talent manager, the same two rules. The header also stays inside
+    # Object/Player.h's own rule above (Player.h includes it), so it may reach neither the DBC
+    # stores nor the database. Its .cpp reads the talent DBC stores (Server/DBCStores.h) and
+    # nothing else global: the game time, the talent rate and the quest-reward bonus are
+    # parameters, and src/tests/TalentMgrTest.cpp seeds the stores.
+    "entities/player/TalentMgr.h|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h"
+    "entities/player/TalentMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Object/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

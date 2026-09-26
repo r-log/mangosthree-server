@@ -84,6 +84,7 @@ set(SRC_GRP_TESTS
     AuraContainerTest.cpp
     QuestStatusMgrTest.cpp
     QuestPredicateTest.cpp
+    TalentMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)
