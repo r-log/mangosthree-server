@@ -284,3 +284,26 @@ template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Creature*
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Corpse*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, GameObject*    target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, DynamicObject* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+
+/**
+ * @brief Checks whether the player can currently see spell-click interaction on a creature.
+ *
+ * @param c The creature to evaluate.
+ * @return True if spell-click should be visible; otherwise, false.
+ */
+bool Player::canSeeSpellClickOn(Creature const* c) const
+{
+    if (!c->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK))
+    {
+        return false;
+    }
+
+    SpellClickInfoMapBounds clickPair = sObjectMgr.GetSpellClickInfoMapBounds(c->GetEntry());
+    for (SpellClickInfoMap::const_iterator itr = clickPair.first; itr != clickPair.second; ++itr)
+        if (itr->second.IsFitToRequirements(this, c))
+        {
+            return true;
+        }
+
+    return false;
+}

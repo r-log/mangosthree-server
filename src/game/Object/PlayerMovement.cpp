@@ -144,3 +144,17 @@ void Player::SetHover(bool enable)
 {
     SendEmissions(m_motion->Apply(Motion::FlagChange(Motion::ChangeType::Hover, enable), GameTime::GetGameTimeMS()));
 }
+
+/**
+ * @brief Refreshes stored fall tracking data when movement indicates a new fall state.
+ *
+ * @param minfo The current movement information.
+ * @param opcode The movement opcode being processed.
+ */
+void Player::UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode)
+{
+    if (m_lastFallTime >= minfo.GetFallTime() || m_lastFallZ <= minfo.GetPos()->z || opcode == CMSG_MOVE_FALL_LAND)
+    {
+        SetFallInformation(minfo.GetFallTime(), minfo.GetPos()->z);
+    }
+}

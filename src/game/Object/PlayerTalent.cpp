@@ -46,7 +46,6 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "ObjectMgr.h"
 #include "CreatureAI.h"
 #include "Formulas.h"
 #include "Group.h"
@@ -410,43 +409,6 @@ void Player::LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRa
     DETAIL_LOG("PetTalentID: %u Rank: %u Spell: %u\n", talentId, talentRank, spellid);
 }
 
-/**
- * @brief Refreshes stored fall tracking data when movement indicates a new fall state.
- *
- * @param minfo The current movement information.
- * @param opcode The movement opcode being processed.
- */
-void Player::UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode)
-{
-    if (m_lastFallTime >= minfo.GetFallTime() || m_lastFallZ <= minfo.GetPos()->z || opcode == CMSG_MOVE_FALL_LAND)
-    {
-        SetFallInformation(minfo.GetFallTime(), minfo.GetPos()->z);
-    }
-}
-
-/**
- * @brief Checks whether the player can currently see spell-click interaction on a creature.
- *
- * @param c The creature to evaluate.
- * @return True if spell-click should be visible; otherwise, false.
- */
-bool Player::canSeeSpellClickOn(Creature const* c) const
-{
-    if (!c->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK))
-    {
-        return false;
-    }
-
-    SpellClickInfoMapBounds clickPair = sObjectMgr.GetSpellClickInfoMapBounds(c->GetEntry());
-    for (SpellClickInfoMap::const_iterator itr = clickPair.first; itr != clickPair.second; ++itr)
-        if (itr->second.IsFitToRequirements(this, c))
-        {
-            return true;
-        }
-
-    return false;
-}
-
 void Player::BuildPlayerTalentsInfoData(WorldPacket* data)
 {
     *data << uint32(GetFreeTalentPoints());                 // unspentTalentPoints
@@ -631,148 +593,6 @@ void Player::SendTalentsInfoData(bool pet)
         BuildPlayerTalentsInfoData(&data);
     }
     GetSession()->SendPacket(&data);
-}
-
-void Player::BuildEnchantmentsInfoData(WorldPacket* data)
-{
-    uint32 slotUsedMask = 0;
-    size_t slotUsedMaskPos = data->wpos();
-    *data << uint32(slotUsedMask);                          // slotUsedMask < 0x80000
-
-    for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-    {
-        Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-
-        if (!item)
-        {
-            continue;
-        }
-
-        slotUsedMask |= (1 << i);
-
-        *data << uint32(item->GetEntry());                  // item entry
-
-        uint16 enchantmentMask = 0;
-        size_t enchantmentMaskPos = data->wpos();
-        *data << uint16(enchantmentMask);                   // enchantmentMask < 0x1000
-
-        for (uint32 j = 0; j < MAX_ENCHANTMENT_SLOT; ++j)
-        {
-            uint32 enchId = item->GetEnchantmentId(EnchantmentSlot(j));
-
-            if (!enchId)
-            {
-                continue;
-            }
-
-            enchantmentMask |= (1 << j);
-
-            *data << uint16(enchId);                        // enchantmentId?
-        }
-
-        data->put<uint16>(enchantmentMaskPos, enchantmentMask);
-
-        *data << uint16(item->GetItemRandomPropertyId());
-        *data << item->GetGuidValue(ITEM_FIELD_CREATOR).WriteAsPacked();
-        *data << uint32(item->GetItemSuffixFactor());
-    }
-
-    data->put<uint32>(slotUsedMaskPos, slotUsedMask);
-}
-
-void Player::SendEquipmentSetList()
-{
-    uint32 count = 0;
-    WorldPacket data(SMSG_LOAD_EQUIPMENT_SET, 4);
-    size_t count_pos = data.wpos();
-    data << uint32(count);                                  // count placeholder
-    for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
-    {
-        if (itr->second.state == EQUIPMENT_SET_DELETED)
-        {
-            continue;
-        }
-        data.appendPackGUID(itr->second.Guid);
-        data << uint32(itr->first);
-        data << itr->second.Name;
-        data << itr->second.IconName;
-        for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-        {
-            // ignored slots stored in IgnoreMask, client wants "1" as raw GUID, so no HIGHGUID_ITEM
-            if (itr->second.IgnoreMask & (1 << i))
-            {
-                data << ObjectGuid(uint64(1)).WriteAsPacked();
-            }
-            else
-            {
-                data << ObjectGuid(HIGHGUID_ITEM, itr->second.Items[i]).WriteAsPacked();
-            }
-        }
-
-        ++count;                                            // client have limit but it checked at loading and set
-    }
-    data.put<uint32>(count_pos, count);
-    GetSession()->SendPacket(&data);
-}
-
-void Player::SetEquipmentSet(uint32 index, EquipmentSet eqset)
-{
-    if (eqset.Guid != 0)
-    {
-        bool found = false;
-
-        for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
-        {
-            if ((itr->second.Guid == eqset.Guid) && (itr->first == index))
-            {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found)                                         // something wrong...
-        {
-            sLog.outError("Player %s tried to save equipment set " UI64FMTD " (index %u), but that equipment set not found!", GetName(), eqset.Guid, index);
-            return;
-        }
-    }
-
-    EquipmentSet& eqslot = m_EquipmentSets[index];
-
-    EquipmentSetUpdateState old_state = eqslot.state;
-
-    eqslot = eqset;
-
-    if (eqset.Guid == 0)
-    {
-        eqslot.Guid = sObjectMgr.GenerateEquipmentSetGuid();
-
-        WorldPacket data(SMSG_EQUIPMENT_SET_ID, 4 + 1);
-        data << uint32(index);
-        data.appendPackGUID(eqslot.Guid);
-        GetSession()->SendPacket(&data);
-    }
-
-    eqslot.state = old_state == EQUIPMENT_SET_NEW ? EQUIPMENT_SET_NEW : EQUIPMENT_SET_CHANGED;
-}
-
-void Player::DeleteEquipmentSet(uint64 setGuid)
-{
-    for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
-    {
-        if (itr->second.Guid == setGuid)
-        {
-            if (itr->second.state == EQUIPMENT_SET_NEW)
-            {
-                m_EquipmentSets.erase(itr);
-            }
-            else
-            {
-                itr->second.state = EQUIPMENT_SET_DELETED;
-            }
-            break;
-        }
-    }
 }
 
 void Player::ActivateSpec(uint8 specNum)
