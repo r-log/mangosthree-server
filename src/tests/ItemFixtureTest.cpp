@@ -414,7 +414,7 @@ TEST(ItemFixture_BagCreateMakesABagThatHoldsAnItemInASlot)
 }
 
 // Bag::StoreItem puts whatever it is given in the slot; whether an item may go into a bag is
-// the caller's question (Player::_CanStoreItem_InBag asks ItemCanGoIntoBag first). That
+// the caller's question (InventoryMgr::_CanStoreItem_InBag asks ItemCanGoIntoBag first). That
 // question reads the bag's subclass and the item's bag family -- the column
 // ObjectMgr::LoadItemPrototypes would have cleared here, against an empty ItemBagFamily.dbc.
 TEST(ItemFixture_AHerbBagTakesOnlyHerbs)

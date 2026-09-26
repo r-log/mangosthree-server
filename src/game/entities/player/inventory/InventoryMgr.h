@@ -28,10 +28,15 @@
 
 #include "Platform/Define.h"
 #include "ObjectGuid.h"
+#include "ItemPrototype.h"  // InventoryResult, the storage checks' verdict, and ItemPrototype
+
+#include <functional>
+#include <vector>
 
 /**
  * @file InventoryMgr.h
  * @brief Decoupling D4e1: one character's item slots, and the lookups and counts over them.
+ *        Decoupling D4e2: and the storage checks -- can this item go here?
  *
  * The state is the slot array: equipment, the four bag slots, the backpack, the bank, the
  * seven bank bag slots and the vendor buyback slots, one `Item*` each. The pointers are NOT
@@ -47,19 +52,30 @@
  * items' own fields (entry, count, guid, prototype, trade flag, socketed gems) and nothing of
  * the owner.
  *
+ * Decoupling D4e2 moved the storage checks here, verbatim apart from three calls that became
+ * parameters: whether an item may be carried in that number (its maximum count and its limit
+ * category), whether a stack fits a given slot, a bag or a range of the array, where a stack
+ * goes (the destinations and their counts, in the order the owner's store fills them), and
+ * whether a list of items fits at once (the trade's check). They read what the lookups read,
+ * plus the item's loot state; what they need beyond that comes in per call: whether an item
+ * is bound to someone other than the character asking (an account-wide binding compares
+ * accounts through the sessions and the object manager, so only the owner can answer it), the
+ * item template of an entry, and the ItemLimitCategory.dbc row of an id.
+ *
  * What stays with the owning object, and why: every change of the array (storing, equipping,
  * removing, destroying, splitting, swapping, the buyback list) -- each one also writes the
  * owner's update fields, the item update queue and item state, applies or removes item spells
- * and sends packets; the storage and bank checks (their binding check needs the requester,
- * and they come in later PRs); every check that reads the character (class, race, level,
- * skills, spells, dual wield, titan grip); the equipped-gem checks. The owner's guid and the
- * bank bag count are not kept here: whatever needs them takes them per call.
+ * and sends packets; the bank check (it comes in a later PR, and reads the bank bag count);
+ * every check that reads the character (class, race, level, skills, spells, dual wield, titan
+ * grip); the equipped-gem checks. The owner's guid and the bank bag count are not kept here:
+ * whatever needs them takes them per call.
  *
  * The object never names the character class, so `mangos_tests` builds one from nothing and
- * fills it with real items (src/tests/InventoryMgrTest.cpp).
+ * fills it with real items (src/tests/InventoryMgrTest.cpp, src/tests/InventoryStorageTest.cpp).
  */
 
 class Item;
+struct ItemLimitCategoryEntry;
 
 /// The item slots of a character, as indexes into the slot array.
 enum PlayerSlots
@@ -135,6 +151,18 @@ enum BuyBackSlots
     BUYBACK_SLOT_END            = 86  // End of buy back slots
 };
 
+/// One destination a storage check found: a packed position (bag << 8 | slot) and how many of
+/// the item go there.
+struct ItemPosCount
+{
+    ItemPosCount(uint16 _pos, uint32 _count) : pos(_pos), count(_count) {}
+    bool isContainedIn(std::vector<ItemPosCount> const& vec) const;
+    uint16 pos;
+    uint32 count;
+};
+
+typedef std::vector<ItemPosCount> ItemPosCountVec;
+
 class InventoryMgr
 {
     public:
@@ -206,6 +234,55 @@ class InventoryMgr
         /// Whether the entry's stacks not in a trade reach `count` (the bank when `inBankAlso`);
         /// false when no such stack is held at all, whatever `count` is.
         bool HasItemCount(uint32 item, uint32 count, bool inBankAlso = false) const;
+
+        /*** the storage checks: can this item go here? ***/
+
+        // None of them changes the array, a bag or an item: each answers a verdict and appends
+        // the destinations it found to `dest`. What they need beyond the slots comes in per
+        // call, the same three callables every time they are needed:
+        //  - `isBoundElsewhere(item)`: whether the item is bound to someone other than the
+        //    character asking. The owner passes Item::IsBindedNotWith with itself; it runs at
+        //    exactly the point, and as many times, as that call ran before.
+        //  - `itemPrototype(entry)`: the item template of an entry, NULL when there is none. The
+        //    owner passes ObjectMgr::GetItemPrototype.
+        //  - `limitCategory(id)`: the ItemLimitCategory.dbc row of an id, NULL when there is
+        //    none. The owner passes the store's LookupEntry.
+
+        /// Whether `count` more of the entry may be carried: its maximum count (over the
+        /// equipment, backpack, bags and bank, `pItem` left out) and, for a limit category in
+        /// "have" mode, the category's quantity. An entry with no template, or a category with no
+        /// row, is refused whole. `no_space_count`, when given, receives how many of the `count`
+        /// are refused; it is written only on a refusal.
+        InventoryResult _CanTakeMoreSimilarItems(uint32 entry, uint32 count, Item* pItem, uint32* no_space_count,
+                                                 std::function<ItemPrototype const*(uint32)> const& itemPrototype,
+                                                 std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory) const;
+        /// Whether some of `count` fit the position (`bag`, `slot`) -- an array position below
+        /// the buyback slots, or a slot of a held bag that takes the item: into an empty slot (or
+        /// any slot with `swap`) up to a full stack, onto a stack of the same item up to its size.
+        /// One destination at most; `count` goes down by what it takes.
+        InventoryResult _CanStoreItem_InSpecificSlot(uint8 bag, uint8 slot, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool swap, Item* pSrcItem) const;
+        /// The slots of the bag in bag slot `bag`, in order: onto stacks with `merge`, into empty
+        /// slots without; only a plain container with `non_specialized`, only a special one
+        /// without, and only a bag the item may go into.
+        InventoryResult _CanStoreItem_InBag(uint8 bag, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool merge, bool non_specialized, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const;
+        /// The slots `slot_begin` to `slot_end` - 1 of the array, in order, as the bag search does.
+        InventoryResult _CanStoreItem_InInventorySlots(uint8 slot_begin, uint8 slot_end, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool merge, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const;
+        /// Where `count` of the entry go (`pItem` the item itself, or NULL for a new one): the
+        /// position asked for first, then the bag asked for, then stacks, special bags, the
+        /// backpack and the bags, as the owner's store fills them. `no_space_count`, when given,
+        /// receives how many did not fit; it is not written on a full fit, nor when a non-empty
+        /// bag is refused.
+        InventoryResult _CanStoreItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, uint32 entry, uint32 count, Item* pItem, bool swap, uint32* no_space_count,
+                                      std::function<bool(Item const*)> const& isBoundElsewhere,
+                                      std::function<ItemPrototype const*(uint32)> const& itemPrototype,
+                                      std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory) const;
+        /// Whether all `count` items of `pItems` (NULLs skipped) fit the backpack and the bags at
+        /// once, each item whole: onto a stack, into a special bag, into the backpack, into a
+        /// plain bag. Items in a trade count as gone; the count limits apply to each item alone.
+        InventoryResult CanStoreItems(Item** pItems, int count,
+                                      std::function<bool(Item const*)> const& isBoundElsewhere,
+                                      std::function<ItemPrototype const*(uint32)> const& itemPrototype,
+                                      std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory) const;
 
     private:
         Item* m_items[PLAYER_SLOTS_COUNT];

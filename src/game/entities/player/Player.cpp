@@ -5719,23 +5719,6 @@ void Player::SetCanBlock(bool value)
     UpdateShieldBlockDamageValue();
 }
 
-/**
- * @brief Checks whether this item position entry exists in a vector of positions.
- *
- * @param vec The vector of item positions to search.
- * @return True if an entry with the same position exists; otherwise, false.
- */
-bool ItemPosCount::isContainedIn(ItemPosCountVec const& vec) const
-{
-    for (ItemPosCountVec::const_iterator itr = vec.begin(); itr != vec.end(); ++itr)
-        if (itr->pos == pos)
-        {
-            return true;
-        }
-
-    return false;
-}
-
 uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 newfacialhair, uint32 newskintone)
 {
     uint32 level = getLevel();

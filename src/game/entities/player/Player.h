@@ -644,15 +644,8 @@ struct EquipmentSet
 
 typedef std::map<uint32, EquipmentSet> EquipmentSets;
 
-struct ItemPosCount
-{
-    ItemPosCount(uint16 _pos, uint32 _count) : pos(_pos), count(_count) {}
-    bool isContainedIn(std::vector<ItemPosCount> const& vec) const;
-    uint16 pos;
-    uint32 count;
-};
-
-typedef std::vector<ItemPosCount> ItemPosCountVec;
+// ItemPosCount / ItemPosCountVec, the destinations the storage checks answer, live in
+// InventoryMgr.h with those checks (decoupling D4e2).
 
 // Trade slots
 enum TradeSlots
@@ -1526,7 +1519,8 @@ class Player : public Unit
         // Convert an item to a new item ID
         Item* ConvertItem(Item* item, uint32 newItemId);
 
-        // Internal methods for storing items
+        // Internal methods for storing items: wrappers over the InventoryMgr's checks, which hand it
+        // this character's binding verdict and the template lookups (decoupling D4e2)
         InventoryResult _CanTakeMoreSimilarItems(uint32 entry, uint32 count, Item* pItem, uint32* no_space_count = NULL) const;
         InventoryResult _CanStoreItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, uint32 entry, uint32 count, Item* pItem = NULL, bool swap = false, uint32* no_space_count = NULL) const;
 
@@ -4135,6 +4129,8 @@ class Player : public Unit
         // internal common parts for CanStore/StoreItem functions
         uint32 m_created_date = 0;
 
+        // The three below forward to the InventoryMgr's checks of the same names (decoupling D4e2);
+        // CanBankItem still calls them.
         // Check if an item can be stored in a specific slot
         InventoryResult _CanStoreItem_InSpecificSlot(uint8 bag, uint8 slot, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool swap, Item* pSrcItem) const;
 
