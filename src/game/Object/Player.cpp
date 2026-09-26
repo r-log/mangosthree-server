@@ -318,7 +318,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_questStatusMgr(), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -355,9 +355,7 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(t
 
     m_comboPoints = 0;
 
-    m_usedTalentCount = 0;
     m_questRewardTalentCount = 0;
-    m_freeTalentPoints = 0;
 
     m_regenTimer = 0;
     m_holyPowerRegenTimer = REGEN_TIME_HOLY_POWER;
@@ -481,10 +479,6 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(t
     // Initialize next mail delivery time to 0
     m_nextMailDelivereTime = 0;
 
-    // Initialize reset talents cost to 0
-    m_resetTalentsCost = 0;
-    // Initialize reset talents time to 0
-    m_resetTalentsTime = 0;
     // Initialize item update queue blocked flag to false
     m_itemUpdateQueueBlocked = false;
 
@@ -500,13 +494,6 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(t
     m_raidDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
 
     m_lastPotionId = 0;
-
-    m_activeSpec = 0;
-    m_specsCount = 1;
-    for (int i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
-    {
-        m_talentsPrimaryTree[i] = 0;
-    }
 
     // Initialize aura base modifiers
     for (int i = 0; i < BASEMOD_END; ++i)
@@ -2632,7 +2619,7 @@ void Player::UpdateFreeTalentPoints(bool resetIfNeed)
     if (level < 10)
     {
         // Remove all talent points
-        if (m_usedTalentCount > 0)                          // Free any used talents
+        if (m_talentMgr.UsedPoints() > 0)                   // Free any used talents
         {
             if (resetIfNeed)
             {
@@ -2643,16 +2630,16 @@ void Player::UpdateFreeTalentPoints(bool resetIfNeed)
     }
     else
     {
-        if (m_specsCount == 0)
+        if (m_talentMgr.SpecsCount() == 0)
         {
-            m_specsCount = 1;
-            m_activeSpec = 0;
+            m_talentMgr.SetSpecsCount(1);
+            m_talentMgr.SetActiveSpec(0);
         }
 
-        uint32 talentPointsForLevel = CalculateTalentsPoints();
+        uint32 talentPointsForLevel = TalentMgr::CalculateTalentsPoints(getLevel(), getClass(), sWorld.getConfig(CONFIG_FLOAT_RATE_TALENT), m_questRewardTalentCount);
 
         // if used more that have then reset
-        if (m_usedTalentCount > talentPointsForLevel)
+        if (m_talentMgr.UsedPoints() > talentPointsForLevel)
         {
             if (resetIfNeed && GetSession()->GetSecurity() < SEC_ADMINISTRATOR)
             {
@@ -2666,7 +2653,7 @@ void Player::UpdateFreeTalentPoints(bool resetIfNeed)
         // else update amount of free points
         else
         {
-            SetFreeTalentPoints(talentPointsForLevel - m_usedTalentCount);
+            SetFreeTalentPoints(talentPointsForLevel - m_talentMgr.UsedPoints());
         }
     }
 }
@@ -3183,12 +3170,6 @@ bool Player::HasSpell(uint32 spell) const
     PlayerSpellMap::const_iterator itr = m_spells.find(spell);
     return (itr != m_spells.end() && itr->second.state != PLAYERSPELL_REMOVED &&
             !itr->second.disabled);
-}
-
-bool Player::HasTalent(uint32 spell, uint8 spec) const
-{
-    PlayerTalentMap::const_iterator itr = m_talents[spec].find(spell);
-    return (itr != m_talents[spec].end() && itr->second.state != PLAYERSPELL_REMOVED);
 }
 
 /**
@@ -4078,16 +4059,6 @@ std::string Player::GetGuildName() const
     return "";
 }
 
-time_t Player::GetTalentResetTime() const
-{
-    return m_resetTalentsTime;
-}
-
-uint32 Player::GetTalentResetCost()    const
-{
-    return resetTalentsCost(); // this function added in dev21 - remove this comment if this line works
-}
-
 void Player::SendGuildDeclined(std::string name, bool autodecline)
 {
     WorldPacket data(SMSG_GUILD_DECLINE, 10);
@@ -4243,7 +4214,7 @@ void Player::SendTalentWipeConfirm(ObjectGuid guid)
 {
     WorldPacket data(MSG_TALENT_WIPE_CONFIRM, (8 + 4));
     data << ObjectGuid(guid);
-    data << uint32(resetTalentsCost());
+    data << uint32(m_talentMgr.ResetTalentsCost(sWorld.GetGameTime()));
     GetSession()->SendPacket(&data);
 }
 
@@ -5587,47 +5558,6 @@ void Player::Uncharm()
     }
 }
 
-uint32 Player::GetNextResetTalentsCost()    const
-{
-    // The first time reset costs 1 gold
-    if (GetTalentResetCost() < 1 * GOLD)
-    {
-        return 1 * GOLD;
-    }
-    // then 5 gold
-    else if (GetTalentResetCost() < 5 * GOLD)
-    {
-        return 5 * GOLD;
-    }
-    // After that it increases in increments of 5 gold
-    else if (GetTalentResetCost() < 10 * GOLD)
-    {
-        return 10 * GOLD;
-    }
-    else
-    {
-        uint64 months = (sWorld.GetGameTime() - GetTalentResetTime()) / MONTH;
-        if (months > 0)
-        {
-            // This cost will be reduced by a rate of 5 gold per month
-            int32 new_cost = int32(GetTalentResetCost() - 5 * GOLD*months);
-            // to a minimum of 10 gold.
-            return (new_cost < 10 * GOLD ? 10 * GOLD : new_cost);
-        }
-        else
-        {
-            // After that it increases in increments of 5 gold
-            int32 new_cost = GetTalentResetCost() + 5 * GOLD;
-            // until it hits a cap of 50 gold.
-            if (new_cost > 50 * GOLD)
-            {
-                new_cost = 50 * GOLD;
-            }
-            return new_cost;
-        }
-    }
-}
-
 /**
  * @brief Updates liquid auras and mirror timers based on the player's position.
  *
@@ -6051,51 +5981,6 @@ Item* Player::ConvertItem(Item* item, uint32 newItemId)
     return NULL;
 }
 
-/**
- * @brief Calculates the total talent points available for the player's level.
- *
- * @return The number of talent points granted by level and rate settings.
- */
-uint32 Player::CalculateTalentsPoints() const
-{
-    // this dbc file has entries only up to level 100
-    NumTalentsAtLevelEntry const* count = sNumTalentsAtLevelStore.LookupEntry(std::min<uint32>(getLevel(), 100));
-    if (!count)
-    {
-        return 0;
-    }
-
-    float baseForLevel = count->NumberOfTalents;
-
-    if (getClass() != CLASS_DEATH_KNIGHT)
-    {
-        return uint32(baseForLevel * sWorld.getConfig(CONFIG_FLOAT_RATE_TALENT));
-    }
-
-    // Death Knight starting level
-    // hardcoded here - number of quest awarded talents is equal to number of talents any other class would have at level 55
-    if (getLevel() < 55)
-    {
-        return 0;
-    }
-
-    NumTalentsAtLevelEntry const* dkBase = sNumTalentsAtLevelStore.LookupEntry(55);
-    if (!dkBase)
-    {
-        return 0;
-    }
-
-    float talentPointsForLevel = count->NumberOfTalents - dkBase->NumberOfTalents;
-    talentPointsForLevel += float(m_questRewardTalentCount);
-
-    if (talentPointsForLevel > baseForLevel)
-    {
-        talentPointsForLevel = baseForLevel;
-    }
-
-    return uint32(talentPointsForLevel * sWorld.getConfig(CONFIG_FLOAT_RATE_TALENT));
-}
-
 bool Player::CanStartFlyInArea(uint32 mapid, uint32 zone, uint32 area) const
 {
     if (isGameMaster())
@@ -6495,29 +6380,9 @@ void Player::StartTimedAchievementCriteria(AchievementCriteriaTypes type, uint32
     GetAchievementMgr().StartTimedAchievementCriteria(type, timedRequirementId, startTime);
 }
 
-PlayerTalent const* Player::GetKnownTalentById(int32 talentId) const
-{
-    PlayerTalentMap::const_iterator itr = m_talents[m_activeSpec].find(talentId);
-    if (itr != m_talents[m_activeSpec].end() && itr->second.state != PLAYERSPELL_REMOVED)
-    {
-        return &itr->second;
-    }
-    else
-    {
-        return NULL;
-    }
-}
-
 SpellEntry const* Player::GetKnownTalentRankById(int32 talentId) const
 {
-    if (PlayerTalent const* talent = GetKnownTalentById(talentId))
-    {
-        return sSpellStore.LookupEntry(talent->talentEntry->SpellRank[talent->currentRank]);
-    }
-    else
-    {
-        return NULL;
-    }
+    return m_talentMgr.GetKnownTalentRankById(talentId);
 }
 
 
@@ -6835,8 +6700,8 @@ bool Player::FitArmorSpecializationRules(SpellEntry const * spellProto) const
     {
         if (spellProto->ID == armorSpecToTab[i].spellId)
         {
-            if (!armorSpecToTab[i].tab && m_talentsPrimaryTree[m_activeSpec] == 0 ||
-                armorSpecToTab[i].tab && armorSpecToTab[i].tab != m_talentsPrimaryTree[m_activeSpec])
+            if (!armorSpecToTab[i].tab && m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()) == 0 ||
+                armorSpecToTab[i].tab && armorSpecToTab[i].tab != m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()))
                 return false;
 
             break;

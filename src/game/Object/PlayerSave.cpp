@@ -214,12 +214,12 @@ void Player::SaveToDB()
     uberInsert.addUInt32(HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING) ? 1 : 0);
     // save, far from tavern/city
     // save, but in tavern/city
-    uberInsert.addUInt32(m_resetTalentsCost);
-    uberInsert.addUInt64(uint64(m_resetTalentsTime));
+    uberInsert.addUInt32(m_talentMgr.ResetCost());
+    uberInsert.addUInt64(uint64(m_talentMgr.ResetTime()));
     ss.str("");
     for (int i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
     {
-        ss << m_talentsPrimaryTree[i] << " ";
+        ss << m_talentMgr.PrimaryTree(i) << " ";
     }
     uberInsert.addString(ss);
 
@@ -269,8 +269,8 @@ void Player::SaveToDB()
         uberInsert.addUInt32(GetPowerByIndex(i));
     }
 
-    uberInsert.addUInt32(uint32(m_specsCount));
-    uberInsert.addUInt32(uint32(m_activeSpec));
+    uberInsert.addUInt32(uint32(m_talentMgr.SpecsCount()));
+    uberInsert.addUInt32(uint32(m_talentMgr.ActiveSpec()));
 
     for (uint32 i = 0; i < PLAYER_EXPLORED_ZONES_SIZE; ++i) // string
     {
@@ -321,7 +321,7 @@ void Player::SaveToDB()
     GetSession()->SaveTutorialsData();                      // changed only while character in game
     _SaveGlyphs();
     _SaveCUFProfiles();
-    _SaveTalents();
+    m_talentMgr.SaveTalents(GetGUIDLow());
 
     CharacterDatabase.CommitTransaction();
 
@@ -873,42 +873,6 @@ void Player::_SaveSpells()
         {
             itr->second.state = PLAYERSPELL_UNCHANGED;
             ++itr;
-        }
-    }
-}
-
-void Player::_SaveTalents()
-{
-    static SqlStatementID delTalents ;
-    static SqlStatementID insTalents ;
-
-    SqlStatement stmtDel = CharacterDatabase.CreateStatement(delTalents, "DELETE FROM `character_talent` WHERE `guid` = ? and `talent_id` = ? and `spec` = ?");
-    SqlStatement stmtIns = CharacterDatabase.CreateStatement(insTalents, "INSERT INTO `character_talent` (`guid`, `talent_id`, `current_rank`, `spec`) VALUES (?, ?, ?, ?)");
-
-    for (uint32 i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
-    {
-        for (PlayerTalentMap::iterator itr = m_talents[i].begin(); itr != m_talents[i].end();)
-        {
-            if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.state == PLAYERSPELL_CHANGED)
-            {
-                stmtDel.PExecute(GetGUIDLow(), itr->first, i);
-            }
-
-            // add only changed/new talents
-            if (itr->second.state == PLAYERSPELL_NEW || itr->second.state == PLAYERSPELL_CHANGED)
-            {
-                stmtIns.PExecute(GetGUIDLow(), itr->first, itr->second.currentRank, i);
-            }
-
-            if (itr->second.state == PLAYERSPELL_REMOVED)
-            {
-                m_talents[i].erase(itr++);
-            }
-            else
-            {
-                itr->second.state = PLAYERSPELL_UNCHANGED;
-                ++itr;
-            }
         }
     }
 }

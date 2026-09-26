@@ -119,7 +119,7 @@ bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
 
     // find current max talent rank
     uint32 curtalent_maxrank = 0;
-    if (PlayerTalent const* talent = GetKnownTalentById(talentId))
+    if (PlayerTalent const* talent = m_talentMgr.GetKnownTalentById(talentId))
     {
         curtalent_maxrank = talent->currentRank + 1;
     }
@@ -142,8 +142,8 @@ bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
         if (TalentEntry const* depTalentInfo = sTalentStore.LookupEntry(talentInfo->PrereqTalent_0))
         {
             bool hasEnoughRank = false;
-            PlayerTalentMap::iterator dependsOnTalent = m_talents[m_activeSpec].find(depTalentInfo->ID);
-            if (dependsOnTalent != m_talents[m_activeSpec].end() && dependsOnTalent->second.state != PLAYERSPELL_REMOVED)
+            PlayerTalentMap::iterator dependsOnTalent = m_talentMgr.Talents(m_talentMgr.ActiveSpec()).find(depTalentInfo->ID);
+            if (dependsOnTalent != m_talentMgr.Talents(m_talentMgr.ActiveSpec()).end() && dependsOnTalent->second.state != PLAYERSPELL_REMOVED)
             {
                 PlayerTalent depTalent = (*dependsOnTalent).second;
                 if (depTalent.currentRank >= talentInfo->PrereqRank_0)
@@ -164,7 +164,7 @@ bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
 
     uint32 primaryTreeTalents = 0;
     uint32 tTab = talentInfo->TabID;
-    bool isMainTree = m_talentsPrimaryTree[m_activeSpec] == tTab || !m_talentsPrimaryTree[m_activeSpec];
+    bool isMainTree = m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()) == tTab || !m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec());
 
     if (talentInfo->TierID > 0 || !isMainTree)
     {
@@ -182,7 +182,7 @@ bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
                             {
                                 spentPoints += (rank + 1);
                             }
-                            if (tmpTalent->TabID == m_talentsPrimaryTree[m_activeSpec])
+                            if (tmpTalent->TabID == m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()))
                             {
                                 primaryTreeTalents += (rank + 1);
                             }
@@ -224,9 +224,9 @@ bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
     DETAIL_LOG("TalentID: %u Rank: %u Spell: %u\n", talentId, talentRank, spellid);
 
     // set talent tree for player
-    if (!m_talentsPrimaryTree[m_activeSpec])
+    if (!m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()))
     {
-        m_talentsPrimaryTree[m_activeSpec] = talentInfo->TabID;
+        m_talentMgr.SetPrimaryTree(m_talentMgr.ActiveSpec(), talentInfo->TabID);
         if (std::vector<uint32> const* specSpells = GetTalentTreeMasterySpells(talentInfo->TabID))
             for (size_t i = 0; i < specSpells->size(); ++i)
             {
@@ -450,20 +450,20 @@ bool Player::canSeeSpellClickOn(Creature const* c) const
 void Player::BuildPlayerTalentsInfoData(WorldPacket* data)
 {
     *data << uint32(GetFreeTalentPoints());                 // unspentTalentPoints
-    *data << uint8(m_specsCount);                           // talent group count (0, 1 or 2)
-    *data << uint8(m_activeSpec);                           // talent group index (0 or 1)
+    *data << uint8(m_talentMgr.SpecsCount());               // talent group count (0, 1 or 2)
+    *data << uint8(m_talentMgr.ActiveSpec());               // talent group index (0 or 1)
 
-    if (m_specsCount)
+    if (m_talentMgr.SpecsCount())
     {
-        if (m_specsCount > MAX_TALENT_SPEC_COUNT)
+        if (m_talentMgr.SpecsCount() > MAX_TALENT_SPEC_COUNT)
         {
-            m_specsCount = MAX_TALENT_SPEC_COUNT;
+            m_talentMgr.SetSpecsCount(MAX_TALENT_SPEC_COUNT);
         }
 
         // loop through all specs (only 1 for now)
-        for (uint32 specIdx = 0; specIdx < m_specsCount; ++specIdx)
+        for (uint32 specIdx = 0; specIdx < m_talentMgr.SpecsCount(); ++specIdx)
         {
-            *data << uint32(m_talentsPrimaryTree[specIdx]);
+            *data << uint32(m_talentMgr.PrimaryTree(specIdx));
             uint8 talentIdCount = 0;
             size_t pos = data->wpos();
             *data << uint8(talentIdCount);                  // [PH], talentIdCount
@@ -474,7 +474,7 @@ void Player::BuildPlayerTalentsInfoData(WorldPacket* data)
             for (uint32 i = 0; i < MAX_TALENT_TABS; ++i)
             {
                 uint32 talentTabId = talentTabIds[i];
-                for (PlayerTalentMap::iterator iter = m_talents[specIdx].begin(); iter != m_talents[specIdx].end(); ++iter)
+                for (PlayerTalentMap::iterator iter = m_talentMgr.Talents(specIdx).begin(); iter != m_talentMgr.Talents(specIdx).end(); ++iter)
                 {
                     PlayerTalent talent = (*iter).second;
 
@@ -811,15 +811,15 @@ void Player::ActivateSpec(uint8 specNum)
     ApplyGlyphs(false);
 
     // copy of new talent spec (we will use it as model for converting current tlanet state to new)
-    PlayerTalentMap tempSpec = m_talents[specNum];
+    PlayerTalentMap tempSpec = m_talentMgr.Talents(specNum);
 
-    // copy old spec talents to new one, must be before spec switch to have previous spec num(as m_activeSpec)
-    m_talents[specNum] = m_talents[m_activeSpec];
+    // copy old spec talents to new one, must be before spec switch to have previous spec num(as the active spec)
+    m_talentMgr.Talents(specNum) = m_talentMgr.Talents(m_talentMgr.ActiveSpec());
 
-    SetActiveSpec(specNum);
+    m_talentMgr.SetActiveSpec(specNum);
 
     // remove all talent spells that don't exist in next spec but exist in old
-    for (PlayerTalentMap::iterator specIter = m_talents[m_activeSpec].begin(); specIter != m_talents[m_activeSpec].end();)
+    for (PlayerTalentMap::iterator specIter = m_talentMgr.Talents(m_talentMgr.ActiveSpec()).begin(); specIter != m_talentMgr.Talents(m_talentMgr.ActiveSpec()).end();)
     {
         PlayerTalent& talent = specIter->second;
 
@@ -842,7 +842,7 @@ void Player::ActivateSpec(uint8 specNum)
                     removeSpell(talentInfo->SpellRank[r], !IsPassiveSpell(talentInfo->SpellRank[r]), false);
                 }
 
-            specIter = m_talents[m_activeSpec].begin();
+            specIter = m_talentMgr.Talents(m_talentMgr.ActiveSpec()).begin();
         }
         else
         {
@@ -859,7 +859,7 @@ void Player::ActivateSpec(uint8 specNum)
         // but we need restore it if it deleted for finish removed-marked data in DB
         if (talent.state == PLAYERSPELL_REMOVED)
         {
-            m_talents[m_activeSpec][tempIter->first] = talent;
+            m_talentMgr.Talents(m_talentMgr.ActiveSpec())[tempIter->first] = talent;
             continue;
         }
 
@@ -867,7 +867,7 @@ void Player::ActivateSpec(uint8 specNum)
 
         // learn talent spells if they not in new spec (old spec copy)
         // and if they have different rank
-        if (PlayerTalent const* cur_talent = GetKnownTalentById(tempIter->first))
+        if (PlayerTalent const* cur_talent = m_talentMgr.GetKnownTalentById(tempIter->first))
         {
             if (cur_talent->currentRank != talent.currentRank)
             {
@@ -880,8 +880,8 @@ void Player::ActivateSpec(uint8 specNum)
         }
 
         // sync states - original state is changed in addSpell that learnSpell calls
-        PlayerTalentMap::iterator specIter = m_talents[m_activeSpec].find(tempIter->first);
-        if (specIter != m_talents[m_activeSpec].end())
+        PlayerTalentMap::iterator specIter = m_talentMgr.Talents(m_talentMgr.ActiveSpec()).find(tempIter->first);
+        if (specIter != m_talentMgr.Talents(m_talentMgr.ActiveSpec()).end())
         {
             specIter->second.state = talent.state;
         }
@@ -892,7 +892,7 @@ void Player::ActivateSpec(uint8 specNum)
             // attempt resync DB state (deleted lost spell from DB)
             if (talent.state != PLAYERSPELL_NEW)
             {
-                PlayerTalent& talentNew = m_talents[m_activeSpec][tempIter->first];
+                PlayerTalent& talentNew = m_talentMgr.Talents(m_talentMgr.ActiveSpec())[tempIter->first];
                 talentNew = talent;
                 talentNew.state = PLAYERSPELL_REMOVED;
             }
@@ -902,7 +902,7 @@ void Player::ActivateSpec(uint8 specNum)
     InitTalentForLevel();
 
     // recheck action buttons (not checked at loading/spec copy)
-    ActionButtonList const& currentActionButtonList = m_actionButtons[m_activeSpec];
+    ActionButtonList const& currentActionButtonList = m_actionButtons[m_talentMgr.ActiveSpec()];
     for (ActionButtonList::const_iterator itr = currentActionButtonList.begin(); itr != currentActionButtonList.end();)
     {
         if (itr->second.uState != ACTIONBUTTON_DELETED)
@@ -910,7 +910,7 @@ void Player::ActivateSpec(uint8 specNum)
             // remove broken without any output (it can be not correct because talents not copied at spec creating)
             if (!IsActionButtonDataValid(itr->first, itr->second.GetAction(), itr->second.GetType(), this, false))
             {
-                removeActionButton(m_activeSpec, itr->first);
+                removeActionButton(m_talentMgr.ActiveSpec(), itr->first);
                 itr = currentActionButtonList.begin();
                 continue;
             }
@@ -920,7 +920,7 @@ void Player::ActivateSpec(uint8 specNum)
 
     ResummonPetTemporaryUnSummonedIfAny();
 
-    if (std::vector<uint32> const* specSpells = GetTalentTreeMasterySpells(m_talentsPrimaryTree[m_activeSpec]))
+    if (std::vector<uint32> const* specSpells = GetTalentTreeMasterySpells(m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec())))
     {
         for (size_t i = 0; i < specSpells->size(); ++i)
         {
@@ -928,7 +928,7 @@ void Player::ActivateSpec(uint8 specNum)
         }
     }
 
-    if (std::vector<uint32> const* specSpells = GetTalentTreePrimarySpells(m_talentsPrimaryTree[m_activeSpec]))
+    if (std::vector<uint32> const* specSpells = GetTalentTreePrimarySpells(m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec())))
     {
         for (size_t i = 0; i < specSpells->size(); ++i)
         {
@@ -947,7 +947,7 @@ void Player::ActivateSpec(uint8 specNum)
 
     SetPower(powerType, 0);
 
-    if (m_talentsPrimaryTree[m_activeSpec] && !sTalentTabStore.LookupEntry(m_talentsPrimaryTree[m_activeSpec]))
+    if (m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()) && !sTalentTabStore.LookupEntry(m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec())))
     {
         resetTalents(true);
     }
@@ -967,7 +967,7 @@ void Player::UpdateSpecCount(uint8 count)
     }
 
     // maybe current spec data must be copied to 0 spec?
-    if (m_activeSpec >= count)
+    if (m_talentMgr.ActiveSpec() >= count)
     {
         ActivateSpec(0);
     }
@@ -976,7 +976,7 @@ void Player::UpdateSpecCount(uint8 count)
     if (count > curCount)
     {
         // copy action buttons from active spec (more easy in this case iterate first by button)
-        ActionButtonList const& currentActionButtonList = m_actionButtons[m_activeSpec];
+        ActionButtonList const& currentActionButtonList = m_actionButtons[m_talentMgr.ActiveSpec()];
 
         for (ActionButtonList::const_iterator itr = currentActionButtonList.begin(); itr != currentActionButtonList.end(); ++itr)
         {
@@ -1003,7 +1003,7 @@ void Player::UpdateSpecCount(uint8 count)
         }
     }
 
-    SetSpecsCount(count);
+    m_talentMgr.SetSpecsCount(count);
 
     SendTalentsInfoData(false);
 }

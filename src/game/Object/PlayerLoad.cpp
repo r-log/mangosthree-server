@@ -1196,74 +1196,17 @@ void Player::_LoadTalents(QueryResult* result)
     // QueryResult *result = CharacterDatabase.PQuery("SELECT talent_id, current_rank, spec FROM character_talent WHERE guid = '%u'",GetGUIDLow());
     if (result)
     {
+        // Decoupling D4c: TalentMgr::LoadRow validates one row, issues its DELETE when it fails,
+        // stores an inactive-spec row, and calls this back for an active-spec row at the exact
+        // point of the row where this loop used to learn it.
+        TalentMgr::ActiveSpellCallback const onActiveSpell = [this](uint32 spellId)
+        {
+            addSpell(spellId, true, false, false, false);
+        };
+
         do
         {
-            Field* fields = result->Fetch();
-
-            uint32 talent_id = fields[0].GetUInt32();
-            TalentEntry const* talentInfo = sTalentStore.LookupEntry(talent_id);
-
-            if (!talentInfo)
-            {
-                sLog.outError("Player::_LoadTalents:Player (GUID: %u) has invalid talent_id: %u , this talent will be deleted from character_talent", GetGUIDLow(), talent_id);
-                CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `talent_id` = '%u'", talent_id);
-                continue;
-            }
-
-            TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TabID);
-
-            if (!talentTabInfo)
-            {
-                sLog.outError("Player::_LoadTalents:Player (GUID: %u) has invalid talentTabInfo: %u for talentID: %u , this talent will be deleted from character_talent", GetGUIDLow(), talentInfo->TabID, talentInfo->ID);
-                CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `talent_id` = '%u'", talent_id);
-                continue;
-            }
-
-            // prevent load talent for different class (cheating)
-            if ((getClassMask() & talentTabInfo->ClassMask) == 0)
-            {
-                sLog.outError("Player::_LoadTalents:Player (GUID: %u) has talent with ClassMask: %u , but Player's ClassMask is: %u , talentID: %u , this talent will be deleted from character_talent", GetGUIDLow(), talentTabInfo->ClassMask, getClassMask() , talentInfo->ID);
-                CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u' AND `talent_id` = '%u'", GetGUIDLow(), talent_id);
-                continue;
-            }
-
-            uint32 currentRank = fields[1].GetUInt32();
-
-            if (currentRank > MAX_TALENT_RANK || talentInfo->SpellRank[currentRank] == 0)
-            {
-                sLog.outError("Player::_LoadTalents:Player (GUID: %u) has invalid talent rank: %u , talentID: %u , this talent will be deleted from character_talent", GetGUIDLow(), currentRank, talentInfo->ID);
-                CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u' AND `talent_id` = '%u'", GetGUIDLow(), talent_id);
-                continue;
-            }
-
-            uint32 spec = fields[2].GetUInt32();
-
-            if (spec > MAX_TALENT_SPEC_COUNT)
-            {
-                sLog.outError("Player::_LoadTalents:Player (GUID: %u) has invalid talent spec: %u, spec will be deleted from character_talent", GetGUIDLow(), spec);
-                CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `spec` = '%u' ", spec);
-                continue;
-            }
-
-            if (spec >= m_specsCount)
-            {
-                sLog.outError("Player::_LoadTalents:Player (GUID: %u) has invalid talent spec: %u , this spec will be deleted from character_talent.", GetGUIDLow(), spec);
-                CharacterDatabase.PExecute("DELETE FROM `character_talent` WHERE `guid` = '%u' AND `spec` = '%u' ", GetGUIDLow(), spec);
-                continue;
-            }
-
-            if (m_activeSpec == spec)
-            {
-                addSpell(talentInfo->SpellRank[currentRank], true, false, false, false);
-            }
-            else
-            {
-                PlayerTalent talent;
-                talent.currentRank = currentRank;
-                talent.talentEntry = talentInfo;
-                talent.state       = PLAYERSPELL_UNCHANGED;
-                m_talents[spec][talentInfo->ID] = talent;
-            }
+            m_talentMgr.LoadRow(result->Fetch(), GetGUIDLow(), getClassMask(), m_talentMgr.SpecsCount(), m_talentMgr.ActiveSpec(), onActiveSpell);
         }
         while (result->NextRow());
         delete result;

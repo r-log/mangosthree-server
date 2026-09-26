@@ -858,7 +858,7 @@ void Player::UpdateMasteryAuras()
     float masteryValue = GetTotalAuraModifier(SPELL_AURA_MASTERY) + GetRatingBonusValue(CR_MASTERY);
     SetFloatValue(PLAYER_MASTERY, masteryValue);
 
-    std::vector<uint32> const* masterySpells = GetTalentTreeMasterySpells(m_talentsPrimaryTree[m_activeSpec]);
+    std::vector<uint32> const* masterySpells = GetTalentTreeMasterySpells(m_talentMgr.PrimaryTree(m_talentMgr.ActiveSpec()));
     if (!masterySpells)
     {
         return;

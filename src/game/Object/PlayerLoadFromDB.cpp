@@ -459,8 +459,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     m_Played_time[PLAYED_TIME_TOTAL] = fields[19].GetUInt32();
     m_Played_time[PLAYED_TIME_LEVEL] = fields[20].GetUInt32();
 
-    m_resetTalentsCost = fields[24].GetUInt32();
-    m_resetTalentsTime = time_t(fields[25].GetUInt64());
+    m_talentMgr.SetResetCost(fields[24].GetUInt32());
+    m_talentMgr.SetResetTime(time_t(fields[25].GetUInt64()));
 
     // reserve some flags
     uint32 old_safe_flags = GetUInt32Value(PLAYER_FLAGS) & (PLAYER_FLAGS_HIDE_CLOAK | PLAYER_FLAGS_HIDE_HELM);
@@ -519,8 +519,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SetGuidValue(PLAYER_DUEL_ARBITER, ObjectGuid());
     SetUInt32Value(PLAYER_DUEL_TEAM, 0);
 
-    m_specsCount = fields[52].GetUInt8();
-    m_activeSpec = fields[53].GetUInt8();
+    m_talentMgr.SetSpecsCount(fields[52].GetUInt8());
+    m_talentMgr.SetActiveSpec(fields[53].GetUInt8());
 
     Tokens talentTrees = StrSplit(fields[26].GetString(), " ");
     for (uint8 i = 0; i < MAX_TALENT_SPEC_COUNT; ++i)
@@ -533,9 +533,9 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         uint32 talentTree = std::strtoul(talentTrees[i].c_str(), NULL, 10);
         if (!talentTree || sTalentTabStore.LookupEntry(talentTree))
         {
-            m_talentsPrimaryTree[i] = talentTree;
+            m_talentMgr.SetPrimaryTree(i, talentTree);
         }
-        else if (i == m_activeSpec)
+        else if (i == m_talentMgr.ActiveSpec())
         {
             SetAtLoginFlag(AT_LOGIN_RESET_TALENTS); // invalid tree, reset talents
         }
