@@ -82,6 +82,7 @@ set(SRC_GRP_TESTS
     CreatureThreatTest.cpp
     UnitSubtypeTest.cpp
     AuraContainerTest.cpp
+    QuestStatusMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)
@@ -184,6 +185,12 @@ add_test(NAME session_seam COMMAND ${CMAKE_COMMAND} -DSOURCE_ROOT=${CMAKE_SOURCE
 
 add_test(NAME sync_db COMMAND ${CMAKE_COMMAND} -DSOURCE_ROOT=${CMAKE_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckSyncDb.cmake)
 
+# Decoupling D4a: no file in CheckManagerIsolation.cmake's MANAGER_FILES names the character class.
+add_test(NAME manager_isolation
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckManagerIsolation.cmake)
+
 add_test(NAME warden_dormant_boundary
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
@@ -251,6 +258,10 @@ if(Python3_Interpreter_FOUND)
     # only its own scanner is gated -- an inventory that miscounts is worse than none.
     add_test(NAME sync_db_sites_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/sync_db_sites.py --self-test)
+
+    # Decoupling D4a: the data-member counter (M1) every D4 PR reports.
+    add_test(NAME member_counter_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/member_count.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

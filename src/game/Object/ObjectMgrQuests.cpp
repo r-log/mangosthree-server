@@ -77,6 +77,20 @@
 #include <limits>
 
 /**
+ * @brief GetQuestTemplate as the lookup QuestStatusMgr takes (decoupling D4a).
+ *
+ * One object for the process, so a caller passes a reference and builds nothing per call.
+ */
+QuestStatusMgr::TemplateLookup const& ObjectMgr::QuestTemplateLookup()
+{
+    static QuestStatusMgr::TemplateLookup const lookup = [](uint32 questId)
+    {
+        return sObjectMgr.GetQuestTemplate(questId);
+    };
+    return lookup;
+}
+
+/**
  * @brief Loads quest templates and validates quest-related database references.
  */
 void ObjectMgr::LoadQuests()

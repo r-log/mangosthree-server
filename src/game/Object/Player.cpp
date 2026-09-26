@@ -318,7 +318,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_questStatusMgr(), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -413,7 +413,6 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(t
     m_currentBuybackSlot = BUYBACK_SLOT_START;
 
     m_DailyQuestChanged = false;
-    m_WeeklyQuestChanged = false;
 
     m_lastLiquid = NULL;
 
@@ -1084,12 +1083,12 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     }
 
     // Update timed quests
-    if (!m_timedquests.empty())
+    if (!m_questStatusMgr.TimedQuests().empty())
     {
-        QuestSet::iterator iter = m_timedquests.begin();
-        while (iter != m_timedquests.end())
+        QuestStatusMgr::QuestSet::const_iterator iter = m_questStatusMgr.TimedQuests().begin();
+        while (iter != m_questStatusMgr.TimedQuests().end())
         {
-            QuestStatusData& q_status = mQuestStatus[*iter];
+            QuestStatusData& q_status = m_questStatusMgr.Entry(*iter);
             if (q_status.m_timer <= update_diff)
             {
                 uint32 quest_id  = *iter;

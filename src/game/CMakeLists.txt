@@ -10,6 +10,9 @@ source_group("Chat Commands" FILES ${SRC_GRP_CHAT_COMMANDS})
 file(GLOB SRC_GRP_COMBAT combat/*.cpp combat/*.h)
 source_group("Combat" FILES ${SRC_GRP_COMBAT})
 
+file(GLOB SRC_GRP_ENTITIES_PLAYER entities/player/*.cpp entities/player/*.h)
+source_group("Entities\\Player" FILES ${SRC_GRP_ENTITIES_PLAYER})
+
 file(GLOB SRC_GRP_MAP_THREAD Maps/*.cpp Maps/*.h)
 source_group("Map Threading" FILES ${SRC_GRP_MAP_THREAD})
 
@@ -53,6 +56,7 @@ add_library(game STATIC
     ${SRC_GRP_BATTLEGROUND}
     ${SRC_GRP_CHAT_COMMANDS}
     ${SRC_GRP_COMBAT}
+    ${SRC_GRP_ENTITIES_PLAYER}
     ${SRC_GRP_MAP_THREAD}
     ${SRC_GRP_HARNESS}
     ${SRC_GRP_MOTION_GEN}
@@ -74,6 +78,7 @@ target_include_directories(game
         BattleGround
         ChatCommands
         ${CMAKE_CURRENT_SOURCE_DIR}/combat
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player
         Harness
         Maps
         MotionGenerators

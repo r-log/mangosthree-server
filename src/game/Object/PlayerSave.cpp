@@ -305,10 +305,10 @@ void Player::SaveToDB()
 
     _SaveBGData();
     _SaveInventory();
-    _SaveQuestStatus();
+    m_questStatusMgr.SaveStatus(GetGUIDLow(), sWorld.GetGameTime());
     _SaveDailyQuestStatus();
-    _SaveWeeklyQuestStatus();
-    _SaveMonthlyQuestStatus();
+    m_questStatusMgr.SaveWeekly(GetGUIDLow());
+    m_questStatusMgr.SaveMonthly(GetGUIDLow());
     _SaveSpells();
     _SaveSpellCooldowns();
     _SaveActions();
@@ -753,72 +753,6 @@ void Player::_SaveMail()
     m_mailsUpdated = false;
 }
 
-/**
- * @brief Saves tracked quest status progress to the database.
- */
-void Player::_SaveQuestStatus()
-{
-    static SqlStatementID insertQuestStatus ;
-
-    static SqlStatementID updateQuestStatus ;
-
-    // we don't need transactions here.
-    for (QuestStatusMap::iterator i = mQuestStatus.begin(); i != mQuestStatus.end(); ++i)
-    {
-        QuestStatusData &questStatus = i->second;
-        switch (questStatus.uState)
-        {
-            case QUEST_NEW :
-            {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(insertQuestStatus, "INSERT INTO `character_queststatus` (`guid`,`quest`,`status`,`rewarded`,`explored`,`timer`,`mobcount1`,`mobcount2`,`mobcount3`,`mobcount4`,`itemcount1`,`itemcount2`,`itemcount3`,`itemcount4`,`itemcount5`,`itemcount6`) "
-                                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-                stmt.addUInt32(GetGUIDLow());
-                stmt.addUInt32(i->first);
-                stmt.addUInt8(questStatus.m_status);
-                stmt.addUInt8(questStatus.m_rewarded);
-                stmt.addUInt8(questStatus.m_explored);
-                stmt.addUInt64(uint64(questStatus.m_timer / IN_MILLISECONDS + sWorld.GetGameTime()));
-                for (int k = 0; k < QUEST_OBJECTIVES_COUNT; ++k)
-                {
-                    stmt.addUInt32(questStatus.m_creatureOrGOcount[k]);
-                }
-                for (int k = 0; k < QUEST_ITEM_OBJECTIVES_COUNT; ++k)
-                {
-                    stmt.addUInt32(questStatus.m_itemcount[k]);
-                }
-                stmt.Execute();
-            }
-            break;
-            case QUEST_CHANGED :
-            {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(updateQuestStatus, "UPDATE `character_queststatus` SET `status` = ?,`rewarded` = ?,`explored` = ?,`timer` = ?,"
-                                    "`mobcount1` = ?,`mobcount2` = ?,`mobcount3` = ?,`mobcount4` = ?,`itemcount1` = ?,`itemcount2` = ?,`itemcount3` = ?,`itemcount4` = ?,`itemcount5` = ?,`itemcount6` = ? WHERE `guid` = ? AND `quest` = ?");
-
-                stmt.addUInt8(questStatus.m_status);
-                stmt.addUInt8(questStatus.m_rewarded);
-                stmt.addUInt8(questStatus.m_explored);
-                stmt.addUInt64(uint64(questStatus.m_timer / IN_MILLISECONDS + sWorld.GetGameTime()));
-                for (int k = 0; k < QUEST_OBJECTIVES_COUNT; ++k)
-                {
-                    stmt.addUInt32(questStatus.m_creatureOrGOcount[k]);
-                }
-                for (int k = 0; k < QUEST_ITEM_OBJECTIVES_COUNT; ++k)
-                {
-                    stmt.addUInt32(questStatus.m_itemcount[k]);
-                }
-                stmt.addUInt32(GetGUIDLow());
-                stmt.addUInt32(i->first);
-                stmt.Execute();
-            }
-            break;
-            case QUEST_UNCHANGED:
-                break;
-        };
-        questStatus.uState = QUEST_UNCHANGED;
-    }
-}
-
 void Player::_SaveDailyQuestStatus()
 {
     if (!m_DailyQuestChanged)
@@ -843,56 +777,6 @@ void Player::_SaveDailyQuestStatus()
         }
     }
     m_DailyQuestChanged = false;
-}
-
-void Player::_SaveWeeklyQuestStatus()
-{
-    if (!m_WeeklyQuestChanged || m_weeklyquests.empty())
-    {
-        return;
-    }
-
-    // we don't need transactions here.
-    static SqlStatementID delQuestStatus ;
-    static SqlStatementID insQuestStatus  ;
-
-    SqlStatement stmtDel = CharacterDatabase.CreateStatement(delQuestStatus, "DELETE FROM `character_queststatus_weekly` WHERE `guid` = ?");
-    SqlStatement stmtIns =  CharacterDatabase.CreateStatement(insQuestStatus, "INSERT INTO `character_queststatus_weekly` (`guid`,`quest`) VALUES (?, ?)");
-
-    stmtDel.PExecute(GetGUIDLow());
-
-    for (QuestSet::const_iterator iter = m_weeklyquests.begin(); iter != m_weeklyquests.end(); ++iter)
-    {
-        uint32 quest_id  = *iter;
-        stmtIns.PExecute(GetGUIDLow(), quest_id);
-    }
-
-    m_WeeklyQuestChanged = false;
-}
-
-void Player::_SaveMonthlyQuestStatus()
-{
-    if (!m_MonthlyQuestChanged || m_monthlyquests.empty())
-    {
-        return;
-    }
-
-    // we don't need transactions here.
-    static SqlStatementID deleteQuest ;
-    static SqlStatementID insertQuest ;
-
-    SqlStatement stmtDel = CharacterDatabase.CreateStatement(deleteQuest, "DELETE FROM `character_queststatus_monthly` WHERE `guid` = ?");
-    SqlStatement stmtIns = CharacterDatabase.CreateStatement(insertQuest, "INSERT INTO `character_queststatus_monthly` (`guid`, `quest`) VALUES (?, ?)");
-
-    stmtDel.PExecute(GetGUIDLow());
-
-    for (QuestSet::const_iterator iter = m_monthlyquests.begin(); iter != m_monthlyquests.end(); ++iter)
-    {
-        uint32 quest_id = *iter;
-        stmtIns.PExecute(GetGUIDLow(), quest_id);
-    }
-
-    m_MonthlyQuestChanged = false;
 }
 
 /**

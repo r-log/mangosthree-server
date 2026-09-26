@@ -50,7 +50,15 @@ set(REACH_RULES
     # forward-declare both; the moment it reaches SpellAuras.h or the object layer the
     # sentinel-pointer test in src/tests/AuraContainerTest.cpp stops being possible, and
     # Unit.h's own include graph has grown a cycle.
-    "spells/AuraContainer.h|Object/Unit.h,Object/Object.h,WorldHandlers/SpellAuras.h,Server/DBCStructure.h,Server/WorldSession.h")
+    "spells/AuraContainer.h|Object/Unit.h,Object/Object.h,WorldHandlers/SpellAuras.h,Server/DBCStructure.h,Server/WorldSession.h"
+    # Decoupling D4a: a character manager is state plus parameters. QuestStatusMgr.h reaching
+    # the character, the unit, the session or the object manager would put the templates and
+    # the owner back in reach, and src/tests/QuestStatusMgrTest.cpp builds it from nothing.
+    "entities/player/QuestStatusMgr.h|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h"
+    # The .cpp as well: CheckManagerIsolation.cmake is a text gate, and the one thing it cannot
+    # see -- the name spelled around its patterns -- only compiles against the complete type,
+    # which the .cpp could otherwise include without the header noticing.
+    "entities/player/QuestStatusMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

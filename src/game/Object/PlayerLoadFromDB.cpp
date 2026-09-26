@@ -583,8 +583,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     // after spell load, learn rewarded spell if need also
     _LoadQuestStatus(holder->GetResult(PLAYER_LOGIN_QUERY_LOADQUESTSTATUS));
     _LoadDailyQuestStatus(holder->GetResult(PLAYER_LOGIN_QUERY_LOADDAILYQUESTSTATUS));
-    _LoadWeeklyQuestStatus(holder->GetResult(PLAYER_LOGIN_QUERY_LOADWEEKLYQUESTSTATUS));
-    _LoadMonthlyQuestStatus(holder->GetResult(PLAYER_LOGIN_QUERY_LOADMONTHLYQUESTSTATUS));
+    m_questStatusMgr.LoadWeekly(holder->GetResult(PLAYER_LOGIN_QUERY_LOADWEEKLYQUESTSTATUS), GetGUIDLow(), ObjectMgr::QuestTemplateLookup());
+    m_questStatusMgr.LoadMonthly(holder->GetResult(PLAYER_LOGIN_QUERY_LOADMONTHLYQUESTSTATUS), GetGUIDLow(), ObjectMgr::QuestTemplateLookup());
 
     _LoadTalents(holder->GetResult(PLAYER_LOGIN_QUERY_LOADTALENTS));
 
