@@ -82,6 +82,7 @@
 #include "QuestDef.h"
 #include "QuestStatusMgr.h" // QuestStatusMgr is held by value on Player; brings in the QuestStatusMap typedef
 #include "TalentMgr.h"      // TalentMgr is held by value on Player; brings in PlayerSpellState, PlayerTalent and PlayerTalentMap
+#include "InventoryMgr.h"   // InventoryMgr is held by value on Player; brings in the item slot enums and INVENTORY_SLOT_BAG_0
 #include "GroupReference.h"
 #include "PetMgr.h"
 #include "MapReference.h"
@@ -612,83 +613,6 @@ struct SkillStatusData
 };
 
 typedef std::unordered_map<uint32, SkillStatusData> SkillStatusMap;
-
-// Player slots for items
-enum PlayerSlots
-{
-    // First slot for item stored (in any way in player m_items data)
-    PLAYER_SLOT_START           = 0,
-    // last+1 slot for item stored (in any way in player m_items data)
-    PLAYER_SLOT_END             = 86,
-    PLAYER_SLOTS_COUNT          = (PLAYER_SLOT_END - PLAYER_SLOT_START)
-};
-
-#define INVENTORY_SLOT_BAG_0    255
-
-// Equipment slots (19 slots)
-enum EquipmentSlots
-{
-    EQUIPMENT_SLOT_START        = 0,
-    EQUIPMENT_SLOT_HEAD         = 0,  // Head slot
-    EQUIPMENT_SLOT_NECK         = 1,  // Neck slot
-    EQUIPMENT_SLOT_SHOULDERS    = 2,  // Shoulders slot
-    EQUIPMENT_SLOT_BODY         = 3,  // Body slot
-    EQUIPMENT_SLOT_CHEST        = 4,  // Chest slot
-    EQUIPMENT_SLOT_WAIST        = 5,  // Waist slot
-    EQUIPMENT_SLOT_LEGS         = 6,  // Legs slot
-    EQUIPMENT_SLOT_FEET         = 7,  // Feet slot
-    EQUIPMENT_SLOT_WRISTS       = 8,  // Wrists slot
-    EQUIPMENT_SLOT_HANDS        = 9,  // Hands slot
-    EQUIPMENT_SLOT_FINGER1      = 10, // First finger slot
-    EQUIPMENT_SLOT_FINGER2      = 11, // Second finger slot
-    EQUIPMENT_SLOT_TRINKET1     = 12, // First trinket slot
-    EQUIPMENT_SLOT_TRINKET2     = 13, // Second trinket slot
-    EQUIPMENT_SLOT_BACK         = 14, // Back slot
-    EQUIPMENT_SLOT_MAINHAND     = 15, // Main hand slot
-    EQUIPMENT_SLOT_OFFHAND      = 16, // Off hand slot
-    EQUIPMENT_SLOT_RANGED       = 17, // Ranged slot
-    EQUIPMENT_SLOT_TABARD       = 18, // Tabard slot
-    EQUIPMENT_SLOT_END          = 19  // End of equipment slots
-};
-
-// Inventory slots (4 slots)
-enum InventorySlots
-{
-    INVENTORY_SLOT_BAG_START    = 19, // Start of bag slots
-    INVENTORY_SLOT_BAG_END      = 23  // End of bag slots
-};
-
-// Inventory pack slots (16 slots)
-enum InventoryPackSlots
-{
-    INVENTORY_SLOT_ITEM_START   = 23, // Start of item slots
-    INVENTORY_SLOT_ITEM_END     = 39  // End of item slots
-};
-
-// Bank item slots (28 slots)
-enum BankItemSlots
-{
-    BANK_SLOT_ITEM_START        = 39, // Start of bank item slots
-    BANK_SLOT_ITEM_END          = 67  // End of bank item slots
-};
-
-// Bank bag slots (7 slots)
-enum BankBagSlots
-{
-    BANK_SLOT_BAG_START         = 67, // Start of bank bag slots
-    BANK_SLOT_BAG_END           = 74  // End of bank bag slots
-};
-
-// Buy back slots (12 slots)
-enum BuyBackSlots
-{
-    // Stored in m_buybackitems
-    BUYBACK_SLOT_START          = 74, // Start of buy back slots
-    BUYBACK_SLOT_END            = 86  // End of buy back slots
-};
-
-// Key ring slots (32 slots)
-
 
 enum EquipmentSetUpdateState
 {
@@ -1449,7 +1373,6 @@ class Player : public Unit
 
         // Get the count of the specified item
         uint32 GetItemCount(uint32 item, bool inBankAlso = false, Item* skipItem = NULL) const;
-        uint32 GetItemCountWithLimitCategory(uint32 limitCategory, Item* skipItem = NULL) const;
         Item* GetItemByGuid(ObjectGuid guid) const;
         Item* GetItemByEntry(uint32 item) const;            // only for special cases
         Item* GetItemByLimitedCategory(uint32 limitedCategory) const;
@@ -1480,13 +1403,13 @@ class Player : public Unit
         std::vector<Item*>& GetItemUpdateQueue() { return m_itemUpdateQueue; }
 
         // Check if the position is an inventory position
-        static bool IsInventoryPos(uint16 pos) { return IsInventoryPos(pos >> 8, pos & 255); }
+        static bool IsInventoryPos(uint16 pos) { return InventoryMgr::IsInventoryPos(pos); }
 
         // Check if the position is an inventory position (overloaded)
         static bool IsInventoryPos(uint8 bag, uint8 slot);
 
         // Check if the position is an equipment position
-        static bool IsEquipmentPos(uint16 pos) { return IsEquipmentPos(pos >> 8, pos & 255); }
+        static bool IsEquipmentPos(uint16 pos) { return InventoryMgr::IsEquipmentPos(pos); }
 
         // Check if the position is an equipment position (overloaded)
         static bool IsEquipmentPos(uint8 bag, uint8 slot);
@@ -1495,15 +1418,12 @@ class Player : public Unit
         static bool IsBagPos(uint16 pos);
 
         // Check if the position is a bank position
-        static bool IsBankPos(uint16 pos) { return IsBankPos(pos >> 8, pos & 255); }
+        static bool IsBankPos(uint16 pos) { return InventoryMgr::IsBankPos(pos); }
 
         // Check if the position is a bank position (overloaded)
         static bool IsBankPos(uint8 bag, uint8 slot);
 
         // Check if the position is valid
-        bool IsValidPos(uint16 pos, bool explicit_pos) const { return IsValidPos(pos >> 8, pos & 255, explicit_pos); }
-
-        // Check if the position is valid (overloaded)
         bool IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const;
 
         // Get the count of bank bag slots
@@ -4078,7 +3998,8 @@ class Player : public Unit
 
         uint32 m_atLoginFlags; // At-login flags
 
-        Item* m_items[PLAYER_SLOTS_COUNT]; // Array of player items
+        // The item slots (equipment, bags, backpack, bank, bank bags, buyback) and the lookups over them
+        InventoryMgr m_inventoryMgr;
         uint32 m_currentBuybackSlot; // Current buyback slot
 
         std::vector<Item*> m_itemUpdateQueue; // Item update queue

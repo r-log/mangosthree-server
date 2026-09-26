@@ -114,11 +114,13 @@ namespace
     }
 
     /// The expired-mail sweep draws a progress bar; the test binary has no console to draw
-    /// it on that anyone wants to read.
+    /// it on that anyone wants to read. The state it found is put back, whatever it was.
     struct QuietBar
     {
-        QuietBar() { BarGoLink::SetOutputState(false); }
-        ~QuietBar() { BarGoLink::SetOutputState(true); }
+        QuietBar() : m_was(BarGoLink::GetOutputState()) { BarGoLink::SetOutputState(false); }
+        ~QuietBar() { BarGoLink::SetOutputState(m_was); }
+
+        bool const m_was;
     };
 
     /// The character the guild invites: offline, and in the cache, which is the case the

@@ -239,6 +239,15 @@ enum InventoryType
 
 #define MAX_INVTYPE                               29
 
+// "No bag" and "no slot" in an item position (bag, slot). Decoupling D4e1 moved this here from
+// Unit.h, whose comment asked for the item headers: the inventory manager's position checks use
+// both names and may not reach Unit.h.
+enum InventorySlot
+{
+    NULL_BAG                   = 0,
+    NULL_SLOT                  = 255
+};
+
 enum ItemClass
 {
     ITEM_CLASS_CONSUMABLE                       = 0,

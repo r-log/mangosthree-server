@@ -204,8 +204,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         SetGuidValue(PLAYER_FIELD_INV_SLOT_HEAD + (slot * 2), ObjectGuid());
         SetVisibleItemSlot(slot, NULL);
 
-        delete m_items[slot];
-        m_items[slot] = NULL;
+        delete m_inventoryMgr.Slot(slot);
+        m_inventoryMgr.SlotRef(slot) = NULL;
     }
 
     DEBUG_FILTER_LOG(LOG_FILTER_PLAYER_STATS, "Load Basic value of player %s is: ", m_name.c_str());

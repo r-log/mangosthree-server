@@ -40,6 +40,7 @@
 #include "Database/TickGuard.h"
 #include "ObjectMgr.h"
 #include "SQLStorages.h"
+#include "Utilities/ProgressBar.h"
 
 #include <algorithm>
 #include <cstring>
@@ -56,7 +57,14 @@ namespace
 
 TEST(ItemFixture_TheLoaderTakesTheFakeRowsInItsThreeStatements)
 {
+    // The loader's progress bar is silenced for the load and the state found is put back --
+    // not forced on. Seen only when this case makes the binary's first load (run it alone).
+    const bool barBefore = BarGoLink::GetOutputState();
+    BarGoLink::SetOutputState(false);
     LoadRecord const& record = Load();
+    CHECK(!BarGoLink::GetOutputState());
+    BarGoLink::SetOutputState(barBefore);
+
     CHECK_STR(record.failure, "");
     REQUIRE(record.loaded);
 
@@ -82,6 +90,16 @@ TEST(ItemFixture_TheLoaderTakesTheFakeRowsInItsThreeStatements)
     CHECK_EQ(std::strlen(sItemStorage.GetSrcFormat()), size_t(147));
     CHECK_EQ(TemplateRow(prototypes[0]).size(), size_t(147));
     CHECK_STR(sItemStorage.GetSrcFormat(), sItemStorage.GetDstFormat());
+
+    // One record is one packed ItemPrototype: the format's 145 four-byte and 2 pointer
+    // columns lay out exactly as the struct does, so every field reads its own column. The
+    // record size itself (SQLStorageBase::GetRecordSize) is protected; the public iterators
+    // step by it, so the data's span over the record count is that size.
+    char const* first = reinterpret_cast<char const*>(*sItemStorage.getDataBegin<ItemPrototype>());
+    char const* end = reinterpret_cast<char const*>(*sItemStorage.getDataEnd<ItemPrototype>());
+    REQUIRE(sItemStorage.GetRecordCount() > 0);
+    CHECK_EQ(size_t(end - first) / sItemStorage.GetRecordCount(), sizeof(ItemPrototype));
+    CHECK_EQ(size_t(end - first) % sItemStorage.GetRecordCount(), size_t(0));
 
     // COUNT(*) records, and an index as long as MAX(entry) + 1.
     uint32 maxEntry = 0;
@@ -124,14 +142,26 @@ TEST(ItemFixture_EveryPrototypeReadsBackThroughTheObjectManager)
         CHECK_EQ(proto->BagFamily, expected.bagFamily);
         CHECK_EQ(proto->GetMaxStackSize(), uint32(expected.stackable));
 
+        // Decoupling D4e1's columns. The two masks are signed in the row ("-1") and unsigned in
+        // the prototype, so -1 reads back as 0xFFFFFFFF.
+        CHECK_EQ(proto->AllowableClass, uint32(expected.allowableClass));
+        CHECK_EQ(proto->AllowableRace, uint32(expected.allowableRace));
+        CHECK_EQ(proto->DisplayInfoID, expected.displayInfoId);
+        for (int i = 0; i < MAX_ITEM_PROTO_SOCKETS; ++i)
+        {
+            CHECK_EQ(proto->Socket[i].Color, expected.socketColor[i]);
+            CHECK_EQ(proto->Socket[i].Content, expected.socketContent[i]);
+        }
+        CHECK_EQ(proto->GemProperties, expected.gemProperties);
+        CHECK_EQ(proto->ItemLimitCategory, expected.itemLimitCategory);
+
         // The columns either side of the written ones, a float, the second string and the last
         // column hold the zeros the row carried: nothing was written one column off.
         CHECK_EQ(proto->Unk0, 0);                                   // 3, between subclass and name
-        CHECK_EQ(proto->DisplayInfoID, 0u);                         // 5
         CHECK_EQ(proto->Flags2, 0u);                                // 8
         CHECK(proto->Unknown == 0.0f);                              // 9, a float
         CHECK_EQ(proto->BuyPrice, 0u);                              // 13
-        CHECK_EQ(proto->AllowableClass, 0u);                        // 16
+        CHECK_EQ(proto->ItemLevel, 0u);                             // 18, after the race mask
         CHECK_EQ(proto->RequiredReputationRank, 0u);                // 26
         CHECK_EQ(proto->ItemStat[0].ItemStatType, 0u);              // 30
         CHECK_EQ(proto->Spells[4].SpellCategoryCooldown, 0);        // 108
@@ -141,8 +171,142 @@ TEST(ItemFixture_EveryPrototypeReadsBackThroughTheObjectManager)
         CHECK_EQ(proto->Area, 0u);                                  // 122
         CHECK_EQ(proto->Map, 0u);                                   // 123
         CHECK_EQ(proto->TotemCategory, 0u);                         // 125
+        CHECK_EQ(proto->socketBonus, 0u);                           // 132, after the sockets
+        CHECK_EQ(proto->RequiredDisenchantSkill, 0);                // 134
+        CHECK(proto->ArmorDamageModifier == 0.0f);                  // 135, a float
+        CHECK_EQ(proto->Duration, 0u);                              // 136
+        CHECK_EQ(proto->HolidayId, 0u);                             // 138, after the limit category
         CHECK_EQ(proto->ExtraFlags, 0u);                            // 146, the last
     }
+
+    // The masks are -1 on exactly the items a later table equips or banks as a bag.
+    CHECK_EQ(sObjectMgr.GetItemPrototype(kSwordEntry)->AllowableClass, 0xFFFFFFFFu);
+    CHECK_EQ(sObjectMgr.GetItemPrototype(kHelmEntry)->AllowableRace, 0xFFFFFFFFu);
+    CHECK_EQ(sObjectMgr.GetItemPrototype(kBagEntry)->AllowableClass, 0xFFFFFFFFu);
+    CHECK_EQ(sObjectMgr.GetItemPrototype(kHerbBagEntry)->AllowableRace, 0xFFFFFFFFu);
+    CHECK_EQ(sObjectMgr.GetItemPrototype(kClothEntry)->AllowableClass, 0u);
+}
+
+// Decoupling D4e1 (the D4e0 review): the load is refused where it would do harm. Load() refuses
+// only before its first successful load, so the refusal itself -- RefuseLoad, which Load() asks
+// first -- is driven here on a fresh record.
+TEST(ItemFixture_LoadRefusesInsideATickScopeAndOverAttachedWorldFakes)
+{
+    // Loaded first, outside both conditions: from here on Load() only hands back its record.
+    REQUIRE(Load().loaded);
+
+    LoadRecord fresh;
+    CHECK(!RefuseLoad(fresh));
+    CHECK_STR(fresh.failure, "");
+
+    // Inside a scope: the reads would be tick violations.
+    TickGuard::ResetViolations();
+    {
+        TickGuard::Scope scope;
+        LoadRecord inScope;
+        CHECK(RefuseLoad(inScope));
+        CHECK_STR(inScope.failure, "ItemFixture::Load() first ran inside a TickGuard::Scope; call it before the scope");
+        CHECK(!inScope.loaded);
+        CHECK(inScope.queries.empty());
+        CHECK(Load().loaded);                               // the loaded record, nothing run
+    }
+    CHECK_EQ(TickGuard::Violations(), 0u);
+
+    // Over a case's own fakes on WorldDatabase: the load would replace them, then detach.
+    FakeConnection query(WorldDatabase);
+    FakeConnection async(WorldDatabase);
+    SqlResultQueue results;
+    {
+        AttachedFakes attached(WorldDatabase, &query, &async, &results);
+        REQUIRE(WorldDatabase);
+
+        LoadRecord overFakes;
+        CHECK(RefuseLoad(overFakes));
+        CHECK_STR(overFakes.failure,
+                  "ItemFixture::Load() first ran while WorldDatabase had connections attached; call it before attaching them");
+        CHECK(!overFakes.loaded);
+
+        CHECK(Load().loaded);
+        CHECK(MakeItem(kClothEntry));                       // MakeItem's lazy Load() as well
+
+        // The case's fakes are untouched and still attached.
+        CHECK(WorldDatabase);
+        CHECK_EQ(query.executed.size(), size_t(0));
+        CHECK_EQ(async.executed.size(), size_t(0));
+
+        // Both at once: the scope is named first, as Load() checks it first.
+        TickGuard::Scope scope;
+        LoadRecord both;
+        CHECK(RefuseLoad(both));
+        CHECK_STR(both.failure, "ItemFixture::Load() first ran inside a TickGuard::Scope; call it before the scope");
+    }
+    CHECK(!WorldDatabase);
+}
+
+// Decoupling D4e1: Place() writes what Player::_StoreItem's empty-position branch writes into
+// the item, the bag and the slot array -- nothing else -- and refuses a position it cannot take.
+TEST(ItemFixture_PlaceWritesWhatTheStoreWrites)
+{
+    REQUIRE(Load().loaded);
+
+    OwnedInventory inventory;
+    InventoryMgr& mgr = inventory.mgr;
+
+    // An array position: the slot, CONTAINED and OWNER = the owner, the slot index, no container.
+    Item* cloth = Place(mgr, INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START, MakeItem(kClothEntry, 7), OwnerGuid());
+    REQUIRE(cloth != NULL);
+    CHECK(mgr.Slot(INVENTORY_SLOT_ITEM_START) == cloth);
+    CHECK(cloth->GetGuidValue(ITEM_FIELD_CONTAINED) == OwnerGuid());
+    CHECK(cloth->GetOwnerGuid() == OwnerGuid());
+    CHECK_EQ(uint32(cloth->GetSlot()), uint32(INVENTORY_SLOT_ITEM_START));
+    CHECK(cloth->GetContainer() == NULL);
+    CHECK_EQ(uint32(cloth->GetBagSlot()), uint32(INVENTORY_SLOT_BAG_0));
+    CHECK(!cloth->IsSoulBound());                           // binds never
+
+    // The soulbound flag, _StoreItem's three cases and its one exception.
+    Item* helm = Place(mgr, INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_HEAD, MakeItem(kHelmEntry), OwnerGuid());
+    Item* relic = Place(mgr, INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START + 1, MakeItem(kRelicEntry), OwnerGuid());
+    Item* sword = Place(mgr, INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND, MakeItem(kSwordEntry), OwnerGuid());
+    Item* herbBag = Place(mgr, INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_BAG_START, MakeBag(kHerbBagEntry), OwnerGuid());
+    REQUIRE(helm != NULL);
+    REQUIRE(relic != NULL);
+    REQUIRE(sword != NULL);
+    REQUIRE(herbBag != NULL);
+    CHECK(helm->IsSoulBound());                             // binds on pickup
+    CHECK(relic->IsSoulBound());                            // quest item
+    CHECK(herbBag->IsSoulBound());                          // binds on equip, into a bag slot
+    CHECK(!sword->IsSoulBound());                           // binds on equip, NOT a bag slot: the
+                                                            // equip path (VisualizeItem) binds it
+
+    // A position in a bag: Bag::StoreItem -- the bag's slot field, CONTAINED = the bag, OWNER =
+    // the bag's owner, the container and the slot.
+    Item* herb = Place(mgr, INVENTORY_SLOT_BAG_START, 19, MakeItem(kHerbEntry, 3), OwnerGuid());
+    REQUIRE(herb != NULL);
+    CHECK(static_cast<Bag*>(herbBag)->GetItemByPos(19) == herb);
+    CHECK(herbBag->GetGuidValue(CONTAINER_FIELD_SLOT_1 + 19 * 2) == herb->GetObjectGuid());
+    CHECK(herb->GetGuidValue(ITEM_FIELD_CONTAINED) == herbBag->GetObjectGuid());
+    CHECK(herb->GetOwnerGuid() == OwnerGuid());
+    CHECK(herb->GetContainer() == herbBag);
+    CHECK_EQ(uint32(herb->GetSlot()), 19u);
+    CHECK_EQ(uint32(herb->GetBagSlot()), uint32(INVENTORY_SLOT_BAG_START));
+
+    // Nothing reached a character's list: the items are still NEW and in no update queue.
+    CHECK(cloth->GetState() == ITEM_NEW);
+    CHECK(!cloth->IsInUpdateQueue());
+    CHECK(herb->GetState() == ITEM_NEW);
+    CHECK(!herb->IsInUpdateQueue());
+
+    // Refused (and the item deleted): a taken position, a buyback slot, a bag slot holding no
+    // bag, a slot past the bag's size, a bag slot index that is not one, and no item at all.
+    CHECK(Place(mgr, INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START, MakeItem(kClothEntry), OwnerGuid()) == NULL);
+    CHECK(Place(mgr, INVENTORY_SLOT_BAG_0, BUYBACK_SLOT_START, MakeItem(kClothEntry), OwnerGuid()) == NULL);
+    CHECK(Place(mgr, INVENTORY_SLOT_BAG_START + 1, 0, MakeItem(kClothEntry), OwnerGuid()) == NULL);
+    CHECK(Place(mgr, INVENTORY_SLOT_BAG_START, 20, MakeItem(kHerbEntry), OwnerGuid()) == NULL);
+    CHECK(Place(mgr, INVENTORY_SLOT_BAG_START, 19, MakeItem(kHerbEntry), OwnerGuid()) == NULL);
+    CHECK(Place(mgr, INVENTORY_SLOT_ITEM_START, 0, MakeItem(kClothEntry), OwnerGuid()) == NULL);
+    CHECK(Place(mgr, INVENTORY_SLOT_BAG_0, INVENTORY_SLOT_ITEM_START + 2, std::unique_ptr<Item>(), OwnerGuid()) == NULL);
+    CHECK(mgr.Slot(INVENTORY_SLOT_ITEM_START) == cloth);
+    CHECK(mgr.Slot(INVENTORY_SLOT_ITEM_START + 2) == NULL);
 }
 
 TEST(ItemFixture_ItemCreateMakesAnItemFromThePrototypeAlone)

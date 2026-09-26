@@ -71,7 +71,14 @@ set(REACH_RULES
     # (Server/DBCStores.h) and nothing else global: the game time, the talent rate and the
     # quest-reward bonus are parameters, and src/tests/TalentMgrTest.cpp seeds the stores.
     "entities/player/talents/TalentMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h"
-    "entities/player/talents/TalentMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h")
+    "entities/player/talents/TalentMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h"
+    # Decoupling D4e1: the inventory manager, the same two rules. The header forward-declares
+    # Item and stays inside entities/player/Player.h's rule (Player.h includes it), so it may
+    # reach neither the DBC stores, the database nor Bag.h. Its .cpp reads items and bags
+    # (Object/Bag.h, Object/Item.h) and nothing global at all: no DBC store and no database
+    # either, which the talent manager's .cpp needs and this one does not.
+    "entities/player/inventory/InventoryMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Bag.h"
+    "entities/player/inventory/InventoryMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

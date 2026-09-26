@@ -382,7 +382,7 @@ TEST(CharacterOpsAsync_DeleteMailCursorGivesEachMailItsOwnItemRunAndNobodyElseS)
     //   B (id 20, MAIL_NORMAL, has_items, two item rows)     -- gets exactly its own two;
     //   C (id 30, MAIL_NORMAL, has_items, NO item rows)      -- consumes nothing at all.
     //
-    // No item template is loaded in this binary, so ObjectMgr::GetItemPrototype() answers
+    // Template 555 has no prototype, so ObjectMgr::GetItemPrototype() answers
     // NULL and every item B reads takes the `DELETE FROM item_instance` branch -- which is
     // what makes the cursor's position observable in the recorded SQL.
     sCharacterCache.Clear();                                // no account behind guid 7777, so
