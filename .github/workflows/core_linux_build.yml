@@ -98,6 +98,7 @@ jobs:
           -DWITH_NET_TESTS=0
           -DSCRIPT_LIB_SD3=1
           -DPCH=${{ matrix.pch }}
+          -DMANGOS_STRICT_TICK=ON
 
       - name: Build
         run: cmake --build "$BUILD_DIR" --parallel
@@ -110,6 +111,18 @@ jobs:
 
       - name: Test
         run: ctest --test-dir "$BUILD_DIR" --output-on-failure
+
+      # Strict tick mode is on for these three jobs (decoupling D7): a synchronous database
+      # acquisition inside the world tick aborts instead of being counted, so a change that
+      # brings one back fails here. The Windows job stays off -- it builds the release and
+      # nightly packages, and operators run those. Prove the option reached the test binary:
+      # its four violation-provoking cases stand down under a strict build and say so.
+      - name: Check strict tick mode is armed
+        run: |
+          grep -q "MANGOS_STRICT_TICK:BOOL=ON" "$BUILD_DIR/CMakeCache.txt"
+          out=$("$BUILD_DIR/src/tests/mangos_tests" -only TickGuard_)
+          echo "$out"
+          test "$(echo "$out" | grep -c '(strict build:')" -eq 4
 
       # The assembly tier of the Montgomery kernel must be the one that ran here: a
       # silent fall-back to a C++ tier (a CPU without ADX, a wiring mistake) would pass

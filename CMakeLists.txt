@@ -64,8 +64,10 @@ message(
     MANGOS_STRICT_TICK      Turn the tick guard's count into an assert (decoupling D7):
                             a synchronous database acquisition made while the world
                             tick or a map update holds the guard aborts instead of
-                            being counted. Off by default -- the count is the
-                            instrument, the assert is for proving one family clean.
+                            being counted. Off by default and for every shipped
+                            build: CI's Linux jobs turn it on so a change that
+                            brings a blocking query back into the tick fails there.
+                            Staff chat commands are counted apart and never assert.
     DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
    Scripting engines:
     SCRIPT_LIB_SD3          Compile with support for ScriptDev3 scripts
