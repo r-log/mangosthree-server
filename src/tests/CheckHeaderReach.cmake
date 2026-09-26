@@ -58,7 +58,10 @@ set(REACH_RULES
     # The .cpp as well: CheckManagerIsolation.cmake is a text gate, and the one thing it cannot
     # see -- the name spelled around its patterns -- only compiles against the complete type,
     # which the .cpp could otherwise include without the header noticing.
-    "entities/player/QuestStatusMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h")
+    # Decoupling D4b: and no global the manager could reach for instead of a parameter -- the
+    # world (sWorld: game time, config) and the object registries that replaced the old
+    # ObjectAccessor.h (sPlayerRegistry, ObjectLookup, sCorpseManager).
+    "entities/player/QuestStatusMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Object/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
@@ -113,6 +116,61 @@ string(REPLACE "," ";" SELF_TEST_FORBIDDEN "${SELF_TEST_FORBIDDEN}")
 list(LENGTH SELF_TEST_FORBIDDEN SELF_TEST_COUNT)
 if(NOT SELF_TEST_COUNT EQUAL 3)
     message(FATAL_ERROR "Header reach: the rule parser split 'a.h,b.h,c.h' into ${SELF_TEST_COUNT} entries, not 3")
+endif()
+
+# Decoupling D4b: a forbidden entry must name a file that exists under the four roots. A rule
+# that forbids a header the tree does not have can never fire -- the D4b brief named
+# ObjectAccessor.h, which this tree split into PlayerRegistry.h, ObjectLookup.h and
+# CorpseManager.h long ago -- so a typo or a deleted header fails here instead of passing inert.
+set(TREE_FILES "")
+foreach(TOP IN ITEMS "${GAME_DIR}" "${SOURCE_ROOT}/src/shared" "${SOURCE_ROOT}/src/proto" "${MOTION_DIR}")
+    file(GLOB_RECURSE TOP_FILES LIST_DIRECTORIES false "${TOP}/*")
+    list(APPEND TREE_FILES ${TOP_FILES})
+endforeach()
+
+function(forbidden_exists SUFFIX OUT_VAR)
+    string(REPLACE "." "\\." SUFFIX_RE "${SUFFIX}")
+    set(MATCHES ${TREE_FILES})
+    list(FILTER MATCHES INCLUDE REGEX "(^|/)${SUFFIX_RE}$")
+    if(MATCHES)
+        set(${OUT_VAR} TRUE PARENT_SCOPE)
+    else()
+        set(${OUT_VAR} FALSE PARENT_SCOPE)
+    endif()
+endfunction()
+
+forbidden_exists("Object/Player.h" SELF_TEST_FOUND)
+forbidden_exists("Object/NoSuchHeader.h" SELF_TEST_MISSING)
+forbidden_exists("bject/Player.h" SELF_TEST_PARTIAL)
+if(NOT SELF_TEST_FOUND OR SELF_TEST_MISSING OR SELF_TEST_PARTIAL)
+    message(FATAL_ERROR "Header reach: the forbidden-entry existence check is broken "
+        "(Object/Player.h ${SELF_TEST_FOUND}, Object/NoSuchHeader.h ${SELF_TEST_MISSING}, bject/Player.h ${SELF_TEST_PARTIAL})")
+endif()
+
+set(INERT "")
+foreach(RULE IN LISTS REACH_RULES)
+    string(REPLACE "|" ";" PARTS "${RULE}")
+    list(GET PARTS 0 HEADER)
+    list(LENGTH PARTS PART_COUNT)
+    if(PART_COUNT GREATER 1)
+        list(GET PARTS 1 FORBIDDEN)
+        string(REPLACE "," ";" FORBIDDEN "${FORBIDDEN}")
+        foreach(SUFFIX IN LISTS FORBIDDEN)
+            if(NOT SUFFIX)
+                continue()
+            endif()
+            forbidden_exists("${SUFFIX}" FOUND)
+            if(NOT FOUND)
+                list(APPEND INERT "${HEADER} forbids ${SUFFIX}")
+            endif()
+        endforeach()
+    endif()
+endforeach()
+if(INERT)
+    string(REPLACE ";" "\n  " REPORT "${INERT}")
+    message(FATAL_ERROR
+        "Header reach: a rule forbids a header that does not exist in the tree, so it can never fire:\n  ${REPORT}\n"
+        "Name the header by its current path (renamed or split?).")
 endif()
 
 set(VIOLATIONS "")

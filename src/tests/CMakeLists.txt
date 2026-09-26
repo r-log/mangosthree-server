@@ -83,6 +83,7 @@ set(SRC_GRP_TESTS
     UnitSubtypeTest.cpp
     AuraContainerTest.cpp
     QuestStatusMgrTest.cpp
+    QuestPredicateTest.cpp
 )
 
 if(WITH_NET_TESTS)
@@ -262,6 +263,10 @@ if(Python3_Interpreter_FOUND)
     # Decoupling D4a: the data-member counter (M1) every D4 PR reports.
     add_test(NAME member_counter_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/member_count.py --self-test)
+
+    # Decoupling D4b: the method counter (R1) the D4 finish line is measured with.
+    add_test(NAME method_counter_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
