@@ -1,7 +1,7 @@
 set(HIERARCHY_HEADERS
     Object/Object.h
     Object/Unit.h
-    Object/Player.h
+    entities/player/Player.h
     Object/Creature.h
     Object/GameObject.h
     Object/DynamicObject.h

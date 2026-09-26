@@ -4,7 +4,7 @@
 # (src/tests/QuestStatusMgrTest.cpp). The moment one of these files includes the character
 # header or names the class, that stops being true, so every file in MANAGER_FILES fails on:
 #   - an #include of Player.h, in any path form and any letter case ("Player.h",
-#     <Object/Player.h>, "../player.h");
+#     <entities/player/Player.h>, "../player.h");
 #   - the class name followed by '*' or '&' (a pointer or reference to it, with or without
 #     spaces between, and with an east `const` between as well: QuestDef.h forward-declares
 #     the class, so `... const*` would otherwise compile with no include and no declaration);
@@ -35,12 +35,13 @@
 # comment never opens a literal that would hide the rest of the line.
 #
 # The files are an explicit list, like CheckSyncDb.cmake's converted files, NOT a directory
-# scan: the character's own files (Player.h, Player.cpp, Player*.cpp) are to move into
-# src/game/entities/player/ later in D4 (D4j), and they name the class by definition. Each
-# later manager PR appends its files to MANAGER_FILES; D4j puts the character's own files in
-# OWNER_FILES. Decoupling D4b: EVERY file under src/game/entities/player/ must be on one of the
-# two lists, so a new manager file that nobody listed fails here instead of going unscanned; a
-# listed file that does not exist fails as well, so a rename cannot quietly empty either list.
+# scan: the character's own files (Player.h, Player.cpp, Player*.cpp) live in
+# src/game/entities/player/ and its subdirectories beside the managers (decoupling D4j), and
+# they name the class by definition. Each manager PR appends its files to MANAGER_FILES; the
+# character's own files are in OWNER_FILES. Decoupling D4b: EVERY file under src/game/entities/player/, in any
+# subdirectory, must be on one of the two lists, so a new manager file that nobody listed fails
+# here instead of going unscanned; a listed file that does not exist fails as well, so a rename
+# cannot quietly empty either list.
 # CMake regexes have no \b, so a word boundary is spelled (^|[^A-Za-z0-9_]).
 #
 # KNOWN MISSES, stated rather than chased: the rules are text, so they cannot see the class
@@ -56,9 +57,9 @@
 # seen by this gate; the second is what CheckHeaderReach is for, and the first it cannot see
 # either (it only follows spelled paths). The CheckHeaderReach rules on QuestStatusMgr.h and
 # QuestStatusMgr.cpp close every route that needs the complete type (neither may reach
-# Object/Player.h, Object/Unit.h, Server/WorldSession.h or ObjectMgr.h); what is left is a
-# pointer through QuestDef.h's forward declaration spelled on purpose to dodge a text rule,
-# which review would see.
+# entities/player/Player.h, Object/Unit.h, Server/WorldSession.h or ObjectMgr.h); what is
+# left is a pointer through QuestDef.h's forward declaration spelled on purpose to dodge a
+# text rule, which review would see.
 # Run standalone (-P), this script sees none of the top-level project's policies. The project
 # requires CMake >= 3.18, so that is also the floor here.
 cmake_minimum_required(VERSION 3.18)
@@ -71,18 +72,91 @@ set(GAME_DIR "${SOURCE_ROOT}/src/game")
 
 # Paths relative to src/game.
 set(MANAGER_FILES
-    entities/player/QuestStatusMgr.h                        # decoupling D4a
-    entities/player/QuestStatusMgr.cpp                      # decoupling D4a
-    entities/player/TalentMgr.h                             # decoupling D4c
-    entities/player/TalentMgr.cpp                           # decoupling D4c
+    entities/player/quests/QuestStatusMgr.h                 # decoupling D4a
+    entities/player/quests/QuestStatusMgr.cpp               # decoupling D4a
+    entities/player/talents/TalentMgr.h                     # decoupling D4c
+    entities/player/talents/TalentMgr.cpp                   # decoupling D4c
 )
 
-# The character's own files once they live under entities/player/ (D4j). They name the class by
-# definition, so they are not scanned; being on this list is what lets them sit in the directory.
+# The character's own files under entities/player/ (decoupling D4j), and the directory's README.
+# They name the class by definition, so they are not scanned; being on this list is what lets
+# them sit in the directory. The files marked D4k are older managers that still name the class;
+# D4k takes them one at a time, and each one that comes out Player-less moves to MANAGER_FILES.
 set(OWNER_FILES
+    entities/player/README.md
+    entities/player/Player.h
+    entities/player/Player.cpp
+    entities/player/PlayerRegistry.h
+    entities/player/PlayerRegistry.cpp
+    entities/player/persistence/PlayerLoad.cpp
+    entities/player/persistence/PlayerLoadFromDB.cpp
+    entities/player/persistence/PlayerSave.cpp
+    entities/player/persistence/PlayerDbLookup.cpp
+    entities/player/quests/PlayerQuest.cpp
+    entities/player/talents/PlayerTalent.cpp
+    entities/player/talents/GlyphMgr.h                      # D4k
+    entities/player/talents/GlyphMgr.cpp                    # D4k
+    entities/player/spells/PlayerSpell.cpp
+    entities/player/spells/PlayerSpellMod.cpp
+    entities/player/spells/PlayerLearn.cpp
+    entities/player/spells/PlayerActionButton.cpp
+    entities/player/spells/SpellCooldownMgr.h               # D4k
+    entities/player/spells/SpellCooldownMgr.cpp             # D4k
+    entities/player/spells/RuneMgr.h                        # D4k
+    entities/player/spells/RuneMgr.cpp                      # D4k
+    entities/player/inventory/PlayerItem.cpp
+    entities/player/inventory/PlayerItemApply.cpp
+    entities/player/inventory/PlayerItemQuery.cpp
+    entities/player/inventory/PlayerItemStorage.cpp
+    entities/player/inventory/PlayerItemValidation.cpp
+    entities/player/inventory/PlayerItemEnchant.cpp
+    entities/player/inventory/PlayerEnchant.cpp
+    entities/player/inventory/PlayerEquipmentSet.cpp
+    entities/player/inventory/PlayerDurability.cpp
+    entities/player/inventory/PlayerGearScore.cpp
+    entities/player/inventory/CurrencyMgr.h                 # D4k
+    entities/player/inventory/CurrencyMgr.cpp               # D4k
+    entities/player/interaction/PlayerGossip.cpp
+    entities/player/interaction/PlayerVendor.cpp
+    entities/player/interaction/PlayerLoot.cpp
+    entities/player/interaction/PlayerMail.cpp
+    entities/player/combat/PlayerCombat.cpp
+    entities/player/combat/PlayerCombo.cpp
+    entities/player/combat/PlayerDeath.cpp
+    entities/player/combat/PlayerDuel.cpp
+    entities/player/combat/PlayerStats.cpp
+    entities/player/combat/PlayerRegen.cpp
+    entities/player/combat/PlayerReward.cpp
+    entities/player/pvp/PlayerPvP.cpp
+    entities/player/pvp/PlayerBattleGround.cpp
+    entities/player/pvp/HonorMgr.h                          # D4k
+    entities/player/pvp/HonorMgr.cpp                        # D4k
+    entities/player/social/PlayerGroup.cpp
+    entities/player/social/PlayerChannel.cpp
+    entities/player/social/PlayerChat.cpp
+    entities/player/social/PlayerReputation.cpp
+    entities/player/social/ReputationMgr.h                  # D4k
+    entities/player/social/ReputationMgr.cpp                # D4k
+    entities/player/social/SocialMgr.h                      # D4k
+    entities/player/social/SocialMgr.cpp                    # D4k
+    entities/player/world/PlayerMovement.cpp
+    entities/player/world/PlayerZone.cpp
+    entities/player/world/PlayerAreaTrigger.cpp
+    entities/player/world/PlayerInstance.cpp
+    entities/player/world/PlayerVisibility.cpp
+    entities/player/world/PlayerRest.cpp
+    entities/player/world/PlayerMirror.cpp
+    entities/player/world/PlayerTaxi.h
+    entities/player/world/PlayerTaxi.cpp
+    entities/player/pets/PlayerPet.cpp
+    entities/player/pets/PetMgr.h                           # D4k
+    entities/player/pets/PetMgr.cpp                         # D4k
+    entities/player/pets/PlayerPetCache.h
+    entities/player/pets/PlayerPetCache.cpp
 )
 
-# Every file under this directory (relative to src/game) must be on one of the two lists.
+# Every file under this directory (relative to src/game), in any subdirectory, must be on one of
+# the two lists.
 set(LISTED_DIR entities/player)
 
 # Every ';' in a scanned text becomes this byte first (see scan_text), so no rule has to spell
@@ -240,8 +314,8 @@ endfunction()
 # The include rule, each with the path rule. A quoted include is a string literal, so the word
 # rule does not see it; an angled one it does.
 expect_hits("include, quoted" "#include \"Player.h\"" 2)
-expect_hits("include, angled with a path (and the word)" "#include <Object/Player.h>" 3)
-expect_hits("include, relative with spaces" "#  include   \"../../Object/Player.h\"" 2)
+expect_hits("include, angled with a path (and the word)" "#include <entities/player/Player.h>" 3)
+expect_hits("include, relative with spaces" "#  include   \"../../entities/player/Player.h\"" 2)
 expect_hits("include of a longer name is fine" "#include \"PlayerPetCache.h\"" 0)
 expect_hits("include of a prefixed name is fine" "#include \"GamePlayer.h\"" 0)
 expect_hits("include, lower case" "#include \"player.h\"" 2)
@@ -358,7 +432,7 @@ if(MISSING)
         "Update MANAGER_FILES or OWNER_FILES in src/tests/CheckManagerIsolation.cmake to the file's new path.")
 endif()
 
-# Every file under LISTED_DIR is on exactly one list.
+# Every file under LISTED_DIR, recursively (GLOB_RECURSE), is on exactly one list.
 file(GLOB_RECURSE PRESENT_FILES LIST_DIRECTORIES false RELATIVE "${GAME_DIR}" "${GAME_DIR}/${LISTED_DIR}/*")
 check_listing(PRESENT_FILES MANAGER_FILES OWNER_FILES UNLISTED TWICE)
 if(UNLISTED OR TWICE)

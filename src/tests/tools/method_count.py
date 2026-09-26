@@ -26,8 +26,8 @@ quirk of the pipeline is kept on purpose (the number means what the facts measur
 It over-counts a few inline-body statements and counts the methods of nested types; the same
 bias before and after a change, so the delta is honest.
 
-python3 src/tests/tools/method_count.py --class Player --header src/game/Object/Player.h
-python3 src/tests/tools/method_count.py --list --class Player --header src/game/Object/Player.h
+python3 src/tests/tools/method_count.py --class Player --header src/game/entities/player/Player.h
+python3 src/tests/tools/method_count.py --list --class Player --header src/game/entities/player/Player.h
 python3 src/tests/tools/method_count.py --self-test
 """
 #

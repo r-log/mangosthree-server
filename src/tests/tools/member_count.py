@@ -18,8 +18,8 @@ statement's comma-separated declarators, counted at angle/brace/bracket depth 0,
 Known blind spot, kept on purpose so the number means what the facts file measured: a
 member whose type contains '(' (a function-pointer member) is not counted.
 
-python3 src/tests/tools/member_count.py src/game/Object/Player.h Player
-python3 src/tests/tools/member_count.py --list src/game/Object/Player.h Player
+python3 src/tests/tools/member_count.py src/game/entities/player/Player.h Player
+python3 src/tests/tools/member_count.py --list src/game/entities/player/Player.h Player
 python3 src/tests/tools/member_count.py --self-test
 """
 #

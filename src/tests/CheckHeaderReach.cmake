@@ -34,17 +34,19 @@ endforeach()
 # Each entry: "<header relative to src/game>|<forbidden suffix>,<forbidden suffix>,..."
 # Commas, not semicolons: a semicolon inside a quoted argument splits the CMake list.
 # A forbidden suffix matches any reached path that ends with "/<suffix>".
+# Decoupling D4j: the character's files live under entities/player/, grouped by concern, so the
+# rules name Player.h, PlayerRegistry.h and the two managers there.
 set(REACH_RULES
-    "Object/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,WorldHandlers/NPCHandler.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h"
-    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,Object/Player.h,Server/WorldSession.h,proto/WorldPacket.h,WorldHandlers/Path.h"
+    "entities/player/Player.h|Object/GMTicketMgr.h,Object/Bag.h,Server/DBCStores.h,WorldHandlers/NPCHandler.h,WorldHandlers/Chat.h,Server/WorldSession.h,BattleGround/BattleGround.h,WorldHandlers/Group.h,Object/Pet.h,WorldHandlers/Map.h,WorldHandlers/AchievementMgr.h,Object/CinematicFlyover.h,WorldHandlers/ScriptMgr.h,Database/DatabaseEnv.h"
+    "Object/Unit.h|MotionGenerators/MotionMaster.h,motion/State.h,entities/player/Player.h,Server/WorldSession.h,proto/WorldPacket.h,WorldHandlers/Path.h"
     # Decoupling D5b (server #132): the combat leaves are arithmetic over values. A
     # combat header that reaches the object layer has stopped being one, and the
     # golden vectors in src/tests/CombatGoldenVectors.h could no longer be checked by
     # a test that links nothing.
-    "combat/ArmorReduction.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
-    "combat/MeleeChances.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
-    "combat/SpellBonus.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
-    "combat/WeaponDamage.h|Object/Unit.h,Object/Object.h,Object/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    "combat/ArmorReduction.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    "combat/MeleeChances.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    "combat/SpellBonus.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
+    "combat/WeaponDamage.h|Object/Unit.h,Object/Object.h,entities/player/Player.h,Object/Creature.h,WorldHandlers/SpellAuras.h,Server/WorldSession.h,Server/DBCStores.h,Server/DBCStructure.h"
     # Decoupling D5d (server #136): the aura container is Unit's storage, and Unit.h includes
     # it. It stores Aura* and SpellAuraHolder* without ever dereferencing one, so it must
     # forward-declare both; the moment it reaches SpellAuras.h or the object layer the
@@ -54,7 +56,7 @@ set(REACH_RULES
     # Decoupling D4a: a character manager is state plus parameters. QuestStatusMgr.h reaching
     # the character, the unit, the session or the object manager would put the templates and
     # the owner back in reach, and src/tests/QuestStatusMgrTest.cpp builds it from nothing.
-    "entities/player/QuestStatusMgr.h|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h"
+    "entities/player/quests/QuestStatusMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h"
     # The .cpp as well: CheckManagerIsolation.cmake is a text gate, and the one thing it cannot
     # see -- the name spelled around its patterns -- only compiles against the complete type,
     # which the .cpp could otherwise include without the header noticing.
@@ -62,14 +64,14 @@ set(REACH_RULES
     # world (sWorld: game time, config) and the object registries that replaced the old
     # ObjectAccessor.h (sPlayerRegistry, ObjectLookup, sCorpseManager).
     # Decoupling D4c: and the map manager (sMapMgr), which no manager needs either.
-    "entities/player/QuestStatusMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Object/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h"
+    "entities/player/quests/QuestStatusMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h"
     # Decoupling D4c: the talent manager, the same two rules. The header also stays inside
-    # Object/Player.h's own rule above (Player.h includes it), so it may reach neither the DBC
-    # stores nor the database. Its .cpp reads the talent DBC stores (Server/DBCStores.h) and
-    # nothing else global: the game time, the talent rate and the quest-reward bonus are
-    # parameters, and src/tests/TalentMgrTest.cpp seeds the stores.
-    "entities/player/TalentMgr.h|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h"
-    "entities/player/TalentMgr.cpp|Object/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Object/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h")
+    # entities/player/Player.h's own rule above (Player.h includes it), so it may reach
+    # neither the DBC stores nor the database. Its .cpp reads the talent DBC stores
+    # (Server/DBCStores.h) and nothing else global: the game time, the talent rate and the
+    # quest-reward bonus are parameters, and src/tests/TalentMgrTest.cpp seeds the stores.
+    "entities/player/talents/TalentMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h"
+    "entities/player/talents/TalentMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
@@ -147,12 +149,12 @@ function(forbidden_exists SUFFIX OUT_VAR)
     endif()
 endfunction()
 
-forbidden_exists("Object/Player.h" SELF_TEST_FOUND)
+forbidden_exists("entities/player/Player.h" SELF_TEST_FOUND)
 forbidden_exists("Object/NoSuchHeader.h" SELF_TEST_MISSING)
-forbidden_exists("bject/Player.h" SELF_TEST_PARTIAL)
+forbidden_exists("ntities/player/Player.h" SELF_TEST_PARTIAL)
 if(NOT SELF_TEST_FOUND OR SELF_TEST_MISSING OR SELF_TEST_PARTIAL)
     message(FATAL_ERROR "Header reach: the forbidden-entry existence check is broken "
-        "(Object/Player.h ${SELF_TEST_FOUND}, Object/NoSuchHeader.h ${SELF_TEST_MISSING}, bject/Player.h ${SELF_TEST_PARTIAL})")
+        "(entities/player/Player.h ${SELF_TEST_FOUND}, Object/NoSuchHeader.h ${SELF_TEST_MISSING}, ntities/player/Player.h ${SELF_TEST_PARTIAL})")
 endif()
 
 set(INERT "")

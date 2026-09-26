@@ -13,6 +13,39 @@ source_group("Combat" FILES ${SRC_GRP_COMBAT})
 file(GLOB SRC_GRP_ENTITIES_PLAYER entities/player/*.cpp entities/player/*.h)
 source_group("Entities\\Player" FILES ${SRC_GRP_ENTITIES_PLAYER})
 
+file(GLOB SRC_GRP_ENTITIES_PLAYER_COMBAT entities/player/combat/*.cpp entities/player/combat/*.h)
+source_group("Entities\\Player\\Combat" FILES ${SRC_GRP_ENTITIES_PLAYER_COMBAT})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_INTERACTION entities/player/interaction/*.cpp entities/player/interaction/*.h)
+source_group("Entities\\Player\\Interaction" FILES ${SRC_GRP_ENTITIES_PLAYER_INTERACTION})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_INVENTORY entities/player/inventory/*.cpp entities/player/inventory/*.h)
+source_group("Entities\\Player\\Inventory" FILES ${SRC_GRP_ENTITIES_PLAYER_INVENTORY})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_PERSISTENCE entities/player/persistence/*.cpp entities/player/persistence/*.h)
+source_group("Entities\\Player\\Persistence" FILES ${SRC_GRP_ENTITIES_PLAYER_PERSISTENCE})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_PETS entities/player/pets/*.cpp entities/player/pets/*.h)
+source_group("Entities\\Player\\Pets" FILES ${SRC_GRP_ENTITIES_PLAYER_PETS})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_PVP entities/player/pvp/*.cpp entities/player/pvp/*.h)
+source_group("Entities\\Player\\PvP" FILES ${SRC_GRP_ENTITIES_PLAYER_PVP})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_QUESTS entities/player/quests/*.cpp entities/player/quests/*.h)
+source_group("Entities\\Player\\Quests" FILES ${SRC_GRP_ENTITIES_PLAYER_QUESTS})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_SOCIAL entities/player/social/*.cpp entities/player/social/*.h)
+source_group("Entities\\Player\\Social" FILES ${SRC_GRP_ENTITIES_PLAYER_SOCIAL})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_SPELLS entities/player/spells/*.cpp entities/player/spells/*.h)
+source_group("Entities\\Player\\Spells" FILES ${SRC_GRP_ENTITIES_PLAYER_SPELLS})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_TALENTS entities/player/talents/*.cpp entities/player/talents/*.h)
+source_group("Entities\\Player\\Talents" FILES ${SRC_GRP_ENTITIES_PLAYER_TALENTS})
+
+file(GLOB SRC_GRP_ENTITIES_PLAYER_WORLD entities/player/world/*.cpp entities/player/world/*.h)
+source_group("Entities\\Player\\World" FILES ${SRC_GRP_ENTITIES_PLAYER_WORLD})
+
 file(GLOB SRC_GRP_MAP_THREAD Maps/*.cpp Maps/*.h)
 source_group("Map Threading" FILES ${SRC_GRP_MAP_THREAD})
 
@@ -57,6 +90,17 @@ add_library(game STATIC
     ${SRC_GRP_CHAT_COMMANDS}
     ${SRC_GRP_COMBAT}
     ${SRC_GRP_ENTITIES_PLAYER}
+    ${SRC_GRP_ENTITIES_PLAYER_COMBAT}
+    ${SRC_GRP_ENTITIES_PLAYER_INTERACTION}
+    ${SRC_GRP_ENTITIES_PLAYER_INVENTORY}
+    ${SRC_GRP_ENTITIES_PLAYER_PERSISTENCE}
+    ${SRC_GRP_ENTITIES_PLAYER_PETS}
+    ${SRC_GRP_ENTITIES_PLAYER_PVP}
+    ${SRC_GRP_ENTITIES_PLAYER_QUESTS}
+    ${SRC_GRP_ENTITIES_PLAYER_SOCIAL}
+    ${SRC_GRP_ENTITIES_PLAYER_SPELLS}
+    ${SRC_GRP_ENTITIES_PLAYER_TALENTS}
+    ${SRC_GRP_ENTITIES_PLAYER_WORLD}
     ${SRC_GRP_MAP_THREAD}
     ${SRC_GRP_HARNESS}
     ${SRC_GRP_MOTION_GEN}
@@ -79,6 +123,17 @@ target_include_directories(game
         ChatCommands
         ${CMAKE_CURRENT_SOURCE_DIR}/combat
         ${CMAKE_CURRENT_SOURCE_DIR}/entities/player
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/combat
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/interaction
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/inventory
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/persistence
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/pets
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/pvp
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/quests
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/social
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/spells
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/talents
+        ${CMAKE_CURRENT_SOURCE_DIR}/entities/player/world
         Harness
         Maps
         MotionGenerators
