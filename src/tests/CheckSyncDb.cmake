@@ -62,6 +62,8 @@ set(CONVERTED_FILES
     src/game/entities/player/quests/QuestStatusMgr.cpp      # decoupling D4a
     src/game/entities/player/talents/TalentMgr.h            # decoupling D4c
     src/game/entities/player/talents/TalentMgr.cpp          # decoupling D4c
+    src/game/entities/player/inventory/InventoryMgr.h       # decoupling D4e1
+    src/game/entities/player/inventory/InventoryMgr.cpp     # decoupling D4e1
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -382,6 +384,9 @@ set(ALLOW_AccountCommands_cpp
 # there from PlayerSave.cpp (DELETE+INSERT `character_talent`, queued prepared statements run
 # from Player::SaveToDB), and so did the six DELETEs of the talent load's row checks
 # (CharacterDatabase.PExecute, queued once async writes are on), run from the login.
+#
+# Decoupling D4e1. InventoryMgr.h and InventoryMgr.cpp have NO allow list: the slot array and
+# the lookups and counts over it touch no database at all, and listing them keeps it that way.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

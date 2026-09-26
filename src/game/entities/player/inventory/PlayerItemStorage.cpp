@@ -137,7 +137,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
 
         if (bag == INVENTORY_SLOT_BAG_0)
         {
-            m_items[slot] = pItem;
+            m_inventoryMgr.SlotRef(slot) = pItem;
             SetGuidValue(PLAYER_FIELD_INV_SLOT_HEAD + (slot * 2), pItem->GetObjectGuid());
             pItem->SetGuidValue(ITEM_FIELD_CONTAINED, GetObjectGuid());
             pItem->SetGuidValue(ITEM_FIELD_OWNER, GetObjectGuid());
@@ -399,7 +399,7 @@ void Player::VisualizeItem(uint8 slot, Item* pItem)
 
     DEBUG_LOG("STORAGE: EquipItem slot = %u, item = %u", slot, pItem->GetEntry());
 
-    m_items[slot] = pItem;
+    m_inventoryMgr.SlotRef(slot) = pItem;
     SetGuidValue(PLAYER_FIELD_INV_SLOT_HEAD + (slot * 2), pItem->GetObjectGuid());
     pItem->SetGuidValue(ITEM_FIELD_CONTAINED, GetObjectGuid());
     pItem->SetGuidValue(ITEM_FIELD_OWNER, GetObjectGuid());
@@ -479,7 +479,7 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
                 }
             }
 
-            m_items[slot] = NULL;
+            m_inventoryMgr.SlotRef(slot) = NULL;
             SetGuidValue(PLAYER_FIELD_INV_SLOT_HEAD + (slot * 2), ObjectGuid());
 
             if (slot < EQUIPMENT_SLOT_END)
@@ -645,7 +645,7 @@ void Player::DestroyItem(uint8 bag, uint8 slot, bool update)
                 SetVisibleItemSlot(slot, NULL);
             }
 
-            m_items[slot] = NULL;
+            m_inventoryMgr.SlotRef(slot) = NULL;
         }
         else if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag))
         {
@@ -1443,7 +1443,7 @@ void Player::AddItemToBuyBackSlot(Item* pItem)
     {
         uint32 slot = m_currentBuybackSlot;
         // if current back slot non-empty search oldest or free
-        if (m_items[slot])
+        if (m_inventoryMgr.Slot(slot))
         {
             uint32 oldest_time = GetUInt32Value(PLAYER_FIELD_BUYBACK_TIMESTAMP_1);
             uint32 oldest_slot = BUYBACK_SLOT_START;
@@ -1451,7 +1451,7 @@ void Player::AddItemToBuyBackSlot(Item* pItem)
             for (uint32 i = BUYBACK_SLOT_START + 1; i < BUYBACK_SLOT_END; ++i)
             {
                 // found empty
-                if (!m_items[i])
+                if (!m_inventoryMgr.Slot(i))
                 {
                     slot = i;
                     break;
@@ -1473,7 +1473,7 @@ void Player::AddItemToBuyBackSlot(Item* pItem)
         RemoveItemFromBuyBackSlot(slot, true);
         DEBUG_LOG("STORAGE: AddItemToBuyBackSlot item = %u, slot = %u", pItem->GetEntry(), slot);
 
-        m_items[slot] = pItem;
+        m_inventoryMgr.SlotRef(slot) = pItem;
         time_t base = time(NULL);
         uint32 etime = uint32(base - m_logintime + (30 * 3600));
         uint32 eslot = slot - BUYBACK_SLOT_START;
@@ -1505,12 +1505,7 @@ void Player::AddItemToBuyBackSlot(Item* pItem)
  */
 Item* Player::GetItemFromBuyBackSlot(uint32 slot)
 {
-    DEBUG_LOG("STORAGE: GetItemFromBuyBackSlot slot = %u", slot);
-    if (slot >= BUYBACK_SLOT_START && slot < BUYBACK_SLOT_END)
-    {
-        return m_items[slot];
-    }
-    return NULL;
+    return m_inventoryMgr.GetItemFromBuyBackSlot(slot);
 }
 
 /**
@@ -1524,14 +1519,14 @@ void Player::RemoveItemFromBuyBackSlot(uint32 slot, bool del)
     DEBUG_LOG("STORAGE: RemoveItemFromBuyBackSlot slot = %u", slot);
     if (slot >= BUYBACK_SLOT_START && slot < BUYBACK_SLOT_END)
     {
-        Item* pItem = m_items[slot];
+        Item* pItem = m_inventoryMgr.Slot(slot);
         if (pItem)
         {
             pItem->RemoveFromWorld();
             if (del) pItem->SetState(ITEM_REMOVED, this);
         }
 
-        m_items[slot] = NULL;
+        m_inventoryMgr.SlotRef(slot) = NULL;
 
         uint32 eslot = slot - BUYBACK_SLOT_START;
         SetGuidValue(PLAYER_FIELD_VENDORBUYBACK_SLOT_1 + (eslot * 2), ObjectGuid());
@@ -1539,7 +1534,7 @@ void Player::RemoveItemFromBuyBackSlot(uint32 slot, bool del)
         SetUInt32Value(PLAYER_FIELD_BUYBACK_TIMESTAMP_1 + eslot, 0);
 
         // if current backslot is filled set to now free slot
-        if (m_items[m_currentBuybackSlot])
+        if (m_inventoryMgr.Slot(m_currentBuybackSlot))
         {
             m_currentBuybackSlot = slot;
         }

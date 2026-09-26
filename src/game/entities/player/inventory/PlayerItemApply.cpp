@@ -622,10 +622,10 @@ void Player::UpdateEquipSpellsAtFormChange()
 {
     for (int i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (m_items[i] && !m_items[i]->IsBroken())
+        if (m_inventoryMgr.Slot(i) && !m_inventoryMgr.Slot(i)->IsBroken())
         {
-            ApplyItemEquipSpell(m_items[i], false, true);   // remove spells that not fit to form
-            ApplyItemEquipSpell(m_items[i], true, true);    // add spells that fit form but not active
+            ApplyItemEquipSpell(m_inventoryMgr.Slot(i), false, true);   // remove spells that not fit to form
+            ApplyItemEquipSpell(m_inventoryMgr.Slot(i), true, true);    // add spells that fit form but not active
         }
     }
 
@@ -1040,9 +1040,9 @@ void Player::_RemoveAllItemMods()
 
     for (int i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (m_items[i])
+        if (m_inventoryMgr.Slot(i))
         {
-            ItemPrototype const* proto = m_items[i]->GetProto();
+            ItemPrototype const* proto = m_inventoryMgr.Slot(i)->GetProto();
             if (!proto)
             {
                 continue;
@@ -1054,25 +1054,25 @@ void Player::_RemoveAllItemMods()
                 RemoveItemsSetItem(this, proto);
             }
 
-            if (m_items[i]->IsBroken())
+            if (m_inventoryMgr.Slot(i)->IsBroken())
             {
                 continue;
             }
 
-            ApplyItemEquipSpell(m_items[i], false);
-            ApplyEnchantment(m_items[i], false);
+            ApplyItemEquipSpell(m_inventoryMgr.Slot(i), false);
+            ApplyEnchantment(m_inventoryMgr.Slot(i), false);
         }
     }
 
     for (int i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (m_items[i])
+        if (m_inventoryMgr.Slot(i))
         {
-            if (m_items[i]->IsBroken())
+            if (m_inventoryMgr.Slot(i)->IsBroken())
             {
                 continue;
             }
-            ItemPrototype const* proto = m_items[i]->GetProto();
+            ItemPrototype const* proto = m_inventoryMgr.Slot(i)->GetProto();
             if (!proto)
             {
                 continue;
@@ -1081,7 +1081,7 @@ void Player::_RemoveAllItemMods()
             uint32 attacktype = Player::GetAttackBySlot(i);
             if (attacktype < MAX_ATTACK)
             {
-                _ApplyWeaponDependentAuraMods(m_items[i], WeaponAttackType(attacktype), false);
+                _ApplyWeaponDependentAuraMods(m_inventoryMgr.Slot(i), WeaponAttackType(attacktype), false);
             }
 
             _ApplyItemBonuses(proto, i, false);
@@ -1105,14 +1105,14 @@ void Player::_ApplyAllItemMods()
 
     for (int i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (m_items[i])
+        if (m_inventoryMgr.Slot(i))
         {
-            if (m_items[i]->IsBroken())
+            if (m_inventoryMgr.Slot(i)->IsBroken())
             {
                 continue;
             }
 
-            ItemPrototype const* proto = m_items[i]->GetProto();
+            ItemPrototype const* proto = m_inventoryMgr.Slot(i)->GetProto();
             if (!proto)
             {
                 continue;
@@ -1121,7 +1121,7 @@ void Player::_ApplyAllItemMods()
             uint32 attacktype = Player::GetAttackBySlot(i);
             if (attacktype < MAX_ATTACK)
             {
-                _ApplyWeaponDependentAuraMods(m_items[i], WeaponAttackType(attacktype), true);
+                _ApplyWeaponDependentAuraMods(m_inventoryMgr.Slot(i), WeaponAttackType(attacktype), true);
             }
 
             _ApplyItemBonuses(proto, i, true);
@@ -1135,9 +1135,9 @@ void Player::_ApplyAllItemMods()
 
     for (int i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (m_items[i])
+        if (m_inventoryMgr.Slot(i))
         {
-            ItemPrototype const* proto = m_items[i]->GetProto();
+            ItemPrototype const* proto = m_inventoryMgr.Slot(i)->GetProto();
             if (!proto)
             {
                 continue;
@@ -1146,16 +1146,16 @@ void Player::_ApplyAllItemMods()
             // item set bonuses not dependent from item broken state
             if (proto->ItemSet)
             {
-                AddItemsSetItem(this, m_items[i]);
+                AddItemsSetItem(this, m_inventoryMgr.Slot(i));
             }
 
-            if (m_items[i]->IsBroken())
+            if (m_inventoryMgr.Slot(i)->IsBroken())
             {
                 continue;
             }
 
-            ApplyItemEquipSpell(m_items[i], true);
-            ApplyEnchantment(m_items[i], true);
+            ApplyItemEquipSpell(m_inventoryMgr.Slot(i), true);
+            ApplyEnchantment(m_inventoryMgr.Slot(i), true);
         }
     }
 
@@ -1166,14 +1166,14 @@ void Player::_ApplyAllLevelScaleItemMods(bool apply)
 {
     for (int i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (m_items[i])
+        if (m_inventoryMgr.Slot(i))
         {
-            if (m_items[i]->IsBroken())
+            if (m_inventoryMgr.Slot(i)->IsBroken())
             {
                 continue;
             }
 
-            ItemPrototype const* proto = m_items[i]->GetProto();
+            ItemPrototype const* proto = m_inventoryMgr.Slot(i)->GetProto();
             if (!proto)
             {
                 continue;

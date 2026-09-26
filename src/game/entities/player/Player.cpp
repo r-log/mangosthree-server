@@ -318,7 +318,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(this), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -374,8 +374,6 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(t
     m_nextSave = urand(m_nextSave / 2, m_nextSave * 3 / 2);
 
     clearResurrectRequestData();
-
-    memset(m_items, 0, sizeof(Item*)*PLAYER_SLOTS_COUNT);
 
     m_social = NULL;
 
@@ -557,7 +555,7 @@ Player::~Player()
     // Delete all items in the player's inventory
     for (int i = 0; i < PLAYER_SLOTS_COUNT; ++i)
     {
-        delete m_items[i];
+        delete m_inventoryMgr.Slot(i);
     }
 
     // Clean up communication channels
@@ -675,7 +673,7 @@ bool Player::Create(uint32 guidlow, const std::string& name, uint8 race, uint8 c
     // Initialize player items to NULL
     for (int i = 0; i < PLAYER_SLOTS_COUNT; ++i)
     {
-        m_items[i] = NULL;
+        m_inventoryMgr.SlotRef(i) = NULL;
     }
 
     // Set player's initial location
@@ -2086,9 +2084,9 @@ void Player::AddToWorld()
 
     for (int i = PLAYER_SLOT_START; i < PLAYER_SLOT_END; ++i)
     {
-        if (m_items[i])
+        if (m_inventoryMgr.Slot(i))
         {
-            m_items[i]->AddToWorld();
+            m_inventoryMgr.Slot(i)->AddToWorld();
         }
     }
 }
@@ -2100,9 +2098,9 @@ void Player::RemoveFromWorld()
 {
     for (int i = PLAYER_SLOT_START; i < PLAYER_SLOT_END; ++i)
     {
-        if (m_items[i])
+        if (m_inventoryMgr.Slot(i))
         {
-            m_items[i]->RemoveFromWorld();
+            m_inventoryMgr.Slot(i)->RemoveFromWorld();
         }
     }
 
@@ -3105,21 +3103,21 @@ void Player::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) c
     {
         for (int i = 0; i < EQUIPMENT_SLOT_END; ++i)
         {
-            if (m_items[i] == NULL)
+            if (m_inventoryMgr.Slot(i) == NULL)
             {
                 continue;
             }
 
-            m_items[i]->BuildCreateUpdateBlockForPlayer(data, target);
+            m_inventoryMgr.Slot(i)->BuildCreateUpdateBlockForPlayer(data, target);
         }
         for (int i = INVENTORY_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
         {
-            if (m_items[i] == NULL)
+            if (m_inventoryMgr.Slot(i) == NULL)
             {
                 continue;
             }
 
-            m_items[i]->BuildCreateUpdateBlockForPlayer(data, target);
+            m_inventoryMgr.Slot(i)->BuildCreateUpdateBlockForPlayer(data, target);
         }
     }
 
@@ -3137,24 +3135,24 @@ void Player::DestroyForPlayer(Player* target, bool anim) const
 
     for (int i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (m_items[i] == NULL)
+        if (m_inventoryMgr.Slot(i) == NULL)
         {
             continue;
         }
 
-        m_items[i]->DestroyForPlayer(target);
+        m_inventoryMgr.Slot(i)->DestroyForPlayer(target);
     }
 
     if (target == this)
     {
         for (int i = INVENTORY_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
         {
-            if (m_items[i] == NULL)
+            if (m_inventoryMgr.Slot(i) == NULL)
             {
                 continue;
             }
 
-            m_items[i]->DestroyForPlayer(target);
+            m_inventoryMgr.Slot(i)->DestroyForPlayer(target);
         }
     }
 }

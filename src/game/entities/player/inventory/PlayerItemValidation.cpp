@@ -88,7 +88,7 @@ InventoryResult Player::_CanTakeMoreSimilarItems(uint32 entry, uint32 count, Ite
 
         if (limitEntry->Flags == ITEM_LIMIT_CATEGORY_MODE_HAVE)
         {
-            uint32 curcount = GetItemCountWithLimitCategory(pProto->ItemLimitCategory, pItem);
+            uint32 curcount = m_inventoryMgr.GetItemCountWithLimitCategory(pProto->ItemLimitCategory, pItem);
 
             if (curcount + count > uint32(limitEntry->Quantity))
             {

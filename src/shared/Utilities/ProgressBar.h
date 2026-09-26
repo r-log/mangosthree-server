@@ -65,6 +65,9 @@ class BarGoLink
          */
         static void SetOutputState(bool on);
 
+        /// Whether bars are drawn: the state SetOutputState last set (true until then).
+        static bool GetOutputState() { return m_showOutput; }
+
         /**
          * @brief Console output sink for one fully-built bar redraw.
          *

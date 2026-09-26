@@ -55,12 +55,23 @@
  * Load() is start-up work -- three synchronous reads -- so it must first run OUTSIDE a
  * TickGuard::Scope, as the server's own start-up load does. Inside one it refuses (the
  * reads would count as tick violations, and abort under MANGOS_STRICT_TICK) and says so in
- * LoadRecord::failure. MakeItem and MakeBag call it, so call Load() before a scope that
- * makes the first item.
+ * LoadRecord::failure. Decoupling D4e1: it refuses as well while WorldDatabase already has
+ * connections attached -- a test's own fakes: the load attaches its fakes over them and
+ * detaches on the way out, which would leave that test's WorldDatabase detached. MakeItem
+ * and MakeBag call it, so call Load() before a scope, or before attaching fakes to
+ * WorldDatabase, in a case that makes its first item there. Both refusals are decided by
+ * RefuseLoad(). Load()'s own call to it only ever runs on a first load -- its record is a
+ * one-shot static, and once loaded Load() returns before asking -- so ItemFixtureTest drives
+ * RefuseLoad() directly, on fresh records.
+ *
+ * Decoupling D4e1 also adds the inventory side: Place() puts an item into an InventoryMgr the
+ * way the character's store does, and OwnedInventory deletes what its slots hold, as the
+ * character's destructor does. No character is involved.
  */
 
 #include "FakeDatabase.h"
 #include "Bag.h"
+#include "InventoryMgr.h"
 #include "Item.h"
 #include "ObjectGuid.h"
 
@@ -77,6 +88,9 @@ namespace ItemFixture
     const uint32 kRelicEntry   = 95004;     ///< quest item, unique (max count 1)
     const uint32 kBagEntry     = 95005;     ///< 16-slot general bag
     const uint32 kHerbBagEntry = 95006;     ///< 20-slot herb bag
+    const uint32 kGemEntry     = 95007;     ///< a red gem (GemProperties set), stacks to 20 (decoupling D4e1)
+    const uint32 kHelmEntry    = 95008;     ///< plate helm: three sockets, binds on pickup, a display id (D4e1)
+    const uint32 kManaGemEntry = 95009;     ///< limit category ITEM_LIMIT_CATEGORY_MANA_GEM, stacks to 1 (D4e1)
 
     /// The first guid low MakeItem / MakeBag hand out; each call takes the next one. No other
     /// test uses this range.
@@ -88,6 +102,15 @@ namespace ItemFixture
      * Every other column of the row is 0, and `description` is empty. Each field here is
      * non-zero in at least one declared row, so a row builder that put a value in the wrong
      * column would be caught reading it back.
+     *
+     * The fields after `bagFamily` were appended by decoupling D4e1; the six rows D4e0 declared
+     * are zero in them but for the masks below and the sword's display id. The last three rows
+     * are D4e1's: a gem, a socketed helm and a limit-category item, for the inventory golden
+     * table (src/tests/InventoryMgrTest.cpp). `allowableClass` / `allowableRace` are -1 (every
+     * class, every race; the columns are signed in the table and read as 0xFFFFFFFF) on the
+     * items a later table equips or banks as a bag -- the sword, the helm and the two bags --
+     * because Player::CanEquipItem and Player::CanBankItem pass them through CanUseItem, which
+     * refuses an item whose masks miss the character's; every other item keeps 0.
      */
     struct Prototype
     {
@@ -104,6 +127,13 @@ namespace ItemFixture
         uint32 bonding;
         uint32 maxDurability;
         uint32 bagFamily;
+        int32  allowableClass;          ///< column 16
+        int32  allowableRace;           ///< column 17
+        uint32 displayInfoId;           ///< column 5
+        uint32 socketColor[3];          ///< columns 126, 128, 130
+        uint32 socketContent[3];        ///< columns 127, 129, 131
+        uint32 gemProperties;           ///< column 133
+        uint32 itemLimitCategory;       ///< column 137
     };
 
     /// Every prototype the fixture loads, in row order.
@@ -127,6 +157,16 @@ namespace ItemFixture
     /// Loads sItemStorage from Prototypes() the first time it succeeds, and returns the record
     /// of that load on every call.
     LoadRecord const& Load();
+
+    /**
+     * @brief Whether a load must not run now, and why.
+     *
+     * True inside a TickGuard::Scope and while WorldDatabase has connections attached, with the
+     * reason written into `record.failure`; false otherwise, leaving `record` alone. Load() asks
+     * it before it loads, which happens only on a first load (the record is a one-shot static);
+     * it is public so a case can drive it directly, on a fresh record, at any point in the run.
+     */
+    bool RefuseLoad(LoadRecord& record);
 
     /// The next guid low of the fixture's range.
     uint32 NextGuidLow();
@@ -154,6 +194,54 @@ namespace ItemFixture
      * after Bag::RemoveItem.
      */
     std::unique_ptr<Bag> MakeBag(uint32 entry, ObjectGuid owner = ObjectGuid());
+
+    /**
+     * @brief Puts `item` into the empty position (`bag`, `slot`) of `inventory`, as the
+     *        character's store does, `owner` standing for the character's guid.
+     *
+     * It repeats the writes of Player::_StoreItem's empty-position branch (PlayerItemStorage.cpp)
+     * that land in the item, the bag or the slot array:
+     *  - the soulbound flag, for an item that binds on pickup, a quest item, and an item that
+     *    binds on equip put into a bag slot (InventoryMgr::IsBagPos);
+     *  - a position of the array (bag INVENTORY_SLOT_BAG_0): the slot takes the item, and the
+     *    item takes ITEM_FIELD_CONTAINED and ITEM_FIELD_OWNER = `owner`, its slot, and no
+     *    container;
+     *  - a position in a bag: Bag::StoreItem, which writes the bag's slot field and the item's
+     *    ITEM_FIELD_CONTAINED (the bag), ITEM_FIELD_OWNER (the bag's owner), container and slot.
+     * It leaves out what writes the character or its lists, none of which a lookup reads: the
+     * character's PLAYER_FIELD_INV_SLOT_HEAD field, the item's update state and the character's
+     * item update queue (SetState(ITEM_CHANGED, owner)), the bag's state likewise for a position
+     * in a bag (the bag's own SetState(ITEM_CHANGED, owner)), AddToWorld and the create packet
+     * (only in world), the enchantment and item duration lists, and the item's on-store spells.
+     * It leaves out SetCount(count) too: the item arrives with its count already set by MakeItem,
+     * which is what the store's `count` argument would write. And it leaves out the other
+     * branch -- merging into a stack already at the position, which deletes the item -- and
+     * cloning: the table places each item once, into an empty position.
+     *
+     * The position is checked here without the manager's lookups (they are what the table
+     * tests): an array position below the buyback slots, or a slot below the size of a bag
+     * that sits in one of the four bag slots or the seven bank bag slots; and it must be empty.
+     * The inventory owns the item from then on (see OwnedInventory). Returns the placed item,
+     * or NULL -- the item deleted -- for a position that fails the check.
+     */
+    Item* Place(InventoryMgr& inventory, uint8 bag, uint8 slot, std::unique_ptr<Item> item, ObjectGuid owner);
+
+    /**
+     * @brief An InventoryMgr whose items are deleted with it.
+     *
+     * The manager does not own what its slots hold; the character does, and its destructor
+     * deletes every slot's item (a bag deletes its own contents in turn). This does the same.
+     */
+    struct OwnedInventory
+    {
+        OwnedInventory() {}
+        ~OwnedInventory();
+
+        OwnedInventory(OwnedInventory const&) = delete;
+        OwnedInventory& operator=(OwnedInventory const&) = delete;
+
+        InventoryMgr mgr;
+    };
 }
 
 #endif

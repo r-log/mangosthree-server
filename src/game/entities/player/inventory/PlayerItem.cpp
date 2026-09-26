@@ -147,19 +147,7 @@ uint8 Player::FindEquipSlot(ItemPrototype const* proto, uint32 slot, bool swap) 
  */
 bool Player::IsInventoryPos(uint8 bag, uint8 slot)
 {
-    if (bag == INVENTORY_SLOT_BAG_0 && slot == NULL_SLOT)
-    {
-        return true;
-    }
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= INVENTORY_SLOT_ITEM_START && slot < INVENTORY_SLOT_ITEM_END))
-    {
-        return true;
-    }
-    if (bag >= INVENTORY_SLOT_BAG_START && bag < INVENTORY_SLOT_BAG_END)
-    {
-        return true;
-    }
-    return false;
+    return InventoryMgr::IsInventoryPos(bag, slot);
 }
 
 /**
@@ -171,15 +159,7 @@ bool Player::IsInventoryPos(uint8 bag, uint8 slot)
  */
 bool Player::IsEquipmentPos(uint8 bag, uint8 slot)
 {
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot < EQUIPMENT_SLOT_END))
-    {
-        return true;
-    }
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= INVENTORY_SLOT_BAG_START && slot < INVENTORY_SLOT_BAG_END))
-    {
-        return true;
-    }
-    return false;
+    return InventoryMgr::IsEquipmentPos(bag, slot);
 }
 
 /**
@@ -191,19 +171,7 @@ bool Player::IsEquipmentPos(uint8 bag, uint8 slot)
  */
 bool Player::IsBankPos(uint8 bag, uint8 slot)
 {
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= BANK_SLOT_ITEM_START && slot < BANK_SLOT_ITEM_END))
-    {
-        return true;
-    }
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= BANK_SLOT_BAG_START && slot < BANK_SLOT_BAG_END))
-    {
-        return true;
-    }
-    if (bag >= BANK_SLOT_BAG_START && bag < BANK_SLOT_BAG_END)
-    {
-        return true;
-    }
-    return false;
+    return InventoryMgr::IsBankPos(bag, slot);
 }
 
 /**
@@ -214,17 +182,7 @@ bool Player::IsBankPos(uint8 bag, uint8 slot)
  */
 bool Player::IsBagPos(uint16 pos)
 {
-    uint8 bag = pos >> 8;
-    uint8 slot = pos & 255;
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= INVENTORY_SLOT_BAG_START && slot < INVENTORY_SLOT_BAG_END))
-    {
-        return true;
-    }
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= BANK_SLOT_BAG_START && slot < BANK_SLOT_BAG_END))
-    {
-        return true;
-    }
-    return false;
+    return InventoryMgr::IsBagPos(pos);
 }
 
 /**
@@ -237,91 +195,7 @@ bool Player::IsBagPos(uint16 pos)
  */
 bool Player::IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const
 {
-    // post selected
-    if (bag == NULL_BAG && !explicit_pos)
-    {
-        return true;
-    }
-
-    if (bag == INVENTORY_SLOT_BAG_0)
-    {
-        // any post selected
-        if (slot == NULL_SLOT && !explicit_pos)
-        {
-            return true;
-        }
-
-        // equipment
-        if (slot < EQUIPMENT_SLOT_END)
-        {
-            return true;
-        }
-
-        // bag equip slots
-        if (slot >= INVENTORY_SLOT_BAG_START && slot < INVENTORY_SLOT_BAG_END)
-        {
-            return true;
-        }
-
-        // backpack slots
-        if (slot >= INVENTORY_SLOT_ITEM_START && slot < INVENTORY_SLOT_ITEM_END)
-        {
-            return true;
-        }
-
-        // bank main slots
-        if (slot >= BANK_SLOT_ITEM_START && slot < BANK_SLOT_ITEM_END)
-        {
-            return true;
-        }
-
-        // bank bag slots
-        if (slot >= BANK_SLOT_BAG_START && slot < BANK_SLOT_BAG_END)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    // bag content slots
-    if (bag >= INVENTORY_SLOT_BAG_START && bag < INVENTORY_SLOT_BAG_END)
-    {
-        Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag);
-        if (!pBag)
-        {
-            return false;
-        }
-
-        // any post selected
-        if (slot == NULL_SLOT && !explicit_pos)
-        {
-            return true;
-        }
-
-        return slot < pBag->GetBagSize();
-    }
-
-    // bank bag content slots
-    if (bag >= BANK_SLOT_BAG_START && bag < BANK_SLOT_BAG_END)
-    {
-        Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag);
-        if (!pBag)
-        {
-            return false;
-        }
-
-        // any post selected
-        if (slot == NULL_SLOT && !explicit_pos)
-        {
-            return true;
-        }
-
-        return slot < pBag->GetBagSize();
-    }
-
-    // where this?
-    return false;
+    return m_inventoryMgr.IsValidPos(bag, slot, explicit_pos);
 }
 
 /**
@@ -334,73 +208,7 @@ bool Player::IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const
  */
 bool Player::HasItemCount(uint32 item, uint32 count, bool inBankAlso) const
 {
-    uint32 tempcount = 0;
-    for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-    {
-        Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-        if (pItem && pItem->GetEntry() == item && !pItem->IsInTrade())
-        {
-            tempcount += pItem->GetCount();
-            if (tempcount >= count)
-            {
-                return true;
-            }
-        }
-    }
-    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-    {
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-        {
-            for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
-            {
-                Item* pItem = GetItemByPos(i, j);
-                if (pItem && pItem->GetEntry() == item && !pItem->IsInTrade())
-                {
-                    tempcount += pItem->GetCount();
-                    if (tempcount >= count)
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-
-    if (inBankAlso)
-    {
-        for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
-        {
-            Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-            if (pItem && pItem->GetEntry() == item && !pItem->IsInTrade())
-            {
-                tempcount += pItem->GetCount();
-                if (tempcount >= count)
-                {
-                    return true;
-                }
-            }
-        }
-        for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
-        {
-            if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            {
-                for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
-                {
-                    Item* pItem = GetItemByPos(i, j);
-                    if (pItem && pItem->GetEntry() == item && !pItem->IsInTrade())
-                    {
-                        tempcount += pItem->GetCount();
-                        if (tempcount >= count)
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return false;
+    return m_inventoryMgr.HasItemCount(item, count, inBankAlso);
 }
 
 bool Player::HasItemOrGemWithIdEquipped(uint32 item, uint32 count, uint8 except_slot) const

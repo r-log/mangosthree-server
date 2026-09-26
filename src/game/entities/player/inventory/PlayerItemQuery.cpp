@@ -308,102 +308,7 @@ InventoryResult Player::CanUnequipItems(uint32 item, uint32 count) const
  */
 uint32 Player::GetItemCount(uint32 item, bool inBankAlso, Item* skipItem) const
 {
-    uint32 count = 0;
-    for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-    {
-        Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-        if (pItem && pItem != skipItem &&  pItem->GetEntry() == item)
-        {
-            count += pItem->GetCount();
-        }
-    }
-    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-    {
-        Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-        if (pBag)
-        {
-            count += pBag->GetItemCount(item, skipItem);
-        }
-    }
-
-    if (skipItem && skipItem->GetProto()->GemProperties)
-    {
-        for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        {
-            Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-            if (pItem && pItem != skipItem && pItem->GetProto()->Socket[0].Color)
-            {
-                count += pItem->GetGemCountWithID(item);
-            }
-        }
-    }
-
-    if (inBankAlso)
-    {
-        for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
-        {
-            Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-            if (pItem && pItem != skipItem && pItem->GetEntry() == item)
-            {
-                count += pItem->GetCount();
-            }
-        }
-        for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
-        {
-            Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-            if (pBag)
-            {
-                count += pBag->GetItemCount(item, skipItem);
-            }
-        }
-
-        if (skipItem && skipItem->GetProto()->GemProperties)
-        {
-            for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
-            {
-                Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-                if (pItem && pItem != skipItem && pItem->GetProto()->Socket[0].Color)
-                {
-                    count += pItem->GetGemCountWithID(item);
-                }
-            }
-        }
-    }
-
-    return count;
-}
-
-
-uint32 Player::GetItemCountWithLimitCategory(uint32 limitCategory, Item* skipItem) const
-{
-    uint32 count = 0;
-    for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (pItem->GetProto()->ItemLimitCategory == limitCategory && pItem != skipItem)
-            {
-                count += pItem->GetCount();
-            }
-
-    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-        {
-            count += pBag->GetItemCountWithLimitCategory(limitCategory, skipItem);
-        }
-
-    for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (pItem->GetProto()->ItemLimitCategory == limitCategory && pItem != skipItem)
-            {
-                count += pItem->GetCount();
-            }
-
-    for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-        {
-            count += pBag->GetItemCountWithLimitCategory(limitCategory, skipItem);
-        }
-
-    return count;
+    return m_inventoryMgr.GetItemCount(item, inBankAlso, skipItem);
 }
 
 /**
@@ -414,41 +319,13 @@ uint32 Player::GetItemCountWithLimitCategory(uint32 limitCategory, Item* skipIte
  */
 Item* Player::GetItemByEntry(uint32 item) const
 {
-    for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (pItem->GetEntry() == item)
-            {
-                return pItem;
-            }
-
-    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (Item* itemPtr = pBag->GetItemByEntry(item))
-            {
-                return itemPtr;
-            }
-
-    return NULL;
+    return m_inventoryMgr.GetItemByEntry(item);
 }
 
 
 Item* Player::GetItemByLimitedCategory(uint32 limitedCategory) const
 {
-    for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (pItem->GetProto()->ItemLimitCategory == limitedCategory)
-            {
-                return pItem;
-            }
-
-    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (Item* itemPtr = pBag->GetItemByLimitedCategory(limitedCategory))
-            {
-                return itemPtr;
-            }
-
-    return NULL;
+    return m_inventoryMgr.GetItemByLimitedCategory(limitedCategory);
 }
 
 /**
@@ -459,39 +336,7 @@ Item* Player::GetItemByLimitedCategory(uint32 limitedCategory) const
  */
 Item* Player::GetItemByGuid(ObjectGuid guid) const
 {
-    for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (pItem->GetObjectGuid() == guid)
-            {
-                return pItem;
-            }
-
-    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
-                if (Item* pItem = pBag->GetItemByPos(j))
-                    if (pItem->GetObjectGuid() == guid)
-                    {
-                        return pItem;
-                    }
-
-    for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (pItem->GetObjectGuid() == guid)
-            {
-                return pItem;
-            }
-
-    for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
-                if (Item* pItem = pBag->GetItemByPos(j))
-                    if (pItem->GetObjectGuid() == guid)
-                    {
-                        return pItem;
-                    }
-
-    return NULL;
+    return m_inventoryMgr.GetItemByGuid(guid);
 }
 
 /**
@@ -502,9 +347,7 @@ Item* Player::GetItemByGuid(ObjectGuid guid) const
  */
 Item* Player::GetItemByPos(uint16 pos) const
 {
-    uint8 bag = pos >> 8;
-    uint8 slot = pos & 255;
-    return GetItemByPos(bag, slot);
+    return m_inventoryMgr.GetItemByPos(pos);
 }
 
 /**
@@ -516,33 +359,13 @@ Item* Player::GetItemByPos(uint16 pos) const
  */
 Item* Player::GetItemByPos(uint8 bag, uint8 slot) const
 {
-    if (bag == INVENTORY_SLOT_BAG_0 && slot < BANK_SLOT_BAG_END)
-    {
-        return m_items[slot];
-    }
-    else if ((bag >= INVENTORY_SLOT_BAG_START && bag < INVENTORY_SLOT_BAG_END)
-             || (bag >= BANK_SLOT_BAG_START && bag < BANK_SLOT_BAG_END))
-    {
-        Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag);
-        if (pBag)
-        {
-            return pBag->GetItemByPos(slot);
-        }
-    }
-    return NULL;
+    return m_inventoryMgr.GetItemByPos(bag, slot);
 }
 
 
 uint32 Player::GetItemDisplayIdInSlot(uint8 bag, uint8 slot) const
 {
-    const Item* pItem = GetItemByPos(bag, slot);
-
-    if (!pItem)
-    {
-        return 0;
-    }
-
-    return pItem->GetProto()->DisplayInfoID;
+    return m_inventoryMgr.GetItemDisplayIdInSlot(bag, slot);
 }
 
 /**

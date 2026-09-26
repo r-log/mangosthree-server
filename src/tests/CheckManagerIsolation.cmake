@@ -76,6 +76,8 @@ set(MANAGER_FILES
     entities/player/quests/QuestStatusMgr.cpp               # decoupling D4a
     entities/player/talents/TalentMgr.h                     # decoupling D4c
     entities/player/talents/TalentMgr.cpp                   # decoupling D4c
+    entities/player/inventory/InventoryMgr.h                # decoupling D4e1
+    entities/player/inventory/InventoryMgr.cpp              # decoupling D4e1
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.

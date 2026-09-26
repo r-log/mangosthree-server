@@ -88,6 +88,7 @@ set(SRC_GRP_TESTS
     ItemFixture.h
     ItemFixture.cpp
     ItemFixtureTest.cpp
+    InventoryMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)
