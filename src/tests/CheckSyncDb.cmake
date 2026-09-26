@@ -23,18 +23,18 @@ endif()
 # Repo-relative paths. Later PRs append one line per converted file.
 set(CONVERTED_FILES
     src/game/WorldHandlers/PetitionsHandler.cpp             # decoupling D7b
-    src/game/Object/PlayerDbLookup.cpp                      # decoupling D7c
+    src/game/entities/player/persistence/PlayerDbLookup.cpp # decoupling D7c
     src/game/Object/ObjectMgr.cpp                           # decoupling D7c
     src/game/WorldHandlers/CharacterHandler.cpp             # decoupling D7d
     src/game/WorldHandlers/CharacterHandlerCustomize.cpp    # decoupling D7d
-    src/game/Object/Player.cpp                              # decoupling D7d
+    src/game/entities/player/Player.cpp                     # decoupling D7d
     src/game/Object/PetDatabase.cpp                         # decoupling D7e
     src/game/Object/PetSpells.cpp                           # decoupling D7e
     src/game/WorldHandlers/NPCHandler.cpp                   # decoupling D7e
     src/game/WorldHandlers/SpellChecks.cpp                  # decoupling D7e
     src/game/Object/Guild.cpp                               # decoupling D7f
     src/game/Object/GuildRank.cpp                           # decoupling D7f
-    src/game/Object/PlayerBattleGround.cpp                  # decoupling D7f
+    src/game/entities/player/pvp/PlayerBattleGround.cpp     # decoupling D7f
     src/game/WorldHandlers/CalendarHandler.cpp              # decoupling D7g
     src/game/Object/Calendar.cpp                            # decoupling D7g
     src/game/WorldHandlers/Mail.cpp                         # decoupling D7g
@@ -53,15 +53,15 @@ set(CONVERTED_FILES
     src/game/WorldHandlers/PetHandler.cpp                   # decoupling D7i
     src/game/WorldHandlers/MiscHandlerSocial.cpp            # decoupling D7i
     src/game/WorldHandlers/MiscHandler.cpp                  # decoupling D7i
-    src/game/Object/SocialMgr.cpp                           # decoupling D7i
+    src/game/entities/player/social/SocialMgr.cpp           # decoupling D7i
     src/game/Object/GMTicketMgr.cpp                         # decoupling D7i
     src/game/Object/AuctionHouseMgr.cpp                     # decoupling D7i
     src/game/WorldHandlers/AccountMgr.cpp                   # decoupling D7i
     src/game/ChatCommands/AccountCommands.cpp               # decoupling D7i
-    src/game/entities/player/QuestStatusMgr.h               # decoupling D4a
-    src/game/entities/player/QuestStatusMgr.cpp             # decoupling D4a
-    src/game/entities/player/TalentMgr.h                    # decoupling D4c
-    src/game/entities/player/TalentMgr.cpp                  # decoupling D4c
+    src/game/entities/player/quests/QuestStatusMgr.h        # decoupling D4a
+    src/game/entities/player/quests/QuestStatusMgr.cpp      # decoupling D4a
+    src/game/entities/player/talents/TalentMgr.h            # decoupling D4c
+    src/game/entities/player/talents/TalentMgr.cpp          # decoupling D4c
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
