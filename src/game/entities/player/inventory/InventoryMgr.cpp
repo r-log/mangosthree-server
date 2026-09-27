@@ -25,6 +25,7 @@
 
 #include "InventoryMgr.h"
 #include "Bag.h"
+#include "DBCStructure.h"   // ItemLimitCategoryEntry: the row the limit-category lookup answers
 #include "Item.h"
 #include "Log.h"
 
@@ -564,4 +565,954 @@ bool InventoryMgr::HasItemCount(uint32 item, uint32 count, bool inBankAlso) cons
     }
 
     return false;
+}
+
+// Decoupling D4e2: the storage checks, moved here from the character object's
+// PlayerItemValidation.cpp. Each body is the old one with three calls turned into the
+// parameters the header describes -- the binding check, the item template and the limit
+// category row -- and the owner's own forwarders called here directly (GetItemByPos,
+// GetItemCount, GetItemCountWithLimitCategory, and the inline CanTakeMoreSimilarItems(item),
+// which was _CanTakeMoreSimilarItems of the item's entry and count). The same slots are read
+// in the same order, and each callable runs where the call it replaces ran.
+
+/**
+ * @brief Checks whether this item position entry exists in a vector of positions.
+ *
+ * @param vec The vector of item positions to search.
+ * @return True if an entry with the same position exists; otherwise, false.
+ */
+bool ItemPosCount::isContainedIn(ItemPosCountVec const& vec) const
+{
+    for (ItemPosCountVec::const_iterator itr = vec.begin(); itr != vec.end(); ++itr)
+        if (itr->pos == pos)
+        {
+            return true;
+        }
+
+    return false;
+}
+
+/**
+ * @brief Checks whether the character can carry more copies of a limited item.
+ *
+ * @param entry The item entry to evaluate.
+ * @param count The additional quantity to add.
+ * @param pItem An item instance to exclude from current ownership checks.
+ * @param no_space_count Optional output for the quantity that exceeds the limit.
+ * @return The inventory result describing the carry-limit check.
+ */
+InventoryResult InventoryMgr::_CanTakeMoreSimilarItems(uint32 entry, uint32 count, Item* pItem, uint32* no_space_count,
+                                                       std::function<ItemPrototype const*(uint32)> const& itemPrototype,
+                                                       std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory) const
+{
+    ItemPrototype const* pProto = itemPrototype(entry);
+    if (!pProto)
+    {
+        if (no_space_count)
+        {
+            *no_space_count = count;
+        }
+        return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+    }
+
+    // no maximum
+    if (pProto->MaxCount > 0)
+    {
+        uint32 curcount = GetItemCount(pProto->ItemId, true, pItem);
+
+        if (curcount + count > uint32(pProto->MaxCount))
+        {
+            if (no_space_count)
+            {
+                *no_space_count = count + curcount - pProto->MaxCount;
+            }
+            return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+        }
+    }
+
+    // check unique-equipped limit
+    if (pProto->ItemLimitCategory)
+    {
+        ItemLimitCategoryEntry const* limitEntry = limitCategory(pProto->ItemLimitCategory);
+        if (!limitEntry)
+        {
+            if (no_space_count)
+            {
+                *no_space_count = count;
+            }
+            return EQUIP_ERR_ITEM_CANT_BE_EQUIPPED;
+        }
+
+        if (limitEntry->Flags == ITEM_LIMIT_CATEGORY_MODE_HAVE)
+        {
+            uint32 curcount = GetItemCountWithLimitCategory(pProto->ItemLimitCategory, pItem);
+
+            if (curcount + count > uint32(limitEntry->Quantity))
+            {
+                if (no_space_count)
+                {
+                    *no_space_count = count + curcount - limitEntry->Quantity;
+                }
+                return EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED_IS;
+            }
+        }
+    }
+
+    return EQUIP_ERR_OK;
+}
+
+/**
+ * @brief Checks whether item count can be stored in a specific slot.
+ *
+ * @param bag The destination bag identifier.
+ * @param slot The destination slot identifier.
+ * @param dest The accumulated destination positions.
+ * @param pProto The item prototype being stored.
+ * @param count The remaining quantity to place.
+ * @param swap True to allow occupying an already used slot.
+ * @param pSrcItem The source item being moved.
+ * @return The inventory result for the slot check.
+ */
+InventoryResult InventoryMgr::_CanStoreItem_InSpecificSlot(uint8 bag, uint8 slot, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool swap, Item* pSrcItem) const
+{
+    Item* pItem2 = GetItemByPos(bag, slot);
+
+    // ignore move item (this slot will be empty at move)
+    if (pItem2 == pSrcItem)
+    {
+        pItem2 = NULL;
+    }
+
+    uint32 need_space;
+
+    // empty specific slot - check item fit to slot
+    if (!pItem2 || swap)
+    {
+        if (bag == INVENTORY_SLOT_BAG_0)
+        {
+            // prevent cheating
+            if ((slot >= BUYBACK_SLOT_START && slot < BUYBACK_SLOT_END) || slot >= PLAYER_SLOT_END)
+            {
+                return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+            }
+        }
+        else
+        {
+            Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag);
+            if (!pBag)
+            {
+                return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+            }
+
+            ItemPrototype const* pBagProto = pBag->GetProto();
+            if (!pBagProto)
+            {
+                return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+            }
+
+            if (slot >= pBagProto->ContainerSlots)
+            {
+                return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+            }
+
+            if (!ItemCanGoIntoBag(pProto, pBagProto))
+            {
+                return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+            }
+        }
+
+        // non empty stack with space
+        need_space = pProto->GetMaxStackSize();
+    }
+    // non empty slot, check item type
+    else
+    {
+        // can be merged at least partly
+        InventoryResult res  = pItem2->CanBeMergedPartlyWith(pProto);
+        if (res != EQUIP_ERR_OK)
+        {
+            return res;
+        }
+
+        // free stack space or infinity
+        need_space = pProto->GetMaxStackSize() - pItem2->GetCount();
+    }
+
+    if (need_space > count)
+    {
+        need_space = count;
+    }
+
+    ItemPosCount newPosition = ItemPosCount((bag << 8) | slot, need_space);
+    if (!newPosition.isContainedIn(dest))
+    {
+        dest.push_back(newPosition);
+        count -= need_space;
+    }
+    return EQUIP_ERR_OK;
+}
+
+/**
+ * @brief Searches a bag for valid storage positions for an item.
+ *
+ * @param bag The bag identifier to search.
+ * @param dest The accumulated destination positions.
+ * @param pProto The item prototype being stored.
+ * @param count The remaining quantity to place.
+ * @param merge True to search existing stacks; false to search empty slots.
+ * @param non_specialized True to restrict search to plain containers.
+ * @param pSrcItem The source item being moved.
+ * @param skip_bag A bag identifier to skip.
+ * @param skip_slot A slot identifier to skip.
+ * @return The inventory result for the bag search.
+ */
+InventoryResult InventoryMgr::_CanStoreItem_InBag(uint8 bag, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool merge, bool non_specialized, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const
+{
+    // skip specific bag already processed in first called _CanStoreItem_InBag
+    if (bag == skip_bag)
+    {
+        return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+    }
+
+    // skip nonexistent bag or self targeted bag
+    Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag);
+    if (!pBag || pBag == pSrcItem)
+    {
+        return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+    }
+
+    ItemPrototype const* pBagProto = pBag->GetProto();
+    if (!pBagProto)
+    {
+        return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+    }
+
+    // specialized bag mode or non-specilized
+    if (non_specialized != (pBagProto->Class == ITEM_CLASS_CONTAINER && pBagProto->SubClass == ITEM_SUBCLASS_CONTAINER))
+    {
+        return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+    }
+
+    if (!ItemCanGoIntoBag(pProto, pBagProto))
+    {
+        return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+    }
+
+    for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+    {
+        // skip specific slot already processed in first called _CanStoreItem_InSpecificSlot
+        if (j == skip_slot)
+        {
+            continue;
+        }
+
+        Item* pItem2 = GetItemByPos(bag, j);
+
+        // ignore move item (this slot will be empty at move)
+        if (pItem2 == pSrcItem)
+        {
+            pItem2 = NULL;
+        }
+
+        // if merge skip empty, if !merge skip non-empty
+        if ((pItem2 != NULL) != merge)
+        {
+            continue;
+        }
+
+        uint32 need_space = pProto->GetMaxStackSize();
+
+        if (pItem2)
+        {
+            // can be merged at least partly
+            uint8 res  = pItem2->CanBeMergedPartlyWith(pProto);
+            if (res != EQUIP_ERR_OK)
+            {
+                continue;
+            }
+
+            // decrease at current stacksize
+            need_space -= pItem2->GetCount();
+        }
+
+        if (need_space > count)
+        {
+            need_space = count;
+        }
+
+        ItemPosCount newPosition = ItemPosCount((bag << 8) | j, need_space);
+        if (!newPosition.isContainedIn(dest))
+        {
+            dest.push_back(newPosition);
+            count -= need_space;
+
+            if (count == 0)
+            {
+                return EQUIP_ERR_OK;
+            }
+        }
+    }
+    return EQUIP_ERR_OK;
+}
+
+/**
+ * @brief Searches a range of inventory slots for valid storage positions.
+ *
+ * @param slot_begin The first slot in the search range.
+ * @param slot_end One past the last slot in the search range.
+ * @param dest The accumulated destination positions.
+ * @param pProto The item prototype being stored.
+ * @param count The remaining quantity to place.
+ * @param merge True to search existing stacks; false to search empty slots.
+ * @param pSrcItem The source item being moved.
+ * @param skip_bag A bag identifier to skip.
+ * @param skip_slot A slot identifier to skip.
+ * @return The inventory result for the slot-range search.
+ */
+InventoryResult InventoryMgr::_CanStoreItem_InInventorySlots(uint8 slot_begin, uint8 slot_end, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool merge, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const
+{
+    for (uint32 j = slot_begin; j < slot_end; ++j)
+    {
+        // skip specific slot already processed in first called _CanStoreItem_InSpecificSlot
+        if (INVENTORY_SLOT_BAG_0 == skip_bag && j == skip_slot)
+        {
+            continue;
+        }
+
+        Item* pItem2 = GetItemByPos(INVENTORY_SLOT_BAG_0, j);
+
+        // ignore move item (this slot will be empty at move)
+        if (pItem2 == pSrcItem)
+        {
+            pItem2 = NULL;
+        }
+
+        // if merge skip empty, if !merge skip non-empty
+        if ((pItem2 != NULL) != merge)
+        {
+            continue;
+        }
+
+        uint32 need_space = pProto->GetMaxStackSize();
+
+        if (pItem2)
+        {
+            // can be merged at least partly
+            uint8 res  = pItem2->CanBeMergedPartlyWith(pProto);
+            if (res != EQUIP_ERR_OK)
+            {
+                continue;
+            }
+
+            // descrease at current stacksize
+            need_space -= pItem2->GetCount();
+        }
+
+        if (need_space > count)
+        {
+            need_space = count;
+        }
+
+        ItemPosCount newPosition = ItemPosCount((INVENTORY_SLOT_BAG_0 << 8) | j, need_space);
+        if (!newPosition.isContainedIn(dest))
+        {
+            dest.push_back(newPosition);
+            count -= need_space;
+
+            if (count == 0)
+            {
+                return EQUIP_ERR_OK;
+            }
+        }
+    }
+    return EQUIP_ERR_OK;
+}
+
+/**
+ * @brief Computes valid destinations for storing an item stack in inventory.
+ *
+ * @param bag The preferred destination bag, or NULL_BAG for auto-placement.
+ * @param slot The preferred destination slot, or NULL_SLOT for auto-placement.
+ * @param dest The accumulated destination positions.
+ * @param entry The item entry being stored.
+ * @param count The quantity to store.
+ * @param pItem The source item being moved.
+ * @param swap True to allow swapping with occupied slots.
+ * @param no_space_count Optional output for the quantity that could not be placed.
+ * @return The inventory result for the storage search.
+ */
+InventoryResult InventoryMgr::_CanStoreItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, uint32 entry, uint32 count, Item* pItem, bool swap, uint32* no_space_count,
+                                            std::function<bool(Item const*)> const& isBoundElsewhere,
+                                            std::function<ItemPrototype const*(uint32)> const& itemPrototype,
+                                            std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory) const
+{
+    DEBUG_LOG("STORAGE: CanStoreItem bag = %u, slot = %u, item = %u, count = %u", bag, slot, entry, count);
+
+    ItemPrototype const* pProto = itemPrototype(entry);
+    if (!pProto)
+    {
+        if (no_space_count)
+        {
+            *no_space_count = count;
+        }
+        return swap ? EQUIP_ERR_ITEMS_CANT_BE_SWAPPED : EQUIP_ERR_ITEM_NOT_FOUND;
+    }
+
+    if (pItem)
+    {
+        // item used
+        if (pItem->HasTemporaryLoot())
+        {
+            if (no_space_count)
+            {
+                *no_space_count = count;
+            }
+            return EQUIP_ERR_ALREADY_LOOTED;
+        }
+
+        if (isBoundElsewhere(pItem))
+        {
+            if (no_space_count)
+            {
+                *no_space_count = count;
+            }
+            return EQUIP_ERR_DONT_OWN_THAT_ITEM;
+        }
+    }
+
+    // check count of items (skip for auto move for same character from bank)
+    uint32 no_similar_count = 0;                            // can't store this amount similar items
+    InventoryResult res = _CanTakeMoreSimilarItems(entry, count, pItem, &no_similar_count, itemPrototype, limitCategory);
+    if (res != EQUIP_ERR_OK)
+    {
+        if (count == no_similar_count)
+        {
+            if (no_space_count)
+            {
+                *no_space_count = no_similar_count;
+            }
+            return res;
+        }
+        count -= no_similar_count;
+    }
+
+    // in specific slot
+    if (bag != NULL_BAG && slot != NULL_SLOT)
+    {
+        res = _CanStoreItem_InSpecificSlot(bag, slot, dest, pProto, count, swap, pItem);
+        if (res != EQUIP_ERR_OK)
+        {
+            if (no_space_count)
+            {
+                *no_space_count = count + no_similar_count;
+            }
+            return res;
+        }
+
+        if (count == 0)
+        {
+            if (no_similar_count == 0)
+            {
+                return EQUIP_ERR_OK;
+            }
+
+            if (no_space_count)
+            {
+                *no_space_count = count + no_similar_count;
+            }
+            return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+        }
+    }
+
+    // not specific slot or have space for partly store only in specific slot
+
+    // in specific bag
+    if (bag != NULL_BAG)
+    {
+        // search stack in bag for merge to
+        if (pProto->Stackable != 1)
+        {
+            if (bag == INVENTORY_SLOT_BAG_0)               // inventory
+            {
+                res = _CanStoreItem_InInventorySlots(INVENTORY_SLOT_ITEM_START, INVENTORY_SLOT_ITEM_END, dest, pProto, count, true, pItem, bag, slot);
+                if (res != EQUIP_ERR_OK)
+                {
+                    if (no_space_count)
+                    {
+                        *no_space_count = count + no_similar_count;
+                    }
+                    return res;
+                }
+
+                if (count == 0)
+                {
+                    if (no_similar_count == 0)
+                    {
+                        return EQUIP_ERR_OK;
+                    }
+
+                    if (no_space_count)
+                    {
+                        *no_space_count = count + no_similar_count;
+                    }
+                    return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+                }
+            }
+            else                                            // equipped bag
+            {
+                // we need check 2 time (specialized/non_specialized), use NULL_BAG to prevent skipping bag
+                res = _CanStoreItem_InBag(bag, dest, pProto, count, true, false, pItem, NULL_BAG, slot);
+                if (res != EQUIP_ERR_OK)
+                {
+                    res = _CanStoreItem_InBag(bag, dest, pProto, count, true, true, pItem, NULL_BAG, slot);
+                }
+
+                if (res != EQUIP_ERR_OK)
+                {
+                    if (no_space_count)
+                    {
+                        *no_space_count = count + no_similar_count;
+                    }
+                    return res;
+                }
+
+                if (count == 0)
+                {
+                    if (no_similar_count == 0)
+                    {
+                        return EQUIP_ERR_OK;
+                    }
+
+                    if (no_space_count)
+                    {
+                        *no_space_count = count + no_similar_count;
+                    }
+                    return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+                }
+            }
+        }
+
+        // search free slot in bag for place to
+        if (bag == INVENTORY_SLOT_BAG_0)                    // inventory
+        {
+            res = _CanStoreItem_InInventorySlots(INVENTORY_SLOT_ITEM_START, INVENTORY_SLOT_ITEM_END, dest, pProto, count, false, pItem, bag, slot);
+            if (res != EQUIP_ERR_OK)
+            {
+                if (no_space_count)
+                {
+                    *no_space_count = count + no_similar_count;
+                }
+                return res;
+            }
+
+            if (count == 0)
+            {
+                if (no_similar_count == 0)
+                {
+                    return EQUIP_ERR_OK;
+                }
+
+                if (no_space_count)
+                {
+                    *no_space_count = count + no_similar_count;
+                }
+                return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+            }
+        }
+        else                                                // equipped bag
+        {
+            res = _CanStoreItem_InBag(bag, dest, pProto, count, false, false, pItem, NULL_BAG, slot);
+            if (res != EQUIP_ERR_OK)
+            {
+                res = _CanStoreItem_InBag(bag, dest, pProto, count, false, true, pItem, NULL_BAG, slot);
+            }
+
+            if (res != EQUIP_ERR_OK)
+            {
+                if (no_space_count)
+                {
+                    *no_space_count = count + no_similar_count;
+                }
+                return res;
+            }
+
+            if (count == 0)
+            {
+                if (no_similar_count == 0)
+                {
+                    return EQUIP_ERR_OK;
+                }
+
+                if (no_space_count)
+                {
+                    *no_space_count = count + no_similar_count;
+                }
+                return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+            }
+        }
+    }
+
+    // not specific bag or have space for partly store only in specific bag
+
+    // search stack for merge to
+    if (pProto->Stackable != 1)
+    {
+        res = _CanStoreItem_InInventorySlots(INVENTORY_SLOT_ITEM_START, INVENTORY_SLOT_ITEM_END, dest, pProto, count, true, pItem, bag, slot);
+        if (res != EQUIP_ERR_OK)
+        {
+            if (no_space_count)
+            {
+                *no_space_count = count + no_similar_count;
+            }
+            return res;
+        }
+
+        if (count == 0)
+        {
+            if (no_similar_count == 0)
+            {
+                return EQUIP_ERR_OK;
+            }
+
+            if (no_space_count)
+            {
+                *no_space_count = count + no_similar_count;
+            }
+            return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+        }
+
+        if (pProto->BagFamily)
+        {
+            for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+            {
+                res = _CanStoreItem_InBag(i, dest, pProto, count, true, false, pItem, bag, slot);
+                if (res != EQUIP_ERR_OK)
+                {
+                    continue;
+                }
+
+                if (count == 0)
+                {
+                    if (no_similar_count == 0)
+                    {
+                        return EQUIP_ERR_OK;
+                    }
+
+                    if (no_space_count)
+                    {
+                        *no_space_count = count + no_similar_count;
+                    }
+                    return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+                }
+            }
+        }
+
+        for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+        {
+            res = _CanStoreItem_InBag(i, dest, pProto, count, true, true, pItem, bag, slot);
+            if (res != EQUIP_ERR_OK)
+            {
+                continue;
+            }
+
+            if (count == 0)
+            {
+                if (no_similar_count == 0)
+                {
+                    return EQUIP_ERR_OK;
+                }
+
+                if (no_space_count)
+                {
+                    *no_space_count = count + no_similar_count;
+                }
+                return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+            }
+        }
+    }
+
+    // search free slot - special bag case
+    if (pProto->BagFamily)
+    {
+        for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+        {
+            res = _CanStoreItem_InBag(i, dest, pProto, count, false, false, pItem, bag, slot);
+            if (res != EQUIP_ERR_OK)
+            {
+                continue;
+            }
+
+            if (count == 0)
+            {
+                if (no_similar_count == 0)
+                {
+                    return EQUIP_ERR_OK;
+                }
+
+                if (no_space_count)
+                {
+                    *no_space_count = count + no_similar_count;
+                }
+                return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+            }
+        }
+    }
+
+    // Normally it would be impossible to autostore not empty bags
+    if (pItem && pItem->IsBag() && !((Bag*)pItem)->IsEmpty())
+    {
+        return EQUIP_ERR_NONEMPTY_BAG_OVER_OTHER_BAG;
+    }
+
+    // search free slot
+    res = _CanStoreItem_InInventorySlots(INVENTORY_SLOT_ITEM_START, INVENTORY_SLOT_ITEM_END, dest, pProto, count, false, pItem, bag, slot);
+    if (res != EQUIP_ERR_OK)
+    {
+        if (no_space_count)
+        {
+            *no_space_count = count + no_similar_count;
+        }
+        return res;
+    }
+
+    if (count == 0)
+    {
+        if (no_similar_count == 0)
+        {
+            return EQUIP_ERR_OK;
+        }
+
+        if (no_space_count)
+        {
+            *no_space_count = count + no_similar_count;
+        }
+        return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+    }
+
+    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+    {
+        res = _CanStoreItem_InBag(i, dest, pProto, count, false, true, pItem, bag, slot);
+        if (res != EQUIP_ERR_OK)
+        {
+            continue;
+        }
+
+        if (count == 0)
+        {
+            if (no_similar_count == 0)
+            {
+                return EQUIP_ERR_OK;
+            }
+
+            if (no_space_count)
+            {
+                *no_space_count = count + no_similar_count;
+            }
+            return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
+        }
+    }
+
+    if (no_space_count)
+    {
+        *no_space_count = count + no_similar_count;
+    }
+
+    return EQUIP_ERR_INVENTORY_FULL;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+InventoryResult InventoryMgr::CanStoreItems(Item** pItems, int count,
+                                            std::function<bool(Item const*)> const& isBoundElsewhere,
+                                            std::function<ItemPrototype const*(uint32)> const& itemPrototype,
+                                            std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory) const
+{
+    Item*    pItem2;
+
+    // fill space table
+    int inv_slot_items[INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START];
+    int inv_bags[INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START][MAX_BAG_SIZE];
+
+    memset(inv_slot_items, 0, sizeof(int) * (INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START));
+    memset(inv_bags, 0, sizeof(int) * (INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START)*MAX_BAG_SIZE);
+
+    for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+    {
+        pItem2 = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+
+        if (pItem2 && !pItem2->IsInTrade())
+        {
+            inv_slot_items[i - INVENTORY_SLOT_ITEM_START] = pItem2->GetCount();
+        }
+    }
+
+    for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+    {
+        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        {
+            for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+            {
+                pItem2 = GetItemByPos(i, j);
+                if (pItem2 && !pItem2->IsInTrade())
+                {
+                    inv_bags[i - INVENTORY_SLOT_BAG_START][j] = pItem2->GetCount();
+                }
+            }
+        }
+    }
+
+    // check free space for all items
+    for (int k = 0; k < count; ++k)
+    {
+        Item*  pItem = pItems[k];
+
+        // no item
+        if (!pItem)  continue;
+
+        DEBUG_LOG("STORAGE: CanStoreItems %i. item = %u, count = %u", k + 1, pItem->GetEntry(), pItem->GetCount());
+        ItemPrototype const* pProto = pItem->GetProto();
+
+        // strange item
+        if (!pProto)
+        {
+            return EQUIP_ERR_ITEM_NOT_FOUND;
+        }
+
+        // item used
+        if (pItem->HasTemporaryLoot())
+        {
+            return EQUIP_ERR_ALREADY_LOOTED;
+        }
+
+        // item it 'bind'
+        if (isBoundElsewhere(pItem))
+        {
+            return EQUIP_ERR_DONT_OWN_THAT_ITEM;
+        }
+
+        Bag* pBag;
+        ItemPrototype const* pBagProto;
+
+        // item is 'one item only'
+        InventoryResult res = _CanTakeMoreSimilarItems(pItem->GetEntry(), pItem->GetCount(), pItem, NULL, itemPrototype, limitCategory);
+        if (res != EQUIP_ERR_OK)
+        {
+            return res;
+        }
+
+        // search stack for merge to
+        if (pProto->Stackable != 1)
+        {
+            bool b_found = false;
+
+            for (int t = INVENTORY_SLOT_ITEM_START; t < INVENTORY_SLOT_ITEM_END; ++t)
+            {
+                pItem2 = GetItemByPos(INVENTORY_SLOT_BAG_0, t);
+                if (pItem2 && pItem2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && inv_slot_items[t - INVENTORY_SLOT_ITEM_START] + pItem->GetCount() <= pProto->GetMaxStackSize())
+                {
+                    inv_slot_items[t - INVENTORY_SLOT_ITEM_START] += pItem->GetCount();
+                    b_found = true;
+                    break;
+                }
+            }
+            if (b_found) continue;
+
+            for (int t = INVENTORY_SLOT_BAG_START; !b_found && t < INVENTORY_SLOT_BAG_END; ++t)
+            {
+                pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, t);
+                if (pBag)
+                {
+                    for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+                    {
+                        pItem2 = GetItemByPos(t, j);
+                        if (pItem2 && pItem2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && inv_bags[t - INVENTORY_SLOT_BAG_START][j] + pItem->GetCount() <= pProto->GetMaxStackSize())
+                        {
+                            inv_bags[t - INVENTORY_SLOT_BAG_START][j] += pItem->GetCount();
+                            b_found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (b_found) continue;
+        }
+
+        // special bag case
+        if (pProto->BagFamily)
+        {
+            bool b_found = false;
+
+            for (int t = INVENTORY_SLOT_BAG_START; !b_found && t < INVENTORY_SLOT_BAG_END; ++t)
+            {
+                pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, t);
+                if (pBag)
+                {
+                    pBagProto = pBag->GetProto();
+
+                    // not plain container check
+                    if (pBagProto && (pBagProto->Class != ITEM_CLASS_CONTAINER || pBagProto->SubClass != ITEM_SUBCLASS_CONTAINER) &&
+                            ItemCanGoIntoBag(pProto, pBagProto))
+                    {
+                        for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+                        {
+                            if (inv_bags[t - INVENTORY_SLOT_BAG_START][j] == 0)
+                            {
+                                inv_bags[t - INVENTORY_SLOT_BAG_START][j] = 1;
+                                b_found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (b_found) continue;
+        }
+
+        // search free slot
+        bool b_found = false;
+        for (int t = INVENTORY_SLOT_ITEM_START; t < INVENTORY_SLOT_ITEM_END; ++t)
+        {
+            if (inv_slot_items[t - INVENTORY_SLOT_ITEM_START] == 0)
+            {
+                inv_slot_items[t - INVENTORY_SLOT_ITEM_START] = 1;
+                b_found = true;
+                break;
+            }
+        }
+        if (b_found) continue;
+
+        // search free slot in bags
+        for (int t = INVENTORY_SLOT_BAG_START; !b_found && t < INVENTORY_SLOT_BAG_END; ++t)
+        {
+            pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, t);
+            if (pBag)
+            {
+                pBagProto = pBag->GetProto();
+
+                // special bag already checked
+                if (pBagProto && (pBagProto->Class != ITEM_CLASS_CONTAINER || pBagProto->SubClass != ITEM_SUBCLASS_CONTAINER))
+                {
+                    continue;
+                }
+
+                for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+                {
+                    if (inv_bags[t - INVENTORY_SLOT_BAG_START][j] == 0)
+                    {
+                        inv_bags[t - INVENTORY_SLOT_BAG_START][j] = 1;
+                        b_found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // no free slot found?
+        if (!b_found)
+        {
+            return EQUIP_ERR_INVENTORY_FULL;
+        }
+    }
+
+    return EQUIP_ERR_OK;
 }
