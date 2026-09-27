@@ -90,6 +90,7 @@ set(SRC_GRP_TESTS
     ItemFixtureTest.cpp
     InventoryMgrTest.cpp
     InventoryStorageTest.cpp
+    InventoryBankTest.cpp
 )
 
 if(WITH_NET_TESTS)

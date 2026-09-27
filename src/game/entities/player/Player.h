@@ -1475,7 +1475,9 @@ class Player : public Unit
         // Check if the player can unequip an item
         InventoryResult CanUnequipItem(uint16 src, bool swap) const;
 
-        // Check if the player can bank an item
+        // Check if the player can bank an item: a wrapper over the InventoryMgr's check, which hands
+        // it the bank bag count, this character's binding verdict and use check, and the template
+        // lookups (decoupling D4e3)
         InventoryResult CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, Item* pItem, bool swap, bool not_loading = true) const;
 
         // Check if the player can use an item
@@ -4128,17 +4130,6 @@ class Player : public Unit
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
         uint32 m_created_date = 0;
-
-        // The three below forward to the InventoryMgr's checks of the same names (decoupling D4e2);
-        // CanBankItem still calls them.
-        // Check if an item can be stored in a specific slot
-        InventoryResult _CanStoreItem_InSpecificSlot(uint8 bag, uint8 slot, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool swap, Item* pSrcItem) const;
-
-        // Check if an item can be stored in a bag
-        InventoryResult _CanStoreItem_InBag(uint8 bag, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool merge, bool non_specialized, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const;
-
-        // Check if an item can be stored in inventory slots
-        InventoryResult _CanStoreItem_InInventorySlots(uint8 slot_begin, uint8 slot_end, ItemPosCountVec& dest, ItemPrototype const* pProto, uint32& count, bool merge, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const;
 
         // Store an item in a specific position
         Item* _StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool update);

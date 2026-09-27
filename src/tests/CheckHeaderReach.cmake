@@ -82,7 +82,9 @@ set(REACH_RULES
     # includes ItemPrototype.h and still forward-declares Item (closure 7, not Item.h's 36). The
     # .cpp includes Server/DBCStructure.h for the limit-category row's fields, but the row comes
     # from a lookup the owner passes in: the store itself (Server/DBCStores.h) stays out of reach.
-    "entities/player/inventory/InventoryMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Bag.h"
+    # Decoupling D4e3: the header may not reach Object/Item.h either, so its closure (7) cannot
+    # silently go back to the 37 that an include of Item.h gave it.
+    "entities/player/inventory/InventoryMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Bag.h,Object/Item.h"
     "entities/player/inventory/InventoryMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
