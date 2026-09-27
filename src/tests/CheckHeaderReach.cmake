@@ -65,6 +65,11 @@ set(REACH_RULES
     # ObjectAccessor.h (sPlayerRegistry, ObjectLookup, sCorpseManager).
     # Decoupling D4c: and the map manager (sMapMgr), which no manager needs either.
     "entities/player/quests/QuestStatusMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h"
+    # Q-2: the quest-complete packet builder takes plain values, so src/tests/QuestCompletePacketTest.cpp
+    # pins its bytes with no character and no quest template. The same two rules as the managers,
+    # and it reaches no quest template (WorldHandlers/QuestDef.h), no DBC store and no database either.
+    "entities/player/quests/QuestCompletePacket.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,Server/DBCStores.h,Database/DatabaseEnv.h"
+    "entities/player/quests/QuestCompletePacket.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h"
     # Decoupling D4c: the talent manager, the same two rules. The header also stays inside
     # entities/player/Player.h's own rule above (Player.h includes it), so it may reach
     # neither the DBC stores nor the database. Its .cpp reads the talent DBC stores

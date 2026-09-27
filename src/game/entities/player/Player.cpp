@@ -2438,22 +2438,24 @@ void Player::SendLogXPGain(uint32 GivenXP, Unit* victim, uint32 RestXP)
  *
  * @param xp The experience amount to award.
  * @param victim The unit responsible for kill-based experience, if any.
+ * @return The experience actually given and logged in SMSG_LOG_XPGAIN: `xp` after the XP
+ *         auras, plus the rested bonus; 0 when nothing was given.
  */
-void Player::GiveXP(uint32 xp, Unit* victim)
+uint32 Player::GiveXP(uint32 xp, Unit* victim)
 {
     if (xp < 1)
     {
-        return;
+        return 0;
     }
 
     if (!IsAlive())
     {
-        return;
+        return 0;
     }
 
     if (HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_XP_USER_DISABLED))
     {
-        return;
+        return 0;
     }
 
     uint32 level = getLevel();
@@ -2461,7 +2463,7 @@ void Player::GiveXP(uint32 xp, Unit* victim)
     // XP to money conversion processed in Player::RewardQuest
     if (level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
-        return;
+        return 0;
     }
 
     if (victim)
@@ -2506,6 +2508,8 @@ void Player::GiveXP(uint32 xp, Unit* victim)
     }
 
     SetUInt32Value(PLAYER_XP, newXP);
+
+    return xp + rested_bonus_xp;
 }
 
 /**

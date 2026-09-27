@@ -335,10 +335,13 @@ void WorldSession::HandleQuestgiverChooseRewardOpcode(WorldPacket& recv_data)
     {
         if (_player->CanRewardQuest(pQuest, reward, true))
         {
-            _player->RewardQuest(pQuest, reward, pObject, false);
+            // Decided before the reward so the packet's UseQuestReward bit and the follow-up below agree:
+            // the client keeps QuestFrame open only when the next quest's details really follow.
+            Quest const* nextquest = _player->GetNextQuest(guid, pQuest);
+            _player->RewardQuest(pQuest, reward, pObject, true, nextquest != NULL);
 
             // Send next quest
-            if (Quest const* nextquest = _player->GetNextQuest(guid, pQuest))
+            if (nextquest)
             {
                 _player->PlayerTalkClass->SendQuestGiverQuestDetails(nextquest, guid, true);
             }

@@ -84,6 +84,7 @@ set(SRC_GRP_TESTS
     AuraContainerTest.cpp
     QuestStatusMgrTest.cpp
     QuestPredicateTest.cpp
+    QuestCompletePacketTest.cpp
     TalentMgrTest.cpp
     ItemFixture.h
     ItemFixture.cpp
