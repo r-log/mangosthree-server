@@ -227,8 +227,9 @@ function(state_definition_site FILE_REL)
 endfunction()
 
 # ---------------------------------------------------------------------------------------------
-# THE TABLE. Measured on master 071325aad (decoupling D4h). The reasons name functions and lists,
-# never line numbers or counts: those go stale with the next edit, and the gate prints the lines.
+# THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10 (decoupling
+# D4k). The reasons name functions and lists, never line numbers or counts: those go stale with
+# the next edit, and the gate prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -314,6 +315,29 @@ state_allow(achievement src/game/Tools/PlayerDump.cpp
 state_allow(achievement src/game/Tools/PlayerDump.h
     WHY "character dump: the table-type doc comment"
     NAMES character_achievement character_achievement_progress)
+
+# Decoupling D4k. Every SMSG_ name in Opcodes.h containing RUNE; RuneMgr builds all three. The
+# rune state is runtime-only (Init() rebuilds it, nothing saves it), so the row owns no table.
+# Left out: CMSG_SET_RUNE_COUNT and CMSG_SET_RUNE_COOLDOWN (client packets, no handler: the
+# opcode table lists them commented out), and SMSG_RUNE_REGEN_DEBUG, which only the client knows
+# (OpcodeSlots.inc) and Opcodes.h does not define; if it is ever defined, RuneMgr builds it --
+# add it here. TYPES is the owner alone: its const accessors hand out values, and the
+# `Aura const*` of GetRuneConvertAura() is an opaque identity of an aura the spell code owns, not
+# rune state (a const_cast of it is the aura system's business, e.g. the removal the owner does
+# in spells/PlayerRune.cpp).
+state_row(rune
+    OWNER   RuneMgr
+    PACKETS SMSG_CONVERT_RUNE                    # RuneMgr::ConvertRune
+            SMSG_RESYNC_RUNES                    # RuneMgr::ResyncRunes
+            SMSG_ADD_RUNE_POWER                  # RuneMgr::AddRunePower
+    TYPES   RuneMgr)
+
+state_allow(rune src/game/entities/player/spells/RuneMgr.cpp
+    WHY "the owner: builds its packets and hands them to the owner's session sink"
+    NAMES SMSG_CONVERT_RUNE SMSG_RESYNC_RUNES SMSG_ADD_RUNE_POWER)
+state_allow(rune src/tests/RuneMgrTest.cpp
+    WHY "unit test that observes the packets through a capturing sink (checks each opcode and its bytes, builds nothing)"
+    NAMES SMSG_CONVERT_RUNE SMSG_RESYNC_RUNES SMSG_ADD_RUNE_POWER)
 
 # Shared by every row: the files that define opcodes. Each is checked to still spell at least
 # one row packet.

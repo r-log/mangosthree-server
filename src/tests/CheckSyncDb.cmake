@@ -64,6 +64,8 @@ set(CONVERTED_FILES
     src/game/entities/player/talents/TalentMgr.cpp          # decoupling D4c
     src/game/entities/player/inventory/InventoryMgr.h       # decoupling D4e1
     src/game/entities/player/inventory/InventoryMgr.cpp     # decoupling D4e1
+    src/game/entities/player/spells/RuneMgr.h               # decoupling D4k
+    src/game/entities/player/spells/RuneMgr.cpp             # decoupling D4k
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -387,6 +389,11 @@ set(ALLOW_AccountCommands_cpp
 #
 # Decoupling D4e1. InventoryMgr.h and InventoryMgr.cpp have NO allow list: the slot array and
 # the lookups and counts over it touch no database at all, and listing them keeps it that way.
+#
+# Decoupling D4k. RuneMgr.h and RuneMgr.cpp have NO allow list either: the rune state is
+# runtime-only (Init() rebuilds it at creation, at login and on the GM commands .reset level and
+# .reset stats; nothing saves it), and listing the
+# files keeps it that way.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

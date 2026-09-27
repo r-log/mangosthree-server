@@ -54,6 +54,7 @@
 
 #include <unordered_map>
 #include <deque>
+#include <functional>
 #include "Unit.h"
 #include "PlayerTaxi.h" // Player needs full PlayerTaxi
 #include <utility>
@@ -3794,15 +3795,17 @@ class Player : public Unit
 
         DeclinedName const* GetDeclinedNames() const { return m_declinedname; }
 
-        // Rune functions (delegated to m_runeMgr), need check getClass() == CLASS_DEATH_KNIGHT before access
+        // Rune functions (delegated to m_runeMgr), need check getClass() == CLASS_DEATH_KNIGHT before access.
+        // Decoupling D4k: the five declared here without a body read the character's auras, ratings
+        // or class, or cast a spell, and live in spells/PlayerRune.cpp; the packets go through SessionSink().
         uint8 GetRunesState() const { return m_runeMgr.GetRunesState(); }
         RuneType GetBaseRune(uint8 index) const { return m_runeMgr.GetBaseRune(index); }
         RuneType GetCurrentRune(uint8 index) const { return m_runeMgr.GetCurrentRune(index); }
         uint16 GetRuneCooldown(uint8 index) const { return m_runeMgr.GetRuneCooldown(index); }
         uint16 GetBaseRuneCooldown(uint8 index) const { return m_runeMgr.GetBaseRuneCooldown(index); }
         uint8 GetRuneCooldownFraction(uint8 index) const { return m_runeMgr.GetRuneCooldownFraction(index); }
-        void UpdateRuneRegen(RuneType rune) { m_runeMgr.UpdateRuneRegen(rune); }
-        void UpdateRuneRegen() { m_runeMgr.UpdateRuneRegen(); }
+        void UpdateRuneRegen(RuneType rune);
+        void UpdateRuneRegen();
         bool IsBaseRuneSlotsOnCooldown(RuneType runeType) const { return m_runeMgr.IsBaseRuneSlotsOnCooldown(runeType); }
         void ClearLastUsedRuneMask() { m_runeMgr.ClearLastUsedRuneMask(); }
         bool IsLastUsedRune(uint8 index) const { return m_runeMgr.IsLastUsedRune(index); }
@@ -3812,14 +3815,14 @@ class Player : public Unit
         void SetRuneCooldown(uint8 index, uint16 cooldown) { m_runeMgr.SetRuneCooldown(index, cooldown); }
         void SetBaseRuneCooldown(uint8 index, uint16 cooldown) { m_runeMgr.SetBaseRuneCooldown(index, cooldown); }
         void SetRuneConvertAura(uint8 index, Aura const* aura) { m_runeMgr.SetRuneConvertAura(index, aura); }
-        void AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura) { m_runeMgr.AddRuneByAuraEffect(index, newType, aura); }
-        void RemoveRunesByAuraEffect(Aura const* aura) { m_runeMgr.RemoveRunesByAuraEffect(aura); }
-        void RestoreBaseRune(uint8 index) { m_runeMgr.RestoreBaseRune(index); }
-        void ConvertRune(uint8 index, RuneType newType) { m_runeMgr.ConvertRune(index, newType); }
+        void AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura);
+        void RemoveRunesByAuraEffect(Aura const* aura) { m_runeMgr.RemoveRunesByAuraEffect(aura, SessionSink()); }
+        void RestoreBaseRune(uint8 index);
+        void ConvertRune(uint8 index, RuneType newType) { m_runeMgr.ConvertRune(index, newType, SessionSink()); }
         bool ActivateRunes(RuneType type, uint32 count) { return m_runeMgr.ActivateRunes(type, count); }
-        void ResyncRunes() { m_runeMgr.ResyncRunes(); }
-        void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index); }
-        void InitRunes() { m_runeMgr.Init(); }
+        void ResyncRunes() { m_runeMgr.ResyncRunes(SessionSink()); }
+        void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index, SessionSink()); }
+        void InitRunes();
 
         AchievementMgr const& GetAchievementMgr() const { return *m_achievementMgr; }
         AchievementMgr& GetAchievementMgr() { return *m_achievementMgr; }
@@ -4126,6 +4129,9 @@ class Player : public Unit
 
     private:
         Cell m_currentCell;   ///< the grid cell this player is filed under (see GetCurrentCell)
+
+        // Decoupling D4k: where a manager's packets go -- this character's session, read at each send
+        std::function<void(WorldPacket const*)> SessionSink() const;
 
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
