@@ -86,6 +86,7 @@
 #include "Vehicle.h"
 #include "Calendar.h"
 #include "DisableMgr.h"
+#include "QuestCompletePacket.h"
 
 /*********************************************************/
 /***                    QUEST SYSTEM                   ***/
@@ -916,8 +917,10 @@ void Player::CompleteQuest(uint32 quest_id, QuestStatus status)
  * @param reward The selected optional reward index.
  * @param questGiver The object granting the reward.
  * @param announce True to send the quest reward packet to the client.
+ * @param offerNextQuest True when the caller sends the next quest's details right after, so the
+ *        packet tells the client to keep the quest frame open for them.
  */
-void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver, bool announce)
+void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver, bool announce, bool offerNextQuest)
 {
     uint32 quest_id = pQuest->GetQuestId();
 
@@ -1000,14 +1003,20 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     // Used for client inform but rewarded only in case not max level
     uint32 xp = uint32(pQuest->XPValue(this) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
 
+    // What the quest-complete packet shows: what was credited here, not recomputed after it.
+    // The XP is what GiveXP gave and logged (the quest-XP auras applied, 0 when it gave none).
+    uint32 xpShown = 0;
+    uint32 moneyShown = 0;
+
     if (getLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
-        GiveXP(xp , NULL);
+        xpShown = GiveXP(xp , NULL);
 
         // Give player extra money (for max level already included in pQuest->GetRewMoneyMaxLevel())
         if (pQuest->GetRewOrReqMoney() > 0)
         {
             ModifyMoney(pQuest->GetRewOrReqMoney());
+            moneyShown = uint32(pQuest->GetRewOrReqMoney());
             GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_MONEY_FROM_QUEST_REWARD, pQuest->GetRewOrReqMoney());
         }
     }
@@ -1023,6 +1032,7 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
         }
 
         ModifyMoney(money);
+        moneyShown = money;
         GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_MONEY_FROM_QUEST_REWARD, money);
     }
 
@@ -1099,9 +1109,12 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
         q_status.uState = QUEST_CHANGED;
     }
 
+    // Before OnQuestRewarded, the DB scripts, the reward cast and the caller's follow-up: when the
+    // client does not keep the quest frame open, it ends the interaction with the giver on this
+    // packet, which would close any window those opened before it arrived.
     if (announce)
     {
-        SendQuestReward(pQuest, xp);
+        SendQuestReward(pQuest, xpShown, moneyShown, offerNextQuest);
     }
 
     bool handled = false;
@@ -2540,32 +2553,31 @@ void Player::SendQuestCompleteEvent(uint32 quest_id)
 }
 
 /**
- * @brief Sends the quest reward summary packet to the client.
+ * @brief Sends SMSG_QUESTGIVER_QUEST_COMPLETE, the quest-complete summary, in the 15595 layout.
  *
  * @param pQuest The rewarded quest.
- * @param XP The experience amount shown in the reward packet.
+ * @param xp The experience actually given (0 when none was).
+ * @param money The money actually credited as the reward (0 when none was).
+ * @param offerNextQuest True when the next quest's details follow, so the client keeps the quest
+ *        frame open for them instead of closing it.
  */
-void Player::SendQuestReward(Quest const* pQuest, uint32 XP)
+void Player::SendQuestReward(Quest const* pQuest, uint32 xp, uint32 money, bool offerNextQuest)
 {
     uint32 questid = pQuest->GetQuestId();
     DEBUG_LOG("WORLD: Sent SMSG_QUESTGIVER_QUEST_COMPLETE quest = %u", questid);
-    WorldPacket data(SMSG_QUESTGIVER_QUEST_COMPLETE, (4 + 4 + 4 + 4 + 4));
-    data << uint32(questid);
 
-    if (getLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
-    {
-        data << uint32(XP);
-        data << uint32(pQuest->GetRewOrReqMoney());
-    }
-    else
-    {
-        data << uint32(0);
-        data << uint32(pQuest->GetRewOrReqMoney() + int32(pQuest->GetRewMoneyMaxLevel() * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY)));
-    }
+    QuestCompleteFields fields;
+    fields.bonusTalents = pQuest->GetBonusTalents();
+    fields.rewSkillPoints = pQuest->GetRewSkillValue();
+    fields.money = money;
+    fields.xp = xp;
+    fields.questId = questid;
+    fields.rewSkillId = pQuest->GetRewSkill();
+    fields.launchGossip = false;                // the CHOOSE_REWARD handler sends the follow-up itself
+    fields.useQuestReward = offerNextQuest;
 
-    data << uint32(10 * MaNGOS::Honor::hk_honor_at_level(getLevel(), pQuest->GetRewHonorAddition()));
-    data << uint32(pQuest->GetBonusTalents());              // bonus talents
-    data << uint32(0);                                      // arena points
+    WorldPacket data;
+    BuildQuestCompletePacket(data, fields);
     GetSession()->SendPacket(&data);
 }
 

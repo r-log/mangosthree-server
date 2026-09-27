@@ -1236,7 +1236,7 @@ class Player : public Unit
         }
 
         // Give experience points to the player
-        void GiveXP(uint32 xp, Unit* victim);
+        uint32 GiveXP(uint32 xp, Unit* victim);
         void GiveLevel(uint32 level);
 
 
@@ -1796,7 +1796,7 @@ class Player : public Unit
         void IncompleteQuest(uint32 quest_id);
 
         // Reward a quest
-        void RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver, bool announce = true);
+        void RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver, bool announce = true, bool offerNextQuest = false);
 
         // Fail a quest
         void FailQuest(uint32 quest_id);
@@ -1961,8 +1961,7 @@ class Player : public Unit
         void SendQuestCompleteEvent(uint32 quest_id);
 
         // Send a quest reward notification
-        void SendQuestReward(Quest const* pQuest, uint32 XP);
-        // void SendQuestReward(Quest const* pQuest, uint32 XP, Object* questGiver); // delete this if the above works (chucky)
+        void SendQuestReward(Quest const* pQuest, uint32 xp, uint32 money, bool offerNextQuest);
         void SendQuestFailed(uint32 quest_id, InventoryResult reason = EQUIP_ERR_OK);
         void SendQuestTimerFailed(uint32 quest_id);
 
