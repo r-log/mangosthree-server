@@ -35,6 +35,8 @@
 #include "Log.h"
 #include "Player.h"
 #include "PlayerRegistry.h"
+#include "MapManager.h"
+#include "InstanceDataCache.h"
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
 #include "movement/MoveSpline.h"
@@ -165,7 +167,7 @@ namespace Harness
         return c;
     }
 
-    Player* Scenario::SpawnPlayer(float x, float y, float z, float o)
+    Player* Scenario::SpawnPlayer(float x, float y, float z, float o, uint8 classId)
     {
         // The determinism guarantee says so itself rather than waiting to be asked. The runner
         // reads UsesPlayer() to decide both where a scenario sorts in the queue and whether to
@@ -194,16 +196,18 @@ namespace Harness
         }
         const uint32 guidlow = kHarnessPlayerGuidFirst + uint32(m_players.size());
 
-        // The body is a human warrior. That choice is load-bearing, so it is checked rather than
+        // The body is a human of the scenario's class, a warrior unless it asks for another
+        // (decoupling D4f0: a death knight is the one class that turns a quest's bonus talent into
+        // a free point). The race and class are load-bearing, so they are checked rather than
         // trusted: Create fires REPLACE INTO character_phase_data for any race/class whose
-        // playercreateinfo row carries a phase map (Player.cpp:909-912), and this player has no
-        // character row to own such a write. The human warrior's phaseMap is 0 on the database
+        // playercreateinfo row carries a phase map (Player.cpp:898-901), and this player has no
+        // character row to own such a write. Every human class's phaseMap is 0 on the database
         // this was written against, but playercreateinfo is a table a server owner may edit, so
         // the "the harness never writes to the character database" constraint enforces itself
-        // here instead of resting on what one database happens to hold. Refused before the
-        // session exists, so there is nothing to unwind.
+        // here instead of resting on what one database happens to hold -- for any class. Refused
+        // before the session exists, so there is nothing to unwind.
         const uint8 race = RACE_HUMAN;
-        const uint8 class_ = CLASS_WARRIOR;
+        const uint8 class_ = classId;
         PlayerInfo const* pInfo = sObjectMgr.GetPlayerInfo(race, class_);
         if (!pInfo)
         {
@@ -214,6 +218,30 @@ namespace Harness
         {
             Log("ERR spawn player %u refused: race %u class %u has playercreateinfo.phaseMap %u, and Create would write character_phase_data for a character that does not exist",
                 guidlow, race, class_, pInfo->phaseMap);
+            return NULL;
+        }
+        // The second write Create can make. It puts him on his start map first
+        // (SetMap(sMapMgr.CreateMap(info->mapId, this)), Player.cpp:686), and a map that does not
+        // exist yet is created there and then; a non-instanceable one then loads its script's
+        // saved state, and when the `world` table holds no row for it, Map::CreateInstanceData
+        // INSERTs one ("for non-instanceable map always add data", Map.cpp). The boot creates the
+        // continents, which hold every human warrior's start map; a class that starts elsewhere
+        // (the death knight's Ebon Hold, map 609) would create its map here. So the spawn goes on
+        // only when the start map exists already or its `world` row is known to the cache that
+        // stands beside every writer of that table -- the two cases in which the INSERT cannot
+        // fire -- and an instanceable start map, which would open an instance and its saves, is
+        // refused outright. Refused before the session exists.
+        MapEntry const* startMap = sMapStore.LookupEntry(pInfo->mapId);
+        if (!startMap || startMap->Instanceable())
+        {
+            Log("ERR spawn player %u refused: race %u class %u starts on map %u, which is %s",
+                guidlow, race, class_, pInfo->mapId, startMap ? "instanceable: Create would open an instance of it" : "not in Map.dbc");
+            return NULL;
+        }
+        if (!sMapMgr.FindMap(pInfo->mapId, 0) && !sInstanceDataCache.GetWorld(pInfo->mapId).present)
+        {
+            Log("ERR spawn player %u refused: race %u class %u starts on map %u, which does not exist yet and has no `world` row, so creating it in Create would INSERT one",
+                guidlow, race, class_, pInfo->mapId);
             return NULL;
         }
 
