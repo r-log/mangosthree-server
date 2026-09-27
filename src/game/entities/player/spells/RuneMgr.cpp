@@ -24,17 +24,17 @@
  */
 
 #include "RuneMgr.h"
-#include "Player.h"
-#include "Log.h"
+#include "SharedDefines.h"
 #include "Opcodes.h"
-#include "SpellMgr.h"
-#include "World.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
-#include "SpellAuras.h"
-#include "Unit.h"
 
-#include <cmath>
+// Every body below is the one this file held before decoupling D4k, statement for statement and
+// in the same order. What changed is where the owner comes in: the class through `classId`, the
+// regeneration auras' multiplier through `auraMod` and the melee haste rating through
+// `hasteRating` (the owner computes both with the old expressions, in the old order), the
+// convert aura's facts through `facts`; the owner's regeneration fields through `setRegen`, its
+// session through `send` and the convert aura's removal through `dropAura`, each called where the
+// old body made that write.
 
 static RuneType runeSlotTypes[MAX_RUNES] =
 {
@@ -46,7 +46,7 @@ static RuneType runeSlotTypes[MAX_RUNES] =
     /*5*/ RUNE_FROST
 };
 
-void RuneMgr::UpdateRuneRegen(RuneType rune)
+void RuneMgr::UpdateRuneRegen(RuneType rune, float auraMod, float hasteRating, RegenSink const& setRegen) const
 {
     if (rune >= RUNE_DEATH)
     {
@@ -82,27 +82,7 @@ void RuneMgr::UpdateRuneRegen(RuneType rune)
         break;
     }
 
-    float auraMod = 1.0f;
-    Unit::AuraList const& regenAuras = m_owner->GetAurasByType(SPELL_AURA_MOD_POWER_REGEN_PERCENT);
-    for (Unit::AuraList::const_iterator i = regenAuras.begin(); i != regenAuras.end(); ++i)
-        if ((*i)->GetMiscValue() == POWER_RUNE && (*i)->GetSpellEffect()->EffectMiscValue_1 == rune)
-        {
-            auraMod *= (100.0f + (*i)->GetModifier()->m_amount) / 100.0f;
-        }
-
-    // Unholy Presence
-    if (Aura* aura = m_owner->GetAura(48265, EFFECT_INDEX_0))
-    {
-        auraMod *= (100.0f + aura->GetModifier()->m_amount) / 100.0f;
-    }
-
-    // Runic Corruption
-    if (Aura* aura = m_owner->GetAura(51460, EFFECT_INDEX_0))
-    {
-        auraMod *= (100.0f + aura->GetModifier()->m_amount) / 100.0f;
-    }
-
-    float hastePct = (100.0f - m_owner->GetRatingBonusValue(CR_HASTE_MELEE)) / 100.0f;
+    float hastePct = (100.0f - hasteRating) / 100.0f;
     if (hastePct < 0)
     {
         hastePct = 1.0f;
@@ -111,15 +91,7 @@ void RuneMgr::UpdateRuneRegen(RuneType rune)
     cooldown *= hastePct / auraMod;
 
     float value = float(1 * IN_MILLISECONDS) / cooldown;
-    m_owner->SetFloatValue(PLAYER_RUNE_REGEN_1 + uint8(actualRune), value);
-}
-
-void RuneMgr::UpdateRuneRegen()
-{
-    for (uint8 i = 0; i < NUM_RUNE_TYPES; ++i)
-    {
-        UpdateRuneRegen(RuneType(i));
-    }
+    setRegen(uint8(actualRune), value);
 }
 
 uint8 RuneMgr::GetRuneCooldownFraction(uint8 index) const
@@ -137,48 +109,37 @@ uint8 RuneMgr::GetRuneCooldownFraction(uint8 index) const
     return uint8(float(baseCd - GetRuneCooldown(index)) / baseCd * 255);
 }
 
-void RuneMgr::AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura)
-{
-    // Item - Death Knight T11 DPS 4P Bonus
-    if (newType == RUNE_DEATH && m_owner->HasAura(90459))
-    {
-        m_owner->CastSpell(m_owner, 90507, true);   // Death Eater
-    }
-
-    SetRuneConvertAura(index, aura); ConvertRune(index, newType);
-}
-
-void RuneMgr::RemoveRunesByAuraEffect(Aura const* aura)
+void RuneMgr::RemoveRunesByAuraEffect(Aura const* aura, PacketSink const& send)
 {
     for (uint8 i = 0; i < MAX_RUNES; ++i)
     {
         if (m_data.runes[i].ConvertAura == aura)
         {
-            ConvertRune(i, GetBaseRune(i));
+            ConvertRune(i, GetBaseRune(i), send);
             SetRuneConvertAura(i, NULL);
         }
     }
 }
 
-void RuneMgr::RestoreBaseRune(uint8 index)
+void RuneMgr::RestoreBaseRune(uint8 index, ConvertAuraFacts const& facts, PacketSink const& send, AuraDrop const& dropAura)
 {
     Aura const* aura = m_data.runes[index].ConvertAura;
     // If rune was converted by a non-pasive aura that still active we should keep it converted
-    if (aura && !IsPassiveSpell(aura->GetSpellProto()))
+    if (aura && facts.nonPassive)
     {
         return;
     }
 
     // Blood of the North
-    if (aura && aura->GetId() == 54637 && m_owner->HasAura(54637))
+    if (aura && facts.bloodOfTheNorthHeld)
     {
         return;
     }
 
-    ConvertRune(index, GetBaseRune(index));
+    ConvertRune(index, GetBaseRune(index), send);
     SetRuneConvertAura(index, NULL);
     // Don't drop passive talents providing rune convertion
-    if (!aura || aura->GetModifier()->m_auraname != SPELL_AURA_CONVERT_RUNE)
+    if (!aura || !facts.convertsRunes)
     {
         return;
     }
@@ -189,20 +150,17 @@ void RuneMgr::RestoreBaseRune(uint8 index)
             return;
         }
 
-    if (Unit* target = aura->GetTarget())
-    {
-        target->RemoveSpellAuraHolder(const_cast<Aura*>(aura)->GetHolder());
-    }
+    dropAura(aura);
 }
 
-void RuneMgr::ConvertRune(uint8 index, RuneType newType)
+void RuneMgr::ConvertRune(uint8 index, RuneType newType, PacketSink const& send)
 {
     SetCurrentRune(index, newType);
 
     WorldPacket data(SMSG_CONVERT_RUNE, 2);
     data << uint8(index);
     data << uint8(newType);
-    m_owner->GetSession()->SendPacket(&data);
+    send(&data);
 }
 
 bool RuneMgr::ActivateRunes(RuneType type, uint32 count)
@@ -221,7 +179,7 @@ bool RuneMgr::ActivateRunes(RuneType type, uint32 count)
     return modify;
 }
 
-void RuneMgr::ResyncRunes()
+void RuneMgr::ResyncRunes(PacketSink const& send) const
 {
     WorldPacket data(SMSG_RESYNC_RUNES, 4 + MAX_RUNES * 2);
     data << uint32(MAX_RUNES);
@@ -230,19 +188,19 @@ void RuneMgr::ResyncRunes()
         data << uint8(GetCurrentRune(i));                   // rune type
         data << uint8(GetRuneCooldownFraction(i));
     }
-    m_owner->GetSession()->SendPacket(&data);
+    send(&data);
 }
 
-void RuneMgr::AddRunePower(uint8 index)
+void RuneMgr::AddRunePower(uint8 index, PacketSink const& send) const
 {
     WorldPacket data(SMSG_ADD_RUNE_POWER, 4);
     data << uint32(1 << index);                             // mask (0x00-0x3F probably)
-    m_owner->GetSession()->SendPacket(&data);
+    send(&data);
 }
 
-void RuneMgr::Init()
+void RuneMgr::Init(uint8 classId, RegenSink const& setRegen)
 {
-    if (m_owner->getClass() != CLASS_DEATH_KNIGHT)
+    if (classId != CLASS_DEATH_KNIGHT)
     {
         return;
     }
@@ -263,7 +221,7 @@ void RuneMgr::Init()
 
     for (uint32 i = 0; i < NUM_RUNE_TYPES; ++i)
     {
-        m_owner->SetFloatValue(PLAYER_RUNE_REGEN_1 + i, 0.1f);
+        setRegen(i, 0.1f);
     }
 }
 

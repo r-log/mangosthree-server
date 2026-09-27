@@ -85,7 +85,15 @@ set(REACH_RULES
     # Decoupling D4e3: the header may not reach Object/Item.h either, so its closure (7) cannot
     # silently go back to the 37 that an include of Item.h gave it.
     "entities/player/inventory/InventoryMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Bag.h,Object/Item.h"
-    "entities/player/inventory/InventoryMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h")
+    "entities/player/inventory/InventoryMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h"
+    # Decoupling D4k: the rune manager, the same two rules, plus the spell layer. A slot's convert
+    # aura is an opaque identity -- stored, compared, handed back, never dereferenced -- so neither
+    # file may reach WorldHandlers/SpellAuras.h (the Aura class) or Object/SpellMgr.h (what a spell
+    # is); the facts about the aura are read by the owner. The header forward-declares WorldPacket
+    # for its PacketSink and may not reach proto/WorldPacket.h (closure 3); the .cpp builds the
+    # three rune packets, so it includes WorldPacket.h and Opcodes.h, which reach none of these.
+    "entities/player/spells/RuneMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h"
+    "entities/player/spells/RuneMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
