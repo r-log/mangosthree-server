@@ -199,6 +199,14 @@ add_test(NAME manager_isolation
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckManagerIsolation.cmake)
 
+# Decoupling D4h: a character manager's packets and tables are spelled only in the manager and in
+# the files CheckStateOwnership.cmake's table allows, and each allowance only shrinks. The gate is
+# table-driven: D4h's rows are reputation and achievement, and the D4k PRs add a row per manager.
+add_test(NAME state_ownership
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckStateOwnership.cmake)
+
 add_test(NAME warden_dormant_boundary
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
