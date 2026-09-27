@@ -93,6 +93,7 @@ set(SRC_GRP_TESTS
     InventoryStorageTest.cpp
     InventoryBankTest.cpp
     RuneMgrTest.cpp
+    SpellCooldownMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)

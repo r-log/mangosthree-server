@@ -319,7 +319,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(this), m_glyphMgr(this), m_runeMgr(), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(this), m_runeMgr(), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -3910,10 +3910,11 @@ void Player::SendDirectMessage(WorldPacket* data) const
 /**
  * @brief Decoupling D4k: where a manager's packets go -- this character's session.
  *
- * The session is read at each send, as the manager's old `m_owner->GetSession()->SendPacket(&data)`
- * read it, and the packet reaches the same WorldSession::SendPacket.
+ * The session is read at each send, as the managers' old `m_owner->GetSession()->SendPacket(&data)`
+ * and `m_owner->SendDirectMessage(&data)` read it (SendDirectMessage above is that same call), and
+ * the packet reaches the same WorldSession::SendPacket.
  */
-std::function<void(WorldPacket const*)> Player::SessionSink() const
+ManagerPacketSink Player::SessionSink() const
 {
     return [this](WorldPacket const* packet)
     {
