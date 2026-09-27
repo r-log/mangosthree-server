@@ -37,6 +37,7 @@
  * @file InventoryMgr.h
  * @brief Decoupling D4e1: one character's item slots, and the lookups and counts over them.
  *        Decoupling D4e2: and the storage checks -- can this item go here?
+ *        Decoupling D4e3: and the bank check -- can this item go into the bank?
  *
  * The state is the slot array: equipment, the four bag slots, the backpack, the bank, the
  * seven bank bag slots and the vendor buyback slots, one `Item*` each. The pointers are NOT
@@ -62,16 +63,22 @@
  * accounts through the sessions and the object manager, so only the owner can answer it), the
  * item template of an entry, and the ItemLimitCategory.dbc row of an id.
  *
+ * Decoupling D4e3 moved the bank check here, verbatim apart from five calls that became
+ * parameters: the three above, the number of bank bag slots bought (an update field of the
+ * owner, read by the owner at each call) and the owner's use check, which a bag asked into a
+ * bank bag slot must pass (it reads the character's level, class, race, skills, spells and
+ * reputation, so it stays with the owner and is asked where it was asked before).
+ *
  * What stays with the owning object, and why: every change of the array (storing, equipping,
  * removing, destroying, splitting, swapping, the buyback list) -- each one also writes the
  * owner's update fields, the item update queue and item state, applies or removes item spells
- * and sends packets; the bank check (it comes in a later PR, and reads the bank bag count);
- * every check that reads the character (class, race, level, skills, spells, dual wield, titan
- * grip); the equipped-gem checks. The owner's guid and the bank bag count are not kept here:
- * whatever needs them takes them per call.
+ * and sends packets; every check that reads the character (class, race, level, skills, spells,
+ * dual wield, titan grip), the use check included; the equipped-gem checks. The owner's guid
+ * and the bank bag count are not kept here: whatever needs them takes them per call.
  *
  * The object never names the character class, so `mangos_tests` builds one from nothing and
- * fills it with real items (src/tests/InventoryMgrTest.cpp, src/tests/InventoryStorageTest.cpp).
+ * fills it with real items (src/tests/InventoryMgrTest.cpp, src/tests/InventoryStorageTest.cpp,
+ * src/tests/InventoryBankTest.cpp).
  */
 
 class Item;
@@ -283,6 +290,32 @@ class InventoryMgr
                                       std::function<bool(Item const*)> const& isBoundElsewhere,
                                       std::function<ItemPrototype const*(uint32)> const& itemPrototype,
                                       std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory) const;
+
+        /*** the bank check: can this item go into the bank? ***/
+
+        // The same three callables as the storage checks, and two more things only the owner
+        // has, both taken per call and never kept here:
+        //  - `bankBagSlotCount`: how many of the seven bank bag slots are bought. It lives in an
+        //    update field of the owner, which reads it when it calls.
+        //  - `canUse(item, notLoading)`: whether the character may use the item (level, class,
+        //    race, skills, spells, reputation). The owner passes its own use check; it runs only
+        //    for a bag asked into a bought bank bag slot, at exactly the point, and with the same
+        //    arguments, as that call ran before.
+
+        /// Where `pItem` goes in the bank. After the loot state, the binding verdict and the count
+        /// limits: the position asked for first (a bank bag slot takes only a bag, only when it
+        /// is bought, and only a bag the character may use); then the bag asked for -- or, for
+        /// what a slot asked for could not take, that slot's own bag -- which refuses a non-empty
+        /// bag; then the bank's stacks, the bank bags' stacks (the special ones first, for an item
+        /// with a bag family), the special bank bags' free slots (for such an item), the bank's
+        /// free slots and the plain bank bags' free slots. `dest` receives the destinations in
+        /// that order.
+        InventoryResult CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, Item* pItem, bool swap, bool not_loading,
+                                    std::function<bool(Item const*)> const& isBoundElsewhere,
+                                    std::function<ItemPrototype const*(uint32)> const& itemPrototype,
+                                    std::function<ItemLimitCategoryEntry const*(uint32)> const& limitCategory,
+                                    uint8 bankBagSlotCount,
+                                    std::function<InventoryResult(Item*, bool)> const& canUse) const;
 
     private:
         Item* m_items[PLAYER_SLOTS_COUNT];
