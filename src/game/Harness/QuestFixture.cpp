@@ -186,6 +186,87 @@ namespace Harness
             }
         }
 
+        /// How the closure judges a criteria of a modelled type. One table (kJudges) maps each
+        /// modelled type to its judge, and both Closure::Criteria and ClosureModelsCriteriaType
+        /// read that table and nothing else, so the two cannot drift apart (the D4f0-1 final
+        /// review's N-1): a type is modelled exactly when it has a row.
+        enum class Judge : uint8
+        {
+            Achievement,        ///< the chained achievement is itself reachable
+            Quest,              ///< that quest rewarded `need` times
+            QuestCount,         ///< quests rewarded
+            DailyCount,         ///< daily quests rewarded
+            QuestsInZone,       ///< a quest of that zone, and enough quests
+            QuestMoney,         ///< money from quest rewards
+            OwnItem,            ///< that item held
+            EquipItem,          ///< that item held at all
+            EpicItem,           ///< any epic item
+            Kill,               ///< that creature credited
+            Faction,            ///< that faction's standing moves
+            ExaltedCount,       ///< any standing moves, and enough factions exist
+            Level,              ///< the level reached
+            Skill,              ///< that skill moves
+            SkillLineSpells,    ///< that skill moves, and enough of its spells are known
+            Spell,              ///< that spell known
+            Cast,               ///< that spell cast `need` times
+            Currency,           ///< that currency moves
+            AnyFaction,         ///< a statistic-shaped reputation type: any standing moves
+            MoneyMoves          ///< a statistic-shaped money type: the money moves at all
+        };
+
+        struct JudgeRow
+        {
+            uint32 type;
+            Judge  judge;
+        };
+
+        const JudgeRow kJudges[] =
+        {
+            { ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT,       Judge::Achievement },
+            { ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST,             Judge::Quest },
+            { ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT,       Judge::QuestCount },
+            { ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_DAILY_QUEST,       Judge::DailyCount },
+            { ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE,    Judge::QuestsInZone },
+            { ACHIEVEMENT_CRITERIA_TYPE_MONEY_FROM_QUEST_REWARD,    Judge::QuestMoney },
+            { ACHIEVEMENT_CRITERIA_TYPE_OWN_ITEM,                   Judge::OwnItem },
+            { ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM,                 Judge::EquipItem },
+            { ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM,            Judge::EpicItem },
+            { ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE,              Judge::Kill },
+            { ACHIEVEMENT_CRITERIA_TYPE_GAIN_REPUTATION,            Judge::Faction },
+            { ACHIEVEMENT_CRITERIA_TYPE_GAIN_EXALTED_REPUTATION,    Judge::ExaltedCount },
+            { ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL,                Judge::Level },
+            { ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL,          Judge::Skill },
+            { ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LEVEL,          Judge::Skill },
+            { ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILLLINE_SPELLS,     Judge::SkillLineSpells },
+            { ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LINE,           Judge::SkillLineSpells },
+            { ACHIEVEMENT_CRITERIA_TYPE_LEARN_SPELL,                Judge::Spell },
+            { ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL,                 Judge::Cast },
+            { ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL2,                Judge::Cast },
+            { ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET,            Judge::Cast },
+            { ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET2,           Judge::Cast },
+            { ACHIEVEMENT_CRITERIA_TYPE_CURRENCY_EARNED,            Judge::Currency },
+            // The statistic-shaped types: GetCriteriaProgressMaxCounter answers 0 for them, so
+            // the first progress completes the criteria. Reachable whenever the type fires.
+            { ACHIEVEMENT_CRITERIA_TYPE_KNOWN_FACTIONS,             Judge::AnyFaction },
+            { ACHIEVEMENT_CRITERIA_TYPE_GAIN_REVERED_REPUTATION,    Judge::AnyFaction },
+            { ACHIEVEMENT_CRITERIA_TYPE_GAIN_HONORED_REPUTATION,    Judge::AnyFaction },
+            { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED,   Judge::MoneyMoves },
+            { ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM,          Judge::EpicItem },
+        };
+
+        /// The row of `type`, or NULL for a type the closure does not model.
+        JudgeRow const* JudgeFor(uint32 type)
+        {
+            for (size_t i = 0; i < sizeof(kJudges) / sizeof(kJudges[0]); ++i)
+            {
+                if (kJudges[i].type == type)
+                {
+                    return &kJudges[i];
+                }
+            }
+            return NULL;
+        }
+
         /// The backward walk: can this achievement complete from `t`? Memoised; a cycle reads no.
         class Closure
         {
@@ -279,48 +360,47 @@ namespace Harness
                 {
                     need = 1;   // IsCompletedCriteria: any progress completes it; a SUMM: any progress counts
                 }
-                bool yes = false;
-                switch (c->requiredType)
+                // A type without a row is one the closure does not model: read as unreachable, which
+                // is sound only while the run never fires it -- every scenario checks its recorded
+                // criteria against the same table at the verdict (UnmodelledCriteriaTypes).
+                JudgeRow const* row = JudgeFor(c->requiredType);
+                if (!row)
                 {
-                    case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT:
+                    return false;
+                }
+                bool yes = false;
+                switch (row->judge)
+                {
+                    case Judge::Achievement:
                     {
                         std::string inner;
                         yes = Reachable(asset, inner);
                         break;
                     }
-                    case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST:              yes = Count(m_t.quests, asset) >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT:        yes = m_t.questCount >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_DAILY_QUEST:        yes = m_t.dailyCount >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE:     yes = m_t.zones.count(asset) && m_t.questCount >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_MONEY_FROM_QUEST_REWARD:     yes = m_t.questMoney >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_OWN_ITEM:                    yes = Count(m_t.items, asset) >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM:                  yes = Count(m_t.items, asset) >= std::max<uint32>(need, 1); break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM:             yes = m_t.epicItems > 0; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE:               yes = Count(m_t.kills, asset) >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_GAIN_REPUTATION:             yes = m_t.factions.count(asset) != 0; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_GAIN_EXALTED_REPUTATION:     yes = !m_t.factions.empty() && m_t.reputationFactions >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL:                 yes = m_t.level >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL:
-                    case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LEVEL:           yes = m_t.skills.count(asset) != 0; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILLLINE_SPELLS:
-                    case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LINE:            yes = m_t.skills.count(asset) && SpellsInLine(asset) >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SPELL:                 yes = m_t.spells.count(asset) != 0; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL:
-                    case ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL2:
-                    case ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET:
-                    case ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET2:            yes = Count(m_t.casts, asset) >= need; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_CURRENCY_EARNED:             yes = m_t.currencies.count(asset) != 0; break;
-                    // The statistic-shaped types: GetCriteriaProgressMaxCounter answers 0 for them,
-                    // so the first progress completes the criteria. Reachable whenever the type fires.
-                    case ACHIEVEMENT_CRITERIA_TYPE_KNOWN_FACTIONS:
-                    case ACHIEVEMENT_CRITERIA_TYPE_GAIN_REVERED_REPUTATION:
-                    case ACHIEVEMENT_CRITERIA_TYPE_GAIN_HONORED_REPUTATION:     yes = !m_t.factions.empty(); break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED:    yes = m_t.moneyMoves; break;
-                    case ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM:           yes = m_t.epicItems > 0; break;
+                    case Judge::Quest:              yes = Count(m_t.quests, asset) >= need; break;
+                    case Judge::QuestCount:         yes = m_t.questCount >= need; break;
+                    case Judge::DailyCount:         yes = m_t.dailyCount >= need; break;
+                    case Judge::QuestsInZone:       yes = m_t.zones.count(asset) && m_t.questCount >= need; break;
+                    case Judge::QuestMoney:         yes = m_t.questMoney >= need; break;
+                    case Judge::OwnItem:            yes = Count(m_t.items, asset) >= need; break;
+                    case Judge::EquipItem:          yes = Count(m_t.items, asset) >= std::max<uint32>(need, 1); break;
+                    case Judge::EpicItem:           yes = m_t.epicItems > 0; break;
+                    case Judge::Kill:               yes = Count(m_t.kills, asset) >= need; break;
+                    case Judge::Faction:            yes = m_t.factions.count(asset) != 0; break;
+                    case Judge::ExaltedCount:       yes = !m_t.factions.empty() && m_t.reputationFactions >= need; break;
+                    case Judge::Level:              yes = m_t.level >= need; break;
+                    case Judge::Skill:              yes = m_t.skills.count(asset) != 0; break;
+                    case Judge::SkillLineSpells:    yes = m_t.skills.count(asset) && SpellsInLine(asset) >= need; break;
+                    case Judge::Spell:              yes = m_t.spells.count(asset) != 0; break;
+                    case Judge::Cast:               yes = Count(m_t.casts, asset) >= need; break;
+                    case Judge::Currency:           yes = m_t.currencies.count(asset) != 0; break;
+                    case Judge::AnyFaction:         yes = !m_t.factions.empty(); break;
+                    case Judge::MoneyMoves:         yes = m_t.moneyMoves; break;
                     default:
-                        // A type the closure does not model. Sound only while the run never fires
-                        // one: ClosureModelsCriteriaType lists exactly the cases above, and every
-                        // scenario checks its recorded criteria against it at the verdict.
+                        // A row whose judge this switch has no case for: the closure cannot vouch
+                        // for it, so CheckQuestPlan refuses the scenario instead of reading it as
+                        // unreachable.
+                        m_unjudged.insert(c->requiredType);
                         yes = false;
                         break;
                 }
@@ -353,49 +433,22 @@ namespace Harness
                 return n;
             }
 
+        public:
+            /// Types whose table row names a judge the switch has no case for: empty unless the
+            /// table and the switch have drifted apart.
+            std::set<uint32> const& Unjudged() const { return m_unjudged; }
+
+        private:
             Touch const&                  m_t;
             std::map<uint32, int>         m_memo;
             std::map<uint32, std::string> m_why;
+            std::set<uint32>              m_unjudged;
         };
     }
 
     bool ClosureModelsCriteriaType(uint32 type)
     {
-        switch (type)
-        {
-            // Exactly the cases of Closure::Criteria's switch.
-            case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT:
-            case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST:
-            case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT:
-            case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_DAILY_QUEST:
-            case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE:
-            case ACHIEVEMENT_CRITERIA_TYPE_MONEY_FROM_QUEST_REWARD:
-            case ACHIEVEMENT_CRITERIA_TYPE_OWN_ITEM:
-            case ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM:
-            case ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM:
-            case ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE:
-            case ACHIEVEMENT_CRITERIA_TYPE_GAIN_REPUTATION:
-            case ACHIEVEMENT_CRITERIA_TYPE_GAIN_EXALTED_REPUTATION:
-            case ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL:
-            case ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL:
-            case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LEVEL:
-            case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILLLINE_SPELLS:
-            case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LINE:
-            case ACHIEVEMENT_CRITERIA_TYPE_LEARN_SPELL:
-            case ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL:
-            case ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL2:
-            case ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET:
-            case ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET2:
-            case ACHIEVEMENT_CRITERIA_TYPE_CURRENCY_EARNED:
-            case ACHIEVEMENT_CRITERIA_TYPE_KNOWN_FACTIONS:
-            case ACHIEVEMENT_CRITERIA_TYPE_GAIN_REVERED_REPUTATION:
-            case ACHIEVEMENT_CRITERIA_TYPE_GAIN_HONORED_REPUTATION:
-            case ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED:
-            case ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM:
-                return true;
-            default:
-                return false;
-        }
+        return JudgeFor(type) != NULL;
     }
 
     std::vector<std::string> UnmodelledCriteriaTypes(std::vector<uint32> const& criteriaIds, std::set<uint32>& types)
@@ -539,19 +592,24 @@ namespace Harness
         QuestPreCheck r;
         char buf[320];
 
-        // 1. the template and its fingerprint
-        Quest const* q = sObjectMgr.GetQuestTemplate(plan.quest);
-        if (!q)
+        // 1. the template and its fingerprint; 3. mail, scripts, timer. A plan with no quest (926)
+        // skips both and is checked for the rest.
+        Quest const* q = NULL;
+        if (plan.quest)
         {
-            r.refusal = "quest " + Num(plan.quest) + ": no template";
-            return r;
-        }
-        const QuestFields fields = ReadQuestFields(q);
-        r.fields = uint32(fields.size());
-        r.refusal = CompareQuestFields(plan.quest, fields, expected);
-        if (!r.refusal.empty())
-        {
-            return r;
+            q = sObjectMgr.GetQuestTemplate(plan.quest);
+            if (!q)
+            {
+                r.refusal = "quest " + Num(plan.quest) + ": no template";
+                return r;
+            }
+            const QuestFields fields = ReadQuestFields(q);
+            r.fields = uint32(fields.size());
+            r.refusal = CompareQuestFields(plan.quest, fields, expected);
+            if (!r.refusal.empty())
+            {
+                return r;
+            }
         }
 
         // 2. the quest tracker
@@ -562,19 +620,19 @@ namespace Harness
         }
 
         // 3. mail, scripts, timer
-        if (q->GetRewMailTemplateId())
+        if (q && q->GetRewMailTemplateId())
         {
             snprintf(buf, sizeof(buf), "quest %u: reward mail template %u, and RewardQuest would mail it", plan.quest, q->GetRewMailTemplateId());
             r.refusal = buf;
             return r;
         }
-        if (q->GetQuestStartScript() || q->GetQuestCompleteScript())
+        if (q && (q->GetQuestStartScript() || q->GetQuestCompleteScript()))
         {
             snprintf(buf, sizeof(buf), "quest %u: DB scripts (start %u, complete %u) can do anything", plan.quest, q->GetQuestStartScript(), q->GetQuestCompleteScript());
             r.refusal = buf;
             return r;
         }
-        if (q->HasSpecialFlag(QUEST_SPECIAL_FLAG_TIMED) || q->GetLimitTime())
+        if (q && (q->HasSpecialFlag(QUEST_SPECIAL_FLAG_TIMED) || q->GetLimitTime()))
         {
             snprintf(buf, sizeof(buf), "quest %u: timed (%u s)", plan.quest, q->GetLimitTime());
             r.refusal = buf;
@@ -610,7 +668,7 @@ namespace Harness
         r.startLevel = plan.level ? plan.level
                        : sWorld.getConfig(plan.classId == CLASS_DEATH_KNIGHT ? CONFIG_UINT32_START_HEROIC_PLAYER_LEVEL : CONFIG_UINT32_START_PLAYER_LEVEL);
         uint32 level = r.startLevel;
-        if (level < maxLevel)
+        if (q && level < maxLevel)
         {
             r.xpBound = uint32(QuestXpBound(q, level) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST)) * plan.rewards;
             uint32 xp = r.xpBound;   // a spawned or level-set player starts the level at 0 XP
@@ -632,7 +690,12 @@ namespace Harness
         // 6. the achievement closure
         Touch t;
         t.team = ALLIANCE;                     // a human
-        t.level = r.levelBound;
+        // REACH_LEVEL fires from GiveLevel alone. A spawned player's Create level counts (the
+        // bound is the loosest reading of it); a level set by the `.reset level` sequence reaches
+        // no REACH_LEVEL criteria, so a set level counts only when the rewards' XP can take it
+        // further -- and every scenario that sets its level reports a BUG if one fires anyway
+        // (the noPersistence self-check).
+        t.level = (plan.level && r.levelBound == r.startLevel) ? 0 : r.levelBound;
         for (auto s = info->spell.begin(); s != info->spell.end(); ++s)
         {
             t.spells.insert(*s);
@@ -659,31 +722,50 @@ namespace Harness
             }
             break;
         }
-        const uint32 rewards = plan.rewards;
-        t.quests[plan.quest] += rewards;
-        t.questCount += rewards;
-        if (q->IsDaily())
+        t.moneyMoves = plan.seededMoney != 0;
+        if (q)
         {
-            t.dailyCount += rewards;
+            const uint32 rewards = plan.rewards;
+            t.quests[plan.quest] += rewards;
+            t.questCount += rewards;
+            if (q->IsDaily())
+            {
+                t.dailyCount += rewards;
+            }
+            if (q->GetZoneOrSort() > 0)
+            {
+                t.zones.insert(uint32(q->GetZoneOrSort()));
+            }
+            const uint64 money = r.startLevel < maxLevel
+                                 ? uint64(std::max<int32>(q->GetRewOrReqMoney(), 0))
+                                 : uint64(std::max<int64>(int64(q->GetRewMoneyMaxLevel() * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY)), int64(q->GetRewOrReqMoney())));
+            t.questMoney = money * rewards;
+            t.moneyMoves = t.moneyMoves || t.questMoney != 0 || q->GetRewOrReqMoney() < 0;
+            if (plan.choice < QUEST_REWARD_CHOICES_COUNT)
+            {
+                AddItem(t, q->RewChoiceItemId[plan.choice], q->RewChoiceItemCount[plan.choice] * rewards);
+            }
+            for (int i = 0; i < QUEST_REWARDS_COUNT; ++i)
+            {
+                AddItem(t, q->RewItemId[i], q->RewItemCount[i] * rewards);
+            }
+            AddItem(t, q->GetSrcItemId(), std::max<uint32>(q->GetSrcItemCount(), 1) * rewards);
+            for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)
+            {
+                if (q->RewRepFaction[i])
+                {
+                    AddFaction(t, q->RewRepFaction[i]);
+                }
+            }
+            for (int i = 0; i < QUEST_REWARD_CURRENCY_COUNT; ++i)
+            {
+                if (q->RewCurrencyId[i])
+                {
+                    t.currencies.insert(q->RewCurrencyId[i]);
+                }
+            }
+            AddCast(t, q->GetRewSpellCast() ? q->GetRewSpellCast() : q->GetRewSpell());
         }
-        if (q->GetZoneOrSort() > 0)
-        {
-            t.zones.insert(uint32(q->GetZoneOrSort()));
-        }
-        const uint64 money = r.startLevel < maxLevel
-                             ? uint64(std::max<int32>(q->GetRewOrReqMoney(), 0))
-                             : uint64(std::max<int64>(int64(q->GetRewMoneyMaxLevel() * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY)), int64(q->GetRewOrReqMoney())));
-        t.questMoney = money * rewards;
-        t.moneyMoves = t.questMoney != 0 || plan.seededMoney != 0 || q->GetRewOrReqMoney() < 0;
-        if (plan.choice < QUEST_REWARD_CHOICES_COUNT)
-        {
-            AddItem(t, q->RewChoiceItemId[plan.choice], q->RewChoiceItemCount[plan.choice] * rewards);
-        }
-        for (int i = 0; i < QUEST_REWARDS_COUNT; ++i)
-        {
-            AddItem(t, q->RewItemId[i], q->RewItemCount[i] * rewards);
-        }
-        AddItem(t, q->GetSrcItemId(), std::max<uint32>(q->GetSrcItemCount(), 1) * rewards);
         for (std::map<uint32, uint32>::const_iterator i = plan.items.begin(); i != plan.items.end(); ++i)
         {
             AddItem(t, i->first, i->second);
@@ -692,21 +774,6 @@ namespace Harness
         {
             t.kills[k->first] += k->second;
         }
-        for (int i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)
-        {
-            if (q->RewRepFaction[i])
-            {
-                AddFaction(t, q->RewRepFaction[i]);
-            }
-        }
-        for (int i = 0; i < QUEST_REWARD_CURRENCY_COUNT; ++i)
-        {
-            if (q->RewCurrencyId[i])
-            {
-                t.currencies.insert(q->RewCurrencyId[i]);
-            }
-        }
-        AddCast(t, q->GetRewSpellCast() ? q->GetRewSpellCast() : q->GetRewSpell());
         for (std::set<uint32>::const_iterator s = plan.casts.begin(); s != plan.casts.end(); ++s)
         {
             AddCast(t, *s);
@@ -752,6 +819,12 @@ namespace Harness
                 r.refusal = buf + why;
                 return r;
             }
+        }
+        if (!closure.Unjudged().empty())
+        {
+            snprintf(buf, sizeof(buf), "the achievement closure's table names criteria type %u, but its judge has no rule", *closure.Unjudged().begin());
+            r.refusal = buf;
+            return r;
         }
         return r;
     }

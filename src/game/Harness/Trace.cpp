@@ -138,6 +138,19 @@ namespace Harness
                 { SMSG_LEARNED_SPELL,               Rule::Hash },
                 // CurrencyMgr::ModifyCount: three bits, the counts and the currency id
                 { SMSG_SET_CURRENCY,                Rule::Hash },
+                // read for D4f0-2 at 07ef07c62 --
+                // ReputationMgr::SendVisible: the faction's reputation list id
+                { SMSG_SET_FACTION_VISIBLE,         Rule::Hash },
+                // Player::SendInitialActionButtons: one packed action per button and a spec byte;
+                // Player::SendLockActionButtons: the one byte 2
+                { SMSG_ACTION_BUTTONS,              Rule::Hash },
+                // Player::removeSpell: the spell id; or the spell and the rank that replaces it
+                { SMSG_REMOVED_SPELL,               Rule::Hash },
+                { SMSG_SUPERCEDED_SPELL,            Rule::Hash },
+                // Player::SendSpellMod (PlayerSpellMod.cpp): the counts, the mod op, then each
+                // (effect bit, value) -- no guid, no clock
+                { SMSG_SET_FLAT_SPELL_MODIFIER,     Rule::Hash },
+                { SMSG_SET_PCT_SPELL_MODIFIER,      Rule::Hash },
                 // decoded: a date, timers, a cast counter or a guid from a counter sits among the
                 // stable fields
                 { SMSG_CRITERIA_UPDATE,             Rule::Decode },
@@ -145,6 +158,10 @@ namespace Harness
                 { SMSG_SPELL_START,                 Rule::Decode },
                 { SMSG_SPELL_GO,                    Rule::Decode },
                 { SMSG_QUESTGIVER_STATUS_MULTIPLE,  Rule::Decode },
+                // SpellAuraHolder::SendAuraUpdate: the target's packed guid and, unless the
+                // aura's flags say the target cast it, the caster's -- a creature's comes from
+                // the map's counter
+                { SMSG_AURA_UPDATE,                 Rule::Decode },
                 // Player::SendEquipError: the result, then two ITEM guids (numbered by the item
                 // counter whenever an item is named) -- decoded so an item reads as a role
                 { SMSG_INVENTORY_CHANGE_FAILURE,    Rule::Decode },
@@ -332,8 +349,77 @@ namespace Harness
                 text += " target=";
                 text += RoleOf(roles, target);
             }
-            // The rest of the packet -- predicted power and runes, the missile and destination
-            // bytes, an item or location target -- carries no clock and no counter: kept whole.
+            // SpellCastTargets::write: an item target's packed guid (or a zero byte) follows. The
+            // item counter numbers it, so it reads as a role and is never part of the rest's hash
+            // (the D4f0-1 final review's M-1).
+            const uint32 itemFlags = 0x00000010 | 0x00001000;   // TARGET_FLAG_ITEM, TARGET_FLAG_TRADE_ITEM
+            if (mask & itemFlags)
+            {
+                uint64 item = 0;
+                if (!r.Packed(item)) { return false; }
+                text += item ? " itemTarget=item" : " itemTarget=none";
+            }
+            // The rest of the packet -- predicted power and runes, the missile, the source and
+            // destination locations -- carries no clock, and no counter-numbered guid while the
+            // caster is off transports: a location target's packed transport guid is hashed with
+            // it, and the harness player never stands on a transport.
+            const size_t rest = size - r.Pos();
+            Append(text, " rest=%u", uint32(rest));
+            if (rest)
+            {
+                text += " restfnv=" + Hex32(Fnv1a(data + r.Pos(), rest));
+            }
+            out = text;
+            return true;
+        }
+
+        bool ReadItemPush(uint8 const* data, size_t size, uint32& entry, uint32& count)
+        {
+            Reader r(data, size);
+            uint64 player = 0;
+            uint32 received = 0, created = 0, shown = 0, slot = 0, suffix = 0, property = 0, held = 0;
+            uint8 bag = 0;
+            return r.U64(player) && r.U32(received) && r.U32(created) && r.U32(shown) && r.U8(bag) &&
+                   r.U32(slot) && r.U32(entry) && r.U32(suffix) && r.U32(property) && r.U32(count) &&
+                   r.U32(held) && r.AtEnd();
+        }
+
+        bool DecodeAuraUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 target = 0;
+            uint8 slot = 0;
+            uint32 spell = 0;
+            if (!r.Packed(target) || !r.U8(slot) || !r.U32(spell))
+            {
+                return false;
+            }
+            char buf[160];
+            if (r.AtEnd())
+            {
+                // the removal form: the slot and a zero spell
+                snprintf(buf, sizeof(buf), "target=%s slot=%u spell=%u", RoleOf(roles, target), uint32(slot), spell);
+                out = buf;
+                return spell == 0;
+            }
+            uint8 flagsLo = 0, flagsHi = 0, level = 0, stack = 0;
+            if (!r.U8(flagsLo) || !r.U8(flagsHi) || !r.U8(level) || !r.U8(stack))
+            {
+                return false;
+            }
+            const uint32 flags = uint32(flagsLo) | (uint32(flagsHi) << 8);
+            snprintf(buf, sizeof(buf), "target=%s slot=%u spell=%u flags=0x%x level=%u stack=%u",
+                     RoleOf(roles, target), uint32(slot), spell, flags, uint32(level), uint32(stack));
+            std::string text = buf;
+            if (!(flags & 0x08))    // AFLAG_NOT_CASTER clear: the caster's packed guid follows
+            {
+                uint64 caster = 0;
+                if (!r.Packed(caster)) { return false; }
+                text += " caster=";
+                text += RoleOf(roles, caster);
+            }
+            // The durations (AFLAG_DURATION) and the effect amounts (AFLAG_EFFECT_AMOUNT_SEND):
+            // a duration counts down with the stepped world's own clock, the same in every run.
             const size_t rest = size - r.Pos();
             Append(text, " rest=%u", uint32(rest));
             if (rest)
@@ -398,6 +484,7 @@ namespace Harness
                 case SMSG_SPELL_GO:                   decoded = DecodeSpellCast(true, data, size, roles, fields); break;
                 case SMSG_QUESTGIVER_STATUS_MULTIPLE: decoded = DecodeQuestGiverStatusMultiple(data, size, roles, fields); break;
                 case SMSG_INVENTORY_CHANGE_FAILURE:   decoded = DecodeInventoryFailure(data, size, fields); break;
+                case SMSG_AURA_UPDATE:                decoded = DecodeAuraUpdate(data, size, roles, fields); break;
                 default: break;
             }
             if (!decoded)
@@ -408,6 +495,16 @@ namespace Harness
                 return text;
             }
             return text + " " + fields;
+        }
+
+        bool SnapDue(std::string& last, std::string const& now)
+        {
+            if (now == last)
+            {
+                return false;
+            }
+            last = now;
+            return true;
         }
 
         std::string TraceLine(char const* scenario, uint32 seq, std::string const& window, std::string const& text)

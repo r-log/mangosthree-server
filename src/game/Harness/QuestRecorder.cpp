@@ -33,6 +33,7 @@
 #include "DBCStores.h"
 #include "Bag.h"
 #include "Log.h"
+#include "Opcodes.h"
 
 #include <cstdio>
 
@@ -141,6 +142,7 @@ namespace Harness
         CloseWindow();
         m_window = window;
         m_digested = digested;
+        m_lastMini = Mini();    // a window's first snap line reads against its opening state
     }
 
     void QuestRecorder::Note(std::string const& text)
@@ -208,6 +210,52 @@ namespace Harness
         return out;
     }
 
+    uint32 QuestRecorder::CountAll(uint16 opcode) const
+    {
+        uint32 n = 0;
+        for (size_t i = 0; i < m_packets.size(); ++i)
+        {
+            if (m_packets[i].opcode == opcode)
+            {
+                ++n;
+            }
+        }
+        return n;
+    }
+
+    std::vector<uint32> QuestRecorder::FiredCriteriaIds() const
+    {
+        std::vector<uint32> ids;
+        for (size_t i = 0; i < m_packets.size(); ++i)
+        {
+            std::vector<uint8> const& p = m_packets[i].payload;
+            if (m_packets[i].opcode == SMSG_CRITERIA_UPDATE && p.size() >= 4)
+            {
+                ids.push_back(uint32(p[0]) | (uint32(p[1]) << 8) | (uint32(p[2]) << 16) | (uint32(p[3]) << 24));
+            }
+        }
+        return ids;
+    }
+
+    std::string QuestRecorder::Mini() const
+    {
+        Player* p = Resolve();
+        if (!p)
+        {
+            return "gone";
+        }
+        std::string out;
+        for (size_t i = 0; i < m_watch.quests.size(); ++i)
+        {
+            const uint32 q = m_watch.quests[i];
+            const uint16 slot = p->FindQuestSlot(q);
+            out += "q" + U(q) + "=" + U(uint32(p->GetQuestStatus(q))) + "/" + U(p->GetQuestRewardStatus(q) ? 1 : 0) + "/" +
+                   (slot < MAX_QUEST_LOG_SIZE ? H(p->GetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_STATE_OFFSET))
+                                              : std::string("-")) + " ";
+        }
+        return out + "m=" + U(p->GetMoney()) + " xp=" + U(p->GetUInt32Value(PLAYER_XP)) + " l=" + U(p->getLevel());
+    }
+
     void QuestRecorder::Sink(void* context, WorldPacket const& packet)
     {
         static_cast<QuestRecorder*>(context)->OnPacket(packet);
@@ -239,6 +287,13 @@ namespace Harness
         }
         m_packets.push_back(seen);
         Emit("pkt " + record);
+        if (m_digested)
+        {
+            if (Trace::SnapDue(m_lastMini, Mini()))
+            {
+                Emit("snap " + m_lastMini);
+            }
+        }
     }
 
     void QuestRecorder::Emit(std::string const& text)

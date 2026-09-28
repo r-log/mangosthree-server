@@ -88,10 +88,10 @@ namespace Harness
         // Each reads a payload laid out as its production writer lays it out, and none of them
         // lets a byte go unaccounted for: the criteria, achievement and quest-giver decoders
         // require the bytes to end exactly where the layout does, so a writer that grows a field
-        // shows up as a decode failure rather than as a silently shorter record; the spell and
-        // inventory-failure decoders stop at the end of their fixed head and record what follows
-        // it as its length and FNV (`rest=`, `tail=`), since what follows varies with the flags or
-        // the result. On success `out` holds the record's fields; on failure it is untouched and
+        // shows up as a decode failure rather than as a silently shorter record; the spell, aura
+        // and inventory-failure decoders stop at the end of their fixed head and record what
+        // follows it as its length and FNV (`rest=`, `tail=`), since what follows varies with the
+        // flags or the result. On success `out` holds the record's fields; on failure it is untouched and
         // the caller records the packet as undecoded, by its size alone.
 
         /// SMSG_CRITERIA_UPDATE (AchievementMgr::SendCriteriaUpdate): criteria id, the packed
@@ -102,15 +102,29 @@ namespace Harness
         bool DecodeAchievementEarned(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_SPELL_START and SMSG_SPELL_GO (Spell::SendSpellStart / SendSpellGo): the caster
         /// item-or-caster and caster roles, the spell id, the cast flags, START's cast time, GO's
-        /// hit and miss lists as roles, and the target mask with its unit or object target as a
-        /// role. Everything after that first target -- predicted power and runes, the missile and
-        /// destination bytes, item targets -- is deterministic and recorded as `rest=<n>` and,
-        /// when there is any, `restfnv=<hex>`. Dropped: the cast counter, m_timer and GO's
-        /// timestamp, which sit in the fixed head.
+        /// hit and miss lists as roles, the target mask with its unit or object target as a role,
+        /// and -- when the mask names an item (TARGET_FLAG_ITEM or TARGET_FLAG_TRADE_ITEM) -- the
+        /// item target as `itemTarget=item|none`: an item's guid comes from the global item
+        /// counter, so it is read past and never hashed. Everything after that -- predicted power
+        /// and runes, the missile and the source and destination bytes -- carries no clock and no
+        /// counter and is recorded as `rest=<n>` and, when there is any, `restfnv=<hex>`. Dropped:
+        /// the cast counter, m_timer and GO's timestamp, which sit in the fixed head.
         bool DecodeSpellCast(bool go, uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_AURA_UPDATE (SpellAuraHolder::SendAuraUpdate, one aura per packet): the target as
+        /// a role, the slot, the spell, the flags, the level and the stack, the caster as a role
+        /// when the flags carry one (AFLAG_NOT_CASTER clear), then the durations and effect
+        /// amounts as `rest=<n>` and `restfnv=<hex>`. The removal form -- the slot and a zero
+        /// spell -- reads as the target, the slot and spell=0.
+        bool DecodeAuraUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_QUESTGIVER_STATUS_MULTIPLE (Player::SendQuestGiverStatusMultiple): the count, then
         /// each giver as its role with its dialog status, in the packet's order.
         bool DecodeQuestGiverStatusMultiple(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+
+        /// SMSG_ITEM_PUSH_RESULT (Player::SendNewItem): the item entry and the count pushed, read
+        /// out of the bytes: the player guid (8), received, created and shown (3 x 4), the bag (1)
+        /// and the slot (4) come first, then the entry, the suffix factor, the random property and
+        /// the count. False when the payload is not that writer's 45 bytes.
+        bool ReadItemPush(uint8 const* data, size_t size, uint32& entry, uint32& count);
 
         /// The whole record of one packet, as it follows "pkt " in a TRACE line:
         /// "<name>", "<name> size=<n>", "<name> size=<n> fnv=<hex>", or "<name> <decoded fields>".
@@ -120,6 +134,11 @@ namespace Harness
         /// opcode whose table entry is STATUS_UNHANDLED never left the server -- SendPacket's
         /// socket branch refuses it -- and reads "<name> unhandled size=<n>".
         std::string PacketRecord(uint16 opcode, char const* name, uint8 const* data, size_t size, bool unhandled, Roles const& roles);
+
+        /// Ruling 19's snapshot rule: a `snap` line is due after a packet when the snapshot `now`
+        /// differs from `last`, the one printed last (or taken when the window opened), and `last`
+        /// then becomes `now`. An unchanged state prints nothing.
+        bool SnapDue(std::string& last, std::string const& now);
 
         /// "MVTEST TRACE <scenario> <seq> <window> <text>".
         std::string TraceLine(char const* scenario, uint32 seq, std::string const& window, std::string const& text);

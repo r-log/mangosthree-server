@@ -1,11 +1,14 @@
 // The GM harness's pure parts (movement P0-C): the step timeline every scenario
 // runs on, the verdict line, and the rule the teardown classifies an owned player by;
-// and (decoupling D4f0) the reward recorder's rule table, decoders, line and digest.
+// and (decoupling D4f0) the reward recorder's rule table, decoders, line and digest, and the
+// achievement closure's table of modelled criteria types.
 // Nothing here touches a map.
 #include "TestHarness.h"
 #include "Timeline.h"
 #include "Ownership.h"
 #include "Trace.h"
+#include "QuestFixture.h"
+#include "DBCEnums.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
 
@@ -425,4 +428,204 @@ TEST(HarnessTrace_the_line_and_the_digest)
     CHECK(ab != ba);                                  // the order is part of the digest
     CHECK(Harness::Trace::DigestLine(Harness::Trace::kFnvOffset, "reward", "pkt B") !=
           Harness::Trace::DigestLine(Harness::Trace::kFnvOffset, "reward+tick", "pkt B"));   // and the window
+}
+
+// ---- decoupling D4f0-2: the decoder paths the six further scenarios added --------------------
+
+namespace
+{
+    /// Player::SendNewItem, statement for statement: the player guid, received, created, shown,
+    /// the bag, the slot (or -1 onto a stack), the entry, the suffix factor, the random property,
+    /// the count pushed and the count held.
+    WorldPacket ItemPush(uint32 entry, uint32 count, uint32 held)
+    {
+        WorldPacket data(SMSG_ITEM_PUSH_RESULT, (8 + 4 + 4 + 4 + 1 + 4 + 4 + 4 + 4 + 4));
+        data << uint64(kSelf);
+        data << uint32(1);
+        data << uint32(0);
+        data << uint32(1);
+        data << uint8(255);
+        data << uint32(23);
+        data << uint32(entry);
+        data << uint32(0);
+        data << uint32(0);
+        data << uint32(count);
+        data << uint32(held);
+        return data;
+    }
+
+    /// Spell::SendSpellGo's head for a self-cast with one hit and no miss, then
+    /// SpellCastTargets::write's mask and, as the mask says, a unit target and an item target.
+    WorldPacket SpellGoWithTargets(uint32 mask, uint64 unit, uint64 item, uint32 tail)
+    {
+        WorldPacket data(SMSG_SPELL_GO, 50);
+        data.appendPackGUID(kSelf);
+        data.appendPackGUID(kSelf);
+        data << uint8(0);
+        data << uint32(8690);
+        data << uint32(0x00000100);
+        data << uint32(0);
+        data << uint32(4242);                         // GameTime::GetGameTimeMS(): dropped
+        data << uint8(1);
+        data << uint64(kSelf);
+        data << uint8(0);
+        data << uint32(mask);
+        if (mask & 0x00000002)
+        {
+            data.appendPackGUID(unit);
+        }
+        if (mask & (0x00000010 | 0x00001000))
+        {
+            if (item)
+            {
+                data.appendPackGUID(item);
+            }
+            else
+            {
+                data << uint8(0);
+            }
+        }
+        data << uint32(tail);                         // something after the targets: kept as rest
+        return data;
+    }
+
+    /// SpellAuraHolder::SendAuraUpdate + BuildUpdatePacket for one aura.
+    WorldPacket AuraUpdate(uint64 target, uint8 slot, uint32 spell, uint16 flags, uint64 caster, uint32 amount)
+    {
+        WorldPacket data(SMSG_AURA_UPDATE);
+        data.appendPackGUID(target);
+        data << uint8(slot);
+        data << uint32(spell);
+        data << uint16(flags);
+        data << uint8(30);                            // the aura's level
+        data << uint8(1);                             // the stack
+        if (!(flags & 0x08))
+        {
+            data.appendPackGUID(caster);
+        }
+        if (flags & 0x40)
+        {
+            data << int32(amount);
+        }
+        return data;
+    }
+}
+
+TEST(HarnessTrace_item_push_reads_the_entry_and_the_count)
+{
+    WorldPacket a = ItemPush(3297, 1, 4);
+    uint32 entry = 0, count = 0;
+    CHECK(Harness::Trace::ReadItemPush(a.contents(), a.size(), entry, count));
+    CHECK_EQ(entry, 3297u);
+    CHECK_EQ(count, 1u);
+    // not SendNewItem's 45 bytes: refused, in either direction
+    CHECK(!Harness::Trace::ReadItemPush(a.contents(), a.size() - 1, entry, count));
+    WorldPacket longer(a);
+    longer << uint8(0);
+    CHECK(!Harness::Trace::ReadItemPush(longer.contents(), longer.size(), entry, count));
+}
+
+TEST(HarnessTrace_a_spell_item_target_reads_as_a_role_and_stays_out_of_the_rest)
+{
+    // An item's guid comes from the global item counter: two numbers, one record (the D4f0-1
+    // final review's M-1) -- and whatever follows the item is still kept as the rest.
+    const std::string a = Decoded(SMSG_SPELL_GO, SpellGoWithTargets(0x10, 0, 0x4000000000001234ULL, 77));
+    const std::string b = Decoded(SMSG_SPELL_GO, SpellGoWithTargets(0x10, 0, 0x4000000000005678ULL, 77));
+    CHECK_STR(a.c_str(), b.c_str());
+    CHECK(a.find(" mask=0x10 itemTarget=item rest=4 restfnv=") != std::string::npos);
+    CHECK(a != Decoded(SMSG_SPELL_GO, SpellGoWithTargets(0x10, 0, 0x4000000000001234ULL, 78)));
+    // the zero byte SpellCastTargets::write puts for a missing item
+    CHECK(Decoded(SMSG_SPELL_GO, SpellGoWithTargets(0x10, 0, 0, 77)).find(" itemTarget=none rest=4") != std::string::npos);
+    // a unit and a trade item: the unit first, then the item
+    CHECK(Decoded(SMSG_SPELL_GO, SpellGoWithTargets(0x1002, kGiver, 0x4000000000001234ULL, 77))
+          .find(" mask=0x1002 target=giver itemTarget=item rest=4") != std::string::npos);
+    // no item flag: nothing is read as an item
+    CHECK(Decoded(SMSG_SPELL_GO, SpellGoWithTargets(0x2, kSelf, 0, 77)).find(" target=self rest=4 restfnv=") != std::string::npos);
+}
+
+TEST(HarnessTrace_aura_update_reads_target_and_caster_as_roles)
+{
+    // the target cast it (AFLAG_NOT_CASTER): no caster guid; three effect amounts become the rest
+    WorldPacket own = AuraUpdate(kSelf, 7, 12852, 0x08 | 0x10 | 0x40 | 0x01, 0, 5);
+    const std::string ownRecord = Decoded(SMSG_AURA_UPDATE, own);
+    CHECK(ownRecord.find("OP target=self slot=7 spell=12852 flags=0x59 level=30 stack=1 rest=4 restfnv=") == 0);
+    // a caster from the map's counter reads as its role, whatever number it was given
+    WorldPacket byGiver = AuraUpdate(kSelf, 7, 12852, 0x10, kGiver, 0);
+    CHECK_STR(Decoded(SMSG_AURA_UPDATE, byGiver).c_str(), "OP target=self slot=7 spell=12852 flags=0x10 level=30 stack=1 caster=giver rest=0");
+    Harness::Trace::Roles moved = TestRoles();
+    moved.giver = kOther;
+    WorldPacket byMoved = AuraUpdate(kSelf, 7, 12852, 0x10, kOther, 0);
+    CHECK_STR(Harness::Trace::PacketRecord(SMSG_AURA_UPDATE, "OP", byMoved.contents(), byMoved.size(), false, moved).c_str(),
+              Decoded(SMSG_AURA_UPDATE, byGiver).c_str());
+    // the removal form: the slot and a zero spell
+    WorldPacket removed(SMSG_AURA_UPDATE);
+    removed.appendPackGUID(kSelf);
+    removed << uint8(7);
+    removed << uint32(0);
+    CHECK_STR(Decoded(SMSG_AURA_UPDATE, removed).c_str(), "OP target=self slot=7 spell=0");
+    // a short head is refused, by the size alone
+    CHECK(Decoded(SMSG_AURA_UPDATE, AuraUpdate(kSelf, 7, 12852, 0x10, kGiver, 0)).find("undecoded") == std::string::npos);
+    WorldPacket cut(SMSG_AURA_UPDATE);
+    cut.appendPackGUID(kSelf);
+    cut << uint8(7) << uint32(12852) << uint8(0x10);
+    CHECK(Decoded(SMSG_AURA_UPDATE, cut).find("undecoded size=") != std::string::npos);
+}
+
+TEST(HarnessTrace_the_rules_d4f0_2_added)
+{
+    using Harness::Trace::Rule;
+    CHECK(Harness::Trace::RuleFor(SMSG_SET_FACTION_VISIBLE) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_ACTION_BUTTONS) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_REMOVED_SPELL) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_SUPERCEDED_SPELL) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_SET_FLAT_SPELL_MODIFIER) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_SET_PCT_SPELL_MODIFIER) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_AURA_UPDATE) == Rule::Decode);
+}
+
+TEST(HarnessClosure_models_exactly_the_types_of_its_one_table)
+{
+    // The achievement closure's table (QuestFixture.cpp kJudges) is the one list both the judge
+    // and ClosureModelsCriteriaType read: these 28 types and nothing else.
+    const uint32 modelled[] =
+    {
+        ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT, ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST,
+        ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT, ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_DAILY_QUEST,
+        ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE, ACHIEVEMENT_CRITERIA_TYPE_MONEY_FROM_QUEST_REWARD,
+        ACHIEVEMENT_CRITERIA_TYPE_OWN_ITEM, ACHIEVEMENT_CRITERIA_TYPE_EQUIP_ITEM, ACHIEVEMENT_CRITERIA_TYPE_EQUIP_EPIC_ITEM,
+        ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE, ACHIEVEMENT_CRITERIA_TYPE_GAIN_REPUTATION,
+        ACHIEVEMENT_CRITERIA_TYPE_GAIN_EXALTED_REPUTATION, ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL,
+        ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL, ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LEVEL,
+        ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILLLINE_SPELLS, ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LINE,
+        ACHIEVEMENT_CRITERIA_TYPE_LEARN_SPELL, ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL, ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL2,
+        ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET, ACHIEVEMENT_CRITERIA_TYPE_BE_SPELL_TARGET2,
+        ACHIEVEMENT_CRITERIA_TYPE_CURRENCY_EARNED, ACHIEVEMENT_CRITERIA_TYPE_KNOWN_FACTIONS,
+        ACHIEVEMENT_CRITERIA_TYPE_GAIN_REVERED_REPUTATION, ACHIEVEMENT_CRITERIA_TYPE_GAIN_HONORED_REPUTATION,
+        ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED, ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM,
+    };
+    const uint32 count = sizeof(modelled) / sizeof(modelled[0]);
+    CHECK_EQ(count, 28u);
+    for (uint32 i = 0; i < count; ++i)
+    {
+        CHECK(Harness::ClosureModelsCriteriaType(modelled[i]));
+    }
+    uint32 yes = 0;
+    for (uint32 type = 0; type < ACHIEVEMENT_CRITERIA_TYPE_TOTAL + 10; ++type)
+    {
+        yes += Harness::ClosureModelsCriteriaType(type) ? 1 : 0;
+    }
+    CHECK_EQ(yes, count);
+    // types the mail-reward trees hold and the closure does not model (the D4f0-1 task review's M-2)
+    CHECK(!Harness::ClosureModelsCriteriaType(ACHIEVEMENT_CRITERIA_TYPE_LOOT_ITEM));
+}
+
+TEST(HarnessTrace_a_snap_line_is_due_only_when_the_state_changed)
+{
+    // Ruling 19: `last` is the snapshot taken when the window opened, or the one printed last.
+    std::string last = "q52=3/0/0x0 m=0 xp=0 l=1";
+    CHECK(!Harness::Trace::SnapDue(last, "q52=3/0/0x0 m=0 xp=0 l=1"));   // a packet that moved nothing tracked
+    CHECK(Harness::Trace::SnapDue(last, "q52=3/0/- m=0 xp=0 l=1"));      // the slot cleared: a line
+    CHECK_STR(last.c_str(), "q52=3/0/- m=0 xp=0 l=1");                  // ... and it is the new reference
+    CHECK(!Harness::Trace::SnapDue(last, "q52=3/0/- m=0 xp=0 l=1"));
+    CHECK(Harness::Trace::SnapDue(last, "q52=3/0/0x0 m=0 xp=0 l=1"));    // flipped back: a line again
 }
