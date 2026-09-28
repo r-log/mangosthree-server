@@ -364,6 +364,13 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 {
     if (!m_Socket)
     {
+        // No socket: a real session whose link was reset, or the harness's own session. Only
+        // the harness sets a sink (SetSocketlessSink), so for every real session this is the
+        // plain return it always was.
+        if (m_socketlessSink)
+        {
+            m_socketlessSink(m_socketlessSinkContext, *packet);
+        }
         return;
     }
 

@@ -29,6 +29,7 @@
 #include "Timeline.h"
 #include "Ownership.h"
 #include "ObjectGuid.h"
+#include "SharedDefines.h"
 #include "MotionMaster.h"
 #include "Arbiter.h"
 #include "TargetKinematics.h"
@@ -175,9 +176,11 @@ namespace Harness
         /// real WorldSession whose socket and mailbox are null, holding a guid out of the
         /// harness's own reserved block and never written to the database. He exists so the
         /// player-only halves of the kernel - the control handoff above all - get a scenario
-        /// instead of a manual live test. NULL when there is no map, when the block is spent,
-        /// or when the create fails.
-        Player* SpawnPlayer(float x, float y, float z, float o);
+        /// instead of a manual live test. A human of `classId`, a warrior unless the scenario
+        /// asks otherwise (decoupling D4f0). NULL when there is no map, when the block is spent,
+        /// when the race and class would make Create write (a phase map, or a start map it
+        /// would have to create with no `world` row), or when the create fails.
+        Player* SpawnPlayer(float x, float y, float z, float o, uint8 classId = CLASS_WARRIOR);
         /// A creature from the world database (S8's patroller), on the harness map.
         Creature* Find(uint32 lowGuid, uint32 entry);
         Creature* Get(ObjectGuid guid) const;

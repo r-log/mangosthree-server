@@ -63,6 +63,7 @@ namespace Harness
     void RegisterChaseMovingScenarios(Runner& r);
     void RegisterSmoothScenarios(Runner& r);
     void RegisterTaxiScenarios(Runner& r);
+    void RegisterQuestScenarios(Runner& r);
 
     namespace
     {
@@ -117,6 +118,10 @@ namespace Harness
         // the player block: the death that clears a flight, the resume decided by the landing
         // time, the stops retail sends at the two control changes, and the 4.2.0 pet rule.
         RegisterTaxiScenarios(*this);
+        // The quest family (RegisterQuestScenarios, decoupling D4f0) is orders 920 on, after
+        // everything else: what a quest reward does, recorded packet by packet and folded into
+        // one digest category per scenario.
+        RegisterQuestScenarios(*this);
     }
 
     /// The registry, and DELIBERATELY NOTHING ELSE -- not `End`'s five-step player teardown,

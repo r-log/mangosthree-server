@@ -269,6 +269,15 @@ state_allow(reputation src/game/Tools/PlayerDump.cpp
 state_allow(reputation src/game/Tools/PlayerDump.h
     WHY "character dump: the table-type doc comment"
     NAMES character_reputation)
+state_allow(reputation src/game/Harness/Trace.cpp
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_SET_FACTION_STANDING)
+state_allow(reputation src/game/Harness/ScenariosQuest.cpp
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_SET_FACTION_STANDING)
+state_allow(reputation src/tests/HarnessTest.cpp
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_SET_FACTION_STANDING)
 
 # Every SMSG_ name in Opcodes.h containing ACHIEVEMENT or CRITERIA; the character's
 # AchievementMgr builds all of them, so nothing is left out. The client also knows the guild
@@ -316,6 +325,18 @@ state_allow(achievement src/game/Tools/PlayerDump.cpp
 state_allow(achievement src/game/Tools/PlayerDump.h
     WHY "character dump: the table-type doc comment"
     NAMES character_achievement character_achievement_progress)
+state_allow(achievement src/game/Harness/Trace.h
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_CRITERIA_UPDATE SMSG_ACHIEVEMENT_EARNED)
+state_allow(achievement src/game/Harness/Trace.cpp
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_CRITERIA_UPDATE SMSG_ACHIEVEMENT_EARNED)
+state_allow(achievement src/tests/HarnessTest.cpp
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_CRITERIA_UPDATE SMSG_ACHIEVEMENT_EARNED)
+state_allow(achievement src/game/Harness/ScenariosQuest.cpp
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_CRITERIA_UPDATE)
 
 # Decoupling D4k. Every SMSG_ name in Opcodes.h containing RUNE; RuneMgr builds all three. The
 # rune state is runtime-only (Init() rebuilds it, nothing saves it), so the row owns no table.

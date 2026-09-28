@@ -447,6 +447,21 @@ class WorldSession
         {
             _player = plr;
         }
+
+        /// Where SendPacket hands a packet when this session has no socket (decoupling D4f0).
+        /// A plain function and its context, so this header reaches nothing new. The sink is
+        /// handed the packet as the caller built it, and it copies what it keeps: the caller's
+        /// packet is never changed through it.
+        typedef void (*SocketlessSink)(void* context, WorldPacket const& packet);
+
+        /// Only the GM harness calls this, on the socketless session it builds for a harness
+        /// player (src/game/Harness/QuestRecorder.cpp); no real session ever has a sink. NULL
+        /// clears it, and nothing outlives the session: the sink is a member and goes with it.
+        void SetSocketlessSink(SocketlessSink sink, void* context)
+        {
+            m_socketlessSink = sink;
+            m_socketlessSinkContext = context;
+        }
         uint8 Expansion() const { return m_expansion; }
 
         /// Session in auth.queue currently
@@ -1409,6 +1424,10 @@ class WorldSession
         Player* _player;
         std::shared_ptr<proto::SessionLinks> m_Socket;
         std::shared_ptr<SessionMailbox> m_mailbox;
+        /// SetSocketlessSink's pair. NULL for every session the gateway makes, and nothing but
+        /// the harness sets it, so SendPacket's null-socket branch returns as it always did.
+        SocketlessSink m_socketlessSink = NULL;
+        void* m_socketlessSinkContext = NULL;
         std::string m_Address;
 
         /// The session key (K) realmd agreed with this client. The second world
