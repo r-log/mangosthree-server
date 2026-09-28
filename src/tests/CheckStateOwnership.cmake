@@ -228,9 +228,9 @@ endfunction()
 
 # ---------------------------------------------------------------------------------------------
 # THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10, the
-# cooldown row on a63c61953, the glyph row on cc63db97b, the pet row on 157d99a5c and the social
-# row on b20d94a87 (decoupling D4k). The reasons name functions and lists, never line numbers or
-# counts: those go stale with the next edit, and the gate prints the lines.
+# cooldown row on a63c61953, the glyph row on cc63db97b, the pet row on 157d99a5c, the social row on
+# b20d94a87 and the currency row on 6f20649ea (decoupling D4k). The reasons name functions and lists,
+# never line numbers or counts: those go stale with the next edit, and the gate prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -511,6 +511,49 @@ state_allow(social src/tests/CharacterOpsAsyncTest.cpp
 state_allow(social src/tests/SocialMgrTest.cpp
     WHY "unit test that observes the packets through a capturing sink and the statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
     NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS character_social)
+# Decoupling D4k. The four currency packets CurrencyMgr builds. Every other name in Opcodes.h
+# containing CURRENC is left out: SMSG_LOOT_CURRENCY_REMOVED is the loot code's (the owner's
+# SendNotifyLootItemRemoved, a loot slot's removal); CMSG_LOOT_CURRENCY and CMSG_SET_CURRENCY_FLAGS
+# are client packets (the loot and customize handlers read them; the second ends in the manager's
+# SetFlags); CMSG_CHEAT_SET_HONOR_CURRENCY and CMSG_CHEAT_SET_ARENA_CURRENCY are client packets no
+# handler reads. TABLES: the currency rows the manager loads one at a time and saves. TYPES is the
+# owner alone: its public const accessors hand out counts and caps by value.
+state_row(currency
+    OWNER   CurrencyMgr
+    PACKETS SMSG_SET_CURRENCY                    # CurrencyMgr::ModifyCount
+            SMSG_SET_CURRENCY_WEEK_LIMIT         # CurrencyMgr::SendWeekCap
+            SMSG_SEND_CURRENCIES                 # CurrencyMgr::SendAll
+            SMSG_WEEKLY_RESET_CURRENCIES         # CurrencyMgr::ResetWeekCounts
+    TABLES  character_currencies
+    TYPES   CurrencyMgr)
+
+state_allow(currency src/game/entities/player/inventory/CurrencyMgr.cpp
+    WHY "the owner: builds its packets for the owner's session sink, loads the rows one at a time (the row's columns in a comment, the invalid-row DELETE) and saves them"
+    NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES character_currencies)
+state_allow(currency src/game/entities/player/inventory/CurrencyMgr.h
+    WHY "the owner's header: the flags' and the sinks' doc comments name the table and the packet"
+    NAMES SMSG_SET_CURRENCY character_currencies)
+state_allow(currency src/game/entities/player/Player.cpp
+    WHY "whole-character delete (Player::DeleteFromDB)"
+    NAMES character_currencies)
+state_allow(currency src/game/WorldHandlers/CharacterHandler.cpp
+    WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADCURRENCIES), handed to the owner's per-row load"
+    NAMES character_currencies)
+state_allow(currency src/game/WorldHandlers/World.cpp
+    WHY "realm-wide weekly reset (World::ResetCurrencyWeekCounts): every character's week count in one UPDATE, then each online character's manager"
+    NAMES character_currencies)
+state_allow(currency src/game/Harness/Trace.cpp
+    WHY "harness recorder rule table: classifies the packet by opcode (hashes it), builds nothing"
+    NAMES SMSG_SET_CURRENCY)
+state_allow(currency src/game/Harness/ScenariosQuest.cpp
+    WHY "harness scenario 925 counts the recorded packets by opcode, builds nothing"
+    NAMES SMSG_SET_CURRENCY)
+state_allow(currency src/tests/HarnessTest.cpp
+    WHY "unit test of the recorder's rule table (checks the opcode's rule, builds nothing)"
+    NAMES SMSG_SET_CURRENCY)
+state_allow(currency src/tests/CurrencyMgrTest.cpp
+    WHY "unit test that observes the packets through a capturing sink and the load's DELETE and the save's statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
+    NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES character_currencies)
 
 # Shared by every row: the files that define opcodes. Each is checked to still spell at least
 # one row packet.

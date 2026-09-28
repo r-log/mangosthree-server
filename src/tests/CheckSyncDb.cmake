@@ -74,6 +74,8 @@ set(CONVERTED_FILES
     src/game/entities/player/pets/PetMgr.cpp                # decoupling D4k
     src/game/entities/player/social/SocialList.h            # decoupling D4k
     src/game/entities/player/social/SocialList.cpp          # decoupling D4k
+    src/game/entities/player/inventory/CurrencyMgr.h        # decoupling D4k
+    src/game/entities/player/inventory/CurrencyMgr.cpp      # decoupling D4k
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -422,6 +424,11 @@ set(ALLOW_AccountCommands_cpp
 # loaded and saved with the character row by the owner's persistence files, the temporary-unsummon
 # number is runtime-only, and the pet rows are the login holder's (PlayerPetCache); the pet's own
 # load, which the resummon calls, runs in the owner's callback, and it reads that cache.
+#
+# Decoupling D4k. CurrencyMgr.h and CurrencyMgr.cpp have NO allow list either. The currency save
+# (UPDATE/INSERT `character_currencies`) stays CharacterDatabase.PExecute (queued once async writes
+# are on) run from Player::SaveToDB, and the load's invalid-row DELETE stays CharacterDatabase.PExecute,
+# run from the login one row at a time (LoadRow) over the login holder's result.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

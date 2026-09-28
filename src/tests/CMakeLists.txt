@@ -98,6 +98,7 @@ set(SRC_GRP_TESTS
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp
+    CurrencyMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)

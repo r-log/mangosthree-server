@@ -93,6 +93,8 @@ set(MANAGER_FILES
     entities/player/pets/PetMgr.cpp                         # decoupling D4k
     entities/player/social/SocialList.h                     # decoupling D4k: PlayerSocial, the verdict, the packet builders
     entities/player/social/SocialList.cpp                   # decoupling D4k
+    entities/player/inventory/CurrencyMgr.h                 # decoupling D4k
+    entities/player/inventory/CurrencyMgr.cpp               # decoupling D4k
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.
@@ -128,8 +130,7 @@ set(OWNER_FILES
     entities/player/inventory/PlayerEquipmentSet.cpp
     entities/player/inventory/PlayerDurability.cpp
     entities/player/inventory/PlayerGearScore.cpp
-    entities/player/inventory/CurrencyMgr.h                 # D4k
-    entities/player/inventory/CurrencyMgr.cpp               # D4k
+    entities/player/inventory/PlayerCurrency.cpp            # decoupling D4k: drives inventory/CurrencyMgr
     entities/player/interaction/PlayerGossip.cpp
     entities/player/interaction/PlayerVendor.cpp
     entities/player/interaction/PlayerLoot.cpp
