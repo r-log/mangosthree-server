@@ -274,11 +274,24 @@ add_test(NAME include_collisions
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckIncludeCollisions.cmake)
 
+# design/architecture.md section 4: every include follows section 1's layer table. The edges that
+# go against it, into a gated seam, or sideways between two domain directories today are on
+# src/tests/layout_allow.txt, per includer file and header; a new one fails, and a removed one
+# leaves the list in the PR that removes it. The interpreter found here is also the one the Python
+# tests below use; the gate is not inside their Python3 block on purpose: without one found here,
+# CheckLayout.cmake looks for one itself and fails if there is none.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+add_test(NAME layout
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -DLAYOUT_PYTHON=${Python3_EXECUTABLE}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckLayout.cmake)
+
 # Decoupling D5f (server #135), ratchet R-C: the campaign's downcast counter becomes a gate.
 # subtype_sites is 0 after D5f and must stay 0 -- the `GetTypeId() == TYPEID_UNIT &&
 # ((Creature*)x)->IsPet()` pattern is now a virtual call. The self-test entry keeps the
-# counter itself honest, since the gate is only worth as much as its regexes.
-find_package(Python3 COMPONENTS Interpreter QUIET)
+# counter itself honest, since the gate is only worth as much as its regexes. (Python3 is found
+# above, for the layout gate.)
 if(Python3_Interpreter_FOUND)
     add_test(NAME downcast_counter_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/downcast_count.py --self-test)
@@ -315,6 +328,11 @@ if(Python3_Interpreter_FOUND)
     # unique-name rules honest.
     add_test(NAME forwarder_rewrite_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/forwarder_rewrite.py --self-test)
+
+    # The layout gate's fixtures: a planted upward include, a stale list line, an unclassified
+    # file and the rest fail; an allowed edge and a system include pass.
+    add_test(NAME layout_gate_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/layout_gate.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

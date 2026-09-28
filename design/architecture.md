@@ -135,7 +135,7 @@ the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
 |---|---|---|
-| every file | lives in a directory named here; includes by path; only the edges section 1 allows | `CheckLayout` (proposed, not built). It ratchets from today's measured edges (1,118 against the rule plus 2,354 across the domain tier), keyed per includer file and header. An edge leaves its allow-list in the PR that removes it, and a new one fails. `CheckIncludeCollisions` is in #174. |
+| every file | lives in a directory named here; includes by path; only the edges section 1 allows | `CheckLayout`, built (#179). It ratchets from today's measured edges (1,118 against the rule plus 2,354 across the domain tier), keyed per includer file and header. An edge leaves its allow-list in the PR that removes it, and a new one fails. `CheckIncludeCollisions` is in #174. |
 | proto, foundation | nothing above | `CheckProtoBoundary` (holds, 0 lines out). Foundation has no gate yet (2 lines out, `ObjectGuid.cpp`). |
 | motion | proto and foundation only | `CheckMotionBoundary`. It holds for `src/motion`; `game/movement/` (12 lines) is outside it. |
 | persistence | the only place a `*Database.` call is spelled | `CheckSyncDb` today covers only blocking calls in converted files. #144 extends it, or `CheckLayout` takes the rule. |
@@ -173,8 +173,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
 | 15 | `Object/` and `WorldHandlers/` exist; `session/`, `data/`, `ai/`, `social/`, `pvp/`, `economy/` do not | a move PR before each domain's first seam (#76) |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
-| 17 | 2,354 cross lines inside the domain tier have no ratchet yet | the `CheckLayout` PR |
-| 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | the first PR after this page (ratchet); #144 |
+| 17 | 2,354 cross lines inside the domain tier have no ratchet yet | built (#179) |
+| 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet); #144 |
 
 ## Appendix: how each number was measured
 
