@@ -68,6 +68,8 @@ set(CONVERTED_FILES
     src/game/entities/player/spells/RuneMgr.cpp             # decoupling D4k
     src/game/entities/player/spells/SpellCooldownMgr.h      # decoupling D4k
     src/game/entities/player/spells/SpellCooldownMgr.cpp    # decoupling D4k
+    src/game/entities/player/talents/GlyphMgr.h             # decoupling D4k
+    src/game/entities/player/talents/GlyphMgr.cpp           # decoupling D4k
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -402,6 +404,12 @@ set(ALLOW_AccountCommands_cpp
 # (SqlStatement PExecute) run from Player::SaveToDB, and the load takes one row at a time from the
 # login holder's result (LoadRow); the per-character query that used to sit there as a comment is
 # now a sentence on the owner's loop.
+#
+# Decoupling D4k. GlyphMgr.h and GlyphMgr.cpp have NO allow list either. The glyph save
+# (INSERT/UPDATE/DELETE `character_glyphs`) stays queued prepared statements (SqlStatement
+# PExecute) run from Player::SaveToDB, and the three DELETEs of the load's row checks stay
+# CharacterDatabase.PExecute (queued once async writes are on), run from the login one row at a
+# time (LoadRow).
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

@@ -115,7 +115,19 @@ set(REACH_RULES
     # entities/player/Player.h itself, so those two entries fire first and Spell.h's never fires on
     # its own. Object/SpellMgr.h is different: it reaches neither, so its entry does real work.
     "entities/player/spells/SpellCooldownMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
-    "entities/player/spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h")
+    "entities/player/spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h"
+    # Decoupling D4k: the glyph manager, the rune manager's two rules plus the cast
+    # (WorldHandlers/Spell.h): the glyph's spell is cast and its auras removed by callbacks the owner
+    # builds, so the manager never sees a spell, an aura or a unit. It builds no packet, so neither
+    # file may reach proto/WorldPacket.h. The header stays inside entities/player/Player.h's rule
+    # (Player.h includes it) and forward-declares Field. The .cpp, like the talent manager's, reads
+    # the glyph slot and glyph property DBC stores (Server/DBCStores.h) and loads and saves through
+    # the character database (Database/DatabaseEnv.h); src/tests/GlyphMgrTest.cpp seeds the stores.
+    # As for the cooldown manager, the WorldHandlers/Spell.h entries are belt-and-braces (Spell.h
+    # includes Object/Unit.h and entities/player/Player.h itself, so those entries fire first);
+    # Object/SpellMgr.h reaches neither, so its entry does real work.
+    "entities/player/talents/GlyphMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
+    "entities/player/talents/GlyphMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h,proto/WorldPacket.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

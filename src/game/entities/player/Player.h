@@ -2331,14 +2331,16 @@ class Player : public Unit
 
         // Glyph API — thin delegating wrappers around m_glyphMgr (extracted 2026-05-12).
         // SetGlyphSlot / GetGlyphSlot stay here because they touch entity update fields,
-        // not per-spec glyph state owned by GlyphMgr.
+        // not per-spec glyph state owned by GlyphMgr. Decoupling D4k: InitGlyphsForLevel,
+        // ApplyGlyph, ApplyGlyphs and _LoadGlyphs build the manager's inputs and callbacks and
+        // live in talents/PlayerGlyph.cpp.
         void SetGlyphSlot(uint8 slot, uint32 slottype) { SetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + slot, slottype); }
         uint32 GetGlyphSlot(uint8 slot) const { return GetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + slot); }
-        void InitGlyphsForLevel() { m_glyphMgr.InitGlyphsForLevel(); }
+        void InitGlyphsForLevel();
         void SetGlyph(uint8 slot, uint32 glyph) { m_glyphMgr.SetGlyph(m_talentMgr.ActiveSpec(), slot, glyph); }
         uint32 GetGlyph(uint8 slot) { return m_glyphMgr.GetGlyph(m_talentMgr.ActiveSpec(), slot); }
-        void ApplyGlyph(uint8 slot, bool apply) { m_glyphMgr.ApplyGlyph(slot, apply); }
-        void ApplyGlyphs(bool apply) { m_glyphMgr.ApplyAll(apply); }
+        void ApplyGlyph(uint8 slot, bool apply);
+        void ApplyGlyphs(bool apply);
 
         uint32 GetFreePrimaryProfessionPoints() const { return GetUInt32Value(PLAYER_CHARACTER_POINTS); }
         void SetFreePrimaryProfessions(uint16 profs) { SetUInt32Value(PLAYER_CHARACTER_POINTS, profs); }
@@ -3923,7 +3925,7 @@ class Player : public Unit
         void _LoadArenaTeamInfo(QueryResult* result);
         void _LoadEquipmentSets(QueryResult* result);
         void _LoadBGData(QueryResult* result);
-        void _LoadGlyphs(QueryResult* result) { m_glyphMgr.Load(result); }
+        void _LoadGlyphs(QueryResult* result);
         void _LoadCUFProfiles(QueryResult* result);
         void _LoadIntoDataField(const char* data, uint32 startOffset, uint32 count);
 
@@ -3949,7 +3951,7 @@ class Player : public Unit
         void _SaveSpells();
         void _SaveEquipmentSets();
         void _SaveBGData();
-        void _SaveGlyphs() { m_glyphMgr.Save(); }
+        void _SaveGlyphs() { m_glyphMgr.Save(GetGUIDLow(), GetSpecsCount()); }
         void _SaveCUFProfiles();
         void _SaveStats();
 
