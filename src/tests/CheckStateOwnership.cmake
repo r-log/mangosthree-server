@@ -229,10 +229,10 @@ endfunction()
 # ---------------------------------------------------------------------------------------------
 # THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10, the
 # cooldown row on a63c61953, the glyph row on cc63db97b, the pet row on 157d99a5c, the social row on
-# b20d94a87 and the currency row on 6f20649ea (decoupling D4k); the reputation row's allowances
-# re-measured on ad8931f9c when ReputationMgr became Player-less (decoupling D4k). The reasons name
-# functions and lists, never line numbers or counts: those go stale with the next edit, and the gate
-# prints the lines.
+# b20d94a87, the currency row on 6f20649ea and the honor row on 9fb598e4e (decoupling D4k); the
+# reputation row's allowances re-measured on ad8931f9c when ReputationMgr became Player-less
+# (decoupling D4k). The reasons name functions and lists, never line numbers or counts: those go
+# stale with the next edit, and the gate prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -560,6 +560,29 @@ state_allow(currency src/tests/HarnessTest.cpp
 state_allow(currency src/tests/CurrencyMgrTest.cpp
     WHY "unit test that observes the packets through a capturing sink and the load's DELETE and the save's statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
     NAMES SMSG_SET_CURRENCY SMSG_SET_CURRENCY_WEEK_LIMIT SMSG_SEND_CURRENCIES SMSG_WEEKLY_RESET_CURRENCIES character_currencies)
+# Decoupling D4k. The one packet HonorMgr builds. The other server names in Opcodes.h containing
+# PVP, HONOR or KILL are left out, each built by its own owner or by nobody: SMSG_INSPECT_HONOR_STATS
+# (the inspect handler, MiscHandler.cpp), SMSG_PVP_LOG_DATA and SMSG_PVP_OPTIONS_ENABLED (the
+# battleground manager and handler), SMSG_PVP_REWARDS (the owner's SendPvPRewards,
+# PlayerBattleGround.cpp), SMSG_PARTYKILLLOG (the unit's kill, Unit.cpp), SMSG_SPELLINSTAKILLLOG
+# and SMSG_QUESTUPDATE_ADD_KILL (the spell and quest code); SMSG_PVP_QUEUE_STATS,
+# SMSG_REMOVED_FROM_PVP_QUEUE, SMSG_REPORT_PVP_AFK_RESULT and SMSG_QUESTUPDATE_ADD_PVP_KILL are built
+# by nobody. No TABLES: the kill counts are update fields saved with the character row. TYPES is the
+# owner alone: it has no public accessor.
+state_row(honor
+    OWNER   HonorMgr
+    PACKETS SMSG_PVP_CREDIT                      # HonorMgr::Reward
+    TYPES   HonorMgr)
+
+state_allow(honor src/game/entities/player/pvp/HonorMgr.cpp
+    WHY "the owner: builds the kill's honor packet for the owner's session sink"
+    NAMES SMSG_PVP_CREDIT)
+state_allow(honor src/game/entities/player/pvp/HonorMgr.h
+    WHY "the owner's header: the class, the sink and Reward's doc comments name the packet"
+    NAMES SMSG_PVP_CREDIT)
+state_allow(honor src/tests/HonorMgrTest.cpp
+    WHY "unit test that observes the packet through a capturing sink (checks the opcode and each byte, builds nothing)"
+    NAMES SMSG_PVP_CREDIT)
 
 # Shared by every row: the files that define opcodes. Each is checked to still spell at least
 # one row packet.

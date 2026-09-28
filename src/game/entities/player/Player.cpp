@@ -319,7 +319,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr()
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(NULL)), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr()
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -513,7 +513,7 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(this)
     m_armorPenetrationPct = 0.0f;
     m_spellPenetrationItemMod = 0;
 
-    // Honor system kill-rollover timestamp now owned by m_honorMgr; initialized in its ctor.
+    // Honor system kill-rollover timestamp now owned by m_honorMgr; the initializer list hands it time(NULL).
 
 
     // Player summoning
@@ -4048,12 +4048,12 @@ void Player::setFactionForRace(uint8 race)
     setFaction(getFactionForRace(race));
 }
 
-// Player::UpdateHonorKills moved to HonorMgr::UpdateKills (2026-05-12); thin delegating wrapper lives inline in Player.h.
+// Player::UpdateHonorKills moved to HonorMgr::UpdateKills (2026-05-12); the wrapper lives in pvp/PlayerHonor.cpp.
 
 /// Calculate the amount of honor gained based on the victim
 /// and the size of the group for which the honor is divided
 /// An exact honor value can also be given (overriding the calcs)
-// Player::RewardHonor moved to HonorMgr::Reward (2026-05-12); thin delegating wrapper lives inline in Player.h.
+// Player::RewardHonor moved to HonorMgr::Reward (2026-05-12); the wrapper lives in pvp/PlayerHonor.cpp.
 
 void Player::SetInGuild(uint32 GuildId)
 {

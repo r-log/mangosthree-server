@@ -3135,8 +3135,11 @@ class Player : public Unit
         /*********************************************************/
         /***                  PVP SYSTEM                       ***/
         /*********************************************************/
-        void UpdateHonorKills() { m_honorMgr.UpdateKills(); }
-        bool RewardHonor(Unit *pVictim, uint32 groupsize, float honor = -1) { return m_honorMgr.Reward(pVictim, groupsize, honor); }
+        // Decoupling D4k: the two honor wrappers read the character's and the victim's facts, the
+        // clock and the honor draw, and pass the kill-field writes, the achievement updates and the
+        // honor currency change; they live in pvp/PlayerHonor.cpp; the packet goes through SessionSink().
+        void UpdateHonorKills();
+        bool RewardHonor(Unit *pVictim, uint32 groupsize, float honor = -1);
         void SendPvPRewards();
         void SendRatedBGStats();
 

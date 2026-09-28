@@ -24,39 +24,35 @@
  */
 
 #include "HonorMgr.h"
-#include "Player.h"
-#include "Creature.h"
-#include "WorldSession.h"
-#include "World.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "ObjectGuid.h"
 #include "Object/UpdateFields.h"
-#include "Formulas.h"
+#include "Common/TimeConstants.h"                           // DAY
 
-void HonorMgr::UpdateKills()
+void HonorMgr::UpdateKills(Clock const& clock, KillFields const& fields)
 {
     /// called when rewarding honor and at each save
-    time_t now = time(NULL);
-    time_t today = (time(NULL) / DAY) * DAY;
+    time_t now = clock();
+    time_t today = (clock() / DAY) * DAY;
 
     if (m_lastUpdateTime < today)
     {
         time_t yesterday = today - DAY;
 
-        uint16 kills_today = m_owner->GetUInt16Value(PLAYER_FIELD_KILLS, 0);
+        uint16 kills_today = fields.getUInt16Value(PLAYER_FIELD_KILLS, 0);
 
         // update yesterday's contribution
         if (m_lastUpdateTime >= yesterday)
         {
             // this is the first update today, reset today's contribution
-            m_owner->SetUInt16Value(PLAYER_FIELD_KILLS, 0, 0);
-            m_owner->SetUInt16Value(PLAYER_FIELD_KILLS, 1, kills_today);
+            fields.setUInt16Value(PLAYER_FIELD_KILLS, 0, 0);
+            fields.setUInt16Value(PLAYER_FIELD_KILLS, 1, kills_today);
         }
         else
         {
             // no honor/kills yesterday or today, reset
-            m_owner->SetUInt32Value(PLAYER_FIELD_KILLS, 0);
+            fields.setUInt32Value(PLAYER_FIELD_KILLS, 0);
         }
     }
 
@@ -66,17 +62,17 @@ void HonorMgr::UpdateKills()
 /// Calculate the amount of honor gained based on the victim
 /// and the size of the group for which the honor is divided
 /// An exact honor value can also be given (overriding the calcs)
-bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
+bool HonorMgr::Reward(uint32 groupsize, float honor, HonorInputs const& in, RewardSinks const& sinks)
 {
     // do not reward honor in arenas, but enable onkill spellproc
-    if (m_owner->InArena())
+    if (in.owner.inArena)
     {
-        if (!uVictim || uVictim == m_owner || uVictim->GetTypeId() != TYPEID_PLAYER)
+        if (!in.victim.present || in.victim.isOwner || !in.victim.isPlayer)
         {
             return false;
         }
 
-        if (m_owner->GetBGTeam() == ((Player*)uVictim)->GetBGTeam())
+        if (in.owner.bgTeam == in.victim.bgTeam)
         {
             return false;
         }
@@ -85,7 +81,7 @@ bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
     }
 
     // 'Inactive' this aura prevents the player from gaining honor points and battleground tokens
-    if (m_owner->GetDummyAura(SPELL_AURA_PLAYER_INACTIVE))
+    if (in.owner.inactive)
     {
         return false;
     }
@@ -94,30 +90,28 @@ bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
     uint32 victim_rank = 0;
 
     // need call before fields update to have chance move yesterday data to appropriate fields before today data change.
-    UpdateKills();
+    UpdateKills(in.clock, sinks.fields);
 
     if (honor <= 0)
     {
-        if (!uVictim || uVictim == m_owner || uVictim->HasAuraType(SPELL_AURA_NO_PVP_CREDIT))
+        if (!in.victim.present || in.victim.isOwner || in.victim.noPvpCredit)
         {
             return false;
         }
 
-        victim_guid = uVictim->GetObjectGuid();
+        victim_guid = in.victim.guid;
 
-        if (uVictim->GetTypeId() == TYPEID_PLAYER)
+        if (in.victim.isPlayer)
         {
-            Player* pVictim = (Player*)uVictim;
-
-            if (m_owner->GetTeam() == pVictim->GetTeam() && !sWorld.IsFFAPvPRealm())
+            if (in.owner.team == in.victim.team && !in.ffaRealm)
             {
                 return false;
             }
 
             float f = 1;                                    // need for total kills (?? need more info)
             uint32 k_grey = 0;
-            uint32 k_level = m_owner->getLevel();
-            uint32 v_level = pVictim->getLevel();
+            uint32 k_level = in.owner.level;
+            uint32 v_level = in.victim.level;
 
             {
                 // PLAYER_CHOSEN_TITLE VALUES DESCRIPTION
@@ -126,7 +120,7 @@ bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
                 //  [15..28] Horde honor titles and player name
                 //  [29..38] Other title and player name
                 //  [39+]    Nothing
-                uint32 victim_title = pVictim->GetUInt32Value(PLAYER_CHOSEN_TITLE);
+                uint32 victim_title = in.victim.chosenTitle;
                 // Get Killer titles, CharTitlesEntry::bit_index
                 // Ranks:
                 //  title[1..14]  -> rank[5..18]
@@ -150,7 +144,7 @@ bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
                 }
             }
 
-            k_grey = MaNGOS::XP::GetGrayLevel(k_level);
+            k_grey = in.owner.grayLevel;
 
             if (v_level <= k_grey)
             {
@@ -165,18 +159,16 @@ bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
             honor *= float(k_level) / 70.0f;                // factor of dependence on levels of the killer
 
             // count the number of playerkills in one day
-            m_owner->ApplyModUInt32Value(PLAYER_FIELD_KILLS, 1, true);
+            sinks.fields.applyModUInt32Value(PLAYER_FIELD_KILLS, 1, true);
             // and those in a lifetime
-            m_owner->ApplyModUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, 1, true);
-            m_owner->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EARN_HONORABLE_KILL);
-            m_owner->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HK_CLASS, pVictim->getClass());
-            m_owner->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HK_RACE, pVictim->getRace());
+            sinks.fields.applyModUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, 1, true);
+            sinks.updateAchievement(ACHIEVEMENT_CRITERIA_TYPE_EARN_HONORABLE_KILL, 0);
+            sinks.updateAchievement(ACHIEVEMENT_CRITERIA_TYPE_HK_CLASS, in.victim.classId);
+            sinks.updateAchievement(ACHIEVEMENT_CRITERIA_TYPE_HK_RACE, in.victim.race);
         }
         else
         {
-            Creature* cVictim = (Creature*)uVictim;
-
-            if (!cVictim->IsRacialLeader())
+            if (!in.victim.racialLeader)
             {
                 return false;
             }
@@ -186,17 +178,17 @@ bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
         }
     }
 
-    if (uVictim != NULL)
+    if (in.victim.present)
     {
-        honor *= sWorld.getConfig(CONFIG_FLOAT_RATE_HONOR);
-        honor *= (m_owner->GetMaxPositiveAuraModifier(SPELL_AURA_MOD_HONOR_GAIN) + 100.0f) / 100.0f;
+        honor *= in.honorRate;
+        honor *= (in.owner.honorGainModifier + 100.0f) / 100.0f;
 
         if (groupsize > 1)
         {
             honor /= groupsize;
         }
 
-        honor *= (((float)urand(8, 12)) / 10);              // approx honor: 80% - 120% of real honor
+        honor *= (((float)in.draw()) / 10);              // approx honor: 80% - 120% of real honor
     }
 
     // honor - for show honor points in log
@@ -208,10 +200,10 @@ bool HonorMgr::Reward(Unit* uVictim, uint32 groupsize, float honor)
     data << uint32(honor);
     data << ObjectGuid(victim_guid);
     data << uint32(victim_rank);
-    m_owner->GetSession()->SendPacket(&data);
+    sinks.send(&data);
 
     // add honor points
-    m_owner->ModifyCurrencyCount(CURRENCY_HONOR_POINTS, int32(honor));
+    sinks.modifyCurrencyCount(CURRENCY_HONOR_POINTS, int32(honor));
 
     return true;
 }

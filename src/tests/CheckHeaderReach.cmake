@@ -182,7 +182,20 @@ set(REACH_RULES
     # the character database (Database/DatabaseEnv.h); src/tests/ReputationMgrTest.cpp seeds the
     # store and checks both.
     "entities/player/social/ReputationMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/AchievementMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
-    "entities/player/social/ReputationMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/AchievementMgr.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h")
+    "entities/player/social/ReputationMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/AchievementMgr.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h"
+    # Decoupling D4k: the honor manager. The owner's and the victim's facts, the realm's type and
+    # honor rate come in as values, the clock and the honor draw as read callbacks, and the kill
+    # fields, the achievement updates, the packet and the honor currency change go out through
+    # callbacks, so neither file may reach the character or the unit (nor the creature, whose
+    # racial-leader flag the owner reads), the session, the world (WorldHandlers/World.h: the config
+    # and the realm type), the auras, the achievements, the currency manager, the battlegrounds (the
+    # inactive spell id) or the grey-level formula (Object/Formulas.h, which reaches the world). The
+    # header includes SharedDefines.h (Team), DBCEnums.h (the criteria type), ObjectGuid.h (the
+    # victim's guid, by value) and ManagerPacketSink.h (WorldPacket forward-declared), and stays
+    # inside entities/player/Player.h's rule (Player.h includes it). The .cpp builds the packet
+    # (WorldPacket.h, Opcodes.h) and touches no DBC store and no database.
+    "entities/player/pvp/HonorMgr.h|entities/player/Player.h,Object/Unit.h,Object/Creature.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h,entities/player/inventory/CurrencyMgr.h,BattleGround/BattleGround.h,Object/Formulas.h,Server/DBCStores.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "entities/player/pvp/HonorMgr.cpp|entities/player/Player.h,Object/Unit.h,Object/Creature.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h,entities/player/inventory/CurrencyMgr.h,BattleGround/BattleGround.h,Object/Formulas.h,Server/DBCStores.h,Database/DatabaseEnv.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

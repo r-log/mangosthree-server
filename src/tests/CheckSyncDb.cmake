@@ -78,6 +78,8 @@ set(CONVERTED_FILES
     src/game/entities/player/inventory/CurrencyMgr.cpp      # decoupling D4k
     src/game/entities/player/social/ReputationMgr.h         # decoupling D4k
     src/game/entities/player/social/ReputationMgr.cpp       # decoupling D4k
+    src/game/entities/player/pvp/HonorMgr.h                 # decoupling D4k
+    src/game/entities/player/pvp/HonorMgr.cpp               # decoupling D4k
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -438,6 +440,10 @@ set(ALLOW_AccountCommands_cpp
 # row at a time from the login holder's result (LoadRow); the owner's loop
 # (Player::_LoadReputations) takes the login holder's rows, so the per-character query that used
 # to sit in the manager as a comment is gone.
+#
+# Decoupling D4k. HonorMgr.h and HonorMgr.cpp have NO allow list either, and no database call at
+# all: the kill counts are update fields the owner saves with the character row, and the rollover's
+# timestamp is set from that row's logout time by the owner's load.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

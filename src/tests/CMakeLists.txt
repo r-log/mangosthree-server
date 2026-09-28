@@ -100,6 +100,7 @@ set(SRC_GRP_TESTS
     SocialMgrTest.cpp
     CurrencyMgrTest.cpp
     ReputationMgrTest.cpp
+    HonorMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)
