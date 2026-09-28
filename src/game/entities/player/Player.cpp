@@ -2631,7 +2631,7 @@ void Player::UpdateFreeTalentPoints(bool resetIfNeed)
             {
                 resetTalents(true);
             }
-            SetFreeTalentPoints(0);
+            m_talentMgr.SetFreePoints(0);
         }
     }
     else
@@ -2653,13 +2653,13 @@ void Player::UpdateFreeTalentPoints(bool resetIfNeed)
             }
             else
             {
-                SetFreeTalentPoints(0);
+                m_talentMgr.SetFreePoints(0);
             }
         }
         // else update amount of free points
         else
         {
-            SetFreeTalentPoints(talentPointsForLevel - m_talentMgr.UsedPoints());
+            m_talentMgr.SetFreePoints(talentPointsForLevel - m_talentMgr.UsedPoints());
         }
     }
 }
@@ -2879,7 +2879,7 @@ void Player::SendInitialSpells()
      * * * * * * * * * * * * * * * * */
     uint16 spellCount = 0;
 
-    WorldPacket data(SMSG_INITIAL_SPELLS, (1 + 2 + 4 * m_spells.size() + 2 + GetSpellCooldownMap().size() * (2 + 2 + 2 + 4 + 4)));
+    WorldPacket data(SMSG_INITIAL_SPELLS, (1 + 2 + 4 * m_spells.size() + 2 + m_spellCooldownMgr.GetSpellCooldownMap().size() * (2 + 2 + 2 + 4 + 4)));
     data << uint8(0);
 
     /* * * * * * * * * * * * * * * * *
@@ -2915,9 +2915,9 @@ void Player::SendInitialSpells()
     data.put<uint16>(countPos, spellCount);                 // write real count value
 
     /* For each spell the player has on cooldown */
-    uint16 spellCooldowns = GetSpellCooldownMap().size();
+    uint16 spellCooldowns = m_spellCooldownMgr.GetSpellCooldownMap().size();
     data << uint16(spellCooldowns);
-    for (SpellCooldowns::const_iterator itr = GetSpellCooldownMap().begin(); itr != GetSpellCooldownMap().end(); ++itr)
+    for (SpellCooldowns::const_iterator itr = m_spellCooldownMgr.GetSpellCooldownMap().begin(); itr != m_spellCooldownMgr.GetSpellCooldownMap().end(); ++itr)
     {
         /* If the spell doesn't exist in the spellbook, just ignore it */
         SpellEntry const* sEntry = sSpellStore.LookupEntry(itr->first);
@@ -4650,7 +4650,7 @@ void Player::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
         {
             data << uint32(unSpellId);
             data << uint32(unTimeMs);                       // in m.secs
-            AddSpellCooldown(unSpellId, 0, curTime + unTimeMs / IN_MILLISECONDS);
+            m_spellCooldownMgr.AddSpellCooldown(unSpellId, 0, curTime + unTimeMs / IN_MILLISECONDS);
         }
     }
     GetSession()->SendPacket(&data);
@@ -4993,7 +4993,7 @@ void Player::ApplyEquipCooldown(Item* pItem)
             continue;
         }
 
-        AddSpellCooldown(spellData.SpellId, pItem->GetEntry(), time(NULL) + 30);
+        m_spellCooldownMgr.AddSpellCooldown(spellData.SpellId, pItem->GetEntry(), time(NULL) + 30);
 
         WorldPacket data(SMSG_ITEM_COOLDOWN, 12);
         data << pItem->GetObjectGuid();
@@ -6384,11 +6384,6 @@ void Player::StartTimedAchievementCriteria(AchievementCriteriaTypes type, uint32
     GetAchievementMgr().StartTimedAchievementCriteria(type, timedRequirementId, startTime);
 }
 
-SpellEntry const* Player::GetKnownTalentRankById(int32 talentId) const
-{
-    return m_talentMgr.GetKnownTalentRankById(talentId);
-}
-
 
 /**
  * @brief Clears an at-login flag from the player and optionally from the database.
@@ -6590,12 +6585,13 @@ Object* Player::GetObjectByTypeMask(ObjectGuid guid, TypeMask typemask)
 // Player::SendCurrencies / Get/SendCurrencyWeekCap / GetCurrencyTotalCap / Get*Count moved
 // to CurrencyMgr (2026-05-12). Decoupling D4k: the wrappers that need the character's inputs or
 // sinks (GetCurrencyWeekCap, SendCurrencies, SendCurrencyWeekCap) live in
-// inventory/PlayerCurrency.cpp; the rest stay inline in Player.h.
+// inventory/PlayerCurrency.cpp. Decoupling D4i: the plain getters went; callers use GetCurrencyMgr().
 
 // Player::ModifyCurrencyCount / SetCurrencyCount / _LoadCurrencies / _SaveCurrencies /
 // SetCurrencyFlags / ResetCurrencyWeekCounts moved to CurrencyMgr (2026-05-12). Decoupling D4k:
 // ModifyCurrencyCount, SetCurrencyCount and _LoadCurrencies live in inventory/PlayerCurrency.cpp;
-// the rest stay inline in Player.h.
+// _SaveCurrencies and ResetCurrencyWeekCounts stay inline in Player.h. Decoupling D4i: SetCurrencyFlags
+// went; callers use GetCurrencyMgr().SetFlags.
 
 const uint32 armorSpecToClass[MAX_CLASSES] =
 {

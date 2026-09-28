@@ -501,7 +501,7 @@ void LFGMgr::BuildRandomDungeonRewards(Player* pPlayer,
                 sCurrencyTypesStore.LookupEntry(LFGRewardLogic::LFG_CURRENCY_VALOR);
 
             uint32 const weekCount =
-                pPlayer->GetCurrencyWeekCount(LFGRewardLogic::LFG_CURRENCY_VALOR);
+                pPlayer->GetCurrencyMgr().GetWeekCount(LFGRewardLogic::LFG_CURRENCY_VALOR);
             uint32 const weekCap = valor ? pPlayer->GetCurrencyWeekCap(valor) : 0;
 
             entry.firstReward = (weekCount == 0);
@@ -517,8 +517,8 @@ void LFGMgr::BuildRandomDungeonRewards(Player* pPlayer,
             entry.purseWeeklyQuantity = weekCount;
             entry.purseWeeklyLimit = weekCap;
             entry.purseQuantity =
-                pPlayer->GetCurrencyCount(LFGRewardLogic::LFG_CURRENCY_VALOR);
-            entry.purseLimit = valor ? pPlayer->GetCurrencyTotalCap(valor) : 0;
+                pPlayer->GetCurrencyMgr().GetCount(LFGRewardLogic::LFG_CURRENCY_VALOR);
+            entry.purseLimit = valor ? pPlayer->GetCurrencyMgr().GetTotalCap(valor) : 0;
             entry.quantity = entry.completionQuantity;
 
             LFGRewardItem item;

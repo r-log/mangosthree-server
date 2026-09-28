@@ -94,7 +94,7 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
     // prevent cheating (selecting new tree with points already in another)
     if (tabPage >= 0)   // -1 if player already has specialization
     {
-        if (TalentTabEntry const* talentTabEntry = sTalentTabStore.LookupEntry(_player->GetPrimaryTalentTree(_player->GetActiveSpec())))
+        if (TalentTabEntry const* talentTabEntry = sTalentTabStore.LookupEntry(_player->GetTalentMgr().PrimaryTree(_player->GetTalentMgr().ActiveSpec())))
         {
             if (talentTabEntry->OrderIndex != tabPage)
             {

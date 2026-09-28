@@ -337,7 +337,7 @@ bool ChatHandler::HandleModifyTalentCommand(char* args)
             return false;
         }
 
-        ((Player*)target)->SetFreeTalentPoints(tp);
+        ((Player*)target)->GetTalentMgr().SetFreePoints(tp);
         ((Player*)target)->SendTalentsInfoData(false);
         return true;
     }
@@ -1325,7 +1325,7 @@ bool ChatHandler::HandleModifyCurrencyCommand(char* args)
 
     target->ModifyCurrencyCount(currencyId, amount, false, false);
 
-    PSendSysMessage(LANG_COMMAND_MODIFY_CURRENCY, currencyId, GetNameLink(target).c_str(), target->GetCurrencyCount(currencyId));
+    PSendSysMessage(LANG_COMMAND_MODIFY_CURRENCY, currencyId, GetNameLink(target).c_str(), target->GetCurrencyMgr().GetCount(currencyId));
 
     return true;
 }

@@ -374,7 +374,7 @@ void Aura::HandleAuraConvertRune(bool apply, bool Real)
     {
         for (uint32 i = 0; i < MAX_RUNES; ++i)
         {
-            if (plr->GetCurrentRune(i) == runeFrom && !plr->GetRuneCooldown(i))
+            if (plr->GetRuneMgr().GetCurrentRune(i) == runeFrom && !plr->GetRuneMgr().GetRuneCooldown(i))
             {
                 plr->ConvertRune(i, runeTo);
                 break;
@@ -385,7 +385,7 @@ void Aura::HandleAuraConvertRune(bool apply, bool Real)
     {
         for (uint32 i = 0; i < MAX_RUNES; ++i)
         {
-            if (plr->GetCurrentRune(i) == runeTo && plr->GetBaseRune(i) == runeFrom)
+            if (plr->GetRuneMgr().GetCurrentRune(i) == runeTo && plr->GetRuneMgr().GetBaseRune(i) == runeFrom)
             {
                 plr->ConvertRune(i, runeFrom);
                 break;

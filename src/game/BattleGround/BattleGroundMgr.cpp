@@ -497,7 +497,7 @@ void BattleGroundMgr::BuildPvpLogDataPacket(WorldPacket* data, BattleGround* bg)
         // TODO: store this in player score
         if (player)
         {
-            buffer << uint32(player->GetPrimaryTalentTree(player->GetActiveSpec()));
+            buffer << uint32(player->GetTalentMgr().PrimaryTree(player->GetTalentMgr().ActiveSpec()));
         }
         else
         {

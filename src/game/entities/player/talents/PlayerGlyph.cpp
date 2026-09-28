@@ -77,7 +77,7 @@ void Player::ApplyGlyph(uint8 slot, bool apply)
     };
     sinks.setField = UInt32Fields(this);
 
-    m_glyphMgr.ApplyGlyph(GetActiveSpec(), slot, apply, sinks);
+    m_glyphMgr.ApplyGlyph(m_talentMgr.ActiveSpec(), slot, apply, sinks);
 }
 
 void Player::ApplyGlyphs(bool apply)

@@ -488,9 +488,9 @@ bool Player::BuyCurrencyFromVendorSlot(ObjectGuid vendorGuid, uint32 vendorslot,
         return false;
     }
 
-    if (uint32 totalCap = GetCurrencyTotalCap(pCurrency))
+    if (uint32 totalCap = m_currencyMgr.GetTotalCap(pCurrency))
     {
-        if (GetCurrencyCount(currencyId) >= totalCap)
+        if (m_currencyMgr.GetCount(currencyId) >= totalCap)
         {
 
             SendBuyError(BUY_ERR_CANT_CARRY_MORE, 0, 0, 0);
@@ -500,7 +500,7 @@ bool Player::BuyCurrencyFromVendorSlot(ObjectGuid vendorGuid, uint32 vendorslot,
 
     if (uint32 weekCap = GetCurrencyWeekCap(pCurrency))
     {
-        if (GetCurrencyWeekCount(currencyId) >= weekCap)
+        if (m_currencyMgr.GetWeekCount(currencyId) >= weekCap)
         {
             SendBuyError(BUY_ERR_CANT_CARRY_MORE, 0, 0, 0);
             return false;

@@ -236,7 +236,7 @@ bool Player::IsActionButtonDataValid(uint8 button, uint32 action, uint8 type, Pl
 ActionButton* Player::addActionButton(uint8 spec, uint8 button, uint32 action, uint8 type)
 {
     // check action only for active spec (so not check at copy/load passive spec)
-    if (spec == GetActiveSpec() && !IsActionButtonDataValid(button, action, type, this))
+    if (spec == m_talentMgr.ActiveSpec() && !IsActionButtonDataValid(button, action, type, this))
     {
         return NULL;
     }

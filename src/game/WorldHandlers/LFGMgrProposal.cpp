@@ -1237,9 +1237,9 @@ namespace
     /// grant are different numbers on the run that fills the week.
     uint32 GrantLfgCurrency(Player* pPlayer, uint32 currencyId, uint32 amount)
     {
-        uint32 const before = pPlayer->GetCurrencyCount(currencyId);
+        uint32 const before = pPlayer->GetCurrencyMgr().GetCount(currencyId);
         pPlayer->ModifyCurrencyCount(currencyId, int32(amount));
-        uint32 const after = pPlayer->GetCurrencyCount(currencyId);
+        uint32 const after = pPlayer->GetCurrencyMgr().GetCount(currencyId);
 
         return (after > before) ? (after - before) : 0;
     }

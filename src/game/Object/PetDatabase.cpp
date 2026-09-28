@@ -515,8 +515,8 @@ void Pet::SavePetToDB(PetSaveMode mode)
             }
         }
         // not save pet as current if another pet temporary unsummoned
-        else if (mode == PET_SAVE_AS_CURRENT && pOwner->GetTemporaryUnsummonedPetNumber() &&
-                 pOwner->GetTemporaryUnsummonedPetNumber() != m_charmInfo->GetPetNumber())
+        else if (mode == PET_SAVE_AS_CURRENT && pOwner->GetPetMgr().GetTemporaryUnsummonedPetNumber() &&
+                 pOwner->GetPetMgr().GetTemporaryUnsummonedPetNumber() != m_charmInfo->GetPetNumber())
         {
             // pet will lost anyway at restore temporary unsummoned
             if (getPetType() == HUNTER_PET)
