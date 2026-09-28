@@ -52,7 +52,9 @@ These directories **dissolve**:
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot grow: they are
 a `CheckLayout` ratchet, keyed per includer file and header. Only two seams are gated, `entities/player` and
-`spells/aura`.
+`spells/aura`, from both sides: an include into either from another peer directory and from the seam's own peer
+(`Object/Unit.cpp` -> `Player.h`, 34 lines; `SpellMgr.h` -> `SpellAuraDefines.h`, 16 lines; the 2026-09-28 decision)
+is listed and cannot grow.
 
 **Today:** 2,354 such lines, the largest being entities -> maps 472, -> social 344, -> pvp 192 and -> spells 168,
 and spells -> entities 295.

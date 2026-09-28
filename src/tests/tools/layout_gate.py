@@ -131,12 +131,11 @@ SEAMS = [
     ('entities/player', r'^game/entities/player/'),
     ('spells/aura', r'^game/spells/(aura/|Aura)|^game/WorldHandlers/(SpellAura|UnitAuraProcHandler)|^game/Object/UnitAura\.'),
 ]
-# Which edges into a seam are gated. False (today, the brief's reading of sections 1 and 4): only
-# an edge from ANOTHER domain directory (spells -> entities/player). True: also an edge from the
-# seam's own peer but outside the seam (Object/Unit.cpp -> entities/player/Player.h, 34 lines;
-# SpellMgr.h -> SpellAuraDefines.h, 16 lines). Flipping it is a decision on the page's section 4:
-# flip it, run --generate, and update that section's sentence.
-SEAM_SAME_PEER = False
+# Which edges into a seam are gated. False: only an edge from ANOTHER domain directory
+# (spells -> entities/player). True (the 2026-09-28 decision, the page's section 1): also an edge
+# from the seam's own peer but outside the seam (Object/Unit.cpp -> entities/player/Player.h,
+# 34 lines; SpellMgr.h -> SpellAuraDefines.h, 16 lines), so the seam holds from both sides.
+SEAM_SAME_PEER = True
 
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
 INCLUDE_RX = re.compile(r'\s*#\s*include\s*"([^"]+)"')
