@@ -27,12 +27,15 @@
 #define MANGOS_H_SPELLCOOLDOWNMGR
 
 #include "Platform/Define.h"
+#include "Common/TimeConstants.h"
+#include "ManagerPacketSink.h"
 #include <ctime>
+#include <functional>
 #include <map>
 
-class Player;
-class Spell;
-class QueryResult;
+class Field;
+class ObjectGuid;
+struct ItemPrototype;
 struct SpellEntry;
 
 /**
@@ -47,44 +50,90 @@ struct SpellCooldown
 typedef std::map<uint32, SpellCooldown> SpellCooldowns;
 
 /**
- * @brief Owns a player's active spell-cooldown map and the operations on it.
+ * @brief Decoupling D4k: a character's active spell cooldowns and the rules over them, held apart
+ * from the object that plays the character.
  *
- * Held by value on Player as m_spellCooldownMgr with a Player* back-pointer.
- * Persisted to character_spell_cooldown via LoadFromDB()/SaveToDB().
+ * The state is the map from spell id to the cooldown's end (wall-clock seconds) and the item that
+ * started it. The owner holds one by value, fills it row by row at login (LoadRow), and saves it
+ * with the rest of the character (SaveToDB).
+ *
+ * The object carries no owner. What it used to read from the owner is handed in at the call --
+ * the clock (`now`, the owner's `time(NULL)`), the owner's guid, and for a cast the facts in
+ * CastInputs -- and what it used to write to the owner goes out through a callback called at the
+ * exact point the old body wrote: the cooldown packets it builds (a PacketSink, the owner's
+ * session), the owner's one-spell clear (a ClearSink) and the owner's cooldown spell mods (the
+ * in/out CooldownMod). Callbacks are parameters only, never stored. So `mangos_tests` builds one
+ * from nothing, with fixed clocks, and reads every packet's bytes.
+ *
+ * It reads three global stores itself, as before: the spell store (a loaded row's spell must
+ * exist; the arena reset reads each spell's recovery times), the spell category sets (the
+ * category cooldowns) and, through the spell entry, the spell cooldown and category rows. The
+ * item prototype is a lookup the owner passes in (CastInputs::itemPrototype).
+ *
+ * What stays with the owner, and why: the potion bookkeeping (UpdatePotionCooldown reads and
+ * clears the owner's last-potion id, its combat state and the cast), and the one-spell clear
+ * packet itself (the owner sends it for its pet's spells as well).
+ *
+ * KEPT SEMANTICS, stated rather than fixed (backlog): the item id is held as uint16, so an item id
+ * above 65535 is truncated here, in the save and in the login's spell list; an end is in whole
+ * seconds (a recovery's milliseconds are divided down, so under a second ends at once); a
+ * one-spell remove with `update` sends its clear even when the spell had no cooldown.
  */
 class SpellCooldownMgr
 {
     public:
-        explicit SpellCooldownMgr(Player* owner) : m_owner(owner) {}
+        static uint32 const infinityCooldownDelay = MONTH; // used for set "infinity cooldowns" for spells and check
+        static uint32 const infinityCooldownDelayCheck = MONTH / 2;
+
+        /// Hands a built cooldown packet to the owner's session.
+        typedef ManagerPacketSink PacketSink;
+        /// Sends the owner's one-spell clear for `spellId`: `SendClearCooldown(spellId, owner)`.
+        typedef std::function<void(uint32 spellId)> ClearSink;
+        /// The item prototype store's lookup: `ObjectMgr::GetItemPrototype`.
+        typedef std::function<ItemPrototype const*(uint32 itemId)> ItemPrototypeLookup;
+        /// Applies the owner's cooldown spell mods to `cooldown` in place:
+        /// `ApplySpellMod(spellId, SPELLMOD_COOLDOWN, cooldown, spell)`, the cast passed through.
+        typedef std::function<void(uint32 spellId, int32& cooldown)> CooldownMod;
+
+        /// What a cast's cooldown needs from the owner, read by the owner just before the call.
+        /// The scalars default to false and 0 so that no field is ever indeterminate; every builder
+        /// (the owner's ReadCastInputs, the test's Wire) sets every field anyway.
+        struct CastInputs
+        {
+            ItemPrototypeLookup itemPrototype;      ///< the item prototype store
+            bool autoRepeatRanged = false;          ///< the spell is an auto-repeat ranged spell (IsAutoRepeatRangedSpell)
+            uint32 rangedAttackTime = 0;            ///< the owner's ranged attack time, GetAttackTime(RANGED_ATTACK)
+            CooldownMod applyCooldownMod;           ///< the owner's cooldown spell mods
+        };
 
         SpellCooldowns const& GetSpellCooldownMap() const { return m_cooldowns; }
 
-        bool HasSpellCooldown(uint32 spell_id) const
+        bool HasSpellCooldown(uint32 spell_id, time_t now) const
         {
             SpellCooldowns::const_iterator itr = m_cooldowns.find(spell_id);
-            return itr != m_cooldowns.end() && itr->second.end > time(NULL);
+            return itr != m_cooldowns.end() && itr->second.end > now;
         }
 
-        time_t GetSpellCooldownDelay(uint32 spell_id) const
+        time_t GetSpellCooldownDelay(uint32 spell_id, time_t now) const
         {
             SpellCooldowns::const_iterator itr = m_cooldowns.find(spell_id);
-            time_t t = time(NULL);
+            time_t t = now;
             return itr != m_cooldowns.end() && itr->second.end > t ? itr->second.end - t : 0;
         }
 
-        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL, bool infinityCooldown = false);
+        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, bool infinityCooldown = false);
         void AddSpellCooldown(uint32 spell_id, uint32 itemid, time_t end_time);
-        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL);
-        void RemoveSpellCooldown(uint32 spell_id, bool update = false);
-        void RemoveSpellCategoryCooldown(uint32 cat, bool update = false);
-        void RemoveArenaSpellCooldowns();
-        void RemoveAllSpellCooldown();
-        void LoadFromDB(QueryResult* result);
-        void SaveToDB();
-        void UpdatePotionCooldown(Spell* spell = NULL);
+        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, ObjectGuid ownerGuid, PacketSink const& send);
+        void RemoveSpellCooldown(uint32 spell_id, bool update, ClearSink const& sendClear);
+        void RemoveSpellCategoryCooldown(uint32 cat, bool update, ClearSink const& sendClear);
+        void RemoveArenaSpellCooldowns(ClearSink const& sendClear);
+        void RemoveAllSpellCooldown(ObjectGuid ownerGuid, PacketSink const& send);
+        /// One row of the login holder's cooldown result: spell, item, end time. `now` is the
+        /// owner's clock, read once before the first row; `ownerGuidLow` is for the log lines.
+        void LoadRow(Field* fields, time_t now, uint32 ownerGuidLow);
+        void SaveToDB(uint32 ownerGuidLow, time_t now);
 
     private:
-        Player* m_owner;
         SpellCooldowns m_cooldowns;
 };
 

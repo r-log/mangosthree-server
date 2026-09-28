@@ -98,7 +98,24 @@ set(REACH_RULES
     # for its PacketSink and may not reach proto/WorldPacket.h (closure 3); the .cpp builds the
     # three rune packets, so it includes WorldPacket.h and Opcodes.h, which reach none of these.
     "entities/player/spells/RuneMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h"
-    "entities/player/spells/RuneMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h")
+    "entities/player/spells/RuneMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h"
+    # Decoupling D4k: the managers' shared packet sink type. Every manager header and the owner
+    # include it, so it stays a bare std::function over a forward-declared WorldPacket.
+    "entities/player/ManagerPacketSink.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h"
+    # Decoupling D4k: the spell cooldown manager, the rune manager's two rules plus the cast
+    # (WorldHandlers/Spell.h): a cast's spell mods reach the manager as a callback the owner builds
+    # around the cast, so the manager never sees one. The item prototype comes from a lookup the
+    # owner passes in (ObjectMgr.h stays out of reach); whether a spell auto-repeats is a fact the
+    # owner reads (SpellMgr.h stays out of reach). The header forward-declares WorldPacket,
+    # ObjectGuid, ItemPrototype, SpellEntry and Field, and stays inside entities/player/Player.h's
+    # rule (Player.h includes it). The .cpp, like the talent manager's, reads the spell and spell
+    # category DBC stores (Server/DBCStores.h) and saves through the character database
+    # (Database/DatabaseEnv.h); src/tests/SpellCooldownMgrTest.cpp seeds the stores.
+    # The WorldHandlers/Spell.h entries are belt-and-braces: Spell.h includes Object/Unit.h and
+    # entities/player/Player.h itself, so those two entries fire first and Spell.h's never fires on
+    # its own. Object/SpellMgr.h is different: it reaches neither, so its entry does real work.
+    "entities/player/spells/SpellCooldownMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
+    "entities/player/spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

@@ -82,6 +82,9 @@ set(MANAGER_FILES
     entities/player/inventory/InventoryMgr.cpp              # decoupling D4e1
     entities/player/spells/RuneMgr.h                        # decoupling D4k
     entities/player/spells/RuneMgr.cpp                      # decoupling D4k
+    entities/player/spells/SpellCooldownMgr.h               # decoupling D4k
+    entities/player/spells/SpellCooldownMgr.cpp             # decoupling D4k
+    entities/player/ManagerPacketSink.h                     # decoupling D4k: the managers' shared packet sink type
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.
@@ -107,8 +110,7 @@ set(OWNER_FILES
     entities/player/spells/PlayerLearn.cpp
     entities/player/spells/PlayerActionButton.cpp
     entities/player/spells/PlayerRune.cpp                   # decoupling D4k: drives spells/RuneMgr
-    entities/player/spells/SpellCooldownMgr.h               # D4k
-    entities/player/spells/SpellCooldownMgr.cpp             # D4k
+    entities/player/spells/PlayerSpellCooldown.cpp          # decoupling D4k: drives spells/SpellCooldownMgr
     entities/player/inventory/PlayerItem.cpp
     entities/player/inventory/PlayerItemApply.cpp
     entities/player/inventory/PlayerItemQuery.cpp

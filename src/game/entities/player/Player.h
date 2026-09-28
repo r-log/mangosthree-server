@@ -79,6 +79,7 @@
 #include "CurrencyMgr.h" // CurrencyMgr is held by value on Player; brings in PlayerCurrency struct + PlayerCurrencyState/Flag enums + PlayerCurrenciesMap typedef
 #include "RuneMgr.h"    // RuneMgr is held by value on Player; brings in RuneType/RuneInfo/Runes + owns death-knight rune state
 #include "SpellCooldownMgr.h" // SpellCooldownMgr is held by value on Player; brings in SpellCooldown/SpellCooldowns + owns the cooldown map
+#include "ManagerPacketSink.h" // the packet sink type SessionSink() returns to every manager
 
 #include "QuestDef.h"
 #include "QuestStatusMgr.h" // QuestStatusMgr is held by value on Player; brings in the QuestStatusMap typedef
@@ -2367,32 +2368,37 @@ class Player : public Unit
         void AddSpellMod(Aura* aura, bool apply);
         template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell const* spell = NULL);
 
-        static uint32 const infinityCooldownDelay = MONTH; // used for set "infinity cooldowns" for spells and check
-        static uint32 const infinityCooldownDelayCheck = MONTH / 2;
+        // Spell cooldowns (delegated to m_spellCooldownMgr). Decoupling D4k: the clock is read here
+        // (time(NULL)) and handed in. AddSpellAndCategoryCooldowns, SendCooldownEvent,
+        // RemoveSpellCooldown, RemoveSpellCategoryCooldown, RemoveArenaSpellCooldowns,
+        // _LoadSpellCooldowns and UpdatePotionCooldown build the manager's inputs or callbacks and
+        // live in spells/PlayerSpellCooldown.cpp; the packets go through SessionSink().
+        static uint32 const infinityCooldownDelay = SpellCooldownMgr::infinityCooldownDelay; // used for set "infinity cooldowns" for spells and check
+        static uint32 const infinityCooldownDelayCheck = SpellCooldownMgr::infinityCooldownDelayCheck;
 
         // Check if the player has a spell cooldown
-        bool HasSpellCooldown(uint32 spell_id) const { return m_spellCooldownMgr.HasSpellCooldown(spell_id); }
+        bool HasSpellCooldown(uint32 spell_id) const { return m_spellCooldownMgr.HasSpellCooldown(spell_id, time(NULL)); }
 
         // Get the delay for a spell cooldown
-        time_t GetSpellCooldownDelay(uint32 spell_id) const { return m_spellCooldownMgr.GetSpellCooldownDelay(spell_id); }
+        time_t GetSpellCooldownDelay(uint32 spell_id) const { return m_spellCooldownMgr.GetSpellCooldownDelay(spell_id, time(NULL)); }
 
         // Add spell and category cooldowns
-        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL, bool infinityCooldown = false) { m_spellCooldownMgr.AddSpellAndCategoryCooldowns(spellInfo, itemId, spell, infinityCooldown); }
+        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL, bool infinityCooldown = false);
 
         // Add a spell cooldown
         void AddSpellCooldown(uint32 spell_id, uint32 itemid, time_t end_time) { m_spellCooldownMgr.AddSpellCooldown(spell_id, itemid, end_time); }
 
         // Send a cooldown event to the client
-        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL) { m_spellCooldownMgr.SendCooldownEvent(spellInfo, itemId, spell); }
+        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL);
 
         // Prohibit a spell school for a specific duration
         void ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs) override;
 
         // Remove a spell cooldown
-        void RemoveSpellCooldown(uint32 spell_id, bool update = false) { m_spellCooldownMgr.RemoveSpellCooldown(spell_id, update); }
+        void RemoveSpellCooldown(uint32 spell_id, bool update = false);
 
         // Remove a spell category cooldown
-        void RemoveSpellCategoryCooldown(uint32 cat, bool update = false) { m_spellCooldownMgr.RemoveSpellCategoryCooldown(cat, update); }
+        void RemoveSpellCategoryCooldown(uint32 cat, bool update = false);
 
         // Send a clear cooldown message to the client
         void SendClearCooldown(uint32 spell_id, Unit* target);
@@ -2404,23 +2410,23 @@ class Player : public Unit
         }
 
         // Remove all arena spell cooldowns
-        void RemoveArenaSpellCooldowns() { m_spellCooldownMgr.RemoveArenaSpellCooldowns(); }
+        void RemoveArenaSpellCooldowns();
 
         // Remove all spell cooldowns
-        void RemoveAllSpellCooldown() { m_spellCooldownMgr.RemoveAllSpellCooldown(); }
+        void RemoveAllSpellCooldown() { m_spellCooldownMgr.RemoveAllSpellCooldown(GetObjectGuid(), SessionSink()); }
 
         // Load spell cooldowns from the database
-        void _LoadSpellCooldowns(QueryResult* result) { m_spellCooldownMgr.LoadFromDB(result); }
+        void _LoadSpellCooldowns(QueryResult* result);
 
         // Decoupling D7e: fill the per-character pet cache from the login holder's five
         // pet results. Called from LoadFromDB; nothing else fills the cache.
         void _LoadPetCache(SqlQueryHolder* holder);
 
         // Save spell cooldowns to the database
-        void _SaveSpellCooldowns() { m_spellCooldownMgr.SaveToDB(); }
+        void _SaveSpellCooldowns() { m_spellCooldownMgr.SaveToDB(GetGUIDLow(), time(NULL)); }
         void SetLastPotionId(uint32 item_id) { m_lastPotionId = item_id; }
         uint32 GetLastPotionId() { return m_lastPotionId; }
-        void UpdatePotionCooldown(Spell* spell = NULL) { m_spellCooldownMgr.UpdatePotionCooldown(spell); }
+        void UpdatePotionCooldown(Spell* spell = NULL);
 
         void setResurrectRequestData(Unit* caster, uint32 health, uint32 mana);
         void setResurrectRequestDataToGhoul(Unit* caster);
@@ -4130,7 +4136,7 @@ class Player : public Unit
         Cell m_currentCell;   ///< the grid cell this player is filed under (see GetCurrentCell)
 
         // Decoupling D4k: where a manager's packets go -- this character's session, read at each send
-        std::function<void(WorldPacket const*)> SessionSink() const;
+        ManagerPacketSink SessionSink() const;
 
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions

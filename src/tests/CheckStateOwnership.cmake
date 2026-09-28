@@ -227,9 +227,9 @@ function(state_definition_site FILE_REL)
 endfunction()
 
 # ---------------------------------------------------------------------------------------------
-# THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10 (decoupling
-# D4k). The reasons name functions and lists, never line numbers or counts: those go stale with
-# the next edit, and the gate prints the lines.
+# THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10 and the
+# cooldown row on a63c61953 (decoupling D4k). The reasons name functions and lists, never line
+# numbers or counts: those go stale with the next edit, and the gate prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -338,6 +338,43 @@ state_allow(rune src/game/entities/player/spells/RuneMgr.cpp
 state_allow(rune src/tests/RuneMgrTest.cpp
     WHY "unit test that observes the packets through a capturing sink (checks each opcode and its bytes, builds nothing)"
     NAMES SMSG_CONVERT_RUNE SMSG_RESYNC_RUNES SMSG_ADD_RUNE_POWER)
+
+# Decoupling D4k. The cooldown packets SpellCooldownMgr builds: SMSG_COOLDOWN_EVENT and the
+# whole-map form of SMSG_CLEAR_COOLDOWNS. Every other SMSG_ name in Opcodes.h containing COOLDOWN
+# is left out: SMSG_SPELL_COOLDOWN is the cast's cooldown notice (the owner's and the pet's spell
+# code build it), SMSG_ITEM_COOLDOWN the owner's item cooldown notice, and SMSG_MODIFY_COOLDOWN and
+# SMSG_COOLDOWN_CHEAT are built by nobody (if SMSG_MODIFY_COOLDOWN is ever built for a character's
+# spell, SpellCooldownMgr builds it -- add it here). The one-spell form of SMSG_CLEAR_COOLDOWNS
+# stays with the owner (Player::SendClearCooldown): it clears a pet's spell as well as the
+# character's, and the manager reaches it through a callback. TYPES: the owner, the map its
+# GetSpellCooldownMap() hands out, and the map's element.
+state_row(cooldown
+    OWNER   SpellCooldownMgr
+    PACKETS SMSG_COOLDOWN_EVENT                  # SpellCooldownMgr::SendCooldownEvent
+            SMSG_CLEAR_COOLDOWNS                 # SpellCooldownMgr::RemoveAllSpellCooldown
+    TABLES  character_spell_cooldown
+    TYPES   SpellCooldownMgr
+            SpellCooldowns                       # GetSpellCooldownMap()
+            SpellCooldown)                       # its elements
+
+state_allow(cooldown src/game/entities/player/spells/SpellCooldownMgr.cpp
+    WHY "the owner: builds its packets for the owner's session sink, loads the rows one at a time and saves them"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
+state_allow(cooldown src/game/entities/player/Player.cpp
+    WHY "the one-spell clear for the character or its pet (Player::SendClearCooldown), and the whole-character delete (Player::DeleteFromDB)"
+    NAMES SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
+state_allow(cooldown src/game/WorldHandlers/CharacterHandler.cpp
+    WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS), handed to the owner's per-row load"
+    NAMES character_spell_cooldown)
+state_allow(cooldown src/game/Tools/PlayerDump.cpp
+    WHY "character dump: the dumped-table list"
+    NAMES character_spell_cooldown)
+state_allow(cooldown src/game/Tools/PlayerDump.h
+    WHY "character dump: the table-type doc comment"
+    NAMES character_spell_cooldown)
+state_allow(cooldown src/tests/SpellCooldownMgrTest.cpp
+    WHY "unit test that observes the packets through a capturing sink and the save's statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
 
 # Shared by every row: the files that define opcodes. Each is checked to still spell at least
 # one row packet.

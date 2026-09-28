@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 #include "Common/TimeConstants.h"
+#include "ManagerPacketSink.h"
 
 #include <functional>
 
@@ -115,19 +116,21 @@ class RuneMgr
 {
     public:
         /// Hands a built rune packet to the owner's session: `GetSession()->SendPacket(packet)`.
-        typedef std::function<void(WorldPacket const* packet)> PacketSink;
+        typedef ManagerPacketSink PacketSink;
         /// Writes one rune type's regeneration rate: `SetFloatValue(PLAYER_RUNE_REGEN_1 + runeType, value)`.
         typedef std::function<void(uint32 runeType, float value)> RegenSink;
         /// Takes a convert aura that no slot holds any more off its target.
         typedef std::function<void(Aura const* aura)> AuraDrop;
 
         /// What the owner knows about a slot's convert aura, read just before RestoreBaseRune.
-        /// Each fact is read only for a non-NULL aura; for NULL the owner passes false.
+        /// Each fact is read only for a non-NULL aura; for NULL the owner passes false. The facts
+        /// default to false so that none is ever indeterminate; every builder (the owner's
+        /// RestoreBaseRune, the test's Facts) sets all three anyway.
         struct ConvertAuraFacts
         {
-            bool nonPassive;            ///< the aura's spell is not passive
-            bool bloodOfTheNorthHeld;   ///< the aura is Blood of the North (54637) and the owner has aura 54637
-            bool convertsRunes;         ///< the aura's modifier is SPELL_AURA_CONVERT_RUNE
+            bool nonPassive = false;            ///< the aura's spell is not passive
+            bool bloodOfTheNorthHeld = false;   ///< the aura is Blood of the North (54637) and the owner has aura 54637
+            bool convertsRunes = false;         ///< the aura's modifier is SPELL_AURA_CONVERT_RUNE
         };
 
         /// The empty body keeps the state default-initialised exactly as before (the owner-bound
