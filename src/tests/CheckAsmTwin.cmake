@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(CheckAsmTwin)
+
 set(PYTHON_FOR_TWIN "")
 foreach(candidate IN ITEMS python3 python py)
     find_program(PYTHON_CANDIDATE_${candidate} NAMES ${candidate})

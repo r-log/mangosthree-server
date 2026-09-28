@@ -1,6 +1,8 @@
 if(NOT DEFINED SOURCE_ROOT)
     get_filename_component(SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 endif()
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(crypto_is_ours)
 get_filename_component(SOURCE_ROOT "${SOURCE_ROOT}" ABSOLUTE)
 
 set(WORD_PATTERN "openssl|libssl|libcrypto|legacy[.]dll")
@@ -14,6 +16,8 @@ file(GLOB_RECURSE BUILD_FILES
      "${SOURCE_ROOT}/src/*CMakeLists.txt"
      "${SOURCE_ROOT}/dep/*CMakeLists.txt"
      "${SOURCE_ROOT}/.github/workflows/*.yml")
+list(LENGTH BUILD_FILES BUILD_FILE_COUNT)
+gate_require_scanned(crypto_is_ours "${BUILD_FILE_COUNT}" "build files or workflows")
 
 foreach(FILE_PATH IN LISTS BUILD_FILES)
     if(FILE_PATH MATCHES "CheckCryptoIsOurs")

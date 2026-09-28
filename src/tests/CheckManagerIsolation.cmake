@@ -38,10 +38,10 @@
 # scan: the character's own files (Player.h, Player.cpp, Player*.cpp) live in
 # src/game/entities/player/ and its subdirectories beside the managers (decoupling D4j), and
 # they name the class by definition. Each manager PR appends its files to MANAGER_FILES; the
-# character's own files are in OWNER_FILES. Decoupling D4b: EVERY file under src/game/entities/player/, in any
-# subdirectory, must be on one of the two lists, so a new manager file that nobody listed fails
-# here instead of going unscanned; a listed file that does not exist fails as well, so a rename
-# cannot quietly empty either list.
+# character's own files are in OWNER_FILES. Decoupling D4b: EVERY file under
+# src/game/entities/player/, in any subdirectory, must be on one of the two lists, so a new
+# manager file that nobody listed fails here instead of going unscanned; a listed file that
+# does not exist fails as well, so a rename cannot quietly empty either list.
 # CMake regexes have no \b, so a word boundary is spelled (^|[^A-Za-z0-9_]).
 #
 # KNOWN MISSES, stated rather than chased: the rules are text, so they cannot see the class
@@ -64,9 +64,8 @@
 # requires CMake >= 3.18, so that is also the floor here.
 cmake_minimum_required(VERSION 3.18)
 
-if(NOT DEFINED SOURCE_ROOT)
-    message(FATAL_ERROR "ManagerIsolation: -DSOURCE_ROOT=<repo root> is required")
-endif()
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(ManagerIsolation)
 
 set(GAME_DIR "${SOURCE_ROOT}/src/game")
 
@@ -91,7 +90,8 @@ set(MANAGER_FILES
     entities/player/talents/GlyphMgr.cpp                    # decoupling D4k
     entities/player/pets/PetMgr.h                           # decoupling D4k
     entities/player/pets/PetMgr.cpp                         # decoupling D4k
-    entities/player/social/SocialList.h                     # decoupling D4k: PlayerSocial, the verdict, the packet builders
+    # decoupling D4k: SocialList.h holds PlayerSocial, the verdict and the packet builders
+    entities/player/social/SocialList.h                     # decoupling D4k
     entities/player/social/SocialList.cpp                   # decoupling D4k
     entities/player/inventory/CurrencyMgr.h                 # decoupling D4k
     entities/player/inventory/CurrencyMgr.cpp               # decoupling D4k
@@ -464,6 +464,7 @@ if(UNLISTED OR TWICE)
         "On neither list:\n  ${UNLISTED_REPORT}\nOn both lists:\n  ${TWICE_REPORT}")
 endif()
 list(LENGTH PRESENT_FILES PRESENT_COUNT)
+gate_require_scanned(ManagerIsolation "${PRESENT_COUNT}" "files under src/game/${LISTED_DIR}/")
 
 # The real scan.
 set(VIOLATIONS "")
@@ -582,6 +583,7 @@ foreach(FILE_REL IN LISTS MANAGER_FILES)
 endforeach()
 list(REMOVE_DUPLICATES MANAGER_CLASSES)
 list(LENGTH MANAGER_CLASSES MANAGER_CLASS_COUNT)
+gate_require_scanned(ManagerIsolation "${MANAGER_CLASS_COUNT}" "manager classes in the MANAGER_FILES headers")
 
 # Every other file under src/game.
 file(GLOB_RECURSE DEFINITION_FILES LIST_DIRECTORIES false RELATIVE "${GAME_DIR}"
@@ -618,6 +620,7 @@ foreach(FILE_REL IN LISTS DEFINITION_FILES)
         endif()
     endforeach()
 endforeach()
+gate_require_scanned(ManagerIsolation "${SCANNED}" "files under src/game outside MANAGER_FILES")
 foreach(KEY IN LISTS OWNER_DEFINED)
     if(NOT KEY IN_LIST OWNER_DEFINED_SEEN)
         list(APPEND DEFINITION_VIOLATIONS "OWNER_DEFINED entry '${KEY}' no longer matches a definition: remove it")

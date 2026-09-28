@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(MotionBoundary)
+
 set(MOTION_DIR "${SOURCE_ROOT}/src/motion")
 
 if(NOT IS_DIRECTORY "${MOTION_DIR}")
@@ -7,6 +10,8 @@ endif()
 file(GLOB_RECURSE MOTION_SOURCES
     "${MOTION_DIR}/*.h" "${MOTION_DIR}/*.hpp"
     "${MOTION_DIR}/*.cpp" "${MOTION_DIR}/*.cc")
+list(LENGTH MOTION_SOURCES MOTION_SOURCE_COUNT)
+gate_require_scanned(MotionBoundary "${MOTION_SOURCE_COUNT}" "sources in src/motion")
 
 set(FORBIDDEN_PATTERNS
     "#[ \t]*include[ \t]*[\"<](Database/|World\\.h|WorldSession\\.h|AddonHandler\\.h|Warden)"

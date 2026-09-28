@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(SpatialBoundary)
+
 set(HIERARCHY_HEADERS
     Object/Object.h
     Object/Unit.h
@@ -27,13 +30,42 @@ set(FORBIDDEN_MEMBERS
     GetLocalPositionX GetLocalPositionY GetLocalPositionZ GetLocalOrientation
     GetOrientationFromQuat)
 
+# Decoupling D4l: a header the list names but the tree does not have fails the gate. It used to
+# be skipped, so a renamed or moved hierarchy header dropped out of the check and the gate
+# stayed green (the D4j review proved it); CheckHeaderReach.cmake fails the same way on a
+# header its rules name.
+function(spatial_missing_headers HEADERS_VAR OUT_VAR)
+  set(MISSING "")
+  foreach(HEADER IN LISTS ${HEADERS_VAR})
+    if(NOT EXISTS "${SOURCE_ROOT}/src/game/${HEADER}" OR IS_DIRECTORY "${SOURCE_ROOT}/src/game/${HEADER}")
+      list(APPEND MISSING "${HEADER}")
+    endif()
+  endforeach()
+  set(${OUT_VAR} "${MISSING}" PARENT_SCOPE)
+endfunction()
+
+# Self-test: a present header passes, a renamed one and a directory are reported.
+set(SELF_TEST_HEADERS Object/Object.h Object/NoSuchHeader.h Object)
+spatial_missing_headers(SELF_TEST_HEADERS SELF_TEST_MISSING)
+if(NOT "${SELF_TEST_MISSING}" STREQUAL "Object/NoSuchHeader.h;Object")
+  message(FATAL_ERROR "SpatialBoundary self-test failed: [${SELF_TEST_HEADERS}] reported missing "
+    "[${SELF_TEST_MISSING}], expected [Object/NoSuchHeader.h;Object]")
+endif()
+
+list(LENGTH HIERARCHY_HEADERS HEADER_COUNT)
+gate_require_scanned(SpatialBoundary "${HEADER_COUNT}" "headers in HIERARCHY_HEADERS")
+spatial_missing_headers(HIERARCHY_HEADERS MISSING_HEADERS)
+if(MISSING_HEADERS)
+  string(REPLACE ";" "\n  " REPORT "${MISSING_HEADERS}")
+  message(FATAL_ERROR
+    "SpatialBoundary: a hierarchy header does not exist under src/game, so it would not be checked:\n  ${REPORT}\n"
+    "Name the header by its current path in src/tests/CheckSpatialBoundary.cmake (renamed or moved?).")
+endif()
+
 set(VIOLATIONS "")
 
 foreach(HEADER IN LISTS HIERARCHY_HEADERS)
   set(PATH "${SOURCE_ROOT}/src/game/${HEADER}")
-  if(NOT EXISTS "${PATH}")
-    continue()
-  endif()
   file(READ "${PATH}" TEXT)
   foreach(NAME IN LISTS FORBIDDEN_MEMBERS)
     if(TEXT MATCHES "\n[ \t]+[A-Za-z_][A-Za-z_0-9:<>,&\\* \t]*[ \t\\*&]${NAME}[ \t]*\\(")

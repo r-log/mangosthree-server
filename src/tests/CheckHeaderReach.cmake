@@ -15,6 +15,8 @@
 # CMP0057 stays OLD and IN_LIST is parsed as plain text instead of the if() operator it is used
 # as below. The project requires CMake >= 3.18, so that is also the floor here.
 cmake_minimum_required(VERSION 3.18)
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(HeaderReach)
 
 set(GAME_DIR "${SOURCE_ROOT}/src/game")
 set(MOTION_DIR "${SOURCE_ROOT}/src/motion")
@@ -261,6 +263,8 @@ foreach(TOP IN ITEMS "${GAME_DIR}" "${SOURCE_ROOT}/src/shared" "${SOURCE_ROOT}/s
     file(GLOB_RECURSE TOP_FILES LIST_DIRECTORIES false "${TOP}/*")
     list(APPEND TREE_FILES ${TOP_FILES})
 endforeach()
+list(LENGTH TREE_FILES TREE_FILE_COUNT)
+gate_require_scanned(HeaderReach "${TREE_FILE_COUNT}" "files under src/game, src/shared, src/proto and src/motion")
 
 function(forbidden_exists SUFFIX OUT_VAR)
     string(REPLACE "." "\\." SUFFIX_RE "${SUFFIX}")

@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root("Client-map-id gate")
+
 set(ROOTS "${SOURCE_ROOT}/src/game" "${SOURCE_ROOT}/src/modules")
 set(SOURCES "")
 foreach(ROOT_DIR IN LISTS ROOTS)
