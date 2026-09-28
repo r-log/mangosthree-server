@@ -228,9 +228,9 @@ endfunction()
 
 # ---------------------------------------------------------------------------------------------
 # THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10, the
-# cooldown row on a63c61953, the glyph row on cc63db97b and the pet row on 157d99a5c (decoupling
-# D4k). The reasons name functions and lists, never line numbers or counts: those go stale with
-# the next edit, and the gate prints the lines.
+# cooldown row on a63c61953, the glyph row on cc63db97b, the pet row on 157d99a5c and the social
+# row on b20d94a87 (decoupling D4k). The reasons name functions and lists, never line numbers or
+# counts: those go stale with the next edit, and the gate prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -467,6 +467,50 @@ state_allow(pet src/game/entities/player/pets/PlayerPet.cpp
 state_allow(pet src/tests/PetMgrTest.cpp
     WHY "unit test that observes the packet through a capturing sink (checks its opcode and bytes, builds nothing)"
     NAMES SMSG_PET_SPELLS)
+
+# Decoupling D4k. The friend and ignore list. PlayerSocial builds the contact list and the friend
+# status packet (the free builder beside it in SocialList.cpp); the global SocialMgr only sends them.
+# Every other SMSG_ name in Opcodes.h containing FRIEND, CONTACT, SOCIAL, IGNORE or MUTE is left out:
+# SMSG_REFER_A_FRIEND_EXPIRED and SMSG_REFER_A_FRIEND_FAILURE (Recruit-A-Friend),
+# SMSG_IGNORE_REQUIREMENTS_CHEAT and SMSG_IGNORE_DIMINISHING_RETURNS_CHEAT (cheat toggles) and
+# SMSG_VOICE_SET_TALKER_MUTED (voice chat) are none of this list's state and are built by nobody
+# (only the definition sites spell them). The CMSG_ names are client packets (their handlers read,
+# they build nothing). TYPES is the owner alone: its public accessors hand out values, and the
+# character's GetSocial() const hands out the owner itself.
+state_row(social
+    OWNER   PlayerSocial
+    PACKETS SMSG_CONTACT_LIST                    # PlayerSocial::SendSocialList
+            SMSG_FRIEND_STATUS                   # MakeFriendStatusPacket / BuildFriendStatusPacket
+    TABLES  character_social
+    TYPES   PlayerSocial)
+
+state_allow(social src/game/entities/player/social/SocialList.cpp
+    WHY "the owner: builds its packets for the sink or the caller, writes the rows (add, remove, note)"
+    NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS character_social)
+state_allow(social src/game/entities/player/social/SocialList.h
+    WHY "the owner's header: the class's and the builders' doc comments name the packets"
+    NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS)
+state_allow(social src/game/entities/player/Player.cpp
+    WHY "whole-character delete (Player::DeleteFromDB: the read of who lists the character, and the DELETE)"
+    NAMES character_social)
+state_allow(social src/game/WorldHandlers/CharacterHandler.cpp
+    WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADSOCIALLIST), handed to SocialMgr::LoadFromDB's per-row load"
+    NAMES character_social)
+state_allow(social src/game/WorldHandlers/CalendarHandler.cpp
+    WHY "an offline invitee's ignore flag for the inviter (the calendar invite's read, and its comments): the invitee's list is not loaded"
+    NAMES character_social)
+state_allow(social src/game/WorldHandlers/MiscHandlerSocial.cpp
+    WHY "the social handlers' debug log lines name the packet SocialMgr::SendFriendStatus sent (a relay, builds nothing)"
+    NAMES SMSG_FRIEND_STATUS)
+state_allow(social src/tests/CalendarMailAsyncTest.cpp
+    WHY "unit test that observes the calendar's read through a fake connection (checks the statement, runs nothing itself)"
+    NAMES character_social)
+state_allow(social src/tests/CharacterOpsAsyncTest.cpp
+    WHY "unit test that observes the delete's read through a fake connection (checks the statement, runs nothing itself)"
+    NAMES character_social)
+state_allow(social src/tests/SocialMgrTest.cpp
+    WHY "unit test that observes the packets through a capturing sink and the statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
+    NAMES SMSG_CONTACT_LIST SMSG_FRIEND_STATUS character_social)
 
 # Shared by every row: the files that define opcodes. Each is checked to still spell at least
 # one row packet.

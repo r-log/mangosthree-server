@@ -1109,6 +1109,10 @@ class Player : public Unit
         {
             return m_social;
         }
+        PlayerSocial const* GetSocial() const
+        {
+            return m_social;
+        }
 
         void SetCreatedDate(uint32 createdDate) // Set the created date of the player
         {

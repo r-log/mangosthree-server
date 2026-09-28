@@ -137,7 +137,18 @@ set(REACH_RULES
     # so it includes WorldPacket.h, Opcodes.h and ObjectGuid.h, which reach none of these; it
     # touches no DBC store and no database, so it may reach neither.
     "entities/player/pets/PetMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Pet.h,proto/WorldPacket.h"
-    "entities/player/pets/PetMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Pet.h")
+    "entities/player/pets/PetMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Pet.h"
+    # Decoupling D4k: the friend and ignore list (PlayerSocial), the online-visibility verdict and
+    # the two social packet builders, the rune manager's two rules plus the global that drives them
+    # (entities/player/social/SocialMgr.h): the list never finds another character, so it reaches
+    # neither the registry, the object manager nor the global over every list; what it needs of the
+    # other characters comes in through a fill callback. The header forward-declares WorldPacket
+    # and Field, may not reach proto/WorldPacket.h or the database (closure: Define.h,
+    # ServerDefines.h, SharedDefines.h, ObjectGuid.h, ManagerPacketSink.h and what they include).
+    # The .cpp builds the two packets (WorldPacket.h, Opcodes.h) and writes the rows through the
+    # character database (Database/DatabaseEnv.h); src/tests/SocialMgrTest.cpp checks both.
+    "entities/player/social/SocialList.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,proto/WorldPacket.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,entities/player/social/SocialMgr.h"
+    "entities/player/social/SocialList.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,entities/player/social/SocialMgr.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
