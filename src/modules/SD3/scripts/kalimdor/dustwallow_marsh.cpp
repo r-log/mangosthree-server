@@ -102,7 +102,7 @@ struct mobs_risen_husk_spirit : public CreatureScript
 
             if (Player* pPlayer = pDoneBy->GetCharmerOrOwnerPlayerOrPlayerItself())
             {
-                if (pPlayer->GetQuestStatus(QUEST_WHATS_HAUNTING_WITCH_HILL) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_WHATS_HAUNTING_WITCH_HILL) == QUEST_STATUS_INCOMPLETE)
                 {
                     m_pCreditPlayer = pPlayer;
                     m_creature->CastSpell(pDoneBy, SPELL_SUMMON_RESTLESS_APPARITION, true);
@@ -943,7 +943,7 @@ struct at_nats_landing : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, const AreaTriggerEntry* /*pAt*/) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_NATS_BARGAIN) == QUEST_STATUS_INCOMPLETE && pPlayer->HasAura(SPELL_FISH_PASTE))
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_NATS_BARGAIN) == QUEST_STATUS_INCOMPLETE && pPlayer->HasAura(SPELL_FISH_PASTE))
         {
             Creature* pShark = GetClosestCreatureWithEntry(pPlayer, NPC_LURKING_SHARK, 20.0f);
 

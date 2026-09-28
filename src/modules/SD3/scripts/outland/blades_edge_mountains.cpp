@@ -678,11 +678,11 @@ struct npc_simon_game_bunny : public CreatureScript
                             }
 
                             // on group event cast Enlightment on daily quest and Emanations on normal quest
-                            if (pMember->GetQuestStatus(QUEST_AN_APEXIS_RELIC) == QUEST_STATUS_INCOMPLETE)
+                            if (pMember->GetQuestStatusMgr().GetQuestStatus(QUEST_AN_APEXIS_RELIC) == QUEST_STATUS_INCOMPLETE)
                             {
                                 DoCastSpellIfCan(pMember, SPELL_APEXIS_EMANATIONS, CAST_TRIGGERED);
                             }
-                            else if (pMember->GetQuestStatus(QUEST_RELICS_EMANATION) == QUEST_STATUS_INCOMPLETE)
+                            else if (pMember->GetQuestStatusMgr().GetQuestStatus(QUEST_RELICS_EMANATION) == QUEST_STATUS_INCOMPLETE)
                             {
                                 DoCastSpellIfCan(pMember, SPELL_APEXIS_ENLIGHTENMENT, CAST_TRIGGERED);
                             }
@@ -692,11 +692,11 @@ struct npc_simon_game_bunny : public CreatureScript
                 else
                 {
                     // solo event - cast Emanations on daily quest and vibrations on normal quest
-                    if (pPlayer->GetQuestStatus(QUEST_AN_APEXIS_RELIC) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_AN_APEXIS_RELIC) == QUEST_STATUS_INCOMPLETE)
                     {
                         DoCastSpellIfCan(pPlayer, SPELL_APEXIS_VIBRATIONS, CAST_TRIGGERED);
                     }
-                    else if (pPlayer->GetQuestStatus(QUEST_RELICS_EMANATION) == QUEST_STATUS_INCOMPLETE)
+                    else if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_RELICS_EMANATION) == QUEST_STATUS_INCOMPLETE)
                     {
                         DoCastSpellIfCan(pPlayer, SPELL_APEXIS_EMANATIONS, CAST_TRIGGERED);
                     }

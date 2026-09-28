@@ -270,7 +270,7 @@ struct npc_dirty_larry : public CreatureScript
             pPlayer->PrepareQuestMenu(pCreature->GetObjectGuid());
         }
 
-        if (pPlayer->GetQuestStatus(QUEST_WHAT_BOOK) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_WHAT_BOOK) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_BOOK, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }
@@ -691,7 +691,7 @@ struct npc_salsalabim : public CreatureScript
 
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_10004) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_10004) == QUEST_STATUS_INCOMPLETE)
         {
             pCreature->SetFactionTemporary(FACTION_HOSTILE_SA, TEMPFACTION_RESTORE_REACH_HOME);
             pCreature->AI()->AttackStart(pPlayer);

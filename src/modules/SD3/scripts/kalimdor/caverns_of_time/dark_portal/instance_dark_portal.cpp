@@ -214,12 +214,12 @@ struct is_dark_portal : public InstanceScript
                                 {
                                     if (Player* pPlayer = itr->getSource())
                                     {
-                                        if (pPlayer->GetQuestStatus(QUEST_OPENING_PORTAL) == QUEST_STATUS_INCOMPLETE)
+                                        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_OPENING_PORTAL) == QUEST_STATUS_INCOMPLETE)
                                         {
                                             pPlayer->AreaExploredOrEventHappens(QUEST_OPENING_PORTAL);
                                         }
 
-                                        if (pPlayer->GetQuestStatus(QUEST_MASTER_TOUCH) == QUEST_STATUS_INCOMPLETE)
+                                        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_MASTER_TOUCH) == QUEST_STATUS_INCOMPLETE)
                                         {
                                             pPlayer->AreaExploredOrEventHappens(QUEST_MASTER_TOUCH);
                                         }

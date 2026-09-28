@@ -352,7 +352,7 @@ struct npc_prospector_anvilward : public CreatureScript
 
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_THE_DWARVEN_SPY) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_THE_DWARVEN_SPY) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_MOMENT, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }
@@ -421,7 +421,7 @@ struct npc_apprentice_mirveda : public CreatureScript
         {
             Player* pPlayer = m_creature->GetMap()->GetPlayer(m_playerGuid);
 
-            if (pPlayer && pPlayer->GetQuestStatus(QUEST_UNEXPECTED_RESULT) == QUEST_STATUS_INCOMPLETE)
+            if (pPlayer && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_UNEXPECTED_RESULT) == QUEST_STATUS_INCOMPLETE)
             {
                 pPlayer->SendQuestFailed(QUEST_UNEXPECTED_RESULT);
             }
@@ -444,7 +444,7 @@ struct npc_apprentice_mirveda : public CreatureScript
 
             Player* pPlayer = m_creature->GetMap()->GetPlayer(m_playerGuid);
 
-            if (pPlayer && pPlayer->GetQuestStatus(QUEST_UNEXPECTED_RESULT) == QUEST_STATUS_INCOMPLETE)
+            if (pPlayer && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_UNEXPECTED_RESULT) == QUEST_STATUS_INCOMPLETE)
             {
                 pPlayer->GroupEventHappens(QUEST_UNEXPECTED_RESULT, m_creature);
             }

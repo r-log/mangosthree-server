@@ -397,7 +397,7 @@ void WorldSession::HandleQuestgiverRequestRewardOpcode(WorldPacket& recv_data)
         _player->CompleteQuest(quest);
     }
 
-    if (_player->GetQuestStatus(quest) != QUEST_STATUS_COMPLETE)
+    if (_player->GetQuestStatusMgr().GetQuestStatus(quest) != QUEST_STATUS_COMPLETE)
     {
         return;
     }
@@ -465,7 +465,7 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPacket& recv_data)
             {
                 if (pQuest->HasSpecialFlag(QUEST_SPECIAL_FLAG_TIMED))
                 {
-                    _player->RemoveTimedQuest(quest);
+                    _player->GetQuestStatusMgr().RemoveTimedQuest(quest);
                 }
 
                 for (int i = 0; i < QUEST_SOURCE_ITEM_IDS_COUNT; ++i)
@@ -575,7 +575,7 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPacket& recv_data)
 
     if (Quest const* pQuest = sObjectMgr.GetQuestTemplate(quest))
     {
-        if (_player->GetQuestStatus(quest) != QUEST_STATUS_COMPLETE)
+        if (_player->GetQuestStatusMgr().GetQuestStatus(quest) != QUEST_STATUS_COMPLETE)
         {
             if (pQuest->IsRepeatable())
             {
@@ -643,7 +643,7 @@ void WorldSession::HandlePushQuestToParty(WorldPacket& recvPacket)
                     continue;
                 }
 
-                if (pPlayer->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
                 {
                     _player->SendPushToPartyResponse(pPlayer, QUEST_PARTY_MSG_FINISH_QUEST);
                     continue;
@@ -745,7 +745,7 @@ uint32 WorldSession::getDialogStatus(Player* pPlayer, Object* questgiver, uint32
             continue;
         }
 
-        QuestStatus status = pPlayer->GetQuestStatus(quest_id);
+        QuestStatus status = pPlayer->GetQuestStatusMgr().GetQuestStatus(quest_id);
 
         if (status == QUEST_STATUS_COMPLETE && !pPlayer->GetQuestRewardStatus(quest_id))
         {
@@ -778,7 +778,7 @@ uint32 WorldSession::getDialogStatus(Player* pPlayer, Object* questgiver, uint32
             continue;
         }
 
-        QuestStatus status = pPlayer->GetQuestStatus(quest_id);
+        QuestStatus status = pPlayer->GetQuestStatusMgr().GetQuestStatus(quest_id);
 
         if (status == QUEST_STATUS_NONE)                    // For all other cases the mark is handled either at some place else, or with involved-relations already
         {
@@ -787,7 +787,7 @@ uint32 WorldSession::getDialogStatus(Player* pPlayer, Object* questgiver, uint32
                 if (pPlayer->SatisfyQuestLevel(pQuest, false))
                 {
                     int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
-                    if (pQuest->IsAutoComplete() || (pQuest->IsRepeatable() && pPlayer->getQuestStatusMap()[quest_id].m_rewarded))
+                    if (pQuest->IsAutoComplete() || (pQuest->IsRepeatable() && pPlayer->GetQuestStatusMgr().Map()[quest_id].m_rewarded))
                     {
                         dialogStatusNew = DIALOG_STATUS_REWARD_REP;
                     }

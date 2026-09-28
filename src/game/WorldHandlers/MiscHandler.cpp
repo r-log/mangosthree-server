@@ -798,12 +798,12 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPacket& recv_data)
     }
 
     uint32 quest_id = sObjectMgr.GetQuestForAreaTrigger(Trigger_ID);
-    if (quest_id && player->IsAlive() && player->IsActiveQuest(quest_id))
+    if (quest_id && player->IsAlive() && player->GetQuestStatusMgr().IsActiveQuest(quest_id))
     {
         Quest const* pQuest = sObjectMgr.GetQuestTemplate(quest_id);
         if (pQuest)
         {
-            if (player->GetQuestStatus(quest_id) == QUEST_STATUS_INCOMPLETE)
+            if (player->GetQuestStatusMgr().GetQuestStatus(quest_id) == QUEST_STATUS_INCOMPLETE)
             {
                 player->AreaExploredOrEventHappens(quest_id);
             }

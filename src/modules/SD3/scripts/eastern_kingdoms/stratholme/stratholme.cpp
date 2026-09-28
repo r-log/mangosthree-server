@@ -218,7 +218,7 @@ struct mob_restless_soul : public CreatureScript
         {
             if (pCaster->GetTypeId() == TYPEID_PLAYER)
             {
-                if (!m_bIsTagged && SD3_SpellId(pSpell) == SPELL_EGAN_BLASTER && ((Player*)pCaster)->GetQuestStatus(QUEST_RESTLESS_SOUL) == QUEST_STATUS_INCOMPLETE)
+                if (!m_bIsTagged && SD3_SpellId(pSpell) == SPELL_EGAN_BLASTER && ((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_RESTLESS_SOUL) == QUEST_STATUS_INCOMPLETE)
                 {
                     m_bIsTagged = true;
                     m_taggerGuid = pCaster->GetObjectGuid();

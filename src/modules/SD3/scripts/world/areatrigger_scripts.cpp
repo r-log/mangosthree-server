@@ -196,7 +196,7 @@ struct at_ravenholdt : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* /*pAt*/) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_MANOR_RAVENHOLDT) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_MANOR_RAVENHOLDT) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->KilledMonsterCredit(NPC_RAVENHOLDT);
         }
@@ -223,7 +223,7 @@ struct at_spearborn_encampment : public AreaTriggerScript
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* pAt) override
 
     {
-        if (pPlayer->GetQuestStatus(QUEST_MISTWHISPER_TREASURE) == QUEST_STATUS_INCOMPLETE &&
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_MISTWHISPER_TREASURE) == QUEST_STATUS_INCOMPLETE &&
             pPlayer->GetReqKillOrCastCurrentCount(QUEST_MISTWHISPER_TREASURE, NPC_TARTEK) == 0)
         {
             // can only spawn one at a time, it's not a too good solution
@@ -261,7 +261,7 @@ struct at_warsong_farms : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* pAt) override
     {
-        if (!pPlayer->IsDead() && pPlayer->GetQuestStatus(QUEST_THE_WARSONG_FARMS) == QUEST_STATUS_INCOMPLETE)
+        if (!pPlayer->IsDead() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_THE_WARSONG_FARMS) == QUEST_STATUS_INCOMPLETE)
         {
             switch (SD3_AreaTriggerId(pAt))
             {
@@ -295,7 +295,7 @@ struct at_waygate : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* pAt) override
     {
-        if (!pPlayer->IsDead() && pPlayer->GetQuestStatus(QUEST_THE_MARKERS_OVERLOOK) == QUEST_STATUS_COMPLETE && pPlayer->GetQuestStatus(QUEST_THE_MARKERS_PERCH) == QUEST_STATUS_COMPLETE)
+        if (!pPlayer->IsDead() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_THE_MARKERS_OVERLOOK) == QUEST_STATUS_COMPLETE && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_THE_MARKERS_PERCH) == QUEST_STATUS_COMPLETE)
         {
             switch (SD3_AreaTriggerId(pAt))
             {
@@ -324,7 +324,7 @@ struct at_stormwright_shelf : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* /*pAt*/) override
     {
-        if (!pPlayer->IsDead() && pPlayer->GetQuestStatus(QUEST_STRENGTH_OF_THE_TEMPEST) == QUEST_STATUS_INCOMPLETE)
+        if (!pPlayer->IsDead() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_STRENGTH_OF_THE_TEMPEST) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->CastSpell(pPlayer, SPELL_CREATE_TRUE_POWER_OF_THE_TEMPEST, false);
         }
@@ -349,7 +349,7 @@ struct at_scent_larkorwi : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* pAt) override
     {
-        if (pPlayer->IsAlive() && !pPlayer->isGameMaster() && pPlayer->GetQuestStatus(QUEST_SCENT_OF_LARKORWI) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->IsAlive() && !pPlayer->isGameMaster() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SCENT_OF_LARKORWI) == QUEST_STATUS_INCOMPLETE)
         {
             if (!GetClosestCreatureWithEntry(pPlayer, NPC_LARKORWI_MATE, 25.0f, false, false))
             {
@@ -373,7 +373,7 @@ struct at_murkdeep : public AreaTriggerScript
     {
         // Handle Murkdeep event start
         // The area trigger summons 3 Greymist Coastrunners; The rest of the event is handled by world map scripts
-        if (pPlayer->IsAlive() && !pPlayer->isGameMaster() && pPlayer->GetQuestStatus(QUEST_WANTED_MURKDEEP) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->IsAlive() && !pPlayer->isGameMaster() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_WANTED_MURKDEEP) == QUEST_STATUS_INCOMPLETE)
         {
             ScriptedMap* pScriptedMap = (ScriptedMap*)pPlayer->GetInstanceData();
             if (!pScriptedMap)
@@ -452,7 +452,7 @@ struct at_hot_on_the_trail : public AreaTriggerScript
         {
             if (SD3_AreaTriggerId(pAt) == aHotOnTrailValues[i].uiAtEntry)
             {
-                if (pPlayer->GetQuestStatus(aHotOnTrailValues[i].uiQuestEntry) == QUEST_STATUS_INCOMPLETE &&
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(aHotOnTrailValues[i].uiQuestEntry) == QUEST_STATUS_INCOMPLETE &&
                     pPlayer->GetReqKillOrCastCurrentCount(aHotOnTrailValues[i].uiQuestEntry, aHotOnTrailValues[i].uiCreditEntry) == 0)
                 {
                     pPlayer->CastSpell(pPlayer, aHotOnTrailValues[i].uiSpellEntry, true);
@@ -505,7 +505,7 @@ struct at_ancient_leaf : public AreaTriggerScript
         }
 
         // Handle Call Ancients event start - The area trigger summons 3 ancients
-        if (pPlayer->GetQuestStatus(QUEST_ANCIENT_LEAF) == QUEST_STATUS_COMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ANCIENT_LEAF) == QUEST_STATUS_COMPLETE)
         {
             // If ancients are already spawned, skip the rest
             if (GetClosestCreatureWithEntry(pPlayer, NPC_VARTRUS, 50.0f) || GetClosestCreatureWithEntry(pPlayer, NPC_STOMA, 50.0f) || GetClosestCreatureWithEntry(pPlayer, NPC_HASTAT, 50.0f))

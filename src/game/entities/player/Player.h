@@ -1750,20 +1750,17 @@ class Player : public Unit
         // Return player level when QuestLevel is dynamic (-1)
         uint32 GetQuestLevelForPlayer(Quest const* pQuest) const { return pQuest && (pQuest->GetQuestLevel() > 0) ? (uint32)pQuest->GetQuestLevel() : getLevel(); }
 
+        // The quest status manager. Decoupling D4i: the status queries (IsActiveQuest, IsCurrentQuest,
+        // GetQuestStatus), the status map (Map()), RemoveTimedQuest and the weekly/monthly resets are
+        // called on it directly.
+        QuestStatusMgr& GetQuestStatusMgr() { return m_questStatusMgr; }
+        QuestStatusMgr const& GetQuestStatusMgr() const { return m_questStatusMgr; }
+
         // Prepare the quest menu
         void PrepareQuestMenu(ObjectGuid guid);
 
         // Send the prepared quest menu
         void SendPreparedQuest(ObjectGuid guid);
-
-        // Check if a quest is active
-        bool IsActiveQuest(uint32 quest_id) const; // can be taken or taken
-
-        // Quest is taken and not yet rewarded
-        // if completed_or_not = 0 (or any other value except 1 or 2) - returns true, if quest is taken and doesn't depend if quest is completed or not
-        // if completed_or_not = 1 - returns true, if quest is taken but not completed
-        // if completed_or_not = 2 - returns true, if quest is taken and already completed
-        bool IsCurrentQuest(uint32 quest_id, uint8 completed_or_not = 0) const; // taken and not yet rewarded
 
         // Get the next quest in a chain
         Quest const* GetNextQuest(ObjectGuid guid, Quest const* pQuest);
@@ -1854,17 +1851,12 @@ class Player : public Unit
         // Check if the player has the quest reward status
         bool GetQuestRewardStatus(uint32 quest_id) const;
 
-        // Get the quest status
-        QuestStatus GetQuestStatus(uint32 quest_id) const;
-
         // Set the quest status
         void SetQuestStatus(uint32 quest_id, QuestStatus status);
 
         // Set the daily quest status
         void SetDailyQuestStatus(uint32 quest_id);
         void ResetDailyQuestStatus();
-        void ResetWeeklyQuestStatus();
-        void ResetMonthlyQuestStatus();
 
         // Find the quest slot for a quest
         uint16 FindQuestSlot(uint32 quest_id) const;
@@ -1997,9 +1989,6 @@ class Player : public Unit
 
         // Set the in-game time
         void SetInGameTime(uint32 time) { m_ingametime = time; }
-
-        // Remove a timed quest
-        void RemoveTimedQuest(uint32 quest_id) { m_questStatusMgr.RemoveTimedQuest(quest_id); }
 
         /// Return collision height sent to client
         float GetCollisionHeight(bool mounted) const;
@@ -2147,12 +2136,6 @@ class Player : public Unit
             MoneyChanged(value);
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED);
         }
-
-        // Get the player's quest status map
-        QuestStatusMap& getQuestStatusMap()
-        {
-            return m_questStatusMgr.Map();
-        };
 
         // Get the player's current selection GUID
         ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }

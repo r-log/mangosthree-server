@@ -107,7 +107,7 @@ struct npc_defiant_troll_q14069 : public CreatureScript
             return true;
         }
 
-        QuestStatus status = pPlayer->GetQuestStatus(QUEST_GOOD_HELP_IS_HARD_TO_FIND);
+        QuestStatus status = pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_GOOD_HELP_IS_HARD_TO_FIND);
         if (status != QUEST_STATUS_INCOMPLETE && status != QUEST_STATUS_COMPLETE)
         {
             return true;

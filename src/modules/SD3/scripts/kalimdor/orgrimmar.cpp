@@ -74,7 +74,7 @@ struct npc_shenthul : public CreatureScript
 
         void ReceiveEmote(Player* pPlayer, uint32 uiTextEmote) override
         {
-            if (m_uiResetTimer && uiTextEmote == TEXTEMOTE_SALUTE && pPlayer->GetQuestStatus(QUEST_SHATTERED_SALUTE) == QUEST_STATUS_INCOMPLETE)
+            if (m_uiResetTimer && uiTextEmote == TEXTEMOTE_SALUTE && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHATTERED_SALUTE) == QUEST_STATUS_INCOMPLETE)
             {
                 pPlayer->AreaExploredOrEventHappens(QUEST_SHATTERED_SALUTE);
                 EnterEvadeMode();
@@ -95,7 +95,7 @@ struct npc_shenthul : public CreatureScript
                 {
                     if (Player* pPlayer = m_creature->GetMap()->GetPlayer(m_playerGuid))
                     {
-                        if (pPlayer->GetTypeId() == TYPEID_PLAYER && pPlayer->GetQuestStatus(QUEST_SHATTERED_SALUTE) == QUEST_STATUS_INCOMPLETE)
+                        if (pPlayer->GetTypeId() == TYPEID_PLAYER && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHATTERED_SALUTE) == QUEST_STATUS_INCOMPLETE)
                         {
                             pPlayer->FailQuest(QUEST_SHATTERED_SALUTE);
                         }
@@ -173,7 +173,7 @@ struct npc_thrall_warchief : public CreatureScript  //TODO localise
             pPlayer->PrepareQuestMenu(pCreature->GetObjectGuid());
         }
 
-        if (pPlayer->GetQuestStatus(QUEST_ID_WHAT_THE_WIND_CARRIES) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_WHAT_THE_WIND_CARRIES) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Please share your wisdom with me, Warchief.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }

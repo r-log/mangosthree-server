@@ -372,7 +372,7 @@ struct npc_demoniac_scryer : public CreatureScript
         {
             if (pScryerAI->m_bIsComplete)
             {
-                if (pPlayer->GetQuestStatus(QUEST_DEMONIAC) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_DEMONIAC) == QUEST_STATUS_INCOMPLETE)
                 {
                     pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_ATTUNE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                 }
@@ -912,7 +912,7 @@ struct npc_anchorite_barada : public CreatureScript
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
         // check if quest is active but not completed
-        if (pPlayer->IsCurrentQuest(QUEST_ID_EXORCISM, 1))
+        if (pPlayer->GetQuestStatusMgr().IsCurrentQuest(QUEST_ID_EXORCISM, 1))
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_EXORCISM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }
@@ -945,13 +945,13 @@ struct npc_colonel_jules : public CreatureScript
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
         // quest already completed
-        if (pPlayer->GetQuestStatus(QUEST_ID_EXORCISM) == QUEST_STATUS_COMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_EXORCISM) == QUEST_STATUS_COMPLETE)
         {
             pPlayer->SEND_GOSSIP_MENU(TEXT_ID_CLEANSED, pCreature->GetObjectGuid());
             return true;
         }
         // quest active but not complete
-        else if (pPlayer->IsCurrentQuest(QUEST_ID_EXORCISM, 1))
+        else if (pPlayer->GetQuestStatusMgr().IsCurrentQuest(QUEST_ID_EXORCISM, 1))
         {
             Creature* pAnchorite = GetClosestCreatureWithEntry(pCreature, NPC_ANCHORITE_BARADA, 15.0f);
             if (!pAnchorite)

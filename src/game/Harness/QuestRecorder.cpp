@@ -249,7 +249,7 @@ namespace Harness
         {
             const uint32 q = m_watch.quests[i];
             const uint16 slot = p->FindQuestSlot(q);
-            out += "q" + U(q) + "=" + U(uint32(p->GetQuestStatus(q))) + "/" + U(p->GetQuestRewardStatus(q) ? 1 : 0) + "/" +
+            out += "q" + U(q) + "=" + U(uint32(p->GetQuestStatusMgr().GetQuestStatus(q))) + "/" + U(p->GetQuestRewardStatus(q) ? 1 : 0) + "/" +
                    (slot < MAX_QUEST_LOG_SIZE ? H(p->GetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_STATE_OFFSET))
                                               : std::string("-")) + " ";
         }
@@ -427,7 +427,7 @@ namespace Harness
         {
             const uint32 q = m_watch.quests[i];
             const std::string k = "quest." + U(q) + ".";
-            s.values[k + "status"] = U(uint32(p->GetQuestStatus(q)));
+            s.values[k + "status"] = U(uint32(p->GetQuestStatusMgr().GetQuestStatus(q)));
             s.values[k + "rewarded"] = U(p->GetQuestRewardStatus(q) ? 1 : 0);
             const uint16 slot = p->FindQuestSlot(q);
             if (slot < MAX_QUEST_LOG_SIZE)
@@ -441,7 +441,7 @@ namespace Harness
                 s.values[k + "slot"] = "none";
             }
             // find, never operator[]: reading must not create the entry it reads.
-            QuestStatusMap& map = p->getQuestStatusMap();
+            QuestStatusMap& map = p->GetQuestStatusMgr().Map();
             QuestStatusMap::const_iterator e = map.find(q);
             if (e == map.end())
             {

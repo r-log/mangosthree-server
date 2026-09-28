@@ -141,7 +141,7 @@ void Player::PrepareQuestMenu(ObjectGuid guid)
             continue;
         }
 
-        QuestStatus status = GetQuestStatus(quest_id);
+        QuestStatus status = m_questStatusMgr.GetQuestStatus(quest_id);
 
         if (status == QUEST_STATUS_COMPLETE && !GetQuestRewardStatus(quest_id))
         {
@@ -168,7 +168,7 @@ void Player::PrepareQuestMenu(ObjectGuid guid)
             continue;
         }
 
-        QuestStatus status = GetQuestStatus(quest_id);
+        QuestStatus status = m_questStatusMgr.GetQuestStatus(quest_id);
 
         if (pQuest->IsAutoComplete() && CanTakeQuest(pQuest, false))
         {
@@ -263,29 +263,6 @@ void Player::SendPreparedQuest(ObjectGuid guid)
         }
         PlayerTalkClass->SendQuestGiverQuestList(qe, title, guid);
     }
-}
-
-/**
- * @brief Checks whether a quest is currently active in the player's log.
- *
- * @param quest_id The quest identifier to check.
- * @return True if the quest is active; otherwise, false.
- */
-bool Player::IsActiveQuest(uint32 quest_id) const
-{
-    return m_questStatusMgr.IsActiveQuest(quest_id);
-}
-
-/**
- * @brief Checks whether a quest is currently active with a specific completion state.
- *
- * @param quest_id The quest identifier to check.
- * @param completed_or_not The completion-state filter.
- * @return True if the quest matches the requested state; otherwise, false.
- */
-bool Player::IsCurrentQuest(uint32 quest_id, uint8 completed_or_not) const
-{
-    return m_questStatusMgr.IsCurrentQuest(quest_id, completed_or_not);
 }
 
 /**
@@ -754,7 +731,7 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
         // shared timed quest
         if (questGiver && questGiver->GetTypeId() == TYPEID_PLAYER)
         {
-            limittime = ((Player*)questGiver)->getQuestStatusMap()[quest_id].m_timer / IN_MILLISECONDS;
+            limittime = ((Player*)questGiver)->GetQuestStatusMgr().Map()[quest_id].m_timer / IN_MILLISECONDS;
         }
 
         m_questStatusMgr.AddTimedQuest(quest_id);
@@ -952,7 +929,7 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
         }
     }
 
-    RemoveTimedQuest(quest_id);
+    m_questStatusMgr.RemoveTimedQuest(quest_id);
 
     if (BattleGround* bg = GetBattleGround())
         if (bg->GetTypeID(true) == BATTLEGROUND_AV)
@@ -1195,7 +1172,7 @@ void Player::FailQuest(uint32 questId)
         {
             QuestStatusData& q_status = m_questStatusMgr.Entry(questId);
 
-            RemoveTimedQuest(questId);
+            m_questStatusMgr.RemoveTimedQuest(questId);
             q_status.m_timer = 0;
 
             SendQuestTimerFailed(questId);
@@ -1682,17 +1659,6 @@ bool Player::TakeQuestSourceItem(uint32 quest_id, bool msg)
 bool Player::GetQuestRewardStatus(uint32 quest_id) const
 {
     return m_questStatusMgr.GetQuestRewardStatus(quest_id, ObjectMgr::QuestTemplateLookup());
-}
-
-/**
- * @brief Gets the player's current status for a quest.
- *
- * @param quest_id The quest identifier to query.
- * @return The current quest status.
- */
-QuestStatus Player::GetQuestStatus(uint32 quest_id) const
-{
-    return m_questStatusMgr.GetQuestStatus(quest_id);
 }
 
 /**
@@ -2891,14 +2857,4 @@ void Player::ResetDailyQuestStatus()
 
     // DB data deleted in caller
     m_DailyQuestChanged = false;
-}
-
-void Player::ResetWeeklyQuestStatus()
-{
-    m_questStatusMgr.ResetWeeklyQuestStatus();
-}
-
-void Player::ResetMonthlyQuestStatus()
-{
-    m_questStatusMgr.ResetMonthlyQuestStatus();
 }

@@ -765,7 +765,7 @@ void Spell::EffectClearQuest(SpellEffectEntry const* effect)
     }
 
     player->SetQuestStatus(quest_id, QUEST_STATUS_NONE);
-    player->getQuestStatusMap()[quest_id].m_rewarded = false;
+    player->GetQuestStatusMgr().Map()[quest_id].m_rewarded = false;
 }
 
 void Spell::EffectForceCast(SpellEffectEntry const* effect)

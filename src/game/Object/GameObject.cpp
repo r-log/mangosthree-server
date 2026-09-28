@@ -774,7 +774,7 @@ bool GameObject::ActivateToQuest(Player* pTarget) const
 
             for (QuestRelationsMap::const_iterator itr = bounds.first; itr != bounds.second; ++itr)
             {
-                if ((pTarget->GetQuestStatus(itr->second) == QUEST_STATUS_INCOMPLETE || pTarget->GetQuestStatus(itr->second) == QUEST_STATUS_COMPLETE)
+                if ((pTarget->GetQuestStatusMgr().GetQuestStatus(itr->second) == QUEST_STATUS_INCOMPLETE || pTarget->GetQuestStatusMgr().GetQuestStatus(itr->second) == QUEST_STATUS_COMPLETE)
                     && !pTarget->GetQuestRewardStatus(itr->second))
                 {
                     return true;
@@ -786,7 +786,7 @@ bool GameObject::ActivateToQuest(Player* pTarget) const
         // scan GO chest with loot including quest items
         case GAMEOBJECT_TYPE_CHEST:
         {
-            if (pTarget->GetQuestStatus(GetGOInfo()->chest.questId) == QUEST_STATUS_INCOMPLETE)
+            if (pTarget->GetQuestStatusMgr().GetQuestStatus(GetGOInfo()->chest.questId) == QUEST_STATUS_INCOMPLETE)
             {
                 return true;
             }
@@ -807,7 +807,7 @@ bool GameObject::ActivateToQuest(Player* pTarget) const
         }
         case GAMEOBJECT_TYPE_GENERIC:
         {
-            if (pTarget->GetQuestStatus(GetGOInfo()->_generic.questID) == QUEST_STATUS_INCOMPLETE)
+            if (pTarget->GetQuestStatusMgr().GetQuestStatus(GetGOInfo()->_generic.questID) == QUEST_STATUS_INCOMPLETE)
             {
                 return true;
             }
@@ -815,7 +815,7 @@ bool GameObject::ActivateToQuest(Player* pTarget) const
         }
         case GAMEOBJECT_TYPE_SPELL_FOCUS:
         {
-            if (pTarget->GetQuestStatus(GetGOInfo()->spellFocus.questID) == QUEST_STATUS_INCOMPLETE)
+            if (pTarget->GetQuestStatusMgr().GetQuestStatus(GetGOInfo()->spellFocus.questID) == QUEST_STATUS_INCOMPLETE)
             {
                 return true;
             }
@@ -823,7 +823,7 @@ bool GameObject::ActivateToQuest(Player* pTarget) const
         }
         case GAMEOBJECT_TYPE_GOOBER:
         {
-            if (pTarget->GetQuestStatus(GetGOInfo()->goober.questId) == QUEST_STATUS_INCOMPLETE)
+            if (pTarget->GetQuestStatusMgr().GetQuestStatus(GetGOInfo()->goober.questId) == QUEST_STATUS_INCOMPLETE)
             {
                 return true;
             }

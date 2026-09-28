@@ -153,7 +153,7 @@ bool ChatHandler::HandleQuestRemoveCommand(char* args)
     player->SetQuestStatus(entry, QUEST_STATUS_NONE);
 
     // reset rewarded for restart repeatable quest
-    player->getQuestStatusMap()[entry].m_rewarded = false;
+    player->GetQuestStatusMgr().Map()[entry].m_rewarded = false;
 
     // Tell the player's client the quest is gone. Clearing the log slot above
     // only makes it disappear -- silently, with no indication that anything
@@ -195,7 +195,7 @@ bool ChatHandler::HandleQuestCompleteCommand(char* args)
     Quest const* pQuest = sObjectMgr.GetQuestTemplate(entry);
 
     // If player doesn't have the quest
-    if (!pQuest || player->GetQuestStatus(entry) == QUEST_STATUS_NONE)
+    if (!pQuest || player->GetQuestStatusMgr().GetQuestStatus(entry) == QUEST_STATUS_NONE)
     {
         PSendSysMessage(LANG_COMMAND_QUEST_NOTFOUND, entry);
         SetSentErrorMessage(true);

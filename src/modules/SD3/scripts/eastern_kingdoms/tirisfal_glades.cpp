@@ -62,7 +62,7 @@ struct go_mausoleum_door : public GameObjectScript
 
     bool OnUse(Player* pPlayer, GameObject* /*pGo*/) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_ULAG) != QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ULAG) != QUEST_STATUS_INCOMPLETE)
         {
             return false;
         }
@@ -84,7 +84,7 @@ struct go_mausoleum_trigger : public GameObjectScript
 
     bool OnUse(Player* pPlayer, GameObject* pGo) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_ULAG) != QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ULAG) != QUEST_STATUS_INCOMPLETE)
         {
             return false;
         }

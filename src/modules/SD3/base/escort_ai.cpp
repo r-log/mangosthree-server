@@ -237,7 +237,7 @@ void npc_escortAI::JustDied(Unit* /*pKiller*/)
             {
                 if (Player* pMember = pRef->getSource())
                 {
-                    if (pMember->GetQuestStatus(m_pQuestForEscort->GetQuestId()) == QUEST_STATUS_INCOMPLETE)
+                    if (pMember->GetQuestStatusMgr().GetQuestStatus(m_pQuestForEscort->GetQuestId()) == QUEST_STATUS_INCOMPLETE)
                     {
                         pMember->FailQuest(m_pQuestForEscort->GetQuestId());
                     }
@@ -246,7 +246,7 @@ void npc_escortAI::JustDied(Unit* /*pKiller*/)
         }
         else
         {
-            if (pPlayer->GetQuestStatus(m_pQuestForEscort->GetQuestId()) == QUEST_STATUS_INCOMPLETE)
+            if (pPlayer->GetQuestStatusMgr().GetQuestStatus(m_pQuestForEscort->GetQuestId()) == QUEST_STATUS_INCOMPLETE)
             {
                 pPlayer->FailQuest(m_pQuestForEscort->GetQuestId());
             }

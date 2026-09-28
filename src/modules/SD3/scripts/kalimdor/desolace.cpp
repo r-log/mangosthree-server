@@ -590,7 +590,7 @@ struct npc_cork_gizelton : public CreatureScript
                 return;
             }
 
-            if (pPlayer->GetQuestStatus(QUEST_BODYGUARD_TO_HIRE) == QUEST_STATUS_INCOMPLETE)
+            if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_BODYGUARD_TO_HIRE) == QUEST_STATUS_INCOMPLETE)
             {
                 switch (uiPointId)
                 {
@@ -626,7 +626,7 @@ struct npc_cork_gizelton : public CreatureScript
                 }
             }
             // The second escort quest is also handled by NPC Cork though it is given by NPC Rigger
-            else if (pPlayer->GetQuestStatus(QUEST_GIZELTON_CARAVAN) == QUEST_STATUS_INCOMPLETE)
+            else if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_GIZELTON_CARAVAN) == QUEST_STATUS_INCOMPLETE)
             {
                 switch (uiPointId)
                 {
@@ -699,11 +699,11 @@ struct npc_cork_gizelton : public CreatureScript
                 {
                     if (Player* pMember = pRef->getSource())
                     {
-                        if (pMember->GetQuestStatus(QUEST_BODYGUARD_TO_HIRE) == QUEST_STATUS_INCOMPLETE)
+                        if (pMember->GetQuestStatusMgr().GetQuestStatus(QUEST_BODYGUARD_TO_HIRE) == QUEST_STATUS_INCOMPLETE)
                         {
                             pMember->FailQuest(QUEST_BODYGUARD_TO_HIRE);
                         }
-                        if (pMember->GetQuestStatus(QUEST_GIZELTON_CARAVAN) == QUEST_STATUS_INCOMPLETE)
+                        if (pMember->GetQuestStatusMgr().GetQuestStatus(QUEST_GIZELTON_CARAVAN) == QUEST_STATUS_INCOMPLETE)
                         {
                             pMember->FailQuest(QUEST_GIZELTON_CARAVAN);
                         }
@@ -712,11 +712,11 @@ struct npc_cork_gizelton : public CreatureScript
             }
             else
             {
-                if (pPlayer->GetQuestStatus(QUEST_BODYGUARD_TO_HIRE) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_BODYGUARD_TO_HIRE) == QUEST_STATUS_INCOMPLETE)
                 {
                     pPlayer->FailQuest(QUEST_BODYGUARD_TO_HIRE);
                 }
-                if (pPlayer->GetQuestStatus(QUEST_GIZELTON_CARAVAN) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_GIZELTON_CARAVAN) == QUEST_STATUS_INCOMPLETE)
                 {
                     pPlayer->FailQuest(QUEST_GIZELTON_CARAVAN);
                 }

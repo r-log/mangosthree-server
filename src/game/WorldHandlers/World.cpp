@@ -1904,7 +1904,7 @@ void World::ResetWeeklyQuests()
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())
         {
-            itr->second->GetPlayer()->ResetWeeklyQuestStatus();
+            itr->second->GetPlayer()->GetQuestStatusMgr().ResetWeeklyQuestStatus();
         }
 
     m_NextWeeklyQuestReset = time_t(m_NextWeeklyQuestReset + WEEK);
@@ -1924,7 +1924,7 @@ void World::ResetMonthlyQuests()
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())
         {
-            itr->second->GetPlayer()->ResetMonthlyQuestStatus();
+            itr->second->GetPlayer()->GetQuestStatusMgr().ResetMonthlyQuestStatus();
         }
 
     SetMonthlyQuestResetTime(false);

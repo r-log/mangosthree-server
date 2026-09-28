@@ -83,7 +83,7 @@ struct npc_mist : public CreatureScript
 
             if (Player* pPlayer = GetLeaderForFollower())
             {
-                if (pPlayer->GetQuestStatus(QUEST_MIST) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_MIST) == QUEST_STATUS_INCOMPLETE)
                 {
                     pPlayer->GroupEventHappens(QUEST_MIST, m_creature);
                 }

@@ -336,7 +336,7 @@ struct npc_plucky_johnson : public CreatureScript
 
         void ReceiveEmote(Player* pPlayer, uint32 uiTextEmote) override
         {
-            if (pPlayer->GetQuestStatus(QUEST_SCOOP) == QUEST_STATUS_INCOMPLETE)
+            if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SCOOP) == QUEST_STATUS_INCOMPLETE)
             {
                 if (uiTextEmote == TEXTEMOTE_BECKON)
                 {
@@ -401,7 +401,7 @@ struct npc_plucky_johnson : public CreatureScript
 
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_SCOOP) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SCOOP) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_QUEST, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
         }

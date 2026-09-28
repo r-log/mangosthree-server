@@ -212,7 +212,7 @@ struct npc_ringo : public CreatureScript
                 {
                     if (Player* pPlayer = GetLeaderForFollower())
                     {
-                        if (pPlayer->GetQuestStatus(QUEST_A_LITTLE_HELP) == QUEST_STATUS_INCOMPLETE)
+                        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_A_LITTLE_HELP) == QUEST_STATUS_INCOMPLETE)
                         {
                             pPlayer->GroupEventHappens(QUEST_A_LITTLE_HELP, m_creature);
                         }
@@ -917,7 +917,7 @@ struct npc_simone_the_inconspicuous : public CreatureScript
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
         pPlayer->PlayerTalkClass->ClearMenus();
-        if (pPlayer->GetQuestStatus(QUEST_STAVE_OF_THE_ANCIENTS) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_STAVE_OF_THE_ANCIENTS) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(0, GOSSIP_ITEM_SIMONE_THE_INCONSPICUOUS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
         }

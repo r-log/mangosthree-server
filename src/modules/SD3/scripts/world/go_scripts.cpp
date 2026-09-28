@@ -265,7 +265,7 @@ struct go_tele_to_violet_stand : public GameObjectScript
 
     bool OnUse(Player* pPlayer, GameObject* pGo) override
     {
-        if (pPlayer->GetQuestRewardStatus(QUEST_LEARN_LEAVE_RETURN) || pPlayer->GetQuestStatus(QUEST_LEARN_LEAVE_RETURN) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestRewardStatus(QUEST_LEARN_LEAVE_RETURN) || pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_LEARN_LEAVE_RETURN) == QUEST_STATUS_INCOMPLETE)
         {
             return false;
         }
@@ -299,7 +299,7 @@ struct go_andorhal_tower : public GameObjectScript
 
     bool OnUse(Player* pPlayer, GameObject* pGo) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_ALL_ALONG_THE_WATCHTOWERS_ALLIANCE) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatus(QUEST_ALL_ALONG_THE_WATCHTOWERS_HORDE) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ALL_ALONG_THE_WATCHTOWERS_ALLIANCE) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ALL_ALONG_THE_WATCHTOWERS_HORDE) == QUEST_STATUS_INCOMPLETE)
         {
             uint32 uiKillCredit = 0;
             switch (pGo->GetEntry())
@@ -382,7 +382,7 @@ struct go_lab_work_reagents : public GameObjectScript
 
     bool GOUse_go_lab_work_reagents(Player* pPlayer, GameObject* pGo)
     {
-        if (pPlayer->GetQuestStatus(QUEST_LAB_WORK) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_LAB_WORK) == QUEST_STATUS_INCOMPLETE)
         {
             uint32 uiCreditSpellId = 0;
             switch (pGo->GetEntry())

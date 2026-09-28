@@ -70,7 +70,7 @@ struct mob_yenniku : public CreatureScript
         {
             if (SD3_SpellId(pSpell) == SPELL_YENNIKUS_RELEASE && pCaster->GetTypeId() == TYPEID_PLAYER)
             {
-                if (!m_uiResetTimer && ((Player*)pCaster)->GetQuestStatus(QUEST_ID_SAVING_YENNIKU) == QUEST_STATUS_INCOMPLETE)
+                if (!m_uiResetTimer && ((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_SAVING_YENNIKU) == QUEST_STATUS_INCOMPLETE)
                 {
                     m_uiResetTimer = 60000;
                     EnterEvadeMode();

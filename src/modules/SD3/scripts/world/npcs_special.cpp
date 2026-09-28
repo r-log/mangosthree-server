@@ -331,7 +331,7 @@ struct npc_chicken_cluck : public CreatureScript
             {
                 if (!urand(0, 29))
                 {
-                    if (pPlayer->GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_NONE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_NONE)
                     {
                         m_creature->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
                         m_creature->setFaction(FACTION_FRIENDLY);
@@ -354,7 +354,7 @@ struct npc_chicken_cluck : public CreatureScript
 
             if (uiEmote == TEXTEMOTE_CHEER)
             {
-                if (pPlayer->GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_COMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_CLUCK) == QUEST_STATUS_COMPLETE)
                 {
                     m_creature->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
                     m_creature->setFaction(FACTION_FRIENDLY);
@@ -617,17 +617,17 @@ struct npc_doctor : public CreatureScript
         {
             Player* pPlayer = m_creature->GetMap()->GetPlayer(m_playerGuid);
 
-            if (pPlayer && (pPlayer->GetQuestStatus(6624) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatus(6622) == QUEST_STATUS_INCOMPLETE))
+            if (pPlayer && (pPlayer->GetQuestStatusMgr().GetQuestStatus(6624) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatusMgr().GetQuestStatus(6622) == QUEST_STATUS_INCOMPLETE))
             {
                 ++m_uiPatientDiedCount;
 
                 if (m_uiPatientDiedCount > 5 && m_bIsEventInProgress)
                 {
-                    if (pPlayer->GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE)
                     {
                         pPlayer->FailQuest(QUEST_TRIAGE_A);
                     }
-                    else if (pPlayer->GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
+                    else if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
                     {
                         pPlayer->FailQuest(QUEST_TRIAGE_H);
                     }
@@ -649,7 +649,7 @@ struct npc_doctor : public CreatureScript
         {
             if (pPlayer && m_playerGuid == pPlayer->GetObjectGuid())
             {
-                if (pPlayer->GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
                 {
                     ++m_uiPatientSavedCount;
 
@@ -663,11 +663,11 @@ struct npc_doctor : public CreatureScript
                             }
                         }
 
-                        if (pPlayer->GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE)
+                        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE)
                         {
                             pPlayer->GroupEventHappens(QUEST_TRIAGE_A, m_creature);
                         }
-                        else if (pPlayer->GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
+                        else if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
                         {
                             pPlayer->GroupEventHappens(QUEST_TRIAGE_H, m_creature);
                         }
@@ -822,7 +822,7 @@ struct npc_injured_patient : public CreatureScript
             if (pCaster->GetTypeId() == TYPEID_PLAYER && m_creature->IsAlive() && SD3_SpellId(pSpell) == 20804)
             {
                 Player* pPlayer = static_cast<Player*>(pCaster);
-                if (pPlayer->GetQuestStatus(6624) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatus(6622) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(6624) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatusMgr().GetQuestStatus(6622) == QUEST_STATUS_INCOMPLETE)
                 {
                     if (Creature* pDoctor = m_creature->GetMap()->GetCreature(m_doctorGuid))
                     {
@@ -1010,7 +1010,7 @@ struct npc_garments_of_quests : public CreatureScript
                     switch (m_creature->GetEntry())
                     {
                         case ENTRY_SHAYA:
-                            if (((Player*)pCaster)->GetQuestStatus(QUEST_MOON) == QUEST_STATUS_INCOMPLETE)
+                            if (((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_MOON) == QUEST_STATUS_INCOMPLETE)
                             {
                                 if (m_bIsHealed && !m_bCanRun && SD3_SpellId(pSpell) == SPELL_FORTITUDE_R1)
                                 {
@@ -1027,7 +1027,7 @@ struct npc_garments_of_quests : public CreatureScript
                             }
                             break;
                         case ENTRY_ROBERTS:
-                            if (((Player*)pCaster)->GetQuestStatus(QUEST_LIGHT_1) == QUEST_STATUS_INCOMPLETE)
+                            if (((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_LIGHT_1) == QUEST_STATUS_INCOMPLETE)
                             {
                                 if (m_bIsHealed && !m_bCanRun && SD3_SpellId(pSpell) == SPELL_FORTITUDE_R1)
                                 {
@@ -1044,7 +1044,7 @@ struct npc_garments_of_quests : public CreatureScript
                             }
                             break;
                         case ENTRY_DOLF:
-                            if (((Player*)pCaster)->GetQuestStatus(QUEST_LIGHT_2) == QUEST_STATUS_INCOMPLETE)
+                            if (((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_LIGHT_2) == QUEST_STATUS_INCOMPLETE)
                             {
                                 if (m_bIsHealed && !m_bCanRun && SD3_SpellId(pSpell) == SPELL_FORTITUDE_R1)
                                 {
@@ -1061,7 +1061,7 @@ struct npc_garments_of_quests : public CreatureScript
                             }
                             break;
                         case ENTRY_KORJA:
-                            if (((Player*)pCaster)->GetQuestStatus(QUEST_SPIRIT) == QUEST_STATUS_INCOMPLETE)
+                            if (((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_SPIRIT) == QUEST_STATUS_INCOMPLETE)
                             {
                                 if (m_bIsHealed && !m_bCanRun && SD3_SpellId(pSpell) == SPELL_FORTITUDE_R1)
                                 {
@@ -1078,7 +1078,7 @@ struct npc_garments_of_quests : public CreatureScript
                             }
                             break;
                         case ENTRY_DG_KEL:
-                            if (((Player*)pCaster)->GetQuestStatus(QUEST_DARKNESS) == QUEST_STATUS_INCOMPLETE)
+                            if (((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_DARKNESS) == QUEST_STATUS_INCOMPLETE)
                             {
                                 if (m_bIsHealed && !m_bCanRun && SD3_SpellId(pSpell) == SPELL_FORTITUDE_R1)
                                 {

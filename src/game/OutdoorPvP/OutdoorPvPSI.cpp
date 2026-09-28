@@ -111,7 +111,7 @@ bool OutdoorPvPSI::HandleAreaTrigger(Player* player, uint32 triggerId)
             }
 
             // give quest credit if necessary
-            if (player->GetQuestStatus(QUEST_SCOURING_DESERT_ALLIANCE) == QUEST_STATUS_INCOMPLETE)
+            if (player->GetQuestStatusMgr().GetQuestStatus(QUEST_SCOURING_DESERT_ALLIANCE) == QUEST_STATUS_INCOMPLETE)
             {
                 player->KilledMonsterCredit(NPC_SILITHUS_DUST_QUEST_ALLIANCE);
             }
@@ -145,7 +145,7 @@ bool OutdoorPvPSI::HandleAreaTrigger(Player* player, uint32 triggerId)
             }
 
             // give quest credit if necessary
-            if (player->GetQuestStatus(QUEST_SCOURING_DESERT_HORDE) == QUEST_STATUS_INCOMPLETE)
+            if (player->GetQuestStatusMgr().GetQuestStatus(QUEST_SCOURING_DESERT_HORDE) == QUEST_STATUS_INCOMPLETE)
             {
                 player->KilledMonsterCredit(NPC_SILITHUS_DUST_QUEST_HORDE);
             }

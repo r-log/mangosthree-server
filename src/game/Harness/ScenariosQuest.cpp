@@ -146,7 +146,7 @@ namespace Harness
         /// The quest's status entry, or NULL: find, never operator[] (reading must not create it).
         QuestStatusData const* EntryOf(Player* p, uint32 questId)
         {
-            QuestStatusMap& map = p->getQuestStatusMap();
+            QuestStatusMap& map = p->GetQuestStatusMgr().Map();
             QuestStatusMap::const_iterator e = map.find(questId);
             return e == map.end() ? NULL : &e->second;
         }
@@ -378,7 +378,7 @@ namespace Harness
         static std::string Progress(Player* p, uint32 questId)
         {
             QuestStatusData const* e = EntryOf(p, questId);
-            std::string out = "status " + U(uint32(p->GetQuestStatus(questId)));
+            std::string out = "status " + U(uint32(p->GetQuestStatusMgr().GetQuestStatus(questId)));
             if (e)
             {
                 out += " kills " + U(e->m_creatureOrGOcount[0]) + "," + U(e->m_creatureOrGOcount[1]) +
@@ -599,7 +599,7 @@ namespace Harness
                         c.kills1 = e->m_creatureOrGOcount[0];
                         c.kills2 = e->m_creatureOrGOcount[1];
                     }
-                    c.status = p->GetQuestStatus(questId);
+                    c.status = p->GetQuestStatusMgr().GetQuestStatus(questId);
                     c.slotState = SlotState(p, questId);
                     c.addKill = m_rec.CountIn(window, SMSG_QUESTUPDATE_ADD_KILL);
                     st->credits.push_back(c);
@@ -616,7 +616,7 @@ namespace Harness
                 if (!p || !q || !st->accepted) { return; }
                 m_rec.Open("canRewardIncomplete");
                 st->incompleteRan = true;
-                st->incompleteStatus = p->GetQuestStatus(questId);
+                st->incompleteStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->incompleteResult = p->CanRewardQuest(q, 1, true);
                 st->incompletePackets = m_rec.CountIn("canRewardIncomplete");
                 m_rec.Note(std::string("CanRewardQuest=") + (st->incompleteResult ? "1" : "0"));
@@ -629,7 +629,7 @@ namespace Harness
                 Player* p = sPlayerRegistry.Find(st->player);
                 if (!p || !st->accepted) { return; }
                 m_rec.Open("loadedEntry");
-                QuestStatusMap& map = p->getQuestStatusMap();
+                QuestStatusMap& map = p->GetQuestStatusMgr().Map();
                 QuestStatusMap::iterator e = map.find(questId);
                 if (e != map.end())
                 {
@@ -679,7 +679,7 @@ namespace Harness
                 st->xpGiven = XpGiven(st->levelBefore, st->levelAfter, st->xpBefore, st->xpAfter);
                 QuestStatusData const* e = EntryOf(p, questId);
                 st->uStateAfter = e ? uint32(e->uState) : 0xFFFFFFFF;
-                st->statusAfter = p->GetQuestStatus(questId);
+                st->statusAfter = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->rewardedAfter = p->GetQuestRewardStatus(questId);
                 st->slotAfter = p->FindQuestSlot(questId);
                 m_rec.Open("reward+tick");
@@ -693,7 +693,7 @@ namespace Harness
                 if (!p || !q || !st->rewardRan) { return; }
                 m_rec.Open("rewardedOnce");
                 st->onceRan = true;
-                st->onceStatus = p->GetQuestStatus(questId);
+                st->onceStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->onceDay = p->SatisfyQuestDay(q, false);
                 st->onceRewarded = p->GetQuestRewardStatus(questId);
                 st->onceResult = p->CanRewardQuest(q, 1, true);
@@ -1019,7 +1019,7 @@ namespace Harness
                     {
                         c.counted = e->m_itemcount[0];
                     }
-                    c.status = p->GetQuestStatus(questId);
+                    c.status = p->GetQuestStatusMgr().GetQuestStatus(questId);
                     c.slotState = SlotState(p, questId);
                     c.held = p->GetItemCount(item);
                     c.pushes = m_rec.CountIn(window, SMSG_ITEM_PUSH_RESULT);
@@ -1040,7 +1040,7 @@ namespace Harness
                 if (!p || !q || !st->accepted) { return; }
                 m_rec.Open("canRewardIncomplete");
                 st->incompleteRan = true;
-                st->incompleteStatus = p->GetQuestStatus(questId);
+                st->incompleteStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->incompleteHeld = p->GetItemCount(item);
                 st->incompleteResult = p->CanRewardQuest(q, 1, true);
                 st->incompletePackets = m_rec.CountIn("canRewardIncomplete");
@@ -1053,7 +1053,7 @@ namespace Harness
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
                 if (!p || !q || !st->accepted) { return; }
-                st->askStatus = p->GetQuestStatus(questId);
+                st->askStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->askHeld = p->GetItemCount(item);
                 st->moneyBefore = p->GetMoney();
                 st->xpBefore = p->GetUInt32Value(PLAYER_XP);
@@ -1071,7 +1071,7 @@ namespace Harness
                 st->held5399 = p->GetItemCount(5399);
                 st->held961 = p->GetItemCount(961);
                 st->held3297 = p->GetItemCount(item);
-                st->statusAfter = p->GetQuestStatus(questId);
+                st->statusAfter = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->rewardedAfter = p->GetQuestRewardStatus(questId);
                 st->slotAfter = p->FindQuestSlot(questId);
                 st->stayedNew = StaysNew(p, questId);
@@ -1342,7 +1342,7 @@ namespace Harness
                         c.kills1 = e->m_creatureOrGOcount[0];
                         c.kills2 = e->m_creatureOrGOcount[1];
                     }
-                    c.status = p->GetQuestStatus(questId);
+                    c.status = p->GetQuestStatusMgr().GetQuestStatus(questId);
                     c.slotState = SlotState(p, questId);
                     c.addKill = m_rec.CountIn(window, SMSG_QUESTUPDATE_ADD_KILL);
                     st->credits.push_back(c);
@@ -1361,7 +1361,7 @@ namespace Harness
                 st->rewardRan = Reward(p, q, 0, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
                 st->heldAfterReward = p->GetItemCount(source, true);
                 st->moneyGained = p->GetMoney() - moneyBefore;
-                st->statusAfter = p->GetQuestStatus(questId);
+                st->statusAfter = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->rewardedAfter = p->GetQuestRewardStatus(questId);
                 st->slotAfter = p->FindQuestSlot(questId);
                 st->stayedNew = StaysNew(p, questId);
@@ -1602,7 +1602,7 @@ namespace Harness
                 if (!p || !q || !st->sigilStored) { return; }
                 m_rec.Open("canRewardIncomplete");
                 st->incompleteRan = true;
-                st->incompleteStatus = p->GetQuestStatus(questId);
+                st->incompleteStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->incompleteHeld = p->GetItemCount(sigil);
                 st->incompleteResult = p->CanRewardQuest(q, 0, true);
                 st->incompletePackets = m_rec.CountIn("canRewardIncomplete");
@@ -1617,7 +1617,7 @@ namespace Harness
                 m_rec.Open("event");
                 p->AreaExploredOrEventHappens(questId);
                 st->eventRan = true;
-                st->eventStatus = p->GetQuestStatus(questId);
+                st->eventStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->eventSlotState = SlotState(p, questId);
                 QuestStatusData const* e = EntryOf(p, questId);
                 st->eventExplored = e && e->m_explored ? 1 : 0;
@@ -1692,7 +1692,7 @@ namespace Harness
                 st->levelAfter = p->getLevel();
                 st->xpLogs = m_rec.CountIn("reward", SMSG_LOG_XPGAIN);
                 st->held39208 = p->GetItemCount(sigil);
-                st->statusAfter = p->GetQuestStatus(questId);
+                st->statusAfter = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->rewardedAfter = p->GetQuestRewardStatus(questId);
                 st->stayedNew = StaysNew(p, questId);
             });
@@ -1942,7 +1942,7 @@ namespace Harness
                 if (!p || !q || !st->accepted) { return; }
                 m_rec.Open("canRewardPoor");
                 st->poorRan = true;
-                st->poorStatus = p->GetQuestStatus(questId);
+                st->poorStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->poorResult = p->CanRewardQuest(q, 0, true);
                 st->poorPackets = m_rec.CountIn("canRewardPoor");
                 m_rec.Note(std::string("CanRewardQuest=") + (st->poorResult ? "1" : "0"));
@@ -1966,7 +1966,7 @@ namespace Harness
                 if (!p || !q || !st->poorRan) { return; }
                 m_rec.Open("canRewardPoorComplete");
                 st->completeRan = true;
-                st->completeStatus = p->GetQuestStatus(questId);
+                st->completeStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->dayOk = p->SatisfyQuestDay(q, false);
                 st->weekly = q->IsWeekly();
                 st->monthly = q->IsMonthly();
@@ -1986,7 +1986,7 @@ namespace Harness
                 m_rec.Open("seed");
                 p->ModifyMoney(int64(price));
                 st->seeded = true;
-                st->statusAfterSeed = p->GetQuestStatus(questId);
+                st->statusAfterSeed = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 m_rec.Note(Progress(p, questId));
                 m_rec.Open("seed+tick");
             });
@@ -2005,7 +2005,7 @@ namespace Harness
                 st->standing = m_rec.CountIn("reward", SMSG_SET_FACTION_STANDING);
                 st->repAfter = p->GetReputationMgr().GetReputation(1077);
                 st->moneyAfter = p->GetMoney();
-                st->statusAfter = p->GetQuestStatus(questId);
+                st->statusAfter = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->rewardedAfter = p->GetQuestRewardStatus(questId);
                 st->slotAfter = p->FindQuestSlot(questId);
                 st->stayedNew = StaysNew(p, questId);
@@ -2212,7 +2212,7 @@ namespace Harness
                     c.kills = e->m_creatureOrGOcount[0];
                     c.items = e->m_itemcount[1];
                 }
-                c.status = p->GetQuestStatus(questId);
+                c.status = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 c.slotState = SlotState(p, questId);
                 c.addKill = m_rec.CountIn(window, SMSG_QUESTUPDATE_ADD_KILL);
                 c.pushed = PushList(m_rec, window);
@@ -2253,7 +2253,7 @@ namespace Harness
                 st->currencyAfter = p->GetCurrencyMgr().GetCount(currency);
                 st->currencyPackets = m_rec.CountIn("reward", SMSG_SET_CURRENCY);
                 st->dailyAfter = !p->SatisfyQuestDay(q, false);
-                st->statusAfter = p->GetQuestStatus(questId);
+                st->statusAfter = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->rewardedAfter = p->GetQuestRewardStatus(questId);
                 st->slotAfter = p->FindQuestSlot(questId);
             });
@@ -2277,7 +2277,7 @@ namespace Harness
                 if (!p || !q || !st->acceptedAgain) { return; }
                 m_rec.Open("canRewardAgain");
                 st->askRan = true;
-                st->askStatus = p->GetQuestStatus(questId);
+                st->askStatus = p->GetQuestStatusMgr().GetQuestStatus(questId);
                 st->askDay = p->SatisfyQuestDay(q, false);
                 st->askResult = p->CanRewardQuest(q, 0, true);
                 st->askPackets = m_rec.CountIn("canRewardAgain");

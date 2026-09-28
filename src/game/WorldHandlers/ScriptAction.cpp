@@ -1195,7 +1195,7 @@ bool ScriptAction::HandleScriptStep()
                     for (GroupReference* groupRef = group->GetFirstMember(); groupRef != NULL; groupRef = groupRef->next())
                     {
                         Player* member = groupRef->getSource();
-                        if (member->GetQuestStatus(m_script->terminateCond.failQuest) == QUEST_STATUS_INCOMPLETE)
+                        if (member->GetQuestStatusMgr().GetQuestStatus(m_script->terminateCond.failQuest) == QUEST_STATUS_INCOMPLETE)
                         {
                             member->FailQuest(m_script->terminateCond.failQuest);
                         }
@@ -1203,7 +1203,7 @@ bool ScriptAction::HandleScriptStep()
                 }
                 else
                 {
-                    if (player->GetQuestStatus(m_script->terminateCond.failQuest) == QUEST_STATUS_INCOMPLETE)
+                    if (player->GetQuestStatusMgr().GetQuestStatus(m_script->terminateCond.failQuest) == QUEST_STATUS_INCOMPLETE)
                     {
                         player->FailQuest(m_script->terminateCond.failQuest);
                     }

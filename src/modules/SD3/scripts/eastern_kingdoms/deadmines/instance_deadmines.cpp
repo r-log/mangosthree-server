@@ -58,7 +58,7 @@ struct is_deadmines : public InstanceScript
             void OnPlayerEnter(Player* pPlayer) override
             {
                 // Respawn the Mysterious chest if one of the players who enter the instance has the quest in his log
-                if (pPlayer->GetQuestStatus(QUEST_FORTUNE_AWAITS) == QUEST_STATUS_COMPLETE &&
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_FORTUNE_AWAITS) == QUEST_STATUS_COMPLETE &&
                     !pPlayer->GetQuestRewardStatus(QUEST_FORTUNE_AWAITS))
                 {
                     DoRespawnGameObject(GO_MYSTERIOUS_CHEST, HOUR);
