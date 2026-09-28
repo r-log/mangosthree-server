@@ -804,7 +804,7 @@ struct npc_solenor_the_slayer : public CreatureScript
     {
         pPlayer->PlayerTalkClass->ClearMenus();
         // Allow to begin the event only for a player (Hunter) who have not completed the quest yet.
-        if (pPlayer->GetQuestStatus(QUEST_STAVE_OF_THE_ANCIENTS) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_STAVE_OF_THE_ANCIENTS) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(0, GOSSIP_ITEM_NELSON_THE_NICE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
         }

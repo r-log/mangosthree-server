@@ -135,7 +135,7 @@ void ChatHandler::ShowQuestListHelper(uint32 questId, int32 loc_idx, Player* tar
 
     if (target)
     {
-        QuestStatus status = target->GetQuestStatus(qinfo->GetQuestId());
+        QuestStatus status = target->GetQuestStatusMgr().GetQuestStatus(qinfo->GetQuestId());
 
         if (status == QUEST_STATUS_COMPLETE)
         {

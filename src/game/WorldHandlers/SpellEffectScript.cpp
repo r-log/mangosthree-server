@@ -876,7 +876,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                     }
 
                     uint32 questId = m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_1);
-                    if (!questId || !GetQuestTemplateStore(questId) || !((Player*)unitTarget)->IsCurrentQuest(questId))
+                    if (!questId || !GetQuestTemplateStore(questId) || !((Player*)unitTarget)->GetQuestStatusMgr().IsCurrentQuest(questId))
                     {
                         return;
                     }
@@ -2126,7 +2126,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                     uint32 spellID = m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_0);
                     uint32 questID = m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_1);
 
-                    if (((Player*)unitTarget)->GetQuestStatus(questID) == QUEST_STATUS_COMPLETE && !((Player*)unitTarget)->GetQuestRewardStatus(questID))
+                    if (((Player*)unitTarget)->GetQuestStatusMgr().GetQuestStatus(questID) == QUEST_STATUS_COMPLETE && !((Player*)unitTarget)->GetQuestRewardStatus(questID))
                     {
                         unitTarget->CastSpell(unitTarget, spellID, true);
                     }

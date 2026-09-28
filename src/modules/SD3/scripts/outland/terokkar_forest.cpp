@@ -193,7 +193,7 @@ struct mob_netherweb_victim : public CreatureScript
         {
             if (Player* pPlayer = pKiller->GetCharmerOrOwnerPlayerOrPlayerItself())
             {
-                if (pPlayer->GetQuestStatus(QUEST_TAKEN_IN_NIGHT) == QUEST_STATUS_INCOMPLETE)
+                if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TAKEN_IN_NIGHT) == QUEST_STATUS_INCOMPLETE)
                 {
                     if (!urand(0, 3))
                     {
@@ -824,7 +824,7 @@ struct go_veil_skith_cage : public GameObjectScript
 
     bool OnUse(Player* pPlayer, GameObject* pGo) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_MISSING_FRIENDS) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_MISSING_FRIENDS) == QUEST_STATUS_INCOMPLETE)
         {
             std::list<Creature*> lChildrenList;
             GetCreatureListWithEntryInGrid(lChildrenList, pGo, NPC_CAPTIVE_CHILD, INTERACTION_DISTANCE);

@@ -356,7 +356,7 @@ void GameObject::Use(Unit* user)
                 if (info->goober.questId && sObjectMgr.GetQuestTemplate(info->goober.questId))
                 {
                     // Quest require to be active for GO using
-                    if (player->GetQuestStatus(info->goober.questId) != QUEST_STATUS_INCOMPLETE)
+                    if (player->GetQuestStatusMgr().GetQuestStatus(info->goober.questId) != QUEST_STATUS_INCOMPLETE)
                     {
                         break;
                     }

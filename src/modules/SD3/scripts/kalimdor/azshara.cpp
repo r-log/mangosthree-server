@@ -111,7 +111,7 @@ struct npc_rizzle_sprysprocket : public CreatureScript
             {
                 if (!HasEscortState(STATE_ESCORT_PAUSED) && InReach(*m_creature, *pUnit, INTERACTION_DISTANCE) && HasLineOfSight(*m_creature, *pUnit))
                 {
-                    if (((Player*)pUnit)->GetQuestStatus(QUEST_MOONSTONE) == QUEST_STATUS_INCOMPLETE)
+                    if (((Player*)pUnit)->GetQuestStatusMgr().GetQuestStatus(QUEST_MOONSTONE) == QUEST_STATUS_INCOMPLETE)
                     {
                         m_creature->CastSpell(m_creature, SPELL_SURRENDER, true);
                     }
@@ -214,7 +214,7 @@ struct npc_rizzle_sprysprocket : public CreatureScript
 
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_MOONSTONE) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_MOONSTONE) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_MOONSTONE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }
@@ -377,7 +377,7 @@ struct mobs_spitelashes : public CreatureScript
             }
 
             // Creature get polymorphed into a sheep and after 5 secs despawns
-            if (pCaster->GetTypeId() == TYPEID_PLAYER && ((Player*)pCaster)->GetQuestStatus(QUEST_FRAGMENTED_MAGIC) == QUEST_STATUS_INCOMPLETE &&
+            if (pCaster->GetTypeId() == TYPEID_PLAYER && ((Player*)pCaster)->GetQuestStatusMgr().GetQuestStatus(QUEST_FRAGMENTED_MAGIC) == QUEST_STATUS_INCOMPLETE &&
                 (SD3_SpellId(pSpell) == 118 || SD3_SpellId(pSpell) == 12824 || SD3_SpellId(pSpell) == 12825 || SD3_SpellId(pSpell) == 12826))
             {
                 m_uiMorphTimer = 5000;
@@ -479,12 +479,12 @@ struct npc_loramus_thalipedes : public CreatureScript
             pPlayer->PrepareQuestMenu(pCreature->GetObjectGuid());
         }
 
-        if (pPlayer->GetQuestStatus(2744) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(2744) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Can you help me?", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }
 
-        if (pPlayer->GetQuestStatus(3141) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(3141) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Tell me your story", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
         }

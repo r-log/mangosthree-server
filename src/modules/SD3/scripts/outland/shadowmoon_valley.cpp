@@ -274,7 +274,7 @@ struct mob_enslaved_netherwing_drake : public CreatureScript
                     {
                         if (Player* pPlayer = m_creature->GetMap()->GetPlayer(m_playerGuid))
                         {
-                            if (pPlayer->GetQuestStatus(QUEST_FORCE_OF_NELT) == QUEST_STATUS_INCOMPLETE)
+                            if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_FORCE_OF_NELT) == QUEST_STATUS_INCOMPLETE)
                             {
                                 DoCastSpellIfCan(pPlayer, SPELL_FORCE_OF_NELTHARAKU, CAST_TRIGGERED);
                                 m_playerGuid.Clear();
@@ -1313,7 +1313,7 @@ struct npc_lord_illidan_stormrage : public CreatureScript
                         }
 
                         // if we already failed no need to check other things
-                        if (pMember->GetQuestStatus(QUEST_BATTLE_OF_THE_CRIMSON_WATCH) == QUEST_STATUS_FAILED)
+                        if (pMember->GetQuestStatusMgr().GetQuestStatus(QUEST_BATTLE_OF_THE_CRIMSON_WATCH) == QUEST_STATUS_FAILED)
                         {
                             ++uiFailedMemberCount;
                             continue;
@@ -1340,7 +1340,7 @@ struct npc_lord_illidan_stormrage : public CreatureScript
                     {
                         if (Player* pMember = pRef->getSource())
                         {
-                            if (pMember->GetQuestStatus(QUEST_BATTLE_OF_THE_CRIMSON_WATCH) == QUEST_STATUS_INCOMPLETE)
+                            if (pMember->GetQuestStatusMgr().GetQuestStatus(QUEST_BATTLE_OF_THE_CRIMSON_WATCH) == QUEST_STATUS_INCOMPLETE)
                             {
                                 pMember->FailQuest(QUEST_BATTLE_OF_THE_CRIMSON_WATCH);
                             }
@@ -2027,7 +2027,7 @@ struct npc_spawned_oronok_tornheart : public CreatureScript
 
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_CIPHER_OF_DAMNATION) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_CIPHER_OF_DAMNATION) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_FIGHT, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
             pPlayer->SEND_GOSSIP_MENU(GOSSIP_TEXT_ID_ORONOK, pCreature->GetObjectGuid());

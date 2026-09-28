@@ -105,7 +105,7 @@ struct npc_kerlonian : public CreatureScript
                 {
                     if (Player* pPlayer = GetLeaderForFollower())
                     {
-                        if (pPlayer->GetQuestStatus(QUEST_SLEEPER_AWAKENED) == QUEST_STATUS_INCOMPLETE)
+                        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SLEEPER_AWAKENED) == QUEST_STATUS_INCOMPLETE)
                         {
                             pPlayer->GroupEventHappens(QUEST_SLEEPER_AWAKENED, m_creature);
                         }
@@ -416,7 +416,7 @@ struct npc_threshwackonator : public CreatureScript
 
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_GYROMAST_REV) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_GYROMAST_REV) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_TURN_KEY, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
             pPlayer->SEND_GOSSIP_MENU(TEXT_ID_KEY_READY, pCreature->GetObjectGuid());
@@ -780,7 +780,7 @@ struct npc_rabid_bear : public CreatureScript
                         // get player
                         Unit* pTrapOwner = pTrap->GetOwner();
                         if (pTrapOwner && pTrapOwner->GetTypeId() == TYPEID_PLAYER &&
-                            ((Player*)pTrapOwner)->GetQuestStatus(QUEST_PLAGUED_LANDS) == QUEST_STATUS_INCOMPLETE)
+                            ((Player*)pTrapOwner)->GetQuestStatusMgr().GetQuestStatus(QUEST_PLAGUED_LANDS) == QUEST_STATUS_INCOMPLETE)
                         {
                             ((Player*)pTrapOwner)->KilledMonsterCredit(m_creature->GetEntry(), m_creature->GetObjectGuid());
                             m_creature->GetMotionMaster()->MoveFollow(pTrapOwner, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);

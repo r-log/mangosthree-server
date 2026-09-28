@@ -65,8 +65,8 @@ struct npc_beaten_corpse : public CreatureScript
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
         pPlayer->PlayerTalkClass->ClearMenus();
-        if (pPlayer->GetQuestStatus(QUEST_LOST_IN_BATTLE) == QUEST_STATUS_INCOMPLETE ||
-            pPlayer->GetQuestStatus(QUEST_LOST_IN_BATTLE) == QUEST_STATUS_COMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_LOST_IN_BATTLE) == QUEST_STATUS_INCOMPLETE ||
+            pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_LOST_IN_BATTLE) == QUEST_STATUS_COMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Examine corpse in detail...", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }
@@ -541,7 +541,7 @@ struct at_twiggy_flathead : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* /*pAt*/) override
     {
-        if (pPlayer->IsAlive() && !pPlayer->isGameMaster() && pPlayer->GetQuestStatus(QUEST_AFFRAY) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->IsAlive() && !pPlayer->isGameMaster() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_AFFRAY) == QUEST_STATUS_INCOMPLETE)
         {
             Creature* pCreature = GetClosestCreatureWithEntry(pPlayer, NPC_TWIGGY, 30.0f);
             if (!pCreature)
@@ -1189,7 +1189,7 @@ struct npc_regthar_deathgate : public CreatureScript
 
         if (npc_regthar_deathgateAI* pRegtharAI = dynamic_cast<npc_regthar_deathgateAI*>(pCreature->AI()))
         {
-            if (!pRegtharAI->m_bEventStarted && (pPlayer->GetQuestStatus(QUEST_COUNTERATTACK) == QUEST_STATUS_INCOMPLETE))
+            if (!pRegtharAI->m_bEventStarted && (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_COUNTERATTACK) == QUEST_STATUS_INCOMPLETE))
             {
                 pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Where is warlord Krom'zar?", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
             }

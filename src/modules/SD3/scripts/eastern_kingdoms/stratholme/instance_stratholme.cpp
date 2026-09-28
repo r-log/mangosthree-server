@@ -392,7 +392,7 @@ struct is_stratholme : public InstanceScript
                                             pPlayer->RemoveAurasDueToSpell(SPELL_BARON_ULTIMATUM);
                                         }
 
-                                        if (pPlayer->GetQuestStatus(QUEST_DEAD_MAN_PLEA) == QUEST_STATUS_INCOMPLETE)
+                                        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_DEAD_MAN_PLEA) == QUEST_STATUS_INCOMPLETE)
                                         {
                                             pPlayer->AreaExploredOrEventHappens(QUEST_DEAD_MAN_PLEA);
 

@@ -779,7 +779,7 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
             case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT:
             {
                 uint32 counter = 0;
-                for (QuestStatusMap::const_iterator questItr = GetPlayer()->getQuestStatusMap().begin(); questItr != GetPlayer()->getQuestStatusMap().end(); ++questItr)
+                for (QuestStatusMap::const_iterator questItr = GetPlayer()->GetQuestStatusMgr().Map().begin(); questItr != GetPlayer()->GetQuestStatusMgr().Map().end(); ++questItr)
                     if (questItr->second.m_rewarded)
                     {
                         ++counter;
@@ -797,7 +797,7 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
                 }
 
                 uint32 counter = 0;
-                for (QuestStatusMap::const_iterator questItr = GetPlayer()->getQuestStatusMap().begin(); questItr != GetPlayer()->getQuestStatusMap().end(); ++questItr)
+                for (QuestStatusMap::const_iterator questItr = GetPlayer()->GetQuestStatusMgr().Map().begin(); questItr != GetPlayer()->GetQuestStatusMgr().Map().end(); ++questItr)
                 {
                     Quest const* quest = sObjectMgr.GetQuestTemplate(questItr->first);
                     if (questItr->second.m_rewarded && quest->GetZoneOrSort() >= 0 && uint32(quest->GetZoneOrSort()) == achievementCriteria->complete_quests_in_zone.zoneID)

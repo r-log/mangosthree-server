@@ -147,61 +147,61 @@ struct npc_a_special_surprise : public CreatureScript
             switch (m_creature->GetEntry())
             {
                 case 29061:                                     // Ellen Stanbridge
-                    if (pPlayer->GetQuestStatus(12742) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12742) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29072:                                     // Kug Ironjaw
-                    if (pPlayer->GetQuestStatus(12748) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12748) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29067:                                     // Donovan Pulfrost
-                    if (pPlayer->GetQuestStatus(12744) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12744) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29065:                                     // Yazmina Oakenthorn
-                    if (pPlayer->GetQuestStatus(12743) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12743) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29071:                                     // Antoine Brack
-                    if (pPlayer->GetQuestStatus(12750) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12750) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29032:                                     // Malar Bravehorn
-                    if (pPlayer->GetQuestStatus(12739) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12739) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29068:                                     // Goby Blastenheimer
-                    if (pPlayer->GetQuestStatus(12745) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12745) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29073:                                     // Iggy Darktusk
-                    if (pPlayer->GetQuestStatus(12749) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12749) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29074:                                     // Lady Eonys
-                    if (pPlayer->GetQuestStatus(12747) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12747) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
                     break;
                 case 29070:                                     // Valok the Righteous
-                    if (pPlayer->GetQuestStatus(12746) == QUEST_STATUS_INCOMPLETE)
+                    if (pPlayer->GetQuestStatusMgr().GetQuestStatus(12746) == QUEST_STATUS_INCOMPLETE)
                     {
                         return true;
                     }
@@ -824,7 +824,7 @@ struct npc_death_knight_initiate : public CreatureScript
 
     bool OnGossipHello(Player* pPlayer, Creature* pCreature) override
     {
-        if (pPlayer->GetQuestStatus(QUEST_DEATH_CHALLENGE) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_DEATH_CHALLENGE) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->CLEAR_GOSSIP_MENU();
             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_ACCEPT_DUEL, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
@@ -2247,7 +2247,7 @@ struct npc_highlord_darion_mograine : public CreatureScript
             for (Map::PlayerList::const_iterator itr = PlayerList.begin(); itr != PlayerList.end(); ++itr)
             {
                 Player* pPlayer = itr->getSource();
-                if (pPlayer && pPlayer->GetQuestStatus(QUEST_ID_LIGHT_OF_DAWN) == QUEST_STATUS_INCOMPLETE && pPlayer->IsAlive() && InReach(*m_creature, *pPlayer, 50.0f))
+                if (pPlayer && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_LIGHT_OF_DAWN) == QUEST_STATUS_INCOMPLETE && pPlayer->IsAlive() && InReach(*m_creature, *pPlayer, 50.0f))
                 {
                     pPlayer->CastSpell(pPlayer, SPELL_THE_LIGHT_OF_DAWN_CREDIT, true);
                 }
@@ -3132,7 +3132,7 @@ struct npc_highlord_darion_mograine : public CreatureScript
         // Only allow start battle after reset
         if (InstanceData* pInstance = pCreature->GetInstanceData())
         {
-            if (pPlayer->GetQuestStatus(QUEST_ID_LIGHT_OF_DAWN) == QUEST_STATUS_INCOMPLETE && pInstance->GetData(TYPE_BATTLE) == NOT_STARTED)
+            if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_LIGHT_OF_DAWN) == QUEST_STATUS_INCOMPLETE && pInstance->GetData(TYPE_BATTLE) == NOT_STARTED)
             {
                 pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_READY, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
             }

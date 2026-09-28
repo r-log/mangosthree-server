@@ -425,7 +425,7 @@ struct npc_creditmarker_visit_with_ancestors : public CreatureScript
         {
             if (pWho->GetTypeId() == TYPEID_PLAYER && InReach(*m_creature, *pWho, 30.0f))
             {
-                if (((Player*)pWho)->GetQuestStatus(QUEST_VISIT_WITH_ANCESTORS) == QUEST_STATUS_INCOMPLETE)
+                if (((Player*)pWho)->GetQuestStatusMgr().GetQuestStatus(QUEST_VISIT_WITH_ANCESTORS) == QUEST_STATUS_INCOMPLETE)
                 {
                     uint32 creditMarkerId = m_creature->GetEntry();
                     if ((creditMarkerId >= 18840) && (creditMarkerId <= 18843))

@@ -94,7 +94,7 @@ struct npc_ragged_john : public CreatureScript
             pPlayer->PrepareQuestMenu(pCreature->GetObjectGuid());
         }
 
-        if (pPlayer->GetQuestStatus(4224) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(4224) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Official business, John. I need some information about Marshal Windsor. Tell me about he last time you saw him.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
         }
@@ -542,7 +542,7 @@ struct npc_klinfran_the_crazed : public CreatureScript
     {
         pPlayer->PlayerTalkClass->ClearMenus();
         // Allow to begin the event only for a player (Hunter) who have not completed the quest yet.
-        if (pPlayer->GetQuestStatus(QUEST_STAVE_OF_THE_ANCIENTS) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_STAVE_OF_THE_ANCIENTS) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(0, GOSSIP_ITEM_KLINFRAN_THE_AMIABLE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
         }

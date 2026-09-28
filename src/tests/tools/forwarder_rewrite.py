@@ -4,25 +4,40 @@
 Decoupling D4i: drop the character's pure forwarders to its managers and rewrite their callers to
 call the manager. A forwarder is PURE when its body is `return m_xMgr.Method(args);` or
 `m_xMgr.Method(args);` with the forwarder's own parameters passed through unchanged and in order
--- nothing added by the owner (no sink, clock, guid, spec, lookup or owner fact) -- AND its
-signature is the manager method's: the same return type, the same parameter types (reference-ness
-included) and the same defaults, and the manager declares that method once (no overload set,
-unless the table names the overload by its parameter types). Such a call has the same meaning
-whether the character forwards it or the caller makes it, so each rewrite below is the
-forwarder's body inlined at the call.
+-- nothing added by the owner (no sink, clock, guid, spec, lookup or owner fact) -- AND the
+forwarders' OVERLOAD SET is the manager method's, one to one: the same return types, parameter
+types (reference-ness included), defaults and constness. Both sets are read from the class's own
+scope (class Player in Player.h, the manager class in its header: not another class of the same
+file, not an inline body or a nested class), and every token of the name at that scope must parse
+as a declaration, else the tool stops: a declaration the parser cannot read never shrinks a set.
+Two sets whose members would collide (two keys the same) are refused too. Constness may differ in
+two shapes only, and only when NO forwarder of the name is const, so every old caller held a
+non-const character: a non-const forwarder over the manager's const method with no non-const
+twin, and a manager const/non-const pair under the non-const forwarder (`Map()`). Such a call
+resolves to the same function whether the character forwards it or the caller makes it, so each
+rewrite below is the forwarder's body inlined at the call.
+
+A forwarder has one of three shapes:
+  inline, on one line of Player.h      `ret Name(params) const { return m_xMgr.M(args); }`
+  inline, over several lines           `ret Name(params)` / `{` / body / `}` or `};`
+  out of line                          `ret Name(params) const;` in Player.h, and exactly one
+                                       `ret Player::Name(params) const { ... }` definition (for an
+                                       overload set: the one with the declaration's parameter
+                                       types), in an owner file, agreeing on the return type, the
+                                       parameter types and constness.
+A name's set is dropped whole or not at all. The dropped lines take with them the comment lines
+standing directly above them (a doc block over a definition, a `//` line over a declaration) and
+one blank line, so no orphaned comment and no double blank line is left.
 
 The table (FORWARDERS) names every forwarder this tool drops, with its manager member, the
 character's accessor to the manager and the manager's method (the names differ for the
 currencies and the talents). For each one:
 
-  1. The forwarder is found in Player.h: either one line defining it inline, or a one-line
-     declaration there plus exactly one out-of-line definition `Player::Name(...) { ... }` in an
-     owner file (the two must agree on the types). Its body must match the pure shape above,
-     and its signature is compared with the manager class's declaration of the method (read from
-     the manager's header, inside that class only: types normalised for spacing and `const T` ==
-     `T const`, defaults compared as written). Anything else stops the tool (IMPURE or ERROR)
-     before anything is written. A pure forwarder is deleted (the line; for an out-of-line one,
-     the declaration line and the definition).
+  1. The forwarders are found in class Player (every declaration of the name there, in one of
+     the three shapes). Each body must match the pure shape above, and the set is compared with
+     the manager class's set (types normalised for spacing and `const T` == `T const`, defaults
+     compared as written). Anything else stops the tool (IMPURE or ERROR) before anything is
+     written. A pure set is deleted (its declarations and out-of-line definitions).
   2. The name must be UNIQUE: no class but Player and the forwarder's own manager class declares
      it anywhere under src/ (SD3, the tests, and the other classes of the manager's own files
      included; only the manager class's own body is skipped). A declaration is a statement whose
@@ -55,7 +70,9 @@ forwarder no longer builds.
 KNOWN MISSES, stated rather than chased: the literal blanking does not understand raw string
 literals (R"(...)") or a `//` comment continued onto the next line by a trailing backslash; code
 inside `#if 0` (or any preprocessor branch) is rewritten like the rest, without a warning; a
-same-named local lambda or function object called bare inside an owner file would be rewritten.
+same-named local lambda or function object called bare inside an owner file would be rewritten;
+a manager `using Base::Name;` (or an inherited overload) is not a `Name(` token, so a base class's
+overloads are invisible to the set comparison (no manager has a base class today).
 None of these occurs at the sites this tool rewrites; the compiler catches every other slip (see
 the controls). A whole-tree run takes a minute or two.
 
@@ -120,9 +137,12 @@ DOMAINS = {
     'talent': ('m_talentMgr', 'GetTalentMgr', 'TalentMgr',
                ('src/game/entities/player/talents/TalentMgr.h',
                 'src/game/entities/player/talents/TalentMgr.cpp')),
+    'quest': ('m_questStatusMgr', 'GetQuestStatusMgr', 'QuestStatusMgr',
+              ('src/game/entities/player/quests/QuestStatusMgr.h',
+               'src/game/entities/player/quests/QuestStatusMgr.cpp')),
 }
 
-# (the forwarder's name, domain, the manager's method[, the overload's parameter types])
+# (the forwarder's name, domain, the manager's method); an overload set is compared whole
 FORWARDERS = [
     ('GetRunesState', 'rune', 'GetRunesState'),
     ('GetBaseRune', 'rune', 'GetBaseRune'),
@@ -157,6 +177,14 @@ FORWARDERS = [
     ('GetActiveSpec', 'talent', 'ActiveSpec'),
     ('GetSpecsCount', 'talent', 'SpecsCount'),
     ('GetKnownTalentRankById', 'talent', 'GetKnownTalentRankById'),     # out of line (Player.cpp)
+    # D4i-2: the quest status forwarders (out of line in PlayerQuest.cpp, inline in Player.h)
+    ('IsActiveQuest', 'quest', 'IsActiveQuest'),
+    ('IsCurrentQuest', 'quest', 'IsCurrentQuest'),
+    ('GetQuestStatus', 'quest', 'GetQuestStatus'),
+    ('ResetWeeklyQuestStatus', 'quest', 'ResetWeeklyQuestStatus'),
+    ('ResetMonthlyQuestStatus', 'quest', 'ResetMonthlyQuestStatus'),
+    ('RemoveTimedQuest', 'quest', 'RemoveTimedQuest'),
+    ('getQuestStatusMap', 'quest', 'Map'),
 ]
 
 # The HAND sites that stay: calls of a shared name on the other class (Pet's own talent points).
@@ -170,6 +198,9 @@ EXPECTED_HAND = {
 KEYWORDS = {'return', 'else', 'case', 'throw', 'new', 'delete', 'co_return', 'do', 'goto',
             'sizeof', 'typeid', 'not', 'and', 'or', 'if', 'while', 'for', 'switch'}
 SPECIFIERS = {'virtual', 'static', 'inline', 'explicit', 'constexpr', 'friend', 'extern'}
+# words that end a type and are never a parameter's name (`unsigned int`, `long long`)
+TYPE_WORDS = {'const', 'volatile', 'int', 'long', 'short', 'char', 'signed', 'unsigned', 'double',
+              'float', 'bool', 'void', 'wchar_t', 'char8_t', 'char16_t', 'char32_t', 'auto'}
 # The text before a declared name on its line: specifiers, a (qualified, templated) type, then
 # whitespace or a pointer/reference declarator.
 TYPE_PREFIX = re.compile(
@@ -326,7 +357,8 @@ def split_top(text, sep):
 
 
 def parse_params(text):
-    """[(normalised type, name or None, normalised default or None)] of a parameter list."""
+    """[(normalised type, name or None, normalised default or None)] of a parameter list. A
+    parameter without a name (`uint32`, `unsigned int`, `Quest const*`) is all type."""
     text = text.strip()
     if text in ('', 'void'):
         return []
@@ -337,7 +369,7 @@ def parse_params(text):
         toks = TOKEN.findall(decl[0])
         name = None
         if len(toks) >= 2 and re.match(r'[A-Za-z_]\w*$', toks[-1]) and toks[-2] != '::' \
-                and toks[-1] not in ('const', 'volatile'):
+                and toks[-1] not in TYPE_WORDS:
             name = toks.pop()
         out.append((norm_type(join_tokens(toks)), name, default))
     return out
@@ -368,19 +400,33 @@ def class_body(clean, cls):
     return None
 
 
-def manager_decls(clean, nocom, span, method):
-    """The declarations of <method> in the class body <span>, at the class's own scope:
-    [(line, normalised return type, params)]."""
+DECL_TAIL = re.compile(r'\s*(const\b)?\s*(?:override\b\s*)?(?:=\s*(?:0|delete|default)\s*)?([;{])')
+
+
+def class_scope_decls(text, clean, nocom, path, cls, name):
+    """([{pos, where, ret, params, const}], error) of every declaration of <name> in class <cls>'s
+    own scope in <path> (not another class of the file, not an inline body or a nested class).
+    Every `name(` token at that scope must parse as a declaration (a type, then `(...)` [const]
+    and `;` or `{`), else the error names it: a declaration the parser misses (an attribute, the
+    return type on the line above, a macro) must not silently shrink the set."""
+    span = class_body(clean, cls)
+    if span is None:
+        return None, 'no class %s in %s' % (cls, path)
     open_, close = span
-    pat = re.compile(r'(?<![\w])' + re.escape(method) + r'\s*\(')
-    starts = {m.start() for m in pat.finditer(clean, open_ + 1, close)}
+    tok = re.compile(r'(?<![\w])' + re.escape(name) + r'\s*\(')
+    starts = {m.start() for m in tok.finditer(clean, open_ + 1, close)}
     out, depth, paren = [], 0, 0
     for i in range(open_ + 1, close):
-        if i in starts and depth == 0 and paren == 0 and is_declaration(clean, i):
+        if i in starts and depth == 0 and paren == 0:
+            where = '%s:%d' % (path, line_of(text, i))
             popen = clean.index('(', i)
             pclose = match_close(clean, popen, '(', ')')
-            ret = statement_prefix(clean, i).strip()
-            out.append((line_of(clean, i), norm_type(ret), parse_params(nocom[popen + 1:pclose])))
+            tail = DECL_TAIL.match(clean, pclose + 1) if pclose > 0 else None
+            if not is_declaration(clean, i) or not tail:
+                return None, '%s::%s at %s is not a declaration this tool can read: %s' % (
+                    cls, name, where, line_text(text, i).strip())
+            out.append(dict(pos=i, where=where, ret=statement_prefix(clean, i).strip(),
+                            params=parse_params(nocom[popen + 1:pclose]), const=bool(tail.group(1))))
         ch = clean[i]
         if ch == '{':
             depth += 1
@@ -390,21 +436,53 @@ def manager_decls(clean, nocom, span, method):
             paren += 1
         elif ch == ')':
             paren -= 1
-    return out
+    return out, None
 
 
-def signature_verdict(ret, params, mdecl, method):
-    """None if the forwarder's signature is the manager declaration's; else the reason."""
-    mline, mret, mparams = mdecl
-    if norm_type(ret) != mret:
-        return 'return type %s, the manager\'s %s is %s' % (norm_type(ret), method, mret)
-    if len(params) != len(mparams):
-        return '%d parameter(s), the manager\'s %s takes %d' % (len(params), method, len(mparams))
-    for i, (p, q) in enumerate(zip(params, mparams)):
-        if p[0] != q[0]:
-            return 'parameter %d is %s, the manager\'s %s takes %s' % (i + 1, p[0], method, q[0])
-        if p[2] != q[2]:
-            return 'parameter %d default %s, the manager\'s %s has %s' % (i + 1, p[2], method, q[2])
+def _key(ret, params, is_const):
+    return (norm_type(ret), tuple((p[0], p[2]) for p in params), bool(is_const))
+
+
+def _signature(k):
+    return '%s(%s)%s' % (k[0], ', '.join(ty + ('=' + d if d else '') for ty, d in k[1]),
+                         ' const' if k[2] else '')
+
+
+def overload_set_mismatch(fwds, decls, mgr_class, method):
+    """None when the forwarders' overload set is the manager method's, one to one: the same
+    return types, parameter types, defaults and constness, so every call resolves to the same
+    function whether it names the character or the manager; else the reason. <fwds> and <decls>
+    are [(ret, params, is const)]. Constness may differ only when no forwarder of the name is
+    const (every old caller then held a non-const character): a non-const forwarder may stand
+    for the manager's const method when the manager has no non-const twin (the call reaches the
+    only candidate), and a manager const/non-const pair may stand under a non-const forwarder
+    (the call reaches the non-const one, as the forwarder's body did)."""
+    fk = [_key(*f) for f in fwds]
+    mk = [_key(*d) for d in decls]
+    if len(set(fk)) != len(fk) or len(set(mk)) != len(mk):
+        return 'two declarations of %s read the same (%s)' % (
+            method, '; '.join(_signature(k) for k in (fk if len(set(fk)) != len(fk) else mk)))
+    lenient = not any(k[2] for k in fk)
+    matched = set()
+    for k in fk:
+        if k in mk:
+            matched.add(k)
+            continue
+        as_const = (k[0], k[1], True)
+        if lenient and as_const in mk:
+            # a non-const twin of another return type is left unmatched: refused below
+            matched.add(as_const)
+            continue
+        return 'no %s::%s declaration is the forwarder %s (the manager has %s)' % (
+            mgr_class, method, _signature(k), '; '.join(_signature(m) for m in mk) or 'none')
+    for m in mk:
+        if m in matched:
+            continue
+        # the const half of a pair: a non-const forwarder with the same parameters matched the
+        # non-const half (or it would have failed above)
+        pair = lenient and m[2] and any(f[1] == m[1] and not f[2] for f in fk)
+        if not pair:
+            return '%s::%s has an overload the forwarders lack: %s' % (mgr_class, method, _signature(m))
     return None
 
 
@@ -447,66 +525,136 @@ def source_files(root):
     return out
 
 
-def find_forwarder(texts, clean, nocom, owners, name, member, method):
-    """Locate the forwarder <name> on Player. Returns (info or None, error or None); info is
-    None when Player no longer declares the name (dropped already)."""
-    if PLAYER_H not in texts:
-        return None, None
-    pclean = clean[PLAYER_H]
-    pat = re.compile(r'(?<![\w])' + re.escape(name) + r'\s*\(')
-    decls = [m.start() for m in pat.finditer(pclean) if is_declaration(pclean, m.start())]
-    if not decls:
-        return None, None
-    if len(decls) > 1:
-        return None, '%s:%d: an overload set on Player (%d declarations)' % (
-            PLAYER_H, line_of(pclean, decls[0]), len(decls))
-    at = decls[0]
-    where = '%s:%d' % (PLAYER_H, line_of(pclean, at))
-    raw = line_text(texts[PLAYER_H], at)
-    nc = line_text(nocom(PLAYER_H), at)
-    decl_span = (PLAYER_H, line_start(pclean, at), line_end(pclean, at))
-    head = r'^\s*(?P<ret>[^(){};=]*?)\s*\b' + re.escape(name) + r'\s*\((?P<params>[^()]*)\)\s*(?:const\s*)?'
-    m = re.match(head + r'\{(?P<body>.*)\}\s*$', nc)
-    if m:
-        params = parse_params(m.group('params'))
-        return dict(kind='inline', where=where, raw=raw.strip(), ret=m.group('ret'), params=params,
-                    names_from=params, body=' '.join(m.group('body').split()),
-                    drops=[decl_span], spans=[decl_span], defined=None), None
-    m = re.match(head + r';\s*$', nc)
-    if not m:
-        return None, '%s: a declaration that is neither a one-line inline forwarder nor a one-line ' \
-                     'declaration: %s' % (where, raw.strip())
-    decl_params = parse_params(m.group('params'))
-    qual = re.compile(r'(?<![\w])Player\s*::\s*' + re.escape(name) + r'\s*\(')
-    defs = [(f, q.start()) for f in sorted(owners) if f in clean for q in qual.finditer(clean[f])]
-    if len(defs) != 1:
-        return None, '%s: %d out-of-line definition(s) of Player::%s in the owner files' % (
-            where, len(defs), name)
-    f, q = defs[0]
-    c, t = clean[f], nocom(f)
-    ls = line_start(c, q)
-    def_ret = c[ls:q].strip()
-    popen = c.index('(', q)
-    pclose = match_close(c, popen, '(', ')')
-    after = re.match(r'\s*(?:const\s*)?\{', c[pclose + 1:])
-    if not def_ret or pclose < 0 or not after:
-        return None, '%s:%d: the definition of Player::%s is not `<type> Player::%s(...) [const] {`' % (
-            f, line_of(c, q), name, name)
-    bopen = pclose + after.end()
-    bclose = match_close(c, bopen, '{', '}')
-    def_params = parse_params(t[popen + 1:pclose])
-    if norm_type(def_ret) != norm_type(m.group('ret')) or \
-            [p[0] for p in def_params] != [p[0] for p in decl_params]:
-        return None, '%s:%d: the declaration and the definition of %s differ' % (f, line_of(c, q), name)
-    end = line_end(c, bclose)
-    if c[end:line_end(c, end)].strip() == '' and end < len(c):
-        end = line_end(c, end)                   # the blank line after the definition
-    def_span = (f, ls, end)
-    return dict(kind='out-of-line', where=where, raw=raw.strip(), ret=m.group('ret'),
-                params=decl_params, names_from=def_params,
-                body=' '.join(t[bopen + 1:bclose].split()), drops=[decl_span, def_span],
-                spans=[decl_span, (f, ls, bclose + 1)],
-                defined='%s:%d' % (f, line_of(c, q))), None
+def forwarder_shape(texts, clean, nocom, files, owners, name, pos):
+    """The forwarder declared in Player.h at <pos>: a dict (kind, where, raw, ret, params,
+    names_from, body, const, drops, defined), or a string saying why it is not a forwarder."""
+    ptext, pclean, pnc = texts[PLAYER_H], clean[PLAYER_H], nocom(PLAYER_H)
+    where = '%s:%d' % (PLAYER_H, line_of(ptext, pos))
+    op = pclean.index('(', pos)
+    cl = match_close(pclean, op, '(', ')')
+    after = DECL_TAIL.match(pclean, cl + 1) if cl > 0 else None
+    if not after:
+        return 'a declaration that is not a forwarder: %s' % line_text(ptext, pos).strip()
+    is_const = bool(after.group(1))
+    prefix = statement_prefix(pclean, pos)
+    decl_start = line_start(ptext, pos)
+    if pclean[decl_start:pos].strip() != prefix.strip():
+        return 'the declaration shares its line: %s' % line_text(ptext, pos).strip()
+    ret = prefix.strip()
+    params = parse_params(pnc[op + 1:cl])
+    raw = ' '.join(ptext[decl_start:after.end()].split())
+    if after.group(2) == '{':
+        ob = after.end() - 1
+        cb = match_close(pclean, ob, '{', '}')
+        if cb < 0:
+            return 'an unbalanced body'
+        tail = re.compile(r'[ \t]*;?[ \t]*(\n|$)').match(pclean, cb + 1)
+        if not tail:
+            return 'text follows the definition on its line: %s' % line_text(ptext, cb).strip()
+        return dict(kind='inline' if '\n' not in ptext[decl_start:cb] else 'inline (multi-line)',
+                    where=where, raw=raw, ret=ret, params=params, names_from=params,
+                    body=' '.join(pnc[ob + 1:cb].split()), const=is_const,
+                    drops=[(PLAYER_H, decl_start, tail.end())], defined=None)
+    tail = re.compile(r'[ \t]*(\n|$)').match(pclean, after.end())
+    if not tail:
+        return 'text follows the declaration on its line: %s' % line_text(ptext, pos).strip()
+    defs = []
+    dpat = re.compile(r'(?<![\w])Player\s*::\s*' + re.escape(name) + r'\s*\(')
+    for f in files:
+        if f.startswith(NOT_SCANNED):
+            continue
+        c = clean[f]
+        for dm in dpat.finditer(c):
+            dop = dm.end() - 1
+            dcl = match_close(c, dop, '(', ')')
+            if dcl < 0:
+                continue
+            bm = re.compile(r'\s*(const\b)?\s*\{').match(c, dcl + 1)
+            if bm and is_declaration(c, dm.start()):
+                defs.append((f, dm, dop, dcl, bm))
+    if not defs:
+        return 'declared out of line, but no `ret Player::%s(...) {` definition found' % name
+    types = [p[0] for p in params]
+    same = [d for d in defs if [p[0] for p in parse_params(nocom(d[0])[d[2] + 1:d[3]])] == types]
+    if not same and len(defs) > 1:
+        return 'no Player::%s definition takes (%s)' % (name, ', '.join(types))
+    defs = same or defs                 # an overload set: the definition of this declaration
+    if len(defs) > 1:
+        return 'more than one Player::%s definition: %s' % (
+            name, ', '.join('%s:%d' % (d[0], line_of(texts[d[0]], d[1].start())) for d in defs))
+    f, dm, dop, dcl, bm = defs[0]
+    c, t = clean[f], texts[f]
+    defined = '%s:%d' % (f, line_of(t, dm.start()))
+    if f not in owners:
+        return 'the definition %s is not in an owner file' % defined
+    def_params = parse_params(nocom(f)[dop + 1:dcl])
+    def_ret = statement_prefix(c, dm.start()).strip()
+    if norm_type(def_ret) != norm_type(ret) or [p[0] for p in def_params] != types \
+            or bool(bm.group(1)) != is_const:
+        return 'the declaration and the definition %s differ' % defined
+    dstart = line_start(t, dm.start())
+    if c[dstart:dm.start()].strip() != def_ret:
+        return 'the definition %s shares its line' % defined
+    ob = bm.end() - 1
+    cb = match_close(c, ob, '{', '}')
+    if cb < 0:
+        return 'the definition %s has an unbalanced body' % defined
+    dtail = re.compile(r'[ \t]*(\n|$)').match(c, cb + 1)
+    if not dtail:
+        return 'text follows the definition %s on its line' % defined
+    return dict(kind='out-of-line', where=where, raw=raw, ret=ret, params=params, names_from=def_params,
+                body=' '.join(nocom(f)[ob + 1:cb].split()), const=is_const,
+                drops=[(PLAYER_H, decl_start, tail.end()), (f, dstart, dtail.end())], defined=defined)
+
+
+def drop_edits(text, ranges):
+    """The deletions for one file's dropped forwarders: each whole-line range widened over the
+    comment lines directly above it (when they stand alone: a blank line or the block's opener
+    above them and a blank line, a closing brace or the end below); ranges separated by nothing
+    but blank lines merged; then one blank line taken with the merged range when it stood as its
+    own paragraph, so neither an orphaned comment nor a double blank line is left. Returns
+    [(start, end)] character ranges."""
+    lines = text.splitlines(True)
+    starts = [0]
+    for ln in lines:
+        starts.append(starts[-1] + len(ln))
+    n = len(lines)
+
+    def blank(i):
+        return 0 <= i < n and lines[i].strip() == ''
+
+    def opener(i):
+        return i < 0 or (0 <= i < n and re.search(r'[{:]\s*$', lines[i]) is not None)
+
+    def closer(i):
+        return i >= n or lines[i].strip().startswith('}')
+
+    def merge(spans):
+        merged = []
+        for a, b in sorted(spans):
+            if merged and all(blank(i) for i in range(merged[-1][1], a)):
+                merged[-1][1] = max(merged[-1][1], b)
+            else:
+                merged.append([a, b])
+        return merged
+
+    spans = [[text.count('\n', 0, s), n if e == len(text) else text.count('\n', 0, e)] for s, e in ranges]
+    widened = []
+    for a, b in merge(spans):
+        k = a
+        while k > 0 and re.match(r'\s*(//|/\*|\*)', lines[k - 1]):
+            k -= 1
+        if k < a and (blank(k - 1) or opener(k - 1)) and (blank(b) or closer(b)):
+            a = k
+        widened.append([a, b])
+    out = []
+    for a, b in merge(widened):
+        if (blank(a - 1) or opener(a - 1)) and blank(b):
+            b += 1
+        elif blank(a - 1) and closer(b):
+            a -= 1
+        out.append((starts[a], starts[b]))
+    return out
 
 
 def run(root, forwarders, domains, owners, apply, expected_hand=None):
@@ -525,57 +673,77 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
     edits = {}           # file -> [(start, end, replacement, name, kind)]
     errors, hands, report = [], [], []
     hand_count = {}
+    drops = {}           # file -> [(start, end)]: the dropped declarations and definitions
+    drop_count = 0
+    failed = set()
 
-    for entry in forwarders:
-        name, domain, method = entry[:3]
-        overload = entry[3] if len(entry) > 3 else None
+    def in_drop(f, pos):
+        return any(s <= pos < e for s, e in drops.get(f, []))
+
+    # 1. the forwarders, every name first (a call inside a dropped range is not a call): the
+    #    Player set, each body, then the set against the manager's; dropped whole or not at all
+    for name, domain, method in forwarders:
+        member, accessor, mgr_class, mgr_files = domains[domain]
+        if PLAYER_H not in texts:
+            continue
+        pdecls, err = class_scope_decls(texts[PLAYER_H], clean[PLAYER_H], nocom(PLAYER_H), PLAYER_H,
+                                        'Player', name)
+        if err:
+            errors.append('[%s] %s: %s' % (domain, name, err))
+            failed.add(name)
+            continue
+        shapes = []
+        for d in pdecls:
+            shape = forwarder_shape(texts, clean, nocom, files, owners, name, d['pos'])
+            if isinstance(shape, str):
+                errors.append('%s: [%s] %s: %s' % (d['where'], domain, name, shape))
+                continue
+            reason = body_verdict(shape['ret'], shape['names_from'], shape['body'], member, method)
+            if reason is not None:
+                errors.append('%s: [%s] %s: IMPURE: %s' % (d['where'], domain, name, reason))
+                continue
+            shapes.append(shape)
+        if len(shapes) != len(pdecls):
+            failed.add(name)
+            continue
+        if not shapes:
+            continue                            # dropped already: only stale calls remain
+        mgr_h = mgr_files[0]
+        if mgr_h not in texts:
+            mdecls, reason = None, 'no manager header %s' % mgr_h
+        else:
+            mdecls, reason = class_scope_decls(texts[mgr_h], clean[mgr_h], nocom(mgr_h), mgr_h, mgr_class,
+                                               method)
+        if reason is None:
+            reason = overload_set_mismatch([(s['ret'], s['params'], s['const']) for s in shapes],
+                                           [(m['ret'], m['params'], m['const']) for m in mdecls],
+                                           mgr_class, method)
+        if reason is not None:
+            errors.append('%s: [%s] %s: IMPURE: %s' % (shapes[0]['where'], domain, name, reason))
+            failed.add(name)
+            continue
+        for s in shapes:
+            for f, a, b in s['drops']:
+                drops.setdefault(f, []).append((a, b))
+                drop_count += 1
+            report.append('%s: [%s] %s: DROP %s forwarder `%s`%s; its body `%s`'
+                          % (s['where'], domain, name, s['kind'], s['raw'],
+                             ' defined at %s' % s['defined'] if s['defined'] else '', s['body']))
+
+    for name, domain, method in forwarders:
+        if name in failed:
+            continue
         member, accessor, mgr_class, mgr_files = domains[domain]
         pat = re.compile(r'(?<![\w])' + re.escape(name) + r'\s*\(')
         mgr_h = mgr_files[0]
         mspan = class_body(clean[mgr_h], mgr_class) if mgr_h in clean else None
-
-        # 1. the forwarder itself: the body, then the signature against the manager's
-        info, err = find_forwarder(texts, clean, nocom, owners, name, member, method)
-        if err:
-            errors.append('[%s] %s: %s' % (domain, name, err))
-            continue
-        spans = []
-        if info:
-            reason = body_verdict(info['ret'], info['names_from'], info['body'], member, method)
-            if reason is None:
-                if mspan is None:
-                    reason = 'class %s not found in %s' % (mgr_class, mgr_h)
-                else:
-                    mdecls = manager_decls(clean[mgr_h], nocom(mgr_h), mspan, method)
-                    if overload is not None:
-                        mdecls = [d for d in mdecls if tuple(p[0] for p in d[2]) == tuple(overload)]
-                    if len(mdecls) != 1:
-                        reason = '%s::%s has %d declaration(s)%s; name the overload in the table' % (
-                            mgr_class, method, len(mdecls), '' if overload is None else ' matching')
-                    else:
-                        reason = signature_verdict(info['ret'], info['params'], mdecls[0], method)
-            if reason is not None:
-                errors.append('%s: [%s] %s: IMPURE: %s' % (info['where'], domain, name, reason))
-                continue
-            spans = info['spans']
-            for f, s, e in info['drops']:
-                edits.setdefault(f, []).append((s, e, '', name, 'drop'))
-            if info['kind'] == 'inline':
-                report.append('%s: [%s] %s: DROP forwarder `%s`; its body `%s`'
-                              % (info['where'], domain, name, info['raw'], info['body']))
-            else:
-                report.append('%s: [%s] %s: DROP out-of-line forwarder `%s`, defined at %s; its body `%s`'
-                              % (info['where'], domain, name, info['raw'], info['defined'], info['body']))
-
-        def in_spans(f, pos):
-            return any(f == sf and s <= pos < e for sf, s, e in spans)
 
         # 2. uniqueness: a declaration of the name by any other class
         shared = []
         for f in files:
             c = clean[f]
             for m in pat.finditer(c):
-                if in_spans(f, m.start()):
+                if in_drop(f, m.start()):
                     continue
                 if f == mgr_h and mspan and mspan[0] < m.start() < mspan[1]:
                     continue                    # the manager class's own body
@@ -605,13 +773,13 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
                 continue
             c, t = clean[f], texts[f]
             for m in qualified.finditer(c):
-                if in_spans(f, m.start()):
+                if in_drop(f, m.start()):
                     continue
                 errors.append('%s:%d: [%s] %s: Player::%s: rewrite by hand: %s'
                               % (f, line_of(t, m.start()), domain, name, name,
                                  line_text(t, m.start()).strip()))
             for m in pat.finditer(c):
-                if in_spans(f, m.start()):
+                if in_drop(f, m.start()):
                     continue
                 before = c[max(0, m.start() - LOOK_BEHIND):m.start()]
                 base = m.start() - len(before)
@@ -667,12 +835,22 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
             if got != want:
                 unexpected.append('%s in %s: %d HAND site(s) listed, %d pinned' % (key[0], key[1], got, want))
 
+    for f in drops:
+        for s, e in drop_edits(texts[f], drops[f]):
+            edits.setdefault(f, []).append((s, e, '', None, 'drop'))
+
     domain_of = {e[0]: e[1] for e in forwarders}
-    changes = 0
+    changes = drop_count                    # one per dropped declaration or definition
+    results = {}
     for f in sorted(edits):
         t = texts[f]
+        ordered = sorted(edits[f], key=lambda e: e[0])
+        for (s1, e1, _, n1, _), (s2, e2, _, n2, _) in zip(ordered, ordered[1:]):
+            if s2 < e1:
+                errors.append('%s:%d: overlapping edits (%s, %s): nothing written'
+                              % (f, line_of(t, s2), n1, n2))
         new = t
-        for start, end, repl, name, kind in sorted(edits[f], key=lambda e: e[0], reverse=True):
+        for start, end, repl, name, kind in reversed(ordered):
             new = new[:start] + repl + new[end:]
         # the listing, per site, on the old text
         for start, end, repl, name, kind in sorted(edits[f], key=lambda e: e[0]):
@@ -686,9 +864,10 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
                           % (f, line_of(t, start), domain_of[name], name, kind,
                              line_text(t, start).strip(), new_line.strip()))
             changes += 1
-        changes += sum(1 for e in edits[f] if e[4] == 'drop')
-        if apply and new != t:
-            write(os.path.join(root, f), new)
+        results[f] = new
+    for f in sorted(results):
+        if apply and not errors and results[f] != texts[f]:
+            write(os.path.join(root, f), results[f])
     return changes, errors, hands, report, unexpected
 
 
@@ -826,6 +1005,160 @@ def _base_files():
 
 SELF_OWNERS = {PLAYER_H, SELF_OWNER_PATH}
 
+# D4i-2: the out-of-line and multi-line shapes and the signature check (the quest forwarders)
+SELF_Q_DOMAINS = {
+    'quest': ('m_questStatusMgr', 'GetQuestStatusMgr', 'QuestStatusMgr', ('src/game/q/QuestStatusMgr.h',)),
+}
+SELF_Q_FORWARDERS = [
+    ('IsCurrentQuest', 'quest', 'IsCurrentQuest'),
+    ('GetQuestStatus', 'quest', 'GetQuestStatus'),
+    ('ResetWeeklyQuestStatus', 'quest', 'ResetWeeklyQuestStatus'),
+    ('ResetMonthlyQuestStatus', 'quest', 'ResetMonthlyQuestStatus'),
+    ('RemoveTimedQuest', 'quest', 'RemoveTimedQuest'),
+    ('getQuestStatusMap', 'quest', 'Map'),
+]
+SELF_Q_PLAYER_H = '''class Player
+{
+    public:
+        // Prepare the menu
+        void PrepareQuestMenu(ObjectGuid guid);
+
+        // Quest is taken and not yet rewarded
+        // if completed_or_not = 1 - taken, not completed
+        bool IsCurrentQuest(uint32 quest_id, uint8 completed_or_not = 0) const; // taken
+
+        // Get the quest status
+        QuestStatus GetQuestStatus(uint32 quest_id) const;
+
+        // Set the daily quest status
+        void SetDailyQuestStatus(uint32 quest_id);
+        void ResetWeeklyQuestStatus();
+        void ResetMonthlyQuestStatus();
+
+        // Remove a timed quest
+        void RemoveTimedQuest(uint32 quest_id) { m_questStatusMgr.RemoveTimedQuest(quest_id); }
+
+        // Get the player's quest status map
+        QuestStatusMap& getQuestStatusMap()
+        {
+            return m_questStatusMgr.Map();
+        };
+
+        // Get the reward status
+        bool GetQuestRewardStatus(uint32 quest_id) const;
+        QuestStatusMgr m_questStatusMgr;
+};
+'''
+SELF_Q_PLAYER_H_AFTER = '''class Player
+{
+    public:
+        // Prepare the menu
+        void PrepareQuestMenu(ObjectGuid guid);
+
+        // Set the daily quest status
+        void SetDailyQuestStatus(uint32 quest_id);
+
+        // Get the reward status
+        bool GetQuestRewardStatus(uint32 quest_id) const;
+        QuestStatusMgr m_questStatusMgr;
+};
+'''
+SELF_Q_MGR_H = '''class QuestStatusMgr
+{
+    public:
+        QuestStatusMap& Map() { return m_status; }
+        QuestStatusMap const& Map() const { return m_status; }
+        bool IsCurrentQuest(uint32 quest_id, uint8 completed_or_not = 0) const;
+        QuestStatus GetQuestStatus(uint32 quest_id) const;
+        bool GetQuestRewardStatus(uint32 quest_id, TemplateLookup const& lookup) const;
+        void RemoveTimedQuest(uint32 quest_id) { m_timedQuests.erase(quest_id); }
+        void ResetWeeklyQuestStatus();
+        void ResetMonthlyQuestStatus();
+};
+'''
+SELF_Q_OWNER = '''#include "Player.h"
+
+/**
+ * @brief Checks whether a quest is current.
+ */
+bool Player::IsCurrentQuest(uint32 quest_id, uint8 completed_or_not) const
+{
+    return m_questStatusMgr.IsCurrentQuest(quest_id, completed_or_not);
+}
+
+void Player::Take(uint32 quest_id)
+{
+    QuestStatus status = GetQuestStatus(quest_id);
+    RemoveTimedQuest(quest_id);
+    this->ResetWeeklyQuestStatus();
+    bool cur = IsCurrentQuest(quest_id);
+    uint32 t = ((Player*)giver)->getQuestStatusMap()[quest_id].m_timer;
+}
+
+/**
+ * @brief Gets the quest status.
+ */
+QuestStatus Player::GetQuestStatus(uint32 quest_id) const
+{
+    return m_questStatusMgr.GetQuestStatus(quest_id);
+}
+
+void Player::ResetWeeklyQuestStatus()
+{
+    m_questStatusMgr.ResetWeeklyQuestStatus();
+}
+
+void Player::ResetMonthlyQuestStatus()
+{
+    m_questStatusMgr.ResetMonthlyQuestStatus();
+}
+'''
+SELF_Q_OWNER_AFTER = '''#include "Player.h"
+
+void Player::Take(uint32 quest_id)
+{
+    QuestStatus status = m_questStatusMgr.GetQuestStatus(quest_id);
+    m_questStatusMgr.RemoveTimedQuest(quest_id);
+    m_questStatusMgr.ResetWeeklyQuestStatus();
+    bool cur = m_questStatusMgr.IsCurrentQuest(quest_id);
+    uint32 t = ((Player*)giver)->GetQuestStatusMgr().Map()[quest_id].m_timer;
+}
+'''
+SELF_Q_OUTSIDE = '''void Handler(Player* p, Player const* cp)
+{
+    if (p->GetQuestStatus(1) == 0 && cp->IsCurrentQuest(2, 1)) {}
+    p->getQuestStatusMap()[3].m_rewarded = false;
+    for (auto i = p->getQuestStatusMap().begin(); i != p->getQuestStatusMap().end(); ++i) {}
+    p->GetQuestRewardStatus(4);
+    sWorld.GetPlayer()->ResetMonthlyQuestStatus(); // p->GetQuestStatus(5) in a comment
+}
+'''
+SELF_Q_OUTSIDE_AFTER = '''void Handler(Player* p, Player const* cp)
+{
+    if (p->GetQuestStatusMgr().GetQuestStatus(1) == 0 && cp->GetQuestStatusMgr().IsCurrentQuest(2, 1)) {}
+    p->GetQuestStatusMgr().Map()[3].m_rewarded = false;
+    for (auto i = p->GetQuestStatusMgr().Map().begin(); i != p->GetQuestStatusMgr().Map().end(); ++i) {}
+    p->GetQuestRewardStatus(4);
+    sWorld.GetPlayer()->GetQuestStatusMgr().ResetMonthlyQuestStatus(); // p->GetQuestStatus(5) in a comment
+}
+'''
+SELF_Q_OWNER_PATH = 'src/game/entities/player/quests/PlayerQuest.cpp'
+SELF_Q_OWNERS = {PLAYER_H, SELF_Q_OWNER_PATH}
+
+
+def _q_files():
+    return {
+        PLAYER_H: SELF_Q_PLAYER_H,
+        'src/game/q/QuestStatusMgr.h': SELF_Q_MGR_H,
+        SELF_Q_OWNER_PATH: SELF_Q_OWNER,
+        'src/game/Handlers/QuestHandler.cpp': SELF_Q_OUTSIDE,
+    }
+
+
+
+def _qrun(root, apply=False):
+    return run(root, SELF_Q_FORWARDERS, SELF_Q_DOMAINS, SELF_Q_OWNERS, apply, None)
+
 
 def _quiet(line):
     pass
@@ -961,20 +1294,20 @@ def self_test():
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
-    # 3b. accepted: `const T&` == `T const&`, and the overload named in the table
+    # 3b. accepted: `const T&` == `T const&`. (D4i-1's second row, "an overload named in the
+    #     table", went with the table's overload element: the whole set is compared, and that
+    #     fixture -- a manager overload Player lacks -- is group 3's refused "an overloaded
+    #     manager method".)
     accepted = [
-        (PLAYER_H, 'RuneInfo const& GetInfo() const', 'const RuneInfo & GetInfo() const', None,
+        (PLAYER_H, 'RuneInfo const& GetInfo() const', 'const RuneInfo & GetInfo() const',
          'const T& spelled the other way'),
-        (rune, '        void Tick()', '        uint8 GetRunesState(uint8 slot) const;\n        void Tick()',
-         ('GetRunesState', 'rune', 'GetRunesState', ()), 'an overload named in the table'),
     ]
-    for path, old, new, entry, what in accepted:
+    for path, old, new, what in accepted:
         files = _base_files()
         files[path] = files[path].replace(old, new, 1)
         root = _tree(files)
         try:
-            table = [entry if entry and e[0] == entry[0] else e for e in SELF_FORWARDERS]
-            err = _run(root, False, None, table)[1]
+            err = _run(root)[1]
             expect(err == [], 'accepted (%s): %r' % (what, err))
         finally:
             shutil.rmtree(root, ignore_errors=True)
@@ -1016,6 +1349,249 @@ def self_test():
             expect(is_shared == shared, 'shared(%s) == %s: %r' % (path, shared, report))
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+    # 7. D4i-2: out-of-line and multi-line forwarders, their comments, an owner's call on another
+    #    character, a writer through the map, and the re-run control
+    root = _tree(_q_files())
+    try:
+        changes, errors, hands, report = _qrun(root, True)[:4]
+        expect(errors == [] and hands == [], 'quest: no errors, no hand sites: %r %r' % (errors, hands))
+        got = read(os.path.join(root, PLAYER_H))
+        expect(got == SELF_Q_PLAYER_H_AFTER, 'quest: Player.h after the drops:\n%s' % got)
+        got = read(os.path.join(root, SELF_Q_OWNER_PATH))
+        expect(got == SELF_Q_OWNER_AFTER, 'quest: the owner file after the drops:\n%s' % got)
+        got = read(os.path.join(root, 'src/game/Handlers/QuestHandler.cpp'))
+        expect(got == SELF_Q_OUTSIDE_AFTER, 'quest: the outside file:\n%s' % got)
+        expect(read(os.path.join(root, 'src/game/q/QuestStatusMgr.h')) == SELF_Q_MGR_H, 'quest: manager untouched')
+        # 4 out-of-line forwarders (a declaration and a definition each) + 2 inline; 5 owner + 6 outside calls
+        expect(changes == 4 * 2 + 2 + 5 + 6, 'quest: 21 changes: %d' % changes)
+        expect(sum(1 for r in report if ': DROP out-of-line' in r) == 4
+               and sum(1 for r in report if ': DROP inline (multi-line)' in r) == 1,
+               'quest: the shapes are named: %r' % [r for r in report if 'DROP' in r])
+        changes2, errors2, _, _ = _qrun(root, True)[:4]
+        expect(changes2 == 0 and errors2 == [], 'quest: the re-run changes nothing: %d %r' % (changes2, errors2))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # 8. D4i-2: forwarders that are not pure, or not found whole, stop the tool; nothing is written
+    body_q = 'return m_questStatusMgr.GetQuestStatus(quest_id);'
+    decl_q = 'QuestStatus GetQuestStatus(uint32 quest_id) const;'
+    def_q = 'QuestStatus Player::GetQuestStatus(uint32 quest_id) const\n{'
+    decl_c = 'bool IsCurrentQuest(uint32 quest_id, uint8 completed_or_not = 0) const;'
+    def_c = 'bool Player::IsCurrentQuest(uint32 quest_id, uint8 completed_or_not) const\n{'
+    q_impure = [
+        # (file, old, new, what)
+        (SELF_Q_OWNER_PATH, body_q,
+         'return m_questStatusMgr.GetQuestStatus(quest_id, ObjectMgr::QuestTemplateLookup());',
+         'an added template lookup (the GetQuestRewardStatus shape)'),
+        (SELF_Q_OWNER_PATH, '    m_questStatusMgr.ResetWeeklyQuestStatus();\n',
+         '    m_questStatusMgr.ResetWeeklyQuestStatus();\n\n    UpdateForQuestWorldObjects();\n',
+         'a second statement (the SetQuestStatus shape)'),
+        (PLAYER_H, decl_c, decl_c.replace('= 0', '= 1'), 'another default than the manager\'s'),
+        (PLAYER_H, 'QuestStatusMap& getQuestStatusMap()', 'QuestStatusMap getQuestStatusMap()',
+         'a copy where the manager returns a reference'),
+        (PLAYER_H, '            return m_questStatusMgr.Map();\n',
+         '            Log();\n            return m_questStatusMgr.Map();\n', 'a second statement, multi-line inline'),
+        (SELF_Q_OWNER_PATH, def_q, def_q.replace(') const', ')'), 'the definition is not const'),
+        (SELF_Q_OWNER_PATH, 'QuestStatus Player::GetQuestStatus(uint32 quest_id) const\n{\n    ' + body_q + '\n}\n', '',
+         'no out-of-line definition'),
+        (SELF_Q_OWNER_PATH, 'void Player::Take', 'QuestStatus Player::GetQuestStatus(uint32 quest_id) const\n{\n    '
+         + body_q + '\n}\n\nvoid Player::Take', 'two definitions'),
+        ('src/game/q/QuestStatusMgr.h', '        void ResetWeeklyQuestStatus();\n', '',
+         'the manager declares no such method'),
+        ('src/game/q/QuestStatusMgr.h', 'QuestStatus GetQuestStatus(uint32 quest_id) const;',
+         'uint8 GetQuestStatus(uint32 quest_id) const;', 'another return type on the manager'),
+        ('src/game/q/QuestStatusMgr.h', 'uint8 completed_or_not = 0) const;', 'uint32 completed_or_not = 0) const;',
+         'another parameter type on the manager'),
+        ('src/game/q/QuestStatusMgr.h', 'QuestStatus GetQuestStatus(uint32 quest_id) const;',
+         'QuestStatus GetQuestStatus(uint32 const& quest_id) const;', 'a reference parameter on the manager'),
+        ('src/game/q/QuestStatusMgr.h', 'uint8 completed_or_not = 0) const;', 'uint8 completed_or_not = 2) const;',
+         'another default on the manager'),
+        (PLAYER_H, '        // Get the reward status\n',
+         '        // Get the reward status\n'
+         '        QuestStatus GetQuestStatus(Quest const* q) const { return Find(q); }\n',
+         'an overload that is not a forwarder'),
+    ]
+    for path, old, new, what in q_impure:
+        files = _q_files()
+        if path not in files:
+            files[path] = ''
+        expect(files[path].count(old) == 1, 'quest impure (%s): the fixture has the text once' % what)
+        files[path] = files[path].replace(old, new)
+        root = _tree(files)
+        try:
+            _, err, _, _ = _qrun(root, True)[:4]
+            expect(err != [], 'quest impure (%s) is an error' % what)
+            for f, text in files.items():
+                expect(read(os.path.join(root, f)) == text, 'quest impure (%s): %s not written' % (what, f))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    # 11. fix round 1 (review I-1, M-1): the forwarders' overload set against the manager CLASS's
+    #     whole set, one to one; an unparsed manager declaration fails loud
+    mgr_h = 'src/game/q/QuestStatusMgr.h'
+    mdecl_q = 'QuestStatus GetQuestStatus(uint32 quest_id) const;'
+    set_rows = [
+        # ([(file, old, new)], refused?, what)
+        ([(mgr_h, 'uint8 completed_or_not = 0) const;', 'uint8 completed_or_not) const;')], True,
+         'a default the manager lacks (out of line)'),
+        ([(PLAYER_H, 'void RemoveTimedQuest(uint32 quest_id) {', 'void RemoveTimedQuest(uint32 quest_id = 0) {')], True,
+         'a default the manager lacks (inline)'),
+        ([(mgr_h, mdecl_q, mdecl_q + '\n        QuestStatus GetQuestStatus(float quest_id) const;')], True,
+         'an extra manager overload of another type (float)'),
+        ([(mgr_h, mdecl_q,
+           mdecl_q + '\n        QuestStatus GetQuestStatus(uint64 guid, bool create = false) const;')], True,
+         'an extra manager overload of another arity with a default (uint64)'),
+        ([(mgr_h, mdecl_q, mdecl_q + '\n        QuestStatus GetQuestStatus(uint32 quest_id);')], True,
+         'an extra non-const manager overload under a const forwarder'),
+        ([(PLAYER_H, 'QuestStatusMap& getQuestStatusMap()\n',
+           'QuestStatusMap const& getQuestStatusMap() const\n')], True,
+         'a const forwarder over the manager\'s const/non-const pair'),
+        ([(mgr_h, mdecl_q, 'QuestStatus GetQuestStatus(uint64 quest_id) const;'),
+          (mgr_h, 'class QuestStatusMgr\n',
+           'struct QuestStatusData\n{\n    QuestStatus GetQuestStatus(uint32 quest_id) const;\n};\n'
+           'class QuestStatusMgr\n')], True,
+         'the matching signature is in ANOTHER class of the manager header'),
+        ([(mgr_h, mdecl_q, mdecl_q + '\n        [[nodiscard]] QuestStatus GetQuestStatus(float q) const;')], True,
+         'an unparsed manager overload (an attribute)'),
+        ([(mgr_h, mdecl_q, 'QuestStatus\n        GetQuestStatus(uint32 quest_id) const;')], True,
+         'an unparsed manager declaration (the return type on the line above)'),
+        ([(mgr_h, 'class QuestStatusMgr\n', 'class QuestStatusMgrX\n')], True, 'no manager class in the header'),
+        # fix round 2 (delta review I-1): a const forwarder in the set turns both constness
+        # exceptions off
+        ([(PLAYER_H, 'QuestStatus GetQuestStatus(uint32 quest_id) const;',
+           'QuestStatus GetQuestStatus(uint32 quest_id);\n'
+           '        QuestStatus GetQuestStatus(float q) const { return m_questStatusMgr.GetQuestStatus(q); }'),
+          (SELF_Q_OWNER_PATH, 'QuestStatus Player::GetQuestStatus(uint32 quest_id) const\n{',
+           'QuestStatus Player::GetQuestStatus(uint32 quest_id)\n{'),
+          (mgr_h, mdecl_q, mdecl_q + '\n        QuestStatus GetQuestStatus(float q) const;')], True,
+         'L1: a non-const forwarder over a const-only method beside a const forwarder'),
+        ([(mgr_h, 'QuestStatusMap& Map() { return m_status; }', 'QuestStatusMap& Map(uint32 k) { return m_status; }'),
+          (mgr_h, 'QuestStatusMap const& Map() const { return m_status; }',
+           'QuestStatusMap const& Map(uint32 k) const { return m_status; }\n'
+           '        QuestStatusMap const& Map(float k) const { return m_status; }'),
+          (PLAYER_H, 'QuestStatusMap& getQuestStatusMap()\n        {\n'
+           '            return m_questStatusMgr.Map();\n        };',
+           'QuestStatusMap& getQuestStatusMap(uint32 k)\n        {\n            return m_questStatusMgr.Map(k);\n'
+           '        };\n'
+           '        QuestStatusMap const& getQuestStatusMap(float k) const { return m_questStatusMgr.Map(k); }')],
+         True, 'L2: a const/non-const pair under a non-const forwarder beside a const forwarder'),
+        # I-2: two manager overloads that read the same, and a type word taken for a name
+        ([(mgr_h, 'void RemoveTimedQuest(uint32 quest_id) { m_timedQuests.erase(quest_id); }',
+           'void RemoveTimedQuest(unsigned int);\n        void RemoveTimedQuest(unsigned long);'),
+          (PLAYER_H, 'void RemoveTimedQuest(uint32 quest_id) {', 'void RemoveTimedQuest(unsigned quest_id) {')],
+         True, 'leak2: unnamed `unsigned int` / `unsigned long` manager overloads'),
+        ([(mgr_h, mdecl_q, mdecl_q + '\n        QuestStatus GetQuestStatus(uint32 other) const;')], True,
+         'two manager declarations that read the same'),
+        # M-1: Player's set is read with the every-token-must-parse rule too
+        ([(PLAYER_H, 'QuestStatus GetQuestStatus(uint32 quest_id) const;',
+           'QuestStatus GetQuestStatus(uint32 quest_id) const;\n'
+           '        QuestStatus\n        GetQuestStatus(float q) const;')],
+         True, 'L3: a Player overload with its return type on the line above'),
+        ([(PLAYER_H, 'QuestStatus GetQuestStatus(uint32 quest_id) const;',
+           'QuestStatus GetQuestStatus(uint32 quest_id) const;\n'
+           '        [[nodiscard]] QuestStatus GetQuestStatus(float q) const;')],
+         True, 'L4: a Player overload with an attribute'),
+        # accepted: another class's same name does not count against the manager's set (it makes
+        # the name SHARED: its calls become HAND sites, the set still drops)
+        ([(mgr_h, 'class QuestStatusMgr\n', 'struct QuestStatusData\n{\n    uint8 GetQuestStatus(float q) const;\n};\n'
+           'class QuestStatusMgr\n')], False,
+         'another class of the header declares the name; the manager\'s own set matches'),
+        # accepted: a call of the method inside an inline body of the manager is not a declaration
+        ([(mgr_h, '        void ResetMonthlyQuestStatus();\n',
+           '        void ResetMonthlyQuestStatus();\n'
+           '        bool Done() const { return GetQuestStatus(1) == QUEST_STATUS_NONE; }\n')],
+         False, 'a call inside a manager inline body'),
+        # accepted: a non-const forwarder over the manager's single const method
+        ([(PLAYER_H, 'QuestStatus GetQuestStatus(uint32 quest_id) const;',
+           'QuestStatus GetQuestStatus(uint32 quest_id);'),
+          (SELF_Q_OWNER_PATH, 'QuestStatus Player::GetQuestStatus(uint32 quest_id) const\n{',
+           'QuestStatus Player::GetQuestStatus(uint32 quest_id)\n{')], False,
+         'a non-const forwarder over the only (const) manager method'),
+    ]
+    for edits, refused, what in set_rows:
+        files = _q_files()
+        for path, old, new in edits:
+            expect(files[path].count(old) == 1, 'set row (%s): the fixture has the text once: %r' % (what, old))
+            files[path] = files[path].replace(old, new)
+        root = _tree(files)
+        try:
+            _, err, _, _ = _qrun(root, True)[:4]
+            expect(bool(err) == refused, 'set row (%s): refused == %s: %r' % (what, refused, err))
+            if refused:
+                for f, text in files.items():
+                    expect(read(os.path.join(root, f)) == text, 'set row (%s): %s not written' % (what, f))
+            else:
+                expect(read(os.path.join(root, PLAYER_H)) == SELF_Q_PLAYER_H_AFTER,
+                       'set row (%s): the forwarders are dropped' % what)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    # the definition outside the owner files
+    files = _q_files()
+    files[SELF_Q_OWNER_PATH] = files[SELF_Q_OWNER_PATH].replace(
+        'QuestStatus Player::GetQuestStatus(uint32 quest_id) const\n{\n    ' + body_q + '\n}\n', '')
+    files['src/game/Other.cpp'] = ('QuestStatus Player::GetQuestStatus(uint32 quest_id) const\n{\n    '
+                                   + body_q + '\n}\n')
+    root = _tree(files)
+    try:
+        _, err, _, _ = _qrun(root, False)[:4]
+        expect(any('not in an owner file' in e for e in err), 'quest: a definition outside the owners: %r' % err)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # a member pointer to a dropped out-of-line forwarder is still refused
+    files = _q_files()
+    files['src/game/Other.cpp'] = 'auto f = &Player::GetQuestStatus;\n'
+    root = _tree(files)
+    try:
+        _, err, _, _ = _qrun(root, False)[:4]
+        expect(any('Other.cpp:1' in e and 'Player::GetQuestStatus' in e for e in err),
+               'quest: a member pointer is refused: %r' % err)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # 9. D4i-2: an overload set of pure forwarders is dropped whole; each definition is matched by
+    #    its parameter types
+    files = _q_files()
+    files['src/game/q/QuestStatusMgr.h'] = files['src/game/q/QuestStatusMgr.h'].replace(
+        '        QuestStatus GetQuestStatus(uint32 quest_id) const;\n',
+        '        QuestStatus GetQuestStatus(uint32 quest_id) const;\n'
+        '        QuestStatus GetQuestStatus(Quest const* q) const;\n')
+    files[PLAYER_H] = files[PLAYER_H].replace(
+        '        QuestStatus GetQuestStatus(uint32 quest_id) const;\n',
+        '        QuestStatus GetQuestStatus(uint32 quest_id) const;\n'
+        '        QuestStatus GetQuestStatus(Quest const* q) const;\n')
+    files[SELF_Q_OWNER_PATH] = files[SELF_Q_OWNER_PATH].replace(
+        'void Player::ResetWeeklyQuestStatus()',
+        'QuestStatus Player::GetQuestStatus(Quest const* q) const\n{\n'
+        '    return m_questStatusMgr.GetQuestStatus(q);\n}\n\n'
+        'void Player::ResetWeeklyQuestStatus()')
+    root = _tree(files)
+    try:
+        changes, err, _, report = _qrun(root, True)[:4]
+        expect(err == [], 'quest overloads: no errors: %r' % err)
+        expect(read(os.path.join(root, PLAYER_H)) == SELF_Q_PLAYER_H_AFTER,
+               'quest overloads: both declarations dropped')
+        expect(read(os.path.join(root, SELF_Q_OWNER_PATH)) == SELF_Q_OWNER_AFTER,
+               'quest overloads: both definitions dropped')
+        expect(changes == 23, 'quest overloads: 23 changes: %d' % changes)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # 10. the parameter and type helpers (fix round 2: I-2, a type word is never a name)
+    expect(parse_params('uint32 a, std::map<uint32, uint8> const& m = {}, uint8 c = 0') ==
+           [('uint32', 'a', None), ('std::map<uint32,uint8>const&', 'm', '{}'), ('uint8', 'c', '0')],
+           'parse_params: %r' % parse_params('uint32 a, std::map<uint32, uint8> const& m = {}, uint8 c = 0'))
+    expect(parse_params('uint32') == [('uint32', None, None)] and parse_params('void') == []
+           and parse_params('Quest const*, uint8 const') == [('Quest const*', None, None), ('uint8 const', None, None)],
+           'parse_params: unnamed / void: %r' % parse_params('Quest const*, uint8 const'))
+    expect(parse_params('unsigned int, unsigned long, long long, unsigned q') ==
+           [('unsigned int', None, None), ('unsigned long', None, None), ('long long', None, None),
+            ('unsigned', 'q', None)], 'parse_params: type words: %r'
+           % parse_params('unsigned int, unsigned long, long long, unsigned q'))
+    expect(norm_type('inline QuestStatusMap &') == 'QuestStatusMap&',
+           'norm_type: %r' % norm_type('inline QuestStatusMap &'))
 
     # 6. helpers: the owner list from the gate's block, the blanking, the type spelling
     gate = ('set(MANAGER_FILES\n    entities/player/A.h\n)\nset(OWNER_FILES\n    entities/player/Player.h\n'

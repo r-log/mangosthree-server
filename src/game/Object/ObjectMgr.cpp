@@ -178,7 +178,7 @@ bool SpellClickInfo::IsFitToRequirements(Player const* player, Creature const* c
     if (questStart)
     {
         // not in expected required quest state
-        if (!player || ((!questStartCanActive || !player->IsActiveQuest(questStart)) && !player->GetQuestRewardStatus(questStart)))
+        if (!player || ((!questStartCanActive || !player->GetQuestStatusMgr().IsActiveQuest(questStart)) && !player->GetQuestRewardStatus(questStart)))
         {
             return false;
         }
@@ -2058,7 +2058,7 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
         case CONDITION_QUESTREWARDED:
             return player->GetQuestRewardStatus(m_value1);
         case CONDITION_QUESTTAKEN:
-            return player->IsCurrentQuest(m_value1, m_value2);
+            return player->GetQuestStatusMgr().IsCurrentQuest(m_value1, m_value2);
         case CONDITION_AD_COMMISSION_AURA:
         {
             Unit::SpellAuraHolderMap const& auras = player->GetSpellAuraHolderMap();
@@ -2152,7 +2152,7 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
         }
         case CONDITION_QUEST_NONE:
         {
-            if (!player->IsCurrentQuest(m_value1) && !player->GetQuestRewardStatus(m_value1))
+            if (!player->GetQuestStatusMgr().IsCurrentQuest(m_value1) && !player->GetQuestRewardStatus(m_value1))
             {
                 return true;
             }

@@ -64,7 +64,7 @@ struct at_shade_of_eranikus : public AreaTriggerScript
             // Only do stuff, if the player has finished the PreQuest
             if (pPlayer->GetQuestRewardStatus(QUEST_THE_CHARGE_OF_DRAGONFLIGHTS) &&
                 !pPlayer->GetQuestRewardStatus(QUEST_ERANIKUS_TYRANT_OF_DREAMS) &&
-                pPlayer->GetQuestStatus(QUEST_ERANIKUS_TYRANT_OF_DREAMS) != QUEST_STATUS_COMPLETE)
+                pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ERANIKUS_TYRANT_OF_DREAMS) != QUEST_STATUS_COMPLETE)
             {
                 if (pInstance->GetData(TYPE_MALFURION) != DONE)
                 {

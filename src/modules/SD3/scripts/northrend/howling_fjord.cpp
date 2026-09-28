@@ -168,7 +168,7 @@ struct at_ancient_male_vrykul : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* /*pAt*/) override
     {
-        if (pPlayer->IsAlive() && pPlayer->GetQuestStatus(QUEST_ECHO_OF_YMIRON) == QUEST_STATUS_INCOMPLETE &&
+        if (pPlayer->IsAlive() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ECHO_OF_YMIRON) == QUEST_STATUS_INCOMPLETE &&
             pPlayer->HasAura(SPELL_ECHO_OF_YMIRON))
         {
             if (Creature* pCreature = GetClosestCreatureWithEntry(pPlayer, NPC_MALE_VRYKUL, 20.0f))
@@ -372,7 +372,7 @@ struct npc_silvermoon_harry : public CreatureScript
             {
                 if (Player* pPlayer = pDoneBy->GetCharmerOrOwnerPlayerOrPlayerItself())
                 {
-                    if (!m_bHarryBeaten && pPlayer->GetQuestStatus(QUEST_GAMBLING_DEBT) == QUEST_STATUS_INCOMPLETE)
+                    if (!m_bHarryBeaten && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_GAMBLING_DEBT) == QUEST_STATUS_INCOMPLETE)
                     {
                         uiDamage = 0;                           // Take 0 damage
 
@@ -452,7 +452,7 @@ struct npc_silvermoon_harry : public CreatureScript
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_VENDOR, GOSSIP_TEXT_BROWSE_GOODS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
         }
 
-        if (pPlayer->GetQuestStatus(QUEST_GAMBLING_DEBT) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_GAMBLING_DEBT) == QUEST_STATUS_INCOMPLETE)
         {
             if (npc_silvermoon_harryAI* pHarryAI = dynamic_cast<npc_silvermoon_harryAI*>(pCreature->AI()))
             {
@@ -615,7 +615,7 @@ struct npc_lich_king_village : public CreatureScript
                     DoCastSpellIfCan(pWho, SPELL_MAGNETIC_PULL, CAST_TRIGGERED);
                     DoCastSpellIfCan(pWho, SPELL_GRASP_OF_THE_LICH_KING, CAST_TRIGGERED);
 
-                    if (((Player*)pWho)->GetQuestStatus(QUEST_ID_LK_FLAG) == QUEST_STATUS_COMPLETE)
+                    if (((Player*)pWho)->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_LK_FLAG) == QUEST_STATUS_COMPLETE)
                     {
                         StartNextDialogueText(SAY_PERSISTANCE);
                     }
@@ -731,7 +731,7 @@ struct  npc_king_ymiron : public CreatureScript
             if (!m_bEventInit && pWho->GetTypeId() == TYPEID_PLAYER)
             {
                 // Get all the citizen around the king for future use
-                if (pWho->IsAlive() && InReach(*m_creature, *pWho, 60.0) && ((Player*)pWho)->GetQuestStatus(QUEST_ID_ANGUISH_OF_NIFFLEVAR) == QUEST_STATUS_INCOMPLETE &&
+                if (pWho->IsAlive() && InReach(*m_creature, *pWho, 60.0) && ((Player*)pWho)->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_ANGUISH_OF_NIFFLEVAR) == QUEST_STATUS_INCOMPLETE &&
                     pWho->HasAura(SPELL_ECHO_OF_YMIRON_NIFFLEVAR))
                 {
                     std::list<Creature*> lCrowdList;
@@ -839,7 +839,7 @@ struct at_nifflevar : public AreaTriggerScript
 
     bool OnTrigger(Player* pPlayer, AreaTriggerEntry const* /*pAt*/) override
     {
-        if (pPlayer->IsAlive() && pPlayer->GetQuestStatus(QUEST_ID_ANGUISH_OF_NIFFLEVAR) == QUEST_STATUS_INCOMPLETE && pPlayer->HasAura(SPELL_ECHO_OF_YMIRON_NIFFLEVAR))
+        if (pPlayer->IsAlive() && pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_ANGUISH_OF_NIFFLEVAR) == QUEST_STATUS_INCOMPLETE && pPlayer->HasAura(SPELL_ECHO_OF_YMIRON_NIFFLEVAR))
         {
             if (Creature* pCreature = GetClosestCreatureWithEntry(pPlayer, NPC_KING_YMIRON, 30.0f))
             {

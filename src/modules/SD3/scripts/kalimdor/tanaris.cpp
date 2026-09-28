@@ -242,7 +242,7 @@ struct npc_custodian_of_time : public CreatureScript
 
             if (pWho->GetTypeId() == TYPEID_PLAYER)
             {
-                if (pWho->HasAura(SPELL_CUSTODIAN_OF_TIME) && ((Player*)pWho)->GetQuestStatus(QUEST_ID_CAVERNS_OF_TIME) == QUEST_STATUS_INCOMPLETE)
+                if (pWho->HasAura(SPELL_CUSTODIAN_OF_TIME) && ((Player*)pWho)->GetQuestStatusMgr().GetQuestStatus(QUEST_ID_CAVERNS_OF_TIME) == QUEST_STATUS_INCOMPLETE)
                 {
                     float fRadius = 10.0f;
 
@@ -402,7 +402,7 @@ struct npc_stone_watcher_of_norgannon : public CreatureScript
             pPlayer->PrepareQuestMenu(pCreature->GetObjectGuid());
         }
 
-        if (pPlayer->GetQuestStatus(2954) == QUEST_STATUS_INCOMPLETE)
+        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(2954) == QUEST_STATUS_INCOMPLETE)
         {
             pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_NORGANNON_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
         }
@@ -502,7 +502,7 @@ struct npc_tooga : public CreatureScript
                 {
                     if (Player* pPlayer = GetLeaderForFollower())
                     {
-                        if (pPlayer->GetQuestStatus(QUEST_TOOGA) == QUEST_STATUS_INCOMPLETE)
+                        if (pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_TOOGA) == QUEST_STATUS_INCOMPLETE)
                         {
                             pPlayer->GroupEventHappens(QUEST_TOOGA, m_creature);
                         }
