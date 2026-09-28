@@ -70,6 +70,14 @@ set(REACH_RULES
     # and it reaches no quest template (WorldHandlers/QuestDef.h), no DBC store and no database either.
     "entities/player/quests/QuestCompletePacket.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,Server/DBCStores.h,Database/DatabaseEnv.h"
     "entities/player/quests/QuestCompletePacket.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h"
+    # Decoupling D4f: the quest reward's arithmetic and template reads, as pure functions over plain
+    # values, so src/tests/QuestRewardTest.cpp pins each rule over a table. The world's rates are
+    # parameters the owner reads, so neither file may reach the world (WorldHandlers/World.h), and
+    # neither touches a DBC store or the database. The header forward-declares the quest template
+    # (WorldHandlers/QuestDef.h stays out of its reach, closure 2); the .cpp reads the template's
+    # reward-choice slots and so includes it.
+    "entities/player/quests/QuestRewardRules.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/QuestDef.h,WorldHandlers/World.h,Server/DBCStores.h,Database/DatabaseEnv.h"
+    "entities/player/quests/QuestRewardRules.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h"
     # Decoupling D4c: the talent manager, the same two rules. The header also stays inside
     # entities/player/Player.h's own rule above (Player.h includes it), so it may reach
     # neither the DBC stores nor the database. Its .cpp reads the talent DBC stores

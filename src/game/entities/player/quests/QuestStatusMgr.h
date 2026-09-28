@@ -71,6 +71,13 @@
  * stores are parameters: the template lookup, the exclusive-group lookup, and for the
  * exclusive group the owner's daily rule as a callback (the dailies live in update fields and
  * stay with the owner).
+ *
+ * THE REWARD'S STATUS SIDE (decoupling D4f). The reward check and the reward stay with the owner
+ * (orchestration over update fields, packets, spells and several managers). What they did to or
+ * decided from this state inline is here: the status rule the check starts with, the status a
+ * rewarded quest is left in, the weekly and monthly cooldown marks, and the rewarded row's
+ * `m_rewarded` and `uState` writes -- each called at the old statement, with the same writes in
+ * the same order. The reward's arithmetic (XP, money) is in QuestRewardRules.h.
  */
 
 class QueryResult;
@@ -178,6 +185,22 @@ class QuestStatusMgr
         /// every failure is `INVALIDREASON_DONT_HAVE_REQ`.
         QuestVerdict SatisfyQuestPreviousQuest(Quest const* qInfo, TemplateLookup const& lookup,
                                                ExclusiveGroupLookup const& groups) const;
+
+        /*** the reward's status side (decoupling D4f) ***/
+
+        /// The first rule of the reward check: fails when the quest is not auto-complete and its
+        /// status (FORCE_COMPLETE read as COMPLETE) is not COMPLETE. The owner refuses SILENTLY on
+        /// it, so the reason (`INVALIDREASON_DONT_HAVE_REQ`) is never sent.
+        QuestVerdict SatisfyRewardStatus(Quest const* qInfo) const;
+        /// The status a rewarded quest is left in: NONE for a repeatable quest, COMPLETE otherwise.
+        static QuestStatus RewardedStatus(Quest const* qInfo);
+        /// The weekly and monthly cooldown marks of a rewarded quest, in that order: a weekly quest
+        /// joins the weekly set, a monthly quest the monthly set (each sets its "changed" flag).
+        /// The daily mark is not here: the dailies are update fields and stay with the owner.
+        void MarkRewardCooldowns(Quest const* qInfo);
+        /// The row of a rewarded quest: `m_rewarded` set, then `QUEST_CHANGED` unless the row is
+        /// still `QUEST_NEW`. Find or create, like `Entry()`.
+        void MarkRewarded(uint32 quest_id);
 
         /*** writes ***/
 

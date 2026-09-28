@@ -87,6 +87,7 @@
 #include "Calendar.h"
 #include "DisableMgr.h"
 #include "QuestCompletePacket.h"
+#include "QuestRewardRules.h"
 
 /*********************************************************/
 /***                    QUEST SYSTEM                   ***/
@@ -577,7 +578,7 @@ bool Player::CanCompleteRepeatableQuest(Quest const* pQuest) const
 bool Player::CanRewardQuest(Quest const* pQuest, bool msg) const
 {
     // not auto complete quest and not completed quest (only cheating case, then ignore without message)
-    if (!pQuest->IsAutoComplete() && GetQuestStatus(pQuest->GetQuestId()) != QUEST_STATUS_COMPLETE)
+    if (!m_questStatusMgr.SatisfyRewardStatus(pQuest).satisfied)
     {
         return false;
     }
@@ -628,7 +629,7 @@ bool Player::CanRewardQuest(Quest const* pQuest, bool msg) const
     }
 
     // prevent receive reward with low money and GetRewOrReqMoney() < 0
-    if (pQuest->GetRewOrReqMoney() < 0 && GetMoney() < uint64(-pQuest->GetRewOrReqMoney()))
+    if (!QuestRewardRules::CanPayRequiredMoney(pQuest->GetRewOrReqMoney(), GetMoney()))
     {
         return false;
     }
@@ -659,17 +660,15 @@ bool Player::CanRewardQuest(Quest const* pQuest, uint32 reward, bool msg) const
         return false;
     }
 
-    if (pQuest->GetRewChoiceItemsCount() > 0)
+    QuestRewardItem const chosen = QuestRewardRules::ChosenItem(pQuest, reward);
+    if (chosen.itemId)
     {
-        if (pQuest->RewChoiceItemId[reward])
+        ItemPosCountVec dest;
+        InventoryResult res = CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, chosen.itemId, chosen.count);
+        if (res != EQUIP_ERR_OK)
         {
-            ItemPosCountVec dest;
-            InventoryResult res = CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, pQuest->RewChoiceItemId[reward], pQuest->RewChoiceItemCount[reward]);
-            if (res != EQUIP_ERR_OK)
-            {
-                SendEquipError(res, NULL, NULL, pQuest->RewChoiceItemId[reward]);
-                return false;
-            }
+            SendEquipError(res, NULL, NULL, chosen.itemId);
+            return false;
         }
     }
 
@@ -961,16 +960,14 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
             ((BattleGroundAV*)bg)->HandleQuestComplete(pQuest->GetQuestId(), this);
         }
 
-    if (pQuest->GetRewChoiceItemsCount() > 0)
+    QuestRewardItem const chosen = QuestRewardRules::ChosenItem(pQuest, reward);
+    if (uint32 itemId = chosen.itemId)
     {
-        if (uint32 itemId = pQuest->RewChoiceItemId[reward])
+        ItemPosCountVec dest;
+        if (CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, chosen.count) == EQUIP_ERR_OK)
         {
-            ItemPosCountVec dest;
-            if (CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, pQuest->RewChoiceItemCount[reward]) == EQUIP_ERR_OK)
-            {
-                Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
-                SendNewItem(item, pQuest->RewChoiceItemCount[reward], true, false);
-            }
+            Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
+            SendNewItem(item, chosen.count, true, false);
         }
     }
 
@@ -998,10 +995,12 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
         SetQuestSlot(log_slot, 0);
     }
 
-    QuestStatusData& q_status = m_questStatusMgr.Entry(quest_id);
+    // Find or create the quest's row here, as before: an auto-complete quest rewarded with no row
+    // gets its default row (NONE, QUEST_NEW) at this point; the row is marked rewarded below.
+    m_questStatusMgr.Entry(quest_id);
 
     // Used for client inform but rewarded only in case not max level
-    uint32 xp = uint32(pQuest->XPValue(this) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+    uint32 xp = QuestRewardRules::Xp(pQuest->XPValue(this), sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
 
     // What the quest-complete packet shows: what was credited here, not recomputed after it.
     // The XP is what GiveXP gave and logged (the quest-XP auras applied, 0 when it gave none).
@@ -1022,14 +1021,9 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     }
     else
     {
-        // reward money for max level already included in pQuest->GetRewMoneyMaxLevel()
-        uint32 money = uint32(pQuest->GetRewMoneyMaxLevel() * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
-
+        // reward money for max level already included in pQuest->GetRewMoneyMaxLevel().
         // reward money used if > xp replacement money
-        if (pQuest->GetRewOrReqMoney() > int32(money))
-        {
-            money = pQuest->GetRewOrReqMoney();
-        }
+        uint32 money = QuestRewardRules::MaxLevelMoney(pQuest->GetRewMoneyMaxLevel(), pQuest->GetRewOrReqMoney(), sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
 
         ModifyMoney(money);
         moneyShown = money;
@@ -1084,30 +1078,13 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
         GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_DAILY_QUEST, 1);
     }
 
-    if (pQuest->IsWeekly())
-    {
-        m_questStatusMgr.SetWeeklyQuestStatus(quest_id);
-    }
+    // the weekly and monthly cooldown sets (the daily mark above is update fields and stays here)
+    m_questStatusMgr.MarkRewardCooldowns(pQuest);
 
-    if (pQuest->IsMonthly())
-    {
-        m_questStatusMgr.SetMonthlyQuestStatus(quest_id);
-    }
+    // COMPLETE, or NONE for a repeatable quest; the world objects are refreshed after the write
+    SetQuestStatus(quest_id, QuestStatusMgr::RewardedStatus(pQuest));
 
-    if (!pQuest->IsRepeatable())
-    {
-        SetQuestStatus(quest_id, QUEST_STATUS_COMPLETE);
-    }
-    else
-    {
-        SetQuestStatus(quest_id, QUEST_STATUS_NONE);
-    }
-
-    q_status.m_rewarded = true;
-    if (q_status.uState != QUEST_NEW)
-    {
-        q_status.uState = QUEST_CHANGED;
-    }
+    m_questStatusMgr.MarkRewarded(quest_id);
 
     // Before OnQuestRewarded, the DB scripts, the reward cast and the caller's follow-up: when the
     // client does not keep the quest frame open, it ends the interaction with the giver on this
