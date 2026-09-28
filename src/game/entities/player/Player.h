@@ -1328,7 +1328,7 @@ class Player : public Unit
         }
 
         // Remove the player's pet
-        void RemovePet(PetSaveMode mode) { m_petMgr.Remove(mode); }
+        void RemovePet(PetSaveMode mode);
 
         uint32 GetPhaseMaskForSpawn() const;                // used for proper set phase for DB at GM-mode creature/GO spawn
 
@@ -2256,7 +2256,7 @@ class Player : public Unit
         void PossessSpellInitialize();
 
         // Remove the pet action bar
-        void RemovePetActionBar() { m_petMgr.RemoveActionBar(); }
+        void RemovePetActionBar() { m_petMgr.RemoveActionBar(SessionSink()); }
 
         // Check if the player has a specific spell
         bool HasSpell(uint32 spell) const override;
@@ -3655,18 +3655,19 @@ class Player : public Unit
         // Remove an at-login flag for the player
         void RemoveAtLoginFlag(AtLoginFlags f, bool in_db_also = false);
 
-        // Pet ownership API — thin delegating wrappers around m_petMgr.
-        // State (temporary-unsummon pet number, stable slot count) and
-        // lifecycle live on PetMgr; these forward unchanged signatures
-        // so external callers (SpellAuras.cpp, Spell.cpp, BattleGround.cpp,
-        // Vehicle.cpp, MovementHandler.cpp, CharacterHandler.cpp,
-        // MiscHandler.cpp, WorldSession.cpp, Pet.cpp, Unit.cpp) compile
-        // without changes.
+        // Pet ownership API. The state (temporary-unsummon pet number, stable slot count, pet
+        // rows) and its rules live on PetMgr; these keep their signatures so external callers
+        // (SpellAuras.cpp, Spell.cpp, BattleGround.cpp, Vehicle.cpp, MovementHandler.cpp,
+        // CharacterHandler.cpp, MiscHandler.cpp, WorldSession.cpp, Pet.cpp, Unit.cpp) compile
+        // without changes. Decoupling D4k: the three that reach the live pet
+        // (UnsummonPetTemporaryIfAny, UnsummonPetIfAny, ResummonPetTemporaryUnSummonedIfAny)
+        // live in pets/PlayerPet.cpp, with RemovePet; RemovePetActionBar's packet goes
+        // through SessionSink().
         uint32 GetTemporaryUnsummonedPetNumber() const { return m_petMgr.GetTemporaryUnsummonedPetNumber(); }
         void SetTemporaryUnsummonedPetNumber(uint32 petnumber) { m_petMgr.SetTemporaryUnsummonedPetNumber(petnumber); }
-        void UnsummonPetTemporaryIfAny() { m_petMgr.UnsummonTemporaryIfAny(); }
-        void UnsummonPetIfAny() { m_petMgr.UnsummonIfAny(); }
-        void ResummonPetTemporaryUnSummonedIfAny() { m_petMgr.ResummonTemporaryUnsummonedIfAny(); }
+        void UnsummonPetTemporaryIfAny();
+        void UnsummonPetIfAny();
+        void ResummonPetTemporaryUnSummonedIfAny();
         uint32 GetStableSlots() const { return m_petMgr.GetStableSlots(); }
         void SetStableSlots(uint32 slots) { m_petMgr.SetStableSlots(slots); }
         bool IsPetNeedBeTemporaryUnsummoned() const { return !IsInWorld() || !IsAlive() || IsMounted() || IsTaxiFlying(); }
@@ -4238,7 +4239,7 @@ class Player : public Unit
         // Detect invisibility timer
         uint32 m_DetectInvTimer;
 
-        PetMgr m_petMgr;  // owns m_stableSlots + m_temporaryUnsummonedPetNumber + 5 pet-lifecycle helpers
+        PetMgr m_petMgr;  // owns m_stableSlots + m_temporaryUnsummonedPetNumber + the pet cache (decoupling D4k: no back-pointer)
 
         std::unique_ptr<AchievementMgr> m_achievementMgr;
         ReputationMgr  m_reputationMgr;

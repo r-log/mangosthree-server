@@ -87,6 +87,8 @@ set(MANAGER_FILES
     entities/player/ManagerPacketSink.h                     # decoupling D4k: the managers' shared packet sink type
     entities/player/talents/GlyphMgr.h                      # decoupling D4k
     entities/player/talents/GlyphMgr.cpp                    # decoupling D4k
+    entities/player/pets/PetMgr.h                           # decoupling D4k
+    entities/player/pets/PetMgr.cpp                         # decoupling D4k
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.
@@ -156,9 +158,7 @@ set(OWNER_FILES
     entities/player/world/PlayerMirror.cpp
     entities/player/world/PlayerTaxi.h
     entities/player/world/PlayerTaxi.cpp
-    entities/player/pets/PlayerPet.cpp
-    entities/player/pets/PetMgr.h                           # D4k
-    entities/player/pets/PetMgr.cpp                         # D4k
+    entities/player/pets/PlayerPet.cpp                      # decoupling D4k: drives pets/PetMgr
     entities/player/pets/PlayerPetCache.h
     entities/player/pets/PlayerPetCache.cpp
 )

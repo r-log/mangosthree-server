@@ -70,6 +70,8 @@ set(CONVERTED_FILES
     src/game/entities/player/spells/SpellCooldownMgr.cpp    # decoupling D4k
     src/game/entities/player/talents/GlyphMgr.h             # decoupling D4k
     src/game/entities/player/talents/GlyphMgr.cpp           # decoupling D4k
+    src/game/entities/player/pets/PetMgr.h                  # decoupling D4k
+    src/game/entities/player/pets/PetMgr.cpp                # decoupling D4k
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -410,6 +412,11 @@ set(ALLOW_AccountCommands_cpp
 # PExecute) run from Player::SaveToDB, and the three DELETEs of the load's row checks stay
 # CharacterDatabase.PExecute (queued once async writes are on), run from the login one row at a
 # time (LoadRow).
+#
+# Decoupling D4k. PetMgr.h and PetMgr.cpp have NO allow list either: the stable-slot count is
+# loaded and saved with the character row by the owner's persistence files, the temporary-unsummon
+# number is runtime-only, and the pet rows are the login holder's (PlayerPetCache); the pet's own
+# load, which the resummon calls, runs in the owner's callback, and it reads that cache.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

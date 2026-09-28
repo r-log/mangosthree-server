@@ -271,3 +271,79 @@ void Player::CharmSpellInitialize()
 
     GetSession()->SendPacket(&data);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Decoupling D4k: the character's side of its pet-ownership state (pets/PetMgr).
+//
+// PetMgr holds the stable-slot count, the temporary-unsummon number and the pet rows, and the
+// rules over them, and never sees the character or the pet. The functions below are the part of
+// the old PetMgr bodies that reached the live pet: finding it (GetPet() can clear a dangling pet
+// guid, so it is called once, where the old body called it), reading its facts, unsummoning it,
+// and loading the pet a temporary unsummon put away. Each input is read with the old expression
+// just before the one call into the manager; each pet-side action is a callback the manager calls
+// where the old body acted. RemovePet and UnsummonPetIfAny touch no manager state: they are the
+// old bodies, verbatim. RemovePetActionBar stays inline in Player.h (its packet is the manager's).
+
+namespace
+{
+    /// The owner's live pet as PetMgr sees it; with no pet out every field keeps its default.
+    PetMgr::LivePet LivePetFacts(Pet* pet)
+    {
+        PetMgr::LivePet facts;
+        if (pet)
+        {
+            facts.present = true;
+            facts.controlled = pet->isControlled();
+            facts.temporarySummoned = pet->isTemporarySummoned();
+            facts.petNumber = pet->GetCharmInfo()->GetPetNumber();
+        }
+        return facts;
+    }
+}
+
+void Player::RemovePet(PetSaveMode mode)
+{
+    if (Pet* pet = GetPet())
+    {
+        pet->Unsummon(mode, this);
+    }
+}
+
+void Player::UnsummonPetTemporaryIfAny()
+{
+    Pet* pet = GetPet();
+    PetMgr::UnsummonSink const unsummon = [this, pet](PetSaveMode mode)
+    {
+        pet->Unsummon(mode, this);
+    };
+
+    m_petMgr.UnsummonTemporaryIfAny(LivePetFacts(pet), unsummon);
+}
+
+void Player::UnsummonPetIfAny()
+{
+    Pet* pet = GetPet();
+    if (!pet)
+    {
+        return;
+    }
+
+    pet->Unsummon(PET_SAVE_NOT_IN_SLOT, this);
+}
+
+void Player::ResummonPetTemporaryUnSummonedIfAny()
+{
+    PetMgr::ResummonInputs inputs;
+    inputs.needTemporaryUnsummon = IsPetNeedBeTemporaryUnsummoned();
+    inputs.petGuidSet = bool(GetPetGuid());
+    inputs.load = [this](uint32 petNumber)
+    {
+        Pet* NewPet = new Pet;
+        if (!NewPet->LoadPetFromDB(this, 0, petNumber, true))
+        {
+            delete NewPet;
+        }
+    };
+
+    m_petMgr.ResummonTemporaryUnsummonedIfAny(inputs);
+}

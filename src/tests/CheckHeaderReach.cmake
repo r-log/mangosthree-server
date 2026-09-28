@@ -127,7 +127,17 @@ set(REACH_RULES
     # includes Object/Unit.h and entities/player/Player.h itself, so those entries fire first);
     # Object/SpellMgr.h reaches neither, so its entry does real work.
     "entities/player/talents/GlyphMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
-    "entities/player/talents/GlyphMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h,proto/WorldPacket.h")
+    "entities/player/talents/GlyphMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h,proto/WorldPacket.h"
+    # Decoupling D4k: the pet manager, the rune manager's two rules plus the pet (Object/Pet.h): the
+    # live pet is found, read, unsummoned and loaded by the owner (its facts come in as values, the
+    # unsummon and the load as callbacks), so neither file may reach the pet creature. The header
+    # includes ManagerPacketSink.h (WorldPacket forward-declared) and the pet cache
+    # (pets/PlayerPetCache.h, which reaches only SharedDefines.h), and stays inside
+    # entities/player/Player.h's rule (Player.h includes it). The .cpp builds the pet spells packet,
+    # so it includes WorldPacket.h, Opcodes.h and ObjectGuid.h, which reach none of these; it
+    # touches no DBC store and no database, so it may reach neither.
+    "entities/player/pets/PetMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Pet.h,proto/WorldPacket.h"
+    "entities/player/pets/PetMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,Database/DatabaseEnv.h,Object/Pet.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
