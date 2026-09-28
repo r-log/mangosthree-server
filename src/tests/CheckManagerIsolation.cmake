@@ -76,6 +76,8 @@ set(MANAGER_FILES
     entities/player/quests/QuestStatusMgr.cpp               # decoupling D4a
     entities/player/quests/QuestCompletePacket.h            # Q-2
     entities/player/quests/QuestCompletePacket.cpp          # Q-2
+    entities/player/quests/QuestRewardRules.h               # decoupling D4f
+    entities/player/quests/QuestRewardRules.cpp             # decoupling D4f
     entities/player/talents/TalentMgr.h                     # decoupling D4c
     entities/player/talents/TalentMgr.cpp                   # decoupling D4c
     entities/player/inventory/InventoryMgr.h                # decoupling D4e1

@@ -468,6 +468,82 @@ QuestVerdict QuestStatusMgr::SatisfyQuestPreviousQuest(Quest const* qInfo, Templ
     return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
 }
 
+// The reward's status side below moved here in decoupling D4f from the owner's reward check and
+// reward. The status rule is the check's first statement with its `return false` turned into a
+// failed verdict (the owner refuses silently on it, as before); the other three are the reward's
+// statements with the template read through `qInfo` and the row written through the map, which
+// holds the same row the owner's reference held (a map row is never erased, and the owner found or
+// created it earlier in the reward).
+
+/**
+ * @brief The status rule a quest reward is checked against first.
+ *
+ * @param qInfo The quest to validate.
+ * @return Satisfied, or failed (silently: the reason is never sent) with INVALIDREASON_DONT_HAVE_REQ.
+ */
+QuestVerdict QuestStatusMgr::SatisfyRewardStatus(Quest const* qInfo) const
+{
+    // not auto complete quest and not completed quest (only cheating case, then ignore without message)
+    if (!qInfo->IsAutoComplete() && GetQuestStatus(qInfo->GetQuestId()) != QUEST_STATUS_COMPLETE)
+    {
+        return QuestVerdict::Failed(INVALIDREASON_DONT_HAVE_REQ);
+    }
+
+    return QuestVerdict::Satisfied();
+}
+
+/**
+ * @brief The status a rewarded quest is left in.
+ *
+ * @param qInfo The rewarded quest.
+ * @return QUEST_STATUS_COMPLETE, or QUEST_STATUS_NONE for a repeatable quest.
+ */
+QuestStatus QuestStatusMgr::RewardedStatus(Quest const* qInfo)
+{
+    if (!qInfo->IsRepeatable())
+    {
+        return QUEST_STATUS_COMPLETE;
+    }
+    else
+    {
+        return QUEST_STATUS_NONE;
+    }
+}
+
+/**
+ * @brief Marks the weekly and monthly cooldowns of a rewarded quest.
+ *
+ * @param qInfo The rewarded quest.
+ */
+void QuestStatusMgr::MarkRewardCooldowns(Quest const* qInfo)
+{
+    if (qInfo->IsWeekly())
+    {
+        SetWeeklyQuestStatus(qInfo->GetQuestId());
+    }
+
+    if (qInfo->IsMonthly())
+    {
+        SetMonthlyQuestStatus(qInfo->GetQuestId());
+    }
+}
+
+/**
+ * @brief Marks the row of a rewarded quest.
+ *
+ * @param quest_id The rewarded quest.
+ */
+void QuestStatusMgr::MarkRewarded(uint32 quest_id)
+{
+    QuestStatusData& q_status = m_status[quest_id];
+
+    q_status.m_rewarded = true;
+    if (q_status.uState != QUEST_NEW)
+    {
+        q_status.uState = QUEST_CHANGED;
+    }
+}
+
 /**
  * @brief Updates the stored status for a quest.
  *
