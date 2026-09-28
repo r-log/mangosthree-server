@@ -261,7 +261,7 @@ bool ChatHandler::HandleQuestCompleteCommand(char* args)
         if (curRep < repValue)
             if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
             {
-                player->GetReputationMgr().SetReputation(factionEntry, repValue);
+                player->SetReputation(factionEntry, repValue);
             }
     }
 

@@ -1536,7 +1536,7 @@ void WorldSession::HandleSetFactionAtWarOpcode(WorldPacket& recv_data)
     recv_data >> repListID;
     recv_data >> flag;
 
-    GetPlayer()->GetReputationMgr().SetAtWar(repListID, flag);
+    GetPlayer()->SetFactionAtWar(repListID, flag);
 }
 
 /**

@@ -76,6 +76,135 @@
 
 #include <cmath>
 
+namespace
+{
+    /// Decoupling D4k: what the reputation manager's visible and at-war changes need from this
+    /// character -- the session's loading flag, read at each packet decision as
+    /// ReputationMgr::SendVisible/SendAtWar read GetSession()->PlayerLoading(), and the session sink.
+    ReputationMgr::FlagNotify ReputationNotify(Player const* player, ManagerPacketSink const& send)
+    {
+        ReputationMgr::FlagNotify notify;
+        notify.playerLoading = [player]()
+        {
+            return player->GetSession()->PlayerLoading();
+        };
+        notify.send = send;
+        return notify;
+    }
+
+    /// The two lookups a change reads beyond the manager, with the old calls: the spillover
+    /// template (the object manager's, from the world database) and the faction's team list (the
+    /// DBC stores').
+    ReputationMgr::ChangeInputs ReputationInputs()
+    {
+        ReputationMgr::ChangeInputs inputs;
+        inputs.spilloverTemplate = [](uint32 factionId)
+        {
+            return sObjectMgr.GetRepSpilloverTemplate(factionId);
+        };
+        inputs.teamList = [](uint32 factionId)
+        {
+            return GetFactionTeamList(factionId);
+        };
+        return inputs;
+    }
+
+    /// What a change writes to this character: the packets (ReputationNotify), the quest check
+    /// for a changed faction (ReputationChanged), and the achievement criteria updates (the
+    /// character's AchievementMgr, with the manager's type and faction id).
+    ReputationMgr::ChangeSinks ReputationSinks(Player* player, ManagerPacketSink const& send)
+    {
+        ReputationMgr::ChangeSinks sinks;
+        sinks.notify = ReputationNotify(player, send);
+        sinks.reputationChanged = [player](FactionEntry const* factionEntry)
+        {
+            player->ReputationChanged(factionEntry);
+        };
+        sinks.updateAchievement = [player](AchievementCriteriaTypes type, uint32 miscValue1)
+        {
+            player->GetAchievementMgr().UpdateAchievementCriteria(type, miscValue1);
+        };
+        return sinks;
+    }
+}
+
+/**
+ * @brief Sets the standing with a faction (absolute), spillover included.
+ *
+ * @param factionEntry The faction.
+ * @param standing The new standing, base reputation included.
+ */
+void Player::SetReputation(FactionEntry const* factionEntry, int32 standing)
+{
+    m_reputationMgr.SetReputation(factionEntry, standing, ReputationInputs(), ReputationSinks(this, SessionSink()));
+}
+
+/**
+ * @brief Modifies (adds to) the standing with a faction, spillover included.
+ *
+ * @param factionEntry The faction.
+ * @param standing The change.
+ */
+void Player::ModifyReputation(FactionEntry const* factionEntry, int32 standing)
+{
+    m_reputationMgr.ModifyReputation(factionEntry, standing, ReputationInputs(), ReputationSinks(this, SessionSink()));
+}
+
+/**
+ * @brief Makes the faction of a faction template visible in the reputation list.
+ *
+ * @param factionTemplateEntry The faction template.
+ */
+void Player::SetFactionVisible(FactionTemplateEntry const* factionTemplateEntry)
+{
+    m_reputationMgr.SetVisible(factionTemplateEntry, ReputationNotify(this, SessionSink()));
+}
+
+/**
+ * @brief Makes a faction visible in the reputation list.
+ *
+ * @param factionEntry The faction.
+ */
+void Player::SetFactionVisible(FactionEntry const* factionEntry)
+{
+    m_reputationMgr.SetVisible(factionEntry, ReputationNotify(this, SessionSink()));
+}
+
+/**
+ * @brief Declares or calls off war with a faction (CMSG_SET_FACTION_ATWAR).
+ *
+ * @param repListID The faction's reputation list id.
+ * @param on true to declare war; false to call it off.
+ */
+void Player::SetFactionAtWar(RepListID repListID, bool on)
+{
+    m_reputationMgr.SetAtWar(repListID, on, ReputationNotify(this, SessionSink()));
+}
+
+/**
+ * @brief Builds the reputation list, then loads the saved rows over it, a row at a time.
+ *
+ * @param result The login holder's reputation rows (faction, standing, flags), deleted here;
+ *               NULL for none: the list is built and nothing else happens.
+ */
+void Player::_LoadReputations(QueryResult* result)
+{
+    // Set initial reputations (so everything is nifty before DB data load)
+    m_reputationMgr.Initialize();
+
+    if (result)
+    {
+        ReputationMgr::FlagNotify notify = ReputationNotify(this, SessionSink());
+        do
+        {
+            m_reputationMgr.LoadRow(result->Fetch(), notify);
+        }
+        while (result->NextRow());
+
+        delete result;
+    }
+}
+
 /**
  * @brief Gets the player's current reputation rank with a faction.
  *
@@ -208,7 +337,7 @@ void Player::RewardReputation(Unit* pVictim, float rate)
         uint32 current_reputation_rank1 = GetReputationMgr().GetRank(factionEntry1);
         if (factionEntry1 && current_reputation_rank1 <= Rep->reputation_max_cap1)
         {
-            GetReputationMgr().ModifyReputation(factionEntry1, donerep1);
+            ModifyReputation(factionEntry1, donerep1);
         }
 
         // Wiki: Team factions value divided by 2
@@ -217,7 +346,7 @@ void Player::RewardReputation(Unit* pVictim, float rate)
             FactionEntry const* team1_factionEntry = sFactionStore.LookupEntry(factionEntry1->ParentFactionID);
             if (team1_factionEntry)
             {
-                GetReputationMgr().ModifyReputation(team1_factionEntry, donerep1 / 2);
+                ModifyReputation(team1_factionEntry, donerep1 / 2);
             }
         }
     }
@@ -230,7 +359,7 @@ void Player::RewardReputation(Unit* pVictim, float rate)
         uint32 current_reputation_rank2 = GetReputationMgr().GetRank(factionEntry2);
         if (factionEntry2 && current_reputation_rank2 <= Rep->reputation_max_cap2)
         {
-            GetReputationMgr().ModifyReputation(factionEntry2, donerep2);
+            ModifyReputation(factionEntry2, donerep2);
         }
 
         // Wiki: Team factions value divided by 2
@@ -239,7 +368,7 @@ void Player::RewardReputation(Unit* pVictim, float rate)
             FactionEntry const* team2_factionEntry = sFactionStore.LookupEntry(factionEntry2->ParentFactionID);
             if (team2_factionEntry)
             {
-                GetReputationMgr().ModifyReputation(team2_factionEntry, donerep2 / 2);
+                ModifyReputation(team2_factionEntry, donerep2 / 2);
             }
         }
     }
@@ -263,7 +392,7 @@ void Player::RewardReputation(Quest const* pQuest)
 
             if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(pQuest->RewRepFaction[i]))
             {
-                GetReputationMgr().ModifyReputation(factionEntry, rep);
+                ModifyReputation(factionEntry, rep);
             }
         }
         else
@@ -284,7 +413,7 @@ void Player::RewardReputation(Quest const* pQuest)
 
                 if (const FactionEntry* factionEntry = sFactionStore.LookupEntry(pQuest->RewRepFaction[i]))
                 {
-                    GetReputationMgr().ModifyReputation(factionEntry, repPoints);
+                    ModifyReputation(factionEntry, repPoints);
                 }
             }
         }

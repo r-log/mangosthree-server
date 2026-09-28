@@ -545,7 +545,7 @@ void WorldSession::HandleSetTargetOpcode(WorldPacket& recv_data)
 
     if (FactionTemplateEntry const* factionTemplateEntry = sFactionTemplateStore.LookupEntry(unit->getFaction()))
     {
-        _player->GetReputationMgr().SetVisible(factionTemplateEntry);
+        _player->SetFactionVisible(factionTemplateEntry);
     }
 }
 
@@ -570,7 +570,7 @@ void WorldSession::HandleSetSelectionOpcode(WorldPacket& recv_data)
 
     if (FactionTemplateEntry const* factionTemplateEntry = sFactionTemplateStore.LookupEntry(unit->getFaction()))
     {
-        _player->GetReputationMgr().SetVisible(factionTemplateEntry);
+        _player->SetFactionVisible(factionTemplateEntry);
     }
 }
 

@@ -110,13 +110,14 @@ namespace Harness
 
         /// What a character's login gives him that Player::Create does not, and that a reward reads:
         /// the reputation list. Create never builds it -- ReputationMgr's only builder is
-        /// LoadFromDB, which login calls (PlayerLoadFromDB.cpp) -- so a spawned harness player has an
-        /// empty list, every SetReputation finds no faction, and a reward's reputation is dropped
-        /// without a packet. LoadFromDB(NULL) is Initialize() alone: the load of a character with no
-        /// reputation rows, which is what a new character's first login is. Login then sends the
-        /// whole list (Player::SendInitialPacketsBeforeAddToMap -> SendInitialReputations), which
-        /// clears every faction's needSend; without that, the first standing packet would carry
-        /// every faction the client already has. Both are made here, before the recorder is on, so
+        /// Initialize, which login calls through Player::_LoadReputations (PlayerLoadFromDB.cpp) -- so
+        /// a spawned harness player has an empty list, every SetReputation finds no faction, and a
+        /// reward's reputation is dropped without a packet. _LoadReputations(NULL) is Initialize()
+        /// alone: the load of a character with no reputation rows, which is what a new character's
+        /// first login is. Login then sends the whole list (Player::SendInitialPacketsBeforeAddToMap
+        /// -> SendInitialReputations), which clears every faction's needSend; without that, the
+        /// first standing packet would carry every faction the client already has.
+        /// Both are made here, before the recorder is on, so
         /// the list packet goes where every packet of a socketless session goes. No database is read
         /// or written. Only the quest family calls it, so every scenario before it keeps the player
         /// it always had.
@@ -126,8 +127,8 @@ namespace Harness
         /// login's only other currency step, SendCurrencies, is a packet that clears no state.
         void LoginReputations(Player* p)
         {
-            p->GetReputationMgr().LoadFromDB(NULL);
-            p->GetReputationMgr().SendInitialReputations();
+            p->_LoadReputations(NULL);
+            p->SendInitialReputations();
         }
 
         /// The XP given across a reward, from the counters themselves: every level crossed took its

@@ -160,6 +160,9 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     SetByteValue(UNIT_FIELD_BYTES_0, 0, fields[3].GetUInt8()); // race
     SetByteValue(UNIT_FIELD_BYTES_0, 1, fields[4].GetUInt8()); // class
 
+    // Decoupling D4k: the reputation manager's owner facts, fixed from here on
+    m_reputationMgr.SetOwnerFacts(getRaceMask(), getClassMask(), GetName());
+
     uint8 gender = fields[5].GetUInt8() & 0x01;
     SetByteValue(UNIT_FIELD_BYTES_0, 2, gender);            // gender
 
@@ -593,7 +596,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     learnDefaultSpells();
 
     // must be before inventory (some items required reputation check)
-    m_reputationMgr.LoadFromDB(holder->GetResult(PLAYER_LOGIN_QUERY_LOADREPUTATION));
+    _LoadReputations(holder->GetResult(PLAYER_LOGIN_QUERY_LOADREPUTATION));
 
     _LoadInventory(holder->GetResult(PLAYER_LOGIN_QUERY_LOADINVENTORY), time_diff);
     _LoadItemLoot(holder->GetResult(PLAYER_LOGIN_QUERY_LOADITEMLOOT));

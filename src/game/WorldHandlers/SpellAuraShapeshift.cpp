@@ -903,7 +903,7 @@ void Aura::HandleForceReaction(bool apply, bool Real)
     ReputationRank faction_rank = ReputationRank(m_modifier.m_amount);
 
     player->GetReputationMgr().ApplyForceReaction(faction_id, faction_rank, apply);
-    player->GetReputationMgr().SendForceReactions();
+    player->SendForceReactions();
 
     // stop fighting if at apply forced rank friendly or at remove real rank friendly
     if ((apply && faction_rank >= REP_FRIENDLY) || (!apply && player->GetReputationRank(faction_id) >= REP_FRIENDLY))

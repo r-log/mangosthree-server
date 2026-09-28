@@ -41,6 +41,7 @@
 #include "Bag.h"
 #include "Creature.h"
 #include "Player.h"
+#include "ReputationMgr.h" // RepSpilloverTemplate (the reputation manager reads the rows)
 #include "Pet.h"
 #include "GameObject.h"
 #include "Corpse.h"
@@ -275,13 +276,6 @@ struct ReputationOnKillEntry
     uint32 reputation_max_cap2;
     int32 repvalue2;
     bool team_dependent;
-};
-
-struct RepSpilloverTemplate
-{
-    uint32 faction[MAX_SPILLOVER_FACTIONS];
-    float faction_rate[MAX_SPILLOVER_FACTIONS];
-    uint32 faction_rank[MAX_SPILLOVER_FACTIONS];
 };
 
 struct PointOfInterest

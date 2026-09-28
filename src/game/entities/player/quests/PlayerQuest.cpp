@@ -743,7 +743,7 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
     if (pQuest->GetRepObjectiveFaction())
         if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(pQuest->GetRepObjectiveFaction()))
         {
-            GetReputationMgr().SetVisible(factionEntry);
+            SetFactionVisible(factionEntry);
         }
 
     uint32 qtime = 0;
