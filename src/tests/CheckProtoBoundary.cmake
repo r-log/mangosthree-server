@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(ProtoBoundary)
+
 set(PROTO_DIR "${SOURCE_ROOT}/src/proto")
 
 if(NOT IS_DIRECTORY "${PROTO_DIR}")
@@ -7,6 +10,8 @@ endif()
 file(GLOB_RECURSE PROTO_SOURCES
     "${PROTO_DIR}/*.h" "${PROTO_DIR}/*.hpp"
     "${PROTO_DIR}/*.cpp" "${PROTO_DIR}/*.cc")
+list(LENGTH PROTO_SOURCES PROTO_SOURCE_COUNT)
+gate_require_scanned(ProtoBoundary "${PROTO_SOURCE_COUNT}" "sources in src/proto")
 
 set(FORBIDDEN_PATTERNS
     "#[ \t]*include[ \t]*[\"<](Database/|World\\.h|WorldSession\\.h|AddonHandler\\.h|Warden)"

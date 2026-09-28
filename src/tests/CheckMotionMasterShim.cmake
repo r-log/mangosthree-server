@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root("Motion shim gate")
+
 set(ALLOWED
     MovePoint Clear MoveIdle MoveChase MoveFollow MoveTargetedHome MoveWaypoint
     MoveRandomAroundPoint MovementExpired MoveJump MoveFlyOrLand Initialize

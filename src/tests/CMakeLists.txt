@@ -267,6 +267,13 @@ add_test(NAME headless_console
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckHeadlessConsole.cmake)
 
+# Decoupling D4l: no two include directories of game, mangos_tests, mangosd or mangosscript offer
+# a header under the same spelling, so no include is resolved by directory order.
+add_test(NAME include_collisions
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckIncludeCollisions.cmake)
+
 # Decoupling D5f (server #135), ratchet R-C: the campaign's downcast counter becomes a gate.
 # subtype_sites is 0 after D5f and must stay 0 -- the `GetTypeId() == TYPEID_UNIT &&
 # ((Creature*)x)->IsPet()` pattern is now a virtual call. The self-test entry keeps the

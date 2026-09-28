@@ -11,9 +11,8 @@
 # requires CMake >= 3.18, so that is also the floor here.
 cmake_minimum_required(VERSION 3.18)
 
-if(NOT DEFINED SOURCE_ROOT)
-    message(FATAL_ERROR "SessionSeam: -DSOURCE_ROOT=<repo root> is required")
-endif()
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(SessionSeam)
 
 set(GAME_DIR "${SOURCE_ROOT}/src/game")
 

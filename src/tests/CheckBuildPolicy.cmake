@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(BuildPolicy)
+
 file(READ "${SOURCE_ROOT}/src/CMakeLists.txt" SRC_CMAKE)
 file(READ "${SOURCE_ROOT}/.github/workflows/core_linux_build.yml" LINUX_CI)
 file(READ "${SOURCE_ROOT}/.github/workflows/core_windows_build.yml" WINDOWS_CI)

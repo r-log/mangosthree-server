@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(OpcodeDenylist)
+
 set(DENYLIST_FILE "${CMAKE_CURRENT_LIST_DIR}/opcode_denylist.txt")
 if(NOT EXISTS "${DENYLIST_FILE}")
     message(FATAL_ERROR "Opcode denylist missing: ${DENYLIST_FILE}")
@@ -20,6 +23,8 @@ list(JOIN DENY_NAMES "|" DENY_ALT)
 set(DENY_PATTERN "(^|[^A-Za-z0-9_])(${DENY_ALT})([^A-Za-z0-9_]|$)")
 
 file(GLOB_RECURSE GAME_SOURCES "${SOURCE_ROOT}/src/game/*.cpp" "${SOURCE_ROOT}/src/game/*.h")
+list(LENGTH GAME_SOURCES GAME_SOURCE_COUNT)
+gate_require_scanned(OpcodeDenylist "${GAME_SOURCE_COUNT}" "sources in src/game")
 set(VIOLATIONS "")
 
 foreach(FILE_PATH IN LISTS GAME_SOURCES)

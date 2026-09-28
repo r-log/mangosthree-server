@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(VersionSources)
+
 get_filename_component(SOURCE_ROOT "${SOURCE_ROOT}" ABSOLUTE)
 
 set(VERSIONS_FILE "${SOURCE_ROOT}/cmake/MangosVersion.cmake")
@@ -9,6 +12,8 @@ endif()
 set(VIOLATIONS "")
 
 file(GLOB_RECURSE CONF_TEMPLATES "${SOURCE_ROOT}/src/*.conf.dist.in")
+list(LENGTH CONF_TEMPLATES CONF_TEMPLATE_COUNT)
+gate_require_scanned(VersionSources "${CONF_TEMPLATE_COUNT}" "*.conf.dist.in templates")
 
 foreach(TEMPLATE IN LISTS CONF_TEMPLATES)
     file(STRINGS "${TEMPLATE}" CONF_LINES REGEX "^[ \t]*ConfVersion[ \t]*=")
@@ -40,6 +45,8 @@ set(GENERATED_MACROS
 )
 
 file(GLOB_RECURSE SOURCES "${SOURCE_ROOT}/src/*.h" "${SOURCE_ROOT}/src/*.cpp")
+list(LENGTH SOURCES SOURCE_COUNT)
+gate_require_scanned(VersionSources "${SOURCE_COUNT}" "sources")
 
 foreach(FILE_PATH IN LISTS SOURCES)
     if(FILE_PATH MATCHES "BuildInfo\\.h")
@@ -58,6 +65,8 @@ endforeach()
 
 file(STRINGS "${SOURCE_ROOT}/src/shared/BuildInfo.h.in" REVISION_LINES
      REGEX "^[ \t]*#[ \t]*define[ \t]+(MANGOS_PACKAGENAME|MANGOS_VERSION_STR|(MANGOSD|REALMD|AHBOT)_CONFIG_VERSION|EXPECTED_MANGOSD_CLIENT|PRODUCT_VERSION_RESOURCE|(REALMD|CHAR|WORLD)_DB_)")
+list(LENGTH REVISION_LINES REVISION_LINE_COUNT)
+gate_require_scanned(VersionSources "${REVISION_LINE_COUNT}" "version #defines in src/shared/BuildInfo.h.in")
 
 foreach(LINE IN LISTS REVISION_LINES)
     if(NOT LINE MATCHES "@[A-Za-z0-9_]+@")
@@ -99,6 +108,8 @@ if(UMBRELLA_AT EQUAL -1)
 endif()
 
 file(GLOB_RECURSE BUILD_FILES "${SOURCE_ROOT}/src/*CMakeLists.txt" "${SOURCE_ROOT}/src/*.cmake")
+list(LENGTH BUILD_FILES BUILD_FILE_COUNT)
+gate_require_scanned(VersionSources "${BUILD_FILE_COUNT}" "build files")
 
 foreach(FILE_PATH IN LISTS BUILD_FILES)
     file(STRINGS "${FILE_PATH}" HITS REGEX "^[ \t]*set[ \t]*\\([ \t]*MANGOS_")

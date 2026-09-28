@@ -10,15 +10,16 @@
 #
 # CONVERTED_FILES was empty in D7a, which converted nothing -- the gate was built there so
 # the conversion PRs had somewhere to append. The self-tests below run before the scan, so
-# the gate is known to work whether or not it has anything to guard.
+# the gate is known to work whether or not it has anything to guard. Decoupling D4l: the list
+# has had files since D7b and a converted file never leaves it, so an empty list now fails as
+# a scan of nothing (GateGuards.cmake).
 #
 # Run standalone (-P), this script sees none of the top-level project's policies. The
 # project requires CMake >= 3.18, so that is also the floor here.
 cmake_minimum_required(VERSION 3.18)
 
-if(NOT DEFINED SOURCE_ROOT)
-    message(FATAL_ERROR "SyncDb: -DSOURCE_ROOT=<repo root> is required")
-endif()
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(SyncDb)
 
 # Repo-relative paths. Later PRs append one line per converted file.
 set(CONVERTED_FILES
@@ -328,7 +329,8 @@ set(ALLOW_InstanceDataCache_cpp
     "if (QueryResult* result = CharacterDatabase.Query(\"SELECT `map`, `data` FROM `world`\"))")
 
 set(ALLOW_MapPersistentStateMgr_cpp
-    # --- start-up: DungeonResetScheduler::LoadResetTimes, from MapPersistentStateManager::LoadCreatureRespawnTimes' caller chain ---
+    # --- start-up: DungeonResetScheduler::LoadResetTimes, from
+    #     MapPersistentStateManager::LoadCreatureRespawnTimes' caller chain ---
     "QueryResult* result = CharacterDatabase.Query(\"SELECT `id`, `map`, `difficulty`, `resettime` FROM `instance` WHERE `resettime` > 0\")\;"
     "result = CharacterDatabase.Query(\"SELECT MAX(`respawntime`), `instance` FROM `creature_respawn` WHERE `instance` > 0 GROUP BY `instance`\")\;"
     "CharacterDatabase.DirectPExecute(\"UPDATE `instance` SET `resettime` = '\" UI64FMTD \"' WHERE `id` = '%u'\", uint64(resettime), instance)\;"
@@ -537,6 +539,7 @@ unset(ALLOW_SelfTest_cpp)
 # The real scan.
 set(VIOLATIONS "")
 list(LENGTH CONVERTED_FILES CONVERTED_COUNT)
+gate_require_scanned(SyncDb "${CONVERTED_COUNT}" "files in CONVERTED_FILES")
 foreach(REL_PATH IN LISTS CONVERTED_FILES)
     set(FILE_PATH "${SOURCE_ROOT}/${REL_PATH}")
     if(NOT EXISTS "${FILE_PATH}")
@@ -575,6 +578,8 @@ endif()
 # look.
 file(GLOB_RECURSE ADMIN_SCOPE_SOURCES
     "${SOURCE_ROOT}/src/*.cpp" "${SOURCE_ROOT}/src/*.h" "${SOURCE_ROOT}/src/*.hpp")
+list(LENGTH ADMIN_SCOPE_SOURCES ADMIN_SCOPE_SCANNED)
+gate_require_scanned(SyncDb "${ADMIN_SCOPE_SCANNED}" "sources")
 set(ADMIN_SCOPE_SITES "")
 foreach(FILE_PATH IN LISTS ADMIN_SCOPE_SOURCES)
     file(STRINGS "${FILE_PATH}" LINES REGEX "TickGuard::AdminScope")
@@ -617,5 +622,4 @@ if(NOT "${ADMIN_SCOPE_SITES}" STREQUAL "${ADMIN_SCOPE_EXPECTED}")
         "needs one, say so in the PR and add its file to ADMIN_SCOPE_FILES, deliberately.")
 endif()
 
-list(LENGTH ADMIN_SCOPE_SOURCES ADMIN_SCOPE_SCANNED)
 message(STATUS "sync db: ${CONVERTED_COUNT} converted file(s) clean, AdminScope in the 2 named file(s) only (${ADMIN_SCOPE_SCANNED} file(s) scanned), self-test OK")

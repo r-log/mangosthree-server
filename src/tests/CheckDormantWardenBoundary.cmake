@@ -1,6 +1,8 @@
 if(NOT DEFINED SOURCE_ROOT)
     get_filename_component(SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 endif()
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(DormantWardenBoundary)
 
 set(OPCODE_TABLE "${SOURCE_ROOT}/src/game/Server/OpcodeTable.cpp")
 set(SESSION_HEADER "${SOURCE_ROOT}/src/game/Server/WorldSession.h")

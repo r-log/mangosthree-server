@@ -1,3 +1,6 @@
+include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
+gate_require_source_root(HeadlessConsole)
+
 set(CLI_SERVICE "${SOURCE_ROOT}/src/mangosd/CliService.cpp")
 if(NOT EXISTS "${CLI_SERVICE}")
     message(FATAL_ERROR "Console reader missing: ${CLI_SERVICE}")
