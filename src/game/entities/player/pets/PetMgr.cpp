@@ -24,10 +24,9 @@
  */
 
 #include "PetMgr.h"
-#include "Player.h"
-#include "Pet.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
+#include "ObjectGuid.h"
 #include "Log.h"
 
 void PetMgr::LoadStableSlotsFromField(uint32 raw)
@@ -43,49 +42,29 @@ void PetMgr::LoadStableSlotsFromField(uint32 raw)
     m_stableSlots = MAX_PET_STABLES;
 }
 
-void PetMgr::Remove(PetSaveMode mode)
-{
-    if (Pet* pet = m_owner->GetPet())
-    {
-        pet->Unsummon(mode, m_owner);
-    }
-}
-
-void PetMgr::RemoveActionBar()
+void PetMgr::RemoveActionBar(ManagerPacketSink const& send)
 {
     WorldPacket data(SMSG_PET_SPELLS, 8);
     data << ObjectGuid();
-    m_owner->SendDirectMessage(&data);
+    send(&data);
 }
 
-void PetMgr::UnsummonTemporaryIfAny()
+void PetMgr::UnsummonTemporaryIfAny(LivePet const& pet, UnsummonSink const& unsummon)
 {
-    Pet* pet = m_owner->GetPet();
-    if (!pet)
+    if (!pet.present)
     {
         return;
     }
 
-    if (!m_temporaryUnsummonedPetNumber && pet->isControlled() && !pet->isTemporarySummoned())
+    if (!m_temporaryUnsummonedPetNumber && pet.controlled && !pet.temporarySummoned)
     {
-        m_temporaryUnsummonedPetNumber = pet->GetCharmInfo()->GetPetNumber();
+        m_temporaryUnsummonedPetNumber = pet.petNumber;
     }
 
-    pet->Unsummon(PET_SAVE_AS_CURRENT, m_owner);
+    unsummon(PET_SAVE_AS_CURRENT);
 }
 
-void PetMgr::UnsummonIfAny()
-{
-    Pet* pet = m_owner->GetPet();
-    if (!pet)
-    {
-        return;
-    }
-
-    pet->Unsummon(PET_SAVE_NOT_IN_SLOT, m_owner);
-}
-
-void PetMgr::ResummonTemporaryUnsummonedIfAny()
+void PetMgr::ResummonTemporaryUnsummonedIfAny(ResummonInputs const& inputs)
 {
     if (!m_temporaryUnsummonedPetNumber)
     {
@@ -93,21 +72,17 @@ void PetMgr::ResummonTemporaryUnsummonedIfAny()
     }
 
     // not resummon in not appropriate state
-    if (m_owner->IsPetNeedBeTemporaryUnsummoned())
+    if (inputs.needTemporaryUnsummon)
     {
         return;
     }
 
-    if (m_owner->GetPetGuid())
+    if (inputs.petGuidSet)
     {
         return;
     }
 
-    Pet* NewPet = new Pet;
-    if (!NewPet->LoadPetFromDB(m_owner, 0, m_temporaryUnsummonedPetNumber, true))
-    {
-        delete NewPet;
-    }
+    inputs.load(m_temporaryUnsummonedPetNumber);
 
     m_temporaryUnsummonedPetNumber = 0;
 }

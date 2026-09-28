@@ -27,53 +27,84 @@
 #define MANGOS_H_PETMGR
 
 #include "Platform/Define.h"
+#include "ManagerPacketSink.h"
 #include "PlayerPetCache.h"
-#include "SharedDefines.h"
+#include "SharedDefines.h"                                  // MAX_PET_STABLES, PetSaveMode
 
-class Player;
-class Pet;
+#include <functional>
 
 /**
- * PetMgr — owns a Player's pet-ownership metadata: the stable-slot
- * count persisted with the character row and the temporary-unsummon
- * tracking number used by transports / vehicles / mounts to bring the
- * same pet back after a short interruption.
+ * @brief Decoupling D4k: a character's pet-ownership state and the rules over it, held apart from
+ * the object that plays the character.
  *
- * What this DOES NOT own:
- *  - The Pet creature itself (a Creature subclass living in the world,
- *    managed by Object/Pet.{cpp,h}). The pet object's lifecycle, AI,
- *    spells, leveling, and persistence to the `character_pet` table all
- *    stay in Pet.cpp.
- *  - The pet stable opcode handlers (`CMSG_STABLE_PET` and friends in
- *    WorldHandlers/NPCHandler.cpp). They keep reading and updating the
- *    slot count through Player's public accessors.
+ * The state is the stable-slot count (saved with the character row), the number of the pet a
+ * temporary unsummon put away (a mount, a taxi, a vehicle, a transport, a talent respec) so that
+ * the same pet comes back afterwards, and the character's pet rows (PlayerPetCache, decoupling
+ * D7e). The owner holds one by value.
  *
- * What stays on Player.{cpp,h}:
- *  - The full public pet API (RemovePet / UnsummonPetTemporaryIfAny /
- *    ResummonPetTemporaryUnSummonedIfAny / RemovePetActionBar / temp-
- *    summon-number get/set + the new GetStableSlots) as inline
- *    delegates, so the ~25 external call sites in SpellAuras.cpp,
- *    Spell.cpp, BattleGround.cpp, Vehicle.cpp, MovementHandler.cpp,
- *    CharacterHandler.cpp, MiscHandler.cpp, WorldSession.cpp, Pet.cpp,
- *    NPCHandler.cpp, and Unit.cpp do not need to change.
+ * The rules are: the stable-slot count a loaded row gives (LoadStableSlotsFromField); when a
+ * temporary unsummon records the pet's number (none pending, a controlled pet, not itself a
+ * temporary summon), and that it is recorded BEFORE the pet is unsummoned, because the unsummon
+ * and the pet's save read it; when a resummon happens (a number pending, the owner in a state
+ * that allows it, no pet out), that "not yet" keeps the number, and that an attempt clears it,
+ * successful or not, AFTER the load (the old order, kept and pinned; nothing in the load reads
+ * the number, so the order is preserved rather than relied on); and the bytes of the
+ * packet that clears the client's pet action bar.
+ *
+ * The object carries no owner. What it used to read from the owner is handed in at the call --
+ * the owner's live pet as plain facts (LivePet), whether the owner may have a pet out now and
+ * whether it has one (ResummonInputs) -- and what it used to do to the owner goes out through a
+ * callback called at the exact point the old body did it: the pet's unsummon (an UnsummonSink),
+ * the load of the put-away pet (a PetLoadSink) and the packet (a ManagerPacketSink, the owner's
+ * session). Callbacks are parameters only, never stored. So `mangos_tests` builds one from
+ * nothing.
+ *
+ * What stays with the owner, and why (pets/PlayerPet.cpp): finding the live pet (its lookup can
+ * clear a dangling pet guid), reading the pet's facts, the unsummon itself, the new pet and its
+ * load from the pet cache -- orchestration over the live pet, which this object never sees -- and
+ * the two dismissals that touch none of this state (RemovePet, UnsummonPetIfAny). The pet
+ * creature, its persistence to the pet tables and the stable handlers live in the pet code.
+ *
+ * KEPT SEMANTICS, stated rather than fixed: the stable-slot count is always MAX_PET_STABLES after
+ * a load, whatever the column held (a larger value is also logged); SetStableSlots has no caller.
  */
 class PetMgr
 {
     public:
-        explicit PetMgr(Player* owner)
-            : m_owner(owner), m_stableSlots(MAX_PET_STABLES), m_temporaryUnsummonedPetNumber(0)
+        /// Unsummons the owner's live pet with a save mode: `pet->Unsummon(mode, owner)`.
+        typedef std::function<void(PetSaveMode mode)> UnsummonSink;
+        /// Brings a put-away pet back by its number: a new pet loaded from the owner's pet rows
+        /// (`LoadPetFromDB(owner, 0, petNumber, true)`), deleted again if the load fails.
+        typedef std::function<void(uint32 petNumber)> PetLoadSink;
+
+        /// The owner's live pet, read by the owner just before UnsummonTemporaryIfAny. With no pet
+        /// out, `present` is false and the other fields keep their defaults.
+        struct LivePet
         {
-        }
+            bool   present = false;                 ///< the owner's GetPet() found a pet
+            bool   controlled = false;              ///< pet->isControlled()
+            bool   temporarySummoned = false;       ///< pet->isTemporarySummoned()
+            uint32 petNumber = 0;                   ///< pet->GetCharmInfo()->GetPetNumber()
+        };
+
+        /// What ResummonTemporaryUnsummonedIfAny needs from the owner, read by the owner just
+        /// before the call. The scalars default to false so that neither is ever indeterminate.
+        struct ResummonInputs
+        {
+            bool        needTemporaryUnsummon = false;  ///< the owner's IsPetNeedBeTemporaryUnsummoned()
+            bool        petGuidSet = false;             ///< the owner's GetPetGuid() is not empty
+            PetLoadSink load;                           ///< the load, called where the old body loaded
+        };
 
         /// Number of stable slots the character can use. Cata 4.0.1 gave
         /// every hunter MAX_PET_STABLES (5) for free and removed the
         /// CMSG_BUY_STABLE_SLOT purchase flow, so this is effectively a
         /// constant in this fork. Persisted to `characters`.stable_slots
-        /// for forward-compat; clamped UP to MAX_PET_STABLES on load.
+        /// for forward-compat; clamped to MAX_PET_STABLES on load.
         uint32 GetStableSlots() const { return m_stableSlots; }
         void SetStableSlots(uint32 slots) { m_stableSlots = slots; }
 
-        /// Called from Player::LoadFromDB with the raw column value.
+        /// Called from the owner's load with the raw column value.
         /// Clamps to MAX_PET_STABLES on either side so a character row
         /// carried over from a pre-Cata default (stable_slots=0) still
         /// gets the Cata 5 free slots without a DB migration.
@@ -87,44 +118,47 @@ class PetMgr
         uint32 GetTemporaryUnsummonedPetNumber() const { return m_temporaryUnsummonedPetNumber; }
         void SetTemporaryUnsummonedPetNumber(uint32 petnumber) { m_temporaryUnsummonedPetNumber = petnumber; }
 
-        /// PET_SAVE_AS_CURRENT-style dismissal. If the owner currently
-        /// has a controlled pet, asks it to unsummon with the given
-        /// mode (see PetSaveMode in SharedDefines.h).
-        void Remove(PetSaveMode mode);
+        /**
+         * @brief Clears the pet action bar on the client: the pet spells packet with an empty guid.
+         *
+         * @param send The owner's session sink.
+         */
+        void RemoveActionBar(ManagerPacketSink const& send);
 
-        /// SMSG_PET_SPELLS with an empty guid — clears the pet action
-        /// bar UI on the client.
-        void RemoveActionBar();
+        /**
+         * @brief Unsummons the owner's pet for now, remembering it so that it can come back.
+         *
+         * With no pet out, does nothing. Otherwise, if no number is pending and the pet is a
+         * controlled pet that is not itself a temporary summon, records its number first; then
+         * unsummons it with PET_SAVE_AS_CURRENT.
+         *
+         * @param pet      The owner's live pet.
+         * @param unsummon Unsummons it.
+         */
+        void UnsummonTemporaryIfAny(LivePet const& pet, UnsummonSink const& unsummon);
 
-        /// If the owner has a controlled, non-temporary pet, stash its
-        /// pet-number into m_temporaryUnsummonedPetNumber so we can
-        /// bring it back later, then unsummon with PET_SAVE_AS_CURRENT.
-        /// No-op if no eligible pet.
-        void UnsummonTemporaryIfAny();
-
-        /// Unconditional unsummon with PET_SAVE_NOT_IN_SLOT. Used by
-        /// aura code that needs the pet gone (polymorph, eyes-of-the-
-        /// beast end, etc.) without preserving it for later resummon.
-        void UnsummonIfAny();
-
-        /// Counterpart to UnsummonTemporaryIfAny: if we stashed a pet
-        /// number AND it's now appropriate to resummon (no pending
-        /// vehicle, mount, etc.), load that pet from DB. Clears the
-        /// stash either way (success or "not yet").
-        void ResummonTemporaryUnsummonedIfAny();
+        /**
+         * @brief Brings back the pet a temporary unsummon put away, if the time is right.
+         *
+         * Does nothing with no number pending. Keeps the number, and loads nothing, while the
+         * owner may not have a pet out (mounted, on a taxi, dead, out of the world) or already has
+         * one. Otherwise loads the pet, then clears the number whether or not the load succeeded.
+         *
+         * @param inputs The owner's two facts and the load.
+         */
+        void ResummonTemporaryUnsummonedIfAny(ResummonInputs const& inputs);
 
         /// Decoupling D7e: this character's rows from the five pet tables, loaded by the
         /// login holder and kept current at every write. `Pet::LoadPetFromDB` and the stable
-        /// handlers read it instead of blocking on a SELECT. Empty for a Player that never
+        /// handlers read it instead of blocking on a SELECT. Empty for a character that never
         /// went through a login holder (a character being created, the movement harness's
         /// mover) -- which reads exactly as "this character has no pet rows" did.
         PlayerPetCache& GetPetCache() { return m_petCache; }
         PlayerPetCache const& GetPetCache() const { return m_petCache; }
 
     private:
-        Player* m_owner;
-        uint32  m_stableSlots;
-        uint32  m_temporaryUnsummonedPetNumber;
+        uint32  m_stableSlots = MAX_PET_STABLES;
+        uint32  m_temporaryUnsummonedPetNumber = 0;
         PlayerPetCache m_petCache;
 };
 

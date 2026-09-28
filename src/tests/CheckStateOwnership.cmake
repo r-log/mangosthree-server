@@ -228,9 +228,9 @@ endfunction()
 
 # ---------------------------------------------------------------------------------------------
 # THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10, the
-# cooldown row on a63c61953 and the glyph row on cc63db97b (decoupling D4k). The reasons name
-# functions and lists, never line numbers or counts: those go stale with the next edit, and the
-# gate prints the lines.
+# cooldown row on a63c61953, the glyph row on cc63db97b and the pet row on 157d99a5c (decoupling
+# D4k). The reasons name functions and lists, never line numbers or counts: those go stale with
+# the next edit, and the gate prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -430,6 +430,40 @@ state_allow(glyph src/game/Tools/PlayerDump.h
 state_allow(glyph src/tests/GlyphMgrTest.cpp
     WHY "unit test that observes the load's DELETEs and the save's statements through a fake connection (checks each statement, runs nothing itself)"
     NAMES character_glyphs)
+
+# Decoupling D4k. The one packet PetMgr builds: SMSG_PET_SPELLS with an empty guid, which clears
+# the client's pet action bar (PetMgr::RemoveActionBar). The same opcode's full forms -- the
+# spell bars of the pet, of a possessed unit and of a charmed unit -- are the owner's
+# (Player::PetSpellInitialize, PossessSpellInitialize and CharmSpellInitialize read the live pet
+# or charm), hence the PlayerPet.cpp allowance. Every other SMSG_ name in Opcodes.h containing
+# PET is left out, since PetMgr builds none of them: SMSG_PET_GUIDS is the owner's
+# (SendPetGUIDs); the name query and name-invalid, cast-failed, tame-failure, mode, action
+# feedback and sound, dismiss sound, unlearn-confirm and learned/removed-spell packets are built
+# by the pet code, the pet and spell handlers, the unit, the vehicle and the owner's other files;
+# SMSG_PETGODMODE, SMSG_PET_BROKEN, SMSG_PET_RENAMEABLE and SMSG_PET_UPDATE_COMBO_POINTS are built
+# by nobody; the petition names (SMSG_PETITION_*, SMSG_TURN_IN_PETITION_RESULTS, SMSG_OFFER_PETITION_ERROR)
+# are the petition code's and Player.cpp's sign/turn-in results; MSG_LIST_STABLED_PETS and
+# SMSG_STABLE_RESULT are the stable handlers'. NO TABLE: the stable-slot count is a column of the
+# character row, which the owner's persistence files load and save, and the five pet tables are
+# written by the pet code (the pet's save and delete, the stable and pet handlers) and mirrored by
+# PlayerPetCache (decoupling D7e), which writes none of them; a row for them belongs to their
+# writer, not to this manager. TYPES: the owner, and the pet cache its GetPetCache() const hands
+# out by reference.
+state_row(pet
+    OWNER   PetMgr
+    PACKETS SMSG_PET_SPELLS                      # PetMgr::RemoveActionBar
+    TYPES   PetMgr
+            PlayerPetCache)                      # GetPetCache() const
+
+state_allow(pet src/game/entities/player/pets/PetMgr.cpp
+    WHY "the owner: builds the empty-guid pet spells packet for the owner's session sink"
+    NAMES SMSG_PET_SPELLS)
+state_allow(pet src/game/entities/player/pets/PlayerPet.cpp
+    WHY "the owner's full spell bars of its pet, possessed and charmed unit (Player::PetSpellInitialize, PossessSpellInitialize, CharmSpellInitialize)"
+    NAMES SMSG_PET_SPELLS)
+state_allow(pet src/tests/PetMgrTest.cpp
+    WHY "unit test that observes the packet through a capturing sink (checks its opcode and bytes, builds nothing)"
+    NAMES SMSG_PET_SPELLS)
 
 # Shared by every row: the files that define opcodes. Each is checked to still spell at least
 # one row packet.
