@@ -169,7 +169,20 @@ set(REACH_RULES
     # store (Server/DBCStores.h) and loads and saves through the character database
     # (Database/DatabaseEnv.h); src/tests/CurrencyMgrTest.cpp seeds the store.
     "entities/player/inventory/CurrencyMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h,proto/WorldPacket.h"
-    "entities/player/inventory/CurrencyMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h")
+    "entities/player/inventory/CurrencyMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h"
+    # Decoupling D4k: the reputation manager, the rune manager's two rules plus the world
+    # (WorldHandlers/World.h) and the achievements (WorldHandlers/AchievementMgr.h): a changed
+    # faction's quest check and achievement updates are callbacks the owner builds, and the
+    # spillover template (the object manager's) and a faction's team list come in through read
+    # callbacks, so neither file reaches the object manager, the achievements or the session. The
+    # header defines RepSpilloverTemplate (ObjectMgr.h includes it), forward-declares Field, and
+    # stays inside entities/player/Player.h's rule (Player.h includes it); it may reach neither
+    # the DBC stores, the database nor proto/WorldPacket.h. The .cpp builds the five packets
+    # (WorldPacket.h, Opcodes.h), reads the faction store (Server/DBCStores.h) and saves through
+    # the character database (Database/DatabaseEnv.h); src/tests/ReputationMgrTest.cpp seeds the
+    # store and checks both.
+    "entities/player/social/ReputationMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/AchievementMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "entities/player/social/ReputationMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/AchievementMgr.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 

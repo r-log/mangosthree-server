@@ -120,7 +120,7 @@ void BattleGround::RewardReputationToTeam(uint32 faction_id, uint32 Reputation, 
 
         if (team == teamId)
         {
-            plr->GetReputationMgr().ModifyReputation(factionEntry, Reputation);
+            plr->ModifyReputation(factionEntry, Reputation);
         }
     }
 }

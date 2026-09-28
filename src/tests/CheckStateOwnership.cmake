@@ -229,8 +229,10 @@ endfunction()
 # ---------------------------------------------------------------------------------------------
 # THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10, the
 # cooldown row on a63c61953, the glyph row on cc63db97b, the pet row on 157d99a5c, the social row on
-# b20d94a87 and the currency row on 6f20649ea (decoupling D4k). The reasons name functions and lists,
-# never line numbers or counts: those go stale with the next edit, and the gate prints the lines.
+# b20d94a87 and the currency row on 6f20649ea (decoupling D4k); the reputation row's allowances
+# re-measured on ad8931f9c when ReputationMgr became Player-less (decoupling D4k). The reasons name
+# functions and lists, never line numbers or counts: those go stale with the next edit, and the gate
+# prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -254,14 +256,14 @@ state_row(reputation
             ReputationRank)                 # GetForcedRankIfAny()
 
 state_allow(reputation src/game/entities/player/social/ReputationMgr.cpp
-    WHY "the owner: builds its packets, loads (the old query in a comment) and saves the rows"
+    WHY "the owner: builds its packets and saves the rows (the login rows come in one at a time, LoadRow)"
     NAMES SMSG_INITIALIZE_FACTIONS SMSG_SET_FACTION_VISIBLE SMSG_SET_FACTION_STANDING
           SMSG_SET_FORCED_REACTIONS SMSG_SET_FACTION_ATWAR character_reputation)
 state_allow(reputation src/game/entities/player/Player.cpp
     WHY "whole-character delete (Player::DeleteFromDB)"
     NAMES character_reputation)
 state_allow(reputation src/game/WorldHandlers/CharacterHandler.cpp
-    WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADREPUTATION), handed to ReputationMgr::LoadFromDB"
+    WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADREPUTATION), handed to Player::_LoadReputations"
     NAMES character_reputation)
 state_allow(reputation src/game/Tools/PlayerDump.cpp
     WHY "character dump: the dumped-table list and its doc comment"
@@ -275,6 +277,10 @@ state_allow(reputation src/game/Harness/Trace.cpp
 state_allow(reputation src/game/Harness/ScenariosQuest.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_SET_FACTION_STANDING)
+state_allow(reputation src/tests/ReputationMgrTest.cpp
+    WHY "the manager's own test: checks the opcodes it builds and the statements it saves (builds nothing)"
+    NAMES SMSG_INITIALIZE_FACTIONS SMSG_SET_FACTION_VISIBLE SMSG_SET_FACTION_STANDING
+          SMSG_SET_FORCED_REACTIONS SMSG_SET_FACTION_ATWAR character_reputation)
 state_allow(reputation src/tests/HarnessTest.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_SET_FACTION_STANDING SMSG_SET_FACTION_VISIBLE)

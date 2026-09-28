@@ -95,6 +95,8 @@ set(MANAGER_FILES
     entities/player/social/SocialList.cpp                   # decoupling D4k
     entities/player/inventory/CurrencyMgr.h                 # decoupling D4k
     entities/player/inventory/CurrencyMgr.cpp               # decoupling D4k
+    entities/player/social/ReputationMgr.h                  # decoupling D4k
+    entities/player/social/ReputationMgr.cpp                # decoupling D4k
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.
@@ -149,9 +151,7 @@ set(OWNER_FILES
     entities/player/social/PlayerGroup.cpp
     entities/player/social/PlayerChannel.cpp
     entities/player/social/PlayerChat.cpp
-    entities/player/social/PlayerReputation.cpp
-    entities/player/social/ReputationMgr.h                  # D4k
-    entities/player/social/ReputationMgr.cpp                # D4k
+    entities/player/social/PlayerReputation.cpp             # decoupling D4k: drives social/ReputationMgr
     entities/player/social/SocialMgr.h                      # decoupling D4k: the global over every list; drives social/SocialList
     entities/player/social/SocialMgr.cpp                    # decoupling D4k: the global over every list; drives social/SocialList
     entities/player/world/PlayerMovement.cpp

@@ -3067,6 +3067,31 @@ class Player : public Unit
         // Get the player's reputation rank for a specific faction
         ReputationRank GetReputationRank(uint32 faction_id) const;
 
+        // Decoupling D4k: the reputation changes that send packets or call back into the character
+        // go through these, which hand the manager its inputs and sinks (social/PlayerReputation.cpp).
+        // The getters, SetInactive and ApplyForceReaction are called on GetReputationMgr() directly.
+
+        // Set (absolute) or modify (add to) the standing with a faction, spillover included
+        void SetReputation(FactionEntry const* factionEntry, int32 standing);
+        void ModifyReputation(FactionEntry const* factionEntry, int32 standing);
+
+        // Make a faction visible in the reputation list (by a faction template, or the faction)
+        void SetFactionVisible(FactionTemplateEntry const* factionTemplateEntry);
+        void SetFactionVisible(FactionEntry const* factionEntry);
+
+        // Declare or call off war with a faction (the client's at-war box)
+        void SetFactionAtWar(RepListID repListID, bool on);
+
+        // Send the forced reactions, and the whole reputation list (login)
+        void SendForceReactions() { m_reputationMgr.SendForceReactions(SessionSink()); }
+        void SendInitialReputations() { m_reputationMgr.SendInitialReputations(SessionSink()); }
+
+        // Build the reputation list, then load the saved rows (NULL: no rows, the list alone).
+        // Public, unlike the other _Load* members: the harness's LoginReputations
+        // (Harness/ScenariosQuest.cpp, a free function, not a friend) builds a spawned character's
+        // list with it; login calls it from LoadFromDB.
+        void _LoadReputations(QueryResult* result);
+
         // Reward reputation for killing a unit
         void RewardReputation(Unit* pVictim, float rate);
 

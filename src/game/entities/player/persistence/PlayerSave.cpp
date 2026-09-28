@@ -315,7 +315,7 @@ void Player::SaveToDB()
     _SaveAuras();
     _SaveSkills();
     m_achievementMgr->SaveToDB();
-    m_reputationMgr.SaveToDB();
+    m_reputationMgr.SaveToDB(GetGUIDLow());
     _SaveCurrencies();
     _SaveEquipmentSets();
     GetSession()->SaveTutorialsData();                      // changed only while character in game

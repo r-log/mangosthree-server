@@ -99,6 +99,7 @@ set(SRC_GRP_TESTS
     PetMgrTest.cpp
     SocialMgrTest.cpp
     CurrencyMgrTest.cpp
+    ReputationMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)

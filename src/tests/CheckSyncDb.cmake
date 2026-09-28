@@ -76,6 +76,8 @@ set(CONVERTED_FILES
     src/game/entities/player/social/SocialList.cpp          # decoupling D4k
     src/game/entities/player/inventory/CurrencyMgr.h        # decoupling D4k
     src/game/entities/player/inventory/CurrencyMgr.cpp      # decoupling D4k
+    src/game/entities/player/social/ReputationMgr.h         # decoupling D4k
+    src/game/entities/player/social/ReputationMgr.cpp       # decoupling D4k
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -429,6 +431,13 @@ set(ALLOW_AccountCommands_cpp
 # (UPDATE/INSERT `character_currencies`) stays CharacterDatabase.PExecute (queued once async writes
 # are on) run from Player::SaveToDB, and the load's invalid-row DELETE stays CharacterDatabase.PExecute,
 # run from the login one row at a time (LoadRow) over the login holder's result.
+#
+# Decoupling D4k. ReputationMgr.h and ReputationMgr.cpp have NO allow list either. The
+# reputation save (DELETE+INSERT `character_reputation` per changed faction) stays queued
+# prepared statements (SqlStatement PExecute) run from Player::SaveToDB, and the load takes one
+# row at a time from the login holder's result (LoadRow); the owner's loop
+# (Player::_LoadReputations) takes the login holder's rows, so the per-character query that used
+# to sit in the manager as a comment is gone.
 
 set(SYNC_DB_RE "(CharacterDatabase|WorldDatabase|LoginDatabase)[ \t]*\\.[ \t]*(P?Query|QueryNamed|PQueryNamed|DirectExecute|DirectPExecute|DirectExecuteStmt|Ping|CommitTransactionChecked|escape_string)[ \t]*\\(")
 

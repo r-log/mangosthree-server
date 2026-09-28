@@ -319,7 +319,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr()
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -695,6 +695,9 @@ bool Player::Create(uint32 guidlow, const std::string& name, uint8 race, uint8 c
     SetByteValue(UNIT_FIELD_BYTES_0, 1, class_);
     SetByteValue(UNIT_FIELD_BYTES_0, 2, gender);
     SetByteValue(UNIT_FIELD_BYTES_0, 3, powertype);
+
+    // Decoupling D4k: the reputation manager's owner facts, fixed from here on
+    m_reputationMgr.SetOwnerFacts(getRaceMask(), getClassMask(), GetName());
 
     // Initialize player's display IDs (model, scale, and model data)
     InitDisplayIds();
@@ -4809,7 +4812,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
     GetSession()->SendPacket(&data);
 
     SendInitialActionButtons();
-    m_reputationMgr.SendInitialReputations();
+    SendInitialReputations();
 
     if (!IsAlive())
     {

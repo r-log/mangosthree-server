@@ -1183,7 +1183,7 @@ bool ChatHandler::HandleModifyRepCommand(char* args)
         return false;
     }
 
-    target->GetReputationMgr().SetReputation(factionEntry, amount);
+    target->SetReputation(factionEntry, amount);
     PSendSysMessage(LANG_COMMAND_MODIFY_REP, factionEntry->Name_lang[GetSessionDbcLocale()], factionId,
                     GetNameLink(target).c_str(), target->GetReputationMgr().GetReputation(factionEntry));
     return true;
