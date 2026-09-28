@@ -749,7 +749,7 @@ void WorldSession::HandleSetCurrencyFlagsOpcode(WorldPacket& recv_data)
     }
 
     flags &= PLAYERCURRENCY_MASK_USED_BY_CLIENT;
-    GetPlayer()->SetCurrencyFlags(currencyId, uint8(flags));
+    GetPlayer()->GetCurrencyMgr().SetFlags(currencyId, uint8(flags));
 }
 
 void WorldSession::HandleLoadScreenOpcode(WorldPacket& recvPacket)

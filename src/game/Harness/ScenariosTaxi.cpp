@@ -907,7 +907,7 @@ namespace Harness
      * stops there. Phase 4 goes one step further and drives the DECISION: the pet's owner guid
      * is cleared immediately before the flying word, which closes SavePetToDB's third gate and
      * makes Pet::Unsummon return at its owner check, while PetMgr::UnsummonTemporaryIfAny has
-     * already recorded the pet number on the way in. GetTemporaryUnsummonedPetNumber() is
+     * already recorded the pet number on the way in. GetPetMgr().GetTemporaryUnsummonedPetNumber() is
      * therefore the falsifier for the whole rule -- non-zero exactly when the unsummon was
      * reached -- and the pet's own disappearance, and its return on dismount, stay on the live
      * checklist. For the same reason NEITHER negative check may be left to run headless: putting
@@ -935,7 +935,7 @@ namespace Harness
             bool   aura = false;        ///< the mount aura landed (these spells take 1.5 s to cast)
             bool   mounted = false;
             bool   petAfter = false;
-            uint32 tempNumber = 0;      ///< GetTemporaryUnsummonedPetNumber(): non-zero only if the unsummon arm ran
+            uint32 tempNumber = 0;      ///< GetPetMgr().GetTemporaryUnsummonedPetNumber(): non-zero only if the unsummon arm ran
             uint32 samples = 0;
             uint32 petGone = 0;
             uint32 unmounted = 0;       ///< samples on which the mount was not on him after all
@@ -958,7 +958,7 @@ namespace Harness
 
                 // ---- phase 0 and phase 4: the lift-off ------------------------------------
                 bool   afootRan = false;       ///< the unmounted flying word went down the handler
-                uint32 afootNumber = 0;        ///< GetTemporaryUnsummonedPetNumber() after it: must be 0
+                uint32 afootNumber = 0;        ///< GetPetMgr().GetTemporaryUnsummonedPetNumber() after it: must be 0
                 Phase  flying;                 ///< the SAME mount with the gate open: it really can fly
                 bool   liftRan = false;        ///< the two mounted words went down the handler
                 bool   mountedAtLift = false;  ///< ...with the mount still on him
@@ -995,7 +995,7 @@ namespace Harness
                 Player* p = sPlayerRegistry.Find(g); if (!p) { return; }
                 Word(p, MOVEFLAG_FLYING);
                 st->afootRan = true;
-                st->afootNumber = p->GetTemporaryUnsummonedPetNumber();
+                st->afootNumber = p->GetPetMgr().GetTemporaryUnsummonedPetNumber();
                 Log(" 100ms a FLYING word on an UNMOUNTED player: mounted=%d word 0x%08x, temporary pet number %u",
                     p->IsMounted() ? 1 : 0, uint32(p->m_movementInfo.GetMovementFlags()), st->afootNumber);
             });
@@ -1082,7 +1082,7 @@ namespace Harness
                 // A MOUNTED player walking forward: a movement word with no MOVEFLAG_FLYING in
                 // it must not put the pet away, or the rule is "mounting" again by another name.
                 Word(p, MOVEFLAG_FORWARD);
-                st->groundWordNumber = p->GetTemporaryUnsummonedPetNumber();
+                st->groundWordNumber = p->GetPetMgr().GetTemporaryUnsummonedPetNumber();
                 Log("13100ms a mounted GROUND word: mounted=%d word 0x%08x -> 0x%08x, temporary pet number %u",
                     st->mountedAtLift ? 1 : 0, st->wordBeforeLift,
                     uint32(p->m_movementInfo.GetMovementFlags()), st->groundWordNumber);
@@ -1097,7 +1097,7 @@ namespace Harness
                 // already been recorded on the way in, which is the whole reading.
                 if (Pet* pet = FindPet(gp)) { pet->SetOwnerGuid(ObjectGuid()); }
                 Word(p, MOVEFLAG_FORWARD | MOVEFLAG_FLYING);
-                st->liftNumber = p->GetTemporaryUnsummonedPetNumber();
+                st->liftNumber = p->GetPetMgr().GetTemporaryUnsummonedPetNumber();
                 st->wordAfterLift = uint32(p->m_movementInfo.GetMovementFlags());
                 Log("13400ms THE LIFT-OFF word: word 0x%08x, mounted=%d, temporary pet number %u",
                     st->wordAfterLift, p->IsMounted() ? 1 : 0, st->liftNumber);
@@ -1227,7 +1227,7 @@ namespace Harness
                 ph.readRan = true;
                 ph.aura = p->HasAura(ph.spell);
                 ph.mounted = p->IsMounted();
-                ph.tempNumber = p->GetTemporaryUnsummonedPetNumber();
+                ph.tempNumber = p->GetPetMgr().GetTemporaryUnsummonedPetNumber();
                 ph.petAfter = pet && pet->IsAlive() && p->GetPetGuid() == gp;
                 Log("%4ums the mount landed: aura=%d mounted=%d display %u | pet his=%d, temporary pet number %u",
                     at, ph.aura ? 1 : 0, ph.mounted ? 1 : 0, p->GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID),
@@ -1252,7 +1252,7 @@ namespace Harness
                     {
                         Log("%4ums mounted=%d pet present=%d his=%d temporary number %u at (%.1f, %.1f)", t,
                             p->IsMounted() ? 1 : 0, pet ? 1 : 0, p->GetPetGuid() == gp ? 1 : 0,
-                            p->GetTemporaryUnsummonedPetNumber(),
+                            p->GetPetMgr().GetTemporaryUnsummonedPetNumber(),
                             pet ? pet->Where().X() : 0.0f, pet ? pet->Where().Y() : 0.0f);
                     }
                 });
@@ -1271,7 +1271,7 @@ namespace Harness
                 ph.petAtDismount = pet && pet->IsAlive() && p->GetPetGuid() == gp;
                 Log("%4ums the mount aura %u pulled: mounted=%d pet still his=%d temporary number %u",
                     at, ph.spell, p->IsMounted() ? 1 : 0, ph.petAtDismount ? 1 : 0,
-                    p->GetTemporaryUnsummonedPetNumber());
+                    p->GetPetMgr().GetTemporaryUnsummonedPetNumber());
             });
         }
 

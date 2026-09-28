@@ -280,8 +280,8 @@ SpellCastResult Spell::CheckRunePower()
 
     for (uint32 i = 0; i < MAX_RUNES; ++i)
     {
-        RuneType rune = plr->GetCurrentRune(i);
-        if (!plr->GetRuneCooldown(i) && runeCost[rune] > 0)
+        RuneType rune = plr->GetRuneMgr().GetCurrentRune(i);
+        if (!plr->GetRuneMgr().GetRuneCooldown(i) && runeCost[rune] > 0)
         {
             --runeCost[rune];
         }
@@ -327,7 +327,7 @@ void Spell::TakeRunePower(bool hit)
         return;
     }
 
-    m_runesState = plr->GetRunesState();                    // store previous state
+    m_runesState = plr->GetRuneMgr().GetRunesState();        // store previous state
 
     // at this moment for rune cost exist only no cost mods, and no percent mods
     int32 runeCost[NUM_RUNE_TYPES];                         // blood, frost, unholy, death
@@ -342,17 +342,17 @@ void Spell::TakeRunePower(bool hit)
 
     runeCost[RUNE_DEATH] = 0;                               // calculated later
 
-    plr->ClearLastUsedRuneMask();
+    plr->GetRuneMgr().ClearLastUsedRuneMask();
 
     for (uint32 i = 0; i < MAX_RUNES; ++i)
     {
-        RuneType rune = plr->GetCurrentRune(i);
-        if (!plr->GetRuneCooldown(i) && runeCost[rune] > 0)
+        RuneType rune = plr->GetRuneMgr().GetCurrentRune(i);
+        if (!plr->GetRuneMgr().GetRuneCooldown(i) && runeCost[rune] > 0)
         {
             uint16 baseCd = hit ? uint16(RUNE_BASE_COOLDOWN) : uint16(RUNE_MISS_COOLDOWN);
-            plr->SetBaseRuneCooldown(i, baseCd);
-            plr->SetRuneCooldown(i, baseCd);
-            plr->SetLastUsedRune(rune);
+            plr->GetRuneMgr().SetBaseRuneCooldown(i, baseCd);
+            plr->GetRuneMgr().SetRuneCooldown(i, baseCd);
+            plr->GetRuneMgr().SetLastUsedRune(rune);
             --runeCost[rune];
         }
     }
@@ -363,13 +363,13 @@ void Spell::TakeRunePower(bool hit)
     {
         for (uint32 i = 0; i < MAX_RUNES; ++i)
         {
-            RuneType rune = plr->GetCurrentRune(i);
-            if (!plr->GetRuneCooldown(i) && rune == RUNE_DEATH)
+            RuneType rune = plr->GetRuneMgr().GetCurrentRune(i);
+            if (!plr->GetRuneMgr().GetRuneCooldown(i) && rune == RUNE_DEATH)
             {
                 uint16 baseCd = hit ? uint16(RUNE_BASE_COOLDOWN) : uint16(RUNE_MISS_COOLDOWN);
-                plr->SetBaseRuneCooldown(i, baseCd);
-                plr->SetRuneCooldown(i, baseCd);
-                plr->SetLastUsedRune(rune);
+                plr->GetRuneMgr().SetBaseRuneCooldown(i, baseCd);
+                plr->GetRuneMgr().SetRuneCooldown(i, baseCd);
+                plr->GetRuneMgr().SetLastUsedRune(rune);
                 --runeCost[rune];
 
                 // keep Death Rune type if missed

@@ -386,9 +386,9 @@ namespace Harness
         s.values["xp"] = U(p->GetUInt32Value(PLAYER_XP));
         s.values["level"] = U(p->getLevel());
         s.values["xp.next"] = U(p->GetUInt32Value(PLAYER_NEXT_LEVEL_XP));
-        s.values["talents.free"] = U(p->GetFreeTalentPoints());
-        s.values["talents.specs"] = U(p->GetSpecsCount());
-        s.values["talents.active"] = U(p->GetActiveSpec());
+        s.values["talents.free"] = U(p->GetTalentMgr().FreePoints());
+        s.values["talents.specs"] = U(p->GetTalentMgr().SpecsCount());
+        s.values["talents.active"] = U(p->GetTalentMgr().ActiveSpec());
 
         for (size_t i = 0; i < m_watch.factions.size(); ++i)
         {
@@ -420,7 +420,7 @@ namespace Harness
 
         for (size_t i = 0; i < m_watch.currencies.size(); ++i)
         {
-            s.values["currency." + U(m_watch.currencies[i])] = U(p->GetCurrencyCount(m_watch.currencies[i]));
+            s.values["currency." + U(m_watch.currencies[i])] = U(p->GetCurrencyMgr().GetCount(m_watch.currencies[i]));
         }
 
         for (size_t i = 0; i < m_watch.quests.size(); ++i)

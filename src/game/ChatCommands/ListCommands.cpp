@@ -743,7 +743,7 @@ void ChatHandler::ShowCurrencyListHelper(Player* target, CurrencyTypesEntry cons
 {
     uint32 id = currency->ID;
 
-    uint32 count = target ? target->GetCurrencyCount(id) : 0;
+    uint32 count = target ? target->GetCurrencyMgr().GetCount(id) : 0;
 
     uint32 talentCost = GetTalentSpellCost(id);
 

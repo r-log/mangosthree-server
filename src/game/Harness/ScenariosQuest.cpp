@@ -1663,7 +1663,7 @@ namespace Harness
                 Player* p = sPlayerRegistry.Find(st->player);
                 Quest const* q = sObjectMgr.GetQuestTemplate(questId);
                 if (!p || !q || !st->askRan) { return; }
-                st->freeBefore = p->GetFreeTalentPoints();
+                st->freeBefore = p->GetTalentMgr().FreePoints();
                 st->knew48778 = p->HasSpell(48778);
                 st->knew33391 = p->HasSpell(33391);
                 st->achievementsBeforeReward = Achievements(p);
@@ -1672,7 +1672,7 @@ namespace Harness
                 st->levelBefore = p->getLevel();
                 st->xpExpected = uint32(q->XPValue(p) * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
                 st->rewardRan = Reward(p, q, 0, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
-                st->freeAfter = p->GetFreeTalentPoints();
+                st->freeAfter = p->GetTalentMgr().FreePoints();
                 st->talentUpdates = m_rec.CountIn("reward", SMSG_TALENT_UPDATE);
                 st->knows48778 = p->HasSpell(48778);
                 st->knows33391 = p->HasSpell(33391);
@@ -2242,7 +2242,7 @@ namespace Harness
                 st->xpBefore = p->GetUInt32Value(PLAYER_XP);
                 st->levelBefore = p->getLevel();
                 st->gemsBefore = p->GetItemCount(gem);
-                st->currencyBefore = p->GetCurrencyCount(currency);
+                st->currencyBefore = p->GetCurrencyMgr().GetCount(currency);
                 st->dailyBefore = !p->SatisfyQuestDay(q, false);
                 st->rewardRan = Reward(p, q, 0, p, p->GetObjectGuid(), "canReward", "reward", st->canReward);
                 st->moneyAfter = p->GetMoney();
@@ -2250,7 +2250,7 @@ namespace Harness
                 st->levelAfter = p->getLevel();
                 st->xpLogs = m_rec.CountIn("reward", SMSG_LOG_XPGAIN);
                 st->gemsAfter = p->GetItemCount(gem);
-                st->currencyAfter = p->GetCurrencyCount(currency);
+                st->currencyAfter = p->GetCurrencyMgr().GetCount(currency);
                 st->currencyPackets = m_rec.CountIn("reward", SMSG_SET_CURRENCY);
                 st->dailyAfter = !p->SatisfyQuestDay(q, false);
                 st->statusAfter = p->GetQuestStatus(questId);
@@ -2550,7 +2550,7 @@ namespace Harness
             m_rec.Open("level", false);          // a setup window: logged, never digested
             SetLevelAsResetDoes(p, level);
             st->levelSet = p->getLevel();
-            st->freeAtStart = p->GetFreeTalentPoints();
+            st->freeAtStart = p->GetTalentMgr().FreePoints();
 
             At(300, [this, st]()
             {
@@ -2558,10 +2558,10 @@ namespace Harness
                 if (!p) { return; }
                 m_rec.Open("specCount");
                 st->countRan = true;
-                st->specsBefore = p->GetSpecsCount();
+                st->specsBefore = p->GetTalentMgr().SpecsCount();
                 p->UpdateSpecCount(2);
-                st->specsAfter = p->GetSpecsCount();
-                st->activeAfterCount = p->GetActiveSpec();
+                st->specsAfter = p->GetTalentMgr().SpecsCount();
+                st->activeAfterCount = p->GetTalentMgr().ActiveSpec();
                 st->countUpdates = m_rec.CountIn("specCount", SMSG_TALENT_UPDATE);
                 m_rec.Open("specCount+tick");
             });
@@ -2577,7 +2577,7 @@ namespace Harness
                 {
                     p->SendTalentsInfoData(false);
                 }
-                st->freeAfter0 = p->GetFreeTalentPoints();
+                st->freeAfter0 = p->GetTalentMgr().FreePoints();
                 m_rec.Open("learn#0+tick");
             });
 
@@ -2588,8 +2588,8 @@ namespace Harness
                 m_rec.Open("activate#1");
                 p->ActivateSpec(1);
                 st->activated1 = true;
-                st->active1 = p->GetActiveSpec();
-                st->free1 = p->GetFreeTalentPoints();
+                st->active1 = p->GetTalentMgr().ActiveSpec();
+                st->free1 = p->GetTalentMgr().FreePoints();
                 st->rank1In1 = p->HasSpell(st->rank1);
                 st->rank2In1 = p->HasSpell(st->rank2);
                 m_rec.Open("activate#1+tick");
@@ -2606,7 +2606,7 @@ namespace Harness
                 {
                     p->SendTalentsInfoData(false);
                 }
-                st->freeAfter1 = p->GetFreeTalentPoints();
+                st->freeAfter1 = p->GetTalentMgr().FreePoints();
                 m_rec.Open("learn#1+tick");
             });
 
@@ -2617,8 +2617,8 @@ namespace Harness
                 m_rec.Open("activate#0");
                 p->ActivateSpec(0);
                 st->activated0 = true;
-                st->active0 = p->GetActiveSpec();
-                st->free0 = p->GetFreeTalentPoints();
+                st->active0 = p->GetTalentMgr().ActiveSpec();
+                st->free0 = p->GetTalentMgr().FreePoints();
                 st->rank1In0 = p->HasSpell(st->rank1);
                 st->rank2In0 = p->HasSpell(st->rank2);
                 st->switchUpdates = m_rec.CountIn("activate#0", SMSG_TALENT_UPDATE);

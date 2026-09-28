@@ -1717,8 +1717,6 @@ class Player : public Unit
         // Load the player's pet
         void LoadPet();
 
-        // m_stableSlots now owned by m_petMgr; access via GetStableSlots() / SetStableSlots().
-
         uint32 GetEquipGearScore(bool withBags = true, bool withBank = false);
         void ResetCachedGearScore() { m_cachedGS = 0; }
         typedef std::vector < uint32/*item level*/ > GearScoreVec;
@@ -2309,15 +2307,13 @@ class Player : public Unit
         // Learn a high-rank spell
         void learnSpellHighRank(uint32 spellid);
 
-        uint32 GetFreeTalentPoints() const { return m_talentMgr.FreePoints(); }
-        void SetFreeTalentPoints(uint32 points) { m_talentMgr.SetFreePoints(points); }
-        // Get the player's free talent points
-
-        // Set the player's free talent points
+        // The talent manager. Decoupling D4i: the free points, the primary tree, the active spec
+        // and the spec count are read and set on it directly.
+        TalentMgr& GetTalentMgr() { return m_talentMgr; }
+        TalentMgr const& GetTalentMgr() const { return m_talentMgr; }
 
         // Update the player's free talent points
         void UpdateFreeTalentPoints(bool resetIfNeed = true);
-        uint32 GetPrimaryTalentTree(uint8 spec) const { return m_talentMgr.PrimaryTree(spec); }
         bool resetTalents(bool no_cost = false, bool all_specs = false);
         void InitTalentForLevel();
         void BuildPlayerTalentsInfoData(WorldPacket* data);
@@ -2328,8 +2324,6 @@ class Player : public Unit
         void LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRank);
 
         // Dual Spec
-        uint8 GetActiveSpec() { return m_talentMgr.ActiveSpec(); }
-        uint8 GetSpecsCount() { return m_talentMgr.SpecsCount(); }
         void ActivateSpec(uint8 specNum);
         void UpdateSpecCount(uint8 count);
 
@@ -2366,11 +2360,6 @@ class Player : public Unit
             return m_spells;
         }
 
-        // Get the player's spell cooldown map
-        SpellCooldowns const& GetSpellCooldownMap() const { return m_spellCooldownMgr.GetSpellCooldownMap(); }
-
-        SpellEntry const* GetKnownTalentRankById(int32 talentId) const;
-
         void AddSpellMod(Aura* aura, bool apply);
         template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell const* spell = NULL);
 
@@ -2379,6 +2368,9 @@ class Player : public Unit
         // RemoveSpellCooldown, RemoveSpellCategoryCooldown, RemoveArenaSpellCooldowns,
         // _LoadSpellCooldowns and UpdatePotionCooldown build the manager's inputs or callbacks and
         // live in spells/PlayerSpellCooldown.cpp; the packets go through SessionSink().
+        // Decoupling D4i: the cooldown map and AddSpellCooldown are called on the manager directly.
+        SpellCooldownMgr& GetSpellCooldownMgr() { return m_spellCooldownMgr; }
+        SpellCooldownMgr const& GetSpellCooldownMgr() const { return m_spellCooldownMgr; }
         static uint32 const infinityCooldownDelay = SpellCooldownMgr::infinityCooldownDelay; // used for set "infinity cooldowns" for spells and check
         static uint32 const infinityCooldownDelayCheck = SpellCooldownMgr::infinityCooldownDelayCheck;
 
@@ -2390,9 +2382,6 @@ class Player : public Unit
 
         // Add spell and category cooldowns
         void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL, bool infinityCooldown = false);
-
-        // Add a spell cooldown
-        void AddSpellCooldown(uint32 spell_id, uint32 itemid, time_t end_time) { m_spellCooldownMgr.AddSpellCooldown(spell_id, itemid, end_time); }
 
         // Send a cooldown event to the client
         void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL);
@@ -3117,19 +3106,17 @@ class Player : public Unit
         // Decoupling D4k: the ones that read the server config, the character's currency-gain
         // aura or its in-world state, or that pass the achievement update and the quest checks,
         // live in inventory/PlayerCurrency.cpp; the packets go through SessionSink().
-        uint32 GetCurrencyCount(uint32 id) const { return m_currencyMgr.GetCount(id); }
-        uint32 GetCurrencySeasonCount(uint32 id) const { return m_currencyMgr.GetSeasonCount(id); }
-        uint32 GetCurrencyWeekCount(uint32 id) const { return m_currencyMgr.GetWeekCount(id); }
+        // Decoupling D4i: the counts, the total cap and the flags are read and set on the manager directly.
+        CurrencyMgr& GetCurrencyMgr() { return m_currencyMgr; }
+        CurrencyMgr const& GetCurrencyMgr() const { return m_currencyMgr; }
         uint32 GetCurrencyWeekCap(CurrencyTypesEntry const * currency) const;
-        uint32 GetCurrencyTotalCap(CurrencyTypesEntry const * currency) const { return m_currencyMgr.GetTotalCap(currency); }
         void SendCurrencies() const;
         void ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek = true, bool modifySeason = true, bool ignoreMultipliers = false);
-        bool HasCurrencyCount(uint32 id, uint32 count) const { return GetCurrencyCount(id) >= count; }
-        bool HasCurrencySeasonCount(uint32 id, uint32 count) const { return GetCurrencySeasonCount(id) >= count; }
+        bool HasCurrencyCount(uint32 id, uint32 count) const { return m_currencyMgr.GetCount(id) >= count; }
+        bool HasCurrencySeasonCount(uint32 id, uint32 count) const { return m_currencyMgr.GetSeasonCount(id) >= count; }
         void SetCurrencyCount(uint32 id, uint32 count);
         void SendCurrencyWeekCap(uint32 id) const;
         void SendCurrencyWeekCap(CurrencyTypesEntry const * currency) const;
-        void SetCurrencyFlags(uint32 currencyId, uint8 flags) { m_currencyMgr.SetFlags(currencyId, flags); }
         void ResetCurrencyWeekCounts() { m_currencyMgr.ResetWeekCounts(SessionSink()); }
 
         /*********************************************************/
@@ -3691,20 +3678,16 @@ class Player : public Unit
         void RemoveAtLoginFlag(AtLoginFlags f, bool in_db_also = false);
 
         // Pet ownership API. The state (temporary-unsummon pet number, stable slot count, pet
-        // rows) and its rules live on PetMgr; these keep their signatures so external callers
-        // (SpellAuras.cpp, Spell.cpp, BattleGround.cpp, Vehicle.cpp, MovementHandler.cpp,
-        // CharacterHandler.cpp, MiscHandler.cpp, WorldSession.cpp, Pet.cpp, Unit.cpp) compile
-        // without changes. Decoupling D4k: the three that reach the live pet
+        // rows) and its rules live on PetMgr. Decoupling D4k: the three that reach the live pet
         // (UnsummonPetTemporaryIfAny, UnsummonPetIfAny, ResummonPetTemporaryUnSummonedIfAny)
         // live in pets/PlayerPet.cpp, with RemovePet; RemovePetActionBar's packet goes
-        // through SessionSink().
-        uint32 GetTemporaryUnsummonedPetNumber() const { return m_petMgr.GetTemporaryUnsummonedPetNumber(); }
-        void SetTemporaryUnsummonedPetNumber(uint32 petnumber) { m_petMgr.SetTemporaryUnsummonedPetNumber(petnumber); }
+        // through SessionSink(). Decoupling D4i: the temporary-unsummon pet number is read and
+        // set on the manager directly.
+        PetMgr& GetPetMgr() { return m_petMgr; }
+        PetMgr const& GetPetMgr() const { return m_petMgr; }
         void UnsummonPetTemporaryIfAny();
         void UnsummonPetIfAny();
         void ResummonPetTemporaryUnSummonedIfAny();
-        uint32 GetStableSlots() const { return m_petMgr.GetStableSlots(); }
-        void SetStableSlots(uint32 slots) { m_petMgr.SetStableSlots(slots); }
         bool IsPetNeedBeTemporaryUnsummoned() const { return !IsInWorld() || !IsAlive() || IsMounted() || IsTaxiFlying(); }
 
         // Decoupling D7e: the character's rows from character_pet, pet_aura, pet_spell,
@@ -3841,28 +3824,15 @@ class Player : public Unit
         // Rune functions (delegated to m_runeMgr), need check getClass() == CLASS_DEATH_KNIGHT before access.
         // Decoupling D4k: the five declared here without a body read the character's auras, ratings
         // or class, or cast a spell, and live in spells/PlayerRune.cpp; the packets go through SessionSink().
-        uint8 GetRunesState() const { return m_runeMgr.GetRunesState(); }
-        RuneType GetBaseRune(uint8 index) const { return m_runeMgr.GetBaseRune(index); }
-        RuneType GetCurrentRune(uint8 index) const { return m_runeMgr.GetCurrentRune(index); }
-        uint16 GetRuneCooldown(uint8 index) const { return m_runeMgr.GetRuneCooldown(index); }
-        uint16 GetBaseRuneCooldown(uint8 index) const { return m_runeMgr.GetBaseRuneCooldown(index); }
-        uint8 GetRuneCooldownFraction(uint8 index) const { return m_runeMgr.GetRuneCooldownFraction(index); }
+        // Decoupling D4i: the rune getters and setters are called on the manager directly.
+        RuneMgr& GetRuneMgr() { return m_runeMgr; }
+        RuneMgr const& GetRuneMgr() const { return m_runeMgr; }
         void UpdateRuneRegen(RuneType rune);
         void UpdateRuneRegen();
-        bool IsBaseRuneSlotsOnCooldown(RuneType runeType) const { return m_runeMgr.IsBaseRuneSlotsOnCooldown(runeType); }
-        void ClearLastUsedRuneMask() { m_runeMgr.ClearLastUsedRuneMask(); }
-        bool IsLastUsedRune(uint8 index) const { return m_runeMgr.IsLastUsedRune(index); }
-        void SetLastUsedRune(RuneType type) { m_runeMgr.SetLastUsedRune(type); }
-        void SetBaseRune(uint8 index, RuneType baseRune) { m_runeMgr.SetBaseRune(index, baseRune); }
-        void SetCurrentRune(uint8 index, RuneType currentRune) { m_runeMgr.SetCurrentRune(index, currentRune); }
-        void SetRuneCooldown(uint8 index, uint16 cooldown) { m_runeMgr.SetRuneCooldown(index, cooldown); }
-        void SetBaseRuneCooldown(uint8 index, uint16 cooldown) { m_runeMgr.SetBaseRuneCooldown(index, cooldown); }
-        void SetRuneConvertAura(uint8 index, Aura const* aura) { m_runeMgr.SetRuneConvertAura(index, aura); }
         void AddRuneByAuraEffect(uint8 index, RuneType newType, Aura const* aura);
         void RemoveRunesByAuraEffect(Aura const* aura) { m_runeMgr.RemoveRunesByAuraEffect(aura, SessionSink()); }
         void RestoreBaseRune(uint8 index);
         void ConvertRune(uint8 index, RuneType newType) { m_runeMgr.ConvertRune(index, newType, SessionSink()); }
-        bool ActivateRunes(RuneType type, uint32 count) { return m_runeMgr.ActivateRunes(type, count); }
         void ResyncRunes() { m_runeMgr.ResyncRunes(SessionSink()); }
         void AddRunePower(uint8 index) { m_runeMgr.AddRunePower(index, SessionSink()); }
         void InitRunes();
@@ -3987,7 +3957,7 @@ class Player : public Unit
         void _SaveSpells();
         void _SaveEquipmentSets();
         void _SaveBGData();
-        void _SaveGlyphs() { m_glyphMgr.Save(GetGUIDLow(), GetSpecsCount()); }
+        void _SaveGlyphs() { m_glyphMgr.Save(GetGUIDLow(), m_talentMgr.SpecsCount()); }
         void _SaveCUFProfiles();
         void _SaveStats();
 

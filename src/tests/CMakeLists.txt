@@ -309,6 +309,12 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME stored_callbacks
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/stored_callbacks.py
             --source-root ${CMAKE_SOURCE_DIR})
+
+    # Decoupling D4i: the forwarder rewrite drops the character's pure forwarders to its managers
+    # and moves their callers onto the managers; its self-test keeps the purity and the
+    # unique-name rules honest.
+    add_test(NAME forwarder_rewrite_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/forwarder_rewrite.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

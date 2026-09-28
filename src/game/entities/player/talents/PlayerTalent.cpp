@@ -84,7 +84,7 @@
  */
 bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
 {
-    uint32 CurTalentPoints = GetFreeTalentPoints();
+    uint32 CurTalentPoints = m_talentMgr.FreePoints();
 
     if (CurTalentPoints == 0)
     {
@@ -411,7 +411,7 @@ void Player::LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRa
 
 void Player::BuildPlayerTalentsInfoData(WorldPacket* data)
 {
-    *data << uint32(GetFreeTalentPoints());                 // unspentTalentPoints
+    *data << uint32(m_talentMgr.FreePoints());              // unspentTalentPoints
     *data << uint8(m_talentMgr.SpecsCount());               // talent group count (0, 1 or 2)
     *data << uint8(m_talentMgr.ActiveSpec());               // talent group index (0 or 1)
 
@@ -597,12 +597,12 @@ void Player::SendTalentsInfoData(bool pet)
 
 void Player::ActivateSpec(uint8 specNum)
 {
-    if (GetActiveSpec() == specNum)
+    if (m_talentMgr.ActiveSpec() == specNum)
     {
         return;
     }
 
-    if (specNum >= GetSpecsCount())
+    if (specNum >= m_talentMgr.SpecsCount())
     {
         return;
     }
@@ -780,7 +780,7 @@ void Player::ActivateSpec(uint8 specNum)
 
 void Player::UpdateSpecCount(uint8 count)
 {
-    uint8 curCount = GetSpecsCount();
+    uint8 curCount = m_talentMgr.SpecsCount();
     if (curCount == count)
     {
         return;

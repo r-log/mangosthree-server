@@ -257,8 +257,8 @@ void Player::Regenerate(Powers power, uint32 diff)
             {
                 uint32 cd_diff = diff;
                 uint8 runeToRegen = rune;
-                uint32 cd = GetRuneCooldown(rune);
-                uint32 secondRuneCd = GetRuneCooldown(rune + 1);
+                uint32 cd = m_runeMgr.GetRuneCooldown(rune);
+                uint32 secondRuneCd = m_runeMgr.GetRuneCooldown(rune + 1);
                 // Regenerate second rune of the same type only after first rune is off the cooldown
                 if (secondRuneCd && (cd > secondRuneCd || !cd))
                 {
@@ -268,7 +268,7 @@ void Player::Regenerate(Powers power, uint32 diff)
 
                 if (cd)
                 {
-                    SetRuneCooldown(rune, (cd < cd_diff) ? 0 : cd - cd_diff);
+                    m_runeMgr.SetRuneCooldown(rune, (cd < cd_diff) ? 0 : cd - cd_diff);
                 }
             }
             break;

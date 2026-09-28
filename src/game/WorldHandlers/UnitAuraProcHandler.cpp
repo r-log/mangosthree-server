@@ -614,7 +614,7 @@ SpellAuraProcResult Unit::HandleHasteAuraProc(Unit* pVictim, uint32 damage, Aura
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -695,7 +695,7 @@ SpellAuraProcResult Unit::HandleSpellCritChanceAuraProc(Unit* pVictim, uint32 /*
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -2878,7 +2878,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     // apply cooldown before cast to prevent processing itself
                     if (cooldown)
                     {
-                        ((Player*)this)->AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
+                        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
                     }
 
                     // Attack Twice
@@ -3246,7 +3246,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
 
                 if (cooldown && GetTypeId() == TYPEID_PLAYER)
                 {
-                    ((Player*)this)->AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
+                    ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
                 }
 
                 return SPELL_AURA_PROC_OK;
@@ -3533,7 +3533,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -4380,7 +4380,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             else if (auraSpellInfo->SpellIconID == 85)
             {
                 if (GetTypeId() != TYPEID_PLAYER || getClass() != CLASS_DEATH_KNIGHT ||
-                        !((Player*)this)->IsBaseRuneSlotsOnCooldown(RUNE_BLOOD))
+                        !((Player*)this)->GetRuneMgr().IsBaseRuneSlotsOnCooldown(RUNE_BLOOD))
                     return SPELL_AURA_PROC_FAILED;
             }
             // Improved Blood Presence
@@ -4643,7 +4643,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->AddSpellCooldown(trigger_spell_id, 0, time(NULL) + cooldown);
+        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(trigger_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -4802,7 +4802,7 @@ SpellAuraProcResult Unit::HandleOverrideClassScriptAuraProc(Unit* pVictim, uint3
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -5126,7 +5126,7 @@ SpellAuraProcResult Unit::HandleManaShieldAuraProc(Unit* pVictim, uint32 /*damag
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;

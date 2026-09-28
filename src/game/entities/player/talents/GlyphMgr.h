@@ -186,7 +186,7 @@ class GlyphMgr
         /**
          * @brief Apply or remove the spell from a single glyph slot on the owner.
          *
-         * @param activeSpec The owner's active spec, GetActiveSpec().
+         * @param activeSpec The owner's active spec, TalentMgr::ActiveSpec().
          * @param slot       The glyph slot index.
          * @param apply      True to cast and write the slot's spell, false to remove it.
          * @param sinks      The cast, the aura removal and the PLAYER_FIELD_GLYPHS_1 + slot field.
@@ -210,7 +210,7 @@ class GlyphMgr
          * clears their dirty flags.
          *
          * @param ownerGuidLow The owner's GetGUIDLow().
-         * @param specsCount   The owner's GetSpecsCount().
+         * @param specsCount   The owner's TalentMgr::SpecsCount().
          */
         void Save(uint32 ownerGuidLow, uint8 specsCount);
 

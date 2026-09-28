@@ -2924,7 +2924,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     }
 
                     // immediately finishes the cooldown on Frost spells
-                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMap();
+                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
                     for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
                     {
                         SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
@@ -3381,7 +3381,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     }
 
                     // immediately finishes the cooldown on certain Rogue abilities
-                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMap();
+                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
                     for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
                     {
                         SpellEntry const *spellInfo = sSpellStore.LookupEntry(itr->first);
@@ -3472,7 +3472,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     }
 
                     // immediately finishes the cooldown for hunter abilities
-                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMap();
+                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
                     for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
                     {
                         SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);

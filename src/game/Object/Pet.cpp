@@ -321,8 +321,8 @@ void Pet::Unsummon(PetSaveMode mode, Unit* owner /*= NULL*/)
         if (p_owner)
         {
             // not save secondary permanent pet as current
-            if (mode == PET_SAVE_AS_CURRENT && p_owner->GetTemporaryUnsummonedPetNumber() &&
-                p_owner->GetTemporaryUnsummonedPetNumber() != GetCharmInfo()->GetPetNumber())
+            if (mode == PET_SAVE_AS_CURRENT && p_owner->GetPetMgr().GetTemporaryUnsummonedPetNumber() &&
+                p_owner->GetPetMgr().GetTemporaryUnsummonedPetNumber() != GetCharmInfo()->GetPetNumber())
                 {
                     mode = PET_SAVE_NOT_IN_SLOT;
                 }
@@ -1094,7 +1094,7 @@ void Pet::CastOwnerTalentAuras()
 
         if (IsAlive())
         {
-            const SpellEntry* seTalent = pOwner->GetKnownTalentRankById(1800); // Ferocious Inspiration
+            const SpellEntry* seTalent = pOwner->GetTalentMgr().GetKnownTalentRankById(1800); // Ferocious Inspiration
 
             if (seTalent)
             {

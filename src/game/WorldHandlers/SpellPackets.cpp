@@ -280,10 +280,10 @@ void Spell::SendSpellStart()
             Player* caster = (Player*)m_caster;
 
             data << uint8(m_runesState);
-            data << uint8(caster->GetRunesState());
+            data << uint8(caster->GetRuneMgr().GetRunesState());
             for (uint8 i = 0; i < MAX_RUNES; ++i)
             {
-                data << uint8(caster->GetRuneCooldownFraction(i));
+                data << uint8(caster->GetRuneMgr().GetRuneCooldownFraction(i));
             }
         }
         else
@@ -394,10 +394,10 @@ void Spell::SendSpellGo()
             Player* caster = (Player*)m_caster;
 
             data << uint8(m_runesState);
-            data << uint8(caster->GetRunesState());
+            data << uint8(caster->GetRuneMgr().GetRunesState());
             for (uint8 i = 0; i < MAX_RUNES; ++i)
             {
-                data << uint8(255 - ((caster->GetRuneCooldown(i) / REGEN_TIME_FULL) * 51));
+                data << uint8(255 - ((caster->GetRuneMgr().GetRuneCooldown(i) / REGEN_TIME_FULL) * 51));
             }
         }
         else
