@@ -487,7 +487,7 @@ struct npc_silvermoon_harry : public CreatureScript
                 pCreature->AI()->AttackStart(pPlayer);
                 break;
             case GOSSIP_ACTION_INFO_DEF + 2:
-                if (!pPlayer->HasItemCount(ITEM_HARRY_DEBT, 1))
+                if (!pPlayer->GetInventoryMgr().HasItemCount(ITEM_HARRY_DEBT, 1))
                 {
                     if (Item* pItem = pPlayer->StoreNewItemInInventorySlot(ITEM_HARRY_DEBT, 1))
                     {
@@ -1124,7 +1124,7 @@ struct npc_scalawag_frog : public CreatureScript
 
     bool OnSpellClick(Player* pPlayer, Creature* pClickedCreature, uint32 /*uiSpellId*/) override
     {
-        if (pClickedCreature->GetEntry() == NPC_SCALAWAG_FROG && pPlayer->HasItemCount(ITEM_ID_SHINY_KNIFE, 1))
+        if (pClickedCreature->GetEntry() == NPC_SCALAWAG_FROG && pPlayer->GetInventoryMgr().HasItemCount(ITEM_ID_SHINY_KNIFE, 1))
         {
             if (Item* pItem = pPlayer->StoreNewItemInInventorySlot(ITEM_ID_SCALAWAG_FROG, 1))
             {

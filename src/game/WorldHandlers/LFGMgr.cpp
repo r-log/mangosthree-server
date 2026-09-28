@@ -689,11 +689,11 @@ std::vector<LFGLockedDungeon> LFGMgr::GetPlayerLockList(Player* plr)
 
             in.requiresItem1 = req->item != 0;
             in.hasItem1 = !in.requiresItem1
-                || plr->HasItemCount(req->item, 1);
+                || plr->GetInventoryMgr().HasItemCount(req->item, 1);
 
             in.requiresItem2 = req->item2 != 0;
             in.hasItem2 = !in.requiresItem2
-                || plr->HasItemCount(req->item2, 1);
+                || plr->GetInventoryMgr().HasItemCount(req->item2, 1);
         }
 
         LFGLockReason::Result result = LFGLockReason::Compute(in);

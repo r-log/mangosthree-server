@@ -2027,7 +2027,7 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
         case CONDITION_AURA:
             return player->HasAura(m_value1, SpellEffectIndex(m_value2));
         case CONDITION_ITEM:
-            return player->HasItemCount(m_value1, m_value2);
+            return player->GetInventoryMgr().HasItemCount(m_value1, m_value2);
         case CONDITION_ITEM_EQUIPPED:
             return player->HasItemOrGemWithIdEquipped(m_value1, 1);
         case CONDITION_AREAID:
@@ -2104,7 +2104,7 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
             return false;
         }
         case CONDITION_NOITEM:
-            return !player->HasItemCount(m_value1, m_value2);
+            return !player->GetInventoryMgr().HasItemCount(m_value1, m_value2);
         case CONDITION_SPELL:
         {
             switch (m_value2)
@@ -2159,9 +2159,9 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
             return false;
         }
         case CONDITION_ITEM_WITH_BANK:
-            return player->HasItemCount(m_value1, m_value2, true);
+            return player->GetInventoryMgr().HasItemCount(m_value1, m_value2, true);
         case CONDITION_NOITEM_WITH_BANK:
-            return !player->HasItemCount(m_value1, m_value2, true);
+            return !player->GetInventoryMgr().HasItemCount(m_value1, m_value2, true);
         case CONDITION_NOT_ACTIVE_GAME_EVENT:
             return !sGameEventMgr.IsActiveEvent(m_value1);
         case CONDITION_ACTIVE_HOLIDAY:
@@ -2182,7 +2182,7 @@ bool PlayerCondition::Meets(Player const* player, Map const* map, WorldObject co
                 // Hard coded item count. This should be ok, since the intention with this condition is to have
                 // a all-in-one check regarding items that learn some ability (primary/secondary tradeskills).
                 // Commonly, items like this is unique and/or are not expected to be obtained more than once.
-                if (player->HasItemCount(m_value2, 1, true))
+                if (player->GetInventoryMgr().HasItemCount(m_value2, 1, true))
                 {
                     return false;
                 }

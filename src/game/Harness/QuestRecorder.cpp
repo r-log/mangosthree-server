@@ -360,7 +360,7 @@ namespace Harness
         char key[32];
         for (uint8 slot = EQUIPMENT_SLOT_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
         {
-            if (Item* item = p->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+            if (Item* item = p->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
             {
                 snprintf(key, sizeof(key), "inv.%03u.%02u", uint32(INVENTORY_SLOT_BAG_0), uint32(slot));
                 s.values[key] = U(item->GetEntry()) + "x" + U(item->GetCount());
@@ -368,12 +368,12 @@ namespace Harness
         }
         for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
         {
-            Item* container = p->GetItemByPos(INVENTORY_SLOT_BAG_0, bagSlot);
+            Item* container = p->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, bagSlot);
             if (Bag* bag = container ? container->ToBag() : NULL)
             {
                 for (uint32 j = 0; j < bag->GetBagSize(); ++j)
                 {
-                    if (Item* item = p->GetItemByPos(bagSlot, uint8(j)))
+                    if (Item* item = p->GetInventoryMgr().GetItemByPos(bagSlot, uint8(j)))
                     {
                         snprintf(key, sizeof(key), "inv.%03u.%02u", uint32(bagSlot), j);
                         s.values[key] = U(item->GetEntry()) + "x" + U(item->GetCount());

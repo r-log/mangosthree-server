@@ -87,7 +87,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    Item* pItem = pUser->GetItemByPos(bagIndex, slot);
+    Item* pItem = pUser->GetInventoryMgr().GetItemByPos(bagIndex, slot);
     if (!pItem)
     {
         recvPacket.rpos(recvPacket.wpos());                 // prevent spam at not read packet tail
@@ -247,7 +247,7 @@ void WorldSession::HandleOpenItemOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    Item* pItem = pUser->GetItemByPos(bagIndex, slot);
+    Item* pItem = pUser->GetInventoryMgr().GetItemByPos(bagIndex, slot);
     if (!pItem)
     {
         pUser->SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, NULL, NULL);
@@ -350,7 +350,7 @@ void WorldSession::HandleOpenWrappedItemCallback(std::unique_ptr<QueryResult> re
     // The item is re-found by guid, never carried across a tick as a pointer: in the
     // meantime it can have been mailed, traded, sold or destroyed, and the Item object
     // freed with it.
-    Item* pItem = pUser->GetItemByGuid(itemGuid);
+    Item* pItem = pUser->GetInventoryMgr().GetItemByGuid(itemGuid);
     if (!pItem)
     {
         return;
@@ -939,17 +939,17 @@ void WorldSession::HandleGetMirrorimageData(WorldPacket& recv_data)
         }
         else
         {
-            data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_HEAD);
+            data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_HEAD);
         }
 
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_SHOULDERS);
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_BODY);
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_CHEST);
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_WAIST);
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_LEGS);
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_FEET);
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_WRISTS);
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_HANDS);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_SHOULDERS);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_BODY);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_CHEST);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_WAIST);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_LEGS);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_FEET);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_WRISTS);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_HANDS);
 
         if (pPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_HIDE_CLOAK))
         {
@@ -957,10 +957,10 @@ void WorldSession::HandleGetMirrorimageData(WorldPacket& recv_data)
         }
         else
         {
-            data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_BACK);
+            data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_BACK);
         }
 
-        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TABARD);
+        data << (uint32)pPlayer->GetInventoryMgr().GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TABARD);
     }
     else
     {

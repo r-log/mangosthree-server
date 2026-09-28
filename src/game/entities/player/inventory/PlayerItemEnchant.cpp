@@ -178,7 +178,7 @@ void Player::RemoveAllEnchantments(EnchantmentSlot slot)
     // NOTE: no need to remove these from stats, since these aren't equipped
     // in inventory
     for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->GetEnchantmentId(slot))
             {
                 pItem->ClearEnchantment(slot);
@@ -186,7 +186,7 @@ void Player::RemoveAllEnchantments(EnchantmentSlot slot)
 
     // in inventory bags
     for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
                 if (Item* pItem = pBag->GetItemByPos(j))
                     if (pItem->GetEnchantmentId(slot))
@@ -881,7 +881,7 @@ void Player::SendNewItem(Item* item, uint32 count, bool received, bool created, 
     data << uint32(item->GetItemSuffixFactor());            // SuffixFactor
     data << uint32(item->GetItemRandomPropertyId());        // random item property id
     data << uint32(count);                                  // count of items
-    data << uint32(GetItemCount(item->GetEntry()));         // count of items in inventory
+    data << uint32(m_inventoryMgr.GetItemCount(item->GetEntry()));         // count of items in inventory
 
     if (broadcast && GetGroup())
     {
@@ -901,7 +901,7 @@ void Player::BuildEnchantmentsInfoData(WorldPacket* data)
 
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
     {
-        Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
 
         if (!item)
         {

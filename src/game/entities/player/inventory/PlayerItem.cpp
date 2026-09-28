@@ -98,7 +98,7 @@ uint8 Player::FindEquipSlot(ItemPrototype const* proto, uint32 slot, bool swap) 
 
     if (slot != NULL_SLOT)
     {
-        if (swap || !GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+        if (swap || !m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
         {
             for (int i = 0; i < 4; ++i)
             {
@@ -114,7 +114,7 @@ uint8 Player::FindEquipSlot(ItemPrototype const* proto, uint32 slot, bool swap) 
         // search free slot at first
         for (int i = 0; i < 4; ++i)
         {
-            if (slots[i] != NULL_SLOT && !GetItemByPos(INVENTORY_SLOT_BAG_0, slots[i]))
+            if (slots[i] != NULL_SLOT && !m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, slots[i]))
             {
                 // in case 2hand equipped weapon (without titan grip) offhand slot empty but not free
                 if (slots[i] != EQUIPMENT_SLOT_OFFHAND || !IsTwoHandUsed())
@@ -138,79 +138,6 @@ uint8 Player::FindEquipSlot(ItemPrototype const* proto, uint32 slot, bool swap) 
     return NULL_SLOT;
 }
 
-/**
- * @brief Checks whether a bag and slot refer to normal inventory storage.
- *
- * @param bag The bag identifier.
- * @param slot The slot identifier.
- * @return True if the position is an inventory position; otherwise, false.
- */
-bool Player::IsInventoryPos(uint8 bag, uint8 slot)
-{
-    return InventoryMgr::IsInventoryPos(bag, slot);
-}
-
-/**
- * @brief Checks whether a bag and slot refer to an equipment position.
- *
- * @param bag The bag identifier.
- * @param slot The slot identifier.
- * @return True if the position is an equipment position; otherwise, false.
- */
-bool Player::IsEquipmentPos(uint8 bag, uint8 slot)
-{
-    return InventoryMgr::IsEquipmentPos(bag, slot);
-}
-
-/**
- * @brief Checks whether a bag and slot refer to bank storage.
- *
- * @param bag The bag identifier.
- * @param slot The slot identifier.
- * @return True if the position is in bank storage; otherwise, false.
- */
-bool Player::IsBankPos(uint8 bag, uint8 slot)
-{
-    return InventoryMgr::IsBankPos(bag, slot);
-}
-
-/**
- * @brief Checks whether a packed position refers to a bag slot.
- *
- * @param pos The packed bag and slot position.
- * @return True if the position is a bag slot; otherwise, false.
- */
-bool Player::IsBagPos(uint16 pos)
-{
-    return InventoryMgr::IsBagPos(pos);
-}
-
-/**
- * @brief Checks whether a bag and slot form a valid player storage position.
- *
- * @param bag The bag identifier.
- * @param slot The slot identifier.
- * @param explicit_pos True if the caller requires an explicit fixed position.
- * @return True if the position is valid; otherwise, false.
- */
-bool Player::IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const
-{
-    return m_inventoryMgr.IsValidPos(bag, slot, explicit_pos);
-}
-
-/**
- * @brief Checks whether the player owns at least a given count of an item.
- *
- * @param item The item entry to count.
- * @param count The required quantity.
- * @param inBankAlso True to include bank storage in the search.
- * @return True if enough items are present; otherwise, false.
- */
-bool Player::HasItemCount(uint32 item, uint32 count, bool inBankAlso) const
-{
-    return m_inventoryMgr.HasItemCount(item, count, inBankAlso);
-}
-
 bool Player::HasItemOrGemWithIdEquipped(uint32 item, uint32 count, uint8 except_slot) const
 {
     uint32 tempcount = 0;
@@ -221,7 +148,7 @@ bool Player::HasItemOrGemWithIdEquipped(uint32 item, uint32 count, uint8 except_
             continue;
         }
 
-        Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (pItem && pItem->GetEntry() == item)
         {
             tempcount += pItem->GetCount();
@@ -242,7 +169,7 @@ bool Player::HasItemOrGemWithIdEquipped(uint32 item, uint32 count, uint8 except_
                 continue;
             }
 
-            Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
             if (pItem && pItem->GetProto()->Socket[0].Color)
             {
                 tempcount += pItem->GetGemCountWithID(item);
@@ -267,7 +194,7 @@ bool Player::HasItemOrGemWithLimitCategoryEquipped(uint32 limitCategory, uint32 
             continue;
         }
 
-        Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (!pItem)
         {
             continue;

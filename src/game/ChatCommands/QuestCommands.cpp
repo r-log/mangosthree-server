@@ -212,7 +212,7 @@ bool ChatHandler::HandleQuestCompleteCommand(char* args)
             continue;
         }
 
-        uint32 curItemCount = player->GetItemCount(id, true);
+        uint32 curItemCount = player->GetInventoryMgr().GetItemCount(id, true);
 
         ItemPosCountVec dest;
         uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, id, count - curItemCount);

@@ -88,7 +88,7 @@ uint32 Player::GetEquipGearScore(bool withBags, bool withBank)
 
     for (uint8 i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
     {
-        if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
             _fillGearScoreData(item, &gearScore, twoHandScore);
         }
@@ -99,7 +99,7 @@ uint32 Player::GetEquipGearScore(bool withBags, bool withBank)
         // check inventory
         for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
         {
-            if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
                 _fillGearScoreData(item, &gearScore, twoHandScore);
             }
@@ -108,7 +108,7 @@ uint32 Player::GetEquipGearScore(bool withBags, bool withBank)
         // check bags
         for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
         {
-            if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
                 for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
                 {
@@ -125,7 +125,7 @@ uint32 Player::GetEquipGearScore(bool withBags, bool withBank)
     {
         for (uint8 i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
         {
-            if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
                 _fillGearScoreData(item, &gearScore, twoHandScore);
             }
@@ -133,7 +133,7 @@ uint32 Player::GetEquipGearScore(bool withBags, bool withBank)
 
         for (uint8 i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
         {
-            if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
                 if (item->IsBag())
                 {

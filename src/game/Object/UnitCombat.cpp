@@ -1124,7 +1124,7 @@ float Unit::GetUnitBlockChance() const
             }
             if (canBlock && canUseOffhandWeapon)
             {
-                Item* tmpitem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);  // E2b, nullable, same guard
+                Item* tmpitem = player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);  // E2b, nullable, same guard
                 if (tmpitem && !tmpitem->IsBroken())
                 {
                     hasUnbrokenOffhandItem = true;

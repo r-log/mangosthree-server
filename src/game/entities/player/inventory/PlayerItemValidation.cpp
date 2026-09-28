@@ -224,7 +224,7 @@ InventoryResult Player::CanEquipItem(uint8 slot, uint16& dest, Item* pItem, bool
             {
                 return msg;
             }
-            if (!swap && GetItemByPos(INVENTORY_SLOT_BAG_0, eslot))
+            if (!swap && m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, eslot))
             {
                 return EQUIP_ERR_NO_EQUIPMENT_SLOT_AVAILABLE;
             }
@@ -240,7 +240,7 @@ InventoryResult Player::CanEquipItem(uint8 slot, uint16& dest, Item* pItem, bool
             {
                 for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
                 {
-                    if (Item* pBag = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                    if (Item* pBag = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
                     {
                         if (pBag != pItem)
                         {
@@ -299,7 +299,7 @@ InventoryResult Player::CanEquipItem(uint8 slot, uint16& dest, Item* pItem, bool
                 if (!CanTitanGrip())
                 {
                     // offhand item must can be stored in inventory for offhand item and it also must be unequipped
-                    Item* offItem = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+                    Item* offItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
                     ItemPosCountVec off_dest;
                     if (offItem && (!direct_action ||
                                     CanUnequipItem(uint16(INVENTORY_SLOT_BAG_0) << 8 | EQUIPMENT_SLOT_OFFHAND, false) !=  EQUIP_ERR_OK ||
@@ -325,12 +325,12 @@ InventoryResult Player::CanEquipItem(uint8 slot, uint16& dest, Item* pItem, bool
 InventoryResult Player::CanUnequipItem(uint16 pos, bool swap) const
 {
     // Applied only to equipped items and bank bags
-    if (!IsEquipmentPos(pos) && !IsBagPos(pos))
+    if (!InventoryMgr::IsEquipmentPos(pos) && !InventoryMgr::IsBagPos(pos))
     {
         return EQUIP_ERR_OK;
     }
 
-    Item* pItem = GetItemByPos(pos);
+    Item* pItem = m_inventoryMgr.GetItemByPos(pos);
 
     // Applied only to existing equipped item
     if (!pItem)

@@ -675,7 +675,7 @@ void Spell::EffectEnchantHeldItem(SpellEffectEntry const* effect)
     }
 
     Player* item_owner = (Player*)unitTarget;
-    Item* item = item_owner->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+    Item* item = item_owner->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
 
     if (!item)
     {

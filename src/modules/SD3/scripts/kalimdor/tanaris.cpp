@@ -90,10 +90,10 @@ struct mob_aquementas : public CreatureScript
 
         void SendItem(Player* pReceiver)
         {
-            if (pReceiver->HasItemCount(ITEM_BOOK_AQUOR, 1) &&
-                pReceiver->HasItemCount(ITEM_SILVERY_CLAWS, 11) &&
-                pReceiver->HasItemCount(ITEM_IRONTREE_HEART, 1) &&
-                !pReceiver->HasItemCount(ITEM_SILVER_TOTEM, 1))
+            if (pReceiver->GetInventoryMgr().HasItemCount(ITEM_BOOK_AQUOR, 1) &&
+                pReceiver->GetInventoryMgr().HasItemCount(ITEM_SILVERY_CLAWS, 11) &&
+                pReceiver->GetInventoryMgr().HasItemCount(ITEM_IRONTREE_HEART, 1) &&
+                !pReceiver->GetInventoryMgr().HasItemCount(ITEM_SILVER_TOTEM, 1))
             {
                 if (Item* pItem = pReceiver->StoreNewItemInInventorySlot(ITEM_SILVER_TOTEM, 1))
                 {

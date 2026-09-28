@@ -2581,7 +2581,7 @@ SpellCastResult Spell::CheckItems()
         }
 
         uint32 itemid = m_CastItem->GetEntry();
-        if (!p_caster->HasItemCount(itemid, 1))
+        if (!p_caster->GetInventoryMgr().HasItemCount(itemid, 1))
         {
             return SPELL_FAILED_ITEM_NOT_FOUND;
         }
@@ -2741,7 +2741,7 @@ SpellCastResult Spell::CheckItems()
                         }
                     }
 
-                    if (!p_caster->HasItemCount(itemid, itemcount))
+                    if (!p_caster->GetInventoryMgr().HasItemCount(itemid, itemcount))
                     {
                         return SPELL_FAILED_REAGENTS;
                     }
@@ -2758,7 +2758,7 @@ SpellCastResult Spell::CheckItems()
             {
                 if (spellTotems->Totem[i] != 0)
                 {
-                    if (p_caster->HasItemCount(spellTotems->Totem[i], 1))
+                    if (p_caster->GetInventoryMgr().HasItemCount(spellTotems->Totem[i], 1))
                     {
                         totems -= 1;
                         continue;
@@ -2796,7 +2796,7 @@ SpellCastResult Spell::CheckItems()
                     {
                         if (ItemPrototype const* itemProto = ObjectMgr::GetItemPrototype(spellEffect->EffectItemType))
                         {
-                            if (Item* item = p_caster->GetItemByLimitedCategory(itemProto->ItemLimitCategory))
+                            if (Item* item = p_caster->GetInventoryMgr().GetItemByLimitedCategory(itemProto->ItemLimitCategory))
                             {
                                 if (item->GetProto()->ItemLevel <= itemProto->ItemLevel)
                                 {
@@ -2824,7 +2824,7 @@ SpellCastResult Spell::CheckItems()
             }
             case SPELL_EFFECT_RESTORE_ITEM_CHARGES:
             {
-                if (Item* item = p_caster->GetItemByEntry(spellEffect->EffectItemType))
+                if (Item* item = p_caster->GetInventoryMgr().GetItemByEntry(spellEffect->EffectItemType))
                     if (item->HasMaxCharges())
                     {
                         return SPELL_FAILED_ITEM_AT_MAX_CHARGES;
@@ -3025,7 +3025,7 @@ SpellCastResult Spell::CheckItems()
                     case ITEM_SUBCLASS_WEAPON_THROWN:
                     {
                         uint32 ammo = pItem->GetEntry();
-                        if (!((Player*)m_caster)->HasItemCount(ammo, 1))
+                        if (!((Player*)m_caster)->GetInventoryMgr().HasItemCount(ammo, 1))
                         {
                             return SPELL_FAILED_NO_AMMO;
                         }

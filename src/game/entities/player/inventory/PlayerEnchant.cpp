@@ -99,7 +99,7 @@ bool Player::EnchantmentFitsRequirements(uint32 enchantmentcondition, int8 slot)
         {
             continue;
         }
-        Item* pItem2 = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        Item* pItem2 = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (pItem2 && !pItem2->IsBroken() && pItem2->GetProto()->Socket[0].Color)
         {
             for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + 3; ++enchant_slot)
@@ -191,7 +191,7 @@ void Player::CorrectMetaGemEnchants(uint8 exceptslot, bool apply)
             continue;
         }
 
-        Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
 
         if (!pItem || !pItem->GetProto()->Socket[0].Color)
         {
@@ -241,7 +241,7 @@ void Player::ToggleMetaGemsActive(uint8 exceptslot, bool apply)
             continue;
         }
 
-        Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
 
         if (!pItem || !pItem->GetProto()->Socket[0].Color)  // if item has no sockets or no item is equipped go to next item
         {

@@ -89,7 +89,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
     }
     else if (lguid.IsItem())
     {
-        Item* pItem = player->GetItemByGuid(lguid);
+        Item* pItem = player->GetInventoryMgr().GetItemByGuid(lguid);
         if (!pItem)
         {
             player->SendLootRelease(lguid);
@@ -271,7 +271,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket & /*recv_data*/)
         }
         case HIGHGUID_ITEM:
         {
-            if (Item* item = GetPlayer()->GetItemByGuid(guid))
+            if (Item* item = GetPlayer()->GetInventoryMgr().GetItemByGuid(guid))
             {
                 pLoot = &item->loot;
                 shareMoney = false;
@@ -504,7 +504,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
     }
     else if (lguid.IsItem())
     {
-        Item* pItem = player->GetItemByGuid(lguid);
+        Item* pItem = player->GetInventoryMgr().GetItemByGuid(lguid);
         if (!pItem)
         {
             return;

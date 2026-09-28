@@ -246,7 +246,7 @@ bool EquippedOk(Player* pPlayer, uint32 spellId)
         Item* pItem;
         for (int j = EQUIPMENT_SLOT_START; j < EQUIPMENT_SLOT_END; ++j)
         {
-            pItem = pPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, j);
+            pItem = pPlayer->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, j);
             if (pItem)
             {
                 if (pItem->GetProto()->RequiredSpell == reqSpell)

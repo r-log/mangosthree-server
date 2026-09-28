@@ -152,7 +152,7 @@ TradeData* TradeData::GetTraderData() const
  */
 Item* TradeData::GetItem(TradeSlots slot) const
 {
-    return m_items[slot] ? m_player->GetItemByGuid(m_items[slot]) : NULL;
+    return m_items[slot] ? m_player->GetInventoryMgr().GetItemByGuid(m_items[slot]) : NULL;
 }
 
 /**
@@ -179,7 +179,7 @@ bool TradeData::HasItem(ObjectGuid item_guid) const
  */
 Item* TradeData::GetSpellCastItem() const
 {
-    return m_spellCastItem ?  m_player->GetItemByGuid(m_spellCastItem) : NULL;
+    return m_spellCastItem ?  m_player->GetInventoryMgr().GetItemByGuid(m_spellCastItem) : NULL;
 }
 
 /**
@@ -866,7 +866,7 @@ bool Player::Create(uint32 guidlow, const std::string& name, uint8 race, uint8 c
     // or ammo not equipped in special bag
     for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
     {
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
             uint16 eDest;
             // Equip offhand weapon/shield if it attempted to equip before main-hand weapon
@@ -5199,7 +5199,7 @@ void Player::AddItemDurations(Item* item)
  */
 void Player::AutoUnequipOffhandIfNeed()
 {
-    Item* offItem = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+    Item* offItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
     if (!offItem)
     {
         return;
@@ -5254,7 +5254,7 @@ bool Player::HasItemFitToSpellReqirements(SpellEntry const* spellInfo, Item cons
         case ITEM_CLASS_WEAPON:
         {
             for (int i = EQUIPMENT_SLOT_MAINHAND; i < EQUIPMENT_SLOT_TABARD; ++i)
-                if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
                     if (item != ignoreItem && item->IsFitToSpellRequirements(spellInfo))
                     {
                         return true;
@@ -5265,21 +5265,21 @@ bool Player::HasItemFitToSpellReqirements(SpellEntry const* spellInfo, Item cons
         {
             // tabard not have dependent spells
             for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_MAINHAND; ++i)
-                if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
                     if (item != ignoreItem && item->IsFitToSpellRequirements(spellInfo))
                     {
                         return true;
                     }
 
             // shields can be equipped to offhand slot
-            if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
+            if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
                 if (item != ignoreItem && item->IsFitToSpellRequirements(spellInfo))
                 {
                     return true;
                 }
 
             // ranged slot can have some armor subclasses
-            if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED))
+            if (Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED))
                 if (item != ignoreItem && item->IsFitToSpellRequirements(spellInfo))
                 {
                     return true;
@@ -5403,7 +5403,7 @@ uint32 Player::GetResurrectionSpellId()
 
     // Reincarnation (passive spell)                        // prio: 1
     // Glyph of Renewed Life remove reagent requiremnnt
-    if (prio < 1 && HasSpell(20608) && !HasSpellCooldown(21169) && (HasItemCount(17030, 1) || HasAura(58059, EFFECT_INDEX_0)))
+    if (prio < 1 && HasSpell(20608) && !HasSpellCooldown(21169) && (m_inventoryMgr.HasItemCount(17030, 1) || HasAura(58059, EFFECT_INDEX_0)))
     {
         spell_id = 21169;
     }
@@ -5944,7 +5944,7 @@ Item* Player::ConvertItem(Item* item, uint32 newItemId)
         DurabilityLoss(pNewItem, loosePercent);
     }
 
-    if (IsInventoryPos(pos))
+    if (InventoryMgr::IsInventoryPos(pos))
     {
         ItemPosCountVec dest;
         InventoryResult msg = CanStoreItem(item->GetBagSlot(), item->GetSlot(), dest, pNewItem, true);
@@ -5955,7 +5955,7 @@ Item* Player::ConvertItem(Item* item, uint32 newItemId)
             return StoreItem(dest, pNewItem, true);
         }
     }
-    else if (IsBankPos(pos))
+    else if (InventoryMgr::IsBankPos(pos))
     {
         ItemPosCountVec dest;
         InventoryResult msg = CanBankItem(item->GetBagSlot(), item->GetSlot(), dest, pNewItem, true);
@@ -5966,7 +5966,7 @@ Item* Player::ConvertItem(Item* item, uint32 newItemId)
             return BankItem(dest, pNewItem, true);
         }
     }
-    else if (IsEquipmentPos(pos))
+    else if (InventoryMgr::IsEquipmentPos(pos))
     {
         uint16 dest;
         InventoryResult msg = CanEquipItem(item->GetSlot(), dest, pNewItem, true, false);
@@ -6532,7 +6532,7 @@ Object* Player::GetObjectByTypeMask(ObjectGuid guid, TypeMask typemask)
         case HIGHGUID_ITEM:
             if (typemask & TYPEMASK_ITEM)
             {
-                return GetItemByGuid(guid);
+                return m_inventoryMgr.GetItemByGuid(guid);
             }
             break;
         case HIGHGUID_PLAYER:
@@ -6748,7 +6748,7 @@ bool Player::FitArmorSpecializationRules(SpellEntry const * spellProto) const
         {
             if (slotMask & (1 << i))
             {
-                Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+                Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
                 // item must be present for specialization to work
                 if (!item)
                 {

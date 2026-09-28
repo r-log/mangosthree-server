@@ -788,7 +788,7 @@ bool Item::CanBeTraded(bool mail) const
     {
         return false;
     }
-    if (IsBag() && (Player::IsBagPos(GetPos()) || !((Bag const*)this)->IsEmpty()))
+    if (IsBag() && (InventoryMgr::IsBagPos(GetPos()) || !((Bag const*)this)->IsEmpty()))
     {
         return false;
     }

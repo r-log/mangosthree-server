@@ -607,7 +607,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
                 item->SetContainer(NULL);
                 item->SetSlot(slot);
 
-                if (IsInventoryPos(INVENTORY_SLOT_BAG_0, slot))
+                if (InventoryMgr::IsInventoryPos(INVENTORY_SLOT_BAG_0, slot))
                 {
                     ItemPosCountVec dest;
                     if (CanStoreItem(INVENTORY_SLOT_BAG_0, slot, dest, item, false) == EQUIP_ERR_OK)
@@ -619,7 +619,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
                         success = false;
                     }
                 }
-                else if (IsEquipmentPos(INVENTORY_SLOT_BAG_0, slot))
+                else if (InventoryMgr::IsEquipmentPos(INVENTORY_SLOT_BAG_0, slot))
                 {
                     uint16 dest;
                     if (CanEquipItem(slot, dest, item, false, false) == EQUIP_ERR_OK)
@@ -631,7 +631,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
                         success = false;
                     }
                 }
-                else if (IsBankPos(INVENTORY_SLOT_BAG_0, slot))
+                else if (InventoryMgr::IsBankPos(INVENTORY_SLOT_BAG_0, slot))
                 {
                     ItemPosCountVec dest;
                     if (CanBankItem(INVENTORY_SLOT_BAG_0, slot, dest, item, false, false) == EQUIP_ERR_OK)
@@ -647,7 +647,7 @@ void Player::_LoadInventory(QueryResult* result, uint32 timediff)
                 if (success)
                 {
                     // store bags that may contain items in them
-                    if (item->IsBag() && IsBagPos(item->GetPos()))
+                    if (item->IsBag() && InventoryMgr::IsBagPos(item->GetPos()))
                     {
                         bagMap[item_lowguid] = (Bag*)item;
                     }
@@ -746,7 +746,7 @@ void Player::_LoadItemLoot(QueryResult* result)
             Field* fields = result->Fetch();
             uint32 item_guid   = fields[0].GetUInt32();
 
-            Item* item = GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, item_guid));
+            Item* item = m_inventoryMgr.GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, item_guid));
 
             if (!item)
             {

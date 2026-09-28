@@ -629,7 +629,7 @@ void WorldSession::HandlePetitionRenameOpcode(WorldPacket& recv_data)
     recv_data >> petitionGuid;                              // guid
     recv_data >> newname;                                   // new name
 
-    Item* item = _player->GetItemByGuid(petitionGuid);
+    Item* item = _player->GetInventoryMgr().GetItemByGuid(petitionGuid);
     if (!item)
     {
         return;
@@ -677,7 +677,7 @@ void WorldSession::HandlePetitionRenameCallback(std::unique_ptr<QueryResult> res
     }
 
     // The charter has to still be the player's: a tick has passed since the handler looked.
-    if (!player->GetItemByGuid(petitionGuid))
+    if (!player->GetInventoryMgr().GetItemByGuid(petitionGuid))
     {
         return;
     }
@@ -1277,7 +1277,7 @@ void WorldSession::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder> 
     }
 
     // and at last charter item check
-    Item* item = player->GetItemByGuid(petitionGuid);
+    Item* item = player->GetInventoryMgr().GetItemByGuid(petitionGuid);
     if (!item)
     {
         return;

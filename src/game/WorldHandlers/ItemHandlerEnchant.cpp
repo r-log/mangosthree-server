@@ -93,7 +93,7 @@ void WorldSession::HandleWrapItemOpcode(WorldPacket& recv_data)
 
     DEBUG_LOG("WRAP: receive gift_bag = %u, gift_slot = %u, item_bag = %u, item_slot = %u", gift_bag, gift_slot, item_bag, item_slot);
 
-    Item* gift = _player->GetItemByPos(gift_bag, gift_slot);
+    Item* gift = _player->GetInventoryMgr().GetItemByPos(gift_bag, gift_slot);
     if (!gift)
     {
         _player->SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, gift, NULL);
@@ -107,7 +107,7 @@ void WorldSession::HandleWrapItemOpcode(WorldPacket& recv_data)
         return;
     }
 
-    Item* item = _player->GetItemByPos(item_bag, item_slot);
+    Item* item = _player->GetInventoryMgr().GetItemByPos(item_bag, item_slot);
 
     if (!item)
     {
@@ -226,7 +226,7 @@ void WorldSession::HandleSocketOpcode(WorldPacket& recv_data)
             }
     }
 
-    Item* itemTarget = _player->GetItemByGuid(itemGuid);
+    Item* itemTarget = _player->GetInventoryMgr().GetItemByGuid(itemGuid);
     if (!itemTarget)                                        // missing item to socket
     {
         return;
@@ -244,7 +244,7 @@ void WorldSession::HandleSocketOpcode(WorldPacket& recv_data)
     Item* Gems[MAX_GEM_SOCKETS];
     for (int i = 0; i < MAX_GEM_SOCKETS; ++i)
     {
-        Gems[i] = gemGuids[i] ? _player->GetItemByGuid(gemGuids[i]) : NULL;
+        Gems[i] = gemGuids[i] ? _player->GetInventoryMgr().GetItemByGuid(gemGuids[i]) : NULL;
     }
 
     GemPropertiesEntry const* GemProps[MAX_GEM_SOCKETS];
@@ -419,7 +419,7 @@ void WorldSession::HandleSocketOpcode(WorldPacket& recv_data)
         {
             uint32 count = 1;
             itemTarget->SetEnchantment(EnchantmentSlot(SOCK_ENCHANTMENT_SLOT + i), GemEnchants[i], 0, 0, _player->GetObjectGuid());
-            if (Item* guidItem = gemGuids[i] ? _player->GetItemByGuid(gemGuids[i]) : NULL)
+            if (Item* guidItem = gemGuids[i] ? _player->GetInventoryMgr().GetItemByGuid(gemGuids[i]) : NULL)
             {
                 _player->DestroyItemCount(guidItem, count, true);
             }
@@ -459,12 +459,12 @@ void WorldSession::HandleCancelTempEnchantmentOpcode(WorldPacket& recv_data)
     recv_data >> eslot;
 
     // apply only to equipped item
-    if (!Player::IsEquipmentPos(INVENTORY_SLOT_BAG_0, eslot))
+    if (!InventoryMgr::IsEquipmentPos(INVENTORY_SLOT_BAG_0, eslot))
     {
         return;
     }
 
-    Item* item = GetPlayer()->GetItemByPos(INVENTORY_SLOT_BAG_0, eslot);
+    Item* item = GetPlayer()->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, eslot);
 
     if (!item)
     {

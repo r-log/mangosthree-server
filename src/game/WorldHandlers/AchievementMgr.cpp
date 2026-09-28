@@ -1150,7 +1150,7 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
                 {
                     continue;
                 }
-                change = GetPlayer()->GetItemCount(achievementCriteria->own_item.itemID, true);
+                change = GetPlayer()->GetInventoryMgr().GetItemCount(achievementCriteria->own_item.itemID, true);
                 progressType = PROGRESS_HIGHEST;
                 break;
             case ACHIEVEMENT_CRITERIA_TYPE_WIN_RATED_ARENA:

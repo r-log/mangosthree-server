@@ -3038,7 +3038,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 }
 
                 // checked in create item check, avoid unexpected
-                if (Item* item = ((Player*)m_caster)->GetItemByLimitedCategory(ITEM_LIMIT_CATEGORY_MANA_GEM))
+                if (Item* item = ((Player*)m_caster)->GetInventoryMgr().GetItemByLimitedCategory(ITEM_LIMIT_CATEGORY_MANA_GEM))
                     if (item->HasMaxCharges())
                     {
                         return;
@@ -3786,7 +3786,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 {
                     return;
                 }
-                Item* item = ((Player*)m_caster)->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+                Item* item = ((Player*)m_caster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
                 if (item)
                 {
                     // Damage is increased if your off-hand weapon is enchanted with Flametongue.
