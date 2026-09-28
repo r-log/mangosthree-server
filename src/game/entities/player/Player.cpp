@@ -319,7 +319,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -6585,11 +6585,14 @@ Object* Player::GetObjectByTypeMask(ObjectGuid guid, TypeMask typemask)
 }
 
 // Player::SendCurrencies / Get/SendCurrencyWeekCap / GetCurrencyTotalCap / Get*Count moved
-// to CurrencyMgr (2026-05-12); thin delegating wrappers live inline in Player.h.
+// to CurrencyMgr (2026-05-12). Decoupling D4k: the wrappers that need the character's inputs or
+// sinks (GetCurrencyWeekCap, SendCurrencies, SendCurrencyWeekCap) live in
+// inventory/PlayerCurrency.cpp; the rest stay inline in Player.h.
 
 // Player::ModifyCurrencyCount / SetCurrencyCount / _LoadCurrencies / _SaveCurrencies /
-// SetCurrencyFlags / ResetCurrencyWeekCounts moved to CurrencyMgr (2026-05-12);
-// thin delegating wrappers live inline in Player.h.
+// SetCurrencyFlags / ResetCurrencyWeekCounts moved to CurrencyMgr (2026-05-12). Decoupling D4k:
+// ModifyCurrencyCount, SetCurrencyCount and _LoadCurrencies live in inventory/PlayerCurrency.cpp;
+// the rest stay inline in Player.h.
 
 const uint32 armorSpecToClass[MAX_CLASSES] =
 {

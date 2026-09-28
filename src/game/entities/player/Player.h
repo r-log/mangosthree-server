@@ -3089,20 +3089,23 @@ class Player : public Unit
         /***                CURRENCY SYSTEM                    ***/
         /*********************************************************/
         // Currency API — thin delegating wrappers around m_currencyMgr (extracted 2026-05-12).
+        // Decoupling D4k: the ones that read the server config, the character's currency-gain
+        // aura or its in-world state, or that pass the achievement update and the quest checks,
+        // live in inventory/PlayerCurrency.cpp; the packets go through SessionSink().
         uint32 GetCurrencyCount(uint32 id) const { return m_currencyMgr.GetCount(id); }
         uint32 GetCurrencySeasonCount(uint32 id) const { return m_currencyMgr.GetSeasonCount(id); }
         uint32 GetCurrencyWeekCount(uint32 id) const { return m_currencyMgr.GetWeekCount(id); }
-        uint32 GetCurrencyWeekCap(CurrencyTypesEntry const * currency) const { return m_currencyMgr.GetWeekCap(currency); }
+        uint32 GetCurrencyWeekCap(CurrencyTypesEntry const * currency) const;
         uint32 GetCurrencyTotalCap(CurrencyTypesEntry const * currency) const { return m_currencyMgr.GetTotalCap(currency); }
-        void SendCurrencies() const { m_currencyMgr.SendAll(); }
-        void ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek = true, bool modifySeason = true, bool ignoreMultipliers = false) { m_currencyMgr.ModifyCount(id, count, modifyWeek, modifySeason, ignoreMultipliers); }
+        void SendCurrencies() const;
+        void ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek = true, bool modifySeason = true, bool ignoreMultipliers = false);
         bool HasCurrencyCount(uint32 id, uint32 count) const { return GetCurrencyCount(id) >= count; }
         bool HasCurrencySeasonCount(uint32 id, uint32 count) const { return GetCurrencySeasonCount(id) >= count; }
-        void SetCurrencyCount(uint32 id, uint32 count) { m_currencyMgr.SetCount(id, count); }
-        void SendCurrencyWeekCap(uint32 id) const { m_currencyMgr.SendWeekCap(id); }
-        void SendCurrencyWeekCap(CurrencyTypesEntry const * currency) const { m_currencyMgr.SendWeekCap(currency); }
+        void SetCurrencyCount(uint32 id, uint32 count);
+        void SendCurrencyWeekCap(uint32 id) const;
+        void SendCurrencyWeekCap(CurrencyTypesEntry const * currency) const;
         void SetCurrencyFlags(uint32 currencyId, uint8 flags) { m_currencyMgr.SetFlags(currencyId, flags); }
-        void ResetCurrencyWeekCounts() { m_currencyMgr.ResetWeekCounts(); }
+        void ResetCurrencyWeekCounts() { m_currencyMgr.ResetWeekCounts(SessionSink()); }
 
         /*********************************************************/
         /***                  PVP SYSTEM                       ***/
@@ -3988,9 +3991,9 @@ class Player : public Unit
         /*********************************************************/
         /***                CURRENCY SYSTEM                    ***/
         /*********************************************************/
-        CurrencyMgr m_currencyMgr;   // owns m_currencies map + 14 Get/Set/Modify/Send/Load/Save methods (extracted 2026-05-12)
-        void _LoadCurrencies(QueryResult* result) { m_currencyMgr.Load(result); }
-        void _SaveCurrencies() { m_currencyMgr.Save(); }
+        CurrencyMgr m_currencyMgr;   // the currency map and its rules (extracted 2026-05-12; no owner pointer since decoupling D4k)
+        void _LoadCurrencies(QueryResult* result);
+        void _SaveCurrencies() { m_currencyMgr.Save(GetGUIDLow()); }
 
 
         // Output debug stats values

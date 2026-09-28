@@ -156,7 +156,20 @@ set(REACH_RULES
     # The .cpp builds the two packets (WorldPacket.h, Opcodes.h) and writes the rows through the
     # character database (Database/DatabaseEnv.h); src/tests/SocialMgrTest.cpp checks both.
     "entities/player/social/SocialList.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,proto/WorldPacket.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,entities/player/social/SocialMgr.h"
-    "entities/player/social/SocialList.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,entities/player/social/SocialMgr.h")
+    "entities/player/social/SocialList.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,Server/DBCStores.h,entities/player/social/SocialMgr.h"
+    # Decoupling D4k: the currency manager, the rune manager's two rules plus the achievement
+    # manager (WorldHandlers/AchievementMgr.h): a gain's achievement update, the owner's two
+    # currency quest checks and the packets reach the owner through callbacks, the currency-gain
+    # aura multiplier and the in-world-and-not-loading check are read callbacks, and the conquest
+    # week cap comes in as a value, so neither file may reach the world (WorldHandlers/World.h: the
+    # config), the auras or the achievements. The header includes ManagerPacketSink.h (WorldPacket
+    # forward-declared) and DBCEnums.h (the achievement criteria type, enums only), forward-declares
+    # Field, ObjectGuid and CurrencyTypesEntry, and stays inside entities/player/Player.h's rule
+    # (Player.h includes it). The .cpp, like the talent manager's, reads the currency types DBC
+    # store (Server/DBCStores.h) and loads and saves through the character database
+    # (Database/DatabaseEnv.h); src/tests/CurrencyMgrTest.cpp seeds the store.
+    "entities/player/inventory/CurrencyMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h,proto/WorldPacket.h"
+    "entities/player/inventory/CurrencyMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
