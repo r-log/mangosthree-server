@@ -96,6 +96,7 @@ set(SRC_GRP_TESTS
     SpellCooldownMgrTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
+    SocialMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)

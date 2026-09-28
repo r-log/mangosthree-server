@@ -89,6 +89,8 @@ set(MANAGER_FILES
     entities/player/talents/GlyphMgr.cpp                    # decoupling D4k
     entities/player/pets/PetMgr.h                           # decoupling D4k
     entities/player/pets/PetMgr.cpp                         # decoupling D4k
+    entities/player/social/SocialList.h                     # decoupling D4k: PlayerSocial, the verdict, the packet builders
+    entities/player/social/SocialList.cpp                   # decoupling D4k
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.
@@ -147,8 +149,8 @@ set(OWNER_FILES
     entities/player/social/PlayerReputation.cpp
     entities/player/social/ReputationMgr.h                  # D4k
     entities/player/social/ReputationMgr.cpp                # D4k
-    entities/player/social/SocialMgr.h                      # D4k
-    entities/player/social/SocialMgr.cpp                    # D4k
+    entities/player/social/SocialMgr.h                      # decoupling D4k: the global over every list; drives social/SocialList
+    entities/player/social/SocialMgr.cpp                    # decoupling D4k: the global over every list; drives social/SocialList
     entities/player/world/PlayerMovement.cpp
     entities/player/world/PlayerZone.cpp
     entities/player/world/PlayerAreaTrigger.cpp
@@ -477,5 +479,155 @@ if(VIOLATIONS)
         "Pass what the manager needs as parameters (guid, name, time, a lookup); comments are not exempt.")
 endif()
 
+
+# Decoupling D4k (social review M-1): a manager's member functions are defined in manager files.
+# The rules above are per FILE, so a member declared in a manager header but defined in an owner
+# file could read the character under the manager's name and no gate would see it (and in
+# mangos_tests, which cannot find a character, it would quietly do nothing). So every class or
+# struct DEFINED in a MANAGER_FILES header is a manager class, and a definition of one of its
+# members -- a line that starts in column 0, spells `Class::member(` and does not end in ';' -- in
+# any other file under src/game fails, unless OWNER_DEFINED names that member in that file. An
+# unchangeable caller is the only reason for an entry (README, "Manager shape" 6). The list is a
+# ratchet: an entry whose file no longer defines the member fails, and so does a second definition
+# of a listed member in its file (an overload would otherwise ride on the entry).
+# Entries: "<Class>::<member>|<file relative to src/game>".
+set(OWNER_DEFINED
+    # MiscHandlerSocial.cpp's contact list handler and the character's SendInitialPacketsBeforeAddToMap
+    # call GetSocial()->SendSocialList() with no arguments; it finds the character by guid.
+    "PlayerSocial::SendSocialList|entities/player/social/SocialMgr.cpp"
+)
+# KNOWN MISSES, stated rather than chased: a definition that does not start in column 0 (indented,
+# or with the qualified name on a line after its return type), one written through a macro or a
+# typedef of the class, one in a file outside src/game (SD3, the tests, the tools), and a member of
+# a class a manager header only forward-declares or defines inside a macro. A column-0 line that
+# CALLS `Class::member(` without ending in ';' (a one-line function body) reads as a definition;
+# none exists today, and a false hit fails loudly rather than hiding anything.
+
+# The classes and structs TEXT defines (a body follows the name), nested ones included.
+function(defined_classes TEXT OUT_VAR)
+    string(REPLACE ";" "${SEMI}" TEXT "${TEXT}")
+    string(REGEX MATCHALL "(^|[^A-Za-z0-9_])(class|struct)[ \t\r\n]+[A-Za-z_][A-Za-z0-9_]*[ \t\r\n]*(:[^{${SEMI}]*)?{"
+        DEFS "${TEXT}")
+    set(NAMES "")
+    foreach(DEF IN LISTS DEFS)
+        string(REGEX REPLACE "^[^A-Za-z]*(class|struct)[ \t\r\n]+([A-Za-z_][A-Za-z0-9_]*).*$" "\\2" NAME "${DEF}")
+        list(APPEND NAMES "${NAME}")
+    endforeach()
+    if(NAMES)
+        list(REMOVE_DUPLICATES NAMES)
+    endif()
+    set(${OUT_VAR} "${NAMES}" PARENT_SCOPE)
+endfunction()
+
+# The "<Class>::<member>" definitions in TEXT for the classes in the list CLASSES_VAR (a name).
+function(member_definitions TEXT CLASSES_VAR OUT_VAR)
+    string(REPLACE ";" "|" ALT "${${CLASSES_VAR}}")
+    string(REPLACE ";" "${SEMI}" TEXT "${TEXT}")
+    set(FOUND "")
+    string(REGEX MATCHALL "(^|\n)([A-Za-z_~][^\n]*[^A-Za-z0-9_:])?(${ALT})::~?[A-Za-z_][A-Za-z0-9_]*[ \t]*\\([^\n]*" LINES "${TEXT}")
+    foreach(LINE IN LISTS LINES)
+        string(STRIP "${LINE}" LINE)
+        if(LINE MATCHES "${SEMI}$" OR LINE MATCHES "^(friend|return|typedef|using)[^A-Za-z0-9_]")
+            continue()
+        endif()
+        if(LINE MATCHES "(^|[^A-Za-z0-9_:])(${ALT})::(~?[A-Za-z_][A-Za-z0-9_]*)[ \t]*\\(")
+            list(APPEND FOUND "${CMAKE_MATCH_2}::${CMAKE_MATCH_3}")
+        endif()
+    endforeach()
+    set(${OUT_VAR} "${FOUND}" PARENT_SCOPE)
+endfunction()
+
+function(expect_classes LABEL TEXT EXPECTED)
+    defined_classes("${TEXT}" GOT)
+    if(NOT "${GOT}" STREQUAL "${EXPECTED}")
+        message(FATAL_ERROR "ManagerIsolation self-test failed (classes, ${LABEL}): got '${GOT}', expected '${EXPECTED}'")
+    endif()
+endfunction()
+function(expect_definitions LABEL TEXT EXPECTED)
+    set(SELF_TEST_CLASSES "PlayerSocial" "GlyphMgr")
+    member_definitions("${TEXT}" SELF_TEST_CLASSES GOT)
+    if(NOT "${GOT}" STREQUAL "${EXPECTED}")
+        message(FATAL_ERROR "ManagerIsolation self-test failed (definitions, ${LABEL}): got '${GOT}', expected '${EXPECTED}'")
+    endif()
+endfunction()
+expect_classes("a class with a body" "class A\n{\n}" "A")
+expect_classes("a struct with a base" "struct B : public C {\n}" "B")
+expect_classes("a forward declaration is not a definition" "class D\nfriend class E" "")
+expect_classes("a nested struct counts" "class F\n{\n    struct G\n    {\n    }\n}" "F;G")
+expect_classes("a prefixed keyword is not the keyword" "subclass H {" "")
+expect_definitions("a member" "void PlayerSocial::SendSocialList()\n{\n}" "PlayerSocial::SendSocialList")
+expect_definitions("a constructor with an initialiser" "PlayerSocial::PlayerSocial(): m_x(0)\n{\n}" "PlayerSocial::PlayerSocial")
+expect_definitions("a destructor" "GlyphMgr::~GlyphMgr()\n{\n}" "GlyphMgr::~GlyphMgr")
+expect_definitions("a const member, return type with a pointer" "Foo const* GlyphMgr::Find(uint32 x) const\n{" "GlyphMgr::Find")
+expect_definitions("an indented call is not a definition" "    PlayerSocial::Build(x)\n    y = GlyphMgr::Count(1)" "")
+expect_definitions("a declaration ends in a semicolon" "bool PlayerSocial::HasFriend(ObjectGuid g) const\;" "")
+expect_definitions("another class's member" "PlayerSocial* SocialMgr::LoadFromDB(QueryResult* r, ObjectGuid g)" "")
+expect_definitions("a prefixed class name" "uint32 MyPlayerSocial::X()\n{" "")
+expect_definitions("a nested qualifier is not a member of the outer class" "void Outer::PlayerSocial::X()\n{" "")
+expect_definitions("a return statement at column 0 is not a definition" "return PlayerSocial::Y(1)" "")
+expect_definitions("two definitions in one text" "void PlayerSocial::A()\n{\n}\nint GlyphMgr::B(int x)\n{" "PlayerSocial::A;GlyphMgr::B")
+
+# The manager classes, from the MANAGER_FILES headers.
+set(MANAGER_CLASSES "")
+foreach(FILE_REL IN LISTS MANAGER_FILES)
+    if(FILE_REL MATCHES "\\.h$")
+        file(READ "${GAME_DIR}/${FILE_REL}" CONTENT)
+        defined_classes("${CONTENT}" NAMES)
+        list(APPEND MANAGER_CLASSES ${NAMES})
+    endif()
+endforeach()
+list(REMOVE_DUPLICATES MANAGER_CLASSES)
+list(LENGTH MANAGER_CLASSES MANAGER_CLASS_COUNT)
+
+# Every other file under src/game.
+file(GLOB_RECURSE DEFINITION_FILES LIST_DIRECTORIES false RELATIVE "${GAME_DIR}"
+    "${GAME_DIR}/*.cpp" "${GAME_DIR}/*.h" "${GAME_DIR}/*.hpp" "${GAME_DIR}/*.inl")
+set(OWNER_DEFINED_SEEN "")
+set(DEFINITION_VIOLATIONS "")
+set(SCANNED 0)
+foreach(FILE_REL IN LISTS DEFINITION_FILES)
+    if(FILE_REL IN_LIST MANAGER_FILES)
+        continue()
+    endif()
+    math(EXPR SCANNED "${SCANNED} + 1")
+    file(READ "${GAME_DIR}/${FILE_REL}" CONTENT)
+    set(HAS_QUALIFIER FALSE)
+    foreach(CLASS IN LISTS MANAGER_CLASSES)
+        string(FIND "${CONTENT}" "${CLASS}::" AT)
+        if(NOT AT EQUAL -1)
+            set(HAS_QUALIFIER TRUE)
+            break()
+        endif()
+    endforeach()
+    if(NOT HAS_QUALIFIER)
+        continue()
+    endif()
+    member_definitions("${CONTENT}" MANAGER_CLASSES DEFS)
+    foreach(DEF IN LISTS DEFS)
+        set(KEY "${DEF}|${FILE_REL}")
+        if(NOT KEY IN_LIST OWNER_DEFINED)
+            list(APPEND DEFINITION_VIOLATIONS "${FILE_REL}: defines ${DEF}(), a member of a manager class, outside MANAGER_FILES")
+        elseif(KEY IN_LIST OWNER_DEFINED_SEEN)
+            list(APPEND DEFINITION_VIOLATIONS "${FILE_REL}: defines ${DEF}() a second time -- OWNER_DEFINED allows one")
+        else()
+            list(APPEND OWNER_DEFINED_SEEN "${KEY}")
+        endif()
+    endforeach()
+endforeach()
+foreach(KEY IN LISTS OWNER_DEFINED)
+    if(NOT KEY IN_LIST OWNER_DEFINED_SEEN)
+        list(APPEND DEFINITION_VIOLATIONS "OWNER_DEFINED entry '${KEY}' no longer matches a definition: remove it")
+    endif()
+endforeach()
+if(DEFINITION_VIOLATIONS)
+    string(REPLACE ";" "\n  " REPORT "${DEFINITION_VIOLATIONS}")
+    message(FATAL_ERROR
+        "A manager's member is defined outside the manager's files (decoupling D4k):\n  ${REPORT}\n"
+        "Define it in the manager's .cpp and pass what it needs as parameters. Only an outside caller that may "
+        "not change justifies an owner-side definition: then list it in OWNER_DEFINED and say so at the declaration.")
+endif()
+list(LENGTH OWNER_DEFINED OWNER_DEFINED_COUNT)
+
 message(STATUS "manager isolation: ${FILE_COUNT} files clean, ${OWNER_COUNT} owner files, "
-    "all ${PRESENT_COUNT} files under ${LISTED_DIR}/ listed, self-test OK")
+    "all ${PRESENT_COUNT} files under ${LISTED_DIR}/ listed; ${MANAGER_CLASS_COUNT} manager classes, no member "
+    "defined outside the manager files in ${SCANNED} files but the ${OWNER_DEFINED_COUNT} in OWNER_DEFINED; self-test OK")

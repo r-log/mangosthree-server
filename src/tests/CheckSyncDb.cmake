@@ -72,6 +72,8 @@ set(CONVERTED_FILES
     src/game/entities/player/talents/GlyphMgr.cpp           # decoupling D4k
     src/game/entities/player/pets/PetMgr.h                  # decoupling D4k
     src/game/entities/player/pets/PetMgr.cpp                # decoupling D4k
+    src/game/entities/player/social/SocialList.h            # decoupling D4k
+    src/game/entities/player/social/SocialList.cpp          # decoupling D4k
 )
 
 # The files that may construct a TickGuard::AdminScope (decoupling D7h), and nothing else
@@ -293,7 +295,10 @@ set(ALLOW_Chat_cpp
 #                                  `account` read is a continuation (it is SEC_ADMINISTRATOR
 #                                  work, but an OPCODE, so no AdminScope can reach it). NO allow list.
 #   SocialMgr.cpp               -- PlayerSocial::SetFriendNote's escape is bound. Its only
-#                                  blocking call, so NO allow list.
+#                                  blocking call, so NO allow list. Decoupling D4k moved
+#                                  SetFriendNote and the list's other statements to
+#                                  SocialList.cpp (listed with the managers below);
+#                                  SocialMgr.cpp keeps the login loop, and stays listed.
 #   GMTicketMgr.cpp             -- SaveSurveyData, SetText, SetResponseText and Create lose
 #                                  four escapes, and Create loses its DirectPExecute AND the
 #                                  SELECT that read the new id back: the id is a counter now.
