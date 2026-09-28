@@ -25,7 +25,7 @@ only `src/shared`; session includes it 90 times, the motion layer 19 times (8 fr
 | foundation | the rest of `src/shared`, `Time/`, `ObjectGuid` (a value type) | nothing |
 
 `realmd` is a separate program and uses only foundation and persistence. `tests` may include anything.
-`AuctionHouseBot/` is left out of this table until the question in section 5 is settled.
+`AuctionHouseBot/` is app: it is kept (the 2026-09-28 decision, section 5), off by default, and reaches the domain only through `World`'s timer and one chat command.
 
 These directories **dissolve**:
 - `Object/` (152 files): 63 to entities, 28 to data, 25 to ai, 10 to social, 9 to spells, 9 to combat, 6 to economy
@@ -148,7 +148,7 @@ the downcast counts and the database-call count.
 
 | Question | Options |
 |---|---|
-| `AuctionHouseBot/` (2 files; a non-blizzlike feature) | keep or remove. The user decides separately. Until then it is measured as app. |
+| `AuctionHouseBot/` (2 files; a non-blizzlike feature) | **Kept** (decided 2026-09-28): optional, off by default, measured as app. Not a decoupling concern; a harness family that needs a quiet auction house disables it in the configuration rather than removing it. |
 
 ## 6. Divergences
 
@@ -180,7 +180,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 From the repository root, with Python 3 and Git Bash. `layers.py` is the script below. Its `RULES` table is
 section 1's directory table, written as code: `ObjectGuid.h`/`.cpp` are foundation (the 2026-09-28
-decision), and `AuctionHouseBot/` stays measured as app until section 5 is settled.
+decision), and `AuctionHouseBot/` is app (kept, section 5).
 
 - Where the files go: `python layers.py src files | grep ' game/Object/' | cut -d' ' -f1 | sort | uniq -c` (and
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
