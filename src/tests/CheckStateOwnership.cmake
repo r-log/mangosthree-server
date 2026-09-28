@@ -271,13 +271,13 @@ state_allow(reputation src/game/Tools/PlayerDump.h
     NAMES character_reputation)
 state_allow(reputation src/game/Harness/Trace.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
-    NAMES SMSG_SET_FACTION_STANDING)
+    NAMES SMSG_SET_FACTION_STANDING SMSG_SET_FACTION_VISIBLE)
 state_allow(reputation src/game/Harness/ScenariosQuest.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_SET_FACTION_STANDING)
 state_allow(reputation src/tests/HarnessTest.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
-    NAMES SMSG_SET_FACTION_STANDING)
+    NAMES SMSG_SET_FACTION_STANDING SMSG_SET_FACTION_VISIBLE)
 
 # Every SMSG_ name in Opcodes.h containing ACHIEVEMENT or CRITERIA; the character's
 # AchievementMgr builds all of them, so nothing is left out. The client also knows the guild
@@ -335,6 +335,9 @@ state_allow(achievement src/tests/HarnessTest.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_CRITERIA_UPDATE SMSG_ACHIEVEMENT_EARNED)
 state_allow(achievement src/game/Harness/ScenariosQuest.cpp
+    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
+    NAMES SMSG_CRITERIA_UPDATE)
+state_allow(achievement src/game/Harness/QuestRecorder.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_CRITERIA_UPDATE)
 

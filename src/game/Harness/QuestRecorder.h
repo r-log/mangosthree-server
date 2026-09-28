@@ -60,7 +60,13 @@ namespace Harness
      * is open, so every packet the session sends lands in one. A window may be a setup window (the
      * spawn, a level set): logged like the rest, never digested.
      *
-     * WHAT A WINDOW RECORDS. Each packet the moment it is sent (a `pkt` line, Trace::PacketRecord);
+     * WHAT A WINDOW RECORDS. Each packet the moment it is sent (a `pkt` line, Trace::PacketRecord),
+     * and in a digested window, right after it, a `snap` line whenever a small state -- the watched
+     * quests' status, rewarded flag and log-slot state, the money, the XP and the level -- differs
+     * from the last one printed (Ruling 19, always on: no scenario can leave it out). It puts an
+     * in-memory statement in order against the packets around it, so the log-slot clear moved
+     * across GiveXP's packets (the D4f0-1 task review's I-1) or a status flipped and restored
+     * inside one call (design note Q6, 924's MoneyChanged) changes the digest;
      * a `call` line for each server call's result that the step notes; and, when the window
      * closes, a `state` line for each thing the player's state changed in it: inventory slots as
      * entry and count, money, XP and level, talents, the watched reputations, titles, spells,
@@ -107,6 +113,16 @@ namespace Harness
         uint32 CountIn(std::string const& window) const;
         /// The packets of `opcode` in `window`, in order.
         std::vector<Seen const*> SeenIn(std::string const& window, uint16 opcode) const;
+        /// Who the player and the giver are, for a category that decodes a recorded packet itself.
+        Trace::Roles const& Roles() const { return m_roles; }
+        /// Every packet of `opcode` recorded, in any window.
+        uint32 CountAll(uint16 opcode) const;
+        /// The criteria id of every criteria-update packet recorded, in order: its first word, as
+        /// AchievementMgr::SendCriteriaUpdate writes it. The family's verdict maps each through
+        /// the criteria store (UnmodelledCriteriaTypes) so the achievement closure checks itself
+        /// against what the run really fired.
+        std::vector<uint32> FiredCriteriaIds() const;
+
 
     private:
         struct Snap
@@ -122,6 +138,9 @@ namespace Harness
         void CloseWindow();
         Player* Resolve() const;
         Snap Take() const;
+        /// The snap line's state: "q<id>=<status>/<rewarded>/<slot state or -> ... m=<money>
+        /// xp=<xp> l=<level>".
+        std::string Mini() const;
 
         std::string                 m_scenario;
         ObjectGuid                  m_player;
@@ -135,6 +154,7 @@ namespace Harness
         uint32                      m_digestedLines;
         Snap                        m_last;
         std::vector<Seen>           m_packets;
+        std::string                 m_lastMini;
     };
 }
 

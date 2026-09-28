@@ -49,9 +49,9 @@ namespace Harness
     /// How a scenario uses its quest. The pre-checks read everything else from the quest itself.
     struct QuestPlan
     {
-        uint32 quest = 0;
+        uint32 quest = 0;                   ///< 0: no quest (926); the rest of the plan is still checked
         uint8  classId = CLASS_WARRIOR;     ///< the human's class SpawnPlayer builds
-        uint32 level = 0;                   ///< the level the quest is rewarded at; 0 = the class's created level
+        uint32 level = 0;                   ///< the level the scenario sets by the `.reset level` sequence; 0 = the class's created level
         uint32 giverEntry = 0;              ///< the spawned creature giver; 0 = the player is the giver
         uint32 choice = 0;                  ///< the reward index RewardQuest is handed
         uint32 rewards = 1;                 ///< how many times the scenario rewards the quest
@@ -95,11 +95,14 @@ namespace Harness
      *  5. no level-mail row between the start level and the highest level the rewards' XP can
      *     reach (GiveXP's own arithmetic, XPValue at its full multiplier);
      *  6. the achievement closure (F1): no achievement with a mail reward -- nor any that its
-     *     completion chains to -- can complete from what the scenario and the spawn's Create move.
+     *     completion chains to -- can complete from what the scenario and the spawn's Create move;
+     *     and the closure's table and its judges agree.
+     * With no quest (plan.quest 0), 1 and 3 are skipped.
      */
     QuestPreCheck CheckQuestPlan(QuestPlan const& plan, std::map<std::string, int64> const& expected);
 
-    /// True for every achievement criteria type the closure in CheckQuestPlan judges. The closure
+    /// True for every achievement criteria type the closure in CheckQuestPlan judges: exactly the
+    /// types of the closure's one table, which its judge reads too. The closure
     /// reads any other type as unreachable, which is sound only while the run never fires it:
     /// AchievementMgr::GetCriteriaProgressMaxCounter answers 0 for a type outside its switch, so
     /// such a criteria completes on its first progress. A scenario therefore checks, at its
