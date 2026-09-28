@@ -97,6 +97,8 @@ set(MANAGER_FILES
     entities/player/inventory/CurrencyMgr.cpp               # decoupling D4k
     entities/player/social/ReputationMgr.h                  # decoupling D4k
     entities/player/social/ReputationMgr.cpp                # decoupling D4k
+    entities/player/pvp/HonorMgr.h                          # decoupling D4k
+    entities/player/pvp/HonorMgr.cpp                        # decoupling D4k
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.
@@ -146,8 +148,7 @@ set(OWNER_FILES
     entities/player/combat/PlayerReward.cpp
     entities/player/pvp/PlayerPvP.cpp
     entities/player/pvp/PlayerBattleGround.cpp
-    entities/player/pvp/HonorMgr.h                          # D4k
-    entities/player/pvp/HonorMgr.cpp                        # D4k
+    entities/player/pvp/PlayerHonor.cpp                     # decoupling D4k: drives pvp/HonorMgr
     entities/player/social/PlayerGroup.cpp
     entities/player/social/PlayerChannel.cpp
     entities/player/social/PlayerChat.cpp
