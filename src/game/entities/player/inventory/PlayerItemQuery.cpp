@@ -243,7 +243,7 @@ InventoryResult Player::CanUnequipItems(uint32 item, uint32 count) const
 
     for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (pItem && pItem->GetEntry() == item)
         {
             InventoryResult ires = CanUnequipItem(INVENTORY_SLOT_BAG_0 << 8 | i, false);
@@ -263,7 +263,7 @@ InventoryResult Player::CanUnequipItems(uint32 item, uint32 count) const
     }
     for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
     {
-        pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (pItem && pItem->GetEntry() == item)
         {
             tempcount += pItem->GetCount();
@@ -276,12 +276,12 @@ InventoryResult Player::CanUnequipItems(uint32 item, uint32 count) const
 
     for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (pBag)
         {
             for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
             {
-                pItem = GetItemByPos(i, j);
+                pItem = m_inventoryMgr.GetItemByPos(i, j);
                 if (pItem && pItem->GetEntry() == item)
                 {
                     tempcount += pItem->GetCount();
@@ -296,76 +296,6 @@ InventoryResult Player::CanUnequipItems(uint32 item, uint32 count) const
 
     // not found req. item count and have unequippable items
     return res;
-}
-
-/**
- * @brief Counts matching items owned by the player.
- *
- * @param item The item entry to count.
- * @param inBankAlso True to include bank storage.
- * @param skipItem An item instance to exclude from the count.
- * @return The total matching item count.
- */
-uint32 Player::GetItemCount(uint32 item, bool inBankAlso, Item* skipItem) const
-{
-    return m_inventoryMgr.GetItemCount(item, inBankAlso, skipItem);
-}
-
-/**
- * @brief Finds the first owned item matching an entry identifier.
- *
- * @param item The item entry to search for.
- * @return The first matching item, or null if none is found.
- */
-Item* Player::GetItemByEntry(uint32 item) const
-{
-    return m_inventoryMgr.GetItemByEntry(item);
-}
-
-
-Item* Player::GetItemByLimitedCategory(uint32 limitedCategory) const
-{
-    return m_inventoryMgr.GetItemByLimitedCategory(limitedCategory);
-}
-
-/**
- * @brief Finds an owned item by GUID across inventory and bank storage.
- *
- * @param guid The item GUID to search for.
- * @return The matching item, or null if none is found.
- */
-Item* Player::GetItemByGuid(ObjectGuid guid) const
-{
-    return m_inventoryMgr.GetItemByGuid(guid);
-}
-
-/**
- * @brief Gets an item from a packed inventory position.
- *
- * @param pos The packed bag and slot position.
- * @return The item at that position, or null if empty.
- */
-Item* Player::GetItemByPos(uint16 pos) const
-{
-    return m_inventoryMgr.GetItemByPos(pos);
-}
-
-/**
- * @brief Gets an item from a specific bag and slot location.
- *
- * @param bag The bag identifier.
- * @param slot The slot within the bag or inventory.
- * @return The item at that position, or null if empty.
- */
-Item* Player::GetItemByPos(uint8 bag, uint8 slot) const
-{
-    return m_inventoryMgr.GetItemByPos(bag, slot);
-}
-
-
-uint32 Player::GetItemDisplayIdInSlot(uint8 bag, uint8 slot) const
-{
-    return m_inventoryMgr.GetItemDisplayIdInSlot(bag, slot);
 }
 
 /**
@@ -387,7 +317,7 @@ Item* Player::GetWeaponForAttack(WeaponAttackType attackType, bool nonbroken, bo
         default: return NULL;
     }
 
-    Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+    Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
     if (!item || item->GetProto()->Class != ITEM_CLASS_WEAPON)
     {
         return NULL;
@@ -414,7 +344,7 @@ Item* Player::GetWeaponForAttack(WeaponAttackType attackType, bool nonbroken, bo
  */
 Item* Player::GetShield(bool useable) const
 {
-    Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+    Item* item = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
     if (!item || item->GetProto()->Class != ITEM_CLASS_ARMOR)
     {
         return NULL;

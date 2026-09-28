@@ -789,7 +789,7 @@ bool ChatHandler::HandleDebugGetItemStateCommand(char* args)
                 continue;
             }
 
-            Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            Item* item = player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
             if (!item)
             {
                 continue;
@@ -858,7 +858,7 @@ bool ChatHandler::HandleDebugGetItemStateCommand(char* args)
                 continue;
             }
 
-            Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            Item* item = player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
             if (!item)
             {
                 continue;
@@ -1023,7 +1023,7 @@ bool ChatHandler::HandleDebugGetItemStateCommand(char* args)
             {
                 continue;
             }
-            Item* test = player->GetItemByPos(item->GetBagSlot(), item->GetSlot());
+            Item* test = player->GetInventoryMgr().GetItemByPos(item->GetBagSlot(), item->GetSlot());
 
             if (test == NULL)
             {
@@ -1262,7 +1262,7 @@ bool ChatHandler::HandleDebugSetItemValueCommand(char* args)
         return false;
     }
 
-    Item* item = m_session->GetPlayer()->GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, guid));
+    Item* item = m_session->GetPlayer()->GetInventoryMgr().GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, guid));
     if (!item)
     {
         return false;
@@ -1418,7 +1418,7 @@ bool ChatHandler::HandleDebugGetItemValueCommand(char* args)
         return false;
     }
 
-    Item* item = m_session->GetPlayer()->GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, guid));
+    Item* item = m_session->GetPlayer()->GetInventoryMgr().GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, guid));
     if (!item)
     {
         return false;
@@ -1601,7 +1601,7 @@ bool ChatHandler::HandleDebugModItemValueCommand(char* args)
         return false;
     }
 
-    Item* item = m_session->GetPlayer()->GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, guid));
+    Item* item = m_session->GetPlayer()->GetInventoryMgr().GetItemByGuid(ObjectGuid(HIGHGUID_ITEM, guid));
     if (!item)
     {
         return false;

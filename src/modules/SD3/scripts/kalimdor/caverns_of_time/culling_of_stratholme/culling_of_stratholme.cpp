@@ -88,7 +88,7 @@ struct npc_chromie : public CreatureScript
                 case NPC_CHROMIE_INN:
                     if (m_pInstance->GetData(TYPE_GRAIN_EVENT) != DONE)
                     {
-                        if (pPlayer->GetQuestRewardStatus(QUEST_DISPELLING_ILLUSIONS) && !pPlayer->HasItemCount(ITEM_ARCANE_DISRUPTOR, 1))
+                        if (pPlayer->GetQuestRewardStatus(QUEST_DISPELLING_ILLUSIONS) && !pPlayer->GetInventoryMgr().HasItemCount(ITEM_ARCANE_DISRUPTOR, 1))
                         {
                             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_INN_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
                         }
@@ -126,7 +126,7 @@ struct npc_chromie : public CreatureScript
                         break;
                     case GOSSIP_ACTION_INFO_DEF + 3:
                         pPlayer->SEND_GOSSIP_MENU(TEXT_ID_INN_4, pCreature->GetObjectGuid());
-                        if (!pPlayer->HasItemCount(ITEM_ARCANE_DISRUPTOR, 1))
+                        if (!pPlayer->GetInventoryMgr().HasItemCount(ITEM_ARCANE_DISRUPTOR, 1))
                         {
                             if (Item* pItem = pPlayer->StoreNewItemInInventorySlot(ITEM_ARCANE_DISRUPTOR, 1))
                             {

@@ -87,7 +87,7 @@ bool ScriptAction::GetScriptCommandObject(const ObjectGuid guid, bool includeIte
             {
                 if (Player* player = m_map->GetPlayer(m_ownerGuid))
                 {
-                    resultObject = player->GetItemByGuid(guid);
+                    resultObject = player->GetInventoryMgr().GetItemByGuid(guid);
                 }
                 break;
             }

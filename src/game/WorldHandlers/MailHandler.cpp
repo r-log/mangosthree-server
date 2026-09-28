@@ -469,7 +469,7 @@ void WorldSession::ProcessSendMail(MailSendRequest const& request, uint8 offline
         // Re-found by guid, never carried across a tick as a pointer (C1): on the deferred
         // path an item may have been sold, destroyed or moved since the request arrived, and
         // this is the same lookup the handler always made.
-        Item* item = pl->GetItemByGuid(request.itemGuids[i]);
+        Item* item = pl->GetInventoryMgr().GetItemByGuid(request.itemGuids[i]);
 
         // prevent sending bag with items (cheat: can be placed in bag after adding equipped empty bag to mail)
         if (!item)

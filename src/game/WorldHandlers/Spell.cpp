@@ -245,7 +245,7 @@ void SpellCastTargets::Update(Unit* caster)
 
         if (m_targetMask & TARGET_FLAG_ITEM)
         {
-            m_itemTarget = player->GetItemByGuid(m_itemTargetGUID);
+            m_itemTarget = player->GetInventoryMgr().GetItemByGuid(m_itemTargetGUID);
         }
         else if (m_targetMask & TARGET_FLAG_TRADE_ITEM)
         {
@@ -772,7 +772,7 @@ void Spell::UpdatePointers()
 
     if (m_caster->GetTypeId() == TYPEID_PLAYER)
     {
-        m_CastItem = ((Player *)m_caster)->GetItemByGuid(m_CastItemGuid);
+        m_CastItem = ((Player *)m_caster)->GetInventoryMgr().GetItemByGuid(m_CastItemGuid);
     }
     else
     {

@@ -25,9 +25,16 @@ A forwarder has one of three shapes:
                                        overload set: the one with the declaration's parameter
                                        types), in an owner file, agreeing on the return type, the
                                        parameter types and constness.
+A STATIC forwarder (D4i-3: the inventory's position checks) has the same shapes with the body
+`return Mgr::M(args);`; `static` is part of the set comparison (a static forwarder stands only
+for a static manager method), and a set mixing static and member forwarders is refused.
 A name's set is dropped whole or not at all. The dropped lines take with them the comment lines
 standing directly above them (a doc block over a definition, a `//` line over a declaration) and
-one blank line, so no orphaned comment and no double blank line is left.
+one blank line, so no orphaned comment and no double blank line is left. A comment over dropped
+lines that does not stand alone with them (code directly above the comment, or kept code
+directly below the dropped lines) would be left over that code, and a comment separated from
+them by blank lines would be left heading nothing when only a closing brace, another comment or
+the end follows them: in both cases the tool stops (ERROR).
 
 The table (FORWARDERS) names every forwarder this tool drops, with its manager member, the
 character's accessor to the manager and the manager's method (the names differ for the
@@ -52,11 +59,14 @@ currencies and the talents). For each one:
        EXPR.Name(    ->  EXPR.Accessor().Method(
        this->Name(   ->  m_xMgr.Method(          (in an owner file)
        Name(         ->  m_xMgr.Method(          (a bare call, in an owner file)
+     For a static set the bare and this-> calls take the body instead (`Mgr::Method(`, which a
+     static member of the owner may call too), and so does a plain qualified call:
+       Player::Name( ->  Mgr::Method(           (not after `->`, `.`, `::` or `&`)
      A receiver that already is the manager (`m_xMgr.Name(`, `Accessor().Name(`) is left alone.
      The owner files are CheckManagerIsolation.cmake's OWNER_FILES (read from the gate, so the
      lists cannot drift): the character's own members call the member directly. A bare call
-     anywhere else, and any `Player::Name` outside the forwarder's own definition (a qualified
-     call or a member pointer), is an ERROR listed for a hand rewrite.
+     anywhere else, and any other `Player::Name` outside the forwarder's own definition (a
+     member's qualified call, a pointer), is an ERROR listed for a hand rewrite.
 
 Not scanned for calls: src/tests/ (mangos_tests builds the managers without a character; the
 manager tests call the managers' methods of the same names) and the manager's own files.
@@ -140,6 +150,9 @@ DOMAINS = {
     'quest': ('m_questStatusMgr', 'GetQuestStatusMgr', 'QuestStatusMgr',
               ('src/game/entities/player/quests/QuestStatusMgr.h',
                'src/game/entities/player/quests/QuestStatusMgr.cpp')),
+    'inventory': ('m_inventoryMgr', 'GetInventoryMgr', 'InventoryMgr',
+                  ('src/game/entities/player/inventory/InventoryMgr.h',
+                   'src/game/entities/player/inventory/InventoryMgr.cpp')),
 }
 
 # (the forwarder's name, domain, the manager's method); an overload set is compared whole
@@ -185,14 +198,38 @@ FORWARDERS = [
     ('ResetMonthlyQuestStatus', 'quest', 'ResetMonthlyQuestStatus'),
     ('RemoveTimedQuest', 'quest', 'RemoveTimedQuest'),
     ('getQuestStatusMap', 'quest', 'Map'),
+    # D4i-3: the inventory lookups and counts (out of line in PlayerItem*.cpp)
+    ('IsValidPos', 'inventory', 'IsValidPos'),
+    ('HasItemCount', 'inventory', 'HasItemCount'),
+    ('GetItemCount', 'inventory', 'GetItemCount'),
+    ('GetItemByGuid', 'inventory', 'GetItemByGuid'),
+    ('GetItemByEntry', 'inventory', 'GetItemByEntry'),
+    ('GetItemByLimitedCategory', 'inventory', 'GetItemByLimitedCategory'),
+    ('GetItemByPos', 'inventory', 'GetItemByPos'),
+    ('GetItemDisplayIdInSlot', 'inventory', 'GetItemDisplayIdInSlot'),
+    ('GetItemFromBuyBackSlot', 'inventory', 'GetItemFromBuyBackSlot'),
+    # the static position checks (inline in Player.h, out of line in PlayerItem.cpp)
+    ('IsInventoryPos', 'inventory', 'IsInventoryPos'),
+    ('IsEquipmentPos', 'inventory', 'IsEquipmentPos'),
+    ('IsBagPos', 'inventory', 'IsBagPos'),
+    ('IsBankPos', 'inventory', 'IsBankPos'),
 ]
 
-# The HAND sites that stay: calls of a shared name on the other class (Pet's own talent points).
+# The HAND sites that stay: calls of a shared name on the other class (Pet's own talent points,
+# a vendor list's or a bag's own items).
 # (name, file) -> the number of listed sites. --check fails on any other count.
 EXPECTED_HAND = {
     ('GetFreeTalentPoints', 'src/game/entities/player/talents/PlayerTalent.cpp'): 2,   # pet->
     ('SetFreeTalentPoints', 'src/game/ChatCommands/PlayerStatsMods.cpp'): 1,            # ((Pet*)target)->
     ('SetFreeTalentPoints', 'src/game/Object/PetSpells.cpp'): 3,                        # Pet members, bare
+    # D4i-3: the vendor lists' own count (VendorItemData const*) and a bag's own slots (Bag*)
+    ('GetItemCount', 'src/game/Object/ObjectMgr.cpp'): 4,                               # vItems/tItems->
+    ('GetItemCount', 'src/game/WorldHandlers/ItemHandlerVendor.cpp'): 2,                # vItems/tItems->
+    ('GetItemCount', 'src/game/entities/player/interaction/PlayerVendor.cpp'): 4,       # vItems/tItems->
+    ('GetItemByPos', 'src/game/ChatCommands/DebugCommands.cpp'): 2,                     # bag->
+    ('GetItemByPos', 'src/game/entities/player/inventory/PlayerGearScore.cpp'): 2,      # pBag->, bag->
+    ('GetItemByPos', 'src/game/entities/player/inventory/PlayerItemEnchant.cpp'): 1,    # pBag->
+    ('GetItemByPos', 'src/game/entities/player/inventory/PlayerItemStorage.cpp'): 6,    # pBag->, fullBag->
 }
 
 KEYWORDS = {'return', 'else', 'case', 'throw', 'new', 'delete', 'co_return', 'do', 'goto',
@@ -375,12 +412,21 @@ def parse_params(text):
     return out
 
 
-def body_verdict(ret, params, body, member, method):
-    """None if <body> is the pure pass-through of <params> to member.method; else the reason."""
-    call = re.match(r'^(?P<kw>return\s+)?' + re.escape(member) + r'\s*\.\s*' + re.escape(method) +
+def is_static(ret):
+    """True when a declaration's text before its name holds `static`."""
+    return 'static' in TOKEN.findall(ret)
+
+
+def body_verdict(ret, params, body, member, method, static_class=None):
+    """None if <body> is the pure pass-through of <params> to member.method (to
+    static_class::method for a static forwarder); else the reason."""
+    target, shown = re.escape(member) + r'\s*\.\s*', member + '.'
+    if static_class is not None:
+        target, shown = re.escape(static_class) + r'\s*::\s*', static_class + '::'
+    call = re.match(r'^(?P<kw>return\s+)?' + target + re.escape(method) +
                     r'\s*\((?P<args>[^()]*)\)\s*;$', body)
     if not call:
-        return 'the body is not one call of %s.%s: {%s}' % (member, method, body)
+        return 'the body is not one call of %s%s: {%s}' % (shown, method, body)
     names = [p[1] for p in params]
     args = [a.strip() for a in call.group('args').split(',')] if call.group('args').strip() else []
     if None in names or args != names:
@@ -440,19 +486,21 @@ def class_scope_decls(text, clean, nocom, path, cls, name):
 
 
 def _key(ret, params, is_const):
-    return (norm_type(ret), tuple((p[0], p[2]) for p in params), bool(is_const))
+    return (norm_type(ret), tuple((p[0], p[2]) for p in params), bool(is_const), is_static(ret))
 
 
 def _signature(k):
-    return '%s(%s)%s' % (k[0], ', '.join(ty + ('=' + d if d else '') for ty, d in k[1]),
-                         ' const' if k[2] else '')
+    return '%s%s(%s)%s' % ('static ' if k[3] else '', k[0],
+                           ', '.join(ty + ('=' + d if d else '') for ty, d in k[1]), ' const' if k[2] else '')
 
 
 def overload_set_mismatch(fwds, decls, mgr_class, method):
     """None when the forwarders' overload set is the manager method's, one to one: the same
     return types, parameter types, defaults and constness, so every call resolves to the same
     function whether it names the character or the manager; else the reason. <fwds> and <decls>
-    are [(ret, params, is const)]. Constness may differ only when no forwarder of the name is
+    are [(ret, params, is const)]; `static` is part of the key (read from ret), so a static
+    forwarder stands only for a static manager method and a member one only for a member one.
+    Constness may differ only when no forwarder of the name is
     const (every old caller then held a non-const character): a non-const forwarder may stand
     for the manager's const method when the manager has no non-const twin (the call reaches the
     only candidate), and a manager const/non-const pair may stand under a non-const forwarder
@@ -468,7 +516,7 @@ def overload_set_mismatch(fwds, decls, mgr_class, method):
         if k in mk:
             matched.add(k)
             continue
-        as_const = (k[0], k[1], True)
+        as_const = (k[0], k[1], True, k[3])
         if lenient and as_const in mk:
             # a non-const twin of another return type is left unmatched: refused below
             matched.add(as_const)
@@ -613,7 +661,13 @@ def drop_edits(text, ranges):
     above them and a blank line, a closing brace or the end below); ranges separated by nothing
     but blank lines merged; then one blank line taken with the merged range when it stood as its
     own paragraph, so neither an orphaned comment nor a double blank line is left. Returns
-    [(start, end)] character ranges."""
+    ([(start, end)] character ranges, [(first, last comment line, the line below the range)]):
+    the second list holds every comment directly over a range that does not stand alone with
+    it (code above the comment, or kept code directly below the range), and every comment
+    separated from a range by blank lines when only a closing brace, another comment or the end
+    follows the range (it would be left heading nothing); dropping that range would orphan the
+    comment, so the caller refuses it. A line starting with `*` is a comment line only inside a
+    block opened by a `/*` line above it."""
     lines = text.splitlines(True)
     starts = [0]
     for ln in lines:
@@ -638,23 +692,57 @@ def drop_edits(text, ranges):
                 merged.append([a, b])
         return merged
 
+    def comment_top(i):
+        """The first line of the comment block ending at line i, or None when line i is not a
+        comment. A line starting with `*` counts only inside a block opened by a `/*` line
+        above it (else it is code: a dereference)."""
+        top = None
+        while 0 <= i < n:
+            if re.match(r'\s*(//|/\*)', lines[i]):
+                top, i = i, i - 1
+                continue
+            if re.match(r'\s*\*', lines[i]):
+                j = i
+                while j >= 0 and re.match(r'\s*\*', lines[j]) and not re.match(r'\s*/\*', lines[j]):
+                    j -= 1
+                if j >= 0 and re.match(r'\s*/\*', lines[j]):
+                    top, i = j, j - 1
+                    continue
+            break
+        return top
+
     spans = [[text.count('\n', 0, s), n if e == len(text) else text.count('\n', 0, e)] for s, e in ranges]
-    widened = []
+    widened, orphans = [], []
     for a, b in merge(spans):
-        k = a
-        while k > 0 and re.match(r'\s*(//|/\*|\*)', lines[k - 1]):
-            k -= 1
+        k = comment_top(a - 1)
+        k = a if k is None else k
         if k < a and (blank(k - 1) or opener(k - 1)) and (blank(b) or closer(b)):
             a = k
+        elif k < a:
+            # the comment does not stand alone with the dropped lines: dropping them would leave
+            # it over whatever follows (kept code), so the layout is refused
+            orphans.append((k + 1, a, b + 1))
         widened.append([a, b])
     out = []
     for a, b in merge(widened):
+        # a comment separated from the dropped lines by blank lines heads them only when nothing
+        # but a closing brace, another comment or the end follows them: then it would be left
+        # heading nothing, so the layout is refused (kept code below it is what it heads)
+        j = a - 1
+        while blank(j):
+            j -= 1
+        top = comment_top(j) if j < a - 1 else None
+        m = b
+        while blank(m):
+            m += 1
+        if top is not None and (closer(m) or re.match(r'\s*(//|/\*)', lines[m])):
+            orphans.append((top + 1, j + 1, m + 1))
         if (blank(a - 1) or opener(a - 1)) and blank(b):
             b += 1
         elif blank(a - 1) and closer(b):
             a -= 1
         out.append((starts[a], starts[b]))
-    return out
+    return out, orphans
 
 
 def run(root, forwarders, domains, owners, apply, expected_hand=None):
@@ -676,6 +764,7 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
     drops = {}           # file -> [(start, end)]: the dropped declarations and definitions
     drop_count = 0
     failed = set()
+    static_names = set()     # names whose forwarders are static: their calls go to Mgr::Method
 
     def in_drop(f, pos):
         return any(s <= pos < e for s, e in drops.get(f, []))
@@ -698,7 +787,8 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
             if isinstance(shape, str):
                 errors.append('%s: [%s] %s: %s' % (d['where'], domain, name, shape))
                 continue
-            reason = body_verdict(shape['ret'], shape['names_from'], shape['body'], member, method)
+            reason = body_verdict(shape['ret'], shape['names_from'], shape['body'], member, method,
+                                  mgr_class if is_static(shape['ret']) else None)
             if reason is not None:
                 errors.append('%s: [%s] %s: IMPURE: %s' % (d['where'], domain, name, reason))
                 continue
@@ -708,6 +798,11 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
             continue
         if not shapes:
             continue                            # dropped already: only stale calls remain
+        if len({is_static(s['ret']) for s in shapes}) > 1:
+            errors.append('%s: [%s] %s: a set mixing static and member forwarders'
+                          % (shapes[0]['where'], domain, name))
+            failed.add(name)
+            continue
         mgr_h = mgr_files[0]
         if mgr_h not in texts:
             mdecls, reason = None, 'no manager header %s' % mgr_h
@@ -722,6 +817,8 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
             errors.append('%s: [%s] %s: IMPURE: %s' % (shapes[0]['where'], domain, name, reason))
             failed.add(name)
             continue
+        if is_static(shapes[0]['ret']):
+            static_names.add(name)
         for s in shapes:
             for f, a, b in s['drops']:
                 drops.setdefault(f, []).append((a, b))
@@ -768,12 +865,23 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
 
         # 3. the calls
         qualified = re.compile(r'(?<![\w])Player\s*::\s*' + re.escape(name) + r'(?![\w])')
+        static = name in static_names
+        # the forwarder's body at a bare, this-> or qualified call: the member, or the class
+        body_call = mgr_class + '::' + method if static else member + '.' + method
         for f in files:
             if f.startswith(NOT_SCANNED) or f in mgr_files:
                 continue
             c, t = clean[f], texts[f]
             for m in qualified.finditer(c):
                 if in_drop(f, m.start()):
+                    continue
+                # a static forwarder's plain `Player::Name(` call is the body's `Mgr::Method(`;
+                # through a receiver (`u->Player::Name(`), after a scope (`X::Player::`), after
+                # `&` or without the call (a pointer) it stays an error
+                head = c[max(0, m.start() - LOOK_BEHIND):m.start()]
+                if static and not shared and re.match(r'\s*\(', c[m.end():]) \
+                        and not re.search(r'(->|\.|::|&)\s*$', head):
+                    edits.setdefault(f, []).append((m.start(), m.end(), body_call, name, 'qualified'))
                     continue
                 errors.append('%s:%d: [%s] %s: Player::%s: rewrite by hand: %s'
                               % (f, line_of(t, m.start()), domain, name, name,
@@ -805,8 +913,7 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
                             errors.append('%s: [%s] %s: this-> outside the owner files: %s'
                                           % (where, domain, name, src_line))
                             continue
-                        edits.setdefault(f, []).append((base + this.start(), name_end, member + '.' + method,
-                                                        name, 'this'))
+                        edits.setdefault(f, []).append((base + this.start(), name_end, body_call, name, 'this'))
                         continue
                     if re.search(r'(?:\b' + re.escape(member) + r'|\b' + re.escape(accessor) +
                                  r'\s*\(\s*\))\s*$', head):
@@ -826,7 +933,7 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
                     errors.append('%s: [%s] %s: a bare call outside the owner files: %s'
                                   % (where, domain, name, src_line))
                     continue
-                edits.setdefault(f, []).append((m.start(), name_end, member + '.' + method, name, 'bare'))
+                edits.setdefault(f, []).append((m.start(), name_end, body_call, name, 'bare'))
 
     unexpected = []
     if expected_hand is not None:
@@ -836,7 +943,11 @@ def run(root, forwarders, domains, owners, apply, expected_hand=None):
                 unexpected.append('%s in %s: %d HAND site(s) listed, %d pinned' % (key[0], key[1], got, want))
 
     for f in drops:
-        for s, e in drop_edits(texts[f], drops[f]):
+        ranges, orphans = drop_edits(texts[f], drops[f])
+        for first, last, below in orphans:
+            errors.append('%s:%d-%d: the comment over dropped lines would be left over line %d: '
+                          'rewrite by hand' % (f, first, last, below))
+        for s, e in ranges:
             edits.setdefault(f, []).append((s, e, '', None, 'drop'))
 
     domain_of = {e[0]: e[1] for e in forwarders}
@@ -1154,6 +1265,115 @@ def _q_files():
         'src/game/Handlers/QuestHandler.cpp': SELF_Q_OUTSIDE,
     }
 
+
+# D4i-3: static forwarders (the inventory's position checks) beside a member one
+SELF_S_DOMAINS = {
+    'inv': ('m_invMgr', 'GetInvMgr', 'InvMgr', ('src/game/i/InvMgr.h',)),
+}
+SELF_S_FORWARDERS = [
+    ('IsBagPos', 'inv', 'IsBagPos'),
+    ('IsInvPos', 'inv', 'IsInvPos'),
+    ('GetItemAt', 'inv', 'GetItemAt'),
+]
+SELF_S_PLAYER_H = '''class Player
+{
+    public:
+        // Check a bag position
+        static bool IsBagPos(uint16 pos);
+
+        // Check an inventory position
+        static bool IsInvPos(uint16 pos) { return InvMgr::IsInvPos(pos); }
+        static bool IsInvPos(uint8 bag, uint8 slot);
+
+        Item* GetItemAt(uint8 slot) const;
+        bool TwoHand() const { return IsInvPos(1) && this->IsBagPos(2); }
+        InvMgr m_invMgr;
+};
+'''
+SELF_S_PLAYER_H_AFTER = '''class Player
+{
+    public:
+        bool TwoHand() const { return InvMgr::IsInvPos(1) && InvMgr::IsBagPos(2); }
+        InvMgr m_invMgr;
+};
+'''
+SELF_S_MGR_H = '''class InvMgr
+{
+    public:
+        static bool IsBagPos(uint16 pos);
+        static bool IsInvPos(uint16 pos) { return IsInvPos(pos >> 8, pos & 255); }
+        static bool IsInvPos(uint8 bag, uint8 slot);
+        Item* GetItemAt(uint8 slot) const;
+};
+'''
+SELF_S_OWNER = '''#include "Player.h"
+
+bool Player::IsBagPos(uint16 pos)
+{
+    return InvMgr::IsBagPos(pos);
+}
+
+bool Player::IsInvPos(uint8 bag, uint8 slot)
+{
+    return InvMgr::IsInvPos(bag, slot);
+}
+
+Item* Player::GetItemAt(uint8 slot) const
+{
+    return m_invMgr.GetItemAt(slot);
+}
+
+void Player::Store(uint16 pos)
+{
+    if (IsBagPos(pos) || this->IsInvPos(pos) || Player::IsInvPos(1, 2))
+        Item* it = GetItemAt(3);
+    bool b = InvMgr::IsBagPos(pos);
+}
+'''
+SELF_S_OWNER_AFTER = '''#include "Player.h"
+
+void Player::Store(uint16 pos)
+{
+    if (InvMgr::IsBagPos(pos) || InvMgr::IsInvPos(pos) || InvMgr::IsInvPos(1, 2))
+        Item* it = m_invMgr.GetItemAt(3);
+    bool b = InvMgr::IsBagPos(pos);
+}
+'''
+SELF_S_OUTSIDE = '''void Handler(Player* p, Player const* cp)
+{
+    if (Player::IsBagPos(1) && p->IsInvPos(2) && cp->IsInvPos(3, 4)) {}
+    Item* i = cp->GetItemAt(5); // Player::IsBagPos(6) in a comment
+    const char* s = "Player::IsBagPos(7)";
+}
+'''
+SELF_S_OUTSIDE_AFTER = '''void Handler(Player* p, Player const* cp)
+{
+    if (InvMgr::IsBagPos(1) && p->GetInvMgr().IsInvPos(2) && cp->GetInvMgr().IsInvPos(3, 4)) {}
+    Item* i = cp->GetInvMgr().GetItemAt(5); // Player::IsBagPos(6) in a comment
+    const char* s = "Player::IsBagPos(7)";
+}
+'''
+SELF_S_OWNER_PATH = 'src/game/entities/player/inventory/PlayerItem.cpp'
+SELF_S_OWNERS = {PLAYER_H, SELF_S_OWNER_PATH}
+
+
+SELF_S_SPACED = ('        Item* GetItemAt(uint8 slot) const;\n',
+                 '        Item* GetItemAt(uint8 slot) const;\n\n')
+
+
+def _s_files(spaced=True):
+    """The static fixture; spaced: with a blank line between the dropped block and the kept
+    member below it (as written, the block's comment would be orphaned: refused)."""
+    return {
+        PLAYER_H: SELF_S_PLAYER_H.replace(*SELF_S_SPACED) if spaced else SELF_S_PLAYER_H,
+        'src/game/i/InvMgr.h': SELF_S_MGR_H,
+        SELF_S_OWNER_PATH: SELF_S_OWNER,
+        'src/game/Handlers/ItemHandler.cpp': SELF_S_OUTSIDE,
+    }
+
+
+def _srun(root, apply=False):
+    return run(root, SELF_S_FORWARDERS, SELF_S_DOMAINS, SELF_S_OWNERS, apply, None)
 
 
 def _qrun(root, apply=False):
@@ -1578,6 +1798,131 @@ def self_test():
         expect(changes == 23, 'quest overloads: 23 changes: %d' % changes)
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+    # 12. D4i-3: static forwarders. The set's `static` is part of the key; a static body calls
+    #     Mgr::Method; its bare, this-> and plain Player:: calls take that body, its receiver
+    #     calls take the accessor; the other spellings of Player::Name stay errors
+    root = _tree(_s_files())
+    try:
+        changes, errors, hands, report = _srun(root, True)[:4]
+        expect(errors == [] and hands == [], 'static: no errors, no hand sites: %r %r' % (errors, hands))
+        got = read(os.path.join(root, PLAYER_H))
+        expect(got == SELF_S_PLAYER_H_AFTER, 'static: Player.h after the drops:\n%s' % got)
+        got = read(os.path.join(root, SELF_S_OWNER_PATH))
+        expect(got == SELF_S_OWNER_AFTER, 'static: the owner file after the drops:\n%s' % got)
+        got = read(os.path.join(root, 'src/game/Handlers/ItemHandler.cpp'))
+        expect(got == SELF_S_OUTSIDE_AFTER, 'static: the outside file:\n%s' % got)
+        expect(read(os.path.join(root, 'src/game/i/InvMgr.h')) == SELF_S_MGR_H, 'static: manager untouched')
+        # 3 out-of-line (declaration + definition) + 1 inline drops; 6 owner + 4 outside calls
+        expect(changes == 3 * 2 + 1 + 6 + 4, 'static: 17 changes: %d' % changes)
+        expect(sum(1 for r in report if '(qualified)' in r) == 2, 'static: two qualified calls: %r' % report)
+        changes2, errors2 = _srun(root, True)[:2]
+        expect(changes2 == 0 and errors2 == [], 'static: the re-run changes nothing: %d %r' % (changes2, errors2))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    # fix round 1 (review M-2): as written, the fixture's dropped block (a `//` comment, the
+    # IsInvPos pair and GetItemAt) ends directly above the kept TwoHand(); dropping it would
+    # leave the comment over TwoHand(), so the tool stops and writes nothing
+    files = _s_files(spaced=False)
+    root = _tree(files)
+    try:
+        err = _srun(root, True)[1]
+        expect(any(PLAYER_H + ':7-7: the comment over dropped lines would be left over line 12' in e for e in err),
+               'static: the orphaned comment is refused: %r' % err)
+        for f, text in files.items():
+            expect(read(os.path.join(root, f)) == text, 'static (orphaned comment): %s not written' % f)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    def _drop_one(text, line='    int b;\n'):
+        start = text.index(line)
+        return drop_edits(text, [(start, start + len(line))])
+    expect(_drop_one('{\n    int a;\n\n    // doc\n    int b;\n    int c;\n}\n')[1] == [(4, 4, 6)],
+           'drop_edits: a comment over a range with kept code below is returned')
+    expect(_drop_one('{\n    int a;\n    // doc\n    int b;\n\n    int c;\n}\n')[1] == [(3, 3, 5)],
+           'drop_edits: a comment with code directly above it is returned')
+    text = '{\n    int a;\n\n    // doc\n    int b;\n\n    int c;\n}\n'
+    expect(_drop_one(text) == ([(text.index('    // doc'), text.index('    int c;'))], []),
+           'drop_edits: a standalone comment goes with its range: %r' % (_drop_one(text),))
+    # fix round 2 (delta review M-1): a comment separated from the range by a blank line
+    text = 'class P\n{\n    int a;\n\n    // doc b\n\n    int b;\n\n    int c;\n};\n'
+    expect(_drop_one(text) == ([(text.index('    int b;'), text.index('    int c;'))], []),
+           'drop_edits: B1, kept code after a blank line: the comment stays over it: %r' % (_drop_one(text),))
+    expect(_drop_one('class P\n{\n    int a;\n\n    // doc b\n\n    int b;\n};\n')[1] == [(5, 5, 8)],
+           'drop_edits: B2, the range last in the class: the comment would head `};`: refused')
+    expect(_drop_one('class P\n{\n    int a;\n\n    // ---- items ----\n\n    int b;\n\n    // ---- bank ----\n'
+                     '    int c;\n};\n')[1] == [(5, 5, 9)],
+           'drop_edits: B3, the range the whole section: the banner would head the next one: refused')
+    expect(_drop_one('int a;\n\n// doc b\n\nint b;\n', 'int b;\n')[1] == [(3, 3, 6)],
+           'drop_edits: the range last in the file: the comment would head nothing: refused')
+    expect(_drop_one('class P\n{\n    int a;\n\n    /* doc\n     * b */\n\n    int b;\n};\n')[1] == [(5, 6, 9)],
+           'drop_edits: B2 with a /* */ block: refused from its opening line')
+    # N-2: a line starting with `*` is a comment only inside a /* block; else it is code
+    text = 'void f()\n{\n\n    *p = 1;\n    int b;\n\n}\n'
+    expect(_drop_one(text) == ([(text.index('    int b;'), text.index('    int b;') + 11)], []),
+           'drop_edits: `*p = 1;` over the range is code, not deleted: %r' % (_drop_one(text),))
+    text = '{\n    int a;\n\n    /**\n     * doc\n     */\n    int b;\n\n    int c;\n}\n'
+    expect(_drop_one(text) == ([(text.index('    /**'), text.index('    int c;'))], []),
+           'drop_edits: a /** */ doc block goes with its range: %r' % (_drop_one(text),))
+
+    inv_h = 'src/game/i/InvMgr.h'
+    s_def = 'bool Player::IsBagPos(uint16 pos)\n{\n    return InvMgr::IsBagPos(pos);'
+    s_rows = [
+        # ([(file, old, new)], what, the error it must give): each refused, nothing written
+        ([(inv_h, 'static bool IsBagPos(uint16 pos);', 'bool IsBagPos(uint16 pos);')],
+         'a static forwarder over a member manager method',
+         'no InvMgr::IsBagPos declaration is the forwarder static bool(uint16)'),
+        ([(PLAYER_H, 'static bool IsBagPos(uint16 pos);', 'bool IsBagPos(uint16 pos);'),
+          (SELF_S_OWNER_PATH, s_def, 'bool Player::IsBagPos(uint16 pos)\n{\n    return m_invMgr.IsBagPos(pos);')],
+         'a member forwarder over a static manager method',
+         'no InvMgr::IsBagPos declaration is the forwarder bool(uint16) (the manager has static bool(uint16))'),
+        ([(SELF_S_OWNER_PATH, s_def, s_def.replace('return InvMgr::', 'return OtherMgr::'))],
+         'a static body calling another class', 'IMPURE: the body is not one call of InvMgr::IsBagPos'),
+        ([(SELF_S_OWNER_PATH, s_def, s_def.replace('return InvMgr::', 'return m_invMgr.'))],
+         'a static body calling through the member', 'IMPURE: the body is not one call of InvMgr::IsBagPos'),
+        # each forwarder matches the manager's own; the static one comes first, so a qualified
+        # Player::IsInvPos(1, 2) of the member one would silently become InvMgr::IsInvPos(1, 2)
+        ([(inv_h, 'static bool IsInvPos(uint8 bag, uint8 slot);', 'bool IsInvPos(uint8 bag, uint8 slot) const;'),
+          (PLAYER_H, 'static bool IsInvPos(uint8 bag, uint8 slot);', 'bool IsInvPos(uint8 bag, uint8 slot) const;'),
+          (SELF_S_OWNER_PATH,
+           'bool Player::IsInvPos(uint8 bag, uint8 slot)\n{\n    return InvMgr::IsInvPos(bag, slot);',
+           'bool Player::IsInvPos(uint8 bag, uint8 slot) const\n{\n    return m_invMgr.IsInvPos(bag, slot);')],
+         'a set mixing a static and a member forwarder (each matching the manager)',
+         'a set mixing static and member forwarders'),
+        ([('src/game/Other.cpp', None, 'bool b = u->Player::IsBagPos(1);\n')], 'a qualified call through a receiver',
+         'Other.cpp:1: [inv] IsBagPos: Player::IsBagPos: rewrite by hand'),
+        ([('src/game/Other.cpp', None, 'auto f = &Player::IsBagPos;\n')], 'a pointer to a static forwarder',
+         'Other.cpp:1: [inv] IsBagPos: Player::IsBagPos: rewrite by hand'),
+        # fix round 1 (review M-1): a pointer without `&`: no call follows the name
+        ([('src/game/Other.cpp', None, 'bool (*f)(uint16) = Player::IsBagPos;\n')], 'a pointer without &',
+         'Other.cpp:1: [inv] IsBagPos: Player::IsBagPos: rewrite by hand'),
+        ([('src/game/Other.cpp', None, 'bool b = ::Player::IsBagPos(1);\n')], 'a globally qualified call',
+         'Other.cpp:1: [inv] IsBagPos: Player::IsBagPos: rewrite by hand'),
+        ([('src/game/Other.cpp', None, 'bool b = IsBagPos(1);\n')], 'a bare static call outside the owners',
+         'Other.cpp:1: [inv] IsBagPos: a bare call outside the owner files'),
+        ([('src/game/Object/Bag.h', None, 'class Bag { public: static bool IsBagPos(uint16 pos); };\n')],
+         'a shared static name: its Player:: call is not rewritten',
+         'ItemHandler.cpp:3: [inv] IsBagPos: Player::IsBagPos: rewrite by hand'),
+    ]
+    for edits, what, needle in s_rows:
+        files = _s_files()
+        for path, old, new in edits:
+            if old is None:
+                files[path] = new
+                continue
+            expect(files[path].count(old) == 1, 'static row (%s): the fixture has the text once: %r' % (what, old))
+            files[path] = files[path].replace(old, new)
+        root = _tree(files)
+        try:
+            err = _srun(root, True)[1]
+            expect(any(needle in e for e in err), 'static row (%s) is refused for its reason: %r' % (what, err))
+            for f, text in files.items():
+                expect(read(os.path.join(root, f)) == text, 'static row (%s): %s not written' % (what, f))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+    expect(is_static('static inline bool') and not is_static('bool') and not is_static('StaticInfo const&'),
+           'is_static reads the word only')
 
     # 10. the parameter and type helpers (fix round 2: I-2, a type word is never a name)
     expect(parse_params('uint32 a, std::map<uint32, uint8> const& m = {}, uint8 c = 0') ==

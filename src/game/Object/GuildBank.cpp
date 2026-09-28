@@ -1387,7 +1387,7 @@ void Guild::SwapItems(Player* pl, uint8 BankTab, uint8 BankTabSlot, uint8 BankTa
 void Guild::MoveFromBankToChar(Player* pl, uint8 BankTab, uint8 BankTabSlot, uint8 PlayerBag, uint8 PlayerSlot, uint32 SplitedAmount)
 {
     Item* pItemBank = GetItem(BankTab, BankTabSlot);
-    Item* pItemChar = pl->GetItemByPos(PlayerBag, PlayerSlot);
+    Item* pItemChar = pl->GetInventoryMgr().GetItemByPos(PlayerBag, PlayerSlot);
 
     if (!pItemBank)                                     // Problem to get bank item
     {
@@ -1549,7 +1549,7 @@ void Guild::MoveFromBankToChar(Player* pl, uint8 BankTab, uint8 BankTabSlot, uin
 void Guild::MoveFromCharToBank(Player* pl, uint8 PlayerBag, uint8 PlayerSlot, uint8 BankTab, uint8 BankTabSlot, uint32 SplitedAmount)
 {
     Item* pItemBank = GetItem(BankTab, BankTabSlot);
-    Item* pItemChar = pl->GetItemByPos(PlayerBag, PlayerSlot);
+    Item* pItemChar = pl->GetInventoryMgr().GetItemByPos(PlayerBag, PlayerSlot);
 
     if (!pItemChar)                                         // Problem to get item from player
     {

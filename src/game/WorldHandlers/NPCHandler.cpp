@@ -1333,7 +1333,7 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
     {
         DEBUG_LOG("ITEM: %s repair of %s", npcGuid.GetString().c_str(), itemGuid.GetString().c_str());
 
-        Item* item = _player->GetItemByGuid(itemGuid);
+        Item* item = _player->GetInventoryMgr().GetItemByGuid(itemGuid);
 
         if (item)
         {

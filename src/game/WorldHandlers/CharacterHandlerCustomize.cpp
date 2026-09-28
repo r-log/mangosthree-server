@@ -610,7 +610,7 @@ void WorldSession::HandleEquipmentSetSaveOpcode(WorldPacket& recv_data)
             continue;
         }
 
-        Item* item = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+        Item* item = _player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
 
         if (!item && itemGuid)                              // cheating check 1
         {
@@ -660,13 +660,13 @@ void WorldSession::HandleEquipmentSetUseOpcode(WorldPacket& recv_data)
             continue;
         }
 
-        Item* item = _player->GetItemByGuid(itemGuid);
+        Item* item = _player->GetInventoryMgr().GetItemByGuid(itemGuid);
 
         uint16 dstpos = i | (INVENTORY_SLOT_BAG_0 << 8);
 
         if (!item)
         {
-            Item* uItem = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            Item* uItem = _player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i);
             if (!uItem)
             {
                 continue;

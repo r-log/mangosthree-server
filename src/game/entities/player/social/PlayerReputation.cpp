@@ -311,7 +311,7 @@ void Player::RewardReputation(Unit* pVictim, float rate)
     {
         MapEntry const* storedMap = sMapStore.LookupEntry(GetMapId());
         InstanceTemplate const* instance = ObjectMgr::GetInstanceTemplate(GetMapId());
-        Item const* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TABARD);
+        Item const* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TABARD);
         if (storedMap && instance && pItem)
         {
             ItemPrototype const* pProto = pItem->GetProto();// Checked on load

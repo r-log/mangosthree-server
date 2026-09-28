@@ -241,7 +241,7 @@ struct npc_tyrande_whisperwind : public CreatureScript
         if (ScriptedInstance* pInstance = (ScriptedInstance*)pCreature->GetInstanceData())
         {
             // Only let them get item if Azgalor is dead.
-            if (pInstance->GetData(TYPE_AZGALOR) == DONE && !pPlayer->HasItemCount(ITEM_TEAR_OF_GODDESS, 1))
+            if (pInstance->GetData(TYPE_AZGALOR) == DONE && !pPlayer->GetInventoryMgr().HasItemCount(ITEM_TEAR_OF_GODDESS, 1))
             {
                 pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_TYRANDE_AID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
             }

@@ -112,7 +112,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
 
     DEBUG_LOG("STORAGE: StoreItem bag = %u, slot = %u, item = %u, count = %u", bag, slot, pItem->GetEntry(), count);
 
-    Item* pItem2 = GetItemByPos(bag, slot);
+    Item* pItem2 = m_inventoryMgr.GetItemByPos(bag, slot);
 
     if (!pItem2)
     {
@@ -132,7 +132,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
 
         if (pItem->GetProto()->Bonding == BIND_WHEN_PICKED_UP ||
                 pItem->GetProto()->Bonding == BIND_QUEST_ITEM ||
-                (pItem->GetProto()->Bonding == BIND_WHEN_EQUIPPED && IsBagPos(pos)))
+                (pItem->GetProto()->Bonding == BIND_WHEN_EQUIPPED && InventoryMgr::IsBagPos(pos)))
             pItem->SetBinding(true);
 
         if (bag == INVENTORY_SLOT_BAG_0)
@@ -153,7 +153,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
 
             pItem->SetState(ITEM_CHANGED, this);
         }
-        else if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag))
+        else if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, bag))
         {
             pBag->StoreItem(slot, pItem, update);
             if (IsInWorld() && update)
@@ -169,7 +169,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
         AddItemDurations(pItem);
 
         // at place into not appropriate slot (bank, for example) remove aura
-        ApplyItemOnStoreSpell(pItem, IsEquipmentPos(pItem->GetBagSlot(), pItem->GetSlot()) || IsInventoryPos(pItem->GetBagSlot(), pItem->GetSlot()));
+        ApplyItemOnStoreSpell(pItem, InventoryMgr::IsEquipmentPos(pItem->GetBagSlot(), pItem->GetSlot()) || InventoryMgr::IsInventoryPos(pItem->GetBagSlot(), pItem->GetSlot()));
 
         return pItem;
     }
@@ -177,7 +177,7 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
     {
         if (pItem2->GetProto()->Bonding == BIND_WHEN_PICKED_UP ||
                 pItem2->GetProto()->Bonding == BIND_QUEST_ITEM ||
-                (pItem2->GetProto()->Bonding == BIND_WHEN_EQUIPPED && IsBagPos(pos)))
+                (pItem2->GetProto()->Bonding == BIND_WHEN_EQUIPPED && InventoryMgr::IsBagPos(pos)))
             pItem2->SetBinding(true);
 
         pItem2->SetCount(pItem2->GetCount() + count);
@@ -247,7 +247,7 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
     uint8 bag = pos >> 8;
     uint8 slot = pos & 255;
 
-    Item* pItem2 = GetItemByPos(bag, slot);
+    Item* pItem2 = m_inventoryMgr.GetItemByPos(bag, slot);
     if (!pItem2)
     {
         VisualizeItem(slot, pItem);
@@ -428,7 +428,7 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
     // note2: if removeitem is to be used for delinking
     // the item must be removed from the player's updatequeue
 
-    if (Item* pItem = GetItemByPos(bag, slot))
+    if (Item* pItem = m_inventoryMgr.GetItemByPos(bag, slot))
     {
         DEBUG_LOG("STORAGE: RemoveItem bag = %u, slot = %u, item = %u", bag, slot, pItem->GetEntry());
 
@@ -496,7 +496,7 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
         }
         else
         {
-            Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag);
+            Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, bag);
             if (pBag)
             {
                 pBag->RemoveItem(slot, update);
@@ -519,13 +519,13 @@ void Player::RemoveItem(uint8 bag, uint8 slot, bool update)
 // Common operation need to remove item from inventory without delete in trade, auction, guild bank, mail....
 void Player::MoveItemFromInventory(uint8 bag, uint8 slot, bool update)
 {
-    if (Item* it = GetItemByPos(bag, slot))
+    if (Item* it = m_inventoryMgr.GetItemByPos(bag, slot))
     {
         ItemRemovedQuestCheck(it->GetEntry(), it->GetCount());
         RemoveItem(bag, slot, update);
 
         // item atStore spell not removed in RemoveItem (for avoid reappaly in slots changes), so do it directly
-        if (IsEquipmentPos(bag, slot) || IsInventoryPos(bag, slot))
+        if (InventoryMgr::IsEquipmentPos(bag, slot) || InventoryMgr::IsInventoryPos(bag, slot))
         {
             ApplyItemOnStoreSpell(it, false);
         }
@@ -574,7 +574,7 @@ void Player::MoveItemToInventory(ItemPosCountVec const& dest, Item* pItem, bool 
  */
 void Player::DestroyItem(uint8 bag, uint8 slot, bool update)
 {
-    Item* pItem = GetItemByPos(bag, slot);
+    Item* pItem = m_inventoryMgr.GetItemByPos(bag, slot);
     if (pItem)
     {
         DEBUG_LOG("STORAGE: DestroyItem bag = %u, slot = %u, item = %u", bag, slot, pItem->GetEntry());
@@ -599,7 +599,7 @@ void Player::DestroyItem(uint8 bag, uint8 slot, bool update)
         RemoveEnchantmentDurations(pItem);
         RemoveItemDurations(pItem);
 
-        if (IsEquipmentPos(bag, slot) || IsInventoryPos(bag, slot))
+        if (InventoryMgr::IsEquipmentPos(bag, slot) || InventoryMgr::IsInventoryPos(bag, slot))
         {
             ApplyItemOnStoreSpell(pItem, false);
         }
@@ -647,7 +647,7 @@ void Player::DestroyItem(uint8 bag, uint8 slot, bool update)
 
             m_inventoryMgr.SlotRef(slot) = NULL;
         }
-        else if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, bag))
+        else if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, bag))
         {
             pBag->RemoveItem(slot, update);
         }
@@ -683,7 +683,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
     // in inventory
     for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
     {
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
             if (pItem->GetEntry() == item && !pItem->IsInTrade())
             {
@@ -716,7 +716,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
     // in inventory bags
     for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
             for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
             {
@@ -755,7 +755,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
     // in equipment and bag list
     for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_BAG_END; ++i)
     {
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
             if (pItem && pItem->GetEntry() == item && !pItem->IsInTrade())
             {
@@ -791,7 +791,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
     {
         for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
         {
-            Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+            Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i);
             if (pItem && pItem->GetEntry() == item && !pItem->IsInTrade())
             {
                 if (pItem->GetCount() + remcount <= count)
@@ -820,7 +820,7 @@ void Player::DestroyItemCount(uint32 item, uint32 count, bool update, bool unequ
 
         for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
         {
-            if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
                 for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
                 {
@@ -867,7 +867,7 @@ void Player::DestroyZoneLimitedItem(bool update, uint32 new_zone)
 
     // in inventory
     for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->IsLimitedToAnotherMapOrZone(GetMapId(), new_zone))
             {
                 DestroyItem(INVENTORY_SLOT_BAG_0, i, update);
@@ -875,7 +875,7 @@ void Player::DestroyZoneLimitedItem(bool update, uint32 new_zone)
 
     // in inventory bags
     for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
                 if (Item* pItem = pBag->GetItemByPos(j))
                     if (pItem->IsLimitedToAnotherMapOrZone(GetMapId(), new_zone))
@@ -885,7 +885,7 @@ void Player::DestroyZoneLimitedItem(bool update, uint32 new_zone)
 
     // in equipment and bag list
     for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->IsLimitedToAnotherMapOrZone(GetMapId(), new_zone))
             {
                 DestroyItem(INVENTORY_SLOT_BAG_0, i, update);
@@ -905,7 +905,7 @@ void Player::DestroyConjuredItems(bool update)
 
     // in inventory
     for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->IsConjuredConsumable())
             {
                 DestroyItem(INVENTORY_SLOT_BAG_0, i, update);
@@ -913,7 +913,7 @@ void Player::DestroyConjuredItems(bool update)
 
     // in inventory bags
     for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
                 if (Item* pItem = pBag->GetItemByPos(j))
                     if (pItem->IsConjuredConsumable())
@@ -923,7 +923,7 @@ void Player::DestroyConjuredItems(bool update)
 
     // in equipment and bag list
     for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_BAG_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->IsConjuredConsumable())
             {
                 DestroyItem(INVENTORY_SLOT_BAG_0, i, update);
@@ -980,7 +980,7 @@ void Player::SplitItem(uint16 src, uint16 dst, uint32 count)
     uint8 dstbag = dst >> 8;
     uint8 dstslot = dst & 255;
 
-    Item* pSrcItem = GetItemByPos(srcbag, srcslot);
+    Item* pSrcItem = m_inventoryMgr.GetItemByPos(srcbag, srcslot);
     if (!pSrcItem)
     {
         SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, pSrcItem, NULL);
@@ -1016,7 +1016,7 @@ void Player::SplitItem(uint16 src, uint16 dst, uint32 count)
         return;
     }
 
-    if (IsInventoryPos(dst))
+    if (InventoryMgr::IsInventoryPos(dst))
     {
         // change item amount before check (for unique max count check)
         pSrcItem->SetCount(pSrcItem->GetCount() - count);
@@ -1038,7 +1038,7 @@ void Player::SplitItem(uint16 src, uint16 dst, uint32 count)
         pSrcItem->SetState(ITEM_CHANGED, this);
         StoreItem(dest, pNewItem, true);
     }
-    else if (IsBankPos(dst))
+    else if (InventoryMgr::IsBankPos(dst))
     {
         // change item amount before check (for unique max count check)
         pSrcItem->SetCount(pSrcItem->GetCount() - count);
@@ -1060,7 +1060,7 @@ void Player::SplitItem(uint16 src, uint16 dst, uint32 count)
         pSrcItem->SetState(ITEM_CHANGED, this);
         BankItem(dest, pNewItem, true);
     }
-    else if (IsEquipmentPos(dst))
+    else if (InventoryMgr::IsEquipmentPos(dst))
     {
         // change item amount before check (for unique max count check), provide space for splitted items
         pSrcItem->SetCount(pSrcItem->GetCount() - count);
@@ -1099,8 +1099,8 @@ void Player::SwapItem(uint16 src, uint16 dst)
     uint8 dstbag = dst >> 8;
     uint8 dstslot = dst & 255;
 
-    Item* pSrcItem = GetItemByPos(srcbag, srcslot);
-    Item* pDstItem = GetItemByPos(dstbag, dstslot);
+    Item* pSrcItem = m_inventoryMgr.GetItemByPos(srcbag, srcslot);
+    Item* pDstItem = m_inventoryMgr.GetItemByPos(dstbag, dstslot);
 
     if (!pSrcItem)
     {
@@ -1118,10 +1118,10 @@ void Player::SwapItem(uint16 src, uint16 dst)
     // SRC checks
 
     // check unequip potability for equipped items and bank bags
-    if (IsEquipmentPos(src) || IsBagPos(src))
+    if (InventoryMgr::IsEquipmentPos(src) || InventoryMgr::IsBagPos(src))
     {
         // bags can be swapped with empty bag slots, or with empty bag (items move possibility checked later)
-        InventoryResult msg = CanUnequipItem(src, !IsBagPos(src) || IsBagPos(dst) || (pDstItem && pDstItem->IsBag() && ((Bag*)pDstItem)->IsEmpty()));
+        InventoryResult msg = CanUnequipItem(src, !InventoryMgr::IsBagPos(src) || InventoryMgr::IsBagPos(dst) || (pDstItem && pDstItem->IsBag() && ((Bag*)pDstItem)->IsEmpty()));
         if (msg != EQUIP_ERR_OK)
         {
             SendEquipError(msg, pSrcItem, pDstItem);
@@ -1130,14 +1130,14 @@ void Player::SwapItem(uint16 src, uint16 dst)
     }
 
     // prevent put equipped/bank bag in self
-    if (IsBagPos(src) && srcslot == dstbag)
+    if (InventoryMgr::IsBagPos(src) && srcslot == dstbag)
     {
         SendEquipError(EQUIP_ERR_NONEMPTY_BAG_OVER_OTHER_BAG, pSrcItem, pDstItem);
         return;
     }
 
     // prevent put equipped/bank bag in self
-    if (IsBagPos(dst) && dstslot == srcbag)
+    if (InventoryMgr::IsBagPos(dst) && dstslot == srcbag)
     {
         SendEquipError(EQUIP_ERR_NONEMPTY_BAG_OVER_OTHER_BAG, pDstItem, pSrcItem);
         return;
@@ -1148,10 +1148,10 @@ void Player::SwapItem(uint16 src, uint16 dst)
     if (pDstItem)
     {
         // check unequip potability for equipped items and bank bags
-        if (IsEquipmentPos(dst) || IsBagPos(dst))
+        if (InventoryMgr::IsEquipmentPos(dst) || InventoryMgr::IsBagPos(dst))
         {
             // bags can be swapped with empty bag slots, or with empty bag (items move possibility checked later)
-            InventoryResult msg = CanUnequipItem(dst, !IsBagPos(dst) || IsBagPos(src) || (pSrcItem->IsBag() && ((Bag*)pSrcItem)->IsEmpty()));
+            InventoryResult msg = CanUnequipItem(dst, !InventoryMgr::IsBagPos(dst) || InventoryMgr::IsBagPos(src) || (pSrcItem->IsBag() && ((Bag*)pSrcItem)->IsEmpty()));
             if (msg != EQUIP_ERR_OK)
             {
                 SendEquipError(msg, pSrcItem, pDstItem);
@@ -1166,7 +1166,7 @@ void Player::SwapItem(uint16 src, uint16 dst)
     // Move case
     if (!pDstItem)
     {
-        if (IsInventoryPos(dst))
+        if (InventoryMgr::IsInventoryPos(dst))
         {
             ItemPosCountVec dest;
             InventoryResult msg = CanStoreItem(dstbag, dstslot, dest, pSrcItem, false);
@@ -1179,7 +1179,7 @@ void Player::SwapItem(uint16 src, uint16 dst)
             RemoveItem(srcbag, srcslot, true);
             StoreItem(dest, pSrcItem, true);
         }
-        else if (IsBankPos(dst))
+        else if (InventoryMgr::IsBankPos(dst))
         {
             ItemPosCountVec dest;
             InventoryResult msg = CanBankItem(dstbag, dstslot, dest, pSrcItem, false);
@@ -1192,7 +1192,7 @@ void Player::SwapItem(uint16 src, uint16 dst)
             RemoveItem(srcbag, srcslot, true);
             BankItem(dest, pSrcItem, true);
         }
-        else if (IsEquipmentPos(dst))
+        else if (InventoryMgr::IsEquipmentPos(dst))
         {
             uint16 dest;
             InventoryResult msg = CanEquipItem(dstslot, dest, pSrcItem, false);
@@ -1216,15 +1216,15 @@ void Player::SwapItem(uint16 src, uint16 dst)
         InventoryResult msg;
         ItemPosCountVec sDest;
         uint16 eDest;
-        if (IsInventoryPos(dst))
+        if (InventoryMgr::IsInventoryPos(dst))
         {
             msg = CanStoreItem(dstbag, dstslot, sDest, pSrcItem, false);
         }
-        else if (IsBankPos(dst))
+        else if (InventoryMgr::IsBankPos(dst))
         {
             msg = CanBankItem(dstbag, dstslot, sDest, pSrcItem, false);
         }
-        else if (IsEquipmentPos(dst))
+        else if (InventoryMgr::IsEquipmentPos(dst))
         {
             msg = CanEquipItem(dstslot, eDest, pSrcItem, false);
         }
@@ -1240,15 +1240,15 @@ void Player::SwapItem(uint16 src, uint16 dst)
             {
                 RemoveItem(srcbag, srcslot, true);
 
-                if (IsInventoryPos(dst))
+                if (InventoryMgr::IsInventoryPos(dst))
                 {
                     StoreItem(sDest, pSrcItem, true);
                 }
-                else if (IsBankPos(dst))
+                else if (InventoryMgr::IsBankPos(dst))
                 {
                     BankItem(sDest, pSrcItem, true);
                 }
-                else if (IsEquipmentPos(dst))
+                else if (InventoryMgr::IsEquipmentPos(dst))
                 {
                     EquipItem(eDest, pSrcItem, true);
                     AutoUnequipOffhandIfNeed();
@@ -1276,15 +1276,15 @@ void Player::SwapItem(uint16 src, uint16 dst)
     // check src->dest move possibility
     ItemPosCountVec sDest;
     uint16 eDest = 0;
-    if (IsInventoryPos(dst))
+    if (InventoryMgr::IsInventoryPos(dst))
     {
         msg = CanStoreItem(dstbag, dstslot, sDest, pSrcItem, true);
     }
-    else if (IsBankPos(dst))
+    else if (InventoryMgr::IsBankPos(dst))
     {
         msg = CanBankItem(dstbag, dstslot, sDest, pSrcItem, true);
     }
-    else if (IsEquipmentPos(dst))
+    else if (InventoryMgr::IsEquipmentPos(dst))
     {
         msg = CanEquipItem(dstslot, eDest, pSrcItem, true);
         if (msg == EQUIP_ERR_OK)
@@ -1302,15 +1302,15 @@ void Player::SwapItem(uint16 src, uint16 dst)
     // check dest->src move possibility
     ItemPosCountVec sDest2;
     uint16 eDest2 = 0;
-    if (IsInventoryPos(src))
+    if (InventoryMgr::IsInventoryPos(src))
     {
         msg = CanStoreItem(srcbag, srcslot, sDest2, pDstItem, true);
     }
-    else if (IsBankPos(src))
+    else if (InventoryMgr::IsBankPos(src))
     {
         msg = CanBankItem(srcbag, srcslot, sDest2, pDstItem, true);
     }
-    else if (IsEquipmentPos(src))
+    else if (InventoryMgr::IsEquipmentPos(src))
     {
         msg = CanEquipItem(srcslot, eDest2, pDstItem, true);
         if (msg == EQUIP_ERR_OK)
@@ -1334,12 +1334,12 @@ void Player::SwapItem(uint16 src, uint16 dst)
         Bag* emptyBag = NULL;
         Bag* fullBag = NULL;
 
-        if (pSrcBag->IsEmpty() && !IsBagPos(src))
+        if (pSrcBag->IsEmpty() && !InventoryMgr::IsBagPos(src))
         {
             emptyBag = pSrcBag;
             fullBag  = pDstBag;
         }
-        else if (pDstBag->IsEmpty() && !IsBagPos(dst))
+        else if (pDstBag->IsEmpty() && !InventoryMgr::IsBagPos(dst))
         {
             emptyBag = pDstBag;
             fullBag  = pSrcBag;
@@ -1402,29 +1402,29 @@ void Player::SwapItem(uint16 src, uint16 dst)
     RemoveItem(srcbag, srcslot, false);
 
     // add to dest
-    if (IsInventoryPos(dst))
+    if (InventoryMgr::IsInventoryPos(dst))
     {
         StoreItem(sDest, pSrcItem, true);
     }
-    else if (IsBankPos(dst))
+    else if (InventoryMgr::IsBankPos(dst))
     {
         BankItem(sDest, pSrcItem, true);
     }
-    else if (IsEquipmentPos(dst))
+    else if (InventoryMgr::IsEquipmentPos(dst))
     {
         EquipItem(eDest, pSrcItem, true);
     }
 
     // add to src
-    if (IsInventoryPos(src))
+    if (InventoryMgr::IsInventoryPos(src))
     {
         StoreItem(sDest2, pDstItem, true);
     }
-    else if (IsBankPos(src))
+    else if (InventoryMgr::IsBankPos(src))
     {
         BankItem(sDest2, pDstItem, true);
     }
-    else if (IsEquipmentPos(src))
+    else if (InventoryMgr::IsEquipmentPos(src))
     {
         EquipItem(eDest2, pDstItem, true);
     }
@@ -1495,17 +1495,6 @@ void Player::AddItemToBuyBackSlot(Item* pItem)
             ++m_currentBuybackSlot;
         }
     }
-}
-
-/**
- * @brief Gets an item from a vendor buyback slot.
- *
- * @param slot The buyback slot index.
- * @return The item in the slot, or null if none exists.
- */
-Item* Player::GetItemFromBuyBackSlot(uint32 slot)
-{
-    return m_inventoryMgr.GetItemFromBuyBackSlot(slot);
 }
 
 /**

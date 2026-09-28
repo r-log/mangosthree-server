@@ -1370,18 +1370,11 @@ class Player : public Unit
         // Find the equipment slot for the specified item
         uint8 FindEquipSlot(ItemPrototype const* proto, uint32 slot, bool swap) const;
 
-        // Get the count of the specified item
-        uint32 GetItemCount(uint32 item, bool inBankAlso = false, Item* skipItem = NULL) const;
-        Item* GetItemByGuid(ObjectGuid guid) const;
-        Item* GetItemByEntry(uint32 item) const;            // only for special cases
-        Item* GetItemByLimitedCategory(uint32 limitedCategory) const;
-        Item* GetItemByPos(uint16 pos) const;
-
-        // Get the item by its bag and slot
-        Item* GetItemByPos(uint8 bag, uint8 slot) const;
-
-        // Get the display ID of the item in the specified slot
-        uint32 GetItemDisplayIdInSlot(uint8 bag, uint8 slot) const;
+        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,
+        // GetItemByLimitedCategory, GetItemFromBuyBackSlot), the counts (GetItemCount, HasItemCount),
+        // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it directly.
+        InventoryMgr& GetInventoryMgr() { return m_inventoryMgr; }
+        InventoryMgr const& GetInventoryMgr() const { return m_inventoryMgr; }
 
         // Get the weapon for the specified attack type
         Item* GetWeaponForAttack(WeaponAttackType attackType) const
@@ -1401,38 +1394,11 @@ class Player : public Unit
         // Get the item update queue
         std::vector<Item*>& GetItemUpdateQueue() { return m_itemUpdateQueue; }
 
-        // Check if the position is an inventory position
-        static bool IsInventoryPos(uint16 pos) { return InventoryMgr::IsInventoryPos(pos); }
-
-        // Check if the position is an inventory position (overloaded)
-        static bool IsInventoryPos(uint8 bag, uint8 slot);
-
-        // Check if the position is an equipment position
-        static bool IsEquipmentPos(uint16 pos) { return InventoryMgr::IsEquipmentPos(pos); }
-
-        // Check if the position is an equipment position (overloaded)
-        static bool IsEquipmentPos(uint8 bag, uint8 slot);
-
-        // Check if the position is a bag position
-        static bool IsBagPos(uint16 pos);
-
-        // Check if the position is a bank position
-        static bool IsBankPos(uint16 pos) { return InventoryMgr::IsBankPos(pos); }
-
-        // Check if the position is a bank position (overloaded)
-        static bool IsBankPos(uint8 bag, uint8 slot);
-
-        // Check if the position is valid
-        bool IsValidPos(uint8 bag, uint8 slot, bool explicit_pos) const;
-
         // Get the count of bank bag slots
         uint8 GetBankBagSlotCount() const { return GetByteValue(PLAYER_BYTES_2, 2); }
 
         // Set the count of bank bag slots
         void SetBankBagSlotCount(uint8 count) { SetByteValue(PLAYER_BYTES_2, 2, count); }
-
-        // Check if the player has the specified item count
-        bool HasItemCount(uint32 item, uint32 count, bool inBankAlso = false) const;
 
         // Check if the player has an item that fits the spell requirements
         bool HasItemFitToSpellReqirements(SpellEntry const* spellInfo, Item const* ignoreItem = NULL);
@@ -1599,9 +1565,6 @@ class Player : public Unit
         // Add an item to the buyback slot
         void AddItemToBuyBackSlot(Item* pItem);
 
-        // Get an item from the buyback slot
-        Item* GetItemFromBuyBackSlot(uint32 slot);
-
         // Remove an item from the buyback slot
         void RemoveItemFromBuyBackSlot(uint32 slot, bool del);
 
@@ -1647,13 +1610,13 @@ class Player : public Unit
         // Check if a two-handed weapon is used
         bool IsTwoHandUsed() const
         {
-            Item* mainItem = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+            Item* mainItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
             return mainItem && mainItem->GetProto()->InventoryType == INVTYPE_2HWEAPON && !CanTitanGrip();
         }
         bool HasTwoHandWeaponInOneHand() const
         {
-            Item* offItem = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
-            Item* mainItem = GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+            Item* offItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+            Item* mainItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
             return offItem && ((mainItem && mainItem->GetProto()->InventoryType == INVTYPE_2HWEAPON) || offItem->GetProto()->InventoryType == INVTYPE_2HWEAPON);
         }
         void SendNewItem(Item* item, uint32 count, bool received, bool created, bool broadcast = false);

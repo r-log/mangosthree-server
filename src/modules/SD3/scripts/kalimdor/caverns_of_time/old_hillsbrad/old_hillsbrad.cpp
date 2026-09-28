@@ -67,7 +67,7 @@ struct npc_erozion : public CreatureScript
 
         ScriptedInstance* pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
 
-        if (pInstance && pInstance->GetData(TYPE_BARREL_DIVERSION) != DONE && !pPlayer->HasItemCount(ITEM_ENTRY_BOMBS, 1))
+        if (pInstance && pInstance->GetData(TYPE_BARREL_DIVERSION) != DONE && !pPlayer->GetInventoryMgr().HasItemCount(ITEM_ENTRY_BOMBS, 1))
         {
             pPlayer->ADD_GOSSIP_ITEM_ID(GOSSIP_ICON_CHAT, GOSSIP_ITEM_NEED_BOMBS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
         }

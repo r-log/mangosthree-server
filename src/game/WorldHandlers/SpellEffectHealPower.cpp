@@ -658,7 +658,7 @@ void Spell::EffectCreateItem2(SpellEffectEntry const* effect)
     {
         if (item_id)
         {
-            if (!player->HasItemCount(item_id, 1))
+            if (!player->GetInventoryMgr().HasItemCount(item_id, 1))
             {
                 return;
             }

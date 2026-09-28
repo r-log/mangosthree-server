@@ -209,14 +209,14 @@ AreaLockStatus Player::GetAreaTriggerLockStatus(AreaTrigger const* at, Difficult
     // Item Requirements: must have requiredItem OR requiredItem2, report the first one that's missing
     if (at->requiredItem)
     {
-        if (!HasItemCount(at->requiredItem, 1) &&
-                (!at->requiredItem2 || !HasItemCount(at->requiredItem2, 1)))
+        if (!m_inventoryMgr.HasItemCount(at->requiredItem, 1) &&
+                (!at->requiredItem2 || !m_inventoryMgr.HasItemCount(at->requiredItem2, 1)))
         {
             miscRequirement = at->requiredItem;
             return AREA_LOCKSTATUS_MISSING_ITEM;
         }
     }
-    else if (at->requiredItem2 && !HasItemCount(at->requiredItem2, 1))
+    else if (at->requiredItem2 && !m_inventoryMgr.HasItemCount(at->requiredItem2, 1))
     {
         miscRequirement = at->requiredItem2;
         return AREA_LOCKSTATUS_MISSING_ITEM;
@@ -224,13 +224,13 @@ AreaLockStatus Player::GetAreaTriggerLockStatus(AreaTrigger const* at, Difficult
     // Heroic item requirements
     if (!isRegularTargetMap && at->heroicKey)
     {
-        if (!HasItemCount(at->heroicKey, 1) && (!at->heroicKey2 || !HasItemCount(at->heroicKey2, 1)))
+        if (!m_inventoryMgr.HasItemCount(at->heroicKey, 1) && (!at->heroicKey2 || !m_inventoryMgr.HasItemCount(at->heroicKey2, 1)))
         {
             miscRequirement = at->heroicKey;
             return AREA_LOCKSTATUS_MISSING_ITEM;
         }
     }
-    else if (!isRegularTargetMap && at->heroicKey2 && !HasItemCount(at->heroicKey2, 1))
+    else if (!isRegularTargetMap && at->heroicKey2 && !m_inventoryMgr.HasItemCount(at->heroicKey2, 1))
     {
         miscRequirement = at->heroicKey2;
         return AREA_LOCKSTATUS_MISSING_ITEM;

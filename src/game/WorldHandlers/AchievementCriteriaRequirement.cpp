@@ -342,7 +342,7 @@ bool AchievementCriteriaRequirement::Meets(uint32 criteria_id, Player const* sou
         }
         case ACHIEVEMENT_CRITERIA_REQUIRE_S_EQUIPPED_ITEM_LVL:
         {
-            Item* item = source->GetItemByPos(INVENTORY_SLOT_BAG_0, miscvalue1);
+            Item* item = source->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, miscvalue1);
             if (!item)
             {
                 return false;

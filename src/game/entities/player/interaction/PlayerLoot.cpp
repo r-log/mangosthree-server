@@ -290,7 +290,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
         }
         case HIGHGUID_ITEM:
         {
-            Item* item = GetItemByGuid(guid);
+            Item* item = m_inventoryMgr.GetItemByGuid(guid);
 
             if (!item)
             {

@@ -812,7 +812,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                         return;
                     }
 
-                    if (Item* pItem = ((Player*)unitTarget)->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+                    if (Item* pItem = ((Player*)unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
                     {
                         ((Creature*)m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, pItem->GetEntry());
 
@@ -1118,7 +1118,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                         return;
                     }
 
-                    if (Item* pItem = ((Player*)unitTarget)->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
+                    if (Item* pItem = ((Player*)unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
                     {
                         ((Creature*)m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, pItem->GetEntry());
 
@@ -1685,14 +1685,14 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                     switch(effect->EffectIndex)
                     {
                         case EFFECT_INDEX_1:
-                            if (((Player*)m_originalCaster)->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+                            if (((Player*)m_originalCaster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
                             {
                                 unitTarget->CastSpell(m_originalCaster, effect->CalculateSimpleValue(), true);
                             }
 
                             return;
                         case EFFECT_INDEX_2:
-                            if (((Player*)m_originalCaster)->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
+                            if (((Player*)m_originalCaster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
                             {
                                 unitTarget->CastSpell(m_originalCaster, effect->CalculateSimpleValue(), true);
                             }

@@ -85,7 +85,7 @@
 void Player::DurabilityLossAll(double percent, bool inventory)
 {
     for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
             DurabilityLoss(pItem, percent);
         }
@@ -96,15 +96,15 @@ void Player::DurabilityLossAll(double percent, bool inventory)
         // for(int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
 
         for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-            if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
                 DurabilityLoss(pItem, percent);
             }
 
         for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-            if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
                 for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
-                    if (Item* pItem = GetItemByPos(i, j))
+                    if (Item* pItem = m_inventoryMgr.GetItemByPos(i, j))
                     {
                         DurabilityLoss(pItem, percent);
                     }
@@ -151,7 +151,7 @@ void Player::DurabilityPointsLossAll(int32 points, bool inventory)
 {
     for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
     {
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
             DurabilityPointsLoss(pItem, points);
         }
@@ -162,15 +162,15 @@ void Player::DurabilityPointsLossAll(int32 points, bool inventory)
         // for(int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
 
         for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
-            if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             {
                 DurabilityPointsLoss(pItem, points);
             }
 
         for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
-            if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (Bag* pBag = (Bag*)m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, i))
                 for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
-                    if (Item* pItem = GetItemByPos(i, j))
+                    if (Item* pItem = m_inventoryMgr.GetItemByPos(i, j))
                     {
                         DurabilityPointsLoss(pItem, points);
                     }
@@ -225,7 +225,7 @@ void Player::DurabilityPointsLoss(Item* item, int32 points)
  */
 void Player::DurabilityPointLossForEquipSlot(EquipmentSlots slot)
 {
-    if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+    if (Item* pItem = m_inventoryMgr.GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
     {
         DurabilityPointsLoss(pItem, 1);
     }
@@ -268,7 +268,7 @@ uint32 Player::DurabilityRepairAll(bool cost, float discountMod, bool guildBank)
  */
 uint32 Player::DurabilityRepair(uint16 pos, bool cost, float discountMod, bool guildBank)
 {
-    Item* item = GetItemByPos(pos);
+    Item* item = m_inventoryMgr.GetItemByPos(pos);
 
     uint32 TotalCost = 0;
     if (!item)
@@ -367,7 +367,7 @@ uint32 Player::DurabilityRepair(uint16 pos, bool cost, float discountMod, bool g
     item->SetState(ITEM_CHANGED, this);
 
     // reapply mods for total broken and repaired item if equipped
-    if (IsEquipmentPos(pos) && !curDurability)
+    if (InventoryMgr::IsEquipmentPos(pos) && !curDurability)
     {
         _ApplyItemMods(item, pos & 255, true);
     }

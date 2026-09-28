@@ -223,7 +223,7 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorGuid, uint32 vendorslot, uin
         // item base price
         for (uint8 i = 0; i < MAX_EXTENDED_COST_ITEMS; ++i)
         {
-            if (iece->ItemID[i] && !HasItemCount(iece->ItemID[i], iece->ItemCount[i]))
+            if (iece->ItemID[i] && !m_inventoryMgr.HasItemCount(iece->ItemID[i], iece->ItemCount[i]))
             {
                 SendEquipError(EQUIP_ERR_VENDOR_MISSING_TURNINS, NULL, NULL);
                 return false;
@@ -290,7 +290,7 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorGuid, uint32 vendorslot, uin
 
     Item* pItem = NULL;
 
-    if ((bag == NULL_BAG && slot == NULL_SLOT) || IsInventoryPos(bag, slot))
+    if ((bag == NULL_BAG && slot == NULL_SLOT) || InventoryMgr::IsInventoryPos(bag, slot))
     {
         ItemPosCountVec dest;
         InventoryResult msg = CanStoreNewItem(bag, slot, dest, item, totalCount);
@@ -309,7 +309,7 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorGuid, uint32 vendorslot, uin
 
         pItem = StoreNewItem(dest, item, true);
     }
-    else if (IsEquipmentPos(bag, slot))
+    else if (InventoryMgr::IsEquipmentPos(bag, slot))
     {
         if (totalCount != 1)
         {
@@ -443,7 +443,7 @@ bool Player::BuyCurrencyFromVendorSlot(ObjectGuid vendorGuid, uint32 vendorslot,
         // item base price
         for (uint8 i = 0; i < MAX_EXTENDED_COST_ITEMS; ++i)
         {
-            if (iece->ItemID[i] && !HasItemCount(iece->ItemID[i], iece->ItemCount[i]))
+            if (iece->ItemID[i] && !m_inventoryMgr.HasItemCount(iece->ItemID[i], iece->ItemCount[i]))
             {
                 SendEquipError(EQUIP_ERR_VENDOR_MISSING_TURNINS, NULL, NULL);
                 return false;

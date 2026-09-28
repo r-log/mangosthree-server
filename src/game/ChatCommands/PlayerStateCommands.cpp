@@ -199,13 +199,13 @@ bool ChatHandler::HandleItemMoveCommand(char* args)
     }
 
     Player* player = m_session->GetPlayer();
-    if (!player->IsValidPos(INVENTORY_SLOT_BAG_0, srcslot, true))
+    if (!player->GetInventoryMgr().IsValidPos(INVENTORY_SLOT_BAG_0, srcslot, true))
     {
         return false;
     }
 
     // can be autostore pos
-    if (!m_session->GetPlayer()->IsValidPos(INVENTORY_SLOT_BAG_0, dstslot, false))
+    if (!m_session->GetPlayer()->GetInventoryMgr().IsValidPos(INVENTORY_SLOT_BAG_0, dstslot, false))
     {
         return false;
     }
@@ -715,7 +715,7 @@ bool ChatHandler::HandleAddItemCommand(char* args)
     {
         for (ItemPosCountVec::const_iterator itr = dest.begin(); itr != dest.end(); ++itr)
         {
-            if (Item* item1 = pl->GetItemByPos(itr->pos))
+            if (Item* item1 = pl->GetInventoryMgr().GetItemByPos(itr->pos))
             {
                 item1->SetBinding(false);
             }

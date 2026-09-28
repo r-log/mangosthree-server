@@ -416,7 +416,7 @@ struct go_manaforge_control_console : public GameObjectScript
             case 3726:                                          // b'naar
                 if ((pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_BNAAR_ALDOR) == QUEST_STATUS_INCOMPLETE ||
                     pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_BNAAR_SCRYERS) == QUEST_STATUS_INCOMPLETE) &&
-                    pPlayer->HasItemCount(ITEM_BNAAR_ACESS_CRYSTAL, 1))
+                    pPlayer->GetInventoryMgr().HasItemCount(ITEM_BNAAR_ACESS_CRYSTAL, 1))
                 {
                     pManaforge = pPlayer->SummonCreature(NPC_BNAAR_C_CONSOLE, 2918.95f, 4189.98f, 161.88f, 0.34f, TEMPSPAWN_TIMED_OOC_OR_CORPSE_DESPAWN, 125000);
                 }
@@ -424,7 +424,7 @@ struct go_manaforge_control_console : public GameObjectScript
             case 3730:                                          // coruu
                 if ((pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_CORUU_ALDOR) == QUEST_STATUS_INCOMPLETE ||
                     pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_CORUU_SCRYERS) == QUEST_STATUS_INCOMPLETE) &&
-                    pPlayer->HasItemCount(ITEM_CORUU_ACESS_CRYSTAL, 1))
+                    pPlayer->GetInventoryMgr().HasItemCount(ITEM_CORUU_ACESS_CRYSTAL, 1))
                 {
                     pManaforge = pPlayer->SummonCreature(NPC_CORUU_C_CONSOLE, 2426.77f, 2750.38f, 133.24f, 2.14f, TEMPSPAWN_TIMED_OOC_OR_CORPSE_DESPAWN, 125000);
                 }
@@ -432,7 +432,7 @@ struct go_manaforge_control_console : public GameObjectScript
             case 3734:                                          // duro
                 if ((pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_DURO_ALDOR) == QUEST_STATUS_INCOMPLETE ||
                     pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_DURO_SCRYERS) == QUEST_STATUS_INCOMPLETE) &&
-                    pPlayer->HasItemCount(ITEM_DURO_ACESS_CRYSTAL, 1))
+                    pPlayer->GetInventoryMgr().HasItemCount(ITEM_DURO_ACESS_CRYSTAL, 1))
                 {
                     pManaforge = pPlayer->SummonCreature(NPC_DURO_C_CONSOLE, 2976.48f, 2183.29f, 163.20f, 1.85f, TEMPSPAWN_TIMED_OOC_OR_CORPSE_DESPAWN, 125000);
                 }
@@ -440,7 +440,7 @@ struct go_manaforge_control_console : public GameObjectScript
             case 3722:                                          // ara
                 if ((pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_ARA_ALDOR) == QUEST_STATUS_INCOMPLETE ||
                     pPlayer->GetQuestStatusMgr().GetQuestStatus(QUEST_SHUTDOWN_ARA_SCRYERS) == QUEST_STATUS_INCOMPLETE) &&
-                    pPlayer->HasItemCount(ITEM_ARA_ACESS_CRYSTAL, 1))
+                    pPlayer->GetInventoryMgr().HasItemCount(ITEM_ARA_ACESS_CRYSTAL, 1))
                 {
                     pManaforge = pPlayer->SummonCreature(NPC_ARA_C_CONSOLE, 4013.71f, 4028.76f, 192.10f, 1.25f, TEMPSPAWN_TIMED_OOC_OR_CORPSE_DESPAWN, 125000);
                 }

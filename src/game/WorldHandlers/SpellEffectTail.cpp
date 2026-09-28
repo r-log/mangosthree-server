@@ -242,7 +242,7 @@ void Spell::EffectDurabilityDamage(SpellEffectEntry const* effect)
         return;
     }
 
-    if (Item* item = ((Player*)unitTarget)->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+    if (Item* item = ((Player*)unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
     {
         ((Player*)unitTarget)->DurabilityPointsLoss(item, damage);
     }
@@ -281,7 +281,7 @@ void Spell::EffectDurabilityDamagePCT(SpellEffectEntry const* effect)
         return;
     }
 
-    if (Item* item = ((Player*)unitTarget)->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+    if (Item* item = ((Player*)unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
     {
         ((Player*)unitTarget)->DurabilityLoss(item, double(damage) / 100.0f);
     }
@@ -950,11 +950,11 @@ void Spell::EffectRestoreItemCharges(SpellEffectEntry const* effect)
     Item* item;
     if (itemProto->ItemLimitCategory)
     {
-        item = ((Player*)unitTarget)->GetItemByLimitedCategory(itemProto->ItemLimitCategory);
+        item = ((Player*)unitTarget)->GetInventoryMgr().GetItemByLimitedCategory(itemProto->ItemLimitCategory);
     }
     else
     {
-        item = player->GetItemByEntry(effect->EffectItemType);
+        item = player->GetInventoryMgr().GetItemByEntry(effect->EffectItemType);
     }
 
     if (!item)

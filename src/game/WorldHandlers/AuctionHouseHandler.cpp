@@ -361,7 +361,7 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
 
         uint32 stackSize = stackSizes[i];
 
-        Item* it = pl->GetItemByGuid(itemGuid);
+        Item* it = pl->GetInventoryMgr().GetItemByGuid(itemGuid);
 
         // do not allow to sell already auctioned items
         if (sAuctionMgr.GetAItem(itemGuid.GetCounter()))
@@ -414,7 +414,7 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
             stackSize = it->GetMaxStackCount();
         }
 
-        if (!pl->HasItemCount(it->GetEntry(), stackSize))   // not enough items
+        if (!pl->GetInventoryMgr().HasItemCount(it->GetEntry(), stackSize))   // not enough items
         {
             continue;
         }

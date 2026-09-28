@@ -78,7 +78,7 @@ void WorldSession::HandleSellItemOpcode(WorldPacket& recv_data)
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
     }
 
-    Item* pItem = _player->GetItemByGuid(itemGuid);
+    Item* pItem = _player->GetInventoryMgr().GetItemByGuid(itemGuid);
     if (pItem)
     {
         // prevent sell not owner item
@@ -203,7 +203,7 @@ void WorldSession::HandleBuybackItem(WorldPacket& recv_data)
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
     }
 
-    Item* pItem = _player->GetItemFromBuyBackSlot(slot);
+    Item* pItem = _player->GetInventoryMgr().GetItemFromBuyBackSlot(slot);
     if (pItem)
     {
         uint64 price = _player->GetUInt32Value(PLAYER_FIELD_BUYBACK_PRICE_1 + slot - BUYBACK_SLOT_START);
@@ -277,7 +277,7 @@ void WorldSession::HandleBuyItemOpcode(WorldPacket& recv_data)
             {
                 for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
                 {
-                    if (Bag* pBag = (Bag*)_player->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                    if (Bag* pBag = (Bag*)_player->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, i))
                     {
                         if (bagGuid == pBag->GetObjectGuid())
                         {
@@ -519,13 +519,13 @@ void WorldSession::HandleAutoStoreBagItemOpcode(WorldPacket& recv_data)
     recv_data >> srcbag >> srcslot >> dstbag;
     // DEBUG_LOG("STORAGE: receive srcbag = %u, srcslot = %u, dstbag = %u", srcbag, srcslot, dstbag);
 
-    Item* pItem = _player->GetItemByPos(srcbag, srcslot);
+    Item* pItem = _player->GetInventoryMgr().GetItemByPos(srcbag, srcslot);
     if (!pItem)
     {
         return;
     }
 
-    if (!_player->IsValidPos(dstbag, NULL_SLOT, false))     // can be autostore pos
+    if (!_player->GetInventoryMgr().IsValidPos(dstbag, NULL_SLOT, false))     // can be autostore pos
     {
         _player->SendEquipError(EQUIP_ERR_ITEM_DOESNT_GO_TO_SLOT, NULL, NULL);
         return;
@@ -534,9 +534,9 @@ void WorldSession::HandleAutoStoreBagItemOpcode(WorldPacket& recv_data)
     uint16 src = pItem->GetPos();
 
     // check unequip potability for equipped items and bank bags
-    if (_player->IsEquipmentPos(src) || _player->IsBagPos(src))
+    if (_player->GetInventoryMgr().IsEquipmentPos(src) || _player->GetInventoryMgr().IsBagPos(src))
     {
-        InventoryResult msg = _player->CanUnequipItem(src, !_player->IsBagPos(src));
+        InventoryResult msg = _player->CanUnequipItem(src, !_player->GetInventoryMgr().IsBagPos(src));
         if (msg != EQUIP_ERR_OK)
         {
             _player->SendEquipError(msg, pItem, NULL);
@@ -652,7 +652,7 @@ void WorldSession::HandleAutoBankItemOpcode(WorldPacket& recvPacket)
     recvPacket >> srcbag >> srcslot;
     DEBUG_LOG("STORAGE: receive srcbag = %u, srcslot = %u", srcbag, srcslot);
 
-    Item* pItem = _player->GetItemByPos(srcbag, srcslot);
+    Item* pItem = _player->GetInventoryMgr().GetItemByPos(srcbag, srcslot);
     if (!pItem)
     {
         return;
@@ -691,13 +691,13 @@ void WorldSession::HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket)
     recvPacket >> srcbag >> srcslot;
     DEBUG_LOG("STORAGE: receive srcbag = %u, srcslot = %u", srcbag, srcslot);
 
-    Item* pItem = _player->GetItemByPos(srcbag, srcslot);
+    Item* pItem = _player->GetInventoryMgr().GetItemByPos(srcbag, srcslot);
     if (!pItem)
     {
         return;
     }
 
-    if (_player->IsBankPos(srcbag, srcslot))                // moving from bank to inventory
+    if (_player->GetInventoryMgr().IsBankPos(srcbag, srcslot))                // moving from bank to inventory
     {
         ItemPosCountVec dest;
         InventoryResult msg = _player->CanStoreItem(NULL_BAG, NULL_SLOT, dest, pItem, false);

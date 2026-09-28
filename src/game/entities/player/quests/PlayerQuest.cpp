@@ -522,7 +522,7 @@ bool Player::CanCompleteRepeatableQuest(Quest const* pQuest) const
     {
         for (int i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; ++i)
         {
-            if (pQuest->ReqItemId[i] && pQuest->ReqItemCount[i] && !HasItemCount(pQuest->ReqItemId[i], pQuest->ReqItemCount[i]))
+            if (pQuest->ReqItemId[i] && pQuest->ReqItemCount[i] && !m_inventoryMgr.HasItemCount(pQuest->ReqItemId[i], pQuest->ReqItemCount[i]))
             {
                 return false;
             }
@@ -578,7 +578,7 @@ bool Player::CanRewardQuest(Quest const* pQuest, bool msg) const
         for (int i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; ++i)
         {
             if (pQuest->ReqItemCount[i] != 0 &&
-                GetItemCount(pQuest->ReqItemId[i]) < pQuest->ReqItemCount[i])
+                m_inventoryMgr.GetItemCount(pQuest->ReqItemId[i]) < pQuest->ReqItemCount[i])
             {
                 if (msg)
                 {
@@ -1557,7 +1557,7 @@ bool Player::CanGiveQuestSourceItemIfNeed(Quest const* pQuest, ItemPosCountVec* 
         uint32 count = pQuest->GetSrcItemCount();
 
         // player already have max amount required item (including bank), just report success
-        uint32 has_count = GetItemCount(srcitem, true);
+        uint32 has_count = m_inventoryMgr.GetItemCount(srcitem, true);
         if (has_count >= count)
         {
             return true;
@@ -1706,7 +1706,7 @@ void Player::AdjustQuestReqItemCount(Quest const* pQuest, QuestStatusData& quest
             uint32 reqitemcount = pQuest->ReqItemCount[i];
             if (reqitemcount != 0)
             {
-                uint32 curitemcount = GetItemCount(pQuest->ReqItemId[i], true);
+                uint32 curitemcount = m_inventoryMgr.GetItemCount(pQuest->ReqItemId[i], true);
 
                 questStatusData.m_itemcount[i] = std::min(curitemcount, reqitemcount);
                 if (questStatusData.uState != QUEST_NEW)
@@ -1956,7 +1956,7 @@ void Player::ItemRemovedQuestCheck(uint32 entry, uint32 count)
                 }
                 else
                 {
-                    curitemcount = GetItemCount(entry, true);
+                    curitemcount = m_inventoryMgr.GetItemCount(entry, true);
                 }
                 if (curitemcount < reqitemcount + count)
                 {
@@ -2459,7 +2459,7 @@ bool Player::HasQuestForItem(uint32 itemid) const
                     ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(itemid);
 
                     // 'unique' item
-                    if (pProto->MaxCount && (int32)GetItemCount(itemid, true) < pProto->MaxCount)
+                    if (pProto->MaxCount && (int32)m_inventoryMgr.GetItemCount(itemid, true) < pProto->MaxCount)
                     {
                         return true;
                     }
@@ -2467,12 +2467,12 @@ bool Player::HasQuestForItem(uint32 itemid) const
                     // allows custom amount drop when not 0
                     if (qinfo->ReqSourceCount[j])
                     {
-                        if (GetItemCount(itemid, true) < qinfo->ReqSourceCount[j])
+                        if (m_inventoryMgr.GetItemCount(itemid, true) < qinfo->ReqSourceCount[j])
                         {
                             return true;
                         }
                     }
-                    else if ((int32)GetItemCount(itemid, true) < pProto->Stackable)
+                    else if ((int32)m_inventoryMgr.GetItemCount(itemid, true) < pProto->Stackable)
                     {
                         return true;
                     }

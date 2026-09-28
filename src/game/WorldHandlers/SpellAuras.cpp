@@ -1233,7 +1233,7 @@ void Aura::ReapplyAffectedPassiveAuras(Unit* target, bool owner_mode)
 
         for (std::map<uint32, ObjectGuid>::const_iterator map_itr = affectedSelf.begin(); map_itr != affectedSelf.end(); ++map_itr)
         {
-            Item* item = pTarget && map_itr->second ? pTarget->GetItemByGuid(map_itr->second) : NULL;
+            Item* item = pTarget && map_itr->second ? pTarget->GetInventoryMgr().GetItemByGuid(map_itr->second) : NULL;
             target->RemoveAurasDueToSpell(map_itr->first);
             target->CastSpell(target, map_itr->first, true, item);
         }
@@ -4241,7 +4241,7 @@ void SpellAuraHolder::_AddSpellAuraHolder()
     {
         if (m_spellProto->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
         {
-            Item* castItem = m_castItemGuid ? ((Player*)caster)->GetItemByGuid(m_castItemGuid) : NULL;
+            Item* castItem = m_castItemGuid ? ((Player*)caster)->GetInventoryMgr().GetItemByGuid(m_castItemGuid) : NULL;
             ((Player*)caster)->AddSpellAndCategoryCooldowns(m_spellProto, castItem ? castItem->GetEntry() : 0, NULL, true);
         }
     }
@@ -4395,7 +4395,7 @@ void SpellAuraHolder::_RemoveSpellAuraHolder()
     // remove at-store spell cast items (for all remove modes?)
     if (m_target->GetTypeId() == TYPEID_PLAYER && m_removeMode != AURA_REMOVE_BY_DEFAULT && m_removeMode != AURA_REMOVE_BY_DELETE)
         if (ObjectGuid castItemGuid = GetCastItemGuid())
-            if (Item* castItem = ((Player*)m_target)->GetItemByGuid(castItemGuid))
+            if (Item* castItem = ((Player*)m_target)->GetInventoryMgr().GetItemByGuid(castItemGuid))
             {
                 ((Player*)m_target)->DestroyItemWithOnStoreSpell(castItem, GetId());
             }
@@ -4726,7 +4726,7 @@ bool SpellAuraHolder::IsWeaponBuffCoexistableWith(SpellAuraHolder const* ref) co
         return false;
     }
 
-    Item* castItem = ((Player*)m_target)->GetItemByGuid(GetCastItemGuid());
+    Item* castItem = ((Player*)m_target)->GetInventoryMgr().GetItemByGuid(GetCastItemGuid());
     if (!castItem)
     {
         return false;

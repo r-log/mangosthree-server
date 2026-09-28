@@ -600,7 +600,7 @@ void Player::_SaveInventory()
         {
             continue;
         }
-        Item* test = GetItemByPos(item->GetBagSlot(), item->GetSlot());
+        Item* test = m_inventoryMgr.GetItemByPos(item->GetBagSlot(), item->GetSlot());
 
         if (test == NULL)
         {
