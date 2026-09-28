@@ -24,22 +24,20 @@
  */
 
 #include "GlyphMgr.h"
-#include "Player.h"
 #include "DBCStores.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "Object/UpdateFields.h"
 
-void GlyphMgr::InitGlyphsForLevel()
+void GlyphMgr::InitGlyphsForLevel(uint32 level, GlyphSlotSink const& setGlyphSlot, FieldSink const& setField)
 {
     uint32 slot = 0;
     for (uint32 i = 0; i < sGlyphSlotStore.GetNumRows() && slot < MAX_GLYPH_SLOT_INDEX; ++i)
         if (GlyphSlotEntry const* gs = sGlyphSlotStore.LookupEntry(i))
         {
-            m_owner->SetGlyphSlot(slot++, gs->ID);
+            setGlyphSlot(slot++, gs->ID);
         }
 
-    uint32 level = m_owner->getLevel();
     uint32 value = 0;
 
     // 0x3F = 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 for 80 level
@@ -56,91 +54,71 @@ void GlyphMgr::InitGlyphsForLevel()
         value |= 0x10 | 0x20 | 0x100;
     }
 
-    m_owner->SetUInt32Value(PLAYER_GLYPHS_ENABLED, value);
+    setField(PLAYER_GLYPHS_ENABLED, value);
 }
 
-void GlyphMgr::ApplyGlyph(uint8 slot, bool apply)
+void GlyphMgr::ApplyGlyph(uint8 activeSpec, uint8 slot, bool apply, ApplySinks const& sinks)
 {
-    if (uint32 glyph = GetGlyph(m_owner->GetActiveSpec(), slot))
+    if (uint32 glyph = GetGlyph(activeSpec, slot))
     {
         if (GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyph))
         {
             if (apply)
             {
-                m_owner->CastSpell(m_owner, gp->SpellID, true);
-                m_owner->SetUInt32Value(PLAYER_FIELD_GLYPHS_1 + slot, glyph);
+                sinks.castOnSelf(gp->SpellID);
+                sinks.setField(PLAYER_FIELD_GLYPHS_1 + slot, glyph);
             }
             else
             {
-                m_owner->RemoveAurasDueToSpell(gp->SpellID);
-                m_owner->SetUInt32Value(PLAYER_FIELD_GLYPHS_1 + slot, 0);
+                sinks.removeAuras(gp->SpellID);
+                sinks.setField(PLAYER_FIELD_GLYPHS_1 + slot, 0);
             }
         }
     }
 }
 
-void GlyphMgr::ApplyAll(bool apply)
+void GlyphMgr::LoadRow(Field* fields, RowInputs const& inputs)
 {
-    for (uint8 i = 0; i < MAX_GLYPH_SLOT_INDEX; ++i)
-    {
-        ApplyGlyph(i, apply);
-    }
-}
-
-void GlyphMgr::Load(QueryResult* result)
-{
-    if (!result)
-    {
-        return;
-    }
-
     //         0     1     2
     // "SELECT spec, slot, glyph FROM character_glyphs WHERE guid='%u'"
 
-    do
+    uint8 spec = fields[0].GetUInt8();
+    uint8 slot = fields[1].GetUInt8();
+    uint32 glyph = fields[2].GetUInt32();
+
+    GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyph);
+    if (!gp)
     {
-        Field* fields = result->Fetch();
-        uint8 spec = fields[0].GetUInt8();
-        uint8 slot = fields[1].GetUInt8();
-        uint32 glyph = fields[2].GetUInt32();
-
-        GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyph);
-        if (!gp)
-        {
-            sLog.outError("Player %s has not existing glyph entry %u on index %u, spec %u", m_owner->GetName(), glyph, slot, spec);
-            CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `glyph` = %u", glyph);
-            continue;
-        }
-
-        GlyphSlotEntry const* gs = sGlyphSlotStore.LookupEntry(m_owner->GetGlyphSlot(slot));
-        if (!gs)
-        {
-            sLog.outError("Player %s has not existing glyph slot entry %u on index %u, spec %u", m_owner->GetName(), m_owner->GetGlyphSlot(slot), slot, spec);
-            CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `slot` = %u AND `spec` = %u AND `guid` = %u", slot, spec, m_owner->GetGUIDLow());
-            continue;
-        }
-
-        if (gp->GlyphSlotFlags != gs->Type)
-        {
-            sLog.outError("Player %s has glyph with typeflags %u in slot with typeflags %u, removing.", m_owner->GetName(), gp->GlyphSlotFlags, gs->Type);
-            CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `slot` = %u AND `spec` = %u AND `guid` = %u", slot, spec, m_owner->GetGUIDLow());
-            continue;
-        }
-
-        m_glyphs[spec][slot].id = glyph;
+        sLog.outError("Player %s has not existing glyph entry %u on index %u, spec %u", inputs.ownerName, glyph, slot, spec);
+        CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `glyph` = %u", glyph);
+        return;
     }
-    while (result->NextRow());
 
-    delete result;
+    GlyphSlotEntry const* gs = sGlyphSlotStore.LookupEntry(inputs.glyphSlot(slot));
+    if (!gs)
+    {
+        sLog.outError("Player %s has not existing glyph slot entry %u on index %u, spec %u", inputs.ownerName, inputs.glyphSlot(slot), slot, spec);
+        CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `slot` = %u AND `spec` = %u AND `guid` = %u", slot, spec, inputs.ownerGuidLow);
+        return;
+    }
+
+    if (gp->GlyphSlotFlags != gs->Type)
+    {
+        sLog.outError("Player %s has glyph with typeflags %u in slot with typeflags %u, removing.", inputs.ownerName, gp->GlyphSlotFlags, gs->Type);
+        CharacterDatabase.PExecute("DELETE FROM `character_glyphs` WHERE `slot` = %u AND `spec` = %u AND `guid` = %u", slot, spec, inputs.ownerGuidLow);
+        return;
+    }
+
+    m_glyphs[spec][slot].id = glyph;
 }
 
-void GlyphMgr::Save()
+void GlyphMgr::Save(uint32 ownerGuidLow, uint8 specsCount)
 {
     static SqlStatementID insertGlyph;
     static SqlStatementID updateGlyph;
     static SqlStatementID deleteGlyph;
 
-    for (uint8 spec = 0; spec < m_owner->GetSpecsCount(); ++spec)
+    for (uint8 spec = 0; spec < specsCount; ++spec)
     {
         for (uint8 slot = 0; slot < MAX_GLYPH_SLOT_INDEX; ++slot)
         {
@@ -149,19 +127,19 @@ void GlyphMgr::Save()
                 case GLYPH_NEW:
                 {
                     SqlStatement stmt = CharacterDatabase.CreateStatement(insertGlyph, "INSERT INTO `character_glyphs` (`guid`, `spec`, `slot`, `glyph`) VALUES (?, ?, ?, ?)");
-                    stmt.PExecute(m_owner->GetGUIDLow(), spec, slot, m_glyphs[spec][slot].GetId());
+                    stmt.PExecute(ownerGuidLow, spec, slot, m_glyphs[spec][slot].GetId());
                 }
                 break;
                 case GLYPH_CHANGED:
                 {
                     SqlStatement stmt = CharacterDatabase.CreateStatement(updateGlyph, "UPDATE `character_glyphs` SET `glyph` = ? WHERE `guid` = ? AND `spec` = ? AND `slot` = ?");
-                    stmt.PExecute(m_glyphs[spec][slot].GetId(), m_owner->GetGUIDLow(), spec, slot);
+                    stmt.PExecute(m_glyphs[spec][slot].GetId(), ownerGuidLow, spec, slot);
                 }
                 break;
                 case GLYPH_DELETED:
                 {
                     SqlStatement stmt = CharacterDatabase.CreateStatement(deleteGlyph, "DELETE FROM `character_glyphs` WHERE `guid` = ? AND `spec` = ? AND `slot` = ?");
-                    stmt.PExecute(m_owner->GetGUIDLow(), spec, slot);
+                    stmt.PExecute(ownerGuidLow, spec, slot);
                 }
                 break;
                 case GLYPH_UNCHANGED:

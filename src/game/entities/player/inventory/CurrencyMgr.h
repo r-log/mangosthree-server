@@ -88,7 +88,8 @@ typedef std::unordered_map<uint32, PlayerCurrency> PlayerCurrenciesMap;
  * character_currencies. Extracted from Player.cpp on 2026-05-12
  * alongside GlyphMgr and HonorMgr, following the same pattern (state
  * owned here, public API preserved as thin inline delegates on Player,
- * owner back-pointer for callbacks into Player / Unit / WorldSession).
+ * owner back-pointer for callbacks into Player / Unit / WorldSession;
+ * GlyphMgr has since dropped its back-pointer, decoupling D4k).
  *
  * What stays on Player and is NOT in CurrencyMgr:
  *  - BuyCurrencyFromVendorSlot: vendor-system integration, calls

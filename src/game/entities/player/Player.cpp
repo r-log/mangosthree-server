@@ -319,7 +319,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(this), m_runeMgr(), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(this), m_honorMgr(this), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(this), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr(this)
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)
@@ -5789,8 +5789,8 @@ uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 n
     return uint32(cost);
 }
 
-// Player::InitGlyphsForLevel, ApplyGlyph, ApplyGlyphs moved to GlyphMgr (2026-05-12);
-// thin delegating wrappers live inline in Player.h.
+// Player::InitGlyphsForLevel, ApplyGlyph, ApplyGlyphs moved to GlyphMgr (2026-05-12); since
+// decoupling D4k their wrappers live in talents/PlayerGlyph.cpp.
 
 /**
  * @brief Checks whether the player is immune to all spell schools.

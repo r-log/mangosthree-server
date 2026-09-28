@@ -85,6 +85,8 @@ set(MANAGER_FILES
     entities/player/spells/SpellCooldownMgr.h               # decoupling D4k
     entities/player/spells/SpellCooldownMgr.cpp             # decoupling D4k
     entities/player/ManagerPacketSink.h                     # decoupling D4k: the managers' shared packet sink type
+    entities/player/talents/GlyphMgr.h                      # decoupling D4k
+    entities/player/talents/GlyphMgr.cpp                    # decoupling D4k
 )
 
 # The character's own files under entities/player/ (decoupling D4j), and the directory's README.
@@ -103,8 +105,7 @@ set(OWNER_FILES
     entities/player/persistence/PlayerDbLookup.cpp
     entities/player/quests/PlayerQuest.cpp
     entities/player/talents/PlayerTalent.cpp
-    entities/player/talents/GlyphMgr.h                      # D4k
-    entities/player/talents/GlyphMgr.cpp                    # D4k
+    entities/player/talents/PlayerGlyph.cpp                 # decoupling D4k: drives talents/GlyphMgr
     entities/player/spells/PlayerSpell.cpp
     entities/player/spells/PlayerSpellMod.cpp
     entities/player/spells/PlayerLearn.cpp

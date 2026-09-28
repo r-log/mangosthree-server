@@ -227,9 +227,10 @@ function(state_definition_site FILE_REL)
 endfunction()
 
 # ---------------------------------------------------------------------------------------------
-# THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10 and the
-# cooldown row on a63c61953 (decoupling D4k). The reasons name functions and lists, never line
-# numbers or counts: those go stale with the next edit, and the gate prints the lines.
+# THE TABLE. Measured on master 071325aad (decoupling D4h); the rune row on 4ebfddc10, the
+# cooldown row on a63c61953 and the glyph row on cc63db97b (decoupling D4k). The reasons name
+# functions and lists, never line numbers or counts: those go stale with the next edit, and the
+# gate prints the lines.
 
 # Every SMSG_ name in Opcodes.h containing FACTION, REPUTATION or FORCED_REACTIONS, less the two
 # that are not reputation state: SMSG_CHAT_WRONG_FACTION (the chat code's "wrong faction" error,
@@ -375,6 +376,39 @@ state_allow(cooldown src/game/Tools/PlayerDump.h
 state_allow(cooldown src/tests/SpellCooldownMgrTest.cpp
     WHY "unit test that observes the packets through a capturing sink and the save's statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
+
+# Decoupling D4k. The glyph state's table. Opcodes.h defines no SMSG_ name containing GLYPH, and
+# GlyphMgr builds no packet: the client sees glyphs through the owner's update fields and the
+# talent info packet (SMSG_TALENT_UPDATE, the talent code's). Left out: CMSG_SET_GLYPH_SLOT,
+# CMSG_SET_GLYPH and CMSG_REMOVE_GLYPH, client packets whose handlers the opcode table lists
+# commented out (a handler reads a client packet, it does not build one). TYPES is the owner
+# alone: its public const accessor hands out a glyph id by value.
+state_row(glyph
+    OWNER   GlyphMgr
+    TABLES  character_glyphs
+    TYPES   GlyphMgr)
+
+state_allow(glyph src/game/entities/player/talents/GlyphMgr.cpp
+    WHY "the owner: loads the rows one at a time (the row's columns in a comment, the invalid-row DELETEs) and saves them"
+    NAMES character_glyphs)
+state_allow(glyph src/game/entities/player/talents/GlyphMgr.h
+    WHY "the owner's header: the save states' and the save's doc comments name the table"
+    NAMES character_glyphs)
+state_allow(glyph src/game/entities/player/Player.cpp
+    WHY "whole-character delete (Player::DeleteFromDB)"
+    NAMES character_glyphs)
+state_allow(glyph src/game/WorldHandlers/CharacterHandler.cpp
+    WHY "login holder SELECT (PLAYER_LOGIN_QUERY_LOADGLYPHS), handed to the owner's per-row load"
+    NAMES character_glyphs)
+state_allow(glyph src/game/Tools/PlayerDump.cpp
+    WHY "character dump: the dumped-table list"
+    NAMES character_glyphs)
+state_allow(glyph src/game/Tools/PlayerDump.h
+    WHY "character dump: the table-type doc comment"
+    NAMES character_glyphs)
+state_allow(glyph src/tests/GlyphMgrTest.cpp
+    WHY "unit test that observes the load's DELETEs and the save's statements through a fake connection (checks each statement, runs nothing itself)"
+    NAMES character_glyphs)
 
 # Shared by every row: the files that define opcodes. Each is checked to still spell at least
 # one row packet.

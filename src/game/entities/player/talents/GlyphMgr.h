@@ -29,8 +29,9 @@
 #include "Platform/Define.h"
 #include "SharedDefines.h"                                  // MAX_GLYPH_SLOT_INDEX, MAX_TALENT_SPEC_COUNT
 
-class Player;
-class QueryResult;
+#include <functional>
+
+class Field;
 
 /**
  * @brief Lifecycle state of a glyph slot's dirty flag.
@@ -109,67 +110,109 @@ struct Glyph
 };
 
 /**
- * @brief Owns a Player's per-spec glyph state and lifecycle methods.
+ * @brief Decoupling D4k: a character's glyphs, per talent spec and glyph slot, and the rules over
+ * them, held apart from the object that plays the character.
  *
- * Lifecycle methods include Init / Apply / Load / Save. Player exposes
- * the public glyph API as thin delegating accessors so external callers
- * (CharacterHandler, SpellEffects::EffectApplyGlyph, the GM .modify
- * command) drive glyphs through Player without referencing GlyphMgr.
+ * The state is the glyph array: for each spec and slot, the glyph property id and its save state
+ * (the Glyph state machine above). The owner holds one by value, fills it row by row at login
+ * (LoadRow), and saves it with the rest of the character (Save).
  *
- * GlyphMgr stores a non-owning pointer to its Player. The pointer is used
- * to read Player's level / active spec / spec count and to call Player
- * methods that touch update fields, the spell system, or the character
- * database. GlyphMgr fully owns m_glyphs; Player accesses it only through
- * GlyphMgr's API.
+ * The object carries no owner. What it used to read from the owner is handed in at the call --
+ * the level at InitGlyphsForLevel, the active spec at ApplyGlyph, the guid and the spec count at
+ * Save, and for a loaded row the guid, the name and a read of the owner's glyph slot fields
+ * (RowInputs) -- and what it used to write to the owner goes out through a callback called at the
+ * exact point the old body wrote: the glyph slot fields (a GlyphSlotSink), the glyph and
+ * glyphs-enabled update fields (a FieldSink), and the glyph's spell cast on the owner and the
+ * removal of its auras (SpellSinks, bundled with the field sink in ApplySinks). Callbacks are
+ * parameters only, never stored. So `mangos_tests` builds one from nothing.
+ *
+ * It reads two global stores itself, as before: the glyph slot store (the slot types and their
+ * order; a loaded row's slot type must exist) and the glyph property store (a glyph's spell and
+ * slot type). It builds no packet: the client sees glyphs through the update fields above and
+ * through the talent info packet the owner builds.
+ *
+ * What stays with the owner, and why: the loop that applies or removes every slot (ApplyGlyphs:
+ * each slot reads the active spec afresh, after the previous slot's cast), the glyph slot fields
+ * themselves (SetGlyphSlot/GetGlyphSlot are update fields), and the login loop over the rows.
+ *
+ * KEPT SEMANTICS, stated rather than fixed (backlog): a row whose glyph is unknown is deleted for
+ * every character (that DELETE names the glyph only); a loaded row's spec and slot are not checked
+ * against the array's bounds; a loaded glyph keeps the UNCHANGED state, so the next save writes
+ * nothing for it.
  */
 class GlyphMgr
 {
     public:
-        /**
-         * @brief Constructs a GlyphMgr bound to its owning Player.
-         *
-         * @param owner The Player whose glyphs this manager owns.
-         */
-        explicit GlyphMgr(Player* owner) : m_owner(owner) {}
+        /// Writes the owner's glyph slot type field: `SetGlyphSlot(slot, slotType)`.
+        typedef std::function<void(uint8 slot, uint32 slotType)> GlyphSlotSink;
+        /// Writes one of the owner's update fields: `SetUInt32Value(index, value)`.
+        typedef std::function<void(uint16 index, uint32 value)> FieldSink;
+        /// Does something to the owner with a spell id: the glyph's cast, or the removal of its auras.
+        typedef std::function<void(uint32 spellId)> SpellSink;
+        /// Reads the owner's glyph slot type field: `GetGlyphSlot(slot)`.
+        typedef std::function<uint32(uint8 slot)> GlyphSlotRead;
+
+        /// What ApplyGlyph writes to the owner, each called where the old body wrote it.
+        struct ApplySinks
+        {
+            SpellSink castOnSelf;           ///< `CastSpell(owner, spellId, true)`
+            SpellSink removeAuras;          ///< `RemoveAurasDueToSpell(spellId)`
+            FieldSink setField;             ///< `SetUInt32Value(index, value)`
+        };
+
+        /// What a loaded row needs from the owner, read by the owner for each row. The scalars
+        /// default to 0 and NULL so that none is ever indeterminate; every builder (the owner's
+        /// _LoadGlyphs, the test's Inputs) sets every field anyway.
+        struct RowInputs
+        {
+            uint32 ownerGuidLow = 0;        ///< the owner's GetGUIDLow(): the per-character DELETEs
+            char const* ownerName = NULL;   ///< the owner's GetName(): the log lines
+            GlyphSlotRead glyphSlot;        ///< the owner's GetGlyphSlot(slot), called where the old body read it
+        };
 
         /**
          * @brief Refreshes glyph slot types and unlock mask for the owner's level.
          *
-         * Resets the slot type bitmap based on the owner's level and sets
-         * PLAYER_GLYPHS_ENABLED with the bitmask of slots unlocked at this
-         * level. Called on level change and on character creation.
+         * Writes the slot type of every glyph slot, in the glyph slot store's order, and sets
+         * PLAYER_GLYPHS_ENABLED with the bitmask of slots unlocked at this level. Called on level
+         * change, on character creation, at login and by the GM `.reset` commands.
+         *
+         * @param level        The owner's level, getLevel().
+         * @param setGlyphSlot Writes the owner's slot type field of one slot.
+         * @param setField     Writes PLAYER_GLYPHS_ENABLED.
          */
-        void InitGlyphsForLevel();
+        void InitGlyphsForLevel(uint32 level, GlyphSlotSink const& setGlyphSlot, FieldSink const& setField);
 
         /**
          * @brief Apply or remove the spell from a single glyph slot on the owner.
          *
-         * @param slot  The glyph slot index.
-         * @param apply True to cast and write the slot's spell, false to remove it.
+         * @param activeSpec The owner's active spec, GetActiveSpec().
+         * @param slot       The glyph slot index.
+         * @param apply      True to cast and write the slot's spell, false to remove it.
+         * @param sinks      The cast, the aura removal and the PLAYER_FIELD_GLYPHS_1 + slot field.
          */
-        void ApplyGlyph(uint8 slot, bool apply);
+        void ApplyGlyph(uint8 activeSpec, uint8 slot, bool apply, ApplySinks const& sinks);
 
         /**
-         * @brief Apply or remove all glyphs in the active spec.
+         * @brief Load one row of the login holder's glyph result (spec, slot, glyph).
          *
-         * @param apply True to apply all slots, false to remove them.
-         */
-        void ApplyAll(bool apply);
-
-        /**
-         * @brief Load glyph rows from a SELECT result against character_glyphs.
+         * An invalid row is logged and deleted, and leaves the array as it was.
          *
-         * @param result The DB query result holding (spec, slot, glyph) rows.
+         * @param fields The row.
+         * @param inputs The owner's guid, name and glyph slot read.
          */
-        void Load(QueryResult* result);
+        void LoadRow(Field* fields, RowInputs const& inputs);
 
         /**
          * @brief Persist dirty glyph slots to character_glyphs.
          *
-         * Emits INSERT / UPDATE / DELETE for each dirty slot, then clears the
-         * dirty flags.
+         * Emits INSERT / UPDATE / DELETE for each dirty slot of the first specsCount specs, then
+         * clears their dirty flags.
+         *
+         * @param ownerGuidLow The owner's GetGUIDLow().
+         * @param specsCount   The owner's GetSpecsCount().
          */
-        void Save();
+        void Save(uint32 ownerGuidLow, uint8 specsCount);
 
         /**
          * @brief Returns the glyph id stored in a given spec / slot.
@@ -190,7 +233,6 @@ class GlyphMgr
         void   SetGlyph(uint8 spec, uint8 slot, uint32 id) { m_glyphs[spec][slot].SetId(id); }
 
     private:
-        Player* m_owner;                                            ///< Non-owning pointer to the Player this manager belongs to.
         Glyph   m_glyphs[MAX_TALENT_SPEC_COUNT][MAX_GLYPH_SLOT_INDEX];  ///< Per-spec, per-slot glyph state owned by this manager.
 };
 

@@ -94,6 +94,7 @@ set(SRC_GRP_TESTS
     InventoryBankTest.cpp
     RuneMgrTest.cpp
     SpellCooldownMgrTest.cpp
+    GlyphMgrTest.cpp
 )
 
 if(WITH_NET_TESTS)
@@ -285,6 +286,16 @@ if(Python3_Interpreter_FOUND)
     # Decoupling D4b: the method counter (R1) the D4 finish line is measured with.
     add_test(NAME method_counter_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/method_count.py --self-test)
+
+    # Decoupling D4k: a character manager never stores a callback. The check reads the managers
+    # from CheckManagerIsolation.cmake's MANAGER_FILES and walks their headers with the method
+    # counter's class-scope scanner; it runs its own self-test first, and alone here as well.
+    add_test(NAME stored_callbacks_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/stored_callbacks.py --self-test)
+
+    add_test(NAME stored_callbacks
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/stored_callbacks.py
+            --source-root ${CMAKE_SOURCE_DIR})
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

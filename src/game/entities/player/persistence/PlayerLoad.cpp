@@ -455,7 +455,7 @@ void Player::_LoadAuras(QueryResult* result, uint32 timediff)
     }
 }
 
-// Player::_LoadGlyphs moved to GlyphMgr::Load (2026-05-12); thin delegating wrapper lives inline in Player.h.
+// Player::_LoadGlyphs moved to GlyphMgr (2026-05-12); since decoupling D4k the loop lives in talents/PlayerGlyph.cpp and each row in GlyphMgr::LoadRow.
 
 /**
  * @brief Restores the character's raid-frame profiles.
