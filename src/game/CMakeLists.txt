@@ -73,6 +73,9 @@ source_group("Server" FILES ${SRC_GRP_SERVER})
 file(GLOB SRC_GRP_SPELLS spells/*.cpp spells/*.h)
 source_group("Spells" FILES ${SRC_GRP_SPELLS})
 
+file(GLOB SRC_GRP_SPELLS_HANDLERS spells/handlers/*.cpp spells/handlers/*.h)
+source_group("Spells\\Handlers" FILES ${SRC_GRP_SPELLS_HANDLERS})
+
 file(GLOB SRC_GRP_TIME Time/*.cpp Time/*.h)
 source_group("Time" FILES ${SRC_GRP_TIME})
 
@@ -110,6 +113,7 @@ add_library(game STATIC
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SPELLS}
+    ${SRC_GRP_SPELLS_HANDLERS}
     ${SRC_GRP_TIME}
     ${SRC_GRP_TOOL}
     ${SRC_GRP_WORLD_HANDLERS}

@@ -76,6 +76,7 @@
 #include "Language.h"
 #include "MapManager.h"
 #include "MotionMaster.h"
+#include "spells/handlers/AuraDummyHandlers.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -359,122 +360,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             }
             case SPELLFAMILY_WARRIOR:
             {
-                switch (GetId())
+                AuraDummyApplyContext handlerContext(this, target);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyWarriorSite>(GetId(), handlerContext).IsReturn())
                 {
-                    case 41099:                             // Battle Stance
-                    {
-                        if (target->GetTypeId() != TYPEID_UNIT)
-                        {
-                            return;
-                        }
-
-                        // Stance Cooldown
-                        target->CastSpell(target, 41102, true, NULL, this);
-
-                        // Battle Aura
-                        target->CastSpell(target, 41106, true, NULL, this);
-
-                        // equipment
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
-                        return;
-                    }
-                    case 41100:                             // Berserker Stance
-                    {
-                        if (target->GetTypeId() != TYPEID_UNIT)
-                        {
-                            return;
-                        }
-
-                        // Stance Cooldown
-                        target->CastSpell(target, 41102, true, NULL, this);
-
-                        // Berserker Aura
-                        target->CastSpell(target, 41107, true, NULL, this);
-
-                        // equipment
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
-                        return;
-                    }
-                    case 41101:                             // Defensive Stance
-                    {
-                        if (target->GetTypeId() != TYPEID_UNIT)
-                        {
-                            return;
-                        }
-
-                        // Stance Cooldown
-                        target->CastSpell(target, 41102, true, NULL, this);
-
-                        // Defensive Aura
-                        target->CastSpell(target, 41105, true, NULL, this);
-
-                        // equipment
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32604);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 31467);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
-                        return;
-                    }
-                    case 53790:                             // Defensive Stance
-                    {
-                        if (target->GetTypeId() != TYPEID_UNIT)
-                        {
-                            return;
-                        }
-
-                        // Stance Cooldown
-                        target->CastSpell(target, 59526, true, NULL, this);
-
-                        // Defensive Aura
-                        target->CastSpell(target, 41105, true, NULL, this);
-
-                        // equipment
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 39384);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
-                        return;
-                    }
-                    case 53791:                             // Berserker Stance
-                    {
-                        if (target->GetTypeId() != TYPEID_UNIT)
-                        {
-                            return;
-                        }
-
-                        // Stance Cooldown
-                        target->CastSpell(target, 59526, true, NULL, this);
-
-                        // Berserker Aura
-                        target->CastSpell(target, 41107, true, NULL, this);
-
-                        // equipment
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 43625);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
-                        return;
-                    }
-                    case 53792:                             // Battle Stance
-                    {
-                        if (target->GetTypeId() != TYPEID_UNIT)
-                        {
-                            return;
-                        }
-
-                        // Stance Cooldown
-                        target->CastSpell(target, 59526, true, NULL, this);
-
-                        // Battle Aura
-                        target->CastSpell(target, 41106, true, NULL, this);
-
-                        // equipment
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43623);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
-                        ((Creature*)target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
-                        return;
-                    }
+                    return;
                 }
 
                 // Overpower
@@ -1483,4 +1372,166 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
     // Script has to "handle with care", only use where data are not ok to use in the above code.
     // Aura scripts are DB-bound by spell/effect and can be needed for player self-use dummy auras.
     sScriptMgr.OnAuraDummy(this, apply);
+}
+
+// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry's
+// HandleAuraDummy handlers. Each is a case body of the switch that stood where HandleAuraDummy now
+// calls SpellHandlerRegistry::Game().Dispatch(), moved verbatim but for the context accessors
+// (`target` is ctx.target, `this` is ctx.aura) and the outcome (`return;` is
+// SpellHandlerOutcome<void>::Return(), `break;` is SpellHandlerOutcome<void>::Continue()).
+// src/tests/tools/verbatim.py pastes every body back at its label and checks the old function
+// text comes back byte for byte.
+
+/// SPELLFAMILY_WARRIOR 41099: Battle Stance
+static SpellHandlerOutcome<void> AuraDummyApplyWarrior41099(AuraDummyApplyContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Stance Cooldown
+    ctx.target->CastSpell(ctx.target, 41102, true, NULL, ctx.aura);
+
+    // Battle Aura
+    ctx.target->CastSpell(ctx.target, 41106, true, NULL, ctx.aura);
+
+    // equipment
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_WARRIOR 41100: Berserker Stance
+static SpellHandlerOutcome<void> AuraDummyApplyWarrior41100(AuraDummyApplyContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Stance Cooldown
+    ctx.target->CastSpell(ctx.target, 41102, true, NULL, ctx.aura);
+
+    // Berserker Aura
+    ctx.target->CastSpell(ctx.target, 41107, true, NULL, ctx.aura);
+
+    // equipment
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32614);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_WARRIOR 41101: Defensive Stance
+static SpellHandlerOutcome<void> AuraDummyApplyWarrior41101(AuraDummyApplyContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Stance Cooldown
+    ctx.target->CastSpell(ctx.target, 41102, true, NULL, ctx.aura);
+
+    // Defensive Aura
+    ctx.target->CastSpell(ctx.target, 41105, true, NULL, ctx.aura);
+
+    // equipment
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 32604);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 31467);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_WARRIOR 53790: Defensive Stance
+static SpellHandlerOutcome<void> AuraDummyApplyWarrior53790(AuraDummyApplyContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Stance Cooldown
+    ctx.target->CastSpell(ctx.target, 59526, true, NULL, ctx.aura);
+
+    // Defensive Aura
+    ctx.target->CastSpell(ctx.target, 41105, true, NULL, ctx.aura);
+
+    // equipment
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 39384);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_WARRIOR 53791: Berserker Stance
+static SpellHandlerOutcome<void> AuraDummyApplyWarrior53791(AuraDummyApplyContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Stance Cooldown
+    ctx.target->CastSpell(ctx.target, 59526, true, NULL, ctx.aura);
+
+    // Berserker Aura
+    ctx.target->CastSpell(ctx.target, 41107, true, NULL, ctx.aura);
+
+    // equipment
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43625);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 43625);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_WARRIOR 53792: Battle Stance
+static SpellHandlerOutcome<void> AuraDummyApplyWarrior53792(AuraDummyApplyContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Stance Cooldown
+    ctx.target->CastSpell(ctx.target, 59526, true, NULL, ctx.aura);
+
+    // Battle Aura
+    ctx.target->CastSpell(ctx.target, 41106, true, NULL, ctx.aura);
+
+    // equipment
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 43623);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+    ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
+{
+    struct Row
+    {
+        uint32 spellId;
+        SpellHandler<AuraDummyApplyWarriorSite>::Function function;
+    };
+
+    // AT APPLY, SPELLFAMILY_WARRIOR, in the order of the switch they came from.
+    static Row const warriorApply[] =
+    {
+        { 41099, &AuraDummyApplyWarrior41099 },
+        { 41100, &AuraDummyApplyWarrior41100 },
+        { 41101, &AuraDummyApplyWarrior41101 },
+        { 53790, &AuraDummyApplyWarrior53790 },
+        { 53791, &AuraDummyApplyWarrior53791 },
+        { 53792, &AuraDummyApplyWarrior53792 },
+    };
+
+    uint32 rows = 0;
+    for (Row const& row : warriorApply)
+    {
+        registry.Register<AuraDummyApplyWarriorSite>(row.spellId, row.function);
+        ++rows;
+    }
+    return rows;
 }
