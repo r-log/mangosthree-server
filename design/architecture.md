@@ -1,8 +1,9 @@
 # The target architecture
 
 Measured on master 0bbab743b and decided by the maintainer on 2026-09-28. A **Today:** line marks where the tree
-differs from the target. Section 6 lists each divergence with the phase that closes it. Every number comes from a
-command in the appendix.
+differs from the target. Section 8 lists each divergence with the phase that closes it. Every number comes from a
+command in the appendix. Sections 5 and 6 (the threads, the build targets) were added on 2026-09-29, measured on
+master 7b6a481ce.
 
 ## 1. Layers and the include direction
 
@@ -25,7 +26,7 @@ only `src/shared`; session includes it 90 times, the motion layer 19 times (8 fr
 | foundation | the rest of `src/shared`, `Time/`, `ObjectGuid` (a value type) | nothing |
 
 `realmd` is a separate program and uses only foundation and persistence. `tests` may include anything.
-`AuctionHouseBot/` is app: it is kept (the 2026-09-28 decision, section 5), off by default, and reaches the domain only through `World`'s timer and one chat command.
+`AuctionHouseBot/` is app: it is kept (the 2026-09-28 decision, section 7), off by default, and reaches the domain only through `World`'s timer and one chat command.
 
 These directories **dissolve**:
 - `Object/` (152 files): 63 to entities, 28 to data, 25 to ai, 10 to social, 9 to spells, 9 to combat, 6 to economy
@@ -131,8 +132,9 @@ puts combat in `combat/`, auras and casting in `spells/` and movement in the mot
 
 ## 4. The finish line per layer: the layout gate matches this page
 
-A layer is done when its gate enforces its rule on a clean clone. The counters are **ratchets against regression
-only, not finish lines**: `method_count.py --all` (Player 953, Unit 587, WorldSession 591, ObjectMgr 255), R1, M1,
+A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
+(section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
+see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 953, Unit 587, WorldSession 591, ObjectMgr 255), R1, M1,
 the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
@@ -146,13 +148,108 @@ the downcast counts and the database-call count.
 | session | builds the packets; never includes scripts or app | `CheckLayout`; `CheckStateOwnership` (who may spell an opcode) |
 | scripts | SD3 reaches only the script surface and the hook interface | `CheckMotionMasterShim` (`MotionMaster` only); `CheckScriptSurface` (#83, proposed) |
 
-## 5. Not decided
+## 5. The threads, and who owns what
+
+The layers say who may *include* what; this section says who may *touch* what at run time. The model is already
+in the tree, and most of it is already enforced. It is written here because it is the part of the architecture
+that is correct and invisible.
+
+**One world thread owns the game.** `World::Update` runs the tick under `TickGuard::Scope`, in this order: the
+timed managers (mail, auctions, the auction bot, LFG), then `UpdateSessions` (every session's queued packets are
+handled here, on this thread, outside any map), then `MapManager::Update`, then the harness, battlegrounds and
+outdoor PvP, then `ProcessResultQueue` for the three databases (every async query's continuation runs here), then the
+console's queued commands. Nothing else touches game state.
+
+**Map workers own one map at a time.** `MapManager::Update` opens the map phase (`MapPhase::Begin`), hands every
+world map to the `MapUpdater` pool (`MapUpdateThreads`, default 2; each worker is a registered MySQL client thread
+through `DbThreadGuard`), blocks at the barrier (`wait`), and closes the phase. `Map::Update` takes a
+`MapPhase::Scope`, so the thread running it owns that map; a transport deck's update is nested inside the map it
+sails and takes its own scope, handing ownership back on return. With the pool off, or under the harness's stepped
+clock, the world thread updates the maps in turn, one scope at a time, which is what makes a harness run
+deterministic. A vessel that reaches the end of a map decides so on that map's thread and *crosses* only after the
+barrier, on the world thread, because the destination may be updating on another core.
+
+**Network threads own sockets, never game state.** `net::Server` (epoll, kqueue, IOCP or io_uring behind one facade)
+runs one poller per worker, one `ClientConnection` per client, and a decoded packet crosses to the game through
+exactly one door: the session's `SessionMailbox`, a locked queue drained by `UpdateSessions`. Sends go the other way
+through the same connection object.
+
+**Three database delay threads** (login, characters, world) execute the async queries; their results wait in the
+`SqlResultQueue` until the world thread calls `ProcessResultQueue`. **Three service threads** never touch the game:
+the console reader queues commands for the world thread, the log's console writer, and the anti-freeze watchdog,
+which aborts the process when the tick counter stops moving.
+
+| Rule | Enforced by |
+|---|---|
+| Game state is touched by the world thread, or by the worker whose scope owns the map | `MapPhase::Owns` (counted process-wide, asserted under `MANGOS_DEBUG`), today at the movement kernel |
+| Session handlers run on the world thread outside the map phase | the tick's order; `CheckSessionSeam` |
+| No synchronous database acquisition under the tick | `TickGuard` (strict mode asserts; the CI job proves the four strict cases stand) and `CheckSyncDb` |
+| Packets cross from the network only through `SessionMailbox` | the `proto` boundary: `IClientLink` / `IWorldGateway` |
+| A map never writes into another map during the phase | transport crossings run after the barrier |
+| A harness run is deterministic | the stepped clock runs every map inline, in order, on one thread |
+
+**Today:**
+- Ownership is checked at one seam only, the movement kernel. Every other part of a map's state (its grids, its
+  object stores, the spell and aura code that D11 opens) relies on the phase structure and on nobody reaching across;
+  the D11 spell seam is the natural place for the second check.
+- `Network.Threads` in `mangosd.conf` is read by no source file; the pool is sized by `hardware_concurrency()`
+  (`net/reactor/ReactorServer.cpp:110`). The key is either wired through the configuration interface (#143) or
+  removed.
+- 10 raw `rand()` / `srand` sites in `src/game` (5 files: `CreatureEventAI`, `SpellAuras`, `SpellTargeting`,
+  `SpellEffectScript`, `SpellEffectDummy`) share the C library's one generator across the map workers; the seeded
+  `RNG` is the rule everywhere else. The Unit note lists them for D11.
+
+## 6. Build targets
+
+The include direction is enforced by a grep gate (`CheckLayout`). The end state enforces it with the linker: one
+static library per layer, linked in the direction of section 1's table, so an include against the rule does not
+compile-and-pass, it fails to link. A library cannot lie about its dependencies.
+
+**Today:** four of the nine layers are already targets, and they are exactly the ones whose gates hold.
+
+| Layer | Target today | Links |
+|---|---|---|
+| foundation | `shared`, `mangos_crypto`, `terrain`, `geometry` | `Threads`, `utf8`; crypto stands alone |
+| persistence (driver) | `shared_db` | `shared`, MySQL |
+| proto | `proto` | `shared`, `mangos_crypto` |
+| motion | `motion` | `proto` |
+| data, domain, session, `persistence/<domain>/`, and the app and scripts files inside `src/game` | **`game`**, one library: 27 globbed directories, 388k lines, one precompiled header | `shared_db`, `terrain`, `geometry`, `proto`, `motion`, Detour, zlib, and `mangosscript` |
+| scripts (SD3) | `mangosscript` | `game` |
+| app | `mangosd` | `game`, `proto` |
+| tests | `mangos_tests` | `game`, `motion`, `proto` |
+
+Two things the table shows. `game` and `mangosscript` link *each other* (`game/CMakeLists.txt:170`,
+`modules/SD3/CMakeLists.txt:361`): scripts are above the domain in the page and beside it in the build. And the only
+layer boundary the linker checks today is the one around `motion` and `proto`; every include the gate counts as
+against the rule in section 1 lives inside `game`, where the linker sees one target.
+
+The sizes, by target layer (from `layers.py files`, lines of `.h`/`.cpp`): scripts 264k (SD3 and `ChatCommands`),
+entities 98k, spells 60k, data 38k, session 38k, app 32k (with the harness), social 21k, pvp 21k, maps 19k,
+persistence 10k, combat 9k, ai 7k, economy 5k.
+
+**The rule for splitting.** A layer becomes its own target in the PR that brings its upward edges to zero, never
+before: a library with an upward include does not link, so the split *is* that layer's finish line, and it cannot be
+faked. The domain tier splits as one library first (its directories are peers with cycles: entities <-> spells
+295 / 168) and into per-directory libraries only if a cycle is ever cut on purpose. The order follows section 8:
+
+1. `data`: after rows 5 and 7 (161 lines into the domain, 20 into session).
+2. `domain`: after rows 1, 2, 3 and 4 (proto, session, `World.h`, `Chat.h` / `ScriptMgr.h`).
+3. `session`: after the `World.h` and script edges it holds.
+4. `scripts`: `ChatCommands`, the command half of `Chat`, `ScriptMgr` join `mangosscript`, and the `game ->
+   mangosscript` link is replaced by the hook interface (#83), which ends the cycle.
+5. `app`: `World`, the harness and the auction bot move to `mangosd` or a `world` library; `game` no longer exists.
+
+Each split PR moves the layer's `file(GLOB)` lines into the new target's `CMakeLists.txt`, gives it its own
+precompiled header or none, and deletes that layer's rows from `layout_allow.txt`. `mangos_tests` links every
+target, as it links three today.
+
+## 7. Not decided
 
 | Question | Options |
 |---|---|
 | `AuctionHouseBot/` (2 files; a non-blizzlike feature) | **Kept** (decided 2026-09-28): optional, off by default, measured as app. Not a decoupling concern; a harness family that needs a quiet auction house disables it in the configuration rather than removing it. |
 
-## 6. Divergences
+## 8. Divergences
 
 This page resolved four earlier questions: the proto arrow; #76's layout rule, replaced by the ratchet in section 4;
 where reputation, currency, honor and runes live; and the rule for the domain tier.
@@ -177,12 +274,17 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
 | 17 | 2,354 cross lines inside the domain tier have no ratchet yet | built (#179) |
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet); #144 |
+| 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel only | the D11 spell seam takes the second check |
+| 20 | `Network.Threads` is read by no source file; the pool is sized by `hardware_concurrency()` | #143 (wire it) or delete the key |
+| 21 | 10 raw `rand()` / `srand` sites in 5 `src/game` files share one generator across the map workers | D11's named changes (the Unit note) |
+| 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
+| 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
 
 ## Appendix: how each number was measured
 
 From the repository root, with Python 3 and Git Bash. `layers.py` is the script below. Its `RULES` table is
 section 1's directory table, written as code: `ObjectGuid.h`/`.cpp` are foundation (the 2026-09-28
-decision), and `AuctionHouseBot/` is app (kept, section 5).
+decision), and `AuctionHouseBot/` is app (kept, section 7).
 
 - Where the files go: `python layers.py src files | grep ' game/Object/' | cut -d' ' -f1 | sort | uniq -c` (and
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
@@ -210,6 +312,18 @@ decision), and `AuctionHouseBot/` is app (kept, section 5).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h` (5 of 34).
 - Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/Object/CreatureSpellCooldown.cpp` (6).
+- The threads (section 5): the tick's order is `World::Update` (`WorldHandlers/World.cpp:966`, the `TickGuard::Scope` at the top of its
+  body) read top to bottom; the map split is `MapManager::Update` (`WorldHandlers/MapManager.cpp:306`);
+  the thread starts are `grep -rnE "std::thread|StartConsoleThread|HaltDelayThread" src/mangosd src/game src/shared`
+  (the map pool in `Maps/MapUpdater.cpp`, the CLI reader and the watchdog in `mangosd/`, the console writer in
+  `shared/Log`, one delay thread per database); the network pool's size is `net/reactor/ReactorServer.cpp:110`;
+  `grep -rl "Network.Threads" src` finds only `mangosd.conf.dist.in`; the strict-mode proof is the
+  "Check strict tick mode is armed" step of `core_linux_build.yml`. Raw generators:
+  `grep -rnE '\brand\(\)|\bsrand\(' --include=*.cpp --include=*.h src/game src/shared | grep -vE 'urand|irand|frand|rand_norm|RandomEngine' | wc -l` (10).
+- The build targets (section 6): `grep -rnE "^\s*add_(library|executable)" --include=CMakeLists.txt src` and each
+  target's `target_link_libraries`; the `game` globs are `src/game/CMakeLists.txt:1-82` (27 directories); its size is
+  `find src/game -name '*.cpp' -o -name '*.h' | xargs cat | wc -l` (388,249). Lines per target layer:
+  `python layers.py src files`, summing `wc -l` per file by layer.
 
 <details><summary>layers.py</summary>
 
