@@ -73,6 +73,7 @@
 #include "CreatureEventAIMgr.h"
 #include "GuildMgr.h"
 #include "SpellMgr.h"
+#include "spells/handlers/SpellHandlerRegistry.h"
 #include "Chat.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
@@ -378,6 +379,9 @@ void World::SetInitialWorldSettings()
 
     sLog.outString("Loading Aggro Spells Definitions...");
     sSpellMgr.LoadSpellThreats();
+
+    sLog.outString("Building the spell handler registry...");
+    SpellHandlerRegistry::Game();                           // a key registered twice aborts here, not in a map tick
 
     sLog.outString("Loading NPC Texts...");
     sObjectMgr.LoadGossipText();
