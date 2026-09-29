@@ -586,7 +586,7 @@ TEST(HarnessTrace_the_rules_d4f0_2_added)
 TEST(HarnessClosure_models_exactly_the_types_of_its_one_table)
 {
     // The achievement closure's table (QuestFixture.cpp kJudges) is the one list both the judge
-    // and ClosureModelsCriteriaType read: these 28 types and nothing else.
+    // and ClosureModelsCriteriaType read: these 30 types and nothing else.
     const uint32 modelled[] =
     {
         ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT, ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST,
@@ -602,9 +602,11 @@ TEST(HarnessClosure_models_exactly_the_types_of_its_one_table)
         ACHIEVEMENT_CRITERIA_TYPE_CURRENCY_EARNED, ACHIEVEMENT_CRITERIA_TYPE_KNOWN_FACTIONS,
         ACHIEVEMENT_CRITERIA_TYPE_GAIN_REVERED_REPUTATION, ACHIEVEMENT_CRITERIA_TYPE_GAIN_HONORED_REPUTATION,
         ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED, ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM,
+        // decoupling D11: the damage the spell family's casts deal
+        ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE, ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT,
     };
     const uint32 count = sizeof(modelled) / sizeof(modelled[0]);
-    CHECK_EQ(count, 28u);
+    CHECK_EQ(count, 30u);
     for (uint32 i = 0; i < count; ++i)
     {
         CHECK(Harness::ClosureModelsCriteriaType(modelled[i]));
@@ -628,4 +630,283 @@ TEST(HarnessTrace_a_snap_line_is_due_only_when_the_state_changed)
     CHECK_STR(last.c_str(), "q52=3/0/- m=0 xp=0 l=1");                  // ... and it is the new reference
     CHECK(!Harness::Trace::SnapDue(last, "q52=3/0/- m=0 xp=0 l=1"));
     CHECK(Harness::Trace::SnapDue(last, "q52=3/0/0x0 m=0 xp=0 l=1"));    // flipped back: a line again
+}
+
+// ---- decoupling D11 PR 1: the spell family's decoders and the state snapshot -------------------
+//
+// Each payload is laid out by its production writer's own statements, cited above each helper, at
+// 7b6a481ce. The spell family watches its units by role: the player is `self`, the unit a cast is
+// aimed at `target`, a unit other than the player that casts `caster`.
+
+namespace
+{
+    const uint64 kTarget = 0xF130000B91000042ULL;  // a spawned creature (2961) from the map's counter
+    const uint64 kCaster = 0xF130000B91000077ULL;
+
+    Harness::Trace::Roles SpellRoles()
+    {
+        Harness::Trace::Roles r;
+        r.self = kSelf;
+        r.target = kTarget;
+        r.caster = kCaster;
+        return r;
+    }
+
+    std::string SpellDecoded(uint16 opcode, WorldPacket const& p, Harness::Trace::Roles const& roles = SpellRoles())
+    {
+        return Harness::Trace::PacketRecord(opcode, "OP", p.contents(), p.size(), false, roles);
+    }
+
+    /// Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage*), Unit.cpp:2617-2631, statement for
+    /// statement, every field given.
+    WorldPacket DamageLogOf(uint64 target, uint64 attacker, uint32 spell, uint32 damage, uint32 overkill, uint8 school,
+                            uint32 absorb, uint32 resist, uint8 physical, uint8 unused, uint32 blocked, uint32 hitInfo,
+                            uint8 extend)
+    {
+        WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16 + 4 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 4 + 4 + 1));
+        data.appendPackGUID(target);                  // log->target->GetPackGUID()
+        data.appendPackGUID(attacker);                // log->attacker->GetPackGUID()
+        data << uint32(spell);
+        data << uint32(damage);
+        data << uint32(overkill);
+        data << uint8(school);                        // log->schoolMask
+        data << uint32(absorb);
+        data << uint32(resist);
+        data << uint8(physical);                      // physicalLog
+        data << uint8(unused);
+        data << uint32(blocked);
+        data << uint32(hitInfo);
+        data << uint8(extend);                        // the extend-data flag
+        return data;
+    }
+
+    /// A holy hit with 3 resisted, the rest of the fields 0 as the server sends them.
+    WorldPacket DamageLog(uint64 target, uint64 attacker, uint32 spell, uint32 damage, uint32 overkill, uint32 hitInfo)
+    {
+        return DamageLogOf(target, attacker, spell, damage, overkill, 2, 0, 3, 0, 0, 0, hitInfo, 0);
+    }
+
+    /// Unit::SendSpellMiss, Unit.cpp:2750-2758: the spell, the caster's raw guid, a flag byte, the
+    /// target count (always 1 there), then the target's raw guid and the miss condition.
+    WorldPacket MissLog(uint32 spell, uint64 caster, uint64 target, uint8 missInfo)
+    {
+        WorldPacket data(SMSG_SPELLLOGMISS, (4 + 8 + 1 + 4 + 8 + 1));
+        data << uint32(spell);
+        data << uint64(caster);                       // GetObjectGuid()
+        data << uint8(0);
+        data << uint32(1);
+        data << uint64(target);                       // target->GetObjectGuid()
+        data << uint8(missInfo);
+        return data;
+    }
+
+    /// Unit::SetPower, UnitPower.cpp:154-160: the unit's packed guid, the count, then (type, value).
+    WorldPacket PowerUpdate(uint64 unit, uint8 power, uint32 value)
+    {
+        WorldPacket data(SMSG_POWER_UPDATE);
+        data.appendPackGUID(unit);                    // GetPackGUID()
+        data << uint32(1);
+        data << uint8(power);
+        data << uint32(value);
+        return data;
+    }
+
+    /// Spell::SendInterrupted, SpellPackets.cpp:749-760: one layout for both opcodes.
+    WorldPacket Interrupted(uint16 opcode, uint64 caster, uint8 castCount, uint32 spell, uint8 result)
+    {
+        WorldPacket data(opcode, (8 + 4 + 1));
+        data.appendPackGUID(caster);                  // m_caster->GetPackGUID()
+        data << uint8(castCount);
+        data << uint32(spell);
+        data << uint8(result);
+        return data;
+    }
+}
+
+TEST(HarnessTrace_the_rules_d11_added)
+{
+    using Harness::Trace::Rule;
+    CHECK(Harness::Trace::RuleFor(SMSG_SPELLNONMELEEDAMAGELOG) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_SPELLLOGMISS) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_POWER_UPDATE) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_SPELL_FAILURE) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_SPELL_FAILED_OTHER) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_CAST_FAILED) == Rule::Decode);
+    // the energize and periodic logs come with the scenarios that send them (931-938)
+    CHECK(Harness::Trace::RuleFor(SMSG_SPELLENERGIZELOG) == Rule::Size);
+    CHECK(Harness::Trace::RuleFor(SMSG_PERIODICAURALOG) == Rule::Size);
+}
+
+TEST(HarnessTrace_the_spell_roles_read_after_the_quest_roles)
+{
+    Harness::Trace::Roles r = SpellRoles();
+    CHECK_STR(Harness::Trace::RoleOf(r, kSelf), "self");
+    CHECK_STR(Harness::Trace::RoleOf(r, kTarget), "target");
+    CHECK_STR(Harness::Trace::RoleOf(r, kCaster), "caster");
+    CHECK_STR(Harness::Trace::RoleOf(r, kGiver), "other");
+    CHECK_STR(Harness::Trace::RoleOf(r, 0), "none");
+    // an unset role never claims a guid: the quest family's roles read exactly as before
+    CHECK_STR(Harness::Trace::RoleOf(TestRoles(), kTarget), "other");
+    CHECK_STR(Harness::Trace::RoleOf(TestRoles(), kGiver), "giver");
+}
+
+TEST(HarnessTrace_the_damage_log_keeps_every_field_with_its_units_as_roles)
+{
+    WorldPacket a = DamageLog(kTarget, kSelf, 585, 17, 0, 0x00000024);
+    CHECK_STR(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, a).c_str(),
+              "OP target=target attacker=self spell=585 damage=17 overkill=0 school=2 absorb=0 resist=3 physical=0 unused=0 blocked=0 hitInfo=0x24 extend=0");
+    // the target reads the same whatever number the map's counter gave it
+    Harness::Trace::Roles moved = SpellRoles();
+    moved.target = 0xF130000B91000999ULL;
+    WorldPacket b = DamageLog(moved.target, kSelf, 585, 17, 0, 0x00000024);
+    CHECK_STR(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, b, moved).c_str(), SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, a).c_str());
+    // a critical hit (SPELL_HIT_TYPE_CRIT, 0x2) and another amount are other records
+    CHECK(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, DamageLog(kTarget, kSelf, 585, 17, 0, 0x26)) != SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, a));
+    CHECK(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, DamageLog(kTarget, kSelf, 585, 18, 0, 0x24)) != SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, a));
+    // the reader the scenario uses for its categories
+    uint64 target = 0, attacker = 0;
+    uint32 spell = 0, damage = 0, overkill = 0;
+    CHECK(Harness::Trace::ReadSpellDamage(a.contents(), a.size(), target, attacker, spell, damage, overkill));
+    CHECK(target == kTarget);
+    CHECK(attacker == kSelf);
+    CHECK_EQ(spell, 585u);
+    CHECK_EQ(damage, 17u);
+    CHECK_EQ(overkill, 0u);
+    // every field its own non-zero value, so no field can be read in another's place: while
+    // absorb, physical, unused, blocked and extend were all 0, a decoder reading absorb and
+    // blocked swapped still passed (the D11-1 task review's M-3)
+    WorldPacket all = DamageLogOf(kTarget, kSelf, 585, 17, 11, 2, 261, 3, 1, 6, 519, 0x24, 9);
+    CHECK_STR(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, all).c_str(),
+              "OP target=target attacker=self spell=585 damage=17 overkill=11 school=2 absorb=261 resist=3 physical=1 unused=6 blocked=519 hitInfo=0x24 extend=9");
+    CHECK(Harness::Trace::ReadSpellDamage(all.contents(), all.size(), target, attacker, spell, damage, overkill));
+    CHECK_EQ(damage, 17u);
+    CHECK_EQ(overkill, 11u);
+    // one byte short or long: refused, by the size alone
+    std::string out;
+    CHECK(!Harness::Trace::DecodeSpellDamageLog(a.contents(), a.size() - 1, SpellRoles(), out));
+    WorldPacket longer(a);
+    longer << uint8(0);
+    CHECK(!Harness::Trace::DecodeSpellDamageLog(longer.contents(), longer.size(), SpellRoles(), out));
+    CHECK(!Harness::Trace::ReadSpellDamage(longer.contents(), longer.size(), target, attacker, spell, damage, overkill));
+    CHECK(SpellDecoded(SMSG_SPELLNONMELEEDAMAGELOG, longer).find("OP undecoded size=") == 0);
+}
+
+TEST(HarnessTrace_the_miss_log_reads_caster_and_target_as_roles)
+{
+    WorldPacket a = MissLog(585, kSelf, kTarget, 2);   // SPELL_MISS_RESIST
+    CHECK_STR(SpellDecoded(SMSG_SPELLLOGMISS, a).c_str(), "OP spell=585 caster=self flag=0 count=1 targets=[target:2]");
+    WorldPacket b = MissLog(585, kCaster, kSelf, 1);   // a creature's miss on the player
+    CHECK_STR(SpellDecoded(SMSG_SPELLLOGMISS, b).c_str(), "OP spell=585 caster=caster flag=0 count=1 targets=[self:1]");
+    std::string out;
+    CHECK(!Harness::Trace::DecodeSpellLogMiss(a.contents(), a.size() - 1, SpellRoles(), out));
+    WorldPacket longer(a);
+    longer << uint8(0);
+    CHECK(!Harness::Trace::DecodeSpellLogMiss(longer.contents(), longer.size(), SpellRoles(), out));
+}
+
+TEST(HarnessTrace_the_power_update_reads_its_unit_as_a_role)
+{
+    WorldPacket a = PowerUpdate(kSelf, 0, 43);        // POWER_MANA
+    CHECK_STR(SpellDecoded(SMSG_POWER_UPDATE, a).c_str(), "OP unit=self count=1 power0=43");
+    CHECK_STR(SpellDecoded(SMSG_POWER_UPDATE, PowerUpdate(kTarget, 1, 0)).c_str(), "OP unit=target count=1 power1=0");
+    uint64 unit = 0;
+    uint8 power = 9;
+    uint32 value = 0;
+    CHECK(Harness::Trace::ReadPowerUpdate(a.contents(), a.size(), unit, power, value));
+    CHECK(unit == kSelf);
+    CHECK_EQ(uint32(power), 0u);
+    CHECK_EQ(value, 43u);
+    std::string out;
+    CHECK(!Harness::Trace::DecodePowerUpdate(a.contents(), a.size() - 1, SpellRoles(), out));
+    WorldPacket longer(a);
+    longer << uint8(0);
+    CHECK(!Harness::Trace::DecodePowerUpdate(longer.contents(), longer.size(), SpellRoles(), out));
+    CHECK(!Harness::Trace::ReadPowerUpdate(longer.contents(), longer.size(), unit, power, value));
+    // a count of zero names no power: the reader refuses it, the decoder records it
+    WorldPacket none(SMSG_POWER_UPDATE);
+    none.appendPackGUID(kSelf);
+    none << uint32(0);
+    CHECK(!Harness::Trace::ReadPowerUpdate(none.contents(), none.size(), unit, power, value));
+    CHECK_STR(SpellDecoded(SMSG_POWER_UPDATE, none).c_str(), "OP unit=self count=0");
+}
+
+TEST(HarnessTrace_the_failure_packets_keep_spell_and_result_and_drop_the_cast_count)
+{
+    WorldPacket a = Interrupted(SMSG_SPELL_FAILURE, kSelf, 1, 585, 38);   // SPELL_FAILED_INTERRUPTED
+    CHECK_STR(SpellDecoded(SMSG_SPELL_FAILURE, a).c_str(), "OP caster=self spell=585 result=38");
+    WorldPacket b = Interrupted(SMSG_SPELL_FAILED_OTHER, kSelf, 7, 585, 38);
+    CHECK_STR(SpellDecoded(SMSG_SPELL_FAILED_OTHER, b).c_str(), "OP caster=self spell=585 result=38");
+    std::string out;
+    CHECK(!Harness::Trace::DecodeSpellFailure(a.contents(), a.size() - 1, SpellRoles(), out));
+    WorldPacket longer(a);
+    longer << uint8(0);
+    CHECK(!Harness::Trace::DecodeSpellFailure(longer.contents(), longer.size(), SpellRoles(), out));
+
+    // Spell::SendCastResult, SpellPackets.cpp:121-221: the cast count, the spell, the result, then
+    // the result's own tail -- none for most results, a word for SPELL_FAILED_NOT_READY
+    WorldPacket plain(SMSG_CAST_FAILED, (4 + 1 + 2));
+    plain << uint8(1);
+    plain << uint32(585);
+    plain << uint8(92);
+    CHECK_STR(SpellDecoded(SMSG_CAST_FAILED, plain).c_str(), "OP spell=585 result=92 tail=0");
+    WorldPacket notReady(SMSG_CAST_FAILED, (4 + 1 + 2));
+    notReady << uint8(2);
+    notReady << uint32(585);
+    notReady << uint8(143);
+    notReady << uint32(0);
+    CHECK_STR(SpellDecoded(SMSG_CAST_FAILED, notReady).c_str(),
+              ("OP spell=585 result=143 tail=4 tailfnv=" + Harness::Trace::Hex32(Harness::Trace::Fnv1a(notReady.contents() + 6, 4))).c_str());
+    WorldPacket cut(SMSG_CAST_FAILED, 4);
+    cut << uint8(1) << uint32(585);
+    CHECK(SpellDecoded(SMSG_CAST_FAILED, cut).find("OP undecoded size=5") == 0);
+}
+
+TEST(HarnessTrace_the_state_delta_prints_values_in_key_order_then_sets_in_list_order)
+{
+    // The recorder's window close (Recorder::CloseWindow), as the quest family has always printed it.
+    Harness::Trace::StateSnapshot before, after;
+    before.values["money"] = "0";
+    before.values["level"] = "1";
+    before.values["gone"] = "x";
+    before.sets.push_back(std::make_pair(std::string("spells"), std::set<uint32>{ 1, 2 }));
+    before.sets.push_back(std::make_pair(std::string("achievements"), std::set<uint32>()));
+    after.values["money"] = "250";
+    after.values["level"] = "1";
+    after.values["added"] = "y";
+    after.sets.push_back(std::make_pair(std::string("spells"), std::set<uint32>{ 2, 3 }));
+    after.sets.push_back(std::make_pair(std::string("achievements"), std::set<uint32>{ 6 }));
+    const std::vector<std::string> lines = Harness::Trace::StateDelta(before, after);
+    CHECK_EQ(uint32(lines.size()), 5u);
+    CHECK_STR(lines[0].c_str(), "state added -->y");
+    CHECK_STR(lines[1].c_str(), "state gone x->-");
+    CHECK_STR(lines[2].c_str(), "state money 0->250");
+    CHECK_STR(lines[3].c_str(), "state spells +3 -1");
+    CHECK_STR(lines[4].c_str(), "state achievements +6");
+    // nothing moved: nothing printed
+    CHECK_EQ(uint32(Harness::Trace::StateDelta(after, after).size()), 0u);
+    // from nothing (the spawn window): every value, and every non-empty set, in that order
+    const std::vector<std::string> spawn = Harness::Trace::StateDelta(Harness::Trace::StateSnapshot(), after);
+    CHECK_EQ(uint32(spawn.size()), 5u);
+    CHECK_STR(spawn[3].c_str(), "state spells +2 +3");
+    // a set the new state no longer lists reads as emptied, after the listed ones
+    Harness::Trace::StateSnapshot dropped;
+    dropped.sets.push_back(std::make_pair(std::string("achievements"), std::set<uint32>{ 6 }));
+    const std::vector<std::string> gone = Harness::Trace::StateDelta(after, dropped);
+    CHECK_STR(gone.back().c_str(), "state spells -2 -3");
+    CHECK_STR(Harness::Trace::SetDelta(std::set<uint32>{ 5 }, std::set<uint32>{ 5 }).c_str(), "");
+}
+
+TEST(HarnessTrace_the_spell_snapshot_writes_a_holder_without_a_guid_or_a_clock)
+{
+    // SpellRecorder's `<role>.aura.<spell>#<k>` value: the caster by its role, the durations in
+    // the stepped world's milliseconds (-1 for a permanent aura).
+    CHECK_STR(Harness::Trace::AuraHolderValue(0x1, 1, 0, "self", 255, -1, -1).c_str(),
+              "eff=0x1 stack=1 charges=0 caster=self slot=255 dur=-1/-1");
+    CHECK_STR(Harness::Trace::AuraHolderValue(0x3, 2, 1, Harness::Trace::RoleOf(SpellRoles(), kCaster), 4, 4900, 5000).c_str(),
+              "eff=0x3 stack=2 charges=1 caster=caster slot=4 dur=4900/5000");
+    // a cooldown key set, as the recorder stores the manager's map keys
+    Harness::Trace::StateSnapshot a, b;
+    a.sets.push_back(std::make_pair(std::string("self.cooldowns"), std::set<uint32>()));
+    b.sets.push_back(std::make_pair(std::string("self.cooldowns"), std::set<uint32>{ 93002 }));
+    CHECK_STR(Harness::Trace::StateDelta(a, b)[0].c_str(), "state self.cooldowns +93002");
 }

@@ -165,6 +165,17 @@ namespace Harness
                 // Player::SendEquipError: the result, then two ITEM guids (numbered by the item
                 // counter whenever an item is named) -- decoded so an item reads as a role
                 { SMSG_INVENTORY_CHANGE_FAILURE,    Rule::Decode },
+                // read for D11 PR 1 at 7b6a481ce -- what the spell family's first cast (scenario
+                // 930) can send: each of the first five carries a guid the map's counter numbered
+                // (the target, the attacker, the caster, the powered unit) among stable fields, so
+                // it is decoded with the guid read as a role; SMSG_CAST_FAILED carries no guid and
+                // is decoded for its result
+                { SMSG_SPELLNONMELEEDAMAGELOG,      Rule::Decode },
+                { SMSG_SPELLLOGMISS,                Rule::Decode },
+                { SMSG_POWER_UPDATE,                Rule::Decode },
+                { SMSG_SPELL_FAILURE,               Rule::Decode },
+                { SMSG_SPELL_FAILED_OTHER,          Rule::Decode },
+                { SMSG_CAST_FAILED,                 Rule::Decode },
             };
 
             void Append(std::string& out, char const* fmt, uint32 a)
@@ -246,6 +257,14 @@ namespace Harness
             if (guid == roles.giver)
             {
                 return "giver";
+            }
+            if (guid == roles.target)
+            {
+                return "target";
+            }
+            if (guid == roles.caster)
+            {
+                return "caster";
             }
             return "other";
         }
@@ -384,6 +403,35 @@ namespace Harness
                    r.U32(held) && r.AtEnd();
         }
 
+        bool ReadSpellDamage(uint8 const* data, size_t size, uint64& target, uint64& attacker, uint32& spell, uint32& damage,
+                             uint32& overkill)
+        {
+            Reader r(data, size);
+            uint32 absorb = 0, resist = 0, blocked = 0, hitInfo = 0;
+            uint8 school = 0, physical = 0, unused = 0, extend = 0;
+            return r.Packed(target) && r.Packed(attacker) && r.U32(spell) && r.U32(damage) && r.U32(overkill) &&
+                   r.U8(school) && r.U32(absorb) && r.U32(resist) && r.U8(physical) && r.U8(unused) &&
+                   r.U32(blocked) && r.U32(hitInfo) && r.U8(extend) && r.AtEnd();
+        }
+
+        bool ReadPowerUpdate(uint8 const* data, size_t size, uint64& unit, uint8& power, uint32& value)
+        {
+            Reader r(data, size);
+            uint32 count = 0;
+            if (!r.Packed(unit) || !r.U32(count) || !count || !r.U8(power) || !r.U32(value))
+            {
+                return false;
+            }
+            // the rest of the list, so a payload that is not the writer's layout is refused
+            for (uint32 i = 1; i < count; ++i)
+            {
+                uint8 p = 0;
+                uint32 v = 0;
+                if (!r.U8(p) || !r.U32(v)) { return false; }
+            }
+            return r.AtEnd();
+        }
+
         bool DecodeAuraUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out)
         {
             Reader r(data, size);
@@ -451,6 +499,119 @@ namespace Harness
             return true;
         }
 
+        bool DecodeSpellDamageLog(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 target = 0, attacker = 0;
+            uint32 spell = 0, damage = 0, overkill = 0, absorb = 0, resist = 0, blocked = 0, hitInfo = 0;
+            uint8 school = 0, physical = 0, unused = 0, extend = 0;
+            if (!r.Packed(target) || !r.Packed(attacker) || !r.U32(spell) || !r.U32(damage) || !r.U32(overkill) ||
+                !r.U8(school) || !r.U32(absorb) || !r.U32(resist) || !r.U8(physical) || !r.U8(unused) ||
+                !r.U32(blocked) || !r.U32(hitInfo) || !r.U8(extend) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[320];
+            snprintf(buf, sizeof(buf),
+                     "target=%s attacker=%s spell=%u damage=%u overkill=%u school=%u absorb=%u resist=%u physical=%u unused=%u blocked=%u hitInfo=0x%x extend=%u",
+                     RoleOf(roles, target), RoleOf(roles, attacker), spell, damage, overkill, uint32(school), absorb, resist,
+                     uint32(physical), uint32(unused), blocked, hitInfo, uint32(extend));
+            out = buf;
+            return true;
+        }
+
+        bool DecodeSpellLogMiss(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint32 spell = 0, count = 0;
+            uint64 caster = 0;
+            uint8 flag = 0;
+            if (!r.U32(spell) || !r.U64(caster) || !r.U8(flag) || !r.U32(count))
+            {
+                return false;
+            }
+            char buf[128];
+            snprintf(buf, sizeof(buf), "spell=%u caster=%s flag=%u count=%u", spell, RoleOf(roles, caster), uint32(flag), count);
+            std::string text = buf;
+            text += " targets=[";
+            for (uint32 i = 0; i < count; ++i)
+            {
+                uint64 target = 0;
+                uint8 condition = 0;
+                if (!r.U64(target) || !r.U8(condition)) { return false; }
+                text += (i ? "," : "");
+                text += RoleOf(roles, target);
+                Append(text, ":%u", condition);
+            }
+            text += "]";
+            if (!r.AtEnd()) { return false; }
+            out = text;
+            return true;
+        }
+
+        bool DecodePowerUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0;
+            uint32 count = 0;
+            if (!r.Packed(unit) || !r.U32(count))
+            {
+                return false;
+            }
+            std::string text = std::string("unit=") + RoleOf(roles, unit);
+            Append(text, " count=%u", count);
+            for (uint32 i = 0; i < count; ++i)
+            {
+                uint8 power = 0;
+                uint32 value = 0;
+                if (!r.U8(power) || !r.U32(value)) { return false; }
+                Append(text, " power%u", uint32(power));
+                Append(text, "=%u", value);
+            }
+            if (!r.AtEnd()) { return false; }
+            out = text;
+            return true;
+        }
+
+        bool DecodeSpellFailure(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 caster = 0;
+            uint8 castCount = 0, result = 0;
+            uint32 spell = 0;
+            if (!r.Packed(caster) || !r.U8(castCount) || !r.U32(spell) || !r.U8(result) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[128];
+            snprintf(buf, sizeof(buf), "caster=%s spell=%u result=%u", RoleOf(roles, caster), spell, uint32(result));
+            out = buf;
+            return true;
+        }
+
+        bool DecodeCastFailed(uint8 const* data, size_t size, std::string& out)
+        {
+            Reader r(data, size);
+            uint8 castCount = 0, result = 0;
+            uint32 spell = 0;
+            if (!r.U8(castCount) || !r.U32(spell) || !r.U8(result))
+            {
+                return false;
+            }
+            // Everything after the result is the result's own tail, whose shape SendCastResult's
+            // switch picks; it holds item, area, totem or skill ids, never a guid or a clock.
+            const size_t head = 1 + 4 + 1;
+            char buf[128];
+            snprintf(buf, sizeof(buf), "spell=%u result=%u tail=%u", spell, uint32(result), uint32(size - head));
+            std::string text = buf;
+            if (size > head)
+            {
+                text += " tailfnv=" + Hex32(Fnv1a(data + head, size - head));
+            }
+            out = text;
+            return true;
+        }
+
         std::string PacketRecord(uint16 opcode, char const* name, uint8 const* data, size_t size, bool unhandled, Roles const& roles)
         {
             std::string text = name ? name : "?";
@@ -485,6 +646,12 @@ namespace Harness
                 case SMSG_QUESTGIVER_STATUS_MULTIPLE: decoded = DecodeQuestGiverStatusMultiple(data, size, roles, fields); break;
                 case SMSG_INVENTORY_CHANGE_FAILURE:   decoded = DecodeInventoryFailure(data, size, fields); break;
                 case SMSG_AURA_UPDATE:                decoded = DecodeAuraUpdate(data, size, roles, fields); break;
+                case SMSG_SPELLNONMELEEDAMAGELOG:     decoded = DecodeSpellDamageLog(data, size, roles, fields); break;
+                case SMSG_SPELLLOGMISS:               decoded = DecodeSpellLogMiss(data, size, roles, fields); break;
+                case SMSG_POWER_UPDATE:               decoded = DecodePowerUpdate(data, size, roles, fields); break;
+                case SMSG_SPELL_FAILURE:              decoded = DecodeSpellFailure(data, size, roles, fields); break;
+                case SMSG_SPELL_FAILED_OTHER:         decoded = DecodeSpellFailure(data, size, roles, fields); break;
+                case SMSG_CAST_FAILED:                decoded = DecodeCastFailed(data, size, fields); break;
                 default: break;
             }
             if (!decoded)
@@ -495,6 +662,105 @@ namespace Harness
                 return text;
             }
             return text + " " + fields;
+        }
+
+        std::string SetDelta(std::set<uint32> const& before, std::set<uint32> const& after)
+        {
+            char buf[16];
+            std::string out;
+            for (std::set<uint32>::const_iterator i = after.begin(); i != after.end(); ++i)
+            {
+                if (!before.count(*i))
+                {
+                    snprintf(buf, sizeof(buf), "%u", *i);
+                    out += (out.empty() ? "+" : " +") + std::string(buf);
+                }
+            }
+            for (std::set<uint32>::const_iterator i = before.begin(); i != before.end(); ++i)
+            {
+                if (!after.count(*i))
+                {
+                    snprintf(buf, sizeof(buf), "%u", *i);
+                    out += (out.empty() ? "-" : " -") + std::string(buf);
+                }
+            }
+            return out;
+        }
+
+        namespace
+        {
+            /// The set named `name` in `sets`, or NULL.
+            std::set<uint32> const* FindSet(std::vector<std::pair<std::string, std::set<uint32> > > const& sets, std::string const& name)
+            {
+                for (size_t i = 0; i < sets.size(); ++i)
+                {
+                    if (sets[i].first == name)
+                    {
+                        return &sets[i].second;
+                    }
+                }
+                return NULL;
+            }
+        }
+
+        std::vector<std::string> StateDelta(StateSnapshot const& before, StateSnapshot const& after)
+        {
+            std::vector<std::string> lines;
+            // Every key of either side, in the map's order: a key that appeared or went reads "-"
+            // on the side it is missing from.
+            std::set<std::string> keys;
+            for (std::map<std::string, std::string>::const_iterator i = before.values.begin(); i != before.values.end(); ++i)
+            {
+                keys.insert(i->first);
+            }
+            for (std::map<std::string, std::string>::const_iterator i = after.values.begin(); i != after.values.end(); ++i)
+            {
+                keys.insert(i->first);
+            }
+            for (std::set<std::string>::const_iterator k = keys.begin(); k != keys.end(); ++k)
+            {
+                std::map<std::string, std::string>::const_iterator b = before.values.find(*k);
+                std::map<std::string, std::string>::const_iterator a = after.values.find(*k);
+                const std::string was = b == before.values.end() ? "-" : b->second;
+                const std::string is = a == after.values.end() ? "-" : a->second;
+                if (was != is)
+                {
+                    lines.push_back("state " + *k + " " + was + "->" + is);
+                }
+            }
+            // The id sets, in the order `after` lists them, then any `before` had and `after`
+            // lacks: a set missing on one side reads as empty.
+            const std::set<uint32> empty;
+            for (size_t i = 0; i < after.sets.size(); ++i)
+            {
+                std::set<uint32> const* was = FindSet(before.sets, after.sets[i].first);
+                const std::string delta = SetDelta(was ? *was : empty, after.sets[i].second);
+                if (!delta.empty())
+                {
+                    lines.push_back("state " + after.sets[i].first + " " + delta);
+                }
+            }
+            for (size_t i = 0; i < before.sets.size(); ++i)
+            {
+                if (!FindSet(after.sets, before.sets[i].first))
+                {
+                    const std::string delta = SetDelta(before.sets[i].second, empty);
+                    if (!delta.empty())
+                    {
+                        lines.push_back("state " + before.sets[i].first + " " + delta);
+                    }
+                }
+            }
+            return lines;
+        }
+
+        std::string AuraHolderValue(uint32 effectMask, uint32 stack, uint32 charges, char const* casterRole, uint32 slot,
+                                    int32 duration, int32 maxDuration)
+        {
+            char buf[192];
+            snprintf(buf, sizeof(buf), "eff=0x%x stack=%u charges=%u caster=%s slot=%u dur=%d/%d",
+                     effectMask, stack, charges, casterRole ? casterRole : "?", slot, duration, maxDuration);
+            return buf;
         }
 
         bool SnapDue(std::string& last, std::string const& now)

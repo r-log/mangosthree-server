@@ -25,6 +25,7 @@
 
 #include "Scenario.h"
 #include "Harness.h"
+#include "RecordedScenario.h"
 #include "QuestRecorder.h"
 #include "QuestFixture.h"
 #include "Creature.h"
@@ -179,136 +180,18 @@ namespace Harness
     }
 
     /**
-     * What every scenario of the family shares: the recorder, the category list (so the all-INVALID
-     * verdict and the real one are built from one list), the achievement self-check and the
-     * noPersistence category, and the handlers' calls as steps.
+     * What every scenario of the family shares: the recorder, and the handlers' calls as steps.
+     * The category list, the all-INVALID verdict, noPersistence and digest are every recorded
+     * scenario's (RecordedScenario.h, shared with the spell family since decoupling D11).
      */
-    class QuestScenario : public Scenario
+    class QuestScenario : public RecordedScenario
     {
     public:
         QuestScenario(char const* name, int order, std::vector<char const*> const& categories)
-            : Scenario(name, order), m_categories(categories) {}
-        bool UsesPlayer() const override { return true; }
+            : RecordedScenario(name, order, categories) {}
 
     protected:
-        /// Every category of the scenario INVALID(why): the taxi family's pattern, so a refusal
-        /// keeps the category set stable.
-        std::string Invalid(std::string const& why) const
-        {
-            std::vector<std::string> values(m_categories.size(), "INVALID(" + why + ")");
-            return Compose(values);
-        }
-
-        /// "<category>=<value> | ..." in the list's order; a value count that does not match the
-        /// list is the scenario's own bug, and says so in every category.
-        std::string Compose(std::vector<std::string> const& values) const
-        {
-            if (values.size() != m_categories.size())
-            {
-                return Invalid("the scenario built " + U(values.size()) + " values for " + U(m_categories.size()) + " categories");
-            }
-            std::string out;
-            for (size_t i = 0; i < values.size(); ++i)
-            {
-                out += (i ? " | " : "") + std::string(m_categories[i]) + "=" + values[i];
-            }
-            return out;
-        }
-
-        /// The completed achievements, by id.
-        static std::set<uint32> Achievements(Player* p)
-        {
-            std::set<uint32> ids;
-            auto const& done = p->GetAchievementMgr().GetCompletedAchievements();
-            for (auto i = done.begin(); i != done.end(); ++i)
-            {
-                ids.insert(i->first);
-            }
-            return ids;
-        }
-
-        /**
-         * noPersistence (note §5): no mail sent, no mail-rewarded achievement completed since the
-         * spawn, no mail level crossed since `levelFrom`, and the achievement closure checked
-         * against what the run really fired (the D4f0-1 task review's M-2): every recorded
-         * SMSG_CRITERIA_UPDATE names a criteria whose type the closure models, or the pre-check
-         * proved nothing about it. `noReachLevel`: the scenario set its level with the `.reset level`
-         * sequence and its rewards cannot cross a level, which is exactly when the closure reads the
-         * run as reaching no REACH_LEVEL criteria (QuestFixture.cpp) -- so one firing is a BUG too.
-         */
-        std::string NoPersistence(Player* p, std::set<uint32> const& achievementsAtSpawn, uint32 levelFrom, bool noReachLevel) const
-        {
-            char persist[640];
-            const std::vector<uint32> criteriaIds = m_rec.FiredCriteriaIds();
-            std::set<uint32> firedTypes;
-            const std::vector<std::string> unmodelled = UnmodelledCriteriaTypes(criteriaIds, firedTypes);
-            std::string typeList;
-            for (std::set<uint32>::const_iterator t = firedTypes.begin(); t != firedTypes.end(); ++t)
-            {
-                typeList += (typeList.empty() ? "" : ",") + U(*t);
-            }
-            std::string mailed, gained;
-            const std::set<uint32> done = Achievements(p);
-            for (std::set<uint32>::const_iterator i = done.begin(); i != done.end(); ++i)
-            {
-                if (achievementsAtSpawn.count(*i))
-                {
-                    continue;
-                }
-                gained += (gained.empty() ? "" : ",") + U(*i);
-                if (AchievementEntry const* a = sAchievementStore.LookupEntry(*i))
-                {
-                    AchievementReward const* reward = sAchievementMgr.GetAchievementReward(a, GENDER_MALE);
-                    if (reward && reward->sender)
-                    {
-                        mailed += (mailed.empty() ? "" : ",") + U(*i);
-                    }
-                }
-            }
-            std::string levelMail;
-            for (uint32 l = levelFrom + 1; l <= p->getLevel(); ++l)
-            {
-                if (sObjectMgr.GetMailLevelReward(l, p->getRaceMask()))
-                {
-                    levelMail += (levelMail.empty() ? "" : ",") + U(l);
-                }
-            }
-            if (p->GetMailSize() || !mailed.empty() || !levelMail.empty())
-            {
-                snprintf(persist, sizeof(persist), "BUG(mail %u, mail-rewarded achievements completed [%s], mail levels crossed [%s])",
-                         p->GetMailSize(), mailed.c_str(), levelMail.c_str());
-            }
-            else if (!unmodelled.empty())
-            {
-                std::string list;
-                for (size_t i = 0; i < unmodelled.size(); ++i)
-                {
-                    list += (i ? ", " : "") + unmodelled[i];
-                }
-                snprintf(persist, sizeof(persist), "BUG(criteria fired of a type the achievement closure does not model: %s -- the pre-check cannot vouch for what it completes)",
-                         list.c_str());
-            }
-            else if (noReachLevel && firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL))
-            {
-                snprintf(persist, sizeof(persist), "BUG(a REACH_LEVEL criteria fired though the level was set by the .reset level sequence, which the closure reads as reaching none)");
-            }
-            else
-            {
-                snprintf(persist, sizeof(persist), "OK(no mail; achievements completed since the spawn [%s], none of them mailing; levels %u..%u cross no mail level; %u criteria updates of types [%s], every type modelled by the closure)",
-                         gained.empty() ? "none" : gained.c_str(), levelFrom, p->getLevel(),
-                         uint32(criteriaIds.size()), typeList.c_str());
-            }
-            return persist;
-        }
-
-        /// The digest category: FNV-1a over every digested TRACE line, from the first step on.
-        std::string DigestValue(char const* from = "the accept") const
-        {
-            char digest[160];
-            snprintf(digest, sizeof(digest), "%s(FNV-1a over %u TRACE lines from %s on)",
-                     Trace::Hex32(m_rec.Digest()).c_str(), m_rec.DigestedLines(), from);
-            return digest;
-        }
+        Recorder const& Rec() const override { return m_rec; }
 
         /// The fingerprint and the refusals, before any server call and before the spawn. On a
         /// refusal the verdict is printed and "" returned; otherwise the template category's OK text.
@@ -427,7 +310,6 @@ namespace Harness
         }
 
         QuestRecorder              m_rec;
-        std::vector<char const*>   m_categories;
     };
 
     /**
@@ -876,7 +758,7 @@ namespace Harness
                 }
 
                 Verdict(Compose({ st->templateOk, inc, kill, items, money, loaded, once,
-                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false), DigestValue() }));
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false, false), DigestValue() }));
             });
         }
 
@@ -1211,7 +1093,7 @@ namespace Harness
                 }
 
                 Verdict(Compose({ st->templateOk, credit, deliver, taken, items, money,
-                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false), DigestValue() }));
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false, false), DigestValue() }));
             });
         }
 
@@ -1452,7 +1334,7 @@ namespace Harness
                 }
 
                 Verdict(Compose({ st->templateOk, given, kill, taken,
-                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false), DigestValue() }));
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false, false), DigestValue() }));
             });
         }
 
@@ -1816,7 +1698,7 @@ namespace Harness
                 }
 
                 Verdict(Compose({ st->templateOk, event, unique, talent, cast, money,
-                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false), DigestValue() }));
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false, false), DigestValue() }));
             });
         }
 
@@ -2078,7 +1960,7 @@ namespace Harness
                 }
 
                 Verdict(Compose({ st->templateOk, poor, atMoney, titled,
-                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false), DigestValue() }));
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelAtSpawn, false, false), DigestValue() }));
             });
         }
 
@@ -2410,7 +2292,7 @@ namespace Harness
                 }
 
                 Verdict(Compose({ st->templateOk, credit, money, daily, cur, again,
-                                  NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel), DigestValue() }));
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel, false), DigestValue() }));
             });
         }
 
@@ -2682,7 +2564,7 @@ namespace Harness
                 }
 
                 Verdict(Compose({ st->templateOk, created, empty, restored,
-                                  NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel), DigestValue("the spec count") }));
+                                  NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel, false), DigestValue("the spec count") }));
             });
         }
     };
