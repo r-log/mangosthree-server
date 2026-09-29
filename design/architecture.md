@@ -196,9 +196,9 @@ which aborts the process when the tick counter stops moving.
   configuration. `Network.Threads` said otherwise and was read by no source file; it was removed from
   `mangosd.conf.dist.in` on 2026-09-29. `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by
   no source file either; the engine sets its own socket options.
-- 10 raw `rand()` / `srand` sites in `src/game` (5 files: `CreatureEventAI`, `SpellAuras`, `SpellTargeting`,
-  `SpellEffectScript`, `SpellEffectDummy`) share the C library's one generator across the map workers; the seeded
-  `RNG` is the rule everywhere else. The Unit note lists them for D11.
+- 7 raw `rand()` draws in `src/game` (`CreatureEventAI` 1, `SpellAuras` 1, `SpellTargeting` 1, `SpellEffectScript` 2,
+  `SpellEffectDummy` 2) share the C library's one generator, seeded once by `World.cpp`'s `srand`, across the map
+  workers; the seeded `RNG` is the rule everywhere else. The Unit note lists them for D11.
 
 ## 6. Build targets
 
@@ -277,7 +277,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet); #144 |
 | 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel only | the D11 spell seam takes the second check |
 | 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by no source file (`Network.Threads` was, and is deleted) | delete them or wire them through #143 |
-| 21 | 10 raw `rand()` / `srand` sites in 5 `src/game` files share one generator across the map workers | D11's named changes (the Unit note) |
+| 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | D11's named changes (the Unit note) |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
 
@@ -320,7 +320,8 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   `shared/Log`, one delay thread per database); the network pool's size is `net/reactor/ReactorServer.cpp:110`;
   `grep -rl "Network\.\(OutKBuff\|OutUBuff\|TcpNodelay\)" src` finds only `mangosd.conf.dist.in`; the strict-mode proof is the
   "Check strict tick mode is armed" step of `core_linux_build.yml`. Raw generators:
-  `grep -rnE '\brand\(\)|\bsrand\(' --include=*.cpp --include=*.h src/game src/shared | grep -vE 'urand|irand|frand|rand_norm|RandomEngine' | wc -l` (10).
+  `grep -rnE '\brand\(\)' --include=*.cpp src/game | grep -vE 'urand|irand|frand|rand_norm|Harness/'` (7 draws, comments
+  excluded by eye) and `grep -rn '\bsrand(' src/game` (`World.cpp` seeds; `Harness.cpp` is the scenario seed).
 - The build targets (section 6): `grep -rnE "^\s*add_(library|executable)" --include=CMakeLists.txt src` and each
   target's `target_link_libraries`; the `game` globs are `src/game/CMakeLists.txt:1-82` (27 directories); its size is
   `find src/game -name '*.cpp' -o -name '*.h' | xargs cat | wc -l` (388,249). Lines per target layer:
