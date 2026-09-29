@@ -42,6 +42,12 @@ namespace Harness
     {
         ObjectGuid target;
         ObjectGuid caster;
+        /// The player's own pet (decoupling D11 PR 2, scenario 938), a guid of the map's pet store.
+        ObjectGuid pet;
+        /// Also read, for every watched creature, the stored keys of Creature's own cooldown model
+        /// -- the spell map and the category map (Creature.h:841-842). Off unless a scenario asks,
+        /// so a record made without it keeps every line it had.
+        bool creatureCooldowns = false;
     };
 
     /**
@@ -62,7 +68,12 @@ namespace Harness
      *  - for a player, the id set `<role>.cooldowns`: the stored keys of the cooldown manager's map
      *    (its GetSpellCooldownMap), never HasSpellCooldown -- whose answer reads the
      *    wall clock the stepped world does not move.
-     * A unit that is not there reads `<role>=gone`.
+     *  - for a creature, when the watch asks for it (SpellWatch::creatureCooldowns), the id sets
+     *    `<role>.creatureSpellCooldowns` and `<role>.creatureCategoryCooldowns`: the stored keys
+     *    of the two maps the pet and charm cast paths write (Creature::AddCreatureSpellCooldown),
+     *    never their values, which are wall-clock times.
+     * A unit that is not there reads `<role>=gone`. The roles are `self`, `target`, `caster`
+     * and, since D11's PR 2, `pet`.
      *
      * ITS SNAP LINE after every digested packet (Ruling 19's rule): per role, the health, the
      * power, the combat flag, the generic and channeled slots' spells and the holder count -- so a

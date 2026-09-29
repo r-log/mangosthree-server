@@ -37,6 +37,8 @@ class Player;
 
 namespace Harness
 {
+    struct QuestPlan;
+
     /**
      * What every recorded scenario shares, whichever family it belongs to (the quest family,
      * decoupling D4f0; the spell family, decoupling D11): the category list -- so the all-INVALID
@@ -77,13 +79,28 @@ namespace Harness
          * firing is a BUG too. `dealsDamage`: the plan's QuestPlan::dealsDamage, false for every
          * quest plan; the closure reads DAMAGE_DONE and HIGHEST_HIT_DEALT as reached exactly when
          * it is set, so one of them firing while it is not is a BUG (the backstop those two types
-         * had while the closure did not model them).
+         * had while the closure did not model them). `spellPlan`: a spell scenario's plan (decoupling
+         * D11 PR 2), whose takesDamage and heals the closure reads the same way for the
+         * damage-received and healing types, and whose exploredAreas it matches against each fired
+         * EXPLORE_AREA criteria's overlay (UnexploredAreaCriteria), a BUG for any it does not name;
+         * NULL -- every quest scenario and 930 -- reads them all as false and empty, so one of those
+         * types firing there is a BUG, as it was while the closure did not model them.
          */
         std::string NoPersistence(Player* p, std::set<uint32> const& achievementsAtSpawn, uint32 levelFrom, bool noReachLevel,
-                                  bool dealsDamage) const;
+                                  bool dealsDamage, QuestPlan const* spellPlan = NULL) const;
 
         /// The digest category: FNV-1a over every digested TRACE line, from the first step on.
         std::string DigestValue(char const* from = "the accept") const;
+
+        /// The `.reset level` sequence (PlayerMiscCommands.cpp, HandleResetLevelCommand) to `level`
+        /// instead of the start level: the level-scaled item mods off, SetLevel, InitRunes,
+        /// InitStatsForLevel(true), the taxi nodes, glyphs and talents for the level, XP 0, the mods
+        /// back on. It reaches neither GiveLevel's REACH_LEVEL criteria nor its level mail. The
+        /// command's sCharacterCache.UpdateLevel is left out: the cache holds no harness guid, so
+        /// it does nothing (CharacterCache.cpp), and the harness keeps out of global state. Moved
+        /// here verbatim from ScenariosQuest.cpp (decoupling D11 PR 2) so the spell family runs the
+        /// same sequence.
+        static void SetLevelAsResetDoes(Player* p, uint32 level);
 
     private:
         std::vector<char const*>   m_categories;

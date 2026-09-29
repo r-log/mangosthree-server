@@ -39,6 +39,7 @@
 
 class Creature;
 class Map;
+class Pet;
 class Player;
 class Unit;
 class WorldSession;
@@ -181,6 +182,25 @@ namespace Harness
         /// when the race and class would make Create write (a phase map, or a start map it
         /// would have to create with no `world` row), or when the create fails.
         Player* SpawnPlayer(float x, float y, float z, float o, uint8 classId = CLASS_WARRIOR);
+        /**
+         * A player-owned pet of `entry`, in memory, at (x, y) facing `o` on the harness map, with no
+         * row in `character_pet` and no write to the character database: Spell::DoSummonPet's own
+         * recipe (SpellEffectSummonLock.cpp:937-1011), in its order, minus its last line,
+         * `SavePetToDB(PET_SAVE_AS_CURRENT)`. The pet is a SUMMON_PET, its owner and creator the
+         * player, his faction, its stats for his level, react defensive, its create spells (the
+         * action bar, the family passives, the owner's pet auras -- memory only), active, added to
+         * the map, its MotionMaster initialised, and its factory AI dropped from under a recording
+         * decorator; then Unit::SetPet on the owner. NULL (and a logged ERR) when there is no map,
+         * no owner or no template, or Pet::Create fails. Its order is load-bearing (SetOwnerGuid
+         * before AIM_Initialize and InitStatsForLevel; SetActiveObjectState before Map::Add): the
+         * reasons are written at player-owned-pet-possession's use of it (ScenariosControl.cpp).
+         * THE SCENARIO OWNS IT: the runner's teardown neither despawns nor saves a Pet, so a
+         * scenario ends it itself, owner guid cleared first (SavePetToDB's owner gate,
+         * PetDatabase.cpp:407). Moved here from ScenariosControl.cpp's BuildPet (decoupling D11
+         * PR 2), verbatim but for the entry and the place, so the spell family builds its pet the
+         * same way.
+         */
+        Pet* BuildOwnedPet(Player* owner, uint32 entry, float x, float y, float o);
         /// A creature from the world database (S8's patroller), on the harness map.
         Creature* Find(uint32 lowGuid, uint32 entry);
         Creature* Get(ObjectGuid guid) const;

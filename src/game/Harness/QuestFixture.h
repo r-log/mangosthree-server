@@ -62,6 +62,9 @@ namespace Harness
         std::set<uint32> skills;            ///< skills moved beyond the quest's own
         uint64 seededMoney = 0;             ///< money the scenario hands the player itself
         bool   dealsDamage = false;         ///< the scenario's casts deal damage (the spell family, decoupling D11)
+        bool   takesDamage = false;         ///< the player takes damage (the spell family, D11 PR 2)
+        bool   heals = false;               ///< the player heals or is healed (the spell family, D11 PR 2)
+        std::set<uint32> exploredAreas;     ///< the areas the player's own movement explores (D11 PR 2)
     };
 
     /// Every objective slot and every reward field of a quest, by the column's name, as the loaded
@@ -114,6 +117,16 @@ namespace Harness
     /// The criteria types, by id, among `criteriaIds` that ClosureModelsCriteriaType does not
     /// model ("type <t> (criteria <id>)"), and in `types` every distinct type seen.
     std::vector<std::string> UnmodelledCriteriaTypes(std::vector<uint32> const& criteriaIds, std::set<uint32>& types);
+
+    /// True when the WorldMapOverlay `overlay` names one of `areas`: the areas AchievementMgr walks
+    /// for an EXPLORE_AREA criteria (AchievementMgr.cpp:1213-1253, the AreaID array up to its first
+    /// 0), each matched against the set. The closure's exploration judge and noPersistence's
+    /// backstop both ask it (decoupling D11 PR 2).
+    bool OverlayExplored(uint32 overlay, std::set<uint32> const& areas);
+
+    /// The EXPLORE_AREA criteria among `criteriaIds` whose overlay names none of `areas`
+    /// ("criteria <id> (overlay <n>)"): each one fired though the closure judged it unreachable.
+    std::vector<std::string> UnexploredAreaCriteria(std::vector<uint32> const& criteriaIds, std::set<uint32> const& areas);
 }
 
 #endif

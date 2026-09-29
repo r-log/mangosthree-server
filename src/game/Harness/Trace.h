@@ -83,13 +83,15 @@ namespace Harness
         /// printed: a guid reads as its role -- "self", "giver", "target", "caster", "none" for 0
         /// -- or "other". The quest family names a giver; the spell family (decoupling D11) names
         /// the unit a cast is aimed at (`target`) and a unit other than the player that casts
-        /// (`caster`). A role left at 0 never matches: 0 reads "none" before any role is asked.
+        /// (`caster`), and -- since D11's PR 2 -- the player's own pet (`pet`), asked after every
+        /// other role. A role left at 0 never matches: 0 reads "none" before any role is asked.
         struct Roles
         {
             uint64 self = 0;
             uint64 giver = 0;
             uint64 target = 0;
             uint64 caster = 0;
+            uint64 pet = 0;
         };
         char const* RoleOf(Roles const& roles, uint64 guid);
 
@@ -158,6 +160,119 @@ namespace Harness
         /// (dropped), the spell, the result, then the result's own tail -- a spell focus, an area,
         /// totems, an item class -- as `tail=<n>` and its FNV.
         bool DecodeCastFailed(uint8 const* data, size_t size, std::string& out);
+
+        // ---- the spell family's decoders (decoupling D11 PR 2): what scenarios 931-938 send,
+        // and the rest of the note's list (section 3(a)). Each is laid out from the server's own
+        // builder, cited below, and accounts for every byte: the payload must end where the
+        // writer's layout ends. Guids read as roles. SMSG_PET_CAST_FAILED is the pet form of
+        // Spell::SendCastResult, one layout with SMSG_CAST_FAILED, and DecodeCastFailed reads it.
+
+        /// SMSG_PERIODICAURALOG (Unit::SendPeriodicAuraLog, Unit.cpp:2673-2712): the target's and
+        /// the caster's packed guids as roles, the spell, the count (the writer's 1), the aura
+        /// type, then that type's own fields -- the damage, overkill, school, absorbed, resisted
+        /// and critical byte for PERIODIC_DAMAGE and PERIODIC_DAMAGE_PERCENT; the amount,
+        /// overheal, absorbed and critical byte for PERIODIC_HEAL and OBS_MOD_HEALTH; the power and
+        /// the amount for OBS_MOD_MANA and PERIODIC_ENERGIZE; the power, the amount and the gain
+        /// multiplier (a float, printed as its bits) for PERIODIC_MANA_LEECH. Any other aura type
+        /// is refused: the writer sends nothing for it.
+        bool DecodePeriodicAuraLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELLHEALLOG (Unit::SendHealSpellLog, Unit.cpp:3920-3928): the healed unit's and
+        /// the healer's packed guids as roles, the spell, the heal, the overheal, the absorbed
+        /// amount, the critical byte and the unused byte.
+        bool DecodeSpellHealLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELLENERGIZELOG (Unit::SendEnergizeSpellLog, Unit.cpp:3942-3947): the energized
+        /// unit's and the caster's packed guids as roles, the spell, the power type and the amount.
+        bool DecodeSpellEnergizeLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELL_COOLDOWN (Player::ProhibitSpellSchool, Player.cpp:4629-4652; the weapon
+        /// switch's notice, PlayerItemStorage.cpp:289-293; a pet's load, PetSpells.cpp:64-87): the
+        /// owner's raw guid as a role, the flags byte, then each (spell, milliseconds) to the end.
+        /// The school lockout's and the weapon switch's milliseconds are durations; a pet load's
+        /// are what a stored cooldown has left on the wall clock, and no harness pet is loaded.
+        bool DecodeSpellCooldown(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_COOLDOWN_EVENT (SpellCooldownMgr::SendCooldownEvent, SpellCooldownMgr.cpp:160-163):
+        /// the spell and the owner's raw guid as a role.
+        bool DecodeCooldownEvent(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_CLEAR_COOLDOWNS (Player::SendClearCooldown, Player.cpp:6414-6423, one spell; and
+        /// SpellCooldownMgr::RemoveAllSpellCooldown, SpellCooldownMgr.cpp:225-240, the whole map):
+        /// the bit-packed guid -- mask bits 1, 3, 6, the 24-bit count, mask bits 7, 5, 2, 4, 0;
+        /// then guid bytes 7, 2, 4, 5, 1, 3, each spell id, guid bytes 0 and 6, where a guid byte
+        /// is written only when its mask bit is set, XORed with 1 -- read back into the guid, as a
+        /// role, then the count and the spell ids in the packet's order.
+        bool DecodeClearCooldowns(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELL_DELAYED (Spell::Delayed, Spell.cpp:674-676): the caster's packed guid as a
+        /// role and the pushback in milliseconds.
+        bool DecodeSpellDelayed(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_AURA_UPDATE_ALL (Player::SendAurasForTarget, Player.cpp:5018-5025, one record per
+        /// visible slot written by SpellAuraHolder::BuildUpdatePacket, SpellAuras.cpp:4789-4829):
+        /// the target's packed guid as a role, then to the end each record's slot, spell, flags,
+        /// level and stack; the caster as a role when AFLAG_NOT_CASTER is clear; the maximum and
+        /// remaining duration when AFLAG_DURATION is set (the stepped world's milliseconds); and an
+        /// amount for each effect bit when AFLAG_EFFECT_AMOUNT_SEND is set.
+        bool DecodeAuraUpdateAll(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELLDISPELLOG (Spell::EffectDispel, SpellEffectSkillEnchantPet.cpp:233-245): the
+        /// victim's and the caster's packed guids as roles, the dispel spell, the unused byte, the
+        /// count, then each dispelled spell with its dispelled-or-cleansed byte.
+        bool DecodeSpellDispelLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_PROCRESIST (Unit::SendSpellDamageResist, Unit.cpp:2779-2783): the caster's and the
+        /// target's raw guids as roles, the spell and the log-format byte.
+        bool DecodeProcResist(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+
+        // ---- what the casts' consequences send into the scenarios' digested windows (D11 PR 2):
+        // the threat, combat and root packets a cast on a creature or on the player brings with it.
+        // SMSG_CANCEL_COMBAT (Player::SendAttackSwingCancelAttack, PlayerCombat.cpp:108, no
+        // payload), SMSG_STANDSTATE_UPDATE (Unit::SetStandState, Unit.cpp:6007-6009, the state byte)
+        // and SMSG_TIME_SYNC_REQ (Player::SendTimeSync, Player.cpp:6470-6472, the session's own sync
+        // sequence number, stepped every 10 s of the stepped clock) carry no guid and no clock and are
+        // hashed whole.
+
+        /// SMSG_THREAT_UPDATE (Unit::SendThreatUpdate, UnitThreat.cpp:198-205): the unit's packed guid,
+        /// the count, then each (packed guid, threat) -- the guids as roles.
+        bool DecodeThreatUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_HIGHEST_THREAT_UPDATE (Unit::SendHighestThreatUpdate, UnitThreat.cpp:216-224): the
+        /// unit's packed guid, the new highest's packed guid, then the count and the list as above.
+        bool DecodeHighestThreatUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_THREAT_CLEAR (Unit::SendThreatClear, UnitThreat.cpp:232-233): the unit's packed guid.
+        bool DecodeThreatClear(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_THREAT_REMOVE (Unit::SendThreatRemove, UnitThreat.cpp:240-242): the unit's and the
+        /// removed hostile's packed guids.
+        bool DecodeThreatRemove(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_AI_REACTION (Creature::SendAIReaction, Creature.cpp:2464-2467; Unit.cpp:5875-5877):
+        /// the creature's raw guid as a role and the reaction.
+        bool DecodeAiReaction(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_ATTACKSTOP (Unit::SendMeleeAttackStop, UnitCombat.cpp:483-486; WorldSession::
+        /// SendAttackStop, CombatHandler.cpp:157-160): the attacker's and the victim's packed guids
+        /// and the trailing word.
+        bool DecodeAttackStop(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_FORCE_MOVE_ROOT and SMSG_FORCE_MOVE_UNROOT (the wire codec's MoveRoot and MoveUnroot
+        /// layouts, MovementLayouts.inc:1137-1145, written by MovementCodec.cpp's encoder): eight guid
+        /// mask bits in the layout's order, then the guid bytes in the layout's order with the
+        /// movement counter (a uint32) among them, a byte written only when its bit is set, XORed
+        /// with 1 -- the guid as a role and the counter, which counts that unit's forced changes and
+        /// is no clock.
+        bool DecodeForceMoveRoot(bool root, uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_CHANNEL_START (Spell::SendChannelStart, SpellPackets.cpp:870-889): the caster's
+        /// packed guid as a role, the spell, the channel's duration and the two zero flag bytes.
+        bool DecodeChannelStart(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_CHANNEL_UPDATE (Spell::SendChannelUpdate, SpellPackets.cpp:825-827): the caster's
+        /// packed guid as a role and the channel's remaining milliseconds (the stepped clock's).
+        bool DecodeChannelUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELLLOGEXECUTE (Spell::SendLogExecute, SpellPackets.cpp:587-738): the caster's (or
+        /// for a creature caster the target's) packed guid as a role, the spell, the effect count
+        /// (the writer's 1), the effect, the target count (1), then the effect's own fields -- a
+        /// unit's packed guid as a role followed by its words for POWER_DRAIN, POWER_BURN,
+        /// ADD_EXTRA_ATTACKS, INTERRUPT_CAST and DURABILITY_DAMAGE, the item entry for the create-item
+        /// effects and FEED_PET, a unit's packed guid for DISMISS_PET and the resurrections. The
+        /// effects whose fields name an item, a game object or a summoned object by its guid are
+        /// refused: such a guid comes from a counter.
+        bool DecodeSpellLogExecute(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_PET_SPELLS (Player::CharmSpellInitialize, PlayerPet.cpp:240-270; the same head in
+        /// Player::PetSpellInitialize, :95-128, and PossessSpellInitialize, :189-198; the empty-guid
+        /// form of PetMgr::RemoveActionBar): the unit's raw guid as a role, then -- unless the payload
+        /// ends there (the empty form) -- the head, the ten action-bar words, the spell list and its
+        /// count, recorded as `rest=<n>` and its FNV, and the cooldown count, which must be 0: the
+        /// entries a pet's own form can carry hold the wall clock's remaining times, and a payload
+        /// with any is refused.
+        bool DecodePetSpells(uint8 const* data, size_t size, Roles const& roles, std::string& out);
 
         /// SMSG_ITEM_PUSH_RESULT (Player::SendNewItem): the item entry and the count pushed, read
         /// out of the bytes: the player guid (8), received, created and shown (3 x 4), the bag (1)

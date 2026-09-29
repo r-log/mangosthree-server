@@ -11,6 +11,10 @@
 #include "DBCEnums.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
+#include "ObjectGuid.h"
+#include "wire/MovementCodec.h"
+#include "wire/MovementSequences.h"
+#include "wire/MovementStatus.h"
 
 #include <cstdio>
 #include <string>
@@ -586,7 +590,7 @@ TEST(HarnessTrace_the_rules_d4f0_2_added)
 TEST(HarnessClosure_models_exactly_the_types_of_its_one_table)
 {
     // The achievement closure's table (QuestFixture.cpp kJudges) is the one list both the judge
-    // and ClosureModelsCriteriaType read: these 30 types and nothing else.
+    // and ClosureModelsCriteriaType read: these 37 types and nothing else.
     const uint32 modelled[] =
     {
         ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ACHIEVEMENT, ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST,
@@ -604,9 +608,14 @@ TEST(HarnessClosure_models_exactly_the_types_of_its_one_table)
         ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED, ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM,
         // decoupling D11: the damage the spell family's casts deal
         ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE, ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT,
+        // D11 PR 2: the damage the player takes, the healing, the exploration
+        ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_RECEIVED, ACHIEVEMENT_CRITERIA_TYPE_TOTAL_DAMAGE_RECEIVED,
+        ACHIEVEMENT_CRITERIA_TYPE_HEALING_DONE, ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEAL_CASTED,
+        ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED, ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED,
+        ACHIEVEMENT_CRITERIA_TYPE_EXPLORE_AREA,
     };
     const uint32 count = sizeof(modelled) / sizeof(modelled[0]);
-    CHECK_EQ(count, 30u);
+    CHECK_EQ(count, 37u);
     for (uint32 i = 0; i < count; ++i)
     {
         CHECK(Harness::ClosureModelsCriteriaType(modelled[i]));
@@ -732,9 +741,9 @@ TEST(HarnessTrace_the_rules_d11_added)
     CHECK(Harness::Trace::RuleFor(SMSG_SPELL_FAILURE) == Rule::Decode);
     CHECK(Harness::Trace::RuleFor(SMSG_SPELL_FAILED_OTHER) == Rule::Decode);
     CHECK(Harness::Trace::RuleFor(SMSG_CAST_FAILED) == Rule::Decode);
-    // the energize and periodic logs come with the scenarios that send them (931-938)
-    CHECK(Harness::Trace::RuleFor(SMSG_SPELLENERGIZELOG) == Rule::Size);
-    CHECK(Harness::Trace::RuleFor(SMSG_PERIODICAURALOG) == Rule::Size);
+    // the energize and periodic logs came with the scenarios that send them (D11 PR 2)
+    CHECK(Harness::Trace::RuleFor(SMSG_SPELLENERGIZELOG) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_PERIODICAURALOG) == Rule::Decode);
 }
 
 TEST(HarnessTrace_the_spell_roles_read_after_the_quest_roles)
@@ -909,4 +918,522 @@ TEST(HarnessTrace_the_spell_snapshot_writes_a_holder_without_a_guid_or_a_clock)
     a.sets.push_back(std::make_pair(std::string("self.cooldowns"), std::set<uint32>()));
     b.sets.push_back(std::make_pair(std::string("self.cooldowns"), std::set<uint32>{ 93002 }));
     CHECK_STR(Harness::Trace::StateDelta(a, b)[0].c_str(), "state self.cooldowns +93002");
+}
+
+// ---- decoupling D11 PR 2: the decoders scenarios 931-938 need, and the rest of the Unit
+// reopening note's list (section 3(a)). Each packet is built statement for statement as its
+// writer builds it (the writer named above each), every field its own non-zero value so no field
+// can be read in another's place (the D11-1 task review's M-3), and a payload one byte short or
+// one byte long is refused where the layout is fixed. The cooldown row's packets
+// (SMSG_COOLDOWN_EVENT, SMSG_CLEAR_COOLDOWNS) are observed, never built for a client:
+// CheckStateOwnership.cmake allows exactly those names in this file.
+namespace
+{
+    const uint64 kPet = 0xF140000B01010203ULL;     // bytes 03 02 01 01 0B 00 40 F1: a 0x01 byte, a 0x00 byte
+
+    Harness::Trace::Roles PetRoles()
+    {
+        Harness::Trace::Roles r = SpellRoles();
+        r.pet = kPet;
+        return r;
+    }
+
+    /// One byte short, and one byte long: both refused, by the size alone.
+    void CheckRefusesOneByteEitherWay(uint16 opcode, WorldPacket const& p, Harness::Trace::Roles const& roles)
+    {
+        WorldPacket shorter(opcode, p.size());
+        if (p.size() > 1)
+        {
+            shorter.append(p.contents(), p.size() - 1);
+        }
+        WorldPacket longer(p);
+        longer << uint8(0x5A);
+        CHECK(Harness::Trace::PacketRecord(opcode, "OP", shorter.contents(), shorter.size(), false, roles).find("OP undecoded size=") == 0);
+        CHECK(Harness::Trace::PacketRecord(opcode, "OP", longer.contents(), longer.size(), false, roles).find("OP undecoded size=") == 0);
+    }
+
+    /// Unit::SendPeriodicAuraLog, Unit.cpp:2673-2712: the head, then the aura type's own fields.
+    WorldPacket PeriodicHead(uint64 target, uint64 caster, uint32 spell, uint32 aura)
+    {
+        WorldPacket data(SMSG_PERIODICAURALOG, 30);
+        data.appendPackGUID(target);                  // aura->GetTarget()->GetPackGUID()
+        data.appendPackGUID(caster);                  // aura->GetCasterGuid().WriteAsPacked()
+        data << uint32(spell);
+        data << uint32(1);                            // count
+        data << uint32(aura);                         // mod->m_auraname
+        return data;
+    }
+
+    /// Unit::SendHealSpellLog, Unit.cpp:3920-3928.
+    WorldPacket HealLog(uint64 target, uint64 caster, uint32 spell, uint32 heal, uint32 overheal, uint32 absorb, uint8 critical)
+    {
+        WorldPacket data(SMSG_SPELLHEALLOG, (8 + 8 + 4 + 4 + 1));
+        data.appendPackGUID(target);                  // pVictim->GetPackGUID()
+        data.appendPackGUID(caster);                  // GetPackGUID()
+        data << uint32(spell);
+        data << uint32(heal);
+        data << uint32(overheal);
+        data << uint32(absorb);
+        data << uint8(critical);
+        data << uint8(0);                             // unused
+        return data;
+    }
+
+    /// Unit::SendEnergizeSpellLog, Unit.cpp:3942-3947.
+    WorldPacket EnergizeLog(uint64 target, uint64 caster, uint32 spell, uint32 power, uint32 amount)
+    {
+        WorldPacket data(SMSG_SPELLENERGIZELOG, (8 + 8 + 4 + 4 + 4 + 1));
+        data.appendPackGUID(target);
+        data.appendPackGUID(caster);
+        data << uint32(spell);
+        data << uint32(power);
+        data << uint32(amount);
+        return data;
+    }
+
+    /// Player::SendClearCooldown, Player.cpp:6414-6423 (one spell), and
+    /// SpellCooldownMgr::RemoveAllSpellCooldown, SpellCooldownMgr.cpp:225-240 (every key): one
+    /// layout, the count in the bits.
+    WorldPacket ClearCooldowns(uint64 owner, std::vector<uint32> const& spells)
+    {
+        ObjectGuid guid(owner);
+        WorldPacket data(SMSG_CLEAR_COOLDOWNS, 1 + 8 + spells.size() * 4);
+        data.WriteGuidMask<1, 3, 6>(guid);
+        data.WriteBits(spells.size(), 24);            // cooldown count
+        data.WriteGuidMask<7, 5, 2, 4, 0>(guid);
+        data.WriteGuidBytes<7, 2, 4, 5, 1, 3>(guid);
+        for (size_t i = 0; i < spells.size(); ++i)
+        {
+            data << uint32(spells[i]);
+        }
+        data.WriteGuidBytes<0, 6>(guid);
+        return data;
+    }
+
+    /// Player::SendAurasForTarget, Player.cpp:5018-5025, with SpellAuraHolder::BuildUpdatePacket,
+    /// SpellAuras.cpp:4789-4829: the target, then one record per visible slot.
+    void AuraRecord(WorldPacket& data, uint8 slot, uint32 spell, uint16 flags, uint8 level, uint8 stack, uint64 caster, uint32 maxDuration,
+                    uint32 duration, int32 amount0, int32 amount1)
+    {
+        data << uint8(slot);
+        data << uint32(spell);
+        data << uint16(flags);
+        data << uint8(level);
+        data << uint8(stack);
+        if (!(flags & 0x08))                          // AFLAG_NOT_CASTER
+        {
+            data.appendPackGUID(caster);
+        }
+        if (flags & 0x20)                             // AFLAG_DURATION
+        {
+            data << uint32(maxDuration);
+            data << uint32(duration);
+        }
+        if (flags & 0x40)                             // AFLAG_EFFECT_AMOUNT_SEND
+        {
+            if (flags & 0x01) { data << int32(amount0); }
+            if (flags & 0x02) { data << int32(amount1); }
+        }
+    }
+}
+
+TEST(HarnessTrace_the_rules_d11_2_added)
+{
+    using Harness::Trace::Rule;
+    const uint16 decoded[] =
+    {
+        SMSG_PERIODICAURALOG, SMSG_SPELLHEALLOG, SMSG_SPELLENERGIZELOG, SMSG_SPELL_COOLDOWN, SMSG_COOLDOWN_EVENT,
+        SMSG_CLEAR_COOLDOWNS, SMSG_SPELL_DELAYED, SMSG_AURA_UPDATE_ALL, SMSG_SPELLDISPELLOG, SMSG_PROCRESIST,
+        SMSG_PET_CAST_FAILED, SMSG_THREAT_UPDATE, SMSG_HIGHEST_THREAT_UPDATE, SMSG_THREAT_CLEAR, SMSG_THREAT_REMOVE,
+        SMSG_AI_REACTION, SMSG_ATTACKSTOP, SMSG_FORCE_MOVE_ROOT, SMSG_FORCE_MOVE_UNROOT,
+    };
+    for (size_t i = 0; i < sizeof(decoded) / sizeof(decoded[0]); ++i)
+    {
+        CHECK(Harness::Trace::RuleFor(decoded[i]) == Rule::Decode);
+    }
+    CHECK(Harness::Trace::RuleFor(SMSG_CANCEL_COMBAT) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_STANDSTATE_UPDATE) == Rule::Hash);
+    CHECK(Harness::Trace::RuleFor(SMSG_TIME_SYNC_REQ) == Rule::Hash);
+    // the spline move stays sized: 930's spawn line records it so, and the record may not move
+    CHECK(Harness::Trace::RuleFor(SMSG_MONSTER_MOVE) == Rule::Size);
+}
+
+TEST(HarnessTrace_the_pet_role_reads_after_every_other_role)
+{
+    Harness::Trace::Roles r = PetRoles();
+    CHECK_STR(Harness::Trace::RoleOf(r, kPet), "pet");
+    CHECK_STR(Harness::Trace::RoleOf(r, kCaster), "caster");
+    CHECK_STR(Harness::Trace::RoleOf(r, kSelf), "self");
+    // left at 0 it claims nothing: the records made without it read as before
+    CHECK_STR(Harness::Trace::RoleOf(SpellRoles(), kPet), "other");
+}
+
+TEST(HarnessTrace_the_periodic_log_reads_each_aura_type_s_own_fields)
+{
+    // PERIODIC_DAMAGE (3): damage, overkill, school, absorbed, resisted, critical
+    WorldPacket damage = PeriodicHead(kTarget, kSelf, 589, 3);
+    damage << uint32(7) << uint32(11) << uint32(32) << uint32(13) << uint32(17) << uint8(1);
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, damage).c_str(),
+              "OP target=target caster=self spell=589 count=1 aura=3 damage=7 overkill=11 school=32 absorb=13 resist=17 critical=1");
+    CheckRefusesOneByteEitherWay(SMSG_PERIODICAURALOG, damage, SpellRoles());
+    // PERIODIC_DAMAGE_PERCENT (89) shares the layout
+    WorldPacket percent = PeriodicHead(kTarget, kCaster, 12, 89);
+    percent << uint32(3) << uint32(5) << uint32(4) << uint32(9) << uint32(2) << uint8(1);
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, percent).c_str(),
+              "OP target=target caster=caster spell=12 count=1 aura=89 damage=3 overkill=5 school=4 absorb=9 resist=2 critical=1");
+    // PERIODIC_HEAL (8): amount, overheal, absorbed, critical
+    WorldPacket heal = PeriodicHead(kSelf, kSelf, 139, 8);
+    heal << uint32(21) << uint32(19) << uint32(4) << uint8(1);
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, heal).c_str(),
+              "OP target=self caster=self spell=139 count=1 aura=8 amount=21 overheal=19 absorb=4 critical=1");
+    CheckRefusesOneByteEitherWay(SMSG_PERIODICAURALOG, heal, SpellRoles());
+    // PERIODIC_ENERGIZE (24): power, amount
+    WorldPacket energize = PeriodicHead(kSelf, kCaster, 29166, 24);
+    energize << uint32(3) << uint32(45);
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, energize).c_str(), "OP target=self caster=caster spell=29166 count=1 aura=24 power=3 amount=45");
+    CheckRefusesOneByteEitherWay(SMSG_PERIODICAURALOG, energize, SpellRoles());
+    // PERIODIC_MANA_LEECH (64): power, amount, the multiplier as its bits
+    WorldPacket leech = PeriodicHead(kTarget, kSelf, 5138, 64);
+    leech << uint32(2) << uint32(33) << float(1.5f);
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, leech).c_str(),
+              "OP target=target caster=self spell=5138 count=1 aura=64 power=2 amount=33 multiplier=0x3fc00000");
+    CheckRefusesOneByteEitherWay(SMSG_PERIODICAURALOG, leech, SpellRoles());
+    // an aura type the writer returns on sends nothing, and the decoder refuses it
+    WorldPacket other = PeriodicHead(kTarget, kSelf, 589, 4);
+    other << uint32(1);
+    CHECK(SpellDecoded(SMSG_PERIODICAURALOG, other).find("OP undecoded size=") == 0);
+}
+
+TEST(HarnessTrace_the_heal_and_energize_logs_keep_every_field)
+{
+    WorldPacket heal = HealLog(kSelf, kCaster, 66064, 9773, 9770, 3, 1);
+    CHECK_STR(SpellDecoded(SMSG_SPELLHEALLOG, heal).c_str(), "OP target=self caster=caster spell=66064 heal=9773 overheal=9770 absorb=3 critical=1 unused=0");
+    CheckRefusesOneByteEitherWay(SMSG_SPELLHEALLOG, heal, SpellRoles());
+    WorldPacket energize = EnergizeLog(kTarget, kSelf, 32747, 3, 25);
+    CHECK_STR(SpellDecoded(SMSG_SPELLENERGIZELOG, energize).c_str(), "OP target=target caster=self spell=32747 power=3 amount=25");
+    CheckRefusesOneByteEitherWay(SMSG_SPELLENERGIZELOG, energize, SpellRoles());
+}
+
+TEST(HarnessTrace_the_cooldown_packets_read_their_owner_as_a_role)
+{
+    // Player::ProhibitSpellSchool, Player.cpp:4629-4652: the owner's raw guid, the flags, then
+    // each (spell, milliseconds)
+    WorldPacket lockout(SMSG_SPELL_COOLDOWN, 8 + 1 + 16);
+    lockout << uint64(kSelf);
+    lockout << uint8(2);
+    lockout << uint32(585) << uint32(3000);
+    lockout << uint32(88684) << uint32(4000);
+    CHECK_STR(SpellDecoded(SMSG_SPELL_COOLDOWN, lockout).c_str(), "OP owner=self flags=2 spells=[585:3000,88684:4000]");
+    WorldPacket none(SMSG_SPELL_COOLDOWN, 9);
+    none << uint64(kPet) << uint8(0);
+    CHECK_STR(SpellDecoded(SMSG_SPELL_COOLDOWN, none, PetRoles()).c_str(), "OP owner=pet flags=0 spells=[]");
+    // a pair cut short is not the writer's layout
+    WorldPacket cut(lockout);
+    cut << uint8(1);
+    CHECK(SpellDecoded(SMSG_SPELL_COOLDOWN, cut).find("OP undecoded size=") == 0);
+    WorldPacket head(SMSG_SPELL_COOLDOWN, 8);
+    head << uint64(kSelf);
+    CHECK(SpellDecoded(SMSG_SPELL_COOLDOWN, head).find("OP undecoded size=") == 0);
+
+    // SpellCooldownMgr::SendCooldownEvent, SpellCooldownMgr.cpp:160-163
+    WorldPacket event(SMSG_COOLDOWN_EVENT, (4 + 8));
+    event << uint32(89485);
+    event << uint64(kSelf);
+    CHECK_STR(SpellDecoded(SMSG_COOLDOWN_EVENT, event).c_str(), "OP spell=89485 owner=self");
+    CheckRefusesOneByteEitherWay(SMSG_COOLDOWN_EVENT, event, SpellRoles());
+
+    // SMSG_CLEAR_COOLDOWNS: the bit-packed guid read back, whatever its bytes -- the player's
+    // (one non-zero byte), and one holding a 0x01 byte (written as 0x00) and a 0x00 byte (not
+    // written at all)
+    WorldPacket one = ClearCooldowns(kSelf, { 26364 });
+    CHECK_STR(SpellDecoded(SMSG_CLEAR_COOLDOWNS, one).c_str(), "OP owner=self count=1 spells=[26364]");
+    CheckRefusesOneByteEitherWay(SMSG_CLEAR_COOLDOWNS, one, SpellRoles());
+    WorldPacket many = ClearCooldowns(kPet, { 585, 88684, 101062 });
+    CHECK_STR(SpellDecoded(SMSG_CLEAR_COOLDOWNS, many, PetRoles()).c_str(), "OP owner=pet count=3 spells=[585,88684,101062]");
+    CheckRefusesOneByteEitherWay(SMSG_CLEAR_COOLDOWNS, many, PetRoles());
+    WorldPacket creature = ClearCooldowns(kCaster, { 3716 });
+    CHECK_STR(SpellDecoded(SMSG_CLEAR_COOLDOWNS, creature).c_str(), "OP owner=caster count=1 spells=[3716]");
+}
+
+TEST(HarnessTrace_the_delay_the_dispel_and_the_resist_logs)
+{
+    // Spell::Delayed, Spell.cpp:674-676
+    WorldPacket delayed(SMSG_SPELL_DELAYED, 8 + 4);
+    delayed.appendPackGUID(kSelf);
+    delayed << uint32(500);
+    CHECK_STR(SpellDecoded(SMSG_SPELL_DELAYED, delayed).c_str(), "OP caster=self delay=500");
+    CheckRefusesOneByteEitherWay(SMSG_SPELL_DELAYED, delayed, SpellRoles());
+
+    // Spell::EffectDispel, SpellEffectSkillEnchantPet.cpp:233-245
+    WorldPacket dispel(SMSG_SPELLDISPELLOG, 8 + 8 + 4 + 1 + 4 + 10);
+    dispel.appendPackGUID(kTarget);
+    dispel.appendPackGUID(kSelf);
+    dispel << uint32(527);
+    dispel << uint8(0);
+    dispel << uint32(2);
+    dispel << uint32(589) << uint8(0);
+    dispel << uint32(8921) << uint8(1);
+    CHECK_STR(SpellDecoded(SMSG_SPELLDISPELLOG, dispel).c_str(), "OP victim=target caster=self spell=527 unused=0 count=2 dispelled=[589:0,8921:1]");
+    CheckRefusesOneByteEitherWay(SMSG_SPELLDISPELLOG, dispel, SpellRoles());
+
+    // Unit::SendSpellDamageResist, Unit.cpp:2779-2783: two raw guids
+    WorldPacket resist(SMSG_PROCRESIST, 8 + 8 + 4 + 1);
+    resist << uint64(kCaster);
+    resist << uint64(kSelf);
+    resist << uint32(40739);
+    resist << uint8(1);
+    CHECK_STR(SpellDecoded(SMSG_PROCRESIST, resist).c_str(), "OP caster=caster target=self spell=40739 format=1");
+    CheckRefusesOneByteEitherWay(SMSG_PROCRESIST, resist, SpellRoles());
+
+    // Spell::SendCastResult's pet form, SpellPackets.cpp:121-129: one layout with CAST_FAILED
+    WorldPacket petFailed(SMSG_PET_CAST_FAILED, (4 + 1 + 2));
+    petFailed << uint8(2);
+    petFailed << uint32(3716);
+    petFailed << uint8(69);
+    petFailed << uint32(0);
+    CHECK_STR(SpellDecoded(SMSG_PET_CAST_FAILED, petFailed).c_str(),
+              ("OP spell=3716 result=69 tail=4 tailfnv=" + Harness::Trace::Hex32(Harness::Trace::Fnv1a(petFailed.contents() + 6, 4))).c_str());
+}
+
+TEST(HarnessTrace_aura_update_all_reads_every_record)
+{
+    WorldPacket all(SMSG_AURA_UPDATE_ALL);
+    all.appendPackGUID(kTarget);
+    // a caster's aura with durations and two amounts, then a self-cast one with neither
+    AuraRecord(all, 3, 745, 0x20 | 0x40 | 0x80 | 0x01 | 0x02, 7, 2, kCaster, 5000, 4100, -25, 11);
+    AuraRecord(all, 9, 20864, 0x08 | 0x10 | 0x01, 3, 1, 0, 0, 0, 0, 0);
+    CHECK_STR(SpellDecoded(SMSG_AURA_UPDATE_ALL, all).c_str(),
+              "OP target=target auras=[slot=3 spell=745 flags=0xe3 level=7 stack=2 caster=caster dur=4100/5000 amount0=-25 amount1=11; slot=9 spell=20864 flags=0x19 level=3 stack=1]");
+    CheckRefusesOneByteEitherWay(SMSG_AURA_UPDATE_ALL, all, SpellRoles());
+    WorldPacket empty(SMSG_AURA_UPDATE_ALL);
+    empty.appendPackGUID(kSelf);
+    CHECK_STR(SpellDecoded(SMSG_AURA_UPDATE_ALL, empty).c_str(), "OP target=self auras=[]");
+}
+
+TEST(HarnessTrace_the_threat_packets_read_every_unit_as_a_role)
+{
+    // Unit::SendThreatUpdate, UnitThreat.cpp:198-205
+    WorldPacket update(SMSG_THREAT_UPDATE, 8 + 16);
+    update.appendPackGUID(kTarget);
+    update << uint32(2);
+    update.appendPackGUID(kPet);
+    update << uint32(36);
+    update.appendPackGUID(kSelf);
+    update << uint32(7);
+    CHECK_STR(SpellDecoded(SMSG_THREAT_UPDATE, update, PetRoles()).c_str(), "OP unit=target count=2 list=[pet:36,self:7]");
+    CheckRefusesOneByteEitherWay(SMSG_THREAT_UPDATE, update, PetRoles());
+    // Unit::SendHighestThreatUpdate, UnitThreat.cpp:216-224
+    WorldPacket highest(SMSG_HIGHEST_THREAT_UPDATE, 8 + 8 + 8);
+    highest.appendPackGUID(kCaster);
+    highest.appendPackGUID(kSelf);
+    highest << uint32(1);
+    highest.appendPackGUID(kSelf);
+    highest << uint32(14);
+    CHECK_STR(SpellDecoded(SMSG_HIGHEST_THREAT_UPDATE, highest).c_str(), "OP unit=caster highest=self count=1 list=[self:14]");
+    CheckRefusesOneByteEitherWay(SMSG_HIGHEST_THREAT_UPDATE, highest, SpellRoles());
+    // Unit::SendThreatClear, UnitThreat.cpp:232-233, and Unit::SendThreatRemove, :240-242
+    WorldPacket clear(SMSG_THREAT_CLEAR, 8);
+    clear.appendPackGUID(kTarget);
+    CHECK_STR(SpellDecoded(SMSG_THREAT_CLEAR, clear).c_str(), "OP unit=target");
+    WorldPacket longerClear(clear);
+    longerClear << uint8(1);
+    CHECK(SpellDecoded(SMSG_THREAT_CLEAR, longerClear).find("OP undecoded size=") == 0);
+    WorldPacket remove(SMSG_THREAT_REMOVE, 16);
+    remove.appendPackGUID(kTarget);
+    remove.appendPackGUID(kCaster);
+    CHECK_STR(SpellDecoded(SMSG_THREAT_REMOVE, remove).c_str(), "OP unit=target hostile=caster");
+    CheckRefusesOneByteEitherWay(SMSG_THREAT_REMOVE, remove, SpellRoles());
+}
+
+TEST(HarnessTrace_the_combat_packets_read_every_unit_as_a_role)
+{
+    // Creature::SendAIReaction, Creature.cpp:2464-2467: the creature's raw guid, the reaction
+    WorldPacket reaction(SMSG_AI_REACTION, 12);
+    reaction << uint64(kCaster);
+    reaction << uint32(2);
+    CHECK_STR(SpellDecoded(SMSG_AI_REACTION, reaction).c_str(), "OP unit=caster reaction=2");
+    CheckRefusesOneByteEitherWay(SMSG_AI_REACTION, reaction, SpellRoles());
+    // Unit::SendMeleeAttackStop, UnitCombat.cpp:483-486
+    WorldPacket stop(SMSG_ATTACKSTOP, (4 + 16));
+    stop.appendPackGUID(kCaster);
+    stop.appendPackGUID(kSelf);
+    stop << uint32(1);
+    CHECK_STR(SpellDecoded(SMSG_ATTACKSTOP, stop).c_str(), "OP attacker=caster victim=self word=1");
+    CheckRefusesOneByteEitherWay(SMSG_ATTACKSTOP, stop, SpellRoles());
+    // the empty cancel, the stand state and the time sync are hashed whole
+    WorldPacket cancel(SMSG_CANCEL_COMBAT, 0);
+    CHECK_STR(SpellDecoded(SMSG_CANCEL_COMBAT, cancel).c_str(), "OP size=0 fnv=811c9dc5");
+}
+
+TEST(HarnessTrace_the_root_packets_read_the_codec_s_own_bytes)
+{
+    // The production writer: the wire codec's encoder over the MoveRoot and MoveUnroot layouts.
+    const uint16 opcodes[] = { SMSG_FORCE_MOVE_ROOT, SMSG_FORCE_MOVE_UNROOT };
+    const uint64 guids[] = { kSelf, kPet, kCaster };
+    for (size_t o = 0; o < 2; ++o)
+    {
+        for (size_t g = 0; g < 3; ++g)
+        {
+            Wire::MovementStatus status;
+            status.guid = guids[g];
+            status.counter = 0x01020304u + uint32(g);
+            WorldPacket out(opcodes[o]);
+            Wire::Encode(out, Wire::SequenceFor(opcodes[o]), status);
+            out.FlushBits();
+            char want[64];
+            snprintf(want, sizeof(want), "OP unit=%s counter=%u", g == 0 ? "self" : (g == 1 ? "pet" : "caster"), status.counter);
+            CHECK_STR(SpellDecoded(opcodes[o], out, PetRoles()).c_str(), want);
+            CheckRefusesOneByteEitherWay(opcodes[o], out, PetRoles());
+        }
+    }
+}
+
+TEST(HarnessTrace_the_channel_packets_and_the_log_execute)
+{
+    using Harness::Trace::Rule;
+    CHECK(Harness::Trace::RuleFor(SMSG_CHANNEL_START) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_CHANNEL_UPDATE) == Rule::Decode);
+    CHECK(Harness::Trace::RuleFor(SMSG_SPELLLOGEXECUTE) == Rule::Decode);
+    // Spell::SendChannelStart, SpellPackets.cpp:870-889
+    WorldPacket start(SMSG_CHANNEL_START, (8 + 4 + 4));
+    start.appendPackGUID(kSelf);
+    start << uint32(1949);
+    start << uint32(15000);
+    start << uint8(0);
+    start << uint8(0);
+    CHECK_STR(SpellDecoded(SMSG_CHANNEL_START, start).c_str(), "OP caster=self spell=1949 duration=15000 unk1=0 unk2=0");
+    CheckRefusesOneByteEitherWay(SMSG_CHANNEL_START, start, SpellRoles());
+    // Spell::SendChannelUpdate, SpellPackets.cpp:825-827
+    WorldPacket update(SMSG_CHANNEL_UPDATE, 8 + 4);
+    update.appendPackGUID(kCaster);
+    update << uint32(14800);
+    CHECK_STR(SpellDecoded(SMSG_CHANNEL_UPDATE, update).c_str(), "OP caster=caster remaining=14800");
+    CheckRefusesOneByteEitherWay(SMSG_CHANNEL_UPDATE, update, SpellRoles());
+    // Spell::SendLogExecute, SpellPackets.cpp:587-738: INTERRUPT_CAST names the target and a word
+    WorldPacket interrupt(SMSG_SPELLLOGEXECUTE, (8 + 4 + 4 + 4 + 4 + 8));
+    interrupt.appendPackGUID(kSelf);             // a creature caster writes its target's guid
+    interrupt << uint32(32747);
+    interrupt << uint32(1);
+    interrupt << uint32(68);
+    interrupt << uint32(1);
+    interrupt.appendPackGUID(kSelf);
+    interrupt << uint32(7);
+    CHECK_STR(SpellDecoded(SMSG_SPELLLOGEXECUTE, interrupt).c_str(), "OP unit=self spell=32747 effects=1 effect=68 targets=1 target=self words=7");
+    CheckRefusesOneByteEitherWay(SMSG_SPELLLOGEXECUTE, interrupt, SpellRoles());
+    // POWER_BURN: the guid, two words and a float's bits
+    WorldPacket burn(SMSG_SPELLLOGEXECUTE, 40);
+    burn.appendPackGUID(kCaster);
+    burn << uint32(8129) << uint32(1) << uint32(62) << uint32(1);
+    burn.appendPackGUID(kTarget);
+    burn << uint32(3) << uint32(5) << float(2.0f);
+    CHECK_STR(SpellDecoded(SMSG_SPELLLOGEXECUTE, burn).c_str(),
+              "OP unit=caster spell=8129 effects=1 effect=62 targets=1 target=target words=3,5,1073741824");
+    // CREATE_ITEM: the entry, no guid
+    WorldPacket create(SMSG_SPELLLOGEXECUTE, 24);
+    create.appendPackGUID(kSelf);
+    create << uint32(2583) << uint32(1) << uint32(24) << uint32(1) << uint32(2581);
+    CHECK_STR(SpellDecoded(SMSG_SPELLLOGEXECUTE, create).c_str(), "OP unit=self spell=2583 effects=1 effect=24 targets=1 words=2581");
+    // OPEN_LOCK names an item by its counter-numbered guid: refused
+    WorldPacket lock(SMSG_SPELLLOGEXECUTE, 24);
+    lock.appendPackGUID(kSelf);
+    lock << uint32(1804) << uint32(1) << uint32(33) << uint32(1);
+    lock.appendPackGUID(0x4000000000000123ULL);
+    CHECK(SpellDecoded(SMSG_SPELLLOGEXECUTE, lock).find("OP undecoded size=") == 0);
+}
+
+TEST(HarnessTrace_the_pet_spell_bar_reads_its_unit_and_refuses_a_clock)
+{
+    CHECK(Harness::Trace::RuleFor(SMSG_PET_SPELLS) == Harness::Trace::Rule::Decode);
+    // Player::CharmSpellInitialize, PlayerPet.cpp:240-270: the charm's raw guid, the head, the
+    // ten action-bar words, two demon spells, no cooldowns
+    WorldPacket bar(SMSG_PET_SPELLS, 70);
+    bar << uint64(kCaster);
+    bar << uint16(0) << uint32(0);
+    bar << uint8(1) << uint8(2) << uint16(0);
+    for (uint32 i = 0; i < 10; ++i)
+    {
+        bar << uint32(0x07000000 | (100 + i));
+    }
+    bar << uint8(2) << uint32(0xC1003716) << uint32(0xC1017735);
+    bar << uint8(0);
+    const std::string rest = Harness::Trace::Hex32(Harness::Trace::Fnv1a(bar.contents() + 8, bar.size() - 8));
+    CHECK_STR(SpellDecoded(SMSG_PET_SPELLS, bar).c_str(), ("OP unit=caster spells=2 rest=" + std::to_string(bar.size() - 8) + " restfnv=" + rest).c_str());
+    CheckRefusesOneByteEitherWay(SMSG_PET_SPELLS, bar, SpellRoles());
+    // PetMgr::RemoveActionBar's empty-guid form
+    WorldPacket cleared(SMSG_PET_SPELLS, 8);
+    cleared << uint64(0);
+    CHECK_STR(SpellDecoded(SMSG_PET_SPELLS, cleared).c_str(), "OP unit=none");
+    // a pet's own form carrying cooldowns (the wall clock's remaining times) is refused
+    WorldPacket withCooldowns(bar);
+    withCooldowns.put<uint8>(withCooldowns.size() - 1, 1);
+    withCooldowns << uint32(3716) << uint16(36) << uint32(4000) << uint32(0);
+    CHECK(SpellDecoded(SMSG_PET_SPELLS, withCooldowns).find("OP undecoded size=") == 0);
+}
+
+TEST(HarnessTrace_the_log_execute_reads_every_effect_branch)
+{
+    // Spell::SendLogExecute, SpellPackets.cpp:617-730: per effect, the unit's packed guid (or
+    // none) and the words the branch writes -- each case its own distinct non-zero values, so a
+    // branch that reads one word too few or too many is refused (the D11-2 task review's M-3)
+    struct Case
+    {
+        uint32 effect;
+        bool guid;
+        uint32 words;
+    };
+    const Case cases[] =
+    {
+        { 8,   true,  3 }, { 62,  true,  3 },                      // POWER_DRAIN, POWER_BURN
+        { 19,  true,  1 }, { 68,  true,  1 },                      // ADD_EXTRA_ATTACKS, INTERRUPT_CAST
+        { 111, true,  2 },                                         // DURABILITY_DAMAGE
+        { 102, true,  0 }, { 18, true, 0 }, { 113, true, 0 }, { 172, true, 0 },   // DISMISS_PET, the resurrections
+        { 24,  false, 1 }, { 59, false, 1 }, { 157, false, 1 }, { 101, false, 1 }, // the create-item effects, FEED_PET
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+    {
+        Case const& c = cases[i];
+        WorldPacket p(SMSG_SPELLLOGEXECUTE, 40);
+        p.appendPackGUID(kSelf);
+        p << uint32(1000 + c.effect) << uint32(1) << uint32(c.effect) << uint32(1);
+        char want[256];
+        int n = snprintf(want, sizeof(want), "OP unit=self spell=%u effects=1 effect=%u targets=1", 1000 + c.effect, c.effect);
+        if (c.guid)
+        {
+            p.appendPackGUID(kTarget);
+            n += snprintf(want + n, sizeof(want) - n, " target=target");
+        }
+        for (uint32 w = 0; w < c.words; ++w)
+        {
+            const uint32 value = 7 + 11 * w + c.effect;     // distinct and non-zero
+            p << uint32(value);
+            n += snprintf(want + n, sizeof(want) - n, w ? ",%u" : " words=%u", value);
+        }
+        CHECK_STR(SpellDecoded(SMSG_SPELLLOGEXECUTE, p).c_str(), want);
+        CheckRefusesOneByteEitherWay(SMSG_SPELLLOGEXECUTE, p, SpellRoles());
+    }
+}
+
+TEST(HarnessTrace_the_periodic_log_reads_obs_mod_health_and_obs_mod_mana)
+{
+    // OBS_MOD_HEALTH (20) shares PERIODIC_HEAL's layout; OBS_MOD_MANA (21) PERIODIC_ENERGIZE's
+    WorldPacket health = PeriodicHead(kTarget, kCaster, 1020, 20);
+    health << uint32(23) << uint32(5) << uint32(9) << uint8(1);
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, health).c_str(),
+              "OP target=target caster=caster spell=1020 count=1 aura=20 amount=23 overheal=5 absorb=9 critical=1");
+    CheckRefusesOneByteEitherWay(SMSG_PERIODICAURALOG, health, SpellRoles());
+    WorldPacket mana = PeriodicHead(kSelf, kCaster, 1021, 21);
+    mana << uint32(4) << uint32(31);
+    CHECK_STR(SpellDecoded(SMSG_PERIODICAURALOG, mana).c_str(), "OP target=self caster=caster spell=1021 count=1 aura=21 power=4 amount=31");
+    CheckRefusesOneByteEitherWay(SMSG_PERIODICAURALOG, mana, SpellRoles());
+}
+
+TEST(HarnessTrace_aura_update_all_reads_the_third_effect_amount)
+{
+    // BuildUpdatePacket writes one amount per effect bit, bit 2 included (SpellAuras.cpp:4812-4828)
+    WorldPacket all(SMSG_AURA_UPDATE_ALL);
+    all.appendPackGUID(kSelf);
+    all << uint8(5) << uint32(1949) << uint16(0x08 | 0x40 | 0x01 | 0x04) << uint8(30) << uint8(1);
+    all << int32(-13) << int32(29);
+    CHECK_STR(SpellDecoded(SMSG_AURA_UPDATE_ALL, all).c_str(), "OP target=self auras=[slot=5 spell=1949 flags=0x4d level=30 stack=1 amount0=-13 amount2=29]");
+    CheckRefusesOneByteEitherWay(SMSG_AURA_UPDATE_ALL, all, SpellRoles());
 }

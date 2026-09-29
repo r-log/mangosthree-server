@@ -4576,51 +4576,16 @@ namespace Harness
          */
         Pet* BuildPet(Player* owner)
         {
-            Map* map = GetMap();
-            CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(IMP);
-            if (!map || !owner || !cinfo)
+            if (!owner)
             {
                 Log("ERR pet: no map, no owner, or no creature template %u", IMP);
                 return NULL;
             }
-            const float x = owner->Where().X() + 4.0f;
-            const float y = owner->Where().Y();
-            Load(x, y);
-            Pet* pet = new Pet(SUMMON_PET);
-            CreatureCreatePos pos(map, x, y, Ground(x, y, owner->Where().Z()), 0.0f, 1);
-            const uint32 petNumber = sObjectMgr.GeneratePetNumber();
-            if (!pet->Create(map->GenerateLocalLowGuid(HIGHGUID_PET), pos, cinfo, petNumber))
-            {
-                delete pet;
-                Log("ERR pet: Pet::Create failed for entry %u", IMP);
-                return NULL;
-            }
-            pet->SetSpawn(pos);
-            pet->SetOwnerGuid(owner->GetObjectGuid());     // (1) and (2) above
-            pet->SetCreatorGuid(owner->GetObjectGuid());
-            pet->setFaction(owner->getFaction());          // so the kobold is its enemy, as the owner's
-            pet->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, 0);
-            pet->InitStatsForLevel(owner->getLevel());
-            pet->GetCharmInfo()->SetPetNumber(petNumber, pet->isControlled());
-            pet->GetCharmInfo()->SetReactState(REACT_DEFENSIVE);
-            pet->InitPetCreateSpells();                    // memory only: the action bar, the family passives, the owner's pet auras
-            pet->SetActiveObjectState(true);               // (3) above
-            map->Add((Creature*)pet);
-            pet->AIM_Initialize();
-            // The factory AI dropped from under a recording decorator, as Scenario::Silence does
-            // it for a spawned actor -- which cannot be used here, because Silence refuses
-            // anything Spawn did not hand out and a Pet is not a TemporarySummon. It is not
-            // optional: PetAI::UpdateAI draws from urand for its autocast pick (PetAI.cpp:399),
-            // re-lays a follow on its owner and selects hostile targets, so a live one would both
-            // perturb the seeded stream every other scenario shares and fight the claims under
-            // test for the wheel.
-            pet->SetAI(new HarnessAI(pet, pet->AI(), this));
-            if (HarnessAI* recording = dynamic_cast<HarnessAI*>(pet->AI()))
-            {
-                delete recording->Release();
-            }
-            owner->SetPet(pet);                            // UNIT_FIELD_SUMMON: the gate's third conjunct
-            return pet;
+            // Scenario::BuildOwnedPet is this function's body, moved (decoupling D11 PR 2): four
+            // yards east of the owner, facing 0. SetOwnerGuid comes before AIM_Initialize and
+            // InitStatsForLevel -- (1) and (2) above -- and SetActiveObjectState before Map::Add,
+            // (3); owner->SetPet sets UNIT_FIELD_SUMMON, the gate's third conjunct.
+            return BuildOwnedPet(owner, IMP, owner->Where().X() + 4.0f, owner->Where().Y(), 0.0f);
         }
 
         /**

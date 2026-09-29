@@ -98,6 +98,9 @@ namespace Harness
             uint32 reputationFactions = 0;        // every faction with a reputation index: the loosest sound bound
             bool   moneyMoves = false;
             bool   dealsDamage = false;           // the run's casts deal damage (the spell family)
+            bool   takesDamage = false;           // the player takes damage (the spell family, D11 PR 2)
+            bool   heals = false;                 // the player heals or is healed (D11 PR 2)
+            std::set<uint32> exploredAreas;       // the areas the player's movement explores (D11 PR 2)
         };
 
         uint32 Count(std::map<uint32, uint32> const& m, uint32 key)
@@ -213,7 +216,10 @@ namespace Harness
             Currency,           ///< that currency moves
             AnyFaction,         ///< a statistic-shaped reputation type: any standing moves
             MoneyMoves,         ///< a statistic-shaped money type: the money moves at all
-            DamageDealt         ///< a damage type: the run deals damage at all, whatever the amount
+            DamageDealt,        ///< a damage type: the run deals damage at all, whatever the amount
+            DamageTaken,        ///< a damage-received type: the player takes damage at all
+            Healing,            ///< a healing type: the player heals or is healed at all
+            Explores            ///< an exploration type: the overlay holds an area the run explores
         };
 
         struct JudgeRow
@@ -259,6 +265,20 @@ namespace Harness
             // bound, so no amount has to be predicted
             { ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE,                Judge::DamageDealt },
             { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT,          Judge::DamageDealt },
+            // D11 PR 2: what scenarios 931-938 move beside it -- the damage the player takes
+            // (Unit::DealDamage on a player victim, Unit.cpp:1110-1111), the healing he does and
+            // is given (Unit::DealHeal), each read as reached by any of it, the loosest sound bound,
+            // as the damage types above are; and the area his own movement explores
+            // (Player::CheckAreaExploreAndOutdoor), read as AchievementMgr reads it
+            // (AchievementMgr.cpp:1213-1253): reached when the criteria's WorldMapOverlay names an
+            // area the run explores.
+            { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_RECEIVED,       Judge::DamageTaken },
+            { ACHIEVEMENT_CRITERIA_TYPE_TOTAL_DAMAGE_RECEIVED,      Judge::DamageTaken },
+            { ACHIEVEMENT_CRITERIA_TYPE_HEALING_DONE,               Judge::Healing },
+            { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEAL_CASTED,        Judge::Healing },
+            { ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED,     Judge::Healing },
+            { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED,   Judge::Healing },
+            { ACHIEVEMENT_CRITERIA_TYPE_EXPLORE_AREA,               Judge::Explores },
         };
 
         /// The row of `type`, or NULL for a type the closure does not model.
@@ -404,6 +424,9 @@ namespace Harness
                     case Judge::AnyFaction:         yes = !m_t.factions.empty(); break;
                     case Judge::MoneyMoves:         yes = m_t.moneyMoves; break;
                     case Judge::DamageDealt:        yes = m_t.dealsDamage; break;
+                    case Judge::DamageTaken:        yes = m_t.takesDamage; break;
+                    case Judge::Healing:            yes = m_t.heals; break;
+                    case Judge::Explores:           yes = OverlayExplored(asset, m_t.exploredAreas); break;
                     default:
                         // A row whose judge this switch has no case for: the closure cannot vouch
                         // for it, so CheckQuestPlan refuses the scenario instead of reading it as
@@ -452,6 +475,46 @@ namespace Harness
             std::map<uint32, std::string> m_why;
             std::set<uint32>              m_unjudged;
         };
+    }
+
+    bool OverlayExplored(uint32 overlay, std::set<uint32> const& areas)
+    {
+        WorldMapOverlayEntry const* entry = sWorldMapOverlayStore.LookupEntry(overlay);
+        if (!entry)
+        {
+            return false;
+        }
+        for (int j = 0; j < MAX_WORLD_MAP_OVERLAY_AREA_IDX; ++j)
+        {
+            if (!entry->AreaID[j])
+            {
+                break;
+            }
+            if (areas.count(entry->AreaID[j]))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::vector<std::string> UnexploredAreaCriteria(std::vector<uint32> const& criteriaIds, std::set<uint32> const& areas)
+    {
+        std::vector<std::string> out;
+        std::set<uint32> reported;
+        for (size_t i = 0; i < criteriaIds.size(); ++i)
+        {
+            AchievementCriteriaEntry const* c = sAchievementCriteriaStore.LookupEntry(criteriaIds[i]);
+            if (!c || c->requiredType != ACHIEVEMENT_CRITERIA_TYPE_EXPLORE_AREA || !reported.insert(c->ID).second)
+            {
+                continue;
+            }
+            if (!OverlayExplored(c->explore_area.areaReference, areas))
+            {
+                out.push_back("criteria " + Num(c->ID) + " (overlay " + Num(c->explore_area.areaReference) + ")");
+            }
+        }
+        return out;
     }
 
     bool ClosureModelsCriteriaType(uint32 type)
@@ -732,6 +795,9 @@ namespace Harness
         }
         t.moneyMoves = plan.seededMoney != 0;
         t.dealsDamage = plan.dealsDamage;
+        t.takesDamage = plan.takesDamage;
+        t.heals = plan.heals;
+        t.exploredAreas = plan.exploredAreas;
         if (q)
         {
             const uint32 rewards = plan.rewards;

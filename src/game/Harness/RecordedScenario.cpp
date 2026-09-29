@@ -76,12 +76,17 @@ namespace Harness
     }
 
     std::string RecordedScenario::NoPersistence(Player* p, std::set<uint32> const& achievementsAtSpawn, uint32 levelFrom, bool noReachLevel,
-                                                bool dealsDamage) const
+                                                bool dealsDamage, QuestPlan const* spellPlan) const
     {
+        const bool takesDamage = spellPlan && spellPlan->takesDamage;
+        const bool heals = spellPlan && spellPlan->heals;
         char persist[640];
         const std::vector<uint32> criteriaIds = Rec().FiredCriteriaIds();
         std::set<uint32> firedTypes;
         const std::vector<std::string> unmodelled = UnmodelledCriteriaTypes(criteriaIds, firedTypes);
+        // every fired EXPLORE_AREA criteria judged as the closure judged it: its overlay against the
+        // plan's explored areas (none for a quest plan or 930, so any such criteria is a BUG there)
+        const std::vector<std::string> unexplored = UnexploredAreaCriteria(criteriaIds, spellPlan ? spellPlan->exploredAreas : std::set<uint32>());
         std::string typeList;
         for (std::set<uint32>::const_iterator t = firedTypes.begin(); t != firedTypes.end(); ++t)
         {
@@ -136,6 +141,25 @@ namespace Harness
         {
             snprintf(persist, sizeof(persist), "BUG(a DAMAGE_DONE or HIGHEST_HIT_DEALT criteria fired though the plan deals no damage, which the closure reads as reaching none)");
         }
+        else if (!takesDamage && (firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_RECEIVED) || firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_DAMAGE_RECEIVED)))
+        {
+            snprintf(persist, sizeof(persist), "BUG(a damage-received criteria fired though the plan takes no damage, which the closure reads as reaching none)");
+        }
+        else if (!heals && (firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_HEALING_DONE) || firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEAL_CASTED) ||
+                            firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_HEALING_RECEIVED) || firedTypes.count(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HEALING_RECEIVED)))
+        {
+            snprintf(persist, sizeof(persist), "BUG(a healing criteria fired though the plan heals nothing, which the closure reads as reaching none)");
+        }
+        else if (!unexplored.empty())
+        {
+            std::string list;
+            for (size_t i = 0; i < unexplored.size(); ++i)
+            {
+                list += (i ? ", " : "") + unexplored[i];
+            }
+            snprintf(persist, sizeof(persist), "BUG(EXPLORE_AREA criteria fired whose overlay names no area the plan explores, which the closure reads as unreachable: %s)",
+                     list.c_str());
+        }
         else
         {
             snprintf(persist, sizeof(persist), "OK(no mail; achievements completed since the spawn [%s], none of them mailing; levels %u..%u cross no mail level; %u criteria updates of types [%s], every type modelled by the closure)",
@@ -151,5 +175,18 @@ namespace Harness
         snprintf(digest, sizeof(digest), "%s(FNV-1a over %u TRACE lines from %s on)",
                  Trace::Hex32(Rec().Digest()).c_str(), Rec().DigestedLines(), from);
         return digest;
+    }
+
+    void RecordedScenario::SetLevelAsResetDoes(Player* p, uint32 level)
+    {
+        p->_ApplyAllLevelScaleItemMods(false);
+        p->SetLevel(level);
+        p->InitRunes();
+        p->InitStatsForLevel(true);
+        p->InitTaxiNodesForLevel();
+        p->InitGlyphsForLevel();
+        p->InitTalentForLevel();
+        p->SetUInt32Value(PLAYER_XP, 0);
+        p->_ApplyAllLevelScaleItemMods(true);
     }
 }

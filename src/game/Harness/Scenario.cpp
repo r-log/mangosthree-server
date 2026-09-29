@@ -27,6 +27,7 @@
 #include "Harness.h"
 #include "HarnessAI.h"
 #include "Creature.h"
+#include "Pet.h"
 #include "TemporarySummon.h"
 #include "ObjectMgr.h"
 #include "Map.h"
@@ -393,6 +394,53 @@ namespace Harness
     Motion::RelayCounts const* Scenario::Relays(Creature* c) const
     {
         return c ? c->GetMotionMaster()->SelectedRelays() : NULL;
+    }
+
+    Pet* Scenario::BuildOwnedPet(Player* owner, uint32 entry, float x, float y, float o)
+    {
+        Map* map = GetMap();
+        CreatureInfo const* cinfo = ObjectMgr::GetCreatureTemplate(entry);
+        if (!map || !owner || !cinfo)
+        {
+            Log("ERR pet: no map, no owner, or no creature template %u", entry);
+            return NULL;
+        }
+        Load(x, y);
+        Pet* pet = new Pet(SUMMON_PET);
+        CreatureCreatePos pos(map, x, y, Ground(x, y, owner->Where().Z()), o, 1);
+        const uint32 petNumber = sObjectMgr.GeneratePetNumber();
+        if (!pet->Create(map->GenerateLocalLowGuid(HIGHGUID_PET), pos, cinfo, petNumber))
+        {
+            delete pet;
+            Log("ERR pet: Pet::Create failed for entry %u", entry);
+            return NULL;
+        }
+        pet->SetSpawn(pos);
+        pet->SetOwnerGuid(owner->GetObjectGuid());     // before AIM_Initialize and InitStatsForLevel
+        pet->SetCreatorGuid(owner->GetObjectGuid());
+        pet->setFaction(owner->getFaction());          // the owner's enemies are its enemies
+        pet->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, 0);
+        pet->InitStatsForLevel(owner->getLevel());
+        pet->GetCharmInfo()->SetPetNumber(petNumber, pet->isControlled());
+        pet->GetCharmInfo()->SetReactState(REACT_DEFENSIVE);
+        pet->InitPetCreateSpells();                    // memory only: the action bar, the family passives, the owner's pet auras
+        pet->SetActiveObjectState(true);               // before Map::Add
+        map->Add((Creature*)pet);
+        pet->AIM_Initialize();
+        // The factory AI dropped from under a recording decorator, as Scenario::Silence does
+        // it for a spawned actor -- which cannot be used here, because Silence refuses
+        // anything Spawn did not hand out and a Pet is not a TemporarySummon. It is not
+        // optional: PetAI::UpdateAI draws from urand for its autocast pick (PetAI.cpp:399),
+        // re-lays a follow on its owner and selects hostile targets, so a live one would both
+        // perturb the seeded stream every other scenario shares and fight the claims under
+        // test for the wheel.
+        pet->SetAI(new HarnessAI(pet, pet->AI(), this));
+        if (HarnessAI* recording = dynamic_cast<HarnessAI*>(pet->AI()))
+        {
+            delete recording->Release();
+        }
+        owner->SetPet(pet);                            // UNIT_FIELD_SUMMON
+        return pet;
     }
 
     void Scenario::SelfCast(Unit* caster, uint32 spellId)
