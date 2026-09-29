@@ -387,16 +387,11 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                         // Unrelenting Assault
                         if ((*itr)->GetSpellProto()->GetSpellFamilyName()==SPELLFAMILY_WARRIOR && (*itr)->GetSpellProto()->SpellIconID == 2775)
                         {
-                            switch ((*itr)->GetSpellProto()->ID)
+                            AuraDummyUnrelentingAssaultContext assaultCtx(target, itr);
+                            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyUnrelentingAssaultSite>(
+                                    (*itr)->GetSpellProto()->ID, assaultCtx).IsReturn())
                             {
-                                case 46859:                 // Unrelenting Assault, rank 1
-                                    target->CastSpell(target, 64849, true, NULL, (*itr));
-                                    break;
-                                case 46860:                 // Unrelenting Assault, rank 2
-                                    target->CastSpell(target, 64850, true, NULL, (*itr));
-                                    break;
-                                default:
-                                    break;
+                                return;
                             }
                             break;
                         }
@@ -1131,43 +1126,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         }
         case SPELLFAMILY_DRUID:
         {
-            switch (GetId())
+            AuraDummyApplyRemoveContext ctx(this, target, apply);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyDruidSite>(GetId(), ctx).IsReturn())
             {
-                case 52610:                                 // Savage Roar
-                {
-                    if (apply)
-                    {
-                        if (target->GetShapeshiftForm() != FORM_CAT)
-                        {
-                            return;
-                        }
-
-                        target->CastSpell(target, 62071, true);
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(62071);
-                    }
-                    return;
-                }
-                case 61336:                                 // Survival Instincts
-                {
-                    if (apply)
-                    {
-                        if (!target->IsInFeralForm())
-                        {
-                            return;
-                        }
-
-                        int32 bp0 = int32(target->GetMaxHealth() * m_modifier.m_amount / 100);
-                        target->CastCustomSpell(target, 50322, &bp0, NULL, NULL, true);
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(50322);
-                    }
-                    return;
-                }
+                return;
             }
 
             // Lifebloom
@@ -1220,14 +1182,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             if (GetSpellProto()->SpellIconID == 2855)
             {
                 uint32 spell_id;
-                switch (GetId())
+                AuraDummyImprovedMoonkinContext imfCtx(this, spell_id);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyImprovedMoonkinSite>(GetId(), imfCtx).IsReturn())
                 {
-                    case 48384: spell_id = 50170; break;    // Rank 1
-                    case 48395: spell_id = 50171; break;    // Rank 2
-                    case 48396: spell_id = 50172; break;    // Rank 3
-                    default:
-                        sLog.outError("HandleAuraDummy: Not handled rank of IMF (Spell: %u)", GetId());
-                        return;
+                    return;
                 }
 
                 if (apply)
@@ -1377,8 +1335,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 // Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry's
 // HandleAuraDummy handlers. Each is a case body of the switch that stood where HandleAuraDummy now
 // calls SpellHandlerRegistry::Game().Dispatch(), moved verbatim but for the context accessors
-// (`target` is ctx.target, `this` is ctx.aura) and the outcome (`return;` is
-// SpellHandlerOutcome<void>::Return(), `break;` is SpellHandlerOutcome<void>::Continue()).
+// (`target` is ctx.target, `this` is ctx.aura, and so for `apply`, `spell_id` and the loop's `itr`;
+// the aura's protected `m_modifier.` is `ctx.aura->GetModifier()->` and an implicit `GetId()` is
+// `ctx.aura->GetId()`) and the outcome (`return;` is SpellHandlerOutcome<void>::Return(), `break;`
+// is SpellHandlerOutcome<void>::Continue()).
 // src/tests/tools/verbatim.py pastes every body back at its label and checks the old function
 // text comes back byte for byte.
 
@@ -1508,16 +1468,116 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior53792(AuraDummyApplyContex
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// SPELLFAMILY_WARRIOR, Overpower's Unrelenting Assault 46859: rank 1
+static SpellHandlerOutcome<void> AuraDummyUnrelentingAssault46859(AuraDummyUnrelentingAssaultContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 64849, true, NULL, (*ctx.itr));
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// SPELLFAMILY_WARRIOR, Overpower's Unrelenting Assault 46860: rank 2
+static SpellHandlerOutcome<void> AuraDummyUnrelentingAssault46860(AuraDummyUnrelentingAssaultContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 64850, true, NULL, (*ctx.itr));
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// SPELLFAMILY_WARRIOR, Overpower's Unrelenting Assault switch: its `default:`
+static SpellHandlerOutcome<void> AuraDummyUnrelentingAssaultDefault(AuraDummyUnrelentingAssaultContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// SPELLFAMILY_DRUID 52610: Savage Roar
+static SpellHandlerOutcome<void> AuraDummyDruid52610(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        if (ctx.target->GetShapeshiftForm() != FORM_CAT)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        ctx.target->CastSpell(ctx.target, 62071, true);
+    }
+    else
+    {
+        ctx.target->RemoveAurasDueToSpell(62071);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_DRUID 61336: Survival Instincts
+static SpellHandlerOutcome<void> AuraDummyDruid61336(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        if (!ctx.target->IsInFeralForm())
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        int32 bp0 = int32(ctx.target->GetMaxHealth() * ctx.aura->GetModifier()->m_amount / 100);
+        ctx.target->CastCustomSpell(ctx.target, 50322, &bp0, NULL, NULL, true);
+    }
+    else
+    {
+        ctx.target->RemoveAurasDueToSpell(50322);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_DRUID, Improved Moonkin Form 48384: rank 1
+static SpellHandlerOutcome<void> AuraDummyImprovedMoonkin48384(AuraDummyImprovedMoonkinContext& ctx)
+{
+    ctx.spell_id = 50170;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// SPELLFAMILY_DRUID, Improved Moonkin Form 48395: rank 2
+static SpellHandlerOutcome<void> AuraDummyImprovedMoonkin48395(AuraDummyImprovedMoonkinContext& ctx)
+{
+    ctx.spell_id = 50171;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// SPELLFAMILY_DRUID, Improved Moonkin Form 48396: rank 3
+static SpellHandlerOutcome<void> AuraDummyImprovedMoonkin48396(AuraDummyImprovedMoonkinContext& ctx)
+{
+    ctx.spell_id = 50172;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// SPELLFAMILY_DRUID, Improved Moonkin Form's rank switch: its `default:`
+static SpellHandlerOutcome<void> AuraDummyImprovedMoonkinDefault(AuraDummyImprovedMoonkinContext& ctx)
+{
+    sLog.outError("HandleAuraDummy: Not handled rank of IMF (Spell: %u)", ctx.aura->GetId());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// One row of a site's registration table: a label's spell id and the body it runs.
+template <class Site>
+struct AuraDummyRow
+{
+    uint32 spellId;
+    typename SpellHandler<Site>::Function function;
+};
+
+/// Registers every row of one site's table on `registry`; answers the number of rows.
+template <class Site, std::size_t N>
+static uint32 RegisterAuraDummyRows(SpellHandlerRegistry& registry, AuraDummyRow<Site> const (&rows)[N])
+{
+    for (AuraDummyRow<Site> const& row : rows)
+    {
+        registry.Register<Site>(row.spellId, row.function);
+    }
+    return uint32(N);
+}
+
 uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
 {
-    struct Row
-    {
-        uint32 spellId;
-        SpellHandler<AuraDummyApplyWarriorSite>::Function function;
-    };
-
     // AT APPLY, SPELLFAMILY_WARRIOR, in the order of the switch they came from.
-    static Row const warriorApply[] =
+    static AuraDummyRow<AuraDummyApplyWarriorSite> const warriorApply[] =
     {
         { 41099, &AuraDummyApplyWarrior41099 },
         { 41100, &AuraDummyApplyWarrior41100 },
@@ -1527,11 +1587,35 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 53792, &AuraDummyApplyWarrior53792 },
     };
 
-    uint32 rows = 0;
-    for (Row const& row : warriorApply)
+    // AT APPLY, SPELLFAMILY_WARRIOR, Overpower's Unrelenting Assault switch; its default below.
+    static AuraDummyRow<AuraDummyUnrelentingAssaultSite> const unrelentingAssault[] =
     {
-        registry.Register<AuraDummyApplyWarriorSite>(row.spellId, row.function);
-        ++rows;
-    }
+        { 46859, &AuraDummyUnrelentingAssault46859 },
+        { 46860, &AuraDummyUnrelentingAssault46860 },
+    };
+
+    // AT APPLY & REMOVE, SPELLFAMILY_DRUID.
+    static AuraDummyRow<AuraDummyDruidSite> const druid[] =
+    {
+        { 52610, &AuraDummyDruid52610 },
+        { 61336, &AuraDummyDruid61336 },
+    };
+
+    // AT APPLY & REMOVE, SPELLFAMILY_DRUID, Improved Moonkin Form's ranks; its default below.
+    static AuraDummyRow<AuraDummyImprovedMoonkinSite> const improvedMoonkin[] =
+    {
+        { 48384, &AuraDummyImprovedMoonkin48384 },
+        { 48395, &AuraDummyImprovedMoonkin48395 },
+        { 48396, &AuraDummyImprovedMoonkin48396 },
+    };
+
+    uint32 rows = RegisterAuraDummyRows(registry, warriorApply);
+    rows += RegisterAuraDummyRows(registry, unrelentingAssault);
+    registry.RegisterDefault<AuraDummyUnrelentingAssaultSite>(&AuraDummyUnrelentingAssaultDefault);
+    ++rows;
+    rows += RegisterAuraDummyRows(registry, druid);
+    rows += RegisterAuraDummyRows(registry, improvedMoonkin);
+    registry.RegisterDefault<AuraDummyImprovedMoonkinSite>(&AuraDummyImprovedMoonkinDefault);
+    ++rows;
     return rows;
 }

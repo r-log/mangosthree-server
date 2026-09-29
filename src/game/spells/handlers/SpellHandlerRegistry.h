@@ -69,7 +69,15 @@
 enum SpellHandlerSite
 {
     /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_WARRIOR's `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_WARRIOR = 1
+    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_WARRIOR = 1,
+    /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_WARRIOR's Overpower block: the Unrelenting
+    /// Assault `switch ((*itr)->GetSpellProto()->ID)` inside its loop over the caster's auras.
+    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_WARRIOR_UNRELENTING_ASSAULT = 2,
+    /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_DRUID's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_DRUID = 3,
+    /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_DRUID's Improved Moonkin Form block:
+    /// its rank `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_DRUID_IMPROVED_MOONKIN = 4
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.
@@ -188,6 +196,8 @@ class SpellHandlerRegistry
         /// The number of (site, spell id) keys, and of them the ones at `site`.
         std::size_t Count() const { return m_handlers.size(); }
         std::size_t CountAt(uint32 site) const;
+        /// The number of sites with a registered `default:` body.
+        std::size_t CountDefaults() const { return m_defaults.size(); }
 
     private:
         typedef void (*ErasedFunction)();
