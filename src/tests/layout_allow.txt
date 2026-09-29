@@ -1,12 +1,9 @@
 # CheckLayout's allow-list: src/tests/tools/layout_gate.py, design/architecture.md sections 1 and 4.
-# The include edges in the tree that go against section 1's table or cross into a gated seam
-# (entities/player, spells/aura), one line per includer file and header: "<includer> -> <header>";
-# and the ones that cross between two domain directories, one line per includer directory and
-# header: "<includer directory> -> <header>". Paths from the repository root.
-# The gate fails on an edge that is not listed and on a line whose edge is gone or allowed:
-# delete the line in the PR that removes the edge. A new edge is not added here; it is fixed.
-# An against-the-rule or seam line may change its includer: replace the old line with the new one.
-# After removing or moving edges, regenerate: python src/tests/tools/layout_gate.py --generate
+# Against-the-rule and seam edges: "<includer file> -> <header>".
+# Sideways edges: "<includer directory> -> <header>". Paths from the repository root.
+# The gate fails on an edge that is not listed and on a line whose edge is gone or allowed.
+# A new edge is fixed, not listed. A line whose includer file changed is replaced by the new one.
+# After removing or moving edges: python src/tests/tools/layout_gate.py --generate
 src/game/BattleGround -> src/game/MotionGenerators/MotionMaster.h
 src/game/BattleGround -> src/game/Object/ArenaTeam.h
 src/game/BattleGround -> src/game/Object/Creature.h

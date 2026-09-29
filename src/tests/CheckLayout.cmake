@@ -1,20 +1,3 @@
-# CheckLayout: the include-direction ratchet of design/architecture.md (sections 1 and 4). Every
-# C/C++ file under src/ has a layer (the page's RULES table), and every `#include "..."` is an
-# edge that section 1's "may include" table allows, goes against, or runs sideways between two
-# domain directories; an edge into the two gated seams (entities/player, spells/aura) from another
-# domain directory or from the seam's own peer counts as against the rule. The edges that are
-# against the rule or into a seam today are listed in src/tests/layout_allow.txt keyed per includer
-# file and header, the sideways ones keyed per includer directory and header: a new key fails, and
-# so does a listed one that is gone -- an edge leaves the list in the PR that removes it. An
-# against or seam line may change its includer file when the header's count does not grow.
-# A file no rule classifies, a quoted header the tree does not have and a scan that reads nothing
-# fail as well.
-#
-# The work is src/tests/tools/layout_gate.py --check; its fixtures run as the separate ctest
-# layout_gate_selftest. This script fails without a Python 3 interpreter: a gate that cannot run
-# must not pass.
-# Run standalone (-P), this script sees none of the top-level project's policies. The project
-# requires CMake >= 3.18, so that is also the floor here.
 cmake_minimum_required(VERSION 3.18)
 include("${CMAKE_CURRENT_LIST_DIR}/GateGuards.cmake")
 gate_require_source_root(Layout)
@@ -28,10 +11,6 @@ foreach(REQUIRED IN ITEMS "${LAYOUT_TOOL}" "${LAYOUT_ALLOW}")
     endif()
 endforeach()
 
-# The interpreter: the one CMake found for the other Python tests (CMakeLists passes
-# -DLAYOUT_PYTHON=${Python3_EXECUTABLE}), so the gate and layout_gate_selftest run on the same one;
-# when none was passed (a standalone -P run, or CMake found none), the first working python3,
-# python or py. A passed interpreter that does not run Python 3 fails, and so does finding none.
 function(layout_python_works EXE OUT_VAR)
     execute_process(COMMAND "${EXE}" -c "import sys; sys.exit(0 if sys.version_info >= (3, 6) else 1)"
         RESULT_VARIABLE PROBE OUTPUT_QUIET ERROR_QUIET)
@@ -74,6 +53,8 @@ string(STRIP "${LAYOUT_OUTPUT}" LAYOUT_OUTPUT)
 if(NOT LAYOUT_RESULT EQUAL 0)
     message(FATAL_ERROR "CheckLayout failed (design/architecture.md sections 1 and 4, ${LAYOUT_PYTHON}):\n"
         "${LAYOUT_OUTPUT}\n${LAYOUT_ERROR}\n"
+        "Run it locally: python src/tests/tools/layout_gate.py --check (the rules: --help; the fixtures: "
+        "--self-test).\n"
         "What each failure above asks for:\n"
         "  - a new edge against the rule, into a gated seam, or sideways between two domain directories: "
         "remove the include (forward-declare, move it to the .cpp, or move the code to its layer); "
