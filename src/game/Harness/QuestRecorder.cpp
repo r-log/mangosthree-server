@@ -25,27 +25,14 @@
 
 #include "QuestRecorder.h"
 #include "Player.h"
-#include "PlayerRegistry.h"
-#include "WorldSession.h"
-#include "WorldPacket.h"
-#include "OpcodeTable.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"
 #include "Bag.h"
-#include "Log.h"
-#include "Opcodes.h"
 
 #include <cstdio>
 
 namespace
 {
-    /// The one place a TRACE line reaches the log (see Scenario.cpp's Out for why sLog cannot
-    /// be spelled inside a member of a class that has its own Log).
-    void Out(std::string const& line)
-    {
-        sLog.outString("%s", line.c_str());
-    }
-
     std::string U(uint64 v)
     {
         char buf[32];
@@ -66,175 +53,16 @@ namespace
         snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)v);
         return buf;
     }
-
-    /// "+a +b -c", or "" when the two sets are equal.
-    std::string SetDelta(std::set<uint32> const& before, std::set<uint32> const& after)
-    {
-        std::string out;
-        for (std::set<uint32>::const_iterator i = after.begin(); i != after.end(); ++i)
-        {
-            if (!before.count(*i))
-            {
-                out += (out.empty() ? "+" : " +") + U(*i);
-            }
-        }
-        for (std::set<uint32>::const_iterator i = before.begin(); i != before.end(); ++i)
-        {
-            if (!after.count(*i))
-            {
-                out += (out.empty() ? "-" : " -") + U(*i);
-            }
-        }
-        return out;
-    }
 }
 
 namespace Harness
 {
-    QuestRecorder::QuestRecorder()
-        : m_active(false), m_digested(false), m_seq(0), m_digest(Trace::kFnvOffset), m_digestedLines(0)
-    {
-    }
-
-    QuestRecorder::~QuestRecorder()
-    {
-        // Nothing to take off. A recorder is a member of a registered scenario, so it lives until
-        // static destruction -- long after every session it was ever installed on: the scenario
-        // ends it before its verdict, and when a scenario is abandoned instead, the runner's
-        // teardown deletes the harness session, and the sink with it, while this object is still
-        // alive to answer any packet the teardown sends. Reaching for the player registry here,
-        // at static destruction, would be the only unsafe thing it could do.
-    }
-
-    Player* QuestRecorder::Resolve() const
-    {
-        return m_player ? sPlayerRegistry.Find(m_player, false) : NULL;
-    }
-
     void QuestRecorder::Begin(char const* scenario, Player* player, ObjectGuid giver, TraceWatch const& watch)
     {
-        m_scenario = scenario;
-        m_player = player ? player->GetObjectGuid() : ObjectGuid();
-        m_roles = Trace::Roles();
-        m_roles.self = m_player.GetRawValue();
-        m_roles.giver = giver.GetRawValue();
         m_watch = watch;
-        m_seq = 0;
-        m_digest = Trace::kFnvOffset;
-        m_digestedLines = 0;
-        m_packets.clear();
-        m_last = Snap();                 // the spawn window's delta is the whole state
-        m_window = "spawn";
-        m_digested = false;
-        m_active = player && player->GetSession();
-        if (m_active)
-        {
-            player->GetSession()->SetSocketlessSink(&QuestRecorder::Sink, this);
-        }
-    }
-
-    void QuestRecorder::Open(std::string const& window, bool digested)
-    {
-        if (!m_active)
-        {
-            return;
-        }
-        CloseWindow();
-        m_window = window;
-        m_digested = digested;
-        m_lastMini = Mini();    // a window's first snap line reads against its opening state
-    }
-
-    void QuestRecorder::Note(std::string const& text)
-    {
-        if (m_active)
-        {
-            Emit("call " + text);
-        }
-    }
-
-    void QuestRecorder::End()
-    {
-        if (!m_active)
-        {
-            return;
-        }
-        CloseWindow();
-        if (Player* p = Resolve())
-        {
-            if (WorldSession* s = p->GetSession())
-            {
-                s->SetSocketlessSink(NULL, NULL);
-            }
-        }
-        m_active = false;
-        m_window.clear();
-    }
-
-    uint32 QuestRecorder::CountIn(std::string const& window, uint16 opcode) const
-    {
-        uint32 n = 0;
-        for (size_t i = 0; i < m_packets.size(); ++i)
-        {
-            if (m_packets[i].window == window && m_packets[i].opcode == opcode)
-            {
-                ++n;
-            }
-        }
-        return n;
-    }
-
-    uint32 QuestRecorder::CountIn(std::string const& window) const
-    {
-        uint32 n = 0;
-        for (size_t i = 0; i < m_packets.size(); ++i)
-        {
-            if (m_packets[i].window == window)
-            {
-                ++n;
-            }
-        }
-        return n;
-    }
-
-    std::vector<QuestRecorder::Seen const*> QuestRecorder::SeenIn(std::string const& window, uint16 opcode) const
-    {
-        std::vector<Seen const*> out;
-        for (size_t i = 0; i < m_packets.size(); ++i)
-        {
-            if (m_packets[i].window == window && m_packets[i].opcode == opcode)
-            {
-                out.push_back(&m_packets[i]);
-            }
-        }
-        return out;
-    }
-
-    uint32 QuestRecorder::CountAll(uint16 opcode) const
-    {
-        uint32 n = 0;
-        for (size_t i = 0; i < m_packets.size(); ++i)
-        {
-            if (m_packets[i].opcode == opcode)
-            {
-                ++n;
-            }
-        }
-        return n;
-    }
-
-    std::vector<uint32> QuestRecorder::FiredCriteriaIds() const
-    {
-        std::vector<uint32> ids;
-        for (size_t i = 0; i < m_packets.size(); ++i)
-        {
-            std::vector<uint8> const& p = m_packets[i].payload;
-            if (m_packets[i].opcode == SMSG_CRITERIA_UPDATE && p.size() >= 4)
-            {
-                ids.push_back(uint32(p[0]) | (uint32(p[1]) << 8) | (uint32(p[2]) << 16) | (uint32(p[3]) << 24));
-            }
-        }
-        return ids;
+        Trace::Roles roles;
+        roles.giver = giver.GetRawValue();
+        Start(scenario, player, roles);
     }
 
     std::string QuestRecorder::Mini() const
@@ -256,98 +84,14 @@ namespace Harness
         return out + "m=" + U(p->GetMoney()) + " xp=" + U(p->GetUInt32Value(PLAYER_XP)) + " l=" + U(p->getLevel());
     }
 
-    void QuestRecorder::Sink(void* context, WorldPacket const& packet)
+    Recorder::State QuestRecorder::Take() const
     {
-        static_cast<QuestRecorder*>(context)->OnPacket(packet);
-    }
-
-    void QuestRecorder::OnPacket(WorldPacket const& packet)
-    {
-        if (!m_active)
-        {
-            return;
-        }
-        // What a socket would have been handed: SendPacket's socket branch flushes the pending
-        // bits into the packet itself before it writes, so the copy does that and the caller's
-        // packet is left exactly as it came.
-        WorldPacket copy(packet);
-        copy.FlushBits();
-        const uint16 opcode = copy.GetOpcode();
-        // The socket branch refuses these before anything is written, so they never leave the
-        // server; they are recorded as refused, not as sent.
-        const bool unhandled = opcodeTable[opcode].status == STATUS_UNHANDLED;
-        const std::string record = Trace::PacketRecord(opcode, LookupOpcodeName(opcode),
-                                                       copy.contents(), copy.size(), unhandled, m_roles);
-        Seen seen;
-        seen.window = m_window;
-        seen.opcode = opcode;
-        if (copy.size())
-        {
-            seen.payload.assign(copy.contents(), copy.contents() + copy.size());
-        }
-        m_packets.push_back(seen);
-        Emit("pkt " + record);
-        if (m_digested)
-        {
-            if (Trace::SnapDue(m_lastMini, Mini()))
-            {
-                Emit("snap " + m_lastMini);
-            }
-        }
-    }
-
-    void QuestRecorder::Emit(std::string const& text)
-    {
-        ++m_seq;
-        Out(Trace::TraceLine(m_scenario.c_str(), m_seq, m_window, text));
-        if (m_digested)
-        {
-            m_digest = Trace::DigestLine(m_digest, m_window, text);
-            ++m_digestedLines;
-        }
-    }
-
-    void QuestRecorder::CloseWindow()
-    {
-        const Snap now = Take();
-        // Every key of either side, in the map's order: a key that appeared or went reads "-"
-        // on the side it is missing from.
-        std::set<std::string> keys;
-        for (std::map<std::string, std::string>::const_iterator i = m_last.values.begin(); i != m_last.values.end(); ++i)
-        {
-            keys.insert(i->first);
-        }
-        for (std::map<std::string, std::string>::const_iterator i = now.values.begin(); i != now.values.end(); ++i)
-        {
-            keys.insert(i->first);
-        }
-        for (std::set<std::string>::const_iterator k = keys.begin(); k != keys.end(); ++k)
-        {
-            std::map<std::string, std::string>::const_iterator b = m_last.values.find(*k);
-            std::map<std::string, std::string>::const_iterator a = now.values.find(*k);
-            const std::string before = b == m_last.values.end() ? "-" : b->second;
-            const std::string after = a == now.values.end() ? "-" : a->second;
-            if (before != after)
-            {
-                Emit("state " + *k + " " + before + "->" + after);
-            }
-        }
-        const std::string spells = SetDelta(m_last.spells, now.spells);
-        if (!spells.empty())
-        {
-            Emit("state spells " + spells);
-        }
-        const std::string achievements = SetDelta(m_last.achievements, now.achievements);
-        if (!achievements.empty())
-        {
-            Emit("state achievements " + achievements);
-        }
-        m_last = now;
-    }
-
-    QuestRecorder::Snap QuestRecorder::Take() const
-    {
-        Snap s;
+        State s;
+        // The two id sets, in the order the delta prints them: the spells, then the completed
+        // achievements. Both are listed even when the player is gone, so a vanished player's
+        // spells and achievements read as removed.
+        s.sets.push_back(std::make_pair(std::string("spells"), std::set<uint32>()));
+        s.sets.push_back(std::make_pair(std::string("achievements"), std::set<uint32>()));
         Player* p = Resolve();
         if (!p)
         {
@@ -466,21 +210,23 @@ namespace Harness
 
         s.values["mail"] = U(p->GetMailSize());
 
+        std::set<uint32>& spellSet = s.sets[0].second;
         PlayerSpellMap const& spells = p->GetSpellMap();
         for (PlayerSpellMap::const_iterator i = spells.begin(); i != spells.end(); ++i)
         {
             if (i->second.state != PLAYERSPELL_REMOVED && !i->second.disabled)
             {
-                s.spells.insert(i->first);
+                spellSet.insert(i->first);
             }
         }
 
         // `auto const&`: the completed map's type is a row type of the state-ownership gate,
         // and nothing here needs to spell it.
+        std::set<uint32>& achievementSet = s.sets[1].second;
         auto const& completed = p->GetAchievementMgr().GetCompletedAchievements();
         for (auto i = completed.begin(); i != completed.end(); ++i)
         {
-            s.achievements.insert(i->first);
+            achievementSet.insert(i->first);
         }
         return s;
     }

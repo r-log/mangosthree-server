@@ -26,16 +26,12 @@
 #ifndef MANGOS_HARNESS_QUEST_RECORDER_H
 #define MANGOS_HARNESS_QUEST_RECORDER_H
 
-#include "Trace.h"
-#include "ObjectGuid.h"
+#include "Recorder.h"
 
-#include <map>
-#include <set>
 #include <string>
 #include <vector>
 
 class Player;
-class WorldPacket;
 
 namespace Harness
 {
@@ -50,111 +46,34 @@ namespace Harness
     };
 
     /**
-     * The harness's reward recorder (decoupling D4f0, design note §3): what the server does to a
-     * harness player, in order, as MVTEST TRACE lines, and the digest of those lines.
+     * The harness's reward recorder (decoupling D4f0, design note §3): the Recorder core
+     * (Recorder.h -- the windows, the sink, the pkt, snap, call and state lines, the digest) reading
+     * the state a quest reward moves.
      *
-     * WINDOWS. Every server call a step makes is one window (`accept`, `credit#k`, `reward`,
-     * ...), and a step's last window is followed by a `<window>+tick` window that stays open until
-     * the next step opens a window of its own -- which carries what the maps' updates did in
-     * between, the batched SMSG_UPDATE_OBJECT above all. Between Begin and End exactly one window
-     * is open, so every packet the session sends lands in one. A window may be a setup window (the
-     * spawn, a level set): logged like the rest, never digested.
+     * ITS SNAP LINE (Ruling 19): the watched quests' status, rewarded flag and log-slot state, the
+     * money, the XP and the level -- so the log-slot clear moved across GiveXP's packets (the
+     * D4f0-1 task review's I-1) or a status flipped and restored inside one call (design note Q6,
+     * 924's MoneyChanged) changes the digest.
      *
-     * WHAT A WINDOW RECORDS. Each packet the moment it is sent (a `pkt` line, Trace::PacketRecord),
-     * and in a digested window, right after it, a `snap` line whenever a small state -- the watched
-     * quests' status, rewarded flag and log-slot state, the money, the XP and the level -- differs
-     * from the last one printed (Ruling 19, always on: no scenario can leave it out). It puts an
-     * in-memory statement in order against the packets around it, so the log-slot clear moved
-     * across GiveXP's packets (the D4f0-1 task review's I-1) or a status flipped and restored
-     * inside one call (design note Q6, 924's MoneyChanged) changes the digest;
-     * a `call` line for each server call's result that the step notes; and, when the window
-     * closes, a `state` line for each thing the player's state changed in it: inventory slots as
-     * entry and count, money, XP and level, talents, the watched reputations, titles, spells,
-     * the watched quests' status, slot and counters, dailies, currencies, the completed
-     * achievements and the mail count. Never a guid, never a clock.
-     *
-     * THE SINK. Begin installs it on the player's session (WorldSession::SetSocketlessSink) and
-     * End takes it off; a scenario ends the recorder before its verdict, and the runner's teardown
-     * deletes the session and the sink with it in any case. The recorder copies each packet and
-     * flushes the copy's pending bits -- what a socket would have been handed -- and never
-     * touches the caller's packet.
+     * ITS STATE DELTA at each window's close: inventory slots as entry and count, money, XP and
+     * level, talents, the watched reputations, titles, the watched quests' status, slot and
+     * counters, dailies, currencies and the mail count; then the spells and the completed
+     * achievements as id sets. Never a guid, never a clock.
      */
-    class QuestRecorder
+    class QuestRecorder : public Recorder
     {
     public:
-        QuestRecorder();
-        ~QuestRecorder();
-
         /// Installs the sink and opens the setup window `spawn`, whose close prints the player's
-        /// whole state as the delta from nothing.
+        /// whole state as the delta from nothing. `giver` reads as the role "giver".
         void Begin(char const* scenario, Player* player, ObjectGuid giver, TraceWatch const& watch);
-        /// Closes the open window (its state delta) and opens `window`.
-        void Open(std::string const& window, bool digested = true);
-        /// A `call` line in the open window: a server call's result, as the step reads it.
-        void Note(std::string const& text);
-        /// Closes the open window and takes the sink off. The digest is final from here.
-        void End();
-        /// FNV-1a over every digested line, Trace::DigestLine.
-        uint32 Digest() const { return m_digest; }
-        uint32 DigestedLines() const { return m_digestedLines; }
-
-        /// One packet as recorded: the window it landed in, its opcode, and the bytes a socket
-        /// would have been handed (for a category that reads a field out of a recorded packet).
-        struct Seen
-        {
-            std::string        window;
-            uint16             opcode;
-            std::vector<uint8> payload;
-        };
-        std::vector<Seen> const& Packets() const { return m_packets; }
-        /// Packets of `opcode` recorded in `window`.
-        uint32 CountIn(std::string const& window, uint16 opcode) const;
-        /// Every packet recorded in `window`.
-        uint32 CountIn(std::string const& window) const;
-        /// The packets of `opcode` in `window`, in order.
-        std::vector<Seen const*> SeenIn(std::string const& window, uint16 opcode) const;
-        /// Who the player and the giver are, for a category that decodes a recorded packet itself.
-        Trace::Roles const& Roles() const { return m_roles; }
-        /// Every packet of `opcode` recorded, in any window.
-        uint32 CountAll(uint16 opcode) const;
-        /// The criteria id of every criteria-update packet recorded, in order: its first word, as
-        /// AchievementMgr::SendCriteriaUpdate writes it. The family's verdict maps each through
-        /// the criteria store (UnmodelledCriteriaTypes) so the achievement closure checks itself
-        /// against what the run really fired.
-        std::vector<uint32> FiredCriteriaIds() const;
-
 
     private:
-        struct Snap
-        {
-            std::map<std::string, std::string> values;
-            std::set<uint32> spells;
-            std::set<uint32> achievements;
-        };
-
-        static void Sink(void* context, WorldPacket const& packet);
-        void OnPacket(WorldPacket const& packet);
-        void Emit(std::string const& text);
-        void CloseWindow();
-        Player* Resolve() const;
-        Snap Take() const;
+        State Take() const override;
         /// The snap line's state: "q<id>=<status>/<rewarded>/<slot state or -> ... m=<money>
         /// xp=<xp> l=<level>".
-        std::string Mini() const;
+        std::string Mini() const override;
 
-        std::string                 m_scenario;
-        ObjectGuid                  m_player;
-        Trace::Roles                m_roles;
         TraceWatch                  m_watch;
-        bool                        m_active;
-        std::string                 m_window;
-        bool                        m_digested;
-        uint32                      m_seq;
-        uint32                      m_digest;
-        uint32                      m_digestedLines;
-        Snap                        m_last;
-        std::vector<Seen>           m_packets;
-        std::string                 m_lastMini;
     };
 }
 

@@ -339,10 +339,7 @@ state_allow(achievement src/game/Harness/Trace.cpp
 state_allow(achievement src/tests/HarnessTest.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_CRITERIA_UPDATE SMSG_ACHIEVEMENT_EARNED)
-state_allow(achievement src/game/Harness/ScenariosQuest.cpp
-    WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
-    NAMES SMSG_CRITERIA_UPDATE)
-state_allow(achievement src/game/Harness/QuestRecorder.cpp
+state_allow(achievement src/game/Harness/Recorder.cpp
     WHY "a test or harness that observes the packet (classifies it by opcode, builds nothing)"
     NAMES SMSG_CRITERIA_UPDATE)
 

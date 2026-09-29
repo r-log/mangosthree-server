@@ -61,6 +61,7 @@ namespace Harness
         std::set<uint32> casts;             ///< spells cast beyond the quest's own
         std::set<uint32> skills;            ///< skills moved beyond the quest's own
         uint64 seededMoney = 0;             ///< money the scenario hands the player itself
+        bool   dealsDamage = false;         ///< the scenario's casts deal damage (the spell family, decoupling D11)
     };
 
     /// Every objective slot and every reward field of a quest, by the column's name, as the loaded

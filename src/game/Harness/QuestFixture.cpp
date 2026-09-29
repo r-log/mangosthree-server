@@ -97,6 +97,7 @@ namespace Harness
             uint32 epicItems = 0;
             uint32 reputationFactions = 0;        // every faction with a reputation index: the loosest sound bound
             bool   moneyMoves = false;
+            bool   dealsDamage = false;           // the run's casts deal damage (the spell family)
         };
 
         uint32 Count(std::map<uint32, uint32> const& m, uint32 key)
@@ -211,7 +212,8 @@ namespace Harness
             Cast,               ///< that spell cast `need` times
             Currency,           ///< that currency moves
             AnyFaction,         ///< a statistic-shaped reputation type: any standing moves
-            MoneyMoves          ///< a statistic-shaped money type: the money moves at all
+            MoneyMoves,         ///< a statistic-shaped money type: the money moves at all
+            DamageDealt         ///< a damage type: the run deals damage at all, whatever the amount
         };
 
         struct JudgeRow
@@ -252,6 +254,11 @@ namespace Harness
             { ACHIEVEMENT_CRITERIA_TYPE_GAIN_HONORED_REPUTATION,    Judge::AnyFaction },
             { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED,   Judge::MoneyMoves },
             { ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM,          Judge::EpicItem },
+            // the spell family (decoupling D11): Unit::DealDamage moves both for every hit the
+            // player deals (Unit.cpp:1108-1109); read as reached by any damage, the loosest sound
+            // bound, so no amount has to be predicted
+            { ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE,                Judge::DamageDealt },
+            { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT,          Judge::DamageDealt },
         };
 
         /// The row of `type`, or NULL for a type the closure does not model.
@@ -396,6 +403,7 @@ namespace Harness
                     case Judge::Currency:           yes = m_t.currencies.count(asset) != 0; break;
                     case Judge::AnyFaction:         yes = !m_t.factions.empty(); break;
                     case Judge::MoneyMoves:         yes = m_t.moneyMoves; break;
+                    case Judge::DamageDealt:        yes = m_t.dealsDamage; break;
                     default:
                         // A row whose judge this switch has no case for: the closure cannot vouch
                         // for it, so CheckQuestPlan refuses the scenario instead of reading it as
@@ -723,6 +731,7 @@ namespace Harness
             break;
         }
         t.moneyMoves = plan.seededMoney != 0;
+        t.dealsDamage = plan.dealsDamage;
         if (q)
         {
             const uint32 rewards = plan.rewards;

@@ -28,11 +28,16 @@
 
 #include "Platform/Define.h"
 
+#include <map>
+#include <set>
 #include <string>
+#include <utility>
+#include <vector>
 
 /**
- * The pure half of the harness's reward recorder (decoupling D4f0, design note
- * 2026-09-27-decoupling-d4f0-harness-quest-family.md §3): what a packet is recorded as, the
+ * The pure half of the harness's recorder (decoupling D4f0, design note
+ * 2026-09-27-decoupling-d4f0-harness-quest-family.md §3; shared by the quest family and, since
+ * decoupling D11, the spell family -- Recorder.h is the game half): what a packet is recorded as, the
  * decoders that read the stable fields out of the raw bytes, the MVTEST TRACE line and the
  * digest folded over those lines. No map, no player, no session: the recorder hands the bytes
  * in, and src/tests/HarnessTest.cpp pins every rule here against bytes laid out the way the
@@ -74,12 +79,17 @@ namespace Harness
         Rule RuleFor(uint16 opcode);
 
         /// Who a guid is, for the decoders. The harness player's guid is the fixed one of the
-        /// reserved block and the giver's comes from the map's counter, so neither is printed:
-        /// a guid reads as its role -- "self", "giver", "none" for 0 -- or "other".
+        /// reserved block and a spawned creature's comes from the map's counter, so none is
+        /// printed: a guid reads as its role -- "self", "giver", "target", "caster", "none" for 0
+        /// -- or "other". The quest family names a giver; the spell family (decoupling D11) names
+        /// the unit a cast is aimed at (`target`) and a unit other than the player that casts
+        /// (`caster`). A role left at 0 never matches: 0 reads "none" before any role is asked.
         struct Roles
         {
             uint64 self = 0;
             uint64 giver = 0;
+            uint64 target = 0;
+            uint64 caster = 0;
         };
         char const* RoleOf(Roles const& roles, uint64 guid);
 
@@ -120,11 +130,48 @@ namespace Harness
         /// each giver as its role with its dialog status, in the packet's order.
         bool DecodeQuestGiverStatusMultiple(uint8 const* data, size_t size, Roles const& roles, std::string& out);
 
+        // ---- the spell family's decoders (decoupling D11 PR 1): what scenario 930's cast can
+        // send -- the damage log if the seeded roll hits, the miss log if it misses, the power
+        // update of the mana it spends, and the three failure packets if the cast fails. Each
+        // accounts for every byte: the first four require the payload to end where the writer's
+        // layout ends; CAST_FAILED records its result-shaped tail as `tail=` and its FNV.
+
+        /// SMSG_SPELLNONMELEEDAMAGELOG (Unit::SendSpellNonMeleeDamageLog, Unit.cpp:2617-2631):
+        /// the target's and the attacker's packed guids as roles, the spell, the damage, the
+        /// overkill, the school byte, the absorbed and resisted amounts, the physical-log and
+        /// unused bytes, the blocked amount, the hit-info word and the extend flag. No clock, no
+        /// counter: every field is kept.
+        bool DecodeSpellDamageLog(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELLLOGMISS (Unit::SendSpellMiss, Unit.cpp:2750-2758): the spell, the caster's
+        /// raw guid as a role, the flag byte, the target count, then each target's raw guid as a
+        /// role with its miss condition.
+        bool DecodeSpellLogMiss(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_POWER_UPDATE (Unit::SetPower, UnitPower.cpp:154-160; the same layout in
+        /// Unit::setPowerType, Unit.cpp:2967-2972): the unit's packed guid as a role, the count,
+        /// then each (power type, value).
+        bool DecodePowerUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_SPELL_FAILURE and SMSG_SPELL_FAILED_OTHER (Spell::SendInterrupted,
+        /// SpellPackets.cpp:749-760, one layout for both): the caster's packed guid as a role,
+        /// the cast count (dropped, as SPELL_START drops it), the spell and the result.
+        bool DecodeSpellFailure(uint8 const* data, size_t size, Roles const& roles, std::string& out);
+        /// SMSG_CAST_FAILED (Spell::SendCastResult, SpellPackets.cpp:121-221): the cast count
+        /// (dropped), the spell, the result, then the result's own tail -- a spell focus, an area,
+        /// totems, an item class -- as `tail=<n>` and its FNV.
+        bool DecodeCastFailed(uint8 const* data, size_t size, std::string& out);
+
         /// SMSG_ITEM_PUSH_RESULT (Player::SendNewItem): the item entry and the count pushed, read
         /// out of the bytes: the player guid (8), received, created and shown (3 x 4), the bag (1)
         /// and the slot (4) come first, then the entry, the suffix factor, the random property and
         /// the count. False when the payload is not that writer's 45 bytes.
         bool ReadItemPush(uint8 const* data, size_t size, uint32& entry, uint32& count);
+        /// SMSG_SPELLNONMELEEDAMAGELOG's target and attacker guids, spell, damage and overkill,
+        /// read out of the bytes; false when the payload is not Unit::SendSpellNonMeleeDamageLog's
+        /// layout (the one DecodeSpellDamageLog reads).
+        bool ReadSpellDamage(uint8 const* data, size_t size, uint64& target, uint64& attacker, uint32& spell, uint32& damage,
+                             uint32& overkill);
+        /// SMSG_POWER_UPDATE's unit guid and its first (power type, value); false when the payload
+        /// is not Unit::SetPower's layout or names no power.
+        bool ReadPowerUpdate(uint8 const* data, size_t size, uint64& unit, uint8& power, uint32& value);
 
         /// The whole record of one packet, as it follows "pkt " in a TRACE line:
         /// "<name>", "<name> size=<n>", "<name> size=<n> fnv=<hex>", or "<name> <decoded fields>".
@@ -134,6 +181,26 @@ namespace Harness
         /// opcode whose table entry is STATUS_UNHANDLED never left the server -- SendPacket's
         /// socket branch refuses it -- and reads "<name> unhandled size=<n>".
         std::string PacketRecord(uint16 opcode, char const* name, uint8 const* data, size_t size, bool unhandled, Roles const& roles);
+
+        /// A recorder's state at one moment (Recorder.h): keyed values, and named id sets in the
+        /// order the family lists them.
+        struct StateSnapshot
+        {
+            std::map<std::string, std::string> values;
+            std::vector<std::pair<std::string, std::set<uint32> > > sets;
+        };
+        /// "+a +b -c": the ids `after` gained, then the ids it lost, each ascending; "" when equal.
+        std::string SetDelta(std::set<uint32> const& before, std::set<uint32> const& after);
+        /// The texts of the `state` lines a window's close prints, in order: every key of either
+        /// side whose value differs, in key order, as "state <key> <old>-><new>" (a missing side
+        /// reads "-"); then every set whose ids differ, in `after`'s order and then any only
+        /// `before` has, as "state <name> <SetDelta>" (a missing side reads as empty).
+        std::vector<std::string> StateDelta(StateSnapshot const& before, StateSnapshot const& after);
+        /// The spell family's value of one aura holder: "eff=<mask> stack=<n> charges=<n>
+        /// caster=<role> slot=<visible slot> dur=<remaining>/<maximum>" -- the durations in the
+        /// stepped world's milliseconds, -1 for a permanent aura; the caster by its role.
+        std::string AuraHolderValue(uint32 effectMask, uint32 stack, uint32 charges, char const* casterRole, uint32 slot,
+                                    int32 duration, int32 maxDuration);
 
         /// Ruling 19's snapshot rule: a `snap` line is due after a packet when the snapshot `now`
         /// differs from `last`, the one printed last (or taken when the window opened), and `last`
