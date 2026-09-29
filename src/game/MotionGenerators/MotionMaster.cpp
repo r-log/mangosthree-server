@@ -88,9 +88,9 @@ namespace
      * @param angle The requested bearing relative to its facing.
      * @return The Params, with the cadence, the horizon and the config tolerance.
      */
-    Motion::FollowBehaviour::FollowParams MakeFollowParams(Unit const& target, float dist, float angle)
+    Motion::TrackingBehaviour::Params MakeFollowParams(Unit const& target, float dist, float angle)
     {
-        Motion::FollowBehaviour::FollowParams p;
+        Motion::TrackingBehaviour::Params p;
         p.target = target.GetObjectGuid().GetRawValue();   // resolved per tick; never a stored pointer (design v2 §3.2)
         p.offset = dist;
         p.angle = angle;

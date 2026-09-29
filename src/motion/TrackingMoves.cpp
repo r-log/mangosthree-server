@@ -63,171 +63,32 @@ namespace Motion
 
     float TrackingBehaviour::Bearing(Sight const& sight, Vector3 const& centre) const
     {
-        if (Kind() == Motion::Kind::Chase && m_p.angle == 0.0f)
+        if (Chase() && m_p.angle == 0.0f)
         {
             return AngleFromTo(centre, sight.position);   // head-on: approach from where the mover already is
         }
         return sight.target.facing + m_p.angle;
     }
 
-    Step TrackingBehaviour::Activate(Sight const& sight, Services& /*svc*/)
+    float TrackingBehaviour::StandingDistance(Sight const& sight) const
     {
-        // Initialize: the kind's presence latch (never its leg: that follows a laid leg), the tracking reset.
-        ResetTracking();
-        Step s;
-        s.resetLeg = true;
-        // The order is load-bearing: the presence latch BEFORE the kind's own activation
-        // effects. The deleted FollowMovementGenerator::Initialize set its follow bit and only
-        // then SyncSpeedWithMaster, because UpdateSpeed's pet branch copies the owner's rate
-        // only while the follow's presence is latched (UnitSpeed.cpp: Unit::FollowLatched) -- a
-        // sync ahead of the latch reads the pet's own rate and the follower never matches its
-        // master. The chase's Walk(false) then trails its latch too, harmlessly: SetWalk reads
-        // no latch.
-        s.effects.push_back(Effect::Latch(LatchPresence, 0));
-        OnActivate(sight, s);
-        return s;
+        if (Chase()) { return m_p.offset + CONTACT_DISTANCE + sight.target.reachSum; }   // retail's stop
+        return m_p.offset + sight.extent + sight.target.extent;
     }
 
-    Step TrackingBehaviour::Resume(Sight const& sight, Services& svc, bool reset)
+    bool TrackingBehaviour::Drifted(Sight const& sight) const
     {
-        return reset ? Activate(sight, svc) : Step::None();   // Reset was Initialize
-    }
-
-    Step TrackingBehaviour::Suspend()
-    {
-        // Interrupt: InterruptMoving, both latches cleared, the tracking reset.
-        ResetTracking();
-        Step s;
-        s.interrupt = true;
-        s.resetLeg = true;
-        s.effects.push_back(Effect::Latch(0, LatchBoth));
-        OnSuspendOrFinish(s.effects);
-        return s;
-    }
-
-    Outcome TrackingBehaviour::Finish(FinishReason why, Sight const& /*sight*/, Services& /*svc*/)
-    {
-        Outcome o;
-        o.interrupt = Displacing(why);   // the generator's Interrupt stopped the mover; Finalize did not
-        o.effects.push_back(Effect::Latch(0, LatchBoth));
-        OnSuspendOrFinish(o.effects);
-        return o;
-    }
-
-    FinishReason TrackingBehaviour::EndReason(Sight const& /*sight*/) const
-    {
-        return FinishReason::TargetLost;
-    }
-
-    bool TrackingBehaviour::DriftedBeyond(Sight const& sight, float edge) const
-    {
-        // A flier cares about height too, and so does a swimmer in the water column; anything
-        // on the ground does not. The goal is the one the driver actually laid a leg to.
-        const Vector3& goal = sight.status.legGoal;
-        const Vector3& t = sight.target.position;
-        float d2 = (goal.x - t.x) * (goal.x - t.x) + (goal.y - t.y) * (goal.y - t.y);
-        if (sight.canFlyHint || sight.swimming) { d2 += (goal.z - t.z) * (goal.z - t.z); }
-        return d2 > edge * edge;
-    }
-
-    void TrackingBehaviour::Derive(Sight const& sight, Services& svc, RelayCause why, Step& s)
-    {
-        const Vector3 centre = AimCentre(sight);
-        Vector3 spot;
-        if (!svc.StandingSpot(centre, StandingDistance(sight), Bearing(sight, centre), spot))
+        if (Chase())
         {
-            spot = centre;   // no free spot: the centre itself, as the generator's NearPoint fell back to the raw point
+            // The re-approach edge is the client's own melee range from the leg's goal; the
+            // band's asymmetry is deliberate, since closing enforces only the stop.
+            return DriftedBeyond(sight, m_p.offset + sight.target.meleeRange);
         }
-        m_dest = spot;
-        m_haveDest = true;
-        m_relays.Count(why);
-        s.effects.push_back(Effect::Latch(LatchLeg, 0));
-    }
-
-    Step TrackingBehaviour::Tick(Sight const& sight, Services& svc, uint32 diff)
-    {
-        // 1. The target is gone.
-        if (!sight.target.valid) { return Step::Of(MoveIntent::Done()); }
-        // 2. The mover is dead.
-        if (!sight.alive) { return Step::Of(MoveIntent::Hold()); }
-        // 3. A state holds it (the chase also under NO_COMBAT_MOVEMENT), or the chase lost its victim.
-        const bool held = !sight.canMove || (UsesCombatMovement() && sight.combatMovementHeld) || LostTarget(sight);
-        if (held)
-        {
-            LatchRelay(sight);
-            Step s = Step::Of(MoveIntent::Hold());
-            s.effects.push_back(Effect::Latch(0, LatchLeg));
-            return s;
-        }
-        // 4. A cast with a cast time, or a channel: stop (every casting tick; the shell sends no packet once stopped), hold.
-        if (svc.Casting())
-        {
-            LatchRelay(sight);
-            Step s = Step::Of(MoveIntent::Hold());
-            // Unconditional, as the generator's own gate was: it called StopMoving() whenever
-            // !IsStopped(), and StopMoving clears the moving legs (MotionMaster::ClearMovingLatches)
-            // BEFORE its finalized-spline early return (Unit::StopMoving). A standing chaser that
-            // starts a cast must lose its leg latch too, so gating the stop on a live leg would
-            // leave that latch set for the whole cast. Nothing goes on the wire for a spline that is already finalized.
-            s.stop = true;
-            return s;
-        }
-        // 5. The routine cadence: has the target drifted past the edge from the leg's goal?
-        bool needDest = !m_haveDest;
-        RelayCause cause = RelayCause::First;
-        m_routine -= int32(diff);
-        if (m_routine <= 0)
-        {
-            m_routine = int32(m_p.routineMs);
-            if (m_haveDest && Drifted(sight)) { needDest = true; cause = RelayCause::Routine; }
-        }
-        // 6. The event recoveries: a cut, a partial or a refused leg (latched, consumed on a tick that moves).
-        LatchRelay(sight);
-        if (m_relayLatch)
-        {
-            needDest = true;
-            if (m_haveDest) { cause = m_latchCause; }   // the very first spot is First, whatever edge shares its tick
-            m_relayLatch = false;
-        }
-        // 7. A finished leg whose target has drifted (the driver reports arrived once). The
-        //    generator had no such case: it caught the same drift on its next 100 ms poll,
-        //    which this native's one-second cadence no longer offers, so the design counts
-        //    the finished leg as a recovery cause of its own.
-        if (!needDest && sight.status.arrived && Drifted(sight)) { needDest = true; cause = RelayCause::Finished; }
-        Step s;
-        if (needDest) { Derive(sight, svc, cause, s); }
-        // 8. Standing still, whether or not a fresh spot was just derived: the kind's idle
-        //    work (the chase engages). The generator's ReachTarget ran on the same condition,
-        //    so a chase begun already inside contact attacks on its very first tick.
-        if (!sight.status.traveling && !sight.status.partial) { OnIdle(sight, s); }
-        // 9. Nothing changed: hold with the kind's facing.
-        if (!needDest && !sight.status.traveling)
-        {
-            s.apply = true;
-            s.intent = MoveIntent::Hold(FacingFor(sight, false));
-            return s;
-        }
-        // 10. The leg.
-        uint32 flags = MOVE_REQUIRE_PATH;
-        if (Walks(sight)) { flags |= MOVE_WALK; }
-        if (ForcesDestination(sight)) { flags |= MOVE_FORCE_DEST; }
-        s.apply = true;
-        s.intent = MoveIntent::Move(m_dest, flags, FacingFor(sight, true));
-        return s;
-    }
-
-    // ---- ChaseBehaviour -------------------------------------------------------------
-
-    float ChaseBehaviour::StandingDistance(Sight const& sight) const
-    {
-        return m_p.offset + CONTACT_DISTANCE + sight.target.reachSum;   // retail's stop, design §6.1
-    }
-
-    bool ChaseBehaviour::Drifted(Sight const& sight) const
-    {
-        // The re-approach edge is the client's own melee range from the leg's goal (design
-        // §6.1); the band's asymmetry is deliberate, since closing enforces only the stop.
-        return DriftedBeyond(sight, m_p.offset + sight.target.meleeRange);
+        // The follow's tolerance, with the config honoured: the bounding radii are folded in
+        // exactly as WorldObject's own IsWithinDist2d/3d folds them.
+        float allowed = m_p.recalcRange - sight.target.extent + FOLLOW_RECALCULATE_FACTOR * (sight.extent + sight.target.extent);
+        if (m_p.offset > FOLLOW_DIST_GAP_FOR_DIST_FACTOR) { allowed += FOLLOW_DIST_RECALCULATE_FACTOR * m_p.offset; }
+        return DriftedBeyond(sight, allowed + sight.target.extent);
     }
 
     /**
@@ -273,69 +134,175 @@ namespace Motion
      * whoever revisits this should see the case against as well as the case for, and can re-run
      * orders 68-71, which stayed behind as the regression net.
      */
-    Vector3 ChaseBehaviour::AimCentre(Sight const& sight) const
+    Vector3 TrackingBehaviour::AimCentre(Sight const& sight) const
     {
         Vector3 c = sight.target.position;
         if (sight.target.velocityTrusted)
         {
-            c = c + sight.target.velocity * (float(CHASE_LEAD_MS) / 1000.0f);
+            const uint32 leadMs = Chase() ? CHASE_LEAD_MS : m_p.horizonMs;
+            c = c + sight.target.velocity * (float(leadMs) / 1000.0f);
         }
         return c;
     }
 
-    Facing ChaseBehaviour::FacingFor(Sight const& /*sight*/, bool /*moving*/) const
+    Facing TrackingBehaviour::FacingFor(Sight const& sight, bool moving) const
     {
-        return m_p.angle == 0.0f ? Facing::ToTarget(m_p.target) : Facing();
-    }
-
-    void ChaseBehaviour::OnActivate(Sight const& sight, Step& s)
-    {
-        if (sight.isCreature) { s.effects.push_back(Effect::Walk(false)); }   // a chase runs
-    }
-
-    void ChaseBehaviour::OnIdle(Sight const& /*sight*/, Step& s)
-    {
-        s.effects.push_back(Effect(Effect::EngageInReach));   // re-emitted every idle tick: a stale miss never latches
-    }
-
-    void ChaseBehaviour::OnSuspendOrFinish(std::vector<Effect>& /*effects*/) {}
-
-    // ---- FollowBehaviour ------------------------------------------------------------
-
-    float FollowBehaviour::StandingDistance(Sight const& sight) const
-    {
-        return m_p.offset + sight.extent + sight.target.extent;
-    }
-
-    bool FollowBehaviour::Drifted(Sight const& sight) const
-    {
-        // The generator's tolerance, with the config honoured: the bounding radii are folded
-        // in exactly as WorldObject's own IsWithinDist2d/3d folds them.
-        float allowed = m_f.recalcRange - sight.target.extent + FOLLOW_RECALCULATE_FACTOR * (sight.extent + sight.target.extent);
-        if (m_p.offset > FOLLOW_DIST_GAP_FOR_DIST_FACTOR) { allowed += FOLLOW_DIST_RECALCULATE_FACTOR * m_p.offset; }
-        return DriftedBeyond(sight, allowed + sight.target.extent);
-    }
-
-    Vector3 FollowBehaviour::AimCentre(Sight const& sight) const
-    {
-        Vector3 c = sight.target.position;
-        if (sight.target.velocityTrusted) { c = c + sight.target.velocity * (float(m_f.horizonMs) / 1000.0f); }
-        return c;
-    }
-
-    Facing FollowBehaviour::FacingFor(Sight const& sight, bool moving) const
-    {
+        if (Chase()) { return m_p.angle == 0.0f ? Facing::ToTarget(m_p.target) : Facing(); }
         return moving ? Facing() : Facing::ToAngle(sight.target.facing);   // the leader's facing at rest only
     }
 
-    void FollowBehaviour::OnActivate(Sight const& /*sight*/, Step& s)
+    Step TrackingBehaviour::Activate(Sight const& sight, Services& /*svc*/)
     {
-        s.effects.push_back(Effect(Effect::SyncSpeed));
+        // Initialize: the kind's presence latch (never its leg: that follows a laid leg), the tracking reset.
+        ResetTracking();
+        Step s;
+        s.resetLeg = true;
+        // The order is load-bearing: the presence latch BEFORE the kind's own activation
+        // effects. The deleted FollowMovementGenerator::Initialize set its follow bit and only
+        // then SyncSpeedWithMaster, because UpdateSpeed's pet branch copies the owner's rate
+        // only while the follow's presence is latched (UnitSpeed.cpp: Unit::FollowLatched) -- a
+        // sync ahead of the latch reads the pet's own rate and the follower never matches its
+        // master. The chase's Walk(false) then trails its latch too, harmlessly: SetWalk reads
+        // no latch.
+        s.effects.push_back(Effect::Latch(LatchPresence, 0));
+        if (Chase())
+        {
+            if (sight.isCreature) { s.effects.push_back(Effect::Walk(false)); }   // a chase runs
+        }
+        else
+        {
+            s.effects.push_back(Effect(Effect::SyncSpeed));
+        }
+        return s;
     }
 
-    void FollowBehaviour::OnSuspendOrFinish(std::vector<Effect>& effects)
+    Step TrackingBehaviour::Resume(Sight const& sight, Services& svc, bool reset)
     {
-        effects.push_back(Effect(Effect::SyncSpeed));
+        return reset ? Activate(sight, svc) : Step::None();   // Reset was Initialize
+    }
+
+    Step TrackingBehaviour::Suspend()
+    {
+        // Interrupt: InterruptMoving, both latches cleared, the tracking reset.
+        ResetTracking();
+        Step s;
+        s.interrupt = true;
+        s.resetLeg = true;
+        s.effects.push_back(Effect::Latch(0, LatchBoth));
+        if (!Chase()) { s.effects.push_back(Effect(Effect::SyncSpeed)); }
+        return s;
+    }
+
+    Outcome TrackingBehaviour::Finish(FinishReason why, Sight const& /*sight*/, Services& /*svc*/)
+    {
+        Outcome o;
+        o.interrupt = Displacing(why);   // the generator's Interrupt stopped the mover; Finalize did not
+        o.effects.push_back(Effect::Latch(0, LatchBoth));
+        if (!Chase()) { o.effects.push_back(Effect(Effect::SyncSpeed)); }
+        return o;
+    }
+
+    FinishReason TrackingBehaviour::EndReason(Sight const& /*sight*/) const
+    {
+        return FinishReason::TargetLost;
+    }
+
+    bool TrackingBehaviour::DriftedBeyond(Sight const& sight, float edge) const
+    {
+        // A flier cares about height too, and so does a swimmer in the water column; anything
+        // on the ground does not. The goal is the one the driver actually laid a leg to.
+        const Vector3& goal = sight.status.legGoal;
+        const Vector3& t = sight.target.position;
+        float d2 = (goal.x - t.x) * (goal.x - t.x) + (goal.y - t.y) * (goal.y - t.y);
+        if (sight.canFlyHint || sight.swimming) { d2 += (goal.z - t.z) * (goal.z - t.z); }
+        return d2 > edge * edge;
+    }
+
+    void TrackingBehaviour::Derive(Sight const& sight, Services& svc, RelayCause why, Step& s)
+    {
+        const Vector3 centre = AimCentre(sight);
+        Vector3 spot;
+        if (!svc.StandingSpot(centre, StandingDistance(sight), Bearing(sight, centre), spot))
+        {
+            spot = centre;   // no free spot: the centre itself, as the generator's NearPoint fell back to the raw point
+        }
+        m_dest = spot;
+        m_haveDest = true;
+        m_relays.Count(why);
+        s.effects.push_back(Effect::Latch(LatchLeg, 0));
+    }
+
+    Step TrackingBehaviour::Tick(Sight const& sight, Services& svc, uint32 diff)
+    {
+        // 1. The target is gone.
+        if (!sight.target.valid) { return Step::Of(MoveIntent::Done()); }
+        // 2. The mover is dead.
+        if (!sight.alive) { return Step::Of(MoveIntent::Hold()); }
+        // 3. A state holds it (the chase also under NO_COMBAT_MOVEMENT), or the chase lost its victim.
+        const bool held = !sight.canMove || (Chase() && (sight.combatMovementHeld || !sight.target.isVictim));
+        if (held)
+        {
+            LatchRelay(sight);
+            Step s = Step::Of(MoveIntent::Hold());
+            s.effects.push_back(Effect::Latch(0, LatchLeg));
+            return s;
+        }
+        // 4. A cast with a cast time, or a channel: stop (every casting tick; the shell sends no packet once stopped), hold.
+        if (svc.Casting())
+        {
+            LatchRelay(sight);
+            Step s = Step::Of(MoveIntent::Hold());
+            // Unconditional, as the generator's own gate was: it called StopMoving() whenever
+            // !IsStopped(), and StopMoving clears the moving legs (MotionMaster::ClearMovingLatches)
+            // BEFORE its finalized-spline early return (Unit::StopMoving). A standing chaser that
+            // starts a cast must lose its leg latch too, so gating the stop on a live leg would
+            // leave that latch set for the whole cast. Nothing goes on the wire for a spline that is already finalized.
+            s.stop = true;
+            return s;
+        }
+        // 5. The routine cadence: has the target drifted past the edge from the leg's goal?
+        bool needDest = !m_haveDest;
+        RelayCause cause = RelayCause::First;
+        m_routine -= int32(diff);
+        if (m_routine <= 0)
+        {
+            m_routine = int32(m_p.routineMs);
+            if (m_haveDest && Drifted(sight)) { needDest = true; cause = RelayCause::Routine; }
+        }
+        // 6. The event recoveries: a cut, a partial or a refused leg (latched, consumed on a tick that moves).
+        LatchRelay(sight);
+        if (m_relayLatch)
+        {
+            needDest = true;
+            if (m_haveDest) { cause = m_latchCause; }   // the very first spot is First, whatever edge shares its tick
+            m_relayLatch = false;
+        }
+        // 7. A finished leg whose target has drifted (the driver reports arrived once). The
+        //    generator had no such case: it caught the same drift on its next 100 ms poll,
+        //    which this native's one-second cadence no longer offers, so the design counts
+        //    the finished leg as a recovery cause of its own.
+        if (!needDest && sight.status.arrived && Drifted(sight)) { needDest = true; cause = RelayCause::Finished; }
+        Step s;
+        if (needDest) { Derive(sight, svc, cause, s); }
+        // 8. Standing still, whether or not a fresh spot was just derived: the chase engages.
+        //    The generator's ReachTarget ran on the same condition, so a chase begun already
+        //    inside contact attacks on its very first tick. Re-emitted every idle tick: a stale
+        //    miss never latches.
+        if (Chase() && !sight.status.traveling && !sight.status.partial) { s.effects.push_back(Effect(Effect::EngageInReach)); }
+        // 9. Nothing changed: hold with the kind's facing.
+        if (!needDest && !sight.status.traveling)
+        {
+            s.apply = true;
+            s.intent = MoveIntent::Hold(FacingFor(sight, false));
+            return s;
+        }
+        // 10. The leg.
+        uint32 flags = MOVE_REQUIRE_PATH;
+        if (!Chase() && sight.isCreature && sight.target.walking) { flags |= MOVE_WALK; }
+        if (!Chase() && sight.isPet) { flags |= MOVE_FORCE_DEST; }
+        s.apply = true;
+        s.intent = MoveIntent::Move(m_dest, flags, FacingFor(sight, true));
+        return s;
     }
 
     // ---- HomeBehaviour ---------------------------------------------------------------
