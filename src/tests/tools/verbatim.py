@@ -15,7 +15,8 @@ For each file in SITES, --check:
      register the same function -- that function's body, reverse-substituted (SUBSTITUTIONS: the
      context accessors and the outcome) and re-indented to the label's body; then, if the site has
      a registered `default:` (DEFAULT, found through `registry.RegisterDefault<TRAITS>(&F);`), its
-     label and F's body the same way. A label holding `{body}` is a one-line case
+     label and F's body the same way; a site whose switch had no `default:` must have none registered
+     (every site names its TRAITS for that). A label holding `{body}` is a one-line case
      (`case 1: x = 1; break;    // note`): the body's lines are joined there with one space;
   4. does the same to the file at BASE, for the sites a PR before this one moved (their dispatch
      is in the base; a site whose dispatch is not in the base is this PR's and must be a switch
@@ -98,6 +99,7 @@ SITES = {
             'label_indent': 20,
             'braced': True,
             'table': 'warriorApply',
+            'traits': 'AuraDummyApplyWarriorSite',
             'context': 'AuraDummyApplyContext',
             'live_outs': ['target'],
             'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
@@ -114,12 +116,14 @@ SITES = {
                     '(switch ((*itr)->GetSpellProto()->ID), in the loop)',
             'dispatch': [
                 '                            AuraDummyUnrelentingAssaultContext assaultCtx(target, itr);',
-                '                            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyUnrelentingAssaultSite>(',
+                '                            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraDummyUnrelentingAssaultSite>(',
                 '                                    (*itr)->GetSpellProto()->ID, assaultCtx).IsReturn())',
                 '                            {',
                 '                                return;',
                 '                            }'],
-            'open': ['                            switch ((*itr)->GetSpellProto()->ID)', '                            {'],
+            'open': ['                            switch ((*itr)->GetSpellProto()->ID)',
+                     '                            {'],
             'close': ['                            }'],
             'label_indent': 32,
             'braced': False,
@@ -147,6 +151,7 @@ SITES = {
             'label_indent': 16,
             'braced': True,
             'table': 'druid',
+            'traits': 'AuraDummyDruidSite',
             'context': 'AuraDummyApplyRemoveContext',
             'live_outs': ['target', 'apply'],
             'in_scope': ['Real', 'classOptions'],
@@ -160,7 +165,8 @@ SITES = {
             'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_DRUID, Improved Moonkin Form (switch (GetId()))',
             'dispatch': [
                 '                AuraDummyImprovedMoonkinContext imfCtx(this, spell_id);',
-                '                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyImprovedMoonkinSite>(GetId(), imfCtx).IsReturn())',
+                '                if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraDummyImprovedMoonkinSite>(GetId(), imfCtx).IsReturn())',
                 '                {',
                 '                    return;',
                 '                }'],
@@ -388,6 +394,8 @@ def rebuild(text, spec, headers, strict=True):
             continue
         if len(at) != 1:
             raise Failure('%s: the dispatch found %d times' % (site['name'], len(at)))
+        if not site.get('traits'):
+            raise Failure('%s: no traits named, so a default registered for it could not be seen' % site['name'])
         rows = table_rows(handlers, site['table'])
         ids = [r[0] for r in rows]
         if sorted(ids) != sorted(site['labels']) or len(set(ids)) != len(ids):
@@ -418,8 +426,8 @@ def rebuild(text, spec, headers, strict=True):
             check_body(function, body, site, members)
             switch += paste(site, function, body, [site['default']])
             pasted += 1
-        elif 'traits' in site and any(re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(.*' % re.escape(site['traits']),
-                                                   l) for l in handlers):
+        elif any(re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(.*' % re.escape(site['traits']), l)
+                 for l in handlers):
             raise Failure('%s: a default registered for a site whose switch had none' % site['name'])
         switch += site['close']
         rest[at[0]:at[0] + n] = switch
@@ -728,9 +736,9 @@ def self_test():
     if got != want:
         failures.append('class_members: got %r, expected %r' % (got, want))
 
-    def run(label, new_text, want_rc, needle='', old_text=SELF_OLD):
+    def run(label, new_text, want_rc, needle='', old_text=SELF_OLD, spec=SELF_SPEC):
         got = []
-        rc, _ = verify('fixture', old_text, new_text, SELF_SPEC, SELF_HEADERS, out=got.append)
+        rc, _ = verify('fixture', old_text, new_text, spec, SELF_HEADERS, out=got.append)
         text = '\n'.join(got)
         ok = rc == want_rc and needle in text
         print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
@@ -779,10 +787,15 @@ def self_test():
         SELF_NEW.replace('    registry.RegisterDefault<RankSite>', '    registry.RegisterDefault<SelfSite>(&Three);\n'
                                                                    '    registry.RegisterDefault<RankSite>'), 1,
         'a default registered for a site whose switch had none')
+    no_traits = dict(SELF_SPEC, sites=[dict(SELF_SPEC['sites'][0]), SELF_SPEC['sites'][1]])
+    del no_traits['sites'][0]['traits']
+    run('a site that names no traits fails (its default guard could not run)', SELF_NEW, 1,
+        'fixture: no traits named, so a default registered for it could not be seen', spec=no_traits)
     run('a handler defined but not registered fails',
         SELF_NEW.replace('void Register(Registry& registry)',
                          'static SpellHandlerOutcome<void> Orphan(RankContext& ctx)\n{\n'
-                         '    return SpellHandlerOutcome<void>::Continue();\n}\n\nvoid Register(Registry& registry)'), 1,
+                         '    return SpellHandlerOutcome<void>::Continue();\n}\n\n'
+                         'void Register(Registry& registry)'), 1,
         '6 handlers defined, 5 registered and pasted back')
     run('against a base that had the first site moved: passes', SELF_NEW, 0,
         'with 5/5 bodies pasted back at their 5 labels in 2 sites (the base had 1 of the sites moved: '
