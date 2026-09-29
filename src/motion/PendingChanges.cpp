@@ -48,8 +48,8 @@ namespace Motion
         }
     }
 
-    PendingChanges::PendingChanges(TimeoutPolicy const& policy)
-        : m_policy(policy), m_next(0), m_epoch(0), m_resyncs(0)
+    PendingChanges::PendingChanges()
+        : m_next(0), m_epoch(0)
     {
     }
 
@@ -67,7 +67,7 @@ namespace Motion
         Tombstone t;
         t.type = entry.type;
         t.counter = entry.counter;
-        t.diesAt = now + m_policy.tombstoneTtlMs;
+        t.diesAt = now + kTombstoneTtlMs;
         m_tombstones.push_back(t);
     }
 
@@ -82,16 +82,6 @@ namespace Motion
             }
         }
         return false;
-    }
-
-    uint32 PendingChanges::Reissue(PendingChange& entry, uint32 now)
-    {
-        const uint32 old = entry.counter;
-        Retire(entry, now);
-        entry.counter = m_next++;
-        entry.sentAt = now;
-        ++m_counters.resent;
-        return old;
     }
 
     uint32 PendingChanges::Open(Change const& change, uint32 now)
@@ -194,7 +184,6 @@ namespace Motion
         }
         m_pending.clear();
         ++m_epoch;
-        m_resyncs = 0;
     }
 
     void PendingChanges::ExpireTombstones(uint32 now)
@@ -206,76 +195,4 @@ namespace Motion
         }
     }
 
-    std::vector<TimeoutEvent> PendingChanges::Tick(uint32 now)
-    {
-        std::vector<TimeoutEvent> events;
-        ExpireTombstones(now);
-        if (m_policy.timeoutMs == 0) { return events; }
-
-        // Two passes. If any late entry has spent its resends and a resync is
-        // still allowed, this tick is a resync of everything and no entry takes
-        // a plain resend; otherwise each late entry is resent or, with resyncs
-        // spent too, kicked.
-        bool spent = false;
-        for (size_t i = 0; i < m_pending.size(); ++i)
-        {
-            if (now - m_pending[i].sentAt >= m_policy.timeoutMs && m_pending[i].resends >= m_policy.maxResends)
-            {
-                spent = true;
-            }
-        }
-
-        if (spent && m_resyncs < m_policy.maxResyncs)
-        {
-            ++m_resyncs;
-            ++m_counters.resynced;
-            TimeoutEvent head;
-            head.action = TimeoutAction::Resync;
-            head.type = ChangeType::None;
-            head.oldCounter = 0;
-            head.newCounter = 0;
-            events.push_back(head);
-            for (size_t i = 0; i < m_pending.size(); ++i)
-            {
-                TimeoutEvent e;
-                e.action = TimeoutAction::Resend;
-                e.type = m_pending[i].type;
-                e.oldCounter = Reissue(m_pending[i], now);
-                e.newCounter = m_pending[i].counter;
-                m_pending[i].resends = 0;
-                events.push_back(e);
-            }
-            return events;
-        }
-
-        for (size_t i = 0; i < m_pending.size();)
-        {
-            PendingChange& entry = m_pending[i];
-            if (now - entry.sentAt < m_policy.timeoutMs) { ++i; continue; }
-            if (entry.resends < m_policy.maxResends)
-            {
-                TimeoutEvent e;
-                e.action = TimeoutAction::Resend;
-                e.type = entry.type;
-                e.oldCounter = Reissue(entry, now);
-                e.newCounter = entry.counter;
-                ++entry.resends;
-                events.push_back(e);
-                ++i;
-            }
-            else
-            {
-                TimeoutEvent e;
-                e.action = TimeoutAction::Kick;
-                e.type = entry.type;
-                e.oldCounter = entry.counter;
-                e.newCounter = 0;
-                events.push_back(e);
-                Retire(entry, now);
-                ++m_counters.kicked;
-                m_pending.erase(m_pending.begin() + i);
-            }
-        }
-        return events;
-    }
 }

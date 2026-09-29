@@ -61,9 +61,8 @@ namespace Motion
         }
     }
 
-    State::State(Mode mode, TimeoutPolicy const& policy, Kinematics const& initial)
-        : m_mode(mode), m_desired(initial), m_confirmed(initial), m_pending(policy), m_lastAck(AckResult::NoPending),
-          m_kick(false), m_resync(false)
+    State::State(Mode mode, Kinematics const& initial)
+        : m_mode(mode), m_desired(initial), m_confirmed(initial), m_lastAck(AckResult::NoPending)
     {
     }
 
@@ -147,15 +146,11 @@ namespace Motion
         m_lastAck = outcome.result;
         if (outcome.result == AckResult::PayloadMismatch)
         {
-            // Design v2 §6.2 as decided for P2-C: count, resend once with a fresh counter,
-            // then leave the rest to the timeout policy. The entry the mismatch dropped goes
-            // back as it was with one more resend on its record; while that stays within
-            // the policy's resends the mover form goes out again, beyond it the entry sits
-            // spent for Tick to resync (enforcement on) or the next change of its type to
-            // supersede (enforcement off).
+            // Count, and resend once under a fresh counter. A second mismatch leaves the
+            // entry pending until the next change of its type supersedes it.
             ++m_counters.mismatched;
             const uint32 fresh = m_pending.Reopen(outcome.change, now);
-            if (outcome.change.resends < m_pending.Policy().maxResends)
+            if (outcome.change.resends < kMaxMismatchResends)
             {
                 ++m_counters.resent;
                 MatrixRow const* row = RowFor(outcome.change.change.type, outcome.change.change.apply);
@@ -172,39 +167,10 @@ namespace Motion
         return out;
     }
 
-    std::vector<Emission> State::Tick(uint32 now)
-    {
-        std::vector<Emission> out;
-        std::vector<TimeoutEvent> const events = m_pending.Tick(now);
-        for (size_t i = 0; i < events.size(); ++i)
-        {
-            TimeoutEvent const& e = events[i];
-            if (e.action == TimeoutAction::Resend)
-            {
-                PendingChange const* entry = m_pending.Get(e.type);
-                if (!entry) { continue; }
-                MatrixRow const* row = RowFor(entry->change.type, entry->change.apply);
-                if (row && row->mover) { out.push_back(Emit(EmissionKind::Mover, row->mover, e.newCounter, entry->change)); }
-            }
-            else if (e.action == TimeoutAction::Resync)
-            {
-                m_resync = true;
-                ++m_counters.resyncs;
-            }
-            else if (e.action == TimeoutAction::Kick)
-            {
-                m_kick = true;
-                ++m_counters.kicks;
-            }
-        }
-        return out;
-    }
 
     void State::NewEpoch(uint32 now)
     {
         m_pending.NewEpoch(now);
-        m_kick = false;
-        m_resync = false;
         ++m_counters.epochs;
     }
 

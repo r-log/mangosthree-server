@@ -82,7 +82,7 @@
 #include <list>
 
 // Decoupling D3: the movement kernel is held by pointer and named through Mobility.h, the one
-// motion header the shell may include; State, Kinematics, Emission and TimeoutPolicy are
+// motion header the shell may include; State, Kinematics and Emission are
 // complete only in the .cpp files that use them (debate F5). WorldPacket is complete where the
 // packets are built.
 class MotionMaster;
@@ -92,7 +92,6 @@ namespace Motion
     class State;
     struct Kinematics;
     struct Emission;
-    struct TimeoutPolicy;
 }
 
 /**
@@ -4167,7 +4166,6 @@ class Unit : public WorldObject
         std::unique_ptr<Motion::State> m_motion;
         uint32        m_motionDropped;
         WorldSession* m_moverSession;
-        static Motion::TimeoutPolicy MotionPolicy();
         Motion::Kinematics InitialKinematics() const;
 
     private:

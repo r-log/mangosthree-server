@@ -1273,12 +1273,6 @@ class Player : public Unit
         /// retires to a tombstone -- and the desired state re-applied as fresh changes,
         /// each with a counter the client has never seen. Call in the world.
         void StartMovementEpoch();
-        /// The kernel asked for a resync (a pending change spent its resends under
-        /// Movement.AckTimeout): snap the client to where the server has the player,
-        /// through the near-teleport path, so the reissued changes land on a known state,
-        /// keeping combat and the pet; a player on a transport waits for the tick's
-        /// reissue instead, since a snap there would worldport them off it.
-        void ResyncMovement();
 
         // Send time synchronization
         void SendTimeSync();

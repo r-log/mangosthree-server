@@ -216,16 +216,14 @@ bool ChatHandler::HandleServerMovementCommand(char* /*args*/)
             state.confirmed += c.confirmed;
             state.mismatched += c.mismatched;
             state.resent += c.resent;
-            state.resyncs += c.resyncs;
             state.epochs += c.epochs;
             state.modeChanges += c.modeChanges;
-            state.kicks += c.kicks;
         }
     }
     WorldSession::AuthorityTotalsCounters const& retired = WorldSession::AuthorityTotals();
-    PSendSysMessage("motion: %u movers, %u with pending, %u pending, %u tombstones; applied %u, refused %u, emitted %u, acked %u, confirmed %u, mismatched %u, resent %u, resyncs %u, epochs %u, mode changes %u, kicks %u, dropped emissions %u, ownership violations %u",
+    PSendSysMessage("motion: %u movers, %u with pending, %u pending, %u tombstones; applied %u, refused %u, emitted %u, acked %u, confirmed %u, mismatched %u, resent %u, epochs %u, mode changes %u, dropped emissions %u, ownership violations %u",
                     movers, withPending, pending, tombstones, state.applied, state.refused, state.emitted, state.acked,
-                    state.confirmed, state.mismatched, state.resent, state.resyncs, state.epochs, state.modeChanges, state.kicks, droppedEmissions, MapPhase::Violations());
+                    state.confirmed, state.mismatched, state.resent, state.epochs, state.modeChanges, droppedEmissions, MapPhase::Violations());
     PSendSysMessage("acks: seen %u, matched %u, mismatched %u, resent %u, tombstone %u, stale %u, future %u, wrong guid %u, unverified %u, teleporting %u",
                     acks.seen, acks.matched, acks.mismatched, acks.resent, acks.tombstone, acks.stale, acks.future, acks.wrongGuid, acks.unverified, acks.teleporting);
     PSendSysMessage("movers: %u sessions, %u members, %u selected; added %u, removed %u, selected %u, deselected %u, bad select %u, bad deselect %u, not active %u, not member %u, unresolved %u",

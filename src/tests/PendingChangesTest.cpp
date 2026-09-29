@@ -34,22 +34,13 @@ using namespace Motion;
 
 namespace
 {
-    TimeoutPolicy Enforcing()
-    {
-        TimeoutPolicy p;
-        p.timeoutMs = 1000;
-        p.maxResends = 1;
-        p.maxResyncs = 1;
-        p.tombstoneTtlMs = 10000;
-        return p;
-    }
     AckPayload Speed(float v) { AckPayload a; a.hasValue = true; a.value = v; return a; }
     AckPayload Flag() { AckPayload a; a.hasValue = false; a.value = 0.0f; return a; }
 }
 
 TEST(PendingChanges_opens_with_increasing_counters_and_one_pending_per_type)
 {
-    PendingChanges pending((TimeoutPolicy()));
+    PendingChanges pending;
     CHECK_EQ(pending.Open(SpeedChange(1, 7.0f), 1000), 0u);
     CHECK_EQ(pending.Open(SpeedChange(3, 4.7f), 1000), 1u);
     CHECK_EQ(pending.Open(SpeedChange(1, 8.0f), 1001), 2u);   // supersedes the run speed
@@ -68,7 +59,7 @@ TEST(PendingChanges_opens_with_increasing_counters_and_one_pending_per_type)
 
 TEST(PendingChanges_ack_matches_by_type_and_counter_and_checks_the_payload)
 {
-    PendingChanges pending((TimeoutPolicy()));
+    PendingChanges pending;
     const uint32 c = pending.Open(SpeedChange(1, 7.0f), 0);
     AckOutcome out = pending.Ack(ChangeType::RunSpeed, c, Speed(7.0f), 10);
     CHECK(out.result == AckResult::Matched);
@@ -89,7 +80,7 @@ TEST(PendingChanges_ack_matches_by_type_and_counter_and_checks_the_payload)
 
 TEST(PendingChanges_a_superseded_counter_hits_a_tombstone_then_nothing)
 {
-    PendingChanges pending((TimeoutPolicy()));
+    PendingChanges pending;
     const uint32 c0 = pending.Open(SpeedChange(1, 7.0f), 0);
     const uint32 c1 = pending.Open(SpeedChange(1, 8.0f), 1);
     CHECK(pending.Ack(ChangeType::RunSpeed, c0, Speed(7.0f), 2).result == AckResult::Tombstone);
@@ -102,7 +93,7 @@ TEST(PendingChanges_a_superseded_counter_hits_a_tombstone_then_nothing)
 
 TEST(PendingChanges_new_epoch_retires_everything_to_tombstones_and_keeps_counting)
 {
-    PendingChanges pending((TimeoutPolicy()));
+    PendingChanges pending;
     const uint32 c0 = pending.Open(SpeedChange(1, 7.0f), 0);
     pending.Open(FlagChange(ChangeType::Root, true), 0);
     pending.NewEpoch(5);
@@ -118,7 +109,7 @@ TEST(PendingChanges_new_epoch_retires_everything_to_tombstones_and_keeps_countin
 
 TEST(PendingChanges_future_and_unknown_counters_are_told_apart)
 {
-    PendingChanges pending((TimeoutPolicy()));
+    PendingChanges pending;
     CHECK(pending.Ack(ChangeType::RunSpeed, 5, Speed(1.0f), 0).result == AckResult::Future);
     const uint32 c0 = pending.Open(SpeedChange(1, 7.0f), 0);
     CHECK(pending.Ack(ChangeType::Root, c0, Flag(), 1).result == AckResult::NoPending);
@@ -128,103 +119,29 @@ TEST(PendingChanges_future_and_unknown_counters_are_told_apart)
     CHECK_EQ(pending.Size(), size_t(1));
 }
 
-TEST(PendingChanges_timeouts_are_off_by_default)
+TEST(PendingChanges_tick_expires_tombstones_and_touches_nothing_pending)
 {
-    PendingChanges pending((TimeoutPolicy()));
-    CHECK_EQ(pending.Policy().timeoutMs, 0u);
+    PendingChanges pending;
     pending.Open(SpeedChange(1, 7.0f), 0);
-    CHECK(pending.Tick(100000).empty());
+    pending.Open(SpeedChange(1, 8.0f), 1);                    // supersedes: the first counter is a tombstone
+    CHECK_EQ(pending.Size(), size_t(1));
+    CHECK_EQ(pending.Tombstones(), size_t(1));
+    pending.Tick(kTombstoneTtlMs);                             // not yet: retired at 1, so it dies at 1 + TTL
+    CHECK_EQ(pending.Tombstones(), size_t(1));
+    pending.Tick(kTombstoneTtlMs + 1);
+    CHECK_EQ(pending.Tombstones(), size_t(0));
     CHECK_EQ(pending.Size(), size_t(1));
     CHECK_EQ(pending.Counters().resent, 0u);
 }
 
-TEST(PendingChanges_timeout_resends_once_then_resyncs_then_kicks)
-{
-    PendingChanges pending(Enforcing());
-    const uint32 c0 = pending.Open(SpeedChange(1, 7.0f), 0);
-    CHECK(pending.Tick(999).empty());
 
-    std::vector<TimeoutEvent> events = pending.Tick(1000);
-    REQUIRE(events.size() == 1);
-    CHECK(events[0].action == TimeoutAction::Resend);
-    CHECK(events[0].type == ChangeType::RunSpeed);
-    CHECK_EQ(events[0].oldCounter, c0);
-    const uint32 c1 = events[0].newCounter;
-    CHECK_EQ(c1, c0 + 1);
-    CHECK_EQ(pending.Get(ChangeType::RunSpeed)->counter, c1);
-    CHECK_EQ(pending.Get(ChangeType::RunSpeed)->resends, uint8(1));
-    CHECK_EQ(pending.Get(ChangeType::RunSpeed)->sentAt, 1000u);
-    CHECK(pending.Ack(ChangeType::RunSpeed, c0, Speed(7.0f), 1001).result == AckResult::Tombstone);
 
-    events = pending.Tick(2000);
-    REQUIRE(events.size() == 2);
-    CHECK(events[0].action == TimeoutAction::Resync);
-    CHECK(events[1].action == TimeoutAction::Resend);
-    CHECK_EQ(events[1].oldCounter, c1);
-    const uint32 c2 = events[1].newCounter;
-    CHECK_EQ(pending.Get(ChangeType::RunSpeed)->resends, uint8(0));
-    CHECK_EQ(pending.Counters().resynced, 1u);
-
-    events = pending.Tick(3000);
-    REQUIRE(events.size() == 1);
-    CHECK(events[0].action == TimeoutAction::Resend);
-    const uint32 c3 = events[0].newCounter;
-    CHECK_EQ(c3, c2 + 1);
-
-    events = pending.Tick(4000);
-    REQUIRE(events.size() == 1);
-    CHECK(events[0].action == TimeoutAction::Kick);
-    CHECK_EQ(events[0].oldCounter, c3);
-    CHECK_EQ(pending.Size(), size_t(0));
-    CHECK_EQ(pending.Counters().kicked, 1u);
-    CHECK_EQ(pending.Counters().resent, 3u);
-}
-
-TEST(PendingChanges_a_resync_reissues_every_pending_entry_and_tombstones_expire)
-{
-    PendingChanges pending(Enforcing());
-    pending.Open(SpeedChange(1, 7.0f), 0);
-    pending.Open(FlagChange(ChangeType::Root, true), 500);
-    std::vector<TimeoutEvent> events = pending.Tick(1000);   // the run speed is late; the root is not
-    REQUIRE(events.size() == 1);
-    events = pending.Tick(2000);                             // both late; the run speed has spent its resend
-    REQUIRE(events.size() == 3);
-    CHECK(events[0].action == TimeoutAction::Resync);
-    CHECK(events[1].action == TimeoutAction::Resend);
-    CHECK(events[2].action == TimeoutAction::Resend);
-    CHECK_EQ(pending.All().size(), size_t(2));
-    CHECK_EQ(pending.Tombstones(), size_t(3));               // c0 at 1000, then c1 and the root's at 2000
-    pending.ExpireTombstones(10999);
-    CHECK_EQ(pending.Tombstones(), size_t(3));               // the first dies at 11000
-    pending.ExpireTombstones(11000);
-    CHECK_EQ(pending.Tombstones(), size_t(2));
-    pending.ExpireTombstones(12000);
-    CHECK_EQ(pending.Tombstones(), size_t(0));
-}
-
-TEST(PendingChanges_a_new_epoch_restores_the_resync_budget)
-{
-    PendingChanges pending(Enforcing());
-    pending.Open(SpeedChange(1, 7.0f), 0);
-    REQUIRE(pending.Tick(1000).size() == 1);                     // the resend
-    std::vector<TimeoutEvent> events = pending.Tick(2000);       // the resync: budget spent
-    REQUIRE(events.size() == 2);
-    CHECK(events[0].action == TimeoutAction::Resync);
-    pending.NewEpoch(2500);
-    pending.Open(SpeedChange(1, 8.0f), 3000);
-    REQUIRE(pending.Tick(4000).size() == 1);                     // the resend
-    events = pending.Tick(5000);                                 // a resync again, not a kick
-    REQUIRE(events.size() == 2);
-    CHECK(events[0].action == TimeoutAction::Resync);
-    CHECK_EQ(pending.Counters().resynced, 2u);
-    CHECK_EQ(pending.Counters().kicked, 0u);
-}
 
 TEST(PendingChanges_a_non_finite_payload_is_a_mismatch)
 {
     // fabs(NaN - v) > tolerance is false, so a NaN would confirm a change it
     // does not echo. The legacy speed-ack handler has that hole; this does not.
-    PendingChanges pending((TimeoutPolicy()));
+    PendingChanges pending;
     const uint32 c0 = pending.Open(SpeedChange(1, 7.0f), 0);
     CHECK(pending.Ack(ChangeType::RunSpeed, c0, Speed(std::numeric_limits<float>::quiet_NaN()), 1).result == AckResult::PayloadMismatch);
     const uint32 c1 = pending.Open(SpeedChange(1, 7.0f), 2);
@@ -239,7 +156,7 @@ TEST(PendingChanges_an_ack_sweeps_expired_tombstones_first)
 {
     // A consumer that never ticks (enforcement off) must not grow tombstones
     // without bound: an ack sweeps the expired ones before it looks for one.
-    PendingChanges pending((TimeoutPolicy()));
+    PendingChanges pending;
     const uint32 c0 = pending.Open(SpeedChange(1, 7.0f), 0);
     pending.Open(SpeedChange(1, 8.0f), 1);                                              // c0 becomes a tombstone that dies at 10001
     CHECK_EQ(pending.Tombstones(), size_t(1));
@@ -251,7 +168,7 @@ TEST(PendingChanges_an_ack_sweeps_expired_tombstones_first)
 
 TEST(PendingChanges_issue_hands_out_the_next_counter_without_opening)
 {
-    PendingChanges p{TimeoutPolicy()};
+    PendingChanges p;
     const uint32 a = p.Open(SpeedChange(1, 7.0f), 0);
     const uint32 issued = p.Issue();
     CHECK_EQ(issued, a + 1);
@@ -283,7 +200,7 @@ TEST(PendingChanges_ack_result_name_is_non_empty_and_distinct_per_enumerator)
 
 TEST(PendingChanges_reopen_puts_a_dropped_entry_back_with_a_fresh_counter_and_one_more_resend)
 {
-    PendingChanges p{TimeoutPolicy()};
+    PendingChanges p;
     const uint32 a = p.Open(SpeedChange(1, 7.0f), 0);
     AckPayload wrong;
     wrong.hasValue = true;

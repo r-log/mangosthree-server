@@ -6452,17 +6452,6 @@ void Player::StartMovementEpoch()
     }
 }
 
-void Player::ResyncMovement()
-{
-    // A player on a transport takes the far-teleport branch of TeleportTo, a worldport
-    // for a missed ack; the tick's reissue is enough there, the snap waits.
-    if (GetTransport())
-    {
-        return;
-    }
-    TeleportTo(GetMapId(), Where().X(), Where().Y(), Where().Z(), Where().Facing(), TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
-}
-
 void Player::SendTimeSync()
 {
     GetSession()->TimeBase().Requested(m_timeSyncCounter, GameTime::GetGameTimeMS());

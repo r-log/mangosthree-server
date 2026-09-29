@@ -206,7 +206,7 @@ Unit::Unit() :
     m_vehicleInfo(NULL),
     m_ThreatManager(this),
     m_HostileRefManager(this),
-    m_motion(std::make_unique<Motion::State>(Motion::Mode::ServerDriven, MotionPolicy(), Motion::Kinematics())), m_motionDropped(0), m_moverSession(NULL)
+    m_motion(std::make_unique<Motion::State>(Motion::Mode::ServerDriven, Motion::Kinematics())), m_motionDropped(0), m_moverSession(NULL)
 {
     m_objectType |= TYPEMASK_UNIT;
     m_objectTypeId = TYPEID_UNIT;
@@ -291,7 +291,7 @@ Unit::Unit() :
 
     // The kernel starts from the unit's speeds; the flags are false and the height 0
     // until a setter says otherwise. Server-driven until a Player says it is not.
-    *m_motion = Motion::State(Motion::Mode::ServerDriven, MotionPolicy(), InitialKinematics());
+    *m_motion = Motion::State(Motion::Mode::ServerDriven, InitialKinematics());
 
     // remove aurastates allowing special moves
     for (int i = 0; i < MAX_REACTIVE; ++i)
@@ -301,14 +301,6 @@ Unit::Unit() :
 
     m_isCreatureLinkingTrigger = false;
     m_isSpawningLinked = false;
-}
-
-Motion::TimeoutPolicy Unit::MotionPolicy()
-{
-    Motion::TimeoutPolicy policy;
-    policy.timeoutMs = sWorld.getConfig(CONFIG_UINT32_MOVEMENT_ACK_TIMEOUT);
-    policy.tombstoneTtlMs = sWorld.getConfig(CONFIG_UINT32_MOVEMENT_ACK_TOMBSTONE_TTL);
-    return policy;
 }
 
 Motion::Kinematics Unit::InitialKinematics() const
@@ -478,42 +470,11 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
 
     CleanupDeletedAuras();
 
-    // Design v2 §6.2: the pending-change machine's timeouts, in the map phase, for any
-    // unit a client moves (a player, a possessed creature). A server-driven unit has
-    // nothing pending.
+    // A unit a client moves (a player, a possessed creature) forgets its expired retired
+    // counters here. A server-driven unit has nothing pending.
     if (m_motion->GetMode() == Motion::Mode::ClientDriven && m_motion->Pending().Size() > 0)
     {
-        const uint32 now = GameTime::GetGameTimeMS();
-        SendEmissions(m_motion->Tick(now));
-        Player* owner = m_moverSession ? m_moverSession->GetPlayer() : NULL;
-        if (m_motion->ResyncRequested())
-        {
-            m_motion->ClearResync();
-            if (GetTypeId() == TYPEID_PLAYER)
-            {
-                Player* player = (Player*)this;
-                sLog.outError("Movement: player %s (account %u) did not acknowledge a movement change in time; resynced",
-                              player->GetName(), player->GetSession()->GetAccountId());
-                player->ResyncMovement();
-            }
-            else
-            {
-                // A creature has no near teleport with an ack to snap the client with:
-                // the tick's reissue is the whole resync.
-                sLog.outError("Movement: %s moved by %s did not acknowledge a movement change in time; reissued",
-                              GetGuidStr().c_str(), owner ? owner->GetName() : "no session");
-            }
-        }
-        if (m_motion->KickRequested())
-        {
-            m_motion->ClearKick();
-            if (m_moverSession)
-            {
-                BASIC_LOG("Player %s from account id %u kicked for not acknowledging movement changes of %s",
-                          owner ? owner->GetName() : "?", m_moverSession->GetAccountId(), GetGuidStr().c_str());
-                m_moverSession->KickPlayer();
-            }
-        }
+        m_motion->Tick(GameTime::GetGameTimeMS());
     }
 
     if (CanHaveThreatList())
