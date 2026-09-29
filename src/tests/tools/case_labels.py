@@ -16,14 +16,20 @@ The lexer:
 A label counts when that key IS a spell id:
   - the key ends in an `ID` or `Id` member read (`m_spellInfo->ID`, `(*itr)->GetSpellProto()->ID`);
   - or it is a `GetId()` call (`GetId()`, `(*i)->GetId()`);
-  - or it is one of SPELL_ID_LOCALS, the locals the tree switches on that hold a spell id.
+  - or it is one of SPELL_ID_LOCALS, the locals the tree switches on that hold a spell id; under
+    such a key only a label that is an integer literal or a SPELL_* name counts (a local's name
+    does not prove what it holds: HandlePetAction's `spellid` is the action button's action, and
+    its labels are COMMAND_* and REACT_*).
 Keys naming another kind of ID are EXCLUDED_KEYS (the note's `achievement->ID` and
 `seTalent->ID`, plus `house->ID` and `currency->ID`). A key that only passes an id to a function
 (`GetSpellSpecific(spellInfo->ID)`) is not a spell id. `enchant_spell_id` is a stat type (its
 labels are ITEM_MOD_*) and is not in SPELL_ID_LOCALS.
 
-Which files: every .h, .hpp, .cpp, .inl and .inc under src/game, except the registry's own
-directory src/game/spells/handlers/ (SKIP). src/modules/SD3 is #83's scope and is not counted.
+Which files: every .h, .hpp, .cpp, .inl and .inc under src/game, the registry's own directory
+src/game/spells/handlers/ included: no handler body lives there today (a moved body stays beside
+its site, whose include edges it needs), and one that moves there later still counts any label it
+carries (a nested switch travels inside its outer case body). src/modules/SD3 is #83's scope and
+is not counted.
 
 src/tests/case_labels.txt holds the count per file, "<path> <count>", paths from the repository
 root. --check (the gate) fails on a file whose count grew or that the list does not hold (a new
@@ -72,11 +78,11 @@ import sys
 import tempfile
 
 SCOPE = 'src/game/'
-SKIP = ('src/game/spells/handlers/',)
 EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
 BASELINE_REL = 'src/tests/case_labels.txt'
 
 SPELL_ID_LOCALS = {'auraId', 'spellid', 'spellId', 'trigger_spell_id', 'triggered_spell_id'}
+LOCAL_LABEL = re.compile(r'\d+|SPELL_\w+')
 EXCLUDED_KEYS = {'achievement->ID', 'seTalent->ID', 'house->ID', 'currency->ID'}
 ID_MEMBER = re.compile(r'.*(->|\.)\s*(ID|Id)')
 GET_ID = re.compile(r'(.*(->|\.)\s*)?GetId\s*\(\s*\)')
@@ -135,11 +141,12 @@ def digit_separator(text, i):
 
 
 TOKEN = re.compile(r'\bswitch\b|\bcase\b|[{}]')
+LABEL_COLON = re.compile(r'(?<!:):(?!:)')
 
 
 def labels(text):
-    """[(line, key)] for every `case` label, key = the innermost enclosing switch's key (None
-    outside any switch)."""
+    """[(line, key, value)] for every `case` label: key = the innermost enclosing switch's key
+    (None outside any switch), value = the label's text up to its `:`."""
     t = blank(text)
     depth = 0
     stack = []                                                  # (key, body depth)
@@ -183,7 +190,9 @@ def labels(text):
             else:
                 pos = j + 1
         else:
-            found.append((t.count('\n', 0, m.start()) + 1, stack[-1][0] if stack else None))
+            colon = LABEL_COLON.search(t, pos)
+            value = ' '.join(t[pos:colon.start()].split()) if colon else ''
+            found.append((t.count('\n', 0, m.start()) + 1, stack[-1][0] if stack else None, value))
     return found
 
 
@@ -191,6 +200,13 @@ def is_spell_id_key(key):
     if key is None or key in EXCLUDED_KEYS:
         return False
     return bool(ID_MEMBER.fullmatch(key) or GET_ID.fullmatch(key) or key in SPELL_ID_LOCALS)
+
+
+def counts(key, value):
+    """Whether a label with this value, under this key, is a spell-ID label."""
+    if not is_spell_id_key(key):
+        return False
+    return key not in SPELL_ID_LOCALS or bool(LOCAL_LABEL.fullmatch(value))
 
 
 def scan(root):
@@ -205,11 +221,9 @@ def scan(root):
                 continue
             path = os.path.join(d, name)
             rel = os.path.relpath(path, root).replace(os.sep, '/')
-            if rel.startswith(SKIP):
-                continue
             files += 1
             with open(path, encoding='utf-8', errors='replace', newline='') as fh:
-                hits = [(line, key) for line, key in labels(fh.read()) if is_spell_id_key(key)]
+                hits = [(line, key) for line, key, value in labels(fh.read()) if counts(key, value)]
             if hits:
                 counted[rel] = hits
     return counted, files
@@ -236,9 +250,9 @@ def read_baseline(path):
 
 
 def format_baseline(counts):
-    head = ('# CheckCaseLabels (src/tests/tools/case_labels.py): spell-ID case labels per file under src/game,\n'
-            '# outside src/game/spells/handlers/. A PR that moves labels into the registry lowers its lines\n'
-            '# (--generate); a new label fails the gate. Total: %d labels in %d files.\n'
+    head = ('# CheckCaseLabels (src/tests/tools/case_labels.py): spell-ID case labels per file under src/game.\n'
+            '# A PR that moves labels into the spell handler registry lowers its lines (--generate); a new\n'
+            '# label fails the gate. Total: %d labels in %d files.\n'
             % (sum(counts.values()), len(counts)))
     return head + ''.join('%s %d\n' % (p, counts[p]) for p in sorted(counts))
 
@@ -321,10 +335,14 @@ def self_test():
         ('a digit separator is not a quote',
          "switch (GetId())\n{\n case 1'000: break;\n case 2: break;\n}\n",
          [3, 4]),
+        ('a locals-keyed switch counts only numbers and SPELL_* names',
+         'switch (spellid)\n{\n case COMMAND_STAY: break;\n case REACT_PASSIVE: case 5: break;\n'
+         ' case SPELL_FOO: break;\n case Foo::BAR: break;\n}\nswitch (GetId()) { case SPELL_X: case NPC_Y: break; }\n',
+         [4, 5, 8, 8]),
         ('a raw string is blanked',
          'switch (GetId())\n{\n case 1: s = R"x(case 9: })x"; break;\n case 2: break;\n}\n',
          [3, 4])]:
-        got = [line for line, key in labels(text) if is_spell_id_key(key)]
+        got = [line for line, key, value in labels(text) if counts(key, value)]
         ok = got == want
         print('self-test: %-58s %s' % (label, 'PASS' if ok else 'FAIL'))
         expect(ok, 'lexer: %s: got %r, expected %r' % (label, got, want))
@@ -335,7 +353,7 @@ def self_test():
             'void Aura::HandleAuraDummy()\n{\n    switch (GetId())\n    {\n        case 1: return;\n        case 2: return;\n    }\n}\n',
         'src/game/Object/Unit.cpp': 'void f() { switch (procSpell->ID) { case 3: break; } }\n',
         'src/game/Object/Other.cpp': 'void g() { switch (GetEntry()) { case 3: break; } }\n',
-        'src/game/spells/handlers/SpellHandlerRegistry.h': 'void h() { switch (GetId()) { case 9: break; } }\n',
+        'src/game/spells/handlers/SpellHandlerRegistry.h': 'void h() { switch (m_kind) { case 9: break; } }\n',
         'src/modules/SD3/x.cpp': 'void s() { switch (GetId()) { case 7: break; } }\n'}
     base_list = {'src/game/WorldHandlers/SpellAuraDummy.cpp': 2, 'src/game/Object/Unit.cpp': 1}
 
@@ -361,7 +379,7 @@ def self_test():
         tree[rel] = text
         return tree
 
-    run('the baseline tree passes (handlers/ and SD3 not counted)', base_tree, base_list, 0,
+    run('the baseline tree passes (SD3 not counted)', base_tree, base_list, 0,
         'OK: 3 spell-ID labels in 2 files')
     run('a planted new label fails',
         with_file('src/game/Object/Unit.cpp', 'void f() { switch (procSpell->ID) { case 3: break; case 4: break; } }\n'),
@@ -377,13 +395,16 @@ def self_test():
     run('a baseline line for a file with no label left fails',
         with_file('src/game/Object/Unit.cpp', 'void f() {}\n'), base_list, 1,
         'stale baseline: src/game/Object/Unit.cpp has 0, the baseline 1')
-    run('a label moved into spells/handlers/ with the baseline lowered passes',
+    run('a label moved out of a switch with the baseline lowered passes',
         with_file('src/game/Object/Unit.cpp', 'void f() {}\n'), {'src/game/WorldHandlers/SpellAuraDummy.cpp': 2}, 0,
         'OK: 2 spell-ID labels in 1 files')
     run('a malformed baseline line fails', base_tree, format_baseline(base_list) + 'src/x.cpp\n', 1,
         'not "<path> <count>"')
     run('a line listed twice fails', base_tree, format_baseline(base_list) + 'src/game/Object/Unit.cpp 1\n', 1,
         'listed twice')
+    run('a label in spells/handlers/ counts',
+        with_file('src/game/spells/handlers/SpellHandlerRegistry.h', 'void h() { switch (GetId()) { case 9: break; } }\n'),
+        base_list, 1, 'src/game/spells/handlers/SpellHandlerRegistry.h has 1, the baseline lists none')
     run('a zero scan fails', {'src/README': 'x'}, {}, 1, 'found no C/C++ file')
     with tempfile.TemporaryDirectory() as tmp:
         for rel, text in base_tree.items():

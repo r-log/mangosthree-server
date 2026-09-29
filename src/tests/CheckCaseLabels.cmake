@@ -1,9 +1,10 @@
 # CheckCaseLabels: the switch-aware spell-ID case-label ratchet of decoupling D11
 # (design/2026-09-28-unit-reopening.md, section 3(c)'s proof table, row (b)). The per-spell-ID
 # switches inside the spell handlers move, one family per PR, into the spell handler registry
-# (src/game/spells/handlers/). Every `case` label whose innermost enclosing switch is keyed on a
-# spell id is counted per file under src/game, outside the registry's directory, and the counts
-# are listed in src/tests/case_labels.txt: a file whose count grows, or that the list does not
+# (src/game/spells/handlers/ holds the registry; each moved body is a function registered into it
+# and, for now, sits beside the site it came from, since a body moved to another file would add
+# include edges CheckLayout refuses). Every `case` label whose innermost enclosing switch is keyed
+# on a spell id is counted per file under src/game, and the counts are listed in src/tests/case_labels.txt: a file whose count grows, or that the list does not
 # hold, fails (a new label), and so does a file whose count fell below its line (a stale baseline:
 # the PR that moves a family lowers its line in the same PR). A scan that reads nothing fails too.
 #
@@ -72,8 +73,10 @@ if(NOT CASE_LABELS_RESULT EQUAL 0)
     message(FATAL_ERROR "CheckCaseLabels failed (decoupling D11, ${CASE_LABELS_PYTHON}):\n"
         "${CASE_LABELS_OUTPUT}\n${CASE_LABELS_ERROR}\n"
         "What each failure above asks for:\n"
-        "  - a new spell-ID label: register the case as a handler in the spell handler registry "
-        "(src/game/spells/handlers/) instead of adding a label; never raise src/tests/case_labels.txt.\n"
+        "  - a new spell-ID label: write the case as a handler function registered into the spell handler "
+        "registry (src/game/spells/handlers/SpellHandlerRegistry.h) under its (site, spell id), with the body "
+        "beside its site as the moved ones are (SpellAuraDummy.cpp), instead of adding a label; never raise "
+        "src/tests/case_labels.txt.\n"
         "  - a stale baseline: labels moved into the registry; lower the file's line in this PR "
         "(case_labels.py --generate).\n"
         "  - a malformed or duplicate baseline line: one '<path> <count>' per file.")

@@ -202,6 +202,16 @@ TEST(SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys)
     CHECK_EQ(ctx.handled, uint32(2));
     registry.Dispatch<VoidSiteA>(100, ctx);
     CHECK_EQ(ctx.handled, uint32(1));
+
+    // Spell ids use all 32 bits (4.3.4 has ids above 65535): (A, 100 + 65536) is not (B, 100),
+    // which a key packing the site into bits 16 and up would make it (1001 << 16 | 65636 ==
+    // 1002 << 16 | 100).
+    CHECK(registry.Register<VoidSiteA>(100 + 65536, &Continues));
+    CHECK(registry.Find<VoidSiteA>(100 + 65536) == &Continues);
+    CHECK(registry.Find<VoidSiteB>(100) == &ReturnsB);
+    CHECK(registry.Find<VoidSiteB>(100 + 65536) == NULL);
+    CHECK_EQ(registry.CountAt(VoidSiteA::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(VoidSiteB::Key), std::size_t(1));
 }
 
 TEST(SpellHandlerRegistry_ATakenKeyIsRefused)

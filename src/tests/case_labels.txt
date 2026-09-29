@@ -1,12 +1,11 @@
-# CheckCaseLabels (src/tests/tools/case_labels.py): spell-ID case labels per file under src/game,
-# outside src/game/spells/handlers/. A PR that moves labels into the registry lowers its lines
-# (--generate); a new label fails the gate. Total: 1816 labels in 28 files.
+# CheckCaseLabels (src/tests/tools/case_labels.py): spell-ID case labels per file under src/game.
+# A PR that moves labels into the spell handler registry lowers its lines (--generate); a new
+# label fails the gate. Total: 1809 labels in 27 files.
 src/game/Object/GameObjectUse.cpp 5
 src/game/Object/SpellMgr.cpp 80
 src/game/Object/Unit.cpp 5
 src/game/Object/UnitAura.cpp 3
 src/game/Object/UnitSpellBonus.cpp 11
-src/game/WorldHandlers/PetHandler.cpp 7
 src/game/WorldHandlers/Spell.cpp 210
 src/game/WorldHandlers/SpellAuraAddModifier.cpp 11
 src/game/WorldHandlers/SpellAuraControl.cpp 8

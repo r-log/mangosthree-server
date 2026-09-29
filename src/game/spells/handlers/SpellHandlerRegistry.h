@@ -135,7 +135,8 @@ struct SpellHandler
 class SpellHandlerRegistry
 {
     public:
-        /// The game's table: every site's registration function has run on it once.
+        /// The game's table: every site's registration function has run on it once. First built at
+        /// world init (World::SetInitialWorldSettings, after the spell tables load).
         static SpellHandlerRegistry const& Game();
 
         /// Registers `function` for (Site, spellId). False, and nothing changes, when the key is

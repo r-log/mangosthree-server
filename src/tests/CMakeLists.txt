@@ -289,9 +289,8 @@ add_test(NAME layout
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckLayout.cmake)
 
 # Decoupling D11 (design/2026-09-28-unit-reopening.md 3(c), row (b)): the spell-ID case labels
-# still in switches, counted per file under src/game outside the spell handler registry's
-# directory, are on src/tests/case_labels.txt; a new label fails, and a PR that moves labels into
-# the registry lowers its lines in the same PR.
+# still in switches, counted per file under src/game, are on src/tests/case_labels.txt; a new
+# label fails, and a PR that moves labels into the registry lowers its lines in the same PR.
 add_test(NAME case_labels
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}

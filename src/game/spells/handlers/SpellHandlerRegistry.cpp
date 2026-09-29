@@ -29,8 +29,9 @@
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
 {
-    // Built once, on the first dispatch, by whichever map thread gets there first (a function-local
-    // static is initialised exactly once); read-only afterwards.
+    // Built once, by the first call: World::SetInitialWorldSettings makes it at boot, after the spell
+    // tables load, so a registration fault aborts the start and never a map tick. Read-only afterwards;
+    // a function-local static is initialised exactly once even if a thread got here first.
     static SpellHandlerRegistry const registry = []()
     {
         SpellHandlerRegistry built;

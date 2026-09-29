@@ -19,9 +19,12 @@ Because the bodies are pasted from the functions the table registers, a row poin
 function, a lost row, a changed line, or a body moved in the wrong order all fail.
 
 Each handler body is also checked for what the paste-back cannot see: a live-out local used
-bare (a case body's name the move did not route through the context), and a
-`return ...::Continue();` inside a loop or a nested switch (the moved `break;` would have left
-that loop, not the case).
+bare (a case body's name the move did not route through the context); a member of the site's
+class used bare (an implicit `this->` the move missed: in a free function the name could still
+compile if a free function or global of that name exists, and then means something else) -- the
+names are read from the class's own declaration (MEMBERS_OF), every member function and data
+member at class scope; and a `return ...::Continue();` inside a loop or a nested switch (the
+moved `break;` would have left that loop, not the case).
 
 python src/tests/tools/verbatim.py --check        # against BASE, reading git
 python src/tests/tools/verbatim.py --self-test    # fixtures only, no git
@@ -74,8 +77,8 @@ SITES = {
         'sites': [{
             'name': 'HandleAuraDummy AT APPLY, SPELLFAMILY_WARRIOR (switch (GetId()))',
             'dispatch': [
-                '                AuraDummyApplyContext handlerContext(this, target);',
-                '                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyWarriorSite>(GetId(), handlerContext).IsReturn())',
+                '                AuraDummyApplyContext ctx(this, target);',
+                '                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyWarriorSite>(GetId(), ctx).IsReturn())',
                 '                {',
                 '                    return;',
                 '                }'],
@@ -86,6 +89,7 @@ SITES = {
             'table': 'warriorApply',
             'context': 'AuraDummyApplyContext',
             'live_outs': ['target'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
             'substitutions': [('ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
             'labels': {
                 41099: '                    case 41099:                             // Battle Stance',
@@ -137,9 +141,64 @@ def handler_body(lines, function, context):
     return lines[i + 2:j]
 
 
-def check_body(function, body, site):
-    """What the paste-back cannot see: a bare live-out, and a Continue inside a loop or switch."""
+def class_members(header, cls):
+    """The names class `cls` declares at class scope in `header` (its text): member functions and
+    data members, not its constructors, friends, nested types or what inline bodies call."""
+    t = blank(header)
+    m = re.search(r'\bclass\s+%s\b[^;{]*\{' % re.escape(cls), t)
+    if not m:
+        raise Failure('class %s not found in its header' % cls)
+    names, depth, stmt, i = set(), 1, [], m.end()
+
+    def declared(text):
+        text = re.sub(r'^\s*((public|protected|private)\s*:\s*)+', '', text).strip()
+        if not text or re.match(r'(friend|typedef|using|enum|struct|class|union)\b', text):
+            return None
+        if '(' in text:
+            head = text[:text.index('(')]
+            found = re.findall(r'~?\w+', head)
+            name = found[-1] if found else None
+            if name in (cls, '~' + cls) or (name and name.startswith('operator')):
+                return None
+            return name
+        text = re.split(r'=|\[|:(?!:)', text)[0]
+        found = re.findall(r'\w+', text)
+        return found[-1] if found else None
+
+    while i < len(t) and depth > 0:
+        c = t[i]
+        if c == '{':
+            if depth == 1:
+                name = declared(''.join(stmt))
+                if name:
+                    names.add(name)
+                stmt = []
+            depth += 1
+        elif c == '}':
+            depth -= 1
+        elif depth == 1:
+            if c == ';':
+                name = declared(''.join(stmt))
+                if name:
+                    names.add(name)
+                stmt = []
+            else:
+                stmt.append(c)
+        i += 1
+    if not names:
+        raise Failure('class %s declares no member the check could read' % cls)
+    return names
+
+
+def check_body(function, body, site, members=()):
+    """What the paste-back cannot see: a bare live-out, a bare member of the site's class, and a
+    Continue inside a loop or switch."""
     text = blank('\n'.join(body))
+    for n, line in enumerate(text.split('\n'), 1):
+        for name in sorted(members):
+            if re.search(r'(?<![\w.>:~])%s\b' % re.escape(name), line):
+                raise Failure('handler %s, body line %d: "%s", a member of %s, used bare (an implicit this-> the '
+                              'move missed): %r' % (function, n, name, site['members_of'][1], body[n - 1]))
     for name in site['live_outs']:
         for n, line in enumerate(text.split('\n'), 1):
             if re.search(r'(?<![\w.>])%s\b' % re.escape(name), line.replace('ctx.' + name, '')):
@@ -181,9 +240,10 @@ def check_body(function, body, site):
             pending = False
 
 
-def rebuild(old_text, new_text, spec):
+def rebuild(old_text, new_text, spec, headers):
     """The new file with every site's dispatch replaced by its switch, the added lines and the
-    appended handler block dropped; and the number of bodies pasted back."""
+    appended handler block dropped; and the number of bodies pasted back. `headers` maps a
+    site's members_of header path to its text."""
     new = new_text.split('\n')
     marker = [i for i, l in enumerate(new) if l == spec['tail_marker']]
     if len(marker) != 1:
@@ -221,7 +281,8 @@ def rebuild(old_text, new_text, spec):
                 raise Failure('%s: %s registered in two runs of rows (its labels were not together)'
                               % (site['name'], function))
             body = handler_body(handlers, function, site['context'])
-            check_body(function, body, site)
+            header, cls = site['members_of']
+            check_body(function, body, site, class_members(headers[header], cls))
             restored = []
             for line in body:
                 for a, b in site['substitutions']:
@@ -246,9 +307,9 @@ def first_difference(a, b):
     return 'lengths differ: base %d lines, rebuilt %d' % (len(al), len(bl))
 
 
-def verify(rel, old_text, new_text, spec, out=print):
+def verify(rel, old_text, new_text, spec, headers, out=print):
     try:
-        rebuilt, pasted = rebuild(old_text, new_text, spec)
+        rebuilt, pasted = rebuild(old_text, new_text, spec, headers)
     except Failure as e:
         out('%s: FAILED: %s' % (rel, e))
         return 1, 0, 0
@@ -275,7 +336,12 @@ def check(root, base, out=print):
             out('%s: FAILED: cannot read it at %s from git: %s' % (rel, base, e))
             rc = 1
             continue
-        got, _, _ = verify(rel, old_text, new_text, spec, out)
+        headers = {}
+        for site in spec['sites']:
+            header = site['members_of'][0]
+            with open(os.path.join(root, *header.split('/')), encoding='utf-8', newline='') as fh:
+                headers[header] = fh.read()
+        got, _, _ = verify(rel, old_text, new_text, spec, headers, out)
         rc |= got
     out('verbatim: %s' % ('OK' if rc == 0 else 'FAILED'))
     return rc
@@ -366,6 +432,7 @@ SELF_SPEC = {
         'table': 'rows',
         'context': 'SelfContext',
         'live_outs': ['target'],
+        'members_of': ('Thing.h', 'Thing'),
         'substitutions': [('ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
         'labels': {1: '        case 1:                                 // One',
                    2: '        case 2:                                 // Two',
@@ -374,12 +441,39 @@ SELF_SPEC = {
 }
 
 
+SELF_HEADERS = {'Thing.h': """class Other { void Tail(); };
+class  Thing
+{
+        friend struct Helper;
+    public:
+        Thing(int x) : m_x(x) {}
+        ~Thing();
+        void Handle(bool apply);
+        Unit* GetCaster() const { return Lookup(m_casterGuid); }   // Lookup is not a member
+        bool IsPositive() { return m_positive; }
+        int& operator[](int i);
+    protected:
+        Modifier m_modifier;
+        bool m_positive : 1;
+        int m_table[4];
+        enum { KIND_A, KIND_B };
+    private:
+        uint64 m_casterGuid = 0;
+};
+"""}
+
+
 def self_test():
     failures = []
+    got = sorted(class_members(SELF_HEADERS['Thing.h'], 'Thing'))
+    want = ['GetCaster', 'Handle', 'IsPositive', 'm_casterGuid', 'm_modifier', 'm_positive', 'm_table']
+    print('self-test: %-58s %s' % ('the class-scope member names are read', 'PASS' if got == want else 'FAIL'))
+    if got != want:
+        failures.append('class_members: got %r, expected %r' % (got, want))
 
     def run(label, new_text, want_rc, needle=''):
         got = []
-        rc, _, _ = verify('fixture', SELF_OLD, new_text, SELF_SPEC, out=got.append)
+        rc, _, _ = verify('fixture', SELF_OLD, new_text, SELF_SPEC, SELF_HEADERS, out=got.append)
         text = '\n'.join(got)
         ok = rc == want_rc and needle in text
         print('self-test: %-58s %s' % (label, 'PASS' if ok else 'FAIL'))
@@ -396,6 +490,11 @@ def self_test():
     run('a lost row fails', SELF_NEW.replace('        { 2, &One },\n', ''), 1, 'table rows [1, 3]')
     run('a bare live-out in a body fails', SELF_NEW.replace('ctx.target->Cast', 'target->Cast'), 1,
         'live-out "target" used without the context')
+    run('a bare member of the site\'s class in a body fails',
+        SELF_NEW.replace('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(GetCaster());'), 1,
+        '"GetCaster", a member of Thing, used bare')
+    run('a member reached through the context passes the member check',
+        SELF_NEW.replace('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(ctx.aura->GetCaster());'), 1, 'DIFFERS')
     run('a Continue inside a loop fails', SELF_NEW.replace('if (i == 1)\n            break;',
                                                            'if (i == 1)\n            return SpellHandlerOutcome<void>::Continue();'),
         1, 'a Continue inside a loop or switch')

@@ -360,8 +360,8 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             }
             case SPELLFAMILY_WARRIOR:
             {
-                AuraDummyApplyContext handlerContext(this, target);
-                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyWarriorSite>(GetId(), handlerContext).IsReturn())
+                AuraDummyApplyContext ctx(this, target);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyWarriorSite>(GetId(), ctx).IsReturn())
                 {
                     return;
                 }
