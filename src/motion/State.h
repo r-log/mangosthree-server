@@ -79,15 +79,15 @@ namespace Motion
 
     struct StateCounters
     {
-        uint32 applied, refused, emitted, acked, confirmed, epochs, modeChanges, kicks, mismatched, resent, resyncs;
-        StateCounters() : applied(0), refused(0), emitted(0), acked(0), confirmed(0), epochs(0), modeChanges(0), kicks(0),
-                           mismatched(0), resent(0), resyncs(0) {}
+        uint32 applied, refused, emitted, acked, confirmed, epochs, modeChanges, mismatched, resent;
+        StateCounters() : applied(0), refused(0), emitted(0), acked(0), confirmed(0), epochs(0), modeChanges(0),
+                           mismatched(0), resent(0) {}
     };
 
     class State
     {
     public:
-        State(Mode mode, TimeoutPolicy const& policy, Kinematics const& initial);
+        State(Mode mode, Kinematics const& initial);
 
         Mode GetMode() const { return m_mode; }
         void SetMode(Mode mode, uint32 now);
@@ -98,15 +98,11 @@ namespace Motion
         std::vector<Emission> Apply(Change const& change, uint32 now);
         std::vector<Emission> Ack(ChangeType type, uint32 counter, AckPayload const& payload, uint32 now);
         AckResult LastAck() const { return m_lastAck; }
-        std::vector<Emission> Tick(uint32 now);
+        void Tick(uint32 now) { m_pending.Tick(now); }
         void NewEpoch(uint32 now);
-        bool KickRequested() const { return m_kick; }
-        void ClearKick() { m_kick = false; }     ///< Call once the kick has been acted on, so the next tick's still-pending entries do not kick and log again.
         /// True after Tick() reported a resync (design v2 §6.2): every pending entry was
         /// just reissued; the caller snaps the client to where the server has it (a near
         /// teleport) and calls ClearResync() once it has.
-        bool ResyncRequested() const { return m_resync; }
-        void ClearResync() { m_resync = false; }
         /// The desired state as fresh changes (design v2 §6.2's snapshot after a new epoch):
         /// the seven speeds whose row has an ack, in UnitMoveType order; each set flag; the
         /// collision height when above 0, with the "force" reason. Apply each in order.
@@ -123,8 +119,6 @@ namespace Motion
         Kinematics     m_confirmed;
         PendingChanges m_pending;
         AckResult      m_lastAck;
-        bool           m_kick;
-        bool           m_resync;
         StateCounters  m_counters;
     };
 }

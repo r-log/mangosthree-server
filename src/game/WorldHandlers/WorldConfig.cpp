@@ -695,8 +695,6 @@ void World::LoadConfigSettings(bool reload)
     // The movement kernel's ack timeout policy (design v2 §6.2): 0 = enforcement off,
     // CPP's default too. A unit copies the policy when it is constructed, so a reload
     // reaches the units created after it, not the ones already in the world.
-    setConfig(CONFIG_UINT32_MOVEMENT_ACK_TIMEOUT, "Movement.AckTimeout", 0);
-    setConfig(CONFIG_UINT32_MOVEMENT_ACK_TOMBSTONE_TTL, "Movement.AckTombstoneTtl", 10000);
 
     // The map the GM movement harness runs on (P0-D): a live server keeps 0.
     setConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP, "Movement.HarnessBareMap", 0);

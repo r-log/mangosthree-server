@@ -83,37 +83,26 @@ namespace Motion
 
     char const* AckResultName(AckResult result);
 
-    struct TimeoutPolicy
-    {
-        uint32 timeoutMs;       ///< 0 = enforcement off (the default; CPP's too)
-        uint8  maxResends;      ///< per entry, before a resync
-        uint8  maxResyncs;      ///< per machine, before a kick
-        uint32 tombstoneTtlMs;
-        TimeoutPolicy() : timeoutMs(0), maxResends(1), maxResyncs(1), tombstoneTtlMs(10000) {}
-    };
-
-    enum class TimeoutAction : uint8 { Resend, Resync, Kick };
-
-    struct TimeoutEvent
-    {
-        TimeoutAction action;
-        ChangeType    type;       ///< None for Resync
-        uint32        oldCounter;
-        uint32        newCounter; ///< Resend only
-    };
+    /// How long a retired counter (superseded, or every pending one at a new epoch) is
+    /// remembered, so a late acknowledgement of it is consumed silently instead of counted
+    /// as stale.
+    const uint32 kTombstoneTtlMs = 10000;
+    /// A mismatched acknowledgement is resent once under a fresh counter; a second
+    /// mismatch leaves the entry pending until the next change of its type supersedes it.
+    const uint8 kMaxMismatchResends = 1;
 
     struct PendingCounters
     {
         uint32 opened, matched, payloadMismatch, tombstone, noPending, stale, future,
-               superseded, retired, resent, resynced, kicked;
+               superseded, retired, resent;
         PendingCounters() : opened(0), matched(0), payloadMismatch(0), tombstone(0), noPending(0), stale(0), future(0),
-                            superseded(0), retired(0), resent(0), resynced(0), kicked(0) {}
+                            superseded(0), retired(0), resent(0) {}
     };
 
     class PendingChanges
     {
     public:
-        explicit PendingChanges(TimeoutPolicy const& policy);
+        PendingChanges();
 
         uint32 Open(Change const& change, uint32 now);
         /// The next counter, taken without opening an entry: for a mover form the client
@@ -130,7 +119,7 @@ namespace Motion
         /// tell a prior-epoch counter from one that was never issued.
         AckOutcome Ack(ChangeType type, uint32 counter, AckPayload const& payload, uint32 now);
         void NewEpoch(uint32 now);
-        std::vector<TimeoutEvent> Tick(uint32 now);
+        void Tick(uint32 now) { ExpireTombstones(now); }
         void ExpireTombstones(uint32 now);
 
         uint32 Epoch() const { return m_epoch; }
@@ -141,7 +130,6 @@ namespace Motion
         size_t Tombstones() const { return m_tombstones.size(); }
         std::vector<PendingChange> All() const { return m_pending; }
         PendingCounters const& Counters() const { return m_counters; }
-        TimeoutPolicy const& Policy() const { return m_policy; }
 
     private:
         struct Tombstone
@@ -153,12 +141,9 @@ namespace Motion
 
         void Retire(PendingChange const& entry, uint32 now);   ///< to a tombstone
         bool ConsumeTombstone(ChangeType type, uint32 counter);
-        uint32 Reissue(PendingChange& entry, uint32 now);      ///< fresh counter; returns the old one
 
-        TimeoutPolicy              m_policy;
         uint32                     m_next;
         uint32                     m_epoch;
-        uint8                      m_resyncs;                ///< resets with each epoch
         std::vector<PendingChange> m_pending;
         std::vector<Tombstone>     m_tombstones;
         PendingCounters            m_counters;

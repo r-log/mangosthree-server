@@ -32,16 +32,13 @@ using namespace Motion;
 
 namespace
 {
-    TimeoutPolicy Off() { return TimeoutPolicy(); }
-    TimeoutPolicy On(uint32 ms) { TimeoutPolicy p; p.timeoutMs = ms; return p; }
-    TimeoutPolicy Enforcing() { TimeoutPolicy p; p.timeoutMs = 1000; p.maxResends = 1; p.maxResyncs = 1; return p; }
     AckPayload Speed(float v) { AckPayload a; a.hasValue = true; a.value = v; return a; }
     AckPayload Flag() { return AckPayload(); }
 }
 
 TEST(MotionState_server_driven_commits_at_once_and_emits_the_spline_form)
 {
-    State s(Mode::ServerDriven, Off(), Kinematics());
+    State s(Mode::ServerDriven, Kinematics());
     std::vector<Emission> e = s.Apply(SpeedChange(1, 7.0f), 0);
     REQUIRE(e.size() == 1);
     CHECK(e[0].kind == EmissionKind::Spline);
@@ -66,7 +63,7 @@ TEST(MotionState_server_driven_commits_at_once_and_emits_the_spline_form)
 
 TEST(MotionState_client_driven_commits_desired_opens_a_pending_and_emits_the_mover_form)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     std::vector<Emission> e = s.Apply(SpeedChange(1, 7.0f), 0);
     REQUIRE(e.size() == 1);
     CHECK(e[0].kind == EmissionKind::Mover);
@@ -89,7 +86,7 @@ TEST(MotionState_client_driven_commits_desired_opens_a_pending_and_emits_the_mov
 
 TEST(MotionState_ack_confirms_and_emits_the_observer_form)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     s.Apply(SpeedChange(1, 7.0f), 0);
     std::vector<Emission> e = s.Ack(ChangeType::RunSpeed, 0, Speed(7.0f), 10);
     REQUIRE(e.size() == 1);
@@ -115,7 +112,7 @@ TEST(MotionState_ack_confirms_and_emits_the_observer_form)
 
 TEST(MotionState_a_mismatched_or_stray_ack_confirms_nothing)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     s.Apply(SpeedChange(1, 7.0f), 0);
     // P2-C: a payload mismatch is resent once with a fresh counter (see
     // MotionState_a_mismatched_ack_is_resent_once...); what it never does is confirm.
@@ -130,7 +127,7 @@ TEST(MotionState_a_mismatched_or_stray_ack_confirms_nothing)
     CHECK(e.empty());
     CHECK(s.LastAck() == AckResult::Stale);
 
-    State server(Mode::ServerDriven, Off(), Kinematics());
+    State server(Mode::ServerDriven, Kinematics());
     e = server.Ack(ChangeType::RunSpeed, 0, Speed(7.0f), 3);
     CHECK(e.empty());
     CHECK(server.LastAck() == AckResult::NoPending);
@@ -138,7 +135,7 @@ TEST(MotionState_a_mismatched_or_stray_ack_confirms_nothing)
 
 TEST(MotionState_refuses_gait_and_swim_on_a_client_driven_unit)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     CHECK(s.Apply(FlagChange(ChangeType::Gait, true), 0).empty());
     CHECK(s.Apply(FlagChange(ChangeType::Swim, true), 0).empty());
     CHECK(!s.Desired().walk);
@@ -152,7 +149,7 @@ TEST(MotionState_refuses_gait_and_swim_on_a_client_driven_unit)
 
 TEST(MotionState_new_epoch_retires_pending_and_keeps_desired)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     std::vector<Emission> e = s.Apply(SpeedChange(1, 7.0f), 0);
     const uint32 c = e[0].counter;
     s.NewEpoch(5);
@@ -167,7 +164,7 @@ TEST(MotionState_new_epoch_retires_pending_and_keeps_desired)
 
 TEST(MotionState_mode_switch_retires_pending_and_a_server_driven_unit_confirms_its_desired_state)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     s.Apply(SpeedChange(1, 7.0f), 0);
     s.SetMode(Mode::ServerDriven, 1);
     CHECK(s.GetMode() == Mode::ServerDriven);
@@ -185,39 +182,10 @@ TEST(MotionState_mode_switch_retires_pending_and_a_server_driven_unit_confirms_i
     CHECK_EQ(e[0].counter, 1u);                        // counters keep counting across modes
 }
 
-TEST(MotionState_timeouts_reissue_the_mover_packet_and_a_kick_is_reported)
-{
-    State s(Mode::ClientDriven, Enforcing(), Kinematics());
-    std::vector<Emission> e = s.Apply(SpeedChange(1, 7.0f), 0);
-    const uint32 c0 = e[0].counter;
-    CHECK(s.Tick(999).empty());
-    e = s.Tick(1000);
-    REQUIRE(e.size() == 1);
-    CHECK(e[0].kind == EmissionKind::Mover);
-    CHECK_EQ(e[0].opcode, uint16(SMSG_MOVE_SET_RUN_SPEED));
-    CHECK_EQ(e[0].counter, c0 + 1);
-    CHECK_EQ(e[0].change.value, 7.0f);
-    e = s.Tick(2000);                                  // the resync: one resend per pending entry
-    REQUIRE(e.size() == 1);
-    CHECK_EQ(e[0].counter, c0 + 2);
-    e = s.Tick(3000);
-    REQUIRE(e.size() == 1);
-    CHECK_EQ(e[0].counter, c0 + 3);
-    CHECK(!s.KickRequested());
-    e = s.Tick(4000);
-    CHECK(e.empty());
-    CHECK(s.KickRequested());
-    s.ClearKick();
-    CHECK(!s.KickRequested());
-    CHECK_EQ(s.Pending().Size(), size_t(0));
-    CHECK_EQ(s.Counters().kicks, 1u);
-    s.NewEpoch(5000);
-    CHECK(!s.KickRequested());
-}
 
 TEST(MotionState_a_row_with_no_ack_confirms_at_emission_and_tells_observers_at_once)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     std::vector<Emission> e = s.Apply(SpeedChange(5, 3.14f), 0);   // MOVE_TURN_RATE: mover form, no ack layout
     REQUIRE(e.size() == 2);
     CHECK(e[0].kind == EmissionKind::Mover);
@@ -239,9 +207,9 @@ TEST(MotionState_a_row_with_no_ack_confirms_at_emission_and_tells_observers_at_o
     CHECK_EQ(s.Confirmed().speed[8], 2.0f);
 }
 
-TEST(MotionState_a_mismatched_ack_is_resent_once_with_a_fresh_counter_then_left_to_the_policy)
+TEST(MotionState_a_mismatched_ack_is_resent_once_then_a_second_mismatch_is_left_pending)
 {
-    State s(Mode::ClientDriven, Off(), Kinematics());
+    State s(Mode::ClientDriven, Kinematics());
     std::vector<Emission> e = s.Apply(SpeedChange(1, 7.0f), 0);
     REQUIRE(e.size() == 1);
     const uint32 first = e[0].counter;
@@ -259,7 +227,7 @@ TEST(MotionState_a_mismatched_ack_is_resent_once_with_a_fresh_counter_then_left_
     CHECK_EQ(s.Counters().mismatched, 1u);
     CHECK_EQ(s.Counters().resent, 1u);
     CHECK(!(s.Confirmed() == s.Desired()));
-    // A second mismatch on the fresh counter: counted, reopened as spent, not resent.
+    // A second mismatch on the fresh counter: counted, left pending, not resent.
     e = s.Ack(ChangeType::RunSpeed, first + 1, wrong, 2);
     CHECK(s.LastAck() == AckResult::PayloadMismatch);
     CHECK(e.empty());
@@ -279,40 +247,12 @@ TEST(MotionState_a_mismatched_ack_is_resent_once_with_a_fresh_counter_then_left_
     CHECK(s.Confirmed() == s.Desired());
 }
 
-TEST(MotionState_a_spent_entry_falls_to_the_timeout_policy_which_reports_a_resync)
-{
-    State s(Mode::ClientDriven, On(1000), Kinematics());
-    std::vector<Emission> e = s.Apply(SpeedChange(1, 7.0f), 0);
-    const uint32 first = e[0].counter;
-    AckPayload wrong;
-    wrong.hasValue = true;
-    wrong.value = 8.0f;
-    s.Ack(ChangeType::RunSpeed, first, wrong, 1);             // resent as first + 1, resends 1
-    CHECK(!s.ResyncRequested());
-    e = s.Tick(500);
-    CHECK(e.empty());
-    e = s.Tick(1001);                                         // late and its resend spent: a resync
-    CHECK(s.ResyncRequested());
-    CHECK_EQ(s.Counters().resyncs, 1u);
-    REQUIRE(e.size() == 1);                                   // every pending entry reissued
-    CHECK(e[0].kind == EmissionKind::Mover);
-    CHECK_EQ(e[0].counter, first + 2);
-    s.ClearResync();
-    CHECK(!s.ResyncRequested());
-    e = s.Tick(2002);                                         // the resync reset its resends: one plain resend
-    REQUIRE(e.size() == 1);
-    CHECK_EQ(e[0].counter, first + 3);
-    CHECK(!s.KickRequested());
-    e = s.Tick(3003);                                         // still unanswered, resends and resyncs spent: kick
-    CHECK(s.KickRequested());
-    CHECK(e.empty());
-}
 
 TEST(MotionState_snapshot_is_the_desired_state_as_fresh_changes)
 {
     Kinematics k;
     for (int i = 0; i < 9; ++i) { k.speed[i] = 1.0f + float(i); }
-    State s(Mode::ClientDriven, Off(), k);
+    State s(Mode::ClientDriven, k);
     s.Apply(FlagChange(ChangeType::Root, true), 0);
     s.Apply(FlagChange(ChangeType::WaterWalk, true), 1);
     s.Apply(FlagChange(ChangeType::Hover, true), 2);
@@ -333,6 +273,6 @@ TEST(MotionState_snapshot_is_the_desired_state_as_fresh_changes)
     CHECK_EQ(snap[9].value, 2.5f);
     CHECK_EQ(snap[9].reason, uint8(2));
     // A fresh state with nothing set snapshots the seven speeds alone.
-    State bare(Mode::ClientDriven, Off(), Kinematics());
+    State bare(Mode::ClientDriven, Kinematics());
     CHECK_EQ(bare.Snapshot().size(), size_t(7));
 }
