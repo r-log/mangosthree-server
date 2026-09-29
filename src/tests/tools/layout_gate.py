@@ -405,8 +405,10 @@ def summary(result, out):
         te = sum(len(per_kind[(kind, k)]) for k in keys)
         if kind in KEY_BY_DIRECTORY:
             tp = len(set().union(*(pairs[(kind, k)] for k in keys)))
-            out('layout: %s: %d lines, %d edges, %d (includer directory, header) pairs listed'
-                % (titles[kind], tl, te, tp))
+            ts = sum(len(pairs[(kind, k)]) for k in keys)
+            out('layout: %s: %d lines, %d edges, %d (includer directory, header) pairs listed; the pairs column '
+                'below counts a pair under each includer peer of a mixed directory (sum %d)'
+                % (titles[kind], tl, te, tp, ts))
         else:
             out('layout: %s: %d lines, %d (includer file, header) edges listed' % (titles[kind], tl, te))
         for k in keys:
@@ -590,7 +592,7 @@ SELF_ALLOW = [('src/game/Maps', 'src/game/Object/Unit.h'),
 
 def self_test():
     global SEAM_SAME_PEER
-    failures = []
+    failures, rows = [], []
 
     def expect(cond, what):
         if not cond:
@@ -619,6 +621,7 @@ def self_test():
             missing = [n for n in needles if n not in text]
             present = [n for n in absent if n in text]
             ok = rc == want and not missing and not present
+            rows.append(label)
             print('self-test: %-66s %s (exit %d)' % (label, 'PASS' if ok else 'FAIL', rc))
             expect(ok, '%s: exit %d, expected %d%s%s\n%s' % (label, rc, want, ''.join(
                 ', missing "%s"' % n for n in missing), ''.join(', unexpected "%s"' % n for n in present), text))
@@ -800,6 +803,18 @@ def self_test():
                            'src/game/Server/DBCStores.cpp': '#include "Player.h"\n'}), SELF_ALLOW, 1,
         ['  src/game/Server/DBCStores.cpp -> src/game/entities/player/Player.h   [against: data -> domain]',
          '  src/game/Maps/Map.cpp -> src/game/entities/player/Player.h'], 'moved:')
+    # A move keeps its header: a stale WorldPacket.h line does not pay for a new Opcodes.h include.
+    run('rule 3: a move does not cross headers (stale H1 line, new H2 edge)',
+        dict(SELF_TREE, **{'src/proto/Opcodes.h': '#include "Common.h"\n',
+                           'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n',
+                           'src/game/Maps/Map.cpp':
+                               '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Opcodes.h"\n'}),
+        SELF_ALLOW, 1,
+        ['1 new include edge(s) against', '  src/game/Maps/Map.cpp -> src/proto/Opcodes.h   [against: domain -> '
+         'proto] the header has 1 against includer file(s) in the tree, 0 listed',
+         '1 allow-list line(s) name an edge that is gone',
+         '  src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h'],
+        'moved:')
     run('a zero scan fails', {'src/README': 'x', 'dep/zlib/zlib.h': ''}, [], 1, 'found no C/C++ file')
     with tempfile.TemporaryDirectory() as tmp:
         ap = build(tmp, SELF_TREE, [])
@@ -807,6 +822,7 @@ def self_test():
         rc = generate(tmp, ap, out=got.append)
         rc2 = check(tmp, ap, out=got.append)
         ok = rc == 0 and rc2 == 0 and read_allow(ap)[0] == set(SELF_ALLOW)
+        rows.append('generate')
         print('self-test: %-66s %s' % ('--generate writes what --check then passes', 'PASS' if ok else 'FAIL'))
         expect(ok, 'generate/check round trip: %d %d\n%s' % (rc, rc2, '\n'.join(got)))
     # classify, the table itself: one row per rule of section 1.
@@ -840,12 +856,13 @@ def self_test():
             got = classify(a, b)
             expect(got == want, 'classify, SEAM_SAME_PEER %s: (%s, %s) = %r, expected %r' % (flag, a, b, got, want))
     SEAM_SAME_PEER = saved
+    rows.append('classify')
     print('self-test: %-66s %s' % ('classify: section 1 table, SEAM_SAME_PEER both ways', 'PASS' if not [
         f for f in failures if f.startswith('classify')] else 'FAIL'))
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
-    print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
+    print('self-test: %s (%d rows, %d failure(s))' % ('PASS' if not failures else 'FAIL', len(rows), len(failures)))
     return 1 if failures else 0
 
 
