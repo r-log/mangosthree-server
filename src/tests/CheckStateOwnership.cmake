@@ -402,6 +402,18 @@ state_allow(cooldown src/game/Tools/PlayerDump.h
 state_allow(cooldown src/tests/SpellCooldownMgrTest.cpp
     WHY "unit test that observes the packets through a capturing sink and the save's statements through a fake connection (checks each opcode, byte and statement, builds nothing)"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
+state_allow(cooldown src/game/Harness/Trace.h
+    WHY "harness recorder (decoupling D11 PR 2): the decoders' doc comments name the packets they read"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+state_allow(cooldown src/game/Harness/Trace.cpp
+    WHY "harness recorder (decoupling D11 PR 2): classifies the packets by opcode and decodes their bytes into a TRACE line, builds nothing"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+state_allow(cooldown src/game/Harness/ScenariosSpell.cpp
+    WHY "harness spell scenarios (decoupling D11 PR 2): read the recorded packets by opcode for their categories, build nothing"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+state_allow(cooldown src/tests/HarnessTest.cpp
+    WHY "unit test of the harness decoders: hand-builds the packets' bytes as their writers lay them out and checks the decoded record, sends nothing"
+    NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
 
 # Decoupling D4k. The glyph state's table. Opcodes.h defines no SMSG_ name containing GLYPH, and
 # GlyphMgr builds no packet: the client sees glyphs through the owner's update fields and the
@@ -468,6 +480,15 @@ state_allow(pet src/game/entities/player/pets/PlayerPet.cpp
     NAMES SMSG_PET_SPELLS)
 state_allow(pet src/tests/PetMgrTest.cpp
     WHY "unit test that observes the packet through a capturing sink (checks its opcode and bytes, builds nothing)"
+    NAMES SMSG_PET_SPELLS)
+state_allow(pet src/game/Harness/Trace.h
+    WHY "harness recorder (decoupling D11 PR 2): the decoder's doc comment names the packet it reads"
+    NAMES SMSG_PET_SPELLS)
+state_allow(pet src/game/Harness/Trace.cpp
+    WHY "harness recorder (decoupling D11 PR 2): classifies the packet by opcode and decodes its bytes into a TRACE line, builds nothing"
+    NAMES SMSG_PET_SPELLS)
+state_allow(pet src/tests/HarnessTest.cpp
+    WHY "unit test of the harness decoders: hand-builds the packet's bytes as its writers lay them out and checks the decoded record, sends nothing"
     NAMES SMSG_PET_SPELLS)
 
 # Decoupling D4k. The friend and ignore list. PlayerSocial builds the contact list and the friend

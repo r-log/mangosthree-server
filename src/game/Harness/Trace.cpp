@@ -176,6 +176,38 @@ namespace Harness
                 { SMSG_SPELL_FAILURE,               Rule::Decode },
                 { SMSG_SPELL_FAILED_OTHER,          Rule::Decode },
                 { SMSG_CAST_FAILED,                 Rule::Decode },
+                // read for D11 PR 2 at afdabc428 -- the logs, the cooldown packets and the rest of
+                // the note's list (section 3(a)): each carries a unit's guid (packed, raw or bit
+                // packed) among stable fields, or is the pet form of CAST_FAILED
+                { SMSG_PERIODICAURALOG,             Rule::Decode },
+                { SMSG_SPELLHEALLOG,                Rule::Decode },
+                { SMSG_SPELLENERGIZELOG,            Rule::Decode },
+                { SMSG_SPELL_COOLDOWN,              Rule::Decode },
+                { SMSG_COOLDOWN_EVENT,              Rule::Decode },
+                { SMSG_CLEAR_COOLDOWNS,             Rule::Decode },
+                { SMSG_SPELL_DELAYED,               Rule::Decode },
+                { SMSG_AURA_UPDATE_ALL,             Rule::Decode },
+                { SMSG_SPELLDISPELLOG,              Rule::Decode },
+                { SMSG_PROCRESIST,                  Rule::Decode },
+                { SMSG_PET_CAST_FAILED,             Rule::Decode },
+                // what a cast's consequences send (D11 PR 2): threat, combat, root
+                { SMSG_THREAT_UPDATE,               Rule::Decode },
+                { SMSG_HIGHEST_THREAT_UPDATE,       Rule::Decode },
+                { SMSG_THREAT_CLEAR,                Rule::Decode },
+                { SMSG_THREAT_REMOVE,               Rule::Decode },
+                { SMSG_AI_REACTION,                 Rule::Decode },
+                { SMSG_ATTACKSTOP,                  Rule::Decode },
+                { SMSG_FORCE_MOVE_ROOT,             Rule::Decode },
+                { SMSG_FORCE_MOVE_UNROOT,           Rule::Decode },
+                { SMSG_CHANNEL_START,               Rule::Decode },
+                { SMSG_CHANNEL_UPDATE,              Rule::Decode },
+                { SMSG_SPELLLOGEXECUTE,             Rule::Decode },
+                { SMSG_PET_SPELLS,                  Rule::Decode },
+                // Player::SendAttackSwingCancelAttack: no payload; Unit::SetStandState: the state
+                // byte; Player::SendTimeSync: the session's sync sequence number
+                { SMSG_CANCEL_COMBAT,               Rule::Hash },
+                { SMSG_STANDSTATE_UPDATE,           Rule::Hash },
+                { SMSG_TIME_SYNC_REQ,               Rule::Hash },
             };
 
             void Append(std::string& out, char const* fmt, uint32 a)
@@ -265,6 +297,10 @@ namespace Harness
             if (guid == roles.caster)
             {
                 return "caster";
+            }
+            if (guid == roles.pet)
+            {
+                return "pet";
             }
             return "other";
         }
@@ -612,6 +648,560 @@ namespace Harness
             return true;
         }
 
+        bool DecodePeriodicAuraLog(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 target = 0, caster = 0;
+            uint32 spell = 0, count = 0, aura = 0;
+            if (!r.Packed(target) || !r.Packed(caster) || !r.U32(spell) || !r.U32(count) || !r.U32(aura))
+            {
+                return false;
+            }
+            char buf[320];
+            snprintf(buf, sizeof(buf), "target=%s caster=%s spell=%u count=%u aura=%u", RoleOf(roles, target), RoleOf(roles, caster),
+                     spell, count, aura);
+            std::string text = buf;
+            switch (aura)
+            {
+                case 3:     // SPELL_AURA_PERIODIC_DAMAGE
+                case 89:    // SPELL_AURA_PERIODIC_DAMAGE_PERCENT
+                {
+                    uint32 damage = 0, overkill = 0, school = 0, absorb = 0, resist = 0;
+                    uint8 critical = 0;
+                    if (!r.U32(damage) || !r.U32(overkill) || !r.U32(school) || !r.U32(absorb) || !r.U32(resist) || !r.U8(critical))
+                    {
+                        return false;
+                    }
+                    snprintf(buf, sizeof(buf), " damage=%u overkill=%u school=%u absorb=%u resist=%u critical=%u", damage, overkill, school,
+                             absorb, resist, uint32(critical));
+                    break;
+                }
+                case 8:     // SPELL_AURA_PERIODIC_HEAL
+                case 20:    // SPELL_AURA_OBS_MOD_HEALTH
+                {
+                    uint32 amount = 0, overheal = 0, absorb = 0;
+                    uint8 critical = 0;
+                    if (!r.U32(amount) || !r.U32(overheal) || !r.U32(absorb) || !r.U8(critical))
+                    {
+                        return false;
+                    }
+                    snprintf(buf, sizeof(buf), " amount=%u overheal=%u absorb=%u critical=%u", amount, overheal, absorb, uint32(critical));
+                    break;
+                }
+                case 21:    // SPELL_AURA_OBS_MOD_MANA
+                case 24:    // SPELL_AURA_PERIODIC_ENERGIZE
+                {
+                    uint32 power = 0, amount = 0;
+                    if (!r.U32(power) || !r.U32(amount))
+                    {
+                        return false;
+                    }
+                    snprintf(buf, sizeof(buf), " power=%u amount=%u", power, amount);
+                    break;
+                }
+                case 64:    // SPELL_AURA_PERIODIC_MANA_LEECH
+                {
+                    uint32 power = 0, amount = 0, multiplier = 0;
+                    if (!r.U32(power) || !r.U32(amount) || !r.U32(multiplier))
+                    {
+                        return false;
+                    }
+                    snprintf(buf, sizeof(buf), " power=%u amount=%u multiplier=0x%08x", power, amount, multiplier);
+                    break;
+                }
+                default:
+                    return false;   // the writer returns before sending any other aura type
+            }
+            if (!r.AtEnd())
+            {
+                return false;
+            }
+            out = text + buf;
+            return true;
+        }
+
+        bool DecodeSpellHealLog(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 target = 0, caster = 0;
+            uint32 spell = 0, heal = 0, overheal = 0, absorb = 0;
+            uint8 critical = 0, unused = 0;
+            if (!r.Packed(target) || !r.Packed(caster) || !r.U32(spell) || !r.U32(heal) || !r.U32(overheal) || !r.U32(absorb) ||
+                !r.U8(critical) || !r.U8(unused) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[256];
+            snprintf(buf, sizeof(buf), "target=%s caster=%s spell=%u heal=%u overheal=%u absorb=%u critical=%u unused=%u",
+                     RoleOf(roles, target), RoleOf(roles, caster), spell, heal, overheal, absorb, uint32(critical), uint32(unused));
+            out = buf;
+            return true;
+        }
+
+        bool DecodeSpellEnergizeLog(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 target = 0, caster = 0;
+            uint32 spell = 0, power = 0, amount = 0;
+            if (!r.Packed(target) || !r.Packed(caster) || !r.U32(spell) || !r.U32(power) || !r.U32(amount) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[192];
+            snprintf(buf, sizeof(buf), "target=%s caster=%s spell=%u power=%u amount=%u", RoleOf(roles, target), RoleOf(roles, caster),
+                     spell, power, amount);
+            out = buf;
+            return true;
+        }
+
+        bool DecodeSpellCooldown(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 owner = 0;
+            uint8 flags = 0;
+            if (!r.U64(owner) || !r.U8(flags))
+            {
+                return false;
+            }
+            std::string text = std::string("owner=") + RoleOf(roles, owner);
+            Append(text, " flags=%u", flags);
+            text += " spells=[";
+            uint32 n = 0;
+            while (!r.AtEnd())
+            {
+                uint32 spell = 0, ms = 0;
+                if (!r.U32(spell) || !r.U32(ms))
+                {
+                    return false;   // a pair cut short: not the writer's layout
+                }
+                text += n++ ? "," : "";
+                Append(text, "%u", spell);
+                Append(text, ":%u", ms);
+            }
+            text += "]";
+            out = text;
+            return true;
+        }
+
+        bool DecodeCooldownEvent(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint32 spell = 0;
+            uint64 owner = 0;
+            if (!r.U32(spell) || !r.U64(owner) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[96];
+            snprintf(buf, sizeof(buf), "spell=%u owner=%s", spell, RoleOf(roles, owner));
+            out = buf;
+            return true;
+        }
+
+        bool DecodeClearCooldowns(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            // The mask and the count are 3 + 24 + 5 = 32 bits, written most significant bit first
+            // (ByteBuffer::WriteBit): four whole bytes, so the byte fields that follow are aligned.
+            Reader r(data, size);
+            uint8 head[4] = { 0, 0, 0, 0 };
+            for (int i = 0; i < 4; ++i)
+            {
+                if (!r.U8(head[i])) { return false; }
+            }
+            const uint32 bits = (uint32(head[0]) << 24) | (uint32(head[1]) << 16) | (uint32(head[2]) << 8) | uint32(head[3]);
+            bool mask[8] = { false, false, false, false, false, false, false, false };
+            mask[1] = (bits >> 31) & 1;
+            mask[3] = (bits >> 30) & 1;
+            mask[6] = (bits >> 29) & 1;
+            const uint32 count = (bits >> 5) & 0xFFFFFF;
+            mask[7] = (bits >> 4) & 1;
+            mask[5] = (bits >> 3) & 1;
+            mask[2] = (bits >> 2) & 1;
+            mask[4] = (bits >> 1) & 1;
+            mask[0] = bits & 1;
+            uint8 g[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+            const int firstBytes[6] = { 7, 2, 4, 5, 1, 3 };
+            for (int i = 0; i < 6; ++i)
+            {
+                if (mask[firstBytes[i]] && !r.U8(g[firstBytes[i]])) { return false; }
+            }
+            std::string ids;
+            for (uint32 i = 0; i < count; ++i)
+            {
+                uint32 spell = 0;
+                if (!r.U32(spell)) { return false; }
+                ids += i ? "," : "";
+                Append(ids, "%u", spell);
+            }
+            const int lastBytes[2] = { 0, 6 };
+            for (int i = 0; i < 2; ++i)
+            {
+                if (mask[lastBytes[i]] && !r.U8(g[lastBytes[i]])) { return false; }
+            }
+            if (!r.AtEnd())
+            {
+                return false;
+            }
+            uint64 guid = 0;
+            for (int i = 0; i < 8; ++i)
+            {
+                if (mask[i])
+                {
+                    guid |= uint64(uint8(g[i] ^ 1)) << (i * 8);
+                }
+            }
+            std::string text = std::string("owner=") + RoleOf(roles, guid);
+            Append(text, " count=%u", count);
+            out = text + " spells=[" + ids + "]";
+            return true;
+        }
+
+        bool DecodeSpellDelayed(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 caster = 0;
+            uint32 delay = 0;
+            if (!r.Packed(caster) || !r.U32(delay) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[96];
+            snprintf(buf, sizeof(buf), "caster=%s delay=%u", RoleOf(roles, caster), delay);
+            out = buf;
+            return true;
+        }
+
+        bool DecodeAuraUpdateAll(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 target = 0;
+            if (!r.Packed(target))
+            {
+                return false;
+            }
+            std::string text = std::string("target=") + RoleOf(roles, target) + " auras=[";
+            uint32 n = 0;
+            while (!r.AtEnd())
+            {
+                uint8 slot = 0, flagsLo = 0, flagsHi = 0, level = 0, stack = 0;
+                uint32 spell = 0;
+                if (!r.U8(slot) || !r.U32(spell) || !r.U8(flagsLo) || !r.U8(flagsHi) || !r.U8(level) || !r.U8(stack))
+                {
+                    return false;
+                }
+                const uint32 flags = uint32(flagsLo) | (uint32(flagsHi) << 8);
+                char buf[160];
+                snprintf(buf, sizeof(buf), "%sslot=%u spell=%u flags=0x%x level=%u stack=%u", n++ ? "; " : "", uint32(slot), spell,
+                         flags, uint32(level), uint32(stack));
+                text += buf;
+                if (!(flags & 0x08))    // AFLAG_NOT_CASTER clear: the caster's packed guid
+                {
+                    uint64 caster = 0;
+                    if (!r.Packed(caster)) { return false; }
+                    text += " caster=";
+                    text += RoleOf(roles, caster);
+                }
+                if (flags & 0x20)       // AFLAG_DURATION: the maximum, then the remaining
+                {
+                    uint32 maxDuration = 0, duration = 0;
+                    if (!r.U32(maxDuration) || !r.U32(duration)) { return false; }
+                    snprintf(buf, sizeof(buf), " dur=%d/%d", int32(duration), int32(maxDuration));
+                    text += buf;
+                }
+                if (flags & 0x40)       // AFLAG_EFFECT_AMOUNT_SEND: one amount per effect bit
+                {
+                    for (uint32 e = 0; e < 3; ++e)
+                    {
+                        if (flags & (1u << e))
+                        {
+                            uint32 amount = 0;
+                            if (!r.U32(amount)) { return false; }
+                            snprintf(buf, sizeof(buf), " amount%u=%d", e, int32(amount));
+                            text += buf;
+                        }
+                    }
+                }
+            }
+            out = text + "]";
+            return true;
+        }
+
+        bool DecodeSpellDispelLog(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 victim = 0, caster = 0;
+            uint32 spell = 0, count = 0;
+            uint8 unused = 0;
+            if (!r.Packed(victim) || !r.Packed(caster) || !r.U32(spell) || !r.U8(unused) || !r.U32(count))
+            {
+                return false;
+            }
+            char buf[192];
+            snprintf(buf, sizeof(buf), "victim=%s caster=%s spell=%u unused=%u count=%u dispelled=[", RoleOf(roles, victim),
+                     RoleOf(roles, caster), spell, uint32(unused), count);
+            std::string text = buf;
+            for (uint32 i = 0; i < count; ++i)
+            {
+                uint32 dispelled = 0;
+                uint8 cleansed = 0;
+                if (!r.U32(dispelled) || !r.U8(cleansed)) { return false; }
+                text += i ? "," : "";
+                Append(text, "%u", dispelled);
+                Append(text, ":%u", cleansed);
+            }
+            if (!r.AtEnd())
+            {
+                return false;
+            }
+            out = text + "]";
+            return true;
+        }
+
+        bool DecodeProcResist(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 caster = 0, target = 0;
+            uint32 spell = 0;
+            uint8 format = 0;
+            if (!r.U64(caster) || !r.U64(target) || !r.U32(spell) || !r.U8(format) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[128];
+            snprintf(buf, sizeof(buf), "caster=%s target=%s spell=%u format=%u", RoleOf(roles, caster), RoleOf(roles, target), spell,
+                     uint32(format));
+            out = buf;
+            return true;
+        }
+
+        namespace
+        {
+            /// The threat list both threat updates end with: the count, then each (packed guid,
+            /// threat), to the end of the payload.
+            bool ThreatList(Reader& r, Roles const& roles, std::string& text)
+            {
+                uint32 count = 0;
+                if (!r.U32(count)) { return false; }
+                Append(text, " count=%u list=[", count);
+                for (uint32 i = 0; i < count; ++i)
+                {
+                    uint64 guid = 0;
+                    uint32 threat = 0;
+                    if (!r.Packed(guid) || !r.U32(threat)) { return false; }
+                    text += i ? "," : "";
+                    text += RoleOf(roles, guid);
+                    Append(text, ":%u", threat);
+                }
+                text += "]";
+                return r.AtEnd();
+            }
+        }
+
+        bool DecodeThreatUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0;
+            if (!r.Packed(unit)) { return false; }
+            std::string text = std::string("unit=") + RoleOf(roles, unit);
+            if (!ThreatList(r, roles, text)) { return false; }
+            out = text;
+            return true;
+        }
+
+        bool DecodeHighestThreatUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0, highest = 0;
+            if (!r.Packed(unit) || !r.Packed(highest)) { return false; }
+            std::string text = std::string("unit=") + RoleOf(roles, unit) + " highest=" + RoleOf(roles, highest);
+            if (!ThreatList(r, roles, text)) { return false; }
+            out = text;
+            return true;
+        }
+
+        bool DecodeThreatClear(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0;
+            if (!r.Packed(unit) || !r.AtEnd()) { return false; }
+            out = std::string("unit=") + RoleOf(roles, unit);
+            return true;
+        }
+
+        bool DecodeThreatRemove(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0, hostile = 0;
+            if (!r.Packed(unit) || !r.Packed(hostile) || !r.AtEnd()) { return false; }
+            out = std::string("unit=") + RoleOf(roles, unit) + " hostile=" + RoleOf(roles, hostile);
+            return true;
+        }
+
+        bool DecodeAiReaction(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0;
+            uint32 reaction = 0;
+            if (!r.U64(unit) || !r.U32(reaction) || !r.AtEnd()) { return false; }
+            out = std::string("unit=") + RoleOf(roles, unit);
+            Append(out, " reaction=%u", reaction);
+            return true;
+        }
+
+        bool DecodeAttackStop(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 attacker = 0, victim = 0;
+            uint32 word = 0;
+            if (!r.Packed(attacker) || !r.Packed(victim) || !r.U32(word) || !r.AtEnd()) { return false; }
+            out = std::string("attacker=") + RoleOf(roles, attacker) + " victim=" + RoleOf(roles, victim);
+            Append(out, " word=%u", word);
+            return true;
+        }
+
+        bool DecodeForceMoveRoot(bool root, uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            // MovementLayouts.inc:1137-1145: the mask bits' order, and the bytes' order with the
+            // counter's place in it (-1).
+            static const int kRootBits[8] = { 2, 7, 6, 0, 5, 4, 1, 3 };
+            static const int kRootBytes[9] = { 1, 0, 2, 5, -1, 3, 4, 7, 6 };
+            static const int kUnrootBits[8] = { 0, 1, 3, 7, 5, 2, 4, 6 };
+            static const int kUnrootBytes[9] = { 3, 6, 1, -1, 2, 0, 7, 4, 5 };
+            int const* bits = root ? kRootBits : kUnrootBits;
+            int const* bytes = root ? kRootBytes : kUnrootBytes;
+            Reader r(data, size);
+            uint8 mask = 0;
+            if (!r.U8(mask)) { return false; }
+            bool set[8] = { false, false, false, false, false, false, false, false };
+            for (int i = 0; i < 8; ++i)
+            {
+                set[bits[i]] = ((mask >> (7 - i)) & 1) != 0;     // ByteBuffer::WriteBit: the first bit is the byte's highest
+            }
+            uint64 guid = 0;
+            uint32 counter = 0;
+            for (int i = 0; i < 9; ++i)
+            {
+                if (bytes[i] < 0)
+                {
+                    if (!r.U32(counter)) { return false; }
+                    continue;
+                }
+                if (set[bytes[i]])
+                {
+                    uint8 b = 0;
+                    if (!r.U8(b)) { return false; }
+                    guid |= uint64(uint8(b ^ 1)) << (bytes[i] * 8);
+                }
+            }
+            if (!r.AtEnd()) { return false; }
+            out = std::string("unit=") + RoleOf(roles, guid);
+            Append(out, " counter=%u", counter);
+            return true;
+        }
+
+        bool DecodeChannelStart(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 caster = 0;
+            uint32 spell = 0, duration = 0;
+            uint8 unk1 = 0, unk2 = 0;
+            if (!r.Packed(caster) || !r.U32(spell) || !r.U32(duration) || !r.U8(unk1) || !r.U8(unk2) || !r.AtEnd())
+            {
+                return false;
+            }
+            char buf[128];
+            snprintf(buf, sizeof(buf), "caster=%s spell=%u duration=%u unk1=%u unk2=%u", RoleOf(roles, caster), spell, duration, uint32(unk1),
+                     uint32(unk2));
+            out = buf;
+            return true;
+        }
+
+        bool DecodeChannelUpdate(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 caster = 0;
+            uint32 time = 0;
+            if (!r.Packed(caster) || !r.U32(time) || !r.AtEnd())
+            {
+                return false;
+            }
+            out = std::string("caster=") + RoleOf(roles, caster);
+            Append(out, " remaining=%u", time);
+            return true;
+        }
+
+        bool DecodeSpellLogExecute(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0;
+            uint32 spell = 0, count1 = 0, effect = 0, count2 = 0;
+            if (!r.Packed(unit) || !r.U32(spell) || !r.U32(count1) || !r.U32(effect) || !r.U32(count2))
+            {
+                return false;
+            }
+            char buf[160];
+            snprintf(buf, sizeof(buf), "unit=%s spell=%u effects=%u effect=%u targets=%u", RoleOf(roles, unit), spell, count1, effect, count2);
+            std::string text = buf;
+            // the words after a unit's guid, by effect (SpellPackets.cpp:617-730)
+            int words = -1;
+            bool guid = true;
+            switch (effect)
+            {
+                case 8:   case 62:   words = 3; break;           // POWER_DRAIN, POWER_BURN: two words and a float
+                case 19:  case 68:   words = 1; break;           // ADD_EXTRA_ATTACKS, INTERRUPT_CAST
+                case 111:            words = 2; break;           // DURABILITY_DAMAGE
+                case 102: case 18: case 113: case 172: words = 0; break;   // DISMISS_PET, the resurrections
+                case 24:  case 59: case 157: case 101: words = 1; guid = false; break;   // the create-item effects, FEED_PET: an entry
+                default:
+                    return false;
+            }
+            if (guid)
+            {
+                uint64 target = 0;
+                if (!r.Packed(target)) { return false; }
+                text += std::string(" target=") + RoleOf(roles, target);
+            }
+            for (int i = 0; i < words; ++i)
+            {
+                uint32 w = 0;
+                if (!r.U32(w)) { return false; }
+                Append(text, i ? ",%u" : " words=%u", w);
+            }
+            if (!r.AtEnd())
+            {
+                return false;
+            }
+            out = text;
+            return true;
+        }
+
+        bool DecodePetSpells(uint8 const* data, size_t size, Roles const& roles, std::string& out)
+        {
+            Reader r(data, size);
+            uint64 unit = 0;
+            if (!r.U64(unit)) { return false; }
+            std::string text = std::string("unit=") + RoleOf(roles, unit);
+            if (r.AtEnd())
+            {
+                out = text;         // the empty-guid form: the action bar cleared
+                return true;
+            }
+            const size_t from = r.Pos();
+            // family (2), a word (4), react, command and two bytes (4), the ten action-bar words
+            if (!r.Skip(2 + 4 + 4 + 4 * 10)) { return false; }
+            uint8 spells = 0, cooldowns = 0;
+            if (!r.U8(spells) || !r.Skip(4 * size_t(spells)) || !r.U8(cooldowns) || cooldowns != 0 || !r.AtEnd())
+            {
+                return false;
+            }
+            const size_t rest = size - from;
+            Append(text, " spells=%u", spells);
+            Append(text, " rest=%u", uint32(rest));
+            text += " restfnv=" + Hex32(Fnv1a(data + from, rest));
+            out = text;
+            return true;
+        }
+
         std::string PacketRecord(uint16 opcode, char const* name, uint8 const* data, size_t size, bool unhandled, Roles const& roles)
         {
             std::string text = name ? name : "?";
@@ -652,6 +1242,29 @@ namespace Harness
                 case SMSG_SPELL_FAILURE:              decoded = DecodeSpellFailure(data, size, roles, fields); break;
                 case SMSG_SPELL_FAILED_OTHER:         decoded = DecodeSpellFailure(data, size, roles, fields); break;
                 case SMSG_CAST_FAILED:                decoded = DecodeCastFailed(data, size, fields); break;
+                case SMSG_PET_CAST_FAILED:            decoded = DecodeCastFailed(data, size, fields); break;
+                case SMSG_PERIODICAURALOG:            decoded = DecodePeriodicAuraLog(data, size, roles, fields); break;
+                case SMSG_SPELLHEALLOG:               decoded = DecodeSpellHealLog(data, size, roles, fields); break;
+                case SMSG_SPELLENERGIZELOG:           decoded = DecodeSpellEnergizeLog(data, size, roles, fields); break;
+                case SMSG_SPELL_COOLDOWN:             decoded = DecodeSpellCooldown(data, size, roles, fields); break;
+                case SMSG_COOLDOWN_EVENT:             decoded = DecodeCooldownEvent(data, size, roles, fields); break;
+                case SMSG_CLEAR_COOLDOWNS:            decoded = DecodeClearCooldowns(data, size, roles, fields); break;
+                case SMSG_SPELL_DELAYED:              decoded = DecodeSpellDelayed(data, size, roles, fields); break;
+                case SMSG_AURA_UPDATE_ALL:            decoded = DecodeAuraUpdateAll(data, size, roles, fields); break;
+                case SMSG_SPELLDISPELLOG:             decoded = DecodeSpellDispelLog(data, size, roles, fields); break;
+                case SMSG_PROCRESIST:                 decoded = DecodeProcResist(data, size, roles, fields); break;
+                case SMSG_THREAT_UPDATE:              decoded = DecodeThreatUpdate(data, size, roles, fields); break;
+                case SMSG_HIGHEST_THREAT_UPDATE:      decoded = DecodeHighestThreatUpdate(data, size, roles, fields); break;
+                case SMSG_THREAT_CLEAR:               decoded = DecodeThreatClear(data, size, roles, fields); break;
+                case SMSG_THREAT_REMOVE:              decoded = DecodeThreatRemove(data, size, roles, fields); break;
+                case SMSG_AI_REACTION:                decoded = DecodeAiReaction(data, size, roles, fields); break;
+                case SMSG_ATTACKSTOP:                 decoded = DecodeAttackStop(data, size, roles, fields); break;
+                case SMSG_FORCE_MOVE_ROOT:            decoded = DecodeForceMoveRoot(true, data, size, roles, fields); break;
+                case SMSG_FORCE_MOVE_UNROOT:          decoded = DecodeForceMoveRoot(false, data, size, roles, fields); break;
+                case SMSG_CHANNEL_START:              decoded = DecodeChannelStart(data, size, roles, fields); break;
+                case SMSG_CHANNEL_UPDATE:             decoded = DecodeChannelUpdate(data, size, roles, fields); break;
+                case SMSG_SPELLLOGEXECUTE:            decoded = DecodeSpellLogExecute(data, size, roles, fields); break;
+                case SMSG_PET_SPELLS:                 decoded = DecodePetSpells(data, size, roles, fields); break;
                 default: break;
             }
             if (!decoded)

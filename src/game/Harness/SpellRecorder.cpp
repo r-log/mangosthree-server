@@ -25,6 +25,7 @@
 
 #include "SpellRecorder.h"
 #include "Player.h"
+#include "Creature.h"
 #include "Map.h"
 #include "Spell.h"
 #include "SpellAuras.h"
@@ -63,6 +64,7 @@ namespace Harness
         Trace::Roles roles;
         roles.target = watch.target.GetRawValue();
         roles.caster = watch.caster.GetRawValue();
+        roles.pet = watch.pet.GetRawValue();
         Start(scenario, player, roles);
     }
 
@@ -140,6 +142,25 @@ namespace Harness
             }
             s.sets.push_back(std::make_pair(k + "cooldowns", keys));
         }
+
+        // A creature's own cooldown model (decoupling D11 PR 2, scenario 938): the stored keys of
+        // the spell map and of the category map, never their values -- the spell map holds the
+        // wall-clock end, the category map the wall-clock start (CreatureSpellCooldown.cpp:44-82).
+        if (m_watch.creatureCooldowns && unit->GetTypeId() == TYPEID_UNIT)
+        {
+            Creature const* c = static_cast<Creature const*>(unit);
+            std::set<uint32> spells, categories;
+            for (auto i = c->m_CreatureSpellCooldowns.begin(); i != c->m_CreatureSpellCooldowns.end(); ++i)
+            {
+                spells.insert(i->first);
+            }
+            for (auto i = c->m_CreatureCategoryCooldowns.begin(); i != c->m_CreatureCategoryCooldowns.end(); ++i)
+            {
+                categories.insert(i->first);
+            }
+            s.sets.push_back(std::make_pair(k + "creatureSpellCooldowns", spells));
+            s.sets.push_back(std::make_pair(k + "creatureCategoryCooldowns", categories));
+        }
     }
 
     Recorder::State SpellRecorder::Take() const
@@ -153,6 +174,10 @@ namespace Harness
         if (m_watch.caster)
         {
             TakeUnit("caster", UnitIn(m_watch.caster), s);
+        }
+        if (m_watch.pet)
+        {
+            TakeUnit("pet", UnitIn(m_watch.pet), s);
         }
         return s;
     }
@@ -181,6 +206,10 @@ namespace Harness
         if (m_watch.caster)
         {
             out += " " + MiniUnit("caster", UnitIn(m_watch.caster));
+        }
+        if (m_watch.pet)
+        {
+            out += " " + MiniUnit("pet", UnitIn(m_watch.pet));
         }
         return out;
     }

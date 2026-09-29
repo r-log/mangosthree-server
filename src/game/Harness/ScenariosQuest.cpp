@@ -159,24 +159,6 @@ namespace Harness
             return slot < MAX_QUEST_LOG_SIZE ? p->GetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_STATE_OFFSET) : 0xFFFFFFFF;
         }
 
-        /// The `.reset level` sequence (PlayerMiscCommands.cpp, HandleResetLevelCommand) to `level`
-        /// instead of the start level: the level-scaled item mods off, SetLevel, InitRunes,
-        /// InitStatsForLevel(true), the taxi nodes, glyphs and talents for the level, XP 0, the mods
-        /// back on. It reaches neither GiveLevel's REACH_LEVEL criteria nor its level mail. The
-        /// command's sCharacterCache.UpdateLevel is left out: the cache holds no harness guid, so
-        /// it does nothing (CharacterCache.cpp), and the harness keeps out of global state.
-        void SetLevelAsResetDoes(Player* p, uint32 level)
-        {
-            p->_ApplyAllLevelScaleItemMods(false);
-            p->SetLevel(level);
-            p->InitRunes();
-            p->InitStatsForLevel(true);
-            p->InitTaxiNodesForLevel();
-            p->InitGlyphsForLevel();
-            p->InitTalentForLevel();
-            p->SetUInt32Value(PLAYER_XP, 0);
-            p->_ApplyAllLevelScaleItemMods(true);
-        }
     }
 
     /**
