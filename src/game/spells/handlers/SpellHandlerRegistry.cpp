@@ -36,7 +36,7 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
     {
         SpellHandlerRegistry built;
         uint32 rows = RegisterAuraDummyHandlers(built);
-        MANGOS_ASSERT(rows == built.Count());                  // no (site, spell id) registered twice
+        MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();
     return registry;
