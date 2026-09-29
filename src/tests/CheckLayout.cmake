@@ -2,9 +2,11 @@
 # C/C++ file under src/ has a layer (the page's RULES table), and every `#include "..."` is an
 # edge that section 1's "may include" table allows, goes against, or runs sideways between two
 # domain directories; an edge into the two gated seams (entities/player, spells/aura) from another
-# domain directory counts as against the rule. The edges that are against the rule or sideways
-# today are listed, keyed per includer file and header, in src/tests/layout_allow.txt: a new one
-# fails, and so does a listed one that is gone -- an edge leaves the list in the PR that removes it.
+# domain directory or from the seam's own peer counts as against the rule. The edges that are
+# against the rule or into a seam today are listed in src/tests/layout_allow.txt keyed per includer
+# file and header, the sideways ones keyed per includer directory and header: a new key fails, and
+# so does a listed one that is gone -- an edge leaves the list in the PR that removes it. An
+# against or seam line may change its includer file when the header's count does not grow.
 # A file no rule classifies, a quoted header the tree does not have and a scan that reads nothing
 # fail as well.
 #
@@ -75,7 +77,11 @@ if(NOT LAYOUT_RESULT EQUAL 0)
         "What each failure above asks for:\n"
         "  - a new edge against the rule, into a gated seam, or sideways between two domain directories: "
         "remove the include (forward-declare, move it to the .cpp, or move the code to its layer); "
-        "never add it to src/tests/layout_allow.txt.\n"
+        "never add it to src/tests/layout_allow.txt. A sideways pair is keyed by the includer's directory: a new "
+        "file in a listed directory including a listed header is not new; a file moved to a directory of its own "
+        "is, and the PR that moves it regenerates the list.\n"
+        "  - moved: an against-the-rule or seam include went from one includer file to another and the header's "
+        "count did not grow: replace the old line with the new one it names (or --generate).\n"
         "  - an allow-list line whose edge is gone or allowed now: delete the line (the PR that removes an "
         "edge removes its line; --generate rewrites the list).\n"
         "  - a file no RULES row classifies: give its directory a layer in layout_gate.py's RULES and in the "
