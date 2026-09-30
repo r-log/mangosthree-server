@@ -175,6 +175,54 @@ static SpellHandlerOutcome<void> AuraDummyUnrelentingAssaultDefault(AuraDummyUnr
     return SpellHandlerOutcome<void>::Continue();
 }
 
+/// AT REMOVE 41099: Battle Stance
+static SpellHandlerOutcome<void> AuraDummyRemove41099(AuraDummyRemoveContext& ctx)
+{
+    // Battle Aura
+    ctx.target->RemoveAurasDueToSpell(41106);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 41100: Berserker Stance
+static SpellHandlerOutcome<void> AuraDummyRemove41100(AuraDummyRemoveContext& ctx)
+{
+    // Berserker Aura
+    ctx.target->RemoveAurasDueToSpell(41107);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 41101: Defensive Stance
+static SpellHandlerOutcome<void> AuraDummyRemove41101(AuraDummyRemoveContext& ctx)
+{
+    // Defensive Aura
+    ctx.target->RemoveAurasDueToSpell(41105);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 53790: Defensive Stance
+static SpellHandlerOutcome<void> AuraDummyRemove53790(AuraDummyRemoveContext& ctx)
+{
+    // Defensive Aura
+    ctx.target->RemoveAurasDueToSpell(41105);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 53791: Berserker Stance
+static SpellHandlerOutcome<void> AuraDummyRemove53791(AuraDummyRemoveContext& ctx)
+{
+    // Berserker Aura
+    ctx.target->RemoveAurasDueToSpell(41107);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 53792: Battle Stance
+static SpellHandlerOutcome<void> AuraDummyRemove53792(AuraDummyRemoveContext& ctx)
+{
+    // Battle Aura
+    ctx.target->RemoveAurasDueToSpell(41106);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// SPELLFAMILY_DRUID 52610: Savage Roar
 static SpellHandlerOutcome<void> AuraDummyDruid52610(AuraDummyApplyRemoveContext& ctx)
 {
@@ -278,6 +326,16 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 46860, &AuraDummyUnrelentingAssault46860 },
     };
 
+    static AuraDummyRow<AuraDummyRemoveSite> const stanceRemoval[] =
+    {
+        { 41099, &AuraDummyRemove41099 },
+        { 41100, &AuraDummyRemove41100 },
+        { 41101, &AuraDummyRemove41101 },
+        { 53790, &AuraDummyRemove53790 },
+        { 53791, &AuraDummyRemove53791 },
+        { 53792, &AuraDummyRemove53792 },
+    };
+
     static AuraDummyRow<AuraDummyDruidSite> const druid[] =
     {
         { 52610, &AuraDummyDruid52610 },
@@ -295,6 +353,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
     rows += RegisterAuraDummyRows(registry, unrelentingAssault);
     registry.RegisterDefault<AuraDummyUnrelentingAssaultSite>(&AuraDummyUnrelentingAssaultDefault);
     ++rows;
+    rows += RegisterAuraDummyRows(registry, stanceRemoval);
     rows += RegisterAuraDummyRows(registry, druid);
     rows += RegisterAuraDummyRows(registry, improvedMoonkin);
     registry.RegisterDefault<AuraDummyImprovedMoonkinSite>(&AuraDummyImprovedMoonkinDefault);
