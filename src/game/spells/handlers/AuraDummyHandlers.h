@@ -127,6 +127,15 @@ struct AuraDummyApplyRemoveContext
     bool const apply;   ///< the function's parameter `apply`, which no body writes
 };
 
+/// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_GENERIC's `switch (GetId())`: no `default:`; a miss
+/// runs the switch that still holds the other labels.
+struct AuraDummyApplyRemoveGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_REMOVE_GENERIC;
+    typedef void Value;
+    typedef AuraDummyApplyRemoveContext Context;
+};
+
 /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_DRUID's `switch (GetId())`: no
 /// `default:`, so a miss continues at the Lifebloom, Predatory Strikes and Improved Moonkin Form
 /// blocks after it.
