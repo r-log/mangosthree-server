@@ -2123,9 +2123,9 @@ bool ChatHandler::HandleDebugMovementDumpCommand(char* args)
     Motion::Arbiter const& arbiter = mm->Arbiter();
     std::vector<Motion::Held> contents = arbiter.Contents();
     std::optional<Motion::Held> selected = arbiter.Selected();
-    PSendSysMessage("movement of %s: %u held, selected %s, generation %u",
+    PSendSysMessage("movement of %s: %u held, selected %s",
                     unit->GetGuidStr().c_str(), uint32(contents.size()),
-                    selected ? Motion::KindName(selected->kind) : "none", arbiter.Generation());
+                    selected ? Motion::KindName(selected->kind) : "none");
     Motion::MobilityDecision decision = mm->Mobility();
     std::string reasons;
     static char const* const reasonNames[] = { "Rooted", "Stunned", "Dead", "Possessed", "Feared", "Confused", "Distracted", "OnTaxi" };
@@ -2163,7 +2163,7 @@ bool ChatHandler::HandleDebugMovementDumpCommand(char* args)
     for (size_t i = 0; i < decisions.size(); ++i)
     {
         Motion::Decision const& d = decisions[i];
-        PSendSysMessage("  #%u g%u %s %s id %u: %s -> %s", uint32(i), d.generation, Motion::OpName(d.op), Motion::KindName(d.kind), d.id,
+        PSendSysMessage("  #%u %s %s id %u: %s -> %s", uint32(i), Motion::OpName(d.op), Motion::KindName(d.kind), d.id,
                         d.hadBefore ? Motion::KindName(d.before.kind) : "-", d.hadAfter ? Motion::KindName(d.after.kind) : "-");
     }
     return true;

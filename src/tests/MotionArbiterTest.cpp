@@ -690,7 +690,7 @@ TEST(MotionArbiter_EventRow_CombatStartedLeavesOtherLayers)
     CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
 }
 
-TEST(MotionArbiter_Generations_RequestDuringNormalCompletionSurvives)
+TEST(MotionArbiter_Discarding_RequestDuringNormalCompletionIsTaken)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -705,7 +705,7 @@ TEST(MotionArbiter_Generations_RequestDuringNormalCompletionSurvives)
     CHECK(m.Command(Layer::Distract));
 }
 
-TEST(MotionArbiter_Generations_RequestDuringClearAllIsDiscardedAtCommit)
+TEST(MotionArbiter_Discarding_RequestDuringClearAllIsRefused)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -715,17 +715,17 @@ TEST(MotionArbiter_Generations_RequestDuringClearAllIsDiscardedAtCommit)
         Transaction tx(m, TransactionKind::ClearAll);
         m.Clear(true);
         m.Request(Req(Kind::AssistDistract));         // the run's finisher -> MoveSeekAssistanceDistract
-        CHECK_EQ(SelectedKind(m), K(Kind::AssistDistract));   // visible during the hook
+        CHECK(m.Empty());                             // refused at the door, as DirectClean popped what a finalizer pushed
         CHECK(m.InDiscardingTransaction());
     }
-    CHECK(m.Empty());                                 // gone at commit, as DirectClean keeps clearing
+    CHECK(m.Empty());
     std::vector<Event> ev = m.DrainEvents();
     CHECK(HasFinished(ev, Kind::Point, 0, FinishReason::Cleared));
-    CHECK(HasFinished(ev, Kind::AssistDistract, 0, FinishReason::Cleared));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::AssistDistract), 0);   // never held: nothing to finish
     CHECK(!m.InDiscardingTransaction());
 }
 
-TEST(MotionArbiter_Generations_RequestDuringClearDropsDefaultAndCommand)
+TEST(MotionArbiter_Discarding_RequestDuringClearRefusesDefaultAndCommand)
 {
     Arbiter m;
     m.InstallDefault(Kind::Idle);
@@ -734,37 +734,36 @@ TEST(MotionArbiter_Generations_RequestDuringClearDropsDefaultAndCommand)
     {
         Transaction tx(m, TransactionKind::Clear);
         m.Clear(false);
-        m.Request(Req(Kind::Patrol));                 // a finalizer swapping the default: popped, as DirectClean pops it
-        m.Request(Req(Kind::Point, 6));               // a finalizer's point: dropped
-        CHECK_EQ(SelectedKind(m), K(Kind::Point));    // visible while the hook runs
+        m.Request(Req(Kind::Patrol));                 // a finalizer swapping the default: refused, as DirectClean popped it
+        m.Request(Req(Kind::Point, 6));               // a finalizer's point: refused
+        CHECK_EQ(SelectedKind(m), K(Kind::Idle));     // the factory default, untouched while the hook runs
     }
-    CHECK_EQ(SelectedKind(m), K(Kind::Idle));         // the factory default beneath
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));
     CHECK_EQ(Size(m), 1);
     CHECK(!m.Command(Layer::Scripted));
     std::vector<Event> ev = m.DrainEvents();
-    CHECK(HasFinished(ev, Kind::Point, 6, FinishReason::Cleared));
-    CHECK(HasFinished(ev, Kind::Patrol, 0, FinishReason::Cleared));
+    CHECK(HasFinished(ev, Kind::Point, 5, FinishReason::Cleared));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Patrol), 0);
+    CHECK_EQ(CountEvents(ev, Event::Kind::DefaultSwapped, Kind::Idle), 0);   // the default never swapped
 }
 
-TEST(MotionArbiter_Generations_NestedTransactionJoinsOutermost)
+TEST(MotionArbiter_Discarding_NestedTransactionJoinsOutermost)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
-    const uint32 g0 = m.Generation();
     {
         Transaction outer(m, TransactionKind::Death);
-        const uint32 g1 = m.Generation();
-        CHECK(g1 != g0);
         {
             Transaction inner(m, TransactionKind::Normal);
-            CHECK_EQ(static_cast<int>(m.Generation()), static_cast<int>(g1));
             CHECK(m.InDiscardingTransaction());       // the outermost decides
-            m.Request(Req(Kind::Chase));
+            m.Request(Req(Kind::Chase));              // refused under the outer death
+            CHECK(!m.Combat());
         }
-        CHECK(m.Combat());                            // the inner commit swept nothing
+        CHECK(m.InDiscardingTransaction());           // the inner guard closing changes nothing
     }
-    CHECK(!m.Combat());                               // the outer one did
-    CHECK(HasFinished(m.DrainEvents(), Kind::Chase, 0, FinishReason::Died));
+    CHECK(!m.Combat());
+    CHECK(!m.InDiscardingTransaction());
+    CHECK_EQ(CountEvents(m.DrainEvents(), Event::Kind::Finished, Kind::Chase), 0);
 }
 
 TEST(MotionArbiter_Death_FinishesEverythingDied_ModelEmpty)
@@ -790,7 +789,7 @@ TEST(MotionArbiter_Death_FinishesEverythingDied_ModelEmpty)
     CHECK_EQ(CountEvents(ev, Event::Kind::Resumed, Kind::Chase), 0);
 }
 
-TEST(MotionArbiter_Death_RequestDuringDeathDiscarded)
+TEST(MotionArbiter_Death_RequestDuringDeathRefused)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -799,27 +798,19 @@ TEST(MotionArbiter_Death_RequestDuringDeathDiscarded)
     {
         Transaction tx(m, TransactionKind::Death);
         m.Die();
-        m.Request(Req(Kind::Chase));                  // a finalizer re-engaging while still alive
-        CHECK(m.Combat());
-        m.Request(Req(Kind::Follow));                 // and a default request that overrides nothing
-        CHECK(m.Default());
+        m.Request(Req(Kind::Chase));                  // a finalizer re-engaging while still alive: refused
+        CHECK(!m.Combat());
+        m.Request(Req(Kind::Follow));                 // and a default request: refused
+        CHECK(!m.Default());
     }
     CHECK(m.Empty());
     std::vector<Event> ev = m.DrainEvents();
-    int chaseDied = 0;
-    for (Event const& e : ev)
-    {
-        if (e.kind == Event::Kind::Finished && e.who == Kind::Chase && e.reason == FinishReason::Died)
-        {
-            ++chaseDied;
-        }
-    }
-    CHECK_EQ(chaseDied, 2);                           // once by Die, once by the sweep
-    CHECK(HasFinished(ev, Kind::Follow, 0, FinishReason::Died));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 1);   // by Die alone
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Follow), 0);
     CHECK(HasFinished(ev, Kind::Wander, 0, FinishReason::Died));
 }
 
-TEST(MotionArbiter_Death_TwoDefaultRequestsDuringDeathBothDiscarded)
+TEST(MotionArbiter_Death_TwoDefaultRequestsDuringDeathBothRefused)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -827,17 +818,17 @@ TEST(MotionArbiter_Death_TwoDefaultRequestsDuringDeathBothDiscarded)
     {
         Transaction tx(m, TransactionKind::Death);
         m.Die();
-        m.Request(Req(Kind::Wander));                 // a finalizer's default
-        m.Request(Req(Kind::Patrol));                 // and another, retaining the first as fallback
-        CHECK_EQ(SelectedKind(m), K(Kind::Patrol));
+        m.Request(Req(Kind::Wander));                 // a finalizer's default: refused
+        m.Request(Req(Kind::Patrol));                 // and another: refused
+        CHECK(m.Empty());
     }
     CHECK(m.Empty());
     std::vector<Event> ev = m.DrainEvents();
-    CHECK(HasFinished(ev, Kind::Patrol, 0, FinishReason::Died));
-    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Wander), 2);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Patrol), 0);
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Wander), 1);   // by Die alone
 }
 
-TEST(MotionArbiter_Death_NestedInNormalStillDiscards)
+TEST(MotionArbiter_Death_NestedInNormalStillRefuses)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -846,13 +837,13 @@ TEST(MotionArbiter_Death_NestedInNormalStillDiscards)
         Transaction outer(m, TransactionKind::Normal);   // the shell delivering a completion
         m.Die();                                          // the hook killed the unit
         CHECK(m.InDiscardingTransaction());
-        m.Request(Req(Kind::Chase));                      // a finalizer re-engaging while still alive
-        CHECK(m.Combat());
+        m.Request(Req(Kind::Chase));                      // a finalizer re-engaging while still alive: refused
+        CHECK(!m.Combat());
     }
     CHECK(m.Empty());
     CHECK(!m.InDiscardingTransaction());
     std::vector<Event> ev = m.DrainEvents();
-    CHECK(HasFinished(ev, Kind::Chase, 0, FinishReason::Died));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 0);
     CHECK(HasFinished(ev, Kind::Wander, 0, FinishReason::Died));
 }
 
@@ -875,7 +866,6 @@ TEST(MotionArbiter_Ring_RecordsBeforeAndAfter)
     CHECK(d[1].hadBefore);
     CHECK_EQ(K(d[1].before.kind), K(Kind::Wander));
     CHECK_EQ(K(d[1].after.kind), K(Kind::Point));
-    CHECK(d[1].generation > d[0].generation);
     m.Die();
     d = m.Decisions();
     CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Die));
@@ -897,28 +887,26 @@ TEST(MotionArbiter_Ring_WrapsAt32)
     CHECK_EQ(static_cast<int>(d.back().id), 40);
 }
 
-TEST(MotionArbiter_Generations_LaterDiscardingGuardSweepsOnlyItsOwn)
+TEST(MotionArbiter_Discarding_GuardThatClearsNothingRefusesAndKeepsWhatIsHeld)
 {
     Arbiter m;
     m.InstallDefault(Kind::Idle);
     {
         Transaction tx(m, TransactionKind::Clear);
-        m.Request(Req(Kind::Patrol));                 // doomed, popped at this commit
+        m.Request(Req(Kind::Patrol));                 // refused
     }
     CHECK_EQ(SelectedKind(m), K(Kind::Idle));
     m.DrainEvents();
     {
-        Transaction tx(m, TransactionKind::ClearAll); // a later discarding guard that clears nothing itself
-        m.Request(Req(Kind::Point, 1));
+        Transaction tx(m, TransactionKind::ClearAll); // a discarding guard that clears nothing itself
+        m.Request(Req(Kind::Point, 1));               // refused
     }
-    CHECK_EQ(SelectedKind(m), K(Kind::Idle));         // the factory default was never this guard's to sweep
+    CHECK_EQ(SelectedKind(m), K(Kind::Idle));         // what was held before the guard stays held
     CHECK(!m.Empty());
-    std::vector<Event> ev = m.DrainEvents();
-    CHECK(HasFinished(ev, Kind::Point, 1, FinishReason::Cleared));
-    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Idle), 0);
+    CHECK_EQ(static_cast<int>(m.DrainEvents().size()), 0);
 }
 
-TEST(MotionArbiter_Generations_NestedClearDoomsWhileOpen)
+TEST(MotionArbiter_Discarding_NestedClearRefusesWhileOpen)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -930,19 +918,19 @@ TEST(MotionArbiter_Generations_NestedClearDoomsWhileOpen)
             Transaction clear(m, TransactionKind::Clear); // the shell's Clear(false) scope
             m.Clear(false);
             CHECK(m.InDiscardingTransaction());
-            m.Request(Req(Kind::Chase, 7));               // a finalizer re-engaging while the clear is open
-            CHECK(m.Combat());
+            m.Request(Req(Kind::Chase, 7));               // a finalizer re-engaging while the clear is open: refused
+            CHECK(!m.Combat());
         }
         CHECK(!m.InDiscardingTransaction());              // the nested clear closed: the outer kind is Normal again
     }
-    CHECK(!m.Combat());                                    // swept at the outermost commit
+    CHECK(!m.Combat());
     std::vector<Event> ev = m.DrainEvents();
     CHECK(HasFinished(ev, Kind::Chase, 0, FinishReason::Cleared));
-    CHECK(HasFinished(ev, Kind::Chase, 7, FinishReason::Cleared));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 1);
     CHECK(m.Default() && m.Default()->kind == Kind::Wander);
 }
 
-TEST(MotionArbiter_Generations_RequestAfterNestedClearSurvives)
+TEST(MotionArbiter_Discarding_RequestAfterNestedClearIsTaken)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -963,7 +951,7 @@ TEST(MotionArbiter_Generations_RequestAfterNestedClearSurvives)
     CHECK(!HasFinished(ev, Kind::Home, 0, FinishReason::Cleared));
 }
 
-TEST(MotionArbiter_Generations_DeathInsideNestedClearStaysDeath)
+TEST(MotionArbiter_Discarding_DeathInsideNestedClearStaysDeath)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -975,15 +963,16 @@ TEST(MotionArbiter_Generations_DeathInsideNestedClearStaysDeath)
             m.Die();                                       // a finalizer killed the unit during the clear
         }
         CHECK(m.InDiscardingTransaction());                // Death is sticky past the clear's end
-        m.Request(Req(Kind::Chase));                       // requested after the clear closed, still dead
+        m.Request(Req(Kind::Chase));                       // requested after the clear closed, still dead: refused
+        CHECK(m.Empty());
     }
     CHECK(m.Empty());
     std::vector<Event> ev = m.DrainEvents();
     CHECK(HasFinished(ev, Kind::Wander, 0, FinishReason::Died));
-    CHECK(HasFinished(ev, Kind::Chase, 0, FinishReason::Died));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Chase), 0);
 }
 
-TEST(MotionArbiter_Generations_NestedClearAllInsideClearRevertsToClear)
+TEST(MotionArbiter_Discarding_NestedClearAllInsideClearRevertsToClear)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
@@ -998,13 +987,14 @@ TEST(MotionArbiter_Generations_NestedClearAllInsideClearRevertsToClear)
                 CHECK(m.Empty());
             }
             CHECK(m.InDiscardingTransaction());            // back to the enclosing clear, still discarding
-            m.Request(Req(Kind::Point, 3));                // doomed by the clear that is still open
+            m.Request(Req(Kind::Point, 3));                // refused by the clear that is still open
+            CHECK(m.Empty());
         }
         CHECK(!m.InDiscardingTransaction());
     }
     std::vector<Event> ev = m.DrainEvents();
     CHECK(HasFinished(ev, Kind::Wander, 0, FinishReason::Cleared));
-    CHECK(HasFinished(ev, Kind::Point, 3, FinishReason::Cleared));
+    CHECK_EQ(CountEvents(ev, Event::Kind::Finished, Kind::Point), 0);
 }
 
 TEST(MotionArbiter_Death_InstallDefaultInsideDeathGuardSurvives)
@@ -1189,7 +1179,7 @@ TEST(MotionArbiter_InstallDefault_DropsFallback)
     CHECK_EQ(Size(m), 1);
 }
 
-TEST(MotionArbiter_Ring_CommitRecordsOnlyWhenItSwept)
+TEST(MotionArbiter_Ring_RefusedRequestIsRecordedAsRefused)
 {
     Arbiter m;
     m.EnableRing();
@@ -1199,12 +1189,15 @@ TEST(MotionArbiter_Ring_CommitRecordsOnlyWhenItSwept)
         m.Request(Req(Kind::Point, 1));
     }
     std::vector<Decision> d = m.Decisions();
-    REQUIRE(static_cast<int>(d.size()) == 3);         // InstallDefault, Request, Commit
-    CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Commit));
+    REQUIRE(static_cast<int>(d.size()) == 2);         // InstallDefault, Refused
+    CHECK_EQ(static_cast<int>(d.back().op), static_cast<int>(Decision::Op::Refused));
+    CHECK_EQ(K(d.back().kind), K(Kind::Point));
+    CHECK(d.back().hadBefore && d.back().hadAfter);   // the selection is untouched on both sides
+    CHECK_EQ(K(d.back().after.kind), K(Kind::Idle));
     {
-        Transaction tx(m, TransactionKind::ClearAll); // nothing created, nothing swept, nothing recorded
+        Transaction tx(m, TransactionKind::ClearAll); // nothing asked, nothing recorded
     }
-    CHECK_EQ(static_cast<int>(m.Decisions().size()), 3);
+    CHECK_EQ(static_cast<int>(m.Decisions().size()), 2);
 }
 
 TEST(MotionArbiter_Ring_RefusedClaimStillRecorded)

@@ -37,8 +37,8 @@
  * The movement kernel's arbiter (design v2 §4): which behaviour a unit runs,
  * and why the others stopped. Seven layers, one entry each except Control,
  * which holds a set of claims by identity (§4.1); three policies between
- * them (§4.2); every public operation is a transaction whose generation
- * decides whether a request issued from inside a hook survives (§4.3); a
+ * them (§4.2); every public operation is a transaction whose kind decides
+ * whether a request issued from inside a hook is taken or refused (§4.3); a
  * fixed ring of decisions for the GM dump. Nothing here knows a unit, a
  * driver, a map or a clock: the shell above (P3-B) delivers the events this
  * class accumulates and tells it when a leg or a timer ended.
@@ -75,8 +75,8 @@ namespace Motion
     /// Kernel-external events the policy table maps (§4.2 event rows).
     enum class ExternalEvent : uint8 { CombatStarted };
 
-    /// What the outermost transaction is, which decides the fate of requests
-    /// issued from inside it (§4.3 generations).
+    /// What the outermost transaction is, which decides whether a request issued from
+    /// inside it is taken or refused (§4.3).
     enum class TransactionKind : uint8 { Normal, Clear, ClearAll, Death };
 
     Layer       LayerOf(Kind kind);                      ///< the §4.1 table
@@ -98,13 +98,11 @@ namespace Motion
     /// One held entry, wherever it sits.
     struct Held
     {
-        Held() : kind(Kind::Idle), id(0), seq(0), claim(0), generation(0), doomed(false), started(false) {}
+        Held() : kind(Kind::Idle), id(0), seq(0), claim(0), started(false) {}
         Kind   kind;
         uint32 id;         ///< MovementInform id, 0 when none
         uint32 seq;        ///< arrival order; newest wins ties and tells a resume from a fresh start
         uint64 claim;      ///< Control entries only, else 0
-        uint32 generation; ///< the transaction that created it
-        bool   doomed;     ///< created inside a discarding transaction: finished at its commit
         bool   started;    ///< it has been the selection at least once
     };
 
@@ -126,7 +124,7 @@ namespace Motion
         enum class Op : uint8
         {
             InstallDefault, Request, Clear, ClearAll, ExpireSelected, Expire, FinishSelected,
-            CancelControl, Release, Notify, Die, Commit, Inhibit, Uninhibit, Refused
+            CancelControl, Release, Notify, Die, Inhibit, Uninhibit, Refused
         };
         Op           op;
         Motion::Kind kind;        ///< the operation's kind argument (Idle when none)
@@ -136,7 +134,6 @@ namespace Motion
         Held         before;
         bool         hadAfter;
         Held         after;
-        uint32       generation;
     };
 
     char const* OpName(Decision::Op op);
@@ -144,15 +141,14 @@ namespace Motion
     class Arbiter;
 
     /**
-     * The scope of one mutation (§4.3). The outermost guard sets the kind and
-     * advances the generation; nested guards join it. When the outermost one
-     * ends, entries created inside a discarding kind (Clear, ClearAll, Death)
-     * are finished: this is how a request a finalizer issues during a clear or
-     * a death is visible while the hook runs and gone when the operation ends.
-     * A nested Death guard escalates the outer one to Death too: nothing a
-     * hook requests after it survives. A nested Clear or ClearAll discards for
-     * its own extent only — what a hook requests while it is open is doomed,
-     * what the enclosing operation requests after it closes survives
+     * The scope of one mutation (§4.3). The outermost guard sets the kind;
+     * nested guards join it. While a discarding kind (Clear, ClearAll, Death)
+     * is open, a request is refused at the door: this is how a request a
+     * finalizer issues during a clear or a death changes nothing, as the old
+     * stack's clean loop popped what a finalizer pushed. A nested Death guard
+     * escalates the outer one to Death too: nothing a hook requests after it
+     * is taken. A nested Clear or ClearAll refuses for its own extent only:
+     * what the enclosing operation requests after it closes is taken
      * (MoveTargetedHome clears, then asks for Home). The guard is stack-only
      * and must not outlive the arbiter it references.
      */
@@ -236,9 +232,7 @@ namespace Motion
             MobilityDecision Evaluate() const;
             /// What an entry of this kind could do right now, before it is requested.
             MobilityDecision Evaluate(Kind kind) const;
-            /// The current transaction generation (advances with each outermost transaction).
-            uint32 Generation() const { return m_generation; }
-            /// True while the outermost open transaction is Clear, ClearAll or Death.
+            /// True while the outermost open transaction is Clear, ClearAll or Death: a request is refused.
             bool InDiscardingTransaction() const;
 
             /// True when nothing is selected (no default, no combat, no command, no claim).
@@ -325,8 +319,6 @@ namespace Motion
             std::optional<size_t> SelectedClaimIndex() const;
             /// A fresh Held for this request.
             Held Stamp(Kind kind, uint32 id, uint64 claim);
-            /// The outermost transaction ended: finish what it doomed.
-            void Commit();
             /// Append one line to the decision ring.
             void Record(Decision::Op op, Kind kind, uint32 id, uint64 claim, std::optional<Held> const& before);
             friend class Transaction;
@@ -339,10 +331,8 @@ namespace Motion
             std::vector<Held> m_claims;            ///< the Control claim set, arrival order
             uint32 m_seq;                          ///< monotonic arrival counter
             std::vector<Event> m_events;           ///< accumulated since the last DrainEvents
-            uint32 m_generation;                   ///< advanced by each outermost transaction
             uint32 m_depth;                        ///< open transactions
             TransactionKind m_outerKind;           ///< the outermost open one's kind
-            bool m_doomedInGeneration;             ///< Stamp doomed an entry since the outermost guard opened; Commit sweeps only then
             std::unique_ptr<std::array<Decision, kRingSize>> m_ring; ///< the decision ring, allocated on demand, next write at m_ringNext
             size_t m_ringNext;                     ///< the next slot to overwrite, wraps at kRingSize
             size_t m_ringCount;                    ///< entries recorded so far, capped at kRingSize
