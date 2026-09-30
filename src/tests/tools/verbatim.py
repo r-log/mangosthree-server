@@ -21,10 +21,22 @@ For each file in SITES, --check:
      (every site names its TRAITS for that). A label holding `{body}` is a one-line case
      (`case 1: x = 1; break;    // note`): the body's lines are joined there with one space.
      A partly moved site (RESIDUAL) keeps its switch, holding the labels not moved, directly after
-     the dispatch: the dispatch is dropped and each run of rows goes back into that switch before
-     its anchor (the line that followed the run: a label line found exactly once there, or the
-     switch's close), the runs in table order; such a site registers no default (its `default:`,
-     if any, stays in the switch);
+     the dispatch, and its LABELS list every label of that switch as it stood before any move, in
+     that order (the original order). Each version read derives its own split from its own
+     table: its moved labels are its table's rows, its standing labels the `case N:` lines at the
+     label indent of the switch after its dispatch (each found once, each a spec label line
+     unchanged, all in the original order); every spec label is in exactly one of the two (none
+     in both, none in neither) and no table lists a label twice. The rows must be in the original
+     order; a registered function's run of rows goes back before its anchor: the label after its
+     last row in the original order, or, where that version moved that label too, the next label
+     of the original order still standing in that version, or the switch's close when none
+     follows; the dispatch is dropped. The runs of moved labels in the original order (a run ends
+     at a standing label) must be as many as the anchors, and the anchors must stand in the switch
+     in the original order: guards the checks before make unreachable. So the same spec proves a
+     base with fewer labels moved than the working tree; each version proves the original order of
+     the labels it still holds, so a moved label's place is proven against a base it stands in (or
+     one from before the site's first move). Such a site registers no default (its `default:`, if
+     any, stays in the switch);
   4. does the same to the file at BASE, for the sites a PR before this one moved (their dispatch
      is in the base; a site whose dispatch is not in the base is this PR's and must be a switch
      there), so BASE may be any commit from before the first move to the parent of this PR;
@@ -191,7 +203,7 @@ SITES = {
                 30102: '                case 30102: {body}',
                 30105: '                case 30105: {body}'},
         }, {
-            'name': 'HandleAuraDummy AT REMOVE (switch (GetId()), family-independent), its stance labels',
+            'name': 'HandleAuraDummy AT REMOVE (switch (GetId()), family-independent)',
             'dispatch': [
                 '        AuraDummyRemoveContext ctx(this, target);',
                 '        if (SpellHandlerRegistry::Game().Dispatch<AuraDummyRemoveSite>(GetId(), ctx).IsReturn())',
@@ -201,10 +213,7 @@ SITES = {
                 ''],
             'open': ['        switch (GetId())', '        {'],
             'close': ['        }'],
-            'residual': {
-                41099: '            case 42454:                                     // Captured Totem',
-                53790: '            case 56511:                                     '
-                       '// Towers of Certain Doom: Tower Bunny Smoke Flare Effect'},
+            'residual': True,
             'label_indent': 12,
             'braced': True,
             'table': 'stanceRemoval',
@@ -215,12 +224,45 @@ SITES = {
             'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
             'substitutions': [('ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
             'labels': {
+                10255: '            case 10255:                                     // Stoned',
+                12479: '            case 12479:                                     // Hex of Jammal\'an',
+                12774: '            case 12774:                                     '
+                       '// (DND) Belnistrasz Idol Shutdown Visual',
+                28169: '            case 28169:                                     // Mutating Injection',
+                32045: '            case 32045:                                     // Soul Charge',
+                32051: '            case 32051:                                     // Soul Charge',
+                32052: '            case 32052:                                     // Soul Charge',
+                32286: '            case 32286:                                     // Focus Target Visual',
+                35079: '            case 35079:                                     // Misdirection, triggered buff',
+                59628: '            case 59628:                                     '
+                       '// Tricks of the Trade, triggered buff',
+                36730: '            case 36730:                                     // Flame Strike',
                 41099: '            case 41099:                                     // Battle Stance',
                 41100: '            case 41100:                                     // Berserker Stance',
                 41101: '            case 41101:                                     // Defensive Stance',
+                42454: '            case 42454:                                     // Captured Totem',
+                42517: '            case 42517:                                     // Beam to Zelfrax',
+                43681: '            case 43681:                                     // Inactive',
+                43969: '            case 43969:                                     // Feathered Charm',
+                44191: '            case 44191:                                     // Flame Strike',
+                45934: '            case 45934:                                     // Dark Fiend',
+                45963: '            case 45963:                                     // Call Alliance Deserter',
+                46308: '            case 46308:                                     // Burning Winds',
+                46637: '            case 46637:                                     // Break Ice',
+                48385: '            case 48385:                                     // Create Spirit Fount Beam',
+                50141: '            case 50141:                                     // Blood Oath',
+                51405: '            case 51405:                                     // Digging for Treasure',
+                51870: '            case 51870:                                     // Collect Hair Sample',
+                52098: '            case 52098:                                     // Charge Up',
+                53039: '            case 53039:                                     // Deploy Parachute',
                 53790: '            case 53790:                                     // Defensive Stance',
                 53791: '            case 53791:                                     // Berserker Stance',
-                53792: '            case 53792:                                     // Battle Stance'},
+                53792: '            case 53792:                                     // Battle Stance',
+                56511: '            case 56511:                                     '
+                       '// Towers of Certain Doom: Tower Bunny Smoke Flare Effect',
+                58600: '            case 58600:                                     // Restricted Flight Area',
+                61900: '            case 61900:                                     // Electrical Charge',
+                68839: '            case 68839:                                     // Corrupt Soul'},
         }, {
             'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_DRUID (switch (GetId()))',
             'dispatch': [
@@ -447,35 +489,74 @@ def paste(site, function, body, label_lines):
     return label_lines + restored
 
 
-def put_back(rest, at, n, site, pieces):
-    """A partly moved switch: `rest` with the dispatch at `at` (n lines) dropped and each run of moved
-    rows pasted back into the switch that still stands directly after it, before the run's anchor."""
+def standing_labels(rest, at, n, site):
+    """A partly moved switch: the index of its close and {label: line index} of the labels still
+    standing in the switch directly after the dispatch at `at` (n lines)."""
     first = at + n + len(site['open'])
     if rest[at + n:first] != site['open']:
         raise Failure('%s: the dispatch is not directly followed by the switch that still stands' % site['name'])
     end = next((k for k in range(first, len(rest)) if rest[k] == site['close'][0]), None)
     if end is None:
         raise Failure('%s: the switch that still stands has no closing line' % site['name'])
-    anchors = site['residual']
-    runs = []
-    for first_id, lines in pieces:
-        if first_id in anchors:
-            runs.append((anchors[first_id], []))
-        elif not runs:
-            raise Failure('%s: the first row, %d, starts no run (it has no anchor)' % (site['name'], first_id))
-        runs[-1][1].extend(lines)
-    if len(runs) != len(anchors):
-        raise Failure('%s: %d runs of rows for %d anchors' % (site['name'], len(runs), len(anchors)))
-    positions = []
-    for anchor, _ in runs:
-        found = [end] if anchor == site['close'][0] else [k for k in range(first, end) if rest[k] == anchor]
-        if len(found) != 1:
-            raise Failure('%s: the anchor %r found %d times in the switch that still stands'
-                          % (site['name'], anchor, len(found)))
-        positions.append(found[0])
+    standing = {}
+    label = re.compile(r' {%d}case (\d+):' % site['label_indent'])
+    for k in range(first, end):
+        m = label.match(rest[k])
+        if not m:
+            continue
+        spell = int(m.group(1))
+        if spell not in site['labels']:
+            raise Failure('%s: case %d stands in the switch but is not one of its labels' % (site['name'], spell))
+        if spell in standing:
+            raise Failure('%s: case %d stands twice in the switch' % (site['name'], spell))
+        if rest[k] != site['labels'].get(spell):
+            raise Failure('%s: case %d in the switch is not its label line: %r' % (site['name'], spell, rest[k]))
+        standing[spell] = k
+    if list(standing) != [i for i in site['labels'] if i in standing]:
+        raise Failure('%s: the labels standing in the switch, %s, are not in the spec\'s order'
+                      % (site['name'], list(standing)))
+    return end, standing
+
+
+def moved_split(site, ids, standing):
+    """A partly moved switch: this version's rows `ids` and standing labels split the labels."""
+    order = list(site['labels'])
+    if len(set(ids)) != len(ids):
+        raise Failure('%s: the table registers a label twice: %s' % (site['name'], ids))
+    stray = [i for i in ids if i not in site['labels']]
+    if stray:
+        raise Failure('%s: rows %s are not labels of the switch' % (site['name'], stray))
+    both = [i for i in order if i in ids and i in standing]
+    if both:
+        raise Failure('%s: %s both registered and still standing in the switch' % (site['name'], both))
+    neither = [i for i in order if i not in ids and i not in standing]
+    if neither:
+        raise Failure('%s: %s neither registered nor standing in the switch' % (site['name'], neither))
+    if ids != [i for i in order if i in ids]:
+        raise Failure('%s: the rows %s are not in the switch\'s original order' % (site['name'], ids))
+
+
+def put_back(rest, at, n, site, pieces, end, standing):
+    """A partly moved switch: `rest` with the dispatch at `at` (n lines) dropped and each registered
+    function's lines pasted back into the switch that still stands, before its anchor."""
+    order = list(site['labels'])
+    runs = sum(1 for k, i in enumerate(order) if i not in standing and (k == 0 or order[k - 1] in standing))
+    groups = []
+    for labels, lines in pieces:
+        k = order.index(labels[-1]) + 1
+        while k < len(order) and order[k] not in standing:
+            k += 1
+        anchor = order[k] if k < len(order) else None
+        if groups and groups[-1][0] == anchor:
+            groups[-1][1].extend(lines)
+        else:
+            groups.append((anchor, list(lines)))
+    if len(groups) != runs:
+        raise Failure('%s: %d runs of moved labels for %d anchors' % (site['name'], runs, len(groups)))
+    positions = [end if anchor is None else standing[anchor] for anchor, _ in groups]
     if positions != sorted(set(positions)):
-        raise Failure('%s: the runs of rows are not in the order of their anchors in the switch' % site['name'])
-    for (_, lines), pos in reversed(list(zip(runs, positions))):
+        raise Failure('%s: the anchors do not stand in the switch in the original order' % site['name'])
+    for (_, lines), pos in reversed(list(zip(groups, positions))):
         rest[pos:pos] = lines
     del rest[at:at + n]
 
@@ -526,7 +607,10 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
                           % (site['name'], site['traits'], site['traits']))
         rows = table_rows(handlers, site['table'])
         ids = [r[0] for r in rows]
-        if sorted(ids) != sorted(site['labels']) or len(set(ids)) != len(ids):
+        if 'residual' in site:
+            end, standing = standing_labels(rest, at[0], n, site)
+            moved_split(site, ids, standing)
+        elif sorted(ids) != sorted(site['labels']) or len(set(ids)) != len(ids):
             raise Failure('%s: table rows %s, labels %s' % (site['name'], ids, sorted(site['labels'])))
         header, cls = site['members_of']
         members = class_members(headers[header], cls)
@@ -542,7 +626,8 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
                               % (site['name'], function))
             body = handler_body(handlers, function, site['context'])
             check_body(function, body, site, members)
-            pieces.append((rows[i][0], paste(site, function, body, [site['labels'][r[0]] for r in rows[i:j]])))
+            pieces.append(([r[0] for r in rows[i:j]],
+                           paste(site, function, body, [site['labels'][r[0]] for r in rows[i:j]])))
             pasted += 1
             labels += j - i
             i = j
@@ -564,7 +649,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
                  for l in handlers):
             raise Failure('%s: a default registered for a site whose switch had none' % site['name'])
         if 'residual' in site:
-            put_back(rest, at[0], n, site, pieces)
+            put_back(rest, at[0], n, site, pieces, end, standing)
         else:
             switch += site['close']
             rest[at[0]:at[0] + n] = switch
@@ -1003,7 +1088,7 @@ SELF_SPEC_PART = {
                      '    if (Dispatch<RemoveSite>(removeContext).IsReturn())', '    {', '        return;', '    }'],
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
-        'residual': {2: '        case 3:                                 // Three', 4: '    }'},
+        'residual': True,
         'label_indent': 8,
         'braced': True,
         'table': 'removed',
@@ -1013,12 +1098,56 @@ SELF_SPEC_PART = {
         'in_scope': ['apply'],
         'members_of': ('Thing.h', 'Thing'),
         'substitutions': [('ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
-        'labels': {2: '        case 2:                                 // Two',
+        'labels': {1: '        case 1:                                 // One',
+                   2: '        case 2:                                 // Two',
+                   3: '        case 3:                                 // Three',
                    4: '        case 4:                                 // Four',
                    5: '        case 5:                                 // Five',
                    6: '        case 6:                                 // Six'},
     }],
 }
+
+
+# ---- A partly moved switch of 18 labels (9 and 10 share a body), written out for any split: the
+# ---- rows a version registers, in table order, and the labels still standing in its switch.
+GEN_ORDER = list(range(1, 19))
+GEN_SPEC = dict(SELF_SPEC_PART, sites=[dict(SELF_SPEC_PART['sites'][0], name='generated part', labels={
+    i: '        case %d:%s// Label %d' % (i, ' ' * (33 - len(str(i))), i) for i in GEN_ORDER})])
+
+
+def gen_version(rows, standing=None, switch_order=None):
+    """(sites' file, handler file) of a version registering `rows`, with `standing` (by default
+    every label not registered) in its switch in `switch_order` (by default the original order);
+    no rows: the file before any move, and no handler file."""
+    if standing is None:
+        standing = [i for i in GEN_ORDER if i not in rows]
+    labels = GEN_SPEC['sites'][0]['labels']
+    out = ['#include "A.h"'] + (['#include "Handlers.h"'] if rows else []) + [
+        '', 'void Thing::Remove(bool apply)', '{', '    Unit* target = GetTarget();']
+    if rows:
+        out += GEN_SPEC['sites'][0]['dispatch']
+    out += ['    switch (GetId())', '    {']
+    for i in switch_order or GEN_ORDER:
+        if i in standing:
+            out.append(labels[i])
+            if i != 9:
+                out += ['        {', '            target->Drop(%d);' % (9 if i == 10 else i), '            return;',
+                        '        }']
+    out += ['    }', '    target->Tail();', '}', '']
+    if not rows:
+        return '\n'.join(out), None
+    handlers = ['#include "Handlers.h"', '']
+    for i in sorted(set(9 if i == 10 else i for i in rows)):
+        handlers += ['static SpellHandlerOutcome<void> Drop%d(RemoveContext& ctx)' % i, '{',
+                     '    ctx.target->Drop(%d);' % i, '    return SpellHandlerOutcome<void>::Return();', '}', '']
+    handlers += ['template <class Site, std::size_t N>',
+                 'static uint32 RegisterRows(Registry& registry, Row<Site> const (&rows)[N])', '{',
+                 '    for (Row<Site> const& row : rows)', '    {',
+                 '        registry.Register<Site>(row.spellId, row.function);', '    }', '    return uint32(N);', '}',
+                 '', 'void Register(Registry& registry)', '{', '    static Row<RemoveSite> const removed[] =', '    {']
+    handlers += ['        { %d, &Drop%d },' % (i, 9 if i == 10 else i) for i in rows]
+    handlers += ['    };', '}', '']
+    return '\n'.join(out), '\n'.join(handlers)
 
 
 SELF_HEADERS = {'Thing.h': """class Other { void Tail(); };
@@ -1163,29 +1292,81 @@ def self_test():
     run('against a base that is the partly moved file itself: passes', 0,
         '(the base had 1 of the sites moved: 3 bodies pasted back there)',
         **dict(part, old_text=SELF_SITES_PART, old_handlers=SELF_HANDLERS_PART))
-    run('a run pasted back before the wrong label fails', 1, 'DIFFERS',
-        **dict(part, spec=part_site(residual={2: '        case 1:                                 // One',
-                                              4: '    }'})))
+    wrong_order = {i: SELF_SPEC_PART['sites'][0]['labels'][i] for i in (2, 1, 3, 4, 5, 6)}
+    run('a spec whose original order is wrong pastes a run before the wrong label: fails', 1, 'DIFFERS',
+        **dict(part, spec=part_site(labels=wrong_order)))
     run('a line between the dispatch and the switch that still stands fails', 1,
         'the dispatch is not directly followed by the switch that still stands',
         swap=('        return;\n    }\n    switch', '        return;\n    }\n    Log();\n    switch'), **part)
-    run('a run\'s anchor gone from the switch that still stands fails', 1,
-        'the anchor \'        case 3:                                 // Three\' found 0 times',
+    run('a label the switch never had standing in it fails', 1,
+        'case 7 stands in the switch but is not one of its labels',
         swap=('        case 3:                                 // Three\n', '        case 7:\n'), **part)
-    run('a moved label still standing in the switch fails', 1, 'DIFFERS',
+    run('a standing label whose line changed fails', 1, 'case 3 in the switch is not its label line',
+        swap=('// Three', '// Three!'), **part)
+    run('a label standing twice in the switch fails', 1, 'case 1 stands twice in the switch',
+        swap=('        case 3:                                 // Three\n',
+              '        case 1:                                 // One\n'
+              '        case 3:                                 // Three\n'), **part)
+    run('a moved label still standing in the switch fails', 1, '[2] both registered and still standing in the switch',
         swap=('        case 3:                                 // Three\n',
               '        case 2:                                 // Two\n        {\n            target->Drop(2);\n'
               '            return;\n        }\n        case 3:                                 // Three\n'), **part)
-    run('runs registered out of the order of their anchors fail', 1,
-        'the runs of rows are not in the order of their anchors in the switch',
+    run('rows registered out of the switch\'s original order fail', 1,
+        'the rows [4, 5, 6, 2] are not in the switch\'s original order',
         swap=('        { 2, &Two },\n        { 4, &Four },\n        { 5, &Four },\n        { 6, &Six },',
               '        { 4, &Four },\n        { 5, &Four },\n        { 6, &Six },\n        { 2, &Two },'), **part)
-    run('an anchor keyed on a row that starts no run fails', 1, '1 runs of rows for 2 anchors',
-        **dict(part, spec=part_site(residual={2: '        case 3:                                 // Three',
-                                              5: '    }'})))
     run('a default at a partly moved site fails (it stays in the switch that still stands)', 1,
         'a partly moved switch keeps its default: in the switch that still stands',
         **dict(part, spec=part_site(default='        default:')))
+
+    def versions(base, tree):
+        """The run() arguments of a base and a tree, each (sites' file, handler file)."""
+        return dict(old_text=base[0], old_handlers=base[1], sites=tree[0], handlers=tree[1], spec=GEN_SPEC)
+
+    none, six = gen_version([]), gen_version([4, 5, 6, 13, 14, 15])
+    twelve = gen_version([1, 2, 4, 5, 6, 9, 10, 13, 14, 15, 17, 18])
+    run('base 0 moved, tree 6 moved in two runs: passes', 0,
+        'with 6/6 bodies pasted back at their 6 labels in 1 sites (the base had 0 of the sites moved',
+        **versions(none, six))
+    run('base 6 moved, tree 12 moved (a second move at the site): passes', 0,
+        'with 11/11 bodies pasted back at their 12 labels in 1 sites (the base had 1 of the sites moved: '
+        '6 bodies pasted back there)', **versions(six, twelve))
+    run('base 0 moved, tree 12 moved in five runs, the last at the close: passes', 0,
+        'with 11/11 bodies pasted back at their 12 labels in 1 sites (the base had 0', **versions(none, twelve))
+    run('the base\'s anchors 7 and 16 moved in the tree (re-anchored at 8 and 17): passes', 0,
+        'with 8/8 bodies pasted back at their 8 labels in 1 sites (the base had 1 of the sites moved: 6 bodies',
+        **versions(six, gen_version([4, 5, 6, 7, 13, 14, 15, 16])))
+    run('the tree moved a label its base\'s table lists twice: fails', 1,
+        'the table registers a label twice: [4, 5, 5, 6, 13, 14, 15]',
+        **versions(gen_version([4, 5, 5, 6, 13, 14, 15]), twelve))
+    both = gen_version([3, 4, 5, 6, 13, 14, 15], standing=[i for i in GEN_ORDER if i not in (4, 5, 6, 13, 14, 15)])
+    run('a label both registered and standing, in base and tree alike: fails', 1,
+        '[3] both registered and still standing in the switch', **versions(both, both))
+    neither = gen_version([4, 5, 6, 13, 14, 15], standing=[i for i in GEN_ORDER if i not in (3, 4, 5, 6, 13, 14, 15)])
+    run('a label neither registered nor standing, in base and tree alike: fails', 1,
+        '[3] neither registered nor standing in the switch', **versions(neither, neither))
+    run('a run registered out of the original order fails', 1,
+        'the rows [13, 14, 15, 4, 5, 6] are not in the switch\'s original order',
+        **versions(none, gen_version([13, 14, 15, 4, 5, 6])))
+    swapped = [16 if i == 7 else 7 if i == 16 else i for i in GEN_ORDER]
+    run('labels standing out of the original order in the switch fail', 1,
+        'the labels standing in the switch, [1, 2, 3, 16, 8, 9, 10, 11, 12, 7, 17, 18], are not in the spec\'s order',
+        **versions(none, gen_version([4, 5, 6, 13, 14, 15], switch_order=swapped)))
+
+    def misordered(a, b):
+        """GEN_SPEC with labels a and b swapped in its original order."""
+        labels = GEN_SPEC['sites'][0]['labels']
+        order = [b if i == a else a if i == b else i for i in GEN_ORDER]
+        return dict(GEN_SPEC, sites=[dict(GEN_SPEC['sites'][0], labels={i: labels[i] for i in order})])
+
+    eight = gen_version([4, 5, 6, 7, 13, 14, 15, 16])
+    run('a spec order wrong between two labels both versions hold fails against the parent', 1,
+        'the labels standing in the switch, [1, 2, 3, 8, 9', **dict(versions(six, eight), spec=misordered(1, 2)))
+    run('a spec order wrong around a label the tree moved fails against the parent it stood in', 1,
+        'the labels standing in the switch, [1, 2, 3, 6, 7, 8',
+        **dict(versions(gen_version([4, 5]), gen_version([4, 5, 6])), spec=misordered(6, 7)))
+    run('a spec order wrong around a label both versions moved fails against a base before the move', 1,
+        'DIFFERS', **dict(versions(none, twelve), spec=misordered(6, 7)))
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
