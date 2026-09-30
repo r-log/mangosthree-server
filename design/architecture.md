@@ -52,13 +52,15 @@ These directories **dissolve**:
 | rest | 14 | `ChatCommands` -> `AuctionHouseBot.h`/`Harness.h` 5; `PlayerDump`/`CharacterDatabaseCleaner` 7; `GameEventMgr` 1; `ObjectGuid.cpp` -> `ObjectMgr.h` 1 | |
 
 The domain directories are peers. Include lines that cross between them are allowed, but they cannot spread: they are
-a `CheckLayout` ratchet, keyed per includer directory and header (the 2026-09-29 decision). A new file in a listed
-directory that includes a listed header adds no key, so a file can split inside its directory; a new directory and
-header pair fails. Only two seams are gated, `entities/player` and `spells/aura`, from both sides: an include into
-either from another peer directory and from the seam's own peer (`Object/Unit.cpp` -> `Player.h`, 34 lines;
-`SpellMgr.h` -> `SpellAuraDefines.h`, 16 lines; the 2026-09-28 decision) is listed per includer file and header and
-cannot grow, and so is an include against the table. Such a line may change its includer file in the PR that deletes
-the old one: the number of includer files per header cannot grow.
+a `CheckLayout` ratchet, keyed per includer directory, includer peer and header. The peer is the coupling unit; the
+directory stands in for it until `Object/` and `WorldHandlers/` dissolve, when the key collapses to directory and
+header. A new file of a listed peer in a listed directory that includes a listed header adds no key, so a file can
+split inside its directory; a new key fails. Only two seams are gated, `entities/player` and `spells/aura`, from both
+sides: an include into either from another peer directory and from the seam's own peer (`Object/Unit.cpp` ->
+`Player.h`, 34 lines; `SpellMgr.h` -> `SpellAuraDefines.h`, 16 lines; the 2026-09-28 decision) is listed per includer
+file and header and cannot grow, and so is an include against the table. Such a line may change its includer file in
+the PR that deletes the old one, only within the same layer pair and header; a change of layer pair or header is a
+new edge.
 
 **Today:** 2,354 such lines, the largest being entities -> maps 472, -> social 344, -> pvp 192 and -> spells 168,
 and spells -> entities 295.
@@ -142,7 +144,7 @@ the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
 |---|---|---|
-| every file | lives in a directory named here; includes by path; only the edges section 1 allows | `CheckLayout`, built (#179). It ratchets from today's measured edges (1,118 against the rule plus 2,354 across the domain tier). Edges against the rule or into a gated seam are keyed per includer file and header, and a line may change its includer file in the PR that deletes the old one (a header's count of includer files cannot grow). Sideways edges are keyed per includer directory and header (the 2026-09-29 re-key), so a file can split inside its directory. An edge leaves its allow-list in the PR that removes it, and a new one fails. `CheckIncludeCollisions` is in #174. |
+| every file | lives in a directory named here; includes by path; only the edges section 1 allows | `CheckLayout`, built (#179). It ratchets from today's measured edges (1,118 against the rule plus 2,354 across the domain tier). Edges against the rule or into a gated seam are keyed per includer file and header; a line may change its includer file in the PR that deletes the old one, only within the same layer pair and header, and a change of layer pair or header is a new edge. Sideways edges are keyed per includer directory, includer peer and header: the peer is the coupling unit, the directory stands in for it until `Object/` and `WorldHandlers/` dissolve, and the key then collapses to directory and header. A file can split inside its directory. An edge leaves its allow-list in the PR that removes it, and a new one fails. `CheckIncludeCollisions` is in #174. |
 | proto, foundation | nothing above | `CheckProtoBoundary` (holds, 0 lines out). Foundation has no gate yet (2 lines out, `ObjectGuid.cpp`). |
 | motion | proto and foundation only | `CheckMotionBoundary`. It holds for `src/motion`; `game/movement/` (12 lines) is outside it. |
 | persistence | the only place a `*Database.` call is spelled | `CheckSyncDb` today covers only blocking calls in converted files. #144 extends it, or `CheckLayout` takes the rule. |
@@ -276,8 +278,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
 | 15 | `Object/` and `WorldHandlers/` exist; `session/`, `data/`, `ai/`, `social/`, `pvp/`, `economy/` do not | a move PR before each domain's first seam (#76) |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
-| 17 | 2,354 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory and header on 2026-09-29 |
-| 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory and header on 2026-09-29); #144 |
+| 17 | 2,354 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
+| 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory, peer and header on 2026-09-29); #144 |
 | 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel only | the D11 spell seam takes the second check |
 | 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by no source file (`Network.Threads` was, and is deleted) | delete them or wire them through #143 |
 | 21 | 10 raw `rand()` / `srand` sites in 5 `src/game` files share one generator across the map workers | D11's named changes (the Unit note) |

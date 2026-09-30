@@ -1,21 +1,21 @@
 # CheckLayout's allow-list: src/tests/tools/layout_gate.py, design/architecture.md sections 1 and 4.
 # Against-the-rule and seam edges: "<includer file> -> <header>".
-# Sideways edges: "<includer directory> -> <header>". Paths from the repository root.
+# Sideways edges: "<includer directory> [<peer>] -> <header>". Paths from the repository root.
 # The gate fails on an edge that is not listed and on a line whose edge is gone or allowed.
 # A new edge is fixed, not listed. A line whose includer file changed is replaced by the new one.
 # After removing or moving edges: python src/tests/tools/layout_gate.py --generate
-src/game/BattleGround -> src/game/MotionGenerators/MotionMaster.h
-src/game/BattleGround -> src/game/Object/ArenaTeam.h
-src/game/BattleGround -> src/game/Object/Creature.h
-src/game/BattleGround -> src/game/Object/Formulas.h
-src/game/BattleGround -> src/game/Object/GameObject.h
-src/game/BattleGround -> src/game/Object/Object.h
-src/game/BattleGround -> src/game/WorldHandlers/AchievementMgr.h
-src/game/BattleGround -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/BattleGround -> src/game/WorldHandlers/Group.h
-src/game/BattleGround -> src/game/WorldHandlers/Mail.h
-src/game/BattleGround -> src/game/WorldHandlers/Map.h
-src/game/BattleGround -> src/game/WorldHandlers/MapManager.h
+src/game/BattleGround [pvp] -> src/game/MotionGenerators/MotionMaster.h
+src/game/BattleGround [pvp] -> src/game/Object/ArenaTeam.h
+src/game/BattleGround [pvp] -> src/game/Object/Creature.h
+src/game/BattleGround [pvp] -> src/game/Object/Formulas.h
+src/game/BattleGround [pvp] -> src/game/Object/GameObject.h
+src/game/BattleGround [pvp] -> src/game/Object/Object.h
+src/game/BattleGround [pvp] -> src/game/WorldHandlers/AchievementMgr.h
+src/game/BattleGround [pvp] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/BattleGround [pvp] -> src/game/WorldHandlers/Group.h
+src/game/BattleGround [pvp] -> src/game/WorldHandlers/Mail.h
+src/game/BattleGround [pvp] -> src/game/WorldHandlers/Map.h
+src/game/BattleGround [pvp] -> src/game/WorldHandlers/MapManager.h
 src/game/BattleGround/BattleGround.cpp -> src/game/WorldHandlers/Chat.h
 src/game/BattleGround/BattleGround.cpp -> src/game/WorldHandlers/World.h
 src/game/BattleGround/BattleGround.cpp -> src/game/entities/player/Player.h
@@ -96,15 +96,15 @@ src/game/ChatCommands/TeleportationAndPositionCommands.cpp -> src/game/WorldHand
 src/game/ChatCommands/TriggerCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ZZZ_CustomCommands.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
 src/game/ChatCommands/ZZZ_CustomCommands.cpp -> src/game/WorldHandlers/World.h
-src/game/MotionGenerators -> src/game/Object/CreatureAI.h
-src/game/MotionGenerators -> src/game/Object/CreatureAISelector.h
-src/game/MotionGenerators -> src/game/WorldHandlers/GridMap.h
-src/game/MotionGenerators -> src/game/WorldHandlers/Map.h
-src/game/MotionGenerators -> src/game/WorldHandlers/MapManager.h
-src/game/MotionGenerators -> src/game/WorldHandlers/MoveMap.h
-src/game/MotionGenerators -> src/game/WorldHandlers/MoveMapSharedDefines.h
-src/game/MotionGenerators -> src/game/WorldHandlers/TransportMap.h
-src/game/MotionGenerators -> src/game/WorldHandlers/Transports.h
+src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
+src/game/MotionGenerators [entities] -> src/game/Object/CreatureAISelector.h
+src/game/MotionGenerators [entities] -> src/game/WorldHandlers/GridMap.h
+src/game/MotionGenerators [entities] -> src/game/WorldHandlers/Map.h
+src/game/MotionGenerators [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/MotionGenerators [entities] -> src/game/WorldHandlers/MoveMap.h
+src/game/MotionGenerators [entities] -> src/game/WorldHandlers/MoveMapSharedDefines.h
+src/game/MotionGenerators [entities] -> src/game/WorldHandlers/TransportMap.h
+src/game/MotionGenerators [entities] -> src/game/WorldHandlers/Transports.h
 src/game/MotionGenerators/MotionDriver.cpp -> src/game/WorldHandlers/World.h
 src/game/MotionGenerators/MotionFrame.cpp -> src/game/entities/player/Player.h
 src/game/MotionGenerators/MotionMaster.cpp -> src/game/WorldHandlers/World.h
@@ -113,49 +113,97 @@ src/game/MotionGenerators/NativeBehaviour.cpp -> src/game/WorldHandlers/ScriptMg
 src/game/MotionGenerators/NativeBehaviour.cpp -> src/game/WorldHandlers/World.h
 src/game/MotionGenerators/NativeBehaviour.cpp -> src/game/entities/player/Player.h
 src/game/MotionGenerators/PathFinder.cpp -> src/game/entities/player/Player.h
-src/game/Object -> src/game/BattleGround/BattleGround.h
-src/game/Object -> src/game/BattleGround/BattleGroundAV.h
-src/game/Object -> src/game/BattleGround/BattleGroundMgr.h
-src/game/Object -> src/game/Maps/MapPhase.h
-src/game/Object -> src/game/MotionGenerators/MotionMaster.h
-src/game/Object -> src/game/Object/Creature.h
-src/game/Object -> src/game/Object/CreatureAI.h
-src/game/Object -> src/game/Object/CreatureAISelector.h
-src/game/Object -> src/game/Object/Formulas.h
-src/game/Object -> src/game/Object/GameObject.h
-src/game/Object -> src/game/Object/GameObjectAI.h
-src/game/Object -> src/game/Object/Item.h
-src/game/Object -> src/game/Object/ItemEnchantmentMgr.h
-src/game/Object -> src/game/Object/LootMgr.h
-src/game/Object -> src/game/Object/Pet.h
-src/game/Object -> src/game/Object/SpellMgr.h
-src/game/Object -> src/game/Object/TemporarySummon.h
-src/game/Object -> src/game/Object/Totem.h
-src/game/Object -> src/game/Object/Unit.h
-src/game/Object -> src/game/Object/Vehicle.h
-src/game/Object -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/Object -> src/game/References/HostileRefManager.h
-src/game/Object -> src/game/References/ThreatManager.h
-src/game/Object -> src/game/WorldHandlers/AchievementMgr.h
-src/game/Object -> src/game/WorldHandlers/Cell.h
-src/game/Object -> src/game/WorldHandlers/CellImpl.h
-src/game/Object -> src/game/WorldHandlers/GameObjectModel.h
-src/game/Object -> src/game/WorldHandlers/GridDefines.h
-src/game/Object -> src/game/WorldHandlers/GridMap.h
-src/game/Object -> src/game/WorldHandlers/GridNotifiers.h
-src/game/Object -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/Object -> src/game/WorldHandlers/Group.h
-src/game/Object -> src/game/WorldHandlers/InstanceData.h
-src/game/Object -> src/game/WorldHandlers/Mail.h
-src/game/Object -> src/game/WorldHandlers/Map.h
-src/game/Object -> src/game/WorldHandlers/MapManager.h
-src/game/Object -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/Object -> src/game/WorldHandlers/Spell.h
-src/game/Object -> src/game/WorldHandlers/TransportMap.h
-src/game/Object -> src/game/WorldHandlers/Transports.h
-src/game/Object -> src/game/combat/MeleeChances.h
-src/game/Object -> src/game/combat/SpellBonus.h
-src/game/Object -> src/game/combat/WeaponDamage.h
+src/game/Object [ai] -> src/game/MotionGenerators/MotionMaster.h
+src/game/Object [ai] -> src/game/Object/Creature.h
+src/game/Object [ai] -> src/game/Object/GameObject.h
+src/game/Object [ai] -> src/game/Object/Pet.h
+src/game/Object [ai] -> src/game/Object/SpellMgr.h
+src/game/Object [ai] -> src/game/Object/Totem.h
+src/game/Object [ai] -> src/game/Object/Unit.h
+src/game/Object [ai] -> src/game/WorldHandlers/Cell.h
+src/game/Object [ai] -> src/game/WorldHandlers/CellImpl.h
+src/game/Object [ai] -> src/game/WorldHandlers/GridDefines.h
+src/game/Object [ai] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/Object [ai] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/Object [ai] -> src/game/WorldHandlers/Group.h
+src/game/Object [ai] -> src/game/WorldHandlers/InstanceData.h
+src/game/Object [ai] -> src/game/WorldHandlers/Map.h
+src/game/Object [ai] -> src/game/WorldHandlers/Spell.h
+src/game/Object [combat] -> src/game/BattleGround/BattleGround.h
+src/game/Object [combat] -> src/game/MotionGenerators/MotionMaster.h
+src/game/Object [combat] -> src/game/Object/Creature.h
+src/game/Object [combat] -> src/game/Object/CreatureAI.h
+src/game/Object [combat] -> src/game/Object/Pet.h
+src/game/Object [combat] -> src/game/Object/SpellMgr.h
+src/game/Object [combat] -> src/game/Object/TemporarySummon.h
+src/game/Object [combat] -> src/game/Object/Totem.h
+src/game/Object [combat] -> src/game/Object/Unit.h
+src/game/Object [combat] -> src/game/Object/Vehicle.h
+src/game/Object [combat] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/Object [combat] -> src/game/WorldHandlers/CellImpl.h
+src/game/Object [combat] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/Object [combat] -> src/game/WorldHandlers/Group.h
+src/game/Object [combat] -> src/game/WorldHandlers/InstanceData.h
+src/game/Object [combat] -> src/game/WorldHandlers/Map.h
+src/game/Object [combat] -> src/game/WorldHandlers/MapManager.h
+src/game/Object [combat] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/Object [combat] -> src/game/WorldHandlers/Spell.h
+src/game/Object [economy] -> src/game/Object/Item.h
+src/game/Object [economy] -> src/game/Object/SpellMgr.h
+src/game/Object [economy] -> src/game/WorldHandlers/AchievementMgr.h
+src/game/Object [economy] -> src/game/WorldHandlers/Group.h
+src/game/Object [economy] -> src/game/WorldHandlers/Mail.h
+src/game/Object [entities] -> src/game/BattleGround/BattleGround.h
+src/game/Object [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/Object [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/Object [entities] -> src/game/Maps/MapPhase.h
+src/game/Object [entities] -> src/game/Object/CreatureAI.h
+src/game/Object [entities] -> src/game/Object/CreatureAISelector.h
+src/game/Object [entities] -> src/game/Object/Formulas.h
+src/game/Object [entities] -> src/game/Object/GameObjectAI.h
+src/game/Object [entities] -> src/game/Object/ItemEnchantmentMgr.h
+src/game/Object [entities] -> src/game/Object/LootMgr.h
+src/game/Object [entities] -> src/game/Object/SpellMgr.h
+src/game/Object [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/Object [entities] -> src/game/References/HostileRefManager.h
+src/game/Object [entities] -> src/game/References/ThreatManager.h
+src/game/Object [entities] -> src/game/WorldHandlers/Cell.h
+src/game/Object [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/Object [entities] -> src/game/WorldHandlers/GameObjectModel.h
+src/game/Object [entities] -> src/game/WorldHandlers/GridDefines.h
+src/game/Object [entities] -> src/game/WorldHandlers/GridMap.h
+src/game/Object [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/Object [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/Object [entities] -> src/game/WorldHandlers/Group.h
+src/game/Object [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/Object [entities] -> src/game/WorldHandlers/Map.h
+src/game/Object [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/Object [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/Object [entities] -> src/game/WorldHandlers/Spell.h
+src/game/Object [entities] -> src/game/WorldHandlers/TransportMap.h
+src/game/Object [entities] -> src/game/WorldHandlers/Transports.h
+src/game/Object [entities] -> src/game/combat/MeleeChances.h
+src/game/Object [entities] -> src/game/combat/SpellBonus.h
+src/game/Object [social] -> src/game/Object/Item.h
+src/game/Object [spells] -> src/game/BattleGround/BattleGround.h
+src/game/Object [spells] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/Object [spells] -> src/game/Object/Creature.h
+src/game/Object [spells] -> src/game/Object/CreatureAI.h
+src/game/Object [spells] -> src/game/Object/Formulas.h
+src/game/Object [spells] -> src/game/Object/Pet.h
+src/game/Object [spells] -> src/game/Object/TemporarySummon.h
+src/game/Object [spells] -> src/game/Object/Totem.h
+src/game/Object [spells] -> src/game/Object/Unit.h
+src/game/Object [spells] -> src/game/Object/Vehicle.h
+src/game/Object [spells] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/Object [spells] -> src/game/WorldHandlers/CellImpl.h
+src/game/Object [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/Object [spells] -> src/game/WorldHandlers/Group.h
+src/game/Object [spells] -> src/game/WorldHandlers/InstanceData.h
+src/game/Object [spells] -> src/game/WorldHandlers/MapManager.h
+src/game/Object [spells] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/Object [spells] -> src/game/combat/SpellBonus.h
+src/game/Object [spells] -> src/game/combat/WeaponDamage.h
 src/game/Object/AggressorAI.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ArenaTeam.cpp -> src/game/Server/WorldSession.h
 src/game/Object/ArenaTeam.cpp -> src/game/WorldHandlers/World.h
@@ -572,10 +620,10 @@ src/game/Object/WorldObjectSummon.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/WorldObjectSummon.cpp -> src/game/entities/player/Player.h
 src/game/Object/WorldObjectSummon.cpp -> src/proto/Opcodes.h
 src/game/Object/WorldObjectSummon.cpp -> src/proto/WorldPacket.h
-src/game/OutdoorPvP -> src/game/Object/Creature.h
-src/game/OutdoorPvP -> src/game/Object/GameObject.h
-src/game/OutdoorPvP -> src/game/Object/Object.h
-src/game/OutdoorPvP -> src/game/WorldHandlers/Map.h
+src/game/OutdoorPvP [pvp] -> src/game/Object/Creature.h
+src/game/OutdoorPvP [pvp] -> src/game/Object/GameObject.h
+src/game/OutdoorPvP [pvp] -> src/game/Object/Object.h
+src/game/OutdoorPvP [pvp] -> src/game/WorldHandlers/Map.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/Server/WorldSession.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/Player.h
@@ -598,13 +646,13 @@ src/game/OutdoorPvP/OutdoorPvPTF.cpp -> src/proto/WorldPacket.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPZM.cpp -> src/proto/WorldPacket.h
-src/game/References -> src/game/Object/Creature.h
-src/game/References -> src/game/Object/CreatureAI.h
-src/game/References -> src/game/Object/ObjectLookup.h
-src/game/References -> src/game/Object/SpellMgr.h
-src/game/References -> src/game/Object/Unit.h
-src/game/References -> src/game/Object/UnitEvents.h
-src/game/References -> src/game/WorldHandlers/Map.h
+src/game/References [combat] -> src/game/Object/Creature.h
+src/game/References [combat] -> src/game/Object/CreatureAI.h
+src/game/References [combat] -> src/game/Object/ObjectLookup.h
+src/game/References [combat] -> src/game/Object/SpellMgr.h
+src/game/References [combat] -> src/game/Object/Unit.h
+src/game/References [combat] -> src/game/Object/UnitEvents.h
+src/game/References [combat] -> src/game/WorldHandlers/Map.h
 src/game/References/GroupReference.cpp -> src/game/entities/player/Player.h
 src/game/References/ThreatManager.cpp -> src/game/entities/player/Player.h
 src/game/Server/DB2Structure.h -> src/game/WorldHandlers/Path.h
@@ -622,54 +670,81 @@ src/game/Tools/PlayerDump.cpp -> src/game/Object/ObjectMgr.h
 src/game/Tools/PlayerDump.cpp -> src/game/Object/UpdateFields.h
 src/game/Tools/PlayerDump.cpp -> src/game/Server/SQLStorages.h
 src/game/Tools/PlayerDump.cpp -> src/game/WorldHandlers/AccountMgr.h
-src/game/WorldHandlers -> src/game/BattleGround/BattleGround.h
-src/game/WorldHandlers -> src/game/BattleGround/BattleGroundAB.h
-src/game/WorldHandlers -> src/game/BattleGround/BattleGroundEY.h
-src/game/WorldHandlers -> src/game/BattleGround/BattleGroundMgr.h
-src/game/WorldHandlers -> src/game/BattleGround/BattleGroundWS.h
-src/game/WorldHandlers -> src/game/MotionGenerators/MotionMaster.h
-src/game/WorldHandlers -> src/game/Object/ArenaTeam.h
-src/game/WorldHandlers -> src/game/Object/AuctionHouseMgr.h
-src/game/WorldHandlers -> src/game/Object/Calendar.h
-src/game/WorldHandlers -> src/game/Object/Corpse.h
-src/game/WorldHandlers -> src/game/Object/CorpseManager.h
-src/game/WorldHandlers -> src/game/Object/Creature.h
-src/game/WorldHandlers -> src/game/Object/CreatureAI.h
-src/game/WorldHandlers -> src/game/Object/DynamicObject.h
-src/game/WorldHandlers -> src/game/Object/Formulas.h
-src/game/WorldHandlers -> src/game/Object/GameObject.h
-src/game/WorldHandlers -> src/game/Object/Guild.h
-src/game/WorldHandlers -> src/game/Object/Item.h
-src/game/WorldHandlers -> src/game/Object/LivingWorldCellEnvelope.h
-src/game/WorldHandlers -> src/game/Object/LootMgr.h
-src/game/WorldHandlers -> src/game/Object/Object.h
-src/game/WorldHandlers -> src/game/Object/ObjectLookup.h
-src/game/WorldHandlers -> src/game/Object/Pet.h
-src/game/WorldHandlers -> src/game/Object/SpellMgr.h
-src/game/WorldHandlers -> src/game/Object/TemporarySummon.h
-src/game/WorldHandlers -> src/game/Object/Totem.h
-src/game/WorldHandlers -> src/game/Object/Unit.h
-src/game/WorldHandlers -> src/game/Object/UpdateMask.h
-src/game/WorldHandlers -> src/game/Object/Vehicle.h
-src/game/WorldHandlers -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/WorldHandlers -> src/game/WorldHandlers/AchievementMgr.h
-src/game/WorldHandlers -> src/game/WorldHandlers/CellImpl.h
-src/game/WorldHandlers -> src/game/WorldHandlers/GridDefines.h
-src/game/WorldHandlers -> src/game/WorldHandlers/GridNotifiers.h
-src/game/WorldHandlers -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/WorldHandlers -> src/game/WorldHandlers/Group.h
-src/game/WorldHandlers -> src/game/WorldHandlers/GuildMgr.h
-src/game/WorldHandlers -> src/game/WorldHandlers/InstanceData.h
-src/game/WorldHandlers -> src/game/WorldHandlers/LFGMgr.h
-src/game/WorldHandlers -> src/game/WorldHandlers/LineOfSightExemptions.h
-src/game/WorldHandlers -> src/game/WorldHandlers/Mail.h
-src/game/WorldHandlers -> src/game/WorldHandlers/Map.h
-src/game/WorldHandlers -> src/game/WorldHandlers/MapManager.h
-src/game/WorldHandlers -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/WorldHandlers -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/WorldHandlers -> src/game/WorldHandlers/SkillExtraItems.h
-src/game/WorldHandlers -> src/game/WorldHandlers/TransportMap.h
-src/game/WorldHandlers -> src/game/WorldHandlers/Transports.h
+src/game/WorldHandlers [economy] -> src/game/Object/SpellMgr.h
+src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGround.h
+src/game/WorldHandlers [entities] -> src/game/BattleGround/BattleGroundAB.h
+src/game/WorldHandlers [entities] -> src/game/Object/ArenaTeam.h
+src/game/WorldHandlers [entities] -> src/game/Object/Guild.h
+src/game/WorldHandlers [entities] -> src/game/Object/SpellMgr.h
+src/game/WorldHandlers [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/WorldHandlers [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/WorldHandlers [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/WorldHandlers [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/WorldHandlers [entities] -> src/game/WorldHandlers/Mail.h
+src/game/WorldHandlers [entities] -> src/game/WorldHandlers/Map.h
+src/game/WorldHandlers [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/WorldHandlers [maps] -> src/game/BattleGround/BattleGround.h
+src/game/WorldHandlers [maps] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/WorldHandlers [maps] -> src/game/MotionGenerators/MotionMaster.h
+src/game/WorldHandlers [maps] -> src/game/Object/Calendar.h
+src/game/WorldHandlers [maps] -> src/game/Object/Corpse.h
+src/game/WorldHandlers [maps] -> src/game/Object/CorpseManager.h
+src/game/WorldHandlers [maps] -> src/game/Object/Creature.h
+src/game/WorldHandlers [maps] -> src/game/Object/CreatureAI.h
+src/game/WorldHandlers [maps] -> src/game/Object/DynamicObject.h
+src/game/WorldHandlers [maps] -> src/game/Object/GameObject.h
+src/game/WorldHandlers [maps] -> src/game/Object/Item.h
+src/game/WorldHandlers [maps] -> src/game/Object/LivingWorldCellEnvelope.h
+src/game/WorldHandlers [maps] -> src/game/Object/LootMgr.h
+src/game/WorldHandlers [maps] -> src/game/Object/Object.h
+src/game/WorldHandlers [maps] -> src/game/Object/Pet.h
+src/game/WorldHandlers [maps] -> src/game/Object/Unit.h
+src/game/WorldHandlers [maps] -> src/game/WorldHandlers/Group.h
+src/game/WorldHandlers [maps] -> src/game/WorldHandlers/LFGMgr.h
+src/game/WorldHandlers [social] -> src/game/BattleGround/BattleGround.h
+src/game/WorldHandlers [social] -> src/game/Object/AuctionHouseMgr.h
+src/game/WorldHandlers [social] -> src/game/Object/DynamicObject.h
+src/game/WorldHandlers [social] -> src/game/Object/Formulas.h
+src/game/WorldHandlers [social] -> src/game/Object/Item.h
+src/game/WorldHandlers [social] -> src/game/Object/LootMgr.h
+src/game/WorldHandlers [social] -> src/game/Object/Object.h
+src/game/WorldHandlers [social] -> src/game/Object/SpellMgr.h
+src/game/WorldHandlers [social] -> src/game/WorldHandlers/AchievementMgr.h
+src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapManager.h
+src/game/WorldHandlers [social] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/WorldHandlers [spells] -> src/game/BattleGround/BattleGround.h
+src/game/WorldHandlers [spells] -> src/game/BattleGround/BattleGroundEY.h
+src/game/WorldHandlers [spells] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/WorldHandlers [spells] -> src/game/BattleGround/BattleGroundWS.h
+src/game/WorldHandlers [spells] -> src/game/MotionGenerators/MotionMaster.h
+src/game/WorldHandlers [spells] -> src/game/Object/Creature.h
+src/game/WorldHandlers [spells] -> src/game/Object/CreatureAI.h
+src/game/WorldHandlers [spells] -> src/game/Object/DynamicObject.h
+src/game/WorldHandlers [spells] -> src/game/Object/Formulas.h
+src/game/WorldHandlers [spells] -> src/game/Object/GameObject.h
+src/game/WorldHandlers [spells] -> src/game/Object/Item.h
+src/game/WorldHandlers [spells] -> src/game/Object/LootMgr.h
+src/game/WorldHandlers [spells] -> src/game/Object/Object.h
+src/game/WorldHandlers [spells] -> src/game/Object/ObjectLookup.h
+src/game/WorldHandlers [spells] -> src/game/Object/Pet.h
+src/game/WorldHandlers [spells] -> src/game/Object/TemporarySummon.h
+src/game/WorldHandlers [spells] -> src/game/Object/Totem.h
+src/game/WorldHandlers [spells] -> src/game/Object/Unit.h
+src/game/WorldHandlers [spells] -> src/game/Object/UpdateMask.h
+src/game/WorldHandlers [spells] -> src/game/Object/Vehicle.h
+src/game/WorldHandlers [spells] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/AchievementMgr.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/CellImpl.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/GridDefines.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/Group.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/LineOfSightExemptions.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/MapManager.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/SkillExtraItems.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/TransportMap.h
+src/game/WorldHandlers [spells] -> src/game/WorldHandlers/Transports.h
 src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/AchievementCriteriaRequirement.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/Chat.h
@@ -1052,35 +1127,35 @@ src/game/WorldHandlers/Weather.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Weather.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/Weather.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/WorldSessionMgr.cpp -> src/game/WorldHandlers/World.h
-src/game/entities/player -> src/game/BattleGround/BattleGround.h
-src/game/entities/player -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player -> src/game/Object/ArenaTeam.h
-src/game/entities/player -> src/game/Object/Calendar.h
-src/game/entities/player -> src/game/Object/CreatureAI.h
-src/game/entities/player -> src/game/Object/Formulas.h
-src/game/entities/player -> src/game/Object/Guild.h
-src/game/entities/player -> src/game/Object/SpellMgr.h
-src/game/entities/player -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player -> src/game/References/GroupReference.h
-src/game/entities/player -> src/game/References/MapReference.h
-src/game/entities/player -> src/game/WorldHandlers/Cell.h
-src/game/entities/player -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player -> src/game/WorldHandlers/Channel.h
-src/game/entities/player -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player -> src/game/WorldHandlers/Group.h
-src/game/entities/player -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player -> src/game/WorldHandlers/Mail.h
-src/game/entities/player -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player -> src/game/WorldHandlers/Spell.h
-src/game/entities/player -> src/game/WorldHandlers/TransportMap.h
-src/game/entities/player -> src/game/WorldHandlers/Transports.h
-src/game/entities/player -> src/game/WorldHandlers/Weather.h
+src/game/entities/player [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player [entities] -> src/game/Object/Calendar.h
+src/game/entities/player [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player [entities] -> src/game/Object/Formulas.h
+src/game/entities/player [entities] -> src/game/Object/Guild.h
+src/game/entities/player [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player [entities] -> src/game/References/GroupReference.h
+src/game/entities/player [entities] -> src/game/References/MapReference.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/Cell.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/TransportMap.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/Player.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1093,32 +1168,32 @@ src/game/entities/player/Player.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/Player.cpp -> src/proto/wire/MoverCodec.h
 src/game/entities/player/PlayerRegistry.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/PlayerRegistry.cpp -> src/game/WorldHandlers/World.h
-src/game/entities/player/combat -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/combat -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/combat -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/combat -> src/game/Object/ArenaTeam.h
-src/game/entities/player/combat -> src/game/Object/Calendar.h
-src/game/entities/player/combat -> src/game/Object/CreatureAI.h
-src/game/entities/player/combat -> src/game/Object/Formulas.h
-src/game/entities/player/combat -> src/game/Object/Guild.h
-src/game/entities/player/combat -> src/game/Object/SpellMgr.h
-src/game/entities/player/combat -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/combat -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/combat -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/combat -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/combat -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/combat -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/combat -> src/game/WorldHandlers/Group.h
-src/game/entities/player/combat -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/combat -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/combat -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/combat -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/combat -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/combat -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/combat -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/combat -> src/game/WorldHandlers/TransportMap.h
-src/game/entities/player/combat -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/combat -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/combat [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/combat [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/combat [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/combat [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/combat [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/combat [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/combat [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/combat [entities] -> src/game/Object/Guild.h
+src/game/entities/player/combat [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/combat [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/TransportMap.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/combat [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1182,31 +1257,31 @@ src/game/entities/player/combat/PlayerStats.cpp -> src/game/WorldHandlers/Update
 src/game/entities/player/combat/PlayerStats.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/combat/PlayerStats.cpp -> src/proto/Opcodes.h
 src/game/entities/player/combat/PlayerStats.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/interaction -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/interaction -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/interaction -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/interaction -> src/game/Object/ArenaTeam.h
-src/game/entities/player/interaction -> src/game/Object/Calendar.h
-src/game/entities/player/interaction -> src/game/Object/CreatureAI.h
-src/game/entities/player/interaction -> src/game/Object/Formulas.h
-src/game/entities/player/interaction -> src/game/Object/Guild.h
-src/game/entities/player/interaction -> src/game/Object/SpellMgr.h
-src/game/entities/player/interaction -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/Group.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/interaction -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/interaction [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/interaction [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/interaction [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/interaction [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/interaction [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/interaction [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/interaction [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/interaction [entities] -> src/game/Object/Guild.h
+src/game/entities/player/interaction [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/interaction [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/interaction [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1243,31 +1318,31 @@ src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/WorldHandlers/
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/proto/Opcodes.h
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/inventory -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/inventory -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/inventory -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/inventory -> src/game/Object/ArenaTeam.h
-src/game/entities/player/inventory -> src/game/Object/Calendar.h
-src/game/entities/player/inventory -> src/game/Object/CreatureAI.h
-src/game/entities/player/inventory -> src/game/Object/Formulas.h
-src/game/entities/player/inventory -> src/game/Object/Guild.h
-src/game/entities/player/inventory -> src/game/Object/SpellMgr.h
-src/game/entities/player/inventory -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/Group.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/inventory -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/inventory [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/inventory [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/inventory [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/inventory [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/inventory [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/inventory [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/inventory [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/inventory [entities] -> src/game/Object/Guild.h
+src/game/entities/player/inventory [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/inventory [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/inventory [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/inventory/CurrencyMgr.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/CurrencyMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/inventory/PlayerCurrency.cpp -> src/game/Server/WorldSession.h
@@ -1327,32 +1402,32 @@ src/game/entities/player/inventory/PlayerItemStorage.cpp -> src/game/Server/Worl
 src/game/entities/player/inventory/PlayerItemStorage.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/PlayerItemStorage.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/inventory/PlayerItemValidation.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/persistence -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/persistence -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/persistence -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/persistence -> src/game/Object/ArenaTeam.h
-src/game/entities/player/persistence -> src/game/Object/Calendar.h
-src/game/entities/player/persistence -> src/game/Object/CreatureAI.h
-src/game/entities/player/persistence -> src/game/Object/Formulas.h
-src/game/entities/player/persistence -> src/game/Object/Guild.h
-src/game/entities/player/persistence -> src/game/Object/SpellMgr.h
-src/game/entities/player/persistence -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/Group.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/TransportMap.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/persistence -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/persistence [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/persistence [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/persistence [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/persistence [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/persistence [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/persistence [entities] -> src/game/Object/Guild.h
+src/game/entities/player/persistence [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/persistence [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/TransportMap.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/persistence [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1389,31 +1464,31 @@ src/game/entities/player/persistence/PlayerSave.cpp -> src/game/WorldHandlers/Up
 src/game/entities/player/persistence/PlayerSave.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/persistence/PlayerSave.cpp -> src/proto/Opcodes.h
 src/game/entities/player/persistence/PlayerSave.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/pets -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/pets -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/pets -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/pets -> src/game/Object/ArenaTeam.h
-src/game/entities/player/pets -> src/game/Object/Calendar.h
-src/game/entities/player/pets -> src/game/Object/CreatureAI.h
-src/game/entities/player/pets -> src/game/Object/Formulas.h
-src/game/entities/player/pets -> src/game/Object/Guild.h
-src/game/entities/player/pets -> src/game/Object/SpellMgr.h
-src/game/entities/player/pets -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/pets -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/pets -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/pets -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/pets -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/pets -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/pets -> src/game/WorldHandlers/Group.h
-src/game/entities/player/pets -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/pets -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/pets -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/pets -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/pets -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/pets -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/pets -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/pets -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/pets -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/pets [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/pets [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/pets [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/pets [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/pets [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/pets [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/pets [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/pets [entities] -> src/game/Object/Guild.h
+src/game/entities/player/pets [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/pets [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/pets [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/pets/PetMgr.cpp -> src/proto/Opcodes.h
 src/game/entities/player/pets/PetMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/Server/WorldSession.h
@@ -1425,32 +1500,32 @@ src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/UpdateData
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/proto/Opcodes.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/pvp -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/pvp -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/pvp -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/pvp -> src/game/Object/ArenaTeam.h
-src/game/entities/player/pvp -> src/game/Object/Calendar.h
-src/game/entities/player/pvp -> src/game/Object/CreatureAI.h
-src/game/entities/player/pvp -> src/game/Object/Formulas.h
-src/game/entities/player/pvp -> src/game/Object/Guild.h
-src/game/entities/player/pvp -> src/game/Object/SpellMgr.h
-src/game/entities/player/pvp -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/GridMap.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/Group.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/pvp -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/pvp [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/pvp [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/pvp [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/pvp [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/pvp [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/pvp [entities] -> src/game/Object/Guild.h
+src/game/entities/player/pvp [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/pvp [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridMap.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/pvp [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/pvp/HonorMgr.cpp -> src/proto/Opcodes.h
 src/game/entities/player/pvp/HonorMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/pvp/PlayerBattleGround.cpp -> src/game/Server/WorldSession.h
@@ -1472,31 +1547,31 @@ src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/WorldHandlers/UpdateData.
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/proto/Opcodes.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/quests -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/quests -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/quests -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/quests -> src/game/Object/ArenaTeam.h
-src/game/entities/player/quests -> src/game/Object/Calendar.h
-src/game/entities/player/quests -> src/game/Object/CreatureAI.h
-src/game/entities/player/quests -> src/game/Object/Formulas.h
-src/game/entities/player/quests -> src/game/Object/Guild.h
-src/game/entities/player/quests -> src/game/Object/SpellMgr.h
-src/game/entities/player/quests -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/quests -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/quests -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/quests -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/quests -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/quests -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/quests -> src/game/WorldHandlers/Group.h
-src/game/entities/player/quests -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/quests -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/quests -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/quests -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/quests -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/quests -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/quests -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/quests -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/quests -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/quests [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/quests [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/quests [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/quests [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/quests [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/quests [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/quests [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/quests [entities] -> src/game/Object/Guild.h
+src/game/entities/player/quests [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/quests [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/quests [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1508,34 +1583,34 @@ src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/Opcodes.h
 src/game/entities/player/quests/PlayerQuest.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/quests/QuestCompletePacket.cpp -> src/proto/Opcodes.h
 src/game/entities/player/quests/QuestCompletePacket.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/social -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/social -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/social -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/social -> src/game/Object/ArenaTeam.h
-src/game/entities/player/social -> src/game/Object/Calendar.h
-src/game/entities/player/social -> src/game/Object/CreatureAI.h
-src/game/entities/player/social -> src/game/Object/Formulas.h
-src/game/entities/player/social -> src/game/Object/GMTicketMgr.h
-src/game/entities/player/social -> src/game/Object/Guild.h
-src/game/entities/player/social -> src/game/Object/SpellMgr.h
-src/game/entities/player/social -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/social -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/social -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/social -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/social -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/social -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/social -> src/game/WorldHandlers/Group.h
-src/game/entities/player/social -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/social -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/social -> src/game/WorldHandlers/LFGBootLogic.h
-src/game/entities/player/social -> src/game/WorldHandlers/LFGMgr.h
-src/game/entities/player/social -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/social -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/social -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/social -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/social -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/social -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/social -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/social [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/social [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/social [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/social [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/social [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/social [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/social [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/social [entities] -> src/game/Object/GMTicketMgr.h
+src/game/entities/player/social [entities] -> src/game/Object/Guild.h
+src/game/entities/player/social [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/social [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGBootLogic.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/LFGMgr.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/social [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1579,31 +1654,31 @@ src/game/entities/player/social/SocialList.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/social/SocialMgr.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/social/SocialMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/social/SocialMgr.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/spells -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/spells -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/spells -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/spells -> src/game/Object/ArenaTeam.h
-src/game/entities/player/spells -> src/game/Object/Calendar.h
-src/game/entities/player/spells -> src/game/Object/CreatureAI.h
-src/game/entities/player/spells -> src/game/Object/Formulas.h
-src/game/entities/player/spells -> src/game/Object/Guild.h
-src/game/entities/player/spells -> src/game/Object/SpellMgr.h
-src/game/entities/player/spells -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/spells -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/spells -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/spells -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/spells -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/spells -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/spells -> src/game/WorldHandlers/Group.h
-src/game/entities/player/spells -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/spells -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/spells -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/spells -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/spells -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/spells -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/spells -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/spells -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/spells -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/spells [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/spells [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/spells [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/spells [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/spells [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/spells [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/spells [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/spells [entities] -> src/game/Object/Guild.h
+src/game/entities/player/spells [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/spells [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/spells [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1645,31 +1720,31 @@ src/game/entities/player/spells/RuneMgr.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/RuneMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells/SpellCooldownMgr.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/SpellCooldownMgr.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/talents -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/talents -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/talents -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/talents -> src/game/Object/ArenaTeam.h
-src/game/entities/player/talents -> src/game/Object/Calendar.h
-src/game/entities/player/talents -> src/game/Object/CreatureAI.h
-src/game/entities/player/talents -> src/game/Object/Formulas.h
-src/game/entities/player/talents -> src/game/Object/Guild.h
-src/game/entities/player/talents -> src/game/Object/SpellMgr.h
-src/game/entities/player/talents -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/talents -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/talents -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/talents -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/talents -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/talents -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/talents -> src/game/WorldHandlers/Group.h
-src/game/entities/player/talents -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/talents -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/talents -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/talents -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/talents -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/talents -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/talents -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/talents -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/talents -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/talents [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/talents [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/talents [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/talents [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/talents [entities] -> src/game/Object/Guild.h
+src/game/entities/player/talents [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/talents [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/talents [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1679,32 +1754,32 @@ src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/Upda
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/proto/Opcodes.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/world -> src/game/BattleGround/BattleGround.h
-src/game/entities/player/world -> src/game/BattleGround/BattleGroundAV.h
-src/game/entities/player/world -> src/game/BattleGround/BattleGroundMgr.h
-src/game/entities/player/world -> src/game/Object/ArenaTeam.h
-src/game/entities/player/world -> src/game/Object/Calendar.h
-src/game/entities/player/world -> src/game/Object/CreatureAI.h
-src/game/entities/player/world -> src/game/Object/Formulas.h
-src/game/entities/player/world -> src/game/Object/Guild.h
-src/game/entities/player/world -> src/game/Object/SpellMgr.h
-src/game/entities/player/world -> src/game/OutdoorPvP/OutdoorPvP.h
-src/game/entities/player/world -> src/game/WorldHandlers/CellImpl.h
-src/game/entities/player/world -> src/game/WorldHandlers/Channel.h
-src/game/entities/player/world -> src/game/WorldHandlers/ChannelMgr.h
-src/game/entities/player/world -> src/game/WorldHandlers/GridNotifiers.h
-src/game/entities/player/world -> src/game/WorldHandlers/GridNotifiersImpl.h
-src/game/entities/player/world -> src/game/WorldHandlers/Group.h
-src/game/entities/player/world -> src/game/WorldHandlers/GuildMgr.h
-src/game/entities/player/world -> src/game/WorldHandlers/InstanceData.h
-src/game/entities/player/world -> src/game/WorldHandlers/Mail.h
-src/game/entities/player/world -> src/game/WorldHandlers/MapManager.h
-src/game/entities/player/world -> src/game/WorldHandlers/MapPersistentStateMgr.h
-src/game/entities/player/world -> src/game/WorldHandlers/Path.h
-src/game/entities/player/world -> src/game/WorldHandlers/SkillDiscovery.h
-src/game/entities/player/world -> src/game/WorldHandlers/Spell.h
-src/game/entities/player/world -> src/game/WorldHandlers/Transports.h
-src/game/entities/player/world -> src/game/WorldHandlers/Weather.h
+src/game/entities/player/world [entities] -> src/game/BattleGround/BattleGround.h
+src/game/entities/player/world [entities] -> src/game/BattleGround/BattleGroundAV.h
+src/game/entities/player/world [entities] -> src/game/BattleGround/BattleGroundMgr.h
+src/game/entities/player/world [entities] -> src/game/Object/ArenaTeam.h
+src/game/entities/player/world [entities] -> src/game/Object/Calendar.h
+src/game/entities/player/world [entities] -> src/game/Object/CreatureAI.h
+src/game/entities/player/world [entities] -> src/game/Object/Formulas.h
+src/game/entities/player/world [entities] -> src/game/Object/Guild.h
+src/game/entities/player/world [entities] -> src/game/Object/SpellMgr.h
+src/game/entities/player/world [entities] -> src/game/OutdoorPvP/OutdoorPvP.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/CellImpl.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/Channel.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/ChannelMgr.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/GridNotifiers.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/GridNotifiersImpl.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/Group.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/GuildMgr.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/InstanceData.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/Mail.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/MapManager.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/MapPersistentStateMgr.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/Path.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/SkillDiscovery.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/Spell.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/Transports.h
+src/game/entities/player/world [entities] -> src/game/WorldHandlers/Weather.h
 src/game/entities/player/world/PlayerAreaTrigger.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/world/PlayerAreaTrigger.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/world/PlayerAreaTrigger.cpp -> src/game/WorldHandlers/GossipDef.h

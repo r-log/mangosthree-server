@@ -32,17 +32,18 @@ The allow-list, src/tests/layout_allow.txt, holds one line per key, paths from t
 root, in one sort order:
 
   against, seam   "<includer file> -> <header>", however many times the file includes it.
-  sideways        "<includer directory> -> <header>", the includer's immediate directory
-                  (src/game/spells/handlers is its own key, not part of src/game/spells). A new file
-                  in a listed directory including a listed header adds no key. The key does not name
-                  the includer's layer: in a directory holding several peers, a key listed for one
-                  peer covers a file of another.
+  sideways        "<includer directory> [<includer peer>] -> <header>", the includer's immediate
+                  directory (src/game/spells/handlers is its own key, not part of src/game/spells)
+                  and its peer layer. A new file of a listed peer in a listed directory including a
+                  listed header adds no key. A file's peer comes from its name (RULES), so a file
+                  named after another peer is a new key.
 
 --check fails on:
   - a key the tree has and the list does not;
-  - an against or seam edge whose includer file changed: per (kind, header) the includer files in
-    the tree may not outnumber the listed lines, so a new edge that matches a listed line gone from
-    the tree is reported as "moved: replace the old line ... with ..."; beyond that count it is new;
+  - an against or seam edge whose includer file changed: per (kind, layer pair, header) the
+    includer files in the tree may not outnumber the listed lines, so a new edge that matches a
+    listed line of its layer pair gone from the tree is reported as "moved: replace the old line ...
+    with ..."; beyond that count, or into another layer pair, it is new;
   - a listed line whose key is gone from the tree or is allowed;
   - a malformed or duplicate line, an unclassified file, an unknown or ambiguous header, a seam
     that matches no file, and a scan that reads no file or no include.
@@ -119,7 +120,7 @@ ALLOW_REL = 'src/tests/layout_allow.txt'
 ALLOW_HEADER = '''\
 # CheckLayout's allow-list: src/tests/tools/layout_gate.py, design/architecture.md sections 1 and 4.
 # Against-the-rule and seam edges: "<includer file> -> <header>".
-# Sideways edges: "<includer directory> -> <header>". Paths from the repository root.
+# Sideways edges: "<includer directory> [<peer>] -> <header>". Paths from the repository root.
 # The gate fails on an edge that is not listed and on a line whose edge is gone or allowed.
 # A new edge is fixed, not listed. A line whose includer file changed is replaced by the new one.
 # After removing or moving edges: python src/tests/tools/layout_gate.py --generate
@@ -312,16 +313,17 @@ def read_allow(path):
     return entries, errors
 
 
-def list_key(edge, kind):
-    """The list key of an edge: its includer's directory if sideways, else its includer file."""
-    return (edge[0].rsplit('/', 1)[0], edge[1]) if kind in KEY_BY_DIRECTORY else edge
+def list_key(edge, verdict):
+    """The list key of an edge: its includer's directory and peer if sideways, else its includer file."""
+    kind, key = verdict
+    return ('%s [%s]' % (edge[0].rsplit('/', 1)[0], key[0]), edge[1]) if kind in KEY_BY_DIRECTORY else edge
 
 
 def keys_of(edges):
     """{list key: (kind, [(includer, header), ...])} for a scan's edges."""
     keys = {}
-    for e, (kind, _) in sorted(edges.items()):
-        keys.setdefault(list_key(e, kind), (kind, []))[1].append(e)
+    for e, v in sorted(edges.items()):
+        keys.setdefault(list_key(e, v), (v[0], []))[1].append(e)
     return keys
 
 
@@ -335,7 +337,7 @@ def summary(result, out):
     pairs = collections.defaultdict(set)
     for e, (kind, key) in edges.items():
         per_kind[(kind, key)].add(e)
-        pairs[(kind, key)].add(list_key(e, kind))
+        pairs[(kind, key)].add(list_key(e, (kind, key)))
     lay = result['layers']
     out('layout: %d files classified: %s' % (len(result['files']), ', '.join(
         '%s %d' % (l if l else 'excluded', n) for l, n in sorted(lay.items(), key=lambda x: (-x[1], str(x[0]))))))
@@ -353,26 +355,28 @@ def summary(result, out):
         te = sum(len(per_kind[(kind, k)]) for k in keys)
         if kind in KEY_BY_DIRECTORY:
             tp = len(set().union(*(pairs[(kind, k)] for k in keys)))
-            ts = sum(len(pairs[(kind, k)]) for k in keys)
-            out('layout: %s: %d lines, %d edges, %d (includer directory, header) pairs listed; the pairs column '
-                'below counts a pair under each includer peer of a mixed directory (sum %d)'
-                % (titles[kind], tl, te, tp, ts))
+            out('layout: %s: %d lines, %d edges, %d (includer directory, includer peer, header) keys listed'
+                % (titles[kind], tl, te, tp))
         else:
             out('layout: %s: %d lines, %d (includer file, header) edges listed' % (titles[kind], tl, te))
         for k in keys:
             out('layout:   %-11s -> %-15s %5d lines %5d edges%s'
                 % (k[0], k[1], lines[(kind, k)], len(per_kind[(kind, k)]),
-                   ' %5d pairs' % len(pairs[(kind, k)]) if kind in KEY_BY_DIRECTORY else ''))
+                   ' %5d keys' % len(pairs[(kind, k)]) if kind in KEY_BY_DIRECTORY else ''))
 
 
-def line_kind(entry):
-    """The kind a per-file list line names, from its paths alone; None if allowed or not per file."""
+def line_verdict(entry):
+    """The (kind, layer pair) a per-file list line names; None if allowed or not per file."""
     a, b = entry
     if not (a.startswith('src/') and b.startswith('src/') and a.endswith(EXTENSIONS)):
         return None
     if layer(a[4:]) in (None, 'UNMAPPED') or layer(b[4:]) in (None, 'UNMAPPED'):
         return None
-    v = classify(a[4:], b[4:])
+    return classify(a[4:], b[4:])
+
+
+def line_kind(entry):
+    v = line_verdict(entry)
     return v[0] if v else None
 
 
@@ -384,20 +388,20 @@ def compare(edges, entries):
     tree_n, list_n = collections.Counter(), collections.Counter()
     for k, (kind, _) in keys.items():
         if kind not in KEY_BY_DIRECTORY:
-            tree_n[(kind, k[1])] += 1
+            tree_n[(edges[k], k[1])] += 1
     for e in entries:
-        kind = line_kind(e)
-        if kind and kind not in KEY_BY_DIRECTORY:
-            list_n[(kind, e[1])] += 1
-    # A new key pairs with a stale line of its kind and header; what is left is new or stale.
+        v = line_verdict(e)
+        if v and v[0] not in KEY_BY_DIRECTORY:
+            list_n[(v, e[1])] += 1
+    # A new key pairs with a stale line of its kind, layer pair and header; the rest is new or stale.
     new_by, stale_by = collections.defaultdict(list), collections.defaultdict(list)
     for k in new:
         if keys[k][0] not in KEY_BY_DIRECTORY:
-            new_by[(keys[k][0], k[1])].append(k)
+            new_by[(edges[k], k[1])].append(k)
     for e in stale:
-        kind = line_kind(e)
-        if kind and kind not in KEY_BY_DIRECTORY:
-            stale_by[(kind, e[1])].append(e)
+        v = line_verdict(e)
+        if v and v[0] not in KEY_BY_DIRECTORY:
+            stale_by[(v, e[1])].append(e)
     moved = []
     for hk in sorted(new_by):
         moved += list(zip(stale_by.get(hk, []), new_by[hk]))
@@ -430,10 +434,10 @@ def check(root, allow_path, out=print):
         'seam': 'new include edge(s) into a gated seam (entities/player, spells/aura; section 1: "only two '
                 'seams are gated") that the allow-list does not hold, keyed per includer file and header -- '
                 'fix them, do not list them:',
-        'sideways': 'new sideways include pair(s) (includer directory, header) between two domain directories '
-                    'that the allow-list does not hold; section 1 allows these lines but the pairs cannot grow '
-                    '(a new file in a listed directory including a listed header is not new) -- fix them, do '
-                    'not list them:'}
+        'sideways': 'new sideways include key(s) (includer directory, includer peer, header) between two domain '
+                    'directories that the allow-list does not hold; section 1 allows these lines but the keys '
+                    'cannot grow (a new file of a listed peer in a listed directory including a listed header is '
+                    'not new) -- fix them, do not list them:'}
     for kind in ('against', 'seam', 'sideways'):
         mine = [k for k in new if keys[k][0] == kind]
         if mine:
@@ -445,10 +449,12 @@ def check(root, allow_path, out=print):
                     % (k[0], k[1], kind, key[0], key[1], ', '.join(e[0] for e in keys[k][1])))
             else:
                 out('  %s -> %s   [%s: %s -> %s] the header has %d %s includer file(s) in the tree, %d listed'
-                    % (k[0], k[1], kind, key[0], key[1], tree_n[(kind, k[1])], kind, list_n[(kind, k[1])]))
+                    % (k[0], k[1], kind, key[0], key[1], tree_n[(edges[k], k[1])], '%s -> %s' % key,
+                       list_n[(edges[k], k[1])]))
     if moved:
-        out('CheckLayout: %d against-the-rule or seam line(s) changed includer file, the header\'s count did '
-            'not grow -- moved: replace the old line with the new one in %s:' % (len(moved), allow_rel))
+        out('CheckLayout: %d against-the-rule or seam line(s) changed includer file inside one layer pair, the '
+            'header\'s count did not grow -- moved: replace the old line with the new one in %s:'
+            % (len(moved), allow_rel))
         for old, k in moved:
             kind, key = edges[k]
             out('  moved: replace the old line %s -> %s with %s -> %s   [%s: %s -> %s]'
@@ -459,15 +465,15 @@ def check(root, allow_path, out=print):
         for e in stale:
             note = ''
             if line_kind(e) in KEY_BY_DIRECTORY:
-                note = ('   [a sideways edge is listed per includer directory: %s -> %s]'
-                        % (e[0].rsplit('/', 1)[0], e[1]))
+                note = ('   [a sideways edge is listed per includer directory and peer: %s [%s] -> %s]'
+                        % (e[0].rsplit('/', 1)[0], layer(e[0][4:]), e[1]))
             out('  %s -> %s%s' % (e[0], e[1], note))
     if errors or new or moved or stale:
         out('CheckLayout: FAIL')
         return 1
     per = collections.Counter(kind for kind, _ in keys.values())
     out('CheckLayout: OK: %d list lines (%d against + %d seam per includer file and header, %d sideways per '
-        'includer directory and header), all %d on the allow-list'
+        'includer directory, peer and header), all %d on the allow-list'
         % (len(keys), per['against'], per['seam'], per['sideways'], len(entries)))
     return 0
 
@@ -517,9 +523,9 @@ SELF_TREE = {
     'src/tools/ToolDefs.h': '',
     'dep/zlib/zlib.h': '',
 }
-SELF_ALLOW = [('src/game/Maps', 'src/game/Object/Unit.h'),
+SELF_ALLOW = [('src/game/Maps [maps]', 'src/game/Object/Unit.h'),
               ('src/game/Maps/Map.cpp', 'src/game/entities/player/Player.h'),
-              ('src/game/WorldHandlers', 'src/game/Object/Unit.h'),
+              ('src/game/WorldHandlers [spells]', 'src/game/Object/Unit.h'),
               ('src/game/WorldHandlers/Spell.cpp', 'src/proto/WorldPacket.h')]
 
 
@@ -567,10 +573,12 @@ def self_test():
 
     run('the clean fixture passes (tools/ is not scanned)', SELF_TREE, SELF_ALLOW, 0,
         ['CheckLayout: OK: 4 list lines (1 against + 1 seam per includer file and header, 2 sideways per includer '
-         'directory and header), all 4 on the allow-list', 'domain      -> proto               1 lines     1 edges',
+         'directory, peer and header), all 4 on the allow-list', 'domain      -> proto               1 lines    '
+         ' 1 edges',
          'maps        -> entities/player     1 lines     1 edges',
-         'maps        -> entities            1 lines     1 edges     1 pairs',
-         'sideways inside the domain tier (by layer): 2 lines, 2 edges, 2 (includer directory, header) pairs',
+         'maps        -> entities            1 lines     1 edges     1 keys',
+         'sideways inside the domain tier (by layer): 2 lines, 2 edges, 2 (includer directory, includer peer, '
+         'header) keys',
          '(15 allowed, 4 against/seam/sideways, 1 skipped: tests -> tools/), 1 third-party under dep/, 1 generated'])
     run('a planted upward include fails (foundation -> entities)',
         with_file('src/shared/Common.cpp', '#include "Common.h"\n#include "Object/Unit.h"\n'), SELF_ALLOW, 1,
@@ -578,9 +586,10 @@ def self_test():
          'src/shared/Common.cpp -> src/game/Object/Unit.h   [against: foundation -> domain]'])
     run('a new sideways include fails (spells -> maps)',
         with_file('src/game/WorldHandlers/Spell.cpp', '#include "Unit.h"\n#include "WorldPacket.h"\n#include "Map.h"\n'),
-        SELF_ALLOW, 1, ['1 new sideways include pair(s) (includer directory, header)',
-                        'section 1 allows these lines but the pairs cannot grow',
-                        '  src/game/WorldHandlers -> src/game/Maps/Map.h   [sideways: spells -> maps] included by '
+        SELF_ALLOW, 1, ['1 new sideways include key(s) (includer directory, includer peer, header)',
+                        'section 1 allows these lines but the keys cannot grow',
+                        '  src/game/WorldHandlers [spells] -> src/game/Maps/Map.h   [sideways: spells -> maps] '
+                        'included by '
                         'src/game/WorldHandlers/Spell.cpp'])
     run('a new include into a gated seam fails as against',
         with_file('src/game/WorldHandlers/Spell.cpp', '#include "WorldPacket.h"\n#include "Player.h"\n'),
@@ -636,41 +645,50 @@ def self_test():
     run('duplicate violating lines collapse to one edge',
         with_file('src/game/Maps/Map.cpp', '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Unit.h"\n'),
         SELF_ALLOW, 0, ['CheckLayout: OK: 4 list lines', 'all 4 on the allow-list',
-                        'maps        -> entities            2 lines     1 edges     1 pairs'])
+                        'maps        -> entities            2 lines     1 edges     1 keys'])
 
     run('rule 1: a new file in a listed directory, listed header, passes',
         with_file('src/game/Maps/MapGrid.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
-        ['CheckLayout: OK: 4 list lines', 'maps        -> entities            2 lines     2 edges     1 pairs'])
+        ['CheckLayout: OK: 4 list lines', 'maps        -> entities            2 lines     2 edges     1 keys'])
     run('rule 1: a split beside SpellAuraDummy.cpp (out of the seam) passes',
         with_file('src/game/WorldHandlers/SpellAuraDummyWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
-        ['CheckLayout: OK: 4 list lines', 'spells      -> entities            2 lines     2 edges     1 pairs'])
+        ['CheckLayout: OK: 4 list lines', 'spells      -> entities            2 lines     2 edges     1 keys'])
     run('rule 1: a new (directory, header) pair fails (spells/handlers)',
         with_file('src/game/spells/handlers/AuraDummyWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
-        ['1 new sideways include pair(s)', '  src/game/spells/handlers -> src/game/Object/Unit.h   [sideways: spells '
+        ['1 new sideways include key(s)', '  src/game/spells/handlers [spells] -> src/game/Object/Unit.h   '
+         '[sideways: spells '
          '-> entities] included by src/game/spells/handlers/AuraDummyWarrior.cpp'])
+    run('rule 1: another peer in a listed directory, listed header, fails',
+        with_file('src/game/WorldHandlers/GroupSplit.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
+        '  src/game/WorldHandlers [social] -> src/game/Object/Unit.h   [sideways: social -> entities] included by '
+        'src/game/WorldHandlers/GroupSplit.cpp')
     run('rule 1: a listed pair with no includer left is stale and fails',
         with_file('src/game/Maps/Map.cpp', '#include "Map.h"\n#include "Player.h"\n'), SELF_ALLOW, 1,
-        ['1 allow-list line(s) name an edge that is gone', '  src/game/Maps -> src/game/Object/Unit.h'])
+        ['1 allow-list line(s) name an edge that is gone', '  src/game/Maps [maps] -> src/game/Object/Unit.h'])
     run('rule 1: a pair stays while one includer in the directory is left',
         dict(SELF_TREE, **{'src/game/Maps/Map.cpp': '#include "Map.h"\n#include "Player.h"\n',
                            'src/game/Maps/MapGrid.cpp': '#include "Unit.h"\n'}), SELF_ALLOW, 0,
         'CheckLayout: OK: 4 list lines')
     run('rule 1: a sideways edge listed per file (the old key) fails',
         SELF_TREE,
-        [e for e in SELF_ALLOW if e[0] != 'src/game/Maps'] + [('src/game/Maps/Map.cpp', 'src/game/Object/Unit.h')],
-        1, ['  src/game/Maps -> src/game/Object/Unit.h   [sideways: maps -> entities] included by',
-            '  src/game/Maps/Map.cpp -> src/game/Object/Unit.h   [a sideways edge is listed per includer directory: '
-            'src/game/Maps -> src/game/Object/Unit.h]'])
+        [e for e in SELF_ALLOW if e[0] != 'src/game/Maps [maps]']
+        + [('src/game/Maps/Map.cpp', 'src/game/Object/Unit.h')],
+        1, ['  src/game/Maps [maps] -> src/game/Object/Unit.h   [sideways: maps -> entities] included by',
+            '  src/game/Maps/Map.cpp -> src/game/Object/Unit.h   [a sideways edge is listed per includer '
+            'directory and peer: '
+            'src/game/Maps [maps] -> src/game/Object/Unit.h]'])
 
     run('rule 2: a second file including a forbidden header fails',
         with_file('src/game/WorldHandlers/SpellEffects.cpp', '#include "WorldPacket.h"\n'), SELF_ALLOW, 1,
         ['1 new include edge(s) against section 1',
          '  src/game/WorldHandlers/SpellEffects.cpp -> src/proto/WorldPacket.h'
-         '   [against: domain -> proto] the header has 2 against includer file(s) in the tree, 1 listed'], 'moved:')
+         '   [against: domain -> proto] the header has 2 domain -> proto includer file(s) in the tree, 1 '
+         'listed'], 'moved:')
     run('rule 2: a second file including a seam header fails',
         with_file('src/game/Maps/MapGrid.cpp', '#include "Player.h"\n'), SELF_ALLOW, 1,
         ['1 new include edge(s) into a gated seam', '  src/game/Maps/MapGrid.cpp -> src/game/entities/player/Player.h'
-         '   [seam: maps -> entities/player] the header has 2 seam includer file(s) in the tree, 1 listed'], 'moved:')
+         '   [seam: maps -> entities/player] the header has 2 maps -> entities/player includer file(s) in the '
+         'tree, 1 listed'], 'moved:')
 
     old_wp = ('src/game/WorldHandlers/Spell.cpp', 'src/proto/WorldPacket.h')
     new_wp = ('src/game/Maps/Map.cpp', 'src/proto/WorldPacket.h')
@@ -692,26 +710,28 @@ def self_test():
         'moved:')
     run('rule 3: the old include kept, a second includer: count grew, fails',
         with_file('src/game/Maps/Map.cpp', moved_tree['src/game/Maps/Map.cpp']), SELF_ALLOW, 1,
-        ['  src/game/Maps/Map.cpp -> src/proto/WorldPacket.h   [against: domain -> proto] the header has 2 against '
+        ['  src/game/Maps/Map.cpp -> src/proto/WorldPacket.h   [against: domain -> proto] the header has 2 '
+         'domain -> proto '
          'includer file(s) in the tree, 1 listed'], 'moved:')
     two_new = dict(moved_tree, **{
         'src/game/Object/Unit.cpp': '#include "Unit.h"\n#include "zlib.h"\n#include "WorldPacket.h"\n'})
     run('rule 3: two includers for one deleted line fail (list untouched)', two_new, SELF_ALLOW, 1,
         [moved_text, '  src/game/Object/Unit.cpp -> src/proto/WorldPacket.h   [against: domain -> proto] the header '
-         'has 2 against includer file(s) in the tree, 1 listed'])
+         'has 2 domain -> proto includer file(s) in the tree, 1 listed'])
     run('rule 3: two includers for one deleted line fail (line replaced)', two_new, moved_allow, 1,
-        '  src/game/Object/Unit.cpp -> src/proto/WorldPacket.h   [against: domain -> proto] the header has 2 against '
+        '  src/game/Object/Unit.cpp -> src/proto/WorldPacket.h   [against: domain -> proto] the header has 2 '
+        'domain -> proto '
         'includer file(s) in the tree, 1 listed', 'moved:')
     old_pl = ('src/game/Maps/Map.cpp', 'src/game/entities/player/Player.h')
-    new_pl = ('src/game/WorldHandlers/Spell.cpp', 'src/game/entities/player/Player.h')
+    new_pl = ('src/game/Maps/MapGrid.cpp', 'src/game/entities/player/Player.h')
     seam_tree = dict(SELF_TREE, **{
         'src/game/Maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n',
-        'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n#include "WorldPacket.h"\n#include "Player.h"\n'})
+        'src/game/Maps/MapGrid.cpp': '#include "Player.h"\n'})
     run('rule 3: a moved seam line, replaced in the list, passes', seam_tree,
         [e for e in SELF_ALLOW if e != old_pl] + [new_pl], 0, 'CheckLayout: OK: 4 list lines')
     run('rule 3: a moved seam line not replaced fails as moved', seam_tree, SELF_ALLOW, 1,
         '  moved: replace the old line src/game/Maps/Map.cpp -> src/game/entities/player/Player.h with '
-        'src/game/WorldHandlers/Spell.cpp -> src/game/entities/player/Player.h   [seam: spells -> entities/player]',
+        'src/game/Maps/MapGrid.cpp -> src/game/entities/player/Player.h   [seam: maps -> entities/player]',
         'new include edge(s) into a gated seam')
     run('rule 3: a move does not cross kinds (seam line, against includer)',
         dict(SELF_TREE, **{'src/game/Maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n',
@@ -725,10 +745,23 @@ def self_test():
                                '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Opcodes.h"\n'}),
         SELF_ALLOW, 1,
         ['1 new include edge(s) against', '  src/game/Maps/Map.cpp -> src/proto/Opcodes.h   [against: domain -> '
-         'proto] the header has 1 against includer file(s) in the tree, 0 listed',
+         'proto] the header has 1 domain -> proto includer file(s) in the tree, 0 listed',
          '1 allow-list line(s) name an edge that is gone',
          '  src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h'],
         'moved:')
+    run('rule 3: a move does not cross layer pairs (against)',
+        dict(SELF_TREE, **{'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n',
+                           'src/game/Server/ObjectMgr.cpp': '#include "WorldPacket.h"\n'}), SELF_ALLOW, 1,
+        ['  src/game/Server/ObjectMgr.cpp -> src/proto/WorldPacket.h   [against: data -> proto] the header has 1 '
+         'data -> proto includer file(s) in the tree, 0 listed',
+         '  src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h'], 'moved:')
+    run('rule 3: a move does not cross layer pairs (seam)',
+        dict(SELF_TREE, **{'src/game/Maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n',
+                           'src/game/WorldHandlers/Spell.cpp':
+                               '#include "Unit.h"\n#include "WorldPacket.h"\n#include "Player.h"\n'}),
+        SELF_ALLOW, 1,
+        ['  src/game/WorldHandlers/Spell.cpp -> src/game/entities/player/Player.h   [seam: spells -> entities/player]',
+         '  src/game/Maps/Map.cpp -> src/game/entities/player/Player.h'], 'moved:')
     run('a zero scan fails', {'src/README': 'x', 'dep/zlib/zlib.h': ''}, [], 1, 'found no C/C++ file')
     with tempfile.TemporaryDirectory() as tmp:
         ap = build(tmp, SELF_TREE, [])
