@@ -130,9 +130,9 @@ namespace Motion
         static char const* const names[] =
         {
             "InstallDefault", "Request", "Clear", "ClearAll", "ExpireSelected", "Expire", "FinishSelected",
-            "CancelControl", "Release", "Notify", "Die", "Commit", "Inhibit", "Uninhibit", "Refused"
+            "CancelControl", "Release", "Notify", "Die", "Inhibit", "Uninhibit", "Refused"
         };
-        static_assert(sizeof(names) / sizeof(names[0]) == 15, "OpName out of sync with Decision::Op");
+        static_assert(sizeof(names) / sizeof(names[0]) == 14, "OpName out of sync with Decision::Op");
         const size_t index = static_cast<size_t>(op);
         return index < sizeof(names) / sizeof(names[0]) ? names[index] : "?";
     }
@@ -163,8 +163,8 @@ namespace Motion
         }
     }
 
-    Arbiter::Arbiter() : m_seq(0), m_generation(0), m_depth(0), m_outerKind(TransactionKind::Normal),
-        m_doomedInGeneration(false), m_ringNext(0), m_ringCount(0), m_blockedSeq(0)
+    Arbiter::Arbiter() : m_seq(0), m_depth(0), m_outerKind(TransactionKind::Normal),
+        m_ringNext(0), m_ringCount(0), m_blockedSeq(0)
     {
     }
 
@@ -175,12 +175,6 @@ namespace Motion
         h.id = id;
         h.seq = ++m_seq;
         h.claim = claim;
-        h.generation = m_generation;
-        h.doomed = InDiscardingTransaction();
-        if (h.doomed)
-        {
-            m_doomedInGeneration = true;
-        }
         h.started = false;
         return h;
     }
@@ -191,8 +185,6 @@ namespace Motion
         if (m_outermost)
         {
             m_arbiter.m_outerKind = kind;
-            ++m_arbiter.m_generation;
-            m_arbiter.m_doomedInGeneration = false;
         }
         else if (kind == TransactionKind::Death)
         {
@@ -212,7 +204,6 @@ namespace Motion
         --m_arbiter.m_depth;
         if (m_outermost)
         {
-            m_arbiter.Commit();
             m_arbiter.m_outerKind = TransactionKind::Normal;
         }
         else if (m_raised && m_arbiter.m_outerKind != TransactionKind::Death)
@@ -224,93 +215,6 @@ namespace Motion
     bool Arbiter::InDiscardingTransaction() const
     {
         return m_depth > 0 && m_outerKind != TransactionKind::Normal;
-    }
-
-    void Arbiter::Commit()
-    {
-        if (!m_doomedInGeneration)
-        {
-            return;   // nothing was doomed since the outermost guard opened: a plain completion
-        }
-        const std::optional<Held> before = Selected();
-        const FinishReason reason = m_outerKind == TransactionKind::Death ? FinishReason::Died : FinishReason::Cleared;
-        bool swept = false;
-        for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
-        {
-            if (m_commands[i] && m_commands[i]->doomed && m_commands[i]->generation == m_generation)
-            {
-                Finish(m_commands[i], reason);
-                swept = true;
-            }
-        }
-        for (;;)   // highest-ranked doomed claim of this generation first, same precedence order as elsewhere
-        {
-            std::optional<size_t> best;
-            for (size_t i = 0; i < m_claims.size(); ++i)
-            {
-                if (!m_claims[i].doomed || m_claims[i].generation != m_generation)
-                {
-                    continue;
-                }
-                if (!best || Outranks(m_claims[i], m_claims[*best]))
-                {
-                    best = i;
-                }
-            }
-            if (!best)
-            {
-                break;
-            }
-            FinishClaim(*best, reason);
-            swept = true;
-        }
-        if (m_combat && m_combat->doomed && m_combat->generation == m_generation)
-        {
-            Finish(m_combat, reason);
-            swept = true;
-        }
-        while (m_default && m_default->doomed && m_default->generation == m_generation)
-        {
-            PopDefault(reason);   // a doomed fallback promoted by the pop is swept by the next turn
-            swept = true;
-        }
-        if (m_fallbackDefault && m_fallbackDefault->doomed && m_fallbackDefault->generation == m_generation)
-        {
-            Finish(m_fallbackDefault, reason);
-            swept = true;
-        }
-        // The sweep above only ever owns this generation's own doomed entries;
-        // anything still held past it is no longer at risk from this guard, so
-        // its doomed flag is retired here rather than left to outlive the guard
-        // that set it (Important 1: a later discarding guard must not inherit it).
-        if (m_default)
-        {
-            m_default->doomed = false;
-        }
-        if (m_fallbackDefault)
-        {
-            m_fallbackDefault->doomed = false;
-        }
-        if (m_combat)
-        {
-            m_combat->doomed = false;
-        }
-        for (uint8 i = FIRST_COMMAND_LAYER; i < LAYER_COUNT; ++i)
-        {
-            if (m_commands[i])
-            {
-                m_commands[i]->doomed = false;
-            }
-        }
-        for (Held& claim : m_claims)
-        {
-            claim.doomed = false;
-        }
-        Reselect(before);
-        if (swept)
-        {
-            Record(Decision::Op::Commit, Kind::Idle, 0, 0, before);
-        }
     }
 
     void Arbiter::Notify(ExternalEvent event)
@@ -460,8 +364,7 @@ namespace Motion
         {
             m_events.push_back({Event::Kind::DefaultSwapped, m_default->kind, m_default->id, FinishReason::Superseded, 0, m_default->seq});
         }
-        m_default = Stamp(kind, 0, 0);
-        m_default->doomed = false;
+        m_default = Stamp(kind, 0, 0);   // taken under any kind: the shell's post-death idle installs inside the death's own guard
         m_fallbackDefault.reset();
         Reselect(before);
         Record(Decision::Op::InstallDefault, kind, 0, 0, before);
@@ -472,6 +375,11 @@ namespace Motion
         Transaction tx(*this, TransactionKind::Normal);
         const Layer layer = LayerOf(request.kind);
         const std::optional<Held> before = Selected();
+        if (InDiscardingTransaction())
+        {
+            Record(Decision::Op::Refused, request.kind, request.id, request.claim, before);
+            return;   // a hook's request during a clear or a death: the old clean loop popped what a finalizer pushed
+        }
         if (layer == Layer::Control && request.claim == 0)
         {
             Record(Decision::Op::Request, request.kind, request.id, request.claim, before);
@@ -1098,7 +1006,6 @@ namespace Motion
             const std::optional<Held> after = Selected();
             d.hadAfter = after.has_value();
             d.after = after ? *after : Held();
-            d.generation = m_generation;
             (*m_ring)[m_ringNext] = d;
             m_ringNext = (m_ringNext + 1) % kRingSize;
             if (m_ringCount < kRingSize)

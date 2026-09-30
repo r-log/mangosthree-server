@@ -263,11 +263,11 @@ MotionMaster::Bound::~Bound()
 
 /**
  * The outermost scope owns the commit: it delivers the arbiter's events while the
- * transaction is still open (so a finalizer's requests fall under the same
- * generation), closes it (the doomed sweep), delivers what that sweep finished, and
- * only then reconciles the selection -- a round at a time, under a fresh transaction
- * of the same kind, until nothing is left. The behaviours the rounds finished are
- * destroyed when the last one ends, never inside a tick. A nested scope only joins.
+ * transaction is still open (so a finalizer's request during a clear or a death is
+ * refused, under the same kind), closes it, and only then reconciles the selection --
+ * a round at a time, under a fresh transaction of the same kind, until nothing is
+ * left. The behaviours the rounds finished are destroyed when the last one ends,
+ * never inside a tick. A nested scope only joins.
  */
 class MotionMaster::Scope
 {
@@ -337,16 +337,15 @@ MotionMaster::~MotionMaster()
 // ---- the commit ----------------------------------------------------------------
 
 /**
- * @brief Settles one outermost facade call: hooks, the doomed sweep, the selection.
+ * @brief Settles one outermost facade call: hooks, then the selection.
  * @param transaction The open transaction, closed and reopened here.
  */
 void MotionMaster::Commit(std::optional<Motion::Transaction>& transaction)
 {
     for (uint32 round = 0; round < kMaxCommitRounds; ++round)
     {
-        DeliverEvents();              // what the operation decided, inside its transaction: a finalizer's requests fall under the same generation
-        transaction.reset();          // the arbiter's commit: doomed entries finish, events queue
-        DeliverEvents();              // what the sweep finished (never activated, so no hook runs; the bindings go)
+        DeliverEvents();              // what the operation decided, inside its transaction: a finalizer's request during a clear or a death is refused
+        transaction.reset();          // the transaction closes; the next round's hooks run under a fresh one of the same kind
         Reconcile();                  // activate or resume the selection; may queue more
         if (!m_arbiter.HasEvents())
         {
@@ -826,10 +825,9 @@ void MotionMaster::Clear(bool reset, bool all)
             m_pendingReset = PendingReset::None;
         }
     }
-    // The cleared entries' hooks run here, inside this scope's transaction: nested in another
-    // operation, the clear discards for its own extent (a finalizer's request during it is
-    // doomed, as the stack's clean loop popped what a finalizer pushed); outermost, the scope's
-    // commit finishes the doomed entries at its end.
+    // The cleared entries' hooks run here, inside this scope's transaction: a finalizer's
+    // request during it is refused, as the stack's clean loop popped what a finalizer pushed;
+    // nested in another operation, the clear refuses for its own extent only.
     DeliverEvents();
 }
 
@@ -1607,7 +1605,7 @@ void MotionMaster::Die()
 {
     Scope scope(*this, Motion::TransactionKind::Death);
     m_arbiter.Die();
-    InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));   // never doomed: survives the death's own guard
+    InstallFactoryNative(Motion::Kind::Idle, std::unique_ptr<Motion::Behaviour>(new Motion::IdleBehaviour()));   // an install, not a request: taken inside the death's own guard
 }
 
 /**
