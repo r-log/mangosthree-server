@@ -51,6 +51,7 @@
 ///                            AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheNewContextsAliasTheirLocals,
 ///                            AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId
+///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 
 #include "TestHarness.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
@@ -695,10 +696,17 @@ TEST(AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault)
 TEST(AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts)
 {
     // Each body writes `finalSpellId` and answers Continue, so the tail casts it; a miss leaves it at 0.
+    static uint32 const tames[][2] =
+    {
+        { 19548, 19597 }, { 19674, 19677 }, { 19687, 19676 }, { 19688, 19678 }, { 19689, 19679 }, { 19692, 19680 },
+        { 19693, 19684 }, { 19694, 19681 }, { 19696, 19682 }, { 19697, 19683 }, { 19699, 19685 }, { 19700, 19686 },
+        { 30646, 30647 }, { 30653, 30648 }, { 30654, 30652 }, { 30099, 30100 }, { 30102, 30103 }, { 30105, 30104 },
+    };
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(RunQuestTame(game, 19548), uint32(19597));
-    CHECK_EQ(RunQuestTame(game, 19687), uint32(19676));
-    CHECK_EQ(RunQuestTame(game, 30105), uint32(30104));
+    for (auto const& tame : tames)
+    {
+        CHECK_EQ(RunQuestTame(game, tame[0]), tame[1]);
+    }
     CHECK_EQ(RunQuestTame(game, 73461), uint32(0));
 
     // Against a Return handler at the same site, which leaves before the tail.
