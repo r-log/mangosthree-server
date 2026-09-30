@@ -118,7 +118,7 @@ set(REACH_RULES
     # owner passes in (ObjectMgr.h stays out of reach); whether a spell auto-repeats is a fact the
     # owner reads (SpellMgr.h stays out of reach). The header forward-declares WorldPacket,
     # ObjectGuid, ItemPrototype, SpellEntry and Field, and stays inside entities/player/Player.h's
-    # rule (Player.h reaches it through Unit.h). The .cpp, like the talent manager's, reads the spell and spell
+    # rule. The .cpp, like the talent manager's, reads the spell and spell
     # category DBC stores (Server/DBCStores.h) and saves through the character database
     # (Database/DatabaseEnv.h); src/tests/SpellCooldownMgrTest.cpp seeds the stores.
     # The WorldHandlers/Spell.h entries are belt-and-braces: Spell.h includes Object/Unit.h and

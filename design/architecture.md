@@ -87,11 +87,12 @@ domain therefore never names session or `WorldPacket`.
 spells 11, pvp 9, ai 2. Game `.cpp` files hold 996 calls in 126 files.
 
 **Today (entities, the manager audit):**
-- Seven managers build packets: `CurrencyMgr` (4 opcodes), `PetMgr` (1), `HonorMgr` (1), `ReputationMgr` (5),
-  `SocialList`/`PlayerSocial` (2), `RuneMgr` (3) and `SpellCooldownMgr` (2).
-- Seven call the database: `CurrencyMgr` (3 lines), `QuestStatusMgr` (6), `ReputationMgr` (2), `SocialList` (5),
-  `SpellCooldownMgr` (2), `GlyphMgr` (6) and `TalentMgr` (8).
+- Six managers build packets: `CurrencyMgr` (4 opcodes), `PetMgr` (1), `HonorMgr` (1), `ReputationMgr` (5),
+  `SocialList`/`PlayerSocial` (2) and `RuneMgr` (3).
+- Six call the database: `CurrencyMgr` (3 lines), `QuestStatusMgr` (6), `ReputationMgr` (2), `SocialList` (5),
+  `GlyphMgr` (6) and `TalentMgr` (8).
 - Three are clean: `InventoryMgr`, `PlayerPetCache` and `QuestRewardRules`.
+- In `spells/`, `SpellCooldownMgr` builds packets (2 opcodes) and calls the database (2 lines).
 - `QuestCompletePacket` is a packet builder on the manager list, and the owner-side global `SocialMgr` sends packets.
 - `entities/player/README.md` rule 4 ("packets are built in the manager") and `CheckStateOwnership`'s manager rows
   state the opposite of this section.
@@ -116,14 +117,14 @@ Each correction is one PR per manager, with the harness record byte-identical.
 
 entities/player/ holds every state only a player has; the domain directories (spells/, combat/, ...) hold what Unit
 shares. Reputation, currency, honor, runes and achievements therefore stay in entities/player/. SpellCooldownMgr lives
-in spells/ on Unit (Creature has its own copy today).
+in spells/ on Unit (Creature has a different cooldown model today).
 
 | Today | Target |
 |---|---|
 | `QuestStatusMgr`, `QuestRewardRules`, `TalentMgr`, `GlyphMgr`, `InventoryMgr`, `PetMgr`, `PlayerPetCache`, `SocialList`, `ReputationMgr`, `CurrencyMgr`, `HonorMgr`, `RuneMgr` (all in `entities/player/`) | stay |
 | `AchievementMgr` (`WorldHandlers/`) | `entities/player/` |
 | `QuestCompletePacket` | `session/packets/` (a packet builder) |
-| `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has its own copy (6 methods, `Object/CreatureSpellCooldown.cpp`). |
+| `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
 **Today (`Unit`, 587 member functions, grouped roughly by defining file and name):** combat 146, auras 112, spell
@@ -273,7 +274,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump`, `CharacterDatabaseCleaner` and `GameGlobals` (9 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 984 database calls outside persistence | #144, when content needs it |
-| 9 | **Entities, Today:** seven managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`, `SpellCooldownMgr`); seven call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `SpellCooldownMgr`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). `SpellCooldownMgr.h`'s seam line to `ManagerPacketSink.h` (`src/tests/layout_allow.txt`) is removed by the PR that moves the cooldown packets out; the line goes stale when the include goes, and `CheckLayout` fails on it until it is removed: the stale line is the reminder | when the domain is next touched |
+| 9 | **Entities, Today:** six managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). **Spells, Today:** `SpellCooldownMgr` builds packets and calls the database. `SpellCooldownMgr.h`'s seam line to `ManagerPacketSink.h` (`src/tests/layout_allow.txt`) is removed by the PR that moves the cooldown packets out; the line goes stale when the include goes, and `CheckLayout` fails on it until it is removed: the stale line is the reminder | when the domain is next touched |
 | 10 | `QuestCompletePacket` in entities; README rule 4 and `CheckStateOwnership`'s manager rows | the first PR of row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938) | the Creature fold, only on 4.3.4 evidence |

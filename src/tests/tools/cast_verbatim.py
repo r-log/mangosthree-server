@@ -7,8 +7,9 @@ dropped, and the file must come back byte for byte as it was at BASE.
 
 For each file in FILES, --check:
   1. reads the file in the working tree and at BASE (`git show <base>:<file>`);
-  2. drops each of the file's ADDED lines, each of which must stand in the working tree exactly
-     once, as a whole line;
+  2. drops each of the file's ADDED lines: each is listed with the base line it follows, and
+     must stand in the working tree exactly once, as a whole line, directly below that line,
+     which must stand exactly once in the file at BASE;
   3. finds every call of each FORM (its direct spelling, the argument list read to the matching
      parenthesis) and writes it back as the cast call it stands for: a FORM with a `suffix` must
      end its argument list with that suffix (the argument the rewrite appended), and the suffix
@@ -17,8 +18,8 @@ For each file in FILES, --check:
      be left in the working tree (a site the rewrite missed);
   5. compares the result with the file at BASE, byte for byte, and names the first difference.
 Because only the call's spelling is rewritten back, a changed, swapped or dropped argument, a
-dropped or moved guard, a changed line around a site, a site added or lost, or an added line
-that is not listed all fail.
+dropped or moved guard, a changed line around a site, a site added or lost, an added line that
+is not listed, and an added line that stands anywhere but below its listed base line all fail.
 
 The file:line of every rewritten site, old and new, is printed with the result.
 
@@ -68,15 +69,16 @@ FORMS = {
                          'suffix': None},
 }
 
-# file -> the count of each FORM rewritten in it and the lines the rewrite added.
+# file -> the count of each FORM rewritten in it and the lines the rewrite added, each with the
+# base line it follows.
 FILES = {
     'src/game/Object/Unit.h': {
         'forms': {},
-        'added': ['#include "spells/SpellCooldownMgr.h"',
-                  '        SpellCooldownMgr m_spellCooldownMgr;']},
+        'added': [('#include "spells/SpellCooldownMgr.h"', '#include "spells/AuraContainer.h"'),
+                  ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
     'src/game/Object/Unit.cpp': {
         'forms': {},
-        'added': ['    m_spellCooldownMgr(),']},
+        'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')]},
     'src/game/Object/UnitDamage.cpp': {
         'forms': {'HasSpellCooldown': 1, 'AddSpellCooldown': 1},
         'added': []},
@@ -151,14 +153,25 @@ def paste_back(rel, text, spec, out):
     return 0, text, sites
 
 
-def drop_added(rel, text, spec, out):
+def drop_added(rel, old_text, text, spec, out):
+    old_lines = old_text.split('\n')
     lines = text.split('\n')
-    for added in spec['added']:
+    for added, after in spec['added']:
         n = lines.count(added)
         if n != 1:
             out('%s: FAILED: the added line %r stands %d time(s), expected once' % (rel, added, n))
             return 1, text
-        lines.remove(added)
+        m = old_lines.count(after)
+        if m != 1:
+            out('%s: FAILED: the base line %r that %r follows stands %d time(s) at the base, expected once'
+                % (rel, after, added, m))
+            return 1, text
+        at = lines.index(added)
+        if at == 0 or lines[at - 1] != after:
+            out('%s:%d: FAILED: the added line %r does not stand directly below %r'
+                % (rel, at + 1, added, after))
+            return 1, text
+        del lines[at]
     return 0, '\n'.join(lines)
 
 
@@ -174,7 +187,7 @@ def first_difference(a, b):
 
 def verify(rel, old_text, new_text, spec, out):
     """0 when the working tree's file pastes back to the base's byte for byte, else 1."""
-    rc, text = drop_added(rel, new_text, spec, out)
+    rc, text = drop_added(rel, old_text, new_text, spec, out)
     if rc:
         return 1
     rc, text, sites = paste_back(rel, text, spec, out)
@@ -274,7 +287,50 @@ SELF_NEW = '''void Unit::Proc(uint32 id, SpellEntry const* dummySpell)
 }
 '''
 
-SELF_SPEC = {'forms': {'HasSpellCooldown': 2, 'AddSpellCooldown': 1}, 'added': ['    int added = 1;']}
+SELF_SPEC = {'forms': {'HasSpellCooldown': 2, 'AddSpellCooldown': 1},
+             'added': [('    int added = 1;', '    ((Player*)this)->RemoveSpellCooldown(id);')]}
+
+SELF_DECL_OLD = '''#include "A.h"
+#include "B.h"
+
+Unit::Unit() :
+    a(1),
+    b(2)
+{
+}
+
+class Unit
+{
+    public:
+        int m_a;
+    protected:
+        int m_b;
+};
+'''
+
+SELF_DECL_NEW = '''#include "A.h"
+#include "N.h"
+#include "B.h"
+
+Unit::Unit() :
+    a(1),
+    n(),
+    b(2)
+{
+}
+
+class Unit
+{
+    public:
+        int m_a;
+    protected:
+        int m_b;
+        int m_n;
+};
+'''
+
+SELF_DECL_SPEC = {'forms': {}, 'added': [('#include "N.h"', '#include "A.h"'), ('    n(),', '    a(1),'),
+                                         ('        int m_n;', '        int m_b;')]}
 
 
 def self_test():
@@ -324,12 +380,32 @@ def self_test():
         swap=('    int added = 1;\n', '    int added = 1;\n    int added = 1;\n'))
     run('a call in a file that lists none of its form fails', 1, 'in a file that lists none',
         spec={'forms': {'HasSpellCooldown': 2}, 'added': SELF_SPEC['added']})
-    run('a changed line away from any site fails', 1, 'DIFFERS from the base at line 15',
-        swap=('RemoveSpellCooldown(id);', 'RemoveSpellCooldown(id, true);'))
+    run('a changed line away from any site fails', 1, 'DIFFERS from the base at line 1:',
+        swap=('void Unit::Proc(uint32 id,', 'void Unit::Proc(uint32 id2,'))
     run('a call with no closing parenthesis fails', 1, 'has no closing parenthesis',
         swap=('AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);\n    }\n'
               '    ((Player*)this)->RemoveSpellCooldown(id);\n    int added = 1;\n}\n',
-              'AddSpellCooldown(dummySpell->ID\n    int added = 1;\n'))
+              'AddSpellCooldown(dummySpell->ID\n    ((Player*)this)->RemoveSpellCooldown(id);\n'
+              '    int added = 1;\n'))
+    run('an added line moved fails', 1, 'does not stand directly below',
+        swap=('    ((Player*)this)->RemoveSpellCooldown(id);\n    int added = 1;\n',
+              '    int added = 1;\n    ((Player*)this)->RemoveSpellCooldown(id);\n'))
+    run('an added line whose base line is not unique fails', 1, 'stands 2 time(s) at the base',
+        old_text=SELF_OLD + '    ((Player*)this)->RemoveSpellCooldown(id);\n',
+        new_text=SELF_NEW + '    ((Player*)this)->RemoveSpellCooldown(id);\n')
+    run('added lines below their base lines drop out (include, initialiser, member)', 0,
+        'IDENTICAL to the base, byte for byte, with 0/0 call(s) pasted back and 3 added line(s) dropped',
+        new_text=SELF_DECL_NEW, old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
+    run('an added include moved fails', 1, 'fixture:3: FAILED: the added line \'#include "N.h"\'',
+        new_text=SELF_DECL_NEW.replace('#include "N.h"\n#include "B.h"\n', '#include "B.h"\n#include "N.h"\n'),
+        old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
+    run('an added initialiser moved fails', 1, "fixture:5: FAILED: the added line '    n(),'",
+        new_text=SELF_DECL_NEW.replace('    a(1),\n    n(),\n', '    n(),\n    a(1),\n'),
+        old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
+    run('an added member moved into another section fails', 1, "fixture:14: FAILED: the added line '        int m_n;'",
+        new_text=SELF_DECL_NEW.replace('        int m_b;\n        int m_n;\n', '        int m_b;\n').replace(
+            '        int m_a;\n', '        int m_a;\n        int m_n;\n'),
+        old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
 
     sites = site_lines('fixture', SELF_OLD, SELF_NEW, SELF_SPEC)
     want = [('HasSpellCooldown', 3, 3), ('HasSpellCooldown', 7, 7), ('AddSpellCooldown', 13, 13)]
