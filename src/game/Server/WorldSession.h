@@ -662,7 +662,7 @@ class WorldSession
         Motion::Authority&       Movers()       { return m_movers; }
         Motion::Authority const& Movers() const { return m_movers; }
         /// The selected unit, resolved through MemberUnit; NULL when nothing is
-        /// selected or the member is gone (the caller counts it unresolved). The
+        /// selected or the member is gone. The
         /// player's own guid resolves whether or not the player is in the world.
         Unit* SelectedMover();
         /// Any guid the session may name -- the player itself whether or not it is in
@@ -676,16 +676,6 @@ class WorldSession
         void RevokeMover(Unit* unit, uint32 now);
         /// Logout: every member revoked, the set cleared.
         void RevokeAllMovers(uint32 now);
-
-        /// The authority counters of every session that has ended, summed process-wide
-        /// (the destructor folds them in); a live report adds the sessions still here.
-        struct AuthorityTotalsCounters
-        {
-            std::atomic<uint32> added, removed, selected, deselected, badSelect, badDeselect, notActive, notMember, unresolved;
-            AuthorityTotalsCounters() : added(0), removed(0), selected(0), deselected(0), badSelect(0), badDeselect(0),
-                                        notActive(0), notMember(0), unresolved(0) {}
-        };
-        static AuthorityTotalsCounters const& AuthorityTotals();
 
         uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 

@@ -379,16 +379,10 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
 
     // The near teleport is a player's (a creature is never issued one); the ack must
     // name a member, and the landing runs for a player being teleported near.
-    const bool isMember = Movers().MayAck(guid.GetRawValue());
-    Unit* member = isMember ? MemberUnit(guid) : NULL;
+    Unit* member = Movers().IsMember(guid.GetRawValue()) ? MemberUnit(guid) : NULL;
     if (!member)
     {
         CountAck(&AckCounters::seen, &AckTotalsCounters::seen);
-        // A member the map lost (out of the world, gone) is not a wrong guid.
-        if (isMember)
-        {
-            Movers().Unresolved();
-        }
         CountAck(&AckCounters::wrongGuid, &AckTotalsCounters::wrongGuid);
         return;
     }
@@ -476,14 +470,13 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
 
     // Design v2 §7 (F1), the authority rung: the client moves the unit it selected and
     // only that one; anything else is dropped and counted before it is validated.
-    if (!Movers().MovesAs(movementInfo.GetGuid().GetRawValue()))
+    if (!Movers().IsSelected(movementInfo.GetGuid().GetRawValue()))
     {
         return;
     }
     Unit* mover = SelectedMover();
     if (!mover)
     {
-        Movers().Unresolved();
         return;
     }
     Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL;
@@ -550,15 +543,9 @@ void WorldSession::HandleMovementAck(WorldPacket& recv_data)
     // as the player while the vehicle is the selected unit. The ack lands in the
     // kernel of the unit it names.
     const ObjectGuid guid = movementInfo.GetGuid();
-    const bool isMember = Movers().MayAck(guid.GetRawValue());
-    Unit* mover = isMember ? MemberUnit(guid) : NULL;
+    Unit* mover = Movers().IsMember(guid.GetRawValue()) ? MemberUnit(guid) : NULL;
     if (!mover)
     {
-        // A member the map lost (out of the world, gone) is not a wrong guid.
-        if (isMember)
-        {
-            Movers().Unresolved();
-        }
         CountAck(&AckCounters::wrongGuid, &AckTotalsCounters::wrongGuid);
         DEBUG_LOG("WorldSession::HandleMovementAck: %s acked %s for %s, not a unit it moves",
                   _player->GetGuidStr().c_str(), LookupOpcodeName(opcode), guid.GetString().c_str());

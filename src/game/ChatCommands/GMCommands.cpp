@@ -176,7 +176,6 @@ bool ChatHandler::HandlePInfoCommand(char* args)
                         pending.empty() ? "none" : pending.c_str(), Motion::AckResultName(target->MotionState().LastAck()), target->GetMotionDropped());
 
         Motion::Authority const& movers = target->GetSession()->Movers();
-        Motion::AuthorityCounters const& m = movers.Counters();
         std::string selected = "none";
         if (movers.Selected() == target->GetObjectGuid().GetRawValue())
         {
@@ -186,9 +185,7 @@ bool ChatHandler::HandlePInfoCommand(char* args)
         {
             selected = ObjectGuid(movers.Selected()).GetString();
         }
-        PSendSysMessage("Mover: selected %s, members %u; added %u, removed %u, selected %u, deselected %u, bad select %u, bad deselect %u, not active %u, not member %u, unresolved %u",
-                        selected.c_str(), uint32(movers.Members().size()), m.added, m.removed, m.selected, m.deselected,
-                        m.badSelect, m.badDeselect, m.notActive, m.notMember, m.unresolved);
+        PSendSysMessage("Mover: selected %s, members %u", selected.c_str(), uint32(movers.Members().size()));
     }
 
     std::string timeStr = secsToTimeString(total_player_time, TimeFormat::ShortText, true);
