@@ -291,6 +291,12 @@ add_test(NAME case_labels
         -DCASE_LABELS_PYTHON=${Python3_EXECUTABLE}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckCaseLabels.cmake)
 
+add_test(NAME raw_rand
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -DRAW_RAND_PYTHON=${Python3_EXECUTABLE}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckRawRand.cmake)
+
 # Decoupling D5f (server #135), ratchet R-C: the campaign's downcast counter becomes a gate.
 # subtype_sites is 0 after D5f and must stay 0 -- the `GetTypeId() == TYPEID_UNIT &&
 # ((Creature*)x)->IsPet()` pattern is now a virtual call. The self-test entry keeps the
@@ -348,6 +354,9 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME verbatim_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/verbatim.py --self-test)
+
+    add_test(NAME raw_rand_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/raw_rand.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

@@ -1337,7 +1337,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 case 45449:                                // Arcane Prisoner Rescue
                 {
                     uint32 spellId = 0;
-                    switch (rand() % 2)
+                    switch (urand(0, 1))
                     {
                         case 0: spellId = 45446; break;    // Summon Arcane Prisoner - Male
                         case 1: spellId = 45448; break;    // Summon Arcane Prisoner - Female
@@ -3656,7 +3656,7 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                     for (uint32 i = 0; i < std::min(size_t(3), attackers.size()); ++i)
                     {
                         Unit::AttackerSet::iterator aItr = attackers.begin();
-                        std::advance(aItr, rand() % attackers.size());
+                        std::advance(aItr, urand(0, attackers.size() - 1));
                         AddUnitTarget((*aItr), EFFECT_INDEX_1);
                         attackers.erase(aItr);
                     }
