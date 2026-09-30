@@ -25,15 +25,18 @@ For each file in SITES, --check:
      that order (the original order). Each version read derives its own split from its own
      table: its moved labels are its table's rows, its standing labels the `case N:` lines at the
      label indent of the switch after its dispatch (each found once, each a spec label line
-     unchanged); every spec label is in exactly one of the two (none in both, none in neither)
-     and no table lists a label twice. The rows must be in the original order; a registered
-     function's run of rows goes back before its anchor: the label after its last row in the
-     original order, or, where that version moved that label too, the next label of the original
-     order still standing in that version, or the switch's close when none follows. The runs of
-     moved labels in the original order (a run ends at a standing label) must be as many as the
-     anchors, and the anchors must stand in the switch in the original order; the dispatch is
-     dropped. So the same spec proves a base with fewer labels moved than the working tree. Such a
-     site registers no default (its `default:`, if any, stays in the switch);
+     unchanged, all in the original order); every spec label is in exactly one of the two (none
+     in both, none in neither) and no table lists a label twice. The rows must be in the original
+     order; a registered function's run of rows goes back before its anchor: the label after its
+     last row in the original order, or, where that version moved that label too, the next label
+     of the original order still standing in that version, or the switch's close when none
+     follows; the dispatch is dropped. The runs of moved labels in the original order (a run ends
+     at a standing label) must be as many as the anchors, and the anchors must stand in the switch
+     in the original order: guards the checks before make unreachable. So the same spec proves a
+     base with fewer labels moved than the working tree; each version proves the original order of
+     the labels it still holds, so a moved label's place is proven against a base it stands in (or
+     one from before the site's first move). Such a site registers no default (its `default:`, if
+     any, stays in the switch);
   4. does the same to the file at BASE, for the sites a PR before this one moved (their dispatch
      is in the base; a site whose dispatch is not in the base is this PR's and must be a switch
      there), so BASE may be any commit from before the first move to the parent of this PR;
@@ -506,9 +509,12 @@ def standing_labels(rest, at, n, site):
             raise Failure('%s: case %d stands in the switch but is not one of its labels' % (site['name'], spell))
         if spell in standing:
             raise Failure('%s: case %d stands twice in the switch' % (site['name'], spell))
-        if rest[k] != site['labels'][spell]:
+        if rest[k] != site['labels'].get(spell):
             raise Failure('%s: case %d in the switch is not its label line: %r' % (site['name'], spell, rest[k]))
         standing[spell] = k
+    if list(standing) != [i for i in site['labels'] if i in standing]:
+        raise Failure('%s: the labels standing in the switch, %s, are not in the spec\'s order'
+                      % (site['name'], list(standing)))
     return end, standing
 
 
@@ -1343,9 +1349,24 @@ def self_test():
         'the rows [13, 14, 15, 4, 5, 6] are not in the switch\'s original order',
         **versions(none, gen_version([13, 14, 15, 4, 5, 6])))
     swapped = [16 if i == 7 else 7 if i == 16 else i for i in GEN_ORDER]
-    run('anchors standing out of the original order in the switch fail', 1,
-        'the anchors do not stand in the switch in the original order',
+    run('labels standing out of the original order in the switch fail', 1,
+        'the labels standing in the switch, [1, 2, 3, 16, 8, 9, 10, 11, 12, 7, 17, 18], are not in the spec\'s order',
         **versions(none, gen_version([4, 5, 6, 13, 14, 15], switch_order=swapped)))
+
+    def misordered(a, b):
+        """GEN_SPEC with labels a and b swapped in its original order."""
+        labels = GEN_SPEC['sites'][0]['labels']
+        order = [b if i == a else a if i == b else i for i in GEN_ORDER]
+        return dict(GEN_SPEC, sites=[dict(GEN_SPEC['sites'][0], labels={i: labels[i] for i in order})])
+
+    eight = gen_version([4, 5, 6, 7, 13, 14, 15, 16])
+    run('a spec order wrong between two labels both versions hold fails against the parent', 1,
+        'the labels standing in the switch, [1, 2, 3, 8, 9', **dict(versions(six, eight), spec=misordered(1, 2)))
+    run('a spec order wrong around a label the tree moved fails against the parent it stood in', 1,
+        'the labels standing in the switch, [1, 2, 3, 6, 7, 8',
+        **dict(versions(gen_version([4, 5]), gen_version([4, 5, 6])), spec=misordered(6, 7)))
+    run('a spec order wrong around a label both versions moved fails against a base before the move', 1,
+        'DIFFERS', **dict(versions(none, twelve), spec=misordered(6, 7)))
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
