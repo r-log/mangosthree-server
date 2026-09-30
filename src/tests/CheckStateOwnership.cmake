@@ -384,7 +384,7 @@ state_row(cooldown
             SpellCooldowns                       # GetSpellCooldownMap()
             SpellCooldown)                       # its elements
 
-state_allow(cooldown src/game/entities/player/spells/SpellCooldownMgr.cpp
+state_allow(cooldown src/game/spells/SpellCooldownMgr.cpp
     WHY "the owner: builds its packets for the owner's session sink, loads the rows one at a time and saves them"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS character_spell_cooldown)
 state_allow(cooldown src/game/entities/player/Player.cpp

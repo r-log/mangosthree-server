@@ -83,8 +83,8 @@ set(MANAGER_FILES
     entities/player/inventory/InventoryMgr.cpp              # decoupling D4e1
     entities/player/spells/RuneMgr.h                        # decoupling D4k
     entities/player/spells/RuneMgr.cpp                      # decoupling D4k
-    entities/player/spells/SpellCooldownMgr.h               # decoupling D4k
-    entities/player/spells/SpellCooldownMgr.cpp             # decoupling D4k
+    spells/SpellCooldownMgr.h
+    spells/SpellCooldownMgr.cpp
     entities/player/ManagerPacketSink.h                     # decoupling D4k: the managers' shared packet sink type
     entities/player/talents/GlyphMgr.h                      # decoupling D4k
     entities/player/talents/GlyphMgr.cpp                    # decoupling D4k

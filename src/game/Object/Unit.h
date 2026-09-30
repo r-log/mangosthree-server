@@ -70,6 +70,7 @@
 #include "Opcodes.h"
 #include "SpellAuraDefines.h"
 #include "spells/AuraContainer.h"
+#include "spells/SpellCooldownMgr.h"
 #include "UpdateFields.h"
 #include "SharedDefines.h"
 #include "ThreatManager.h"
@@ -4087,6 +4088,7 @@ class Unit : public WorldObject
         // object. It sits where m_spellAuraHolders sat, so every member's construction order
         // but m_modAuras' is unchanged, and m_modAuras is a plain array of empty lists.
         AuraContainer m_auras;
+        SpellCooldownMgr m_spellCooldownMgr;
 
         // Store Auras for which the target must be tracked
         TrackedAuraTargetMap m_trackedAuraTargets[MAX_TRACKED_AURA_TYPES];

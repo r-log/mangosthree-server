@@ -339,7 +339,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                 {
                     if (!preventDeathSpell &&
                             GetTypeId() == TYPEID_PLAYER && // Only players
-                            !((Player*)this)->HasSpellCooldown(31231) &&
+                            !m_spellCooldownMgr.HasSpellCooldown(31231, time(NULL)) &&
                             // Only if no cooldown
                             roll_chance_i((*i)->GetModifier()->m_amount))
                         // Only if roll
@@ -652,7 +652,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
                 if (preventDeathSpell->SpellIconID == 2109)
                 {
                     CastSpell(this, 31231, true);
-                    ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(31231, 0, time(NULL) + 60);
+                    m_spellCooldownMgr.AddSpellCooldown(31231, 0, time(NULL) + 60);
                     // with health > 10% lost health until health==10%, in other case no losses
                     uint32 health10 = GetMaxHealth() / 10;
                     RemainingDamage = GetHealth() > health10 ? GetHealth() - health10 : 0;

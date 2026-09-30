@@ -186,6 +186,8 @@ src/game/Object [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/Object [entities] -> src/game/WorldHandlers/Transports.h
 src/game/Object [entities] -> src/game/combat/MeleeChances.h
 src/game/Object [entities] -> src/game/combat/SpellBonus.h
+# Unit holds the spell cooldown manager by value (Unit.h).
+src/game/Object [entities] -> src/game/spells/SpellCooldownMgr.h
 src/game/Object [social] -> src/game/Object/Item.h
 src/game/Object [spells] -> src/game/BattleGround/BattleGround.h
 src/game/Object [spells] -> src/game/BattleGround/BattleGroundMgr.h
@@ -1720,8 +1722,6 @@ src/game/entities/player/spells/PlayerSpellMod.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/PlayerSpellMod.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells/RuneMgr.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/RuneMgr.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/spells/SpellCooldownMgr.cpp -> src/proto/Opcodes.h
-src/game/entities/player/spells/SpellCooldownMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGround.h
 src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGroundAV.h
 src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGroundMgr.h
@@ -1862,6 +1862,12 @@ src/game/movement/MovementBridge.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
+# SpellCooldownMgr builds the cooldown event and clear-all packets itself.
+src/game/spells/SpellCooldownMgr.cpp -> src/proto/Opcodes.h
+# SpellCooldownMgr builds the cooldown event and clear-all packets itself.
+src/game/spells/SpellCooldownMgr.cpp -> src/proto/WorldPacket.h
+# SpellCooldownMgr hands its packets to the player managers' shared sink type; the line dies with the packets-out fix (page row 9), whose PR removes it.
+src/game/spells/SpellCooldownMgr.h -> src/game/entities/player/ManagerPacketSink.h
 # The warrior stance handlers (41099-41101, 53790-53792) call SetVirtualItem with VIRTUAL_ITEM_SLOT_*.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 # Handlers 61336 (GetModifier()->m_amount) and the Improved Moonkin Form default (GetId()) read the aura.

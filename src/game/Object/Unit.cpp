@@ -200,6 +200,7 @@ void GlobalCooldownMgr::CancelGlobalCooldown(SpellEntry const* spellInfo)
 
 Unit::Unit() :
     movespline(new Movement::MoveSpline()),
+    m_spellCooldownMgr(),
     m_charmInfo(NULL),
     i_motionMaster(std::make_unique<MotionMaster>(this)),
     m_regenTimer(0),

@@ -96,6 +96,7 @@ set(SRC_GRP_TESTS
     InventoryBankTest.cpp
     RuneMgrTest.cpp
     SpellCooldownMgrTest.cpp
+    UnitSpellCooldownTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp
@@ -357,6 +358,9 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME raw_rand_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/raw_rand.py --self-test)
+
+    add_test(NAME cast_verbatim_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/cast_verbatim.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
