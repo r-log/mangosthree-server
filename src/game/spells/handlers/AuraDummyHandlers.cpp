@@ -350,7 +350,13 @@ static SpellHandlerOutcome<void> AuraDummyRemove53792(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, 29266 to 71598 (16 labels): Permanent Feign Death and its variants
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, one body for 16 labels: 29266: Permanent Feign Death,
+/// 31261: Permanent Feign Death (Root), 37493: Feign Death, 52593: Bloated Abomination Feign Death,
+/// 55795: Falling Dragon Feign Death, 57626: Feign Death, 57685: Permanent Feign Death,
+/// 58768: Permanent Feign Death (Freeze Jumpend), 58806: Permanent Feign Death (Drowned Anim),
+/// 58951: Permanent Feign Death, 64461: Permanent Feign Death (No Anim) (Root),
+/// 65985: Permanent Feign Death (Root Silence Pacify), 70592: Permanent Feign Death,
+/// 70628: Permanent Feign Death, 70630: Frozen Aftermath - Feign Death, 71598: Feign Death
 static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericFeignDeath(AuraDummyApplyRemoveContext& ctx)
 {
     // Unclear what the difference really is between them.

@@ -732,6 +732,8 @@ TEST(AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels)
                                      58806, 58951, 64461, 65985, 70592, 70628, 70630, 71598 };
 
     // The sixteen labels share one body: one function under sixteen keys.
+    // Proven by verbatim, not here: this binary links with COMDAT folding, so an identical second function folds
+    // to the same address.
     SpellHandlerRegistry registry;
     RegisterAuraDummyHandlers(registry);
     SpellHandler<AuraDummyApplyRemoveGenericSite>::Function feignDeath =
