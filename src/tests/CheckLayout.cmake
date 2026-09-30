@@ -73,6 +73,8 @@ if(NOT LAYOUT_RESULT EQUAL 0)
         "  - an ambiguous spelling (two or more files end with it, none next to the includer): include it by "
         "a longer path, or relative to the includer, that names one file.\n"
         "  - a malformed or duplicate allow-list line: fix it to one '<includer> -> <header>' per edge, or "
-        "delete the copy.")
+        "delete the copy.\n"
+        "  - a reason line not directly above an entry: one '#' line directly above the entry it explains, "
+        "or delete it with its entry.")
 endif()
 message(STATUS "${LAYOUT_OUTPUT}")

@@ -37,9 +37,7 @@ class Unit;
  * @file AuraDummyHandlers.h
  * @brief The `Aura::HandleAuraDummy` sites of the spell handler registry.
  *
- * The handlers themselves are file-static functions in WorldHandlers/SpellAuraDummy.cpp, beside
- * the function they came from: that file already includes everything their bodies use, so they
- * add no include edge (CheckLayout). This header holds only what the registry and the tests see.
+ * The handlers are file-static functions in AuraDummyHandlers.cpp; this header holds what the registry and tests see.
  */
 
 /// The live-out locals of `Aura::HandleAuraDummy` at an AT APPLY family switch. Every name a
@@ -126,7 +124,7 @@ struct AuraDummyImprovedMoonkinSite
     typedef AuraDummyImprovedMoonkinContext Context;
 };
 
-/// Registers every `Aura::HandleAuraDummy` handler on `registry` (defined in SpellAuraDummy.cpp).
+/// Registers every `Aura::HandleAuraDummy` handler on `registry` (defined in AuraDummyHandlers.cpp).
 /// Returns the number of rows it registered, a site's `default:` counting as one; a row whose key
 /// was taken, or a second default at a site, does not change the table, so a caller that registers
 /// on an empty table and finds fewer keys and defaults than rows has a duplicate.

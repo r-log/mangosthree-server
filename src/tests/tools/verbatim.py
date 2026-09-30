@@ -6,9 +6,11 @@ The spell handler registry's verbatim proof (decoupling D11, design/2026-09-28-u
 back at its label, and the file must come back byte for byte as it was at BASE.
 
 For each file in SITES, --check:
-  1. reads the file at BASE (`git show <base>:<file>`) and in the working tree;
-  2. drops the lines the moves added (ADDED: the handlers header's include) and the handler block
-     the moves appended (from TAIL_MARKER to the end of the file);
+  1. reads the file at BASE (`git show <base>:<file>`) and in the working tree, and for each of the
+     two its handlers: the handler file (HANDLERS) where that version has it, else the handler block
+     appended to the sites' file (from TAIL_MARKER to the end of the file); a version holding both
+     fails, and so does a working tree holding neither;
+  2. drops the lines the moves added (ADDED: the handlers header's include) and that appended block;
   3. at each site, replaces the dispatch (the site's exact DISPATCH lines, found exactly once)
      with the switch it stood for: the switch's opening lines, then for each row of the site's
      registration table, in table order, the label line (LABELS) and -- once per run of rows that
@@ -24,7 +26,12 @@ For each file in SITES, --check:
   5. compares the two, byte for byte, and names the first difference.
 Because the bodies are pasted from the functions the table registers, a row pointing at the wrong
 function, a lost row or default, a changed line, or a body moved in the wrong order all fail; a
-body a PR before this one moved is proven again, against its own base's copy.
+body a PR before this one moved is proven again, against its own base's copy. Every
+`RegisterDefault` in the handlers must be a line `registry.RegisterDefault<TRAITS>(&F);` of a site
+with a `default:`, and every site's TRAITS must appear as `Dispatch<TRAITS>` in its own DISPATCH
+lines, so no default is registered under a spelling the paste-back does not read; and every
+`Register` stands inside ROWS_FUNCTION, which registers the tables' rows, so no labelled row is
+registered outside the tables the paste-back reads.
 
 Each handler body is also checked for what the paste-back cannot see: a live-out local used
 bare (a case body's name the move did not route through the context), and so any other name in
@@ -73,10 +80,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
 
-# The tree the moved bodies are checked against: the parent of the PR that moved the latest site
-# (D11 PR 3b: PR 3's tip). `--base afdabc428` (master before the first move, D11 PR 3) proves every
-# site against the switches as they were.
-BASE = '9fcec1b2a'
+# The tree the moved bodies are checked against: the parent of the latest move. `--base afdabc428`
+# (before the first move) proves every site against the switches as they were.
+BASE = '86589214e'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
@@ -84,6 +90,8 @@ VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;')
 # One entry per file; each file lists its sites in the order they stand in it.
 SITES = {
     'src/game/WorldHandlers/SpellAuraDummy.cpp': {
+        'handlers': 'src/game/spells/handlers/AuraDummyHandlers.cpp',
+        'rows_function': 'RegisterAuraDummyRows',
         'added': ['#include "spells/handlers/AuraDummyHandlers.h"'],
         'tail_marker': '// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry\'s',
         'sites': [{
@@ -217,9 +225,9 @@ def table_rows(lines, table):
 
 
 def default_function(lines, traits):
-    """F of the one `registry.RegisterDefault<traits>(&F);` line."""
-    found = [m.group(1) for m in (re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(&(\w+)\);' % re.escape(traits), l)
-                                  for l in lines) if m]
+    """F of the one `registry.RegisterDefault<traits>(&F);` line, and that line's index."""
+    found = [(m.group(1), i) for i, m in enumerate(
+        re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(&(\w+)\);' % re.escape(traits), l) for l in lines) if m]
     if len(found) != 1:
         raise Failure('the default of %s registered %d times' % (traits, len(found)))
     return found[0]
@@ -364,29 +372,38 @@ def paste(site, function, body, label_lines):
     return label_lines + restored
 
 
-def rebuild(text, spec, headers, strict=True):
+def rebuild(text, spec, headers, handler_text=None, strict=True):
     """`text` with every site's dispatch replaced by its switch, the added lines and the appended
-    handler block dropped; the number of bodies pasted back, of labels, and the names of the sites
-    rebuilt. `strict` (the working tree) requires every site; otherwise (the base) a site whose
-    dispatch is absent is left as it stands, and a file with no handler block is returned as is.
-    `headers` maps a site's members_of header path to its text."""
+    handler block dropped; the number of bodies pasted back, of labels, the names of the sites
+    rebuilt, and the handler lines read. The handlers are `handler_text` (the handler file) when
+    given, else the block appended to `text` from the tail marker. `strict` (the working tree)
+    requires every site; otherwise (the base) a site whose dispatch is absent is left as it stands,
+    and a file with neither handler source is returned as is. `headers` maps a site's members_of
+    header path to its text."""
     new = text.split('\n')
     marker = [i for i, l in enumerate(new) if l == spec['tail_marker']]
-    if not strict and not marker:
-        return text, 0, 0, []
-    if len(marker) != 1:
-        raise Failure('tail marker found %d times' % len(marker))
-    handlers = new[marker[0]:]
-    rest = new[:marker[0]]
-    # the block ends the file after one blank line: what is left ends in "\n", as the old file did
-    if not rest or rest[-1] != '':
-        raise Failure('no blank line before the tail marker')
+    if handler_text is not None:
+        if marker:
+            raise Failure('the handlers are in %s and a handler block is still appended to the sites\' file'
+                          % spec['handlers'])
+        handlers = handler_text.split('\n')
+        rest = new
+    else:
+        if not strict and not marker:
+            return text, 0, 0, [], []
+        if len(marker) != 1:
+            raise Failure('no handler file %s, and the tail marker found %d times' % (spec['handlers'], len(marker)))
+        handlers = new[marker[0]:]
+        rest = new[:marker[0]]
+        # the block ends the file after one blank line: what is left ends in "\n", as the old file did
+        if not rest or rest[-1] != '':
+            raise Failure('no blank line before the tail marker')
     for added in spec['added']:
         at = [i for i, l in enumerate(rest) if l == added]
         if len(at) != 1:
             raise Failure('added line %r found %d times' % (added, len(at)))
         del rest[at[0]]
-    pasted, labels, rebuilt = 0, 0, []
+    pasted, labels, rebuilt, defaults = 0, 0, [], set()
     for site in spec['sites']:
         n = len(site['dispatch'])
         at = [i for i in range(len(rest) - n + 1) if rest[i:i + n] == site['dispatch']]
@@ -396,6 +413,9 @@ def rebuild(text, spec, headers, strict=True):
             raise Failure('%s: the dispatch found %d times' % (site['name'], len(at)))
         if not site.get('traits'):
             raise Failure('%s: no traits named, so a default registered for it could not be seen' % site['name'])
+        if 'Dispatch<%s>' % site['traits'] not in ''.join(site['dispatch']):
+            raise Failure('%s: its traits %s do not appear as Dispatch<%s> in its dispatch lines'
+                          % (site['name'], site['traits'], site['traits']))
         rows = table_rows(handlers, site['table'])
         ids = [r[0] for r in rows]
         if sorted(ids) != sorted(site['labels']) or len(set(ids)) != len(ids):
@@ -419,7 +439,8 @@ def rebuild(text, spec, headers, strict=True):
             labels += j - i
             i = j
         if 'default' in site:
-            function = default_function(handlers, site['traits'])
+            function, line = default_function(handlers, site['traits'])
+            defaults.add(line)
             if function in [r[1] for r in rows]:
                 raise Failure('%s: the default %s is also a labelled row' % (site['name'], function))
             body = handler_body(handlers, function, site['context'])
@@ -432,7 +453,19 @@ def rebuild(text, spec, headers, strict=True):
         switch += site['close']
         rest[at[0]:at[0] + n] = switch
         rebuilt.append(site['name'])
-    return '\n'.join(rest), pasted, labels, rebuilt
+    heads = [i for i, l in enumerate(handlers) if re.match(r'static [\w:]+ %s\(' % re.escape(spec['rows_function']), l)]
+    rows_body = set()
+    if len(heads) == 1:
+        end = next((k for k in range(heads[0], len(handlers)) if handlers[k] == '}'), len(handlers))
+        rows_body = set(range(heads[0], end))
+    for i, line in enumerate(blank('\n'.join(handlers)).split('\n')):
+        if re.search(r'\bRegisterDefault\b', line) and i not in defaults:
+            raise Failure('a RegisterDefault that is not a site\'s `registry.RegisterDefault<TRAITS>(&F);` line: %r'
+                          % handlers[i])
+        if strict and re.search(r'(\.|->|::)\s*Register\s*[<(]|\bRegister\s*<', line) and i not in rows_body:
+            raise Failure('a Register outside %s, where every labelled row is registered from its table: %r'
+                          % (spec['rows_function'], handlers[i]))
+    return '\n'.join(rest), pasted, labels, rebuilt, handlers
 
 
 def first_difference(a, b):
@@ -443,16 +476,16 @@ def first_difference(a, b):
     return 'lengths differ: base %d lines, rebuilt %d' % (len(al), len(bl))
 
 
-def verify(rel, old_text, new_text, spec, headers, out=print):
+def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None, new_handlers=None):
+    """`old_handlers` and `new_handlers`: the handler file's text in that version, None where it has none."""
     try:
-        rebuilt, pasted, labels, sites = rebuild(new_text, spec, headers)
-        base, base_pasted, _, base_sites = rebuild(old_text, spec, headers, strict=False)
+        rebuilt, pasted, labels, sites, handlers = rebuild(new_text, spec, headers, new_handlers)
+        base, base_pasted, _, base_sites, _ = rebuild(old_text, spec, headers, old_handlers, strict=False)
     except Failure as e:
         out('%s: FAILED: %s' % (rel, e))
         return 1, 0
-    lines = new_text.split('\n')
     defined = [m.group(1) for m in (re.match(r'static SpellHandlerOutcome<[\w:]+> (\w+)\(', l)
-                                    for l in lines[lines.index(spec['tail_marker']):]) if m]
+                                    for l in handlers) if m]
     if len(defined) != pasted:
         out('%s: FAILED: %d handlers defined, %d registered and pasted back' % (rel, len(defined), pasted))
         return 1, pasted
@@ -479,12 +512,28 @@ def check(root, base, out=print):
             out('%s: FAILED: cannot read it at %s from git: %s' % (rel, base, e))
             rc = 1
             continue
+        new_handlers = None
+        handler_path = os.path.join(root, *spec['handlers'].split('/'))
+        if os.path.isfile(handler_path):
+            with open(handler_path, encoding='utf-8', newline='') as fh:
+                new_handlers = fh.read()
+        try:
+            listed = subprocess.run(['git', '-C', root, 'ls-tree', '--name-only', base, '--', spec['handlers']],
+                                    capture_output=True, check=True).stdout.decode('utf-8').split()
+            old_handlers = None
+            if listed:
+                old_handlers = subprocess.run(['git', '-C', root, 'show', '%s:%s' % (base, spec['handlers'])],
+                                              capture_output=True, check=True).stdout.decode('utf-8')
+        except (OSError, subprocess.CalledProcessError) as e:
+            out('%s: FAILED: cannot read %s at %s from git: %s' % (rel, spec['handlers'], base, e))
+            rc = 1
+            continue
         headers = {}
         for site in spec['sites']:
             header = site['members_of'][0]
             with open(os.path.join(root, *header.split('/')), encoding='utf-8', newline='') as fh:
                 headers[header] = fh.read()
-        got, _ = verify(rel, old_text, new_text, spec, headers, out)
+        got, _ = verify(rel, old_text, new_text, spec, headers, out, old_handlers, new_handlers)
         rc |= got
     out('verbatim: %s' % ('OK' if rc == 0 else 'FAILED'))
     return rc
@@ -528,29 +577,28 @@ void Thing::Handle(bool apply)
 }
 '''
 
-SELF_NEW = '''#include "A.h"
+SELF_SITES = '''#include "A.h"
 #include "Handlers.h"
 
 void Thing::Handle(bool apply)
 {
     Unit* target = GetTarget();
     SelfContext handlerContext(this, target);
-    if (Dispatch(handlerContext).IsReturn())
+    if (Dispatch<SelfSite>(handlerContext).IsReturn())
     {
         return;
     }
     uint32 rank;
     RankContext rankContext(this, rank);
-    if (Dispatch(rankContext).IsReturn())
+    if (Dispatch<RankSite>(rankContext).IsReturn())
     {
         return;
     }
     target->Tail(rank);
 }
+'''
 
-// Handlers:
-
-static SpellHandlerOutcome<void> One(SelfContext& ctx)
+SELF_BLOCK = '''static SpellHandlerOutcome<void> One(SelfContext& ctx)
 {
     ctx.target->Cast(ctx.aura);
     return SpellHandlerOutcome<void>::Return();
@@ -584,6 +632,16 @@ static SpellHandlerOutcome<void> RankDefault(RankContext& ctx)
     return SpellHandlerOutcome<void>::Return();
 }
 
+template <class Site, std::size_t N>
+static uint32 RegisterRows(Registry& registry, Row<Site> const (&rows)[N])
+{
+    for (Row<Site> const& row : rows)
+    {
+        registry.Register<Site>(row.spellId, row.function);
+    }
+    return uint32(N);
+}
+
 void Register(Registry& registry)
 {
     static Row const rows[] =
@@ -601,8 +659,12 @@ void Register(Registry& registry)
 }
 '''
 
-# The file after an earlier PR moved the first site only: a base the second site's PR is checked
-# against, whose own dispatch is pasted back the same way.
+# The handler file, and the same handlers appended to the sites' file behind the tail marker.
+SELF_HANDLERS = '#include "Handlers.h"\n\n' + SELF_BLOCK
+SELF_BESIDE = SELF_SITES + '\n// Handlers:\n\n' + SELF_BLOCK
+
+# The file after an earlier move of the first site only, its body beside the sites: a base the
+# second site's move is checked against, whose own dispatch is pasted back the same way.
 SELF_MID = '''#include "A.h"
 #include "Handlers.h"
 
@@ -610,7 +672,7 @@ void Thing::Handle(bool apply)
 {
     Unit* target = GetTarget();
     SelfContext handlerContext(this, target);
-    if (Dispatch(handlerContext).IsReturn())
+    if (Dispatch<SelfSite>(handlerContext).IsReturn())
     {
         return;
     }
@@ -662,12 +724,14 @@ void Register(Registry& registry)
 '''
 
 SELF_SPEC = {
+    'handlers': 'Handlers.cpp',
+    'rows_function': 'RegisterRows',
     'added': ['#include "Handlers.h"'],
     'tail_marker': '// Handlers:',
     'sites': [{
         'name': 'fixture',
-        'dispatch': ['    SelfContext handlerContext(this, target);', '    if (Dispatch(handlerContext).IsReturn())',
-                     '    {', '        return;', '    }'],
+        'dispatch': ['    SelfContext handlerContext(this, target);',
+                     '    if (Dispatch<SelfSite>(handlerContext).IsReturn())', '    {', '        return;', '    }'],
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
         'label_indent': 8,
@@ -684,7 +748,7 @@ SELF_SPEC = {
                    3: '        case 3:                                 // Three'},
     }, {
         'name': 'fixture ranks',
-        'dispatch': ['    RankContext rankContext(this, rank);', '    if (Dispatch(rankContext).IsReturn())',
+        'dispatch': ['    RankContext rankContext(this, rank);', '    if (Dispatch<RankSite>(rankContext).IsReturn())',
                      '    {', '        return;', '    }'],
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
@@ -736,71 +800,106 @@ def self_test():
     if got != want:
         failures.append('class_members: got %r, expected %r' % (got, want))
 
-    def run(label, new_text, want_rc, needle='', old_text=SELF_OLD, spec=SELF_SPEC):
+    def run(label, want_rc, needle='', swap=None, old_text=SELF_OLD, spec=SELF_SPEC, sites=SELF_SITES,
+            handlers=SELF_HANDLERS, old_handlers=None):
+        """`swap` (a, b) replaces a by b in the sites' file and the handler file; a must be in one."""
+        if swap:
+            a, b = swap
+            if a not in sites + (handlers or ''):
+                failures.append('%s: the mutation %r matches nothing' % (label, a))
+                print('self-test: %-66s %s' % (label, 'FAIL'))
+                return
+            sites = sites.replace(a, b)
+            handlers = handlers.replace(a, b) if handlers is not None else None
         got = []
-        rc, _ = verify('fixture', old_text, new_text, spec, SELF_HEADERS, out=got.append)
+        rc, _ = verify('fixture', old_text, sites, spec, SELF_HEADERS, got.append, old_handlers, handlers)
         text = '\n'.join(got)
         ok = rc == want_rc and needle in text
         print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
         if not ok:
             failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
 
-    run('the moved bodies paste back byte for byte (5 labels, 2 sites)', SELF_NEW, 0,
-        'IDENTICAL to the base, byte for byte, with 5/5 bodies pasted back at their 5 labels in 2 sites')
-    run('a changed body line fails', SELF_NEW.replace('if (i == 1)', 'if (i == 2)'), 1, 'DIFFERS')
-    run('two rows swapped fail', SELF_NEW.replace('        { 2, &One },\n        { 3, &Three },',
-                                                  '        { 3, &Three },\n        { 2, &One },'), 1,
-        'registered in two runs of rows')
-    run('a row pointing at the wrong body fails', SELF_NEW.replace('{ 2, &One }', '{ 2, &Three }'), 1, 'DIFFERS')
-    run('a lost row fails', SELF_NEW.replace('        { 2, &One },\n', ''), 1, 'table rows [1, 3]')
-    run('a bare live-out in a body fails', SELF_NEW.replace('ctx.target->Cast', 'target->Cast'), 1,
-        'live-out "target" used without the context')
-    run('a name in scope but not in the context fails', SELF_NEW.replace('ctx.rank = 2;', 'ctx.rank = apply;'), 1,
-        '"apply", a name in scope at the site and not in its context')
-    run('a bare member of the site\'s class in a body fails',
-        SELF_NEW.replace('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(GetCaster());'), 1,
-        '"GetCaster", a member of Thing, used bare')
-    run('a bare data member (m_modifier.) in a body fails',
-        SELF_NEW.replace('ctx.rank = 2;', 'ctx.rank = m_modifier.m_amount;'), 1,
-        '"m_modifier", a member of Thing, used bare')
-    run('an implicit GetId() the move missed fails', SELF_NEW.replace('Log(ctx.aura->GetId());', 'Log(GetId());'), 1,
-        '"GetId", a member of Thing, used bare')
-    run('a member reached through the context passes the member check',
-        SELF_NEW.replace('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(ctx.aura->GetCaster());'), 1, 'DIFFERS')
-    run('a Continue inside a loop fails', SELF_NEW.replace('if (i == 1)\n            break;',
-                                                           'if (i == 1)\n            return SpellHandlerOutcome<void>::Continue();'),
-        1, 'a Continue inside a loop or switch')
-    run('a lost dispatch fails', SELF_NEW.replace('    if (Dispatch(handlerContext).IsReturn())\n', ''), 1,
-        'the dispatch found 0 times')
-    run('Return taken for Continue fails', SELF_NEW.replace('return SpellHandlerOutcome<void>::Continue();',
-                                                            'return SpellHandlerOutcome<void>::Return();'), 1,
-        'DIFFERS')
-    run('a one-line case\'s body changed fails', SELF_NEW.replace('ctx.rank = 1;', 'ctx.rank = 3;'), 1,
-        'line 27: base \'        case 7: rank = 1; break;    // Rank 1\'')
-    run('a lost default registration fails',
-        SELF_NEW.replace('    registry.RegisterDefault<RankSite>(&RankDefault);\n', ''), 1,
-        'the default of RankSite registered 0 times')
-    run('a default pasted from the wrong body fails',
-        SELF_NEW.replace('RegisterDefault<RankSite>(&RankDefault)', 'RegisterDefault<RankSite>(&Rank8)'), 1,
-        'the default Rank8 is also a labelled row')
-    run('a default registered where the switch had none fails',
-        SELF_NEW.replace('    registry.RegisterDefault<RankSite>', '    registry.RegisterDefault<SelfSite>(&Three);\n'
-                                                                   '    registry.RegisterDefault<RankSite>'), 1,
-        'a default registered for a site whose switch had none')
+    run('the bodies in the handler file paste back byte for byte (5 labels)', 0,
+        'IDENTICAL to the base, byte for byte, with 5/5 bodies pasted back at their 5 labels in 2 sites '
+        '(the base had 0 of the sites moved')
+    run('against a base whose bodies stood beside their sites: passes', 0,
+        'with 5/5 bodies pasted back at their 5 labels in 2 sites (the base had 2 of the sites moved: '
+        '5 bodies pasted back there)', old_text=SELF_BESIDE)
+    run('against a base whose handlers are in the handler file: passes', 0,
+        '(the base had 2 of the sites moved: 5 bodies pasted back there)', old_text=SELF_SITES,
+        old_handlers=SELF_HANDLERS)
+    run('a body that changed on the way into the handler file fails', 1, 'DIFFERS',
+        old_text=SELF_BESIDE.replace('ctx.rank = 2;', 'ctx.rank = 4;'))
+    run('a handler block left beside the sites fails', 1, 'a handler block is still appended to the sites\' file',
+        sites=SELF_BESIDE)
+    run('bodies beside their sites, no handler file, pass', 0, 'IDENTICAL', sites=SELF_BESIDE, handlers=None)
+    run('no handler file and no handler block fails', 1, 'no handler file Handlers.cpp, and the tail marker found 0',
+        handlers=None)
+    run('a changed body line fails', 1, 'DIFFERS', swap=('if (i == 1)', 'if (i == 2)'))
+    run('two rows swapped fail', 1, 'registered in two runs of rows',
+        swap=('        { 2, &One },\n        { 3, &Three },', '        { 3, &Three },\n        { 2, &One },'))
+    run('a row pointing at the wrong body fails', 1, 'DIFFERS', swap=('{ 2, &One }', '{ 2, &Three }'))
+    run('a lost row fails', 1, 'table rows [1, 3]', swap=('        { 2, &One },\n', ''))
+    run('a bare live-out in a body fails', 1, 'live-out "target" used without the context',
+        swap=('ctx.target->Cast', 'target->Cast'))
+    run('a name in scope but not in the context fails', 1,
+        '"apply", a name in scope at the site and not in its context', swap=('ctx.rank = 2;', 'ctx.rank = apply;'))
+    run('a bare member of the site\'s class in a body fails', 1, '"GetCaster", a member of Thing, used bare',
+        swap=('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(GetCaster());'))
+    run('a bare data member (m_modifier.) in a body fails', 1, '"m_modifier", a member of Thing, used bare',
+        swap=('ctx.rank = 2;', 'ctx.rank = m_modifier.m_amount;'))
+    run('an implicit GetId() the move missed fails', 1, '"GetId", a member of Thing, used bare',
+        swap=('Log(ctx.aura->GetId());', 'Log(GetId());'))
+    run('a member reached through the context passes the member check', 1, 'DIFFERS',
+        swap=('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(ctx.aura->GetCaster());'))
+    run('a Continue inside a loop fails', 1, 'a Continue inside a loop or switch',
+        swap=('if (i == 1)\n            break;',
+              'if (i == 1)\n            return SpellHandlerOutcome<void>::Continue();'))
+    run('a lost dispatch fails', 1, 'the dispatch found 0 times',
+        swap=('    if (Dispatch<SelfSite>(handlerContext).IsReturn())\n', ''))
+    run('Return taken for Continue fails', 1, 'DIFFERS',
+        swap=('return SpellHandlerOutcome<void>::Continue();', 'return SpellHandlerOutcome<void>::Return();'))
+    run('a one-line case\'s body changed fails', 1,
+        'line 27: base \'        case 7: rank = 1; break;    // Rank 1\'', swap=('ctx.rank = 1;', 'ctx.rank = 3;'))
+    run('a lost default registration fails', 1, 'the default of RankSite registered 0 times',
+        swap=('    registry.RegisterDefault<RankSite>(&RankDefault);\n', ''))
+    run('a default pasted from the wrong body fails', 1, 'the default Rank8 is also a labelled row',
+        swap=('RegisterDefault<RankSite>(&RankDefault)', 'RegisterDefault<RankSite>(&Rank8)'))
+    run('a default registered where the switch had none fails', 1,
+        'a default registered for a site whose switch had none',
+        swap=('    registry.RegisterDefault<RankSite>',
+              '    registry.RegisterDefault<SelfSite>(&Three);\n    registry.RegisterDefault<RankSite>'))
+    for label, planted in [('spaced brackets', '    registry.RegisterDefault< SelfSite >(&Three);'),
+                           ('a type alias',
+                            '    typedef SelfSite Alias;\n    registry.RegisterDefault<Alias>(&Three);'),
+                           ('another registry', '    other.RegisterDefault<SelfSite>(&Three);')]:
+        run('a RegisterDefault through %s fails' % label, 1,
+            'a RegisterDefault that is not a site\'s `registry.RegisterDefault<TRAITS>(&F);` line',
+            swap=('    registry.RegisterDefault<RankSite>', planted + '\n    registry.RegisterDefault<RankSite>'))
+    run('a RegisterDefault in a comment is not a registration', 0, 'IDENTICAL',
+        swap=('    registry.RegisterDefault<RankSite>',
+              '    // registry.RegisterDefault<SelfSite>(&Three);\n    registry.RegisterDefault<RankSite>'))
+    run('a labelled row registered outside the tables fails', 1,
+        'a Register outside RegisterRows, where every labelled row is registered from its table',
+        swap=('    registry.RegisterDefault<RankSite>',
+              '    registry.Register<SelfSite>(4, &Three);\n    registry.RegisterDefault<RankSite>'))
+    run('a Register when the rows function is renamed fails', 1, 'a Register outside RegisterRows',
+        swap=('static uint32 RegisterRows(', 'static uint32 RegisterTableRows('))
     no_traits = dict(SELF_SPEC, sites=[dict(SELF_SPEC['sites'][0]), SELF_SPEC['sites'][1]])
     del no_traits['sites'][0]['traits']
-    run('a site that names no traits fails (its default guard could not run)', SELF_NEW, 1,
+    run('a site that names no traits fails (its default guard could not run)', 1,
         'fixture: no traits named, so a default registered for it could not be seen', spec=no_traits)
-    run('a handler defined but not registered fails',
-        SELF_NEW.replace('void Register(Registry& registry)',
-                         'static SpellHandlerOutcome<void> Orphan(RankContext& ctx)\n{\n'
-                         '    return SpellHandlerOutcome<void>::Continue();\n}\n\n'
-                         'void Register(Registry& registry)'), 1,
-        '6 handlers defined, 5 registered and pasted back')
-    run('against a base that had the first site moved: passes', SELF_NEW, 0,
+    typo = dict(SELF_SPEC, sites=[dict(SELF_SPEC['sites'][0], traits='SelfSit'), SELF_SPEC['sites'][1]])
+    run('a site whose traits its dispatch does not name fails', 1,
+        'fixture: its traits SelfSit do not appear as Dispatch<SelfSit> in its dispatch lines', spec=typo)
+    run('a handler defined but not registered fails', 1, '6 handlers defined, 5 registered and pasted back',
+        swap=('void Register(Registry& registry)',
+              'static SpellHandlerOutcome<void> Orphan(RankContext& ctx)\n{\n'
+              '    return SpellHandlerOutcome<void>::Continue();\n}\n\nvoid Register(Registry& registry)'))
+    run('against a base that had the first site moved: passes', 0,
         'with 5/5 bodies pasted back at their 5 labels in 2 sites (the base had 1 of the sites moved: '
         '2 bodies pasted back there)', old_text=SELF_MID)
-    run('the base\'s own moved body is proven again: a change there fails', SELF_NEW, 1, 'DIFFERS',
+    run('the base\'s own moved body is proven again: a change there fails', 1, 'DIFFERS',
         old_text=SELF_MID.replace('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(NULL);'))
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
