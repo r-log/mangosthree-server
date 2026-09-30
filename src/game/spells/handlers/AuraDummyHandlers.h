@@ -82,6 +82,23 @@ struct AuraDummyUnrelentingAssaultSite
     typedef AuraDummyUnrelentingAssaultContext Context;
 };
 
+/// The live-out locals of `Aura::HandleAuraDummy` at its AT REMOVE switch: the aura and `target`.
+struct AuraDummyRemoveContext
+{
+    AuraDummyRemoveContext(Aura* thisAura, Unit*& targetLocal) : aura(thisAura), target(targetLocal) {}
+
+    Aura* const aura;   ///< `this` in the case bodies
+    Unit*& target;      ///< the function's local `Unit* target = GetTarget();`
+};
+
+/// `Aura::HandleAuraDummy`, AT REMOVE `switch (GetId())`: a miss runs the switch that still holds the other labels.
+struct AuraDummyRemoveSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_REMOVE;
+    typedef void Value;
+    typedef AuraDummyRemoveContext Context;
+};
+
 /// The live-out locals of `Aura::HandleAuraDummy` at an AT APPLY & REMOVE family switch: the
 /// bodies there read `apply` as well as `target` and the aura.
 struct AuraDummyApplyRemoveContext

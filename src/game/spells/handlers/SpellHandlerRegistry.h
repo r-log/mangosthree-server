@@ -77,7 +77,9 @@ enum SpellHandlerSite
     SPELL_HANDLER_SITE_AURA_DUMMY_DRUID = 3,
     /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_DRUID's Improved Moonkin Form block:
     /// its rank `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_DUMMY_DRUID_IMPROVED_MOONKIN = 4
+    SPELL_HANDLER_SITE_AURA_DUMMY_DRUID_IMPROVED_MOONKIN = 4,
+    /// `Aura::HandleAuraDummy`, AT REMOVE: the family-independent `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_REMOVE = 5
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

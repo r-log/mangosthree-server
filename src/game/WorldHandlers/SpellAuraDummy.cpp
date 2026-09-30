@@ -481,6 +481,12 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             return;
         }
 
+        AuraDummyRemoveContext ctx(this, target);
+        if (SpellHandlerRegistry::Game().Dispatch<AuraDummyRemoveSite>(GetId(), ctx).IsReturn())
+        {
+            return;
+        }
+
         switch (GetId())
         {
             case 10255:                                     // Stoned
@@ -571,24 +577,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             case 36730:                                     // Flame Strike
             {
                 target->CastSpell(target, 36731, true, NULL, this);
-                return;
-            }
-            case 41099:                                     // Battle Stance
-            {
-                // Battle Aura
-                target->RemoveAurasDueToSpell(41106);
-                return;
-            }
-            case 41100:                                     // Berserker Stance
-            {
-                // Berserker Aura
-                target->RemoveAurasDueToSpell(41107);
-                return;
-            }
-            case 41101:                                     // Defensive Stance
-            {
-                // Defensive Aura
-                target->RemoveAurasDueToSpell(41105);
                 return;
             }
             case 42454:                                     // Captured Totem
@@ -743,24 +731,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             {
                 // Crusader Parachute
                 target->RemoveAurasDueToSpell(53031);
-                return;
-            }
-            case 53790:                                     // Defensive Stance
-            {
-                // Defensive Aura
-                target->RemoveAurasDueToSpell(41105);
-                return;
-            }
-            case 53791:                                     // Berserker Stance
-            {
-                // Berserker Aura
-                target->RemoveAurasDueToSpell(41107);
-                return;
-            }
-            case 53792:                                     // Battle Stance
-            {
-                // Battle Aura
-                target->RemoveAurasDueToSpell(41106);
                 return;
             }
             case 56511:                                     // Towers of Certain Doom: Tower Bunny Smoke Flare Effect

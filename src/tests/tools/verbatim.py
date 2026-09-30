@@ -19,7 +19,12 @@ For each file in SITES, --check:
      a registered `default:` (DEFAULT, found through `registry.RegisterDefault<TRAITS>(&F);`), its
      label and F's body the same way; a site whose switch had no `default:` must have none registered
      (every site names its TRAITS for that). A label holding `{body}` is a one-line case
-     (`case 1: x = 1; break;    // note`): the body's lines are joined there with one space;
+     (`case 1: x = 1; break;    // note`): the body's lines are joined there with one space.
+     A partly moved site (RESIDUAL) keeps its switch, holding the labels not moved, directly after
+     the dispatch: the dispatch is dropped and each run of rows goes back into that switch before
+     its anchor (the line that followed the run: a label line found exactly once there, or the
+     switch's close), the runs in table order; such a site registers no default (its `default:`,
+     if any, stays in the switch);
   4. does the same to the file at BASE, for the sites a PR before this one moved (their dispatch
      is in the base; a site whose dispatch is not in the base is this PR's and must be a switch
      there), so BASE may be any commit from before the first move to the parent of this PR;
@@ -82,7 +87,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. `--base afdabc428`
 # (before the first move) proves every site against the switches as they were.
-BASE = '86589214e'
+BASE = '75d67d2e6'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
@@ -146,6 +151,37 @@ SITES = {
             'labels': {
                 46859: '                                case 46859:                 // Unrelenting Assault, rank 1',
                 46860: '                                case 46860:                 // Unrelenting Assault, rank 2'},
+        }, {
+            'name': 'HandleAuraDummy AT REMOVE (switch (GetId()), family-independent), its stance labels',
+            'dispatch': [
+                '        AuraDummyRemoveContext ctx(this, target);',
+                '        if (SpellHandlerRegistry::Game().Dispatch<AuraDummyRemoveSite>(GetId(), ctx).IsReturn())',
+                '        {',
+                '            return;',
+                '        }',
+                ''],
+            'open': ['        switch (GetId())', '        {'],
+            'close': ['        }'],
+            'residual': {
+                41099: '            case 42454:                                     // Captured Totem',
+                53790: '            case 56511:                                     '
+                       '// Towers of Certain Doom: Tower Bunny Smoke Flare Effect'},
+            'label_indent': 12,
+            'braced': True,
+            'table': 'stanceRemoval',
+            'traits': 'AuraDummyRemoveSite',
+            'context': 'AuraDummyRemoveContext',
+            'live_outs': ['target'],
+            'in_scope': ['apply', 'Real', 'classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                41099: '            case 41099:                                     // Battle Stance',
+                41100: '            case 41100:                                     // Berserker Stance',
+                41101: '            case 41101:                                     // Defensive Stance',
+                53790: '            case 53790:                                     // Defensive Stance',
+                53791: '            case 53791:                                     // Berserker Stance',
+                53792: '            case 53792:                                     // Battle Stance'},
         }, {
             'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_DRUID (switch (GetId()))',
             'dispatch': [
@@ -372,6 +408,39 @@ def paste(site, function, body, label_lines):
     return label_lines + restored
 
 
+def put_back(rest, at, n, site, pieces):
+    """A partly moved switch: `rest` with the dispatch at `at` (n lines) dropped and each run of moved
+    rows pasted back into the switch that still stands directly after it, before the run's anchor."""
+    first = at + n + len(site['open'])
+    if rest[at + n:first] != site['open']:
+        raise Failure('%s: the dispatch is not directly followed by the switch that still stands' % site['name'])
+    end = next((k for k in range(first, len(rest)) if rest[k] == site['close'][0]), None)
+    if end is None:
+        raise Failure('%s: the switch that still stands has no closing line' % site['name'])
+    anchors = site['residual']
+    runs = []
+    for first_id, lines in pieces:
+        if first_id in anchors:
+            runs.append((anchors[first_id], []))
+        elif not runs:
+            raise Failure('%s: the first row, %d, starts no run (it has no anchor)' % (site['name'], first_id))
+        runs[-1][1].extend(lines)
+    if len(runs) != len(anchors):
+        raise Failure('%s: %d runs of rows for %d anchors' % (site['name'], len(runs), len(anchors)))
+    positions = []
+    for anchor, _ in runs:
+        found = [end] if anchor == site['close'][0] else [k for k in range(first, end) if rest[k] == anchor]
+        if len(found) != 1:
+            raise Failure('%s: the anchor %r found %d times in the switch that still stands'
+                          % (site['name'], anchor, len(found)))
+        positions.append(found[0])
+    if positions != sorted(set(positions)):
+        raise Failure('%s: the runs of rows are not in the order of their anchors in the switch' % site['name'])
+    for (_, lines), pos in reversed(list(zip(runs, positions))):
+        rest[pos:pos] = lines
+    del rest[at:at + n]
+
+
 def rebuild(text, spec, headers, handler_text=None, strict=True):
     """`text` with every site's dispatch replaced by its switch, the added lines and the appended
     handler block dropped; the number of bodies pasted back, of labels, the names of the sites
@@ -422,7 +491,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
             raise Failure('%s: table rows %s, labels %s' % (site['name'], ids, sorted(site['labels'])))
         header, cls = site['members_of']
         members = class_members(headers[header], cls)
-        switch = list(site['open'])
+        pieces = []
         i = 0
         while i < len(rows):
             function = rows[i][1]
@@ -434,10 +503,15 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
                               % (site['name'], function))
             body = handler_body(handlers, function, site['context'])
             check_body(function, body, site, members)
-            switch += paste(site, function, body, [site['labels'][r[0]] for r in rows[i:j]])
+            pieces.append((rows[i][0], paste(site, function, body, [site['labels'][r[0]] for r in rows[i:j]])))
             pasted += 1
             labels += j - i
             i = j
+        switch = list(site['open'])
+        for _, lines in pieces:
+            switch += lines
+        if 'default' in site and 'residual' in site:
+            raise Failure('%s: a partly moved switch keeps its default: in the switch that still stands' % site['name'])
         if 'default' in site:
             function, line = default_function(handlers, site['traits'])
             defaults.add(line)
@@ -450,8 +524,11 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
         elif any(re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(.*' % re.escape(site['traits']), l)
                  for l in handlers):
             raise Failure('%s: a default registered for a site whose switch had none' % site['name'])
-        switch += site['close']
-        rest[at[0]:at[0] + n] = switch
+        if 'residual' in site:
+            put_back(rest, at[0], n, site, pieces)
+        else:
+            switch += site['close']
+            rest[at[0]:at[0] + n] = switch
         rebuilt.append(site['name'])
     heads = [i for i, l in enumerate(handlers) if re.match(r'static [\w:]+ %s\(' % re.escape(spec['rows_function']), l)]
     rows_body = set()
@@ -769,6 +846,142 @@ SELF_SPEC = {
 }
 
 
+# ---- A partly moved switch: two runs registered (the second anchored at the close), the rest still standing.
+SELF_OLD_PART = '''#include "A.h"
+
+void Thing::Remove(bool apply)
+{
+    Unit* target = GetTarget();
+    switch (GetId())
+    {
+        case 1:                                 // One
+        {
+            target->Drop(1);
+            return;
+        }
+        case 2:                                 // Two
+        {
+            target->Drop(2);
+            return;
+        }
+        case 3:                                 // Three
+        {
+            target->Drop(3);
+            return;
+        }
+        case 4:                                 // Four
+        case 5:                                 // Five
+        {
+            target->Drop(4);
+            return;
+        }
+        case 6:                                 // Six
+        {
+            break;
+        }
+    }
+    target->Tail();
+}
+'''
+
+SELF_SITES_PART = '''#include "A.h"
+#include "Handlers.h"
+
+void Thing::Remove(bool apply)
+{
+    Unit* target = GetTarget();
+    RemoveContext removeContext(this, target);
+    if (Dispatch<RemoveSite>(removeContext).IsReturn())
+    {
+        return;
+    }
+    switch (GetId())
+    {
+        case 1:                                 // One
+        {
+            target->Drop(1);
+            return;
+        }
+        case 3:                                 // Three
+        {
+            target->Drop(3);
+            return;
+        }
+    }
+    target->Tail();
+}
+'''
+
+SELF_HANDLERS_PART = '''#include "Handlers.h"
+
+static SpellHandlerOutcome<void> Two(RemoveContext& ctx)
+{
+    ctx.target->Drop(2);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+static SpellHandlerOutcome<void> Four(RemoveContext& ctx)
+{
+    ctx.target->Drop(4);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+static SpellHandlerOutcome<void> Six(RemoveContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+template <class Site, std::size_t N>
+static uint32 RegisterRows(Registry& registry, Row<Site> const (&rows)[N])
+{
+    for (Row<Site> const& row : rows)
+    {
+        registry.Register<Site>(row.spellId, row.function);
+    }
+    return uint32(N);
+}
+
+void Register(Registry& registry)
+{
+    static Row<RemoveSite> const removed[] =
+    {
+        { 2, &Two },
+        { 4, &Four },
+        { 5, &Four },
+        { 6, &Six },
+    };
+}
+'''
+
+SELF_SPEC_PART = {
+    'handlers': 'Handlers.cpp',
+    'rows_function': 'RegisterRows',
+    'added': ['#include "Handlers.h"'],
+    'tail_marker': '// Handlers:',
+    'sites': [{
+        'name': 'fixture part',
+        'dispatch': ['    RemoveContext removeContext(this, target);',
+                     '    if (Dispatch<RemoveSite>(removeContext).IsReturn())', '    {', '        return;', '    }'],
+        'open': ['    switch (GetId())', '    {'],
+        'close': ['    }'],
+        'residual': {2: '        case 3:                                 // Three', 4: '    }'},
+        'label_indent': 8,
+        'braced': True,
+        'table': 'removed',
+        'traits': 'RemoveSite',
+        'context': 'RemoveContext',
+        'live_outs': ['target'],
+        'in_scope': ['apply'],
+        'members_of': ('Thing.h', 'Thing'),
+        'substitutions': [('ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+        'labels': {2: '        case 2:                                 // Two',
+                   4: '        case 4:                                 // Four',
+                   5: '        case 5:                                 // Five',
+                   6: '        case 6:                                 // Six'},
+    }],
+}
+
+
 SELF_HEADERS = {'Thing.h': """class Other { void Tail(); };
 class  Thing
 {
@@ -901,6 +1114,39 @@ def self_test():
         '2 bodies pasted back there)', old_text=SELF_MID)
     run('the base\'s own moved body is proven again: a change there fails', 1, 'DIFFERS',
         old_text=SELF_MID.replace('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(NULL);'))
+    part = dict(old_text=SELF_OLD_PART, spec=SELF_SPEC_PART, sites=SELF_SITES_PART, handlers=SELF_HANDLERS_PART)
+
+    def part_site(**changes):
+        return dict(SELF_SPEC_PART, sites=[dict(SELF_SPEC_PART['sites'][0], **changes)])
+
+    run('a partly moved switch pastes back byte for byte (4 labels, 2 runs)', 0,
+        'IDENTICAL to the base, byte for byte, with 3/3 bodies pasted back at their 4 labels in 1 sites', **part)
+    run('against a base that is the partly moved file itself: passes', 0,
+        '(the base had 1 of the sites moved: 3 bodies pasted back there)',
+        **dict(part, old_text=SELF_SITES_PART, old_handlers=SELF_HANDLERS_PART))
+    run('a run pasted back before the wrong label fails', 1, 'DIFFERS',
+        **dict(part, spec=part_site(residual={2: '        case 1:                                 // One',
+                                              4: '    }'})))
+    run('a line between the dispatch and the switch that still stands fails', 1,
+        'the dispatch is not directly followed by the switch that still stands',
+        swap=('        return;\n    }\n    switch', '        return;\n    }\n    Log();\n    switch'), **part)
+    run('a run\'s anchor gone from the switch that still stands fails', 1,
+        'the anchor \'        case 3:                                 // Three\' found 0 times',
+        swap=('        case 3:                                 // Three\n', '        case 7:\n'), **part)
+    run('a moved label still standing in the switch fails', 1, 'DIFFERS',
+        swap=('        case 3:                                 // Three\n',
+              '        case 2:                                 // Two\n        {\n            target->Drop(2);\n'
+              '            return;\n        }\n        case 3:                                 // Three\n'), **part)
+    run('runs registered out of the order of their anchors fail', 1,
+        'the runs of rows are not in the order of their anchors in the switch',
+        swap=('        { 2, &Two },\n        { 4, &Four },\n        { 5, &Four },\n        { 6, &Six },',
+              '        { 4, &Four },\n        { 5, &Four },\n        { 6, &Six },\n        { 2, &Two },'), **part)
+    run('an anchor keyed on a row that starts no run fails', 1, '1 runs of rows for 2 anchors',
+        **dict(part, spec=part_site(residual={2: '        case 3:                                 // Three',
+                                              5: '    }'})))
+    run('a default at a partly moved site fails (it stays in the switch that still stands)', 1,
+        'a partly moved switch keeps its default: in the switch that still stands',
+        **dict(part, spec=part_site(default='        default:')))
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))

@@ -29,12 +29,14 @@
 /// contexts, and the game's sites (HandleAuraDummy's) are checked for their keys, their defaults
 /// and their contexts, and run where a body needs no live Unit (the Improved Moonkin Form ranks,
 /// the Unrelenting Assault default); a body that casts needs a live Unit, which the harness record
-/// covers where a scenario reaches it (931: warrior 41101 and 53790; no scenario reaches a druid or
+/// covers where a scenario reaches it (931: 41101 and 53790, applied and removed; no scenario reaches a druid or
 /// Unrelenting Assault label). Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
+///                            AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault,
 ///                            AuraDummyHandlers_TheTableRegistersEveryRowOnce
-///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys
+///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
+///                            AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss
 ///   default dropped          AuraDummyHandlers_TheUnrelentingAssaultSiteHoldsTwoRanksAndItsDefault,
 ///                            AuraDummyHandlers_TheImprovedMoonkinSiteHoldsThreeRanksAndItsDefault
@@ -43,6 +45,7 @@
 ///                            AuraDummyHandlers_TheImprovedMoonkinRanksSetTheSpellTheTailCasts
 ///   a lost live-out          SpellHandlerRegistry_ALiveOutWrittenByAHandlerReachesTheSite,
 ///                            AuraDummyHandlers_TheApplyContextAliasesTheTargetLocal,
+///                            AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheNewContextsAliasTheirLocals
 
 #include "TestHarness.h"
@@ -438,25 +441,26 @@ namespace
 
 TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 6 warrior stances, 2 Unrelenting Assault ranks and its default, 2 druid labels, 3 Improved
-    // Moonkin Form ranks and its default: 15 rows, 13 keys and 2 defaults, none registered twice.
+    // 6 warrior stances, 2 Unrelenting Assault ranks and its default, 6 stance removals, 2 druid labels,
+    // 3 Improved Moonkin Form ranks and its default: 21 rows, 19 keys and 2 defaults, none registered twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(15));
-    CHECK_EQ(registry.Count(), std::size_t(13));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(21));
+    CHECK_EQ(registry.Count(), std::size_t(19));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyApplyWarriorSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraDummyUnrelentingAssaultSite::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraDummyDruidSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyImprovedMoonkinSite::Key), std::size_t(3));
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(15));
-    CHECK_EQ(registry.Count(), std::size_t(13));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(21));
+    CHECK_EQ(registry.Count(), std::size_t(19));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
     // The game's table is the same one.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(13));
+    CHECK_EQ(game.Count(), std::size_t(19));
     CHECK_EQ(game.CountDefaults(), std::size_t(2));
 }
 
@@ -592,4 +596,49 @@ TEST(AuraDummyHandlers_TheNewContextsAliasTheirLocals)
     ++itr;
     CHECK((*assault.itr) == FakeAura(1));
     CHECK(assault.target == target);
+}
+
+TEST(AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault)
+{
+    static uint32 const stances[] = { 41099, 41100, 41101, 53790, 53791, 53792 };
+
+    SpellHandlerRegistry registry;
+    RegisterAuraDummyHandlers(registry);
+    for (uint32 spellId : stances)
+    {
+        SpellHandler<AuraDummyRemoveSite>::Function function = registry.Find<AuraDummyRemoveSite>(spellId);
+        CHECK(function != NULL);
+
+        // The same id at the warrior apply site is another key with another body.
+        CHECK(registry.Find<AuraDummyApplyWarriorSite>(spellId) != NULL);
+        CHECK(reinterpret_cast<void (*)()>(registry.Find<AuraDummyApplyWarriorSite>(spellId))
+              != reinterpret_cast<void (*)()>(function));
+    }
+
+    // No default: an id the switch still holds (10255, 42454) or none misses, and that switch runs.
+    CHECK(registry.FindDefault<AuraDummyRemoveSite>() == NULL);
+    Unit* target = NULL;
+    AuraDummyRemoveContext ctx(NULL, target);
+    CHECK(registry.Dispatch<AuraDummyRemoveSite>(10255, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyRemoveSite>(42454, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyRemoveSite>(11920, ctx).IsMiss());
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(6));
+    for (uint32 spellId : stances)
+    {
+        CHECK(game.Find<AuraDummyRemoveSite>(spellId) == registry.Find<AuraDummyRemoveSite>(spellId));
+    }
+}
+
+TEST(AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    Aura* aura = FakeAura(1);
+    AuraDummyRemoveContext ctx(aura, target);
+    CHECK(ctx.aura == aura);
+    CHECK(ctx.target == target);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);             // a body's write to `target`...
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));         // ...is the function's local
 }
