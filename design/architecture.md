@@ -201,9 +201,12 @@ which aborts the process when the tick counter stops moving.
   configuration. `Network.Threads` said otherwise and was read by no source file; it was removed from
   `mangosd.conf.dist.in` on 2026-09-29. `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by
   no source file either; the engine sets its own socket options.
-- The game draws from the seeded `RNG` only: its 7 C library `rand()` draws moved to it on 2026-09-30, and
-  `CheckRawRand` holds `src/game` at 0 draws and one `srand`, `World.cpp`'s. SD3 is the exception until #83: its 21
-  `rand()` draws (20 lines in 10 script files) still share the C library's generator, which that `srand` seeds.
+- The game draws from the seeded `RNG` only: its 7 C library `rand()` draws moved to it, and `CheckRawRand` holds
+  `src/game` at 0 draws and one `srand`, `World.cpp`'s. SD3 is the exception until #83: its 21 `rand()` draws (20
+  lines in 10 script files) still use the C library. On Windows the UCRT keeps `rand()` state per thread, so
+  `World.cpp:241`'s `srand` seeds only the main thread, and SD3's draws on the pooled map workers
+  (`MapUpdateThreads` 2) come from an unseeded per-thread stream (seed 1, the same on every worker and every boot);
+  on glibc they share one stream, seeded from the wall clock by that `srand`.
 
 ## 6. Build targets
 
@@ -282,7 +285,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory, peer and header on 2026-09-29); #144 |
 | 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel only | the D11 spell seam takes the second check |
 | 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by no source file (`Network.Threads` was, and is deleted) | delete them or wire them through #143 |
-| 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws; `World.cpp`'s `srand` stays for SD3's draws (#83) |
+| 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:241`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
 

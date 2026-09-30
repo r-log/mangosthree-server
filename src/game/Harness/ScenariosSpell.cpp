@@ -76,8 +76,8 @@
 // call; 935 a cast interrupted by a stun and by the player mover; 936 C-1, Hellfire's self roll,
 // recorded as it is; 937 C-2, Mortar Shot's fall-through, recorded as it is; 938 the Creature
 // cooldown model of pets and charmed creatures, recorded as it is. The guard of 931-938
-// (Qualify) fingerprints every spell a scenario reaches and refuses what would draw from the raw
-// rand() or bind a script.
+// (Qualify) fingerprints every spell a scenario reaches and refuses the random-pick labels, the
+// random chain targets and any script binding.
 namespace Harness
 {
     namespace
@@ -199,9 +199,7 @@ namespace Harness
          *  1. the spell exists and its SpellEffect rows match the fingerprint, every field of the
          *     three rows compared, zeros included;
          *  2. every present row is SCHOOL_DAMAGE, targets A=6 (TARGET_CHAIN_DAMAGE) and B=0: no
-         *     dummy or script effect (the four raw rand() sites in SpellEffectDummy.cpp and
-         *     SpellEffectScript.cpp), no aura (Killing Spree's at SpellAuras.cpp:3922), no random
-         *     chain fill (SpellTargeting.cpp:378);
+         *     dummy or script effect, no aura, no random chain fill;
          *  3. the family is not SPELLFAMILY_GENERIC, which holds all twelve dynamic labels of
          *     Spell::GetSpellRangeAndRadius (the urand draws, the difficulty switch, the effect-index
          *     copy, the aura-duration and caster-scale radii);
@@ -328,13 +326,7 @@ namespace Harness
         /// its defaults.
         const uint32 kDynamicRadiusLabels[] = { 61916, 46771, 63482, 74452, 24811, 28241, 54363, 66881, 67638, 67639, 67640, 56438 };
 
-        /// The spell-ID labels whose bodies draw from the raw rand() (the note's section 3(a)
-        /// table): Killing Spree (SpellAuras.cpp:3922), Arcane Prisoner Rescue
-        /// (SpellEffectDummy.cpp:1340), Righteous Defense (SpellEffectDummy.cpp:3659), Goblin
-        /// Weather Machine (SpellEffectScript.cpp:1378) and Chum the Water (SpellEffectScript.cpp:2708).
-        /// The other two sites are reached by a creature's EventAI (CreatureEventAI.cpp:641, refused
-        /// with every AI) and by the random chain fill of targets 2, 3 and 4 (one case,
-        /// SpellTargeting.cpp:322-324, whose fill draws at :378; refused by the effect's targets).
+        /// The spell-ID labels whose bodies pick at random; the guard refuses them.
         const uint32 kRawRandLabels[] = { 51690, 45449, 31789, 46203, 66741 };
 
         /// True for the three targets of SpellTargeting.cpp:322-324's random chain fill.
@@ -345,13 +337,10 @@ namespace Harness
         }
 
         /// "" when `print` is safe to reach, else why not: the spell exists and its SpellEffect rows
-        /// match the fingerprint; it is none of the dynamic radius labels and none of the raw rand()
-        /// labels; no effect targets TARGET_RANDOM_ENEMY_CHAIN_IN_AREA (2),
-        /// TARGET_RANDOM_FRIEND_CHAIN_IN_AREA (3) or TARGET_RANDOM_UNIT_CHAIN_IN_AREA (4) -- the one
-        /// case at SpellTargeting.cpp:322-324 whose fill draws from rand() at :378 -- (RandomChain);
-        /// it binds no SD3 spell or aura script (so none of
-        /// SD3's 20 raw rand() sites), no db_scripts chain on DBS_ON_SPELL and no
-        /// spell_script_target row; and every spell its effects trigger is itself in `reach`.
+        /// match the fingerprint; it is none of the dynamic radius labels and none of kRawRandLabels;
+        /// no effect targets a random chain (RandomChain); it binds no SD3 spell or aura script, no
+        /// db_scripts chain on DBS_ON_SPELL and no spell_script_target row; and every spell its
+        /// effects trigger is itself in `reach`.
         std::string CheckReachedSpell(SpellPrint const& print, std::set<uint32> const& reach, uint32& fields, uint32& fnv)
         {
             const uint32 id = print.spell;
@@ -1571,8 +1560,8 @@ namespace Harness
      *    (Player::RemoveSpellCooldown(26364, true)) -- the rule: no proc re-attempted while a
      *    cooldown it set is uncleared.
      *
-     * Every spell qualifies by the guard: none binds SD3 or a DB script, no case body reached draws
-     * from rand() (the two bodies are one assignment each), no random chain. The auras are put on
+     * Every spell qualifies by the guard: none binds SD3 or a DB script, no case body reached picks
+     * at random (the two bodies are one assignment each), no random chain. The auras are put on
      * the priest by a triggered self-cast (a positive spell draws no roll).
      *
      * Pins: each proc's result on the holder -- the charges, the triggered spell's log, the health

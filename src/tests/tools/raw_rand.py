@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""raw_rand.py [--root <repo root>] --check | --list | --self-test: no C library rand() or srand() in src/game."""
+"""raw_rand.py [--root <repo root>] --check | --list | --self-test: no C library rand() or srand() in src/game.
+
+Not caught: a call built by a macro, a call through a function pointer or a namespace alias,
+`(rand)()`, and the other C generators (rand_r, random, drand48).
+"""
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
