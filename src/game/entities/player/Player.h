@@ -78,7 +78,6 @@
 #include "HonorMgr.h"   // HonorMgr is held by value on Player; owns daily-kill rollover + RewardHonor calculation
 #include "CurrencyMgr.h" // CurrencyMgr is held by value on Player; brings in PlayerCurrency struct + PlayerCurrencyState/Flag enums + PlayerCurrenciesMap typedef
 #include "RuneMgr.h"    // RuneMgr is held by value on Player; brings in RuneType/RuneInfo/Runes + owns death-knight rune state
-#include "SpellCooldownMgr.h" // SpellCooldownMgr is held by value on Player; brings in SpellCooldown/SpellCooldowns + owns the cooldown map
 #include "ManagerPacketSink.h" // the packet sink type SessionSink() returns to every manager
 
 #include "QuestDef.h"
@@ -3975,7 +3974,6 @@ class Player : public Unit
         // Talents and specs: the per-spec talent maps, primary trees, active spec and spec count,
         // free and used points, and the last paid reset's cost and time
         TalentMgr m_talentMgr;
-        SpellCooldownMgr m_spellCooldownMgr;
         uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
         uint32 m_GuildIdInvited; // Guild ID invited
         uint32 m_ArenaTeamIdInvited; // Arena team ID invited

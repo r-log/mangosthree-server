@@ -118,14 +118,14 @@ set(REACH_RULES
     # owner passes in (ObjectMgr.h stays out of reach); whether a spell auto-repeats is a fact the
     # owner reads (SpellMgr.h stays out of reach). The header forward-declares WorldPacket,
     # ObjectGuid, ItemPrototype, SpellEntry and Field, and stays inside entities/player/Player.h's
-    # rule (Player.h includes it). The .cpp, like the talent manager's, reads the spell and spell
+    # rule (Player.h reaches it through Unit.h). The .cpp, like the talent manager's, reads the spell and spell
     # category DBC stores (Server/DBCStores.h) and saves through the character database
     # (Database/DatabaseEnv.h); src/tests/SpellCooldownMgrTest.cpp seeds the stores.
     # The WorldHandlers/Spell.h entries are belt-and-braces: Spell.h includes Object/Unit.h and
     # entities/player/Player.h itself, so those two entries fire first and Spell.h's never fires on
     # its own. Object/SpellMgr.h is different: it reaches neither, so its entry does real work.
-    "entities/player/spells/SpellCooldownMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
-    "entities/player/spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h"
+    "spells/SpellCooldownMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
+    "spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h"
     # Decoupling D4k: the glyph manager, the rune manager's two rules plus the cast
     # (WorldHandlers/Spell.h): the glyph's spell is cast and its auras removed by callbacks the owner
     # builds, so the manager never sees a spell, an aura or a unit. It builds no packet, so neither

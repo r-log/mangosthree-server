@@ -319,7 +319,7 @@ UpdateMask Player::updateVisualBits;
 // `this` and nothing else, so the previous order was harmless -- but a member
 // added here that reads another would have been constructed against whichever
 // one the declaration order happened to put first.
-Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(NULL)), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_spellCooldownMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr()
+Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(NULL)), m_inventoryMgr(), m_questStatusMgr(), m_talentMgr(), m_glyphMgr(), m_runeMgr(), m_camera(this), m_petMgr(), m_achievementMgr(std::make_unique<AchievementMgr>(this)), m_reputationMgr()
 {
     // Design v2 §3.1: a player's own movement is client-driven; changes are negotiated
     // with counters and acks. (Unit's constructor cannot know the type.)

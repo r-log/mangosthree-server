@@ -67,8 +67,8 @@ set(CONVERTED_FILES
     src/game/entities/player/inventory/InventoryMgr.cpp     # decoupling D4e1
     src/game/entities/player/spells/RuneMgr.h               # decoupling D4k
     src/game/entities/player/spells/RuneMgr.cpp             # decoupling D4k
-    src/game/entities/player/spells/SpellCooldownMgr.h      # decoupling D4k
-    src/game/entities/player/spells/SpellCooldownMgr.cpp    # decoupling D4k
+    src/game/spells/SpellCooldownMgr.h
+    src/game/spells/SpellCooldownMgr.cpp
     src/game/entities/player/talents/GlyphMgr.h             # decoupling D4k
     src/game/entities/player/talents/GlyphMgr.cpp           # decoupling D4k
     src/game/entities/player/pets/PetMgr.h                  # decoupling D4k

@@ -115,8 +115,8 @@ Each correction is one PR per manager, with the harness record byte-identical.
 ## 3. Shared versus player-only
 
 entities/player/ holds every state only a player has; the domain directories (spells/, combat/, ...) hold what Unit
-shares. Reputation, currency, honor, runes and achievements therefore stay in entities/player/. SpellCooldownMgr moves
-to spells/ on Unit (Creature has its own copy today).
+shares. Reputation, currency, honor, runes and achievements therefore stay in entities/player/. SpellCooldownMgr lives
+in spells/ on Unit (Creature has its own copy today).
 
 | Today | Target |
 |---|---|
@@ -130,7 +130,7 @@ to spells/ on Unit (Creature has its own copy today).
 casting 72, movement 72, stats and power 68, lifecycle and update 64, pets/charm/summons 49, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
-**Today (player-only code in `Unit`):** Unit's 15 files hold 134 `(Player*)this` casts and 222 `TYPEID_PLAYER` tests;
+**Today (player-only code in `Unit`):** Unit's 15 files hold 113 `(Player*)this` casts and 221 `TYPEID_PLAYER` tests;
 5 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`). The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`; only the aura storage
 (`spells/AuraContainer.h`) and the leaf math (`combat/`) are already home.
@@ -276,8 +276,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 9 | **Entities, Today:** seven managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`, `SpellCooldownMgr`); seven call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `SpellCooldownMgr`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`) | when the domain is next touched |
 | 10 | `QuestCompletePacket` in entities; README rule 4 and `CheckStateOwnership`'s manager rows | the first PR of row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
-| 12 | `SpellCooldownMgr` is player-only, and `Creature` has its own cooldowns | Unit reopen |
-| 13 | `Unit`: 134 `(Player*)this` casts, 222 player type tests, 5 Player-only virtuals | Unit reopen |
+| 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938) | the Creature fold, only on 4.3.4 evidence |
+| 13 | `Unit`: 113 `(Player*)this` casts, 221 player type tests, 5 Player-only virtuals | Unit reopen |
 | 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
 | 15 | `Object/` and `WorldHandlers/` exist; `session/`, `data/`, `ai/`, `social/`, `pvp/`, `economy/` do not | a move PR before each domain's first seam (#76) |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
@@ -316,8 +316,8 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
 - Unit's families:
   `python src/tests/tools/method_count.py --class Unit --header src/game/Object/Unit.h --all --list | python layers.py src unit`.
 - The player-only leaks, with `F="src/game/Object/Unit*.cpp src/game/WorldHandlers/UnitAuraProcHandler.cpp"`:
-  `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (134) and
-  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (222).
+  `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (113) and
+  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (221).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h` (5 of 34).
 - Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/Object/CreatureSpellCooldown.cpp` (6).

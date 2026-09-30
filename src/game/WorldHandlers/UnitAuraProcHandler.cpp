@@ -598,7 +598,7 @@ SpellAuraProcResult Unit::HandleHasteAuraProc(Unit* pVictim, uint32 damage, Aura
         return SPELL_AURA_PROC_FAILED;
     }
 
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(triggered_spell_id))
+    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(triggered_spell_id, time(NULL)))
     {
         return SPELL_AURA_PROC_FAILED;
     }
@@ -614,7 +614,7 @@ SpellAuraProcResult Unit::HandleHasteAuraProc(Unit* pVictim, uint32 damage, Aura
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        m_spellCooldownMgr.AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -679,7 +679,7 @@ SpellAuraProcResult Unit::HandleSpellCritChanceAuraProc(Unit* pVictim, uint32 /*
         return SPELL_AURA_PROC_FAILED;
     }
 
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(triggered_spell_id))
+    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(triggered_spell_id, time(NULL)))
     {
         return SPELL_AURA_PROC_FAILED;
     }
@@ -695,7 +695,7 @@ SpellAuraProcResult Unit::HandleSpellCritChanceAuraProc(Unit* pVictim, uint32 /*
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        m_spellCooldownMgr.AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -1793,7 +1793,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     }
 
                     // check explicitly only to prevent mana cast when halth cast cooldown
-                    if (cooldown && ((Player*)this)->HasSpellCooldown(34299))
+                    if (cooldown && m_spellCooldownMgr.HasSpellCooldown(34299, time(NULL)))
                     {
                         return SPELL_AURA_PROC_FAILED;
                     }
@@ -2819,7 +2819,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     }
 
                     // custom cooldown processing case
-                    if (cooldown && ((Player*)this)->HasSpellCooldown(dummySpell->ID))
+                    if (cooldown && m_spellCooldownMgr.HasSpellCooldown(dummySpell->ID, time(NULL)))
                     {
                         return SPELL_AURA_PROC_FAILED;
                     }
@@ -2878,7 +2878,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     // apply cooldown before cast to prevent processing itself
                     if (cooldown)
                     {
-                        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
+                        m_spellCooldownMgr.AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
                     }
 
                     // Attack Twice
@@ -3198,7 +3198,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                 }
 
                 // custom cooldown processing case
-                if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(dummySpell->ID))
+                if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(dummySpell->ID, time(NULL)))
                 {
                     return SPELL_AURA_PROC_FAILED;
                 }
@@ -3246,7 +3246,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
 
                 if (cooldown && GetTypeId() == TYPEID_PLAYER)
                 {
-                    ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
+                    m_spellCooldownMgr.AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
                 }
 
                 return SPELL_AURA_PROC_OK;
@@ -3515,7 +3515,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         return SPELL_AURA_PROC_FAILED;
     }
 
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(triggered_spell_id))
+    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(triggered_spell_id, time(NULL)))
     {
         return SPELL_AURA_PROC_FAILED;
     }
@@ -3533,7 +3533,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        m_spellCooldownMgr.AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -4613,7 +4613,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
         }
     }
 
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(trigger_spell_id))
+    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(trigger_spell_id, time(NULL)))
     {
         return SPELL_AURA_PROC_FAILED;
     }
@@ -4643,7 +4643,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(trigger_spell_id, 0, time(NULL) + cooldown);
+        m_spellCooldownMgr.AddSpellCooldown(trigger_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -4793,7 +4793,7 @@ SpellAuraProcResult Unit::HandleOverrideClassScriptAuraProc(Unit* pVictim, uint3
         return SPELL_AURA_PROC_FAILED;
     }
 
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(triggered_spell_id))
+    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(triggered_spell_id, time(NULL)))
     {
         return SPELL_AURA_PROC_FAILED;
     }
@@ -4802,7 +4802,7 @@ SpellAuraProcResult Unit::HandleOverrideClassScriptAuraProc(Unit* pVictim, uint3
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        m_spellCooldownMgr.AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;
@@ -5019,7 +5019,7 @@ SpellAuraProcResult Unit::HandleModDamagePercentDoneAuraProc(Unit* /*pVictim*/, 
         uint32 maxmana = GetMaxPower(POWER_MANA);
         int32 bp = int32(maxmana * GetAttackTime(RANGED_ATTACK) / 1000.0f / 100.0f);
 
-        if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(34075))
+        if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(34075, time(NULL)))
         {
             return SPELL_AURA_PROC_FAILED;
         }
@@ -5117,7 +5117,7 @@ SpellAuraProcResult Unit::HandleManaShieldAuraProc(Unit* pVictim, uint32 /*damag
         return SPELL_AURA_PROC_FAILED;
     }
 
-    if (cooldown && GetTypeId() == TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(triggered_spell_id))
+    if (cooldown && GetTypeId() == TYPEID_PLAYER && m_spellCooldownMgr.HasSpellCooldown(triggered_spell_id, time(NULL)))
     {
         return SPELL_AURA_PROC_FAILED;
     }
@@ -5126,7 +5126,7 @@ SpellAuraProcResult Unit::HandleManaShieldAuraProc(Unit* pVictim, uint32 /*damag
 
     if (cooldown && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
+        m_spellCooldownMgr.AddSpellCooldown(triggered_spell_id, 0, time(NULL) + cooldown);
     }
 
     return SPELL_AURA_PROC_OK;

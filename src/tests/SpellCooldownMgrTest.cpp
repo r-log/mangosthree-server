@@ -57,7 +57,7 @@
 #include "DBCStores.h"
 #include "ItemPrototype.h"
 #include "ObjectGuid.h"
-#include "SpellCooldownMgr.h"
+#include "spells/SpellCooldownMgr.h"
 #include "WorldPacket.h"
 
 #include <cstring>
