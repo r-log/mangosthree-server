@@ -383,9 +383,10 @@ TEST(MotionBehaviour_PointRestatesTheGoalOnPartial)
 TEST(MotionBehaviour_AssistRunCallsAssistanceOnEveryNonDisplacingFinishAndNeverInforms)
 {
     PointBehaviour::Params p = PointTo(1.0f, 2.0f, 3.0f, 0);
-    p.kind = Kind::AssistRun;
+    p.assist = true;
     p.flags = MOVE_WALK;
     PointBehaviour b(p);
+    CHECK(b.Kind() == Kind::Point);                // an assistance run is a Point by its params
     b.Activate(Free(), g_svc);
     Step moving = b.Tick(Free(), g_svc, 100);
     CHECK(moving.intent.act == MoveIntent::Act::Move);
@@ -569,13 +570,12 @@ TEST(MotionBehaviour_IdleDoesNothingAndFinishesSilently)
     CHECK(i.Finish(FinishReason::Superseded, Free(), g_svc).effects.empty());
 }
 
-TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsFlyLand)
+TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsPoint)
 {
     PointBehaviour::Params p = PointTo(4.0f, 5.0f, 6.0f, 5);
-    p.kind = Kind::FlyLand;
     p.flags = MOVE_FLY | MOVE_STRAIGHT;
     PointBehaviour b(p);
-    CHECK(b.Kind() == Kind::FlyLand);
+    CHECK(b.Kind() == Kind::Point);
     b.Activate(Free(), g_svc);
     Step t = b.Tick(Free(), g_svc, 100);
     CHECK(t.intent.act == MoveIntent::Act::Move);
@@ -584,7 +584,7 @@ TEST(MotionBehaviour_FlyLandLaysAStraightFlyingLegAndInformsAsFlyLand)
     CHECK(b.Tick(Arrived(), g_svc, 100).intent.act == MoveIntent::Act::Done);
     Outcome o = b.Finish(FinishReason::Arrived, Free(), g_svc);
     CHECK(HasEffect(o, Effect::Inform));
-    CHECK(o.effects[0].who == Kind::FlyLand);
+    CHECK(o.effects[0].who == Kind::Point);
     CHECK_EQ(o.effects[0].id, 5u);
 }
 

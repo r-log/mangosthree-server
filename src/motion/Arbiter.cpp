@@ -49,9 +49,7 @@ namespace Motion
             case Kind::Chase:
                 return Layer::Combat;
             case Kind::Point:
-            case Kind::FlyLand:
             case Kind::Home:
-            case Kind::AssistRun:
                 return Layer::Scripted;
             case Kind::Distract:
             case Kind::AssistDistract:
@@ -74,9 +72,7 @@ namespace Motion
         {
             case Kind::Wander:
             case Kind::Patrol:
-            case Kind::FlyLand:
             case Kind::Home:
-            case Kind::AssistRun:
             case Kind::Taxi:
                 return Policy::Override;
             case Kind::Point:
@@ -98,8 +94,8 @@ namespace Motion
     {
         static char const* const names[] =
         {
-            "Idle", "Wander", "Patrol", "Follow", "Chase", "Point", "FlyLand", "Home",
-            "AssistRun", "Distract", "AssistDistract", "Fear", "Confused", "Effect", "Taxi"
+            "Idle", "Wander", "Patrol", "Follow", "Chase", "Point", "Home",
+            "Distract", "AssistDistract", "Fear", "Confused", "Effect", "Taxi"
         };
         static_assert(sizeof(names) / sizeof(names[0]) == static_cast<size_t>(Kind::Count),
                       "KindName out of sync with Kind");

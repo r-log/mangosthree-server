@@ -173,7 +173,7 @@ namespace Motion
     };
 
     /// The roaming latch pair (the presence and its leg) the wander, the patrol and the point
-    /// family (Point, FlyLand, AssistRun, the charge) write, whatever the kind: the shell performs
+    /// family (the point, the fly-or-land, the assistance run, the charge) write: the shell performs
     /// it through MotionMaster::WriteRoaming before a Step's effects, and first in an Outcome.
     /// SetRoam/SetMove are the generators' single-bit writes (Initialize/Reset, and the hop or the leg).
     enum class Roaming : uint8 { Keep, SetBoth, ClearMove, ClearBoth, SetRoam, SetMove };

@@ -107,9 +107,7 @@ TEST(MotionArbiter_Contract_LayerTable)
     CHECK_EQ(L(LayerOf(Kind::Follow)), L(Layer::Default));
     CHECK_EQ(L(LayerOf(Kind::Chase)), L(Layer::Combat));
     CHECK_EQ(L(LayerOf(Kind::Point)), L(Layer::Scripted));
-    CHECK_EQ(L(LayerOf(Kind::FlyLand)), L(Layer::Scripted));
     CHECK_EQ(L(LayerOf(Kind::Home)), L(Layer::Scripted));
-    CHECK_EQ(L(LayerOf(Kind::AssistRun)), L(Layer::Scripted));
     CHECK_EQ(L(LayerOf(Kind::Distract)), L(Layer::Distract));
     CHECK_EQ(L(LayerOf(Kind::AssistDistract)), L(Layer::Distract));
     CHECK_EQ(L(LayerOf(Kind::Fear)), L(Layer::Control));
@@ -127,9 +125,7 @@ TEST(MotionArbiter_Contract_PolicyTable)
     CHECK_EQ(P(PolicyOf(Kind::Chase, false)), P(Policy::Supersede));    // D6: update
     CHECK_EQ(P(PolicyOf(Kind::Point, false)), P(Policy::Override));     // D2
     CHECK_EQ(P(PolicyOf(Kind::Point, true)), P(Policy::Suspend));       // resumeCombat
-    CHECK_EQ(P(PolicyOf(Kind::FlyLand, false)), P(Policy::Override));
     CHECK_EQ(P(PolicyOf(Kind::Home, false)), P(Policy::Override));
-    CHECK_EQ(P(PolicyOf(Kind::AssistRun, false)), P(Policy::Override));
     CHECK_EQ(P(PolicyOf(Kind::Distract, false)), P(Policy::Suspend));
     CHECK_EQ(P(PolicyOf(Kind::AssistDistract, false)), P(Policy::Suspend));
     CHECK_EQ(P(PolicyOf(Kind::Fear, false)), P(Policy::Suspend));
@@ -154,7 +150,7 @@ TEST(MotionArbiter_Contract_SelfExpiringMatchesMutate)
 TEST(MotionArbiter_Contract_Names)
 {
     CHECK_STR(KindName(Kind::Idle), "Idle");
-    CHECK_STR(KindName(Kind::AssistRun), "AssistRun");
+    CHECK_STR(KindName(Kind::Point), "Point");
     CHECK_STR(KindName(Kind::AssistDistract), "AssistDistract");
     CHECK_STR(KindName(Kind::Taxi), "Taxi");
     CHECK_STR(KindName(Kind::Count), "?");
@@ -698,9 +694,9 @@ TEST(MotionArbiter_Generations_RequestDuringNormalCompletionSurvives)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
-    m.Request(Req(Kind::AssistRun));
+    m.Request(Req(Kind::Point));                      // the assistance run
     {
-        Transaction tx(m, TransactionKind::Normal);   // the shell delivering AssistRun's finish
+        Transaction tx(m, TransactionKind::Normal);   // the shell delivering the run's finish
         m.FinishSelected(FinishReason::Arrived);
         m.Request(Req(Kind::AssistDistract));         // the finalizer's request
         CHECK_EQ(SelectedKind(m), K(Kind::AssistDistract));
@@ -713,18 +709,18 @@ TEST(MotionArbiter_Generations_RequestDuringClearAllIsDiscardedAtCommit)
 {
     Arbiter m;
     m.InstallDefault(Kind::Wander);
-    m.Request(Req(Kind::AssistRun));
+    m.Request(Req(Kind::Point));                      // the assistance run
     m.DrainEvents();
     {
         Transaction tx(m, TransactionKind::ClearAll);
         m.Clear(true);
-        m.Request(Req(Kind::AssistDistract));         // AssistRun::Finalize -> MoveSeekAssistanceDistract
+        m.Request(Req(Kind::AssistDistract));         // the run's finisher -> MoveSeekAssistanceDistract
         CHECK_EQ(SelectedKind(m), K(Kind::AssistDistract));   // visible during the hook
         CHECK(m.InDiscardingTransaction());
     }
     CHECK(m.Empty());                                 // gone at commit, as DirectClean keeps clearing
     std::vector<Event> ev = m.DrainEvents();
-    CHECK(HasFinished(ev, Kind::AssistRun, 0, FinishReason::Cleared));
+    CHECK(HasFinished(ev, Kind::Point, 0, FinishReason::Cleared));
     CHECK(HasFinished(ev, Kind::AssistDistract, 0, FinishReason::Cleared));
     CHECK(!m.InDiscardingTransaction());
 }

@@ -47,24 +47,24 @@ namespace Motion
             Outcome Finish(FinishReason, Sight const&, Services&) override { return Outcome(); }
     };
 
-    /// The point family: a one-shot leg to a goal (Point, FlyLand by flags, AssistRun by flags and a finisher, the charge by a tracked target and a speed).
+    /// The point family: a one-shot leg to a goal (a fly-or-land by flags, an assistance run by flags and its finisher, the charge by a tracked target and a speed).
     class PointBehaviour : public Behaviour
     {
         public:
             struct Params
             {
-                Motion::Kind kind = Motion::Kind::Point; ///< Point, FlyLand or AssistRun
                 uint32       id = 0;
                 Vector3      goal;
                 uint32       flags = MOVE_NONE;
                 float        speed = 0.0f;               ///< 0 = the unit's pace
                 uint64       target = 0;                 ///< the charge: the goal follows this unit's contact point
                 bool         informs = true;             ///< false for the charge and the swoop (they never informed)
+                bool         assist = false;             ///< the assistance run: its finisher calls assistance, then the distract; it never informs
                 float        relayDrift = 2.0f;          ///< the charge: re-lay when the goal drifted more than this
                 uint32       relayEveryMs = 500;         ///< the charge: at most one re-lay per this
             };
             explicit PointBehaviour(Params const& p);
-            Motion::Kind Kind() const override { return m_p.kind; }
+            Motion::Kind Kind() const override { return Motion::Kind::Point; }
             Step Activate(Sight const& sight, Services& svc) override;
             Step Suspend() override;
             Step Resume(Sight const& sight, Services& svc, bool reset) override;

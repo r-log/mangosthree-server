@@ -49,8 +49,8 @@ namespace Motion
     {
         Idle, Wander, Patrol, Follow,      ///< Default layer
         Chase,                             ///< Combat
-        Point, FlyLand, Home, AssistRun,   ///< Scripted
-        Distract, AssistDistract,          ///< Distract
+        Point, Home,                       ///< Scripted (a fly-or-land and an assistance run are Points by their flags)
+        Distract, AssistDistract,          ///< Distract (AssistDistract is not self-expiring; Distract is)
         Fear, Confused,                    ///< Control (claims)
         Effect,                            ///< Forced
         Taxi,                              ///< Taxi
