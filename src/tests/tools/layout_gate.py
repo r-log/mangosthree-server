@@ -37,9 +37,12 @@ root, in one sort order:
                   and its peer layer. A new file of a listed peer in a listed directory including a
                   listed header adds no key. A file's peer comes from its name (RULES), so a file
                   named after another peer is a new key.
-The file's leading "#" lines are its header, followed by one blank line. After the header, a "#"
-line directly above an entry is that entry's reason: one line, kept by --generate with its entry
-and dropped with it; a "#" line after the header that is not directly above an entry fails.
+The file starts with the header --generate writes and one blank line; a "#" line in the header
+that is not the header's fails. After the header, a "#" line with text, directly above an entry, is
+that entry's reason: one line, kept by --generate with its entry, carried to the new line when
+the entry moves, and dropped with it; a "#" line after the header that is not directly above an
+entry, or holds no text, fails, and --generate writes nothing while the list holds such a line.
+A reason is optional here; that a line needs one is decided by the review of the list's diff.
 
 --check fails on:
   - a key the tree has and the list does not;
@@ -296,23 +299,37 @@ def scan(root):
 
 
 def read_allow(path):
-    """The list's entries; its malformed or duplicate lines and misplaced reason lines as errors;
-    {entry: reason line} for the entries with a reason."""
-    entries, errors, seen, reasons = set(), [], set(), {}
+    """The list's entries; its malformed or duplicate lines, a malformed header and misplaced or
+    empty reason lines as errors; {entry: reason line} for the entries with a reason; and the "#"
+    lines --generate would not keep (neither the header's nor a reason)."""
+    entries, errors, seen, reasons, lost = set(), [], set(), {}, []
     if not os.path.isfile(path):
-        return entries, ['the allow-list %s does not exist; run --generate' % path], reasons
+        return entries, ['the allow-list %s does not exist; run --generate' % path], reasons, lost
     with open(path, encoding='utf-8') as fh:
         lines = [ln.strip() for ln in fh]
+    own = ALLOW_HEADER.rstrip('\n').split('\n')
     header = 0
     while header < len(lines) and lines[header].startswith('#'):
+        if lines[header] not in own:
+            errors.append('%s:%d: a "#" line in the header that is not the header\'s: %s'
+                          % (path, header + 1, lines[header]))
+            lost.append(lines[header])
         header += 1
+    if lines[:header] != own or (header < len(lines) and lines[header]):
+        errors.append('%s: the list does not start with its header and one blank line (--generate writes them)'
+                      % path)
     reason = None
     for n, s in enumerate(lines[header:], header + 1):
         if reason is not None and not (s and not s.startswith('#')):
             errors.append('%s:%d: a reason line not directly above an entry: %s' % (path, n - 1, reason))
+            lost.append(reason)
             reason = None
         if s.startswith('#'):
             reason = s
+            if not s[1:].strip():
+                errors.append('%s:%d: a reason line with no text: %s' % (path, n, s))
+                lost.append(s)
+                reason = None
             continue
         if not s:
             continue
@@ -331,7 +348,8 @@ def read_allow(path):
         reason = None
     if reason is not None:
         errors.append('%s:%d: a reason line not directly above an entry: %s' % (path, len(lines), reason))
-    return entries, errors, reasons
+        lost.append(reason)
+    return entries, errors, reasons, lost
 
 
 def list_key(edge, verdict):
@@ -441,7 +459,7 @@ def check(root, allow_path, out=print):
     except GateError as e:
         out('CheckLayout: FAIL: %s' % e)
         return 1
-    entries, list_errors, reasons = read_allow(allow_path)
+    entries, list_errors, reasons, _ = read_allow(allow_path)
     errors = result['errors'] + list_errors
     edges = result['edges']
     keys, new, moved, stale, (tree_n, list_n) = compare(edges, entries)
@@ -480,8 +498,9 @@ def check(root, allow_path, out=print):
             % (len(moved), allow_rel))
         for old, k in moved:
             kind, key = edges[k]
-            out('  moved: replace the old line %s -> %s with %s -> %s   [%s: %s -> %s]'
-                % (old[0], old[1], k[0], k[1], kind, key[0], key[1]))
+            out('  moved: replace the old line %s -> %s with %s -> %s   [%s: %s -> %s]%s'
+                % (old[0], old[1], k[0], k[1], kind, key[0], key[1],
+                   '   (its reason moves with it: %s)' % reasons[old] if old in reasons else ''))
     if stale:
         out('CheckLayout: %d allow-list line(s) name an edge that is gone from the tree or is allowed now -- '
             'delete them (%s):' % (len(stale), allow_rel))
@@ -514,8 +533,19 @@ def generate(root, allow_path, out=print):
             out('CheckLayout: ERROR: %s' % e)
         out('CheckLayout: the list is not written while the tree has errors')
         return 1
-    old, _, reasons = read_allow(allow_path)
+    old, _, reasons, lost = read_allow(allow_path)
+    if lost:
+        for line in lost:
+            out('CheckLayout: ERROR: a "#" line that is neither the header\'s nor a reason: %s' % line)
+        out('CheckLayout: the list is not written: it would lose the lines above (make each one a reason '
+            'directly above its entry, or delete it)')
+        return 1
     entries = set(keys_of(result['edges']))
+    carried = []
+    for was, now in compare(result['edges'], old)[2]:
+        if was in reasons and now not in reasons:
+            reasons[now] = reasons[was]
+            carried.append((was, now))
     with open(allow_path, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write(format_allow(entries, reasons))
     added, removed = sorted(entries - old), sorted(old - entries)
@@ -523,6 +553,8 @@ def generate(root, allow_path, out=print):
         out('  + %s -> %s' % e)
     for e in removed:
         out('  - %s -> %s%s' % (e[0], e[1], '   (and its reason: %s)' % reasons[e] if e in reasons else ''))
+    for was, now in carried:
+        out('  reason moved from %s -> %s to %s -> %s: %s' % (was + now + (reasons[now],)))
     summary(result, out)
     out('CheckLayout: wrote %d lines to %s (+%d, -%d)' % (len(entries), allow_path, len(added), len(removed)))
     return 0
@@ -798,37 +830,70 @@ def self_test():
         print('self-test: %-66s %s' % ('--generate writes what --check then passes', 'PASS' if ok else 'FAIL'))
         expect(ok, 'generate/check round trip: %d %d\n%s' % (rc, rc2, '\n'.join(got)))
 
+    def generated(tree, allow):
+        """--generate on a fixture: its exit, the list it leaves and its output."""
+        with tempfile.TemporaryDirectory() as tmp:
+            ap = build(tmp, tree, allow)
+            got = []
+            rc = generate(tmp, ap, out=got.append)
+            with open(ap, encoding='utf-8') as fh:
+                text = fh.read()
+            rc2 = check(tmp, ap, out=got.append)
+            return rc, text, got, rc2, read_allow(ap)[2]
+
+    def row(label, ok, detail):
+        rows.append(label)
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        expect(ok, '%s: %s' % (label, detail))
+
     why, first = '# Map.cpp reads the player', '# the first entry, right below the header'
     reasoned = format_allow(SELF_ALLOW, {SELF_ALLOW[0]: first, SELF_ALLOW[1]: why})
-    with tempfile.TemporaryDirectory() as tmp:
-        ap = build(tmp, SELF_TREE, reasoned)
-        got = []
-        rc = generate(tmp, ap, out=got.append)
-        with open(ap, encoding='utf-8') as fh:
-            text = fh.read()
-        rc2 = check(tmp, ap, out=got.append)
-        ok = rc == 0 and rc2 == 0 and text == reasoned and '%s\n%s -> %s\n' % ((why,) + SELF_ALLOW[1]) in text
-        ok = ok and read_allow(ap)[2] == {SELF_ALLOW[0]: first, SELF_ALLOW[1]: why}
-        rows.append('reason kept')
-        print('self-test: %-66s %s' % ('reason lines survive --generate (the first entry\'s too)', 'PASS' if ok else 'FAIL'))
-        expect(ok, 'reason kept: %d %d\n%s\n%s' % (rc, rc2, text, '\n'.join(got)))
+    rc, text, got, rc2, kept = generated(SELF_TREE, reasoned)
+    row('reason lines survive --generate (the first entry\'s too)',
+        rc == 0 and rc2 == 0 and text == reasoned and '%s\n%s -> %s\n' % ((why,) + SELF_ALLOW[1]) in text
+        and kept == {SELF_ALLOW[0]: first, SELF_ALLOW[1]: why}, '%d %d\n%s\n%s' % (rc, rc2, text, '\n'.join(got)))
     gone_tree = with_file('src/game/Maps/Map.cpp', '#include "Map.h"\n#include "Unit.h"\n')
     run('a reason whose entry is gone fails with the stale entry', gone_tree, reasoned, 1,
         ['1 allow-list line(s) name an edge that is gone',
          '  src/game/Maps/Map.cpp -> src/game/entities/player/Player.h   (its reason goes with it: %s)' % why])
-    with tempfile.TemporaryDirectory() as tmp:
-        ap = build(tmp, gone_tree, reasoned)
-        got = []
-        rc = generate(tmp, ap, out=got.append)
-        with open(ap, encoding='utf-8') as fh:
-            text = fh.read()
-        ok = rc == 0 and why not in text and text == format_allow(SELF_ALLOW[:1] + SELF_ALLOW[2:], {SELF_ALLOW[0]: first}) and (
-            '  - src/game/Maps/Map.cpp -> src/game/entities/player/Player.h   (and its reason: %s)' % why in got)
-        rows.append('reason dropped')
-        print('self-test: %-66s %s' % ('--generate drops a reason with its entry', 'PASS' if ok else 'FAIL'))
-        expect(ok, 'reason dropped: %d\n%s\n%s' % (rc, text, '\n'.join(got)))
-    run('a "#" line in the header is not a reason', SELF_TREE,
-        ALLOW_HEADER + ''.join('%s -> %s\n' % e for e in sorted(SELF_ALLOW)), 0, 'CheckLayout: OK: 4 list lines')
+    rc, text, got, _, _ = generated(gone_tree, reasoned)
+    row('--generate drops a reason with its entry',
+        rc == 0 and why not in text and text == format_allow(SELF_ALLOW[:1] + SELF_ALLOW[2:], {SELF_ALLOW[0]: first})
+        and '  - src/game/Maps/Map.cpp -> src/game/entities/player/Player.h   (and its reason: %s)' % why in got,
+        '%d\n%s\n%s' % (rc, text, '\n'.join(got)))
+    moved_seam = [e for e in SELF_ALLOW if e != old_pl] + [new_pl]
+    run('a moved seam line names its reason', seam_tree, reasoned, 1,
+        '  moved: replace the old line src/game/Maps/Map.cpp -> src/game/entities/player/Player.h with '
+        'src/game/Maps/MapGrid.cpp -> src/game/entities/player/Player.h   [seam: maps -> entities/player]'
+        '   (its reason moves with it: %s)' % why)
+    rc, text, got, rc2, kept = generated(seam_tree, reasoned)
+    row('--generate carries a moved line\'s reason to the new line',
+        rc == 0 and rc2 == 0 and text == format_allow(moved_seam, {SELF_ALLOW[0]: first, new_pl: why})
+        and kept == {SELF_ALLOW[0]: first, new_pl: why},
+        '%d %d\n%s\n%s' % (rc, rc2, text, '\n'.join(got)))
+    rc, text, got, _, kept = generated(SELF_TREE, format_allow(SELF_ALLOW))
+    row('the header\'s "#" lines are not reasons', rc == 0 and kept == {}, '%d %r' % (rc, kept))
+    no_blank = reasoned.replace(ALLOW_HEADER + '\n', ALLOW_HEADER, 1)
+    run('a reason right below the header, no blank line, fails', SELF_TREE, no_blank, 1,
+        ['a "#" line in the header that is not the header\'s: %s' % first,
+         'the list does not start with its header and one blank line'])
+    rc, text, got, _, _ = generated(SELF_TREE, no_blank)
+    row('--generate keeps that list as it is (the line is not deleted)', rc == 1 and text == no_blank,
+        '%d\n%s' % (rc, '\n'.join(got)))
+    above = '# above the header\n' + reasoned
+    run('a "#" line above the header fails', SELF_TREE, above, 1,
+        'a "#" line in the header that is not the header\'s: # above the header')
+    rc, text, got, _, _ = generated(SELF_TREE, above)
+    row('--generate keeps a list with a "#" line above the header', rc == 1 and text == above,
+        '%d\n%s' % (rc, '\n'.join(got)))
+    old_header = ALLOW_HEADER + ''.join('%s -> %s\n' % e for e in sorted(SELF_ALLOW))
+    run('a header with no blank line after it fails', SELF_TREE, old_header, 1,
+        'the list does not start with its header and one blank line', 'not the header\'s')
+    rc, text, got, rc2, _ = generated(SELF_TREE, old_header)
+    row('--generate writes the header and its blank line', rc == 0 and rc2 == 0 and text == format_allow(SELF_ALLOW),
+        '%d %d\n%s' % (rc, rc2, '\n'.join(got)))
+    run('a reason with no text fails', SELF_TREE, reasoned.replace(why + '\n', '#\n'), 1,
+        'a reason line with no text: #')
     run('a reason line not directly above an entry fails', SELF_TREE,
         reasoned.replace(why + '\n', why + '\n\n'), 1, 'a reason line not directly above an entry: %s' % why)
     run('two reason lines above one entry fail', SELF_TREE,

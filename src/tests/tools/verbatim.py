@@ -29,7 +29,9 @@ function, a lost row or default, a changed line, or a body moved in the wrong or
 body a PR before this one moved is proven again, against its own base's copy. Every
 `RegisterDefault` in the handlers must be a line `registry.RegisterDefault<TRAITS>(&F);` of a site
 with a `default:`, and every site's TRAITS must appear as `Dispatch<TRAITS>` in its own DISPATCH
-lines, so no default is registered under a spelling the paste-back does not read.
+lines, so no default is registered under a spelling the paste-back does not read; and every
+`Register` stands inside ROWS_FUNCTION, which registers the tables' rows, so no labelled row is
+registered outside the tables the paste-back reads.
 
 Each handler body is also checked for what the paste-back cannot see: a live-out local used
 bare (a case body's name the move did not route through the context), and so any other name in
@@ -89,6 +91,7 @@ VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;')
 SITES = {
     'src/game/WorldHandlers/SpellAuraDummy.cpp': {
         'handlers': 'src/game/spells/handlers/AuraDummyHandlers.cpp',
+        'rows_function': 'RegisterAuraDummyRows',
         'added': ['#include "spells/handlers/AuraDummyHandlers.h"'],
         'tail_marker': '// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry\'s',
         'sites': [{
@@ -450,10 +453,18 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
         switch += site['close']
         rest[at[0]:at[0] + n] = switch
         rebuilt.append(site['name'])
+    heads = [i for i, l in enumerate(handlers) if re.match(r'static [\w:]+ %s\(' % re.escape(spec['rows_function']), l)]
+    rows_body = set()
+    if len(heads) == 1:
+        end = next((k for k in range(heads[0], len(handlers)) if handlers[k] == '}'), len(handlers))
+        rows_body = set(range(heads[0], end))
     for i, line in enumerate(blank('\n'.join(handlers)).split('\n')):
         if re.search(r'\bRegisterDefault\b', line) and i not in defaults:
             raise Failure('a RegisterDefault that is not a site\'s `registry.RegisterDefault<TRAITS>(&F);` line: %r'
                           % handlers[i])
+        if strict and re.search(r'(\.|->|::)\s*Register\s*[<(]|\bRegister\s*<', line) and i not in rows_body:
+            raise Failure('a Register outside %s, where every labelled row is registered from its table: %r'
+                          % (spec['rows_function'], handlers[i]))
     return '\n'.join(rest), pasted, labels, rebuilt, handlers
 
 
@@ -621,6 +632,16 @@ static SpellHandlerOutcome<void> RankDefault(RankContext& ctx)
     return SpellHandlerOutcome<void>::Return();
 }
 
+template <class Site, std::size_t N>
+static uint32 RegisterRows(Registry& registry, Row<Site> const (&rows)[N])
+{
+    for (Row<Site> const& row : rows)
+    {
+        registry.Register<Site>(row.spellId, row.function);
+    }
+    return uint32(N);
+}
+
 void Register(Registry& registry)
 {
     static Row const rows[] =
@@ -704,6 +725,7 @@ void Register(Registry& registry)
 
 SELF_SPEC = {
     'handlers': 'Handlers.cpp',
+    'rows_function': 'RegisterRows',
     'added': ['#include "Handlers.h"'],
     'tail_marker': '// Handlers:',
     'sites': [{
@@ -831,7 +853,8 @@ def self_test():
     run('a member reached through the context passes the member check', 1, 'DIFFERS',
         swap=('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(ctx.aura->GetCaster());'))
     run('a Continue inside a loop fails', 1, 'a Continue inside a loop or switch',
-        swap=('if (i == 1)\n            break;', 'if (i == 1)\n            return SpellHandlerOutcome<void>::Continue();'))
+        swap=('if (i == 1)\n            break;',
+              'if (i == 1)\n            return SpellHandlerOutcome<void>::Continue();'))
     run('a lost dispatch fails', 1, 'the dispatch found 0 times',
         swap=('    if (Dispatch<SelfSite>(handlerContext).IsReturn())\n', ''))
     run('Return taken for Continue fails', 1, 'DIFFERS',
@@ -847,7 +870,8 @@ def self_test():
         swap=('    registry.RegisterDefault<RankSite>',
               '    registry.RegisterDefault<SelfSite>(&Three);\n    registry.RegisterDefault<RankSite>'))
     for label, planted in [('spaced brackets', '    registry.RegisterDefault< SelfSite >(&Three);'),
-                           ('a type alias', '    typedef SelfSite Alias;\n    registry.RegisterDefault<Alias>(&Three);'),
+                           ('a type alias',
+                            '    typedef SelfSite Alias;\n    registry.RegisterDefault<Alias>(&Three);'),
                            ('another registry', '    other.RegisterDefault<SelfSite>(&Three);')]:
         run('a RegisterDefault through %s fails' % label, 1,
             'a RegisterDefault that is not a site\'s `registry.RegisterDefault<TRAITS>(&F);` line',
@@ -855,6 +879,12 @@ def self_test():
     run('a RegisterDefault in a comment is not a registration', 0, 'IDENTICAL',
         swap=('    registry.RegisterDefault<RankSite>',
               '    // registry.RegisterDefault<SelfSite>(&Three);\n    registry.RegisterDefault<RankSite>'))
+    run('a labelled row registered outside the tables fails', 1,
+        'a Register outside RegisterRows, where every labelled row is registered from its table',
+        swap=('    registry.RegisterDefault<RankSite>',
+              '    registry.Register<SelfSite>(4, &Three);\n    registry.RegisterDefault<RankSite>'))
+    run('a Register when the rows function is renamed fails', 1, 'a Register outside RegisterRows',
+        swap=('static uint32 RegisterRows(', 'static uint32 RegisterTableRows('))
     no_traits = dict(SELF_SPEC, sites=[dict(SELF_SPEC['sites'][0]), SELF_SPEC['sites'][1]])
     del no_traits['sites'][0]['traits']
     run('a site that names no traits fails (its default guard could not run)', 1,
