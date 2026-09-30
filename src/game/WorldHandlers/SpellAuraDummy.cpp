@@ -490,63 +490,12 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             case 12479:                                     // Hex of Jammal'an
                 target->CastSpell(target, 12480, true, NULL, this);
                 return;
-            case 12774:                                     // (DND) Belnistrasz Idol Shutdown Visual
-            {
-                if (m_removeMode == AURA_REMOVE_BY_DEATH)
-                {
-                    return;
-                }
-
-                // Idom Rool Camera Shake <- wtf, don't drink while making spellnames?
-                if (Unit* caster = GetCaster())
-                {
-                    caster->CastSpell(caster, 12816, true);
-                }
-
-                return;
-            }
             case 28169:                                     // Mutating Injection
             {
                 // Mutagen Explosion
                 target->CastSpell(target, 28206, true, NULL, this);
                 // Poison Cloud
                 target->CastSpell(target, 28240, true, NULL, this);
-                return;
-            }
-            case 32045:                                     // Soul Charge
-            {
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 32054, true, NULL, this);
-                }
-
-                return;
-            }
-            case 32051:                                     // Soul Charge
-            {
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 32057, true, NULL, this);
-                }
-
-                return;
-            }
-            case 32052:                                     // Soul Charge
-            {
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 32053, true, NULL, this);
-                }
-
-                return;
-            }
-            case 32286:                                     // Focus Target Visual
-            {
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 32301, true, NULL, this);
-                }
-
                 return;
             }
             case 35079:                                     // Misdirection, triggered buff
@@ -563,31 +512,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 target->CastSpell(target, 36731, true, NULL, this);
                 return;
             }
-            case 42454:                                     // Captured Totem
-            {
-                if (m_removeMode == AURA_REMOVE_BY_DEFAULT)
-                {
-                    if (target->GetDeathState() != CORPSE)
-                    {
-                        return;
-                    }
-
-                    Unit* pCaster = GetCaster();
-
-                    if (!pCaster)
-                    {
-                        return;
-                    }
-
-                    // Captured Totem Test Credit
-                    if (Player* pPlayer = pCaster->GetCharmerOrOwnerPlayerOrPlayerItself())
-                    {
-                        pPlayer->CastSpell(pPlayer, 42455, true);
-                    }
-                }
-
-                return;
-            }
             case 42517:                                     // Beam to Zelfrax
             {
                 // expecting target to be a dummy creature
@@ -602,24 +526,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
                 return;
             }
-            case 43681:                                     // Inactive
-            {
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE && target->GetTypeId() == TYPEID_PLAYER)
-                {
-                    ((Player*)target)->ToggleAFK();
-                }
-                return;
-            }
-            case 43969:                                     // Feathered Charm
-            {
-                // Steelfeather Quest Credit, Are there any requirements for this, like area?
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 43984, true);
-                }
-
-                return;
-            }
             case 44191:                                     // Flame Strike
             {
                 if (target->GetMap()->IsDungeon())
@@ -627,15 +533,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     uint32 spellId = target->GetMap()->IsRegularDifficulty() ? 44190 : 46163;
 
                     target->CastSpell(target, spellId, true, NULL, this);
-                }
-                return;
-            }
-            case 45934:                                     // Dark Fiend
-            {
-                // Kill target if dispelled
-                if (m_removeMode == AURA_REMOVE_BY_DISPEL)
-                {
-                    target->DealDamage(target, target->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
                 }
                 return;
             }
@@ -661,16 +558,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 target->CastSpell(target, target->GetMap()->IsRegularDifficulty() ? 48380 : 59320, true);
                 return;
             }
-            case 50141:                                     // Blood Oath
-            {
-                // Blood Oath
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 50001, true, NULL, this);
-                }
-
-                return;
-            }
             case 51405:                                     // Digging for Treasure
             {
                 const uint32 spell_list[7] =
@@ -690,41 +577,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, GetCasterGuid().GetCounter()));
                 return;
             }
-            case 51870:                                     // Collect Hair Sample
-            {
-                if (Unit* pCaster = GetCaster())
-                {
-                    if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                    {
-                        pCaster->CastSpell(target, 51872, true, NULL, this);
-                    }
-                }
-
-                return;
-            }
-            case 52098:                                     // Charge Up
-            {
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 52092, true, NULL, this);
-                }
-
-                return;
-            }
             case 53039:                                     // Deploy Parachute
             {
                 // Crusader Parachute
                 target->RemoveAurasDueToSpell(53031);
-                return;
-            }
-            case 56511:                                     // Towers of Certain Doom: Tower Bunny Smoke Flare Effect
-            {
-                // Towers of Certain Doom: Skorn Cannonfire
-                if (m_removeMode == AURA_REMOVE_BY_DEFAULT)
-                {
-                    target->CastSpell(target, 43069, true);
-                }
-
                 return;
             }
             case 58600:                                     // Restricted Flight Area
@@ -737,15 +593,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 //{
                 //    target->CastSpell(target, 58601, true); // Remove Flight Auras (also triggered Parachute (45472))
                 //}
-                return;
-            }
-            case 61900:                                     // Electrical Charge
-            {
-                if (m_removeMode == AURA_REMOVE_BY_DEATH)
-                {
-                    target->CastSpell(target, GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_0), true);
-                }
-
                 return;
             }
             case 68839:                                     // Corrupt Soul

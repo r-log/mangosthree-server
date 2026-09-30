@@ -99,7 +99,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. `--base afdabc428`
 # (before the first move) proves every site against the switches as they were.
-BASE = '7b1be21c7'
+BASE = '56bfe2940'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
@@ -222,7 +222,10 @@ SITES = {
             'live_outs': ['target'],
             'in_scope': ['apply', 'Real', 'classOptions'],
             'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
-            'substitutions': [('ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'substitutions': [('ctx.target', 'target'), ('ctx.aura->GetRemoveMode()', 'm_removeMode'),
+                              ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetSpellProto()', 'GetSpellProto()'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
             'labels': {
                 10255: '            case 10255:                                     // Stoned',
                 12479: '            case 12479:                                     // Hex of Jammal\'an',
