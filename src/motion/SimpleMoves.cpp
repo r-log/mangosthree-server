@@ -142,7 +142,7 @@ namespace Motion
             o.interrupt = true;   // the shell skips it for a behaviour already suspended
             return o;             // no finalizer for a displaced point: no inform, no assistance
         }
-        if (m_p.kind == Motion::Kind::AssistRun)
+        if (m_p.assist)
         {
             // The assistance finisher replaces the point's: no inform, ever.
             o.effects.push_back(Effect(Effect::CallAssistance));
@@ -154,8 +154,8 @@ namespace Motion
         }
         if (m_done && m_p.informs)
         {
-            o.effects.push_back(Effect(Effect::Inform, m_p.kind, m_p.id));
-            o.effects.push_back(Effect(Effect::SummonedInform, m_p.kind, m_p.id));
+            o.effects.push_back(Effect(Effect::Inform, Motion::Kind::Point, m_p.id));
+            o.effects.push_back(Effect(Effect::SummonedInform, Motion::Kind::Point, m_p.id));
         }
         return o;
     }

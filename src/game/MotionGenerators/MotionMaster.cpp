@@ -1010,7 +1010,6 @@ void MotionMaster::MovePoint(uint32 id, float x, float y, float z, bool generate
 {
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s targeted point (Id: %u X: %f Y: %f Z: %f)", m_owner->GetGuidStr().c_str(), id, x, y, z);
     Motion::PointBehaviour::Params p;
-    p.kind = Motion::Kind::Point;
     p.id = id;
     p.goal = Motion::Vector3(x, y, z);
     p.flags = generatePath ? Motion::MOVE_NONE : Motion::MOVE_STRAIGHT;
@@ -1032,11 +1031,11 @@ void MotionMaster::MoveSeekAssistance(float x, float y, float z)
     }
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s seek assistance (X: %f Y: %f Z: %f)", m_owner->GetGuidStr().c_str(), x, y, z);
     Motion::PointBehaviour::Params p;
-    p.kind = Motion::Kind::AssistRun;
     p.goal = Motion::Vector3(x, y, z);
     p.flags = Motion::MOVE_WALK;   // it walks, so the players it is fetching have a chance to catch it
     p.informs = false;             // the assistance finisher replaces the point's: it never informed
-    Request(R(Motion::Kind::AssistRun), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
+    p.assist = true;
+    Request(R(Motion::Kind::Point), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }
 
 /**
@@ -1336,11 +1335,10 @@ void MotionMaster::MoveFlyOrLand(uint32 id, float x, float y, float z, bool lift
     // liftOff is not read: the leg is a straight line through the air either way, and which
     // it is is already implied by the height of the destination.
     Motion::PointBehaviour::Params p;
-    p.kind = Motion::Kind::FlyLand;
     p.id = id;
     p.goal = Motion::Vector3(x, y, z);
     p.flags = Motion::MOVE_FLY | Motion::MOVE_STRAIGHT;
-    Request(R(Motion::Kind::FlyLand, id), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
+    Request(R(Motion::Kind::Point, id), std::unique_ptr<Motion::Behaviour>(new Motion::PointBehaviour(p)));
 }
 
 /**
@@ -1366,7 +1364,6 @@ void MotionMaster::MoveCharge(Unit* target, float speed)
     float x, y, z;
     ContactPointNear(*target, m_owner, x, y, z, 3.666666f);
     Motion::PointBehaviour::Params p;
-    p.kind = Motion::Kind::Point;
     p.id = 0;
     p.goal = Motion::Vector3(x, y, z);
     p.flags = Motion::MOVE_FORCE_DEST;   // routed, and it arrives at the exact contact point
@@ -1389,7 +1386,6 @@ void MotionMaster::MoveCharge(float x, float y, float z, float speed)
 {
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s charges to (X: %f Y: %f Z: %f) at %f", m_owner->GetGuidStr().c_str(), x, y, z, speed);
     Motion::PointBehaviour::Params p;
-    p.kind = Motion::Kind::Point;
     p.id = 0;
     p.goal = Motion::Vector3(x, y, z);
     p.flags = Motion::MOVE_FORCE_DEST;
@@ -1790,9 +1786,7 @@ void MotionMaster::WriteLatches(Motion::Kind kind, uint8 set, uint8 clear)
         case Motion::Kind::Wander:
         case Motion::Kind::Patrol:
         case Motion::Kind::Point:
-        case Motion::Kind::FlyLand:
         case Motion::Kind::Home:
-        case Motion::Kind::AssistRun:
         case Motion::Kind::Distract:
         case Motion::Kind::AssistDistract:
         case Motion::Kind::Effect:

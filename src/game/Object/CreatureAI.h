@@ -264,7 +264,7 @@ class CreatureAI
 
         /**
          * Called at a waypoint reached or a point movement finished
-         * @param kind The kind of the behaviour that finished or arrived (Motion::Kind: Point, Patrol, Effect, FlyLand, …)
+         * @param kind The kind of the behaviour that finished or arrived (Motion::Kind: Point, Patrol, Effect, …)
          * @param id The id the request carried (a point id, a waypoint's node)
          */
         virtual void MovementInform(Motion::Kind /*kind*/, uint32 /*id*/) {}
