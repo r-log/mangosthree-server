@@ -26,10 +26,9 @@ Keys naming another kind of ID are EXCLUDED_KEYS (the note's `achievement->ID` a
 labels are ITEM_MOD_*) and is not in SPELL_ID_LOCALS.
 
 Which files: every .h, .hpp, .cpp, .inl and .inc under src/game, the registry's own directory
-src/game/spells/handlers/ included: no handler body lives there today (a moved body stays beside
-its site, whose include edges it needs), and one that moves there later still counts any label it
-carries (a nested switch travels inside its outer case body). src/modules/SD3 is #83's scope and
-is not counted.
+src/game/spells/handlers/ included: a handler body there still counts any label it carries (a
+nested switch travels inside its outer case body). src/modules/SD3 is #83's scope and is not
+counted.
 
 src/tests/case_labels.txt holds the count per file, "<path> <count>", paths from the repository
 root. --check (the gate) fails on a file whose count grew or that the list does not hold (a new

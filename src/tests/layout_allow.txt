@@ -4,6 +4,8 @@
 # The gate fails on an edge that is not listed and on a line whose edge is gone or allowed.
 # A new edge is fixed, not listed. A line whose includer file changed is replaced by the new one.
 # After removing or moving edges: python src/tests/tools/layout_gate.py --generate
+# A "#" line directly above an entry is its reason; --generate keeps it with the entry.
+
 src/game/BattleGround [pvp] -> src/game/MotionGenerators/MotionMaster.h
 src/game/BattleGround [pvp] -> src/game/Object/ArenaTeam.h
 src/game/BattleGround [pvp] -> src/game/Object/Creature.h
@@ -1860,5 +1862,9 @@ src/game/movement/MovementBridge.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
+# The warrior stance handlers (41099-41101, 53790-53792) call SetVirtualItem with VIRTUAL_ITEM_SLOT_*.
+src/game/spells/handlers [spells] -> src/game/Object/Creature.h
+# Handlers 61336 (GetModifier()->m_amount) and the Improved Moonkin Form default (GetId()) read the aura.
+src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 src/modules/SD3/include/precompiled.h -> src/game/WorldHandlers/World.h
 src/modules/SD3/include/sc_grid_searchers.cpp -> src/game/WorldHandlers/World.h
