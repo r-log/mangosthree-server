@@ -451,26 +451,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             }
 
             uint32 finalSpellId = 0;
-            switch (GetId())
+            AuraDummyQuestTameContext tameCtx(finalSpellId);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyQuestTameSite>(GetId(), tameCtx).IsReturn())
             {
-                case 19548: finalSpellId = 19597; break;
-                case 19674: finalSpellId = 19677; break;
-                case 19687: finalSpellId = 19676; break;
-                case 19688: finalSpellId = 19678; break;
-                case 19689: finalSpellId = 19679; break;
-                case 19692: finalSpellId = 19680; break;
-                case 19693: finalSpellId = 19684; break;
-                case 19694: finalSpellId = 19681; break;
-                case 19696: finalSpellId = 19682; break;
-                case 19697: finalSpellId = 19683; break;
-                case 19699: finalSpellId = 19685; break;
-                case 19700: finalSpellId = 19686; break;
-                case 30646: finalSpellId = 30647; break;
-                case 30653: finalSpellId = 30648; break;
-                case 30654: finalSpellId = 30652; break;
-                case 30099: finalSpellId = 30100; break;
-                case 30102: finalSpellId = 30103; break;
-                case 30105: finalSpellId = 30104; break;
+                return;
             }
 
             if (finalSpellId)
