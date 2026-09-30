@@ -275,12 +275,6 @@ add_test(NAME include_collisions
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckIncludeCollisions.cmake)
 
-# design/architecture.md section 4: every include follows section 1's layer table. The edges that
-# go against it, into a gated seam, or sideways between two domain directories today are on
-# src/tests/layout_allow.txt, per includer file and header; a new one fails, and a removed one
-# leaves the list in the PR that removes it. The interpreter found here is also the one the Python
-# tests below use; the gate is not inside their Python3 block on purpose: without one found here,
-# CheckLayout.cmake looks for one itself and fails if there is none.
 find_package(Python3 COMPONENTS Interpreter QUIET)
 add_test(NAME layout
     COMMAND ${CMAKE_COMMAND}
