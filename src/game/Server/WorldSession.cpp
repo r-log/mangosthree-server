@@ -99,17 +99,11 @@ namespace
     const uint32 MAX_SECOND_STREAM_ATTEMPTS = 3;
 
     WorldSession::AckTotalsCounters s_ackTotals;
-    WorldSession::AuthorityTotalsCounters s_authorityTotals;
 }
 
 WorldSession::AckTotalsCounters const& WorldSession::AckTotals()
 {
     return s_ackTotals;
-}
-
-WorldSession::AuthorityTotalsCounters const& WorldSession::AuthorityTotals()
-{
-    return s_authorityTotals;
 }
 
 Unit* WorldSession::MemberUnit(ObjectGuid guid)
@@ -309,20 +303,6 @@ WorldSession::~WorldSession()
         LogoutPlayer(true);
     }
 
-    // The authority counters outlive the session in the process-wide total (the
-    // report's "retired" part); a live report sums the sessions still here.
-    {
-        Motion::AuthorityCounters const& c = m_movers.Counters();
-        s_authorityTotals.added += c.added;
-        s_authorityTotals.removed += c.removed;
-        s_authorityTotals.selected += c.selected;
-        s_authorityTotals.deselected += c.deselected;
-        s_authorityTotals.badSelect += c.badSelect;
-        s_authorityTotals.badDeselect += c.badDeselect;
-        s_authorityTotals.notActive += c.notActive;
-        s_authorityTotals.notMember += c.notMember;
-        s_authorityTotals.unresolved += c.unresolved;
-    }
 
     // A ticket left in the registry would keep the next client behind the same
     // address waiting for a redirect that is never coming back.

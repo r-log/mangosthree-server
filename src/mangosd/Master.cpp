@@ -373,16 +373,7 @@ void Master::ShutdownWorld()
         }
     }
 
-    // The allowed-mover counters of every session, folded at each session's end.
-    {
-        WorldSession::AuthorityTotalsCounters const& m = WorldSession::AuthorityTotals();
-        if (m.added.load())
-        {
-            sLog.outString("movers: added %u, removed %u, selected %u, deselected %u, bad select %u, bad deselect %u, not active %u, not member %u, unresolved %u; ownership violations %u",
-                           m.added.load(), m.removed.load(), m.selected.load(), m.deselected.load(), m.badSelect.load(),
-                           m.badDeselect.load(), m.notActive.load(), m.notMember.load(), m.unresolved.load(), MapPhase::Violations());
-        }
-    }
+    sLog.outString("ownership violations %u", MapPhase::Violations());
 
     sLog.outString("[shutdown] stopping the world listener");
     sWorldNetwork.Stop();

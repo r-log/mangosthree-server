@@ -41,7 +41,6 @@ namespace Motion
         if (!IsMember(guid))
         {
             m_members.push_back(guid);
-            ++m_counters.added;
         }
         // The body yields the selection to a grant; a controlled unit does not --
         // a fear ending on a possessing player's own body must not steal the
@@ -60,7 +59,6 @@ namespace Motion
             return false;
         }
         m_members.erase(it);
-        ++m_counters.removed;
         m_lastRemoved = guid;
         if (m_selected == guid)
         {
@@ -78,11 +76,9 @@ namespace Motion
     {
         if (!IsMember(guid))
         {
-            ++m_counters.badSelect;
             return false;
         }
         m_selected = guid;
-        ++m_counters.selected;
         return true;
     }
 
@@ -94,38 +90,11 @@ namespace Motion
         // preceded by the server's own Remove (a revoke), so this only tells a
         // benign deselect -- the selected unit, the base player, a member, or the
         // unit Remove just dropped -- from a stranger's.
-        if (guid != 0 && (guid == m_selected || guid == m_base || IsMember(guid) || guid == m_lastRemoved))
-        {
-            ++m_counters.deselected;
-            return true;
-        }
-        ++m_counters.badDeselect;
-        return false;
-    }
-
-    bool Authority::MovesAs(uint64 guid)
-    {
-        if (guid == 0 || guid != m_selected)
-        {
-            ++m_counters.notActive;
-            return false;
-        }
-        return true;
-    }
-
-    bool Authority::MayAck(uint64 guid)
-    {
-        if (!IsMember(guid))
-        {
-            ++m_counters.notMember;
-            return false;
-        }
-        return true;
+        return guid != 0 && (guid == m_selected || guid == m_base || IsMember(guid) || guid == m_lastRemoved);
     }
 
     void Authority::Clear()
     {
-        m_counters.removed += uint32(m_members.size());
         m_members.clear();
         m_selected = 0;
         m_lastRemoved = 0;
