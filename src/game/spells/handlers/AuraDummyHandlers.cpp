@@ -175,6 +175,133 @@ static SpellHandlerOutcome<void> AuraDummyUnrelentingAssaultDefault(AuraDummyUnr
     return SpellHandlerOutcome<void>::Continue();
 }
 
+/// AT REMOVE, quest tame 19548: Tame Ice Claw Bear
+static SpellHandlerOutcome<void> AuraDummyQuestTame19548(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19597;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19674: Tame Large Crag Boar
+static SpellHandlerOutcome<void> AuraDummyQuestTame19674(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19677;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19687: Tame Snow Leopard
+static SpellHandlerOutcome<void> AuraDummyQuestTame19687(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19676;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19688: Tame Adult Plainstrider
+static SpellHandlerOutcome<void> AuraDummyQuestTame19688(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19678;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19689: Tame Prairie Stalker
+static SpellHandlerOutcome<void> AuraDummyQuestTame19689(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19679;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19692: Tame Swoop
+static SpellHandlerOutcome<void> AuraDummyQuestTame19692(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19680;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19693: Tame Webwood Lurker
+static SpellHandlerOutcome<void> AuraDummyQuestTame19693(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19684;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19694: Tame Dire Mottled Boar
+static SpellHandlerOutcome<void> AuraDummyQuestTame19694(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19681;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19696: Tame Surf Crawler
+static SpellHandlerOutcome<void> AuraDummyQuestTame19696(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19682;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19697: Tame Armored Scorpid
+static SpellHandlerOutcome<void> AuraDummyQuestTame19697(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19683;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19699: Tame Nightsaber Stalker
+static SpellHandlerOutcome<void> AuraDummyQuestTame19699(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19685;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 19700: Tame Strigid Screecher
+static SpellHandlerOutcome<void> AuraDummyQuestTame19700(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 19686;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 30646: Tame Barbed Crawler
+static SpellHandlerOutcome<void> AuraDummyQuestTame30646(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 30647;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 30653: Tame Greater Timberstrider
+static SpellHandlerOutcome<void> AuraDummyQuestTame30653(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 30648;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 30654: Tame Nightstalker
+static SpellHandlerOutcome<void> AuraDummyQuestTame30654(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 30652;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 30099: Tame Crazed Dragonhawk
+static SpellHandlerOutcome<void> AuraDummyQuestTame30099(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 30100;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 30102: Tame Elder Springpaw
+static SpellHandlerOutcome<void> AuraDummyQuestTame30102(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 30103;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// AT REMOVE, quest tame 30105: Tame Mistbat
+static SpellHandlerOutcome<void> AuraDummyQuestTame30105(AuraDummyQuestTameContext& ctx)
+{
+    ctx.finalSpellId = 30104;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+
 /// AT REMOVE 41099: Battle Stance
 static SpellHandlerOutcome<void> AuraDummyRemove41099(AuraDummyRemoveContext& ctx)
 {
@@ -326,6 +453,28 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 46860, &AuraDummyUnrelentingAssault46860 },
     };
 
+    static AuraDummyRow<AuraDummyQuestTameSite> const questTame[] =
+    {
+        { 19548, &AuraDummyQuestTame19548 },
+        { 19674, &AuraDummyQuestTame19674 },
+        { 19687, &AuraDummyQuestTame19687 },
+        { 19688, &AuraDummyQuestTame19688 },
+        { 19689, &AuraDummyQuestTame19689 },
+        { 19692, &AuraDummyQuestTame19692 },
+        { 19693, &AuraDummyQuestTame19693 },
+        { 19694, &AuraDummyQuestTame19694 },
+        { 19696, &AuraDummyQuestTame19696 },
+        { 19697, &AuraDummyQuestTame19697 },
+        { 19699, &AuraDummyQuestTame19699 },
+        { 19700, &AuraDummyQuestTame19700 },
+        { 30646, &AuraDummyQuestTame30646 },
+        { 30653, &AuraDummyQuestTame30653 },
+        { 30654, &AuraDummyQuestTame30654 },
+        { 30099, &AuraDummyQuestTame30099 },
+        { 30102, &AuraDummyQuestTame30102 },
+        { 30105, &AuraDummyQuestTame30105 },
+    };
+
     static AuraDummyRow<AuraDummyRemoveSite> const stanceRemoval[] =
     {
         { 41099, &AuraDummyRemove41099 },
@@ -353,6 +502,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
     rows += RegisterAuraDummyRows(registry, unrelentingAssault);
     registry.RegisterDefault<AuraDummyUnrelentingAssaultSite>(&AuraDummyUnrelentingAssaultDefault);
     ++rows;
+    rows += RegisterAuraDummyRows(registry, questTame);
     rows += RegisterAuraDummyRows(registry, stanceRemoval);
     rows += RegisterAuraDummyRows(registry, druid);
     rows += RegisterAuraDummyRows(registry, improvedMoonkin);

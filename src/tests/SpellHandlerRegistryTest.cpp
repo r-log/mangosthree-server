@@ -28,25 +28,29 @@
 /// The registry is tested without a map: its sites here are test sites with their own keys and
 /// contexts, and the game's sites (HandleAuraDummy's) are checked for their keys, their defaults
 /// and their contexts, and run where a body needs no live Unit (the Improved Moonkin Form ranks,
-/// the Unrelenting Assault default); a body that casts needs a live Unit, which the harness record
-/// covers where a scenario reaches it (931: 41101 and 53790, applied and removed; no scenario reaches a druid or
-/// Unrelenting Assault label). Each dispatch mutant the note names has a test here that kills it:
+/// the quest-tame labels, the Unrelenting Assault default); a body that casts needs a live Unit, which the harness
+/// record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; no scenario reaches a druid,
+/// quest-tame or Unrelenting Assault label). Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault,
+///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheTableRegistersEveryRowOnce
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
-///                            AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault
+///                            AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault,
+///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss
 ///   default dropped          AuraDummyHandlers_TheUnrelentingAssaultSiteHoldsTwoRanksAndItsDefault,
 ///                            AuraDummyHandlers_TheImprovedMoonkinSiteHoldsThreeRanksAndItsDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_AContinueFromTheAssaultDefaultLeavesTheLoopNotTheFunction,
-///                            AuraDummyHandlers_TheImprovedMoonkinRanksSetTheSpellTheTailCasts
+///                            AuraDummyHandlers_TheImprovedMoonkinRanksSetTheSpellTheTailCasts,
+///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts
 ///   a lost live-out          SpellHandlerRegistry_ALiveOutWrittenByAHandlerReachesTheSite,
 ///                            AuraDummyHandlers_TheApplyContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal,
-///                            AuraDummyHandlers_TheNewContextsAliasTheirLocals
+///                            AuraDummyHandlers_TheNewContextsAliasTheirLocals,
+///                            AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId
 
 #include "TestHarness.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
@@ -437,30 +441,45 @@ namespace
         }
         return spell_id;
     }
+
+    uint32 const QUEST_TAME_RETURNED = 0xFFFFFFFF;
+
+    // The quest-tame site's shape: answers what the tail casts (0: nothing), or the marker when the site returned.
+    uint32 RunQuestTame(SpellHandlerRegistry const& registry, uint32 tameId)
+    {
+        uint32 finalSpellId = 0;
+        AuraDummyQuestTameContext tameCtx(finalSpellId);
+        if (registry.Dispatch<AuraDummyQuestTameSite>(tameId, tameCtx).IsReturn())
+        {
+            return QUEST_TAME_RETURNED;
+        }
+        return finalSpellId;
+    }
 }
 
 TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 6 warrior stances, 2 Unrelenting Assault ranks and its default, 6 stance removals, 2 druid labels,
-    // 3 Improved Moonkin Form ranks and its default: 21 rows, 19 keys and 2 defaults, none registered twice.
+    // 6 warrior stances, 2 Unrelenting Assault ranks and its default, 18 quest-tame labels, 6 stance removals,
+    // 2 druid labels, 3 Improved Moonkin Form ranks and its default: 39 rows, 37 keys and 2 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(21));
-    CHECK_EQ(registry.Count(), std::size_t(19));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(39));
+    CHECK_EQ(registry.Count(), std::size_t(37));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyApplyWarriorSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraDummyUnrelentingAssaultSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(6));
+    CHECK_EQ(registry.CountAt(AuraDummyQuestTameSite::Key), std::size_t(18));
     CHECK_EQ(registry.CountAt(AuraDummyDruidSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyImprovedMoonkinSite::Key), std::size_t(3));
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(21));
-    CHECK_EQ(registry.Count(), std::size_t(19));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(39));
+    CHECK_EQ(registry.Count(), std::size_t(37));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
     // The game's table is the same one.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(19));
+    CHECK_EQ(game.Count(), std::size_t(37));
     CHECK_EQ(game.CountDefaults(), std::size_t(2));
 }
 
@@ -641,4 +660,63 @@ TEST(AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal)
     CHECK(ctx.target == target);
     ctx.target = reinterpret_cast<Unit*>(units[1]);             // a body's write to `target`...
     CHECK(target == reinterpret_cast<Unit*>(units[1]));         // ...is the function's local
+}
+
+TEST(AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault)
+{
+    static uint32 const tames[] = { 19548, 19674, 19687, 19688, 19689, 19692, 19693, 19694, 19696,
+                                    19697, 19699, 19700, 30646, 30653, 30654, 30099, 30102, 30105 };
+
+    SpellHandlerRegistry registry;
+    RegisterAuraDummyHandlers(registry);
+    for (uint32 spellId : tames)
+    {
+        CHECK(registry.Find<AuraDummyQuestTameSite>(spellId) != NULL);
+    }
+
+    // No default: a quest-tame id the switch never held (73461), another site's id or none is a Miss.
+    CHECK(registry.FindDefault<AuraDummyQuestTameSite>() == NULL);
+    uint32 finalSpellId = 0;
+    AuraDummyQuestTameContext ctx(finalSpellId);
+    CHECK(registry.Dispatch<AuraDummyQuestTameSite>(73461, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyQuestTameSite>(41101, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyQuestTameSite>(12345, ctx).IsMiss());
+    CHECK_EQ(finalSpellId, uint32(0));
+    CHECK(registry.Find<AuraDummyRemoveSite>(19548) == NULL);
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.CountAt(AuraDummyQuestTameSite::Key), std::size_t(18));
+    for (uint32 spellId : tames)
+    {
+        CHECK(game.Find<AuraDummyQuestTameSite>(spellId) == registry.Find<AuraDummyQuestTameSite>(spellId));
+    }
+}
+
+TEST(AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts)
+{
+    // Each body writes `finalSpellId` and answers Continue, so the tail casts it; a miss leaves it at 0.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(RunQuestTame(game, 19548), uint32(19597));
+    CHECK_EQ(RunQuestTame(game, 19687), uint32(19676));
+    CHECK_EQ(RunQuestTame(game, 30105), uint32(30104));
+    CHECK_EQ(RunQuestTame(game, 73461), uint32(0));
+
+    // Against a Return handler at the same site, which leaves before the tail.
+    SpellHandlerRegistry returning;
+    CHECK(returning.Register<AuraDummyQuestTameSite>(19548, [](AuraDummyQuestTameContext& ctx)
+    {
+        ctx.finalSpellId = 19597;
+        return SpellHandlerOutcome<void>::Return();
+    }));
+    CHECK_EQ(RunQuestTame(returning, 19548), QUEST_TAME_RETURNED);
+}
+
+TEST(AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId)
+{
+    uint32 finalSpellId = 0;
+    AuraDummyQuestTameContext ctx(finalSpellId);
+    ctx.finalSpellId = 19684;                                   // a body's write to `finalSpellId`...
+    CHECK_EQ(finalSpellId, uint32(19684));                      // ...is the block's local
+    finalSpellId = 30647;
+    CHECK_EQ(ctx.finalSpellId, uint32(30647));
 }

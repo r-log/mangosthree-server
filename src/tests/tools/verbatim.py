@@ -87,7 +87,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. `--base afdabc428`
 # (before the first move) proves every site against the switches as they were.
-BASE = '75d67d2e6'
+BASE = 'fcaf75391'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
@@ -151,6 +151,45 @@ SITES = {
             'labels': {
                 46859: '                                case 46859:                 // Unrelenting Assault, rank 1',
                 46860: '                                case 46860:                 // Unrelenting Assault, rank 2'},
+        }, {
+            'name': 'HandleAuraDummy AT REMOVE, the hunter quest-tame block (switch (GetId()))',
+            'dispatch': [
+                '            AuraDummyQuestTameContext tameCtx(finalSpellId);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraDummyQuestTameSite>(GetId(), tameCtx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'braced': False,
+            'table': 'questTame',
+            'traits': 'AuraDummyQuestTameSite',
+            'context': 'AuraDummyQuestTameContext',
+            'live_outs': ['finalSpellId'],
+            'in_scope': ['apply', 'Real', 'target', 'classOptions', 'caster'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.finalSpellId', 'finalSpellId')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                19548: '                case 19548: {body}',
+                19674: '                case 19674: {body}',
+                19687: '                case 19687: {body}',
+                19688: '                case 19688: {body}',
+                19689: '                case 19689: {body}',
+                19692: '                case 19692: {body}',
+                19693: '                case 19693: {body}',
+                19694: '                case 19694: {body}',
+                19696: '                case 19696: {body}',
+                19697: '                case 19697: {body}',
+                19699: '                case 19699: {body}',
+                19700: '                case 19700: {body}',
+                30646: '                case 30646: {body}',
+                30653: '                case 30653: {body}',
+                30654: '                case 30654: {body}',
+                30099: '                case 30099: {body}',
+                30102: '                case 30102: {body}',
+                30105: '                case 30105: {body}'},
         }, {
             'name': 'HandleAuraDummy AT REMOVE (switch (GetId()), family-independent), its stance labels',
             'dispatch': [

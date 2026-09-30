@@ -82,6 +82,22 @@ struct AuraDummyUnrelentingAssaultSite
     typedef AuraDummyUnrelentingAssaultContext Context;
 };
 
+/// The live-out local of the quest-tame switch: each label sets `finalSpellId`, which the code after it casts.
+struct AuraDummyQuestTameContext
+{
+    explicit AuraDummyQuestTameContext(uint32& finalSpellIdLocal) : finalSpellId(finalSpellIdLocal) {}
+
+    uint32& finalSpellId;   ///< the block's local `uint32 finalSpellId = 0;`
+};
+
+/// `Aura::HandleAuraDummy`, AT REMOVE, the quest-tame `switch (GetId())`: no `default:`; a miss casts nothing.
+struct AuraDummyQuestTameSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_QUEST_TAME;
+    typedef void Value;
+    typedef AuraDummyQuestTameContext Context;
+};
+
 /// The live-out locals of `Aura::HandleAuraDummy` at its AT REMOVE switch: the aura and `target`.
 struct AuraDummyRemoveContext
 {
