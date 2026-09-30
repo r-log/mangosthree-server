@@ -350,6 +350,22 @@ static SpellHandlerOutcome<void> AuraDummyRemove53792(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, 29266 to 71598 (16 labels): Permanent Feign Death and its variants
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericFeignDeath(AuraDummyApplyRemoveContext& ctx)
+{
+    // Unclear what the difference really is between them.
+    // Some has effect1 that makes the difference, however not all.
+    // Some appear to be used depending on creature location, in water, at solid ground, in air/suspended, etc
+    // For now, just handle all the same way
+    if (ctx.target->GetTypeId() == TYPEID_UNIT)
+    {
+        // The aura's own identity: two of these on one creature are two feign sources.
+        ctx.target->SetFeignDeath(ctx.apply, ctx.aura->GetCasterGuid(), ctx.aura->GetId());
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// SPELLFAMILY_DRUID 52610: Savage Roar
 static SpellHandlerOutcome<void> AuraDummyDruid52610(AuraDummyApplyRemoveContext& ctx)
 {
@@ -485,6 +501,26 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 53792, &AuraDummyRemove53792 },
     };
 
+    static AuraDummyRow<AuraDummyApplyRemoveGenericSite> const feignDeath[] =
+    {
+        { 29266, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 31261, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 37493, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 52593, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 55795, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 57626, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 57685, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 58768, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 58806, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 58951, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 64461, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 65985, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 70592, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 70628, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 70630, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 71598, &AuraDummyApplyRemoveGenericFeignDeath },
+    };
+
     static AuraDummyRow<AuraDummyDruidSite> const druid[] =
     {
         { 52610, &AuraDummyDruid52610 },
@@ -504,6 +540,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
     ++rows;
     rows += RegisterAuraDummyRows(registry, questTame);
     rows += RegisterAuraDummyRows(registry, stanceRemoval);
+    rows += RegisterAuraDummyRows(registry, feignDeath);
     rows += RegisterAuraDummyRows(registry, druid);
     rows += RegisterAuraDummyRows(registry, improvedMoonkin);
     registry.RegisterDefault<AuraDummyImprovedMoonkinSite>(&AuraDummyImprovedMoonkinDefault);

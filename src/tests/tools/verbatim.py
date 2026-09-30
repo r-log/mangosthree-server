@@ -96,7 +96,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. `--base afdabc428`
 # (before the first move) proves every site against the switches as they were.
-BASE = 'fcaf75391'
+BASE = '7b1be21c7'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
@@ -260,6 +260,77 @@ SITES = {
                 58600: '            case 58600:                                     // Restricted Flight Area',
                 61900: '            case 61900:                                     // Electrical Charge',
                 68839: '            case 68839:                                     // Corrupt Soul'},
+        }, {
+            'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_GENERIC (switch (GetId()))',
+            'dispatch': [
+                '            AuraDummyApplyRemoveContext ctx(this, target, apply);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraDummyApplyRemoveGenericSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }',
+                ''],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'residual': True,
+            'label_indent': 16,
+            'braced': True,
+            'table': 'feignDeath',
+            'traits': 'AuraDummyApplyRemoveGenericSite',
+            'context': 'AuraDummyApplyRemoveContext',
+            'live_outs': ['target', 'apply'],
+            'in_scope': ['Real', 'classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.apply', 'apply'),
+                              ('ctx.aura->GetCasterGuid()', 'GetCasterGuid()'), ('ctx.aura->GetId()', 'GetId()'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                6606: '                case 6606:                                  '
+                       '// Self Visual - Sleep Until Cancelled (DND)',
+                11196: '                case 11196:                                 // Recently Bandaged',
+                24658: '                case 24658:                                 // Unstable Power',
+                24661: '                case 24661:                                 // Restless Strength',
+                29266: '                case 29266:                                 // Permanent Feign Death',
+                31261: '                case 31261:                                 // Permanent Feign Death (Root)',
+                37493: '                case 37493:                                 // Feign Death',
+                52593: '                case 52593:                                 // Bloated Abomination Feign Death',
+                55795: '                case 55795:                                 // Falling Dragon Feign Death',
+                57626: '                case 57626:                                 // Feign Death',
+                57685: '                case 57685:                                 // Permanent Feign Death',
+                58768: '                case 58768:                                 '
+                       '// Permanent Feign Death (Freeze Jumpend)',
+                58806: '                case 58806:                                 '
+                       '// Permanent Feign Death (Drowned Anim)',
+                58951: '                case 58951:                                 // Permanent Feign Death',
+                64461: '                case 64461:                                 '
+                       '// Permanent Feign Death (No Anim) (Root)',
+                65985: '                case 65985:                                 '
+                       '// Permanent Feign Death (Root Silence Pacify)',
+                70592: '                case 70592:                                 // Permanent Feign Death',
+                70628: '                case 70628:                                 // Permanent Feign Death',
+                70630: '                case 70630:                                 // Frozen Aftermath - Feign Death',
+                71598: '                case 71598:                                 // Feign Death',
+                35356: '                case 35356:                                 // Spawn Feign Death',
+                35357: '                case 35357:                                 // Spawn Feign Death',
+                42557: '                case 42557:                                 // Feign Death',
+                51329: '                case 51329:                                 // Feign Death',
+                40133: '                case 40133:                                 // Summon Fire Elemental',
+                40132: '                case 40132:                                 // Summon Earth Elemental',
+                40214: '                case 40214:                                 // Dragonmaw Illusion',
+                42515: '                case 42515:                                 // Jarl Beam',
+                42583: '                case 42583:                                 // Claw Rage',
+                68987: '                case 68987:                                 // Pursuit',
+                43874: '                case 43874:                                 '
+                       '// Scourge Mur\'gul Camp: Force Shield Arcane Purple x3',
+                47178: '                case 47178:                                 // Plague Effect Self',
+                56422: '                case 56422:                                 // Nerubian Submerge',
+                70733: '                case 70733:                                 // Stoneform',
+                58204: '                case 58204:                                 // LK Intro VO (1)',
+                58205: '                case 58205:                                 // LK Intro VO (2)',
+                27978: '                case 27978:',
+                40131: '                case 40131:',
+                66936: '                case 66936:                                     // Submerge',
+                66948: '                case 66948:                                     // Submerge'},
         }, {
             'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_DRUID (switch (GetId()))',
             'dispatch': [

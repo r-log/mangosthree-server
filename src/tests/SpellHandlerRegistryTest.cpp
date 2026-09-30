@@ -29,14 +29,17 @@
 /// contexts, and the game's sites (HandleAuraDummy's) are checked for their keys, their defaults
 /// and their contexts, and run where a body needs no live Unit (the Improved Moonkin Form ranks,
 /// the quest-tame labels, the Unrelenting Assault default); a body that casts needs a live Unit, which the harness
-/// record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; no scenario reaches a druid,
-/// quest-tame or Unrelenting Assault label). Each dispatch mutant the note names has a test here that kills it:
+/// record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the coverage scenario
+/// two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid, quest-tame or
+/// Unrelenting Assault label). Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
+///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheTableRegistersEveryRowOnce
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
+///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsTheSixStancesAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss
@@ -460,26 +463,28 @@ namespace
 TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
 {
     // 6 warrior stances, 2 Unrelenting Assault ranks and its default, 18 quest-tame labels, 6 stance removals,
-    // 2 druid labels, 3 Improved Moonkin Form ranks and its default: 39 rows, 37 keys and 2 defaults, none twice.
+    // 16 feign-death labels, 2 druid labels, 3 Improved Moonkin Form ranks and its default: 55 rows, 53 keys and
+    // 2 defaults, none twice.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(39));
-    CHECK_EQ(registry.Count(), std::size_t(37));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(55));
+    CHECK_EQ(registry.Count(), std::size_t(53));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyApplyWarriorSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraDummyUnrelentingAssaultSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraDummyQuestTameSite::Key), std::size_t(18));
+    CHECK_EQ(registry.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(16));
     CHECK_EQ(registry.CountAt(AuraDummyDruidSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraDummyImprovedMoonkinSite::Key), std::size_t(3));
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(39));
-    CHECK_EQ(registry.Count(), std::size_t(37));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(55));
+    CHECK_EQ(registry.Count(), std::size_t(53));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
     // The game's table is the same one.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(37));
+    CHECK_EQ(game.Count(), std::size_t(53));
     CHECK_EQ(game.CountDefaults(), std::size_t(2));
 }
 
@@ -719,4 +724,46 @@ TEST(AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId)
     CHECK_EQ(finalSpellId, uint32(19684));                      // ...is the block's local
     finalSpellId = 30647;
     CHECK_EQ(ctx.finalSpellId, uint32(30647));
+}
+
+TEST(AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels)
+{
+    static uint32 const feigns[] = { 29266, 31261, 37493, 52593, 55795, 57626, 57685, 58768,
+                                     58806, 58951, 64461, 65985, 70592, 70628, 70630, 71598 };
+
+    // The sixteen labels share one body: one function under sixteen keys.
+    SpellHandlerRegistry registry;
+    RegisterAuraDummyHandlers(registry);
+    SpellHandler<AuraDummyApplyRemoveGenericSite>::Function feignDeath =
+        registry.Find<AuraDummyApplyRemoveGenericSite>(29266);
+    CHECK(feignDeath != NULL);
+    for (uint32 spellId : feigns)
+    {
+        CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) == feignDeath);
+    }
+    CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(31261)
+          == registry.Find<AuraDummyApplyRemoveGenericSite>(71598));
+    CHECK_EQ(registry.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(16));
+
+    // No default: a label the switch still holds (the spawn feign deaths 35356 and 51329, 6606) or none is a Miss,
+    // and that switch runs.
+    CHECK(registry.FindDefault<AuraDummyApplyRemoveGenericSite>() == NULL);
+    Unit* target = NULL;
+    AuraDummyApplyRemoveContext ctx(NULL, target, true);
+    CHECK(registry.Dispatch<AuraDummyApplyRemoveGenericSite>(35356, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyApplyRemoveGenericSite>(51329, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyApplyRemoveGenericSite>(6606, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyApplyRemoveGenericSite>(12345, ctx).IsMiss());
+
+    // Keyed on the generic switch only: the druid labels are not its keys, and its labels are no other site's.
+    CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(52610) == NULL);
+    CHECK(registry.Find<AuraDummyDruidSite>(29266) == NULL);
+    CHECK(registry.Find<AuraDummyRemoveSite>(29266) == NULL);
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(16));
+    for (uint32 spellId : feigns)
+    {
+        CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(spellId) == feignDeath);
+    }
 }

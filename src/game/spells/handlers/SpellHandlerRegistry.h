@@ -81,7 +81,9 @@ enum SpellHandlerSite
     /// `Aura::HandleAuraDummy`, AT REMOVE: the family-independent `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_DUMMY_REMOVE = 5,
     /// `Aura::HandleAuraDummy`, AT REMOVE, the hunter quest-tame block: its `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_DUMMY_QUEST_TAME = 6
+    SPELL_HANDLER_SITE_AURA_DUMMY_QUEST_TAME = 6,
+    /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_GENERIC's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_REMOVE_GENERIC = 7
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.
