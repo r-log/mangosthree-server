@@ -41,9 +41,10 @@
 
 namespace Motion
 {
-    /// The chase's and the follow's shared policy (design §4): the deleted
-    /// TargetedMovementGenerator::Intent() with one routine cadence per kind and counted
-    /// event recoveries in place of the 100/50 ms polls.
+    /// The chase and the follow: one behaviour, told apart by its kind. Both track a unit,
+    /// derive a standing spot from where it is (or where it will be), re-lay a leg when it
+    /// drifts, and count every re-lay by cause. The kind decides the distance, the drift edge,
+    /// the aim, the gait, the facing and the activation and teardown effects.
     class TrackingBehaviour : public Behaviour
     {
         public:
@@ -53,7 +54,11 @@ namespace Motion
                 float  offset = 0.0f;       ///< the requested distance to keep
                 float  angle = 0.0f;        ///< the requested bearing relative to the target's facing; 0 = head-on
                 uint32 routineMs = 1000;    ///< the drift re-check cadence; 0 re-checks on every tick
+                uint32 horizonMs = 400;     ///< follow: the extrapolation of a trusted velocity, one cadence
+                float  recalcRange = 1.5f;  ///< follow: the shell's TargetPosRecalculateRange
             };
+            TrackingBehaviour(Motion::Kind kind, Params const& p) : m_kind(kind), m_p(p) {}
+            Motion::Kind Kind() const override { return m_kind; }
             bool TracksTarget() const override { return true; }
             uint64 Target() const override { return m_p.target; }
             RelayCounts const* Relays() const override { return &m_relays; }
@@ -63,29 +68,21 @@ namespace Motion
             Step Tick(Sight const& sight, Services& svc, uint32 diff) override;
             FinishReason EndReason(Sight const& sight) const override;
             Outcome Finish(FinishReason why, Sight const& sight, Services& svc) override;
-        protected:
-            explicit TrackingBehaviour(Params const& p) : m_p(p) {}
-            // The per-kind hooks (the generator's virtuals).
-            virtual bool  UsesCombatMovement() const = 0;                ///< the chase holds under NO_COMBAT_MOVEMENT
-            virtual bool  LostTarget(Sight const& sight) const = 0;      ///< the chase: no longer the victim
-            virtual float StandingDistance(Sight const& sight) const = 0;///< how far from the centre the spot is asked for
-            virtual bool  Drifted(Sight const& sight) const = 0;         ///< the target moved past the re-approach edge from the leg's goal
-            virtual Vector3 AimCentre(Sight const& sight) const = 0;     ///< live, or led
-            virtual bool  Walks(Sight const& sight) const = 0;           ///< the leg's gait
-            virtual bool  ForcesDestination(Sight const& sight) const = 0;///< MOVE_FORCE_DEST on the leg
-            virtual Facing FacingFor(Sight const& sight, bool moving) const = 0;///< the leg's or the idle hold's facing
-            virtual void  OnActivate(Sight const& sight, Step& s) = 0;   ///< the kind's activation effects
-            virtual void  OnIdle(Sight const& sight, Step& s) = 0;       ///< an idle tick at the spot (the chase engages)
-            virtual void  OnSuspendOrFinish(std::vector<Effect>& effects) = 0;///< the kind's teardown effects
+        private:
+            bool  Chase() const { return m_kind == Motion::Kind::Chase; }
+            float StandingDistance(Sight const& sight) const;   ///< how far from the centre the spot is asked for
+            bool  Drifted(Sight const& sight) const;            ///< the target moved past the re-approach edge from the leg's goal
+            Vector3 AimCentre(Sight const& sight) const;        ///< live, or led
+            Facing FacingFor(Sight const& sight, bool moving) const;///< the leg's or the idle hold's facing
             float Bearing(Sight const& sight, Vector3 const& centre) const;   ///< head-on: from the centre to the mover; else the target's facing + angle
             /// The target's live distance from the leg's goal, against `edge`; a flier's and a
             /// swimmer's is measured in three dimensions, anything on the ground in two.
             bool DriftedBeyond(Sight const& sight, float edge) const;
-            Params m_p;                       ///< the shared parameters, as the kind's own copy was built
-        private:
-            void ResetTracking();             ///< the generator's ResetTracking: forget the leg and the cadence
+            void ResetTracking();             ///< forget the leg and the cadence
             void LatchRelay(Sight const& sight);///< an ended leg's edge, held until a tick that may move spends it
             void Derive(Sight const& sight, Services& svc, RelayCause why, Step& s);///< one fresh standing spot, counted
+            Motion::Kind m_kind;
+            Params  m_p;
             Vector3 m_dest;                   ///< the spot the last derive produced
             bool    m_haveDest = false;       ///< a spot has been derived at least once
             bool    m_relayLatch = false;     ///< a cut, a partial or a refused leg: derive on the next tick that moves
@@ -96,60 +93,23 @@ namespace Motion
 
     /// How far ahead of a trusted target velocity the chase aims, in milliseconds of it. Half a
     /// second: the value the experiment carried, kept because it is the value that was measured.
-    /// ChaseBehaviour::AimCentre has every number behind it. Public because the aim centre is no
+    /// TrackingBehaviour::AimCentre has every number behind it. Public because the aim centre is no
     /// longer the target's own position, so anything measuring where the chase AIMS -- the
     /// harness's chase-relay-budget, above all -- has to take its bearings from the same point
     /// the kernel did, off one shared constant rather than a copied literal.
     const uint32 CHASE_LEAD_MS = 500;
 
-    /// A creature closing on its victim (design §4.1): retail's band, retail's cadence, and a
-    /// predictive aim that is no longer optional -- the chase leads a trusted velocity by
-    /// CHASE_LEAD_MS, always. There is no switch: ChaseBehaviour::AimCentre carries the
-    /// measurement that settled it and the reason the flag went with it.
-    class ChaseBehaviour : public TrackingBehaviour
+    /// A creature closing on its victim: retail's band, retail's cadence, and a predictive aim
+    /// that leads a trusted velocity by CHASE_LEAD_MS.
+    struct ChaseBehaviour : TrackingBehaviour
     {
-        public:
-            explicit ChaseBehaviour(Params const& p) : TrackingBehaviour(p) {}
-            Motion::Kind Kind() const override { return Motion::Kind::Chase; }
-        protected:
-            bool  UsesCombatMovement() const override { return true; }
-            bool  LostTarget(Sight const& sight) const override { return !sight.target.isVictim; }
-            float StandingDistance(Sight const& sight) const override;
-            bool  Drifted(Sight const& sight) const override;
-            Vector3 AimCentre(Sight const& sight) const override;
-            bool  Walks(Sight const&) const override { return false; }
-            bool  ForcesDestination(Sight const&) const override { return false; }
-            Facing FacingFor(Sight const& sight, bool moving) const override;
-            void  OnActivate(Sight const& sight, Step& s) override;
-            void  OnIdle(Sight const& sight, Step& s) override;
-            void  OnSuspendOrFinish(std::vector<Effect>& effects) override;
+        explicit ChaseBehaviour(Params const& p) : TrackingBehaviour(Motion::Kind::Chase, p) {}
     };
 
-    /// A follower trailing its leader (design §4.2): a bounded horizon, the leader's facing at rest.
-    class FollowBehaviour : public TrackingBehaviour
+    /// A follower trailing its leader: a bounded horizon, the leader's facing at rest.
+    struct FollowBehaviour : TrackingBehaviour
     {
-        public:
-            struct FollowParams : Params
-            {
-                uint32 horizonMs = 400;     ///< the extrapolation of a trusted velocity: one cadence
-                float  recalcRange = 1.5f;  ///< the shell's TargetPosRecalculateRange
-            };
-            explicit FollowBehaviour(FollowParams const& p) : TrackingBehaviour(p), m_f(p) {}
-            Motion::Kind Kind() const override { return Motion::Kind::Follow; }
-        protected:
-            bool  UsesCombatMovement() const override { return false; }
-            bool  LostTarget(Sight const&) const override { return false; }
-            float StandingDistance(Sight const& sight) const override;
-            bool  Drifted(Sight const& sight) const override;
-            Vector3 AimCentre(Sight const& sight) const override;
-            bool  Walks(Sight const& sight) const override { return sight.isCreature && sight.target.walking; }
-            bool  ForcesDestination(Sight const& sight) const override { return sight.isPet; }
-            Facing FacingFor(Sight const& sight, bool moving) const override;
-            void  OnActivate(Sight const& sight, Step& s) override;
-            void  OnIdle(Sight const&, Step&) override {}
-            void  OnSuspendOrFinish(std::vector<Effect>& effects) override;
-        private:
-            FollowParams m_f;               ///< the follow's own fields, beside the shared Params
+        explicit FollowBehaviour(Params const& p) : TrackingBehaviour(Motion::Kind::Follow, p) {}
     };
 
     /// The evade return (design §4.3): the deleted home generator with the block-safe clear

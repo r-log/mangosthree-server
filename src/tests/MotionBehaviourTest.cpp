@@ -1739,9 +1739,9 @@ namespace
     }
 
     /// A follow of unit 77 at no offset; the cadence and the horizon 400 ms.
-    FollowBehaviour::FollowParams Following(uint64 target = 77)
+    TrackingBehaviour::Params Following(uint64 target = 77)
     {
-        FollowBehaviour::FollowParams p;
+        TrackingBehaviour::Params p;
         p.target = target;
         p.offset = 0.0f;
         p.angle = 0.0f;
