@@ -3919,7 +3919,7 @@ void Aura::PeriodicDummyTick()
                     }
 
                     Spell::UnitList::const_iterator itr = targets.begin();
-                    std::advance(itr, rand() % targets.size());
+                    std::advance(itr, urand(0, targets.size() - 1));
                     Unit* victim = *itr;
 
                     target->CastSpell(victim, 57840, true);

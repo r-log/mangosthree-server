@@ -375,7 +375,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             }
 
             itr = tempTargetUnitMap.begin();
-            std::advance(itr, rand() % t);
+            std::advance(itr, urand(0, t - 1));
             Unit* pUnitTarget = *itr;
             targetUnitMap.push_back(pUnitTarget);
 

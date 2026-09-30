@@ -44,7 +44,6 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <cstdlib>
 
 namespace Harness
 {
@@ -72,41 +71,6 @@ namespace Harness
         const uint32 kCadenceMs = 100;
         const uint32 kSettleMs = 1000;
         const uint32 kMapId = 1;   ///< Kalimdor: the old scenarios' Mulgore plains
-
-        /// The first order the C library's rand() is seeded for (the spell family's first).
-        const int kSeedCRandFromOrder = 930;
-
-        /// STOPGAP (decoupling D11 PR 1, the Unit reopening note's decision of 2026-09-29): seeds
-        /// the C library's rand() with `seed` beside the RNG::Seed the runner makes, for a
-        /// scenario of order 930 or higher only -- so every scenario before the spell family draws
-        /// exactly as it did. Seven sites in src/game still draw from the raw rand(), seeded once
-        /// from the wall clock at World.cpp:240 (CreatureEventAI.cpp:641, SpellAuras.cpp:3922,
-        /// SpellEffectDummy.cpp:1340 and :3659, SpellEffectScript.cpp:1378 and :2708,
-        /// SpellTargeting.cpp:378), and a spell scenario can reach them. SD3 draws from it too, at
-        /// 20 call sites in 10 script files (mob_generic_creature.cpp:147 and boss_bjarngrim.cpp:210
-        /// among them); a script runs from a map's update or a session's packet, both on the world
-        /// thread while the clock is stepped (below), so this pins those draws as well, and a spell
-        /// scenario reaches none of them while it refuses every SD3-bound spell and creature
-        /// (930's template refusals). The named change after D11's
-        /// PR 3 routes the seven src/game sites through the seeded RNG, decides whether SD3's are
-        /// in its scope, and removes this.
-        ///
-        /// It is sound only because every draw it pins happens on the thread that seeds it. The
-        /// launcher's mangosd.families.conf sets MapUpdateThreads = 2, so the MapUpdater pool is
-        /// activated with two workers -- but a stepped run never hands them a map:
-        /// MapManager::Update schedules on the pool only while `!WorldClock::IsStepped()`, and
-        /// otherwise updates every map on the world thread, in turn, after this hook
-        /// (MapManager.cpp:318-339). All three seed calls run on the world thread too (the hook,
-        /// Begin from Start or the settle, and the step in Update). The MSVC runtime keeps rand()'s
-        /// state per thread, so the world thread's stream is the one seeded here; glibc keeps one
-        /// process-wide stream, which no other thread draws from while the harness runs.
-        void SeedCRand(Scenario const* s, uint32 seed)
-        {
-            if (s->Order() >= kSeedCRandFromOrder)
-            {
-                srand(seed);
-            }
-        }
     }
 
     Runner::Runner() : m_index(0), m_elapsed(0), m_settle(0), m_sinceTick(0), m_verdicts(0), m_seedBase(kSeedBase), m_map(NULL),
@@ -160,8 +124,7 @@ namespace Harness
         // one digest category per scenario.
         RegisterQuestScenarios(*this);
         // The spell family (RegisterSpellScenarios, decoupling D11) is orders 930 on, after the
-        // quest family: what a cast does, recorded on the same machinery (Recorder.h), and the
-        // first orders whose seeds reach the C library's rand() too (SeedCRand).
+        // quest family: what a cast does, recorded on the same machinery (Recorder.h).
         RegisterSpellScenarios(*this);
     }
 
@@ -522,7 +485,6 @@ namespace Harness
         }
         Scenario* s = m_queue[m_index];
         RNG::Seed(TickSeed(m_seedBase, s->Order(), m_elapsed));
-        SeedCRand(s, TickSeed(m_seedBase, s->Order(), m_elapsed));
     }
 
     void Runner::Begin(Scenario* s)
@@ -531,7 +493,6 @@ namespace Harness
         m_sinceTick = 0;
         s->Reset();
         RNG::Seed(SeedFor(m_seedBase, s->Order()));
-        SeedCRand(s, SeedFor(m_seedBase, s->Order()));
         sLog.outString("MVTEST %s start seed=%u", s->Name(), SeedFor(m_seedBase, s->Order()));
         s->Prepare();
     }
@@ -758,7 +719,6 @@ namespace Harness
         // The step below runs after every map's update (World::Update calls it after
         // sMapMgr.Update), so it reseeds for the same reason SeedMapUpdate does.
         RNG::Seed(StepSeed(m_seedBase, s->Order(), m_elapsed));
-        SeedCRand(s, StepSeed(m_seedBase, s->Order(), m_elapsed));
         s->Tick(m_elapsed);
         if (!s->Finished() && s->Idle())
         {

@@ -1375,7 +1375,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                     }
 
                     uint32 spellId = 0;
-                    switch (rand() % 4)
+                    switch (urand(0, 3))
                     {
                         case 0: spellId = 46740; break;
                         case 1: spellId = 46739; break;
@@ -2705,7 +2705,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                     }
                     else
                     {
-                        switch (rand() % 3)
+                        switch (urand(0, 2))
                         {
                             case 0: spellId = 66740; break; // blue
                             case 1: spellId = 66739; break; // tresher

@@ -638,7 +638,7 @@ bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, Unit* pAction
     }
 
     // Store random here so that all random actions match up
-    uint32 rnd = rand();
+    uint32 rnd = rand32();
 
     // Return if chance for event is not met
     if (pHolder.Event.event_chance <= rnd % 100)
