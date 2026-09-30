@@ -37,10 +37,14 @@ root, in one sort order:
                   and its peer layer. A new file of a listed peer in a listed directory including a
                   listed header adds no key. A file's peer comes from its name (RULES), so a file
                   named after another peer is a new key.
-The file starts with the header --generate writes and one blank line; a "#" line in the header
-that is not the header's fails. After the header, a "#" line with text, directly above an entry, is
-that entry's reason: one line, kept by --generate with its entry, carried to the new line when
-the entry moves, and dropped with it; a "#" line after the header that is not directly above an
+The file starts with a header block of "#" lines and one blank line; --generate replaces the block
+with the tool's header and names each line it replaced. A block with no blank line after it fails,
+and --generate writes nothing while such a block holds a line that is not the tool's. After the
+header, a "#" line with text, directly above an entry, is that entry's reason: one line, kept by
+--generate with its entry and dropped with it. A moved line's reason goes to the new line only
+when the move is one to one: the only stale and the only new line of its layer pair and header;
+with more lines moved under one layer pair and header, --generate drops their reasons and names
+each one to be given back by hand. A "#" line after the header that is not directly above an
 entry, or holds no text, fails, and --generate writes nothing while the list holds such a line.
 A reason is optional here; that a line needs one is decided by the review of the list's diff.
 
@@ -299,25 +303,29 @@ def scan(root):
 
 
 def read_allow(path):
-    """The list's entries; its malformed or duplicate lines, a malformed header and misplaced or
-    empty reason lines as errors; {entry: reason line} for the entries with a reason; and the "#"
-    lines --generate would not keep (neither the header's nor a reason)."""
-    entries, errors, seen, reasons, lost = set(), [], set(), {}, []
+    """The list's entries; its malformed or duplicate lines, a header block with no blank line after
+    it and misplaced or empty reason lines as errors; {entry: reason line} for the entries with a
+    reason; the "#" lines --generate would not keep (neither a header line it replaces nor a
+    reason); and the header block's lines that are not the tool's (--generate replaces them)."""
+    entries, errors, seen, reasons, lost, replaced = set(), [], set(), {}, [], []
     if not os.path.isfile(path):
-        return entries, ['the allow-list %s does not exist; run --generate' % path], reasons, lost
+        return entries, ['the allow-list %s does not exist; run --generate' % path], reasons, lost, replaced
     with open(path, encoding='utf-8') as fh:
         lines = [ln.strip() for ln in fh]
     own = ALLOW_HEADER.rstrip('\n').split('\n')
     header = 0
     while header < len(lines) and lines[header].startswith('#'):
-        if lines[header] not in own:
-            errors.append('%s:%d: a "#" line in the header that is not the header\'s: %s'
-                          % (path, header + 1, lines[header]))
-            lost.append(lines[header])
         header += 1
-    if lines[:header] != own or (header < len(lines) and lines[header]):
-        errors.append('%s: the list does not start with its header and one blank line (--generate writes them)'
+    foreign = [(n, l) for n, l in enumerate(lines[:header], 1) if l not in own]
+    if header == 0 or header == len(lines) or lines[header]:
+        errors.append('%s: the list does not start with a header block and one blank line (--generate writes them)'
                       % path)
+        for n, l in foreign:
+            errors.append('%s:%d: a "#" line in a header block with no blank line after it: %s -- add the blank '
+                          'line after the header, then the line becomes a reason or an error' % (path, n, l))
+            lost.append(l)
+    else:
+        replaced = [l for _, l in foreign]
     reason = None
     for n, s in enumerate(lines[header:], header + 1):
         if reason is not None and not (s and not s.startswith('#')):
@@ -349,7 +357,7 @@ def read_allow(path):
     if reason is not None:
         errors.append('%s:%d: a reason line not directly above an entry: %s' % (path, len(lines), reason))
         lost.append(reason)
-    return entries, errors, reasons, lost
+    return entries, errors, reasons, lost, replaced
 
 
 def list_key(edge, verdict):
@@ -422,7 +430,9 @@ def line_kind(entry):
 
 
 def compare(edges, entries):
-    """The tree's keys against the list: (keys, new, moved, stale, (tree counts, list counts))."""
+    """The tree's keys against the list: (keys, new, moved, stale, (tree counts, list counts), sole),
+    sole the old lines of the moves that are the only stale and the only new line of their layer
+    pair and header."""
     keys = keys_of(edges)
     new = sorted(k for k in keys if k not in entries)
     stale = sorted(e for e in entries if e not in keys)
@@ -443,13 +453,15 @@ def compare(edges, entries):
         v = line_verdict(e)
         if v and v[0] not in KEY_BY_DIRECTORY:
             stale_by[(v, e[1])].append(e)
-    moved = []
+    moved, sole = [], set()
     for hk in sorted(new_by):
         moved += list(zip(stale_by.get(hk, []), new_by[hk]))
+        if len(new_by[hk]) == 1 and len(stale_by.get(hk, [])) == 1:
+            sole.add(stale_by[hk][0])
     moved_new, moved_old = {m[1] for m in moved}, {m[0] for m in moved}
     new = [k for k in new if k not in moved_new]
     stale = [e for e in stale if e not in moved_old]
-    return keys, new, moved, stale, (tree_n, list_n)
+    return keys, new, moved, stale, (tree_n, list_n), sole
 
 
 def check(root, allow_path, out=print):
@@ -459,10 +471,10 @@ def check(root, allow_path, out=print):
     except GateError as e:
         out('CheckLayout: FAIL: %s' % e)
         return 1
-    entries, list_errors, reasons, _ = read_allow(allow_path)
+    entries, list_errors, reasons, _, _ = read_allow(allow_path)
     errors = result['errors'] + list_errors
     edges = result['edges']
-    keys, new, moved, stale, (tree_n, list_n) = compare(edges, entries)
+    keys, new, moved, stale, (tree_n, list_n), sole = compare(edges, entries)
     allow_rel = os.path.relpath(allow_path, root).replace(os.sep, '/')
     if not errors:
         summary(result, out)
@@ -498,9 +510,13 @@ def check(root, allow_path, out=print):
             % (len(moved), allow_rel))
         for old, k in moved:
             kind, key = edges[k]
+            note = ''
+            if old in reasons:
+                note = ('   (its reason moves with it: %s)' if old in sole else
+                        '   (its reason, which --generate drops: more than one line moved under this layer pair and '
+                        'header, so give each new line its reason by hand: %s)') % reasons[old]
             out('  moved: replace the old line %s -> %s with %s -> %s   [%s: %s -> %s]%s'
-                % (old[0], old[1], k[0], k[1], kind, key[0], key[1],
-                   '   (its reason moves with it: %s)' % reasons[old] if old in reasons else ''))
+                % (old[0], old[1], k[0], k[1], kind, key[0], key[1], note))
     if stale:
         out('CheckLayout: %d allow-list line(s) name an edge that is gone from the tree or is allowed now -- '
             'delete them (%s):' % (len(stale), allow_rel))
@@ -533,19 +549,23 @@ def generate(root, allow_path, out=print):
             out('CheckLayout: ERROR: %s' % e)
         out('CheckLayout: the list is not written while the tree has errors')
         return 1
-    old, _, reasons, lost = read_allow(allow_path)
+    old, errors, reasons, lost, replaced = read_allow(allow_path)
     if lost:
-        for line in lost:
-            out('CheckLayout: ERROR: a "#" line that is neither the header\'s nor a reason: %s' % line)
-        out('CheckLayout: the list is not written: it would lose the lines above (make each one a reason '
-            'directly above its entry, or delete it)')
+        for e in errors:
+            out('CheckLayout: ERROR: %s' % e)
+        out('CheckLayout: the list is not written: it would lose these "#" lines: %s (make each one a reason '
+            'directly above its entry, or delete it)' % ' | '.join(lost))
         return 1
     entries = set(keys_of(result['edges']))
-    carried = []
-    for was, now in compare(result['edges'], old)[2]:
+    carried, dropped = [], []
+    _, _, moves, _, _, sole = compare(result['edges'], old)
+    for was, now in moves:
         if was in reasons and now not in reasons:
-            reasons[now] = reasons[was]
-            carried.append((was, now))
+            if was in sole:
+                reasons[now] = reasons[was]
+                carried.append((was, now))
+            else:
+                dropped.append(was)
     with open(allow_path, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write(format_allow(entries, reasons))
     added, removed = sorted(entries - old), sorted(old - entries)
@@ -555,6 +575,11 @@ def generate(root, allow_path, out=print):
         out('  - %s -> %s%s' % (e[0], e[1], '   (and its reason: %s)' % reasons[e] if e in reasons else ''))
     for was, now in carried:
         out('  reason moved from %s -> %s to %s -> %s: %s' % (was + now + (reasons[now],)))
+    for was in dropped:
+        out('  reason NOT carried from %s -> %s (more than one line moved under its layer pair and header; give '
+            'each new line its reason by hand): %s' % (was + (reasons[was],)))
+    for line in replaced:
+        out('  header line replaced by the tool\'s header: %s' % line)
     summary(result, out)
     out('CheckLayout: wrote %d lines to %s (+%d, -%d)' % (len(entries), allow_path, len(added), len(removed)))
     return 0
@@ -873,22 +898,49 @@ def self_test():
         '%d %d\n%s\n%s' % (rc, rc2, text, '\n'.join(got)))
     rc, text, got, _, kept = generated(SELF_TREE, format_allow(SELF_ALLOW))
     row('the header\'s "#" lines are not reasons', rc == 0 and kept == {}, '%d %r' % (rc, kept))
+    r1, r2 = '# Spell.cpp sends a packet', '# MapPacket.cpp sends a packet'
+    two_line = ('src/game/Maps/MapPacket.cpp', 'src/proto/WorldPacket.h')
+    two_allow = format_allow(SELF_ALLOW + [two_line], {SELF_ALLOW[0]: first, old_wp: r1, two_line: r2})
+    two_before = dict(SELF_TREE, **{'src/game/Maps/MapPacket.cpp': '#include "WorldPacket.h"\n'})
+    two_moved = dict(SELF_TREE, **{'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n',
+                                   'src/game/Maps/AMapPacket.cpp': '#include "WorldPacket.h"\n',
+                                   'src/game/Object/ZUnitPacket.cpp': '#include "WorldPacket.h"\n'})
+    run('two moves, one header: the baseline list passes', two_before, two_allow, 0, 'CheckLayout: OK')
+    run('two moves, one header: --check names both reasons, not moving', two_moved, two_allow, 1,
+        ['with src/game/Maps/AMapPacket.cpp -> src/proto/WorldPacket.h   [against: domain -> proto]   (its reason, '
+         'which --generate drops: more than one line moved under this layer pair and header, so give each new '
+         'line its reason by hand: %s)' % r2, 'give each new line its reason by hand: %s)' % r1],
+        'its reason moves with it')
+    rc, text, got, rc2, kept = generated(two_moved, two_allow)
+    row('two moves, one header: --generate carries no reason, names both',
+        rc == 0 and rc2 == 0 and kept == {SELF_ALLOW[0]: first}
+        and any('reason NOT carried from src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h' in g
+                and g.endswith(r1) for g in got)
+        and any('reason NOT carried from src/game/Maps/MapPacket.cpp -> src/proto/WorldPacket.h' in g
+                and g.endswith(r2) for g in got), '%d %d %r\n%s' % (rc, rc2, kept, '\n'.join(got)))
     no_blank = reasoned.replace(ALLOW_HEADER + '\n', ALLOW_HEADER, 1)
     run('a reason right below the header, no blank line, fails', SELF_TREE, no_blank, 1,
-        ['a "#" line in the header that is not the header\'s: %s' % first,
-         'the list does not start with its header and one blank line'])
+        ['the list does not start with a header block and one blank line',
+         'a "#" line in a header block with no blank line after it: %s -- add the blank line after the header, '
+         'then the line becomes a reason or an error' % first])
     rc, text, got, _, _ = generated(SELF_TREE, no_blank)
     row('--generate keeps that list as it is (the line is not deleted)', rc == 1 and text == no_blank,
         '%d\n%s' % (rc, '\n'.join(got)))
     above = '# above the header\n' + reasoned
-    run('a "#" line above the header fails', SELF_TREE, above, 1,
-        'a "#" line in the header that is not the header\'s: # above the header')
-    rc, text, got, _, _ = generated(SELF_TREE, above)
-    row('--generate keeps a list with a "#" line above the header', rc == 1 and text == above,
+    run('a "#" line above the header is part of the header block', SELF_TREE, above, 0, 'CheckLayout: OK')
+    rc, text, got, rc2, _ = generated(SELF_TREE, above)
+    row('--generate replaces that header block and names the line', rc == 0 and rc2 == 0 and text == reasoned
+        and '  header line replaced by the tool\'s header: # above the header' in got, '%d\n%s' % (rc, '\n'.join(got)))
+    reworded = reasoned.replace('After removing or moving edges', 'After removing, moving or splitting edges', 1)
+    run('a reworded header line passes --check', SELF_TREE, reworded, 0, 'CheckLayout: OK')
+    rc, text, got, rc2, kept = generated(SELF_TREE, reworded)
+    row('--generate repairs a reworded header line, reasons kept', rc == 0 and rc2 == 0 and text == reasoned
+        and kept == {SELF_ALLOW[0]: first, SELF_ALLOW[1]: why}
+        and any(g.startswith('  header line replaced by the tool\'s header: # After removing, moving') for g in got),
         '%d\n%s' % (rc, '\n'.join(got)))
     old_header = ALLOW_HEADER + ''.join('%s -> %s\n' % e for e in sorted(SELF_ALLOW))
     run('a header with no blank line after it fails', SELF_TREE, old_header, 1,
-        'the list does not start with its header and one blank line', 'not the header\'s')
+        'the list does not start with a header block and one blank line', 'no blank line after it:')
     rc, text, got, rc2, _ = generated(SELF_TREE, old_header)
     row('--generate writes the header and its blank line', rc == 0 and rc2 == 0 and text == format_allow(SELF_ALLOW),
         '%d %d\n%s' % (rc, rc2, '\n'.join(got)))
