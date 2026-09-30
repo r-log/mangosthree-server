@@ -742,7 +742,7 @@ TEST(AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns)
 
     // The real bodies: each context is built while the aura holds the mode its body acts on (a cast on the
     // target, a read of the caster); the mode then changes to one the body returns on before touching anything.
-    // A body that read the mode when its context was built would act on a NULL target.
+    // A body that read the mode when its context was built would act on the zeroed aura or the NULL target and crash.
     struct ModeBody
     {
         uint32 spellId;
