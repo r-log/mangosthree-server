@@ -380,7 +380,7 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder* holder)
     // ghost spell check, allow apply any auras at player loading in ghost mode (will be cleanup after load)
     if (!IsAlive() && !IsDeathPersistentSpell(aurSpellInfo) &&
         !IsDeathOnlySpell(aurSpellInfo) &&
-        (GetTypeId() != TYPEID_PLAYER || !((Player*)this)->IsLoading()))
+        (GetTypeId() != TYPEID_PLAYER || !IsLoading()))
     {
         delete holder;
         return false;

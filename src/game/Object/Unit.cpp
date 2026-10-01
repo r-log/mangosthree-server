@@ -4416,7 +4416,7 @@ void Unit::ClearInCombat()
  */
 bool Unit::IsTargetableForAttack(bool inverseAlive /*=false*/) const
 {
-    if (GetTypeId() == TYPEID_PLAYER && ((Player*)this)->isGameMaster())
+    if (GetTypeId() == TYPEID_PLAYER && isGameMaster())
     {
         return false;
     }

@@ -102,6 +102,7 @@ set(SRC_GRP_TESTS
     UnitCombatStatsTest.cpp
     UnitItemByGuidTest.cpp
     UnitMountPetTest.cpp
+    UnitVisibilitySessionTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

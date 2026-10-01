@@ -88,9 +88,9 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     // including case when player is out of world
     bool at_same_transport =
         GetTypeId() == TYPEID_PLAYER &&  u->GetTypeId() == TYPEID_PLAYER &&
-        !((Player*)this)->IsLoggingOut() && !((Player*)u)->IsLoggingOut() &&
-        !((Player*)this)->IsLoading() && !((Player*)u)->IsLoading() &&
-        ((Player*)this)->GetTransport() && ((Player*)this)->GetTransport() == ((Player*)u)->GetTransport();
+        !IsLoggingOut() && !((Player*)u)->IsLoggingOut() &&
+        !IsLoading() && !((Player*)u)->IsLoading() &&
+        GetTransport() && GetTransport() == ((Player*)u)->GetTransport();
 
     // not in world
     if (!at_same_transport && (!IsInWorld() || !u->IsInWorld()))
@@ -200,7 +200,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     // grouped players should always see stealthed party members
     if (GetTypeId() == TYPEID_PLAYER && u->GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)this)->IsGroupVisibleFor(((Player*)u)) && u->IsFriendlyTo(this))
+        if (IsGroupVisibleFor(((Player*)u)) && u->IsFriendlyTo(this))
         {
             return true;
         }
@@ -434,7 +434,7 @@ bool Unit::canDetectInvisibilityOf(Unit const* u) const
 
             if (i == 6 && GetTypeId() == TYPEID_PLAYER)     // special drunk detection case
             {
-                detectLevel = ((Player*)this)->GetDrunkValue();
+                detectLevel = GetDrunkValue();
             }
 
             if (invLevel <= detectLevel)
