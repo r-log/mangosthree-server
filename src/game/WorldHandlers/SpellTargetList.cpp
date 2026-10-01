@@ -283,6 +283,7 @@ void Spell::FillTargetMap()
                             SetTargetMap(SpellEffectIndex(i), spellEffect->ImplicitTarget_0, tmpUnitLists[i /*==effToIndex[i]*/]);
                             SetTargetMap(SpellEffectIndex(i), spellEffect->ImplicitTarget_1, tmpUnitLists[i /*==effToIndex[i]*/]);
                     }
+                    break;
                     case TARGET_SELF2:
                     switch(spellEffect->ImplicitTarget_1)
                     {
