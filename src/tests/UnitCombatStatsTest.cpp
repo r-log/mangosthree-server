@@ -38,11 +38,14 @@
 
 #include <type_traits>
 
-static_assert(std::is_same<decltype(&Player::GetMeleeRollExpertiseReduction), int32 (Player::*)(WeaponAttackType) const>::value,
+static_assert(std::is_same<decltype(&Player::GetMeleeRollExpertiseReduction),
+                           int32 (Player::*)(WeaponAttackType) const>::value,
               "Player answers the melee roll's expertise reduction itself");
-static_assert(std::is_same<decltype(&Player::GetMeleeSpellExpertiseReduction), int32 (Player::*)(WeaponAttackType) const>::value,
+static_assert(std::is_same<decltype(&Player::GetMeleeSpellExpertiseReduction),
+                           int32 (Player::*)(WeaponAttackType) const>::value,
               "Player answers the melee spell roll's expertise reduction itself");
-static_assert(std::is_same<decltype(&Player::CalculateMinMaxDamage), void (Player::*)(WeaponAttackType, bool, float&, float&)>::value,
+static_assert(std::is_same<decltype(&Player::CalculateMinMaxDamage),
+                           void (Player::*)(WeaponAttackType, bool, float&, float&)>::value,
               "Player fills its weapon damage range itself");
 static_assert(std::is_same<decltype(&Player::GetArmorPenetrationPct), float (Player::*)() const>::value,
               "Player answers its armor penetration percent itself");

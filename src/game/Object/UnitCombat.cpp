@@ -389,7 +389,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
  */
 uint32 Unit::CalculateDamage(WeaponAttackType attType, bool normalized)
 {
-    // CalculateMinMaxDamage stays under its original guard; the six
+    // CalculateMinMaxDamage runs only for a normalized player attack; the six
     // UNIT_FIELD reads are plain array indices, so they are gathered unconditionally.
     bool const isNormalizedPlayer = (normalized && GetTypeId() == TYPEID_PLAYER);
     float playerMinDamage = 0.0f;

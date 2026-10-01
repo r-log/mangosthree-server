@@ -127,8 +127,8 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 587 member functions, grouped roughly by defining file and name):** combat 146, auras 112, spell
-casting 72, movement 72, stats and power 68, lifecycle and update 64, pets/charm/summons 49, visibility 4. The target
+**Today (`Unit`, 591 member functions, grouped roughly by defining file and name):** combat 149, auras 112, spell
+casting 74, movement 71, stats and power 68, lifecycle and update 64, pets/charm/summons 49, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
 **Today (player-only code in `Unit`):** Unit's 15 files hold 105 `(Player*)this` casts and 217 `TYPEID_PLAYER` tests;

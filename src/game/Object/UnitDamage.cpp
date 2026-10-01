@@ -80,7 +80,7 @@ uint32 Unit::CalcArmorReducedDamage(Unit* pVictim, const uint32 damage)
     float armorPenetrationPct = 0.0f;
     if (isPlayer)
     {
-        armorPenetrationPct = GetArmorPenetrationPct();                                                              // E2b, same guard
+        armorPenetrationPct = GetArmorPenetrationPct();
     }
 
     return Combat::ArmorReducedDamage(damage, victimArmor, targetResistanceMod, isPlayer,

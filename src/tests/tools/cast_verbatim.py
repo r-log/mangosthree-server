@@ -159,7 +159,8 @@ UNIT_H_COMBAT_STATS = '''        /**
          * Fills the weapon damage range CalculateDamage uses for a normalized attack: does nothing
          * here; Player computes the range from its own weapon and stats.
          */
-        virtual void CalculateMinMaxDamage(WeaponAttackType /*attType*/, bool /*normalized*/, float& /*min_damage*/, float& /*max_damage*/) { }
+        virtual void CalculateMinMaxDamage(WeaponAttackType /*attType*/, bool /*normalized*/,
+                                           float& /*min_damage*/, float& /*max_damage*/) { }
         /**
          * @return the armor penetration percent CalcArmorReducedDamage passes on: 0 here; Player
          * returns its own
@@ -178,21 +179,25 @@ FILES = {
     'src/game/Object/Unit.h': {
         'forms': {},
         'added': [('#include "spells/SpellCooldownMgr.h"', '#include "spells/AuraContainer.h"'),
-                  (UNIT_H_COMBAT_STATS, '        MeleeHitOutcome RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackType '
-                                        'attType, int32 crit_chance, int32 miss_chance, int32 dodge_chance, int32 '
-                                        'parry_chance, int32 block_chance) const;'),
+                  (UNIT_H_COMBAT_STATS, '        MeleeHitOutcome RollMeleeOutcomeAgainst(const Unit* pVictim, '
+                                        'WeaponAttackType attType, int32 crit_chance, int32 miss_chance, '
+                                        'int32 dodge_chance, int32 parry_chance, int32 block_chance) const;'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')]},
     'src/game/Object/UnitCombat.cpp': {
-        'forms': {'GetMeleeRollExpertiseReduction': 2, 'GetMeleeSpellExpertiseReduction': 2, 'CalculateMinMaxDamage': 1},
+        'forms': {'GetMeleeRollExpertiseReduction': 2, 'GetMeleeSpellExpertiseReduction': 2,
+                  'CalculateMinMaxDamage': 1},
         'added': [],
-        'changed': [('    // CalculateMinMaxDamage stays under its original guard; the six',
+        'changed': [('    // CalculateMinMaxDamage runs only for a normalized player attack; the six',
                      '    // The Player downcast is E2b, so it stays here under its original guard; the six')]},
     'src/game/Object/UnitDamage.cpp': {
         'forms': {'HasSpellCooldown': 1, 'AddSpellCooldown': 1, 'GetArmorPenetrationPct': 1},
-        'added': []},
+        'added': [],
+        'changed': [('        armorPenetrationPct = ((Player*)this)->GetArmorPenetrationPct();',
+                     '        armorPenetrationPct = ((Player*)this)->GetArmorPenetrationPct();'
+                     + ' ' * 62 + '// E2b, same guard')]},
     'src/game/Object/UnitPower.cpp': {
         'forms': {'getClass': 5},
         'added': []},

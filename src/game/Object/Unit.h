@@ -2463,7 +2463,8 @@ class Unit : public WorldObject
          * Fills the weapon damage range CalculateDamage uses for a normalized attack: does nothing
          * here; Player computes the range from its own weapon and stats.
          */
-        virtual void CalculateMinMaxDamage(WeaponAttackType /*attType*/, bool /*normalized*/, float& /*min_damage*/, float& /*max_damage*/) { }
+        virtual void CalculateMinMaxDamage(WeaponAttackType /*attType*/, bool /*normalized*/,
+                                           float& /*min_damage*/, float& /*max_damage*/) { }
         /**
          * @return the armor penetration percent CalcArmorReducedDamage passes on: 0 here; Player
          * returns its own

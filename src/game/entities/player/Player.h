@@ -2646,7 +2646,8 @@ class Player : public Unit
         void UpdateAllRatings();
 
         // Calculate the minimum and maximum damage
-        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, float& min_damage, float& max_damage) override;
+        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, float& min_damage,
+                                   float& max_damage) override;
 
         // Update defense bonuses modifier
 
