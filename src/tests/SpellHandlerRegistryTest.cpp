@@ -661,8 +661,8 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault)
         CHECK(distinct.count(registry.Find<AuraDummyRemoveSite>(spellId)) == 0);
     }
 
-    // The twelve labels that read neither the mode nor a motion or map header: eleven bodies, 35079 and 59628 one
-    // function; none a stance's or a mode reader's.
+    // The twelve labels whose bodies read no mode and need no motion or map header: eleven bodies, 35079 and 59628
+    // one function; none a stance's or a mode reader's.
     std::set<SpellHandler<AuraDummyRemoveSite>::Function> others;
     for (uint32 spellId : byBody)
     {
@@ -672,6 +672,8 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault)
         others.insert(function);
     }
     CHECK_EQ(others.size(), std::size_t(11));
+    // 35079 and 59628 one function: proven by verbatim, not here: this binary links with COMDAT folding, so an
+    // identical second function folds to the same address.
     CHECK(registry.Find<AuraDummyRemoveSite>(59628) == registry.Find<AuraDummyRemoveSite>(35079));
     for (uint32 spellId : stances)
     {
