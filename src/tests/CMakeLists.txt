@@ -66,6 +66,7 @@ set(SRC_GRP_TESTS
     GuildAsyncTest.cpp
     CalendarMailAsyncTest.cpp
     GameLinkTest.cpp
+    MonthlyQuestResetTest.cpp
     AuthCryptTest.cpp
     ClientParserTest.cpp
     TerrainModelTest.cpp

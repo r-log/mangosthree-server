@@ -1740,28 +1740,10 @@ void World::InitDailyQuestResetTime()
     }
 }
 
-void World::SetMonthlyQuestResetTime(bool initialize)
+time_t NextMonthlyQuestReset(time_t now, time_t stored, bool keepEarlier)
 {
-    if (initialize)
-    {
-        QueryResult* result = CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
-
-        if (!result)
-        {
-            m_NextMonthlyQuestReset = time_t(time(NULL));
-        }
-        else
-        {
-            m_NextMonthlyQuestReset = time_t((*result)[0].GetUInt64());
-        }
-
-        delete result;
-    }
-
-    // generate time
-    time_t currentTime = time(NULL);
     tm localTm;
-    localTm = safe_localtime(currentTime);
+    localTm = safe_localtime(now);
 
     int month = localTm.tm_mon;
     int year = localTm.tm_year;
@@ -1785,7 +1767,29 @@ void World::SetMonthlyQuestResetTime(bool initialize)
 
     time_t nextMonthResetTime = mktime(&localTm);
 
-    m_NextMonthlyQuestReset = (initialize && m_NextMonthlyQuestReset < nextMonthResetTime) ? m_NextMonthlyQuestReset : nextMonthResetTime;
+    return (keepEarlier && stored < nextMonthResetTime) ? stored : nextMonthResetTime;
+}
+
+void World::SetMonthlyQuestResetTime(bool initialize)
+{
+    if (initialize)
+    {
+        QueryResult* result = CharacterDatabase.Query("SELECT `NextMonthlyQuestResetTime` FROM `saved_variables`");
+
+        if (!result)
+        {
+            m_NextMonthlyQuestReset = m_gameTime;
+        }
+        else
+        {
+            m_NextMonthlyQuestReset = time_t((*result)[0].GetUInt64());
+        }
+
+        delete result;
+    }
+
+    // computed from m_gameTime, the clock Update compares the reset against
+    m_NextMonthlyQuestReset = NextMonthlyQuestReset(m_gameTime, m_NextMonthlyQuestReset, initialize);
 
     // Row must exist for this to work. Currently row is added by InitDailyQuestResetTime(), called before this function
     CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextMonthlyQuestResetTime` = '" UI64FMTD "'", uint64(m_NextMonthlyQuestReset));
