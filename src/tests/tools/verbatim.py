@@ -61,8 +61,10 @@ For each file in SITES, --check:
      fails when the code above it, past blank and comment-only lines, could reach it: a label at
      its indent with no body of its own, or a run whose last statement (inside the closing `}`
      of a braced run, after the colon of a one-line case) is not a whole `return ...;`,
-     `break;`, `continue;` or `goto ...;` line; a run above that cannot fall through in another
-     shape (an if and else that both return) fails too, on the safe side. What is cut: a
+     `break;`, `continue;` or `goto ...;` line, nor one under a control header (a code line
+     ending in none of `;`, `{`, `}`, `:`, such as `if (x)` or `for (;;)`); a run above that
+     cannot fall through in another shape (an if and else that both return, braced or not)
+     fails too, on the safe side. What is cut: a
      residual site's DELETED labels (each one of the site's labels, found at most once); a site
      GONE whole (its dispatch, a table typed by its TRAITS or a default registered for it still
      in the working tree fail), its switch, opening directly above its first label, with the
@@ -878,6 +880,11 @@ def label_run(lines, i, where, cases_only=False):
         if k >= 0 and lines[k] == indent + '}':
             k = code_above(lines, k - 1)
         last = blank(lines[k]).strip() if k >= 0 else ''
+        h = code_above(lines, k - 1) if k >= 0 else -1
+        header = blank(lines[h]).strip() if h >= 0 else ''
+        if header and not header.endswith((';', '{', '}', ':')):
+            raise Failure('%s: the run above may fall into it (%r ends under %r)'
+                          % (where, lines[k].strip(), lines[h].strip()))
     if last is not None and not TERMINATOR.fullmatch(last.rstrip(';').split(';')[-1].strip() + ';'
                                                      if last.endswith(';') else last):
         raise Failure('%s: the run above may fall into it (%r)' % (where, lines[k].strip()))
@@ -1911,6 +1918,22 @@ def self_test():
     cut_run('a comment less indented before the close ends the last run with it: passes', 0,
             'the base less 2 cuts (9 lines)', tail, other[12], 4)
     cut_run('a last run cut short of that comment fails', 1, '3 lines, and its label run is 4', tail, other[12], 3)
+    for label, shape in [('if (x)', '            if (x)\n                return;\n'),
+                         ('for (;;)', '            for (;;)\n                break;\n')]:
+        cut_run('a file cut under a run ending in `%s` and a terminator under it fails' % label, 1, 'ends under',
+                text_other.replace(fifty, '            Drop(50);\n' + shape), other[7], 5)
+    cut_run('a file cut under a braced run ending in `if (x)` and a return under it fails', 1, 'ends under',
+            text_other.replace('            Drop(51);\n            return;\n        }',
+                               '            if (x)\n                return;\n        }'), other[12], 3)
+    cut_run('a file cut under a run ending in `if (x) return;` on one line fails', 1, falls,
+            text_other.replace(fifty, '            Drop(50);\n            if (x) return;\n'), other[7], 5)
+    cut_run('a file cut under a return after a closed block: passes', 0, 'the base less 2 cuts (10 lines)',
+            text_other.replace(fifty, '            if (x)\n            {\n                Drop(50);\n            }\n'
+                                      '            return;\n'), other[7], 5)
+    cut_run('a file cut of the first label after the switch\'s `{`: passes', 0, 'the base less 2 cuts (8 lines)',
+            text_other, other[4], 3)
+    cut_run('a file cut under a run that is its label and a return: passes', 0, 'the base less 2 cuts (10 lines)',
+            text_other.replace(fifty, '            return;\n'), other[7], 5)
 
     gone_spec = dict(whole, sites=[dict(whole_site, gone=(1, 1))])
     gone_tree = '\n'.join(head[:1] + ['#include "Handlers.h"'] + head[1:4] + ['}', ''])
