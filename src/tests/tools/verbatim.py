@@ -43,14 +43,15 @@ For each file in SITES, --check:
      still found; each version holds exactly one such table per site (two fail, none fails). Only
      a version with no typed table at all (rows of an untyped `Row`) reads the table the site's
      `table` names; a version with typed tables never reads the name.
-     BRACES: a run's shape is read from the switch where the run stands, in the base, else in the
-     working tree: the run's label lines, found together exactly once, and the line after them.
+     BRACES: a run's shape is read from the version's file, the base's first, else the working
+     tree's: the run's label lines (or a `default:` line), searched in the whole file, must stand
+     together there exactly once (more than once fails), and the line after them gives the shape.
      `{` at the label indent there means the body is wrapped, and that block must close (`}` at
-     the label indent) directly before the next label or the switch's close: a block followed by
-     more lines of the body is a shape the paste-back cannot reproduce and fails. Anything else
-     is an unbraced body. A run moved in both versions is pasted back unbraced on both sides: its
-     shape, like its place, is proven against a base it stands in. A `default:` is read the same
-     way;
+     the label indent) directly before the next `case` or `default:` at the label indent or the
+     switch's close: a block followed by more lines of the body is a shape the paste-back cannot
+     reproduce and fails. Anything else (a `{` at a deeper indent included) is an unbraced body.
+     A run standing in neither version (moved in both) is pasted back unbraced on both sides: its
+     shape, like its place, is proven against a base it stands in;
   4. does the same to the file at BASE, for the sites a PR before this one moved (their dispatch
      is in the base; a site whose dispatch is not in the base is this PR's and must be a switch
      there), so BASE may be any commit from before the first move to the parent of this PR;
@@ -576,8 +577,8 @@ def one_line(label_lines):
 
 def braced(origins, site, label_lines):
     """Whether the body under the run of labels `label_lines` is wrapped in `{` `}` at the label
-    indent where the run stands: in the first of `origins` (each a version's lines) holding the
-    run's label lines together, once; False where none holds them."""
+    indent, read in the first of `origins` (each a version's whole file, as lines) holding the
+    run's label lines together; holding them more than once fails; False where none holds them."""
     indent = ' ' * site['label_indent']
     n = len(label_lines)
     for lines in origins:
@@ -1563,6 +1564,57 @@ def self_test():
     run('a body that is a block followed by more lines fails', 1,
         'generated part: where it stands, the body under [\'case 5:\'] is a block followed by more lines',
         **versions((tail, None), gen_version(moved, unbraced=mixed)))
+    nested = gen_version([], unbraced=mixed)[0].replace(
+        '        {\n            target->Drop(5);\n            return;\n        }',
+        '        {\n            target->Drop(5);\n        }\n            case 50:\n            return;')
+    run('a block followed by a deeper case (a nested switch\'s) fails', 1,
+        'generated part: where it stands, the body under [\'case 5:\'] is a block followed by more lines',
+        **versions((nested, None), gen_version(moved, unbraced=mixed)))
+    beside = (twelve[0], twelve[1].replace('    };\n}', '    };\n    static Row<RemoveSiteX> const other[] =\n    {\n'
+                                                          '        { 3, &Drop3 },\n    };\n}'))
+    run('a table typed by another traits sharing the name\'s start is not the site\'s: passes', 0,
+        'with 11/11 bodies pasted back at their 12 labels in 1 sites (the base had 1', **versions(six, beside))
+    elsewhere = ['void Thing::Other()', '{', '    switch (GetId())', '    {',
+                 GEN_SPEC['sites'][0]['labels'][6], '        {', '            target->Drop(6);', '            return;',
+                 '        }', '    }', '}', '']
+    twice = gen_version([], unbraced=mixed)[0] + '\n'.join(elsewhere)
+    tree = gen_version(moved, unbraced=mixed)
+    run('a run whose label lines stand twice in one version fails', 1, 'stand 2 times in one version',
+        **versions((twice, None), (tree[0] + '\n'.join(elsewhere), tree[1])))
+    deep = gen_version([], unbraced=mixed)[0].replace(
+        GEN_SPEC['sites'][0]['labels'][6] + '\n            target->Drop(6);\n',
+        GEN_SPEC['sites'][0]['labels'][6] + '\n            {\n                target->Drop(6);\n            }\n')
+    deep_tree = (tree[0], tree[1].replace('    ctx.target->Drop(6);\n',
+                                          '    {\n        ctx.target->Drop(6);\n    }\n'))
+    run('an unbraced body starting with a deeper { is read unbraced: passes', 0,
+        'with 7/7 bodies pasted back at their 8 labels in 1 sites (the base had 0',
+        **versions((deep, None), deep_tree))
+
+    whole_site = {k: v for k, v in GEN_SPEC['sites'][0].items() if k != 'residual'}
+    whole_site.update(name='generated whole', default='        default:',
+                      labels={i: GEN_SPEC['sites'][0]['labels'][i] for i in (1, 2, 3)})
+    whole = dict(GEN_SPEC, sites=[whole_site])
+    body = {i: ['            target->Drop(%d);' % i, '            return;'] for i in (0, 1, 2, 3)}
+    switch = ([whole_site['labels'][1], '        {'] + body[1] + ['        }']
+              + [whole_site['labels'][2]] + body[2]
+              + [whole_site['labels'][3], '        {'] + body[3] + ['        }']
+              + ['        default:', '        {'] + body[0] + ['        }'])
+    head = ['#include "A.h"', '', 'void Thing::Remove(bool apply)', '{', '    Unit* target = GetTarget();']
+    whole_origin = '\n'.join(head + ['    switch (GetId())', '    {'] + switch
+                             + ['    }', '    target->Tail();', '}', ''])
+    whole_tree = '\n'.join(head[:1] + ['#include "Handlers.h"'] + head[1:] + whole_site['dispatch']
+                           + ['    target->Tail();', '}', ''])
+    whole_handlers = ['#include "Handlers.h"', '']
+    for i, name in [(1, 'Drop1'), (2, 'Drop2'), (3, 'Drop3'), (0, 'DropDefault')]:
+        whole_handlers += ['static SpellHandlerOutcome<void> %s(RemoveContext& ctx)' % name, '{',
+                           '    ctx.target->Drop(%d);' % i, '    return SpellHandlerOutcome<void>::Return();', '}', '']
+    whole_handlers += ['void Register(Registry& registry)', '{', '    static Row<RemoveSite> const removed[] =',
+                       '    {',
+                       '        { 1, &Drop1 },', '        { 2, &Drop2 },', '        { 3, &Drop3 },', '    };',
+                       '    registry.RegisterDefault<RemoveSite>(&DropDefault);', '}', '']
+    run('a braced default, a block closing before it: pastes back braced, passes', 0,
+        'with 4/4 bodies pasted back at their 3 labels in 1 sites (the base had 0',
+        old_text=whole_origin, sites=whole_tree, handlers='\n'.join(whole_handlers), spec=whole)
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
