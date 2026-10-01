@@ -992,14 +992,14 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     }
 
                     // Get Aldor reputation rank
-                    if (((Player*)this)->GetReputationRank(932) == REP_EXALTED)
+                    if (GetReputationRank(932) == REP_EXALTED)
                     {
                         target = this;
                         triggered_spell_id = 45479;
                         break;
                     }
                     // Get Scryers reputation rank
-                    if (((Player*)this)->GetReputationRank(934) == REP_EXALTED)
+                    if (GetReputationRank(934) == REP_EXALTED)
                     {
                         // triggered at positive/self casts also, current attack target used then
                         if (IsFriendlyTo(target))
@@ -1035,14 +1035,14 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     }
 
                     // Get Aldor reputation rank
-                    if (((Player*)this)->GetReputationRank(932) == REP_EXALTED)
+                    if (GetReputationRank(932) == REP_EXALTED)
                     {
                         target = this;
                         triggered_spell_id = 45480;
                         break;
                     }
                     // Get Scryers reputation rank
-                    if (((Player*)this)->GetReputationRank(934) == REP_EXALTED)
+                    if (GetReputationRank(934) == REP_EXALTED)
                     {
                         triggered_spell_id = 45428;
                         break;
@@ -1060,14 +1060,14 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     }
 
                     // Get Aldor reputation rank
-                    if (((Player*)this)->GetReputationRank(932) == REP_EXALTED)
+                    if (GetReputationRank(932) == REP_EXALTED)
                     {
                         target = this;
                         triggered_spell_id = 45432;
                         break;
                     }
                     // Get Scryers reputation rank
-                    if (((Player*)this)->GetReputationRank(934) == REP_EXALTED)
+                    if (GetReputationRank(934) == REP_EXALTED)
                     {
                         target = this;
                         triggered_spell_id = 45431;
@@ -1086,14 +1086,14 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     }
 
                     // Get Aldor reputation rank
-                    if (((Player*)this)->GetReputationRank(932) == REP_EXALTED)
+                    if (GetReputationRank(932) == REP_EXALTED)
                     {
                         target = this;
                         triggered_spell_id = 45478;
                         break;
                     }
                     // Get Scryers reputation rank
-                    if (((Player*)this)->GetReputationRank(934) == REP_EXALTED)
+                    if (GetReputationRank(934) == REP_EXALTED)
                     {
                         triggered_spell_id = 45430;
                         break;

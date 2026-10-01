@@ -103,6 +103,7 @@ set(SRC_GRP_TESTS
     UnitItemByGuidTest.cpp
     UnitMountPetTest.cpp
     UnitVisibilitySessionTest.cpp
+    UnitReputationRankTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp
