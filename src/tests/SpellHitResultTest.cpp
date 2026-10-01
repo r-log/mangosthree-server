@@ -34,11 +34,19 @@
 /// Spell.dbc store entry, so IsPositiveSpell answers false. The unit's spell hit chance is
 /// lowered by 100 points, which clamps MagicSpellHitResult's hit chance to 1%: a roll misses
 /// 99 times in 100, so a result that never misses over many seeded calls was never rolled.
+///
+/// For the reflect check the unit carries one SPELL_AURA_REFLECT_SPELLS aura of amount 100. An
+/// `Aura` cannot be constructed in this binary (its constructor reaches the spell stores and a
+/// holder), so it is zeroed storage the size of one with only its modifier's amount written:
+/// the reflect check reads nothing else of it (Unit::GetTotalAuraModifier reads
+/// `GetModifier()->m_amount`), and the unit holds no aura holder, so the PROC_EX_REFLECT proc it
+/// fires walks an empty holder map.
 
 #include "TestHarness.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "RNGen.h"
+#include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "Unit.h"
 
@@ -58,6 +66,21 @@ namespace
     };
 
     SpellRowStorage s_row = {};
+
+    struct AuraStorage
+    {
+        alignas(Aura) unsigned char bytes[sizeof(Aura)];
+    };
+
+    AuraStorage s_reflect = {};
+
+    /// A REFLECT_SPELLS aura whose only written field is its amount: a 100% reflect chance.
+    Aura* ReflectEverything()
+    {
+        Aura* aura = reinterpret_cast<Aura*>(s_reflect.bytes);
+        aura->GetModifier()->m_amount = 100;
+        return aura;
+    }
 
     SpellEntry const* FireSpell()
     {
@@ -87,20 +110,27 @@ namespace
             /// update fields exist; this one was never in a world, so they go first.
             ~BareUnit()
             {
+                m_auras.ByType(SPELL_AURA_REFLECT_SPELLS).clear();
                 delete[] m_uint32Values;
                 m_uint32Values = NULL;
+            }
+
+            /// Puts the aura on the unit's REFLECT_SPELLS list, where the reflect check reads it.
+            void Carry(Aura* reflect)
+            {
+                m_auras.ByType(SPELL_AURA_REFLECT_SPELLS).push_back(reflect);
             }
     };
 
     /// How many of kCalls seeded calls answered `result`.
-    int Count(Unit& unit, SpellHitFor hitFor, SpellMissInfo result)
+    int Count(Unit& unit, SpellHitFor hitFor, SpellMissInfo result, bool canReflect = false)
     {
         SpellEntry const* spell = FireSpell();
         RNG::Seed(1949);
         int n = 0;
         for (int i = 0; i < kCalls; ++i)
         {
-            if (unit.SpellHitResult(&unit, spell, false, hitFor) == result)
+            if (unit.SpellHitResult(&unit, spell, canReflect, hitFor) == result)
             {
                 ++n;
             }
@@ -122,20 +152,13 @@ TEST(SpellHitResult_ASelfCastHitsItsCasterWithoutARoll)
     CHECK_EQ(Count(unit, SpellHitFor::Cast, SPELL_MISS_NONE), kCalls);
 }
 
-TEST(SpellHitResult_TheDefaultContextIsTheCast)
+TEST(SpellHitResult_ASelfCastMeetsItsCastersReflectionFirst)
 {
     BareUnit unit;
-    SpellEntry const* spell = FireSpell();
-    RNG::Seed(1949);
-    int hits = 0;
-    for (int i = 0; i < kCalls; ++i)
-    {
-        if (unit.SpellHitResult(&unit, spell) == SPELL_MISS_NONE)
-        {
-            ++hits;
-        }
-    }
-    CHECK_EQ(hits, kCalls);
+    unit.Carry(ReflectEverything());
+    CHECK_EQ(unit.GetTotalAuraModifier(SPELL_AURA_REFLECT_SPELLS), 100);
+    CHECK_EQ(Count(unit, SpellHitFor::Cast, SPELL_MISS_REFLECT, true), kCalls);
+    CHECK_EQ(Count(unit, SpellHitFor::Cast, SPELL_MISS_NONE, false), kCalls);
 }
 
 TEST(SpellHitResult_AReflectionStillRollsAgainstItsCaster)

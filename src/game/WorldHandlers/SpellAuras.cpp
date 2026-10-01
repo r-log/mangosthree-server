@@ -2541,7 +2541,7 @@ void Aura::PeriodicTick()
             }
 
             if ( spellProto->GetSpellEffectIdByIndex(GetEffIndex()) == SPELL_EFFECT_PERSISTENT_AREA_AURA &&
-                pCaster->SpellHitResult(target, spellProto, false) != SPELL_MISS_NONE)
+                pCaster->SpellHitResult(target, spellProto, false, SpellHitFor::Cast) != SPELL_MISS_NONE)
                 {
                     return;
                 }
@@ -2723,7 +2723,7 @@ void Aura::PeriodicTick()
             }
 
             if ( spellProto->GetSpellEffectIdByIndex(GetEffIndex()) == SPELL_EFFECT_PERSISTENT_AREA_AURA &&
-                pCaster->SpellHitResult(target, spellProto, false) != SPELL_MISS_NONE)
+                pCaster->SpellHitResult(target, spellProto, false, SpellHitFor::Cast) != SPELL_MISS_NONE)
                 {
                     return;
                 }
@@ -2966,7 +2966,7 @@ void Aura::PeriodicTick()
             }
 
             if ( GetSpellProto()->GetSpellEffectIdByIndex(GetEffIndex()) == SPELL_EFFECT_PERSISTENT_AREA_AURA &&
-                pCaster->SpellHitResult(target, spellProto, false) != SPELL_MISS_NONE)
+                pCaster->SpellHitResult(target, spellProto, false, SpellHitFor::Cast) != SPELL_MISS_NONE)
                 {
                     return;
                 }

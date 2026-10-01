@@ -2371,7 +2371,7 @@ class Unit : public WorldObject
          * @param hitFor what the result is resolved for: the cast's own target, or a reflection
          * @return Whether or not the spell was resisted/blocked etc.
          */
-        SpellMissInfo SpellHitResult(Unit* pVictim, SpellEntry const* spell, bool canReflect = false, SpellHitFor hitFor = SpellHitFor::Cast);
+        SpellMissInfo SpellHitResult(Unit* pVictim, SpellEntry const* spell, bool canReflect, SpellHitFor hitFor);
 
         /**
          * Returns the units dodge chance
