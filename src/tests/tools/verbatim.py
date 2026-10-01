@@ -55,7 +55,16 @@ For each file in SITES, --check:
   4. does the same to the file at BASE, for the sites a PR before this one moved (their dispatch
      is in the base; a site whose dispatch is not in the base is this PR's and must be a switch
      there), so BASE may be any commit from before the first move to the parent of this PR;
-  5. compares the two, byte for byte, and names the first difference.
+  5. cuts from the rebuilt base what the working tree deleted: a residual site's DELETED labels,
+     each its label line and the lines under it down to the next label at its indent or the
+     switch's close (a label sharing the body of the label above it fails); a site GONE whole
+     (its dispatch, a table typed by its TRAITS or a default registered for it still in the
+     working tree fail), its switch with the lines GONE names above and below it; and the file's
+     CUTS, each the first lines of a block (found more than once fails) and its number of lines.
+     What a base no longer holds (a base from after the deletion) is not cut there, and a
+     deleted label may be neither registered nor standing in it. A site with a dispatch deletes
+     labels only when it is a residual one; cuts may not overlap;
+  6. compares the two, byte for byte, and names the first difference.
 Because the bodies are pasted from the functions the table registers, a row pointing at the wrong
 function, a lost row or default, a changed line, or a body moved in the wrong order all fail; a
 body a PR before this one moved is proven again, against its own base's copy. Every
@@ -727,8 +736,15 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
     for site in spec['sites']:
         n = len(site['dispatch'])
         at = [i for i in range(len(rest) - n + 1) if rest[i:i + n] == site['dispatch']]
+        if site.get('deleted') and 'residual' not in site:
+            raise Failure('%s: deletes labels and keeps its dispatch, which only a residual site does' % site['name'])
+        if strict and 'gone' in site:
+            gone(site, at, rest, handlers)
+            continue
         if not strict and not at:
             continue
+        if strict and site.get('deleted'):
+            site = dict(site, labels={i: l for i, l in site['labels'].items() if i not in site['deleted']})
         if len(at) != 1:
             raise Failure('%s: the dispatch found %d times' % (site['name'], len(at)))
         if not site.get('traits'):
@@ -740,6 +756,9 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         ids = [r[0] for r in rows]
         if 'residual' in site:
             end, standing = standing_labels(rest, at[0], n, site)
+            absent = [i for i in site.get('deleted', []) if i not in ids and i not in standing]
+            if absent:
+                site = dict(site, labels={i: l for i, l in site['labels'].items() if i not in absent})
             moved_split(site, ids, standing)
         elif sorted(ids) != sorted(site['labels']) or len(set(ids)) != len(ids):
             raise Failure('%s: table rows %s, labels %s' % (site['name'], ids, sorted(site['labels'])))
@@ -801,6 +820,68 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
     return '\n'.join(rest), pasted, labels, rebuilt, handlers
 
 
+def gone(site, at, rest, handlers):
+    """A site deleted whole: nothing of it may stand in the working tree."""
+    if at or 'Dispatch<%s>' % site['traits'] in '\n'.join(rest):
+        raise Failure('%s: deleted, and its dispatch still stands' % site['name'])
+    if any(m and m.group(1) == site['traits'] for m in (TABLE_HEAD.fullmatch(l) for l in handlers)):
+        raise Failure('%s: deleted, and a table typed by %s still stands' % (site['name'], site['traits']))
+    if any(re.search(r'\bRegisterDefault\s*<\s*%s\s*>' % re.escape(site['traits']), l) for l in handlers):
+        raise Failure('%s: deleted, and a default is still registered for it' % site['name'])
+
+
+def cut(text, spec):
+    """The rebuilt base less what the working tree deleted; the number of blocks and of lines cut."""
+    lines = text.split('\n')
+
+    def label_at(site, spell):
+        label = site['labels'][spell]
+        found = [i for i, l in enumerate(lines)
+                 if (l.startswith(label.split('{body}')[0]) if '{body}' in label else l == label)]
+        if len(found) > 1:
+            raise Failure('%s: label %d found %d times in the base' % (site['name'], spell, len(found)))
+        return found[0] if found else None
+
+    ranges = []
+    for site in spec['sites']:
+        indent = ' ' * site['label_indent']
+        found = []
+        if 'gone' in site:
+            found = [i for i in (label_at(site, spell) for spell in site['labels']) if i is not None]
+        if found:
+            first = min(found)
+            start = first - len(site['open'])
+            if lines[start:first] != site['open']:
+                raise Failure('%s: deleted, and its switch does not open above its first label' % site['name'])
+            end = next((k for k in range(first, len(lines)) if lines[k] == site['close'][0]), None)
+            if end is None:
+                raise Failure('%s: deleted, and its switch has no closing line' % site['name'])
+            ranges.append((start - site['gone'][0], end + 1 + site['gone'][1]))
+        for spell in site.get('deleted', []):
+            i = label_at(site, spell)
+            if i is None:
+                continue
+            if lines[i - 1].startswith(indent + 'case '):
+                raise Failure('%s: deleted label %d shares the body of the label above it' % (site['name'], spell))
+            end = next((k for k in range(i + 1, len(lines)) if lines[k] == site['close'][0]
+                        or lines[k].startswith(indent + 'case ') or lines[k].startswith(indent + 'default:')), None)
+            if end is None:
+                raise Failure('%s: deleted label %d has no label or close after it' % (site['name'], spell))
+            ranges.append((i, end))
+    for head, count in spec.get('cuts', []):
+        at = [i for i in range(len(lines) - len(head) + 1) if lines[i:i + len(head)] == head]
+        if len(at) > 1:
+            raise Failure('the cut at %r found %d times in the base' % (head[-1], len(at)))
+        if at:
+            ranges.append((at[0], at[0] + count))
+    ranges.sort()
+    if any(a[1] > b[0] for a, b in zip(ranges, ranges[1:])):
+        raise Failure('two cuts overlap')
+    for a, b in reversed(ranges):
+        del lines[a:b]
+    return '\n'.join(lines), len(ranges), sum(b - a for a, b in ranges)
+
+
 def first_difference(a, b):
     al, bl = a.split('\n'), b.split('\n')
     for n, (x, y) in enumerate(zip(al, bl), 1):
@@ -816,6 +897,7 @@ def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None,
         rebuilt, pasted, labels, sites, handlers = rebuild(new_text, spec, headers, new_handlers, origins=origins)
         base, base_pasted, _, base_sites, _ = rebuild(old_text, spec, headers, old_handlers, strict=False,
                                                       origins=origins)
+        base, cuts, cut_lines = cut(base, spec)
     except Failure as e:
         out('%s: FAILED: %s' % (rel, e))
         return 1, 0
@@ -829,8 +911,8 @@ def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None,
             rel, pasted, len(sites), first_difference(base, rebuilt)))
         return 1, pasted
     out('%s: IDENTICAL to the base, byte for byte, with %d/%d bodies pasted back at their %d labels in %d sites '
-        '(the base had %d of the sites moved: %d bodies pasted back there)' % (
-            rel, pasted, len(defined), labels, len(sites), len(base_sites), base_pasted))
+        '(the base had %d of the sites moved: %d bodies pasted back there), the base less %d cuts (%d lines)' % (
+            rel, pasted, len(defined), labels, len(sites), len(base_sites), base_pasted, cuts, cut_lines))
     return 0, pasted
 
 
@@ -1615,6 +1697,78 @@ def self_test():
     run('a braced default, a block closing before it: pastes back braced, passes', 0,
         'with 4/4 bodies pasted back at their 3 labels in 1 sites (the base had 0',
         old_text=whole_origin, sites=whole_tree, handlers='\n'.join(whole_handlers), spec=whole)
+
+    def deleting(ids, cuts=()):
+        """GEN_SPEC with `ids` deleted and the file's `cuts`."""
+        return dict(GEN_SPEC, cuts=list(cuts), sites=[dict(GEN_SPEC['sites'][0], deleted=ids)])
+
+    def without(ids, rows=(4, 5, 6, 13, 14, 15)):
+        """A version registering `rows` whose switch holds every other label but `ids`."""
+        return gen_version(list(rows), standing=[i for i in GEN_ORDER if i not in rows and i not in ids])
+
+    run('a deleted label cut from a base it stands in (braced): passes', 0,
+        'with 6/6 bodies pasted back at their 6 labels in 1 sites (the base had 0 of the sites moved: 0 bodies pasted '
+        'back there), the base less 1 cuts (5 lines)', **dict(versions(none, without([7])), spec=deleting([7])))
+    run('a deleted label cut from a base that registers it (unbraced there): passes', 0,
+        '(the base had 1 of the sites moved: 7 bodies pasted back there), the base less 1 cuts (3 lines)',
+        **dict(versions(gen_version([4, 5, 6, 7, 13, 14, 15]), without([7])), spec=deleting([7])))
+    run('a deleted label falling into the next label\'s body: its line alone is cut, passes', 0,
+        'the base less 1 cuts (1 lines)', **dict(versions(none, without([9])), spec=deleting([9])))
+    run('a deleted label sharing the body of the label above it fails', 1,
+        'deleted label 10 shares the body of the label above it', **dict(versions(none, without([10])),
+                                                                          spec=deleting([10])))
+    run('a deleted label still registered in the tree fails', 1, 'rows [7] are not labels of the switch',
+        **dict(versions(none, gen_version([4, 5, 6, 7, 13, 14, 15])), spec=deleting([7])))
+    run('a deleted label still standing in the tree fails', 1,
+        'case 7 stands in the switch but is not one of its labels',
+        **dict(versions(none, six), spec=deleting([7])))
+    run('a label gone from the tree but not deleted fails', 1, '[7] neither registered nor standing in the switch',
+        **versions(none, without([7])))
+    tail = ('    target->Tail();\n', '')
+    no_tail = (without([7])[0].replace(*tail), without([7])[1])
+    run('a file cut of lines outside the sites: passes', 0, 'the base less 2 cuts (6 lines)',
+        **dict(versions(none, no_tail), spec=deleting([7], [(['    target->Tail();'], 1)])))
+    run('a file cut a line long fails', 1, 'DIFFERS',
+        **dict(versions(none, no_tail), spec=deleting([7], [(['    target->Tail();'], 2)])))
+    run('a file cut whose first lines the base does not hold cuts nothing there: fails', 1, 'DIFFERS',
+        **dict(versions(none, no_tail), spec=deleting([7], [(['Tail();'], 1)])))
+    run('a file cut whose first lines stand twice in the base fails', 1, 'the cut at \'        {\' found',
+        **dict(versions(none, no_tail), spec=deleting([7], [(['        {'], 1)])))
+    run('a file cut overlapping a deleted label fails', 1, 'two cuts overlap',
+        **dict(versions(none, without([7])), spec=deleting([7], [([GEN_SPEC['sites'][0]['labels'][7]], 1)])))
+    run('against a base from after the deletions (nothing left to cut): passes', 0,
+        '(the base had 1 of the sites moved: 6 bodies pasted back there), the base less 0 cuts (0 lines)',
+        **dict(versions(no_tail, no_tail), spec=deleting([7], [(['    target->Tail();'], 1)])))
+
+    gone_spec = dict(whole, sites=[dict(whole_site, gone=(1, 1))])
+    gone_tree = '\n'.join(head[:1] + ['#include "Handlers.h"'] + head[1:4] + ['}', ''])
+    no_rows = '#include "Handlers.h"\n\nvoid Register(Registry& registry)\n{\n}\n'
+    run('a site deleted whole, cut from a base before its move: passes', 0,
+        'with 0/0 bodies pasted back at their 0 labels in 0 sites (the base had 0 of the sites moved: 0 bodies pasted '
+        'back there), the base less 1 cuts (%d lines)' % (len(switch) + 5),
+        old_text=whole_origin, sites=gone_tree, handlers=no_rows, spec=gone_spec)
+    run('a site deleted whole, cut from a base that had it moved (unbraced there): passes', 0,
+        '(the base had 1 of the sites moved: 4 bodies pasted back there), the base less 1 cuts', old_text=whole_tree,
+        old_handlers='\n'.join(whole_handlers), sites=gone_tree, handlers=no_rows, spec=gone_spec)
+    run('a site deleted whole, against a base from after its deletion: passes', 0,
+        '(the base had 0 of the sites moved: 0 bodies pasted back there), the base less 0 cuts (0 lines)',
+        old_text=gone_tree, old_handlers=no_rows, sites=gone_tree, handlers=no_rows, spec=gone_spec)
+    run('a site deleted whole, a line below it kept that GONE names: fails', 1, 'DIFFERS', old_text=whole_origin,
+        sites=gone_tree.replace('\n}\n', '\n    target->Tail();\n}\n'), handlers=no_rows, spec=gone_spec)
+    run('a site deleted whole whose dispatch still stands fails', 1,
+        'generated whole: deleted, and its dispatch still stands', old_text=whole_origin, sites=whole_tree,
+        handlers=no_rows, spec=gone_spec)
+    run('a site deleted whole whose table still stands fails', 1,
+        'deleted, and a table typed by RemoveSite still stands',
+        old_text=whole_origin, sites=gone_tree, handlers=no_rows.replace(
+            '{\n}', '{\n    static Row<RemoveSite> const removed[] =\n    {\n    };\n}'), spec=gone_spec)
+    run('a site deleted whole whose default is still registered fails', 1,
+        'deleted, and a default is still registered for it', old_text=whole_origin, sites=gone_tree,
+        handlers=no_rows.replace('{\n}', '{\n    registry.RegisterDefault<RemoveSite>(&DropDefault);\n}'),
+        spec=gone_spec)
+    run('a whole switch deleting some of its labels fails', 1, 'deletes labels and keeps its dispatch',
+        old_text=whole_origin, sites=whole_tree, handlers='\n'.join(whole_handlers),
+        spec=dict(whole, sites=[dict(whole_site, deleted=[1])]))
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
