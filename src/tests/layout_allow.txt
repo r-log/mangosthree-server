@@ -1870,7 +1870,7 @@ src/game/spells/SpellCooldownMgr.cpp -> src/proto/WorldPacket.h
 src/game/spells/SpellCooldownMgr.h -> src/game/entities/player/ManagerPacketSink.h
 # The warrior stance handlers (41099-41101, 53790-53792) call SetVirtualItem with VIRTUAL_ITEM_SLOT_*.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
-# Handlers 61336 (GetModifier()->m_amount) and the Improved Moonkin Form default (GetId()) read the aura.
+# The handlers read the aura: 61336 GetModifier()->m_amount; the removal bodies GetRemoveMode() and GetCaster(), 61900 GetSpellProto(); the feign-death body GetCasterGuid() and GetId().
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 src/modules/SD3/include/precompiled.h -> src/game/WorldHandlers/World.h
 src/modules/SD3/include/sc_grid_searchers.cpp -> src/game/WorldHandlers/World.h

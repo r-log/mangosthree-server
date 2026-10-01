@@ -27,33 +27,29 @@
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
 /// contexts, and the game's sites (HandleAuraDummy's) are checked for their keys, their defaults
-/// and their contexts, and run where a body needs no live Unit (the Improved Moonkin Form ranks,
-/// the quest-tame labels, the Unrelenting Assault default, the removal labels on a mode that keeps them off the
-/// Unit); a body that casts needs a live Unit, which the harness record covers where a scenario reaches it (931:
-/// 41101 and 53790, applied and removed; the coverage scenario two-feigns-one-lift: the feign-death body, through
-/// 29266 and 31261; no scenario reaches a druid, quest-tame or Unrelenting Assault label, nor another removal one).
+/// and their contexts, and run where a body needs no live Unit (the quest-tame labels, the removal labels on a
+/// mode that keeps them off the Unit); a body that casts needs a live Unit, which the harness record covers where a
+/// scenario reaches it (931: 41101 and 53790, applied and removed; the coverage scenario two-feigns-one-lift: the
+/// feign-death body, through 29266 and 31261; no scenario reaches a druid or quest-tame label, nor another removal
+/// one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
-///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault,
+///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheTableRegistersEveryRowOnce
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
-///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault,
+///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss
-///   default dropped          AuraDummyHandlers_TheUnrelentingAssaultSiteHoldsTwoRanksAndItsDefault,
-///                            AuraDummyHandlers_TheImprovedMoonkinSiteHoldsThreeRanksAndItsDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
-///                            AuraDummyHandlers_AContinueFromTheAssaultDefaultLeavesTheLoopNotTheFunction,
-///                            AuraDummyHandlers_TheImprovedMoonkinRanksSetTheSpellTheTailCasts,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts
 ///   a lost live-out          SpellHandlerRegistry_ALiveOutWrittenByAHandlerReachesTheSite,
 ///                            AuraDummyHandlers_TheApplyContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal,
-///                            AuraDummyHandlers_TheNewContextsAliasTheirLocals,
+///                            AuraDummyHandlers_TheApplyRemoveContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
@@ -64,9 +60,7 @@
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
 
-#include <list>
 #include <set>
-#include <string>
 
 namespace
 {
@@ -363,13 +357,12 @@ TEST(AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances)
     }
     CHECK_EQ(distinct.size(), std::size_t(6));                  // six bodies, none shared
 
-    // The family's other switch (Unrelenting Assault, keyed on another aura's id) is not this site,
-    // and the site has no default: a miss is Miss() and the Overpower block runs after it.
-    CHECK(registry.Find<AuraDummyApplyWarriorSite>(46859) == NULL);
+    // The site has no default: a miss (Overpower 7384) is Miss() and the Overpower block runs after it.
+    CHECK(registry.Find<AuraDummyApplyWarriorSite>(7384) == NULL);
     CHECK(registry.FindDefault<AuraDummyApplyWarriorSite>() == NULL);
     Unit* target = NULL;
     AuraDummyApplyContext ctx(NULL, target);
-    CHECK(registry.Dispatch<AuraDummyApplyWarriorSite>(46859, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyApplyWarriorSite>(7384, ctx).IsMiss());
 
     // The game's table is the same one.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
@@ -394,59 +387,11 @@ TEST(AuraDummyHandlers_TheApplyContextAliasesTheTargetLocal)
 
 namespace
 {
-    typedef SpellHandler<AuraDummyUnrelentingAssaultSite>::Function AssaultFunction;
-    typedef SpellHandler<AuraDummyImprovedMoonkinSite>::Function MoonkinFunction;
-
     alignas(16) unsigned char s_auraStorage[3][16];
 
     Aura* FakeAura(int i)
     {
         return reinterpret_cast<Aura*>(s_auraStorage[i]);
-    }
-
-    // The shape of the Unrelenting Assault site in HandleAuraDummy's Overpower block: a loop over
-    // the caster's auras; at the one that passes the Unrelenting Assault test (here the second) the
-    // dispatch stands where the switch stood, then `break;` leaves the loop and the function carries
-    // on after it; a Return would have left the function. Returns the trace of what ran.
-    std::string RunUnrelentingAssaultLoop(SpellHandlerRegistry const& registry, uint32 assaultId)
-    {
-        std::list<Aura*> modifierAuras;
-        modifierAuras.push_back(FakeAura(0));
-        modifierAuras.push_back(FakeAura(1));
-        modifierAuras.push_back(FakeAura(2));
-        Unit* target = NULL;
-        std::string trace;
-        for (std::list<Aura*>::const_iterator itr = modifierAuras.begin(); itr != modifierAuras.end(); ++itr)
-        {
-            trace += "aura;";
-            if ((*itr) == FakeAura(1))
-            {
-                AuraDummyUnrelentingAssaultContext assaultCtx(target, itr);
-                if (registry.Dispatch<AuraDummyUnrelentingAssaultSite>(assaultId, assaultCtx).IsReturn())
-                {
-                    trace += "returned;";
-                    return trace;
-                }
-                trace += "after the switch;";
-                break;
-            }
-        }
-        trace += "after the loop;";
-        return trace;
-    }
-
-    // The shape of the Improved Moonkin Form site: the rank's body sets `spell_id`, which the code
-    // after the switch casts (or removes); a Return leaves before it. Returns what the tail reads,
-    // or 0 when the site returned.
-    uint32 RunImprovedMoonkin(SpellHandlerRegistry const& registry, uint32 rankId)
-    {
-        uint32 spell_id = 0;
-        AuraDummyImprovedMoonkinContext imfCtx(NULL, spell_id);
-        if (registry.Dispatch<AuraDummyImprovedMoonkinSite>(rankId, imfCtx).IsReturn())
-        {
-            return 0;
-        }
-        return spell_id;
     }
 
     uint32 const QUEST_TAME_RETURNED = 0xFFFFFFFF;
@@ -466,77 +411,27 @@ namespace
 
 TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 6 warrior stances, 2 Unrelenting Assault ranks and its default, 18 quest-tame labels, 32 removal labels,
-    // 16 feign-death labels, 2 druid labels, 3 Improved Moonkin Form ranks and its default: 81 rows, 79 keys and
-    // 2 defaults, none twice.
+    // 6 warrior stances, 18 quest-tame labels, 30 removal labels, 16 feign-death labels, 2 druid labels: 72 rows
+    // and 72 keys, none twice, and no default.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(81));
-    CHECK_EQ(registry.Count(), std::size_t(79));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(2));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(72));
+    CHECK_EQ(registry.Count(), std::size_t(72));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraDummyApplyWarriorSite::Key), std::size_t(6));
-    CHECK_EQ(registry.CountAt(AuraDummyUnrelentingAssaultSite::Key), std::size_t(2));
-    CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(32));
+    CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
     CHECK_EQ(registry.CountAt(AuraDummyQuestTameSite::Key), std::size_t(18));
     CHECK_EQ(registry.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(16));
     CHECK_EQ(registry.CountAt(AuraDummyDruidSite::Key), std::size_t(2));
-    CHECK_EQ(registry.CountAt(AuraDummyImprovedMoonkinSite::Key), std::size_t(3));
 
-    // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(81));
-    CHECK_EQ(registry.Count(), std::size_t(79));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(2));
+    // Registering again on the same table changes nothing: every key is taken.
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(72));
+    CHECK_EQ(registry.Count(), std::size_t(72));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table is the same one.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(79));
-    CHECK_EQ(game.CountDefaults(), std::size_t(2));
-}
-
-TEST(AuraDummyHandlers_TheUnrelentingAssaultSiteHoldsTwoRanksAndItsDefault)
-{
-    SpellHandlerRegistry registry;
-    RegisterAuraDummyHandlers(registry);
-    AssaultFunction rank1 = registry.Find<AuraDummyUnrelentingAssaultSite>(46859);
-    AssaultFunction rank2 = registry.Find<AuraDummyUnrelentingAssaultSite>(46860);
-    AssaultFunction onMiss = registry.FindDefault<AuraDummyUnrelentingAssaultSite>();
-    CHECK(rank1 != NULL);
-    CHECK(rank2 != NULL);
-    CHECK(onMiss != NULL);
-    CHECK(rank1 != rank2);
-    CHECK(onMiss != rank1 && onMiss != rank2);
-
-    // Keyed on the modifier aura's id, not the Overpower aura's: the ranks are not the warrior
-    // apply site's, and that site's stances are not this one's.
-    CHECK(registry.Find<AuraDummyApplyWarriorSite>(46859) == NULL);
-    CHECK(registry.Find<AuraDummyUnrelentingAssaultSite>(41101) == NULL);
-
-    // A miss runs the site's default (`default: break;`): Continue, never Miss.
-    Unit* target = NULL;
-    std::list<Aura*> auras(1, FakeAura(0));
-    std::list<Aura*>::const_iterator itr = auras.begin();
-    AuraDummyUnrelentingAssaultContext ctx(target, itr);
-    CHECK(registry.Dispatch<AuraDummyUnrelentingAssaultSite>(41101, ctx).IsContinue());
-    CHECK(registry.Dispatch<AuraDummyUnrelentingAssaultSite>(12345, ctx).IsContinue());
-
-    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK(game.Find<AuraDummyUnrelentingAssaultSite>(46859) == rank1);
-    CHECK(game.Find<AuraDummyUnrelentingAssaultSite>(46860) == rank2);
-    CHECK(game.FindDefault<AuraDummyUnrelentingAssaultSite>() == onMiss);
-}
-
-TEST(AuraDummyHandlers_AContinueFromTheAssaultDefaultLeavesTheLoopNotTheFunction)
-{
-    // The real default body, reached by a miss, answers Continue: the site's `break;` after the
-    // switch leaves the loop and the code after the loop runs. (In HandleAuraDummy that code is a
-    // `return;`, so there a Return would look the same; the double shows the outcome the site acts on.)
-    CHECK_STR(RunUnrelentingAssaultLoop(SpellHandlerRegistry::Game(), 12345),
-              std::string("aura;aura;after the switch;after the loop;"));
-
-    // Against a Return handler at the same site, which leaves the function from inside the loop.
-    SpellHandlerRegistry returning;
-    CHECK(returning.RegisterDefault<AuraDummyUnrelentingAssaultSite>(
-        [](AuraDummyUnrelentingAssaultContext&) { return SpellHandlerOutcome<void>::Return(); }));
-    CHECK_STR(RunUnrelentingAssaultLoop(returning, 12345), std::string("aura;aura;returned;"));
+    CHECK_EQ(game.Count(), std::size_t(72));
+    CHECK_EQ(game.CountDefaults(), std::size_t(0));
 }
 
 TEST(AuraDummyHandlers_TheDruidSiteHoldsItsTwoLabelsAndNoDefault)
@@ -550,51 +445,19 @@ TEST(AuraDummyHandlers_TheDruidSiteHoldsItsTwoLabelsAndNoDefault)
     CHECK(savageRoar != survivalInstincts);
     CHECK(registry.FindDefault<AuraDummyDruidSite>() == NULL);
 
-    // An unmatched druid id is a Miss: HandleAuraDummy goes on to the Lifebloom, Predatory Strikes
-    // and Improved Moonkin Form blocks after the switch (Lifebloom 33763, Improved Moonkin Form 48384).
+    // An unmatched druid id is a Miss: HandleAuraDummy goes on to the Lifebloom and Predatory Strikes
+    // blocks after the switch (Lifebloom 33763, Predatory Strikes 16972).
     Unit* target = NULL;
     AuraDummyApplyRemoveContext ctx(NULL, target, true);
     CHECK(registry.Dispatch<AuraDummyDruidSite>(33763, ctx).IsMiss());
-    CHECK(registry.Dispatch<AuraDummyDruidSite>(48384, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyDruidSite>(16972, ctx).IsMiss());
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     CHECK(game.Find<AuraDummyDruidSite>(52610) == savageRoar);
     CHECK(game.Find<AuraDummyDruidSite>(61336) == survivalInstincts);
 }
 
-TEST(AuraDummyHandlers_TheImprovedMoonkinSiteHoldsThreeRanksAndItsDefault)
-{
-    SpellHandlerRegistry registry;
-    RegisterAuraDummyHandlers(registry);
-    std::set<MoonkinFunction> distinct;
-    static uint32 const ranks[] = { 48384, 48395, 48396 };
-    for (uint32 rankId : ranks)
-    {
-        MoonkinFunction function = registry.Find<AuraDummyImprovedMoonkinSite>(rankId);
-        CHECK(function != NULL);
-        distinct.insert(function);
-    }
-    CHECK_EQ(distinct.size(), std::size_t(3));
-    MoonkinFunction onMiss = registry.FindDefault<AuraDummyImprovedMoonkinSite>();
-    CHECK(onMiss != NULL);                                      // a miss logs and returns (it needs the aura)
-    CHECK(distinct.count(onMiss) == 0);
-    CHECK(registry.Find<AuraDummyDruidSite>(48384) == NULL);    // the ranks are this site's only
-
-    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK(game.FindDefault<AuraDummyImprovedMoonkinSite>() == onMiss);
-}
-
-TEST(AuraDummyHandlers_TheImprovedMoonkinRanksSetTheSpellTheTailCasts)
-{
-    // The real rank bodies: each writes the block's `spell_id` and answers Continue, so the code
-    // after the switch casts that spell.
-    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(RunImprovedMoonkin(game, 48384), uint32(50170));
-    CHECK_EQ(RunImprovedMoonkin(game, 48395), uint32(50171));
-    CHECK_EQ(RunImprovedMoonkin(game, 48396), uint32(50172));
-}
-
-TEST(AuraDummyHandlers_TheNewContextsAliasTheirLocals)
+TEST(AuraDummyHandlers_TheApplyRemoveContextAliasesTheTargetLocal)
 {
     alignas(16) static unsigned char units[2][16];
     Unit* target = reinterpret_cast<Unit*>(units[0]);
@@ -606,36 +469,18 @@ TEST(AuraDummyHandlers_TheNewContextsAliasTheirLocals)
     CHECK(!applyRemove.apply);
     applyRemove.target = reinterpret_cast<Unit*>(units[1]);
     CHECK(target == reinterpret_cast<Unit*>(units[1]));
-
-    uint32 spell_id = 0;
-    AuraDummyImprovedMoonkinContext moonkin(aura, spell_id);
-    CHECK(moonkin.aura == aura);
-    moonkin.spell_id = 50171;
-    CHECK_EQ(spell_id, uint32(50171));
-
-    // The Unrelenting Assault context holds the loop's iterator itself: the aura a body reads
-    // through it is the one the loop stands on.
-    std::list<Aura*> auras;
-    auras.push_back(FakeAura(0));
-    auras.push_back(FakeAura(1));
-    std::list<Aura*>::const_iterator itr = auras.begin();
-    AuraDummyUnrelentingAssaultContext assault(target, itr);
-    CHECK((*assault.itr) == FakeAura(0));
-    ++itr;
-    CHECK((*assault.itr) == FakeAura(1));
-    CHECK(assault.target == target);
 }
 
-TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault)
+TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault)
 {
     static uint32 const stances[] = { 41099, 41100, 41101, 53790, 53791, 53792 };
-    static uint32 const byMode[] = { 12774, 32045, 32051, 32052, 32286, 42454, 43681,
+    static uint32 const byMode[] = { 12774, 32045, 32051, 32052, 32286, 42454,
                                      43969, 45934, 50141, 51870, 52098, 56511, 61900 };
-    static uint32 const byBody[] = { 10255, 12479, 28169, 35079, 36730, 45963, 46308, 46637, 53039, 58600, 68839 };
+    static uint32 const byBody[] = { 10255, 12479, 28169, 35079, 36730, 45963, 46308, 46637, 53039, 68839 };
 
     SpellHandlerRegistry registry;
     RegisterAuraDummyHandlers(registry);
-    CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(32));
+    CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
     for (uint32 spellId : stances)
     {
         SpellHandler<AuraDummyRemoveSite>::Function function = registry.Find<AuraDummyRemoveSite>(spellId);
@@ -647,7 +492,7 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault)
               != reinterpret_cast<void (*)()>(function));
     }
 
-    // The fourteen labels whose bodies read the removal mode: fourteen bodies, none shared, and none a stance's.
+    // The thirteen labels whose bodies read the removal mode: thirteen bodies, none shared, and none a stance's.
     std::set<SpellHandler<AuraDummyRemoveSite>::Function> distinct;
     for (uint32 spellId : byMode)
     {
@@ -655,13 +500,13 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault)
         CHECK(function != NULL);
         distinct.insert(function);
     }
-    CHECK_EQ(distinct.size(), std::size_t(14));
+    CHECK_EQ(distinct.size(), std::size_t(13));
     for (uint32 spellId : stances)
     {
         CHECK(distinct.count(registry.Find<AuraDummyRemoveSite>(spellId)) == 0);
     }
 
-    // The twelve labels whose bodies read no mode and need no motion or map header: eleven bodies, 35079 and 59628
+    // The eleven labels whose bodies read no mode and need no motion or map header: ten bodies, 35079 and 59628
     // one function; none a stance's or a mode reader's.
     std::set<SpellHandler<AuraDummyRemoveSite>::Function> others;
     for (uint32 spellId : byBody)
@@ -671,7 +516,7 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault)
         CHECK(distinct.count(function) == 0);
         others.insert(function);
     }
-    CHECK_EQ(others.size(), std::size_t(11));
+    CHECK_EQ(others.size(), std::size_t(10));
     // 35079 and 59628 one function: proven by verbatim, not here: this binary links with COMDAT folding, so an
     // identical second function folds to the same address.
     CHECK(registry.Find<AuraDummyRemoveSite>(59628) == registry.Find<AuraDummyRemoveSite>(35079));
@@ -695,7 +540,7 @@ TEST(AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyTwoLabelsAndNoDefault)
     CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(61900) == NULL);
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(32));
+    CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
     for (uint32 spellId : stances)
     {
         CHECK(game.Find<AuraDummyRemoveSite>(spellId) == registry.Find<AuraDummyRemoveSite>(spellId));
@@ -782,7 +627,6 @@ TEST(AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns)
         { 32052, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DEFAULT },
         { 32286, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DEFAULT },
         { 42454, AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_EXPIRE },
-        { 43681, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DEFAULT },
         { 43969, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DEFAULT },
         { 45934, AURA_REMOVE_BY_DISPEL, AURA_REMOVE_BY_DEFAULT },
         { 50141, AURA_REMOVE_BY_EXPIRE, AURA_REMOVE_BY_DEFAULT },

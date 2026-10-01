@@ -27,7 +27,6 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Object/Creature.h"
 #include "WorldHandlers/SpellAuras.h"
-#include "Log/Log.h"
 
 /// SPELLFAMILY_WARRIOR 41099: Battle Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior41099(AuraDummyApplyContext& ctx)
@@ -153,26 +152,6 @@ static SpellHandlerOutcome<void> AuraDummyApplyWarrior53792(AuraDummyApplyContex
     ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
     ((Creature*)ctx.target)->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
     return SpellHandlerOutcome<void>::Return();
-}
-
-/// SPELLFAMILY_WARRIOR, Overpower's Unrelenting Assault 46859: rank 1
-static SpellHandlerOutcome<void> AuraDummyUnrelentingAssault46859(AuraDummyUnrelentingAssaultContext& ctx)
-{
-    ctx.target->CastSpell(ctx.target, 64849, true, NULL, (*ctx.itr));
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// SPELLFAMILY_WARRIOR, Overpower's Unrelenting Assault 46860: rank 2
-static SpellHandlerOutcome<void> AuraDummyUnrelentingAssault46860(AuraDummyUnrelentingAssaultContext& ctx)
-{
-    ctx.target->CastSpell(ctx.target, 64850, true, NULL, (*ctx.itr));
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// SPELLFAMILY_WARRIOR, Overpower's Unrelenting Assault switch: its `default:`
-static SpellHandlerOutcome<void> AuraDummyUnrelentingAssaultDefault(AuraDummyUnrelentingAssaultContext& /*ctx*/)
-{
-    return SpellHandlerOutcome<void>::Continue();
 }
 
 /// AT REMOVE, quest tame 19548: Tame Ice Claw Bear
@@ -464,16 +443,6 @@ static SpellHandlerOutcome<void> AuraDummyRemove42454(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// AT REMOVE 43681: Inactive
-static SpellHandlerOutcome<void> AuraDummyRemove43681(AuraDummyRemoveContext& ctx)
-{
-    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE && ctx.target->GetTypeId() == TYPEID_PLAYER)
-    {
-        ((Player*)ctx.target)->ToggleAFK();
-    }
-    return SpellHandlerOutcome<void>::Return();
-}
-
 /// AT REMOVE 43969: Feathered Charm
 static SpellHandlerOutcome<void> AuraDummyRemove43969(AuraDummyRemoveContext& ctx)
 {
@@ -601,20 +570,6 @@ static SpellHandlerOutcome<void> AuraDummyRemove56511(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// AT REMOVE 58600: Restricted Flight Area
-static SpellHandlerOutcome<void> AuraDummyRemove58600(AuraDummyRemoveContext& ctx)
-{
-    //AreaTableEntry const* area = GetAreaEntryByAreaID(target->GetTerrain()->GetAreaId(target->Where().X(), target->Where().Y(), target->Where().Z()));
-
-    //// Dalaran restricstruct boss_freyted flight zone (recheck before apply unmount)
-    //if (area && target->GetTypeId() == TYPEID_PLAYER && (area->flags & AREA_FLAG_CANNOT_FLY) &&
-    //        ((Player*)target)->IsFreeFlying() && !((Player*)target)->isGameMaster())
-    //{
-    //    target->CastSpell(target, 58601, true); // Remove Flight Auras (also triggered Parachute (45472))
-    //}
-    return SpellHandlerOutcome<void>::Return();
-}
-
 /// AT REMOVE 61900: Electrical Charge
 static SpellHandlerOutcome<void> AuraDummyRemove61900(AuraDummyRemoveContext& ctx)
 {
@@ -697,34 +652,6 @@ static SpellHandlerOutcome<void> AuraDummyDruid61336(AuraDummyApplyRemoveContext
     return SpellHandlerOutcome<void>::Return();
 }
 
-/// SPELLFAMILY_DRUID, Improved Moonkin Form 48384: rank 1
-static SpellHandlerOutcome<void> AuraDummyImprovedMoonkin48384(AuraDummyImprovedMoonkinContext& ctx)
-{
-    ctx.spell_id = 50170;
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// SPELLFAMILY_DRUID, Improved Moonkin Form 48395: rank 2
-static SpellHandlerOutcome<void> AuraDummyImprovedMoonkin48395(AuraDummyImprovedMoonkinContext& ctx)
-{
-    ctx.spell_id = 50171;
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// SPELLFAMILY_DRUID, Improved Moonkin Form 48396: rank 3
-static SpellHandlerOutcome<void> AuraDummyImprovedMoonkin48396(AuraDummyImprovedMoonkinContext& ctx)
-{
-    ctx.spell_id = 50172;
-    return SpellHandlerOutcome<void>::Continue();
-}
-
-/// SPELLFAMILY_DRUID, Improved Moonkin Form's rank switch: its `default:`
-static SpellHandlerOutcome<void> AuraDummyImprovedMoonkinDefault(AuraDummyImprovedMoonkinContext& ctx)
-{
-    sLog.outError("HandleAuraDummy: Not handled rank of IMF (Spell: %u)", ctx.aura->GetId());
-    return SpellHandlerOutcome<void>::Return();
-}
-
 template <class Site>
 struct AuraDummyRow
 {
@@ -753,12 +680,6 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 53790, &AuraDummyApplyWarrior53790 },
         { 53791, &AuraDummyApplyWarrior53791 },
         { 53792, &AuraDummyApplyWarrior53792 },
-    };
-
-    static AuraDummyRow<AuraDummyUnrelentingAssaultSite> const unrelentingAssault[] =
-    {
-        { 46859, &AuraDummyUnrelentingAssault46859 },
-        { 46860, &AuraDummyUnrelentingAssault46860 },
     };
 
     static AuraDummyRow<AuraDummyQuestTameSite> const questTame[] =
@@ -800,7 +721,6 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 41100, &AuraDummyRemove41100 },
         { 41101, &AuraDummyRemove41101 },
         { 42454, &AuraDummyRemove42454 },
-        { 43681, &AuraDummyRemove43681 },
         { 43969, &AuraDummyRemove43969 },
         { 45934, &AuraDummyRemove45934 },
         { 45963, &AuraDummyRemove45963 },
@@ -814,7 +734,6 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 53791, &AuraDummyRemove53791 },
         { 53792, &AuraDummyRemove53792 },
         { 56511, &AuraDummyRemove56511 },
-        { 58600, &AuraDummyRemove58600 },
         { 61900, &AuraDummyRemove61900 },
         { 68839, &AuraDummyRemove68839 },
     };
@@ -845,23 +764,10 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 61336, &AuraDummyDruid61336 },
     };
 
-    static AuraDummyRow<AuraDummyImprovedMoonkinSite> const improvedMoonkin[] =
-    {
-        { 48384, &AuraDummyImprovedMoonkin48384 },
-        { 48395, &AuraDummyImprovedMoonkin48395 },
-        { 48396, &AuraDummyImprovedMoonkin48396 },
-    };
-
     uint32 rows = RegisterAuraDummyRows(registry, warriorApply);
-    rows += RegisterAuraDummyRows(registry, unrelentingAssault);
-    registry.RegisterDefault<AuraDummyUnrelentingAssaultSite>(&AuraDummyUnrelentingAssaultDefault);
-    ++rows;
     rows += RegisterAuraDummyRows(registry, questTame);
     rows += RegisterAuraDummyRows(registry, removal);
     rows += RegisterAuraDummyRows(registry, feignDeath);
     rows += RegisterAuraDummyRows(registry, druid);
-    rows += RegisterAuraDummyRows(registry, improvedMoonkin);
-    registry.RegisterDefault<AuraDummyImprovedMoonkinSite>(&AuraDummyImprovedMoonkinDefault);
-    ++rows;
     return rows;
 }

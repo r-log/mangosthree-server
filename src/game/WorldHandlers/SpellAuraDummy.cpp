@@ -248,9 +248,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     case 47593:                             // Freezing Cloud
                         target->CastSpell(target, 47594, true, NULL, this);
                         return;
-                    case 48025:                             // Headless Horseman's Mount
-                        Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 51621, 48024, 51617, 48023, 0);
-                        return;
                     case 48143:                             // Forgotten Aura
                         // See Death's Door
                         target->CastSpell(target, 48814, true, NULL, this);
@@ -260,19 +257,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                         // Pet will be following owner, this makes him stop
                         target->GetMotionMaster()->Inhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, GetCasterGuid().GetCounter()));
                         return;
-                    case 54729:                             // Winged Steed of the Ebon Blade
-                        Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 0, 0, 54726, 54727, 0);
-                        return;
-                    case 58600:                             // Restricted Flight Area
-                    {
-                        if (!target || target->GetTypeId() != TYPEID_PLAYER)
-                        {
-                            return;
-                        }
-                        const char* text = sObjectMgr.GetMangosString(LANG_NO_FLY_ZONE, ((Player*)target)->GetSession()->GetSessionDbLocaleIndex());
-                        target->MonsterWhisper(text, target, true);
-                        return;
-                    }
                     case 61187:                             // Twilight Shift (single target)
                     case 61190:                             // Twilight Shift (many targets)
                         target->RemoveAurasDueToSpell(57620);
@@ -337,23 +321,8 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                             target->CastSpell(target, 70639, true, NULL, this);
                         }
                         return;
-                    case 71342:                             // Big Love Rocket
-                        Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 71344, 71345, 71346, 71347, 0);
-                        return;
                     case 71563:                             // Deadly Precision
                         target->CastSpell(target, 71564, true, NULL, this);
-                        return;
-                    case 72286:                             // Invincible
-                        Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 72281, 72282, 72283, 72284, 0);
-                        return;
-                    case 74856:                             // Blazing Hippogryph
-                        Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 0, 0, 74854, 74855, 0);
-                        return;
-                    case 75614:                             // Celestial Steed
-                        Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 75619, 75620, 75617, 75618, 76153);
-                        return;
-                    case 75973:                             // X-53 Touring Rocket
-                        Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 0, 0, 75957, 75972, 76154);
                         return;
                 }
                 break;
@@ -369,33 +338,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 // Overpower
                 if (classOptions && classOptions->SpellClassMask & UI64LIT(0x0000000000000004))
                 {
-                    // Must be casting target
-                    if (!target->IsNonMeleeSpellCasted(false))
-                    {
-                        return;
-                    }
-
-                    Unit* caster = GetCaster();
-                    if (!caster)
-                    {
-                        return;
-                    }
-
-                    Unit::AuraList const& modifierAuras = caster->GetAurasByType(SPELL_AURA_ADD_FLAT_MODIFIER);
-                    for (Unit::AuraList::const_iterator itr = modifierAuras.begin(); itr != modifierAuras.end(); ++itr)
-                    {
-                        // Unrelenting Assault
-                        if ((*itr)->GetSpellProto()->GetSpellFamilyName()==SPELLFAMILY_WARRIOR && (*itr)->GetSpellProto()->SpellIconID == 2775)
-                        {
-                            AuraDummyUnrelentingAssaultContext assaultCtx(target, itr);
-                            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyUnrelentingAssaultSite>(
-                                    (*itr)->GetSpellProto()->ID, assaultCtx).IsReturn())
-                            {
-                                return;
-                            }
-                            break;
-                        }
-                    }
                     return;
                 }
                 break;
@@ -871,32 +813,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             if (target->GetTypeId() == TYPEID_PLAYER && GetSpellProto()->SpellIconID == 1563)
             {
                 ((Player*)target)->UpdateAttackPowerAndDamage();
-                return;
-            }
-
-            // Improved Moonkin Form
-            if (GetSpellProto()->SpellIconID == 2855)
-            {
-                uint32 spell_id;
-                AuraDummyImprovedMoonkinContext imfCtx(this, spell_id);
-                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyImprovedMoonkinSite>(GetId(), imfCtx).IsReturn())
-                {
-                    return;
-                }
-
-                if (apply)
-                {
-                    if (target->GetShapeshiftForm() != FORM_MOONKIN)
-                    {
-                        return;
-                    }
-
-                    target->CastSpell(target, spell_id, true);
-                }
-                else
-                {
-                    target->RemoveAurasDueToSpell(spell_id);
-                }
                 return;
             }
             break;

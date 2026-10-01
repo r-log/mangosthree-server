@@ -70,14 +70,8 @@ enum SpellHandlerSite
 {
     /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_WARRIOR's `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_WARRIOR = 1,
-    /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_WARRIOR's Overpower block: the Unrelenting
-    /// Assault `switch ((*itr)->GetSpellProto()->ID)` inside its loop over the caster's auras.
-    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_WARRIOR_UNRELENTING_ASSAULT = 2,
     /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_DRUID's `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_DUMMY_DRUID = 3,
-    /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_DRUID's Improved Moonkin Form block:
-    /// its rank `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_DUMMY_DRUID_IMPROVED_MOONKIN = 4,
     /// `Aura::HandleAuraDummy`, AT REMOVE: the family-independent `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_DUMMY_REMOVE = 5,
     /// `Aura::HandleAuraDummy`, AT REMOVE, the hunter quest-tame block: its `switch (GetId())`.

@@ -270,35 +270,6 @@ void Aura::HandleShapeshiftBoosts(bool apply)
                 }
             }
 
-            // Improved Moonkin Form
-            if (form == FORM_MOONKIN)
-            {
-                Unit::AuraList const& dummyAuras = target->GetAurasByType(SPELL_AURA_DUMMY);
-                for (Unit::AuraList::const_iterator i = dummyAuras.begin(); i != dummyAuras.end(); ++i)
-                {
-                    if ((*i)->GetSpellProto()->GetSpellFamilyName()==SPELLFAMILY_DRUID &&
-                        (*i)->GetSpellProto()->SpellIconID == 2855)
-                    {
-                        uint32 spell_id = 0;
-                        switch ((*i)->GetId())
-                        {
-                            case 48384: spell_id = 50170; break; // Rank 1
-                            case 48395: spell_id = 50171; break; // Rank 2
-                            case 48396: spell_id = 50172; break; // Rank 3
-                            default:
-                                sLog.outError("Aura::HandleShapeshiftBoosts: Not handled rank of IMF (Spell: %u)", (*i)->GetId());
-                                break;
-                        }
-
-                        if (spell_id)
-                        {
-                            target->CastSpell(target, spell_id, true, NULL, this);
-                        }
-                        break;
-                    }
-                }
-            }
-
             // Heart of the Wild
             if (HotWSpellId)
             {

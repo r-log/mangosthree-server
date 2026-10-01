@@ -139,7 +139,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) proves every site against the switches as they first stood; CI runs both.
-BASE = '067ae2cf0'
+BASE = 'afc28cec6'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -152,6 +152,15 @@ SITES = {
         'rows_function': 'RegisterAuraDummyRows',
         'added': ['#include "spells/handlers/AuraDummyHandlers.h"'],
         'tail_marker': '// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry\'s',
+        'cuts': [
+            (['                    case 48025:                             // Headless Horseman\'s Mount'], 3),
+            (['                    case 54729:                             // Winged Steed of the Ebon Blade'], 3),
+            (['                    case 58600:                             // Restricted Flight Area'], 10),
+            (['                    case 71342:                             // Big Love Rocket'], 3),
+            (['                    case 72286:                             // Invincible'], 3),
+            (['                    case 74856:                             // Blazing Hippogryph'], 3),
+            (['                    case 75614:                             // Celestial Steed'], 3),
+            (['                    case 75973:                             // X-53 Touring Rocket'], 3)],
         'sites': [{
             'name': 'HandleAuraDummy AT APPLY, SPELLFAMILY_WARRIOR (switch (GetId()))',
             'dispatch': [
@@ -201,6 +210,7 @@ SITES = {
             'labels': {
                 46859: '                                case 46859:                 // Unrelenting Assault, rank 1',
                 46860: '                                case 46860:                 // Unrelenting Assault, rank 2'},
+            'gone': (18, 3),
         }, {
             'name': 'HandleAuraDummy AT REMOVE, the hunter quest-tame block (switch (GetId()))',
             'dispatch': [
@@ -300,6 +310,7 @@ SITES = {
                 58600: '            case 58600:                                     // Restricted Flight Area',
                 61900: '            case 61900:                                     // Electrical Charge',
                 68839: '            case 68839:                                     // Corrupt Soul'},
+            'deleted': [43681, 58600],
         }, {
             'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_GENERIC (switch (GetId()))',
             'dispatch': [
@@ -414,6 +425,7 @@ SITES = {
                 48384: '                    case 48384: {body}    // Rank 1',
                 48395: '                    case 48395: {body}    // Rank 2',
                 48396: '                    case 48396: {body}    // Rank 3'},
+            'gone': (5, 16),
         }],
     },
 }
