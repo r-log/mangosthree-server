@@ -224,16 +224,10 @@ namespace Harness
         /// finished, first), else NULL: nothing selected, a legacy binding, or a native that
         /// counts nothing. Only the chase and the follow keep them.
         Motion::RelayCounts const* Relays(Creature* c) const;
-        /// A scenario's self-cast: `caster->CastSpell(caster, spellId, true)` with one reading
-        /// taken in front of it and NOTHING refused. Unit::SpellHitResult has no self case, so a
-        /// spell whose damage class is not SPELL_DAMAGE_CLASS_NONE draws a hit roll against its
-        /// own caster -- a miss, a dodge, a parry or a resist -- and SPELL_ATTR_EX3_CANT_MISS does
-        /// not prevent it (the urand at UnitCombat.cpp:654 is drawn before the attribute is read
-        /// at :658, and resist, dodge and parry follow regardless). Under the harness's fixed seed
-        /// a bad roll fails EVERY run, which reads as a hard regression rather than as flake, so
-        /// this logs one MVTEST WARN naming the spell and its class. Log only: the cast goes out
-        /// either way and no verdict changes. It exists so the next person to debug an aura that
-        /// never applied sees the reason in the run's own log.
+        /// A scenario's self-cast: `caster->CastSpell(caster, spellId, true)`, NOTHING refused.
+        /// Unit::SpellHitResult answers SPELL_MISS_NONE for a cast's own caster before its damage
+        /// class is read, so whatever that class, the aura draws no miss, dodge, parry or resist
+        /// against him; evade and immunity still decide first.
         void SelfCast(Unit* caster, uint32 spellId);
         /// "MVTEST <name> " + the formatted text.
         void Log(char const* fmt, ...) const;

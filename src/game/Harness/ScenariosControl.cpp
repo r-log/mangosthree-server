@@ -2564,18 +2564,17 @@ namespace Harness
         /// HandleAuraModStun (SpellAuraControl.cpp:493) cannot fire either, and with no mechanic
         /// there is no diminishing group, so the duration is the flat 6 s on a player as well.
         ///
-        /// BASH WAS REJECTED WITH A NUMBER. 5211's SpellCategories row gives DefenseType 2
-        /// (SPELL_DAMAGE_CLASS_MELEE), so every application of it runs
-        /// Unit::MeleeSpellHitResult (UnitCombat.cpp:640): a ~5% miss roll, and dodge and parry
-        /// after it, because 5211 does not carry SPELL_ATTR_IMPOSSIBLE_DODGE_PARRY_BLOCK. This
-        /// scenario applies its stun THREE times in one run and all six of its categories are
-        /// keyed on the aura being on, so one unlucky roll takes the whole scenario out -- and
-        /// the harness's RNG is seeded, so it would take it out on every run rather than
-        /// occasionally, which is the worse of the two failures. 76216's damage class is NONE
-        /// and Unit::SpellHitResult returns SPELL_MISS_NONE for that without rolling anything
-        /// (UnitCombat.cpp:968-970). (Bash also wants bear form -- SpellShapeshift 67, stance
-        /// mask 16 -- and only the triggered cast's skip of the shapeshift check keeps that out
-        /// of the way; nothing here relies on that skip.)
+        /// NO HIT ROLL TWICE OVER. This scenario applies its stun THREE times in one run and all
+        /// six of its categories are keyed on the aura being on, so a roll that missed would take
+        /// the whole scenario out -- and the harness's RNG is seeded, so on every run rather than
+        /// occasionally. The stun is a self-cast, which Unit::SpellHitResult answers
+        /// SPELL_MISS_NONE for before reading the damage class (UnitCombat.cpp:942-946), and
+        /// 76216's damage class is NONE besides, which answers the same without a roll
+        /// (:950-951). 5211 Bash, by contrast, has DefenseType 2 (SPELL_DAMAGE_CLASS_MELEE) and no
+        /// SPELL_ATTR_IMPOSSIBLE_DODGE_PARRY_BLOCK, so cast at any unit but its caster it runs
+        /// Unit::MeleeSpellHitResult's miss, dodge and parry; and it wants bear form
+        /// (SpellShapeshift 67, stance mask 16), which only the triggered cast's skip of the
+        /// shapeshift check keeps out of the way. 76216 relies on neither.
         ///
         /// The one attribute 76216 does carry, SPELL_ATTR_UNK7 (0x80), is read in exactly two
         /// places in this tree: GetErrorAtShapeshiftedCast (SpellMgr.h:702), which a triggered
@@ -3223,13 +3222,13 @@ namespace Harness
         /// is friendly or hostile, SpellTargeting.cpp:1119) -- and has no SpellCategories row at
         /// all, so its damage class, mechanic, category and start-recovery category all read 0.
         ///
-        /// DAMAGE CLASS NONE IS THE LOAD-BEARING HALF. Unit::SpellHitResult has no self case and
-        /// no charm case: a spell whose class is MELEE, RANGED or MAGIC draws a roll against its
-        /// target (UnitCombat.cpp:969-977), and under the harness's fixed seed a bad one fails
-        /// every run. Scenario::SelfCast warns about exactly this for a self-cast; the charm is
-        /// cast AT the wolf rather than at the caster, so the warning would not cover it and the
-        /// spell is picked to need no cover. Mechanic 0 matters for the same reason from the
-        /// other end: MECHANIC_CHARM would put the aura in a diminishing group.
+        /// DAMAGE CLASS NONE IS THE LOAD-BEARING HALF. Unit::SpellHitResult has no charm case: a
+        /// spell whose class is MELEE, RANGED or MAGIC draws a roll against any target but its own
+        /// caster (UnitCombat.cpp:948-957), and under the harness's fixed seed a bad one fails
+        /// every run. The charm is cast AT the wolf rather than at the caster, so the self-cast
+        /// answer does not cover it, and the spell is picked to need no cover. Mechanic 0 matters
+        /// for the same reason from the other end: MECHANIC_CHARM would put the aura in a
+        /// diminishing group.
         ///
         /// The two obvious alternatives were rejected on their rows. 24261 "Brain Wash" and
         /// 35120 "Charm" both carry SPELL_ATTR_EX_CHANNELED_1, and a channel is a second thing
@@ -4204,7 +4203,7 @@ namespace Harness
         /// out of server-release/dbc/Spell.dbc column 35 and SpellCategories.dbc on 2026-09-21,
         /// the same way player-stun read 76216's absent row and 5211's DefenseType 2.) A class
         /// other than NONE sends Unit::SpellHitResult to MagicSpellHitResult
-        /// (UnitCombat.cpp:969-977), which rolls; the harness's seed is fixed, so a bad roll would
+        /// (UnitCombat.cpp:948-957), which rolls; the harness's seed is fixed, so a bad roll would
         /// fail this scenario on EVERY run rather than occasionally -- and a pet is exactly the
         /// shape that gets the roll, since it is neither the caster nor immune. Both mechanics are
         /// also diminishing groups, and diminishing returns apply to a player's pet.

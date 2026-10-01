@@ -73,9 +73,10 @@
 // aura applied, applied again and removed, and HandleAuraDummy's warrior stance labels; 932 a
 // periodic aura ticking to its expiry; 933 one aura each through HandleDummyAuraProc and
 // HandleProcTriggerSpellAuraProc, with their charges; 934 the player's cooldowns set and cleared by
-// call; 935 a cast interrupted by a stun and by the player mover; 936 C-1, Hellfire's self roll,
-// recorded as it is; 937 C-2, Mortar Shot's fall-through, recorded as it is; 938 the Creature
-// cooldown model of pets and charmed creatures, recorded as it is. The guard of 931-938
+// call; 935 a cast interrupted by a stun and by the player mover; 936 Hellfire cast on its own
+// caster, which hits him on every cast; 937 Mortar Shot at a unit outside its radius, which hits
+// that unit alone; 938 the Creature cooldown model of pets and charmed creatures, recorded as it
+// is. The guard of 931-938
 // (Qualify) fingerprints every spell a scenario reaches and refuses the random-pick labels, the
 // random chain targets and any script binding.
 namespace Harness
@@ -1100,7 +1101,7 @@ namespace Harness
      * TRIGGER_SPELL of 11920 (Net Guard, a 20 s DUMMY aura with no label anywhere) at A=6; no SD3
      * binding, no DBS_ON_SPELL chain, no spell_script_target; SPELLFAMILY_GENERIC but none of
      * GetSpellRangeAndRadius's dynamic labels. The stances: one APPLY_AURA DUMMY at A=1,
-     * SPELLFAMILY_WARRIOR, DefenseType 0 (so the self-cast draws no hit roll, UnitCombat.cpp:969);
+     * SPELLFAMILY_WARRIOR, DefenseType 0 (so the self-cast draws no hit roll, UnitCombat.cpp:950);
      * their case bodies cast 41102 or 59526 (Stance Cooldown, a DUMMY effect with no label) and
      * 41105 (Defensive Aura, an area aura on friends in 40 yd) on the cougar, and set its three
      * virtual items; the removal block takes 41105 off. Every one of those spells is fingerprinted.
@@ -1544,7 +1545,7 @@ namespace Harness
      * S933 `spell-proc-charges`: two auras with charges on a human priest, each proc'd by a spell a
      * spawned, silenced Mountain Cougar (2961) ten yards in front of him lands on him -- Burning
      * Shadows (40739), one point of fire damage with no SpellCategories row, so no hit roll
-     * (DefenseType 0, UnitCombat.cpp:969) and PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT on the victim
+     * (DefenseType 0, UnitCombat.cpp:950) and PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT on the victim
      * (SpellTargetList.cpp:514-515).
      *
      *  - Earth Shield (66063, the generic NPC one): a DUMMY aura, 6 charges, proc mask 0x222a8, no
@@ -2273,8 +2274,8 @@ namespace Harness
     };
 
     /**
-     * S936 `spell-self-roll-hellfire` -- C-1 (design/2026-09-21-combat-backlog.md), RECORDED AS IT
-     * IS, NOT FIXED: a human warlock at level 30 (the `.reset level` sequence) who has learned
+     * S936 `spell-self-roll-hellfire` -- a spell cast on its own caster takes no hit roll against
+     * him: a human warlock at level 30 (the `.reset level` sequence) who has learned
      * Hellfire (1949, Player::learnSpell, both in a setup window) casts it kHellfireCasts times
      * through the CAST_SPELL handler's calls, one cast every 1.6 s (past its 1.5 s global cooldown),
      * and the channel is ended by call (Unit::InterruptSpell(CURRENT_CHANNELED_SPELL)) 200 ms after
@@ -2284,21 +2285,19 @@ namespace Harness
      *
      * Hellfire's two effects are both APPLY_AURA at A=1 (TARGET_SELF): PERIODIC_TRIGGER_SPELL of
      * 5857 (the area damage) and PERIODIC_DAMAGE on the caster. They collapse into one target
-     * entry, the caster, and Unit::SpellHitResult has no self case, so ONE magic roll against
-     * himself decides both (MagicSpellHitResult: 96% at level difference 0, UnitCombat.cpp:818) --
-     * a self-miss drops the self damage AND the area aura, the whole channel. The count of
-     * self-misses over the casts is a value in the record, and so is the rule that no cast ever
-     * holds one of the two auras without the other. The named change after D11's PR 3 fixes C-1
-     * and changes this scenario's digest on purpose.
+     * entry, the caster, whose hit result Unit::SpellHitResult answers SPELL_MISS_NONE for without
+     * the magic roll (MagicSpellHitResult: 96% at level difference 0), so every cast holds both
+     * auras. Pins: `selfMissCount` is OK only when none of the N casts missed its caster (a single
+     * self-miss reads INVALID), and `oneRollBothEffects` that no cast ever holds one of the two
+     * auras without the other.
      *
      * THE SEED AND N. A channel with no cast time is cast in the map update after the handler's
-     * SpellStart (Spell::update), so each roll is drawn under the map hook's
-     * RNG::Seed(TickSeed(base, 936, elapsed)) (Harness.cpp:519, SeedMapUpdate); the harness's seed
-     * base is fixed (0x4D56) and the update runs the same objects in the same order every run, so
-     * each roll is a function of the cast's elapsed time alone and the count is the same
-     * every run. N = kHellfireCasts = 50: a 150-cast development run drew its first two
-     * self-misses at casts 42 and 45 (and 9 in all), so 50 casts hold a count that is neither 0 nor
-     * N (2). The record states N, the seed base and the pattern.
+     * SpellStart (Spell::update), under the map hook's RNG::Seed(TickSeed(base, 936, elapsed))
+     * (Harness.cpp:519, SeedMapUpdate); the harness's seed base is fixed (0x4D56) and the update
+     * runs the same objects in the same order every run, so a roll there would be a function of
+     * the cast's elapsed time alone. N = kHellfireCasts = 50: under this seed a magic roll against
+     * the caster would miss casts 42 and 45, so the 50 casts would read a self-miss if the roll
+     * came back. The record states N, the seed base and the pattern.
      */
     class SpellSelfRollHellfire : public SpellScenario
     {
@@ -2453,7 +2452,7 @@ namespace Harness
                                    U(lingering) + " holders outlived the stop)";
                 both = ((split == 0 && refused == 0 && lingering == 0) ? "OK" : "BUG") + both;
                 std::string count = "(N=" + U(kHellfireCasts) + ", seed base 0x4D56, order 936: " + U(missed) + " self-misses, the casts in order " + pattern + ")";
-                count = ((refused == 0 && missed > 0 && missed < kHellfireCasts) ? "OK" : "INVALID") + count;
+                count = ((refused == 0 && missed == 0) ? "OK" : "INVALID") + count;
                 Verdict(Compose({ st->templateOk, both, count,
                                   NoPersistence(p, st->achievementsAtSpawn, st->levelSet, st->noReachLevel, st->dealsDamage, &st->plan), DigestValue("the first cast") }));
             });
@@ -2464,8 +2463,9 @@ namespace Harness
     };
 
     /**
-     * S937 `spell-mortar-shot-fallthrough` -- C-2 (design/2026-09-21-combat-backlog.md), RECORDED AS
-     * IT IS, NOT FIXED: a human priest at his created level who has been given Mortar Shot (16786)
+     * S937 `spell-mortar-shot-fallthrough` -- a table-coordinate target A=17 with an area B=8 fills
+     * around the explicit target only: a human priest at his created level who has been given
+     * Mortar Shot (16786)
      * by Player::learnSpell in a setup window -- the harness's own means, as the taxi family gives
      * its flight licence (ScenariosTaxi.cpp:1048) and the quest fixture's closure counts it
      * (QuestPlan::spells) -- casts it through the CAST_SPELL handler's calls at a spawned, silenced
@@ -2480,16 +2480,16 @@ namespace Harness
      * `default:` -- SetTargetMap(A), which finds no spell_target_position and logs it, then
      * SetTargetMap(B=8), which fills around the cast's destination: SpellCastTargets::setUnitTarget
      * put that at the explicit target's position without the DEST_LOCATION flag (Spell.cpp:129-142),
-     * so the far cougar is in. The switch then ends without a `break;` and falls into TARGET_SELF2's
-     * switch, whose B=8 case, the cast carrying no DEST_LOCATION flag, puts the destination at the
-     * caster (:293-300) and fills around HIM too: the bystander and the priest himself. MEASURED
-     * 2026-09-29: hit=[target,caster,self], the destination 0.0 yd from the caster, 15 damage to
-     * each. The note (section 3(a)) names only the second fill; the first is recorded here too. The
-     * destination in SPELL_GO and its hit list are what the fix will change; the note explains why
-     * a 17/0 spell cannot pin it (A, 18, A: only a duplicate log line).
+     * so the far cougar is in -- and the A=17 case ends there. TARGET_SELF2's B=8 case, which puts a
+     * destination at the caster and fills around HIM (the bystander and the priest himself), does
+     * not run for this pair. A spell with A=17 and B=0 cannot pin this (A, 18, A: only a duplicate
+     * log line).
      *
-     * Pins: SPELL_GO's hit list and its destination (read out of its bytes: its distance to the
-     * caster and to the explicit target), the damage logs, and the health each unit lost.
+     * Pins: `goDestinationAndHits` is OK only when SPELL_GO's target mask (read out of its bytes) is
+     * TARGET_FLAG_UNIT alone, with no DEST_LOCATION and so no destination, and its hit list is
+     * exactly [target], the caster and the bystander absent; BUG otherwise, with a destination's
+     * distance to the caster and to the explicit target when one is there. Then the damage logs and
+     * the health each unit lost.
      */
     class SpellMortarShotFallthrough : public SpellScenario
     {
@@ -2638,15 +2638,30 @@ namespace Harness
                 const std::vector<std::string> gos = Records("shot", SMSG_SPELL_GO);
                 const std::vector<std::string> logs = Records("shot", SMSG_SPELLNONMELEEDAMAGELOG);
                 std::vector<Recorder::Seen const*> goSeen = m_rec.SeenIn("shot", SMSG_SPELL_GO);
+                uint32 mask = 0;
+                const bool readable = goSeen.size() == 1 && !goSeen[0]->payload.empty() &&
+                                      GoMask(&goSeen[0]->payload[0], goSeen[0]->payload.size(), mask);
                 float dx = 0.0f, dy = 0.0f, dz = 0.0f;
-                const bool dest = goSeen.size() == 1 && !goSeen[0]->payload.empty() &&
-                                  GoDestination(&goSeen[0]->payload[0], goSeen[0]->payload.size(), dx, dy, dz);
-                char where[160];
-                snprintf(where, sizeof(where), "the destination %.1f yd from the caster and %.1f yd from the explicit target",
-                         std::sqrt((dx - st->casterX) * (dx - st->casterX) + (dy - st->casterY) * (dy - st->casterY)),
-                         std::sqrt((dx - st->targetX) * (dx - st->targetX) + (dy - st->targetY) * (dy - st->targetY)));
-                std::string go = "(SPELL_GO " + Joined(gos) + "; " + (dest ? std::string(where) : std::string("no destination in it")) + ")";
-                go = ((gos.size() == 1 && dest) ? "OK" : "BUG") + go;
+                const bool dest = readable && GoDestination(&goSeen[0]->payload[0], goSeen[0]->payload.size(), dx, dy, dz);
+                char where[192];
+                if (!readable)
+                {
+                    snprintf(where, sizeof(where), "the target mask could not be read");
+                }
+                else if (dest)
+                {
+                    snprintf(where, sizeof(where), "mask 0x%x, a destination %.1f yd from the caster and %.1f yd from the explicit target", mask,
+                             std::sqrt((dx - st->casterX) * (dx - st->casterX) + (dy - st->casterY) * (dy - st->casterY)),
+                             std::sqrt((dx - st->targetX) * (dx - st->targetX) + (dy - st->targetY) * (dy - st->targetY)));
+                }
+                else
+                {
+                    snprintf(where, sizeof(where), "mask 0x%x, no destination in it", mask);
+                }
+                // the decoded record names the hit list by role: the explicit target alone
+                const bool targetOnly = gos.size() == 1 && gos[0].find(" hit=[target] miss=[] ") != std::string::npos;
+                std::string go = "(SPELL_GO " + Joined(gos) + "; " + where + ")";
+                go = ((readable && mask == kTargetFlagUnit && !dest && targetOnly) ? "OK" : "BUG") + go;
                 // one damage log per unit that lost health, and each lost exactly its log's damage
                 std::string health = "(damage logs " + Joined(logs) + "; health: self " + U(st->selfBefore) + " -> " + U(st->selfAfter) + ", target " +
                                      U(st->targetBefore) + " -> " + U(st->targetAfter) + ", bystander " + U(st->bystanderBefore) + " -> " +
@@ -2673,57 +2688,84 @@ namespace Harness
         }
 
     private:
-        /// The destination SPELL_GO carries, read out of its bytes: Spell::SendSpellGo's fixed head
-        /// and its hit and miss lists (as Trace::DecodeSpellCast reads them), then
-        /// SpellCastTargets::write -- the mask, the unit's packed guid (TARGET_FLAG_UNIT) and, for
-        /// TARGET_FLAG_DEST_LOCATION (0x40), the transport's packed guid and the x, y, z floats.
-        /// False when the mask names no destination, or a target this reader does not walk.
-        static bool GoDestination(uint8 const* data, size_t size, float& x, float& y, float& z)
+        static const uint32 kTargetFlagUnit = 0x2;             // TARGET_FLAG_UNIT
+        static const uint32 kTargetFlagDestLocation = 0x40;    // TARGET_FLAG_DEST_LOCATION
+
+        /// A byte reader over one SPELL_GO payload, as GoMask and GoDestination walk it.
+        struct GoReader
         {
-            size_t pos = 0;
-            auto u8 = [&](uint8& v) { if (pos + 1 > size) { return false; } v = data[pos++]; return true; };
-            auto u32 = [&](uint32& v) { if (pos + 4 > size) { return false; } memcpy(&v, data + pos, 4); pos += 4; return true; };
-            auto packed = [&]()
+            uint8 const* data;
+            size_t size;
+            size_t pos;
+
+            bool U8(uint8& v) { if (pos + 1 > size) { return false; } v = data[pos++]; return true; }
+            bool U32(uint32& v) { if (pos + 4 > size) { return false; } memcpy(&v, data + pos, 4); pos += 4; return true; }
+            bool Packed()
             {
                 uint8 m = 0;
-                if (!u8(m)) { return false; }
+                if (!U8(m)) { return false; }
                 for (int i = 0; i < 8; ++i)
                 {
                     uint8 b = 0;
-                    if ((m & (1 << i)) && !u8(b)) { return false; }
+                    if ((m & (1 << i)) && !U8(b)) { return false; }
                 }
                 return true;
-            };
-            uint8 castCount = 0, hits = 0, misses = 0;
-            uint32 spell = 0, flags = 0, timer = 0, stamp = 0, mask = 0;
-            if (!packed() || !packed() || !u8(castCount) || !u32(spell) || !u32(flags) || !u32(timer) || !u32(stamp) || !u8(hits))
-            {
-                return false;
             }
-            pos += 8 * size_t(hits);
-            if (!u8(misses))
+
+            /// Spell::SendSpellGo's fixed head and its hit and miss lists (as
+            /// Trace::DecodeSpellCast reads them), then SpellCastTargets::write's mask.
+            bool Mask(uint32& mask)
             {
-                return false;
-            }
-            for (uint8 i = 0; i < misses; ++i)
-            {
-                uint8 condition = 0, reflect = 0;
-                pos += 8;
-                if (!u8(condition) || (condition == 11 && !u8(reflect)))
+                uint8 castCount = 0, hits = 0, misses = 0;
+                uint32 spell = 0, flags = 0, timer = 0, stamp = 0;
+                if (!Packed() || !Packed() || !U8(castCount) || !U32(spell) || !U32(flags) || !U32(timer) || !U32(stamp) || !U8(hits))
                 {
                     return false;
                 }
+                pos += 8 * size_t(hits);
+                if (!U8(misses))
+                {
+                    return false;
+                }
+                for (uint8 i = 0; i < misses; ++i)
+                {
+                    uint8 condition = 0, reflect = 0;
+                    pos += 8;
+                    if (!U8(condition) || (condition == 11 && !U8(reflect)))
+                    {
+                        return false;
+                    }
+                }
+                return U32(mask);
             }
-            if (!u32(mask) || (mask & ~uint32(0x2 | 0x40)) || !(mask & 0x40))
+        };
+
+        /// The target mask SPELL_GO carries, read out of its bytes. False when the payload is too
+        /// short to reach it.
+        static bool GoMask(uint8 const* data, size_t size, uint32& mask)
+        {
+            GoReader r = { data, size, 0 };
+            return r.Mask(mask);
+        }
+
+        /// The destination SPELL_GO carries, read out of its bytes: the mask (GoMask), the unit's
+        /// packed guid (TARGET_FLAG_UNIT) and, for TARGET_FLAG_DEST_LOCATION, the transport's
+        /// packed guid and the x, y, z floats. False when the mask names no destination, or a
+        /// target this reader does not walk.
+        static bool GoDestination(uint8 const* data, size_t size, float& x, float& y, float& z)
+        {
+            GoReader r = { data, size, 0 };
+            uint32 mask = 0;
+            if (!r.Mask(mask) || (mask & ~(kTargetFlagUnit | kTargetFlagDestLocation)) || !(mask & kTargetFlagDestLocation))
             {
                 return false;
             }
-            if ((mask & 0x2) && !packed())
+            if ((mask & kTargetFlagUnit) && !r.Packed())
             {
                 return false;
             }
             uint32 fx = 0, fy = 0, fz = 0;
-            if (!packed() || !u32(fx) || !u32(fy) || !u32(fz))
+            if (!r.Packed() || !r.U32(fx) || !r.U32(fy) || !r.U32(fz))
             {
                 return false;
             }

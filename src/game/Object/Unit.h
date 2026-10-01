@@ -991,6 +991,16 @@ enum MeleeHitOutcome
     MELEE_HIT_NORMAL    = 8,
 };
 
+/**
+ * What a spell hit result is resolved for. A cast's own target that is its caster takes the
+ * spell without a hit roll; a spell reflected back at its caster still rolls against him.
+ */
+enum class SpellHitFor
+{
+    Cast,           ///< a target the cast itself selected
+    Reflection      ///< the caster, hit by his own spell reflected back at him
+};
+
 struct CleanDamage
 {
     CleanDamage(uint32 _damage, WeaponAttackType _attackType, MeleeHitOutcome _hitOutCome) :
@@ -2344,7 +2354,9 @@ class Unit : public WorldObject
          * does checks for if the victim is immune or if it is in evade mode etc. If it's a positive
          * spell it can't miss either. Also takes care of reflects via PROC_EX_REFLECT and removes
          * possible charges that could have been present for reflecting spells. Lastly calls one
-         * of the earlier mentioned functions depending on the SpellEntry::DmgClass.
+         * of the earlier mentioned functions depending on the SpellEntry::DmgClass. A spell the
+         * cast puts on its own caster hits him without that roll, unless \p hitFor is
+         * \ref SpellHitFor::Reflection.
          * Calculate spell hit result can be:
          * Every spell can: Evade/Immune/Reflect/Sucesful hit
          * For melee based spells:
@@ -2356,9 +2368,10 @@ class Unit : public WorldObject
          * @param pVictim the victim that was hit
          * @param spell the spell that was cast
          * @param canReflect whether or not this spell can be reflected
+         * @param hitFor what the result is resolved for: the cast's own target, or a reflection
          * @return Whether or not the spell was resisted/blocked etc.
          */
-        SpellMissInfo SpellHitResult(Unit* pVictim, SpellEntry const* spell, bool canReflect = false);
+        SpellMissInfo SpellHitResult(Unit* pVictim, SpellEntry const* spell, bool canReflect, SpellHitFor hitFor);
 
         /**
          * Returns the units dodge chance
