@@ -2646,7 +2646,7 @@ class Player : public Unit
         void UpdateAllRatings();
 
         // Calculate the minimum and maximum damage
-        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, float& min_damage, float& max_damage);
+        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, float& min_damage, float& max_damage) override;
 
         // Update defense bonuses modifier
 
@@ -2667,10 +2667,12 @@ class Player : public Unit
         // Get rating bonus value
         float GetRatingBonusValue(CombatRating cr) const;
         // Returns base spellpower bonus from items without intellect bonus
-        uint32 GetBaseSpellPowerBonus() const { return m_baseSpellPower; }
+        uint32 GetBaseSpellPowerBonus() const override { return m_baseSpellPower; }
 
         // Get expertise dodge or parry reduction
         float GetExpertiseDodgeOrParryReduction(WeaponAttackType attType) const;
+        int32 GetMeleeRollExpertiseReduction(WeaponAttackType attType) const override { return int32(GetExpertiseDodgeOrParryReduction(attType) * 100); }
+        int32 GetMeleeSpellExpertiseReduction(WeaponAttackType attType) const override { return int32(GetExpertiseDodgeOrParryReduction(attType) * 100.0f); }
 
         // Update block percentage
         void UpdateBlockPercentage();
@@ -3162,7 +3164,7 @@ class Player : public Unit
         // m_armorPenetrationPct continues to track the rating value for
         // diagnostic visibility but is intentionally unused in damage
         // calc.
-        float GetArmorPenetrationPct() const { return 0.0f; }
+        float GetArmorPenetrationPct() const override { return 0.0f; }
         int32 GetSpellPenetrationItemMod() const { return m_spellPenetrationItemMod; }
 
         // Apply weapon-dependent aura mods

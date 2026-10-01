@@ -98,6 +98,7 @@ set(SRC_GRP_TESTS
     RuneMgrTest.cpp
     SpellCooldownMgrTest.cpp
     UnitSpellCooldownTest.cpp
+    UnitCombatStatsTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

@@ -61,7 +61,7 @@ namespace Combat
      * @param isPlayer GetTypeId() == TYPEID_PLAYER.
      * @param attackerLevel getLevel().
      * @param victimLevel pVictim->getLevel().
-     * @param armorPenetrationPct ((Player*)this)->GetArmorPenetrationPct(), 0 when the attacker is not a player.
+     * @param armorPenetrationPct GetArmorPenetrationPct(), 0 when the attacker is not a player.
      * @return The reduced damage amount, never below 1.
      */
     uint32 ArmorReducedDamage(uint32 damage, uint32 victimArmor, int32 targetResistanceMod,

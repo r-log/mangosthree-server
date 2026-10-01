@@ -701,7 +701,7 @@ int32 Unit::SpellBaseDamageBonusDone(SpellSchoolMask schoolMask)
     if (GetTypeId() == TYPEID_PLAYER)
     {
         // Base value
-        DoneAdvertisedBenefit += ((Player*)this)->GetBaseSpellPowerBonus();
+        DoneAdvertisedBenefit += GetBaseSpellPowerBonus();
 
         if (GetPowerIndex(POWER_MANA) != INVALID_POWER_INDEX)
         {
@@ -1306,7 +1306,7 @@ int32 Unit::SpellBaseHealingBonusDone(SpellSchoolMask schoolMask)
     if (GetTypeId() == TYPEID_PLAYER)
     {
         // Base value
-        AdvertisedBenefit += ((Player*)this)->GetBaseSpellPowerBonus();
+        AdvertisedBenefit += GetBaseSpellPowerBonus();
 
         if (GetPowerIndex(POWER_MANA) != INVALID_POWER_INDEX)
         {

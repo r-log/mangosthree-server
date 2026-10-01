@@ -191,7 +191,7 @@ namespace Combat
      *
      * @param attType The attack type the switch selects on.
      * @param isNormalizedPlayer normalized && GetTypeId() == TYPEID_PLAYER.
-     * @param playerMinDamage ((Player*)this)->CalculateMinMaxDamage's minimum, 0 off that arm.
+     * @param playerMinDamage CalculateMinMaxDamage's minimum, 0 off that arm.
      * @param playerMaxDamage its maximum, 0 off that arm.
      * @param minRangedDamage GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE).
      * @param maxRangedDamage GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE).

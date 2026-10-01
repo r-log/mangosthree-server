@@ -257,14 +257,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
     if (pVictim->GetTypeId() != TYPEID_PLAYER || !from_behind)
     {
         // Reduce dodge chance by attacker expertise rating
-        if (GetTypeId() == TYPEID_PLAYER)
-        {
-            dodge_chance -= int32(((Player*)this)->GetExpertiseDodgeOrParryReduction(attType) * 100);
-        }
-        else
-        {
-            dodge_chance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25;
-        }
+        dodge_chance -= GetMeleeRollExpertiseReduction(attType);
 
         // Modify dodge chance by attacker SPELL_AURA_MOD_COMBAT_RESULT_CHANCE
         dodge_chance += GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_COMBAT_RESULT_CHANCE, VICTIMSTATE_DODGE) * 100;
@@ -284,14 +277,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
     if (!from_behind || pVictim->HasAuraType(SPELL_AURA_MOD_PARRY_FROM_BEHIND_PERCENT))
     {
         // Reduce parry chance by attacker expertise rating
-        if (GetTypeId() == TYPEID_PLAYER)
-        {
-            parry_chance -= int32(((Player*)this)->GetExpertiseDodgeOrParryReduction(attType) * 100);
-        }
-        else
-        {
-            parry_chance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25;
-        }
+        parry_chance -= GetMeleeRollExpertiseReduction(attType);
 
         if (parry_chance > 0 && (pVictim->GetTypeId() == TYPEID_PLAYER || !(((Creature*)pVictim)->GetCreatureInfo()->ExtraFlags & CREATURE_FLAG_EXTRA_NO_PARRY)))
         {
@@ -403,14 +389,14 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackT
  */
 uint32 Unit::CalculateDamage(WeaponAttackType attType, bool normalized)
 {
-    // The Player downcast is E2b, so it stays here under its original guard; the six
+    // CalculateMinMaxDamage stays under its original guard; the six
     // UNIT_FIELD reads are plain array indices, so they are gathered unconditionally.
     bool const isNormalizedPlayer = (normalized && GetTypeId() == TYPEID_PLAYER);
     float playerMinDamage = 0.0f;
     float playerMaxDamage = 0.0f;
     if (isNormalizedPlayer)
     {
-        ((Player*)this)->CalculateMinMaxDamage(attType, normalized, playerMinDamage, playerMaxDamage);
+        CalculateMinMaxDamage(attType, normalized, playerMinDamage, playerMaxDamage);
     }
 
     Combat::WeaponDamageRange const range = Combat::SelectWeaponDamageRange(attType, isNormalizedPlayer,
@@ -743,14 +729,7 @@ SpellMissInfo Unit::MeleeSpellHitResult(Unit* pVictim, SpellEntry const* spell)
         // Reduce enemy dodge chance by SPELL_AURA_MOD_COMBAT_RESULT_CHANCE
         dodgeChance += GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_COMBAT_RESULT_CHANCE, VICTIMSTATE_DODGE) * 100;
         // Reduce dodge chance by attacker expertise rating
-        if (GetTypeId() == TYPEID_PLAYER)
-        {
-            dodgeChance -= int32(((Player*)this)->GetExpertiseDodgeOrParryReduction(attType) * 100.0f);
-        }
-        else
-        {
-            dodgeChance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25;
-        }
+        dodgeChance -= GetMeleeSpellExpertiseReduction(attType);
         if (dodgeChance < 0)
         {
             dodgeChance = 0;
@@ -768,14 +747,7 @@ SpellMissInfo Unit::MeleeSpellHitResult(Unit* pVictim, SpellEntry const* spell)
         // Roll parry
         int32 parryChance = int32(pVictim->GetUnitParryChance() * 100.0f)  - skillDiff * 4;
         // Reduce parry chance by attacker expertise rating
-        if (GetTypeId() == TYPEID_PLAYER)
-        {
-            parryChance -= int32(((Player*)this)->GetExpertiseDodgeOrParryReduction(attType) * 100.0f);
-        }
-        else
-        {
-            parryChance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25;
-        }
+        parryChance -= GetMeleeSpellExpertiseReduction(attType);
         if (parryChance < 0)
         {
             parryChance = 0;

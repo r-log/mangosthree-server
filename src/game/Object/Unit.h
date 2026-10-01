@@ -2447,6 +2447,33 @@ class Unit : public WorldObject
          * @return what the hit resulted in, miss/hit etc
          */
         MeleeHitOutcome RollMeleeOutcomeAgainst(const Unit* pVictim, WeaponAttackType attType, int32 crit_chance, int32 miss_chance, int32 dodge_chance, int32 parry_chance, int32 block_chance) const;
+        /**
+         * The dodge and parry chance an attacker's expertise takes off in RollMeleeOutcomeAgainst.
+         * @return the SPELL_AURA_MOD_EXPERTISE total times 25 here; Player returns its expertise
+         * reduction times 100
+         */
+        virtual int32 GetMeleeRollExpertiseReduction(WeaponAttackType /*attType*/) const { return GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25; }
+        /**
+         * The dodge and parry chance an attacker's expertise takes off in MeleeSpellHitResult.
+         * @return the SPELL_AURA_MOD_EXPERTISE total times 25 here; Player returns its expertise
+         * reduction times 100.0f
+         */
+        virtual int32 GetMeleeSpellExpertiseReduction(WeaponAttackType /*attType*/) const { return GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25; }
+        /**
+         * Fills the weapon damage range CalculateDamage uses for a normalized attack: does nothing
+         * here; Player computes the range from its own weapon and stats.
+         */
+        virtual void CalculateMinMaxDamage(WeaponAttackType /*attType*/, bool /*normalized*/, float& /*min_damage*/, float& /*max_damage*/) { }
+        /**
+         * @return the armor penetration percent CalcArmorReducedDamage passes on: 0 here; Player
+         * returns its own
+         */
+        virtual float GetArmorPenetrationPct() const { return 0.0f; }
+        /**
+         * @return the base spell power the advertised damage and healing bonuses add: 0 here;
+         * Player returns its own
+         */
+        virtual uint32 GetBaseSpellPowerBonus() const { return 0; }
 
         /**
          * @return true if this unit is a vendor, false otherwise
