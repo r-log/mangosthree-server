@@ -835,6 +835,9 @@ class World
 
 extern uint32 realmID;
 
+/// The next monthly quest reset after now: local midnight on the first of the following month; with keepEarlier, an earlier stored reset is kept instead.
+time_t NextMonthlyQuestReset(time_t now, time_t stored, bool keepEarlier);
+
 #define sWorld MaNGOS::Singleton<World>::Instance()
 #endif
 /// @}
