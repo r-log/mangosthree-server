@@ -391,6 +391,7 @@ class Item;
 class Pet;
 class PetAura;
 class Totem;
+class Transport;
 class VehicleInfo;
 class WorldSession;
 
@@ -3816,6 +3817,42 @@ class Unit : public WorldObject
         // common function for visibility checks for player/creatures with detection code
         bool IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, bool detect, bool inVisibleList = false, bool is3dDistance = true) const;
         bool canDetectInvisibilityOf(Unit const* u) const;
+
+    protected:
+        /**
+         * @return whether this unit is a game master, whom IsTargetableForAttack never offers as a
+         * target: false here; Player answers from its game master flag
+         */
+        virtual bool isGameMaster() const { return false; }
+        /**
+         * @return whether this unit's session is still loading it: AddSpellAuraHolder then adds an
+         * aura to it while it is dead, and IsVisibleForOrDetect does not see it by its transport;
+         * false here; Player asks its session
+         */
+        virtual bool IsLoading() const { return false; }
+        /**
+         * @return whether this unit's session is logging it out: IsVisibleForOrDetect then does not
+         * see it by its transport; false here; Player asks its session
+         */
+        virtual bool IsLoggingOut() const { return false; }
+        /**
+         * @return the transport this unit rides, on which IsVisibleForOrDetect sees a player that
+         * rides the same one even out of the world: NULL here; Player returns its own
+         */
+        virtual Transport* GetTransport() const { return NULL; }
+        /**
+         * @param p the player that looks at this unit
+         * @return whether P sees this unit through its stealth under the group visibility
+         * setting: false here; Player answers by its group, its raid or its team
+         */
+        virtual bool IsGroupVisibleFor(Player* /*p*/) const { return false; }
+        /**
+         * @return the drunk value canDetectInvisibilityOf takes as this unit's detection level
+         * against the drunk invisibility: 0 here; Player returns its own
+         */
+        virtual uint16 GetDrunkValue() const { return 0; }
+
+    public:
         void SetPhaseMask(uint32 newPhaseMask, bool update) override;// overwrite WorldObject::SetPhaseMask
 
         // virtual functions for all world objects types

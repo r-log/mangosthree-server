@@ -65,6 +65,9 @@ stand 1 line below theirs (the guid and type test the ternary's condition holds)
 pet sites rely on the type test of Mount (Unit.cpp:4042) or Unmount (:4140): :4047 stands 5 lines
 below Mount's; :4092, :4095 and :4103, in the mount aura's arm, stand 50, 53 and 61 below it, and
 :4152 and :4155 12 and 15 below Unmount's, so those five set their own window in their file's spec.
+The visibility and session sites stand within 3 lines of theirs: UnitVisibility.cpp:91, :92 and
+:93 1 to 3 below the two type tests at :90 their condition holds, :203 2 below :201 and :437 2
+below :435; UnitAura.cpp:383 and Unit.cpp:4418 on the type test of their own line.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -160,6 +163,24 @@ FORMS = {
     'GetCollisionHeight': {'direct': 'GetCollisionHeight(',
                            'cast': '((Player*)this)->GetCollisionHeight(',
                            'suffix': None},
+    'isGameMaster': {'direct': 'TYPEID_PLAYER && isGameMaster(',
+                     'cast': 'TYPEID_PLAYER && ((Player*)this)->isGameMaster(',
+                     'suffix': None},
+    'IsLoading': {'direct': '!IsLoading(',
+                  'cast': '!((Player*)this)->IsLoading(',
+                  'suffix': None},
+    'IsLoggingOut': {'direct': '!IsLoggingOut(',
+                     'cast': '!((Player*)this)->IsLoggingOut(',
+                     'suffix': None},
+    'GetTransport': {'direct': ' GetTransport(',
+                     'cast': ' ((Player*)this)->GetTransport(',
+                     'suffix': None},
+    'IsGroupVisibleFor': {'direct': 'IsGroupVisibleFor(',
+                          'cast': '((Player*)this)->IsGroupVisibleFor(',
+                          'suffix': None},
+    'GetDrunkValue': {'direct': 'GetDrunkValue(',
+                      'cast': '((Player*)this)->GetDrunkValue(',
+                      'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -235,6 +256,43 @@ UNIT_H_MOUNT_PET = '''
 
     public:'''
 
+UNIT_H_VISIBILITY = '''
+    protected:
+        /**
+         * @return whether this unit is a game master, whom IsTargetableForAttack never offers as a
+         * target: false here; Player answers from its game master flag
+         */
+        virtual bool isGameMaster() const { return false; }
+        /**
+         * @return whether this unit's session is still loading it: AddSpellAuraHolder then adds an
+         * aura to it while it is dead, and IsVisibleForOrDetect does not see it by its transport;
+         * false here; Player asks its session
+         */
+        virtual bool IsLoading() const { return false; }
+        /**
+         * @return whether this unit's session is logging it out: IsVisibleForOrDetect then does not
+         * see it by its transport; false here; Player asks its session
+         */
+        virtual bool IsLoggingOut() const { return false; }
+        /**
+         * @return the transport this unit rides, on which IsVisibleForOrDetect sees a player that
+         * rides the same one even out of the world: NULL here; Player returns its own
+         */
+        virtual Transport* GetTransport() const { return NULL; }
+        /**
+         * @param p the player that looks at this unit
+         * @return whether P sees this unit through its stealth under the group visibility
+         * setting: false here; Player answers by its group, its raid or its team
+         */
+        virtual bool IsGroupVisibleFor(Player* /*p*/) const { return false; }
+        /**
+         * @return the drunk value canDetectInvisibilityOf takes as this unit's detection level
+         * against the drunk invisibility: 0 here; Player returns its own
+         */
+        virtual uint16 GetDrunkValue() const { return 0; }
+
+    public:'''
+
 PLAYER_H_ITEM_BY_GUID = '''
         // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
         // so only a call through Unit reaches it
@@ -255,6 +313,8 @@ FILES = {
                                         'uint32 procExtra, WeaponAttackType attType, bool isVictim, '
                                         'SpellProcEventEntry const*& spellProcEvent);'),
                   (UNIT_H_MOUNT_PET, '        void Unmount(bool from_aura = false);'),
+                  ('class Transport;', 'class Totem;'),
+                  (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
     'src/game/entities/player/Player.h': {
         'forms': {},
@@ -277,10 +337,25 @@ FILES = {
                      'and'),
                     ('        void UnsummonPetTemporaryIfAny() override;', '        void UnsummonPetTemporaryIfAny();'),
                     ('        void ResummonPetTemporaryUnSummonedIfAny() override;',
-                     '        void ResummonPetTemporaryUnSummonedIfAny();')]},
+                     '        void ResummonPetTemporaryUnSummonedIfAny();'),
+                    ('        bool isGameMaster() const override final { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }',
+                     '        bool isGameMaster() const { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }'),
+                    ('        bool IsGroupVisibleFor(Player* p) const override final;',
+                     '        bool IsGroupVisibleFor(Player* p) const;'),
+                    ("        // Whether the player's session is loading it or logging it out; the aura and "
+                     "spell packet",
+                     '        // Decoupling D5a: the aura and spell packet code asks Player, not the session, whether'),
+                    ('        // code asks Player, not the session.',
+                     '        // the player is loading or logging out.'),
+                    ('        bool IsLoading() const override final;', '        bool IsLoading() const;'),
+                    ('        bool IsLoggingOut() const override final;', '        bool IsLoggingOut() const;'),
+                    ('        uint16 GetDrunkValue() const override final { return GetByteValue(PLAYER_BYTES_3, 1); }',
+                     '        uint16 GetDrunkValue() const { return GetByteValue(PLAYER_BYTES_3, 1); }'),
+                    ('        Transport* GetTransport() const override final { return m_transport; }',
+                     '        Transport* GetTransport() const { return m_transport; }')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
-                  'InArena': 1, 'GetCollisionHeight': 2},
+                  'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'window': {4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15}},
     'src/game/Object/UnitCombat.cpp': {
@@ -300,6 +375,12 @@ FILES = {
         'added': []},
     'src/game/Object/UnitSpellBonus.cpp': {
         'forms': {'GetBaseSpellPowerBonus': 2},
+        'added': []},
+    'src/game/Object/UnitVisibility.cpp': {
+        'forms': {'IsLoggingOut': 1, 'IsLoading': 1, 'GetTransport': 2, 'IsGroupVisibleFor': 1, 'GetDrunkValue': 1},
+        'added': []},
+    'src/game/Object/UnitAura.cpp': {
+        'forms': {'IsLoading': 1},
         'added': []},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
         'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8},
