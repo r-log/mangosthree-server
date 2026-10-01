@@ -4002,6 +4002,17 @@ class Unit : public WorldObject
          * @return NULL here; Player returns the item its inventory holds under that guid, or NULL
          */
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }
+
+    protected:
+        /**
+         * The rank this unit holds with a faction; the Shattered Sun pendants' proc picks its spell
+         * by the Aldor's or the Scryers' rank.
+         * @param faction_id the faction asked about
+         * @return REP_NEUTRAL here; Player returns its rank by its reputation with that faction
+         */
+        virtual ReputationRank GetReputationRank(uint32 /*faction_id*/) const { return REP_NEUTRAL; }
+
+    public:
         // Aura proc handlers
         SpellAuraProcResult HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown);
         SpellAuraProcResult HandleHasteAuraProc(Unit* pVictim, uint32 damage, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown);

@@ -67,7 +67,11 @@ below Mount's; :4092, :4095 and :4103, in the mount aura's arm, stand 50, 53 and
 :4152 and :4155 12 and 15 below Unmount's, so those five set their own window in their file's spec.
 The visibility and session sites stand within 3 lines of theirs: UnitVisibility.cpp:91, :92 and
 :93 1 to 3 below the two type tests at :90 their condition holds, :203 2 below :201 and :437 2
-below :435; UnitAura.cpp:383 and Unit.cpp:4418 on the type test of their own line.
+below :435; UnitAura.cpp:383 and Unit.cpp:4418 on the type test of their own line. The reputation
+sites in the Shattered Sun pendants' arms rely on the type return opening each arm:
+UnitAuraProcHandler.cpp:995, :1038, :1063 and :1089 stand 6 lines below theirs (:989, :1032, :1057
+and :1083), and :1002, :1045, :1070 and :1096, the Scryers' test below the Aldor's, 13, so those
+four set their own window in their file's spec.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -181,6 +185,9 @@ FORMS = {
     'GetDrunkValue': {'direct': 'GetDrunkValue(',
                       'cast': '((Player*)this)->GetDrunkValue(',
                       'suffix': None},
+    'GetReputationRank': {'direct': 'GetReputationRank(',
+                          'cast': '((Player*)this)->GetReputationRank(',
+                          'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -228,6 +235,18 @@ UNIT_H_ITEM_BY_GUID = '''        /**
          * @return NULL here; Player returns the item its inventory holds under that guid, or NULL
          */
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }'''
+
+UNIT_H_REPUTATION = '''
+    protected:
+        /**
+         * The rank this unit holds with a faction; the Shattered Sun pendants' proc picks its spell
+         * by the Aldor's or the Scryers' rank.
+         * @param faction_id the faction asked about
+         * @return REP_NEUTRAL here; Player returns its rank by its reputation with that faction
+         */
+        virtual ReputationRank GetReputationRank(uint32 /*faction_id*/) const { return REP_NEUTRAL; }
+
+    public:'''
 
 UNIT_H_MOUNT_PET = '''
     protected:
@@ -308,10 +327,11 @@ FILES = {
                   (UNIT_H_COMBAT_STATS, '        MeleeHitOutcome RollMeleeOutcomeAgainst(const Unit* pVictim, '
                                         'WeaponAttackType attType, int32 crit_chance, int32 miss_chance, '
                                         'int32 dodge_chance, int32 parry_chance, int32 block_chance) const;'),
-                  (UNIT_H_ITEM_BY_GUID, '        bool IsTriggeredAtSpellProcEvent(Unit* pVictim, '
-                                        'SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, '
-                                        'uint32 procExtra, WeaponAttackType attType, bool isVictim, '
-                                        'SpellProcEventEntry const*& spellProcEvent);'),
+                  (UNIT_H_ITEM_BY_GUID + '\n' + UNIT_H_REPUTATION,
+                   '        bool IsTriggeredAtSpellProcEvent(Unit* pVictim, '
+                   'SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, '
+                   'uint32 procExtra, WeaponAttackType attType, bool isVictim, '
+                   'SpellProcEventEntry const*& spellProcEvent);'),
                   (UNIT_H_MOUNT_PET, '        void Unmount(bool from_aura = false);'),
                   ('class Transport;', 'class Totem;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
@@ -352,7 +372,9 @@ FILES = {
                     ('        uint16 GetDrunkValue() const override final { return GetByteValue(PLAYER_BYTES_3, 1); }',
                      '        uint16 GetDrunkValue() const { return GetByteValue(PLAYER_BYTES_3, 1); }'),
                     ('        Transport* GetTransport() const override final { return m_transport; }',
-                     '        Transport* GetTransport() const { return m_transport; }')]},
+                     '        Transport* GetTransport() const { return m_transport; }'),
+                    ('        ReputationRank GetReputationRank(uint32 faction_id) const override final;',
+                     '        ReputationRank GetReputationRank(uint32 faction_id) const;')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1},
@@ -383,9 +405,9 @@ FILES = {
         'forms': {'IsLoading': 1},
         'added': []},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
-        'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8},
+        'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8},
         'added': [],
-        'window': {2881: 70}},
+        'window': {1002: 13, 1045: 13, 1070: 13, 1096: 13, 2881: 70}},
 }
 
 

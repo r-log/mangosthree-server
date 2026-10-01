@@ -2997,7 +2997,7 @@ class Player : public Unit
         ReputationMgr const& GetReputationMgr() const { return m_reputationMgr; }
 
         // Get the player's reputation rank for a specific faction
-        ReputationRank GetReputationRank(uint32 faction_id) const;
+        ReputationRank GetReputationRank(uint32 faction_id) const override final;
 
         // Decoupling D4k: the reputation changes that send packets or call back into the character
         // go through these, which hand the manager its inputs and sinks (social/PlayerReputation.cpp).
