@@ -193,7 +193,8 @@ UNIT_H_ITEM_BY_GUID = '''        /**
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }'''
 
 PLAYER_H_ITEM_BY_GUID = '''
-        // The item Unit asks for by guid: the one the inventory holds, or NULL
+        // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
+        // so only a call through Unit reaches it
         Item* GetItemByGuid(ObjectGuid guid) const override { return GetInventoryMgr().GetItemByGuid(guid); }'''
 
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
@@ -214,8 +215,13 @@ FILES = {
     'src/game/entities/player/Player.h': {
         'forms': {},
         'declares': True,
-        'added': [(PLAYER_H_ITEM_BY_GUID,
-                   '        InventoryMgr const& GetInventoryMgr() const { return m_inventoryMgr; }')]},
+        'added': [("        // The private GetItemByGuid override answers only Unit's lookup.",
+                   '        // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it '
+                   'directly.'),
+                  (PLAYER_H_ITEM_BY_GUID, '        ManagerPacketSink SessionSink() const;')],
+        'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
+                     '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
+                     'GetItemByEntry,')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')]},

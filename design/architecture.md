@@ -133,8 +133,8 @@ puts combat in `combat/`, auras and casting in `spells/` and movement in the mot
 
 **Today (player-only code in `Unit`):** Unit's 15 files hold 97 `(Player*)this` casts and 217 `TYPEID_PLAYER` tests;
 11 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
-`Uncharm`, the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
-`GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`,
+`Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
+`GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
 and `GetItemByGuid`, the item the proc handlers ask for by guid; each with the non-player answer as `Unit`'s
 default). The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`; only the aura storage
 (`spells/AuraContainer.h`) and the leaf math (`combat/`) are already home.

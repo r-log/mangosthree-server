@@ -27,8 +27,9 @@
 ///
 /// A Unit that is not a Player holds no item: a bare Creature (no map, no AI, no auras) is asked
 /// through a Unit reference. A Player cannot be built in this binary (it needs a WorldSession and
-/// a map); the static_assert pins that Player declares the lookup with Unit's exact signature, and
-/// Player.h marks it `override`, so a Player answers from its inventory.
+/// a map). Player's override is private: the static_asserts pin Unit's declaration, that a call
+/// through a Unit reaches the lookup and that a call through a Player does not compile; Player.h
+/// marks the override `override`, so it fails to build unless it matches Unit's declaration.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -36,9 +37,22 @@
 #include "Unit.h"
 
 #include <type_traits>
+#include <utility>
 
-static_assert(std::is_same<decltype(&Player::GetItemByGuid), Item* (Player::*)(ObjectGuid) const>::value,
-              "Player answers the item it holds under a guid itself");
+namespace
+{
+    template<class T>
+    auto CallsItemByGuid(int) -> decltype(std::declval<T const&>().GetItemByGuid(ObjectGuid()), std::true_type());
+
+    template<class T>
+    std::false_type CallsItemByGuid(...);
+}
+
+static_assert(std::is_same<decltype(&Unit::GetItemByGuid), Item* (Unit::*)(ObjectGuid) const>::value,
+              "Unit declares the item lookup by guid");
+static_assert(decltype(CallsItemByGuid<Unit>(0))::value, "a call through a Unit reaches the item lookup");
+static_assert(!decltype(CallsItemByGuid<Player>(0))::value,
+              "Player's item lookup is private: a call through a Player does not compile");
 
 TEST(UnitItemByGuid_ACreatureHoldsNoItemUnderAnyGuid)
 {

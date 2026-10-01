@@ -202,7 +202,6 @@ FORWARDERS = [
     ('IsValidPos', 'inventory', 'IsValidPos'),
     ('HasItemCount', 'inventory', 'HasItemCount'),
     ('GetItemCount', 'inventory', 'GetItemCount'),
-    ('GetItemByGuid', 'inventory', 'GetItemByGuid'),
     ('GetItemByEntry', 'inventory', 'GetItemByEntry'),
     ('GetItemByLimitedCategory', 'inventory', 'GetItemByLimitedCategory'),
     ('GetItemByPos', 'inventory', 'GetItemByPos'),
