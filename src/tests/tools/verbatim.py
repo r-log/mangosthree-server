@@ -15,7 +15,8 @@ For each file in SITES, --check:
      with the switch it stood for: the switch's opening lines, then for each row of the site's
      registration table, in table order, the label line (LABELS) and -- once per run of rows that
      register the same function -- that function's body, reverse-substituted (SUBSTITUTIONS: the
-     context accessors and the outcome) and re-indented to the label's body; then, if the site has
+     context accessors and the outcome), re-indented to the label's body and wrapped in `{` `}`
+     at the label indent where the run's body was (BRACES below); then, if the site has
      a registered `default:` (DEFAULT, found through `registry.RegisterDefault<TRAITS>(&F);`), its
      label and F's body the same way; a site whose switch had no `default:` must have none registered
      (every site names its TRAITS for that). A label holding `{body}` is a one-line case
@@ -36,7 +37,21 @@ For each file in SITES, --check:
      base with fewer labels moved than the working tree; each version proves the original order of
      the labels it still holds, so a moved label's place is proven against a base it stands in (or
      one from before the site's first move). Such a site registers no default (its `default:`, if
-     any, stays in the switch);
+     any, stays in the switch).
+     TABLE: a site's registration table is the one table whose rows are typed by the site's
+     TRAITS (`static <Row><TRAITS> const <any name>[] =`), so a table renamed between versions is
+     still found; each version holds exactly one such table per site (two fail, none fails). Only
+     a version with no typed table at all (rows of an untyped `Row`) reads the table the site's
+     `table` names; a version with typed tables never reads the name.
+     BRACES: a run's shape is read from the version's file, the base's first, else the working
+     tree's: the run's label lines (or a `default:` line), searched in the whole file, must stand
+     together there exactly once (more than once fails), and the line after them gives the shape.
+     `{` at the label indent there means the body is wrapped, and that block must close (`}` at
+     the label indent) directly before the next `case` or `default:` at the label indent or the
+     switch's close: a block followed by more lines of the body is a shape the paste-back cannot
+     reproduce and fails. Anything else (a `{` at a deeper indent included) is an unbraced body.
+     A run standing in neither version (moved in both) is pasted back unbraced on both sides: its
+     shape, like its place, is proven against a base it stands in;
   4. does the same to the file at BASE, for the sites a PR before this one moved (their dispatch
      is in the base; a site whose dispatch is not in the base is this PR's and must be a switch
      there), so BASE may be any commit from before the first move to the parent of this PR;
@@ -122,7 +137,6 @@ SITES = {
             'open': ['                switch (GetId())', '                {'],
             'close': ['                }'],
             'label_indent': 20,
-            'braced': True,
             'table': 'warriorApply',
             'traits': 'AuraDummyApplyWarriorSite',
             'context': 'AuraDummyApplyContext',
@@ -151,8 +165,6 @@ SITES = {
                      '                            {'],
             'close': ['                            }'],
             'label_indent': 32,
-            'braced': False,
-            'table': 'unrelentingAssault',
             'traits': 'AuraDummyUnrelentingAssaultSite',
             'default': '                                default:',
             'context': 'AuraDummyUnrelentingAssaultContext',
@@ -175,8 +187,6 @@ SITES = {
             'open': ['            switch (GetId())', '            {'],
             'close': ['            }'],
             'label_indent': 16,
-            'braced': False,
-            'table': 'questTame',
             'traits': 'AuraDummyQuestTameSite',
             'context': 'AuraDummyQuestTameContext',
             'live_outs': ['finalSpellId'],
@@ -215,8 +225,6 @@ SITES = {
             'close': ['        }'],
             'residual': True,
             'label_indent': 12,
-            'braced': True,
-            'table': 'stanceRemoval',
             'traits': 'AuraDummyRemoveSite',
             'context': 'AuraDummyRemoveContext',
             'live_outs': ['target'],
@@ -280,8 +288,6 @@ SITES = {
             'close': ['            }'],
             'residual': True,
             'label_indent': 16,
-            'braced': True,
-            'table': 'feignDeath',
             'traits': 'AuraDummyApplyRemoveGenericSite',
             'context': 'AuraDummyApplyRemoveContext',
             'live_outs': ['target', 'apply'],
@@ -348,8 +354,6 @@ SITES = {
             'open': ['            switch (GetId())', '            {'],
             'close': ['            }'],
             'label_indent': 16,
-            'braced': True,
-            'table': 'druid',
             'traits': 'AuraDummyDruidSite',
             'context': 'AuraDummyApplyRemoveContext',
             'live_outs': ['target', 'apply'],
@@ -372,8 +376,6 @@ SITES = {
             'open': ['                switch (GetId())', '                {'],
             'close': ['                }'],
             'label_indent': 20,
-            'braced': False,
-            'table': 'improvedMoonkin',
             'traits': 'AuraDummyImprovedMoonkinSite',
             'default': '                    default:',
             'context': 'AuraDummyImprovedMoonkinContext',
@@ -395,14 +397,38 @@ class Failure(Exception):
     pass
 
 
-def table_rows(lines, table):
-    """[(spell id, function)] of `static <Row type> const <table>[] = { { id, &Function }, ... };`."""
-    starts = [i for i, l in enumerate(lines)
-              if re.fullmatch(r'\s*static [\w:]+(<[\w:]+>)? const %s\[\] =' % re.escape(table), l)]
+TABLE_HEAD = re.compile(r'\s*static [\w:]+(?:<([\w:]+)>)? const (\w+)\[\] =')
+
+
+def named_table(lines, table):
+    """The index of the one head `static <Row type> const <table>[] =`."""
+    starts = [i for i, l in enumerate(lines) for m in [TABLE_HEAD.fullmatch(l)] if m and m.group(2) == table]
     if len(starts) != 1:
         raise Failure('registration table %s found %d times' % (table, len(starts)))
+    return starts[0]
+
+
+def site_table(lines, site):
+    """[(spell id, function)] of the site's registration table: the one table whose rows are typed
+    by the site's traits; a version with no typed table at all reads the table the site names."""
+    heads = [(i, m.group(1), m.group(2)) for i, m in enumerate(TABLE_HEAD.fullmatch(l) for l in lines) if m]
+    typed = [(i, name) for i, traits, name in heads if traits == site['traits']]
+    if len(typed) > 1:
+        raise Failure('%s: %d registration tables typed by %s: %s'
+                      % (site['name'], len(typed), site['traits'], [name for _, name in typed]))
+    if typed:
+        return table_rows(lines, typed[0][0], typed[0][1])
+    if any(traits for _, traits, _ in heads):
+        raise Failure('%s: no registration table typed by %s' % (site['name'], site['traits']))
+    if 'table' not in site:
+        raise Failure('%s: no registration table is typed, and the site names no table to read' % site['name'])
+    return table_rows(lines, named_table(lines, site['table']), site['table'])
+
+
+def table_rows(lines, start, table):
+    """[(spell id, function)] of the table whose head is lines[start]: `{ { id, &Function }, ... };`."""
     rows = []
-    i = starts[0] + 1
+    i = start + 1
     if lines[i].strip() != '{':
         raise Failure('registration table %s: no "{" after its head' % table)
     i += 1
@@ -545,20 +571,51 @@ def check_body(function, body, site, members=()):
             pending = False
 
 
-def paste(site, function, body, label_lines):
-    """The switch lines one registered function stood for: its label line(s) and its body."""
+def one_line(label_lines):
+    return len(label_lines) == 1 and '{body}' in label_lines[0]
+
+
+def braced(origins, site, label_lines):
+    """Whether the body under the run of labels `label_lines` is wrapped in `{` `}` at the label
+    indent, read in the first of `origins` (each a version's whole file, as lines) holding the
+    run's label lines together; holding them more than once fails; False where none holds them."""
+    indent = ' ' * site['label_indent']
+    n = len(label_lines)
+    for lines in origins:
+        at = [i for i in range(len(lines) - n) if lines[i] == label_lines[0] and lines[i:i + n] == label_lines]
+        if len(at) > 1:
+            raise Failure('%s: the labels %s stand %d times in one version' % (site['name'], label_lines, len(at)))
+        if not at:
+            continue
+        k = at[0] + n
+        if lines[k] != indent + '{':
+            return False
+        close = next((j for j in range(k + 1, len(lines)) if lines[j] == indent + '}'), None)
+        follows = lines[close + 1] if close is not None and close + 1 < len(lines) else None
+        if follows is None or not (follows == site['close'][0] or follows.startswith(indent + 'case ')
+                                   or follows.startswith(indent + 'default:')):
+            raise Failure('%s: where it stands, the body under %s is a block followed by more lines, a shape the '
+                          'paste-back cannot reproduce'
+                          % (site['name'], [l.split('//')[0].strip() for l in label_lines]))
+        return True
+    return False
+
+
+def paste(site, function, body, label_lines, wrapped=False):
+    """The switch lines one registered function stood for: its label line(s) and its body, in
+    `{` `}` at the label indent when `wrapped` (a one-line case is never wrapped)."""
     restored = []
     for line in body:
         for a, b in site['substitutions']:
             line = line.replace(a, b)
         restored.append(line)
-    if len(label_lines) == 1 and '{body}' in label_lines[0]:
+    if one_line(label_lines):
         return [label_lines[0].replace('{body}', ' '.join(l.strip() for l in restored))]
     if any('{body}' in l for l in label_lines):
         raise Failure('%s: %s is a one-line case sharing its body with another label' % (site['name'], function))
     indent = ' ' * site['label_indent']
     restored = [indent + line if line else line for line in restored]
-    if site['braced']:
+    if wrapped:
         return label_lines + [indent + '{'] + restored + [indent + '}']
     return label_lines + restored
 
@@ -635,14 +692,14 @@ def put_back(rest, at, n, site, pieces, end, standing):
     del rest[at:at + n]
 
 
-def rebuild(text, spec, headers, handler_text=None, strict=True):
+def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
     """`text` with every site's dispatch replaced by its switch, the added lines and the appended
     handler block dropped; the number of bodies pasted back, of labels, the names of the sites
     rebuilt, and the handler lines read. The handlers are `handler_text` (the handler file) when
     given, else the block appended to `text` from the tail marker. `strict` (the working tree)
     requires every site; otherwise (the base) a site whose dispatch is absent is left as it stands,
     and a file with neither handler source is returned as is. `headers` maps a site's members_of
-    header path to its text."""
+    header path to its text; `origins` are the versions' lines the brace shapes are read from."""
     new = text.split('\n')
     marker = [i for i, l in enumerate(new) if l == spec['tail_marker']]
     if handler_text is not None:
@@ -679,7 +736,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
         if 'Dispatch<%s>' % site['traits'] not in ''.join(site['dispatch']):
             raise Failure('%s: its traits %s do not appear as Dispatch<%s> in its dispatch lines'
                           % (site['name'], site['traits'], site['traits']))
-        rows = table_rows(handlers, site['table'])
+        rows = site_table(handlers, site)
         ids = [r[0] for r in rows]
         if 'residual' in site:
             end, standing = standing_labels(rest, at[0], n, site)
@@ -700,8 +757,9 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
                               % (site['name'], function))
             body = handler_body(handlers, function, site['context'])
             check_body(function, body, site, members)
-            pieces.append(([r[0] for r in rows[i:j]],
-                           paste(site, function, body, [site['labels'][r[0]] for r in rows[i:j]])))
+            label_lines = [site['labels'][r[0]] for r in rows[i:j]]
+            wrapped = not one_line(label_lines) and braced(origins, site, label_lines)
+            pieces.append(([r[0] for r in rows[i:j]], paste(site, function, body, label_lines, wrapped)))
             pasted += 1
             labels += j - i
             i = j
@@ -717,7 +775,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True):
                 raise Failure('%s: the default %s is also a labelled row' % (site['name'], function))
             body = handler_body(handlers, function, site['context'])
             check_body(function, body, site, members)
-            switch += paste(site, function, body, [site['default']])
+            switch += paste(site, function, body, [site['default']], braced(origins, site, [site['default']]))
             pasted += 1
         elif any(re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(.*' % re.escape(site['traits']), l)
                  for l in handlers):
@@ -754,8 +812,10 @@ def first_difference(a, b):
 def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None, new_handlers=None):
     """`old_handlers` and `new_handlers`: the handler file's text in that version, None where it has none."""
     try:
-        rebuilt, pasted, labels, sites, handlers = rebuild(new_text, spec, headers, new_handlers)
-        base, base_pasted, _, base_sites, _ = rebuild(old_text, spec, headers, old_handlers, strict=False)
+        origins = [old_text.split('\n'), new_text.split('\n')]
+        rebuilt, pasted, labels, sites, handlers = rebuild(new_text, spec, headers, new_handlers, origins=origins)
+        base, base_pasted, _, base_sites, _ = rebuild(old_text, spec, headers, old_handlers, strict=False,
+                                                      origins=origins)
     except Failure as e:
         out('%s: FAILED: %s' % (rel, e))
         return 1, 0
@@ -919,7 +979,7 @@ static uint32 RegisterRows(Registry& registry, Row<Site> const (&rows)[N])
 
 void Register(Registry& registry)
 {
-    static Row const rows[] =
+    static Row<SelfSite> const rows[] =
     {
         { 1, &One },
         { 2, &One },
@@ -939,7 +999,8 @@ SELF_HANDLERS = '#include "Handlers.h"\n\n' + SELF_BLOCK
 SELF_BESIDE = SELF_SITES + '\n// Handlers:\n\n' + SELF_BLOCK
 
 # The file after an earlier move of the first site only, its body beside the sites: a base the
-# second site's move is checked against, whose own dispatch is pasted back the same way.
+# second site's move is checked against, whose own dispatch is pasted back the same way; its rows
+# are of an untyped Row, so its table is read by the name the site gives.
 SELF_MID = '''#include "A.h"
 #include "Handlers.h"
 
@@ -1010,7 +1071,6 @@ SELF_SPEC = {
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
         'label_indent': 8,
-        'braced': True,
         'table': 'rows',
         'traits': 'SelfSite',
         'context': 'SelfContext',
@@ -1028,8 +1088,6 @@ SELF_SPEC = {
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
         'label_indent': 8,
-        'braced': False,
-        'table': 'ranks',
         'traits': 'RankSite',
         'default': '        default:',
         'context': 'RankContext',
@@ -1164,8 +1222,6 @@ SELF_SPEC_PART = {
         'close': ['    }'],
         'residual': True,
         'label_indent': 8,
-        'braced': True,
-        'table': 'removed',
         'traits': 'RemoveSite',
         'context': 'RemoveContext',
         'live_outs': ['target'],
@@ -1189,10 +1245,11 @@ GEN_SPEC = dict(SELF_SPEC_PART, sites=[dict(SELF_SPEC_PART['sites'][0], name='ge
     i: '        case %d:%s// Label %d' % (i, ' ' * (33 - len(str(i))), i) for i in GEN_ORDER})])
 
 
-def gen_version(rows, standing=None, switch_order=None):
-    """(sites' file, handler file) of a version registering `rows`, with `standing` (by default
-    every label not registered) in its switch in `switch_order` (by default the original order);
-    no rows: the file before any move, and no handler file."""
+def gen_version(rows, standing=None, switch_order=None, unbraced=(), table='removed'):
+    """(sites' file, handler file) of a version registering `rows` in the table `table`, with
+    `standing` (by default every label not registered) in its switch in `switch_order` (by default
+    the original order), the bodies under the labels in `unbraced` not wrapped in braces; no rows:
+    the file before any move, and no handler file."""
     if standing is None:
         standing = [i for i in GEN_ORDER if i not in rows]
     labels = GEN_SPEC['sites'][0]['labels']
@@ -1205,8 +1262,8 @@ def gen_version(rows, standing=None, switch_order=None):
         if i in standing:
             out.append(labels[i])
             if i != 9:
-                out += ['        {', '            target->Drop(%d);' % (9 if i == 10 else i), '            return;',
-                        '        }']
+                body = ['            target->Drop(%d);' % (9 if i == 10 else i), '            return;']
+                out += body if i in unbraced else ['        {'] + body + ['        }']
     out += ['    }', '    target->Tail();', '}', '']
     if not rows:
         return '\n'.join(out), None
@@ -1218,7 +1275,8 @@ def gen_version(rows, standing=None, switch_order=None):
                  'static uint32 RegisterRows(Registry& registry, Row<Site> const (&rows)[N])', '{',
                  '    for (Row<Site> const& row : rows)', '    {',
                  '        registry.Register<Site>(row.spellId, row.function);', '    }', '    return uint32(N);', '}',
-                 '', 'void Register(Registry& registry)', '{', '    static Row<RemoveSite> const removed[] =', '    {']
+                 '', 'void Register(Registry& registry)', '{', '    static Row<RemoveSite> const %s[] =' % table,
+                 '    {']
     handlers += ['        { %d, &Drop%d },' % (i, 9 if i == 10 else i) for i in rows]
     handlers += ['    };', '}', '']
     return '\n'.join(out), '\n'.join(handlers)
@@ -1441,6 +1499,122 @@ def self_test():
         **dict(versions(gen_version([4, 5]), gen_version([4, 5, 6])), spec=misordered(6, 7)))
     run('a spec order wrong around a label both versions moved fails against a base before the move', 1,
         'DIFFERS', **dict(versions(none, twelve), spec=misordered(6, 7)))
+
+    def site_named(table):
+        """GEN_SPEC with its site naming `table`."""
+        return dict(GEN_SPEC, sites=[dict(GEN_SPEC['sites'][0], table=table)])
+
+    def raises(label, needle, call):
+        try:
+            call()
+            text = 'no failure'
+        except Failure as e:
+            text = str(e)
+        ok = needle in text
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: %s' % (label, text))
+
+    renamed = gen_version([1, 2, 4, 5, 6, 9, 10, 13, 14, 15, 17, 18], table='removal')
+    run('a table renamed between base and tree is found by its row type: passes', 0,
+        'with 11/11 bodies pasted back at their 12 labels in 1 sites (the base had 1 of the sites moved: '
+        '6 bodies pasted back there)', **dict(versions(six, renamed), spec=site_named('removed')))
+    raises('the lookup by the name the base has fails on the renamed table', 'registration table removed found 0 times',
+           lambda: named_table(renamed[1].split('\n'), 'removed'))
+    two = (twelve[0], twelve[1].replace('    };\n}', '    };\n    static Row<RemoveSite> const more[] =\n    {\n'
+                                                       '        { 3, &Drop3 },\n    };\n}'))
+    run('two tables typed by one site\'s traits fail', 1,
+        'generated part: 2 registration tables typed by RemoveSite: [\'removed\', \'more\']', **versions(six, two))
+    other = (twelve[0], twelve[1].replace('Row<RemoveSite> const removed', 'Row<OtherSite> const removed'))
+    run('no table typed by the site\'s traits fails, though one has its name', 1,
+        'generated part: no registration table typed by RemoveSite',
+        **dict(versions(six, other), spec=site_named('removed')))
+    untyped = (twelve[0], twelve[1].replace('Row<RemoveSite> const removed', 'Row const removed'))
+    run('an untyped table where the site names none fails', 1,
+        'generated part: no registration table is typed, and the site names no table to read',
+        **versions(six, untyped))
+
+    mixed = (6, 14)
+    moved = [4, 5, 6, 9, 10, 13, 14, 15]
+    run('a braced and an unbraced run moved together: passes', 0,
+        'with 7/7 bodies pasted back at their 8 labels in 1 sites (the base had 0',
+        **versions(gen_version([], unbraced=mixed), gen_version(moved, unbraced=mixed)))
+    run('against a base holding the unbraced runs, the braced ones moved: passes', 0,
+        'with 7/7 bodies pasted back at their 8 labels in 1 sites (the base had 1 of the sites moved: 2 bodies',
+        **versions(gen_version([4, 5], unbraced=mixed), gen_version(moved, unbraced=mixed)))
+    run('braced runs the base moved and the tree holds take their shape from the tree: passes', 0,
+        'with 6/6 bodies pasted back at their 6 labels in 1 sites (the base had 1 of the sites moved: 11 bodies',
+        **versions(twelve, six))
+    origin = gen_version([], unbraced=mixed)[0].split('\n')
+    site = GEN_SPEC['sites'][0]
+    for label, ids, n in [('an unbraced body pasted back with braces', [6], 2),
+                          ('a braced body pasted back without braces', [9, 10], 4)]:
+        lines = [site['labels'][i] for i in ids]
+        body = ['    ctx.target->Drop(%d);' % ids[0], '    return SpellHandlerOutcome<void>::Return();']
+        at = origin.index(lines[0])
+        stood = origin[at:at + len(lines) + n]
+        shape = braced([origin], site, lines)
+        ok = paste(site, 'Drop', body, lines, shape) == stood and paste(site, 'Drop', body, lines, not shape) != stood
+        print('self-test: %-66s %s' % (label + ' differs from its origin', 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: the shape read, %s, does not reproduce the origin alone' % (label, shape))
+    tail = gen_version([], unbraced=mixed)[0].replace(
+        '        {\n            target->Drop(5);\n            return;\n        }',
+        '        {\n            target->Drop(5);\n        }\n        return;')
+    run('a body that is a block followed by more lines fails', 1,
+        'generated part: where it stands, the body under [\'case 5:\'] is a block followed by more lines',
+        **versions((tail, None), gen_version(moved, unbraced=mixed)))
+    nested = gen_version([], unbraced=mixed)[0].replace(
+        '        {\n            target->Drop(5);\n            return;\n        }',
+        '        {\n            target->Drop(5);\n        }\n            case 50:\n            return;')
+    run('a block followed by a deeper case (a nested switch\'s) fails', 1,
+        'generated part: where it stands, the body under [\'case 5:\'] is a block followed by more lines',
+        **versions((nested, None), gen_version(moved, unbraced=mixed)))
+    beside = (twelve[0], twelve[1].replace('    };\n}', '    };\n    static Row<RemoveSiteX> const other[] =\n    {\n'
+                                                          '        { 3, &Drop3 },\n    };\n}'))
+    run('a table typed by another traits sharing the name\'s start is not the site\'s: passes', 0,
+        'with 11/11 bodies pasted back at their 12 labels in 1 sites (the base had 1', **versions(six, beside))
+    elsewhere = ['void Thing::Other()', '{', '    switch (GetId())', '    {',
+                 GEN_SPEC['sites'][0]['labels'][6], '        {', '            target->Drop(6);', '            return;',
+                 '        }', '    }', '}', '']
+    twice = gen_version([], unbraced=mixed)[0] + '\n'.join(elsewhere)
+    tree = gen_version(moved, unbraced=mixed)
+    run('a run whose label lines stand twice in one version fails', 1, 'stand 2 times in one version',
+        **versions((twice, None), (tree[0] + '\n'.join(elsewhere), tree[1])))
+    deep = gen_version([], unbraced=mixed)[0].replace(
+        GEN_SPEC['sites'][0]['labels'][6] + '\n            target->Drop(6);\n',
+        GEN_SPEC['sites'][0]['labels'][6] + '\n            {\n                target->Drop(6);\n            }\n')
+    deep_tree = (tree[0], tree[1].replace('    ctx.target->Drop(6);\n',
+                                          '    {\n        ctx.target->Drop(6);\n    }\n'))
+    run('an unbraced body starting with a deeper { is read unbraced: passes', 0,
+        'with 7/7 bodies pasted back at their 8 labels in 1 sites (the base had 0',
+        **versions((deep, None), deep_tree))
+
+    whole_site = {k: v for k, v in GEN_SPEC['sites'][0].items() if k != 'residual'}
+    whole_site.update(name='generated whole', default='        default:',
+                      labels={i: GEN_SPEC['sites'][0]['labels'][i] for i in (1, 2, 3)})
+    whole = dict(GEN_SPEC, sites=[whole_site])
+    body = {i: ['            target->Drop(%d);' % i, '            return;'] for i in (0, 1, 2, 3)}
+    switch = ([whole_site['labels'][1], '        {'] + body[1] + ['        }']
+              + [whole_site['labels'][2]] + body[2]
+              + [whole_site['labels'][3], '        {'] + body[3] + ['        }']
+              + ['        default:', '        {'] + body[0] + ['        }'])
+    head = ['#include "A.h"', '', 'void Thing::Remove(bool apply)', '{', '    Unit* target = GetTarget();']
+    whole_origin = '\n'.join(head + ['    switch (GetId())', '    {'] + switch
+                             + ['    }', '    target->Tail();', '}', ''])
+    whole_tree = '\n'.join(head[:1] + ['#include "Handlers.h"'] + head[1:] + whole_site['dispatch']
+                           + ['    target->Tail();', '}', ''])
+    whole_handlers = ['#include "Handlers.h"', '']
+    for i, name in [(1, 'Drop1'), (2, 'Drop2'), (3, 'Drop3'), (0, 'DropDefault')]:
+        whole_handlers += ['static SpellHandlerOutcome<void> %s(RemoveContext& ctx)' % name, '{',
+                           '    ctx.target->Drop(%d);' % i, '    return SpellHandlerOutcome<void>::Return();', '}', '']
+    whole_handlers += ['void Register(Registry& registry)', '{', '    static Row<RemoveSite> const removed[] =',
+                       '    {',
+                       '        { 1, &Drop1 },', '        { 2, &Drop2 },', '        { 3, &Drop3 },', '    };',
+                       '    registry.RegisterDefault<RemoveSite>(&DropDefault);', '}', '']
+    run('a braced default, a block closing before it: pastes back braced, passes', 0,
+        'with 4/4 bodies pasted back at their 3 labels in 1 sites (the base had 0',
+        old_text=whole_origin, sites=whole_tree, handlers='\n'.join(whole_handlers), spec=whole)
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
