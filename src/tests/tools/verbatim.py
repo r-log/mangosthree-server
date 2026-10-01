@@ -57,17 +57,21 @@ For each file in SITES, --check:
      there), so BASE may be any commit from before the first move to the parent of this PR;
   5. cuts from the rebuilt base what the working tree deleted, each a whole label run: a `case N:`
      or `default:` line and the lines under it down to the next `case` or `default:` at its
-     indent or the first line indented less (the switch's close). A run fails when the label
-     above it, past blank and comment-only lines, has no body of its own (that label would fall
-     into another body). What is cut: a residual site's DELETED labels (each one of the site's
-     labels, found at most once); a site GONE whole (its dispatch, a table typed by its TRAITS or
-     a default registered for it still in the working tree fail), its switch, opening directly
-     above its first label, with the lines GONE names above and below it, inside the file; and
-     the file's CUTS, each (the run's first lines, its number of lines), the first line a label
-     at no site, found at most once, the number exactly the run's. What a base no longer holds
-     (a base from after the deletion) is not cut there, and a deleted label may be neither
-     registered nor standing in it. A site with a dispatch deletes labels only when it is a
-     residual one; cuts may not overlap;
+     indent or the first line indented less that is not comment-only (the switch's close). A run
+     fails when the code above it, past blank and comment-only lines, could reach it: a label at
+     its indent with no body of its own, or a run whose last statement (inside the closing `}`
+     of a braced run, after the colon of a one-line case) is not a whole `return ...;`,
+     `break;`, `continue;` or `goto ...;` line; a run above that cannot fall through in another
+     shape (an if and else that both return) fails too, on the safe side. What is cut: a
+     residual site's DELETED labels (each one of the site's labels, found at most once); a site
+     GONE whole (its dispatch, a table typed by its TRAITS or a default registered for it still
+     in the working tree fail), its switch, opening directly above its first label, with the
+     lines GONE names above and below it, inside the file; and the file's CUTS, each (the run's
+     first lines, its number of lines), the first line a `case` (a `default:` goes only with its
+     whole switch) at no site, found at most once, the number exactly the run's. What a base no
+     longer holds (a base from after the deletion) is not cut there, and a deleted label may be
+     neither registered nor standing in it. A site with a dispatch deletes labels only when it
+     is a residual one; cuts may not overlap;
   6. compares the two, byte for byte, and names the first difference.
 Because the bodies are pasted from the functions the table registers, a row pointing at the wrong
 function, a lost row or default, a changed line, or a body moved in the wrong order all fail; a
@@ -840,24 +844,48 @@ def gone(site, at, rest, handlers):
 LABEL_LINE = re.compile(r'( *)(case [^:]+|default)\s*:')
 
 
-def label_run(lines, i, where):
-    """The end of the label run starting at lines[i] (a `case`/`default:` line); fails when the label
-    above it, past blank and comment-only lines, has no body of its own."""
-    m = LABEL_LINE.match(lines[i])
-    if not m:
-        raise Failure('%s: %r is not a `case` or `default:` line' % (where, lines[i]))
-    indent = m.group(1)
-    k = i - 1
-    while k >= 0 and (not lines[k].strip() or lines[k].strip().startswith(('//', '/*', '*'))):
+TERMINATOR = re.compile(r'(return\b.*|break|continue|goto\s+\w+)\s*;')
+
+
+def comment_only(line):
+    return line.strip().startswith(('//', '/*', '*'))
+
+
+def code_above(lines, k):
+    """The index of the last line at or above lines[k] that is neither blank nor comment-only; -1 for none."""
+    while k >= 0 and (not lines[k].strip() or comment_only(lines[k])):
         k -= 1
+    return k
+
+
+def label_run(lines, i, where, cases_only=False):
+    """The end of the label run starting at lines[i] (a `case`/`default:` line, a `case` line when
+    `cases_only`); fails when the code above it could reach it: a label at its indent with no body of
+    its own, or a run above whose last statement is not a return, break, continue or goto."""
+    m = LABEL_LINE.match(lines[i])
+    if not m or (cases_only and not m.group(2).startswith('case')):
+        raise Failure('%s: %r is not a `case`%s line' % (where, lines[i], '' if cases_only else ' or `default:`'))
+    indent = m.group(1)
+    k = code_above(lines, i - 1)
     above = LABEL_LINE.match(lines[k]) if k >= 0 else None
-    if above and above.group(1) == indent and not blank(lines[k][above.end():]).strip():
-        raise Failure('%s: %r has no body of its own and would fall into another' % (where, lines[k].strip()))
+    if above and above.group(1) == indent:
+        last = blank(lines[k][above.end():]).strip()
+        if not last:
+            raise Failure('%s: %r has no body of its own and would fall into another' % (where, lines[k].strip()))
+    elif k >= 0 and blank(lines[k]).strip().endswith('{'):
+        last = None
+    else:
+        if k >= 0 and lines[k] == indent + '}':
+            k = code_above(lines, k - 1)
+        last = blank(lines[k]).strip() if k >= 0 else ''
+    if last is not None and not TERMINATOR.fullmatch(last.rstrip(';').split(';')[-1].strip() + ';'
+                                                     if last.endswith(';') else last):
+        raise Failure('%s: the run above may fall into it (%r)' % (where, lines[k].strip()))
     for j in range(i + 1, len(lines)):
         line = lines[j]
         if line.startswith(indent + 'case ') or line.startswith(indent + 'default:'):
             return j
-        if line.strip() and len(line) - len(line.lstrip(' ')) < len(indent):
+        if line.strip() and not comment_only(line) and len(line) - len(line.lstrip(' ')) < len(indent):
             return j
     raise Failure('%s: the run under %r has no end' % (where, lines[i].strip()))
 
@@ -904,7 +932,7 @@ def cut(text, spec):
         if len(at) > 1:
             raise Failure('%s: found %d times in the base' % (where, len(at)))
         if at:
-            end = label_run(lines, at[0], where)
+            end = label_run(lines, at[0], where, cases_only=True)
             if at[0] + count != end:
                 raise Failure('%s: %d lines, and its label run is %d' % (where, count, end - at[0]))
             ranges.append((at[0], end))
@@ -1443,7 +1471,7 @@ def self_test():
         got = []
         try:
             rc, _ = verify('fixture', old_text, sites, spec, SELF_HEADERS, got.append, old_handlers, handlers)
-        except Exception as e:                                  # a crash is a failure of the row, not a reason
+        except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
         text = '\n'.join(got)
@@ -1830,6 +1858,59 @@ def self_test():
     run('against a base from after the deletions (nothing left to cut): passes', 0,
         '(the base had 1 of the sites moved: 6 bodies pasted back there), the base less 0 cuts (0 lines)',
         **file_cut(tree_other, tree_other, [(fifty_one, 5)]))
+
+    text_other = '\n'.join(other)
+
+    def cut_run(label, want, needle, text, head, count):
+        # `text` in place of Other in the base; the tree drops `count` lines from `head`
+        lines = text.split('\n')
+        at = lines.index(head)
+        tree = without([7])
+        run(label, want, needle, **file_cut((none[0] + text, None),
+                                            (tree[0] + '\n'.join(lines[:at] + lines[at + count:]), tree[1]),
+                                            [([head], count)]))
+
+    falls = 'the run above may fall into it'
+    fifty = '            Drop(50);\n            return;\n'
+    cut_run('a file cut under a run with no terminator fails', 1, falls,
+            text_other.replace(fifty, '            Drop(50);\n'), other[7], 5)
+    cut_run('a file cut under a run whose last code is followed by a comment fails', 1, falls,
+            text_other.replace(fifty, '            Drop(50);\n// note\n'), other[7], 5)
+    for last in ['return;', 'break;', 'continue;', 'goto done;', 'return Drop(0);']:
+        cut_run('a file cut under a run ending in `%s`: passes' % last, 0, 'the base less 2 cuts (10 lines)',
+                text_other.replace(fifty, '            Drop(50);\n            %s\n' % last), other[7], 5)
+    cut_run('a file cut under a one-line case ending in break: passes', 0, 'the base less 2 cuts (10 lines)',
+            text_other.replace('\n'.join(other[4:7]) + '\n', '        case 50: Drop(50); break;    // Fifty\n'),
+            other[7], 5)
+    cut_run('a file cut under a one-line case with no terminator fails', 1, falls,
+            text_other.replace('\n'.join(other[4:7]) + '\n', '        case 50: Drop(50);    // Fifty\n'), other[7], 5)
+    cut_run('a file cut under a braced run ending in return: passes', 0, 'the base less 2 cuts (8 lines)',
+            text_other, other[12], 3)
+    cut_run('a file cut under a braced run with no terminator fails', 1, falls,
+            text_other.replace('            Drop(51);\n            return;\n        }',
+                               '            Drop(51);\n        }'),
+            other[12], 3)
+    cut_run('a file cut of a `default:` run fails', 1, '\'        default:\' is not a `case` line',
+            text_other.replace('            return;\n    }\n}', '            return;\n        default:\n'
+                               '            return;\n    }\n}'), '        default:', 2)
+    column0 = text_other.replace('            Drop(51);\n', '            Drop(51);\n// note\n')
+    cut_run('a run holding a comment at column 0 is cut whole: passes', 0, 'the base less 2 cuts (11 lines)',
+            column0, other[7], 6)
+    cut_run('a cut stopping at a comment at column 0 fails', 1, '5 lines, and its label run is 6',
+            column0, other[7], 5)
+    nested = text_other.replace('            Drop(51);\n            return;\n        }',
+                                '            switch (x)\n            {\n                case 1:\n'
+                                '                    break;\n            }\n            return;\n        }')
+    cut_run('a run holding a nested switch is cut whole: passes', 0, 'the base less 2 cuts (14 lines)',
+            nested, other[7], 9)
+    cut_run('a cut stopping at the nested switch\'s close fails', 1, '7 lines, and its label run is 9',
+            nested, other[7], 7)
+    cut_run('a run with a blank line inside, last before the close: passes', 0, 'the base less 2 cuts (9 lines)',
+            text_other.replace('            Drop(52);\n', '            Drop(52);\n\n'), other[12], 4)
+    tail = text_other.replace('            return;\n    }\n}', '            return;\n    // tail\n    }\n}')
+    cut_run('a comment less indented before the close ends the last run with it: passes', 0,
+            'the base less 2 cuts (9 lines)', tail, other[12], 4)
+    cut_run('a last run cut short of that comment fails', 1, '3 lines, and its label run is 4', tail, other[12], 3)
 
     gone_spec = dict(whole, sites=[dict(whole_site, gone=(1, 1))])
     gone_tree = '\n'.join(head[:1] + ['#include "Handlers.h"'] + head[1:4] + ['}', ''])
