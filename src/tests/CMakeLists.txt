@@ -82,6 +82,7 @@ set(SRC_GRP_TESTS
     CombatGoldenVectors.h
     CreatureThreatTest.cpp
     UnitSubtypeTest.cpp
+    SpellHitResultTest.cpp
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
     QuestStatusMgrTest.cpp
