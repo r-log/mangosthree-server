@@ -319,6 +319,11 @@ TEST(CharacterCache_AReaderDuringAWriterSeesOneWholeValueOrTheOther)
     const std::string shortName = "Bo";
     const std::string longName = "Averylongcharactername";
 
+    // The seeded name and level are outside what the writer writes, so the entry starts
+    // on one of the writer's pairs and every value the reader can see is one it accepts.
+    sCharacterCache.UpdateName(AldorGuid(), longName);
+    sCharacterCache.UpdateLevel(AldorGuid(), 80);
+
     std::atomic<bool> stop(false);
     std::atomic<int> torn(0);
     std::atomic<int> reads(0);
@@ -353,6 +358,13 @@ TEST(CharacterCache_AReaderDuringAWriterSeesOneWholeValueOrTheOther)
             reads.fetch_add(1);
         }
     });
+
+    // The writer starts only once the reader is reading, so the two overlap however the
+    // threads are scheduled.
+    while (reads.load() == 0 && torn.load() == 0)
+    {
+        std::this_thread::yield();
+    }
 
     for (int i = 0; i < 20000; ++i)
     {
