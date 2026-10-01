@@ -50,17 +50,21 @@ WINDOW is 11 lines: measured over every site, the farthest guard or statement a 
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
 UnitAuraProcHandler.cpp:2822 under the type return at :2811); the rest stand within 6 lines
 (the guard above an added call, the return below a tested one, the assignment below :342 that
-:655 relies on, :655's case label, :3201's type return at :3195). One site sets its own window in
-its file's spec: UnitAuraProcHandler.cpp:2881 relies on the same type return at :2811, 70 lines
-above it. The combat-stats sites stand within 9 lines of theirs: UnitCombat.cpp:262 and :289 5 (the
-outer dodge and parry tests at :257 and :284; the `else` branch ends 5 below), :413 5 (the
+:655 relies on, :655's case label, :3201's type return at :3195). A site that relies on a line
+farther away sets its own window in its file's spec: UnitAuraProcHandler.cpp:2881 relies on the
+same type return at :2811, 70 lines above it, and five mount sites (below) on their type test.
+The combat-stats sites stand within 9 lines of theirs: UnitCombat.cpp:262 and :289 5 (the outer
+dodge and parry tests at :257 and :284; the `else` branch ends 5 below), :413 5 (the
 normalized-player flag at :408 its guard reads; the guard at :411; the range selection 3 below),
 :748 9 (the `canDodge` test at :739; the clamp 6 below) and :773 7 (`canParry` at :766; the clamp 6
 below); UnitDamage.cpp:83 7 (the player flag at :76; the guard at :81; the return 3 below);
 UnitSpellBonus.cpp:704 and :1309 3 (their type tests); UnitPower.cpp:344, :350, :351, :365, :367
 and Unit.cpp:4250 0 to 1 (the type test on the site's own line; :344's case label above it). The
 cast-item sites, UnitAuraProcHandler.cpp:551, :633, :719, :3569, :4686, :4961, :5013 and :5073,
-stand 1 line below theirs (the guid and type test the ternary's condition holds).
+stand 1 line below theirs (the guid and type test the ternary's condition holds). The mount and
+pet sites rely on the type test of Mount (Unit.cpp:4042) or Unmount (:4140): :4047 stands 5 lines
+below Mount's; :4092, :4095 and :4103, in the mount aura's arm, stand 50, 53 and 61 below it, and
+:4152 and :4155 12 and 15 below Unmount's, so those five set their own window in their file's spec.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -144,6 +148,18 @@ FORMS = {
     'GetItemByGuid': {'direct': 'GetItemByGuid(',
                       'cast': '((Player*)this)->GetInventoryMgr().GetItemByGuid(',
                       'suffix': None},
+    'UnsummonPetTemporaryIfAny': {'direct': 'UnsummonPetTemporaryIfAny(',
+                                  'cast': '((Player*)this)->UnsummonPetTemporaryIfAny(',
+                                  'suffix': None},
+    'ResummonPetTemporaryUnSummonedIfAny': {'direct': 'ResummonPetTemporaryUnSummonedIfAny(',
+                                            'cast': '((Player*)this)->ResummonPetTemporaryUnSummonedIfAny(',
+                                            'suffix': None},
+    'InArena': {'direct': 'InArena(',
+                'cast': '((Player*)this)->InArena(',
+                'suffix': None},
+    'GetCollisionHeight': {'direct': 'GetCollisionHeight(',
+                           'cast': '((Player*)this)->GetCollisionHeight(',
+                           'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -192,6 +208,33 @@ UNIT_H_ITEM_BY_GUID = '''        /**
          */
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }'''
 
+UNIT_H_MOUNT_PET = '''
+    protected:
+        /**
+         * Puts this unit's pet away until ResummonPetTemporaryUnSummonedIfAny brings it back; Mount
+         * calls it for a mount by a GM command, and for a temporary pet or one in an arena.
+         * Does nothing here; Player unsummons its pet and keeps a permanent pet's number to resummon.
+         */
+        virtual void UnsummonPetTemporaryIfAny() { }
+        /**
+         * Brings back the pet UnsummonPetTemporaryIfAny put away; Unmount calls it when no pet is out.
+         * Does nothing here; Player loads that pet again unless it still may not have one out.
+         */
+        virtual void ResummonPetTemporaryUnSummonedIfAny() { }
+        /**
+         * @return whether this unit is in an arena, where Mount puts a controlled pet away under
+         * PetUnsummonAtMount: false here; Player answers from its battleground
+         */
+        virtual bool InArena() const { return false; }
+        /**
+         * The collision height Mount and Unmount send to the client; they send none when it is 0.
+         * @param mounted true for the height on the mount, false for the unit's own
+         * @return 0 here; Player returns its mount's or its native model's height
+         */
+        virtual float GetCollisionHeight(bool /*mounted*/) const { return 0.0f; }
+
+    public:'''
+
 PLAYER_H_ITEM_BY_GUID = '''
         // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
         // so only a call through Unit reaches it
@@ -211,6 +254,7 @@ FILES = {
                                         'SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, '
                                         'uint32 procExtra, WeaponAttackType attType, bool isVictim, '
                                         'SpellProcEventEntry const*& spellProcEvent);'),
+                  (UNIT_H_MOUNT_PET, '        void Unmount(bool from_aura = false);'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
     'src/game/entities/player/Player.h': {
         'forms': {},
@@ -221,10 +265,24 @@ FILES = {
                   (PLAYER_H_ITEM_BY_GUID, '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
-                     'GetItemByEntry,')]},
+                     'GetItemByEntry,'),
+                    ('        float GetCollisionHeight(bool mounted) const override;',
+                     '        float GetCollisionHeight(bool mounted) const;'),
+                    ('        bool InArena() const override;', '        bool InArena() const;'),
+                    ('        // rows) and its rules live on PetMgr. The three that reach the live pet',
+                     '        // rows) and its rules live on PetMgr. Decoupling D4k: the three that reach the '
+                     'live pet'),
+                    ('        // through SessionSink(). The temporary-unsummon pet number is read and',
+                     '        // through SessionSink(). Decoupling D4i: the temporary-unsummon pet number is read '
+                     'and'),
+                    ('        void UnsummonPetTemporaryIfAny() override;', '        void UnsummonPetTemporaryIfAny();'),
+                    ('        void ResummonPetTemporaryUnSummonedIfAny() override;',
+                     '        void ResummonPetTemporaryUnSummonedIfAny();')]},
     'src/game/Object/Unit.cpp': {
-        'forms': {'HasSpell': 1},
-        'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')]},
+        'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
+                  'InArena': 1, 'GetCollisionHeight': 2},
+        'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
+        'window': {4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15}},
     'src/game/Object/UnitCombat.cpp': {
         'forms': {'GetMeleeRollExpertiseReduction': 2, 'GetMeleeSpellExpertiseReduction': 2,
                   'CalculateMinMaxDamage': 1},

@@ -4045,7 +4045,7 @@ void Unit::Mount(uint32 mount, uint32 spellId, bool canFly)
         // Called by Taxi system / GM command
         if (!spellId)
         {
-            ((Player*)this)->UnsummonPetTemporaryIfAny();
+            UnsummonPetTemporaryIfAny();
         }
         // Called by mount aura
         else if (sSpellStore.LookupEntry(spellId))
@@ -4090,10 +4090,10 @@ void Unit::Mount(uint32 mount, uint32 spellId, bool canFly)
                 // mounted -- which is what the client shows, a greyed-out pet bar, and what
                 // Unit::Unmount restores from the CharmInfo. A TEMPORARY summon keeps exactly
                 // the gate it had: PetUnsummonAtMount, and the arena with it.
-                if (pet->isControlled() && (pet->isTemporarySummoned() || ((Player*)this)->InArena())
+                if (pet->isControlled() && (pet->isTemporarySummoned() || InArena())
                     && sWorld.getConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT))
                 {
-                    ((Player*)this)->UnsummonPetTemporaryIfAny();
+                    UnsummonPetTemporaryIfAny();
                 }
                 else
                 {
@@ -4101,7 +4101,7 @@ void Unit::Mount(uint32 mount, uint32 spellId, bool canFly)
                 }
             }
 
-            float height = ((Player*)this)->GetCollisionHeight(true);
+            float height = GetCollisionHeight(true);
             if (height)
             {
                 SendCollisionHeightUpdate(height);
@@ -4150,10 +4150,10 @@ void Unit::Unmount(bool from_aura)
         }
         else
         {
-            ((Player*)this)->ResummonPetTemporaryUnSummonedIfAny();
+            ResummonPetTemporaryUnSummonedIfAny();
         }
 
-        float height = ((Player*)this)->GetCollisionHeight(false);
+        float height = GetCollisionHeight(false);
         if (height)
         {
             SendCollisionHeightUpdate(height);

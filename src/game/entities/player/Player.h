@@ -1948,7 +1948,7 @@ class Player : public Unit
         void SetInGameTime(uint32 time) { m_ingametime = time; }
 
         /// Return collision height sent to client
-        float GetCollisionHeight(bool mounted) const;
+        float GetCollisionHeight(bool mounted) const override;
 
         /*********************************************************/
         /***                   LOAD SYSTEM                     ***/
@@ -3262,7 +3262,7 @@ class Player : public Unit
         bool InBattleGround() const { return m_bgData.bgInstanceID != 0; }
 
         // Check if the player is in an arena
-        bool InArena() const;
+        bool InArena() const override;
 
         // Get the battleground ID
         uint32 GetBattleGroundId() const { return m_bgData.bgInstanceID; }
@@ -3621,16 +3621,16 @@ class Player : public Unit
         void RemoveAtLoginFlag(AtLoginFlags f, bool in_db_also = false);
 
         // Pet ownership API. The state (temporary-unsummon pet number, stable slot count, pet
-        // rows) and its rules live on PetMgr. Decoupling D4k: the three that reach the live pet
+        // rows) and its rules live on PetMgr. The three that reach the live pet
         // (UnsummonPetTemporaryIfAny, UnsummonPetIfAny, ResummonPetTemporaryUnSummonedIfAny)
         // live in pets/PlayerPet.cpp, with RemovePet; RemovePetActionBar's packet goes
-        // through SessionSink(). Decoupling D4i: the temporary-unsummon pet number is read and
+        // through SessionSink(). The temporary-unsummon pet number is read and
         // set on the manager directly.
         PetMgr& GetPetMgr() { return m_petMgr; }
         PetMgr const& GetPetMgr() const { return m_petMgr; }
-        void UnsummonPetTemporaryIfAny();
+        void UnsummonPetTemporaryIfAny() override;
         void UnsummonPetIfAny();
-        void ResummonPetTemporaryUnSummonedIfAny();
+        void ResummonPetTemporaryUnSummonedIfAny() override;
         bool IsPetNeedBeTemporaryUnsummoned() const { return !IsInWorld() || !IsAlive() || IsMounted() || IsTaxiFlying(); }
 
         // Decoupling D7e: the character's rows from character_pet, pet_aura, pet_spell,
