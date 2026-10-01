@@ -4248,7 +4248,7 @@ MountCapabilityEntry const* Unit::GetMountCapability(uint32 mountType) const
             continue;
         }
 
-        if (mountCapability->RequiredSpell && (GetTypeId() != TYPEID_PLAYER || !(Player*)(this)->HasSpell(mountCapability->RequiredSpell)))
+        if (mountCapability->RequiredSpell && (GetTypeId() != TYPEID_PLAYER || !HasSpell(mountCapability->RequiredSpell)))
         {
             continue;
         }
