@@ -522,6 +522,7 @@ class  Aura
         void UpdateAura(uint32 diff) { SetInUse(true); Update(diff); SetInUse(false); }
 
         void SetRemoveMode(AuraRemoveMode mode) { m_removeMode = mode; }
+        AuraRemoveMode GetRemoveMode() const { return m_removeMode; }
 
         virtual Unit* GetTriggerTarget() const { return m_spellAuraHolder->GetTarget(); }
 

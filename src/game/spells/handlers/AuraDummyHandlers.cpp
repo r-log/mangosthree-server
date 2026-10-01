@@ -302,6 +302,67 @@ static SpellHandlerOutcome<void> AuraDummyQuestTame30105(AuraDummyQuestTameConte
 }
 
 
+/// AT REMOVE 12774: (DND) Belnistrasz Idol Shutdown Visual
+static SpellHandlerOutcome<void> AuraDummyRemove12774(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_DEATH)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Idom Rool Camera Shake <- wtf, don't drink while making spellnames?
+    if (Unit* caster = ctx.aura->GetCaster())
+    {
+        caster->CastSpell(caster, 12816, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 32045: Soul Charge
+static SpellHandlerOutcome<void> AuraDummyRemove32045(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.target->CastSpell(ctx.target, 32054, true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 32051: Soul Charge
+static SpellHandlerOutcome<void> AuraDummyRemove32051(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.target->CastSpell(ctx.target, 32057, true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 32052: Soul Charge
+static SpellHandlerOutcome<void> AuraDummyRemove32052(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.target->CastSpell(ctx.target, 32053, true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 32286: Focus Target Visual
+static SpellHandlerOutcome<void> AuraDummyRemove32286(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.target->CastSpell(ctx.target, 32301, true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE 41099: Battle Stance
 static SpellHandlerOutcome<void> AuraDummyRemove41099(AuraDummyRemoveContext& ctx)
 {
@@ -326,6 +387,103 @@ static SpellHandlerOutcome<void> AuraDummyRemove41101(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// AT REMOVE 42454: Captured Totem
+static SpellHandlerOutcome<void> AuraDummyRemove42454(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_DEFAULT)
+    {
+        if (ctx.target->GetDeathState() != CORPSE)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        Unit* pCaster = ctx.aura->GetCaster();
+
+        if (!pCaster)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        // Captured Totem Test Credit
+        if (Player* pPlayer = pCaster->GetCharmerOrOwnerPlayerOrPlayerItself())
+        {
+            pPlayer->CastSpell(pPlayer, 42455, true);
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 43681: Inactive
+static SpellHandlerOutcome<void> AuraDummyRemove43681(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE && ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        ((Player*)ctx.target)->ToggleAFK();
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 43969: Feathered Charm
+static SpellHandlerOutcome<void> AuraDummyRemove43969(AuraDummyRemoveContext& ctx)
+{
+    // Steelfeather Quest Credit, Are there any requirements for this, like area?
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.target->CastSpell(ctx.target, 43984, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 45934: Dark Fiend
+static SpellHandlerOutcome<void> AuraDummyRemove45934(AuraDummyRemoveContext& ctx)
+{
+    // Kill target if dispelled
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_DISPEL)
+    {
+        ctx.target->DealDamage(ctx.target, ctx.target->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 50141: Blood Oath
+static SpellHandlerOutcome<void> AuraDummyRemove50141(AuraDummyRemoveContext& ctx)
+{
+    // Blood Oath
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.target->CastSpell(ctx.target, 50001, true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 51870: Collect Hair Sample
+static SpellHandlerOutcome<void> AuraDummyRemove51870(AuraDummyRemoveContext& ctx)
+{
+    if (Unit* pCaster = ctx.aura->GetCaster())
+    {
+        if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+        {
+            pCaster->CastSpell(ctx.target, 51872, true, NULL, ctx.aura);
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 52098: Charge Up
+static SpellHandlerOutcome<void> AuraDummyRemove52098(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.target->CastSpell(ctx.target, 52092, true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE 53790: Defensive Stance
 static SpellHandlerOutcome<void> AuraDummyRemove53790(AuraDummyRemoveContext& ctx)
 {
@@ -347,6 +505,29 @@ static SpellHandlerOutcome<void> AuraDummyRemove53792(AuraDummyRemoveContext& ct
 {
     // Battle Aura
     ctx.target->RemoveAurasDueToSpell(41106);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 56511: Towers of Certain Doom: Tower Bunny Smoke Flare Effect
+static SpellHandlerOutcome<void> AuraDummyRemove56511(AuraDummyRemoveContext& ctx)
+{
+    // Towers of Certain Doom: Skorn Cannonfire
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_DEFAULT)
+    {
+        ctx.target->CastSpell(ctx.target, 43069, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 61900: Electrical Charge
+static SpellHandlerOutcome<void> AuraDummyRemove61900(AuraDummyRemoveContext& ctx)
+{
+    if (ctx.aura->GetRemoveMode() == AURA_REMOVE_BY_DEATH)
+    {
+        ctx.target->CastSpell(ctx.target, ctx.aura->GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_0), true);
+    }
+
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -499,12 +680,26 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
 
     static AuraDummyRow<AuraDummyRemoveSite> const stanceRemoval[] =
     {
+        { 12774, &AuraDummyRemove12774 },
+        { 32045, &AuraDummyRemove32045 },
+        { 32051, &AuraDummyRemove32051 },
+        { 32052, &AuraDummyRemove32052 },
+        { 32286, &AuraDummyRemove32286 },
         { 41099, &AuraDummyRemove41099 },
         { 41100, &AuraDummyRemove41100 },
         { 41101, &AuraDummyRemove41101 },
+        { 42454, &AuraDummyRemove42454 },
+        { 43681, &AuraDummyRemove43681 },
+        { 43969, &AuraDummyRemove43969 },
+        { 45934, &AuraDummyRemove45934 },
+        { 50141, &AuraDummyRemove50141 },
+        { 51870, &AuraDummyRemove51870 },
+        { 52098, &AuraDummyRemove52098 },
         { 53790, &AuraDummyRemove53790 },
         { 53791, &AuraDummyRemove53791 },
         { 53792, &AuraDummyRemove53792 },
+        { 56511, &AuraDummyRemove56511 },
+        { 61900, &AuraDummyRemove61900 },
     };
 
     static AuraDummyRow<AuraDummyApplyRemoveGenericSite> const feignDeath[] =
