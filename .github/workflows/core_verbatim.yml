@@ -1,0 +1,38 @@
+name: Verbatim Proof
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [master, united, devel]
+  pull_request:
+    branches: [master, united, devel]
+
+concurrency:
+  group: verbatim-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verbatim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: Verbatim proof (both bases)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0   # the proofs read the base trees with git show
+
+      - name: Self-tests
+        run: |
+          python3 src/tests/tools/verbatim.py --self-test
+          python3 src/tests/tools/cast_verbatim.py --self-test
+
+      - name: Spell handler moves against this change's parent
+        run: python3 src/tests/tools/verbatim.py --check
+
+      - name: Spell handler moves against the original switches
+        run: python3 src/tests/tools/verbatim.py --check --original
+
+      - name: Cast rewrites against their parent
+        run: python3 src/tests/tools/cast_verbatim.py --check

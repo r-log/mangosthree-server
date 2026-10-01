@@ -75,8 +75,12 @@ member at class scope; and a `return ...::Continue();` inside a loop or a nested
 moved `break;` would have left that loop, not the case).
 
 python src/tests/tools/verbatim.py --check        # against BASE (this PR's parent), reading git
-python src/tests/tools/verbatim.py --check --base afdabc428   # against master before the first move
+python src/tests/tools/verbatim.py --check --original   # against ORIGINAL: master before the first move
 python src/tests/tools/verbatim.py --self-test    # fixtures only, no git
+
+CI (.github/workflows/core_verbatim.yml) runs --check against both bases on every pull request: the
+parent proves this PR's own moves, the original re-proves every body ever moved against the switches
+as they first stood, so a slip merged earlier is never inherited as the next PR's base.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -112,9 +116,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
 
-# The tree the moved bodies are checked against: the parent of the latest move. `--base afdabc428`
-# (before the first move) proves every site against the switches as they were.
+# The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
+# before the first move) proves every site against the switches as they first stood; CI runs both.
 BASE = '067ae2cf0'
+ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
@@ -1349,6 +1354,9 @@ def self_test():
     run('no handler file and no handler block fails', 1, 'no handler file Handlers.cpp, and the tail marker found 0',
         handlers=None)
     run('a changed body line fails', 1, 'DIFFERS', swap=('if (i == 1)', 'if (i == 2)'))
+    run('a fallthrough with code before its second label cannot be moved: fails', 1, 'DIFFERS',
+        old_text=SELF_OLD.replace('        case 1:                                 // One\n',
+                                  '        case 1:                                 // One\n            Log(1);\n'))
     run('two rows swapped fail', 1, 'registered in two runs of rows',
         swap=('        { 2, &One },\n        { 3, &Three },', '        { 3, &Three },\n        { 2, &One },'))
     run('a row pointing at the wrong body fails', 1, 'DIFFERS', swap=('{ 2, &One }', '{ 2, &Three }'))
@@ -1625,10 +1633,13 @@ def main(argv):
     ap = argparse.ArgumentParser(description='The spell handler registry\'s verbatim proof (decoupling D11).')
     ap.add_argument('--root', default=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..')))
     ap.add_argument('--base', default=BASE)
+    ap.add_argument('--original', action='store_true', help='check against ORIGINAL, the tree before the first move')
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--check', action='store_true')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
+    if args.original:
+        args.base = ORIGINAL
     if args.self_test:
         return self_test()
     return check(os.path.abspath(args.root), args.base)
