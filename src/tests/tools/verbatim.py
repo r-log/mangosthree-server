@@ -114,7 +114,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. `--base afdabc428`
 # (before the first move) proves every site against the switches as they were.
-BASE = '56bfe2940'
+BASE = '067ae2cf0'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
