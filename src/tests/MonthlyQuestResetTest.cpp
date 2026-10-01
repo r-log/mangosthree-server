@@ -27,6 +27,7 @@
 #include "World.h"
 #include "Utilities/Util.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <set>
@@ -73,6 +74,15 @@ namespace
 #if defined(_WIN32)
             _putenv_s("TZ", zone ? zone : "");
             _tzset();
+
+            // The C runtime reads no daylight bias from a zone string and keeps the one the system zone last set,
+            // which is 0 on a host without daylight saving; every daylight zone pinned here is one hour ahead.
+            int daylight = 0;
+            _get_daylight(&daylight);
+            if (zone && *zone && daylight)
+            {
+                *__dstbias() = -3600L;
+            }
 #else
             if (zone)
             {
@@ -116,9 +126,28 @@ namespace
         return t.tm_mday == 1 && t.tm_hour == 0 && t.tm_min == 0 && t.tm_sec == 0;
     }
 
-    bool OnDaylightTime(time_t when)
+    long long DaysFromCivil(int year, int month, int day)
     {
-        return safe_localtime(when).tm_isdst > 0;
+        year -= month <= 2;
+        const long long era = (year >= 0 ? year : year - 399) / 400;
+        const long long yearOfEra = year - era * 400;
+        const long long dayOfYear = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+        const long long dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear;
+        return era * 146097 + dayOfEra - 719468;
+    }
+
+    /// Seconds the local clock is ahead of UTC at when, from localtime itself rather than its daylight flag.
+    long long UtcOffset(time_t when)
+    {
+        const std::tm t = safe_localtime(when);
+        const long long localSeconds = DaysFromCivil(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday) * DAY
+            + t.tm_hour * HOUR + t.tm_min * MINUTE + t.tm_sec;
+        return localSeconds - static_cast<long long>(when);
+    }
+
+    bool OffsetsDiffer(time_t a, time_t b)
+    {
+        return UtcOffset(a) != UtcOffset(b);
     }
 
     /// Ticks the reset over [from, to) the way World::Update does; the next reset is computed from computeNow(tick).
@@ -186,7 +215,7 @@ TEST(MonthlyQuestReset_LandsOnLocalMidnightWhenTheFirstIsOnTheOtherSideOfADaylig
 
         const bool straddles = kCrtAppliesUsDates ? r.straddlesWindows : r.straddlesPosix;
         CHECK(IsLocalMidnightOn(midnight, r.ny, r.nmo, 1));
-        CHECK_EQ(OnDaylightTime(now) != OnDaylightTime(midnight), straddles);
+        CHECK_EQ(OffsetsDiffer(now, midnight), straddles);
 
         const time_t next = NextMonthlyQuestReset(now, 0, false);
         CHECK(IsLocalMidnightOn(next, r.ny, r.nmo, 1));
@@ -218,7 +247,7 @@ TEST(MonthlyQuestReset_TheNextResetIsLocalMidnightAndAfterNowAllYearInADaylightS
             notMidnightOnTheFirst += !IsLocalMidnightOnTheFirst(next);
             const int monthsAhead = (nextTm.tm_year * 12 + nextTm.tm_mon) - (probeTm.tm_year * 12 + probeTm.tm_mon);
             notTheFollowingMonth += monthsAhead != 1;
-            if (OnDaylightTime(probe) != OnDaylightTime(next))
+            if (OffsetsDiffer(probe, next))
             {
                 straddledMonths.insert(nextTm.tm_year * 12 + nextTm.tm_mon);
             }
@@ -295,18 +324,26 @@ TEST(MonthlyQuestReset_TheResetStoredForNovemberOnACentralEuropeanServerIsMovedT
     const PinnedZone zone(kEuropeanZone);
     const time_t stored = 1793484000;                       // 2026-10-31 22:00 UTC
     const time_t midnight = LocalTime(2026, 11, 1, 0, 0, 0);
+    const std::tm storedTm = safe_localtime(stored);
+    CHECK(IsLocalMidnightOn(midnight, 2026, 11, 1));
 
-    // Under US change dates the stored value is already midnight on November 1st in this zone.
-    if (kCrtAppliesUsDates)
+    // European change dates make the stored value 23:00 on October 31st; US change dates make it midnight.
+    if (IsLocalMidnightOnTheFirst(stored))
     {
+        std::printf("    the stored value reads as local midnight on November 1st: kept\n");
         CHECK(IsLocalMidnightOn(stored, 2026, 11, 1));
         CHECK_EQ(midnight, stored);
         CHECK_EQ(MonthlyQuestResetOnLocalMidnight(stored), stored);
     }
     else
     {
-        CHECK(IsLocalMidnightOn(stored + HOUR, 2026, 11, 1));
-        CHECK_EQ(midnight, time_t(1793487600));
+        std::printf("    the stored value reads as %04d-%02d-%02d %02d:%02d: moved to midnight\n",
+            storedTm.tm_year + 1900, storedTm.tm_mon + 1, storedTm.tm_mday, storedTm.tm_hour, storedTm.tm_min);
+        CHECK(storedTm.tm_mon == 9 && storedTm.tm_mday == 31 && storedTm.tm_hour == 23);
+        CHECK(storedTm.tm_min == 0 && storedTm.tm_sec == 0);
+        const time_t intended = LocalTime(storedTm.tm_year + 1900, storedTm.tm_mon + 2, 1, 0, 0, 0);
+        CHECK_EQ(intended, midnight);
+        CHECK_EQ(midnight, stored + HOUR);
         CHECK_EQ(MonthlyQuestResetOnLocalMidnight(stored), midnight);
     }
 
@@ -375,7 +412,7 @@ TEST(MonthlyQuestReset_FiresOnceAtLocalMidnightAcrossADaylightSavingChange)
         const PinnedZone zone(r.zone);
         const time_t computedAt = LocalTime(r.y, r.mo, r.d, 12, 0, 0);
         const time_t midnight = LocalTime(r.ny, r.nmo, 1, 0, 0, 0);
-        CHECK(OnDaylightTime(computedAt) != OnDaylightTime(midnight));
+        CHECK(OffsetsDiffer(computedAt, midnight));
 
         const time_t lead = 1782;
         time_t stored = NextMonthlyQuestReset(computedAt, 0, false);
