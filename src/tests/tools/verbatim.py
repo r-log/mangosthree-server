@@ -80,7 +80,9 @@ python src/tests/tools/verbatim.py --self-test    # fixtures only, no git
 
 CI (.github/workflows/core_verbatim.yml) runs --check against both bases on every pull request: the
 parent proves this PR's own moves, the original re-proves every body ever moved against the switches
-as they first stood, so a slip merged earlier is never inherited as the next PR's base.
+as they first stood, so a slip merged earlier is never inherited as the next PR's base. Both bases
+work because every later tree still holds the bodies to paste back; a proof whose base is frozen
+(cast_verbatim.py) cannot compare whole files in CI and waits for a per-site comparison.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
