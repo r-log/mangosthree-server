@@ -20,10 +20,14 @@ For each file in FILES, --check:
      definitions in `player` and `unit` (the working tree's), the Player one with its RENAMES
      written back to their cast spelling; the call's arguments must be the override's parameter
      names, in order; its site is the Player branch's line, and its cast spelling is that
-     branch's expression;
+     branch's expression; two listed `branch` FORMs whose Player expressions are equal fail (their
+     sites could not be told apart at BASE); a `branch` FORM spelled in a listed added entry that
+     stands once, directly below its base line, is the declaration the rewrite added, not a site;
   3. pairs the sites in order, the n-th written-back call of a FORM with the n-th cast call of it
-     at BASE, and compares the WINDOW around each: the site's line and the WINDOW lines above and
-     below it at BASE against the working tree's lines, aligned outward from the site, byte for
+     at BASE (a `branch` site by the Player line of its own n-th expansion; a base line a `branch`
+     site claims may be claimed by no other site), and compares the WINDOW around each: the site's
+     line and the WINDOW lines above and below it at BASE against the working tree's lines,
+     aligned outward from the site, byte for
      byte; the first differing line is named with its file and line;
   4. inside a window, an ADDED entry (a line or a block of lines, listed with the base line it
      follows) is dropped where it stands directly below that line, and a CHANGED entry (the line
@@ -103,8 +107,10 @@ BASE = '26df9c56a'
 # The lines compared above and below each site.
 WINDOW = 11
 
-# The lines a `branch` site is written back as: the guard, the Player branch and the `else` branch.
+# The lines a `branch` site is written back as: the guard, the Player branch and the `else` branch;
+# the Player branch's statement is the third.
 BRANCH_LINES = 8
+BRANCH_PLAYER = 2
 
 # name -> the direct spelling (up to its opening parenthesis), the cast spelling it stands for,
 # and the argument the rewrite appended (None: the arguments are unchanged); a `branch` FORM names
@@ -287,20 +293,24 @@ def cast_of(name, form, read, out):
 
 
 def listed_lines(text, spec):
-    """The line indices of TEXT inside a listed added entry, wherever it stands: a FORM spelled
-    there is a declaration the rewrite added, not a call site."""
+    """The line indices of TEXT inside a listed added entry that stands once, directly below the
+    line it follows: a `branch` FORM spelled there is the declaration the rewrite added, not a
+    call site."""
     lines = text.split('\n')
     masked = set()
-    for added, _ in spec['added']:
+    for added, after in spec['added']:
         block = added.split('\n')
-        for i in block_at(lines, block):
-            masked.update(range(i, i + len(block)))
+        hits = block_at(lines, block)
+        if len(hits) == 1 and hits[0] > 0 and lines[hits[0] - 1] == after:
+            masked.update(range(hits[0], hits[0] + len(block)))
     return masked
 
 
 def paste_branches(rel, text, spec, out, read, forms):
     """(rc, text with every statement of a listed `branch` FORM written back as its two branches,
-    the number written back, the pasted-back index of the first line of each)."""
+    the number written back, the pasted-back index of the first line of each, {form: those
+    indices, in order}). Two listed `branch` FORMs whose Player expressions are equal fail: their
+    sites could not be told apart at BASE."""
     branches = {}
     for name in sorted(spec['forms']):
         form = forms[name]
@@ -309,16 +319,22 @@ def paste_branches(rel, text, spec, out, read, forms):
         player = branch_cast(read, name, form, out)
         unit = one_line_body(read, form['unit'], name, 'virtual ', out)
         if player is None or unit is None:
-            return 1, text, 0, []
+            return 1, text, 0, [], {}
         if player[1] in text:
             out('%s: FAILED: %d branch(es) still spelled %r: a site the rewrite missed'
                 % (rel, text.count(player[1]), player[1]))
-            return 1, text, 0, []
+            return 1, text, 0, [], {}
         statement = re.compile(r'^(\s*)(\w+) (=|-=|\+=) ' + re.escape(form['direct']) + r'(.*)\);$')
+        for other, b in branches.items():
+            if b[3] == player[1]:
+                out('%s: FAILED: the overrides of %s and %s return the same expression %r: their sites cannot be '
+                    'told apart at the base' % (rel, other, name, player[1]))
+                return 1, text, 0, [], {}
         branches[name] = (form, statement, player[0], player[1], unit[1])
     if not branches:
-        return 0, text, 0, []
+        return 0, text, 0, [], {}
     pasted, starts = [], []
+    by_form = dict((name, []) for name in branches)
     found = dict((name, 0) for name in branches)
     masked = listed_lines(text, spec)
     for at, line in enumerate(text.split('\n')):
@@ -332,13 +348,14 @@ def paste_branches(rel, text, spec, out, read, forms):
         if len(hit) > 1 or not m:
             out('%s:%d: FAILED: %s( does not stand as a whole statement `<lhs> <op> %s(...);`'
                 % (rel, at + 1, name, name))
-            return 1, text, 0, []
+            return 1, text, 0, [], {}
         if m.group(4) != ', '.join(names):
             out("%s:%d: FAILED: %s(%s) does not pass the override's parameters (%s)"
                 % (rel, at + 1, name, m.group(4), ', '.join(names)))
-            return 1, text, 0, []
+            return 1, text, 0, [], {}
         indent, lhs, op = m.group(1), m.group(2), m.group(3)
         starts.append(len(pasted))
+        by_form[name].append(len(pasted))
         pasted += [indent + form['guard'], indent + '{', '%s    %s %s %s;' % (indent, lhs, op, player_expr),
                    indent + '}', indent + 'else', indent + '{', '%s    %s %s %s;' % (indent, lhs, op, unit_expr),
                    indent + '}']
@@ -346,8 +363,8 @@ def paste_branches(rel, text, spec, out, read, forms):
     for name, n in sorted(found.items()):
         if n != spec['forms'][name]:
             out('%s: FAILED: %d call(s) of %s, expected %d' % (rel, n, name, spec['forms'][name]))
-            return 1, text, 0, []
-    return 0, '\n'.join(pasted), sum(found.values()), starts
+            return 1, text, 0, [], {}
+    return 0, '\n'.join(pasted), sum(found.values()), starts, by_form
 
 
 def tree_index(starts, i):
@@ -365,10 +382,9 @@ def tree_index(starts, i):
 
 def paste_back(rel, text, spec, out, read=None, forms=None):
     """(rc, text with every FORM written back, the number of calls written back, the pasted-back
-    index of the first line of each `branch` site)."""
+    index of the first line of each `branch` site, {branch form: those indices, in order})."""
     forms = FORMS if forms is None else forms
     sites = 0
-    masked = listed_lines(text, spec)
     for name, want in sorted(spec['forms'].items()):
         form = forms[name]
         if form.get('kind') == 'branch':
@@ -376,7 +392,7 @@ def paste_back(rel, text, spec, out, read=None, forms=None):
         if form['cast'] in text:
             out('%s: FAILED: %d call(s) still spelled %r: a site the rewrite missed'
                 % (rel, text.count(form['cast']), form['cast']))
-            return 1, text, sites, []
+            return 1, text, sites, [], {}
         found = 0
         pieces = []
         at = 0
@@ -384,21 +400,17 @@ def paste_back(rel, text, spec, out, read=None, forms=None):
             hit = text.find(form['direct'], at)
             if hit < 0:
                 break
-            if line_of(text, hit) - 1 in masked:
-                pieces.append(text[at:hit + len(form['direct'])])
-                at = hit + len(form['direct'])
-                continue
             args_start = hit + len(form['direct'])
             close = closing_paren(text, args_start)
             if close < 0:
                 out('%s:%d: FAILED: %s( has no closing parenthesis' % (rel, line_of(text, hit), name))
-                return 1, text, sites, []
+                return 1, text, sites, [], {}
             args = text[args_start:close]
             if form['suffix'] is not None:
                 if not args.endswith(form['suffix']):
                     out('%s:%d: FAILED: %s(%s) does not end its arguments with %r'
                         % (rel, line_of(text, hit), name, args, form['suffix']))
-                    return 1, text, sites, []
+                    return 1, text, sites, [], {}
                 args = args[:-len(form['suffix'])]
             pieces.append(text[at:hit])
             pieces.append(form['cast'] + args + ')')
@@ -409,9 +421,9 @@ def paste_back(rel, text, spec, out, read=None, forms=None):
         text = ''.join(pieces)
         if found != want:
             out('%s: FAILED: %d call(s) of %s, expected %d' % (rel, found, name, want))
-            return 1, text, sites, []
-    rc, text, found, starts = paste_branches(rel, text, spec, out, read, forms)
-    return rc, text, sites + found, starts
+            return 1, text, sites, [], {}
+    rc, text, found, starts, by_form = paste_branches(rel, text, spec, out, read, forms)
+    return rc, text, sites + found, starts, by_form
 
 
 def lists_none(rel, lines, masked, spec, out, forms=None):
@@ -426,10 +438,13 @@ def lists_none(rel, lines, masked, spec, out, forms=None):
     return 0
 
 
-def pair_sites(rel, old_text, pasted, spec, out, read=None, forms=None):
+def pair_sites(rel, old_text, pasted, spec, out, read=None, forms=None, by_form=None):
     """(rc, [(name, base index, pasted-back index)] sorted by base line): the n-th written-back call
-    of a FORM with the n-th cast call of it at BASE (0-based line indices)."""
+    of a FORM with the n-th cast call of it at BASE (0-based line indices); a `branch` site is its
+    own n-th expansion's Player line (BY_FORM: each expansion's first pasted-back index). A base
+    line a `branch` site claims may be claimed by no other site."""
     forms = FORMS if forms is None else forms
+    by_form = by_form or {}
     pairs = []
     for name, want in sorted(spec['forms'].items()):
         cast = cast_of(name, forms[name], read, out)
@@ -439,8 +454,19 @@ def pair_sites(rel, old_text, pasted, spec, out, read=None, forms=None):
         if len(olds) != want:
             out('%s: FAILED: %d cast call(s) of %s at the base, the spec lists %d' % (rel, len(olds), name, want))
             return 1, pairs
-        news = [line_of(pasted, i) - 1 for i in find_all(pasted, cast)]
+        if forms[name].get('kind') == 'branch':
+            news = [start + BRANCH_PLAYER for start in by_form.get(name, [])]
+        else:
+            news = [line_of(pasted, i) - 1 for i in find_all(pasted, cast)]
         pairs += [(name, o, n) for o, n in zip(olds, news)]
+    claims = {}
+    for name, o, n in pairs:
+        claims.setdefault(o, []).append(name)
+    for o, names in sorted(claims.items()):
+        if len(names) > 1 and any(forms[name].get('kind') == 'branch' for name in names):
+            out('%s: FAILED: base line %d is claimed by %d sites (%s): a branch site claims its line alone'
+                % (rel, o + 1, len(names), ', '.join(names)))
+            return 1, pairs
     return 0, sorted(pairs, key=lambda p: p[1])
 
 
@@ -578,10 +604,10 @@ def prove(rel, old_text, new_text, spec, out, window=WINDOW, read=None, forms=No
     back to the base's byte for byte and every listed entry stands at its place. READ reads a file
     a `branch` FORM names; FORMS replaces the module's."""
     forms = FORMS if forms is None else forms
-    rc, pasted, sites, starts = paste_back(rel, new_text, spec, out, read, forms)
+    rc, pasted, sites, starts, by_form = paste_back(rel, new_text, spec, out, read, forms)
     if rc:
         return 1, []
-    rc, pairs = pair_sites(rel, old_text, pasted, spec, out, read, forms)
+    rc, pairs = pair_sites(rel, old_text, pasted, spec, out, read, forms, by_form)
     if rc:
         return 1, []
 
@@ -821,6 +847,29 @@ SELF_BRANCH_SPEC = {'forms': {'GetRollExpertise': 1},
                                '        int32 Roll(WeaponAttackType attType) const;')],
                     'changed': [("    // the attacker's expertise", '    // the expertise')]}
 
+
+def two_branches(player, unit, sites):
+    """(base text, working tree text, files, forms, spec) of a function holding one branch site per
+    SITES entry (a form name, in order), with the Player overrides returning PLAYER[name] and the
+    Unit defaults UNIT[name]; the defaults stand in their own file, as on the tree."""
+    old, new = ['int32 Unit::Roll(WeaponAttackType attType) const', '{', '    int32 dodge = 10;'], []
+    new += old
+    forms, spec, files = {}, {'forms': {}, 'added': []}, {'Player.h': '', 'Unit.h': ''}
+    for name in sites:
+        cast = player[name].replace('GetExpertise(', '((Player*)this)->GetExpertise(')
+        old += ['    if (GetTypeId() == TYPEID_PLAYER)', '    {', '        dodge -= %s;' % cast, '    }', '    else',
+                '    {', '        dodge -= %s;' % unit[name], '    }']
+        new.append('    dodge -= %s(attType);' % name)
+        spec['forms'][name] = spec['forms'].get(name, 0) + 1
+    for name in sorted(player):
+        forms[name] = {'kind': 'branch', 'direct': name + '(', 'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
+                       'player': 'Player.h', 'unit': 'Unit.h',
+                       'renames': [('GetExpertise(', '((Player*)this)->GetExpertise(')]}
+        files['Player.h'] += '        int32 %s(WeaponAttackType attType) const override { return %s; }\n' % (
+            name, player[name])
+        files['Unit.h'] += '        virtual int32 %s(WeaponAttackType) const { return %s; }\n' % (name, unit[name])
+    tail = ['    return dodge;', '}', '']
+    return '\n'.join(old + tail), '\n'.join(new + tail), files, forms, spec
 
 
 def generated(sites):
@@ -1126,7 +1175,7 @@ def self_test():
            swap=('    return dodge;\n}', '    dodge -= int32(((Player*)this)->GetExpertise(attType) * 100);\n'
                  '    return dodge;\n}'))
     block = SELF_BRANCH_SPEC['added'][0][0] + '\n'
-    branch('a block moved fails', 1, 'does not stand directly below',
+    branch('a block moved fails', 1, 'does not stand as a whole statement',
            swap=('        int32 Roll(WeaponAttackType attType) const;\n' + block,
                  block + '        int32 Roll(WeaponAttackType attType) const;\n'))
     branch('a block missing a line fails', 1, 'does not stand as a whole statement',
@@ -1161,6 +1210,65 @@ def self_test():
     print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
     if not ok:
         failures.append('%s: rc %d\n%s' % (label, rc, '\n'.join(got)))
+
+    def branches(label, want_rc, needle, player, unit, sites, edit=None):
+        old_text, new_text, files, forms, spec = two_branches(player, unit, sites)
+        if edit:
+            new_text = new_text.replace(edit[0], edit[1], 1)
+        got = []
+        rc = verify('fixture', old_text, new_text, spec, got.append, read=files.__getitem__, forms=forms)
+        text = '\n'.join(got)
+        ok = rc == want_rc and needle in text
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    roll, spell = 'int32(GetExpertise(attType) * 100)', 'int32(GetExpertise(attType) * 100.0f)'
+    aura = 'GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25'
+    four = ['ExpRoll', 'ExpRoll', 'ExpSpell', 'ExpSpell']
+    branches('two branch forms with their own expressions paste back', 0, 'around 4/4 call(s) pasted back',
+             {'ExpRoll': roll, 'ExpSpell': spell}, {'ExpRoll': aura, 'ExpSpell': aura}, four)
+    branches('two branch forms whose overrides return the same expression fail', 1, 'return the same expression',
+             {'ExpRoll': roll, 'ExpSpell': roll}, {'ExpRoll': aura, 'ExpSpell': aura}, four)
+    branches('... and the second form\'s sites are compared as its own', 1,
+             'DIFFERS from the base at line 22 in the window around the ExpSpell site at :22 -> :6',
+             {'ExpRoll': roll, 'ExpSpell': spell}, {'ExpRoll': aura, 'ExpSpell': aura}, four,
+             edit=('    dodge -= ExpSpell(attType);', '    dodge += ExpSpell(attType);'))
+    plus = {'ExpRoll': roll, 'ExpRollPlus': roll + ' + 0'}, {'ExpRoll': aura, 'ExpRollPlus': aura}
+    claim_old = two_branches(plus[0], plus[1], ['ExpRoll', 'ExpRollPlus'])[0]
+    _, claim_new, files, forms, spec = two_branches(plus[0], plus[1], ['ExpRoll', 'ExpRoll', 'ExpRollPlus'])
+    got = []
+    rc = verify('fixture', claim_old, claim_new, spec, got.append, read=files.__getitem__, forms=forms)
+    label = 'a base line claimed by a branch site and another site fails'
+    ok = rc == 1 and 'base line 14 is claimed by 2 sites (ExpRoll, ExpRollPlus)' in '\n'.join(got)
+    print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+    if not ok:
+        failures.append('%s: rc %d\n%s' % (label, rc, '\n'.join(got)))
+    cast_line = '    dodge -= ' + roll.replace('GetExpertise(', '((Player*)this)->GetExpertise(') + ';'
+    base = '\n'.join(['    int32 a = 0;', cast_line, '    int32 b = 0;']) + '\n'
+    pasted = '\n'.join([cast_line, '    int32 a = 0;', '    int32 b = 0;', '    int32 c = 0;']) + '\n'
+    got = []
+    _, _, files, forms, _ = two_branches({'ExpRoll': roll}, {'ExpRoll': aura}, ['ExpRoll'])
+    rc, pairs = pair_sites('fixture', base, pasted, {'forms': {'ExpRoll': 1}, 'added': []}, got.append,
+                           read=files.__getitem__, forms=forms, by_form={'ExpRoll': [1]})
+    label = 'a branch site is paired by its own expansion, not by its expression'
+    ok = rc == 0 and pairs == [('ExpRoll', 1, 1 + BRANCH_PLAYER)]
+    print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+    if not ok:
+        failures.append('%s: rc %d, pairs %r\n%s' % (label, rc, pairs, '\n'.join(got)))
+
+    gen_one_old, gen_one_new, gen_one_at = generated([('A', 30, 'test')])
+    copy = '    bool cooling = m_spellCooldownMgr.HasSpellCooldown(1, time(NULL));'
+    anchor = gen_one_old.split('\n')[gen_one_at['A'] + 4]
+    far = gen_one_old.split('\n')[gen_one_at['A'] + 30]
+    one_listed = {'forms': {'HasSpellCooldown': 1}, 'added': [(copy, anchor)]}
+    run('a listed form spelled in a listed added line is a call site, and a second copy fails', 1,
+        'call(s) of HasSpellCooldown, expected 1',
+        swap=[(anchor + '\n', anchor + '\n' + copy + '\n'), (far + '\n', far + '\n' + copy + '\n')],
+        new_text=gen_one_new, old_text=gen_one_old, spec=one_listed)
+    branch('a second copy of a listed block spelling a branch form is no declaration', 1,
+           'does not stand as a whole statement', swap=('};\n', '};\n' + SELF_BRANCH_SPEC['added'][0][0] + '\n'),
+           files={'Unit.h': SELF_BRANCH_NEW})
     elsewhere_forms = dict(SELF_BRANCH_FORMS, Elsewhere={'direct': 'return dodge', 'cast': 'unused', 'suffix': None})
     for flag, want_rc, label in ((True, 0, 'an `elsewhere` FORM spelled in a file that lists none passes'),
                                  (False, 1, '... and fails without the flag')):
