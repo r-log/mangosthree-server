@@ -277,6 +277,19 @@ TEST(MonthlyQuestReset_AStoredResetAnHourOffMidnightIsMovedToMidnight)
     }
 }
 
+TEST(MonthlyQuestReset_AStoredResetHoursLateOrDaysEarlyStaysInItsMonth)
+{
+    const PinnedZone zone("UTC0");
+    const time_t midnight = LocalTime(2026, 11, 1, 0, 0, 0);
+    CHECK(IsLocalMidnightOn(midnight, 2026, 11, 1));
+
+    CHECK_EQ(MonthlyQuestResetOnLocalMidnight(midnight + 5 * HOUR), midnight);
+    CHECK_EQ(MonthlyQuestResetOnLocalMidnight(midnight + 12 * HOUR - 1), midnight);
+    CHECK_EQ(MonthlyQuestResetOnLocalMidnight(midnight - 6 * HOUR), midnight);
+    CHECK_EQ(MonthlyQuestResetOnLocalMidnight(midnight - 20 * DAY), midnight);
+    CHECK_EQ(MonthlyQuestResetOnLocalMidnight(midnight), midnight);
+}
+
 TEST(MonthlyQuestReset_TheResetStoredForNovemberOnACentralEuropeanServerIsMovedToMidnight)
 {
     const PinnedZone zone(kEuropeanZone);
@@ -307,6 +320,31 @@ TEST(MonthlyQuestReset_TheResetStoredForNovemberOnACentralEuropeanServerIsMovedT
     CHECK_EQ(firedAt, midnight + 1);
     CHECK(IsLocalMidnightOn(next, 2026, 12, 1));
 }
+
+// The Windows C runtime applies US change rules to every zone string, so no zone pinned here reaches this there.
+#if !defined(_WIN32)
+TEST(MonthlyQuestReset_AMidnightThatDoesNotExistResolvesToTheFirstMomentOfTheFirst)
+{
+    // daylight time one hour behind standard time: October 1st starts at 01:00
+    const PinnedZone zone("AAA-3BBB-2,J91/0,J274/0");
+    const time_t now = LocalTime(2026, 9, 15, 12, 0, 0);
+
+    std::tm raw{};
+    raw.tm_year = 2026 - 1900;
+    raw.tm_mon = 9;
+    raw.tm_mday = 1;
+    raw.tm_isdst = -1;
+    const time_t rawMidnight = mktime(&raw);
+    REQUIRE(safe_localtime(rawMidnight).tm_mday == 30);
+
+    const time_t next = NextMonthlyQuestReset(now, 0, false);
+    const std::tm nextTm = safe_localtime(next);
+    CHECK(next > now);
+    CHECK(nextTm.tm_mon == 9 && nextTm.tm_mday == 1 && nextTm.tm_hour == 1 && nextTm.tm_min == 0 && nextTm.tm_sec == 0);
+    CHECK(safe_localtime(next - 1).tm_mday == 30);
+    CHECK_EQ(MonthlyQuestResetOnLocalMidnight(next), next);
+}
+#endif
 
 TEST(MonthlyQuestReset_FiresOnceWhenTheGameClockRunsAheadOfTheWallClock)
 {

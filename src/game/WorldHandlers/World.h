@@ -840,7 +840,7 @@ extern uint32 realmID;
 time_t NextMonthlyQuestReset(time_t now, time_t stored, bool keepEarlier);
 
 /// A stored monthly reset that is not local midnight on the first of a month, moved to that midnight
-/// (the next one after two hours before it); 0 and values already on it are kept.
+/// (the next one after twelve hours before it); 0 and values already on it are kept.
 time_t MonthlyQuestResetOnLocalMidnight(time_t stored);
 
 #define sWorld MaNGOS::Singleton<World>::Instance()

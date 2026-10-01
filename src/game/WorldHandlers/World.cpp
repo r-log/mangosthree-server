@@ -1796,7 +1796,7 @@ time_t MonthlyQuestResetOnLocalMidnight(time_t stored)
         return stored;
     }
 
-    return NextMonthlyQuestReset(stored - 2 * HOUR, 0, false);
+    return NextMonthlyQuestReset(stored - 12 * HOUR, 0, false);
 }
 
 void World::SetMonthlyQuestResetTime(bool initialize)
