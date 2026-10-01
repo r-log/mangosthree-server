@@ -26,14 +26,18 @@ For each file in FILES, --check:
   5. an entry whose base line stands in no window is checked at its place only: an added entry
      stands once in the working tree, directly below its base line, which stands once in the file
      at BASE; a changed line stands once in the working tree, its base line once at BASE and
-     nowhere in the working tree.
+     nowhere in the working tree;
+  6. requires no direct spelling of a FORM the file does not list, outside the added lines it
+     dropped or found at their place.
+A window set for a base line that holds no site fails.
 
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
-UnitAuraProcHandler.cpp:2822 under the type return at :2811); every other site needs 2 to 5 (the
-guard above an added call, the return below a tested one, the assignment below :342 that :655
-relies on). One site sets its own window in its file's spec: UnitAuraProcHandler.cpp:2881 relies
-on the same type return at :2811, 70 lines above it.
+UnitAuraProcHandler.cpp:2822 under the type return at :2811); the rest stand within 6 lines
+(the guard above an added call, the return below a tested one, the assignment below :342 that
+:655 relies on, :655's case label, :3201's type return at :3195). One site sets its own window in
+its file's spec: UnitAuraProcHandler.cpp:2881 relies on the same type return at :2811, 70 lines
+above it.
 
 What fails: a changed, swapped or dropped argument; a changed, moved or dropped guard, or any
 other changed line, inside a window; a site lost, added or still cast; an added line inside a
@@ -146,8 +150,6 @@ def find_all(text, needle):
 def paste_back(rel, text, spec, out):
     """(rc, text with every FORM written back, the number of calls written back)."""
     sites = 0
-    skip = added_lines(text, spec)
-    unlisted = '\n'.join(line for i, line in enumerate(text.split('\n')) if i not in skip)
     for name, want in sorted(spec['forms'].items()):
         form = FORMS[name]
         if form['cast'] in text:
@@ -183,24 +185,18 @@ def paste_back(rel, text, spec, out):
         if found != want:
             out('%s: FAILED: %d call(s) of %s, expected %d' % (rel, found, name, want))
             return 1, text, sites
-    for name in FORMS:
-        if name not in spec['forms'] and FORMS[name]['direct'] in unlisted:
-            out('%s: FAILED: a call of %s in a file that lists none' % (rel, name))
-            return 1, text, sites
     return 0, text, sites
 
 
-def added_lines(text, spec):
-    """The working tree's line indices of every listed added entry that stands directly below its
-    base line."""
-    lines = text.split('\n')
-    at = set()
-    for added, after in spec['added']:
-        block = added.split('\n')
-        for i in block_at(lines, block):
-            if i > 0 and lines[i - 1] == after:
-                at.update(range(i, i + len(block)))
-    return at
+def lists_none(rel, lines, masked, spec, out):
+    """0 when no FORM the file does not list is spelled outside the MASKED line indices (the added
+    lines dropped or found at their place), else 1."""
+    rest = '\n'.join(line for i, line in enumerate(lines) if i not in masked)
+    for name in FORMS:
+        if name not in spec['forms'] and FORMS[name]['direct'] in rest:
+            out('%s: FAILED: a call of %s in a file that lists none' % (rel, name))
+            return 1
+    return 0
 
 
 def pair_sites(rel, old_text, pasted, spec, out):
@@ -268,10 +264,10 @@ def place_entries(rel, old_lines, windows, spec, out):
 
 
 def walk_window(old_lines, lines, b, t, lo, hi, added, changed):
-    """(the first difference as (base index, tree index) or None, the anchor indices whose block
-    was dropped, the base indices whose changed line was written back), aligning outward from the
-    site at base index B and tree index T."""
-    dropped, written = set(), set()
+    """(the first difference as (base index, tree index) or None, {anchor index: tree index of the
+    first line of the block dropped below it}, the base indices whose changed line was written
+    back), aligning outward from the site at base index B and tree index T."""
+    dropped, written = {}, set()
 
     def same(i, j):
         if not 0 <= i < len(lines):
@@ -291,7 +287,7 @@ def walk_window(old_lines, lines, b, t, lo, hi, added, changed):
         i -= 1
         block = added.get(j)
         if block and i - len(block) + 1 >= 0 and lines[i - len(block) + 1:i + 1] == block:
-            dropped.add(j)
+            dropped[j] = i - len(block) + 1
             i -= len(block)
         if not same(i, j):
             diffs.append((j, i))
@@ -301,7 +297,7 @@ def walk_window(old_lines, lines, b, t, lo, hi, added, changed):
         i += 1
         block = added.get(j - 1)
         if block and lines[i:i + len(block)] == block:
-            dropped.add(j - 1)
+            dropped[j - 1] = i
             i += len(block)
         if not same(i, j):
             diffs.append((j, i))
@@ -309,38 +305,41 @@ def walk_window(old_lines, lines, b, t, lo, hi, added, changed):
     else:
         block = added.get(hi)
         if block and lines[i + 1:i + 1 + len(block)] == block:
-            dropped.add(hi)
+            dropped[hi] = i + 1
     return (min(diffs) if diffs else None), dropped, written
 
 
 def check_outside(rel, old_lines, lines, added_out, changed_out, out):
-    """0 when every entry outside the windows stands at its place, else 1."""
+    """(0 when every entry outside the windows stands at its place, else 1, the tree indices of the
+    added lines found there)."""
+    at_place = set()
     for added, after in added_out:
         block = added.split('\n')
         label = entry_label(added)
         hits = block_at(lines, block)
         if len(hits) != 1:
             out('%s: FAILED: the added line %s stands %d time(s), expected once' % (rel, label, len(hits)))
-            return 1
+            return 1, at_place
         m = old_lines.count(after)
         if m != 1:
             out('%s: FAILED: the base line %r that %s follows stands %d time(s) at the base, expected once'
                 % (rel, after, label, m))
-            return 1
+            return 1, at_place
         if hits[0] == 0 or lines[hits[0] - 1] != after:
             out('%s:%d: FAILED: the added line %s does not stand directly below %r' % (rel, hits[0] + 1, label, after))
-            return 1
+            return 1, at_place
+        at_place.update(range(hits[0], hits[0] + len(block)))
     for new, base in changed_out:
         n = lines.count(new)
         if n != 1:
             out('%s: FAILED: the changed line %r stands %d time(s), expected once' % (rel, new, n))
-            return 1
+            return 1, at_place
         m = old_lines.count(base)
         if m != 1 or base in lines:
             out('%s: FAILED: the base line %r that %r replaced stands %d time(s) at the base and %d in the '
                 'working tree, expected once and none' % (rel, base, new, m, lines.count(base)))
-            return 1
-    return 0
+            return 1, at_place
+    return 0, at_place
 
 
 def prove(rel, old_text, new_text, spec, out, window=WINDOW):
@@ -369,11 +368,14 @@ def prove(rel, old_text, new_text, spec, out, window=WINDOW):
         rel, old_lines, [(n, b, lo, hi) for n, b, t, lo, hi, k in windows], spec, out)
     if rc:
         return 1, []
+    masked = set()
     for name, b, t, lo, hi, k in windows:
         added = {j: v for j, v in added_in.items() if lo <= j <= hi}
         changed = {j: v for j, v in changed_in.items() if lo <= j <= hi}
         diff, dropped, written = walk_window(old_lines, lines, b, t, lo, hi, added, changed)
-        where = 'in the window around the %s site at :%d -> :%d (%d line(s) each side)' % (name, b + 1, t + 1, k)
+        for j, start in dropped.items():
+            masked.update(range(start, start + len(added[j])))
+        where ='in the window around the %s site at :%d -> :%d (%d line(s) each side)' % (name, b + 1, t + 1, k)
         if diff is not None:
             j, i = diff
             tree = lines[i] if 0 <= i < len(lines) else '(end of file)'
@@ -381,7 +383,7 @@ def prove(rel, old_text, new_text, spec, out, window=WINDOW):
                 % (rel, i + 1, j + 1, where, old_lines[j], tree))
             rc = 1
             continue
-        for j in sorted(set(added) - dropped):
+        for j in sorted(set(added) - set(dropped)):
             out('%s: FAILED: the added line %s does not stand directly below %r %s'
                 % (rel, entry_label('\n'.join(added[j])), old_lines[j], where))
             rc = 1
@@ -389,9 +391,10 @@ def prove(rel, old_text, new_text, spec, out, window=WINDOW):
             out('%s: FAILED: the changed line %r does not stand in place of %r %s'
                 % (rel, changed[j], old_lines[j], where))
             rc = 1
+    got, at_place = check_outside(rel, old_lines, lines, added_out, changed_out, out)
+    rc |= got
+    rc |= lists_none(rel, lines, masked | at_place, spec, out)
     if rc:
-        return 1, []
-    if check_outside(rel, old_lines, lines, added_out, changed_out, out):
         return 1, []
     outside = '%d added line(s) and %d changed line(s) at their place outside every window' % (
         sum(len(a.split('\n')) for a, _ in added_out), len(changed_out))
@@ -637,6 +640,29 @@ def self_test():
     run('a form spelled in an unlisted line of a file that lists none fails', 1, 'in a file that lists none',
         new_text=SELF_DECL_NEW.replace('        int m_a;\n', '        int m_a;\n' + declared + '\n'),
         old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
+    run('an added line outside every window whose base line stands twice at the base fails', 1,
+        'the base line \'#include "A.h"\' that \'#include "N.h"\' follows stands 2 time(s) at the base',
+        new_text=SELF_DECL_NEW + '#include "A.h"\n', old_text=SELF_DECL_OLD + '#include "A.h"\n', spec=SELF_DECL_SPEC)
+    run('an added line outside every window that stands twice fails', 1,
+        'the added line \'#include "N.h"\' stands 2 time(s), expected once',
+        new_text=SELF_DECL_NEW.replace('#include "N.h"\n', '#include "N.h"\n#include "N.h"\n'),
+        old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
+    decl_changed = dict(SELF_DECL_SPEC, changed=[('        int m_a2;', '        int m_a;')])
+    run('a changed line outside every window is written back', 0,
+        '3 added line(s) and 1 changed line(s) at their place',
+        new_text=SELF_DECL_NEW.replace('        int m_a;\n', '        int m_a2;\n'),
+        old_text=SELF_DECL_OLD, spec=decl_changed)
+    run('a changed line outside every window that is missing fails', 1,
+        "the changed line '        int m_a2;' stands 0 time(s)",
+        new_text=SELF_DECL_NEW, old_text=SELF_DECL_OLD, spec=decl_changed)
+    run('a changed line outside every window that stands twice fails', 1,
+        "the changed line '        int m_a2;' stands 2 time(s)",
+        new_text=SELF_DECL_NEW.replace('        int m_a;\n', '        int m_a2;\n        int m_a2;\n'),
+        old_text=SELF_DECL_OLD, spec=decl_changed)
+    run('a changed line outside every window whose base line still stands fails', 1,
+        'stands 1 time(s) at the base and 1 in the working tree, expected once and none',
+        new_text=SELF_DECL_NEW.replace('        int m_a;\n', '        int m_a;\n        int m_a2;\n'),
+        old_text=SELF_DECL_OLD, spec=decl_changed)
     run('an added include moved fails', 1, 'fixture:3: FAILED: the added line \'#include "N.h"\'',
         new_text=SELF_DECL_NEW.replace('#include "N.h"\n#include "B.h"\n', '#include "B.h"\n#include "N.h"\n'),
         old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
@@ -732,6 +758,28 @@ def self_test():
     gen('a cast count at the base that is not the listed count fails', 1,
         'cast call(s) of HasSpellCooldown at the base',
         old_text=GEN_OLD.replace('((Player*)this)->HasSpellCooldown(id + 30', 'HasSpellCooldown(id + 30'))
+    gen('a listed added line above a site inside a window drops out', 0, 'with 1 added line(s) dropped',
+        swap=insert_below(a - 5, '    int x = 0;'), spec=dict(GEN_SPEC, added=[('    int x = 0;', gen_line(a - 5))]))
+    gen('a working tree that ends inside a window fails', 1,
+        'DIFFERS from the base at line %d in the window around the HasSpellCooldown site at :%d' % (d + 4, d),
+        new_text='\n'.join(GEN_NEW.split('\n')[:d + 3]))
+    run('... naming the end of the file', 1, 'pasted back: (end of file)',
+        new_text='\n'.join(GEN_NEW.split('\n')[:d + 3]), old_text=GEN_OLD, spec=GEN_SPEC)
+
+    one_old, one_new, one_at = generated([('A', 30, 'test'), ('D', 40, 'test')])
+    far = one_at['D'] + k + 8
+    for n in (one_at['A'] + 5, far):
+        line = one_old.split('\n')[n - 1] + '\n'
+        one_old, one_new = one_old.replace(line, '    int dup = 0;\n'), one_new.replace(line, '    int dup = 0;\n')
+    spelled = '    m_spellCooldownMgr.AddSpellCooldown(id, 0, 0);'
+    one_spec = {'forms': {'HasSpellCooldown': 2}, 'added': [(spelled, '    int dup = 0;')]}
+    run('a form spelled in a listed added line inside a window is no call site', 0, 'with 1 added line(s) dropped',
+        swap=('    int dup = 0;\n', '    int dup = 0;\n' + spelled + '\n'),
+        new_text=one_new, old_text=one_old, spec=one_spec)
+    run('an unlisted second copy of that line outside every window fails', 1,
+        'a call of AddSpellCooldown in a file that lists none',
+        new_text=one_new.replace('    int dup = 0;\n', '    int dup = 0;\n' + spelled + '\n'),
+        old_text=one_old, spec=one_spec)
 
     got, sites = prove('fixture', SELF_OLD, SELF_NEW, SELF_SPEC, lambda _: None)
     want = [('HasSpellCooldown', 3, 3, k), ('HasSpellCooldown', 7, 7, k), ('AddSpellCooldown', 13, 13, k)]
