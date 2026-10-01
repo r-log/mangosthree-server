@@ -26,11 +26,14 @@
 /// What Mount and Unmount ask of a mounting unit: put its pet away and bring it back, whether it
 /// is in an arena, and the collision height they send to the client.
 ///
-/// A Unit that is not a Player answers with Unit's defaults: a bare Creature (no map, no AI, no
-/// auras) is asked through a Unit reference; the pet calls leave every update field as it was. A
-/// Player cannot be built in this binary (it needs a WorldSession and a map); the static_asserts
-/// pin Unit's declarations and that Player declares each of the four with Unit's exact signature,
-/// and Player.h marks each `override`, so a Player answers with its own.
+/// Unit declares the four protected: Mount and Unmount ask them, and a call through a Unit
+/// reference from outside does not compile. A Unit that is not a Player answers with Unit's
+/// defaults: a Creature probe (no map, no AI, no auras) makes the four public with
+/// using-declarations and is asked through its own reference; the pet calls leave every update
+/// field as it was. A Player cannot be built in this binary (it needs a WorldSession and a map);
+/// the static_asserts pin Unit's declarations through the probe, that Player declares each of
+/// the four public with Unit's exact signature, and which references a call compiles through;
+/// Player.h marks each `override`, so a Player answers with its own.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -38,32 +41,32 @@
 #include "Unit.h"
 
 #include <type_traits>
+#include <utility>
 #include <vector>
-
-static_assert(std::is_same<decltype(&Unit::UnsummonPetTemporaryIfAny), void (Unit::*)()>::value,
-              "Unit declares the temporary pet unsummon");
-static_assert(std::is_same<decltype(&Unit::ResummonPetTemporaryUnSummonedIfAny), void (Unit::*)()>::value,
-              "Unit declares the temporary pet resummon");
-static_assert(std::is_same<decltype(&Unit::InArena), bool (Unit::*)() const>::value,
-              "Unit declares the arena question");
-static_assert(std::is_same<decltype(&Unit::GetCollisionHeight), float (Unit::*)(bool) const>::value,
-              "Unit declares the collision height");
-
-static_assert(std::is_same<decltype(&Player::UnsummonPetTemporaryIfAny), void (Player::*)()>::value,
-              "Player puts its pet away itself");
-static_assert(std::is_same<decltype(&Player::ResummonPetTemporaryUnSummonedIfAny), void (Player::*)()>::value,
-              "Player brings its pet back itself");
-static_assert(std::is_same<decltype(&Player::InArena), bool (Player::*)() const>::value,
-              "Player answers from its battleground");
-static_assert(std::is_same<decltype(&Player::GetCollisionHeight), float (Player::*)(bool) const>::value,
-              "Player answers its own collision height");
 
 namespace
 {
-    /// A Creature with its update fields allocated, mounted and with a pet and a charm named.
+    /// A Creature with its update fields allocated, mounted and with a pet and a charm named; the
+    /// four Unit asks a mounting unit are public here.
     class MountedUnit : public Creature
     {
         public:
+            using Unit::UnsummonPetTemporaryIfAny;
+            using Unit::ResummonPetTemporaryUnSummonedIfAny;
+            using Unit::InArena;
+            using Unit::GetCollisionHeight;
+
+            static_assert(std::is_same<decltype(&MountedUnit::UnsummonPetTemporaryIfAny), void (Unit::*)()>::value,
+                          "Unit declares the temporary pet unsummon");
+            static_assert(std::is_same<decltype(&MountedUnit::ResummonPetTemporaryUnSummonedIfAny),
+                                       void (Unit::*)()>::value,
+                          "Unit declares the temporary pet resummon");
+            static_assert(std::is_same<decltype(&MountedUnit::InArena), bool (Unit::*)() const>::value,
+                          "Unit declares the arena question");
+            static_assert(std::is_same<decltype(&MountedUnit::GetCollisionHeight),
+                                       float (Unit::*)(bool) const>::value,
+                          "Unit declares the collision height");
+
             MountedUnit() : Creature(CREATURE_SUBTYPE_GENERIC)
             {
                 _InitValues();
@@ -91,12 +94,50 @@ namespace
                 return fields;
             }
     };
+
+    template<class T>
+    auto CallsUnsummon(int) -> decltype(std::declval<T&>().UnsummonPetTemporaryIfAny(), std::true_type());
+    template<class T>
+    std::false_type CallsUnsummon(...);
+
+    template<class T>
+    auto CallsResummon(int)
+        -> decltype(std::declval<T&>().ResummonPetTemporaryUnSummonedIfAny(), std::true_type());
+    template<class T>
+    std::false_type CallsResummon(...);
+
+    template<class T>
+    auto CallsInArena(int) -> decltype(std::declval<T const&>().InArena(), std::true_type());
+    template<class T>
+    std::false_type CallsInArena(...);
+
+    template<class T>
+    auto CallsCollisionHeight(int)
+        -> decltype(std::declval<T const&>().GetCollisionHeight(true), std::true_type());
+    template<class T>
+    std::false_type CallsCollisionHeight(...);
 }
+
+static_assert(std::is_same<decltype(&Player::UnsummonPetTemporaryIfAny), void (Player::*)()>::value,
+              "Player puts its pet away itself");
+static_assert(std::is_same<decltype(&Player::ResummonPetTemporaryUnSummonedIfAny), void (Player::*)()>::value,
+              "Player brings its pet back itself");
+static_assert(std::is_same<decltype(&Player::InArena), bool (Player::*)() const>::value,
+              "Player answers from its battleground");
+static_assert(std::is_same<decltype(&Player::GetCollisionHeight), float (Player::*)(bool) const>::value,
+              "Player answers its own collision height");
+
+static_assert(!decltype(CallsUnsummon<Unit>(0))::value && !decltype(CallsResummon<Unit>(0))::value
+              && !decltype(CallsInArena<Unit>(0))::value && !decltype(CallsCollisionHeight<Unit>(0))::value,
+              "Unit's four are protected: a call through a Unit does not compile");
+static_assert(decltype(CallsUnsummon<Player>(0))::value && decltype(CallsResummon<Player>(0))::value
+              && decltype(CallsInArena<Player>(0))::value && decltype(CallsCollisionHeight<Player>(0))::value,
+              "Player's four are public: a call through a Player compiles");
 
 TEST(UnitMountPet_ACreaturesPetCallsLeaveEveryUpdateField)
 {
     MountedUnit creature;
-    Unit& unit = creature;
+    MountedUnit& unit = creature;
     std::vector<uint32> const before = creature.Fields();
     CHECK(!before.empty());
 
@@ -110,8 +151,8 @@ TEST(UnitMountPet_ACreaturesPetCallsLeaveEveryUpdateField)
 
 TEST(UnitMountPet_ACreatureIsInNoArenaAndSendsNoCollisionHeight)
 {
-    Creature creature(CREATURE_SUBTYPE_GENERIC);
-    Unit const& unit = creature;
+    MountedUnit creature;
+    MountedUnit const& unit = creature;
 
     CHECK(!unit.InArena());
     CHECK_EQ(unit.GetCollisionHeight(true), 0.0f);

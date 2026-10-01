@@ -2119,9 +2119,11 @@ class Unit : public WorldObject
          * or something hitting it forcing a dismount.
          */
         void Unmount(bool from_aura = false);
+
+    protected:
         /**
          * Puts this unit's pet away until ResummonPetTemporaryUnSummonedIfAny brings it back; Mount
-         * calls it for a mount by the taxi or a GM command, and for a temporary pet or one in an arena.
+         * calls it for a mount by a GM command, and for a temporary pet or one in an arena.
          * Does nothing here; Player unsummons its pet and keeps a permanent pet's number to resummon.
          */
         virtual void UnsummonPetTemporaryIfAny() { }
@@ -2142,6 +2144,7 @@ class Unit : public WorldObject
          */
         virtual float GetCollisionHeight(bool /*mounted*/) const { return 0.0f; }
 
+    public:
         MountCapabilityEntry const* GetMountCapability(uint32 mountType) const;
 
         void PlayOneShotAnimKit(uint32 id);

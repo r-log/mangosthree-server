@@ -208,9 +208,11 @@ UNIT_H_ITEM_BY_GUID = '''        /**
          */
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }'''
 
-UNIT_H_MOUNT_PET = '''        /**
+UNIT_H_MOUNT_PET = '''
+    protected:
+        /**
          * Puts this unit's pet away until ResummonPetTemporaryUnSummonedIfAny brings it back; Mount
-         * calls it for a mount by the taxi or a GM command, and for a temporary pet or one in an arena.
+         * calls it for a mount by a GM command, and for a temporary pet or one in an arena.
          * Does nothing here; Player unsummons its pet and keeps a permanent pet's number to resummon.
          */
         virtual void UnsummonPetTemporaryIfAny() { }
@@ -229,7 +231,9 @@ UNIT_H_MOUNT_PET = '''        /**
          * @param mounted true for the height on the mount, false for the unit's own
          * @return 0 here; Player returns its mount's or its native model's height
          */
-        virtual float GetCollisionHeight(bool /*mounted*/) const { return 0.0f; }'''
+        virtual float GetCollisionHeight(bool /*mounted*/) const { return 0.0f; }
+
+    public:'''
 
 PLAYER_H_ITEM_BY_GUID = '''
         // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
