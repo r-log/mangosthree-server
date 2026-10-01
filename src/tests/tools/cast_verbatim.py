@@ -41,7 +41,9 @@ For each file in FILES, --check:
      nowhere in the working tree;
   6. requires no direct spelling of a FORM the file does not list, outside the added lines it
      dropped or found at their place; a FORM whose direct spelling also stands in code that never
-     cast (`elsewhere`) is only looked for in the files that list it.
+     cast (`elsewhere`) is only looked for in the files that list it; a file that `declares` the
+     overrides (Player.h, whose own code calls its methods directly and never cast) lists no FORM
+     and is not searched for one: only its entries are checked, at their place.
 A window set for a base line that holds no site fails.
 
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
@@ -56,7 +58,9 @@ normalized-player flag at :408 its guard reads; the guard at :411; the range sel
 :748 9 (the `canDodge` test at :739; the clamp 6 below) and :773 7 (`canParry` at :766; the clamp 6
 below); UnitDamage.cpp:83 7 (the player flag at :76; the guard at :81; the return 3 below);
 UnitSpellBonus.cpp:704 and :1309 3 (their type tests); UnitPower.cpp:344, :350, :351, :365, :367
-and Unit.cpp:4250 0 to 1 (the type test on the site's own line; :344's case label above it).
+and Unit.cpp:4250 0 to 1 (the type test on the site's own line; :344's case label above it). The
+cast-item sites, UnitAuraProcHandler.cpp:551, :633, :719, :3569, :4686, :4961, :5013 and :5073,
+stand 1 line below theirs (the guid and type test the ternary's condition holds).
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -137,6 +141,9 @@ FORMS = {
     'HasSpell': {'direct': 'TYPEID_PLAYER || !HasSpell(',
                  'cast': 'TYPEID_PLAYER || !(Player*)(this)->HasSpell(',
                  'suffix': None},
+    'GetItemByGuid': {'direct': 'GetItemByGuid(',
+                      'cast': '((Player*)this)->GetInventoryMgr().GetItemByGuid(',
+                      'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -178,9 +185,20 @@ UNIT_H_COMBAT_STATS = '''        /**
          */
         virtual uint32 GetBaseSpellPowerBonus() const { return 0; }'''
 
+UNIT_H_ITEM_BY_GUID = '''        /**
+         * The item this unit holds under a guid; the proc handlers ask it for the item an aura was
+         * cast from.
+         * @return NULL here; Player returns the item its inventory holds under that guid, or NULL
+         */
+        virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }'''
+
+PLAYER_H_ITEM_BY_GUID = '''
+        // The item Unit asks for by guid: the one the inventory holds, or NULL
+        Item* GetItemByGuid(ObjectGuid guid) const override { return GetInventoryMgr().GetItemByGuid(guid); }'''
+
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
-# line it follows, the lines it changed, each with the base line it replaced, and the sites whose
-# window is not WINDOW, by base line.
+# line it follows, the lines it changed, each with the base line it replaced, the sites whose
+# window is not WINDOW, by base line, and whether it `declares` the overrides.
 FILES = {
     'src/game/Object/Unit.h': {
         'forms': {},
@@ -188,7 +206,16 @@ FILES = {
                   (UNIT_H_COMBAT_STATS, '        MeleeHitOutcome RollMeleeOutcomeAgainst(const Unit* pVictim, '
                                         'WeaponAttackType attType, int32 crit_chance, int32 miss_chance, '
                                         'int32 dodge_chance, int32 parry_chance, int32 block_chance) const;'),
+                  (UNIT_H_ITEM_BY_GUID, '        bool IsTriggeredAtSpellProcEvent(Unit* pVictim, '
+                                        'SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, '
+                                        'uint32 procExtra, WeaponAttackType attType, bool isVictim, '
+                                        'SpellProcEventEntry const*& spellProcEvent);'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
+    'src/game/entities/player/Player.h': {
+        'forms': {},
+        'declares': True,
+        'added': [(PLAYER_H_ITEM_BY_GUID,
+                   '        InventoryMgr const& GetInventoryMgr() const { return m_inventoryMgr; }')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')]},
@@ -211,7 +238,7 @@ FILES = {
         'forms': {'GetBaseSpellPowerBonus': 2},
         'added': []},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
-        'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8},
+        'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8},
         'added': [],
         'window': {2881: 70}},
 }
@@ -657,7 +684,12 @@ def prove(rel, old_text, new_text, spec, out, window=WINDOW, read=None, forms=No
             rc = 1
     got, at_place = check_outside(rel, old_lines, lines, added_out, changed_out, out, tree)
     rc |= got
-    rc |= lists_none(rel, lines, masked | at_place, spec, out, forms)
+    if spec.get('declares'):
+        if spec['forms']:
+            out('%s: FAILED: a file that declares the overrides lists call sites' % rel)
+            rc = 1
+    else:
+        rc |= lists_none(rel, lines, masked | at_place, spec, out, forms)
     if rc:
         return 1, []
     outside = '%d added line(s) and %d changed line(s) at their place outside every window' % (
@@ -993,6 +1025,16 @@ def self_test():
     run('a form spelled in an unlisted line of a file that lists none fails', 1, 'in a file that lists none',
         new_text=SELF_DECL_NEW.replace('        int m_a;\n', '        int m_a;\n' + declared + '\n'),
         old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
+    run('... and passes in a file that declares the overrides', 0, '3 added line(s) and 0 changed line(s)',
+        new_text=SELF_DECL_NEW.replace('        int m_a;\n', '        int m_a;\n' + declared + '\n'),
+        old_text=SELF_DECL_OLD, spec=dict(SELF_DECL_SPEC, declares=True))
+    run('a listed added line missing from a file that declares the overrides fails', 1,
+        "the added line '        int m_n;' stands 0 time(s)",
+        new_text=SELF_DECL_NEW.replace('        int m_n;\n', ''), old_text=SELF_DECL_OLD,
+        spec=dict(SELF_DECL_SPEC, declares=True))
+    run('a file that declares the overrides and lists a call site fails', 1, 'declares the overrides lists call sites',
+        new_text=SELF_DECL_NEW, old_text=SELF_DECL_OLD,
+        spec=dict(SELF_DECL_SPEC, declares=True, forms={'HasSpellCooldown': 0}))
     run('an added line outside every window whose base line stands twice at the base fails', 1,
         'the base line \'#include "A.h"\' that \'#include "N.h"\' follows stands 2 time(s) at the base',
         new_text=SELF_DECL_NEW + '#include "A.h"\n', old_text=SELF_DECL_OLD + '#include "A.h"\n', spec=SELF_DECL_SPEC)

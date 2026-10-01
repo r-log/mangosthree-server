@@ -100,6 +100,7 @@ set(SRC_GRP_TESTS
     SpellCooldownMgrTest.cpp
     UnitSpellCooldownTest.cpp
     UnitCombatStatsTest.cpp
+    UnitItemByGuidTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

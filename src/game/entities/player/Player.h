@@ -1369,6 +1369,9 @@ class Player : public Unit
         InventoryMgr& GetInventoryMgr() { return m_inventoryMgr; }
         InventoryMgr const& GetInventoryMgr() const { return m_inventoryMgr; }
 
+        // The item Unit asks for by guid: the one the inventory holds, or NULL
+        Item* GetItemByGuid(ObjectGuid guid) const override { return GetInventoryMgr().GetItemByGuid(guid); }
+
         // Get the weapon for the specified attack type
         Item* GetWeaponForAttack(WeaponAttackType attackType) const
         {
