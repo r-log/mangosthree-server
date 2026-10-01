@@ -302,6 +302,29 @@ static SpellHandlerOutcome<void> AuraDummyQuestTame30105(AuraDummyQuestTameConte
 }
 
 
+/// AT REMOVE 10255: Stoned
+static SpellHandlerOutcome<void> AuraDummyRemove10255(AuraDummyRemoveContext& ctx)
+{
+    if (Unit* caster = ctx.aura->GetCaster())
+    {
+        if (caster->GetTypeId() != TYPEID_UNIT)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        // see dummy effect of spell 10254 for removal of flags etc
+        caster->CastSpell(caster, 10254, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 12479: Hex of Jammal'an
+static SpellHandlerOutcome<void> AuraDummyRemove12479(AuraDummyRemoveContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 12480, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE 12774: (DND) Belnistrasz Idol Shutdown Visual
 static SpellHandlerOutcome<void> AuraDummyRemove12774(AuraDummyRemoveContext& ctx)
 {
@@ -316,6 +339,16 @@ static SpellHandlerOutcome<void> AuraDummyRemove12774(AuraDummyRemoveContext& ct
         caster->CastSpell(caster, 12816, true);
     }
 
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 28169: Mutating Injection
+static SpellHandlerOutcome<void> AuraDummyRemove28169(AuraDummyRemoveContext& ctx)
+{
+    // Mutagen Explosion
+    ctx.target->CastSpell(ctx.target, 28206, true, NULL, ctx.aura);
+    // Poison Cloud
+    ctx.target->CastSpell(ctx.target, 28240, true, NULL, ctx.aura);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -360,6 +393,23 @@ static SpellHandlerOutcome<void> AuraDummyRemove32286(AuraDummyRemoveContext& ct
         ctx.target->CastSpell(ctx.target, 32301, true, NULL, ctx.aura);
     }
 
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE, one body for 2 labels: 35079: Misdirection, triggered buff; 59628: Tricks of the Trade, triggered buff
+static SpellHandlerOutcome<void> AuraDummyRemoveThreatRedirection(AuraDummyRemoveContext& ctx)
+{
+    if (Unit* pCaster = ctx.aura->GetCaster())
+    {
+        pCaster->GetHostileRefManager().ResetThreatRedirection();
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 36730: Flame Strike
+static SpellHandlerOutcome<void> AuraDummyRemove36730(AuraDummyRemoveContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 36731, true, NULL, ctx.aura);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -447,6 +497,29 @@ static SpellHandlerOutcome<void> AuraDummyRemove45934(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// AT REMOVE 45963: Call Alliance Deserter
+static SpellHandlerOutcome<void> AuraDummyRemove45963(AuraDummyRemoveContext& ctx)
+{
+    // Escorting Alliance Deserter
+    ctx.target->RemoveAurasDueToSpell(45957);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 46308: Burning Winds
+static SpellHandlerOutcome<void> AuraDummyRemove46308(AuraDummyRemoveContext& ctx)
+{
+    // casted only at creatures at spawn
+    ctx.target->CastSpell(ctx.target, 47287, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 46637: Break Ice
+static SpellHandlerOutcome<void> AuraDummyRemove46637(AuraDummyRemoveContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 47030, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE 50141: Blood Oath
 static SpellHandlerOutcome<void> AuraDummyRemove50141(AuraDummyRemoveContext& ctx)
 {
@@ -481,6 +554,14 @@ static SpellHandlerOutcome<void> AuraDummyRemove52098(AuraDummyRemoveContext& ct
         ctx.target->CastSpell(ctx.target, 52092, true, NULL, ctx.aura);
     }
 
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 53039: Deploy Parachute
+static SpellHandlerOutcome<void> AuraDummyRemove53039(AuraDummyRemoveContext& ctx)
+{
+    // Crusader Parachute
+    ctx.target->RemoveAurasDueToSpell(53031);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -520,6 +601,20 @@ static SpellHandlerOutcome<void> AuraDummyRemove56511(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// AT REMOVE 58600: Restricted Flight Area
+static SpellHandlerOutcome<void> AuraDummyRemove58600(AuraDummyRemoveContext& ctx)
+{
+    //AreaTableEntry const* area = GetAreaEntryByAreaID(target->GetTerrain()->GetAreaId(target->Where().X(), target->Where().Y(), target->Where().Z()));
+
+    //// Dalaran restricstruct boss_freyted flight zone (recheck before apply unmount)
+    //if (area && target->GetTypeId() == TYPEID_PLAYER && (area->flags & AREA_FLAG_CANNOT_FLY) &&
+    //        ((Player*)target)->IsFreeFlying() && !((Player*)target)->isGameMaster())
+    //{
+    //    target->CastSpell(target, 58601, true); // Remove Flight Auras (also triggered Parachute (45472))
+    //}
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// AT REMOVE 61900: Electrical Charge
 static SpellHandlerOutcome<void> AuraDummyRemove61900(AuraDummyRemoveContext& ctx)
 {
@@ -528,6 +623,16 @@ static SpellHandlerOutcome<void> AuraDummyRemove61900(AuraDummyRemoveContext& ct
         ctx.target->CastSpell(ctx.target, ctx.aura->GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_0), true);
     }
 
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// AT REMOVE 68839: Corrupt Soul
+static SpellHandlerOutcome<void> AuraDummyRemove68839(AuraDummyRemoveContext& ctx)
+{
+    // Knockdown Stun
+    ctx.target->CastSpell(ctx.target, 68848, true, NULL, ctx.aura);
+    // Draw Corrupted Soul
+    ctx.target->CastSpell(ctx.target, 68846, true, NULL, ctx.aura);
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -678,13 +783,19 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 30105, &AuraDummyQuestTame30105 },
     };
 
-    static AuraDummyRow<AuraDummyRemoveSite> const stanceRemoval[] =
+    static AuraDummyRow<AuraDummyRemoveSite> const removal[] =
     {
+        { 10255, &AuraDummyRemove10255 },
+        { 12479, &AuraDummyRemove12479 },
         { 12774, &AuraDummyRemove12774 },
+        { 28169, &AuraDummyRemove28169 },
         { 32045, &AuraDummyRemove32045 },
         { 32051, &AuraDummyRemove32051 },
         { 32052, &AuraDummyRemove32052 },
         { 32286, &AuraDummyRemove32286 },
+        { 35079, &AuraDummyRemoveThreatRedirection },
+        { 59628, &AuraDummyRemoveThreatRedirection },
+        { 36730, &AuraDummyRemove36730 },
         { 41099, &AuraDummyRemove41099 },
         { 41100, &AuraDummyRemove41100 },
         { 41101, &AuraDummyRemove41101 },
@@ -692,14 +803,20 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 43681, &AuraDummyRemove43681 },
         { 43969, &AuraDummyRemove43969 },
         { 45934, &AuraDummyRemove45934 },
+        { 45963, &AuraDummyRemove45963 },
+        { 46308, &AuraDummyRemove46308 },
+        { 46637, &AuraDummyRemove46637 },
         { 50141, &AuraDummyRemove50141 },
         { 51870, &AuraDummyRemove51870 },
         { 52098, &AuraDummyRemove52098 },
+        { 53039, &AuraDummyRemove53039 },
         { 53790, &AuraDummyRemove53790 },
         { 53791, &AuraDummyRemove53791 },
         { 53792, &AuraDummyRemove53792 },
         { 56511, &AuraDummyRemove56511 },
+        { 58600, &AuraDummyRemove58600 },
         { 61900, &AuraDummyRemove61900 },
+        { 68839, &AuraDummyRemove68839 },
     };
 
     static AuraDummyRow<AuraDummyApplyRemoveGenericSite> const feignDeath[] =
@@ -740,7 +857,7 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
     registry.RegisterDefault<AuraDummyUnrelentingAssaultSite>(&AuraDummyUnrelentingAssaultDefault);
     ++rows;
     rows += RegisterAuraDummyRows(registry, questTame);
-    rows += RegisterAuraDummyRows(registry, stanceRemoval);
+    rows += RegisterAuraDummyRows(registry, removal);
     rows += RegisterAuraDummyRows(registry, feignDeath);
     rows += RegisterAuraDummyRows(registry, druid);
     rows += RegisterAuraDummyRows(registry, improvedMoonkin);

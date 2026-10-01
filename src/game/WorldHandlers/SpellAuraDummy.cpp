@@ -473,45 +473,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
         switch (GetId())
         {
-            case 10255:                                     // Stoned
-            {
-                if (Unit* caster = GetCaster())
-                {
-                    if (caster->GetTypeId() != TYPEID_UNIT)
-                    {
-                        return;
-                    }
-
-                    // see dummy effect of spell 10254 for removal of flags etc
-                    caster->CastSpell(caster, 10254, true);
-                }
-                return;
-            }
-            case 12479:                                     // Hex of Jammal'an
-                target->CastSpell(target, 12480, true, NULL, this);
-                return;
-            case 28169:                                     // Mutating Injection
-            {
-                // Mutagen Explosion
-                target->CastSpell(target, 28206, true, NULL, this);
-                // Poison Cloud
-                target->CastSpell(target, 28240, true, NULL, this);
-                return;
-            }
-            case 35079:                                     // Misdirection, triggered buff
-            case 59628:                                     // Tricks of the Trade, triggered buff
-            {
-                if (Unit* pCaster = GetCaster())
-                {
-                    pCaster->GetHostileRefManager().ResetThreatRedirection();
-                }
-                return;
-            }
-            case 36730:                                     // Flame Strike
-            {
-                target->CastSpell(target, 36731, true, NULL, this);
-                return;
-            }
             case 42517:                                     // Beam to Zelfrax
             {
                 // expecting target to be a dummy creature
@@ -536,23 +497,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 }
                 return;
             }
-            case 45963:                                     // Call Alliance Deserter
-            {
-                // Escorting Alliance Deserter
-                target->RemoveAurasDueToSpell(45957);
-                return;
-            }
-            case 46308:                                     // Burning Winds
-            {
-                // casted only at creatures at spawn
-                target->CastSpell(target, 47287, true, NULL, this);
-                return;
-            }
-            case 46637:                                     // Break Ice
-            {
-                target->CastSpell(target, 47030, true, NULL, this);
-                return;
-            }
             case 48385:                                     // Create Spirit Fount Beam
             {
                 target->CastSpell(target, target->GetMap()->IsRegularDifficulty() ? 48380 : 59320, true);
@@ -575,32 +519,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
                 target->HandleEmote(EMOTE_STATE_NONE);
                 target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, GetCasterGuid().GetCounter()));
-                return;
-            }
-            case 53039:                                     // Deploy Parachute
-            {
-                // Crusader Parachute
-                target->RemoveAurasDueToSpell(53031);
-                return;
-            }
-            case 58600:                                     // Restricted Flight Area
-            {
-                //AreaTableEntry const* area = GetAreaEntryByAreaID(target->GetTerrain()->GetAreaId(target->Where().X(), target->Where().Y(), target->Where().Z()));
-
-                //// Dalaran restricstruct boss_freyted flight zone (recheck before apply unmount)
-                //if (area && target->GetTypeId() == TYPEID_PLAYER && (area->flags & AREA_FLAG_CANNOT_FLY) &&
-                //        ((Player*)target)->IsFreeFlying() && !((Player*)target)->isGameMaster())
-                //{
-                //    target->CastSpell(target, 58601, true); // Remove Flight Auras (also triggered Parachute (45472))
-                //}
-                return;
-            }
-            case 68839:                                     // Corrupt Soul
-            {
-                // Knockdown Stun
-                target->CastSpell(target, 68848, true, NULL, this);
-                // Draw Corrupted Soul
-                target->CastSpell(target, 68846, true, NULL, this);
                 return;
             }
         }
