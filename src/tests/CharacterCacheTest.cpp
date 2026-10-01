@@ -319,8 +319,9 @@ TEST(CharacterCache_AReaderDuringAWriterSeesOneWholeValueOrTheOther)
     const std::string shortName = "Bo";
     const std::string longName = "Averylongcharactername";
 
-    // The seeded name and level are outside what the writer writes, so the entry starts
-    // on one of the writer's pairs and every value the reader can see is one it accepts.
+    // SeedTwo's name and level are outside what the writer writes, so the entry is moved onto
+    // one of the writer's pairs before the reader starts, and every value the reader can see
+    // is one it accepts.
     sCharacterCache.UpdateName(AldorGuid(), longName);
     sCharacterCache.UpdateLevel(AldorGuid(), 80);
 
@@ -359,8 +360,8 @@ TEST(CharacterCache_AReaderDuringAWriterSeesOneWholeValueOrTheOther)
         }
     });
 
-    // The writer starts only once the reader is reading, so the two overlap however the
-    // threads are scheduled.
+    // The writer starts only once the reader has made a read, so the reader is already
+    // running when the writes begin.
     while (reads.load() == 0 && torn.load() == 0)
     {
         std::this_thread::yield();
