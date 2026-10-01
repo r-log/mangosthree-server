@@ -3842,8 +3842,8 @@ class Unit : public WorldObject
         virtual Transport* GetTransport() const { return NULL; }
         /**
          * @param p the player that looks at this unit
-         * @return whether P sees this unit through its stealth as a member of its group: false
-         * here; Player answers under the group visibility setting
+         * @return whether P sees this unit through its stealth under the group visibility
+         * setting: false here; Player answers by its group, its raid or its team
          */
         virtual bool IsGroupVisibleFor(Player* /*p*/) const { return false; }
         /**

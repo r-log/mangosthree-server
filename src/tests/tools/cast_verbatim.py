@@ -281,8 +281,8 @@ UNIT_H_VISIBILITY = '''
         virtual Transport* GetTransport() const { return NULL; }
         /**
          * @param p the player that looks at this unit
-         * @return whether P sees this unit through its stealth as a member of its group: false
-         * here; Player answers under the group visibility setting
+         * @return whether P sees this unit through its stealth under the group visibility
+         * setting: false here; Player answers by its group, its raid or its team
          */
         virtual bool IsGroupVisibleFor(Player* /*p*/) const { return false; }
         /**
@@ -338,20 +338,20 @@ FILES = {
                     ('        void UnsummonPetTemporaryIfAny() override;', '        void UnsummonPetTemporaryIfAny();'),
                     ('        void ResummonPetTemporaryUnSummonedIfAny() override;',
                      '        void ResummonPetTemporaryUnSummonedIfAny();'),
-                    ('        bool isGameMaster() const override { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }',
+                    ('        bool isGameMaster() const override final { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }',
                      '        bool isGameMaster() const { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }'),
-                    ('        bool IsGroupVisibleFor(Player* p) const override;',
+                    ('        bool IsGroupVisibleFor(Player* p) const override final;',
                      '        bool IsGroupVisibleFor(Player* p) const;'),
                     ("        // Whether the player's session is loading it or logging it out; the aura and "
                      "spell packet",
                      '        // Decoupling D5a: the aura and spell packet code asks Player, not the session, whether'),
                     ('        // code asks Player, not the session.',
                      '        // the player is loading or logging out.'),
-                    ('        bool IsLoading() const override;', '        bool IsLoading() const;'),
-                    ('        bool IsLoggingOut() const override;', '        bool IsLoggingOut() const;'),
-                    ('        uint16 GetDrunkValue() const override { return GetByteValue(PLAYER_BYTES_3, 1); }',
+                    ('        bool IsLoading() const override final;', '        bool IsLoading() const;'),
+                    ('        bool IsLoggingOut() const override final;', '        bool IsLoggingOut() const;'),
+                    ('        uint16 GetDrunkValue() const override final { return GetByteValue(PLAYER_BYTES_3, 1); }',
                      '        uint16 GetDrunkValue() const { return GetByteValue(PLAYER_BYTES_3, 1); }'),
-                    ('        Transport* GetTransport() const override { return m_transport; }',
+                    ('        Transport* GetTransport() const override final { return m_transport; }',
                      '        Transport* GetTransport() const { return m_transport; }')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,

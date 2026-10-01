@@ -1181,7 +1181,7 @@ class Player : public Unit
         void SetAcceptWhispers(bool on) { if (on) { m_ExtraFlags |= PLAYER_EXTRA_ACCEPT_WHISPERS; } else { m_ExtraFlags &= ~PLAYER_EXTRA_ACCEPT_WHISPERS; } }
 
         // Check if the player is a game master
-        bool isGameMaster() const override { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }
+        bool isGameMaster() const override final { return m_ExtraFlags & PLAYER_EXTRA_GM_ON; }
 
         // Set the game master state
         void SetGameMaster(bool on);
@@ -2475,7 +2475,7 @@ class Player : public Unit
         void SendDuelCountdown(uint32 counter);
 
         // Check if the player is visible for another player in the group
-        bool IsGroupVisibleFor(Player* p) const override;
+        bool IsGroupVisibleFor(Player* p) const override final;
 
         // Check if the player is in the same group with another player
         bool IsInSameGroupWith(Player const* p) const;
@@ -2940,8 +2940,8 @@ class Player : public Unit
 
         // Whether the player's session is loading it or logging it out; the aura and spell packet
         // code asks Player, not the session.
-        bool IsLoading() const override;
-        bool IsLoggingOut() const override;
+        bool IsLoading() const override final;
+        bool IsLoggingOut() const override final;
 
         // Check if the player is being teleported near
         bool IsBeingTeleportedNear() const { return mSemaphoreTeleport_Near; }
@@ -3096,7 +3096,7 @@ class Player : public Unit
         // End of PvP System
 
         void SetDrunkValue(uint8 newDrunkValue, uint32 itemid = 0);
-        uint16 GetDrunkValue() const override { return GetByteValue(PLAYER_BYTES_3, 1); }
+        uint16 GetDrunkValue() const override final { return GetByteValue(PLAYER_BYTES_3, 1); }
         static DrunkenState GetDrunkenstateByValue(uint8 value);
 
 
@@ -3525,7 +3525,7 @@ class Player : public Unit
         ObjectGuid const& GetFarSightGuid() const { return GetGuidValue(PLAYER_FARSIGHT); }
 
         // Get the transport for the player
-        Transport* GetTransport() const override { return m_transport; }
+        Transport* GetTransport() const override final { return m_transport; }
 
         // Set the transport for the player
         void SetTransport(Transport* t) { m_transport = t; }
