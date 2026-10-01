@@ -1764,10 +1764,39 @@ time_t NextMonthlyQuestReset(time_t now, time_t stored, bool keepEarlier)
     localTm.tm_hour = 0;
     localTm.tm_min  = 0;
     localTm.tm_sec  = 0;
+    localTm.tm_isdst = -1;                                  // the offset in force on that date, not today's
 
     time_t nextMonthResetTime = mktime(&localTm);
 
+    // a local midnight that does not exist can resolve to the hour before it, on the last day of the month
+    if (safe_localtime(nextMonthResetTime).tm_mday != 1)
+    {
+        nextMonthResetTime += HOUR;
+    }
+
+    // the reset is always after now
+    if (nextMonthResetTime <= now)
+    {
+        nextMonthResetTime += ((now - nextMonthResetTime) / HOUR + 1) * HOUR;
+    }
+
     return (keepEarlier && stored < nextMonthResetTime) ? stored : nextMonthResetTime;
+}
+
+time_t MonthlyQuestResetOnLocalMidnight(time_t stored)
+{
+    if (stored <= 0)
+    {
+        return stored;
+    }
+
+    const tm storedTm = safe_localtime(stored);
+    if (storedTm.tm_mday == 1 && storedTm.tm_hour == 0 && storedTm.tm_min == 0 && storedTm.tm_sec == 0)
+    {
+        return stored;
+    }
+
+    return NextMonthlyQuestReset(stored - 2 * HOUR, 0, false);
 }
 
 void World::SetMonthlyQuestResetTime(bool initialize)
@@ -1782,7 +1811,15 @@ void World::SetMonthlyQuestResetTime(bool initialize)
         }
         else
         {
-            m_NextMonthlyQuestReset = time_t((*result)[0].GetUInt64());
+            const time_t stored = time_t((*result)[0].GetUInt64());
+            m_NextMonthlyQuestReset = MonthlyQuestResetOnLocalMidnight(stored);
+            if (m_NextMonthlyQuestReset != stored)
+            {
+                sLog.outBasic("Monthly quest reset time %s (" UI64FMTD ") is not local midnight "
+                    "on the first of a month, moved to %s (" UI64FMTD ")",
+                    TimeToTimestampStr(stored).c_str(), uint64(stored),
+                    TimeToTimestampStr(m_NextMonthlyQuestReset).c_str(), uint64(m_NextMonthlyQuestReset));
+            }
         }
 
         delete result;

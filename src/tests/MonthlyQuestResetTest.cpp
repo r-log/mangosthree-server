@@ -27,10 +27,69 @@
 #include "World.h"
 #include "Utilities/Util.h"
 
+#include <cstdlib>
 #include <ctime>
+#include <set>
+#include <string>
 
 namespace
 {
+    const char* const kEuropeanZone = "CET-1CEST,M3.5.0,M10.5.0/3";
+    const char* const kUsEasternZone = "EST5EDT,M3.2.0,M11.1.0";
+
+    /// The Windows CRT ignores the rule part of TZ and applies the US change dates to every zone.
+#if defined(_WIN32)
+    const bool kCrtAppliesUsDates = true;
+#else
+    const bool kCrtAppliesUsDates = false;
+#endif
+
+    /// Sets TZ for a scope and restores the previous value, or its absence, afterwards.
+    class PinnedZone
+    {
+    public:
+        explicit PinnedZone(const char* zone)
+        {
+            const char* existing = std::getenv("TZ");
+            m_hadPrevious = existing != nullptr;
+            if (m_hadPrevious)
+            {
+                m_previous = existing;
+            }
+            Set(zone);
+        }
+
+        ~PinnedZone()
+        {
+            Set(m_hadPrevious ? m_previous.c_str() : nullptr);
+        }
+
+        PinnedZone(const PinnedZone&) = delete;
+        PinnedZone& operator=(const PinnedZone&) = delete;
+
+    private:
+        static void Set(const char* zone)
+        {
+#if defined(_WIN32)
+            _putenv_s("TZ", zone ? zone : "");
+            _tzset();
+#else
+            if (zone)
+            {
+                setenv("TZ", zone, 1);
+            }
+            else
+            {
+                unsetenv("TZ");
+            }
+            tzset();
+#endif
+        }
+
+        bool m_hadPrevious = false;
+        std::string m_previous;
+    };
+
     time_t LocalTime(int year, int month, int day, int hour, int minute, int second)
     {
         std::tm t{};
@@ -51,15 +110,30 @@ namespace
             && t.tm_hour == 0 && t.tm_min == 0 && t.tm_sec == 0;
     }
 
+    bool IsLocalMidnightOnTheFirst(time_t when)
+    {
+        const std::tm t = safe_localtime(when);
+        return t.tm_mday == 1 && t.tm_hour == 0 && t.tm_min == 0 && t.tm_sec == 0;
+    }
+
+    bool OnDaylightTime(time_t when)
+    {
+        return safe_localtime(when).tm_isdst > 0;
+    }
+
     /// Ticks the reset over [from, to) the way World::Update does; the next reset is computed from computeNow(tick).
     template<class ComputeNow>
-    int CountFirings(time_t& stored, time_t from, time_t to, ComputeNow computeNow)
+    int CountFirings(time_t& stored, time_t from, time_t to, ComputeNow computeNow, time_t* firstFiring = nullptr)
     {
         int firings = 0;
         for (time_t tick = from; tick < to; ++tick)
         {
             if (tick > stored)
             {
+                if (firings == 0 && firstFiring)
+                {
+                    *firstFiring = tick;
+                }
                 ++firings;
                 stored = NextMonthlyQuestReset(computeNow(tick), stored, false);
             }
@@ -92,22 +166,71 @@ TEST(MonthlyQuestReset_TheNextResetIsMidnightOnTheFirstOfTheFollowingMonth)
     }
 }
 
-TEST(MonthlyQuestReset_TheNextResetIsAlwaysAfterNow)
+TEST(MonthlyQuestReset_LandsOnLocalMidnightWhenTheFirstIsOnTheOtherSideOfADaylightSavingChange)
 {
+    struct Row { const char* zone; int y, mo, d; int ny, nmo; bool straddlesPosix, straddlesWindows; };
+    const Row rows[] =
+    {
+        { kEuropeanZone,  2027,  3, 10, 2027,  4, true,  true  },   // spring, both rule sets
+        { kEuropeanZone,  2026, 10,  1, 2026, 11, true,  false },   // autumn, European dates
+        { kEuropeanZone,  2027, 11,  2, 2027, 12, false, true  },   // autumn, US dates
+        { kUsEasternZone, 2027,  3, 10, 2027,  4, true,  true  },
+        { kUsEasternZone, 2026, 10,  1, 2026, 11, false, false },
+        { kUsEasternZone, 2027, 11,  2, 2027, 12, true,  true  },
+    };
+    for (const Row& r : rows)
+    {
+        const PinnedZone zone(r.zone);
+        const time_t now = LocalTime(r.y, r.mo, r.d, 12, 0, 0);
+        const time_t midnight = LocalTime(r.ny, r.nmo, 1, 0, 0, 0);
+
+        const bool straddles = kCrtAppliesUsDates ? r.straddlesWindows : r.straddlesPosix;
+        CHECK(IsLocalMidnightOn(midnight, r.ny, r.nmo, 1));
+        CHECK_EQ(OnDaylightTime(now) != OnDaylightTime(midnight), straddles);
+
+        const time_t next = NextMonthlyQuestReset(now, 0, false);
+        CHECK(IsLocalMidnightOn(next, r.ny, r.nmo, 1));
+        CHECK_EQ(next, midnight);
+        CHECK(next > now);
+    }
+}
+
+TEST(MonthlyQuestReset_TheNextResetIsLocalMidnightAndAfterNowAllYearInADaylightSavingZone)
+{
+    const PinnedZone zone(kEuropeanZone);
     const time_t first = LocalTime(2026, 1, 1, 0, 0, 0);
     const time_t last = LocalTime(2029, 1, 1, 0, 0, 0);
     int checked = 0;
+    int notAfterNow = 0;
+    int tooFarAhead = 0;
+    int notMidnightOnTheFirst = 0;
+    int notTheFollowingMonth = 0;
+    std::set<int> straddledMonths;
     for (time_t now = first; now < last; now += 1800)
     {
         for (time_t probe : { now - 1, now, now + 1 })
         {
             const time_t next = NextMonthlyQuestReset(probe, probe - 1, false);
-            CHECK(next > probe);
-            CHECK(next - probe <= 31 * DAY + HOUR);
+            const std::tm probeTm = safe_localtime(probe);
+            const std::tm nextTm = safe_localtime(next);
+            notAfterNow += next <= probe;
+            tooFarAhead += next - probe > 31 * DAY + HOUR;
+            notMidnightOnTheFirst += !IsLocalMidnightOnTheFirst(next);
+            const int monthsAhead = (nextTm.tm_year * 12 + nextTm.tm_mon) - (probeTm.tm_year * 12 + probeTm.tm_mon);
+            notTheFollowingMonth += monthsAhead != 1;
+            if (OnDaylightTime(probe) != OnDaylightTime(next))
+            {
+                straddledMonths.insert(nextTm.tm_year * 12 + nextTm.tm_mon);
+            }
             ++checked;
         }
     }
     CHECK(checked > 150000);
+    CHECK_EQ(notAfterNow, 0);
+    CHECK_EQ(tooFarAhead, 0);
+    CHECK_EQ(notMidnightOnTheFirst, 0);
+    CHECK_EQ(notTheFollowingMonth, 0);
+    CHECK_EQ(straddledMonths.size(), size_t(6));             // a spring and an autumn month in each of the three years
 }
 
 TEST(MonthlyQuestReset_AtStartupAnEarlierStoredResetIsKept)
@@ -121,6 +244,68 @@ TEST(MonthlyQuestReset_AtStartupAnEarlierStoredResetIsKept)
     CHECK_EQ(NextMonthlyQuestReset(now, next, true), next);
     CHECK_EQ(NextMonthlyQuestReset(now, later, true), next);
     CHECK_EQ(NextMonthlyQuestReset(now, missed, false), next);
+}
+
+TEST(MonthlyQuestReset_AStoredResetAnHourOffMidnightIsMovedToMidnight)
+{
+    struct Row { const char* zone; int y, mo; };
+    const Row rows[] =
+    {
+        { kEuropeanZone,  2026, 11 },
+        { kEuropeanZone,  2027,  4 },
+        { kEuropeanZone,  2027, 12 },
+        { kUsEasternZone, 2027,  4 },
+        { kUsEasternZone, 2027, 12 },
+    };
+    for (const Row& r : rows)
+    {
+        const PinnedZone zone(r.zone);
+        const time_t midnight = LocalTime(r.y, r.mo, 1, 0, 0, 0);
+        const time_t early = midnight - HOUR;
+        const time_t late = midnight + HOUR;
+
+        const std::tm earlyTm = safe_localtime(early);
+        const std::tm lateTm = safe_localtime(late);
+        CHECK(IsLocalMidnightOn(midnight, r.y, r.mo, 1));
+        CHECK(earlyTm.tm_mday != 1 && earlyTm.tm_hour == 23);
+        CHECK(lateTm.tm_mday == 1 && lateTm.tm_hour == 1);
+
+        CHECK_EQ(MonthlyQuestResetOnLocalMidnight(early), midnight);
+        CHECK_EQ(MonthlyQuestResetOnLocalMidnight(late), midnight);
+        CHECK_EQ(MonthlyQuestResetOnLocalMidnight(midnight), midnight);
+        CHECK_EQ(MonthlyQuestResetOnLocalMidnight(0), time_t(0));
+    }
+}
+
+TEST(MonthlyQuestReset_TheResetStoredForNovemberOnACentralEuropeanServerIsMovedToMidnight)
+{
+    const PinnedZone zone(kEuropeanZone);
+    const time_t stored = 1793484000;                       // 2026-10-31 22:00 UTC
+    const time_t midnight = LocalTime(2026, 11, 1, 0, 0, 0);
+
+    // Under US change dates the stored value is already midnight on November 1st in this zone.
+    if (kCrtAppliesUsDates)
+    {
+        CHECK(IsLocalMidnightOn(stored, 2026, 11, 1));
+        CHECK_EQ(midnight, stored);
+        CHECK_EQ(MonthlyQuestResetOnLocalMidnight(stored), stored);
+    }
+    else
+    {
+        CHECK(IsLocalMidnightOn(stored + HOUR, 2026, 11, 1));
+        CHECK_EQ(midnight, time_t(1793487600));
+        CHECK_EQ(MonthlyQuestResetOnLocalMidnight(stored), midnight);
+    }
+
+    // at startup half an hour before midnight: the reset fires once, at midnight
+    const time_t boot = midnight - HOUR / 2;
+    time_t next = NextMonthlyQuestReset(boot, MonthlyQuestResetOnLocalMidnight(stored), true);
+    CHECK_EQ(next, midnight);
+    time_t firedAt = 0;
+    const int firings = CountFirings(next, boot, midnight + 2 * HOUR, [](time_t gameNow) { return gameNow; }, &firedAt);
+    CHECK_EQ(firings, 1);
+    CHECK_EQ(firedAt, midnight + 1);
+    CHECK(IsLocalMidnightOn(next, 2026, 12, 1));
 }
 
 TEST(MonthlyQuestReset_FiresOnceWhenTheGameClockRunsAheadOfTheWallClock)
@@ -137,6 +322,38 @@ TEST(MonthlyQuestReset_FiresOnceWhenTheGameClockRunsAheadOfTheWallClock)
     const int wallClockFirings = CountFirings(storedFromWallClock, boundary - HOUR, boundary + HOUR,
         [lead](time_t gameNow) { return gameNow - lead; });
     CHECK_EQ(wallClockFirings, int(lead));
+}
+
+TEST(MonthlyQuestReset_FiresOnceAtLocalMidnightAcrossADaylightSavingChange)
+{
+    struct Row { const char* zone; int y, mo, d; int ny, nmo; int fy, fmo; };
+    const Row rows[] =
+    {
+        { kEuropeanZone,  2027,  3, 10, 2027,  4, 2027, 5 },   // spring, both rule sets
+        { kUsEasternZone, 2027, 11,  2, 2027, 12, 2028, 1 },   // autumn, both rule sets
+    };
+    for (const Row& r : rows)
+    {
+        const PinnedZone zone(r.zone);
+        const time_t computedAt = LocalTime(r.y, r.mo, r.d, 12, 0, 0);
+        const time_t midnight = LocalTime(r.ny, r.nmo, 1, 0, 0, 0);
+        CHECK(OnDaylightTime(computedAt) != OnDaylightTime(midnight));
+
+        const time_t lead = 1782;
+        time_t stored = NextMonthlyQuestReset(computedAt, 0, false);
+        CHECK_EQ(stored, midnight);
+        time_t firedAt = 0;
+        const int firings = CountFirings(stored, midnight - 3 * HOUR, midnight + 3 * HOUR,
+            [](time_t gameNow) { return gameNow; }, &firedAt);
+        CHECK_EQ(firings, 1);
+        CHECK_EQ(firedAt, midnight + 1);
+        CHECK(IsLocalMidnightOn(stored, r.fy, r.fmo, 1));
+
+        time_t storedFromWallClock = midnight;
+        const int wallClockFirings = CountFirings(storedFromWallClock, midnight - 3 * HOUR, midnight + 3 * HOUR,
+            [lead](time_t gameNow) { return gameNow - lead; });
+        CHECK_EQ(wallClockFirings, int(lead));
+    }
 }
 
 TEST(MonthlyQuestReset_FiresOnceAtTheBoundaryWithNoLead)
