@@ -1363,9 +1363,10 @@ class Player : public Unit
         // Find the equipment slot for the specified item
         uint8 FindEquipSlot(ItemPrototype const* proto, uint32 slot, bool swap) const;
 
-        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,
+        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,
         // GetItemByLimitedCategory, GetItemFromBuyBackSlot), the counts (GetItemCount, HasItemCount),
         // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it directly.
+        // The private GetItemByGuid override answers only Unit's lookup.
         InventoryMgr& GetInventoryMgr() { return m_inventoryMgr; }
         InventoryMgr const& GetInventoryMgr() const { return m_inventoryMgr; }
 
@@ -4086,6 +4087,10 @@ class Player : public Unit
 
         // Decoupling D4k: where a manager's packets go -- this character's session, read at each send
         ManagerPacketSink SessionSink() const;
+
+        // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
+        // so only a call through Unit reaches it
+        Item* GetItemByGuid(ObjectGuid guid) const override { return GetInventoryMgr().GetItemByGuid(guid); }
 
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
