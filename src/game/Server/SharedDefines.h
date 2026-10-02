@@ -179,6 +179,11 @@ enum Powers
     POWER_HEALTH                        = 0xFFFFFFFE ///< Health, everyone has this (-2 as signed value)
 };
 
+#define MAX_STORED_POWERS               5
+// Setting this value to something high helps debugging
+#define INVALID_POWER_INDEX             10000
+#define INVALID_POWER                   MAX_POWERS
+
 enum RuneType
 {
     RUNE_BLOOD                  = 0,
@@ -187,11 +192,6 @@ enum RuneType
     RUNE_DEATH                  = 3,
     NUM_RUNE_TYPES              = 4
 };
-
-#define MAX_STORED_POWERS               5
-// Setting this value to something high helps debugging
-#define INVALID_POWER_INDEX             10000
-#define INVALID_POWER                   MAX_POWERS
 
 /**
  * The different spell schools that are available, used in both damage calculation
