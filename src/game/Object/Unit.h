@@ -3814,6 +3814,24 @@ class Unit : public WorldObject
          * applies to a dead player: false here; Player answers by its battleground instance
          */
         virtual bool InBattleGround() const { return false; }
+        /**
+         * Says a text in a language to the units in say range; the Aura of Madness proc has a player
+         * say "This is Madness!".
+         * Does nothing here; Player sends the say message to the players in its listen range.
+         */
+        virtual void Say(const std::string& /*text*/, const uint32 /*language*/) { }
+        /**
+         * @return the guid of the unit this unit has selected, which the Shattered Sun pendant's
+         * proc strikes when there is no victim: an empty guid here; Player returns its selection
+         */
+        virtual ObjectGuid GetSelectionGuid() const { return ObjectGuid(); }
+        /**
+         * The raid member Prayer of Mending jumps to next.
+         * @param radius the distance the member stands within
+         * @return NULL here; Player returns a random other member of its group within the radius
+         * that is not invisible and not hostile to it, or NULL
+         */
+        virtual Player* GetNextRandomRaidMember(float /*radius*/) { return NULL; }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

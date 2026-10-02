@@ -1331,7 +1331,7 @@ class Player : public Unit
 
 
         // Player communication methods
-        void Say(const std::string& text, const uint32 language);
+        void Say(const std::string& text, const uint32 language) override;
         void Yell(const std::string& text, const uint32 language);
         void TextEmote(const std::string& text);
 
@@ -2095,7 +2095,7 @@ class Player : public Unit
         }
 
         // Get the player's current selection GUID
-        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }
+        ObjectGuid GetSelectionGuid() const override final { return m_curSelectionGuid; }
 
         // Set the player's current selection GUID
         void SetSelectionGuid(ObjectGuid guid) { m_curSelectionGuid = guid; SetTargetGuid(guid); }
@@ -3741,7 +3741,7 @@ class Player : public Unit
         void SetAuraUpdateMask(uint8 slot) { m_auraUpdateMask |= (uint64(1) << slot); }
 
         // Get the next random raid member within a radius
-        Player* GetNextRandomRaidMember(float radius);
+        Player* GetNextRandomRaidMember(float radius) override final;
 
         // Check if the player can be uninvited from the group
         PartyResult CanUninviteFromGroup(ObjectGuid guidMember = ObjectGuid()) const;

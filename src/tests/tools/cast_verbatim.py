@@ -34,7 +34,7 @@ For each file in FILES, --check:
      as it reads once the FORMs are written back, listed with the base line it replaced) is
      written back where it stands in that line's place; the base line an entry names must stand
      once in the window's base text, and an entry whose base line stands in a window must be
-     found there;
+     found there; a BYVALUE entry (below) is a CHANGED entry once its transformation is checked;
   5. an entry whose base line stands in no window is checked at its place only: an added entry
      stands once in the working tree, directly below its base line, which stands once in the file
      at BASE; a changed line stands once in the working tree, its base line once at BASE and
@@ -45,6 +45,14 @@ For each file in FILES, --check:
      overrides (Player.h, whose own code calls its methods directly and never cast) lists no FORM
      and is not searched for one: only its entries are checked, at their place.
 A window set for a base line that holds no site fails.
+
+A BYVALUE entry (the line as it reads now, listed with the base line it replaced) is the known
+transformation of a getter override that returns a guid by value: its base line declares a getter
+whose return type, the line's first word, is `ObjectGuid const&` (once on the line, with no
+`override`), and the line must read exactly as the base line with that `ObjectGuid const&` read as
+`ObjectGuid` and ` override final` written before the body (before ` {`, or before the closing `;`
+of a declaration), nothing else changed; any other difference fails, naming both lines. Accepted,
+it is checked as a CHANGED entry. Player.h:2098, the selection guid, is the one listed.
 
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
@@ -91,7 +99,12 @@ its type test (:6597); its direct spelling of setFactionForRace carries its lead
 Unit.cpp:7334 calls it on the possessed player. The ghost speed site, UnitSpeed.cpp:240, is the
 player arm of the creature test at :228, 12 lines above it (the corpse test at :238 2), so it sets
 its own window; its direct spelling of InBattleGround carries the opening parenthesis of the
-config lookup, since Unit.cpp:1246 calls it on the victim.
+config lookup, since Unit.cpp:1246 calls it on the victim. The proc one-off sites set their own
+windows: UnitAuraProcHandler.cpp:980, the say in the Aura of Madness arm, stands 44 lines below
+the type return opening the arm (:936; the case label :934 46), :1010, the selection in the
+Shattered Sun pendant's arm, 21 below its type return (:989), its window overlapping :1002's, and
+:4840, the raid member, 17 below the type and caster test at :4823; the direct spelling of Say
+carries its leading space, so MonsterSay, another name, does not match it.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -146,6 +159,12 @@ WINDOW = 11
 # the Player branch's statement is the third.
 BRANCH_LINES = 8
 BRANCH_PLAYER = 2
+
+# The by-value transformation: the return type a guid getter override read as, the one it reads as
+# now, and what stands before its body.
+BYVALUE_FROM = 'ObjectGuid const& '
+BYVALUE_TO = 'ObjectGuid '
+BYVALUE_FINAL = ' override final'
 
 # name -> the direct spelling (up to its opening parenthesis), the cast spelling it stands for,
 # and the argument the rewrite appended (None: the arguments are unchanged); a `branch` FORM names
@@ -244,6 +263,15 @@ FORMS = {
     'InBattleGround': {'direct': '(InBattleGround(',
                        'cast': '(((Player*)this)->InBattleGround(',
                        'suffix': None},
+    'Say': {'direct': ' Say(',
+            'cast': ' ((Player*)this)->Say(',
+            'suffix': None},
+    'GetSelectionGuid': {'direct': 'GetSelectionGuid(',
+                         'cast': '((Player*)this)->GetSelectionGuid(',
+                         'suffix': None},
+    'GetNextRandomRaidMember': {'direct': 'GetNextRandomRaidMember(',
+                                'cast': '((Player*)this)->GetNextRandomRaidMember(',
+                                'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -448,7 +476,26 @@ UNIT_H_FACTION_GHOST_SPEED = '''        /**
          * @return whether the unit is in a battleground, which picks the ghost run speed UpdateSpeed
          * applies to a dead player: false here; Player answers by its battleground instance
          */
-        virtual bool InBattleGround() const { return false; }
+        virtual bool InBattleGround() const { return false; }'''
+
+UNIT_H_PROC_ONE_OFFS = '''        /**
+         * Says a text in a language to the units in say range; the Aura of Madness proc has a player
+         * say "This is Madness!".
+         * Does nothing here; Player sends the say message to the players in its listen range.
+         */
+        virtual void Say(const std::string& /*text*/, const uint32 /*language*/) { }
+        /**
+         * @return the guid of the unit this unit has selected, which the Shattered Sun pendant's
+         * proc strikes when there is no victim: an empty guid here; Player returns its selection
+         */
+        virtual ObjectGuid GetSelectionGuid() const { return ObjectGuid(); }
+        /**
+         * The raid member Prayer of Mending jumps to next.
+         * @param radius the distance the member stands within
+         * @return NULL here; Player returns a random other member of its group within the radius
+         * that is not invisible and not hostile to it, or NULL
+         */
+        virtual Player* GetNextRandomRaidMember(float /*radius*/) { return NULL; }
 
     public:'''
 
@@ -459,7 +506,8 @@ PLAYER_H_ITEM_BY_GUID = '''
 
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
-# window is not WINDOW, by base line, and whether it `declares` the overrides.
+# window is not WINDOW, by base line, whether it `declares` the overrides, and the lines that
+# return a guid by value now (BYVALUE), each with the base line it replaced.
 FILES = {
     'src/game/Object/Unit.h': {
         'forms': {},
@@ -477,7 +525,7 @@ FILES = {
                   ('struct CreatureInfo;', 'struct SpellEntryExt;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
-                   + '\n' + UNIT_H_FACTION_GHOST_SPEED,
+                   + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -546,7 +594,13 @@ FILES = {
                     ('        void setFactionForRace(uint8 race) override;',
                      '        void setFactionForRace(uint8 race);'),
                     ('        bool InBattleGround() const override final { return m_bgData.bgInstanceID != 0; }',
-                     '        bool InBattleGround() const { return m_bgData.bgInstanceID != 0; }')]},
+                     '        bool InBattleGround() const { return m_bgData.bgInstanceID != 0; }'),
+                    ('        void Say(const std::string& text, const uint32 language) override;',
+                     '        void Say(const std::string& text, const uint32 language);'),
+                    ('        Player* GetNextRandomRaidMember(float radius) override final;',
+                     '        Player* GetNextRandomRaidMember(float radius);')],
+        'byvalue': [('        ObjectGuid GetSelectionGuid() const override final { return m_curSelectionGuid; }',
+                     '        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
@@ -587,9 +641,10 @@ FILES = {
         'window': {240: 12}},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
         'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8,
-                  'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3, 'isHonorOrXPTarget': 2},
+                  'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3, 'isHonorOrXPTarget': 2,
+                  'Say': 1, 'GetSelectionGuid': 1, 'GetNextRandomRaidMember': 1},
         'added': [],
-        'window': {1002: 13, 1045: 13, 1070: 13, 1096: 13, 2881: 70, 3242: 47}},
+        'window': {980: 44, 1002: 13, 1010: 21, 1045: 13, 1070: 13, 1096: 13, 2881: 70, 3242: 47, 4840: 17}},
 }
 
 
@@ -975,11 +1030,50 @@ def check_outside(rel, old_lines, lines, added_out, changed_out, out, tree=lambd
     return 0, at_place
 
 
+def by_value(base):
+    """The line BASE reads as under the by-value transformation, or None when BASE declares no
+    getter whose return type, its first word, is `ObjectGuid const&` (once on the line, with no
+    `override`): that return read as `ObjectGuid` and ` override final` written before the body
+    (` {`), or before the closing `;` of a declaration."""
+    if not base.lstrip().startswith(BYVALUE_FROM) or base.count(BYVALUE_FROM) != 1 or 'override' in base:
+        return None
+    line = base.replace(BYVALUE_FROM, BYVALUE_TO, 1)
+    at = line.find(' {')
+    if at < 0:
+        if not line.endswith(';'):
+            return None
+        at = len(line) - 1
+    return line[:at] + BYVALUE_FINAL + line[at:]
+
+
+def by_value_entries(rel, spec, out):
+    """(0, the BYVALUE entries as CHANGED entries) when each reads as its base line under the
+    by-value transformation, else (1, [])."""
+    changed = []
+    for new, base in spec.get('byvalue', []):
+        want = by_value(base)
+        if want is None:
+            out('%s: FAILED: the by-value base line %r declares no getter returning `ObjectGuid const&`' % (rel, base))
+            return 1, []
+        if new != want:
+            out('%s: FAILED: the by-value line %r is not the base line %r with its `ObjectGuid const&` return read '
+                'as `ObjectGuid` and ` override final` before its body, nothing else changed (that reads %r)'
+                % (rel, new, base, want))
+            return 1, []
+        changed.append((new, base))
+    return 0, changed
+
+
 def prove(rel, old_text, new_text, spec, out, window=WINDOW, read=None, forms=None):
     """(rc, [(name, base line, new line, window)]): rc 0 when the window around every site pastes
     back to the base's byte for byte and every listed entry stands at its place. READ reads a file
     a `branch` FORM names; FORMS replaces the module's."""
     forms = FORMS if forms is None else forms
+    rc, by_value_changed = by_value_entries(rel, spec, out)
+    if rc:
+        return 1, []
+    if by_value_changed:
+        spec = dict(spec, changed=spec.get('changed', []) + by_value_changed)
     rc, pasted, sites, starts, by_form = paste_back(rel, new_text, spec, out, read, forms)
     if rc:
         return 1, []
@@ -1043,6 +1137,8 @@ def prove(rel, old_text, new_text, spec, out, window=WINDOW, read=None, forms=No
         return 1, []
     outside = '%d added line(s) and %d changed line(s) at their place outside every window' % (
         sum(len(a.split('\n')) for a, _ in added_out), len(changed_out))
+    if by_value_changed:
+        outside += ' (%d by value)' % len(by_value_changed)
     if not windows:
         out('%s: no call site; %s' % (rel, outside))
     else:
@@ -1417,6 +1513,36 @@ def self_test():
         new_text=SELF_DECL_NEW.replace('        int m_b;\n        int m_n;\n', '        int m_b;\n').replace(
             '        int m_a;\n', '        int m_a;\n        int m_n;\n'),
         old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)
+
+    by_ref = '        ObjectGuid const& GetPick() const { return m_pick; }'
+    by_val = '        ObjectGuid GetPick() const override final { return m_pick; }'
+
+    def by_value_row(label, want_rc, needle, new_line=by_val, listed=by_val, base_line=by_ref):
+        run(label, want_rc, needle,
+            new_text=SELF_DECL_NEW.replace('        int m_a;\n', '        int m_a;\n' + new_line + '\n'),
+            old_text=SELF_DECL_OLD.replace('        int m_a;\n', '        int m_a;\n' + base_line + '\n'),
+            spec=dict(SELF_DECL_SPEC, declares=True, byvalue=[(listed, base_line)]))
+
+    by_value_row('a guid getter returned by value, override final, is the known transformation', 0,
+                 '3 added line(s) and 1 changed line(s) at their place outside every window (1 by value)')
+    second = '        ObjectGuid GetPick() override final { return m_pick; }'
+    by_value_row('a by-value line with a second difference fails, naming both lines', 1,
+                 'the by-value line %r is not the base line %r' % (second, by_ref), new_line=second, listed=second)
+    kept = '        ObjectGuid const& GetPick() const override final { return m_pick; }'
+    by_value_row('a by-value line that keeps the reference fails', 1, 'the by-value line %r is not' % kept,
+                 new_line=kept, listed=kept)
+    no_final = '        ObjectGuid GetPick() const override { return m_pick; }'
+    by_value_row('a by-value line without final fails', 1, 'the by-value line %r is not' % no_final,
+                 new_line=no_final, listed=no_final)
+    no_ref = '        uint64 GetPick() const { return m_pick; }'
+    by_value_row('a by-value base line that returns no guid reference fails', 1,
+                 'the by-value base line %r declares no getter' % no_ref, base_line=no_ref)
+    by_value_row('a by-value line missing from the working tree fails', 1,
+                 'the changed line %r stands 0 time(s)' % by_val, new_line=by_ref)
+    by_value_row('a by-value declaration gains override final before its semicolon', 0, '(1 by value)',
+                 new_line='        ObjectGuid GetPick() const override final;',
+                 listed='        ObjectGuid GetPick() const override final;',
+                 base_line='        ObjectGuid const& GetPick() const;')
 
     a, b, c, d = GEN_AT['A'], GEN_AT['B'], GEN_AT['C'], GEN_AT['D']
     k = 11  # the measured WINDOW: the rows at its edge pin it
