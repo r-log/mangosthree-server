@@ -184,6 +184,15 @@ enum Powers
 #define INVALID_POWER_INDEX             10000
 #define INVALID_POWER                   MAX_POWERS
 
+enum RuneType
+{
+    RUNE_BLOOD                  = 0,
+    RUNE_UNHOLY                 = 1,
+    RUNE_FROST                  = 2,
+    RUNE_DEATH                  = 3,
+    NUM_RUNE_TYPES              = 4
+};
+
 /**
  * The different spell schools that are available, used in both damage calculation
  * and spell casting to decide what should be affected, the \ref SpellSchools::SPELL_SCHOOL_NORMAL
