@@ -461,7 +461,7 @@ bool Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, SpellAuraHolder* holder, S
     // In most cases req get honor or XP from kill
     if (EventProcFlag & PROC_FLAG_KILL && GetTypeId() == TYPEID_PLAYER)
     {
-        bool allow = ((Player*)this)->isHonorOrXPTarget(pVictim);
+        bool allow = isHonorOrXPTarget(pVictim);
         // Shadow Word: Death - can trigger from every kill
         if (holder->GetId() == 32409)
         {
@@ -4386,7 +4386,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             // Improved Blood Presence
             else if (auraSpellInfo->ID == 63611)
             {
-                if (GetTypeId() != TYPEID_PLAYER || !((Player*)this)->isHonorOrXPTarget(pVictim) || !damage)
+                if (GetTypeId() != TYPEID_PLAYER || !isHonorOrXPTarget(pVictim) || !damage)
                 {
                     return SPELL_AURA_PROC_FAILED;
                 }
