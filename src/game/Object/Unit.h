@@ -3840,6 +3840,15 @@ class Unit : public WorldObject
          * the rank its active spec knows, or NULL
          */
         virtual SpellEntry const* GetKnownTalentRankById(int32 /*talentId*/) const { return NULL; }
+        /**
+         * Whether every base rune of a type is on cooldown; Blade Barrier procs only for a death
+         * knight whose base blood runes are all on cooldown.
+         * @param runeType the rune type asked about
+         * @return false here, a unit that is not a player has no runes; the proc's player and class
+         * tests return before asking a unit that is not a player; Player returns what its rune
+         * manager answers
+         */
+        virtual bool IsBaseRuneSlotsOnCooldown(RuneType /*runeType*/) const { return false; }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

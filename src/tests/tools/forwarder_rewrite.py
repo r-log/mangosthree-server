@@ -163,7 +163,6 @@ FORWARDERS = [
     ('GetRuneCooldown', 'rune', 'GetRuneCooldown'),
     ('GetBaseRuneCooldown', 'rune', 'GetBaseRuneCooldown'),
     ('GetRuneCooldownFraction', 'rune', 'GetRuneCooldownFraction'),
-    ('IsBaseRuneSlotsOnCooldown', 'rune', 'IsBaseRuneSlotsOnCooldown'),
     ('ClearLastUsedRuneMask', 'rune', 'ClearLastUsedRuneMask'),
     ('IsLastUsedRune', 'rune', 'IsLastUsedRune'),
     ('SetLastUsedRune', 'rune', 'SetLastUsedRune'),

@@ -105,7 +105,9 @@ the type return opening the arm (:936; the case label :934 46), :1010, the selec
 Shattered Sun pendant's arm, 21 below its type return (:989), its window overlapping :1002's, and
 :4840, the raid member, 17 below the type and caster test at :4823; the direct spelling of Say
 carries its leading space, so MonsterSay, another name, does not match it. The talent rank site,
-UnitSpellBonus.cpp:102, stands 2 lines below its type and death knight test (:100).
+UnitSpellBonus.cpp:102, stands 2 lines below its type and death knight test (:100). The rune
+cooldown site, UnitAuraProcHandler.cpp:4383, stands on the line below its type and class test
+(:4382), inside the window of the kill-credit site at :4389.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -276,6 +278,9 @@ FORMS = {
     'GetKnownTalentRankById': {'direct': 'GetKnownTalentRankById(',
                                'cast': '((Player*)this)->GetTalentMgr().GetKnownTalentRankById(',
                                'suffix': None},
+    'IsBaseRuneSlotsOnCooldown': {'direct': 'IsBaseRuneSlotsOnCooldown(',
+                                  'cast': '((Player*)this)->GetRuneMgr().IsBaseRuneSlotsOnCooldown(',
+                                  'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -508,7 +513,17 @@ UNIT_H_TALENT_RANK = '''        /**
          * @return NULL here, a unit that is not a player knows no talent; Player returns the spell of
          * the rank its active spec knows, or NULL
          */
-        virtual SpellEntry const* GetKnownTalentRankById(int32 /*talentId*/) const { return NULL; }
+        virtual SpellEntry const* GetKnownTalentRankById(int32 /*talentId*/) const { return NULL; }'''
+
+UNIT_H_RUNE_COOLDOWN = '''        /**
+         * Whether every base rune of a type is on cooldown; Blade Barrier procs only for a death
+         * knight whose base blood runes are all on cooldown.
+         * @param runeType the rune type asked about
+         * @return false here, a unit that is not a player has no runes; the proc's player and class
+         * tests return before asking a unit that is not a player; Player returns what its rune
+         * manager answers
+         */
+        virtual bool IsBaseRuneSlotsOnCooldown(RuneType /*runeType*/) const { return false; }
 
     public:'''
 
@@ -523,6 +538,14 @@ PLAYER_H_TALENT_RANK = '''
         SpellEntry const* GetKnownTalentRankById(int32 talentId) const override final
         {
             return GetTalentMgr().GetKnownTalentRankById(talentId);
+        }'''
+
+PLAYER_H_RUNE_COOLDOWN = '''
+        // Whether every base rune of a type is on cooldown, which Unit's Blade Barrier proc asks: what
+        // the rune manager answers; private, so only a call through Unit reaches it
+        bool IsBaseRuneSlotsOnCooldown(RuneType runeType) const override final
+        {
+            return GetRuneMgr().IsBaseRuneSlotsOnCooldown(runeType);
         }'''
 
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
@@ -546,7 +569,8 @@ FILES = {
                   ('struct CreatureInfo;', 'struct SpellEntryExt;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
-                   + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK,
+                   + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
+                   + '\n' + UNIT_H_RUNE_COOLDOWN,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -556,7 +580,7 @@ FILES = {
         'added': [("        // The private GetItemByGuid override answers only Unit's lookup.",
                    '        // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it '
                    'directly.'),
-                  (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK,
+                  (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN,
                    '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
@@ -664,7 +688,7 @@ FILES = {
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
         'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8,
                   'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3, 'isHonorOrXPTarget': 2,
-                  'Say': 1, 'GetSelectionGuid': 1, 'GetNextRandomRaidMember': 1},
+                  'Say': 1, 'GetSelectionGuid': 1, 'GetNextRandomRaidMember': 1, 'IsBaseRuneSlotsOnCooldown': 1},
         'added': [],
         'window': {980: 44, 1002: 13, 1010: 21, 1045: 13, 1070: 13, 1096: 13, 2881: 70, 3242: 47, 4840: 17}},
 }
