@@ -2047,7 +2047,7 @@ class Player : public Unit
         void SendTalentWipeConfirm(ObjectGuid guid);
 
         // Reward rage to the player
-        void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker);
+        void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker) override;
 
         // Send a pet skill wipe confirmation message
         void SendPetSkillWipeConfirm();
