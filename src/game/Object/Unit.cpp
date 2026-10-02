@@ -6597,7 +6597,7 @@ void Unit::RestoreOriginalFaction()
 {
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->setFactionForRace(getRace());
+        setFactionForRace(getRace());
     }
     else
     {
