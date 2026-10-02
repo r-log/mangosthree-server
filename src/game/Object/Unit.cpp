@@ -958,7 +958,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
                     weaponSpeedHitFactor = uint32(GetAttackTime(cleanDamage->attackType) / 1000.0f * 3.5f);
                 }
 
-                ((Player*)this)->RewardRage(damage, weaponSpeedHitFactor, true);
+                RewardRage(damage, weaponSpeedHitFactor, true);
 
                 break;
             }
@@ -973,7 +973,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
                     weaponSpeedHitFactor = uint32(GetAttackTime(cleanDamage->attackType) / 1000.0f * 1.75f);
                 }
 
-                ((Player*)this)->RewardRage(damage, weaponSpeedHitFactor, true);
+                RewardRage(damage, weaponSpeedHitFactor, true);
 
                 break;
             }

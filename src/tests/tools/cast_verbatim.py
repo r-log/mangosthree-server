@@ -79,7 +79,10 @@ return opening it (:3195), and Unit.cpp:4406, ClearInCombat's `else` arm, 12 bel
 test it is the other branch of (:4394). The combo-point sites stand within 3 lines of their
 warrior and type tests: Unit.cpp:5533 2 below :5531, :6074 2 below :6072, and :6115 2 below
 :6113 and 3 below the Overpower case label (:6112); their direct spelling of ClearComboPoints
-carries its leading space, since Unit.cpp:6044 calls it on another player.
+carries its leading space, since Unit.cpp:6044 calls it on another player. The rage sites rely on
+DealDamage's type and rage test (Unit.cpp:943): :960 stands 17 below it and :975 32 below it (each
+11 below its case label, :949 and :964), so both set their own window; their direct spelling of
+RewardRage carries its leading space, since Unit.cpp:917 and :1326 call it on the victim.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -217,6 +220,9 @@ FORMS = {
     'ClearComboPoints': {'direct': ' ClearComboPoints(',
                          'cast': ' ((Player*)this)->ClearComboPoints(',
                          'suffix': None},
+    'RewardRage': {'direct': ' RewardRage(',
+                   'cast': ' ((Player*)this)->RewardRage(',
+                   'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -388,7 +394,15 @@ UNIT_H_COMBO_POINTS = '''        /**
          * Does nothing here; Player clears its combo points and its combo target and sends them to
          * its client.
          */
-        virtual void ClearComboPoints() { }
+        virtual void ClearComboPoints() { }'''
+
+UNIT_H_RAGE = '''        /**
+         * Awards rage from a hit dealt or taken; DealDamage awards it to a rage user for its
+         * main-hand and off-hand weapon hits.
+         * Does nothing here; Player converts the damage, and for a hit it dealt the weapon speed
+         * factor, into rage and adds it to its power.
+         */
+        virtual void RewardRage(uint32 /*damage*/, uint32 /*weaponSpeedHitFactor*/, bool /*attacker*/) { }
 
     public:'''
 
@@ -415,7 +429,7 @@ FILES = {
                   (UNIT_H_MOUNT_PET, '        void Unmount(bool from_aura = false);'),
                   ('class Transport;', 'class Totem;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
-                  (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS,
+                  (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -474,13 +488,15 @@ FILES = {
                      '        void UpdatePotionCooldown(Spell* spell = NULL);'),
                     ('        void AddComboPoints(Unit* target, int8 count) override;',
                      '        void AddComboPoints(Unit* target, int8 count);'),
-                    ('        void ClearComboPoints() override;', '        void ClearComboPoints();')]},
+                    ('        void ClearComboPoints() override;', '        void ClearComboPoints();'),
+                    ('        void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker) override;',
+                     '        void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker);')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
-                  'AddComboPoints': 1, 'ClearComboPoints': 2},
+                  'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
-        'window': {4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
+        'window': {960: 17, 975: 32, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
         'added': []},

@@ -3783,6 +3783,13 @@ class Unit : public WorldObject
          * its client.
          */
         virtual void ClearComboPoints() { }
+        /**
+         * Awards rage from a hit dealt or taken; DealDamage awards it to a rage user for its
+         * main-hand and off-hand weapon hits.
+         * Does nothing here; Player converts the damage, and for a hit it dealt the weapon speed
+         * factor, into rage and adds it to its power.
+         */
+        virtual void RewardRage(uint32 /*damage*/, uint32 /*weaponSpeedHitFactor*/, bool /*attacker*/) { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);
