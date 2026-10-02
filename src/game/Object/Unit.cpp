@@ -5531,7 +5531,7 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
                 // Overpower on victim dodge
                 if (procExtra & PROC_EX_DODGE && GetTypeId() == TYPEID_PLAYER && getClass() == CLASS_WARRIOR)
                 {
-                    ((Player*)this)->AddComboPoints(pTarget, 1);
+                    AddComboPoints(pTarget, 1);
                     StartReactiveTimer(REACTIVE_OVERPOWER);
                 }
             }
@@ -6072,7 +6072,7 @@ void Unit::ClearAllReactives()
 
     if (getClass() == CLASS_WARRIOR && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->ClearComboPoints();
+        ClearComboPoints();
     }
 }
 
@@ -6113,7 +6113,7 @@ void Unit::UpdateReactives(uint32 p_time)
                 case REACTIVE_OVERPOWER:
                     if (getClass() == CLASS_WARRIOR && GetTypeId() == TYPEID_PLAYER)
                     {
-                        ((Player*)this)->ClearComboPoints();
+                        ClearComboPoints();
                     }
                     break;
                 default:
