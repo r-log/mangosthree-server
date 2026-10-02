@@ -61,8 +61,9 @@ parameter names, in order. The block is written back in the statement's place: e
 the statement's indentation instead of the body's four spaces, and each EDIT's new spelling, which
 must stand once in the body, read as its base spelling; its site is the line holding its cast
 spelling, which must stand nowhere in the working tree, and its window must reach past the block's
-last line. Any other difference in the body, a body line lost or gained, or the statement standing
-anywhere else, is a difference in that window.
+last line. A body line that is not empty must start with four spaces, or it fails, named with its
+line in `to`. Any other difference in the body, a body line lost or gained, or the statement
+standing anywhere else, is a difference in that window.
 
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
@@ -907,7 +908,12 @@ def paste_moved(rel, text, spec, out, read, forms):
         if len(heads) != 1 or body[heads[0] + 1:heads[0] + 2] != ['{'] or '}' not in body[heads[0]:]:
             return fail('%s: FAILED: %d definition(s) %r with a body, expected 1' % (form['to'], len(heads),
                                                                                    form['header']))
-        block = '\n'.join(body[heads[0] + 2:body.index('}', heads[0])])
+        end = body.index('}', heads[0])
+        for i in range(heads[0] + 2, end):
+            if body[i] and not body[i].startswith('    '):
+                return fail('%s:%d: FAILED: the body line %r of %r does not start with four spaces'
+                            % (form['to'], i + 1, body[i], form['header']))
+        block = '\n'.join(body[heads[0] + 2:end])
         for base, new in form['edits']:
             if block.count(new) != 1:
                 return fail('%s: FAILED: the edit %r stands %d time(s) in the body of %r, expected once'
@@ -1977,6 +1983,8 @@ def self_test():
           body=('    if (itr->second == flag)\n', ''))
     moved('a third edit in the moved block fails', 1, 'DIFFERS from the base at line 9',
           body=('m.begin()', 'm.cbegin()'))
+    moved('a moved line whose indentation holds a comment fails', 1,
+          'Player.cpp:8: FAILED: the body line', body=('            CastSpell(', '//          CastSpell('))
     moved('an edit missing from the moved block fails', 1, "the edit 'GetMap()' stands 0 time(s)",
           body=('GetMap()', 'Map()'))
     moved('the statement standing outside the window fails', 1, 'DIFFERS from the base at line 7',

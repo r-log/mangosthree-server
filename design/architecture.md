@@ -310,7 +310,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:241`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
-| 24 | `Unit`: five casts return the player itself (`Unit.cpp:1058`, `:3431`, `:3447`, `:4612`, `:5774`); they call no Player method, so the standing shape does not apply | a shape of their own, after the clean clusters (D14) |
+| 24 | `Unit`: five casts return the player itself (`Unit.cpp:1058`, `:3415`, `:3431`, `:4596`, `:5758`); they call no Player method, so the standing shape does not apply | a shape of their own, after the clean clusters (D14) |
 
 ## Appendix: how each number was measured
 
