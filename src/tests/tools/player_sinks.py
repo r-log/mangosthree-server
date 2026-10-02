@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """player_sinks.py [--root <repo root>] --check | --self-test: every player gets its cooldown sinks.
 
-Every `new Player(` (or make_unique/make_shared<Player>) under src/, the SD3 scripts included, assigns
-the player to a variable, and one of the next WINDOW lines calls `InstallCooldownPacketSinks(*<variable>)`.
+Every `new Player(` under src/ -- placement (`new (std::nothrow) Player(`), qualified (`new ::Player(`) and
+make_unique/make_shared<Player> included, the SD3 scripts too -- assigns the player to a variable, and
+`InstallCooldownPacketSinks(*<variable>)` is called on one of the next WINDOW lines; an install on the line
+of the `new` itself does not count and fails.
 The number of creation sites is fixed at SITES: a new site fails until it installs the sinks and SITES is
 raised with it, and a removed site fails until SITES is lowered.
 
-Not caught: a player created through a macro, a factory function or placement new, and an install made
-on another path before the player is used.
+Not caught: a player created through a macro or a factory function, and an install made on another path
+before the player is used.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -51,7 +53,7 @@ EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
 SITES = 3
 WINDOW = 3
 
-CREATE = re.compile(r'\bnew\s+Player\s*\(|\bmake_(?:unique|shared)\s*<\s*Player\s*>\s*\(')
+CREATE = re.compile(r'\bnew\b\s*(?:\([^()]*\)\s*)?(?:::\s*)?Player\s*\(|\bmake_(?:unique|shared)\s*<\s*Player\s*>\s*\(')
 ASSIGNED = re.compile(r'(\w+)\s*(?:=|\()\s*(?:std\s*::\s*)?$')
 
 
@@ -135,7 +137,12 @@ def self_test():
            [(2, True)])
     expect('make_unique', 'auto p = std::make_unique<Player>(s);\n' + install, [(1, True)])
     expect('comment and string', '// new Player(s)\nconst char* t = "new Player(";\n', [])
-    expect('other classes', 'Player* p = new PlayerTaxi(s);\nx = new MyPlayer(s);\n', [])
+    expect('other classes', 'Player* p = new PlayerTaxi(s);\nx = new MyPlayer(s);\nnewPlayer(s);\n', [])
+    expect('placement new installed', 'Player* p = new (std::nothrow) Player(s);\n' + install, [(1, True)])
+    expect('placement new not installed', 'Player* p = new(std::nothrow)Player(s);\np->Create();\n', [(1, False)])
+    expect('qualified new installed', 'Player* p = new ::Player(s);\n' + install, [(1, True)])
+    expect('qualified new not installed', 'Player* p = new::Player(s);\np->Create();\n', [(1, False)])
+    expect('install on the line of the new', 'Player* p = new Player(s); ' + install + 'p->Create();\n', [(1, False)])
 
     def tree(files):
         root = tempfile.mkdtemp(prefix='player_sinks_')
