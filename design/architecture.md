@@ -65,6 +65,26 @@ layer pair or header is a new edge.
 **Today:** 2,356 such lines, the largest being entities -> maps 472, -> social 344, -> pvp 192 and -> spells 169,
 and spells -> entities 296.
 
+**Which peers may know which (decided 2026-10-02).** The ratchet above keeps the cross lines from growing; it does
+not say which of them are the design and which are debt. This table does. A pair not listed is debt: its ratchet
+aims at zero, and the domain tier splits into per-directory libraries along these rows once the unlisted pairs are
+gone, not before (section 6 splits the tier as one library first).
+
+| Peer | May include | Why |
+|---|---|---|
+| entities | spells (the aura storage and the cooldown facts), combat (what a unit's attack loop needs), maps (where it stands) | a unit is a thing in the world that casts, fights and stands somewhere |
+| spells | entities, combat, maps | a spell reads its caster and target, deals its damage, and finds its targets on a map |
+| combat | entities, spells | threat and damage read units and auras |
+| maps | entities | a map holds objects; it never knows what they do |
+| ai | entities, spells, combat, maps, motion | an AI reads everything a creature can see and asks for moves; nothing includes ai but scripts and session |
+| social | entities | a group or a guild is made of players; nothing in the domain includes social (session does) |
+| pvp | entities, social, maps, combat | a battleground is a map of groups fighting |
+| economy | entities, social | an auction or a trade is between players |
+
+Two consequences. `entities -> social` (344 lines today, the largest after maps) is debt: a player asks its group
+through a fact callback declared beside the player and supplied by social, the shape the group update flags cluster
+waits for. And `entities -> pvp` (192) is the same shape: a battleground tells the player, not the reverse.
+
 ## 2. What each layer may know
 
 Entities, and the whole domain tier, hold state and rules. They never build a packet and never write SQL. A manager
@@ -271,6 +291,7 @@ target, as it links three today.
 | Question | Options |
 |---|---|
 | `AuctionHouseBot/` (2 files; a non-blizzlike feature) | **Kept** (decided 2026-09-28): optional, off by default, measured as app. Not a decoupling concern; a harness family that needs a quiet auction house disables it in the configuration rather than removing it. |
+| The script-hook interface (#83): designed from what scripts need, or from what `Creature` exposes | **From what scripts need** (decided 2026-10-02). SD3 is 264k lines, the largest layer, and the one the dungeon work lives in; an interface drawn from `Creature`'s current surface would gate the reach scripts have today and keep it. The interface is drawn from the calls scripts make, measured: `getVictim` 1,216, `SetData` 838, `SummonCreature` 609, `GetMap` 520, `SelectHostileTarget` 496, `GetSingleCreatureFromStorage` 471, `GetMotionMaster` 471, `SelectAttackingTarget` 455, `Where` 341, `GetData` 241, the gossip macros 574 over four names, `GetHealthPercent` 198, `SetStandState` 169, the flag pair 297, `RemoveAurasDueToSpell` 142, `ForcedDespawn` 141, `GetQuestStatusMgr` 128, `HandleEmote` 110, `GroupEventHappens` 94 (see the appendix). The twenty names above cover most of the 839 script files' reach; #83's first PR writes them as the interface, with `GetMap` and `GetMotionMaster` replaced by what the scripts do through them (a map query, a move request), since handing a script the map or the kernel is the reach the gate exists to end. Everything a script reaches that is not on the interface is a ratchet from the day the interface lands. |
 
 ## 8. Divergences
 
@@ -304,6 +325,14 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
 
 ## Appendix: how each number was measured
+
+The script-hook table (section 7): the calls SD3 makes on its creature, its player and its instance, counted by
+name over the scripts' sources:
+
+```
+grep -rhoE "m_creature->[A-Za-z_]+\(|pPlayer->[A-Za-z_]+\(|m_pInstance->[A-Za-z_]+\(" \
+    src/modules/SD3/scripts --include=*.cpp | sort | uniq -c | sort -rn | head -25
+```
 
 From the repository root, with Python 3 and Git Bash. `layers.py` is the script below. Its `RULES` table is
 section 1's directory table, written as code: `ObjectGuid.h`/`.cpp` are foundation (the 2026-09-28
