@@ -383,6 +383,13 @@ if(Python3_Interpreter_FOUND)
 
     add_test(NAME cast_verbatim_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/cast_verbatim.py --self-test)
+
+    add_test(NAME player_sinks_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/player_sinks.py --self-test)
+
+    add_test(NAME player_sinks
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/player_sinks.py
+            --root ${CMAKE_SOURCE_DIR} --check)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()

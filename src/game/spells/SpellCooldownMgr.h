@@ -56,7 +56,7 @@ struct CooldownEventFact
     ObjectGuid owner;
 };
 
-/// Reports a CooldownEventFact; the owner's session turns it into the client's packet.
+/// Reports a CooldownEventFact; the owner turns it into the client's packet.
 typedef std::function<void(CooldownEventFact const& fact)> CooldownEventSink;
 
 /// Every cooldown of an owner cleared at once: the owner and the spell ids, in spell id order.
@@ -66,7 +66,7 @@ struct CooldownsClearedFact
     std::vector<uint32> spellIds;
 };
 
-/// Reports a CooldownsClearedFact; the owner's session turns it into the client's packet.
+/// Reports a CooldownsClearedFact; the owner turns it into the client's packet.
 typedef std::function<void(CooldownsClearedFact const& fact)> CooldownsClearedSink;
 
 /**
@@ -81,7 +81,7 @@ typedef std::function<void(CooldownsClearedFact const& fact)> CooldownsClearedSi
  * clock (`now`, the owner's `time(NULL)`), the owner's guid, and for a cast the facts in
  * CastInputs -- and what it writes to the owner goes out through a callback called at the point
  * of the write: the cooldown event and the clear of every cooldown (a CooldownEventSink and a
- * CooldownsClearedSink, the facts the owner's session builds the packets from), the owner's
+ * CooldownsClearedSink, the facts the owner turns into the client's packets), the owner's
  * one-spell clear (a ClearSink) and the owner's cooldown spell mods (the in/out CooldownMod).
  * Callbacks are parameters only, never stored, and an empty one at a report fails an assertion.
  * So `mangos_tests` builds one from nothing, with fixed clocks, and reads every fact.

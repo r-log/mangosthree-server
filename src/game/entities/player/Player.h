@@ -2358,7 +2358,10 @@ class Player : public Unit
         void RemoveArenaSpellCooldowns();
 
         // Remove all spell cooldowns
-        void RemoveAllSpellCooldown() { m_spellCooldownMgr.RemoveAllSpellCooldown(GetObjectGuid(), m_cooldownSinks.cleared); }
+        void RemoveAllSpellCooldown()
+        {
+            m_spellCooldownMgr.RemoveAllSpellCooldown(GetObjectGuid(), m_cooldownSinks.cleared);
+        }
 
         // Load spell cooldowns from the database
         void _LoadSpellCooldowns(QueryResult* result);
