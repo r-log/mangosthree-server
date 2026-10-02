@@ -86,7 +86,12 @@ RewardRage carries its leading space, since Unit.cpp:917 and :1326 call it on th
 kill-credit sites stand within 4 lines of their type tests: Unit.cpp:1459 4 below the critter and
 type test at :1455, UnitAuraProcHandler.cpp:464 2 below the kill-flag and type test at :462, and
 :4389 on the type test of its own line; KilledMonsterCredit is another name, which the direct
-spelling of KilledMonster does not match.
+spelling of KilledMonster does not match. The faction site, Unit.cpp:6599, stands 2 lines below
+its type test (:6597); its direct spelling of setFactionForRace carries its leading space, since
+Unit.cpp:7334 calls it on the possessed player. The ghost speed site, UnitSpeed.cpp:240, is the
+player arm of the creature test at :228, 12 lines above it (the corpse test at :238 2), so it sets
+its own window; its direct spelling of InBattleGround carries the opening parenthesis of the
+config lookup, since Unit.cpp:1246 calls it on the victim.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -233,6 +238,12 @@ FORMS = {
     'isHonorOrXPTarget': {'direct': 'isHonorOrXPTarget(',
                           'cast': '((Player*)this)->isHonorOrXPTarget(',
                           'suffix': None},
+    'setFactionForRace': {'direct': ' setFactionForRace(',
+                          'cast': ' ((Player*)this)->setFactionForRace(',
+                          'suffix': None},
+    'InBattleGround': {'direct': '(InBattleGround(',
+                       'cast': '(((Player*)this)->InBattleGround(',
+                       'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -425,7 +436,19 @@ UNIT_H_KILL_CREDIT = '''        /**
          * Improved Blood Presence require: false here; Player answers by its level against the
          * victim's and the victim's kind
          */
-        virtual bool isHonorOrXPTarget(Unit* /*pVictim*/) const { return false; }
+        virtual bool isHonorOrXPTarget(Unit* /*pVictim*/) const { return false; }'''
+
+UNIT_H_FACTION_GHOST_SPEED = '''        /**
+         * Sets the team and faction of a race; RestoreOriginalFaction returns a player to its own
+         * when a faction override ends.
+         * Does nothing here; Player sets its team and the faction template of the race.
+         */
+        virtual void setFactionForRace(uint8 /*race*/) { }
+        /**
+         * @return whether the unit is in a battleground, which picks the ghost run speed UpdateSpeed
+         * applies to a dead player: false here; Player answers by its battleground instance
+         */
+        virtual bool InBattleGround() const { return false; }
 
     public:'''
 
@@ -453,7 +476,8 @@ FILES = {
                   ('class Transport;', 'class Totem;'),
                   ('struct CreatureInfo;', 'struct SpellEntryExt;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
-                  (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT,
+                  (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
+                   + '\n' + UNIT_H_FACTION_GHOST_SPEED,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -518,11 +542,16 @@ FILES = {
                     ('        void KilledMonster(CreatureInfo const* cInfo, ObjectGuid guid) override;',
                      '        void KilledMonster(CreatureInfo const* cInfo, ObjectGuid guid);'),
                     ('        bool isHonorOrXPTarget(Unit* pVictim) const override final;',
-                     '        bool isHonorOrXPTarget(Unit* pVictim) const;')]},
+                     '        bool isHonorOrXPTarget(Unit* pVictim) const;'),
+                    ('        void setFactionForRace(uint8 race) override;',
+                     '        void setFactionForRace(uint8 race);'),
+                    ('        bool InBattleGround() const override final { return m_bgData.bgInstanceID != 0; }',
+                     '        bool InBattleGround() const { return m_bgData.bgInstanceID != 0; }')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
-                  'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1},
+                  'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1,
+                  'setFactionForRace': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'window': {960: 17, 975: 32, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
@@ -552,6 +581,10 @@ FILES = {
     'src/game/Object/UnitAura.cpp': {
         'forms': {'IsLoading': 1},
         'added': []},
+    'src/game/Object/UnitSpeed.cpp': {
+        'forms': {'InBattleGround': 1},
+        'added': [],
+        'window': {240: 12}},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
         'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8,
                   'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3, 'isHonorOrXPTarget': 2},

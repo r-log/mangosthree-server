@@ -2983,7 +2983,7 @@ class Player : public Unit
         static uint32 getFactionForRace(uint8 race);
 
         // Set the faction for a specific race
-        void setFactionForRace(uint8 race);
+        void setFactionForRace(uint8 race) override;
 
         // Initialize display IDs
         void InitDisplayIds();
@@ -3272,7 +3272,7 @@ class Player : public Unit
         /*********************************************************/
 
         // Check if the player is in a battleground
-        bool InBattleGround() const { return m_bgData.bgInstanceID != 0; }
+        bool InBattleGround() const override final { return m_bgData.bgInstanceID != 0; }
 
         // Check if the player is in an arena
         bool InArena() const override;

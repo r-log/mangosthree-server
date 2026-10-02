@@ -109,6 +109,7 @@ set(SRC_GRP_TESTS
     UnitComboActionsTest.cpp
     UnitRageActionsTest.cpp
     UnitKillCreditActionsTest.cpp
+    UnitFactionAndBattleGroundActionsTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

@@ -3803,6 +3803,17 @@ class Unit : public WorldObject
          * victim's and the victim's kind
          */
         virtual bool isHonorOrXPTarget(Unit* /*pVictim*/) const { return false; }
+        /**
+         * Sets the team and faction of a race; RestoreOriginalFaction returns a player to its own
+         * when a faction override ends.
+         * Does nothing here; Player sets its team and the faction template of the race.
+         */
+        virtual void setFactionForRace(uint8 /*race*/) { }
+        /**
+         * @return whether the unit is in a battleground, which picks the ghost run speed UpdateSpeed
+         * applies to a dead player: false here; Player answers by its battleground instance
+         */
+        virtual bool InBattleGround() const { return false; }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);
