@@ -82,7 +82,11 @@ warrior and type tests: Unit.cpp:5533 2 below :5531, :6074 2 below :6072, and :6
 carries its leading space, since Unit.cpp:6044 calls it on another player. The rage sites rely on
 DealDamage's type and rage test (Unit.cpp:943): :960 stands 17 below it and :975 32 below it (each
 11 below its case label, :949 and :964), so both set their own window; their direct spelling of
-RewardRage carries its leading space, since Unit.cpp:917 and :1326 call it on the victim.
+RewardRage carries its leading space, since Unit.cpp:917 and :1326 call it on the victim. The
+kill-credit sites stand within 4 lines of their type tests: Unit.cpp:1459 4 below the critter and
+type test at :1455, UnitAuraProcHandler.cpp:464 2 below the kill-flag and type test at :462, and
+:4389 on the type test of its own line; KilledMonsterCredit is another name, which the direct
+spelling of KilledMonster does not match.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -223,6 +227,12 @@ FORMS = {
     'RewardRage': {'direct': ' RewardRage(',
                    'cast': ' ((Player*)this)->RewardRage(',
                    'suffix': None},
+    'KilledMonster': {'direct': 'KilledMonster(',
+                      'cast': '((Player*)this)->KilledMonster(',
+                      'suffix': None},
+    'isHonorOrXPTarget': {'direct': 'isHonorOrXPTarget(',
+                          'cast': '((Player*)this)->isHonorOrXPTarget(',
+                          'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -402,7 +412,20 @@ UNIT_H_RAGE = '''        /**
          * Does nothing here; Player converts the damage, and for a hit it dealt the weapon speed
          * factor, into rage and adds it to its power.
          */
-        virtual void RewardRage(uint32 /*damage*/, uint32 /*weaponSpeedHitFactor*/, bool /*attacker*/) { }
+        virtual void RewardRage(uint32 /*damage*/, uint32 /*weaponSpeedHitFactor*/, bool /*attacker*/) { }'''
+
+UNIT_H_KILL_CREDIT = '''        /**
+         * Credits a kill of a creature to the quests and achievements that count it; JustKilledCreature
+         * credits a player that killed a critter.
+         * Does nothing here; Player credits the creature's entry and each of its kill credit entries.
+         */
+        virtual void KilledMonster(CreatureInfo const* /*cInfo*/, ObjectGuid /*guid*/) { }
+        /**
+         * @return whether a kill of this victim grants honor or experience, which the kill procs and
+         * Improved Blood Presence require: false here; Player answers by its level against the
+         * victim's and the victim's kind
+         */
+        virtual bool isHonorOrXPTarget(Unit* /*pVictim*/) const { return false; }
 
     public:'''
 
@@ -428,8 +451,9 @@ FILES = {
                    'SpellProcEventEntry const*& spellProcEvent);'),
                   (UNIT_H_MOUNT_PET, '        void Unmount(bool from_aura = false);'),
                   ('class Transport;', 'class Totem;'),
+                  ('struct CreatureInfo;', 'struct SpellEntryExt;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
-                  (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE,
+                  (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -490,11 +514,15 @@ FILES = {
                      '        void AddComboPoints(Unit* target, int8 count);'),
                     ('        void ClearComboPoints() override;', '        void ClearComboPoints();'),
                     ('        void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker) override;',
-                     '        void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker);')]},
+                     '        void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker);'),
+                    ('        void KilledMonster(CreatureInfo const* cInfo, ObjectGuid guid) override;',
+                     '        void KilledMonster(CreatureInfo const* cInfo, ObjectGuid guid);'),
+                    ('        bool isHonorOrXPTarget(Unit* pVictim) const override final;',
+                     '        bool isHonorOrXPTarget(Unit* pVictim) const;')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
-                  'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2},
+                  'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'window': {960: 17, 975: 32, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
@@ -526,7 +554,7 @@ FILES = {
         'added': []},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
         'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8,
-                  'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3},
+                  'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3, 'isHonorOrXPTarget': 2},
         'added': [],
         'window': {1002: 13, 1045: 13, 1070: 13, 1096: 13, 2881: 70, 3242: 47}},
 }

@@ -380,6 +380,7 @@ struct FactionTemplateEntry;
 struct Modifier;
 struct SpellEntry;
 struct SpellEntryExt;
+struct CreatureInfo;
 
 class Aura;
 class SpellAuraHolder;
@@ -3790,6 +3791,18 @@ class Unit : public WorldObject
          * factor, into rage and adds it to its power.
          */
         virtual void RewardRage(uint32 /*damage*/, uint32 /*weaponSpeedHitFactor*/, bool /*attacker*/) { }
+        /**
+         * Credits a kill of a creature to the quests and achievements that count it; JustKilledCreature
+         * credits a player that killed a critter.
+         * Does nothing here; Player credits the creature's entry and each of its kill credit entries.
+         */
+        virtual void KilledMonster(CreatureInfo const* /*cInfo*/, ObjectGuid /*guid*/) { }
+        /**
+         * @return whether a kill of this victim grants honor or experience, which the kill procs and
+         * Improved Blood Presence require: false here; Player answers by its level against the
+         * victim's and the victim's kind
+         */
+        virtual bool isHonorOrXPTarget(Unit* /*pVictim*/) const { return false; }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

@@ -1880,7 +1880,7 @@ class Player : public Unit
         void SpellRemovedQuestCheck(uint32 entry);
 
         // Mark a monster as killed for a quest
-        void KilledMonster(CreatureInfo const* cInfo, ObjectGuid guid);
+        void KilledMonster(CreatureInfo const* cInfo, ObjectGuid guid) override;
 
         // Mark a monster as killed for a quest (with credit)
         void KilledMonsterCredit(uint32 entry, ObjectGuid guid = ObjectGuid());
@@ -3001,7 +3001,7 @@ class Player : public Unit
         void RewardPlayerAndGroupAtCast(WorldObject* pRewardSource, uint32 spellid = 0);
 
         // Check if the player is an honor or XP target
-        bool isHonorOrXPTarget(Unit* pVictim) const;
+        bool isHonorOrXPTarget(Unit* pVictim) const override final;
 
         // Get the player's reputation manager
         ReputationMgr& GetReputationMgr() { return m_reputationMgr; }
