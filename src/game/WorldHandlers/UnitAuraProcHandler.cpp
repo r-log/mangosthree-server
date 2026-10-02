@@ -977,7 +977,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     target = this;
                     if (roll_chance_i(10))
                     {
-                        ((Player*)this)->Say("This is Madness!", LANG_UNIVERSAL);
+                        Say("This is Madness!", LANG_UNIVERSAL);
                     }
                     break;
                 }
@@ -1007,7 +1007,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                             target = getVictim();
                             if (!target)
                             {
-                                target = ObjectLookup::GetUnit(*this, ((Player*)this)->GetSelectionGuid());
+                                target = ObjectLookup::GetUnit(*this, GetSelectionGuid());
                                 if (!target)
                                 {
                                     return SPELL_AURA_PROC_FAILED;
@@ -4837,7 +4837,7 @@ SpellAuraProcResult Unit::HandleMendingAuraProc(Unit* /*pVictim*/, uint32 /*dama
         {
             caster->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius, NULL);
 
-            if (Player* target = ((Player*)this)->GetNextRandomRaidMember(radius))
+            if (Player* target = GetNextRandomRaidMember(radius))
             {
                 SpellAuraHolder* holder = GetSpellAuraHolder(spellProto->ID, caster->GetObjectGuid());
                 SpellAuraHolder* new_holder = CreateSpellAuraHolder(spellProto, target, caster);
