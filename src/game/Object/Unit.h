@@ -3849,6 +3849,15 @@ class Unit : public WorldObject
          * manager answers
          */
         virtual bool IsBaseRuneSlotsOnCooldown(RuneType /*runeType*/) const { return false; }
+        /**
+         * Casts the passive spells this unit knows whose caster aura state is the flag; ModifyAuraState
+         * calls it on a player when it sets that aura state.
+         * @param flag the aura state set
+         * Does nothing here, a unit that is not a player knows no spells; Player casts on itself,
+         * triggered, every passive spell in its spell map that is not removed and whose caster aura
+         * state is the flag
+         */
+        virtual void CastPassiveSpellsForAuraState(AuraState /*flag*/) { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);
