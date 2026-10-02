@@ -4106,6 +4106,13 @@ class Player : public Unit
         // so only a call through Unit reaches it
         Item* GetItemByGuid(ObjectGuid guid) const override { return GetInventoryMgr().GetItemByGuid(guid); }
 
+        // The rank of a talent Unit's spell bonus asks for: the one the talent manager knows, or NULL;
+        // private, so only a call through Unit reaches it
+        SpellEntry const* GetKnownTalentRankById(int32 talentId) const override final
+        {
+            return GetTalentMgr().GetKnownTalentRankById(talentId);
+        }
+
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
         uint32 m_created_date = 0;

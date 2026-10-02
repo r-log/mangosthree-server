@@ -99,7 +99,7 @@ int32 Unit::SpellBonusWithCoeffs(SpellEntry const* spellProto, int32 total, int3
             // Impurity
             if (GetTypeId() == TYPEID_PLAYER && spellProto->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT)
             {
-                if (SpellEntry const* spell = ((Player*)this)->GetTalentMgr().GetKnownTalentRankById(2005))
+                if (SpellEntry const* spell = GetKnownTalentRankById(2005))
                 {
                     ap_bonus += ((spell->CalculateSimpleValue(EFFECT_INDEX_0) * ap_bonus) / 100.0f);
                 }
