@@ -3832,6 +3832,14 @@ class Unit : public WorldObject
          * that is not invisible and not hostile to it, or NULL
          */
         virtual Player* GetNextRandomRaidMember(float /*radius*/) { return NULL; }
+        /**
+         * The rank of a talent this unit knows; SpellBonusWithCoeffs raises a death knight's attack
+         * power bonus by the rank of Impurity it knows.
+         * @param talentId the talent asked about
+         * @return NULL here, a unit that is not a player knows no talent; Player returns the spell of
+         * the rank its active spec knows, or NULL
+         */
+        virtual SpellEntry const* GetKnownTalentRankById(int32 /*talentId*/) const { return NULL; }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

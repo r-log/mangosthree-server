@@ -189,7 +189,6 @@ FORWARDERS = [
     ('GetPrimaryTalentTree', 'talent', 'PrimaryTree'),
     ('GetActiveSpec', 'talent', 'ActiveSpec'),
     ('GetSpecsCount', 'talent', 'SpecsCount'),
-    ('GetKnownTalentRankById', 'talent', 'GetKnownTalentRankById'),     # out of line (Player.cpp)
     # D4i-2: the quest status forwarders (out of line in PlayerQuest.cpp, inline in Player.h)
     ('IsActiveQuest', 'quest', 'IsActiveQuest'),
     ('IsCurrentQuest', 'quest', 'IsCurrentQuest'),

@@ -104,7 +104,8 @@ windows: UnitAuraProcHandler.cpp:980, the say in the Aura of Madness arm, stands
 the type return opening the arm (:936; the case label :934 46), :1010, the selection in the
 Shattered Sun pendant's arm, 21 below its type return (:989), its window overlapping :1002's, and
 :4840, the raid member, 17 below the type and caster test at :4823; the direct spelling of Say
-carries its leading space, so MonsterSay, another name, does not match it.
+carries its leading space, so MonsterSay, another name, does not match it. The talent rank site,
+UnitSpellBonus.cpp:102, stands 2 lines below its type and death knight test (:100).
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -272,6 +273,9 @@ FORMS = {
     'GetNextRandomRaidMember': {'direct': 'GetNextRandomRaidMember(',
                                 'cast': '((Player*)this)->GetNextRandomRaidMember(',
                                 'suffix': None},
+    'GetKnownTalentRankById': {'direct': 'GetKnownTalentRankById(',
+                               'cast': '((Player*)this)->GetTalentMgr().GetKnownTalentRankById(',
+                               'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -495,7 +499,16 @@ UNIT_H_PROC_ONE_OFFS = '''        /**
          * @return NULL here; Player returns a random other member of its group within the radius
          * that is not invisible and not hostile to it, or NULL
          */
-        virtual Player* GetNextRandomRaidMember(float /*radius*/) { return NULL; }
+        virtual Player* GetNextRandomRaidMember(float /*radius*/) { return NULL; }'''
+
+UNIT_H_TALENT_RANK = '''        /**
+         * The rank of a talent this unit knows; SpellBonusWithCoeffs raises a death knight's attack
+         * power bonus by the rank of Impurity it knows.
+         * @param talentId the talent asked about
+         * @return NULL here, a unit that is not a player knows no talent; Player returns the spell of
+         * the rank its active spec knows, or NULL
+         */
+        virtual SpellEntry const* GetKnownTalentRankById(int32 /*talentId*/) const { return NULL; }
 
     public:'''
 
@@ -503,6 +516,14 @@ PLAYER_H_ITEM_BY_GUID = '''
         // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
         // so only a call through Unit reaches it
         Item* GetItemByGuid(ObjectGuid guid) const override { return GetInventoryMgr().GetItemByGuid(guid); }'''
+
+PLAYER_H_TALENT_RANK = '''
+        // The rank of a talent Unit's spell bonus asks for: the one the talent manager knows, or NULL;
+        // private, so only a call through Unit reaches it
+        SpellEntry const* GetKnownTalentRankById(int32 talentId) const override final
+        {
+            return GetTalentMgr().GetKnownTalentRankById(talentId);
+        }'''
 
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
@@ -525,7 +546,7 @@ FILES = {
                   ('struct CreatureInfo;', 'struct SpellEntryExt;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
-                   + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS,
+                   + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -535,7 +556,8 @@ FILES = {
         'added': [("        // The private GetItemByGuid override answers only Unit's lookup.",
                    '        // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it '
                    'directly.'),
-                  (PLAYER_H_ITEM_BY_GUID, '        ManagerPacketSink SessionSink() const;')],
+                  (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK,
+                   '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
                      'GetItemByEntry,'),
@@ -627,7 +649,7 @@ FILES = {
         'forms': {'getClass': 5},
         'added': []},
     'src/game/Object/UnitSpellBonus.cpp': {
-        'forms': {'GetBaseSpellPowerBonus': 2},
+        'forms': {'GetBaseSpellPowerBonus': 2, 'GetKnownTalentRankById': 1},
         'added': []},
     'src/game/Object/UnitVisibility.cpp': {
         'forms': {'IsLoggingOut': 1, 'IsLoading': 1, 'GetTransport': 2, 'IsGroupVisibleFor': 1, 'GetDrunkValue': 1},
