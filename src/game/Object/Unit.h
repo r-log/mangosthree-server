@@ -3736,6 +3736,41 @@ class Unit : public WorldObject
 
         void SetCurrentCastedSpell(Spell* pSpell);
         virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, uint32 /*unTimeMs*/) { }
+
+    protected:
+        /**
+         * Starts a spell's cooldown and its category's; AddGameObject calls it for an object whose
+         * spell stays disabled while the object stands.
+         * Does nothing here; Player stores both cooldowns in its manager.
+         */
+        virtual void AddSpellAndCategoryCooldowns(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/,
+                                                  Spell* /*spell*/ = NULL, bool /*infinityCooldown*/ = false) { }
+        /**
+         * Starts a spell's cooldown and its category's and reports the cooldown event; RemoveGameObject
+         * calls it when an object whose spell stayed disabled goes.
+         * Does nothing here; Player stores both cooldowns and sends the event to its session.
+         */
+        virtual void SendCooldownEvent(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/ = 0,
+                                       Spell* /*spell*/ = NULL) { }
+        /**
+         * Ends a spell's cooldown; the Lightning Overload proc ends the cooldown of the spell it casts.
+         * Does nothing here; Player removes it from its manager and, with update, tells its client.
+         */
+        virtual void RemoveSpellCooldown(uint32 /*spell_id*/, bool /*update*/ = false) { }
+        /**
+         * Ends the cooldown of every spell of a category; the Glyph of Ice Block, Sword and Board
+         * and Freezing Fog procs end one.
+         * Does nothing here; Player removes them from its manager and, with update, tells its client.
+         */
+        virtual void RemoveSpellCategoryCooldown(uint32 /*cat*/, bool /*update*/ = false) { }
+        /**
+         * Starts the cooldown of the potion used in combat; ClearInCombat calls it when combat ends.
+         * Does nothing here; Player, out of combat, sends the cooldown event of the last potion it used
+         * and forgets the potion.
+         */
+        virtual void UpdatePotionCooldown(Spell* /*spell*/ = NULL) { }
+
+    public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);
         void FinishSpell(CurrentSpellTypes spellType, bool ok = true);
 

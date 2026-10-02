@@ -1377,7 +1377,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                     }
 
                     // not 100% safe with client version switches but for 3.1.3 no spells with cooldown that can have mage player except Frost Nova.
-                    ((Player*)this)->RemoveSpellCategoryCooldown(35, true);
+                    RemoveSpellCategoryCooldown(35, true);
                     return SPELL_AURA_PROC_OK;
                 }
                 // Glyph of Polymorph
@@ -3239,7 +3239,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                 // Remove cooldown (Chain Lightning - have Category Recovery time)
                 if (procClassOptions && procClassOptions->SpellClassMask & UI64LIT(0x0000000000000002))
                 {
-                    ((Player*)this)->RemoveSpellCooldown(spellId);
+                    RemoveSpellCooldown(spellId);
                 }
 
                 CastSpell(pVictim, spellId, true, castItem, triggeredByAura);
@@ -4511,7 +4511,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             // Remove cooldown on Shield Slam
             if (GetTypeId() == TYPEID_PLAYER)
             {
-                ((Player*)this)->RemoveSpellCategoryCooldown(1209, true);
+                RemoveSpellCategoryCooldown(1209, true);
             }
             break;
         }
@@ -4601,7 +4601,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             // Howling Blast cooldown reset
             if (GetTypeId() == TYPEID_PLAYER)
             {
-                ((Player*)this)->RemoveSpellCategoryCooldown(1248, true);
+                RemoveSpellCategoryCooldown(1248, true);
             }
             break;
         }

@@ -221,7 +221,7 @@ void Unit::AddGameObject(GameObject* gameObj)
         if (createBySpell && createBySpell->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
             // note: item based cooldowns and cooldown spell mods with charges ignored (unknown existing cases)
         {
-            ((Player*)this)->AddSpellAndCategoryCooldowns(createBySpell, 0, NULL, true);
+            AddSpellAndCategoryCooldowns(createBySpell, 0, NULL, true);
         }
     }
 }
@@ -277,7 +277,7 @@ void Unit::RemoveGameObject(GameObject* gameObj, bool del)
             if (createBySpell && createBySpell->HasAttribute(SPELL_ATTR_DISABLED_WHILE_ACTIVE))
                 // note: item based cooldowns and cooldown spell mods with charges ignored (unknown existing cases)
             {
-                ((Player*)this)->SendCooldownEvent(createBySpell);
+                SendCooldownEvent(createBySpell);
             }
         }
     }

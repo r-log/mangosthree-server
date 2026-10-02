@@ -2331,19 +2331,19 @@ class Player : public Unit
         time_t GetSpellCooldownDelay(uint32 spell_id) const { return m_spellCooldownMgr.GetSpellCooldownDelay(spell_id, time(NULL)); }
 
         // Add spell and category cooldowns
-        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL, bool infinityCooldown = false);
+        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell = NULL, bool infinityCooldown = false) override;
 
         // Send a cooldown event to the client
-        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL);
+        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, Spell* spell = NULL) override;
 
         // Prohibit a spell school for a specific duration
         void ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs) override;
 
         // Remove a spell cooldown
-        void RemoveSpellCooldown(uint32 spell_id, bool update = false);
+        void RemoveSpellCooldown(uint32 spell_id, bool update = false) override;
 
         // Remove a spell category cooldown
-        void RemoveSpellCategoryCooldown(uint32 cat, bool update = false);
+        void RemoveSpellCategoryCooldown(uint32 cat, bool update) override;
 
         // Send a clear cooldown message to the client
         void SendClearCooldown(uint32 spell_id, Unit* target);
@@ -2374,7 +2374,7 @@ class Player : public Unit
         void _SaveSpellCooldowns() { m_spellCooldownMgr.SaveToDB(GetGUIDLow(), time(NULL)); }
         void SetLastPotionId(uint32 item_id) { m_lastPotionId = item_id; }
         uint32 GetLastPotionId() { return m_lastPotionId; }
-        void UpdatePotionCooldown(Spell* spell = NULL);
+        void UpdatePotionCooldown(Spell* spell) override;
 
         void setResurrectRequestData(Unit* caster, uint32 health, uint32 mana);
         void setResurrectRequestDataToGhoul(Unit* caster);
