@@ -25,8 +25,7 @@
 
 #include "SpellCooldownMgr.h"
 #include "Log.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "Utilities/Errors.h"
 #include "ObjectGuid.h"
 #include "ItemPrototype.h"
 #include "SharedDefines.h"
@@ -151,16 +150,17 @@ void SpellCooldownMgr::AddSpellCooldown(uint32 spellid, uint32 itemid, time_t en
     m_cooldowns[spellid] = sc;
 }
 
-void SpellCooldownMgr::SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, ObjectGuid ownerGuid, PacketSink const& send)
+void SpellCooldownMgr::SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, time_t now, CastInputs const& inputs, ObjectGuid ownerGuid, CooldownEventSink const& sendEvent)
 {
     // start cooldowns at server side, if any
     AddSpellAndCategoryCooldowns(spellInfo, itemId, now, inputs);
 
     // Send activate cooldown timer (possible 0) at client side
-    WorldPacket data(SMSG_COOLDOWN_EVENT, (4 + 8));
-    data << uint32(spellInfo->ID);
-    data << ownerGuid;
-    send(&data);
+    CooldownEventFact fact;
+    fact.spellId = spellInfo->ID;
+    fact.owner = ownerGuid;
+    MANGOS_ASSERT(sendEvent);
+    sendEvent(fact);
 }
 
 void SpellCooldownMgr::RemoveSpellCooldown(uint32 spell_id, bool update, ClearSink const& sendClear)
@@ -216,27 +216,21 @@ void SpellCooldownMgr::RemoveArenaSpellCooldowns(ClearSink const& sendClear)
     }
 }
 
-void SpellCooldownMgr::RemoveAllSpellCooldown(ObjectGuid ownerGuid, PacketSink const& send)
+void SpellCooldownMgr::RemoveAllSpellCooldown(ObjectGuid ownerGuid, CooldownsClearedSink const& sendCleared)
 {
     if (!m_cooldowns.empty())
     {
-        ObjectGuid guid = ownerGuid;
-
-        WorldPacket data(SMSG_CLEAR_COOLDOWNS, 1 + 8 + m_cooldowns.size() * 4);
-        data.WriteGuidMask<1, 3, 6>(guid);
-        data.WriteBits(m_cooldowns.size(), 24);      // cooldown count
-        data.WriteGuidMask<7, 5, 2, 4, 0>(guid);
-
-        data.WriteGuidBytes<7, 2, 4, 5, 1, 3>(guid);
+        CooldownsClearedFact fact;
+        fact.owner = ownerGuid;
+        fact.spellIds.reserve(m_cooldowns.size());
 
         for (SpellCooldowns::const_iterator itr = m_cooldowns.begin(); itr != m_cooldowns.end(); ++itr)
         {
-            data << uint32(itr->first);
+            fact.spellIds.push_back(itr->first);
         }
 
-        data.WriteGuidBytes<0, 6>(guid);
-
-        send(&data);
+        MANGOS_ASSERT(sendCleared);
+        sendCleared(fact);
 
         m_cooldowns.clear();
     }

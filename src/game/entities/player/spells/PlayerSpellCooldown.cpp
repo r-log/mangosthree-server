@@ -25,16 +25,15 @@
 
 /**
  * @file PlayerSpellCooldown.cpp
- * @brief Decoupling D4k: the character's side of its spell cooldowns (spells/SpellCooldownMgr).
+ * @brief The character's side of its spell cooldowns (spells/SpellCooldownMgr).
  *
  * SpellCooldownMgr holds the cooldown map and the rules over it and never sees the character.
- * The wrappers here are the part of the old SpellCooldownMgr bodies that read or wrote the
- * character: the clock, the ranged attack time, the auto-repeat check, the item prototype store,
- * the cooldown spell mods, the one-spell clear, the login loop and the potion bookkeeping. Each
- * input is read with the old expression just before the one call into the manager; each write
- * is a callback the manager calls where the old body wrote. The forwarders whose inputs are plain
- * expressions (the clock, the guid, the session sink) stay inline in Player.h, and the packets the
- * manager builds go through Player::SessionSink().
+ * The wrappers here read and write the character for it: the clock, the ranged attack time, the
+ * auto-repeat check, the item prototype store, the cooldown spell mods, the one-spell clear, the
+ * login loop and the potion bookkeeping. Each input is read just before the one call into the
+ * manager; each write is a callback the manager calls at the write. The forwarders whose inputs
+ * are plain expressions (the clock, the guid, a stored callback) stay inline in Player.h, and the
+ * cooldown event and the clear of every cooldown go to the session's callbacks in CooldownSinks.
  */
 
 #include "Player.h"
@@ -47,9 +46,9 @@
 
 namespace
 {
-    /// What SpellCooldownMgr::AddSpellAndCategoryCooldowns read from the character before
-    /// decoupling D4k, read here just before the call. The spell mods keep the cast they were
-    /// given (`spell`, possibly NULL) and apply to the value the manager hands them.
+    /// What SpellCooldownMgr::AddSpellAndCategoryCooldowns needs from the character, read just
+    /// before the call. The spell mods keep the cast they were given (`spell`, possibly NULL) and
+    /// apply to the value the manager hands them.
     SpellCooldownMgr::CastInputs ReadCastInputs(Player* player, SpellEntry const* spellInfo, Spell* spell)
     {
         SpellCooldownMgr::CastInputs inputs;
@@ -63,7 +62,7 @@ namespace
         return inputs;
     }
 
-    /// The one-spell clear SpellCooldownMgr::RemoveSpellCooldown sent before decoupling D4k.
+    /// The one-spell clear SpellCooldownMgr::RemoveSpellCooldown reports.
     SpellCooldownMgr::ClearSink ClearCooldownSink(Player* player)
     {
         return [player](uint32 spellId)
@@ -86,7 +85,7 @@ void Player::SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, Spell
     time_t now = time(NULL);
     SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo, spell);
 
-    m_spellCooldownMgr.SendCooldownEvent(spellInfo, itemId, now, inputs, GetObjectGuid(), SessionSink());
+    m_spellCooldownMgr.SendCooldownEvent(spellInfo, itemId, now, inputs, GetObjectGuid(), m_cooldownSinks.event);
 }
 
 void Player::RemoveSpellCooldown(uint32 spell_id, bool update)

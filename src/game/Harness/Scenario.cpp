@@ -41,6 +41,7 @@
 #include "WorldSession.h"
 #include "Auth/BigNumber.h"
 #include "movement/MoveSpline.h"
+#include "session/packets/spells/CooldownPacketSinks.h"
 
 #include <cstdarg>
 #include <cstdio>
@@ -261,6 +262,7 @@ namespace Harness
                                                  SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
 
         Player* player = new Player(session);
+        InstallCooldownPacketSinks(*player);
         session->SetPlayer(player);                      // as login does (CharacterHandler.cpp:771)
         player->GetMotionMaster()->Initialize();         // as login does, before the player ever moves
 

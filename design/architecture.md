@@ -92,10 +92,11 @@ spells 11, pvp 9, ai 2. Game `.cpp` files hold 996 calls in 126 files.
 - Six call the database: `CurrencyMgr` (3 lines), `QuestStatusMgr` (6), `ReputationMgr` (2), `SocialList` (5),
   `GlyphMgr` (6) and `TalentMgr` (8).
 - Three are clean: `InventoryMgr`, `PlayerPetCache` and `QuestRewardRules`.
-- In `spells/`, `SpellCooldownMgr` builds packets (2 opcodes) and calls the database (2 lines).
+- In `spells/`, `SpellCooldownMgr` calls the database (2 lines) and builds no packet: it reports a cooldown event
+  and the clear of every cooldown as typed facts, and `session/packets/spells/` builds the two packets.
 - `QuestCompletePacket` is a packet builder on the manager list, and the owner-side global `SocialMgr` sends packets.
-- `entities/player/README.md` rule 4 ("packets are built in the manager") and `CheckStateOwnership`'s manager rows
-  state the opposite of this section.
+- `CheckStateOwnership`'s manager rows allow each packet-building manager to spell its opcodes, the opposite of
+  this section; the cooldown row allows them to the session's builder instead.
 
 Each manager is fixed when its domain is next touched.
 
@@ -280,13 +281,13 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump`, `CharacterDatabaseCleaner` and `GameGlobals` (9 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 984 database calls outside persistence | #144, when content needs it |
-| 9 | **Entities, Today:** six managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). **Spells, Today:** `SpellCooldownMgr` builds packets and calls the database. `SpellCooldownMgr.h`'s seam line to `ManagerPacketSink.h` (`src/tests/layout_allow.txt`) is removed by the PR that moves the cooldown packets out; the line goes stale when the include goes, and `CheckLayout` fails on it until it is removed: the stale line is the reminder | when the domain is next touched |
-| 10 | `QuestCompletePacket` in entities; README rule 4 and `CheckStateOwnership`'s manager rows | the first PR of row 9 |
+| 9 | **Entities, Today:** six managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created | when the domain is next touched |
+| 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938) | the Creature fold, only on 4.3.4 evidence |
 | 13 | `Unit`: 75 `(Player*)this` casts, 217 player type tests, 22 Player-only virtuals | Unit reopen |
 | 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
-| 15 | `Object/` and `WorldHandlers/` exist; `session/`, `data/`, `ai/`, `social/`, `pvp/`, `economy/` do not | a move PR before each domain's first seam (#76) |
+| 15 | `Object/` and `WorldHandlers/` exist; `data/`, `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds only the builders under `session/packets/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
 | 17 | 2,354 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory, peer and header on 2026-09-29); #144 |

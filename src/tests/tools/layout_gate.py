@@ -100,6 +100,7 @@ RULES = [
     (r'^modules/SD3/|^game/ChatCommands/|^game/WorldHandlers/(Chat\.|ChatArgExtract|ChatHelp|CommandMgr|ScriptMgr|ScriptAction)', 'scripts'),
     (r'^game/(Harness|AuctionHouseBot)/|^game/WorldHandlers/(World\.|WorldConfig)', 'app'),
     (r'^game/Server/(WorldSession|OpcodeTable|SessionMailbox|SessionProtocolPolicy|WorldGateway|WorldNetwork)|^game/WorldHandlers/SpellHandler', 'session'),
+    (r'^game/session/', 'session'),
     (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
     (r'^game/WorldHandlers/(Spell|UnitAuraProcHandler)|^game/Object/(SpellMgr|UnitAura|UnitSpellBonus)|^game/spells/', 'spells'),
     (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|WorldSessionMgr|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
@@ -964,6 +965,10 @@ def self_test():
                        ('game/AuctionHouseBot/AuctionHouseBot.cpp', 'game/Object/Unit.h', None),
                        ('tests/X.cpp', 'game/Harness/Harness.h', None),
                        ('game/Server/WorldSession.cpp', 'game/WorldHandlers/World.h', ('against', ('session', 'app'))),
+                       ('game/session/packets/spells/CooldownPackets.cpp', 'proto/WorldPacket.h', None),
+                       ('game/session/packets/spells/CooldownPacketSinks.cpp', 'game/entities/player/Player.h', None),
+                       ('game/spells/SpellCooldownMgr.cpp', 'game/session/packets/spells/CooldownPackets.h',
+                        ('against', ('domain', 'session'))),
                        ('game/Object/Bag.cpp', 'game/entities/player/Player.h',
                         ('seam', ('entities', 'entities/player')) if SEAM_SAME_PEER else None)]:
         got = classify(a, b)

@@ -98,6 +98,7 @@ set(SRC_GRP_TESTS
     InventoryBankTest.cpp
     RuneMgrTest.cpp
     SpellCooldownMgrTest.cpp
+    CooldownPacketsTest.cpp
     UnitSpellCooldownTest.cpp
     UnitCombatStatsTest.cpp
     UnitItemByGuidTest.cpp
@@ -187,6 +188,20 @@ if(WITH_CRYPTO_TESTS)
 endif()
 
 add_test(NAME mangos_tests COMMAND mangos_tests)
+
+add_test(NAME cooldown_empty_event_callback
+    COMMAND ${CMAKE_COMMAND}
+        -DTESTS_EXE=$<TARGET_FILE:mangos_tests>
+        -DCASE=SpellCooldownMgr_EmptyEventCallbackAsserts
+        -DEXPECT=sendEvent
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAbortCase.cmake)
+
+add_test(NAME cooldown_empty_cleared_callback
+    COMMAND ${CMAKE_COMMAND}
+        -DTESTS_EXE=$<TARGET_FILE:mangos_tests>
+        -DCASE=SpellCooldownMgr_EmptyClearedCallbackAsserts
+        -DEXPECT=sendCleared
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAbortCase.cmake)
 
 add_test(NAME crypto_asm_twin
     COMMAND ${CMAKE_COMMAND}

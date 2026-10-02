@@ -23,21 +23,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef MANGOS_H_MANAGERPACKETSINK
-#define MANGOS_H_MANAGERPACKETSINK
+#include "CooldownPacketSinks.h"
+#include "Player.h"
+#include "WorldSession.h"
 
-#include <functional>
-
-class WorldPacket;
-
-/**
- * @brief Where a character manager hands a packet it built.
- *
- * The owner's SessionSink() returns one: it passes the packet to the character's session
- * (`GetSession()->SendPacket(packet)`), reading the session at each send. A manager takes it as a
- * parameter of the call that sends and never stores it; a test passes one that records what it
- * receives. One type for every manager, so the owner keeps one sink.
- */
-typedef std::function<void(WorldPacket const* packet)> ManagerPacketSink;
-
-#endif
+void InstallCooldownPacketSinks(Player& player)
+{
+    Player::CooldownSinks sinks;
+    sinks.event = CooldownEventToSession(&player);
+    sinks.cleared = CooldownsClearedToSession(&player);
+    player.SetCooldownSinks(sinks);
+}
