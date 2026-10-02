@@ -389,8 +389,6 @@ struct Areas
     float y2;        // Y2 coordinate
 };
 
-// Rune system types (MAX_RUNES / RuneType / RuneInfo / Runes) moved to RuneMgr.h
-
 struct EnchantDuration
 {
     EnchantDuration() : item(NULL), slot(MAX_ENCHANTMENT_SLOT), leftduration(0) {};
@@ -4111,6 +4109,13 @@ class Player : public Unit
         SpellEntry const* GetKnownTalentRankById(int32 talentId) const override final
         {
             return GetTalentMgr().GetKnownTalentRankById(talentId);
+        }
+
+        // Whether every base rune of a type is on cooldown, which Unit's Blade Barrier proc asks: what
+        // the rune manager answers; private, so only a call through Unit reaches it
+        bool IsBaseRuneSlotsOnCooldown(RuneType runeType) const override final
+        {
+            return GetRuneMgr().IsBaseRuneSlotsOnCooldown(runeType);
         }
 
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);

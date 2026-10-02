@@ -4380,7 +4380,7 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
             else if (auraSpellInfo->SpellIconID == 85)
             {
                 if (GetTypeId() != TYPEID_PLAYER || getClass() != CLASS_DEATH_KNIGHT ||
-                        !((Player*)this)->GetRuneMgr().IsBaseRuneSlotsOnCooldown(RUNE_BLOOD))
+                        !IsBaseRuneSlotsOnCooldown(RUNE_BLOOD))
                     return SPELL_AURA_PROC_FAILED;
             }
             // Improved Blood Presence
