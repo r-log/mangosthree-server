@@ -23,21 +23,32 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef MANGOS_H_MANAGERPACKETSINK
-#define MANGOS_H_MANAGERPACKETSINK
+#include "CooldownPackets.h"
+#include "Opcodes.h"
+#include "WorldPacket.h"
 
-#include <functional>
+void BuildCooldownEventPacket(WorldPacket& packet, CooldownEventFact const& fact)
+{
+    packet.Initialize(SMSG_COOLDOWN_EVENT, (4 + 8));
+    packet << uint32(fact.spellId);
+    packet << fact.owner;
+}
 
-class WorldPacket;
+void BuildClearCooldownsPacket(WorldPacket& packet, CooldownsClearedFact const& fact)
+{
+    ObjectGuid guid = fact.owner;
 
-/**
- * @brief Where a character manager hands a packet it built.
- *
- * The owner's SessionSink() returns one: it passes the packet to the character's session
- * (`GetSession()->SendPacket(packet)`), reading the session at each send. A manager takes it as a
- * parameter of the call that sends and never stores it; a test passes one that records what it
- * receives. One type for every manager, so the owner keeps one sink.
- */
-typedef std::function<void(WorldPacket const* packet)> ManagerPacketSink;
+    packet.Initialize(SMSG_CLEAR_COOLDOWNS, 1 + 8 + fact.spellIds.size() * 4);
+    packet.WriteGuidMask<1, 3, 6>(guid);
+    packet.WriteBits(fact.spellIds.size(), 24);      // cooldown count
+    packet.WriteGuidMask<7, 5, 2, 4, 0>(guid);
 
-#endif
+    packet.WriteGuidBytes<7, 2, 4, 5, 1, 3>(guid);
+
+    for (std::vector<uint32>::const_iterator itr = fact.spellIds.begin(); itr != fact.spellIds.end(); ++itr)
+    {
+        packet << uint32(*itr);
+    }
+
+    packet.WriteGuidBytes<0, 6>(guid);
+}

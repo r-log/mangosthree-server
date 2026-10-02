@@ -23,21 +23,18 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#ifndef MANGOS_H_MANAGERPACKETSINK
-#define MANGOS_H_MANAGERPACKETSINK
+#ifndef MANGOS_H_COOLDOWNPACKETS
+#define MANGOS_H_COOLDOWNPACKETS
 
-#include <functional>
+#include "spells/SpellCooldownMgr.h"
 
 class WorldPacket;
 
-/**
- * @brief Where a character manager hands a packet it built.
- *
- * The owner's SessionSink() returns one: it passes the packet to the character's session
- * (`GetSession()->SendPacket(packet)`), reading the session at each send. A manager takes it as a
- * parameter of the call that sends and never stores it; a test passes one that records what it
- * receives. One type for every manager, so the owner keeps one sink.
- */
-typedef std::function<void(WorldPacket const* packet)> ManagerPacketSink;
+/// Initializes `packet` as the client's cooldown event: the spell id, then the owner's guid.
+void BuildCooldownEventPacket(WorldPacket& packet, CooldownEventFact const& fact);
+
+/// Initializes `packet` as the client's clear of every cooldown: the owner's bit-packed guid around
+/// the count and every spell id of `fact`, in its order.
+void BuildClearCooldownsPacket(WorldPacket& packet, CooldownsClearedFact const& fact);
 
 #endif

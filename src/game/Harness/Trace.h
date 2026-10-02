@@ -189,11 +189,12 @@ namespace Harness
         /// The school lockout's and the weapon switch's milliseconds are durations; a pet load's
         /// are what a stored cooldown has left on the wall clock, and no harness pet is loaded.
         bool DecodeSpellCooldown(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_COOLDOWN_EVENT (SpellCooldownMgr::SendCooldownEvent, SpellCooldownMgr.cpp:160-163):
-        /// the spell and the owner's raw guid as a role.
+        /// SMSG_COOLDOWN_EVENT (BuildCooldownEventPacket, CooldownPackets.cpp:32-34, from the fact
+        /// SpellCooldownMgr::SendCooldownEvent reports): the spell and the owner's raw guid as a role.
         bool DecodeCooldownEvent(uint8 const* data, size_t size, Roles const& roles, std::string& out);
         /// SMSG_CLEAR_COOLDOWNS (Player::SendClearCooldown, Player.cpp:6414-6423, one spell; and
-        /// SpellCooldownMgr::RemoveAllSpellCooldown, SpellCooldownMgr.cpp:225-240, the whole map):
+        /// BuildClearCooldownsPacket, CooldownPackets.cpp:39-53, the whole map, from the fact
+        /// SpellCooldownMgr::RemoveAllSpellCooldown reports):
         /// the bit-packed guid -- mask bits 1, 3, 6, the 24-bit count, mask bits 7, 5, 2, 4, 0;
         /// then guid bytes 7, 2, 4, 5, 1, 3, each spell id, guid bytes 0 and 6, where a guid byte
         /// is written only when its mask bit is set, XORed with 1 -- read back into the guid, as a

@@ -2303,16 +2303,26 @@ class Player : public Unit
         void AddSpellMod(Aura* aura, bool apply);
         template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell const* spell = NULL);
 
-        // Spell cooldowns (delegated to m_spellCooldownMgr). Decoupling D4k: the clock is read here
-        // (time(NULL)) and handed in. AddSpellAndCategoryCooldowns, SendCooldownEvent,
-        // RemoveSpellCooldown, RemoveSpellCategoryCooldown, RemoveArenaSpellCooldowns,
-        // _LoadSpellCooldowns and UpdatePotionCooldown build the manager's inputs or callbacks and
-        // live in spells/PlayerSpellCooldown.cpp; the packets go through SessionSink().
-        // Decoupling D4i: the cooldown map and AddSpellCooldown are called on the manager directly.
+        // Spell cooldowns (delegated to m_spellCooldownMgr): the clock is read here (time(NULL)) and
+        // handed in. AddSpellAndCategoryCooldowns, SendCooldownEvent, RemoveSpellCooldown,
+        // RemoveSpellCategoryCooldown, RemoveArenaSpellCooldowns, _LoadSpellCooldowns and
+        // UpdatePotionCooldown build the manager's inputs or callbacks and live in
+        // spells/PlayerSpellCooldown.cpp; the cooldown event and the clear of every cooldown go to
+        // the session through the CooldownSinks it installed. The cooldown map and
+        // AddSpellCooldown are called on the manager directly.
         SpellCooldownMgr& GetSpellCooldownMgr() { return m_spellCooldownMgr; }
         SpellCooldownMgr const& GetSpellCooldownMgr() const { return m_spellCooldownMgr; }
         static uint32 const infinityCooldownDelay = SpellCooldownMgr::infinityCooldownDelay; // used for set "infinity cooldowns" for spells and check
         static uint32 const infinityCooldownDelayCheck = SpellCooldownMgr::infinityCooldownDelayCheck;
+
+        /// Where the cooldown event and the clear of every cooldown go: the session's callbacks,
+        /// installed once by InstallCooldownPacketSinks where the player is created.
+        struct CooldownSinks
+        {
+            CooldownEventSink event;
+            CooldownsClearedSink cleared;
+        };
+        void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
 
         // Check if the player has a spell cooldown
         bool HasSpellCooldown(uint32 spell_id) const { return m_spellCooldownMgr.HasSpellCooldown(spell_id, time(NULL)); }
@@ -2348,7 +2358,10 @@ class Player : public Unit
         void RemoveArenaSpellCooldowns();
 
         // Remove all spell cooldowns
-        void RemoveAllSpellCooldown() { m_spellCooldownMgr.RemoveAllSpellCooldown(GetObjectGuid(), SessionSink()); }
+        void RemoveAllSpellCooldown()
+        {
+            m_spellCooldownMgr.RemoveAllSpellCooldown(GetObjectGuid(), m_cooldownSinks.cleared);
+        }
 
         // Load spell cooldowns from the database
         void _LoadSpellCooldowns(QueryResult* result);
@@ -3979,6 +3992,7 @@ class Player : public Unit
         // free and used points, and the last paid reset's cost and time
         TalentMgr m_talentMgr;
         uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
+        CooldownSinks m_cooldownSinks;
         uint32 m_GuildIdInvited; // Guild ID invited
         uint32 m_ArenaTeamIdInvited; // Arena team ID invited
 

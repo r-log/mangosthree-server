@@ -70,6 +70,9 @@ source_group("References" FILES ${SRC_GRP_REFERENCES})
 file(GLOB SRC_GRP_SERVER Server/*.cpp Server/*.h)
 source_group("Server" FILES ${SRC_GRP_SERVER})
 
+file(GLOB SRC_GRP_SESSION_PACKETS_SPELLS session/packets/spells/*.cpp session/packets/spells/*.h)
+source_group("Session\\Packets\\Spells" FILES ${SRC_GRP_SESSION_PACKETS_SPELLS})
+
 file(GLOB SRC_GRP_SPELLS spells/*.cpp spells/*.h)
 source_group("Spells" FILES ${SRC_GRP_SPELLS})
 
@@ -112,6 +115,7 @@ add_library(game STATIC
     ${SRC_GRP_OUTDOOR_PVP}
     ${SRC_GRP_REFERENCES}
     ${SRC_GRP_SERVER}
+    ${SRC_GRP_SESSION_PACKETS_SPELLS}
     ${SRC_GRP_SPELLS}
     ${SRC_GRP_SPELLS_HANDLERS}
     ${SRC_GRP_TIME}

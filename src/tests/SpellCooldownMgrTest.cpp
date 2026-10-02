@@ -23,15 +23,14 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Decoupling D4k: a character's spell cooldowns, added, queried, removed, sent, loaded and saved
-/// with no character and fixed clocks.
+/// A character's spell cooldowns, added, queried, removed, reported, loaded and saved with no
+/// character and fixed clocks.
 ///
-/// Before this PR SpellCooldownMgr held a pointer to its owner and read the owner's clock
-/// (time(NULL)), ranged attack time, cooldown spell mods, guid and session. Now the reads are
-/// parameters (`now`, SpellCooldownMgr::CastInputs, the guid) and the writes are callbacks, so
-/// every case builds one from nothing, and a Wire records, in call order, what the callbacks
-/// received: each item prototype lookup, each spell-mod call (spell id and the value it was
-/// handed), each one-spell clear and each packet (opcode and bytes).
+/// The reads are parameters (`now`, SpellCooldownMgr::CastInputs, the guid) and the writes are
+/// callbacks, so every case builds one from nothing, and a Wire records, in call order, what the
+/// callbacks received: each item prototype lookup, each spell-mod call (spell id and the value it
+/// was handed), each one-spell clear, each cooldown event and each clear of every cooldown. The
+/// packets the session builds from the two facts are pinned in CooldownPacketsTest.cpp.
 ///
 /// The spell data the manager reads itself -- the spell store (a loaded row's spell must exist,
 /// the arena reset reads recovery times), the spell cooldown and category rows behind
@@ -58,8 +57,9 @@
 #include "ItemPrototype.h"
 #include "ObjectGuid.h"
 #include "spells/SpellCooldownMgr.h"
-#include "WorldPacket.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -69,9 +69,7 @@ namespace
     const uint32 kGuid = 42;
     const time_t kNow = time_t(1700000000);
 
-    // The owner's guid in the packets: raw 0x0100FF0000A5003C, so its bytes (low first) are
-    // g0 3c, g1 00, g2 a5, g3 00, g4 00, g5 ff, g6 00, g7 01 -- zero and non-zero bytes on both
-    // sides of every mask, and g7 = 01, which the packed form writes as 01 ^ 1 = 00.
+    // The owner's guid in the facts.
     const uint64 kOwnerRaw = UI64LIT(0x0100FF0000A5003C);
 
     // Spells. 93999 is deliberately never seeded into the spell store.
@@ -187,17 +185,10 @@ namespace
         sSpellCategoryStore[kCategory].insert(kSpellCatC);
     }
 
-    std::string Hex(WorldPacket const& packet)
+    std::string GuidText(ObjectGuid guid)
     {
-        static const char* digits = "0123456789abcdef";
-        std::string text;
-        uint16 opcode = packet.GetOpcode();
-        for (int shift = 12; shift >= 0; shift -= 4)
-        {
-            text += digits[(opcode >> shift) & 0x0F];
-        }
-        text += ":";
-        text += testing::BytesToHex(packet.contents(), packet.size());
+        char text[17];
+        std::snprintf(text, sizeof(text), "%016llx", (unsigned long long)guid.GetRawValue());
         return text;
     }
 
@@ -221,7 +212,8 @@ namespace
 
     /// What the callbacks received, in call order: "item <id>" per prototype lookup,
     /// "mod <spell> <value in>" per spell-mod call, "clear <spell>" per one-spell clear,
-    /// "<opcode>:<hex>" per packet.
+    /// "event <spell> <owner>" per cooldown event, "cleared <owner> [<spell>...] held <n>" per
+    /// clear of every cooldown, where n is the size of `held`'s map when the callback ran.
     struct Wire
     {
         std::vector<std::string> events;
@@ -272,11 +264,24 @@ namespace
             };
         }
 
-        SpellCooldownMgr::PacketSink Sink()
+        CooldownEventSink Event()
         {
-            return [this](WorldPacket const* packet)
+            return [this](CooldownEventFact const& fact)
             {
-                events.push_back(Hex(*packet));
+                events.push_back("event " + std::to_string(fact.spellId) + " " + GuidText(fact.owner));
+            };
+        }
+
+        CooldownsClearedSink Cleared(SpellCooldownMgr const& held)
+        {
+            return [this, &held](CooldownsClearedFact const& fact)
+            {
+                std::string text = "cleared " + GuidText(fact.owner) + " [";
+                for (size_t i = 0; i < fact.spellIds.size(); ++i)
+                {
+                    text += (i ? " " : "") + std::to_string(fact.spellIds[i]);
+                }
+                events.push_back(text + "] held " + std::to_string(held.GetSpellCooldownMap().size()));
             };
         }
     };
@@ -725,9 +730,9 @@ TEST(SpellCooldownMgr_SpellModCallbackInOutAndCount)
     }
 }
 
-// SMSG_COOLDOWN_EVENT (0x4F26): uint32 spell id, then the owner's guid as a uint64, sent after the
-// cooldowns are added -- and sent even when there is none ("possible 0").
-TEST(SpellCooldownMgr_SendCooldownEventAddsThenSendsThePacket)
+// The cooldown event: the spell id and the owner, reported after the cooldowns are added -- and
+// reported even when there is none ("possible 0").
+TEST(SpellCooldownMgr_SendCooldownEventAddsThenReportsTheEvent)
 {
     SeedStores();
     const ObjectGuid owner(kOwnerRaw);
@@ -735,26 +740,32 @@ TEST(SpellCooldownMgr_SendCooldownEventAddsThenSendsThePacket)
     {
         SpellCooldownMgr mgr;
         Wire wire;
-        mgr.SendCooldownEvent(s_cat, 0, kNow, wire.Inputs(), owner, wire.Sink());
-        // 93002 = 0x00016B4A -> 4a6b0100; the guid, low byte first -> 3c00a50000ff0001.
-        CheckEvents(wire.events, { "mod 93002 10000", "mod 93002 30000", "4f26:4a6b01003c00a50000ff0001" }, __LINE__);
+        bool storedAtTheEvent = false;
+        CooldownEventSink record = wire.Event();
+        mgr.SendCooldownEvent(s_cat, 0, kNow, wire.Inputs(), owner, [&](CooldownEventFact const& fact)
+        {
+            storedAtTheEvent = End(mgr, kSpellCat) == int64(kNow + 10) && End(mgr, kSpellCatB) == int64(kNow + 30);
+            record(fact);
+        });
+        CheckEvents(wire.events, { "mod 93002 10000", "mod 93002 30000", "event 93002 0100ff0000a5003c" }, __LINE__);
+        CHECK(storedAtTheEvent);
         CHECK_EQ(End(mgr, kSpellCat), int64(kNow + 10));
         CHECK_EQ(End(mgr, kSpellCatB), int64(kNow + 30));
     }
     {
-        // No cooldown: the packet still goes. 93005 = 0x00016B4D.
+        // No cooldown: the event is still reported.
         SpellCooldownMgr mgr;
         Wire wire;
-        mgr.SendCooldownEvent(s_none, 0, kNow, wire.Inputs(), owner, wire.Sink());
-        CheckEvents(wire.events, { "4f26:4d6b01003c00a50000ff0001" }, __LINE__);
+        mgr.SendCooldownEvent(s_none, 0, kNow, wire.Inputs(), owner, wire.Event());
+        CheckEvents(wire.events, { "event 93005 0100ff0000a5003c" }, __LINE__);
         CHECK(mgr.GetSpellCooldownMap().empty());
     }
     {
-        // The item reaches the add (not the packet).
+        // The item reaches the add (not the event).
         SpellCooldownMgr mgr;
         Wire wire;
-        mgr.SendCooldownEvent(s_plain, 555, kNow, wire.Inputs(), owner, wire.Sink());
-        CheckEvents(wire.events, { "item 555", "mod 93001 8000", "4f26:496b01003c00a50000ff0001" }, __LINE__);
+        mgr.SendCooldownEvent(s_plain, 555, kNow, wire.Inputs(), owner, wire.Event());
+        CheckEvents(wire.events, { "item 555", "mod 93001 8000", "event 93001 0100ff0000a5003c" }, __LINE__);
         CHECK_EQ(ItemOf(mgr, kSpellPlain), 555u);
     }
 }
@@ -841,14 +852,9 @@ TEST(SpellCooldownMgr_RemoveArenaSpellCooldownsFifteenMinuteRule)
     CHECK_EQ(End(mgr, kSpellUnknown), int64(kNow + 900));
 }
 
-// SMSG_CLEAR_COOLDOWNS (0x59B4), the whole-map form, for guid 0x0100FF0000A5003C and the spells
-// 93001, 93003, 93999:
-//   bits: g1 g3 g6 = 0 0 0; the count 3 in 24 bits; g7 g5 g2 g4 g0 = 1 1 1 0 1 -- 32 bits:
-//         00000000 00000000 00000000 01111101 = 00 00 00 7d
-//   bytes g7 g2 g4 g5 g1 g3 (non-zero ones, each ^ 1): 01->00, a5->a4, ff->fe = 00 a4 fe
-//   the spell ids, uint32 each, map order: 496b0100 4b6b0100 2f6f0100
-//   bytes g0 g6: 3c->3d = 3d
-TEST(SpellCooldownMgr_RemoveAllSendsOneClearWithEverySpell)
+// The clear of every cooldown: one report with the owner and every spell id in map (spell id)
+// order, made while the map still holds them, and the map is empty after it.
+TEST(SpellCooldownMgr_RemoveAllReportsOneClearWithEverySpell)
 {
     SeedStores();
     const ObjectGuid owner(kOwnerRaw);
@@ -856,24 +862,66 @@ TEST(SpellCooldownMgr_RemoveAllSendsOneClearWithEverySpell)
     SpellCooldownMgr mgr;
     Wire wire;
 
-    // Empty: no packet.
-    mgr.RemoveAllSpellCooldown(owner, wire.Sink());
+    // Empty: no report.
+    mgr.RemoveAllSpellCooldown(owner, wire.Cleared(mgr));
     CHECK(wire.events.empty());
 
     mgr.AddSpellCooldown(kSpellUnknown, 0, kNow + 1);
     mgr.AddSpellCooldown(kSpellPlain, 0, kNow + 1);
     mgr.AddSpellCooldown(kSpellCatB, 7, kNow - 5);              // expired entries are listed too
-    mgr.RemoveAllSpellCooldown(owner, wire.Sink());
-    CheckEvents(wire.events, { "59b4:0000007d00a4fe496b01004b6b01002f6f01003d" }, __LINE__);
+    mgr.RemoveAllSpellCooldown(owner, wire.Cleared(mgr));
+    CheckEvents(wire.events, { "cleared 0100ff0000a5003c [93001 93003 93999] held 3" }, __LINE__);
     CHECK(mgr.GetSpellCooldownMap().empty());
 
-    // A guid of zero bytes but g0: no mask bit but g0's, and only g0's byte.
     wire.events.clear();
     mgr.AddSpellCooldown(kSpellPlain, 0, kNow + 1);
-    mgr.RemoveAllSpellCooldown(ObjectGuid(uint64(0x2A)), wire.Sink());
-    // bits: 000, count 1 (24 bits), 0 0 0 0 1 -> 00000000 00000000 00000000 00100001 = 00 00 00 21;
-    // no g7..g3 bytes; 93001 = 496b0100; g0 2a -> 2b.
-    CheckEvents(wire.events, { "59b4:00000021496b01002b" }, __LINE__);
+    mgr.RemoveAllSpellCooldown(ObjectGuid(uint64(0x2A)), wire.Cleared(mgr));
+    CheckEvents(wire.events, { "cleared 000000000000002a [93001] held 1" }, __LINE__);
+    CHECK(mgr.GetSpellCooldownMap().empty());
+}
+
+namespace
+{
+    /// The empty-callback cases end the process on their assertion, so they run only when
+    /// MANGOS_TESTS_ABORT_CASE names them (CheckAbortCase.cmake); any other run returns at once.
+    bool AbortCaseSelected(char const* name)
+    {
+        char const* selected = std::getenv("MANGOS_TESTS_ABORT_CASE");
+        if (!selected || std::strcmp(selected, name) != 0)
+        {
+            return false;
+        }
+#ifdef _MSC_VER
+        _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+#endif
+        return true;
+    }
+}
+
+TEST(SpellCooldownMgr_EmptyEventCallbackAsserts)
+{
+    if (!AbortCaseSelected("SpellCooldownMgr_EmptyEventCallbackAsserts"))
+    {
+        return;
+    }
+    SeedStores();
+    SpellCooldownMgr mgr;
+    Wire wire;
+    mgr.SendCooldownEvent(s_none, 0, kNow, wire.Inputs(), ObjectGuid(kOwnerRaw), CooldownEventSink());
+    testing::ReportFailure(__FILE__, __LINE__, "the empty cooldown event callback passed the assertion");
+}
+
+TEST(SpellCooldownMgr_EmptyClearedCallbackAsserts)
+{
+    if (!AbortCaseSelected("SpellCooldownMgr_EmptyClearedCallbackAsserts"))
+    {
+        return;
+    }
+    SeedStores();
+    SpellCooldownMgr mgr;
+    mgr.AddSpellCooldown(kSpellPlain, 0, kNow + 1);
+    mgr.RemoveAllSpellCooldown(ObjectGuid(kOwnerRaw), CooldownsClearedSink());
+    testing::ReportFailure(__FILE__, __LINE__, "the empty clear callback passed the assertion");
 }
 
 // The login's rows, one at a time: an unknown spell is skipped (and logged), an end at or before
