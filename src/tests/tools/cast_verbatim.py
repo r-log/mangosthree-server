@@ -71,7 +71,12 @@ below :435; UnitAura.cpp:383 and Unit.cpp:4418 on the type test of their own lin
 sites in the Shattered Sun pendants' arms rely on the type return opening each arm:
 UnitAuraProcHandler.cpp:995, :1038, :1063 and :1089 stand 6 lines below theirs (:989, :1032, :1057
 and :1083), and :1002, :1045, :1070 and :1096, the Scryers' test below the Aldor's, 13, so those
-four set their own window in their file's spec.
+four set their own window in their file's spec. The cooldown sites: UnitAuraProcHandler.cpp:1380
+stands 6 lines below its type return (:1374), :4514 and :4604 2 below their type tests (:4512 and
+:4602); UnitDynObject.cpp:224 7 below its type test (:217) and :280 7 below its (:273); two set
+their own window: UnitAuraProcHandler.cpp:3242, in Lightning Overload's arm, 47 below the type
+return opening it (:3195), and Unit.cpp:4406, ClearInCombat's `else` arm, 12 below the creature
+test it is the other branch of (:4394).
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -188,6 +193,21 @@ FORMS = {
     'GetReputationRank': {'direct': 'GetReputationRank(',
                           'cast': '((Player*)this)->GetReputationRank(',
                           'suffix': None},
+    'AddSpellAndCategoryCooldowns': {'direct': 'AddSpellAndCategoryCooldowns(',
+                                     'cast': '((Player*)this)->AddSpellAndCategoryCooldowns(',
+                                     'suffix': None},
+    'SendCooldownEvent': {'direct': 'SendCooldownEvent(',
+                          'cast': '((Player*)this)->SendCooldownEvent(',
+                          'suffix': None},
+    'RemoveSpellCooldown': {'direct': 'RemoveSpellCooldown(',
+                            'cast': '((Player*)this)->RemoveSpellCooldown(',
+                            'suffix': None},
+    'RemoveSpellCategoryCooldown': {'direct': 'RemoveSpellCategoryCooldown(',
+                                    'cast': '((Player*)this)->RemoveSpellCategoryCooldown(',
+                                    'suffix': None},
+    'UpdatePotionCooldown': {'direct': 'UpdatePotionCooldown(',
+                             'cast': '((Player*)this)->UpdatePotionCooldown(',
+                             'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -312,6 +332,42 @@ UNIT_H_VISIBILITY = '''
 
     public:'''
 
+UNIT_H_COOLDOWNS = '''
+    protected:
+        /**
+         * Starts a spell's cooldown and its category's; AddGameObject calls it for an object whose
+         * spell stays disabled while the object stands.
+         * Does nothing here; Player stores both cooldowns in its manager.
+         */
+        virtual void AddSpellAndCategoryCooldowns(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/,
+                                                  Spell* /*spell*/ = NULL, bool /*infinityCooldown*/ = false) { }
+        /**
+         * Starts a spell's cooldown and its category's and reports the cooldown event; RemoveGameObject
+         * calls it when an object whose spell stayed disabled goes.
+         * Does nothing here; Player stores both cooldowns and sends the event to its session.
+         */
+        virtual void SendCooldownEvent(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/ = 0,
+                                       Spell* /*spell*/ = NULL) { }
+        /**
+         * Ends a spell's cooldown; the Lightning Overload proc ends the cooldown of the spell it casts.
+         * Does nothing here; Player removes it from its manager and, with update, tells its client.
+         */
+        virtual void RemoveSpellCooldown(uint32 /*spell_id*/, bool /*update*/ = false) { }
+        /**
+         * Ends the cooldown of every spell of a category; the Glyph of Ice Block, Sword and Board
+         * and Freezing Fog procs end one.
+         * Does nothing here; Player removes them from its manager and, with update, tells its client.
+         */
+        virtual void RemoveSpellCategoryCooldown(uint32 /*cat*/, bool /*update*/ = false) { }
+        /**
+         * Starts the cooldown of the potion used in combat; ClearInCombat calls it when combat ends.
+         * Does nothing here; Player, out of combat, sends the cooldown event of the last potion it used
+         * and forgets the potion.
+         */
+        virtual void UpdatePotionCooldown(Spell* /*spell*/ = NULL) { }
+
+    public:'''
+
 PLAYER_H_ITEM_BY_GUID = '''
         // The item Unit's proc handlers ask for by guid: the one the inventory holds, or NULL; private,
         // so only a call through Unit reaches it
@@ -335,6 +391,8 @@ FILES = {
                   (UNIT_H_MOUNT_PET, '        void Unmount(bool from_aura = false);'),
                   ('class Transport;', 'class Totem;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
+                  (UNIT_H_COOLDOWNS, '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
+                                     'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
     'src/game/entities/player/Player.h': {
         'forms': {},
@@ -374,12 +432,29 @@ FILES = {
                     ('        Transport* GetTransport() const override final { return m_transport; }',
                      '        Transport* GetTransport() const { return m_transport; }'),
                     ('        ReputationRank GetReputationRank(uint32 faction_id) const override final;',
-                     '        ReputationRank GetReputationRank(uint32 faction_id) const;')]},
+                     '        ReputationRank GetReputationRank(uint32 faction_id) const;'),
+                    ('        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, '
+                     'Spell* spell = NULL, bool infinityCooldown = false) override;',
+                     '        void AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, '
+                     'Spell* spell = NULL, bool infinityCooldown = false);'),
+                    ('        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, '
+                     'Spell* spell = NULL) override;',
+                     '        void SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId = 0, '
+                     'Spell* spell = NULL);'),
+                    ('        void RemoveSpellCooldown(uint32 spell_id, bool update = false) override;',
+                     '        void RemoveSpellCooldown(uint32 spell_id, bool update = false);'),
+                    ('        void RemoveSpellCategoryCooldown(uint32 cat, bool update) override;',
+                     '        void RemoveSpellCategoryCooldown(uint32 cat, bool update = false);'),
+                    ('        void UpdatePotionCooldown(Spell* spell) override;',
+                     '        void UpdatePotionCooldown(Spell* spell = NULL);')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
-                  'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1},
+                  'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
-        'window': {4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15}},
+        'window': {4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
+    'src/game/Object/UnitDynObject.cpp': {
+        'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
+        'added': []},
     'src/game/Object/UnitCombat.cpp': {
         'forms': {'GetMeleeRollExpertiseReduction': 2, 'GetMeleeSpellExpertiseReduction': 2,
                   'CalculateMinMaxDamage': 1},
@@ -405,9 +480,10 @@ FILES = {
         'forms': {'IsLoading': 1},
         'added': []},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
-        'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8},
+        'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8,
+                  'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3},
         'added': [],
-        'window': {1002: 13, 1045: 13, 1070: 13, 1096: 13, 2881: 70}},
+        'window': {1002: 13, 1045: 13, 1070: 13, 1096: 13, 2881: 70, 3242: 47}},
 }
 
 
@@ -917,7 +993,7 @@ SELF_OLD = '''void Unit::Proc(uint32 id, SpellEntry const* dummySpell)
     {
         ((Player*)this)->GetSpellCooldownMgr().AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
     }
-    ((Player*)this)->RemoveSpellCooldown(id);
+    ((Player*)this)->SendClearCooldown(id, this);
 }
 '''
 
@@ -935,13 +1011,13 @@ SELF_NEW = '''void Unit::Proc(uint32 id, SpellEntry const* dummySpell)
     {
         m_spellCooldownMgr.AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);
     }
-    ((Player*)this)->RemoveSpellCooldown(id);
+    ((Player*)this)->SendClearCooldown(id, this);
     int added = 1;
 }
 '''
 
 SELF_SPEC = {'forms': {'HasSpellCooldown': 2, 'AddSpellCooldown': 1},
-             'added': [('    int added = 1;', '    ((Player*)this)->RemoveSpellCooldown(id);')]}
+             'added': [('    int added = 1;', '    ((Player*)this)->SendClearCooldown(id, this);')]}
 
 SELF_DECL_OLD = '''#include "A.h"
 #include "B.h"
@@ -1171,16 +1247,16 @@ def self_test():
         swap=('void Unit::Proc(uint32 id,', 'void Unit::Proc(uint32 id2,'))
     run('a call with no closing parenthesis fails', 1, 'has no closing parenthesis',
         swap=('AddSpellCooldown(dummySpell->ID, 0, time(NULL) + cooldown);\n    }\n'
-              '    ((Player*)this)->RemoveSpellCooldown(id);\n    int added = 1;\n}\n',
-              'AddSpellCooldown(dummySpell->ID\n    ((Player*)this)->RemoveSpellCooldown(id);\n'
+              '    ((Player*)this)->SendClearCooldown(id, this);\n    int added = 1;\n}\n',
+              'AddSpellCooldown(dummySpell->ID\n    ((Player*)this)->SendClearCooldown(id, this);\n'
               '    int added = 1;\n'))
     run('an added line moved fails', 1, 'DIFFERS from the base at line 15',
-        swap=('    ((Player*)this)->RemoveSpellCooldown(id);\n    int added = 1;\n',
-              '    int added = 1;\n    ((Player*)this)->RemoveSpellCooldown(id);\n'))
+        swap=('    ((Player*)this)->SendClearCooldown(id, this);\n    int added = 1;\n',
+              '    int added = 1;\n    ((Player*)this)->SendClearCooldown(id, this);\n'))
     run('an added line whose base line stands twice in a window fails', 1,
         "stands 2 time(s) in the window around the AddSpellCooldown site at :13",
-        old_text=SELF_OLD + '    ((Player*)this)->RemoveSpellCooldown(id);\n',
-        new_text=SELF_NEW + '    ((Player*)this)->RemoveSpellCooldown(id);\n')
+        old_text=SELF_OLD + '    ((Player*)this)->SendClearCooldown(id, this);\n',
+        new_text=SELF_NEW + '    ((Player*)this)->SendClearCooldown(id, this);\n')
     run('added lines outside every window stand at their place (include, initialiser, member)', 0,
         'fixture: no call site; 3 added line(s) and 0 changed line(s) at their place outside every window',
         new_text=SELF_DECL_NEW, old_text=SELF_DECL_OLD, spec=SELF_DECL_SPEC)

@@ -4404,7 +4404,7 @@ void Unit::ClearInCombat()
     }
     else
     {
-        ((Player*)this)->UpdatePotionCooldown();
+        UpdatePotionCooldown();
     }
 }
 
