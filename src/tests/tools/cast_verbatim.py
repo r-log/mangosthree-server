@@ -76,7 +76,10 @@ stands 6 lines below its type return (:1374), :4514 and :4604 2 below their type
 :4602); UnitDynObject.cpp:224 7 below its type test (:217) and :280 7 below its (:273); two set
 their own window: UnitAuraProcHandler.cpp:3242, in Lightning Overload's arm, 47 below the type
 return opening it (:3195), and Unit.cpp:4406, ClearInCombat's `else` arm, 12 below the creature
-test it is the other branch of (:4394).
+test it is the other branch of (:4394). The combo-point sites stand within 3 lines of their
+warrior and type tests: Unit.cpp:5533 2 below :5531, :6074 2 below :6072, and :6115 2 below
+:6113 and 3 below the Overpower case label (:6112); their direct spelling of ClearComboPoints
+carries its leading space, since Unit.cpp:6044 calls it on another player.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -208,6 +211,12 @@ FORMS = {
     'UpdatePotionCooldown': {'direct': 'UpdatePotionCooldown(',
                              'cast': '((Player*)this)->UpdatePotionCooldown(',
                              'suffix': None},
+    'AddComboPoints': {'direct': 'AddComboPoints(',
+                       'cast': '((Player*)this)->AddComboPoints(',
+                       'suffix': None},
+    'ClearComboPoints': {'direct': ' ClearComboPoints(',
+                         'cast': ' ((Player*)this)->ClearComboPoints(',
+                         'suffix': None},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -364,7 +373,22 @@ UNIT_H_COOLDOWNS = '''
          * Does nothing here; Player, out of combat, sends the cooldown event of the last potion it used
          * and forgets the potion.
          */
-        virtual void UpdatePotionCooldown(Spell* /*spell*/ = NULL) { }
+        virtual void UpdatePotionCooldown(Spell* /*spell*/ = NULL) { }'''
+
+UNIT_H_COMBO_POINTS = '''        /**
+         * Adds combo points on a target; ProcDamageAndSpellFor adds one to a warrior whose target
+         * dodged, with the Overpower window it opens.
+         * Does nothing here; Player adds them on its combo target, or moves them to a new one, and
+         * sends them to its client.
+         */
+        virtual void AddComboPoints(Unit* /*target*/, int8 /*count*/) { }
+        /**
+         * Clears the combo points; ClearAllReactives and the end of the Overpower window clear a
+         * warrior's.
+         * Does nothing here; Player clears its combo points and its combo target and sends them to
+         * its client.
+         */
+        virtual void ClearComboPoints() { }
 
     public:'''
 
@@ -391,8 +415,9 @@ FILES = {
                   (UNIT_H_MOUNT_PET, '        void Unmount(bool from_aura = false);'),
                   ('class Transport;', 'class Totem;'),
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
-                  (UNIT_H_COOLDOWNS, '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
-                                     'uint32 /*unTimeMs*/) { }'),
+                  (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS,
+                   '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
+                   'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
     'src/game/entities/player/Player.h': {
         'forms': {},
@@ -446,10 +471,14 @@ FILES = {
                     ('        void RemoveSpellCategoryCooldown(uint32 cat, bool update) override;',
                      '        void RemoveSpellCategoryCooldown(uint32 cat, bool update = false);'),
                     ('        void UpdatePotionCooldown(Spell* spell) override;',
-                     '        void UpdatePotionCooldown(Spell* spell = NULL);')]},
+                     '        void UpdatePotionCooldown(Spell* spell = NULL);'),
+                    ('        void AddComboPoints(Unit* target, int8 count) override;',
+                     '        void AddComboPoints(Unit* target, int8 count);'),
+                    ('        void ClearComboPoints() override;', '        void ClearComboPoints();')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
-                  'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1},
+                  'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
+                  'AddComboPoints': 1, 'ClearComboPoints': 2},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'window': {4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {

@@ -3769,6 +3769,20 @@ class Unit : public WorldObject
          * and forgets the potion.
          */
         virtual void UpdatePotionCooldown(Spell* /*spell*/ = NULL) { }
+        /**
+         * Adds combo points on a target; ProcDamageAndSpellFor adds one to a warrior whose target
+         * dodged, with the Overpower window it opens.
+         * Does nothing here; Player adds them on its combo target, or moves them to a new one, and
+         * sends them to its client.
+         */
+        virtual void AddComboPoints(Unit* /*target*/, int8 /*count*/) { }
+        /**
+         * Clears the combo points; ClearAllReactives and the end of the Overpower window clear a
+         * warrior's.
+         * Does nothing here; Player clears its combo points and its combo target and sends them to
+         * its client.
+         */
+        virtual void ClearComboPoints() { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

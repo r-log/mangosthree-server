@@ -2107,10 +2107,10 @@ class Player : public Unit
         ObjectGuid const& GetComboTargetGuid() const { return m_comboTargetGuid; }
 
         // Add combo points to the player
-        void AddComboPoints(Unit* target, int8 count);
+        void AddComboPoints(Unit* target, int8 count) override;
 
         // Clear the player's combo points
-        void ClearComboPoints();
+        void ClearComboPoints() override;
 
         // Send the player's combo points to the client
         void SendComboPoints();
