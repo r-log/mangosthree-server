@@ -179,6 +179,15 @@ enum Powers
     POWER_HEALTH                        = 0xFFFFFFFE ///< Health, everyone has this (-2 as signed value)
 };
 
+enum RuneType
+{
+    RUNE_BLOOD                  = 0,
+    RUNE_UNHOLY                 = 1,
+    RUNE_FROST                  = 2,
+    RUNE_DEATH                  = 3,
+    NUM_RUNE_TYPES              = 4
+};
+
 #define MAX_STORED_POWERS               5
 // Setting this value to something high helps debugging
 #define INVALID_POWER_INDEX             10000
