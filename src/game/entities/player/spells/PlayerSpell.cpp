@@ -529,6 +529,32 @@ bool Player::IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) cons
 }
 
 /**
+ * @brief Casts the passive spells the player knows whose caster aura state is the flag.
+ *
+ * @param flag The aura state just set.
+ */
+void Player::CastPassiveSpellsForAuraState(AuraState flag)
+{
+    const PlayerSpellMap& sp_list = GetSpellMap();
+    for (PlayerSpellMap::const_iterator itr = sp_list.begin(); itr != sp_list.end(); ++itr)
+    {
+        if (itr->second.state == PLAYERSPELL_REMOVED)
+        {
+            continue;
+        }
+        SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
+        if (!spellInfo || !IsPassiveSpell(spellInfo))
+        {
+            continue;
+        }
+        if (AuraState(spellInfo->GetCasterAuraState()) == flag)
+        {
+            CastSpell(this, itr->first, true, NULL);
+        }
+    }
+}
+
+/**
  * @brief Learns a spell and notifies the client when appropriate.
  *
  * @param spell_id The spell identifier to learn.

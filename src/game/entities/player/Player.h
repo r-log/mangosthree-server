@@ -4118,6 +4118,11 @@ class Player : public Unit
             return GetRuneMgr().IsBaseRuneSlotsOnCooldown(runeType);
         }
 
+        // Casts the passive spells the player knows whose caster aura state is the flag, which Unit's
+        // ModifyAuraState asks for when it sets that aura state; private, so only a call through Unit
+        // reaches it
+        void CastPassiveSpellsForAuraState(AuraState flag) override;
+
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
         uint32 m_created_date = 0;

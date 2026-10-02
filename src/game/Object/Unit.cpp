@@ -3325,23 +3325,7 @@ void Unit::ModifyAuraState(AuraState flag, bool apply)
             SetFlag(UNIT_FIELD_AURASTATE, 1 << (flag - 1));
             if (GetTypeId() == TYPEID_PLAYER)
             {
-                const PlayerSpellMap& sp_list = ((Player*)this)->GetSpellMap();
-                for (PlayerSpellMap::const_iterator itr = sp_list.begin(); itr != sp_list.end(); ++itr)
-                {
-                    if (itr->second.state == PLAYERSPELL_REMOVED)
-                    {
-                        continue;
-                    }
-                    SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
-                    if (!spellInfo || !IsPassiveSpell(spellInfo))
-                    {
-                        continue;
-                    }
-                    if (AuraState(spellInfo->GetCasterAuraState()) == flag)
-                    {
-                        CastSpell(this, itr->first, true, NULL);
-                    }
-                }
+                CastPassiveSpellsForAuraState(flag);
             }
         }
     }

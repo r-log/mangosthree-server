@@ -54,6 +54,17 @@ whose return type, the line's first word, is `ObjectGuid const&` (once on the li
 of a declaration), nothing else changed; any other difference fails, naming both lines. Accepted,
 it is checked as a CHANGED entry. Player.h:2098, the selection guid, is the one listed.
 
+A `moved` FORM is a whole statement `<direct>(<args>);` standing where a block of lines stood that
+moved into the body of `header` in the file `to` (the lines between the `{` directly below that
+header, which stands once there, and the next `}` at column 0); its arguments must be the header's
+parameter names, in order. The block is written back in the statement's place: each body line at
+the statement's indentation instead of the body's four spaces, and each EDIT's new spelling, which
+must stand once in the body, read as its base spelling; its site is the line holding its cast
+spelling, which must stand nowhere in the working tree, and its window must reach past the block's
+last line. A body line that is not empty must start with four spaces, or it fails, named with its
+line in `to`. Any other difference in the body, a body line lost or gained, or the statement
+standing anywhere else, is a difference in that window.
+
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
 UnitAuraProcHandler.cpp:2822 under the type return at :2811); the rest stand within 6 lines
@@ -107,7 +118,9 @@ Shattered Sun pendant's arm, 21 below its type return (:989), its window overlap
 carries its leading space, so MonsterSay, another name, does not match it. The talent rank site,
 UnitSpellBonus.cpp:102, stands 2 lines below its type and death knight test (:100). The rune
 cooldown site, UnitAuraProcHandler.cpp:4383, stands on the line below its type and class test
-(:4382), inside the window of the kill-credit site at :4389.
+(:4382), inside the window of the kill-credit site at :4389. The aura-state passive casts,
+Unit.cpp:3327, a `moved` block of 17 lines on the line below its type test (:3326), set their own
+window: 17 reaches the block's last line (16 below) and the type test's closing brace.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -281,6 +294,11 @@ FORMS = {
     'IsBaseRuneSlotsOnCooldown': {'direct': 'IsBaseRuneSlotsOnCooldown(',
                                   'cast': '((Player*)this)->GetRuneMgr().IsBaseRuneSlotsOnCooldown(',
                                   'suffix': None},
+    'CastPassiveSpellsForAuraState': {
+        'kind': 'moved', 'direct': 'CastPassiveSpellsForAuraState(', 'cast': '((Player*)this)->GetSpellMap()',
+        'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
+        'header': 'void Player::CastPassiveSpellsForAuraState(AuraState flag)',
+        'edits': [('((Player*)this)->GetSpellMap()', 'GetSpellMap()')]},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -523,7 +541,17 @@ UNIT_H_RUNE_COOLDOWN = '''        /**
          * tests return before asking a unit that is not a player; Player returns what its rune
          * manager answers
          */
-        virtual bool IsBaseRuneSlotsOnCooldown(RuneType /*runeType*/) const { return false; }
+        virtual bool IsBaseRuneSlotsOnCooldown(RuneType /*runeType*/) const { return false; }'''
+
+UNIT_H_AURA_STATE_CASTS = '''        /**
+         * Casts the passive spells this unit knows whose caster aura state is the flag; ModifyAuraState
+         * calls it on a player when it sets that aura state.
+         * @param flag the aura state set
+         * Does nothing here, a unit that is not a player knows no spells; Player casts on itself,
+         * triggered, every passive spell in its spell map that is not removed and whose caster aura
+         * state is the flag
+         */
+        virtual void CastPassiveSpellsForAuraState(AuraState /*flag*/) { }
 
     public:'''
 
@@ -548,6 +576,12 @@ PLAYER_H_RUNE_COOLDOWN = '''
             return GetRuneMgr().IsBaseRuneSlotsOnCooldown(runeType);
         }'''
 
+PLAYER_H_AURA_STATE_CASTS = '''
+        // Casts the passive spells the player knows whose caster aura state is the flag, which Unit's
+        // ModifyAuraState asks for when it sets that aura state; private, so only a call through Unit
+        // reaches it
+        void CastPassiveSpellsForAuraState(AuraState flag) override;'''
+
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
 # window is not WINDOW, by base line, whether it `declares` the overrides, and the lines that
@@ -570,7 +604,7 @@ FILES = {
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
-                   + '\n' + UNIT_H_RUNE_COOLDOWN,
+                   + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -580,7 +614,8 @@ FILES = {
         'added': [("        // The private GetItemByGuid override answers only Unit's lookup.",
                    '        // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it '
                    'directly.'),
-                  (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN,
+                  (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN
+                   + '\n' + PLAYER_H_AURA_STATE_CASTS,
                    '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
@@ -651,9 +686,9 @@ FILES = {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
                   'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1,
-                  'setFactionForRace': 1},
+                  'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
-        'window': {960: 17, 975: 32, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
+        'window': {960: 17, 975: 32, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
         'added': []},
@@ -831,7 +866,7 @@ def paste_branches(rel, text, spec, out, read, forms):
                 % (rel, at + 1, name, m.group(4), ', '.join(names)))
             return 1, text, 0, [], {}
         indent, lhs, op = m.group(1), m.group(2), m.group(3)
-        starts.append(len(pasted))
+        starts.append((len(pasted), BRANCH_LINES))
         by_form[name].append(len(pasted))
         pasted += [indent + form['guard'], indent + '{', '%s    %s %s %s;' % (indent, lhs, op, player_expr),
                    indent + '}', indent + 'else', indent + '{', '%s    %s %s %s;' % (indent, lhs, op, unit_expr),
@@ -845,26 +880,81 @@ def paste_branches(rel, text, spec, out, read, forms):
 
 
 def tree_index(starts, i):
-    """The working tree's line index of pasted-back line index I: a `branch` site's 8 lines all
-    name the statement they stand for."""
+    """The working tree's line index of pasted-back line index I: the lines a statement was written
+    back as, STARTS' (first index, count), all name that statement."""
     shift = 0
-    for p in starts:
+    for p, n in starts:
         if i < p:
             break
-        if i < p + BRANCH_LINES:
+        if i < p + n:
             return p - shift
-        shift += BRANCH_LINES - 1
+        shift += n - 1
     return i - shift
 
 
+def paste_moved(rel, text, spec, out, read, forms):
+    """(rc, text with every statement of a listed `moved` FORM written back as the block it stands
+    for, the number written back, [(pasted-back index, line count)] of each block)."""
+    moved = {}
+
+    def fail(message):
+        out(message)
+        return 1, text, 0, []
+
+    for name in sorted(n for n in spec['forms'] if forms[n].get('kind') == 'moved'):
+        form = forms[name]
+        body = read(form['to']).split('\n')
+        heads = [i for i, line in enumerate(body) if line == form['header']]
+        if len(heads) != 1 or body[heads[0] + 1:heads[0] + 2] != ['{'] or '}' not in body[heads[0]:]:
+            return fail('%s: FAILED: %d definition(s) %r with a body, expected 1' % (form['to'], len(heads),
+                                                                                   form['header']))
+        end = body.index('}', heads[0])
+        for i in range(heads[0] + 2, end):
+            if body[i] and not body[i].startswith('    '):
+                return fail('%s:%d: FAILED: the body line %r of %r does not start with four spaces'
+                            % (form['to'], i + 1, body[i], form['header']))
+        block = '\n'.join(body[heads[0] + 2:end])
+        for base, new in form['edits']:
+            if block.count(new) != 1:
+                return fail('%s: FAILED: the edit %r stands %d time(s) in the body of %r, expected once'
+                            % (form['to'], new, block.count(new), form['header']))
+            block = block.replace(new, base)
+        if form['cast'] in text:
+            return fail('%s: FAILED: %r still stands: a block the move missed' % (rel, form['cast']))
+        params = form['header'][form['header'].index('(') + 1:form['header'].rindex(')')]
+        moved[name] = (form, block.split('\n'), ', '.join(p.split()[-1].lstrip('*&') for p in params.split(',')
+                                                         if p.strip()))
+    pasted, starts, found = [], [], dict((name, 0) for name in moved)
+    for at, line in enumerate(text.split('\n')):
+        hit = [name for name in moved if moved[name][0]['direct'] in line]
+        if not hit:
+            pasted.append(line)
+            continue
+        form, block, names = moved[hit[0]]
+        m = re.match(r'^(\s*)' + re.escape(form['direct']) + r'(.*)\);$', line)
+        if len(hit) > 1 or not m or m.group(2) != names:
+            return fail("%s:%d: FAILED: %s( does not stand as a whole statement passing the parameters of %r"
+                        % (rel, at + 1, hit[0], form['header']))
+        starts.append((len(pasted), len(block)))
+        pasted += [m.group(1) + b[4:] if b else b for b in block]
+        found[hit[0]] += 1
+    for name, n in sorted(found.items()):
+        if n != spec['forms'][name]:
+            return fail('%s: FAILED: %d call(s) of %s, expected %d' % (rel, n, name, spec['forms'][name]))
+    return 0, '\n'.join(pasted), sum(found.values()), starts
+
+
 def paste_back(rel, text, spec, out, read=None, forms=None):
-    """(rc, text with every FORM written back, the number of calls written back, the pasted-back
-    index of the first line of each `branch` site, {branch form: those indices, in order})."""
+    """(rc, text with every FORM written back, the number of calls written back, the (first index,
+    line count) of each `moved` block and of each `branch` site, as two lists, {branch form: the
+    pasted-back index of the first line of each of its sites, in order})."""
     forms = FORMS if forms is None else forms
-    sites = 0
+    rc, text, sites, moved = paste_moved(rel, text, spec, out, read, forms)
+    if rc:
+        return 1, text, sites, [], {}
     for name, want in sorted(spec['forms'].items()):
         form = forms[name]
-        if form.get('kind') == 'branch':
+        if form.get('kind') in ('branch', 'moved'):
             continue
         if form['cast'] in text:
             out('%s: FAILED: %d call(s) still spelled %r: a site the rewrite missed'
@@ -900,7 +990,7 @@ def paste_back(rel, text, spec, out, read=None, forms=None):
             out('%s: FAILED: %d call(s) of %s, expected %d' % (rel, found, name, want))
             return 1, text, sites, [], {}
     rc, text, found, starts, by_form = paste_branches(rel, text, spec, out, read, forms)
-    return rc, text, sites + found, starts, by_form
+    return rc, text, sites + found, [moved, starts], by_form
 
 
 def lists_none(rel, lines, masked, spec, out, forms=None):
@@ -1128,7 +1218,7 @@ def prove(rel, old_text, new_text, spec, out, window=WINDOW, read=None, forms=No
         return 1, []
 
     def tree(i):
-        return tree_index(starts, i)
+        return tree_index(starts[0], tree_index(starts[1], i))
 
     old_lines = old_text.split('\n')
     lines = pasted.split('\n')
@@ -1369,6 +1459,38 @@ SELF_BRANCH_SPEC = {'forms': {'GetRollExpertise': 1},
         virtual int32 GetRollExpertise(WeaponAttackType /*attType*/) const { return GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25; }''',
                                '        int32 Roll(WeaponAttackType attType) const;')],
                     'changed': [("    // the attacker's expertise", '    // the expertise')]}
+
+
+SELF_MOVED_OLD = '''void Unit::Mod(AuraState flag, bool apply)
+{
+    if (apply)
+    {
+        SetFlag(flag);
+        if (GetTypeId() == TYPEID_PLAYER)
+        {
+            const Map& m = ((Player*)this)->GetMap();
+            for (Map::const_iterator itr = m.begin(); itr != m.end(); ++itr)
+            {
+                if (itr->second == flag)
+                {
+                    CastSpell(this, itr->first, true, NULL);
+                }
+            }
+        }
+    }
+}
+'''
+
+SELF_MOVED_NEW = '\n'.join(SELF_MOVED_OLD.split('\n')[:7] + ['            Cast(flag);']
+                           + SELF_MOVED_OLD.split('\n')[15:])
+
+SELF_MOVED_BODY = 'void Player::Cast(AuraState flag)\n{\n' + '\n'.join(
+    line[8:] for line in SELF_MOVED_OLD.split('\n')[7:15]).replace('((Player*)this)->GetMap()', 'GetMap()') + '\n}\n'
+
+SELF_MOVED_FORMS = {'Cast': {'kind': 'moved', 'direct': 'Cast(', 'cast': '((Player*)this)->GetMap()',
+                             'to': 'Player.cpp',
+                             'header': 'void Player::Cast(AuraState flag)',
+                             'edits': [('((Player*)this)->GetMap()', 'GetMap()')]}}
 
 
 def two_branches(player, unit, sites):
@@ -1844,6 +1966,41 @@ def self_test():
         print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
         if not ok:
             failures.append('%s: rc %d\n%s' % (label, rc, '\n'.join(got)))
+
+    def moved(label, want_rc, needle, swap=('', ''), body=('', ''), window=8):
+        got = []
+        rc = verify('fixture', SELF_MOVED_OLD, SELF_MOVED_NEW.replace(*swap), {'forms': {'Cast': 1}, 'added': [],
+                    'window': {8: window}}, got.append, read={'Player.cpp': SELF_MOVED_BODY.replace(*body)}.__getitem__,
+                    forms=SELF_MOVED_FORMS)
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    moved('a moved block pastes back in place of its statement', 0, 'around 1/1 call(s) pasted back')
+    moved('a moved line changed fails', 1, 'fixture:8: DIFFERS from the base at line 13', body=('true', 'false'))
+    moved('a moved line missing fails', 1, 'DIFFERS from the base at line 11',
+          body=('    if (itr->second == flag)\n', ''))
+    moved('a third edit in the moved block fails', 1, 'DIFFERS from the base at line 9',
+          body=('m.begin()', 'm.cbegin()'))
+    moved('a moved line whose indentation holds a comment fails', 1,
+          'Player.cpp:8: FAILED: the body line', body=('            CastSpell(', '//          CastSpell('))
+    moved('an edit missing from the moved block fails', 1, "the edit 'GetMap()' stands 0 time(s)",
+          body=('GetMap()', 'Map()'))
+    moved('the statement standing outside the window fails', 1, 'DIFFERS from the base at line 7',
+          swap=('            Cast(flag);\n        }\n    }\n', '        }\n    }\n    Cast(flag);\n'))
+    moved('the statement missing fails', 1, '0 call(s) of Cast, expected 1', swap=('            Cast(flag);\n', ''))
+    moved('the statement passing another argument fails', 1, 'does not stand as a whole statement',
+          swap=('Cast(flag)', 'Cast(apply)'))
+    moved('the moved block still standing fails', 1, 'a block the move missed',
+          swap=('    }\n}\n', '    }\n    ((Player*)this)->GetMap();\n}\n'))
+    moved('a line below the statement is named by its working tree line', 1,
+          'fixture:9: DIFFERS from the base at line 16',
+          swap=('            Cast(flag);\n        }', '            Cast(flag);\n        };'))
+    moved('a window that stops short of the block passes a changed last line', 0, 'around 1/1',
+          body=('        }\n    }\n}', '        }\n    } \n}'), window=6)
+    moved('... and the window reaching it fails', 1, 'DIFFERS from the base at line 15',
+          body=('        }\n    }\n}', '        }\n    } \n}'), window=7)
 
     got, sites = prove('fixture', SELF_OLD, SELF_NEW, SELF_SPEC, lambda _: None)
     want = [('HasSpellCooldown', 3, 3, k), ('HasSpellCooldown', 7, 7, k), ('AddSpellCooldown', 13, 13, k)]
