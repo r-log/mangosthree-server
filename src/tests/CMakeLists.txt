@@ -113,6 +113,7 @@ set(SRC_GRP_TESTS
     UnitProcOneOffActionsTest.cpp
     UnitTalentRankTest.cpp
     UnitRuneCooldownTest.cpp
+    UnitAuraStatePassiveCastsTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp
