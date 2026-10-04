@@ -98,7 +98,7 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 431 `WorldPacket data(` sites: session 181, the domain tier 237 (entities 164, 107 of them under
+**Today (packets):** 431 `WorldPacket data(` sites: session 181, the domain tier 237 (entities 164, 108 of them under
 `entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 5), scripts 7, app 4, motion 2. The shared sink
 `ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet.
 
