@@ -2189,7 +2189,7 @@ class Player : public Unit
 
         // Initialize pet spells
         void PetSpellInitialize();
-        void SendPetGUIDs();
+        void SendPetGUIDs() override;
         void CharmSpellInitialize();
 
         // Initialize possess spells
@@ -2783,11 +2783,11 @@ class Player : public Unit
 
         // Notifiers for various attack swing errors
         void SendAttackSwingCantAttack();
-        void SendAttackSwingCancelAttack();
+        void SendAttackSwingCancelAttack() override;
         void SendAttackSwingDeadTarget();
         void SendAttackSwingNotInRange();
         void SendAttackSwingBadFacingAttack();
-        void SendAutoRepeatCancel(Unit* target);
+        void SendAutoRepeatCancel(Unit* target) override;
         void SendExplorationExperience(uint32 Area, uint32 Experience);
 
         // Send dungeon difficulty
@@ -4122,6 +4122,14 @@ class Player : public Unit
         // ModifyAuraState asks for when it sets that aura state; private, so only a call through Unit
         // reaches it
         void CastPassiveSpellsForAuraState(AuraState flag) override;
+
+        // Tells the client the stand state Unit's SetStandState set; private, so only a call through
+        // Unit reaches it
+        void SendStandStateUpdate(uint8 state) override;
+
+        // Tells the client a melee swing error that differs from the last one told and remembers it,
+        // which Unit's UpdateMeleeAttackingState reports; private, so only a call through Unit reaches it
+        void ReportSwingError(uint8 swingError) override;
 
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions

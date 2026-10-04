@@ -3858,6 +3858,39 @@ class Unit : public WorldObject
          * state is the flag
          */
         virtual void CastPassiveSpellsForAuraState(AuraState /*flag*/) { }
+        /**
+         * Tells the client its melee and ranged attack is cancelled; CombatStop and StopAttackFaction
+         * call it on a player.
+         * Does nothing here; Player sends SMSG_CANCEL_COMBAT to its session.
+         */
+        virtual void SendAttackSwingCancelAttack() { }
+        /**
+         * Tells the client its auto-repeat spell is cancelled; InterruptSpell calls it on a player
+         * when it interrupts the auto-repeat spell.
+         * @param target the unit whose guid the packet carries
+         * Does nothing here; Player sends SMSG_CANCEL_AUTO_REPEAT to its session.
+         */
+        virtual void SendAutoRepeatCancel(Unit* /*target*/) { }
+        /**
+         * Tells the client the guid of its pet; SetPet calls it on a player when it sets a pet.
+         * Does nothing here; Player sends SMSG_PET_GUIDS to its session when it has a pet.
+         */
+        virtual void SendPetGUIDs() { }
+        /**
+         * Tells the client its stand state; SetStandState calls it on a player when it sets the state.
+         * @param state the stand state set
+         * Does nothing here; Player sends SMSG_STANDSTATE_UPDATE to its session.
+         */
+        virtual void SendStandStateUpdate(uint8 /*state*/) { }
+        /**
+         * Tells the client a changed melee swing error and remembers it; UpdateMeleeAttackingState
+         * calls it after each melee attack update.
+         * @param swingError 0 for none, 1 out of reach, 2 facing the wrong way
+         * Does nothing here; Player, when the error differs from the last one it told, sends
+         * SMSG_ATTACKSWING_NOTINRANGE for 1 or SMSG_ATTACKSWING_BADFACING for 2 to its session and
+         * remembers the error.
+         */
+        virtual void ReportSwingError(uint8 /*swingError*/) { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);
