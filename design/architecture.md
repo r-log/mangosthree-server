@@ -163,12 +163,12 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 630 member functions, grouped roughly by defining file and name):** combat 155, auras 113, spell
+**Today (`Unit`, 631 member functions, grouped roughly by defining file and name):** combat 156, auras 113, spell
 casting 80, lifecycle and update 80, movement 76, stats and power 69, pets/charm/summons 53, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
-**Today (player-only code in `Unit`):** Unit's 15 files hold 18 `(Player*)this` casts and 214 `TYPEID_PLAYER` tests;
-50 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
+**Today (player-only code in `Unit`):** Unit's 15 files hold 17 `(Player*)this` casts and 213 `TYPEID_PLAYER` tests;
+51 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
 `GetItemByGuid`, the item the proc handlers ask for by guid; what `Mount` and `Unmount` ask of a mounting player:
@@ -191,8 +191,9 @@ cancelled, `SendAttackSwingCancelAttack`; its auto-repeat spell cancelled, `Send
 account security level the GM visibility rule compares: `GetAccountSecurityLevel`; the position `Update`'s
 pending commit and a spline's end write on a player, and whether a player is moving, the auto-repeat update's
 test: `SetPosition`, `isMoving`; the client's control of its own movement, taken and returned by fear and
-confuse: `SetClientControl`; and a player's short teleport on its own map, `NearTeleportTo`'s player arm:
-`TeleportNear`; each with the non-player answer as `Unit`'s default).
+confuse: `SetClientControl`; a player's short teleport on its own map, `NearTeleportTo`'s player arm:
+`TeleportNear`; and the damage a player's hit credits to its battleground score and its achievements,
+`DealDamage`'s player arm: `CreditDamageDealt`; each with the non-player answer as `Unit`'s default).
 The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`; only the aura storage
 (`spells/AuraContainer.h`) and the leaf math (`combat/`) are already home.
 
@@ -339,7 +340,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938) | the Creature fold, only on 4.3.4 evidence |
-| 13 | `Unit`: 18 `(Player*)this` casts, 214 player type tests, 50 Player-only virtuals | Unit reopen |
+| 13 | `Unit`: 17 `(Player*)this` casts, 213 player type tests, 51 Player-only virtuals | Unit reopen |
 | 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/`, `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds only the builders under `session/packets/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
@@ -350,7 +351,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:241`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
-| 24 | `Unit`: five casts return the player itself (`Unit.cpp:1046`, `:3403`, `:3419`, `:4584`, `:5746`); they call no Player method, so the standing shape does not apply | a shape of their own, after the clean clusters (D14) |
+| 24 | `Unit`: four casts of `this` to the player that the standing shape does not fit. The two accessors, `GetCharmerOrOwnerPlayerOrPlayerItself` and its const twin (`Unit.cpp:3389`, `:3405`; the twin's `(Player const*)` cast is outside row 13's count), stay as counted casts: their 53 callers ask one question, "which player gets credit or control for this unit", and its answer becomes a fact on the charm and ownership model. The spell-mod owner, `GetSpellModOwner` (`:5726`), stays until the spell-mod seam, which also closes the radius site (`UnitAuraProcHandler.cpp:1921`) and three `(Player*)m_caster` casts in the spells. The spell damage's player pointer (`:4570`) becomes three getter virtuals and a flag | the accessors: the charm and ownership model's own peer (`social/` or `entities/creature/`); the spell-mod owner: the spell-mod seam, D11 (#142); the spell damage: D14 |
 
 ## Appendix: how each number was measured
 
@@ -387,11 +388,11 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
 - Unit's families:
   `python src/tests/tools/method_count.py --class Unit --header src/game/Object/Unit.h --all --list | python layers.py src unit`.
 - The player-only leaks, with `F="src/game/Object/Unit*.cpp src/game/WorldHandlers/UnitAuraProcHandler.cpp"`:
-  `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (18) and
-  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (214).
+  `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (17) and
+  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (213).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h`, where only a
-  unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (50 of 79).
+  unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (51 of 80).
 - Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/Object/CreatureSpellCooldown.cpp` (6).
 - The threads (section 5): the tick's order is `World::Update` (`WorldHandlers/World.cpp:966`, the `TickGuard::Scope` at the top of its
   body) read top to bottom; the map split is `MapManager::Update` (`WorldHandlers/MapManager.cpp:306`);

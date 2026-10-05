@@ -260,9 +260,9 @@ namespace Harness
             { ACHIEVEMENT_CRITERIA_TYPE_GAIN_HONORED_REPUTATION,    Judge::AnyFaction },
             { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED,   Judge::MoneyMoves },
             { ACHIEVEMENT_CRITERIA_TYPE_RECEIVE_EPIC_ITEM,          Judge::EpicItem },
-            // the spell family (decoupling D11): Unit::DealDamage moves both for every hit the
-            // player deals (Unit.cpp:1108-1109); read as reached by any damage, the loosest sound
-            // bound, so no amount has to be predicted
+            // the spell family: Player::CreditDamageDealt, which Unit::DealDamage calls for every
+            // hit the player deals on another unit, moves both; read as reached by any damage, the
+            // loosest sound bound, so no amount has to be predicted
             { ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE,                Judge::DamageDealt },
             { ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT,          Judge::DamageDealt },
             // D11 PR 2: what scenarios 931-938 move beside it -- the damage the player takes

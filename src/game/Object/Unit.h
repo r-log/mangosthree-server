@@ -3935,6 +3935,15 @@ class Unit : public WorldObject
          * arm; Player teleports itself with its own teleport.
          */
         virtual void TeleportNear(float /*x*/, float /*y*/, float /*z*/, float /*orientation*/, bool /*casting*/) { }
+        /**
+         * Credits the damage this unit dealt to a victim: its battleground score when both are players,
+         * and its achievement criteria; DealDamage calls it on a player that hit another unit.
+         * @param pVictim the unit that took the damage
+         * @param damage the damage dealt
+         * Does nothing here, a unit that is not a player has no score and no criteria; Player credits its
+         * battleground and its achievements.
+         */
+        virtual void CreditDamageDealt(Unit* /*pVictim*/, uint32 /*damage*/) { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

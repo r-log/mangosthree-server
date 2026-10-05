@@ -122,6 +122,7 @@ set(SRC_GRP_TESTS
     UnitPositionAndMovingTest.cpp
     UnitClientControlTest.cpp
     UnitNearTeleportTest.cpp
+    UnitDamageCreditTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

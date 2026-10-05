@@ -146,3 +146,27 @@ void Player::ReportSwingError(uint8 swingError)
         SwingErrorMsg(swingError);
     }
 }
+
+/**
+ * @brief Credits the damage the player dealt to a victim: its battleground score when the victim
+ * is a player too, and its achievement criteria.
+ *
+ * @param pVictim The unit that took the damage.
+ * @param damage The damage dealt.
+ */
+void Player::CreditDamageDealt(Unit* pVictim, uint32 damage)
+{
+
+    // in bg, count dmg if victim is also a player
+    if (pVictim->GetTypeId() == TYPEID_PLAYER)
+    {
+        if (BattleGround* bg = GetBattleGround())
+        {
+            // FIXME: kept by compatibility. don't know in BG if the restriction apply.
+            bg->UpdatePlayerScore(this, SCORE_DAMAGE_DONE, damage);
+        }
+    }
+
+    UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE, damage, 0, pVictim);
+    UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT, damage);
+}

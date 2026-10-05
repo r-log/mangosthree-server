@@ -202,7 +202,11 @@ The near-teleport, Unit.cpp:6519, a `moved` block of one line, stands 2 lines be
 (:6517); the direct spelling of TeleportNear does not stand inside NearTeleportTo, the name of the
 member that calls it. The knockback, Unit.cpp:6629, an inlined block of 7 lines, stands 2 lines
 below its type test (:6627); written back, the block is one line, so a window of 1 already reaches
-past it.
+past it. The damage credit, Unit.cpp:1057, the `dropped` line above a `moved` block of 13 lines,
+stands 2 lines below its type test (:1055) and sets its own window: 14 reaches one line past the
+block's last line (13 below); its cast spelling is the whole dropped line, since the cast alone
+still stands elsewhere in the file, and its two achievement edits name their criteria type, so
+each new spelling stands once in the body.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -409,6 +413,17 @@ FORMS = {
         'to': 'src/game/entities/player/Player.cpp',
         'header': 'void Player::TeleportNear(float x, float y, float z, float orientation, bool casting)',
         'edits': [('((Player*)this)->TeleportTo(', 'TeleportTo(')]},
+    'CreditDamageDealt': {
+        'kind': 'moved', 'direct': 'CreditDamageDealt(', 'cast': 'Player* killer = ((Player*)this);',
+        'dropped': 'Player* killer = ((Player*)this);',
+        'to': 'src/game/entities/player/combat/PlayerCombat.cpp',
+        'header': 'void Player::CreditDamageDealt(Unit* pVictim, uint32 damage)',
+        'edits': [('killer->GetBattleGround()', 'GetBattleGround()'),
+                  ('UpdatePlayerScore(killer, ', 'UpdatePlayerScore(this, '),
+                  ('killer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE, ',
+                   'UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE, '),
+                  ('killer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT, ',
+                   'UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT, ')]},
     'SendStandStateUpdate': {
         'kind': 'moved', 'direct': 'SendStandStateUpdate(', 'cast': '((Player*)this)->GetSession()->SendPacket(&data)',
         'to': 'src/game/entities/player/Player.cpp',
@@ -799,7 +814,17 @@ UNIT_H_NEAR_TELEPORT = '''        /**
          * Does nothing here, a unit that is not a player is relocated in place by NearTeleportTo's other
          * arm; Player teleports itself with its own teleport.
          */
-        virtual void TeleportNear(float /*x*/, float /*y*/, float /*z*/, float /*orientation*/, bool /*casting*/) { }
+        virtual void TeleportNear(float /*x*/, float /*y*/, float /*z*/, float /*orientation*/, bool /*casting*/) { }'''
+
+UNIT_H_DAMAGE_CREDIT = '''        /**
+         * Credits the damage this unit dealt to a victim: its battleground score when both are players,
+         * and its achievement criteria; DealDamage calls it on a player that hit another unit.
+         * @param pVictim the unit that took the damage
+         * @param damage the damage dealt
+         * Does nothing here, a unit that is not a player has no score and no criteria; Player credits its
+         * battleground and its achievements.
+         */
+        virtual void CreditDamageDealt(Unit* /*pVictim*/, uint32 /*damage*/) { }
 
     public:'''
 
@@ -854,6 +879,11 @@ PLAYER_H_NEAR_TELEPORT = '''
         // Unit's NearTeleportTo asks for; private, so only a call through Unit reaches it
         void TeleportNear(float x, float y, float z, float orientation, bool casting) override;'''
 
+PLAYER_H_DAMAGE_CREDIT = '''
+        // Credits the damage the player dealt to a victim, its battleground score and its achievement
+        // criteria, which Unit's DealDamage asks for; private, so only a call through Unit reaches it
+        void CreditDamageDealt(Unit* pVictim, uint32 damage) override;'''
+
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
 # window is not WINDOW, by base line, whether it `declares` the overrides, and the lines that
@@ -878,7 +908,7 @@ FILES = {
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
                    + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS
                    + '\n' + UNIT_H_ACCOUNT_SECURITY + '\n' + UNIT_H_POSITION_AND_MOVING
-                   + '\n' + UNIT_H_CLIENT_CONTROL + '\n' + UNIT_H_NEAR_TELEPORT,
+                   + '\n' + UNIT_H_CLIENT_CONTROL + '\n' + UNIT_H_NEAR_TELEPORT + '\n' + UNIT_H_DAMAGE_CREDIT,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -890,7 +920,7 @@ FILES = {
                    'directly.'),
                   (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN
                    + '\n' + PLAYER_H_AURA_STATE_CASTS + '\n' + PLAYER_H_OWN_SESSION_PACKETS
-                   + '\n' + PLAYER_H_ACCOUNT_SECURITY + '\n' + PLAYER_H_NEAR_TELEPORT,
+                   + '\n' + PLAYER_H_ACCOUNT_SECURITY + '\n' + PLAYER_H_NEAR_TELEPORT + '\n' + PLAYER_H_DAMAGE_CREDIT,
                    '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
@@ -978,7 +1008,7 @@ FILES = {
                   'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1,
                   'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1,
                   'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1, 'TeleportNear': 1,
-                  'SendKnockBack': 1},
+                  'SendKnockBack': 1, 'CreditDamageDealt': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
                      '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())'),
@@ -988,7 +1018,8 @@ FILES = {
                     ('        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))',
                      '        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())')],
         'folded': {'ReportGroupStat': [1], 'ReportOwnerGroupStat': [0, 1, 2, 3], 'ReportPetGroupAura': [0]},
-        'window': {626: 13, 960: 17, 975: 32, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
+        'window': {626: 13, 960: 17, 975: 32, 1057: 14, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15,
+                   4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
         'added': []},
