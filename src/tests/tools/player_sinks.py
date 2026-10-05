@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""player_sinks.py [--root <repo root>] --check | --self-test: every player gets the session's callbacks.
+"""player_sinks.py [--root <repo root>] --check | --self-test: every player gets the session's callbacks, and
+the player's group-callback pointer is set last in its constructor and cleared last in its destructor.
 
 Every `new Player(` under src/ -- placement (`new (std::nothrow) Player(`), qualified (`new ::Player(`) and
 make_unique/make_shared<Player> included, the SD3 scripts too -- assigns the player to a variable, and
@@ -7,6 +8,12 @@ make_unique/make_shared<Player> included, the SD3 scripts too -- assigns the pla
 of the `new` itself does not count and fails.
 The number of creation sites is fixed at SITES: a new site fails until it installs the callbacks and SITES is
 raised with it, and a removed site fails until SITES is lowered.
+
+In src/game/entities/player/Player.cpp the last statement of the body of `Player::Player(` (its definition
+header at column 0, the body read by brace matching from the `{` that follows) is `m_groupCallbacks =
+&m_groupSinks;`, and the last statement of `Player::~Player(`'s body is `m_groupCallbacks = NULL;`: after it
+only whitespace and the body's closing brace at column 0 follow. No other `m_groupCallbacks =` stands under
+src/; an initialiser `m_groupCallbacks(NULL)` is not an assignment. Comments and literals are ignored.
 
 Not caught: a player created through a macro or a factory function, and an install made on another path
 before the player is used.
@@ -56,6 +63,14 @@ WINDOW = 3
 CREATE = re.compile(r'\bnew\b\s*(?:\([^()]*\)\s*)?(?:::\s*)?Player\s*\(|\bmake_(?:unique|shared)\s*<\s*Player\s*>\s*\(')
 ASSIGNED = re.compile(r'(\w+)\s*(?:=|\()\s*(?:std\s*::\s*)?$')
 
+PLAYER_CPP = 'src/game/entities/player/Player.cpp'
+POINTER = re.compile(r'\bm_groupCallbacks\s*=(?!=)')
+PINS = (
+    ('Player::Player(', re.compile(r'\bm_groupCallbacks\s*=\s*&\s*m_groupSinks\s*;'),
+     'm_groupCallbacks = &m_groupSinks;'),
+    ('Player::~Player(', re.compile(r'\bm_groupCallbacks\s*=\s*NULL\s*;'), 'm_groupCallbacks = NULL;'),
+)
+
 
 def sites(text):
     """[(line, installed)] for each player creation, comments and literals ignored."""
@@ -74,10 +89,58 @@ def sites(text):
     return found
 
 
-def scan(root):
-    """[(path, line, installed)] of every creation under src/, and the number of files read."""
-    out = []
-    files = 0
+def pins(text):
+    """([(line, message)] failures, {lines of the pinned statements that stand last}) for Player.cpp's text."""
+    clean = case_labels.blank(text)
+    failures = []
+    pinned = set()
+    for header, statement, spelled in PINS:
+        name = header[:-1]
+        m = re.search(r'^' + re.escape(header), clean, re.M)
+        if not m:
+            failures.append((1, 'no definition header `%s` at column 0' % header))
+            continue
+        head_line = clean.count('\n', 0, m.start()) + 1
+        opened = clean.find('{', m.end())
+        closed = -1
+        depth = 0
+        for i in range(max(opened, 0), len(clean)):
+            if clean[i] == '{':
+                depth += 1
+            elif clean[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    closed = i
+                    break
+        if opened < 0 or closed < 0:
+            failures.append((head_line, '%s has no brace-matched body' % name))
+            continue
+        if clean[closed - 1] != '\n':
+            failures.append((clean.count('\n', 0, closed) + 1,
+                             "the closing brace of %s's body is not at column 0" % name))
+            continue
+        found = list(statement.finditer(clean, opened + 1, closed))
+        if not found:
+            failures.append((head_line, "%s's body does not end with `%s`" % (name, spelled)))
+            continue
+        last = found[-1]
+        line = clean.count('\n', 0, last.start()) + 1
+        before = clean[opened + 1:last.start()].rstrip()
+        if clean[last.end():closed].strip() or (before and before[-1] not in ';{}'):
+            failures.append((line, "`%s` is not the last statement of %s's body; set it last" % (spelled, name)))
+            continue
+        pinned.add(line)
+    return failures, pinned
+
+
+def assignments(text):
+    """[line] of every assignment to m_groupCallbacks, comments and literals ignored."""
+    clean = case_labels.blank(text)
+    return [clean.count('\n', 0, m.start()) + 1 for m in POINTER.finditer(clean)]
+
+
+def sources(root):
+    """(path, text) of every scanned file under src/."""
     top = os.path.join(root, *SCOPE.rstrip('/').split('/'))
     for d, dirs, names in os.walk(top):
         dirs.sort()
@@ -88,15 +151,42 @@ def scan(root):
             rel = os.path.relpath(path, root).replace(os.sep, '/')
             if rel.startswith(EXCLUDED):
                 continue
-            files += 1
             with open(path, encoding='utf-8', errors='replace', newline='') as fh:
-                for line, installed in sites(fh.read()):
-                    out.append((rel, line, installed))
-    return out, files
+                yield rel, fh.read()
+
+
+def scan(root):
+    """[(path, line, installed)] of every creation under src/, the number of files read, and
+    [(path, line, message)] of every group-callback pointer failure."""
+    out = []
+    files = 0
+    pointer = []
+    player_cpp = None
+    assigned = []
+    for rel, text in sources(root):
+        files += 1
+        for line, installed in sites(text):
+            out.append((rel, line, installed))
+        if rel == PLAYER_CPP:
+            player_cpp = text
+        for line in assignments(text):
+            assigned.append((rel, line))
+    pinned = set()
+    if player_cpp is None:
+        if files:
+            pointer.append((PLAYER_CPP, 0, 'not found; the group-callback pointer cannot be checked'))
+    else:
+        failures, pinned = pins(player_cpp)
+        pointer.extend((PLAYER_CPP, line, message) for line, message in failures)
+    for rel, line in assigned:
+        if rel != PLAYER_CPP or line not in pinned:
+            pointer.append((rel, line, 'm_groupCallbacks is assigned here; only the last statements of '
+                            "Player::Player's and Player::~Player's bodies assign it"))
+    return out, files, pointer
 
 
 def check(root, out=print, expected=SITES):
-    found, files = scan(root)
+    found, files, pointer = scan(root)
     if files == 0:
         out('PlayerSinks: read no file under %s/%s -- a gate that scans nothing passes nothing' % (root, SCOPE))
         return 1
@@ -110,10 +200,13 @@ def check(root, out=print, expected=SITES):
         out('PlayerSinks: %d player creation site(s), SITES is %d; set SITES to the count in the same change'
             % (len(found), expected))
         failed = True
+    for rel, line, message in pointer:
+        out('%s:%d: %s' % (rel, line, message))
+        failed = True
     if failed:
         return 1
-    out('PlayerSinks OK: %d files under %s, %d player creation sites, each installs the session callbacks'
-        % (files, SCOPE, len(found)))
+    out('PlayerSinks OK: %d files under %s, %d player creation sites, each installs the session callbacks; '
+        'the group-callback pointer is set and cleared last in %s' % (files, SCOPE, len(found), PLAYER_CPP))
     return 0
 
 
@@ -165,8 +258,46 @@ def self_test():
         if got != want:
             failures.append('check %s: rc %d, expected %d (%s)' % (label, got, want, ' | '.join(lines)))
 
+    ctor = 'Player::Player(WorldSession* s): Unit(), m_camera(this)\n{\n    m_slot = 255;\n\n    %s\n}\n\n'
+    dtor = 'Player::~Player()\n{\n    CleanupsBeforeDelete();\n    %s\n}\n'
+    sets = 'm_groupCallbacks = &m_groupSinks;'
+    clears = '// the cleanups report\n    m_groupCallbacks = NULL;'
+    player = ctor % sets + dtor % clears
+
+    def expect_pins(label, text, want):
+        got = [line for line, message in pins(text)[0]]
+        if got != want:
+            failures.append('pins %s: failures at %r, expected %r' % (label, got, want))
+
+    expect_pins('the set and the clear last', player, [])
+    expect_pins('the clear followed by a statement', ctor % sets + dtor % (clears + '\n    delete m_x;'), [12])
+    expect_pins('the clear at the top',
+                ctor % sets + 'Player::~Player()\n{\n    m_groupCallbacks = NULL;\n'
+                '    CleanupsBeforeDelete();\n}\n', [10])
+    expect_pins('the clear missing', ctor % sets + dtor % '', [8])
+    expect_pins('the set missing', ctor % '' + dtor % clears, [1])
+    expect_pins('the set inside a nested block',
+                ctor % ('if (a)\n    {\n        %s\n    }' % sets) + dtor % clears, [7])
+    expect_pins('the clear commented out', ctor % sets + dtor % '// m_groupCallbacks = NULL;', [8])
+    expect_pins('the clear as nullptr', ctor % sets + dtor % 'm_groupCallbacks = nullptr;', [8])
+    expect_pins('no destructor', ctor % sets, [1])
+    expect_pins('an indented closing brace',
+                ctor % sets + 'Player::~Player()\n{\n    m_groupCallbacks = NULL;\n    }\n', [11])
+
+    def expect_assignments(label, text, want):
+        got = assignments(text)
+        if got != want:
+            failures.append('assignments %s: %r, expected %r' % (label, got, want))
+
+    expect_assignments('the initialiser, comparisons, a comment and a literal',
+                       'm_groupCallbacks(NULL),\nif (m_groupCallbacks == NULL)\nx = m_groupCallbacks != NULL;\n'
+                       '// m_groupCallbacks = q;\nconst char* t = "m_groupCallbacks = q;";\n', [])
+    expect_assignments('qualified and unspaced', 'this->m_groupCallbacks = q;\nUnit::m_groupCallbacks=NULL;\n', [1, 2])
+
     good = 'Player* p = new Player(s);\n' + install
-    three = {'src/game/WorldHandlers/CharacterHandler.cpp': good + good, 'src/game/Harness/Scenario.cpp': good}
+    three = {'src/game/WorldHandlers/CharacterHandler.cpp': good + good, 'src/game/Harness/Scenario.cpp': good,
+             PLAYER_CPP: player,
+             'src/game/Object/Unit.cpp': 'Unit::Unit() :\n    m_groupCallbacks(NULL),\n    m_x(0)\n{\n}\n'}
     expect_check('the three installed sites pass', three, 0)
     expect_check('a fourth site without the install fails',
                  dict(three, **{'src/modules/SD3/a.cpp': 'Player* p = new Player(s);\np->Create();\n'}), 1)
@@ -177,6 +308,18 @@ def self_test():
     expect_check('a removed site fails until SITES is lowered', {'src/game/Harness/Scenario.cpp': good}, 1)
     expect_check('an empty scan fails', {'other/A.cpp': good}, 1)
     expect_check('the tools are not read', dict(three, **{'src/tests/tools/x.inc': 'Player* p = new Player(s);\n'}), 0)
+    expect_check('the set and the clear in place, the initialiser in Unit.cpp, pass', three, 0)
+    expect_check('the clear followed by another statement fails',
+                 dict(three, **{PLAYER_CPP: ctor % sets + dtor % (clears + '\n    delete m_x;')}), 1)
+    expect_check('the clear missing fails', dict(three, **{PLAYER_CPP: ctor % sets + dtor % ''}), 1)
+    expect_check('the set missing fails', dict(three, **{PLAYER_CPP: ctor % '' + dtor % clears}), 1)
+    expect_check('an assignment in another file fails',
+                 dict(three, **{'src/game/Object/Unit.cpp': 'Unit::~Unit()\n{\n    m_groupCallbacks = NULL;\n}\n'}), 1)
+    expect_check('a second assignment in Player.cpp fails',
+                 dict(three, **{PLAYER_CPP: player + 'void Player::F()\n{\n    m_groupCallbacks = NULL;\n}\n'}), 1)
+    expect_check('Player.cpp missing fails', {k: v for k, v in three.items() if k != PLAYER_CPP}, 1)
+    expect_check('an assignment in the tools is not read',
+                 dict(three, **{'src/tests/tools/x.inc': 'm_groupCallbacks = NULL;\n'}), 0)
 
     for f in failures:
         print('self-test: ' + f)

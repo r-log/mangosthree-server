@@ -73,6 +73,22 @@ text, like a CHANGED line: a `moved` FORM with a `body` (the body's lines as the
 `body`, or it fails, named with its first differing line in `to`, and `base_body` is written back
 in the statement's place instead of the body, so a wrong `base_body` is a difference in the window.
 
+A `reported` FORM is a whole statement `<direct><fact>{<args>});` standing inside its kept type guard
+where a test of the player's group and its writes stood, which are now the body of a callback in
+the file `to` (the lines between the `{` directly below the callback's head, `lambda`, which stands
+once there, and the `};` at the head's indentation). The body is written back in the statement's
+place: each line at the statement's indentation instead of the body's, its receiver (`owner->`)
+read as the receiver the site cast and each `fact.<field>` as the statement's argument in that
+place, so a wrong flag or a body line changed is a difference in the window; the body must use the
+receiver and every field. A `dropped` line stands above the body as for a `moved` FORM. A
+statement listed in its file's `folded` (by its order among its FORM's statements) stood for the
+body's opening test folded into its guard: only the lines inside that test are written back, and
+the guard two lines above must be listed as a CHANGED line whose base reads
+`if ((<the guard's condition>) && <the test>)`. Its site is the line holding its cast spelling,
+which must stand nowhere in the working tree. A file's `deleted` names the header of each member
+deleted whole: it stands once at BASE with a body and nowhere in the working tree, and the cast
+spellings inside that body at BASE are no sites.
+
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
 UnitAuraProcHandler.cpp:2822 under the type return at :2811); the rest stand within 6 lines
@@ -145,7 +161,12 @@ direct spelling names Unit's own member, which the cast reached through Player. 
 sites in the fear and confuse states stand within 3 lines of their type tests: UnitSpeed.cpp:360,
 a fear's take, 3 below :357, :431, its return, 2 below :429, and the confuse's take and return,
 :463 3 below :460 and :504 2 below :502; their direct spelling of SetClientControl carries its
-leading space, since Unit.cpp calls it seven times through Player pointers.
+leading space, since Unit.cpp calls it seven times through Player pointers. The group update sites
+stand within 4 lines of their type tests: Unit.cpp:2886, :4928 and :4960 and UnitPower.cpp:168,
+:223 and :261 4 below theirs (:2882, :4924, :4956, :164, :219 and :257), :4904 2 below the guard
+its group test is folded into (:4902), and :6302, the dropped line above a block of 5, 2 below its
+own (:6300); UnitPower.cpp:294, the fourth cast of the stat form there, stands in the deleted
+ApplyMaxPowerMod.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -363,6 +384,17 @@ FORMS = {
                   ('player->SendAttackSwingNotInRange()', 'SendAttackSwingNotInRange()'),
                   ('player->SendAttackSwingBadFacingAttack()', 'SendAttackSwingBadFacingAttack()'),
                   ('player->SwingErrorMsg(swingError)', 'SwingErrorMsg(swingError)')]},
+    'ReportGroupStat': {
+        'kind': 'reported', 'direct': 'ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, ',
+        'cast': '((Player*)this)->SetGroupUpdateFlag(', 'fact': 'GroupStatFact', 'fields': ['flag'],
+        'to': 'src/game/WorldHandlers/Group.h', 'lambda': '    callbacks.stat = [owner](auto const& fact)',
+        'receiver': ('owner->', '((Player*)this)->')},
+    'ReportGroupAura': {
+        'kind': 'reported', 'direct': 'ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).aura, ',
+        'cast': 'Player* player = (Player*)this;', 'dropped': 'Player* player = (Player*)this;',
+        'fact': 'GroupAuraFact', 'fields': ['flag', 'slot'],
+        'to': 'src/game/WorldHandlers/Group.h', 'lambda': '    callbacks.aura = [owner](auto const& fact)',
+        'receiver': ('owner->', 'player->')},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -862,8 +894,11 @@ FILES = {
                   'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1,
                   'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1, 'SendAttackSwingCancelAttack': 2,
                   'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1,
-                  'SetPosition': 2, 'isMoving': 1},
+                  'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
+        'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
+                     '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())')],
+        'folded': {'ReportGroupStat': [1]},
         'window': {626: 13, 960: 17, 975: 32, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
@@ -881,8 +916,9 @@ FILES = {
                      '        armorPenetrationPct = ((Player*)this)->GetArmorPenetrationPct();'
                      + ' ' * 62 + '// E2b, same guard')]},
     'src/game/Object/UnitPower.cpp': {
-        'forms': {'getClass': 5},
-        'added': []},
+        'forms': {'getClass': 5, 'ReportGroupStat': 3},
+        'added': [],
+        'deleted': ['void Unit::ApplyMaxPowerMod(Powers power, uint32 val, bool apply)']},
     'src/game/Object/UnitSpellBonus.cpp': {
         'forms': {'GetBaseSpellPowerBonus': 2, 'GetKnownTalentRankById': 1},
         'added': []},
@@ -1119,13 +1155,49 @@ def paste_moved(rel, text, spec, out, read, forms):
             return fail('%s: FAILED: %r still stands: a block the move missed' % (rel, form['cast']))
         params = form['header'][form['header'].index('(') + 1:form['header'].rindex(')')]
         moved[name] = (form, lines, ', '.join(p.split()[-1].lstrip('*&') for p in params.split(',') if p.strip()))
+    for name in sorted(n for n in spec['forms'] if forms[n].get('kind') == 'reported'):
+        form = forms[name]
+        body = read(form['to']).split('\n')
+        heads = [i for i, line in enumerate(body) if line == form['lambda']]
+        indent = form['lambda'][:len(form['lambda']) - len(form['lambda'].lstrip())]
+        if len(heads) != 1 or body[heads[0] + 1:heads[0] + 2] != [indent + '{'] or indent + '};' not in body[heads[0]:]:
+            return fail('%s: FAILED: %d callback(s) %r with a body, expected 1'
+                        % (form['to'], len(heads), form['lambda']))
+        end = body.index(indent + '};', heads[0])
+        for i in range(heads[0] + 2, end):
+            if body[i] and not body[i].startswith(indent + '    '):
+                return fail('%s:%d: FAILED: the body line %r of %r does not start with four spaces'
+                            % (form['to'], i + 1, body[i], form['lambda']))
+        lines = ['    ' + b[len(indent) + 4:] if b else b for b in body[heads[0] + 2:end]]
+        uses = [form['receiver'][0]] + ['fact.' + f for f in form['fields']]
+        if any(u not in '\n'.join(lines) for u in uses):
+            return fail('%s: FAILED: the body of %r does not use each of %s'
+                        % (form['to'], form['lambda'], ', '.join(uses)))
+        if 'dropped' in form:
+            if form['cast'] not in form['dropped']:
+                return fail('%s: FAILED: the dropped line %r holds no %r' % (rel, form['dropped'], form['cast']))
+            if form['dropped'] in text:
+                return fail('%s: FAILED: the dropped line %r still stands' % (rel, form['dropped']))
+        if form['cast'] in text:
+            return fail('%s: FAILED: %r still stands: a site the seam missed' % (rel, form['cast']))
+        moved[name] = (form, lines, None)
     pasted, starts, found = [], [], dict((name, 0) for name in moved)
-    for at, line in enumerate(text.split('\n')):
+    tree = text.split('\n')
+    for at, line in enumerate(tree):
         hit = [name for name in moved if moved[name][0]['direct'] in line]
         if not hit:
             pasted.append(line)
             continue
         form, block, names = moved[hit[0]]
+        if form['kind'] == 'reported':
+            block = reported_block(rel, at, tree, form, block,
+                                   found[hit[0]] in spec.get('folded', {}).get(hit[0], ()), spec, out)
+            if block is None:
+                return 1, text, 0, []
+            starts.append((len(pasted), len(block)))
+            pasted += [re.match(r'^(\s*)', line).group(1) + b[4:] if b else b for b in block]
+            found[hit[0]] += 1
+            continue
         m = re.match(r'^(\s*)' + re.escape(form['direct']) + r'(.*)\);$', line)
         if len(hit) > 1 or not m or m.group(2) != names:
             return fail("%s:%d: FAILED: %s( does not stand as a whole statement passing the parameters of %r"
@@ -1139,6 +1211,42 @@ def paste_moved(rel, text, spec, out, read, forms):
     return 0, '\n'.join(pasted), sum(found.values()), starts
 
 
+def reported_block(rel, at, tree, form, body, folded, spec, out):
+    """The lines (four-space relative) the reported statement at tree index AT stands for: the
+    callback's BODY with its receiver read as the cast and each `fact.<field>` as the statement's
+    argument, below the dropped line if any; FOLDED, only the lines inside the body's opening
+    test, whose condition stood in the guard two lines above (a listed CHANGED line). None after
+    naming why."""
+    m = re.match(r'^(\s*)' + re.escape(form['direct'] + form['fact']) + r'\{(.*)\}\);$', tree[at])
+    args = m.group(2).split(', ') if m else []
+    if len(args) != len(form['fields']):
+        out('%s:%d: FAILED: %s does not stand as a whole statement reporting a %s of %d argument(s)'
+            % (rel, at + 1, form['direct'].rstrip(', '), form['fact'], len(form['fields'])))
+        return None
+    lines = []
+    for b in body:
+        b = b.replace(form['receiver'][0], form['receiver'][1])
+        for field, arg in zip(form['fields'], args):
+            b = b.replace('fact.' + field, arg)
+        lines.append(b)
+    if folded:
+        test = re.match(r'^    if \((.*)\)$', lines[0]) if len(lines) > 3 else None
+        guard = re.match(r'^(\s*)if \((.*)\)$', tree[at - 2]) if at >= 2 else None
+        if not test or lines[1] != '    {' or lines[-1] != '    }' or not guard or tree[at - 1] != guard.group(1) + '{':
+            out('%s:%d: FAILED: a folded %s does not stand under a guard, or its body opens with no test'
+                % (rel, at + 1, form['direct'].rstrip(', ')))
+            return None
+        base = '%sif ((%s) && %s)' % (guard.group(1), guard.group(2), test.group(1))
+        if (tree[at - 2], base) not in spec.get('changed', []):
+            out('%s:%d: FAILED: the folded guard %r is not listed as changed from %r'
+                % (rel, at - 1, tree[at - 2], base))
+            return None
+        lines = ['    ' + b[8:] if b else b for b in lines[2:-1]]
+    if 'dropped' in form:
+        lines = ['    ' + form['dropped']] + lines
+    return lines
+
+
 def paste_back(rel, text, spec, out, read=None, forms=None):
     """(rc, text with every FORM written back, the number of calls written back, the (first index,
     line count) of each `moved` block and of each `branch` site, as two lists, {branch form: the
@@ -1149,7 +1257,7 @@ def paste_back(rel, text, spec, out, read=None, forms=None):
         return 1, text, sites, [], {}
     for name, want in sorted(spec['forms'].items()):
         form = forms[name]
-        if form.get('kind') in ('branch', 'moved'):
+        if form.get('kind') in ('branch', 'moved', 'reported'):
             continue
         if form['cast'] in text:
             out('%s: FAILED: %d call(s) still spelled %r: a site the rewrite missed'
@@ -1208,11 +1316,18 @@ def pair_sites(rel, old_text, pasted, spec, out, read=None, forms=None, by_form=
     forms = FORMS if forms is None else forms
     by_form = by_form or {}
     pairs = []
+    old_lines, new_lines, gone = old_text.split('\n'), pasted.split('\n'), set()
+    for header in spec.get('deleted', []):
+        if old_lines.count(header) != 1 or header in new_lines or '}' not in old_lines[old_lines.index(header):]:
+            out('%s: FAILED: the deleted member %r stands %d time(s) at the base with a body and %d in the working '
+                'tree, expected once and none' % (rel, header, old_lines.count(header), new_lines.count(header)))
+            return 1, pairs
+        gone.update(range(old_lines.index(header), old_lines.index('}', old_lines.index(header)) + 1))
     for name, want in sorted(spec['forms'].items()):
         cast = cast_of(name, forms[name], read, out)
         if cast is None:
             return 1, pairs
-        olds = [line_of(old_text, i) - 1 for i in find_all(old_text, cast)]
+        olds = [o for o in (line_of(old_text, i) - 1 for i in find_all(old_text, cast)) if o not in gone]
         if len(olds) != want:
             out('%s: FAILED: %d cast call(s) of %s at the base, the spec lists %d' % (rel, len(olds), name, want))
             return 1, pairs
@@ -1721,6 +1836,119 @@ SELF_DROPPED_FORM = {'kind': 'moved', 'direct': 'Report(',
                      'to': 'Player.cpp', 'header': 'void Player::Report(uint8 error)',
                      'edits': [('player->LastError()', 'LastError()'), ('if (player && error != ', 'if (error != '),
                                ('player->SendError(', 'SendError('), ('player->SetLastError(', 'SetLastError(')]}
+
+SELF_REPORTED_OLD = '''void Unit::SetHealth(uint32 val)
+{
+    SetValue(val);
+
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        if (((Player*)this)->GetGroup())
+        {
+            ((Player*)this)->SetGroupUpdateFlag(FLAG_HP);
+        }
+    }
+}
+
+void Unit::SetLevel(uint32 lvl)
+{
+    SetValue(lvl);
+
+    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())
+    {
+        ((Player*)this)->SetGroupUpdateFlag(FLAG_LEVEL);
+    }
+}
+
+void Unit::UpdateAura(uint8 slot)
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        Player* player = (Player*)this;
+        if (player->GetGroup())
+        {
+            player->SetGroupUpdateFlag(FLAG_AURAS);
+            player->SetAuraUpdateMask(slot);
+        }
+    }
+}
+
+void Unit::Unused(uint32 val)
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        if (((Player*)this)->GetGroup())
+        {
+            ((Player*)this)->SetGroupUpdateFlag(FLAG_MAX);
+        }
+    }
+}
+'''
+
+SELF_REPORTED_NEW = '''void Unit::SetHealth(uint32 val)
+{
+    SetValue(val);
+
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        Report(Of(m).stat, Stat{FLAG_HP});
+    }
+}
+
+void Unit::SetLevel(uint32 lvl)
+{
+    SetValue(lvl);
+
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        Report(Of(m).stat, Stat{FLAG_LEVEL});
+    }
+}
+
+void Unit::UpdateAura(uint8 slot)
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        Report(Of(m).aura, Aura{FLAG_AURAS, slot});
+    }
+}
+'''
+
+SELF_REPORTED_BODY = '''template <class C, class O>
+C For(O* owner)
+{
+    C c;
+    c.stat = [owner](auto const& fact)
+    {
+        if (owner->GetGroup())
+        {
+            owner->SetGroupUpdateFlag(fact.flag);
+        }
+    };
+    c.aura = [owner](auto const& fact)
+    {
+        if (owner->GetGroup())
+        {
+            owner->SetGroupUpdateFlag(fact.flag);
+            owner->SetAuraUpdateMask(fact.slot);
+        }
+    };
+    return c;
+}
+'''
+
+SELF_REPORTED_FORMS = {
+    'Stat': {'kind': 'reported', 'direct': 'Report(Of(m).stat, ', 'cast': '((Player*)this)->SetGroupUpdateFlag(',
+             'fact': 'Stat', 'fields': ['flag'], 'to': 'Group.h', 'lambda': '    c.stat = [owner](auto const& fact)',
+             'receiver': ('owner->', '((Player*)this)->')},
+    'Aura': {'kind': 'reported', 'direct': 'Report(Of(m).aura, ', 'cast': 'Player* player = (Player*)this;',
+             'dropped': 'Player* player = (Player*)this;', 'fact': 'Aura', 'fields': ['flag', 'slot'], 'to': 'Group.h',
+             'lambda': '    c.aura = [owner](auto const& fact)', 'receiver': ('owner->', 'player->')}}
+
+SELF_REPORTED_SPEC = {'forms': {'Stat': 2, 'Aura': 1}, 'added': [],
+                      'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
+                                   '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())')],
+                      'folded': {'Stat': [1]}, 'deleted': ['void Unit::Unused(uint32 val)']}
 
 
 def two_branches(player, unit, sites):
@@ -2277,6 +2505,45 @@ def self_test():
             body=('    }\n}', '    }\n    Pick();\n}'), window=5)
     dropped('... and the window one line past it fails', 1, 'DIFFERS from the base at line 11',
             body=('    }\n}', '    }\n    Pick();\n}'))
+
+    def reported(label, want_rc, needle, swap=('', ''), body=('', ''), spec=None):
+        got = []
+        rc = verify('fixture', SELF_REPORTED_OLD, SELF_REPORTED_NEW.replace(*swap),
+                    dict(SELF_REPORTED_SPEC, **(spec or {})), got.append, window=6,
+                    read={'Group.h': SELF_REPORTED_BODY.replace(*body)}.__getitem__, forms=SELF_REPORTED_FORMS)
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    reported('reported facts paste back as their callbacks, one folded into its guard', 0,
+             'around 3/3 call(s) pasted back, with 0 added line(s) dropped and 1 changed')
+    reported('a callback body line changed fails', 1, 'fixture:7: DIFFERS from the base at line 9',
+             body=('SetGroupUpdateFlag(fact.flag);\n        }\n    };\n    c.aura',
+                   'SetGroupUpdateFlag(fact.flag | 1);\n        }\n    };\n    c.aura'))
+    reported('the wrong flag at a site fails', 1, 'fixture:7: DIFFERS from the base at line 9',
+             swap=('Stat{FLAG_HP}', 'Stat{FLAG_MAX}'))
+    reported('the aura callback reporting a stat fails', 1, 'does not stand as a whole statement reporting a Aura',
+             swap=('Report(Of(m).stat, Stat{FLAG_HP})', 'Report(Of(m).aura, Stat{FLAG_HP})'))
+    reported('the type guard dropped fails', 1, 'fixture:5: DIFFERS from the base at line 8',
+             swap=('    if (GetTypeId() == TYPEID_PLAYER)\n    {\n        Report(Of(m).stat, Stat{FLAG_HP});\n    }\n',
+                   '    Report(Of(m).stat, Stat{FLAG_HP});\n'))
+    reported('the statement outside its guard fails', 1, 'fixture:8: DIFFERS from the base at line 8',
+             swap=('        Report(Of(m).stat, Stat{FLAG_HP});\n    }\n',
+                   '    }\n    Report(Of(m).stat, Stat{FLAG_HP});\n'))
+    reported('a folded guard not listed as changed fails', 1, 'is not listed as changed from', spec={'changed': []})
+    reported('the folded site not listed as folded fails', 1, 'fixture:17: DIFFERS from the base at line 19',
+             spec={'folded': {}})
+    reported('a callback that does not use its fact fails', 1, 'does not use each of',
+             body=('owner->SetAuraUpdateMask(fact.slot)', 'owner->SetAuraUpdateMask(0)'))
+    reported('a cast pair left standing fails', 1, 'still stands: a site the seam missed',
+             swap=('    SetValue(lvl);\n', '    SetValue(lvl);\n    ((Player*)this)->SetGroupUpdateFlag(0);\n'))
+    reported('a dropped line left standing fails', 1, 'still stands',
+             swap=('        Report(Of(m).aura', '        Player* player = (Player*)this;\n        Report(Of(m).aura'))
+    reported('the casts of a member deleted whole are no sites', 1,
+             '3 cast call(s) of Stat at the base, the spec lists 2', spec={'deleted': []})
+    reported('a deleted member still standing fails', 1, 'the deleted member',
+             swap=('void Unit::UpdateAura', 'void Unit::Unused(uint32 val)\n{\n}\n\nvoid Unit::UpdateAura'))
 
     got, sites = prove('fixture', SELF_OLD, SELF_NEW, SELF_SPEC, lambda _: None)
     want = [('HasSpellCooldown', 3, 3, k), ('HasSpellCooldown', 7, 7, k), ('AddSpellCooldown', 13, 13, k)]

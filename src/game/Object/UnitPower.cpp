@@ -37,6 +37,7 @@
 #include "Creature.h"
 #include "Pet.h"
 #include "Group.h"
+#include "entities/GroupUpdateFacts.h"
 #include "DBCStores.h"
 #include "WorldPacket.h"
 
@@ -163,10 +164,7 @@ void Unit::SetPowerByIndex(uint32 powerIndex, int32 val)
     // group update
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)this)->GetGroup())
-        {
-            ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_CUR_POWER);
-        }
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_CUR_POWER});
     }
     else if (IsPet())
     {
@@ -218,10 +216,7 @@ void Unit::SetMaxPowerByIndex(uint32 powerIndex, int32 val)
     // group update
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)this)->GetGroup())
-        {
-            ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_MAX_POWER);
-        }
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_MAX_POWER});
     }
     else if (IsPet())
     {
@@ -256,10 +251,7 @@ void Unit::ApplyPowerMod(Powers power, uint32 val, bool apply)
     // group update
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)this)->GetGroup())
-        {
-            ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_CUR_POWER);
-        }
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_CUR_POWER});
     }
     else if (IsPet())
     {

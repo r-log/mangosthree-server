@@ -75,9 +75,9 @@ Callbacks ClientCallbacksToSession(Owner* owner)
     return callbacks;
 }
 
-/// Gives `player` every callback the session installs: the cooldown callbacks and those of its
-/// own client. Every place that creates a player calls it right after the construction, before
-/// the player is loaded, created or used.
+/// Gives `player` every callback the session installs: the cooldown callbacks, those of its own
+/// client and those of its group updates. Every place that creates a player calls it right after the
+/// construction, before the player is loaded, created or used.
 void InstallPlayerPacketSinks(Player& player);
 
 #endif

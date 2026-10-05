@@ -26,10 +26,13 @@
 #include "PlayerPacketSinks.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "Group.h"
+#include "Pet.h"
 #include "session/packets/spells/CooldownPacketSinks.h"
 
 void InstallPlayerPacketSinks(Player& player)
 {
     InstallCooldownPacketSinks(player);
     player.SetClientCallbacks(ClientCallbacksToSession<Player::ClientCallbacks>(&player));
+    player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));
 }
