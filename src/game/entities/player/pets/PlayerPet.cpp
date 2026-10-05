@@ -159,11 +159,9 @@ void Player::SendPetGUIDs()
         return;
     }
 
-    // Later this function might get modified for multiple guids
-    WorldPacket data(SMSG_PET_GUIDS, 12);
-    data << uint32(1);                      // count
-    data << ObjectGuid(GetPetGuid());
-    GetSession()->SendPacket(&data);
+    CurrentPetFact fact;
+    fact.pet = GetPetGuid();
+    ReportClientFact(m_clientCallbacks.currentPet, fact);
 }
 
 /**

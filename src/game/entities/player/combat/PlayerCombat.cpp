@@ -78,8 +78,7 @@
 
 void Player::SendAttackSwingNotInRange()
 {
-    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 0);
-    GetSession()->SendPacket(&data);
+    ReportClientFact(m_clientCallbacks.swingOutOfReach, SwingOutOfReachFact());
 }
 
 /**
@@ -101,31 +100,29 @@ void Player::SendAttackSwingCantAttack()
 }
 
 /**
- * @brief Sends the packet that cancels the player's current attack.
+ * @brief Tells the client that the player's current attack is cancelled.
  */
 void Player::SendAttackSwingCancelAttack()
 {
-    WorldPacket data(SMSG_CANCEL_COMBAT, 0);
-    GetSession()->SendPacket(&data);
+    ReportClientFact(m_clientCallbacks.combatCancelled, CombatCancelledFact());
 }
 
 /**
- * @brief Sends the error packet for attempting to attack while facing the wrong direction.
+ * @brief Tells the client that the player attacks while facing the wrong direction.
  */
 void Player::SendAttackSwingBadFacingAttack()
 {
-    WorldPacket data(SMSG_ATTACKSWING_BADFACING, 0);
-    GetSession()->SendPacket(&data);
+    ReportClientFact(m_clientCallbacks.swingBadFacing, SwingBadFacingFact());
 }
 
 /**
- * @brief Sends the packet that cancels auto-repeat attacks for the client.
+ * @brief Tells the client that its auto-repeat attack on `target` is cancelled.
  */
 void Player::SendAutoRepeatCancel(Unit* target)
 {
-    WorldPacket data(SMSG_CANCEL_AUTO_REPEAT, target->GetPackGUID().size());
-    data << target->GetPackGUID();
-    GetSession()->SendPacket(&data);
+    AutoRepeatCancelledFact fact;
+    fact.target = target->GetObjectGuid();
+    ReportClientFact(m_clientCallbacks.autoRepeatCancelled, fact);
 }
 
 /**

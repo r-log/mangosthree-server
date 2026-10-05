@@ -10,7 +10,7 @@ master 7b6a481ce.
 A layer includes only what its row allows, and nothing includes upward. The chain
 `proto -> session -> entities/spells/combat/maps -> motion` is the path a packet takes, not the include direction:
 proto is the wire library near the bottom that session and motion build on. The tree agrees: `src/proto` includes
-only `src/shared`; session includes it 93 times, the motion layer 19 times (8 from the kernel's writers, 11 from
+only `src/shared`; session includes it 102 times, the motion layer 19 times (8 from the kernel's writers, 11 from
 `game/movement`).
 
 | Layer | Directories in the target | May include |
@@ -98,9 +98,13 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 431 `WorldPacket data(` sites: session 181, the domain tier 237 (entities 164, 108 of them under
+**Today (packets):** 425 `WorldPacket data(` sites: session 181, the domain tier 231 (entities 158, 102 of them under
 `entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 5), scripts 7, app 4, motion 2. The shared sink
-`ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet.
+`ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet. What a player's own client is
+told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set
+or its stand state changes are six typed facts declared beside `Player` (`PlayerClientFacts.h`), built into packets by
+`session/packets/combat/`, `spells/` and `entities/` and sent through the callbacks `InstallPlayerPacketSinks`
+installs where a player is created.
 
 **Today (database):** 984 of the 1,008 calls are outside persistence: entities 240 (62 in
 `entities/player/persistence/`), social 192, data 142, session 136, scripts 94, app 74, maps 62, economy 22,
@@ -119,7 +123,12 @@ spells 11, pvp 9, ai 2. Game `.cpp` files hold 996 calls in 126 files.
   this section; the cooldown row allows them to the session's builder instead. That row holds `SMSG_COOLDOWN_EVENT`
   and the whole-map `SMSG_CLEAR_COOLDOWNS` only: `SMSG_SPELL_COOLDOWN` and `SMSG_ITEM_COOLDOWN` are the cast's and the
   item's notices, the one-spell clear stays with `Player::SendClearCooldown`, nothing builds `SMSG_MODIFY_COOLDOWN` or
-  `SMSG_COOLDOWN_CHEAT`, and a builder of `SMSG_MODIFY_COOLDOWN` for a character's spell joins the row.
+  `SMSG_COOLDOWN_CHEAT`, and a builder of `SMSG_MODIFY_COOLDOWN` for a character's spell joins the row. The pet row
+  holds the one packet `PetMgr` builds, `SMSG_PET_SPELLS` with an empty guid (`PetMgr::RemoveActionBar`, which clears
+  the client's pet action bar): the same opcode's full forms, the spell bars of the pet, of a possessed unit and of a
+  charmed unit, are the owner's (`PlayerPet.cpp`), and no other `PET` opcode is the manager's. The row names no table:
+  the stable-slot count is a column of the character row, and the five pet tables are written by the pet code and
+  mirrored by `PlayerPetCache`, which writes none of them.
 
 Each manager is fixed when its domain is next touched.
 
@@ -311,7 +320,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 | # | Today, against the target | Closed by |
 |---|---|---|
-| 1 | domain -> proto: 265 lines; 237 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket` | when content touches each domain; spells in D11 (#142) |
+| 1 | domain -> proto: 265 lines; 231 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket` | when content touches each domain; spells in D11 (#142) |
 | 2 | domain -> session: 244 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 222 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (92) and `ScriptMgr.h` (86) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
@@ -354,12 +363,12 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
 - The edge tables: `python layers.py src against` (1,116, with the headers and the includers),
   `python layers.py src sideways` (2,356) and `python layers.py src edges` (every layer pair).
-- Packets and the database: `python layers.py src packets` (431 by layer and directory) and `python layers.py src db`
+- Packets and the database: `python layers.py src packets` (425 by layer and directory) and `python layers.py src db`
   (1,008). For game `.cpp` only:
   `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (996), with `-l` for the files
   (126).
 - Proto: `python layers.py src edges | grep -E '^(proto|session +-> proto|motion +-> proto)'` (proto -> proto and
-  foundation only; session 93; motion 19), split by
+  foundation only; session 102; motion 19), split by
   `grep -hE '#\s*include\s*"(wire/[A-Za-z]+\.h|WorldPacket\.h|Opcodes\.h)"' src/motion/* | wc -l` (8) and the
   same over `src/game/movement/*` (11).
 - The manager audit, per manager `M`:

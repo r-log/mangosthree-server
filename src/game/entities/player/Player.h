@@ -79,6 +79,7 @@
 #include "CurrencyMgr.h" // CurrencyMgr is held by value on Player; brings in PlayerCurrency struct + PlayerCurrencyState/Flag enums + PlayerCurrenciesMap typedef
 #include "RuneMgr.h"    // RuneMgr is held by value on Player; brings in RuneType/RuneInfo/Runes + owns death-knight rune state
 #include "ManagerPacketSink.h" // the packet sink type SessionSink() returns to every manager
+#include "PlayerClientFacts.h" // the facts and callbacks of the player's own client
 
 #include "QuestDef.h"
 #include "QuestStatusMgr.h" // QuestStatusMgr is held by value on Player; brings in the QuestStatusMap typedef
@@ -2314,13 +2315,27 @@ class Player : public Unit
         static uint32 const infinityCooldownDelayCheck = SpellCooldownMgr::infinityCooldownDelayCheck;
 
         /// Where the cooldown event and the clear of every cooldown go: the session's callbacks,
-        /// installed once by InstallCooldownPacketSinks where the player is created.
+        /// installed once by InstallPlayerPacketSinks where the player is created.
         struct CooldownSinks
         {
             CooldownEventSink event;
             CooldownsClearedSink cleared;
         };
         void SetCooldownSinks(CooldownSinks const& sinks) { m_cooldownSinks = sinks; }
+
+        /// What the session installs for the player's own client, once, by InstallPlayerPacketSinks
+        /// where the player is created: six facts out, one read in.
+        struct ClientCallbacks
+        {
+            SwingOutOfReachSink swingOutOfReach;
+            SwingBadFacingSink swingBadFacing;
+            CombatCancelledSink combatCancelled;
+            AutoRepeatCancelledSink autoRepeatCancelled;
+            CurrentPetSink currentPet;
+            StandStateSink standState;
+            SecurityLevelQuery securityLevel;
+        };
+        void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
 
         // Check if the player has a spell cooldown
         bool HasSpellCooldown(uint32 spell_id) const { return m_spellCooldownMgr.HasSpellCooldown(spell_id, time(NULL)); }
@@ -3991,6 +4006,7 @@ class Player : public Unit
         TalentMgr m_talentMgr;
         uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
         CooldownSinks m_cooldownSinks;
+        ClientCallbacks m_clientCallbacks;
         uint32 m_GuildIdInvited; // Guild ID invited
         uint32 m_ArenaTeamIdInvited; // Arena team ID invited
 

@@ -6471,9 +6471,9 @@ void Player::SendTimeSync()
  */
 void Player::SendStandStateUpdate(uint8 state)
 {
-    WorldPacket data(SMSG_STANDSTATE_UPDATE, 1);
-    data << (uint8)state;
-    GetSession()->SendPacket(&data);
+    StandStateFact fact;
+    fact.state = state;
+    ReportClientFact(m_clientCallbacks.standState, fact);
 }
 
 bool Player::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex index, bool castOnSelf) const

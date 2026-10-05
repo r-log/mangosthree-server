@@ -58,7 +58,7 @@
 #include "CharacterCache.h"
 #include "Player.h"
 #include "CinematicFlyover.h"
-#include "session/packets/spells/CooldownPacketSinks.h"
+#include "session/packets/PlayerPacketSinks.h"
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "CorpseManager.h"
@@ -800,7 +800,7 @@ void WorldSession::HandleCharCreateCallback(std::unique_ptr<SqlQueryHolder> hold
     }
 
     Player* pNewChar = new Player(session);
-    InstallCooldownPacketSinks(*pNewChar);
+    InstallPlayerPacketSinks(*pNewChar);
     // Sets the createdTime of the character which is UNIX timestamp
     uint32 createdDate = GetUnixTimeStamp(); // Unix Timestamp in seconds
     pNewChar->SetCreatedDate(createdDate); // TODO get currentTimeStamp for createdTime
@@ -1133,7 +1133,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
 
     /* Create a new instance of the player object */
     Player* pCurrChar = new Player(this);
-    InstallCooldownPacketSinks(*pCurrChar);
+    InstallPlayerPacketSinks(*pCurrChar);
 
     /* Initialize a motion generator */
     pCurrChar->GetMotionMaster()->Initialize();

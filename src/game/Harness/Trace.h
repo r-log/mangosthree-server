@@ -220,8 +220,8 @@ namespace Harness
 
         // ---- what the casts' consequences send into the scenarios' digested windows (D11 PR 2):
         // the threat, combat and root packets a cast on a creature or on the player brings with it.
-        // SMSG_CANCEL_COMBAT (Player::SendAttackSwingCancelAttack, no payload), SMSG_STANDSTATE_UPDATE
-        // (Player::SendStandStateUpdate, the state byte) and SMSG_TIME_SYNC_REQ (Player::SendTimeSync,
+        // SMSG_CANCEL_COMBAT (BuildCancelCombatPacket, no payload), SMSG_STANDSTATE_UPDATE
+        // (BuildStandStateUpdatePacket, the state byte) and SMSG_TIME_SYNC_REQ (Player::SendTimeSync,
         // the session's own sync sequence number, stepped every 10 s of the stepped clock) carry no
         // guid and no clock and are hashed whole.
 
