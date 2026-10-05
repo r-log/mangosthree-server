@@ -3537,7 +3537,7 @@ class Player : public Unit
         /// update packet, the session's grant or revoke (membership, mover session,
         /// kernel mode), SMSG_MOVE_SET_ACTIVE_MOVER on a grant, and the handback time
         /// epoch when this player regains itself in the world.
-        void SetClientControl(Unit* target, uint8 allowMove);
+        void SetClientControl(Unit* target, uint8 allowMove) override;
         /// The unit this client has selected to move, resolved through the session;
         /// this player when nothing is selected.
         Unit* GetMover() const;

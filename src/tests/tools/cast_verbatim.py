@@ -141,7 +141,11 @@ nearest, :203's, opens at :192), checked at its place. The position and moving s
 spline, 2 below the `else` arm's test at :7012 (the boarded test 9 above), and :2211, the
 auto-repeat movement test, on the type test of its own line. The feign-death flag write,
 UnitSpeed.cpp:538, the player arm of the creature test at :532, stands 6 lines below it; its
-direct spelling names Unit's own member, which the cast reached through Player.
+direct spelling names Unit's own member, which the cast reached through Player. The client-control
+sites in the fear and confuse states stand within 3 lines of their type tests: UnitSpeed.cpp:360,
+a fear's take, 3 below :357, :431, its return, 2 below :429, and the confuse's take and return,
+:463 3 below :460 and :504 2 below :502; their direct spelling of SetClientControl carries its
+leading space, since Unit.cpp calls it seven times through Player pointers.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -333,6 +337,9 @@ FORMS = {
     'm_movementInfo.SetMovementFlags': {'direct': 'm_movementInfo.SetMovementFlags(',
                                         'cast': '((Player*)this)->m_movementInfo.SetMovementFlags(',
                                         'suffix': None},
+    'SetClientControl': {'direct': ' SetClientControl(',
+                         'cast': ' ((Player*)this)->SetClientControl(',
+                         'suffix': None},
     'CastPassiveSpellsForAuraState': {
         'kind': 'moved', 'direct': 'CastPassiveSpellsForAuraState(', 'cast': '((Player*)this)->GetSpellMap()',
         'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
@@ -673,7 +680,17 @@ UNIT_H_POSITION_AND_MOVING = '''        /**
          * a player.
          * @return false here; Player answers whether its movement flags hold one of movementFlagsMask
          */
-        virtual bool isMoving() const { return false; }
+        virtual bool isMoving() const { return false; }'''
+
+UNIT_H_CLIENT_CONTROL = '''        /**
+         * Gives or takes the client's control of a unit's movement; the fear and confuse states call it
+         * on a player when the first of them takes hold and when the last one ends.
+         * @param target the unit whose movement is given or taken
+         * @param allowMove 1 gives the control, 0 takes it
+         * Does nothing here; Player hands the mover authority to or from its session and tells its
+         * client.
+         */
+        virtual void SetClientControl(Unit* /*target*/, uint8 /*allowMove*/) { }
 
     public:'''
 
@@ -746,7 +763,8 @@ FILES = {
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
                    + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS
-                   + '\n' + UNIT_H_ACCOUNT_SECURITY + '\n' + UNIT_H_POSITION_AND_MOVING,
+                   + '\n' + UNIT_H_ACCOUNT_SECURITY + '\n' + UNIT_H_POSITION_AND_MOVING
+                   + '\n' + UNIT_H_CLIENT_CONTROL,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -833,7 +851,9 @@ FILES = {
                      '        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false);'),
                     ('        bool isMoving() const override final { return m_movementInfo.HasMovementFlag('
                      'movementFlagsMask); }',
-                     '        bool isMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }')],
+                     '        bool isMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }'),
+                    ('        void SetClientControl(Unit* target, uint8 allowMove) override;',
+                     '        void SetClientControl(Unit* target, uint8 allowMove);')],
         'byvalue': [('        ObjectGuid GetSelectionGuid() const override final { return m_curSelectionGuid; }',
                      '        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }')]},
     'src/game/Object/Unit.cpp': {
@@ -876,7 +896,7 @@ FILES = {
         'forms': {'IsLoading': 1},
         'added': []},
     'src/game/Object/UnitSpeed.cpp': {
-        'forms': {'InBattleGround': 1, 'm_movementInfo.SetMovementFlags': 1},
+        'forms': {'InBattleGround': 1, 'm_movementInfo.SetMovementFlags': 1, 'SetClientControl': 4},
         'added': [],
         'window': {240: 12}},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {

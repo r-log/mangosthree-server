@@ -357,7 +357,7 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
         if (GetTypeId() == TYPEID_PLAYER &&
             !GetMotionMaster()->HoldsControl(Motion::Kind::Fear) && !GetMotionMaster()->HoldsControl(Motion::Kind::Confused))
         {
-            ((Player*)this)->SetClientControl(this, 0);
+            SetClientControl(this, 0);
         }
 
         Unit* caster = IsInWorld() ? GetMap()->GetUnit(casterGuid) : NULL;
@@ -428,7 +428,7 @@ void Unit::SetFeared(bool apply, ObjectGuid casterGuid, uint32 spellID, uint32 t
         // abort, which grant (P5-B family 5).
         if (GetTypeId() == TYPEID_PLAYER && !GetMotionMaster()->HoldsControl(Motion::Kind::Confused) && !IsTaxiFlying())
         {
-            ((Player*)this)->SetClientControl(this, 1);
+            SetClientControl(this, 1);
         }
     }
 }
@@ -460,7 +460,7 @@ void Unit::SetConfused(bool apply, ObjectGuid casterGuid, uint32 spellID, uint8 
         if (GetTypeId() == TYPEID_PLAYER &&
             !GetMotionMaster()->HoldsControl(Motion::Kind::Fear) && !GetMotionMaster()->HoldsControl(Motion::Kind::Confused))
         {
-            ((Player*)this)->SetClientControl(this, 0);
+            SetClientControl(this, 0);
         }
 
         if (GetTypeId() == TYPEID_UNIT)
@@ -501,7 +501,7 @@ void Unit::SetConfused(bool apply, ObjectGuid casterGuid, uint32 spellID, uint8 
         // As for a fear: not under a taxi, whose landing or abort grants.
         if (GetTypeId() == TYPEID_PLAYER && !GetMotionMaster()->HoldsControl(Motion::Kind::Fear) && !IsTaxiFlying())
         {
-            ((Player*)this)->SetClientControl(this, 1);
+            SetClientControl(this, 1);
         }
     }
 }
