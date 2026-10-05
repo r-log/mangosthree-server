@@ -573,7 +573,6 @@ src/game/Object/UnitMeleeDamage.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitMeleeDamage.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitMeleeDamage.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitMeleeDamage.cpp -> src/proto/WorldPacket.h
-src/game/Object/UnitPower.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitPower.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitSpeed.cpp -> src/game/Server/WorldSession.h
 src/game/Object/UnitSpeed.cpp -> src/game/WorldHandlers/SpellAuras.h
