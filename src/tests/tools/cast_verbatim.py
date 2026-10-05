@@ -145,7 +145,7 @@ direct spelling names Unit's own member, which the cast reached through Player. 
 sites in the fear and confuse states stand within 3 lines of their type tests: UnitSpeed.cpp:360,
 a fear's take, 3 below :357, :431, its return, 2 below :429, and the confuse's take and return,
 :463 3 below :460 and :504 2 below :502; their direct spelling of SetClientControl carries its
-leading space, since Unit.cpp calls it on other players seven times.
+leading space, since Unit.cpp calls it seven times through Player pointers.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 

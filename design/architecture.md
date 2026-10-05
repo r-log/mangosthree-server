@@ -323,7 +323,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 | # | Today, against the target | Closed by |
 |---|---|---|
-| 1 | domain -> proto: 265 lines; 231 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, which `Unit` now reaches as an override, still builds its control packet and hands its session the mover authority: its fact is a seam of its own kind (a mover hand-off on a `Unit*`, not a client fact), pending a ruling | when content touches each domain; spells in D11 (#142) |
+| 1 | domain -> proto: 265 lines; 231 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 243 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 222 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (92) and `ScriptMgr.h` (86) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
