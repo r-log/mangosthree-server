@@ -28,7 +28,6 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
 #include "World.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
@@ -183,7 +182,7 @@ bool Unit::IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
     {
         if (GetTypeId() == TYPEID_PLAYER)
         {
-            return ((Player*)this)->GetSession()->GetSecurity() <= ((Player*)u)->GetSession()->GetSecurity();
+            return GetAccountSecurityLevel() <= u->GetAccountSecurityLevel();
         }
         else
         {

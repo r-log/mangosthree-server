@@ -4147,6 +4147,15 @@ class Player : public Unit
         // which Unit's UpdateMeleeAttackingState reports; private, so only a call through Unit reaches it
         void ReportSwingError(uint8 swingError) override;
 
+        // The security level of the account playing this player, which Unit's GM visibility rule
+        // compares: what the query its session installed reads at this call; private, so only a call
+        // through Unit reaches it
+        uint32 GetAccountSecurityLevel() const override final
+        {
+            MANGOS_ASSERT(m_clientCallbacks.securityLevel);
+            return m_clientCallbacks.securityLevel();
+        }
+
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
         uint32 m_created_date = 0;

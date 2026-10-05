@@ -133,7 +133,10 @@ own-session packet sites stand within 4 lines of their type tests: Unit.cpp:2364
 and :6708 2 below theirs (:2362, :3191, :3597 and :6706), and :5970, the last line of a `moved`
 block of 3, 4 below its own (:5966). The swing error report, Unit.cpp:626, the `dropped` line of a
 `moved` block of 12 lines, stands under no type test and sets its own window: 13 reaches one line
-past the block's last line (12 below).
+past the block's last line (12 below). The account security comparison, UnitVisibility.cpp:186,
+spells its direct call twice on one line, on this unit and on the observer, where the base cast
+this unit once, so no FORM counts it: it is a CHANGED line with no FORM, in no window (the
+nearest, :203's, opens at :192), checked at its place.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -596,36 +599,49 @@ UNIT_H_AURA_STATE_CASTS = '''        /**
 UNIT_H_OWN_SESSION_PACKETS = '''        /**
          * Tells the client its melee and ranged attack is cancelled; CombatStop and StopAttackFaction
          * call it on a player.
-         * Does nothing here; Player sends SMSG_CANCEL_COMBAT to its session.
+         * Does nothing here; Player reports the cancel to the callback its session installed, and the
+         * session sends SMSG_CANCEL_COMBAT.
          */
         virtual void SendAttackSwingCancelAttack() { }
         /**
          * Tells the client its auto-repeat spell is cancelled; InterruptSpell calls it on a player
          * when it interrupts the auto-repeat spell.
          * @param target the unit whose guid the packet carries
-         * Does nothing here; Player sends SMSG_CANCEL_AUTO_REPEAT to its session.
+         * Does nothing here; Player reports the cancel and the target's guid to the callback its session
+         * installed, and the session sends SMSG_CANCEL_AUTO_REPEAT.
          */
         virtual void SendAutoRepeatCancel(Unit* /*target*/) { }
         /**
          * Tells the client the guid of its pet; SetPet calls it on a player when it sets a pet.
-         * Does nothing here; Player sends SMSG_PET_GUIDS to its session when it has a pet.
+         * Does nothing here; Player, when it has a pet, reports the pet's guid to the callback its session
+         * installed, and the session sends SMSG_PET_GUIDS.
          */
         virtual void SendPetGUIDs() { }
         /**
          * Tells the client its stand state; SetStandState calls it on a player when it sets the state.
          * @param state the stand state set
-         * Does nothing here; Player sends SMSG_STANDSTATE_UPDATE to its session.
+         * Does nothing here; Player reports the state to the callback its session installed, and the
+         * session sends SMSG_STANDSTATE_UPDATE.
          */
         virtual void SendStandStateUpdate(uint8 /*state*/) { }
         /**
          * Tells the client a changed melee swing error and remembers it; UpdateMeleeAttackingState
          * calls it after each melee attack update.
          * @param swingError 0 for none, 1 out of reach, 2 facing the wrong way
-         * Does nothing here; Player, when the error differs from the last one it told, sends
-         * SMSG_ATTACKSWING_NOTINRANGE for 1 or SMSG_ATTACKSWING_BADFACING for 2 to its session and
-         * remembers the error.
+         * Does nothing here; Player, when the error differs from the last one it told, reports it to the
+         * callback its session installed, and the session sends SMSG_ATTACKSWING_NOTINRANGE for 1 or
+         * SMSG_ATTACKSWING_BADFACING for 2; Player remembers the error.
          */
-        virtual void ReportSwingError(uint8 /*swingError*/) { }
+        virtual void ReportSwingError(uint8 /*swingError*/) { }'''
+
+UNIT_H_ACCOUNT_SECURITY = '''        /**
+         * The security level of the account playing this unit; a game master in GM mode sees a player
+         * whose level is not above its own.
+         * @return 0 here, a player's level; IsVisibleForOrDetect asks only when both units are
+         * players, so the default is not observed there; Player returns what the query its session
+         * installed reads
+         */
+        virtual uint32 GetAccountSecurityLevel() const { return 0; }
 
     public:'''
 
@@ -665,6 +681,16 @@ PLAYER_H_OWN_SESSION_PACKETS = '''
         // which Unit's UpdateMeleeAttackingState reports; private, so only a call through Unit reaches it
         void ReportSwingError(uint8 swingError) override;'''
 
+PLAYER_H_ACCOUNT_SECURITY = '''
+        // The security level of the account playing this player, which Unit's GM visibility rule
+        // compares: what the query its session installed reads at this call; private, so only a call
+        // through Unit reaches it
+        uint32 GetAccountSecurityLevel() const override final
+        {
+            MANGOS_ASSERT(m_clientCallbacks.securityLevel);
+            return m_clientCallbacks.securityLevel();
+        }'''
+
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
 # window is not WINDOW, by base line, whether it `declares` the overrides, and the lines that
@@ -687,7 +713,8 @@ FILES = {
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
-                   + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS,
+                   + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS
+                   + '\n' + UNIT_H_ACCOUNT_SECURITY,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -698,7 +725,8 @@ FILES = {
                    '        // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it '
                    'directly.'),
                   (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN
-                   + '\n' + PLAYER_H_AURA_STATE_CASTS + '\n' + PLAYER_H_OWN_SESSION_PACKETS,
+                   + '\n' + PLAYER_H_AURA_STATE_CASTS + '\n' + PLAYER_H_OWN_SESSION_PACKETS
+                   + '\n' + PLAYER_H_ACCOUNT_SECURITY,
                    '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
@@ -801,7 +829,10 @@ FILES = {
         'added': []},
     'src/game/Object/UnitVisibility.cpp': {
         'forms': {'IsLoggingOut': 1, 'IsLoading': 1, 'GetTransport': 2, 'IsGroupVisibleFor': 1, 'GetDrunkValue': 1},
-        'added': []},
+        'added': [],
+        'changed': [('            return GetAccountSecurityLevel() <= u->GetAccountSecurityLevel();',
+                     '            return ((Player*)this)->GetSession()->GetSecurity() <= '
+                     '((Player*)u)->GetSession()->GetSecurity();')]},
     'src/game/Object/UnitAura.cpp': {
         'forms': {'IsLoading': 1},
         'added': []},
