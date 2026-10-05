@@ -3920,6 +3920,15 @@ class Unit : public WorldObject
          * @return false here; Player answers whether its movement flags hold one of movementFlagsMask
          */
         virtual bool isMoving() const { return false; }
+        /**
+         * Gives or takes the client's control of a unit's movement; the fear and confuse states call it
+         * on a player when the first of them takes hold and when the last one ends.
+         * @param target the unit whose movement is given or taken
+         * @param allowMove 1 gives the control, 0 takes it
+         * Does nothing here; Player hands the mover authority to or from its session and tells its
+         * client.
+         */
+        virtual void SetClientControl(Unit* /*target*/, uint8 /*allowMove*/) { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);
