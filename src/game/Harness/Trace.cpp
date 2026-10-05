@@ -203,8 +203,8 @@ namespace Harness
                 { SMSG_CHANNEL_UPDATE,              Rule::Decode },
                 { SMSG_SPELLLOGEXECUTE,             Rule::Decode },
                 { SMSG_PET_SPELLS,                  Rule::Decode },
-                // Player::SendAttackSwingCancelAttack: no payload; Unit::SetStandState: the state
-                // byte; Player::SendTimeSync: the session's sync sequence number
+                // Player::SendAttackSwingCancelAttack: no payload; Player::SendStandStateUpdate: the
+                // state byte; Player::SendTimeSync: the session's sync sequence number
                 { SMSG_CANCEL_COMBAT,               Rule::Hash },
                 { SMSG_STANDSTATE_UPDATE,           Rule::Hash },
                 { SMSG_TIME_SYNC_REQ,               Rule::Hash },

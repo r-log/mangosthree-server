@@ -114,6 +114,7 @@ set(SRC_GRP_TESTS
     UnitTalentRankTest.cpp
     UnitRuneCooldownTest.cpp
     UnitAuraStatePassiveCastsTest.cpp
+    UnitOwnSessionPacketsTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

@@ -6464,6 +6464,18 @@ void Player::SendTimeSync()
     m_timeSyncTimer = 10000;
 }
 
+/**
+ * @brief Tells the client its stand state.
+ *
+ * @param state The stand state set.
+ */
+void Player::SendStandStateUpdate(uint8 state)
+{
+    WorldPacket data(SMSG_STANDSTATE_UPDATE, 1);
+    data << (uint8)state;
+    GetSession()->SendPacket(&data);
+}
+
 bool Player::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex index, bool castOnSelf) const
 {
     SpellEffectEntry const* spellEffect = spellInfo->GetSpellEffect(index);

@@ -98,7 +98,7 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 431 `WorldPacket data(` sites: session 181, the domain tier 237 (entities 164, 107 of them under
+**Today (packets):** 431 `WorldPacket data(` sites: session 181, the domain tier 237 (entities 164, 108 of them under
 `entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 5), scripts 7, app 4, motion 2. The shared sink
 `ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet.
 
@@ -151,12 +151,12 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 621 member functions, grouped roughly by defining file and name):** combat 154, auras 113, spell
-casting 80, lifecycle and update 77, movement 72, stats and power 69, pets/charm/summons 52, visibility 4. The target
+**Today (`Unit`, 626 member functions, grouped roughly by defining file and name):** combat 155, auras 113, spell
+casting 80, lifecycle and update 79, movement 73, stats and power 69, pets/charm/summons 53, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
-**Today (player-only code in `Unit`):** Unit's 15 files hold 52 `(Player*)this` casts and 217 `TYPEID_PLAYER` tests;
-40 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
+**Today (player-only code in `Unit`):** Unit's 15 files hold 46 `(Player*)this` casts and 216 `TYPEID_PLAYER` tests;
+45 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
 `GetItemByGuid`, the item the proc handlers ask for by guid; what `Mount` and `Unmount` ask of a mounting player:
@@ -172,8 +172,11 @@ kill credit and the honor-or-experience test `JustKilledCreature` and the proc c
 sets: `setFactionForRace`, `InBattleGround`; what the three one-off procs ask of a player: `Say`,
 `GetSelectionGuid`, `GetNextRandomRaidMember`; the known rank of the Impurity talent `SpellBonusWithCoeffs` asks
 of a death knight: `GetKnownTalentRankById`; whether a death knight's blood runes are all on cooldown, Blade
-Barrier's test: `IsBaseRuneSlotsOnCooldown`; and the passive spells a player's new aura state casts,
-`ModifyAuraState`'s loop: `CastPassiveSpellsForAuraState`; each with the non-player answer as `Unit`'s default).
+Barrier's test: `IsBaseRuneSlotsOnCooldown`; the passive spells a player's new aura state casts,
+`ModifyAuraState`'s loop: `CastPassiveSpellsForAuraState`; and what `Unit` tells a player's own client: its attack
+cancelled, `SendAttackSwingCancelAttack`; its auto-repeat spell cancelled, `SendAutoRepeatCancel`; its pet's guid,
+`SendPetGUIDs`; its stand state, `SendStandStateUpdate`; a changed melee swing error, `ReportSwingError`; each with
+the non-player answer as `Unit`'s default).
 The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`; only the aura storage
 (`spells/AuraContainer.h`) and the leaf math (`combat/`) are already home.
 
@@ -320,7 +323,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938) | the Creature fold, only on 4.3.4 evidence |
-| 13 | `Unit`: 52 `(Player*)this` casts, 217 player type tests, 40 Player-only virtuals | Unit reopen |
+| 13 | `Unit`: 46 `(Player*)this` casts, 216 player type tests, 45 Player-only virtuals | Unit reopen |
 | 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/`, `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds only the builders under `session/packets/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
@@ -331,7 +334,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:241`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
-| 24 | `Unit`: five casts return the player itself (`Unit.cpp:1058`, `:3415`, `:3431`, `:4596`, `:5758`); they call no Player method, so the standing shape does not apply | a shape of their own, after the clean clusters (D14) |
+| 24 | `Unit`: five casts return the player itself (`Unit.cpp:1046`, `:3403`, `:3419`, `:4584`, `:5746`); they call no Player method, so the standing shape does not apply | a shape of their own, after the clean clusters (D14) |
 
 ## Appendix: how each number was measured
 
@@ -368,11 +371,11 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
 - Unit's families:
   `python src/tests/tools/method_count.py --class Unit --header src/game/Object/Unit.h --all --list | python layers.py src unit`.
 - The player-only leaks, with `F="src/game/Object/Unit*.cpp src/game/WorldHandlers/UnitAuraProcHandler.cpp"`:
-  `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (52) and
-  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (217).
+  `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (46) and
+  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (216).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h`, where only a
-  unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (40 of 69).
+  unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (45 of 74).
 - Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/Object/CreatureSpellCooldown.cpp` (6).
 - The threads (section 5): the tick's order is `World::Update` (`WorldHandlers/World.cpp:966`, the `TickGuard::Scope` at the top of its
   body) read top to bottom; the map split is `MapManager::Update` (`WorldHandlers/MapManager.cpp:306`);

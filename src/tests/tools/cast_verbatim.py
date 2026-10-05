@@ -63,7 +63,11 @@ must stand once in the body, read as its base spelling; its site is the line hol
 spelling, which must stand nowhere in the working tree, and its window must reach past the block's
 last line. A body line that is not empty must start with four spaces, or it fails, named with its
 line in `to`. Any other difference in the body, a body line lost or gained, or the statement
-standing anywhere else, is a difference in that window.
+standing anywhere else, is a difference in that window. A `moved` FORM with a `dropped` line stood
+for one more line, directly above the block: that line holds the cast spelling and stands nowhere
+in the working tree; it is written back above the block at the statement's indentation, and it is
+the site. A `dropped` line that does not hold the cast spelling, or that still stands, fails; a
+changed one is a difference in the window.
 
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
@@ -120,7 +124,12 @@ UnitSpellBonus.cpp:102, stands 2 lines below its type and death knight test (:10
 cooldown site, UnitAuraProcHandler.cpp:4383, stands on the line below its type and class test
 (:4382), inside the window of the kill-credit site at :4389. The aura-state passive casts,
 Unit.cpp:3327, a `moved` block of 17 lines on the line below its type test (:3326), set their own
-window: 17 reaches the block's last line (16 below) and the type test's closing brace.
+window: 17 reaches the block's last line (16 below) and the type test's closing brace. The
+own-session packet sites stand within 4 lines of their type tests: Unit.cpp:2364, :3193, :3599
+and :6708 2 below theirs (:2362, :3191, :3597 and :6706), and :5970, the last line of a `moved`
+block of 3, 4 below its own (:5966). The swing error report, Unit.cpp:626, the `dropped` line of a
+`moved` block of 12 lines, stands under no type test and sets its own window: 13 reaches one line
+past the block's last line (12 below).
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -294,11 +303,35 @@ FORMS = {
     'IsBaseRuneSlotsOnCooldown': {'direct': 'IsBaseRuneSlotsOnCooldown(',
                                   'cast': '((Player*)this)->GetRuneMgr().IsBaseRuneSlotsOnCooldown(',
                                   'suffix': None},
+    'SendAttackSwingCancelAttack': {'direct': 'SendAttackSwingCancelAttack(',
+                                    'cast': '((Player*)this)->SendAttackSwingCancelAttack(',
+                                    'suffix': None},
+    'SendAutoRepeatCancel': {'direct': 'SendAutoRepeatCancel(',
+                             'cast': '((Player*)this)->SendAutoRepeatCancel(',
+                             'suffix': None},
+    'SendPetGUIDs': {'direct': 'SendPetGUIDs(',
+                     'cast': '((Player*)this)->SendPetGUIDs(',
+                     'suffix': None},
     'CastPassiveSpellsForAuraState': {
         'kind': 'moved', 'direct': 'CastPassiveSpellsForAuraState(', 'cast': '((Player*)this)->GetSpellMap()',
         'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
         'header': 'void Player::CastPassiveSpellsForAuraState(AuraState flag)',
         'edits': [('((Player*)this)->GetSpellMap()', 'GetSpellMap()')]},
+    'SendStandStateUpdate': {
+        'kind': 'moved', 'direct': 'SendStandStateUpdate(', 'cast': '((Player*)this)->GetSession()->SendPacket(&data)',
+        'to': 'src/game/entities/player/Player.cpp',
+        'header': 'void Player::SendStandStateUpdate(uint8 state)',
+        'edits': [('((Player*)this)->GetSession()->SendPacket(&data)', 'GetSession()->SendPacket(&data)')]},
+    'ReportSwingError': {
+        'kind': 'moved', 'direct': 'ReportSwingError(', 'cast': '(GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL)',
+        'dropped': 'Player* player = (GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL);',
+        'to': 'src/game/entities/player/combat/PlayerCombat.cpp',
+        'header': 'void Player::ReportSwingError(uint8 swingError)',
+        'edits': [('player->LastSwingErrorMsg()', 'LastSwingErrorMsg()'),
+                  ('if (player && swingError != ', 'if (swingError != '),
+                  ('player->SendAttackSwingNotInRange()', 'SendAttackSwingNotInRange()'),
+                  ('player->SendAttackSwingBadFacingAttack()', 'SendAttackSwingBadFacingAttack()'),
+                  ('player->SwingErrorMsg(swingError)', 'SwingErrorMsg(swingError)')]},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -551,7 +584,41 @@ UNIT_H_AURA_STATE_CASTS = '''        /**
          * triggered, every passive spell in its spell map that is not removed and whose caster aura
          * state is the flag
          */
-        virtual void CastPassiveSpellsForAuraState(AuraState /*flag*/) { }
+        virtual void CastPassiveSpellsForAuraState(AuraState /*flag*/) { }'''
+
+UNIT_H_OWN_SESSION_PACKETS = '''        /**
+         * Tells the client its melee and ranged attack is cancelled; CombatStop and StopAttackFaction
+         * call it on a player.
+         * Does nothing here; Player sends SMSG_CANCEL_COMBAT to its session.
+         */
+        virtual void SendAttackSwingCancelAttack() { }
+        /**
+         * Tells the client its auto-repeat spell is cancelled; InterruptSpell calls it on a player
+         * when it interrupts the auto-repeat spell.
+         * @param target the unit whose guid the packet carries
+         * Does nothing here; Player sends SMSG_CANCEL_AUTO_REPEAT to its session.
+         */
+        virtual void SendAutoRepeatCancel(Unit* /*target*/) { }
+        /**
+         * Tells the client the guid of its pet; SetPet calls it on a player when it sets a pet.
+         * Does nothing here; Player sends SMSG_PET_GUIDS to its session when it has a pet.
+         */
+        virtual void SendPetGUIDs() { }
+        /**
+         * Tells the client its stand state; SetStandState calls it on a player when it sets the state.
+         * @param state the stand state set
+         * Does nothing here; Player sends SMSG_STANDSTATE_UPDATE to its session.
+         */
+        virtual void SendStandStateUpdate(uint8 /*state*/) { }
+        /**
+         * Tells the client a changed melee swing error and remembers it; UpdateMeleeAttackingState
+         * calls it after each melee attack update.
+         * @param swingError 0 for none, 1 out of reach, 2 facing the wrong way
+         * Does nothing here; Player, when the error differs from the last one it told, sends
+         * SMSG_ATTACKSWING_NOTINRANGE for 1 or SMSG_ATTACKSWING_BADFACING for 2 to its session and
+         * remembers the error.
+         */
+        virtual void ReportSwingError(uint8 /*swingError*/) { }
 
     public:'''
 
@@ -582,6 +649,15 @@ PLAYER_H_AURA_STATE_CASTS = '''
         // reaches it
         void CastPassiveSpellsForAuraState(AuraState flag) override;'''
 
+PLAYER_H_OWN_SESSION_PACKETS = '''
+        // Tells the client the stand state Unit's SetStandState set; private, so only a call through
+        // Unit reaches it
+        void SendStandStateUpdate(uint8 state) override;
+
+        // Tells the client a melee swing error that differs from the last one told and remembers it,
+        // which Unit's UpdateMeleeAttackingState reports; private, so only a call through Unit reaches it
+        void ReportSwingError(uint8 swingError) override;'''
+
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
 # window is not WINDOW, by base line, whether it `declares` the overrides, and the lines that
@@ -604,7 +680,7 @@ FILES = {
                   (UNIT_H_VISIBILITY, '        bool canDetectInvisibilityOf(Unit const* u) const;'),
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
-                   + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS,
+                   + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -615,7 +691,7 @@ FILES = {
                    '        // GetItemDisplayIdInSlot, IsValidPos and the static position checks are called on it '
                    'directly.'),
                   (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN
-                   + '\n' + PLAYER_H_AURA_STATE_CASTS,
+                   + '\n' + PLAYER_H_AURA_STATE_CASTS + '\n' + PLAYER_H_OWN_SESSION_PACKETS,
                    '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
@@ -679,16 +755,22 @@ FILES = {
                     ('        void Say(const std::string& text, const uint32 language) override;',
                      '        void Say(const std::string& text, const uint32 language);'),
                     ('        Player* GetNextRandomRaidMember(float radius) override final;',
-                     '        Player* GetNextRandomRaidMember(float radius);')],
+                     '        Player* GetNextRandomRaidMember(float radius);'),
+                    ('        void SendPetGUIDs() override;', '        void SendPetGUIDs();'),
+                    ('        void SendAttackSwingCancelAttack() override;',
+                     '        void SendAttackSwingCancelAttack();'),
+                    ('        void SendAutoRepeatCancel(Unit* target) override;',
+                     '        void SendAutoRepeatCancel(Unit* target);')],
         'byvalue': [('        ObjectGuid GetSelectionGuid() const override final { return m_curSelectionGuid; }',
                      '        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
                   'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1,
-                  'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1},
+                  'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1, 'SendAttackSwingCancelAttack': 2,
+                  'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
-        'window': {960: 17, 975: 32, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
+        'window': {626: 13, 960: 17, 975: 32, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
         'added': []},
@@ -919,11 +1001,17 @@ def paste_moved(rel, text, spec, out, read, forms):
                 return fail('%s: FAILED: the edit %r stands %d time(s) in the body of %r, expected once'
                             % (form['to'], new, block.count(new), form['header']))
             block = block.replace(new, base)
+        lines = block.split('\n')
+        if 'dropped' in form:
+            if form['cast'] not in form['dropped']:
+                return fail('%s: FAILED: the dropped line %r holds no %r' % (rel, form['dropped'], form['cast']))
+            if form['dropped'] in text:
+                return fail('%s: FAILED: the dropped line %r still stands' % (rel, form['dropped']))
+            lines = ['    ' + form['dropped']] + lines
         if form['cast'] in text:
             return fail('%s: FAILED: %r still stands: a block the move missed' % (rel, form['cast']))
         params = form['header'][form['header'].index('(') + 1:form['header'].rindex(')')]
-        moved[name] = (form, block.split('\n'), ', '.join(p.split()[-1].lstrip('*&') for p in params.split(',')
-                                                         if p.strip()))
+        moved[name] = (form, lines, ', '.join(p.split()[-1].lstrip('*&') for p in params.split(',') if p.strip()))
     pasted, starts, found = [], [], dict((name, 0) for name in moved)
     for at, line in enumerate(text.split('\n')):
         hit = [name for name in moved if moved[name][0]['direct'] in line]
@@ -1492,6 +1580,41 @@ SELF_MOVED_FORMS = {'Cast': {'kind': 'moved', 'direct': 'Cast(', 'cast': '((Play
                              'header': 'void Player::Cast(AuraState flag)',
                              'edits': [('((Player*)this)->GetMap()', 'GetMap()')]}}
 
+SELF_DROPPED_OLD = '''bool Unit::Swing()
+{
+    uint8 error = Pick();
+
+    Player* player = (GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL);
+    if (player && error != player->LastError())
+    {
+        player->SendError(error);
+        player->SetLastError(error);
+    }
+
+    return error == 0;
+}
+'''
+
+SELF_DROPPED_NEW = '\n'.join(SELF_DROPPED_OLD.split('\n')[:4] + ['    Report(error);']
+                             + SELF_DROPPED_OLD.split('\n')[10:])
+
+SELF_DROPPED_BODY = '''void Player::Report(uint8 error)
+{
+    if (error != LastError())
+    {
+        SendError(error);
+        SetLastError(error);
+    }
+}
+'''
+
+SELF_DROPPED_FORM = {'kind': 'moved', 'direct': 'Report(',
+                     'cast': '(GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL)',
+                     'dropped': 'Player* player = (GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL);',
+                     'to': 'Player.cpp', 'header': 'void Player::Report(uint8 error)',
+                     'edits': [('player->LastError()', 'LastError()'), ('if (player && error != ', 'if (error != '),
+                               ('player->SendError(', 'SendError('), ('player->SetLastError(', 'SetLastError(')]}
+
 
 def two_branches(player, unit, sites):
     """(base text, working tree text, files, forms, spec) of a function holding one branch site per
@@ -2001,6 +2124,33 @@ def self_test():
           body=('        }\n    }\n}', '        }\n    } \n}'), window=6)
     moved('... and the window reaching it fails', 1, 'DIFFERS from the base at line 15',
           body=('        }\n    }\n}', '        }\n    } \n}'), window=7)
+
+    def dropped(label, want_rc, needle, swap=('', ''), body=('', ''), line=None, window=6):
+        got = []
+        form = dict(SELF_DROPPED_FORM, dropped=line or SELF_DROPPED_FORM['dropped'])
+        rc = verify('fixture', SELF_DROPPED_OLD, SELF_DROPPED_NEW.replace(*swap),
+                    {'forms': {'Report': 1}, 'added': [], 'window': {5: window}}, got.append,
+                    read={'Player.cpp': SELF_DROPPED_BODY.replace(*body)}.__getitem__, forms={'Report': form})
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    dropped('a dropped line and its block paste back, two edits on one line', 0, 'around 1/1 call(s) pasted back')
+    dropped('a dropped line changed fails', 1, 'fixture:5: DIFFERS from the base at line 5',
+            line='Player const* player = (GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL);')
+    dropped('a dropped line without the cast spelling fails', 1, 'holds no', line='Player* player = NULL;')
+    dropped('a dropped line still standing fails', 1, 'still stands',
+            swap=('    Report(',
+                  '    Player* player = (GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL);\n    Report('))
+    dropped('a body line below the dropped line changed fails', 1, 'DIFFERS from the base at line 9',
+            body=('SetLastError(error)', 'SetLastError(0)'))
+    dropped('the statement wrapped in a guard the base has not fails', 1, 'DIFFERS from the base at line 4',
+            swap=('    Report(error);', '    if (GetTypeId() == TYPEID_PLAYER)\n    {\n        Report(error);\n    }'))
+    dropped('a window that stops at the block passes a statement appended to it', 0, 'around 1/1',
+            body=('    }\n}', '    }\n    Pick();\n}'), window=5)
+    dropped('... and the window one line past it fails', 1, 'DIFFERS from the base at line 11',
+            body=('    }\n}', '    }\n    Pick();\n}'))
 
     got, sites = prove('fixture', SELF_OLD, SELF_NEW, SELF_SPEC, lambda _: None)
     want = [('HasSpellCooldown', 3, 3, k), ('HasSpellCooldown', 7, 7, k), ('AddSpellCooldown', 13, 13, k)]

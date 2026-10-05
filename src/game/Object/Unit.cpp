@@ -624,19 +624,7 @@ bool Unit::UpdateMeleeAttackingState()
         }
     }
 
-    Player* player = (GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL);
-    if (player && swingError != player->LastSwingErrorMsg())
-    {
-        if (swingError == 1)
-        {
-            player->SendAttackSwingNotInRange();
-        }
-        else if (swingError == 2)
-        {
-            player->SendAttackSwingBadFacingAttack();
-        }
-        player->SwingErrorMsg(swingError);
-    }
+    ReportSwingError(swingError);
 
     return swingError == 0;
 }
@@ -2362,7 +2350,7 @@ void Unit::InterruptSpell(CurrentSpellTypes spellType, bool withDelayed, bool se
         {
             if (GetTypeId() == TYPEID_PLAYER)
             {
-                ((Player*)this)->SendAutoRepeatCancel(this);
+                SendAutoRepeatCancel(this);
             }
         }
 
@@ -3191,7 +3179,7 @@ void Unit::CombatStop(bool includingCast)
 
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->SendAttackSwingCancelAttack();      // melee and ranged forced attack cancel
+        SendAttackSwingCancelAttack();      // melee and ranged forced attack cancel
     }
     else if (GetTypeId() == TYPEID_UNIT)
     {
@@ -3581,7 +3569,7 @@ void Unit::SetPet(Pet* pet)
 
     if (pet && GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->SendPetGUIDs();
+        SendPetGUIDs();
     }
 }
 
@@ -5950,9 +5938,7 @@ void Unit::SetStandState(uint8 state)
 
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        WorldPacket data(SMSG_STANDSTATE_UPDATE, 1);
-        data << (uint8)state;
-        ((Player*)this)->GetSession()->SendPacket(&data);
+        SendStandStateUpdate(state);
     }
 }
 
@@ -6690,7 +6676,7 @@ void Unit::StopAttackFaction(uint32 faction_id)
             // melee and ranged forced attack cancel
             if (GetTypeId() == TYPEID_PLAYER)
             {
-                ((Player*)this)->SendAttackSwingCancelAttack();
+                SendAttackSwingCancelAttack();
             }
         }
     }
