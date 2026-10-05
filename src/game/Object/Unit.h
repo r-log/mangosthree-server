@@ -1910,14 +1910,6 @@ class Unit : public WorldObject
          * \see ApplyModUInt32Value
          */
         void ApplyPowerMod(Powers power, uint32 val, bool apply);
-        /**
-         * Changes the possible max value of the given Powers power.
-         * @param power increase max for this power
-         * @param val what to add/remove to/from the current max
-         * @param apply whether to apply it or remove it
-         * \see ApplyModUInt32Value
-         */
-        void ApplyMaxPowerMod(Powers power, uint32 val, bool apply);
         void ResetHolyPowerRegenTimer() { m_holyPowerRegenTimer = REGEN_TIME_HOLY_POWER; }
 
         static uint32 GetPowerIndexByClass(Powers power, uint32 classId);
