@@ -178,6 +178,9 @@ ApplyMaxPowerMod. The pet-owner arms stand 2 lines below their folded owner guar
 of 6, since 7 below it stands the comment of the deleted ApplyMaxPowerMod, and the pet arm it
 stands in (:264) is inside :261's window. One CHANGED owner guard stands in the windows of several
 sites: a CHANGED line is written back at each line of the windows where its base line stands.
+The near-teleport, Unit.cpp:6519, a `moved` block of one line, stands 2 lines below its type test
+(:6517); the direct spelling of TeleportNear does not stand inside NearTeleportTo, the name of the
+member that calls it.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -378,6 +381,11 @@ FORMS = {
         'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
         'header': 'void Player::CastPassiveSpellsForAuraState(AuraState flag)',
         'edits': [('((Player*)this)->GetSpellMap()', 'GetSpellMap()')]},
+    'TeleportNear': {
+        'kind': 'moved', 'direct': 'TeleportNear(', 'cast': '((Player*)this)->TeleportTo(',
+        'to': 'src/game/entities/player/Player.cpp',
+        'header': 'void Player::TeleportNear(float x, float y, float z, float orientation, bool casting)',
+        'edits': [('((Player*)this)->TeleportTo(', 'TeleportTo(')]},
     'SendStandStateUpdate': {
         'kind': 'moved', 'direct': 'SendStandStateUpdate(', 'cast': '((Player*)this)->GetSession()->SendPacket(&data)',
         'to': 'src/game/entities/player/Player.cpp',
@@ -744,7 +752,21 @@ UNIT_H_CLIENT_CONTROL = '''        /**
          * Does nothing here; Player hands the mover authority to or from its session and tells its
          * client.
          */
-        virtual void SetClientControl(Unit* /*target*/, uint8 /*allowMove*/) { }
+        virtual void SetClientControl(Unit* /*target*/, uint8 /*allowMove*/) { }'''
+
+UNIT_H_NEAR_TELEPORT = '''        /**
+         * Teleports the unit a short way on its own map, keeping its transport, its combat and its pet,
+         * and marks the teleport as a spell's when a cast moves the unit itself; NearTeleportTo calls it
+         * on a player.
+         * @param x the destination x coordinate
+         * @param y the destination y coordinate
+         * @param z the destination z coordinate
+         * @param orientation the facing at the destination
+         * @param casting true when the unit's own spell cast moves it
+         * Does nothing here, a unit that is not a player is relocated in place by NearTeleportTo's other
+         * arm; Player teleports itself with its own teleport.
+         */
+        virtual void TeleportNear(float /*x*/, float /*y*/, float /*z*/, float /*orientation*/, bool /*casting*/) { }
 
     public:'''
 
@@ -794,6 +816,11 @@ PLAYER_H_ACCOUNT_SECURITY = '''
             return m_clientCallbacks.securityLevel();
         }'''
 
+PLAYER_H_NEAR_TELEPORT = '''
+        // Teleports the player a short way on its own map, keeping its transport, combat and pet, which
+        // Unit's NearTeleportTo asks for; private, so only a call through Unit reaches it
+        void TeleportNear(float x, float y, float z, float orientation, bool casting) override;'''
+
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
 # window is not WINDOW, by base line, whether it `declares` the overrides, and the lines that
@@ -818,7 +845,7 @@ FILES = {
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
                    + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS
                    + '\n' + UNIT_H_ACCOUNT_SECURITY + '\n' + UNIT_H_POSITION_AND_MOVING
-                   + '\n' + UNIT_H_CLIENT_CONTROL,
+                   + '\n' + UNIT_H_CLIENT_CONTROL + '\n' + UNIT_H_NEAR_TELEPORT,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -830,7 +857,7 @@ FILES = {
                    'directly.'),
                   (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN
                    + '\n' + PLAYER_H_AURA_STATE_CASTS + '\n' + PLAYER_H_OWN_SESSION_PACKETS
-                   + '\n' + PLAYER_H_ACCOUNT_SECURITY,
+                   + '\n' + PLAYER_H_ACCOUNT_SECURITY + '\n' + PLAYER_H_NEAR_TELEPORT,
                    '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
@@ -917,7 +944,7 @@ FILES = {
                   'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1, 'SendAttackSwingCancelAttack': 2,
                   'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1,
                   'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1,
-                  'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1},
+                  'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1, 'TeleportNear': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
                      '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())'),
