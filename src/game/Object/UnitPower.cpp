@@ -33,7 +33,6 @@
 
 #include "Utilities/Errors.h"
 #include "Unit.h"
-#include "Player.h"
 #include "Creature.h"
 #include "Pet.h"
 #include "Group.h"
@@ -172,9 +171,9 @@ void Unit::SetPowerByIndex(uint32 powerIndex, int32 val)
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
             {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_CUR_POWER);
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_PET_CUR_POWER});
             }
         }
     }
@@ -224,9 +223,9 @@ void Unit::SetMaxPowerByIndex(uint32 powerIndex, int32 val)
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
             {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_MAX_POWER);
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_PET_MAX_POWER});
             }
         }
     }
@@ -259,9 +258,9 @@ void Unit::ApplyPowerMod(Powers power, uint32 val, bool apply)
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
             {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_CUR_POWER);
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_PET_CUR_POWER});
             }
         }
     }

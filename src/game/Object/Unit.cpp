@@ -2880,9 +2880,9 @@ void Unit::SetPowerType(Powers new_powertype)
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
             {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_POWER_TYPE);
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_PET_POWER_TYPE});
             }
         }
     }
@@ -4903,9 +4903,9 @@ void Unit::SetHealth(uint32 val)
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
             {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_CUR_HP);
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_PET_CUR_HP});
             }
         }
     }
@@ -4932,9 +4932,9 @@ void Unit::SetMaxHealth(uint32 val)
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
             {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_MAX_HP);
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_PET_MAX_HP});
             }
         }
     }
@@ -5964,9 +5964,9 @@ void Unit::SetDisplayId(uint32 modelId)
             return;
         }
         Unit* owner = GetOwner();
-        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
         {
-            ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_MODEL_ID);
+            ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_PET_MODEL_ID});
         }
     }
 }
@@ -6271,10 +6271,9 @@ void Unit::UpdateAuraForGroup(uint8 slot)
         if (pet->isControlled())
         {
             Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
             {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_AURAS);
-                pet->SetAuraUpdateMask(slot);
+                ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).petAura, PetGroupAuraFact{GROUP_UPDATE_FLAG_PET_AURAS, slot, pet});
             }
         }
     }

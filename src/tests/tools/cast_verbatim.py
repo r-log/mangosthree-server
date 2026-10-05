@@ -84,8 +84,14 @@ receiver and every field. A `dropped` line stands above the body as for a `moved
 statement listed in its file's `folded` (by its order among its FORM's statements) stood for the
 body's opening test folded into its guard: only the lines inside that test are written back, and
 the guard two lines above must be listed as a CHANGED line whose base reads
-`if ((<the guard's condition>) && <the test>)`. Its site is the line holding its cast spelling,
-which must stand nowhere in the working tree. A file's `deleted` names the header of each member
+`if ((<the guard's condition>) && <the test>)`, or `if (<the guard's condition> && <the test>)`
+when the condition holds no `||`, no `?` and no assignment (a `=` that is not part of `==`, `!=`,
+`<=` or `>=`). Its site is the line holding its cast spelling, which
+must stand nowhere in the working tree, and each FORM's sites must be found in the pasted-back text
+as often as the spec lists them. The receiver is the FORM's: the pet-owner arms read `owner->` as
+`((Player*)owner)->`. A FORM whose cast spelling stands inside a longer one of another FORM the file
+lists (the pet aura's flag line holds the owner stat's spelling) does not claim the lines holding
+the longer one, at BASE or pasted back. A file's `deleted` names the header of each member
 deleted whole: it stands once at BASE with a body and nowhere in the working tree, and the cast
 spellings inside that body at BASE are no sites.
 
@@ -166,15 +172,21 @@ stand within 4 lines of their type tests: Unit.cpp:2886, :4928 and :4960 and Uni
 :223 and :261 4 below theirs (:2882, :4924, :4956, :164, :219 and :257), :4904 2 below the guard
 its group test is folded into (:4902), and :6302, the dropped line above a block of 5, 2 below its
 own (:6300); UnitPower.cpp:294, the fourth cast of the stat form there, stands in the deleted
-ApplyMaxPowerMod.
+ApplyMaxPowerMod. The pet-owner arms stand 2 lines below their folded owner guards (Unit.cpp:2897,
+:4939, :4971, :6005 and :6317; UnitPower.cpp:179, :234 and :272), 8 below the pet arm's test
+(:6005 10, below the early return of a pet that is not controlled); UnitPower.cpp:272 sets a window
+of 6, since 7 below it stands the comment of the deleted ApplyMaxPowerMod, and the pet arm it
+stands in (:264) is inside :261's window. One CHANGED owner guard stands in the windows of several
+sites: a CHANGED line is written back at each line of the windows where its base line stands.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
 What fails: a changed, swapped or dropped argument; a changed, moved or dropped guard, or any
 other changed line, inside a window; a site lost, added or still cast; an added line inside a
 window that is not listed; a listed line that does not stand at its place; a base line an entry
-names that stands twice in a window's base text, or in two windows at different lines. What
-passes: any edit outside every window, unlisted. Windows may overlap; each is checked on its own.
+names that stands twice in a window's base text, or, an added entry's, in two windows at
+different lines. What passes: any edit outside every window, unlisted. Windows may overlap; each
+is checked on its own.
 
 The file:line of every rewritten site, old and new, is printed with its window.
 
@@ -395,6 +407,16 @@ FORMS = {
         'fact': 'GroupAuraFact', 'fields': ['flag', 'slot'],
         'to': 'src/game/WorldHandlers/Group.h', 'lambda': '    callbacks.aura = [owner](auto const& fact)',
         'receiver': ('owner->', 'player->')},
+    'ReportOwnerGroupStat': {
+        'kind': 'reported', 'direct': 'ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).stat, ',
+        'cast': '((Player*)owner)->SetGroupUpdateFlag(', 'fact': 'GroupStatFact', 'fields': ['flag'],
+        'to': 'src/game/WorldHandlers/Group.h', 'lambda': '    callbacks.stat = [owner](auto const& fact)',
+        'receiver': ('owner->', '((Player*)owner)->')},
+    'ReportPetGroupAura': {
+        'kind': 'reported', 'direct': 'ReportGroupFact(InstalledGroupCallbacks(owner->m_groupCallbacks).petAura, ',
+        'cast': '((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_AURAS)', 'fact': 'PetGroupAuraFact',
+        'fields': ['flag', 'slot', 'pet'], 'to': 'src/game/WorldHandlers/Group.h',
+        'lambda': '    callbacks.petAura = [owner](auto const& fact)', 'receiver': ('owner->', '((Player*)owner)->')},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -894,11 +916,17 @@ FILES = {
                   'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1,
                   'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1, 'SendAttackSwingCancelAttack': 2,
                   'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1,
-                  'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1},
+                  'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1,
+                  'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
-                     '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())')],
-        'folded': {'ReportGroupStat': [1]},
+                     '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())'),
+                    ('            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))',
+                     '            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && '
+                     '((Player*)owner)->GetGroup())'),
+                    ('        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))',
+                     '        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())')],
+        'folded': {'ReportGroupStat': [1], 'ReportOwnerGroupStat': [0, 1, 2, 3], 'ReportPetGroupAura': [0]},
         'window': {626: 13, 960: 17, 975: 32, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
@@ -916,8 +944,13 @@ FILES = {
                      '        armorPenetrationPct = ((Player*)this)->GetArmorPenetrationPct();'
                      + ' ' * 62 + '// E2b, same guard')]},
     'src/game/Object/UnitPower.cpp': {
-        'forms': {'getClass': 5, 'ReportGroupStat': 3},
+        'forms': {'getClass': 5, 'ReportGroupStat': 3, 'ReportOwnerGroupStat': 3},
         'added': [],
+        'changed': [('            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))',
+                     '            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && '
+                     '((Player*)owner)->GetGroup())')],
+        'folded': {'ReportOwnerGroupStat': [0, 1, 2]},
+        'window': {272: 6},
         'deleted': ['void Unit::ApplyMaxPowerMod(Powers power, uint32 val, bool apply)']},
     'src/game/Object/UnitSpellBonus.cpp': {
         'forms': {'GetBaseSpellPowerBonus': 2, 'GetKnownTalentRankById': 1},
@@ -1236,10 +1269,13 @@ def reported_block(rel, at, tree, form, body, folded, spec, out):
             out('%s:%d: FAILED: a folded %s does not stand under a guard, or its body opens with no test'
                 % (rel, at + 1, form['direct'].rstrip(', ')))
             return None
-        base = '%sif ((%s) && %s)' % (guard.group(1), guard.group(2), test.group(1))
-        if (tree[at - 2], base) not in spec.get('changed', []):
-            out('%s:%d: FAILED: the folded guard %r is not listed as changed from %r'
-                % (rel, at - 1, tree[at - 2], base))
+        bases = ['%sif ((%s) && %s)' % (guard.group(1), guard.group(2), test.group(1))]
+        if ('||' not in guard.group(2) and '?' not in guard.group(2)
+                and not re.search(r'(?<![=!<>])=(?!=)', guard.group(2))):
+            bases.append('%sif (%s && %s)' % (guard.group(1), guard.group(2), test.group(1)))
+        if not any((tree[at - 2], base) in spec.get('changed', []) for base in bases):
+            out('%s:%d: FAILED: the folded guard %r is not listed as changed from %s'
+                % (rel, at - 1, tree[at - 2], ' or '.join(repr(base) for base in bases)))
             return None
         lines = ['    ' + b[8:] if b else b for b in lines[2:-1]]
     if 'dropped' in form:
@@ -1327,14 +1363,21 @@ def pair_sites(rel, old_text, pasted, spec, out, read=None, forms=None, by_form=
         cast = cast_of(name, forms[name], read, out)
         if cast is None:
             return 1, pairs
-        olds = [o for o in (line_of(old_text, i) - 1 for i in find_all(old_text, cast)) if o not in gone]
+        wider = [forms[n]['cast'] for n in spec['forms']
+                 if forms[n].get('kind') != 'branch' and forms[n]['cast'] != cast and cast in forms[n]['cast']]
+        olds = [o for o in (line_of(old_text, i) - 1 for i in find_all(old_text, cast))
+                if o not in gone and not any(w in old_lines[o] for w in wider)]
         if len(olds) != want:
             out('%s: FAILED: %d cast call(s) of %s at the base, the spec lists %d' % (rel, len(olds), name, want))
             return 1, pairs
         if forms[name].get('kind') == 'branch':
             news = [start + BRANCH_PLAYER for start in by_form.get(name, [])]
         else:
-            news = [line_of(pasted, i) - 1 for i in find_all(pasted, cast)]
+            news = [n for n in (line_of(pasted, i) - 1 for i in find_all(pasted, cast))
+                    if not any(w in new_lines[n] for w in wider)]
+        if len(news) != want:
+            out('%s: FAILED: %d cast call(s) of %s pasted back, the spec lists %d' % (rel, len(news), name, want))
+            return 1, pairs
         pairs += [(name, o, n) for o, n in zip(olds, news)]
     claims = {}
     for name, o, n in pairs:
@@ -1379,7 +1422,7 @@ def place_entries(rel, old_lines, windows, spec, out):
         if twice:
             rc = 1
             continue
-        if len(at) > 1:
+        if len(at) > 1 and kind == 'added':
             out('%s: FAILED: the base line %r that the %s line %s names stands in windows at lines %s, '
                 'expected one' % (rel, base, kind, label, ', '.join(':%d' % (j + 1) for j in sorted(at))))
             rc = 1
@@ -1387,12 +1430,12 @@ def place_entries(rel, old_lines, windows, spec, out):
         if not at:
             (added_out if kind == 'added' else changed_out).append((line, base))
             continue
-        j = at.pop()
         table = added_in if kind == 'added' else changed_in
-        if j in table:
-            out('%s: FAILED: two %s entries name the base line %r: list them as one' % (rel, kind, base))
-            rc = 1
-        table[j] = line.split('\n') if kind == 'added' else line
+        for j in sorted(at):
+            if j in table:
+                out('%s: FAILED: two %s entries name the base line %r: list them as one' % (rel, kind, base))
+                rc = 1
+            table[j] = line.split('\n') if kind == 'added' else line
     return rc, added_in, changed_in, added_out, changed_out
 
 
@@ -1950,6 +1993,130 @@ SELF_REPORTED_SPEC = {'forms': {'Stat': 2, 'Aura': 1}, 'added': [],
                                    '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())')],
                       'folded': {'Stat': [1]}, 'deleted': ['void Unit::Unused(uint32 val)']}
 
+OWNER_REPORTED_OLD = '''void Unit::SetHealth(uint32 val)
+{
+    SetValue(val);
+
+    if (IsPet())
+    {
+        Unit* owner = GetOwner();
+        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+        {
+            ((Player*)owner)->SetGroupUpdateFlag(FLAG_PET_HP);
+        }
+    }
+}
+
+void Unit::SetMaxHealth(uint32 val)
+{
+    SetValue(val);
+
+    if (IsPet())
+    {
+        Unit* owner = GetOwner();
+        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+        {
+            ((Player*)owner)->SetGroupUpdateFlag(FLAG_PET_MAX);
+        }
+    }
+}
+
+void Unit::UpdateAura(uint8 slot)
+{
+    if (IsPet())
+    {
+        Pet* pet = (Pet*)this;
+        Unit* owner = GetOwner();
+        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
+        {
+            ((Player*)owner)->SetGroupUpdateFlag(FLAG_PET_AURAS);
+            pet->SetAuraUpdateMask(slot);
+        }
+    }
+}
+'''
+
+OWNER_REPORTED_NEW = '''void Unit::SetHealth(uint32 val)
+{
+    SetValue(val);
+
+    if (IsPet())
+    {
+        Unit* owner = GetOwner();
+        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
+        {
+            Report(Of(owner->m).stat, Stat{FLAG_PET_HP});
+        }
+    }
+}
+
+void Unit::SetMaxHealth(uint32 val)
+{
+    SetValue(val);
+
+    if (IsPet())
+    {
+        Unit* owner = GetOwner();
+        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
+        {
+            Report(Of(owner->m).stat, Stat{FLAG_PET_MAX});
+        }
+    }
+}
+
+void Unit::UpdateAura(uint8 slot)
+{
+    if (IsPet())
+    {
+        Pet* pet = (Pet*)this;
+        Unit* owner = GetOwner();
+        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))
+        {
+            Report(Of(owner->m).petAura, PetAura{FLAG_PET_AURAS, slot, pet});
+        }
+    }
+}
+'''
+
+OWNER_REPORTED_BODY = '''template <class C, class O>
+C For(O* owner)
+{
+    C c;
+    c.stat = [owner](auto const& fact)
+    {
+        if (owner->GetGroup())
+        {
+            owner->SetGroupUpdateFlag(fact.flag);
+        }
+    };
+    c.petAura = [owner](auto const& fact)
+    {
+        if (owner->GetGroup())
+        {
+            owner->SetGroupUpdateFlag(fact.flag);
+            fact.pet->SetAuraUpdateMask(fact.slot);
+        }
+    };
+    return c;
+}
+'''
+
+OWNER_REPORTED_FORMS = {
+    'OwnerStat': {'kind': 'reported', 'direct': 'Report(Of(owner->m).stat, ',
+                  'cast': '((Player*)owner)->SetGroupUpdateFlag(', 'fact': 'Stat', 'fields': ['flag'], 'to': 'Group.h',
+                  'lambda': '    c.stat = [owner](auto const& fact)', 'receiver': ('owner->', '((Player*)owner)->')},
+    'PetAura': {'kind': 'reported', 'direct': 'Report(Of(owner->m).petAura, ',
+                'cast': '((Player*)owner)->SetGroupUpdateFlag(FLAG_PET_AURAS)', 'fact': 'PetAura',
+                'fields': ['flag', 'slot', 'pet'], 'to': 'Group.h',
+                'lambda': '    c.petAura = [owner](auto const& fact)',
+                'receiver': ('owner->', '((Player*)owner)->')}}
+
+OWNER_REPORTED_SPEC = {'forms': {'OwnerStat': 2, 'PetAura': 1}, 'added': [],
+                       'changed': [('        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))',
+                                    '        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && '
+                                    '((Player*)owner)->GetGroup())')],
+                       'folded': {'OwnerStat': [0, 1], 'PetAura': [0]}}
+
 
 def two_branches(player, unit, sites):
     """(base text, working tree text, files, forms, spec) of a function holding one branch site per
@@ -2244,6 +2411,11 @@ def self_test():
         swap=edit(a - 3), spec=changed)
     gen('a listed changed line that is missing fails', 1, 'does not stand in place of %r' % gen_line(a - 3),
         spec=changed)
+    each = dict(GEN_SPEC, changed=[('        break;', '        return;')])
+    gen('a changed line standing in three windows is written back at each', 0,
+        '3 changed line(s) written back inside them', swap=[('        return;', '        break;')] * 3, spec=each)
+    gen('... and one of them left as the base fails', 1, "does not stand in place of '        return;'",
+        swap=[('        return;', '        break;')] * 2, spec=each)
     gen('a listed changed line on a site is written back', 0, '1 changed line(s) written back inside them',
         swap=('id + 30, time(NULL)))', 'id + 30, time(NULL)))  // the test'),
         spec=dict(GEN_SPEC, changed=[(gen_line(a) + '  // the test', gen_line(a))]))
@@ -2544,6 +2716,44 @@ def self_test():
              '3 cast call(s) of Stat at the base, the spec lists 2', spec={'deleted': []})
     reported('a deleted member still standing fails', 1, 'the deleted member',
              swap=('void Unit::UpdateAura', 'void Unit::Unused(uint32 val)\n{\n}\n\nvoid Unit::UpdateAura'))
+
+    def owner(label, want_rc, needle, swap=('', ''), body=('', ''), old=('', ''), spec=None):
+        got = []
+        rc = verify('fixture', OWNER_REPORTED_OLD.replace(*old), OWNER_REPORTED_NEW.replace(*swap),
+                    dict(OWNER_REPORTED_SPEC, **(spec or {})), got.append, window=6,
+                    read={'Group.h': OWNER_REPORTED_BODY.replace(*body)}.__getitem__, forms=OWNER_REPORTED_FORMS)
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    owner('owner reports paste back through the owner cast, one guard written back thrice', 0,
+          'around 3/3 call(s) pasted back, with 0 added line(s) dropped and 3 changed')
+    owner('the flag set on the pet and the slot on the owner fails', 1, '0 cast call(s) of PetAura pasted back',
+          body=('owner->SetGroupUpdateFlag(fact.flag);\n            fact.pet->SetAuraUpdateMask(fact.slot);',
+                'fact.pet->SetGroupUpdateFlag(fact.flag);\n            owner->SetAuraUpdateMask(fact.slot);'))
+    owner('the slot reported on another pet fails', 1, 'fixture:37: DIFFERS from the base at line 38',
+          swap=('slot, pet}', 'slot, this}'))
+    owner('the pet aura reported through the stat callback fails', 1, 'does not stand as a whole statement',
+          swap=('Of(owner->m).petAura', 'Of(owner->m).stat'))
+    owner('an owner guard that lost its type test fails', 1, 'is not listed as changed from',
+          swap=('        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))\n        {\n'
+                '            Report(Of(owner->m).stat, Stat{FLAG_PET_MAX});',
+                '        if (owner)\n        {\n            Report(Of(owner->m).stat, Stat{FLAG_PET_MAX});'))
+    owner('a guard holding || does not fold without its parentheses', 1, 'is not listed as changed from',
+          old=('if (owner && (owner', 'if (owner || (owner'), swap=('if (owner && (owner', 'if (owner || (owner'),
+          spec={'changed': [('        if (owner || (owner->GetTypeId() == TYPEID_PLAYER))',
+                             '        if (owner || (owner->GetTypeId() == TYPEID_PLAYER) && '
+                             '((Player*)owner)->GetGroup())')]})
+    owner('a guard holding an assignment does not fold without its parentheses', 1,
+          'is not listed as changed from',
+          old=('if (owner && (owner', 'if ((owner = owner) && (owner'),
+          swap=('if (owner && (owner', 'if ((owner = owner) && (owner'),
+          spec={'changed': [('        if ((owner = owner) && (owner->GetTypeId() == TYPEID_PLAYER))',
+                             '        if ((owner = owner) && (owner->GetTypeId() == TYPEID_PLAYER) && '
+                             '((Player*)owner)->GetGroup())')]})
+    owner('the pet aura form unlisted: its cast counts as the stat form\'s at the base', 1,
+          '3 cast call(s) of OwnerStat at the base, the spec lists 2', spec={'forms': {'OwnerStat': 2}})
 
     got, sites = prove('fixture', SELF_OLD, SELF_NEW, SELF_SPEC, lambda _: None)
     want = [('HasSpellCooldown', 3, 3, k), ('HasSpellCooldown', 7, 7, k), ('AddSpellCooldown', 13, 13, k)]
