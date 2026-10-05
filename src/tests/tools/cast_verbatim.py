@@ -85,7 +85,8 @@ statement listed in its file's `folded` (by its order among its FORM's statement
 body's opening test folded into its guard: only the lines inside that test are written back, and
 the guard two lines above must be listed as a CHANGED line whose base reads
 `if ((<the guard's condition>) && <the test>)`, or `if (<the guard's condition> && <the test>)`
-when the condition holds no `||` and no `?`. Its site is the line holding its cast spelling, which
+when the condition holds no `||`, no `?` and no assignment (a `=` that is not part of `==`, `!=`,
+`<=` or `>=`). Its site is the line holding its cast spelling, which
 must stand nowhere in the working tree, and each FORM's sites must be found in the pasted-back text
 as often as the spec lists them. The receiver is the FORM's: the pet-owner arms read `owner->` as
 `((Player*)owner)->`. A FORM whose cast spelling stands inside a longer one of another FORM the file
@@ -1269,7 +1270,8 @@ def reported_block(rel, at, tree, form, body, folded, spec, out):
                 % (rel, at + 1, form['direct'].rstrip(', ')))
             return None
         bases = ['%sif ((%s) && %s)' % (guard.group(1), guard.group(2), test.group(1))]
-        if '||' not in guard.group(2) and '?' not in guard.group(2):
+        if ('||' not in guard.group(2) and '?' not in guard.group(2)
+                and not re.search(r'(?<![=!<>])=(?!=)', guard.group(2))):
             bases.append('%sif (%s && %s)' % (guard.group(1), guard.group(2), test.group(1)))
         if not any((tree[at - 2], base) in spec.get('changed', []) for base in bases):
             out('%s:%d: FAILED: the folded guard %r is not listed as changed from %s'
@@ -2742,6 +2744,13 @@ def self_test():
           old=('if (owner && (owner', 'if (owner || (owner'), swap=('if (owner && (owner', 'if (owner || (owner'),
           spec={'changed': [('        if (owner || (owner->GetTypeId() == TYPEID_PLAYER))',
                              '        if (owner || (owner->GetTypeId() == TYPEID_PLAYER) && '
+                             '((Player*)owner)->GetGroup())')]})
+    owner('a guard holding an assignment does not fold without its parentheses', 1,
+          'is not listed as changed from',
+          old=('if (owner && (owner', 'if ((owner = owner) && (owner'),
+          swap=('if (owner && (owner', 'if ((owner = owner) && (owner'),
+          spec={'changed': [('        if ((owner = owner) && (owner->GetTypeId() == TYPEID_PLAYER))',
+                             '        if ((owner = owner) && (owner->GetTypeId() == TYPEID_PLAYER) && '
                              '((Player*)owner)->GetGroup())')]})
     owner('the pet aura form unlisted: its cast counts as the stat form\'s at the base', 1,
           '3 cast call(s) of OwnerStat at the base, the spec lists 2', spec={'forms': {'OwnerStat': 2}})
