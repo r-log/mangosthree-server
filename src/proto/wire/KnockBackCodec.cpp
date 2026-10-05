@@ -31,7 +31,7 @@
 
 namespace
 {
-    const uint8 kMask[8]   = { 0, 3, 6, 7, 2, 5, 1, 4 };   // WorldSession::SendKnockBack
+    const uint8 kMask[8]   = { 0, 3, 6, 7, 2, 5, 1, 4 };   // Unit::KnockBackWithAngle
     const uint8 kBytes1[1] = { 1 };
     const uint8 kBytes67[2] = { 6, 7 };
     const uint8 kBytes453[3] = { 4, 5, 3 };
