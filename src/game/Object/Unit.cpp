@@ -4567,7 +4567,7 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
             break;
     }
 
-    Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;
+    bool unitPlayer = GetTypeId() == TYPEID_PLAYER;
     uint32 level = getLevel();
 
     // calculate basepoints dependent on mastery
@@ -4583,13 +4583,13 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
     if (unitPlayer && spellProto->HasAttribute(SPELL_ATTR_EX8_ARMOR_SPECIALIZATION))
     {
         // check spells not valid for current talent tree or insufficient equipped items
-        if (!unitPlayer->FitArmorSpecializationRules(spellProto))
+        if (!FitArmorSpecializationRules(spellProto))
         {
             return 0;
         }
     }
 
-    uint8 comboPoints = unitPlayer ? unitPlayer->GetComboPoints() : 0;
+    uint8 comboPoints = unitPlayer ? GetComboPoints() : 0;
 
     int32 basePoints = 0;
     uint32 spellLevel = 0;
@@ -4670,7 +4670,7 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
     int32 value = basePoints;
 
     // random damage
-    if (comboDamage != 0 && unitPlayer && target && (target->GetObjectGuid() == unitPlayer->GetComboTargetGuid() || spellProto->HasAttribute(SPELL_ATTR_EX8_IGNORE_TARGET_FOR_COMBO_POINTS)))
+    if (comboDamage != 0 && unitPlayer && target && (target->GetObjectGuid() == GetComboTargetGuid() || spellProto->HasAttribute(SPELL_ATTR_EX8_IGNORE_TARGET_FOR_COMBO_POINTS)))
     {
         value += (int32)(comboDamage * comboPoints);
     }
