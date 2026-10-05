@@ -144,7 +144,10 @@ The smallest correction per manager:
 - **Database:** the row decoding and the SQL move to `persistence/characters/<domain>`. `LoadRow` takes a plain row,
   and the save reads the manager's state by const reference.
 
-Each correction is one PR per manager, with the harness record byte-identical.
+Each correction is one PR per manager, with the harness record byte-identical. A body that moves between files with
+different includes is not byte-identical if an unqualified call to an overloaded function binds a different overload
+in its new file (on libstdc++, `cos` on a `float` binds `cosf` under `<math.h>` and `cos(double)` under `<cmath>`
+alone): the proof checks the includes the body depends on, not only its bytes.
 
 ## 3. Shared versus player-only
 

@@ -703,8 +703,9 @@ void WorldSession::HandleMountSpecialAnimOpcode(WorldPacket& /*recvdata*/)
 void WorldSession::SendKnockBack(float angle, float horizontalSpeed, float verticalSpeed)
 {
     Motion::KnockBackParams params;
-    params.directionX = cos(angle);
-    params.directionY = sin(angle);
+    // The direction is computed in double and narrowed to float.
+    params.directionX = float(cos(double(angle)));
+    params.directionY = float(sin(double(angle)));
     params.horizontal = horizontalSpeed;
     params.vertical = -verticalSpeed;   // as the wire carries it
     Player* player = GetPlayer();
