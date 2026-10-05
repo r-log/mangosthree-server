@@ -873,7 +873,7 @@ UNIT_H_SPELL_DAMAGE = '''        /**
          */
         virtual uint8 GetComboPoints() const { return 0; }
         /**
-         * @return the guid of the unit that holds this unit's combo points, which CalculateSpellDamage
+         * @return the guid of the unit this unit's combo points are on, which CalculateSpellDamage
          * compares with the spell's target: an empty guid here; Player returns its combo target's
          */
         virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }
@@ -1531,8 +1531,9 @@ def reported_block(rel, at, tree, form, body, folded, spec, out):
 LOCAL_POINTER = re.compile(r'^Player\* (\w+) = \((.+)\) \? \(Player\*\)this : NULL;$')
 
 
-def paste_locals(rel, text, spec, out, forms):
-    """(rc, text with the flag line of each listed `local` FORM written back as its pointer line)."""
+def paste_locals(rel, text, spec, out, forms, starts=()):
+    """(rc, text with the flag line of each listed `local` FORM written back as its pointer line); STARTS are
+    the moved blocks already written back, so a refused line is named by its working-tree number."""
     lines = text.split('\n')
 
     def fail(message):
@@ -1561,7 +1562,7 @@ def paste_locals(rel, text, spec, out, forms):
             for k in range(i + 1, lines.index('}', i)):
                 if re.search(r'\b%s\b' % local, re.sub(tests, '', lines[k])):
                     return fail('%s:%d: FAILED: the local %s stands as neither `%s &&`, `%s ?` nor `if (%s)`: %r'
-                                % (rel, k + 1, local, local, local, local, lines[k].strip()))
+                                % (rel, tree_index(starts, k) + 1, local, local, local, local, lines[k].strip()))
             lines[i] = lines[i][:len(lines[i]) - len(lines[i].lstrip())] + form['cast']
     return 0, '\n'.join(lines)
 
@@ -1573,7 +1574,7 @@ def paste_back(rel, text, spec, out, read=None, forms=None):
     forms = FORMS if forms is None else forms
     rc, text, sites, moved = paste_moved(rel, text, spec, out, read, forms)
     if not rc:
-        rc, text = paste_locals(rel, text, spec, out, forms)
+        rc, text = paste_locals(rel, text, spec, out, forms, moved)
     if rc:
         return 1, text, sites, [], {}
     sites += sum(n for name, n in spec['forms'].items() if forms[name].get('kind') == 'local')

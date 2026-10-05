@@ -3960,7 +3960,7 @@ class Unit : public WorldObject
          */
         virtual uint8 GetComboPoints() const { return 0; }
         /**
-         * @return the guid of the unit that holds this unit's combo points, which CalculateSpellDamage
+         * @return the guid of the unit this unit's combo points are on, which CalculateSpellDamage
          * compares with the spell's target: an empty guid here; Player returns its combo target's
          */
         virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }
