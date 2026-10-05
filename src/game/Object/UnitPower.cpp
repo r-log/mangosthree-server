@@ -276,39 +276,6 @@ void Unit::ApplyPowerMod(Powers power, uint32 val, bool apply)
 }
 
 /**
- * @brief Applies or removes a flat modifier to maximum power.
- *
- * @param power The power type to modify.
- * @param val The amount to apply or remove.
- * @param apply True to apply the modifier; false to remove it.
- */
-void Unit::ApplyMaxPowerMod(Powers power, uint32 val, bool apply)
-{
-    ApplyModUInt32Value(UNIT_FIELD_MAXPOWER1 + power, val, apply);
-
-    // group update
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        if (((Player*)this)->GetGroup())
-        {
-            ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_MAX_POWER);
-        }
-    }
-    else if (IsPet())
-    {
-        Pet* pet = ((Pet*)this);
-        if (pet->isControlled())
-        {
-            Unit* owner = GetOwner();
-            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())
-            {
-                ((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_MAX_POWER);
-            }
-        }
-    }
-}
-
-/**
  * @brief Registers or unregisters an aura in the proc-trigger-damage list.
  *
  * @param aura The aura to add or remove.
