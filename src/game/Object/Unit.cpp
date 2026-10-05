@@ -6474,7 +6474,7 @@ void Unit::NearTeleportTo(float x, float y, float z, float orientation, bool cas
 
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->TeleportTo(GetMapId(), x, y, z, orientation, TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET | (casting ? TELE_TO_SPELL : 0));
+        TeleportNear(x, y, z, orientation, casting);
     }
     else
     {

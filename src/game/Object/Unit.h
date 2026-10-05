@@ -3922,6 +3922,19 @@ class Unit : public WorldObject
          * client.
          */
         virtual void SetClientControl(Unit* /*target*/, uint8 /*allowMove*/) { }
+        /**
+         * Teleports the unit a short way on its own map, keeping its transport, its combat and its pet,
+         * and marks the teleport as a spell's when a cast moves the unit itself; NearTeleportTo calls it
+         * on a player.
+         * @param x the destination x coordinate
+         * @param y the destination y coordinate
+         * @param z the destination z coordinate
+         * @param orientation the facing at the destination
+         * @param casting true when the unit's own spell cast moves it
+         * Does nothing here, a unit that is not a player is relocated in place by NearTeleportTo's other
+         * arm; Player teleports itself with its own teleport.
+         */
+        virtual void TeleportNear(float /*x*/, float /*y*/, float /*z*/, float /*orientation*/, bool /*casting*/) { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

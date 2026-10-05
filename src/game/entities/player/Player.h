@@ -4162,6 +4162,10 @@ class Player : public Unit
             return m_clientCallbacks.securityLevel();
         }
 
+        // Teleports the player a short way on its own map, keeping its transport, combat and pet, which
+        // Unit's NearTeleportTo asks for; private, so only a call through Unit reaches it
+        void TeleportNear(float x, float y, float z, float orientation, bool casting) override;
+
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
         uint32 m_created_date = 0;

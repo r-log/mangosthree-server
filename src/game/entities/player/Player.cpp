@@ -2005,6 +2005,20 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
 }
 
 /**
+ * @brief Teleports the player a short way on its own map, keeping its transport, combat and pet.
+ *
+ * @param x The destination x coordinate.
+ * @param y The destination y coordinate.
+ * @param z The destination z coordinate.
+ * @param orientation The destination orientation.
+ * @param casting True when the player's own spell cast moves it: the teleport is marked as a spell's.
+ */
+void Player::TeleportNear(float x, float y, float z, float orientation, bool casting)
+{
+    TeleportTo(GetMapId(), x, y, z, orientation, TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET | (casting ? TELE_TO_SPELL : 0));
+}
+
+/**
  * @brief Executes queued delayed player operations.
  */
 void Player::ProcessDelayedOperations()
