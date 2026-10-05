@@ -111,7 +111,7 @@ followed by `(` nowhere in the files `gone` names, which held its declaration an
 A moved body and an inlined block are checked for the includes they depend on, not only for their
 bytes: a line of either that calls an overloaded standard math function (cos, sin, tan, acos, asin,
 atan, atan2, sqrt, pow, fabs, abs, floor, ceil, round, fmod, exp, log), unqualified or through
-`std::` or `::`, with an argument that is neither an explicit cast to a floating or integer type nor
+`std::` or `::`, with an argument that is neither a cast to double nor
 a double literal fails, named with its line and the call: the overload such a call binds depends on
 the declarations its file's includes bring in. Comments and string literals are not read.
 
@@ -1205,12 +1205,12 @@ def tree_index(starts, i):
 
 MATH_CALL = re.compile(r'(?:(?<![\w.>:])std::|(?<![\w.>:])::|(?<![\w.>:]))(?:cos|sin|tan|acos|asin|atan|atan2|sqrt|pow|'
                        r'fabs|abs|floor|ceil|round|fmod|exp|log)\s*\(')
-CAST_TYPE = r'(?:float|double|long double|int|long|long long)'
+CAST_TYPE = r'(?:double)'
 
 
 def unspelled_math(line):
     """The first call in LINE, outside its comment and string literals, of an overloaded standard
-    math function with an argument that is neither an explicit cast nor a double literal, or None."""
+    math function with an argument that is neither a cast to double nor a double literal, or None."""
     code = re.sub(r'"[^"]*"', '""', line).split('//')[0]
     for m in MATH_CALL.finditer(code):
         depth, args, at = 1, [''], m.end()
@@ -1227,10 +1227,10 @@ def unspelled_math(line):
 
 
 def spelled(arg):
-    """Whether ARG is an explicit cast or a double literal, so the overload it binds is its spelling's."""
+    """Whether ARG is a cast to double or a double literal, so the overload it binds is the double one."""
     if re.match(r'^[-+]?(\d+\.\d*|\.\d+)([eE][-+]?\d+)?$', arg) or re.match(r'^\(%s\)\s*\w+$' % CAST_TYPE, arg):
         return True
-    m = re.match(r'^(%s\s*|static_cast<[^>]+>\s*|\(%s\)\s*)\(' % (CAST_TYPE, CAST_TYPE), arg)
+    m = re.match(r'^(%s\s*|static_cast<double>\s*|\(%s\)\s*)\(' % (CAST_TYPE, CAST_TYPE), arg)
     depth = 0
     for k in range(m.end() - 1 if m else len(arg), len(arg)):
         depth += {'(': 1, ')': -1}.get(arg[k], 0)
@@ -1239,7 +1239,7 @@ def spelled(arg):
     return False
 
 
-UNSPELLED = "an unqualified overloaded call binds by the file's includes: spell the argument's type"
+UNSPELLED = "an unqualified overloaded call binds by the file's includes: spell the argument as double"
 
 
 def paste_moved(rel, text, spec, out, read, forms):
@@ -2824,6 +2824,9 @@ def self_test():
           body=('this, itr->first', 'this, floor(itr->first)'))
     for line, want in [('x = std::cos(angle);', 'std::cos(angle)'), ('x = ::sqrt(d) + 1;', '::sqrt(d)'),
                        ('x = atan2(double(y), x);', 'atan2(double(y), x)'), ('x = float(cos(double(angle)));', None),
+                       ('x = cos(float(angle));', 'cos(float(angle))'),
+                       ('x = sin(static_cast<float>(angle));', 'sin(static_cast<float>(angle))'),
+                       ('x = tan((int)a);', 'tan((int)a)'), ('x = cos(static_cast<double>(angle));', None),
                        ('x = pow(static_cast<double>(a), 2.0) + fabs((double)b); // cos(c)', None),
                        ('x = Cosine(a) + m.sin(a) + p->tan(a) + Foo::log(a) + "abs(a)";', None)]:
         ok = unspelled_math('    ' + line) == want
