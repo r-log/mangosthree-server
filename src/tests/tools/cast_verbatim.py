@@ -138,7 +138,7 @@ spells its direct call twice on one line, on this unit and on the observer, wher
 this unit once, so no FORM counts it: it is a CHANGED line with no FORM, in no window (the
 nearest, :203's, opens at :192), checked at its place. The position and moving sites stand within
 2 lines of their type tests: Unit.cpp:550, the pending commit, 2 below :548, :7014, the end of a
-spline, 2 below the `else` arm's test at :7012 (the boarded test 8 above), and :2211, the
+spline, 2 below the `else` arm's test at :7012 (the boarded test 9 above), and :2211, the
 auto-repeat movement test, on the type test of its own line. The feign-death flag write,
 UnitSpeed.cpp:538, the player arm of the creature test at :532, stands 6 lines below it; its
 direct spelling names Unit's own member, which the cast reached through Player.
