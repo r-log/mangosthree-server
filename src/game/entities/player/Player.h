@@ -2818,7 +2818,7 @@ class Player : public Unit
         void SendResetFailedNotify(uint32 mapid);
 
         // Set the player's position
-        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false);
+        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false) override;
 
         // Update the player's underwater state
         void UpdateUnderwaterState(Map* m, float x, float y, float z);
@@ -3515,7 +3515,7 @@ class Player : public Unit
         // Build a teleport acknowledgment message
 
         // Check if the player is moving
-        bool isMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }
+        bool isMoving() const override final { return m_movementInfo.HasMovementFlag(movementFlagsMask); }
 
         // Check if the player is moving or turning
         bool isMovingOrTurning() const { return m_movementInfo.HasMovementFlag(movementOrTurningFlagsMask); }

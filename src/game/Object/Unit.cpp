@@ -548,7 +548,7 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
         {
             if (GetTypeId() == TYPEID_PLAYER)
             {
-                ((Player*)this)->SetPosition(m_pendingCommit.x, m_pendingCommit.y,
+                SetPosition(m_pendingCommit.x, m_pendingCommit.y,
                                              m_pendingCommit.z, m_pendingCommit.o);
             }
             else
@@ -2197,7 +2197,7 @@ void Unit::_UpdateAutoRepeatSpell()
     bool isAutoShot = m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_spellInfo->ID == SPELL_ID_AUTOSHOT;
 
     // check movement
-    if (GetTypeId() == TYPEID_PLAYER && ((Player*)this)->isMoving() &&
+    if (GetTypeId() == TYPEID_PLAYER && isMoving() &&
         !HasAffectedAura(SPELL_AURA_ALLOW_CAST_WHILE_MOVING, m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_spellInfo))
     {
         // cancel wand shoot
@@ -6982,7 +6982,7 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
         }
         else if (GetTypeId() == TYPEID_PLAYER)
         {
-            ((Player*)this)->SetPosition(loc.x, loc.y, loc.z, loc.orientation);
+            SetPosition(loc.x, loc.y, loc.z, loc.orientation);
         }
         else
         {

@@ -535,7 +535,7 @@ void Unit::SetFeignDeath(bool apply, ObjectGuid casterGuid, uint32 spellID)
         }
         else
         {
-            ((Player*)this)->m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
+            m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
         }
 
         // blizz like 2.0.x
