@@ -599,7 +599,6 @@ src/game/Object/UnitThreat.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitThreat.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitThreat.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitThreat.cpp -> src/proto/WorldPacket.h
-src/game/Object/UnitVisibility.cpp -> src/game/Server/WorldSession.h
 src/game/Object/UnitVisibility.cpp -> src/game/WorldHandlers/SpellAuras.h
 src/game/Object/UnitVisibility.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitVisibility.cpp -> src/game/entities/player/Player.h

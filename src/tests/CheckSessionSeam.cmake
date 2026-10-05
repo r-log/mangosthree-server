@@ -2,8 +2,8 @@
 # player is loading or logging out, and Player for direct sends. This gate holds the seam so a
 # later change cannot grow it back: SpellAuraPeriodic.cpp and UnitAura.cpp must not call
 # GetSession(...) at all; SpellPackets.cpp may call it only for GetSessionDbLocaleIndex() and
-# must not call SendPacket(...) (SendDirectMessage() replaces it); UnitVisibility.cpp may call
-# it only for GetSecurity(). None of the four files may call PlayerLoading(...) or
+# must not call SendPacket(...) (SendDirectMessage() replaces it); UnitVisibility.cpp must not
+# call it at all. None of the four files may call PlayerLoading(...) or
 # PlayerLogout(...) directly -- Player::IsLoading()/IsLoggingOut() replace them. Aliasing
 # (WorldSession* s = x->GetSession();) fails the GetSession rule by construction: the alias
 # expression still matches "GetSession[ \t]*\(".
@@ -28,7 +28,6 @@ set(SEND_PACKET_RE "SendPacket[ \t]*\\(")
 set(PLAYER_LOADING_RE "PlayerLoading[ \t]*\\(")
 set(PLAYER_LOGOUT_RE "PlayerLogout[ \t]*\\(")
 set(LOCALE_ALLOW_RE "GetSession\\(\\)->GetSessionDbLocaleIndex\\(\\)")
-set(SECURITY_ALLOW_RE "GetSession\\(\\)->GetSecurity\\(\\)")
 
 # Self-test: each regex is exercised against one positive and one negative string before the
 # scan runs. A broken regex fails the gate here, with FATAL_ERROR -- it never gets a chance to
@@ -62,9 +61,6 @@ assert_regex("PlayerLogout negative" "((Player*)x)->IsLoggingOut()" "${PLAYER_LO
 assert_regex("locale allow matches its exact line" "target->GetSession()->GetSessionDbLocaleIndex()" "${LOCALE_ALLOW_RE}" ON)
 assert_regex("locale allow rejects a near-miss" "target->GetSession()->GetSessionDbLocaleIndex2()" "${LOCALE_ALLOW_RE}" OFF)
 
-assert_regex("security allow matches its exact line" "((Player*)this)->GetSession()->GetSecurity()" "${SECURITY_ALLOW_RE}" ON)
-assert_regex("security allow rejects a near-miss" "((Player*)this)->GetSession()->GetSecurityLevel()" "${SECURITY_ALLOW_RE}" OFF)
-
 # Whether a line calls GetSession(...) outside the one allowed idiom for its file. The allowed
 # text is removed first (string(REPLACE) takes every occurrence on the line, not just the
 # first), then the GetSession rule runs on what is left -- so a second, disallowed GetSession(...)
@@ -77,9 +73,6 @@ function(session_line_violates FILE_NAME LINE OUT_VAR)
         set(STRIPPED "${LINE}")
         if(FILE_NAME STREQUAL "SpellPackets.cpp")
             string(REPLACE "GetSession()->GetSessionDbLocaleIndex()" "" STRIPPED "${STRIPPED}")
-        endif()
-        if(FILE_NAME STREQUAL "UnitVisibility.cpp")
-            string(REPLACE "GetSession()->GetSecurity()" "" STRIPPED "${STRIPPED}")
         endif()
         if(STRIPPED MATCHES "${SESSION_CALL_RE}")
             set(RESULT ON)
@@ -138,7 +131,7 @@ if(VIOLATIONS)
     message(FATAL_ERROR
         "The spells<->session seam (decoupling D5a) is broken:\n  ${REPORT}\n"
         "The aura and spell packet code asks Player (IsLoading/IsLoggingOut/SendDirectMessage),\n"
-        "not the session, with two named exceptions (locale index, security level).")
+        "not the session, with one named exception (the locale index).")
 endif()
 
 message(STATUS "session seam: 4 files clean, self-test OK")
