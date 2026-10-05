@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""player_sinks.py [--root <repo root>] --check | --self-test: every player gets its cooldown sinks.
+"""player_sinks.py [--root <repo root>] --check | --self-test: every player gets the session's callbacks.
 
 Every `new Player(` under src/ -- placement (`new (std::nothrow) Player(`), qualified (`new ::Player(`) and
 make_unique/make_shared<Player> included, the SD3 scripts too -- assigns the player to a variable, and
-`InstallCooldownPacketSinks(*<variable>)` is called on one of the next WINDOW lines; an install on the line
+`InstallPlayerPacketSinks(*<variable>)` is called on one of the next WINDOW lines; an install on the line
 of the `new` itself does not count and fails.
-The number of creation sites is fixed at SITES: a new site fails until it installs the sinks and SITES is
+The number of creation sites is fixed at SITES: a new site fails until it installs the callbacks and SITES is
 raised with it, and a removed site fails until SITES is lowered.
 
 Not caught: a player created through a macro or a factory function, and an install made on another path
@@ -68,7 +68,7 @@ def sites(text):
         var = ASSIGNED.search(clean[start:m.start()])
         installed = False
         if var:
-            install = re.compile(r'\bInstallCooldownPacketSinks\s*\(\s*\*\s*%s\s*\)' % re.escape(var.group(1)))
+            install = re.compile(r'\bInstallPlayerPacketSinks\s*\(\s*\*\s*%s\s*\)' % re.escape(var.group(1)))
             installed = any(install.search(text_line) for text_line in lines[line:line + WINDOW])
         found.append((line, installed))
     return found
@@ -103,7 +103,7 @@ def check(root, out=print, expected=SITES):
     failed = False
     for rel, line, installed in found:
         if not installed:
-            out('%s:%d: a player is created without InstallCooldownPacketSinks(*<it>) in the next %d lines; '
+            out('%s:%d: a player is created without InstallPlayerPacketSinks(*<it>) in the next %d lines; '
                 'call it right after the construction' % (rel, line, WINDOW))
             failed = True
     if len(found) != expected:
@@ -112,7 +112,7 @@ def check(root, out=print, expected=SITES):
         failed = True
     if failed:
         return 1
-    out('PlayerSinks OK: %d files under %s, %d player creation sites, each installs its cooldown sinks'
+    out('PlayerSinks OK: %d files under %s, %d player creation sites, each installs the session callbacks'
         % (files, SCOPE, len(found)))
     return 0
 
@@ -125,15 +125,17 @@ def self_test():
         if got != want:
             failures.append('%s: %r, expected %r' % (label, got, want))
 
-    install = 'InstallCooldownPacketSinks(*p);\n'
+    install = 'InstallPlayerPacketSinks(*p);\n'
     expect('installed on the next line', 'Player* p = new Player(s);\n' + install, [(1, True)])
     expect('installed within the window', 'Player* p = new Player(s);\na();\nb();\n' + install, [(1, True)])
     expect('installed past the window', 'Player* p = new Player(s);\na();\nb();\nc();\n' + install, [(1, False)])
     expect('not installed', 'Player* p = new Player(s);\np->Create();\n', [(1, False)])
-    expect('another variable installed', 'Player* p = new Player(s);\nInstallCooldownPacketSinks(*q);\n', [(1, False)])
+    expect('another variable installed', 'Player* p = new Player(s);\nInstallPlayerPacketSinks(*q);\n', [(1, False)])
+    expect('the cooldown installer alone', 'Player* p = new Player(s);\nInstallCooldownPacketSinks(*p);\n',
+           [(1, False)])
     expect('install commented out', 'Player* p = new Player(s);\n// ' + install, [(1, False)])
     expect('not assigned', 'Use(new Player(s));\n' + install, [(1, False)])
-    expect('assigned across lines', 'Player* p =\n    new  Player (s);\nInstallCooldownPacketSinks( * p );\n',
+    expect('assigned across lines', 'Player* p =\n    new  Player (s);\nInstallPlayerPacketSinks( * p );\n',
            [(2, True)])
     expect('make_unique', 'auto p = std::make_unique<Player>(s);\n' + install, [(1, True)])
     expect('comment and string', '// new Player(s)\nconst char* t = "new Player(";\n', [])
@@ -183,7 +185,7 @@ def self_test():
 
 
 def main(argv):
-    ap = argparse.ArgumentParser(description='CheckPlayerSinks: every player creation installs its cooldown sinks.')
+    ap = argparse.ArgumentParser(description='CheckPlayerSinks: every player creation installs the session callbacks.')
     here = os.path.dirname(os.path.abspath(__file__))
     ap.add_argument('--root', default=os.path.abspath(os.path.join(here, '..', '..', '..')))
     g = ap.add_mutually_exclusive_group(required=True)

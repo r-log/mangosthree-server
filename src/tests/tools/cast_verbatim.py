@@ -67,7 +67,11 @@ standing anywhere else, is a difference in that window. A `moved` FORM with a `d
 for one more line, directly above the block: that line holds the cast spelling and stands nowhere
 in the working tree; it is written back above the block at the statement's indentation, and it is
 the site. A `dropped` line that does not hold the cast spelling, or that still stands, fails; a
-changed one is a difference in the window.
+changed one is a difference in the window. A moved body that a later seam changed is pinned as
+text, like a CHANGED line: a `moved` FORM with a `body` (the body's lines as they read now) and a
+`base_body` (the base lines it stands for) takes no EDITs; the body in `to` must read exactly as
+`body`, or it fails, named with its first differing line in `to`, and `base_body` is written back
+in the statement's place instead of the body, so a wrong `base_body` is a difference in the window.
 
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
@@ -321,7 +325,10 @@ FORMS = {
         'kind': 'moved', 'direct': 'SendStandStateUpdate(', 'cast': '((Player*)this)->GetSession()->SendPacket(&data)',
         'to': 'src/game/entities/player/Player.cpp',
         'header': 'void Player::SendStandStateUpdate(uint8 state)',
-        'edits': [('((Player*)this)->GetSession()->SendPacket(&data)', 'GetSession()->SendPacket(&data)')]},
+        'body': ['    StandStateFact fact;', '    fact.state = state;',
+                 '    ReportClientFact(m_clientCallbacks.standState, fact);'],
+        'base_body': ['    WorldPacket data(SMSG_STANDSTATE_UPDATE, 1);', '    data << (uint8)state;',
+                      '    ((Player*)this)->GetSession()->SendPacket(&data);']},
     'ReportSwingError': {
         'kind': 'moved', 'direct': 'ReportSwingError(', 'cast': '(GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL)',
         'dropped': 'Player* player = (GetTypeId() == TYPEID_PLAYER ? (Player*)this : NULL);',
@@ -996,7 +1003,17 @@ def paste_moved(rel, text, spec, out, read, forms):
                 return fail('%s:%d: FAILED: the body line %r of %r does not start with four spaces'
                             % (form['to'], i + 1, body[i], form['header']))
         block = '\n'.join(body[heads[0] + 2:end])
-        for base, new in form['edits']:
+        if 'body' in form or 'base_body' in form:
+            if form.get('edits') or 'body' not in form or 'base_body' not in form:
+                return fail('%s: FAILED: %r pins its body: it takes a body and a base_body and no edits'
+                            % (form['to'], form['header']))
+            pin, now = form['body'], body[heads[0] + 2:end]
+            k = next((k for k in range(max(len(pin), len(now))) if pin[k:k + 1] != now[k:k + 1]), None)
+            if k is not None:
+                return fail('%s:%d: FAILED: the body of %r does not read as its pinned text'
+                            % (form['to'], heads[0] + 3 + k, form['header']))
+            block = '\n'.join(form['base_body'])
+        for base, new in form.get('edits', ()):
             if block.count(new) != 1:
                 return fail('%s: FAILED: the edit %r stands %d time(s) in the body of %r, expected once'
                             % (form['to'], new, block.count(new), form['header']))
@@ -2124,6 +2141,25 @@ def self_test():
           body=('        }\n    }\n}', '        }\n    } \n}'), window=6)
     moved('... and the window reaching it fails', 1, 'DIFFERS from the base at line 15',
           body=('        }\n    }\n}', '        }\n    } \n}'), window=7)
+
+    def pinned(label, want_rc, needle, body=('', ''), base=('', ''), edits=()):
+        got = []
+        form = dict(SELF_MOVED_FORMS['Cast'], body=['    Report(flag);'], edits=list(edits),
+                    base_body=[b[8:].replace(*base) for b in SELF_MOVED_OLD.split('\n')[7:15]])
+        tree = 'void Player::Cast(AuraState flag)\n{\n    Report(flag);\n}\n'.replace(*body)
+        rc = verify('fixture', SELF_MOVED_OLD, SELF_MOVED_NEW, {'forms': {'Cast': 1}, 'added': [], 'window': {8: 8}},
+                    got.append, read={'Player.cpp': tree}.__getitem__, forms={'Cast': form})
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    pinned('a pinned body pastes its base body back in place of its statement', 0, 'around 1/1 call(s) pasted back')
+    pinned('a pinned body line changed fails', 1, 'Player.cpp:3: FAILED: the body of',
+           body=('Report(flag)', 'Report(0)'))
+    pinned('a base body line changed fails', 1, 'fixture:8: DIFFERS from the base at line 13', base=('true', 'false'))
+    pinned('a pinned body with edits fails', 1, 'takes a body and a base_body and no edits',
+           edits=[('((Player*)this)->GetMap()', 'GetMap()')])
 
     def dropped(label, want_rc, needle, swap=('', ''), body=('', ''), line=None, window=6):
         got = []

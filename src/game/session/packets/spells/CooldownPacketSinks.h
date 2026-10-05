@@ -57,8 +57,8 @@ CooldownsClearedSink CooldownsClearedToSession(Owner* owner)
     };
 }
 
-/// Gives `player` both cooldown callbacks. Every place that creates a player calls it right after
-/// the construction, before the player is loaded, created or used.
+/// Gives `player` both cooldown callbacks. InstallPlayerPacketSinks calls it where a player is
+/// created, right after the construction, before the player is loaded, created or used.
 void InstallCooldownPacketSinks(Player& player);
 
 #endif
