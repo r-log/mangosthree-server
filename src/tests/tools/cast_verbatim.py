@@ -136,7 +136,12 @@ block of 3, 4 below its own (:5966). The swing error report, Unit.cpp:626, the `
 past the block's last line (12 below). The account security comparison, UnitVisibility.cpp:186,
 spells its direct call twice on one line, on this unit and on the observer, where the base cast
 this unit once, so no FORM counts it: it is a CHANGED line with no FORM, in no window (the
-nearest, :203's, opens at :192), checked at its place.
+nearest, :203's, opens at :192), checked at its place. The position and moving sites stand within
+2 lines of their type tests: Unit.cpp:550, the pending commit, 2 below :548, :7014, the end of a
+spline, 2 below the `else` arm's test at :7012 (the boarded test 8 above), and :2211, the
+auto-repeat movement test, on the type test of its own line. The feign-death flag write,
+UnitSpeed.cpp:538, the player arm of the creature test at :532, stands 6 lines below it; its
+direct spelling names Unit's own member, which the cast reached through Player.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -319,6 +324,15 @@ FORMS = {
     'SendPetGUIDs': {'direct': 'SendPetGUIDs(',
                      'cast': '((Player*)this)->SendPetGUIDs(',
                      'suffix': None},
+    'SetPosition': {'direct': 'SetPosition(',
+                    'cast': '((Player*)this)->SetPosition(',
+                    'suffix': None},
+    'isMoving': {'direct': 'isMoving(',
+                 'cast': '((Player*)this)->isMoving(',
+                 'suffix': None},
+    'm_movementInfo.SetMovementFlags': {'direct': 'm_movementInfo.SetMovementFlags(',
+                                        'cast': '((Player*)this)->m_movementInfo.SetMovementFlags(',
+                                        'suffix': None},
     'CastPassiveSpellsForAuraState': {
         'kind': 'moved', 'direct': 'CastPassiveSpellsForAuraState(', 'cast': '((Player*)this)->GetSpellMap()',
         'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
@@ -478,7 +492,8 @@ UNIT_H_COOLDOWNS = '''
         /**
          * Starts a spell's cooldown and its category's and reports the cooldown event; RemoveGameObject
          * calls it when an object whose spell stayed disabled goes.
-         * Does nothing here; Player stores both cooldowns and sends the event to its session.
+         * Does nothing here; Player stores both cooldowns and reports the event to the callback its
+         * session installed, and the session sends it.
          */
         virtual void SendCooldownEvent(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/ = 0,
                                        Spell* /*spell*/ = NULL) { }
@@ -641,7 +656,24 @@ UNIT_H_ACCOUNT_SECURITY = '''        /**
          * players, so the default is not observed there; Player returns what the query its session
          * installed reads
          */
-        virtual uint32 GetAccountSecurityLevel() const { return 0; }
+        virtual uint32 GetAccountSecurityLevel() const { return 0; }'''
+
+UNIT_H_POSITION_AND_MOVING = '''        /**
+         * Moves the unit to a position, telling its map; Update's pending commit and the end of a
+         * spline call it on a player.
+         * @param teleport true when the move is a teleport
+         * @return false here, a unit that is not a player is relocated by its map's creature relocation
+         * at the same call sites; Player relocates itself and its map's view of it, and returns false
+         * only for a position outside the map
+         */
+        virtual bool SetPosition(float /*x*/, float /*y*/, float /*z*/, float /*orientation*/,
+                                 bool /*teleport*/ = false) { return false; }
+        /**
+         * Whether the unit's movement flags hold a moving flag; the auto-repeat spell update asks it of
+         * a player.
+         * @return false here; Player answers whether its movement flags hold one of movementFlagsMask
+         */
+        virtual bool isMoving() const { return false; }
 
     public:'''
 
@@ -714,7 +746,7 @@ FILES = {
                   (UNIT_H_COOLDOWNS + '\n' + UNIT_H_COMBO_POINTS + '\n' + UNIT_H_RAGE + '\n' + UNIT_H_KILL_CREDIT
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
                    + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS
-                   + '\n' + UNIT_H_ACCOUNT_SECURITY,
+                   + '\n' + UNIT_H_ACCOUNT_SECURITY + '\n' + UNIT_H_POSITION_AND_MOVING,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -795,7 +827,13 @@ FILES = {
                     ('        void SendAttackSwingCancelAttack() override;',
                      '        void SendAttackSwingCancelAttack();'),
                     ('        void SendAutoRepeatCancel(Unit* target) override;',
-                     '        void SendAutoRepeatCancel(Unit* target);')],
+                     '        void SendAutoRepeatCancel(Unit* target);'),
+                    ('        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false) '
+                     'override;',
+                     '        bool SetPosition(float x, float y, float z, float orientation, bool teleport = false);'),
+                    ('        bool isMoving() const override final { return m_movementInfo.HasMovementFlag('
+                     'movementFlagsMask); }',
+                     '        bool isMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }')],
         'byvalue': [('        ObjectGuid GetSelectionGuid() const override final { return m_curSelectionGuid; }',
                      '        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }')]},
     'src/game/Object/Unit.cpp': {
@@ -803,7 +841,8 @@ FILES = {
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
                   'AddComboPoints': 1, 'ClearComboPoints': 2, 'RewardRage': 2, 'KilledMonster': 1,
                   'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1, 'SendAttackSwingCancelAttack': 2,
-                  'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1},
+                  'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1,
+                  'SetPosition': 2, 'isMoving': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'window': {626: 13, 960: 17, 975: 32, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15, 4406: 12}},
     'src/game/Object/UnitDynObject.cpp': {
@@ -837,7 +876,7 @@ FILES = {
         'forms': {'IsLoading': 1},
         'added': []},
     'src/game/Object/UnitSpeed.cpp': {
-        'forms': {'InBattleGround': 1},
+        'forms': {'InBattleGround': 1, 'm_movementInfo.SetMovementFlags': 1},
         'added': [],
         'window': {240: 12}},
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {

@@ -3749,7 +3749,8 @@ class Unit : public WorldObject
         /**
          * Starts a spell's cooldown and its category's and reports the cooldown event; RemoveGameObject
          * calls it when an object whose spell stayed disabled goes.
-         * Does nothing here; Player stores both cooldowns and sends the event to its session.
+         * Does nothing here; Player stores both cooldowns and reports the event to the callback its
+         * session installed, and the session sends it.
          */
         virtual void SendCooldownEvent(SpellEntry const* /*spellInfo*/, uint32 /*itemId*/ = 0,
                                        Spell* /*spell*/ = NULL) { }
@@ -3903,6 +3904,22 @@ class Unit : public WorldObject
          * installed reads
          */
         virtual uint32 GetAccountSecurityLevel() const { return 0; }
+        /**
+         * Moves the unit to a position, telling its map; Update's pending commit and the end of a
+         * spline call it on a player.
+         * @param teleport true when the move is a teleport
+         * @return false here, a unit that is not a player is relocated by its map's creature relocation
+         * at the same call sites; Player relocates itself and its map's view of it, and returns false
+         * only for a position outside the map
+         */
+        virtual bool SetPosition(float /*x*/, float /*y*/, float /*z*/, float /*orientation*/,
+                                 bool /*teleport*/ = false) { return false; }
+        /**
+         * Whether the unit's movement flags hold a moving flag; the auto-repeat spell update asks it of
+         * a player.
+         * @return false here; Player answers whether its movement flags hold one of movementFlagsMask
+         */
+        virtual bool isMoving() const { return false; }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);
