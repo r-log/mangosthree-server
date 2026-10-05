@@ -7290,19 +7290,7 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
     }
     else if (possessedCreature)
     {
-        if (possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())
-        {
-            // out of range pet dismissed
-            if (!InReach(*possessedCreature, *this, possessedCreature->GetMap()->GetVisibilityDistance()))
-            {
-                player->RemovePet(PET_SAVE_REAGENTS);
-            }
-            else
-            {
-                possessedCreature->GetMotionMaster()->MoveFollow(this, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
-            }
-        }
-        else if (attackCharmer)
+        if (attackCharmer)
         {
             CreatureInfo const* cinfo = possessedCreature->GetCreatureInfo();
             possessedCreature->setFaction(cinfo->FactionAlliance);
