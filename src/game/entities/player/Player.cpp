@@ -540,6 +540,9 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
     m_cachedGS = 0;
 
     m_slot = 255;
+
+    // Unit reports the player's group-visible changes through the callbacks this player holds
+    m_groupCallbacks = &m_groupSinks;
 }
 
 /**
@@ -591,6 +594,9 @@ Player::~Player()
         }
 
     delete m_declinedname;
+
+    // Last: the cleanups above still report the player's group-visible changes through these callbacks
+    m_groupCallbacks = NULL;
 }
 
 /**

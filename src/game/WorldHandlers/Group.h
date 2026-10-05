@@ -693,4 +693,36 @@ class Group
         /// \return the new host, or an empty guid when nobody can carry it.
         ObjectGuid _resummonMarker(uint8 slot, ObjectGuid skip);
 };
+
+/// The group callbacks of `owner`: each fact marks its flag on `owner`'s group update mask, and an
+/// aura fact its slot on `owner` or on the fact's pet, only while `owner` is in a group.
+template <class Callbacks, class Owner>
+Callbacks GroupCallbacksFor(Owner* owner)
+{
+    Callbacks callbacks;
+    callbacks.stat = [owner](auto const& fact)
+    {
+        if (owner->GetGroup())
+        {
+            owner->SetGroupUpdateFlag(fact.flag);
+        }
+    };
+    callbacks.aura = [owner](auto const& fact)
+    {
+        if (owner->GetGroup())
+        {
+            owner->SetGroupUpdateFlag(fact.flag);
+            owner->SetAuraUpdateMask(fact.slot);
+        }
+    };
+    callbacks.petAura = [owner](auto const& fact)
+    {
+        if (owner->GetGroup())
+        {
+            owner->SetGroupUpdateFlag(fact.flag);
+            fact.pet->SetAuraUpdateMask(fact.slot);
+        }
+    };
+    return callbacks;
+}
 #endif

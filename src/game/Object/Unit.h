@@ -381,6 +381,7 @@ struct Modifier;
 struct SpellEntry;
 struct SpellEntryExt;
 struct CreatureInfo;
+struct GroupCallbacks;
 
 class Aura;
 class SpellAuraHolder;
@@ -4428,6 +4429,8 @@ class Unit : public WorldObject
         uint32 m_holyPowerRegenTimer;
 
         VehicleInfo* m_vehicleInfo;
+        // The player's group callbacks, NULL for a unit that is not a player
+        GroupCallbacks const* m_groupCallbacks;
         void DisableSpline();
         bool m_isCreatureLinkingTrigger;
         bool m_isSpawningLinked;

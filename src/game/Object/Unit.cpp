@@ -47,6 +47,7 @@
 #include "Creature.h"
 #include "Spell.h"
 #include "Group.h"
+#include "entities/GroupUpdateFacts.h"
 #include "SpellAuras.h"
 #include "MapManager.h"
 #include "PlayerRegistry.h"
@@ -205,6 +206,7 @@ Unit::Unit() :
     i_motionMaster(std::make_unique<MotionMaster>(this)),
     m_regenTimer(0),
     m_vehicleInfo(NULL),
+    m_groupCallbacks(NULL),
     m_ThreatManager(this),
     m_HostileRefManager(this),
     m_motion(std::make_unique<Motion::State>(Motion::Mode::ServerDriven, Motion::Kinematics())), m_motionDropped(0), m_moverSession(NULL)
@@ -2870,10 +2872,7 @@ void Unit::SetPowerType(Powers new_powertype)
     // group updates
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)this)->GetGroup())
-        {
-            ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_POWER_TYPE);
-        }
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_POWER_TYPE});
     }
     else if (IsPet())
     {
@@ -4872,9 +4871,9 @@ void Unit::SetLevel(uint32 lvl)
     SetUInt32Value(UNIT_FIELD_LEVEL, lvl);
 
     // group update
-    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())
+    if (GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_LEVEL);
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_LEVEL});
     }
 }
 
@@ -4896,10 +4895,7 @@ void Unit::SetHealth(uint32 val)
     // group update
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)this)->GetGroup())
-        {
-            ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_CUR_HP);
-        }
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_CUR_HP});
     }
     else if (IsPet())
     {
@@ -4928,10 +4924,7 @@ void Unit::SetMaxHealth(uint32 val)
     // group update
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        if (((Player*)this)->GetGroup())
-        {
-            ((Player*)this)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_MAX_HP);
-        }
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).stat, GroupStatFact{GROUP_UPDATE_FLAG_MAX_HP});
     }
     else if (IsPet())
     {
@@ -6270,12 +6263,7 @@ void Unit::UpdateAuraForGroup(uint8 slot)
 {
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        Player* player = (Player*)this;
-        if (player->GetGroup())
-        {
-            player->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_AURAS);
-            player->SetAuraUpdateMask(slot);
-        }
+        ReportGroupFact(InstalledGroupCallbacks(m_groupCallbacks).aura, GroupAuraFact{GROUP_UPDATE_FLAG_AURAS, slot});
     }
     else if (IsPet())
     {

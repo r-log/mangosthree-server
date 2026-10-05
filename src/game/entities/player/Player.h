@@ -80,6 +80,7 @@
 #include "RuneMgr.h"    // RuneMgr is held by value on Player; brings in RuneType/RuneInfo/Runes + owns death-knight rune state
 #include "ManagerPacketSink.h" // the packet sink type SessionSink() returns to every manager
 #include "PlayerClientFacts.h" // the facts and callbacks of the player's own client
+#include "entities/GroupUpdateFacts.h" // the facts and callbacks of the player's group updates
 
 #include "QuestDef.h"
 #include "QuestStatusMgr.h" // QuestStatusMgr is held by value on Player; brings in the QuestStatusMap typedef
@@ -2337,6 +2338,10 @@ class Player : public Unit
         };
         void SetClientCallbacks(ClientCallbacks const& callbacks) { m_clientCallbacks = callbacks; }
 
+        /// What the session installs for the player's group, once, by InstallPlayerPacketSinks where
+        /// the player is created; Unit reports through it.
+        void SetGroupCallbacks(GroupCallbacks const& callbacks) { m_groupSinks = callbacks; }
+
         // Check if the player has a spell cooldown
         bool HasSpellCooldown(uint32 spell_id) const { return m_spellCooldownMgr.HasSpellCooldown(spell_id, time(NULL)); }
 
@@ -4007,6 +4012,7 @@ class Player : public Unit
         uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
         CooldownSinks m_cooldownSinks;
         ClientCallbacks m_clientCallbacks;
+        GroupCallbacks m_groupSinks;
         uint32 m_GuildIdInvited; // Guild ID invited
         uint32 m_ArenaTeamIdInvited; // Arena team ID invited
 

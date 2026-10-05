@@ -113,6 +113,7 @@ set(REACH_RULES
     # include it, so it stays a bare std::function over a forward-declared WorldPacket.
     "entities/player/ManagerPacketSink.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h"
     "entities/player/PlayerClientFacts.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h"
+    "entities/GroupUpdateFacts.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h,WorldHandlers/Group.h"
     "spells/SpellCooldownMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
     "spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h,proto/WorldPacket.h,proto/Opcodes.h"
     # Decoupling D4k: the glyph manager, the rune manager's two rules plus the cast

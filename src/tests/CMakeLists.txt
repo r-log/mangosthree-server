@@ -100,6 +100,7 @@ set(SRC_GRP_TESTS
     SpellCooldownMgrTest.cpp
     CooldownPacketsTest.cpp
     PlayerClientPacketsTest.cpp
+    GroupUpdateFactsTest.cpp
     UnitSpellCooldownTest.cpp
     UnitCombatStatsTest.cpp
     UnitItemByGuidTest.cpp
@@ -222,6 +223,20 @@ add_test(NAME player_client_empty_callback
         -DTESTS_EXE=$<TARGET_FILE:mangos_tests>
         -DCASE=PlayerClientPackets_EmptyCallbackAsserts
         -DEXPECT=sink
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAbortCase.cmake)
+
+add_test(NAME group_update_empty_callback
+    COMMAND ${CMAKE_COMMAND}
+        -DTESTS_EXE=$<TARGET_FILE:mangos_tests>
+        -DCASE=GroupUpdateFacts_EmptyCallbackAsserts
+        -DEXPECT=sink
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAbortCase.cmake)
+
+add_test(NAME group_update_no_callbacks
+    COMMAND ${CMAKE_COMMAND}
+        -DTESTS_EXE=$<TARGET_FILE:mangos_tests>
+        -DCASE=GroupUpdateFacts_NoCallbacksAssert
+        -DEXPECT=callbacks
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAbortCase.cmake)
 
 add_test(NAME crypto_asm_twin
