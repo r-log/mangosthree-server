@@ -78,6 +78,7 @@
 #include "Language.h"
 #include "MapManager.h"
 #include "MotionMaster.h"
+#include "spells/handlers/AuraControlHandlers.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -1026,18 +1027,10 @@ void Aura::HandleModThreat(bool apply, bool Real)
 
     int level_diff = 0;
     int multiplier = 0;
-    switch (GetId())
+    AuraThreatContext ctx(target, level_diff, multiplier);
+    if (SpellHandlerRegistry::Game().Dispatch<AuraThreatSite>(GetId(), ctx).IsReturn())
     {
-            // Arcane Shroud
-        case 26400:
-            level_diff = target->getLevel() - 60;
-            multiplier = 2;
-            break;
-            // The Eye of Diminution
-        case 28862:
-            level_diff = target->getLevel() - 60;
-            multiplier = 1;
-            break;
+        return;
     }
 
     if (level_diff > 0)
