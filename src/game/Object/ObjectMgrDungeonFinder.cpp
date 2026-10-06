@@ -77,7 +77,7 @@
 void ObjectMgr::LoadDungeonFinderRequirements()
 {
     uint32 count = 0;
-    mDungeonFinderRequirementsMap.clear();    // in case of a reload
+    m_dungeonFinder.ClearRequirements();      // in case of a reload
 
     //                                                0      1           2               3     4       5               6            7            8
     QueryResult* result = WorldDatabase.Query("SELECT `mapId`, `difficulty`, `min_item_level`, `item`, `item_2`, `alliance_quest`, `horde_quest`, `achievement`, `quest_incomplete_text` FROM `dungeonfinder_requirements`");
@@ -169,7 +169,7 @@ void ObjectMgr::LoadDungeonFinderRequirements()
 
         // add to map after checks
         DungeonFinderRequirements requirement(minItemLevel, item, item2, allianceQuest, hordeQuest, achievement, questText);
-        mDungeonFinderRequirementsMap[dungeonKey] = requirement;
+        m_dungeonFinder.SetRequirements(dungeonKey, requirement);
 
         ++count;
     }
@@ -184,7 +184,7 @@ void ObjectMgr::LoadDungeonFinderRequirements()
 void ObjectMgr::LoadDungeonFinderRewards()
 {
     uint32 count = 0;
-    mDungeonFinderRewardsMap.clear();    // in case of a reload
+    m_dungeonFinder.ClearRewards();      // in case of a reload
 
     //                                                 0     1        2                 3
     QueryResult* result = WorldDatabase.Query("SELECT `id`, `level`, `base_xp_reward`, `base_monetary_reward` FROM `dungeonfinder_rewards`");
@@ -212,7 +212,7 @@ void ObjectMgr::LoadDungeonFinderRewards()
         int32 baseMoney  = fields[3].GetInt32();
 
         DungeonFinderRewards reward(baseXP, baseMoney);
-        mDungeonFinderRewardsMap[level] = reward;
+        m_dungeonFinder.SetRewards(level, reward);
 
         ++count;
     }
@@ -227,7 +227,7 @@ void ObjectMgr::LoadDungeonFinderRewards()
 void ObjectMgr::LoadDungeonFinderItems()
 {
     uint32 count = 0;
-    mDungeonFinderItemsMap.clear(); // in case of reload
+    m_dungeonFinder.ClearItems();   // in case of reload
 
     //                                                 0     1            2            3              4              5
     QueryResult* result = WorldDatabase.Query("SELECT `id`, `min_level`, `max_level`, `item_reward`, `item_amount`, `dungeon_type` FROM `dungeonfinder_item_rewards`");
@@ -258,7 +258,7 @@ void ObjectMgr::LoadDungeonFinderItems()
         uint32 dungeonType = fields[5].GetUInt32();
 
         DungeonFinderItems rewardItems(minLevel, maxLevel, itemReward, itemAmount, dungeonType);
-        mDungeonFinderItemsMap[id] = rewardItems;
+        m_dungeonFinder.SetItems(id, rewardItems);
 
         ++count;
     }
