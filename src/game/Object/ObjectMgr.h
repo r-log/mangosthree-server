@@ -55,6 +55,7 @@
 #include "PlayerRegistry.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
+#include "data/MailLevelRewardStore.h"
 
 #include <string>
 #include <map>
@@ -236,19 +237,6 @@ struct PetLevelInfo
     uint16 mana;
     uint16 armor;
 };
-
-struct MailLevelReward
-{
-    MailLevelReward() : raceMask(0), mailTemplateId(0), senderEntry(0) {}
-    MailLevelReward(uint32 _raceMask, uint32 _mailTemplateId, uint32 _senderEntry) : raceMask(_raceMask), mailTemplateId(_mailTemplateId), senderEntry(_senderEntry) {}
-
-    uint32 raceMask;
-    uint32 mailTemplateId;
-    uint32 senderEntry;
-};
-
-typedef std::list<MailLevelReward> MailLevelRewardList;
-typedef std::unordered_map<uint8, MailLevelRewardList> MailLevelRewardMap;
 
 // We assume the rate is in general the same for all three types below, but chose to keep three for scalability and customization
 struct RepRewardRate
@@ -1013,19 +1001,7 @@ class ObjectMgr
 
         MailLevelReward const* GetMailLevelReward(uint32 level, uint32 raceMask)
         {
-            MailLevelRewardMap::const_iterator map_itr = m_mailLevelRewardMap.find(level);
-            if (map_itr == m_mailLevelRewardMap.end())
-            {
-                return NULL;
-            }
-
-            for (MailLevelRewardList::const_iterator set_itr = map_itr->second.begin(); set_itr != map_itr->second.end(); ++set_itr)
-                if (set_itr->raceMask & raceMask)
-                {
-                    return &*set_itr;
-                }
-
-            return NULL;
+            return m_mailLevelRewards.Find(level, raceMask);
         }
 
         CreatureDataPair const* GetCreatureDataPair(uint32 guid) const
@@ -1555,7 +1531,7 @@ class ObjectMgr
         void LoadGossipMenu(std::set<uint32>& gossipScriptSet);
         void LoadGossipMenuItems(std::set<uint32>& gossipScriptSet);
 
-        MailLevelRewardMap m_mailLevelRewardMap;
+        MailLevelRewardStore m_mailLevelRewards;
 
         typedef std::map<uint32, PetLevelInfo*> PetLevelInfoMap;
         // PetLevelInfoMap[creature_id][level]
