@@ -38,14 +38,14 @@ These directories **dissolve**:
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
 
-**Today:** 1,115 include lines go against the table.
+**Today:** 1,107 include lines go against the table.
 
 | From -> to | Lines | Mostly | Three includers |
 |---|---|---|---|
-| domain -> proto | 265 | `WorldPacket.h` 149, `Opcodes.h` 113 | `Creature.cpp`, `Spell.cpp`, `Guild.cpp` |
-| domain -> session | 243 | `WorldSession.h` 107, `UpdateData.h` 82, `GossipDef.h` 51 | `Item.cpp`, `Spell.cpp`, `Guild.cpp` |
-| any -> app | 222 | `World.h` (config reads): domain 156, scripts 25, session 25, data 13, persistence 2, foundation 1 | `Unit.cpp`, `Map.cpp`, `WorldSession.cpp` |
-| domain, data, session -> scripts | 178 | `Chat.h` 92, `ScriptMgr.h` 86 | `Creature.cpp`, `Spell.cpp`, `ChatHandler.cpp` |
+| domain -> proto | 263 | `WorldPacket.h` 148, `Opcodes.h` 112 | `Creature.cpp`, `Spell.cpp`, `Guild.cpp` |
+| domain -> session | 240 | `WorldSession.h` 106, `UpdateData.h` 81, `GossipDef.h` 50 | `Item.cpp`, `Spell.cpp`, `Guild.cpp` |
+| any -> app | 221 | `World.h` (config reads): domain 155, scripts 25, session 25, data 13, persistence 2, foundation 1 | `Unit.cpp`, `Map.cpp`, `WorldSession.cpp` |
+| domain, data, session -> scripts | 176 | `Chat.h` 91, `ScriptMgr.h` 85 | `Creature.cpp`, `Spell.cpp`, `ChatHandler.cpp` |
 | data -> domain | 161 | `MapManager.h` 13, `SpellMgr.h` 12, `ArenaTeam.h` 10 | `ObjectMgr.h`, `ObjectMgr.cpp`, `CharacterCache.cpp` |
 | data -> session | 20 | `GossipDef.h` 11, `AccountMgr.h` 8 | `ObjectMgr.h`, `ObjectMgr.cpp`, `ObjectMgrCreatures.cpp` |
 | motion -> domain, session | 12 | `Unit.h` 5, all from `game/movement/` | `MoveSpline.cpp`, `MoveSplineInit.cpp`, `WireParity.cpp` |
@@ -62,7 +62,7 @@ is listed per includer file and header and cannot grow, and so is an include aga
 change its includer file in the PR that deletes the old one, only within the same layer pair and header; a change of
 layer pair or header is a new edge.
 
-**Today:** 2,356 such lines, the largest being entities -> maps 472, -> social 344, -> pvp 192 and -> spells 169,
+**Today:** 2,332 such lines, the largest being entities -> maps 464, -> social 336, -> pvp 188 and -> spells 168,
 and spells -> entities 296.
 
 **Which peers may know which (decided 2026-10-02).** The ratchet above keeps the cross lines from growing; it does
@@ -98,7 +98,7 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 425 `WorldPacket data(` sites: session 181, the domain tier 231 (entities 158, 102 of them under
+**Today (packets):** 424 `WorldPacket data(` sites: session 181, the domain tier 230 (entities 157, 101 of them under
 `entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 5), scripts 7, app 4, motion 2. The shared sink
 `ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet. What a player's own client is
 told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set
@@ -163,11 +163,11 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 639 member functions, grouped roughly by defining file and name):** combat 159, auras 113, spell
-casting 81, lifecycle and update 82, movement 76, stats and power 69, pets/charm/summons 55, visibility 4. The target
+**Today (`Unit`, 640 member functions, grouped roughly by defining file and name):** combat 159, auras 113, spell
+casting 82, lifecycle and update 82, movement 76, stats and power 69, pets/charm/summons 55, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
-**Today (player-only code in `Unit`):** Unit's 15 files hold 13 `(Player*)this` casts and 213 `TYPEID_PLAYER` tests;
+**Today (player-only code in `Unit`):** Unit's 15 files hold 13 `(Player*)this` casts and 215 `TYPEID_PLAYER` tests;
 59 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
@@ -206,7 +206,7 @@ The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`
 
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
-see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 953, Unit 587, WorldSession 589, ObjectMgr 251), R1, M1,
+see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 926, Unit 640, WorldSession 589, ObjectMgr 251), R1, M1,
 the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
@@ -333,19 +333,19 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 | # | Today, against the target | Closed by |
 |---|---|---|
-| 1 | domain -> proto: 265 lines; 231 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
-| 2 | domain -> session: 243 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
+| 1 | domain -> proto: 263 lines; 230 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
+| 2 | domain -> session: 240 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
 | 3 | `World.h` included 222 times below app | the configuration interface (#143), when content touches it |
 | 4 | `Chat.h` (92) and `ScriptMgr.h` (86) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
 | 5 | data -> domain: 161 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump`, `CharacterDatabaseCleaner` and `GameGlobals` (9 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
 | 8 | 984 database calls outside persistence | #144, when content needs it |
-| 9 | **Entities, Today:** six managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created | when the domain is next touched |
+| 9 | **Entities, Today:** six managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
-| 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938) | the Creature fold, only on 4.3.4 evidence |
-| 13 | `Unit`: 13 `(Player*)this` casts, 213 player type tests, 59 Player-only virtuals | Unit reopen |
+| 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
+| 13 | `Unit`: 13 `(Player*)this` casts, 215 player type tests, 59 Player-only virtuals | Unit reopen |
 | 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds one store, `MailLevelRewardStore`, while `ObjectMgr` and its other stores are still in `Object/`; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds only the builders under `session/packets/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
@@ -356,7 +356,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:241`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
-| 24 | `Unit`: three casts of `this` to the player, each closed by the successor the next column names. The two accessors, `GetCharmerOrOwnerPlayerOrPlayerItself` and its const twin (`Unit.cpp:3389`, `:3405`; the twin's `(Player const*)` cast is outside row 13's count), stay as counted casts: their 53 callers ask one question, "which player gets credit or control for this unit", and its answer becomes a fact on the charm and ownership model. The spell-mod owner, `GetSpellModOwner` (`:5726`), stays until the spell-mod seam, which also closes the radius site (`UnitAuraProcHandler.cpp:1921`) and three `(Player*)m_caster` casts in the spells. | the accessors: the charm and ownership model's own peer (`social/` or `entities/creature/`); the spell-mod owner: the spell-mod seam, D11 (#142) |
+| 24 | `Unit`: three casts of `this` to the player, each closed by the successor the next column names. The two accessors, `GetCharmerOrOwnerPlayerOrPlayerItself` and its const twin (`Unit.cpp:3390`, `:3406`; the twin's `(Player const*)` cast is outside row 13's count), stay as counted casts: their 53 callers ask one question, "which player gets credit or control for this unit", and its answer becomes a fact on the charm and ownership model. The spell-mod owner, `GetSpellModOwner` (`:5727`), stays until the spell-mod move, the PR after the seam that put the player's spell modifiers in `spells/SpellModMgr` and gave `Unit` the holder's getter `GetSpellMods`; the move also closes the radius site (`UnitAuraProcHandler.cpp:1921`) and four `(Player*)m_caster` casts in the spells. | the accessors: the charm and ownership model's own peer (`social/` or `entities/creature/`); the spell-mod owner: the spell-mod move after the seam, D11 (#142) |
 
 ## Appendix: how each number was measured
 
@@ -374,9 +374,9 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
 
 - Where the files go: `python layers.py src files | grep ' game/Object/' | cut -d' ' -f1 | sort | uniq -c` (and
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
-- The edge tables: `python layers.py src against` (1,115, with the headers and the includers),
-  `python layers.py src sideways` (2,356) and `python layers.py src edges` (every layer pair).
-- Packets and the database: `python layers.py src packets` (425 by layer and directory) and `python layers.py src db`
+- The edge tables: `python layers.py src against` (1,107, with the headers and the includers),
+  `python layers.py src sideways` (2,332) and `python layers.py src edges` (every layer pair).
+- Packets and the database: `python layers.py src packets` (424 by layer and directory) and `python layers.py src db`
   (1,008). For game `.cpp` only:
   `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (996), with `-l` for the files
   (126).
@@ -394,7 +394,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   `python src/tests/tools/method_count.py --class Unit --header src/game/Object/Unit.h --all --list | python layers.py src unit`.
 - The player-only leaks, with `F="src/game/Object/Unit*.cpp src/game/WorldHandlers/UnitAuraProcHandler.cpp"`:
   `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (13) and
-  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (213).
+  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (215).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h`, where only a
   unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (59 of 88).

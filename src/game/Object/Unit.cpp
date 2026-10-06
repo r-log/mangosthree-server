@@ -207,6 +207,7 @@ Unit::Unit() :
     m_regenTimer(0),
     m_vehicleInfo(NULL),
     m_groupCallbacks(NULL),
+    m_spellMods(NULL),
     m_ThreatManager(this),
     m_HostileRefManager(this),
     m_motion(std::make_unique<Motion::State>(Motion::Mode::ServerDriven, Motion::Kinematics())), m_motionDropped(0), m_moverSession(NULL)
@@ -5731,6 +5732,28 @@ Player* Unit::GetSpellModOwner() const
         if (owner && owner->GetTypeId() == TYPEID_PLAYER)
         {
             return (Player*)owner;
+        }
+    }
+    return NULL;
+}
+
+/**
+ * @brief Gets the spell modifiers that apply to this unit's spells.
+ *
+ * @return The player's own, or a pet's or totem's player owner's; NULL otherwise.
+ */
+SpellModMgr* Unit::GetSpellMods() const
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        return m_spellMods;
+    }
+    if (IsPet() || IsTotem())
+    {
+        Unit* owner = GetOwner();
+        if (owner && owner->GetTypeId() == TYPEID_PLAYER)
+        {
+            return owner->m_spellMods;
         }
     }
     return NULL;

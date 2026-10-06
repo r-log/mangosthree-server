@@ -23,18 +23,16 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "PlayerPacketSinks.h"
-#include "Player.h"
-#include "WorldSession.h"
-#include "Group.h"
-#include "Pet.h"
-#include "session/packets/spells/CooldownPacketSinks.h"
-#include "session/packets/spells/SpellModPackets.h"
+#ifndef MANGOS_H_SPELLMODPACKETS
+#define MANGOS_H_SPELLMODPACKETS
 
-void InstallPlayerPacketSinks(Player& player)
-{
-    InstallCooldownPacketSinks(player);
-    player.SetClientCallbacks(ClientCallbacksToSession<Player::ClientCallbacks>(&player));
-    player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));
-    player.SetSpellModSink(FactToSession(&player, &BuildSpellModifierPacket));
-}
+#include "spells/SpellModMgr.h"
+
+class WorldPacket;
+
+/// Initializes `packet` as the client's flat or percentage spell modifier for one operation: one
+/// operation, the number of pairs, the operation, then each effect bit and its sum as a float, in
+/// the fact's order.
+void BuildSpellModifierPacket(WorldPacket& packet, SpellModChangedFact const& fact);
+
+#endif

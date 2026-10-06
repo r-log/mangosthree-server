@@ -543,6 +543,8 @@ Player::Player(WorldSession* session): Unit(), m_currencyMgr(), m_honorMgr(time(
 
     // Unit reports the player's group-visible changes through the callbacks this player holds
     m_groupCallbacks = &m_groupSinks;
+    // Unit reaches the player's spell modifiers, and those of its pets and totems, through this pointer
+    m_spellMods = &m_spellModMgr;
 }
 
 /**
@@ -597,6 +599,8 @@ Player::~Player()
 
     // Last: the cleanups above still report the player's group-visible changes through these callbacks
     m_groupCallbacks = NULL;
+    // Last: the cleanups above may still read the player's spell modifiers through this pointer
+    m_spellMods = NULL;
 }
 
 /**

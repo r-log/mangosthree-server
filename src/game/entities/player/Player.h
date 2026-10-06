@@ -81,6 +81,7 @@
 #include "ManagerPacketSink.h" // the packet sink type SessionSink() returns to every manager
 #include "PlayerClientFacts.h" // the facts and callbacks of the player's own client
 #include "entities/GroupUpdateFacts.h" // the facts and callbacks of the player's group updates
+#include "spells/SpellModMgr.h" // SpellModMgr is held by value on Player; brings in the spell modifier fact and its sink
 
 #include "QuestDef.h"
 #include "QuestStatusMgr.h" // QuestStatusMgr is held by value on Player; brings in the QuestStatusMap typedef
@@ -2301,7 +2302,10 @@ class Player : public Unit
         }
 
         void AddSpellMod(Aura* aura, bool apply);
-        template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell const* spell = NULL);
+        template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell const* /*spell*/ = NULL)
+        {
+            return m_spellModMgr.ApplySpellMod(spellId, op, basevalue);
+        }
 
         // Spell cooldowns (delegated to m_spellCooldownMgr): the clock is read here (time(NULL)) and
         // handed in. AddSpellAndCategoryCooldowns, SendCooldownEvent, RemoveSpellCooldown,
@@ -2341,6 +2345,10 @@ class Player : public Unit
         /// What the session installs for the player's group, once, by InstallPlayerPacketSinks where
         /// the player is created; Unit reports through it.
         void SetGroupCallbacks(GroupCallbacks const& callbacks) { m_groupSinks = callbacks; }
+
+        /// Where a changed spell modifier goes: the session's callback, installed once by
+        /// InstallPlayerPacketSinks where the player is created.
+        void SetSpellModSink(SpellModChangedSink const& sink) { m_spellModSink = sink; }
 
         // Check if the player has a spell cooldown
         bool HasSpellCooldown(uint32 spell_id) const { return m_spellCooldownMgr.HasSpellCooldown(spell_id, time(NULL)); }
@@ -4013,6 +4021,7 @@ class Player : public Unit
         CooldownSinks m_cooldownSinks;
         ClientCallbacks m_clientCallbacks;
         GroupCallbacks m_groupSinks;
+        SpellModChangedSink m_spellModSink;
         uint32 m_GuildIdInvited; // Guild ID invited
         uint32 m_ArenaTeamIdInvited; // Arena team ID invited
 
@@ -4031,7 +4040,7 @@ class Player : public Unit
         float m_armorPenetrationPct;
         int32 m_spellPenetrationItemMod;
 
-        AuraList m_spellMods[MAX_SPELLMOD];
+        SpellModMgr m_spellModMgr;
         GlobalCooldownMgr m_GlobalCooldownMgr; // Global cooldown manager
 
         EnchantDurationList m_enchantDuration; // Enchant duration list

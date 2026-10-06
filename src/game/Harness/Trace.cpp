@@ -147,7 +147,7 @@ namespace Harness
                 // Player::removeSpell: the spell id; or the spell and the rank that replaces it
                 { SMSG_REMOVED_SPELL,               Rule::Hash },
                 { SMSG_SUPERCEDED_SPELL,            Rule::Hash },
-                // Player::SendSpellMod (PlayerSpellMod.cpp): the counts, the mod op, then each
+                // BuildSpellModifierPacket (SpellModPackets.cpp): the counts, the mod op, then each
                 // (effect bit, value) -- no guid, no clock
                 { SMSG_SET_FLAT_SPELL_MODIFIER,     Rule::Hash },
                 { SMSG_SET_PCT_SPELL_MODIFIER,      Rule::Hash },

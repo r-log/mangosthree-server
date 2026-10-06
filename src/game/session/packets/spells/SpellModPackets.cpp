@@ -23,18 +23,19 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "PlayerPacketSinks.h"
-#include "Player.h"
-#include "WorldSession.h"
-#include "Group.h"
-#include "Pet.h"
-#include "session/packets/spells/CooldownPacketSinks.h"
-#include "session/packets/spells/SpellModPackets.h"
+#include "SpellModPackets.h"
+#include "Opcodes.h"
+#include "WorldPacket.h"
 
-void InstallPlayerPacketSinks(Player& player)
+void BuildSpellModifierPacket(WorldPacket& packet, SpellModChangedFact const& fact)
 {
-    InstallCooldownPacketSinks(player);
-    player.SetClientCallbacks(ClientCallbacksToSession<Player::ClientCallbacks>(&player));
-    player.SetGroupCallbacks(GroupCallbacksFor<GroupCallbacks>(&player));
-    player.SetSpellModSink(FactToSession(&player, &BuildSpellModifierPacket));
+    packet.Initialize(fact.flat ? SMSG_SET_FLAT_SPELL_MODIFIER : SMSG_SET_PCT_SPELL_MODIFIER, 4 + 4 + 1 + 1 + 4);
+    packet << uint32(1);                        // count of different mod->op's in packet
+    packet << uint32(fact.values.size());       // count of mods per one mod->op
+    packet << uint8(fact.op);
+    for (std::vector<SpellModValue>::const_iterator itr = fact.values.begin(); itr != fact.values.end(); ++itr)
+    {
+        packet << uint8(itr->effect);
+        packet << float(itr->value);
+    }
 }
