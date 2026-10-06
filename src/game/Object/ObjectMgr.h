@@ -55,6 +55,7 @@
 #include "PlayerRegistry.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
+#include "data/ExplorationBaseXpStore.h"
 #include "data/MailLevelRewardStore.h"
 
 #include <string>
@@ -914,7 +915,10 @@ class ObjectMgr
         void LoadVehicleAccessory();
 
         std::string GeneratePetName(uint32 entry);
-        uint32 GetBaseXP(uint32 level) const;
+        uint32 GetBaseXP(uint32 level) const
+        {
+            return m_explorationBaseXp.Get(level);
+        }
         uint32 GetXPForLevel(uint32 level) const;
         uint32 GetXPForPetLevel(uint32 level) const
         {
@@ -1543,8 +1547,7 @@ class ObjectMgr
         typedef std::vector<uint32> PlayerXPperLevel;       // [level]
         PlayerXPperLevel mPlayerXPperLevel;
 
-        typedef std::map<uint32, uint32> BaseXPMap;         // [area level][base xp]
-        BaseXPMap mBaseXPTable;
+        ExplorationBaseXpStore m_explorationBaseXp;
 
         typedef std::map<uint32, int32> FishingBaseSkillMap;// [areaId][base skill level]
         FishingBaseSkillMap mFishingBaseForArea;

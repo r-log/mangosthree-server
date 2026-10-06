@@ -134,6 +134,7 @@ set(SRC_GRP_TESTS
     ReputationMgrTest.cpp
     HonorMgrTest.cpp
     MailLevelRewardStoreTest.cpp
+    ExplorationBaseXpStoreTest.cpp
 )
 
 if(WITH_NET_TESTS)

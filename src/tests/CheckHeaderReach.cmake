@@ -190,7 +190,8 @@ set(REACH_RULES
     # (WorldPacket.h, Opcodes.h) and touches no DBC store and no database.
     "entities/player/pvp/HonorMgr.h|entities/player/Player.h,Object/Unit.h,Object/Creature.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h,entities/player/inventory/CurrencyMgr.h,BattleGround/BattleGround.h,Object/Formulas.h,Server/DBCStores.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
     "entities/player/pvp/HonorMgr.cpp|entities/player/Player.h,Object/Unit.h,Object/Creature.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,WorldHandlers/AchievementMgr.h,entities/player/inventory/CurrencyMgr.h,BattleGround/BattleGround.h,Object/Formulas.h,Server/DBCStores.h,Database/DatabaseEnv.h"
-    "data/MailLevelRewardStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h")
+    "data/MailLevelRewardStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h"
+    "data/ExplorationBaseXpStore.h|ObjectMgr.h,entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,WorldHandlers/World.h,Database/DatabaseEnv.h,proto/WorldPacket.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
 set(MOTION_ALLOWED "Mobility.h")
 
