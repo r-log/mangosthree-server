@@ -56,6 +56,7 @@
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
 #include "data/ExplorationBaseXpStore.h"
+#include "data/FishingBaseSkillStore.h"
 #include "data/MailLevelRewardStore.h"
 
 #include <string>
@@ -927,8 +928,7 @@ class ObjectMgr
 
         int32 GetFishingBaseSkillLevel(uint32 entry) const
         {
-            FishingBaseSkillMap::const_iterator itr = mFishingBaseForArea.find(entry);
-            return itr != mFishingBaseForArea.end() ? itr->second : 0;
+            return m_fishingBaseSkill.Get(entry);
         }
 
         // The expired-mail sweep. It runs on the mail timer inside World::Update as well as
@@ -1549,8 +1549,7 @@ class ObjectMgr
 
         ExplorationBaseXpStore m_explorationBaseXp;
 
-        typedef std::map<uint32, int32> FishingBaseSkillMap;// [areaId][base skill level]
-        FishingBaseSkillMap mFishingBaseForArea;
+        FishingBaseSkillStore m_fishingBaseSkill;
 
         typedef std::map<uint32, std::vector<std::string> > HalfNameMap;
         HalfNameMap PetHalfName0;

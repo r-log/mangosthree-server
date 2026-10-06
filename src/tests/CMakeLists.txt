@@ -133,6 +133,7 @@ set(SRC_GRP_TESTS
     HonorMgrTest.cpp
     MailLevelRewardStoreTest.cpp
     ExplorationBaseXpStoreTest.cpp
+    FishingBaseSkillStoreTest.cpp
 )
 
 if(WITH_NET_TESTS)
