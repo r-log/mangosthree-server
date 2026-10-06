@@ -41,7 +41,8 @@ For each file in FILES, --check:
      nowhere in the working tree;
   6. requires no direct spelling of a FORM the file does not list, outside the added lines it
      dropped or found at their place; a FORM whose direct spelling also stands in code that never
-     cast (`elsewhere`) is only looked for in the files that list it; a file that `declares` the
+     cast (`elsewhere`: True for every file, or the list of the files where it so stands) is only
+     looked for in the files that list it; a file that `declares` the
      overrides (Player.h, whose own code calls its methods directly and never cast) lists no FORM
      and is not searched for one: only its entries are checked, at their place.
 A window set for a base line that holds no site fails.
@@ -241,7 +242,8 @@ below it (:7217-:7219, :7234), and 59 reaches one past; in ResetControlState, Un
 assignment, they stand 9 to 66 below it (the first release :7266-:7271, the second :7300-:7304,
 the pet's removal :7312, the pet bar :7323), and 67 reaches one past. Each call stands within 11
 lines of its own test. The direct spelling of SetClientControl in Unit.cpp is the fear and confuse
-states' own, so both FORMs are `elsewhere`; the two calls that passed the pointer as their target
+states' own, so each FORM is `elsewhere` in the other's file only; the two calls that passed the
+pointer as their target
 (:7271, :7304) are CHANGED lines. The direct spelling of IsTaxiFlying carries the `(!` before it,
 since Unit.cpp calls it on other units. The dead pet case of ResetControlState's creature arm
 (:7342-:7353), whose `player->RemovePet` ran only on a NULL pointer, is a deleted block.
@@ -441,7 +443,7 @@ FORMS = {
                                         'suffix': None},
     'SetClientControl': {'direct': ' SetClientControl(',
                          'cast': ' ((Player*)this)->SetClientControl(',
-                         'suffix': None, 'elsewhere': True},
+                         'suffix': None, 'elsewhere': ['src/game/Object/Unit.cpp']},
     'FitArmorSpecializationRules': {'direct': 'FitArmorSpecializationRules(',
                                     'cast': 'unitPlayer->FitArmorSpecializationRules(',
                                     'suffix': None},
@@ -457,7 +459,7 @@ FORMS = {
         'forms': ['FitArmorSpecializationRules', 'GetComboPoints', 'GetComboTargetGuid']},
     'PossessClientControl': {'direct': ' SetClientControl(',
                              'cast': ' player->SetClientControl(',
-                             'suffix': None, 'elsewhere': True},
+                             'suffix': None, 'elsewhere': ['src/game/Object/UnitSpeed.cpp']},
     'SendForcedObjectUpdate': {'direct': 'SendForcedObjectUpdate(',
                                'cast': 'player->SendForcedObjectUpdate(',
                                'suffix': None},
@@ -1753,7 +1755,8 @@ def lists_none(rel, lines, masked, spec, out, forms=None):
     forms = FORMS if forms is None else forms
     rest = '\n'.join(line for i, line in enumerate(lines) if i not in masked)
     for name in forms:
-        if name not in spec['forms'] and not forms[name].get('elsewhere') and forms[name]['direct'] in rest:
+        tolerated = forms[name].get('elsewhere') is True or rel in (forms[name].get('elsewhere') or ())
+        if name not in spec['forms'] and not tolerated and forms[name]['direct'] in rest:
             out('%s: FAILED: a call of %s in a file that lists none' % (rel, name))
             return 1
     return 0
@@ -3101,13 +3104,14 @@ def self_test():
            files={'Unit.h': SELF_BRANCH_NEW})
     elsewhere_forms = dict(SELF_BRANCH_FORMS, Elsewhere={'direct': 'return dodge', 'cast': 'unused', 'suffix': None})
     for flag, want_rc, label in ((True, 0, 'an `elsewhere` FORM spelled in a file that lists none passes'),
-                                 (False, 1, '... and fails without the flag')):
+                                 (False, 1, '... and fails without the flag'),
+                                 (['other.cpp'], 1, '... and fails when `elsewhere` names another file only')):
         forms = dict(elsewhere_forms)
         forms['Elsewhere'] = dict(forms['Elsewhere'], elsewhere=flag)
         got = []
         rc = verify('fixture', SELF_BRANCH_OLD, SELF_BRANCH_NEW, SELF_BRANCH_SPEC, got.append,
                     read=dict(SELF_BRANCH_FILES, **{'Unit.h': SELF_BRANCH_NEW}).__getitem__, forms=forms)
-        ok = rc == want_rc and (flag or 'a call of Elsewhere in a file that lists none' in '\n'.join(got))
+        ok = rc == want_rc and (flag is True or 'a call of Elsewhere in a file that lists none' in '\n'.join(got))
         print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
         if not ok:
             failures.append('%s: rc %d\n%s' % (label, rc, '\n'.join(got)))
