@@ -796,7 +796,7 @@ TEST(AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault)
     CHECK(registry.Find<AuraTransformSite>(50517) == registry.Find<AuraTransformSite>(51926));
     CHECK(registry.Find<AuraTransformSite>(65386) == registry.Find<AuraTransformSite>(65495));
 
-    // The default is its own body; an id with no row finds none, and its dispatch runs the default.
+    // The default is its own body; an id with no row finds none.
     SpellHandler<AuraTransformSite>::Function onMiss = registry.FindDefault<AuraTransformSite>();
     CHECK(onMiss != NULL);
     CHECK(distinct.count(onMiss) == 0);

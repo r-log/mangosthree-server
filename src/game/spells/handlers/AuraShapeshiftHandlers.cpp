@@ -150,7 +150,7 @@ static SpellHandlerOutcome<void> AuraTransformCorsairCostume(AuraTransformContex
 // break;
 }
 
-/// 65386: Honor the Dead; 65495: a Day of the Dead display by the target's gender
+/// 65386 (Honor the Dead) and 65495: a Day of the Dead display chosen by the target's gender
 static SpellHandlerOutcome<void> AuraTransformHonorTheDead(AuraTransformContext& ctx)
 {
     switch (ctx.target->getGender())
