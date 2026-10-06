@@ -257,7 +257,8 @@ Those three calls dropped the unused spell argument, so each is a CHANGED line, 
 and :1298, which dropped it outside every window. SpellPower.cpp:178, the owner line that cast
 `m_caster` before a Unit member, is a CHANGED line with no FORM, and so is Unit.cpp's owner line in
 the combo target site's window (:4719). GetSpellModOwner is a deleted member. Spell.cpp calls
-GetItemByGuid on other players, so that FORM is `elsewhere` there.
+GetItemByGuid through its own `Player` pointers to the caster (:248, :775), so that FORM is
+`elsewhere` there.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
