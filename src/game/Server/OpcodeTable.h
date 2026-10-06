@@ -32,15 +32,11 @@
 
 // The opcode -> handler binding. The opcode NUMBERS are in proto/Opcodes.h, because
 // they are wire format; this is the game's dispatch table and names WorldSession.
-//
-// WorldSession.h is included FIRST and unconditionally, and that is load-bearing:
-// OpcodeHandler embeds a pointer-to-member, whose size under MSVC x64 depends on
-// whether the class is complete. An incomplete one here and a complete one in the
-// .cpp gives two different sizeof(OpcodeHandler) and the table is indexed with the
-// wrong stride -- which looks like random opcodes calling random handlers.
 
 #include "Opcodes.h"
 #include "WorldSession.h"
+
+#include <type_traits>
 
 // Don't forget to change this value and add opcode name to Opcodes.cpp when you add new opcode!
 #define NUM_MSG_TYPES 0xFFFF
@@ -92,8 +88,23 @@ struct OpcodeHandler
     ///determines where it will be processed
     PacketProcessing packetProcessing;
     ///The callback called for this opcode which will work some magic
-    void (WorldSession::*handler)(WorldPacket& recvPacket);
+    void (*handler)(WorldSession& session, WorldPacket& recvPacket);
 };
+
+/// The table's one handler shape: calls Handler on the session with the packet, as a
+/// session member when Handler is a pointer to one, otherwise as a free function.
+template<auto Handler>
+void OpcodeThunk(WorldSession& session, WorldPacket& packet)
+{
+    if constexpr (std::is_member_function_pointer_v<decltype(Handler)>)
+    {
+        (session.*Handler)(packet);
+    }
+    else
+    {
+        Handler(session, packet);
+    }
+}
 
 extern OpcodeHandler opcodeTable[NUM_MSG_TYPES];
 

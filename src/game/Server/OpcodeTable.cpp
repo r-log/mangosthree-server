@@ -57,7 +57,7 @@
  *
  * Registers an opcode with its handler in the opcode table.
  */
-static void DefineOpcode(uint16 opcode, const char* name, SessionStatus status, PacketProcessing packetProcessing, void (WorldSession::*handler)(WorldPacket& recvPacket))
+static void DefineOpcode(uint16 opcode, const char* name, SessionStatus status, PacketProcessing packetProcessing, void (*handler)(WorldSession& session, WorldPacket& recvPacket))
 {
     opcodeTable[opcode].name = name;
     opcodeTable[opcode].status = status;
@@ -65,7 +65,14 @@ static void DefineOpcode(uint16 opcode, const char* name, SessionStatus status, 
     opcodeTable[opcode].handler = handler;
 }
 
-#define OPCODE( name, status, packetProcessing, handler ) DefineOpcode( name, #name, status, packetProcessing, handler )
+/// Names the row's handler as the session member taking the packet, so a handler name that is
+/// overloaded binds the overload that takes the packet.
+static constexpr auto TableHandler(void (WorldSession::*handler)(WorldPacket& recvPacket))
+{
+    return handler;
+}
+
+#define OPCODE( name, status, packetProcessing, handler ) DefineOpcode( name, #name, status, packetProcessing, &OpcodeThunk<TableHandler(handler)> )
 
 /// Correspondence between opcodes and their names
 OpcodeHandler opcodeTable[NUM_MSG_TYPES];
@@ -81,7 +88,7 @@ void InitializeOpcodes()
 {
     for (uint16 i = 0; i < NUM_MSG_TYPES; ++i)
     {
-        DefineOpcode(i, "UNKNOWN", STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+        DefineOpcode(i, "UNKNOWN", STATUS_UNHANDLED, PROCESS_INPLACE, &OpcodeThunk<&WorldSession::Handle_NULL>);
     }
 
     OPCODE(MSG_WOW_CONNECTION,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_EarlyProccess            );

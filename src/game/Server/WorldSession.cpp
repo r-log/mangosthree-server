@@ -1688,7 +1688,7 @@ void WorldSession::ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* pac
         _player->SetCanDelayTeleport(true);
     }
 
-    (this->*opHandle.handler)(*packet);
+    opHandle.handler(*this, *packet);
 
     if (_player)
     {
