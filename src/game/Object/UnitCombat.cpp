@@ -572,7 +572,7 @@ float Unit::MeleeSpellMissChance(Unit* pVictim, WeaponAttackType attType, int32 
     }
 
     // Spellmod from SPELLMOD_RESIST_MISS_CHANCE
-    if (Player* modOwner = GetSpellModOwner())
+    if (SpellModMgr* modOwner = GetSpellMods())
     {
         modOwner->ApplySpellMod(spell->ID, SPELLMOD_RESIST_MISS_CHANCE, hitChance);
     }
@@ -785,7 +785,7 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* pVictim, SpellEntry const* spell)
     int32 modHitChance = Combat::MagicSpellBaseHitChance(victimIsPlayer, victimLevel, attackerLevel);
 
     // Spellmod from SPELLMOD_RESIST_MISS_CHANCE
-    if (Player* modOwner = GetSpellModOwner())
+    if (SpellModMgr* modOwner = GetSpellMods())
     {
         modOwner->ApplySpellMod(spell->ID, SPELLMOD_RESIST_MISS_CHANCE, modHitChance);
     }

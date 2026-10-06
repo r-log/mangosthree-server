@@ -189,7 +189,7 @@ void Spell::EffectPowerDrain(SpellEffectEntry const* effect)
             manaMultiplier = 1;
         }
 
-        if (Player* modOwner = m_caster->GetSpellModOwner())
+        if (SpellModMgr* modOwner = m_caster->GetSpellMods())
         {
             modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_MULTIPLE_VALUE, manaMultiplier);
         }
@@ -268,7 +268,7 @@ void Spell::EffectPowerBurn(SpellEffectEntry const* effect)
     unitTarget->ModifyPower(powertype, -new_damage);
     float multiplier = effect->EffectAmplitude;
 
-    if (Player* modOwner = m_caster->GetSpellModOwner())
+    if (SpellModMgr* modOwner = m_caster->GetSpellMods())
     {
         modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_MULTIPLE_VALUE, multiplier);
     }
@@ -493,7 +493,7 @@ void Spell::EffectHealthLeech(SpellEffectEntry const* effect)
 
     float multiplier = effect->EffectAmplitude;
 
-    if (Player* modOwner = m_caster->GetSpellModOwner())
+    if (SpellModMgr* modOwner = m_caster->GetSpellMods())
     {
         modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_MULTIPLE_VALUE, multiplier);
     }
@@ -701,7 +701,7 @@ void Spell::EffectPersistentAA(SpellEffectEntry const* effect)
 
     float radius = GetSpellRadius(sSpellRadiusStore.LookupEntry(effect->GetRadiusIndex()));
 
-    if (Player* modOwner = pCaster->GetSpellModOwner())
+    if (SpellModMgr* modOwner = pCaster->GetSpellMods())
     {
         modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_RADIUS, radius);
     }

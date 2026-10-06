@@ -2302,10 +2302,6 @@ class Player : public Unit
         }
 
         void AddSpellMod(Aura* aura, bool apply);
-        template <class T> T ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell const* /*spell*/ = NULL)
-        {
-            return m_spellModMgr.ApplySpellMod(spellId, op, basevalue);
-        }
 
         // Spell cooldowns (delegated to m_spellCooldownMgr): the clock is read here (time(NULL)) and
         // handed in. AddSpellAndCategoryCooldowns, SendCooldownEvent, RemoveSpellCooldown,

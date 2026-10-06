@@ -247,6 +247,17 @@ pointer as their target
 (:7271, :7304) are CHANGED lines. The direct spelling of IsTaxiFlying carries the `(!` before it,
 since Unit.cpp calls it on other units. The dead pet case of ResetControlState's creature arm
 (:7342-:7353), whose `player->RemovePet` ran only on a NULL pointer, is a deleted block.
+The spell-mod sites read the player's spell modifiers through the holder getter. The radius site,
+UnitAuraProcHandler.cpp:1921, stands 16 lines below its type return (:1905) and sets its own window;
+its direct spelling carries its leading space, since :4838 calls the getter on the caster, a CHANGED
+line in :4840's window. The pushback and global cooldown sites cast `m_caster`, not `this`:
+Spell.cpp:653 stands 24 lines below Delayed's type return (:629) and :699 13 below DelayedChannel's
+(:686), so both set their own window, and SpellCooldown.cpp:121 stands 2 below its type test (:119).
+Those three calls dropped the unused spell argument, so each is a CHANGED line, as are Spell.cpp:1297
+and :1298, which dropped it outside every window. SpellPower.cpp:178, the owner line that cast
+`m_caster` before a Unit member, is a CHANGED line with no FORM, and so is Unit.cpp's owner line in
+the combo target site's window (:4719). GetSpellModOwner is a deleted member. Spell.cpp calls
+GetItemByGuid on other players, so that FORM is `elsewhere` there.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -338,7 +349,7 @@ FORMS = {
                  'suffix': None},
     'GetItemByGuid': {'direct': 'GetItemByGuid(',
                       'cast': '((Player*)this)->GetInventoryMgr().GetItemByGuid(',
-                      'suffix': None},
+                      'suffix': None, 'elsewhere': ['src/game/WorldHandlers/Spell.cpp']},
     'UnsummonPetTemporaryIfAny': {'direct': 'UnsummonPetTemporaryIfAny(',
                                   'cast': '((Player*)this)->UnsummonPetTemporaryIfAny(',
                                   'suffix': None},
@@ -490,6 +501,12 @@ FORMS = {
         'cast': 'player = static_cast<Player *>(this);', 'declared': ('bool player = false;', 'Player* player = NULL;'),
         'forms': ['SetCameraView', 'ResetCameraView', 'PossessClientControl', 'SendForcedObjectUpdate', 'IsTaxiFlying',
                   'PossessSpellInitialize', 'RemovePet', 'RemovePetActionBar']},
+    'ApplySpellMod': {'direct': ' GetSpellMods()->ApplySpellMod(',
+                      'cast': ' ((Player*)this)->ApplySpellMod(',
+                      'suffix': None},
+    'CasterApplySpellMod': {'direct': 'm_caster->GetSpellMods()->ApplySpellMod(',
+                            'cast': '((Player*)m_caster)->ApplySpellMod(',
+                            'suffix': None},
     'CastPassiveSpellsForAuraState': {
         'kind': 'moved', 'direct': 'CastPassiveSpellsForAuraState(', 'cast': '((Player*)this)->GetSpellMap()',
         'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
@@ -1177,7 +1194,9 @@ FILES = {
                   'SetCameraView': 2, 'ResetCameraView': 2, 'PossessClientControl': 5, 'SendForcedObjectUpdate': 2,
                   'IsTaxiFlying': 2, 'PossessSpellInitialize': 2, 'RemovePet': 1, 'RemovePetActionBar': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
-        'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
+        'changed': [('    if (SpellModMgr* modOwner = GetSpellMods())',
+                     '    if (Player* modOwner = GetSpellModOwner())'),
+                    ('    if (GetTypeId() == TYPEID_PLAYER)',
                      '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())'),
                     ('            if (owner && (owner->GetTypeId() == TYPEID_PLAYER))',
                      '            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && '
@@ -1191,7 +1210,8 @@ FILES = {
         'folded': {'ReportGroupStat': [1], 'ReportOwnerGroupStat': [0, 1, 2, 3], 'ReportPetGroupAura': [0]},
         'window': {626: 13, 960: 17, 975: 32, 1057: 14, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15,
                    4406: 12, 4611: 104, 7114: 37, 7176: 59, 7257: 67},
-        'deleted': [['        if (possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())',
+        'deleted': ['Player* Unit::GetSpellModOwner() const',
+                    ['        if (possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())',
                      '        {', '            // out of range pet dismissed',
                      '            if (!InReach(*possessedCreature, *this, '
                      'possessedCreature->GetMap()->GetVisibilityDistance()))',
@@ -1242,9 +1262,37 @@ FILES = {
     'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
         'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8,
                   'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3, 'isHonorOrXPTarget': 2,
-                  'Say': 1, 'GetSelectionGuid': 1, 'GetNextRandomRaidMember': 1, 'IsBaseRuneSlotsOnCooldown': 1},
+                  'Say': 1, 'GetSelectionGuid': 1, 'GetNextRandomRaidMember': 1, 'IsBaseRuneSlotsOnCooldown': 1,
+                  'ApplySpellMod': 1},
         'added': [],
-        'window': {980: 44, 1002: 13, 1010: 21, 1045: 13, 1070: 13, 1096: 13, 2881: 70, 3242: 47, 4840: 17}},
+        'changed': [('            caster->GetSpellMods()->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius);',
+                     '            caster->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius, NULL);')],
+        'window': {980: 44, 1002: 13, 1010: 21, 1045: 13, 1070: 13, 1096: 13, 1921: 16, 2881: 70, 3242: 47,
+                   4840: 17}},
+    'src/game/WorldHandlers/Spell.cpp': {
+        'forms': {'CasterApplySpellMod': 2},
+        'added': [],
+        'changed': [('    ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_NOT_LOSE_CASTING_TIME, '
+                     'delayReduce);',
+                     '    ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_NOT_LOSE_CASTING_TIME, '
+                     'delayReduce, this);'),
+                    ('            modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_RADIUS, radius);',
+                     '            modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_RADIUS, radius, this);'),
+                    ('            modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_JUMP_TARGETS, EffectChainTarget);',
+                     '            modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_JUMP_TARGETS, EffectChainTarget, '
+                     'this);')],
+        'window': {653: 24, 699: 13}},
+    'src/game/WorldHandlers/SpellCooldown.cpp': {
+        'forms': {'CasterApplySpellMod': 1},
+        'added': [],
+        'changed': [('            ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd);',
+                     '            ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd, '
+                     'this);')]},
+    'src/game/WorldHandlers/SpellPower.cpp': {
+        'forms': {},
+        'added': [],
+        'changed': [('                            if (SpellModMgr* modOwner = m_caster->GetSpellMods())',
+                     '                            if (Player* modOwner = ((Player*)m_caster)->GetSpellModOwner())')]},
 }
 
 

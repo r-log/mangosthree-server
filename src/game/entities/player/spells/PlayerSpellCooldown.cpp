@@ -47,17 +47,16 @@
 namespace
 {
     /// What SpellCooldownMgr::AddSpellAndCategoryCooldowns needs from the character, read just
-    /// before the call. The spell mods keep the cast they were given (`spell`, possibly NULL) and
-    /// apply to the value the manager hands them.
-    SpellCooldownMgr::CastInputs ReadCastInputs(Player* player, SpellEntry const* spellInfo, Spell* spell)
+    /// before the call. The spell mods apply to the value the manager hands them.
+    SpellCooldownMgr::CastInputs ReadCastInputs(Player* player, SpellEntry const* spellInfo)
     {
         SpellCooldownMgr::CastInputs inputs;
         inputs.itemPrototype = ObjectMgr::GetItemPrototype;
         inputs.autoRepeatRanged = IsAutoRepeatRangedSpell(spellInfo);
         inputs.rangedAttackTime = player->GetAttackTime(RANGED_ATTACK);
-        inputs.applyCooldownMod = [player, spell](uint32 spellId, int32& cooldown)
+        inputs.applyCooldownMod = [player](uint32 spellId, int32& cooldown)
         {
-            player->ApplySpellMod(spellId, SPELLMOD_COOLDOWN, cooldown, spell);
+            player->GetSpellMods()->ApplySpellMod(spellId, SPELLMOD_COOLDOWN, cooldown);
         };
         return inputs;
     }
@@ -72,18 +71,18 @@ namespace
     }
 }
 
-void Player::AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* spell, bool infinityCooldown)
+void Player::AddSpellAndCategoryCooldowns(SpellEntry const* spellInfo, uint32 itemId, Spell* /*spell*/, bool infinityCooldown)
 {
     time_t now = time(NULL);
-    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo, spell);
+    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo);
 
     m_spellCooldownMgr.AddSpellAndCategoryCooldowns(spellInfo, itemId, now, inputs, infinityCooldown);
 }
 
-void Player::SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, Spell* spell)
+void Player::SendCooldownEvent(SpellEntry const* spellInfo, uint32 itemId, Spell* /*spell*/)
 {
     time_t now = time(NULL);
-    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo, spell);
+    SpellCooldownMgr::CastInputs const inputs = ReadCastInputs(this, spellInfo);
 
     m_spellCooldownMgr.SendCooldownEvent(spellInfo, itemId, now, inputs, GetObjectGuid(), m_cooldownSinks.event);
 }

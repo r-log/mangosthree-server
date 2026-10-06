@@ -4676,7 +4676,7 @@ int32 Unit::CalculateSpellDamage(Unit const* target, SpellEntry const* spellProt
         value += (int32)(comboDamage * comboPoints);
     }
 
-    if (Player* modOwner = GetSpellModOwner())
+    if (SpellModMgr* modOwner = GetSpellMods())
     {
         modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_ALL_EFFECTS, value);
 
@@ -5713,28 +5713,6 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
 SpellSchoolMask Unit::GetMeleeDamageSchoolMask() const
 {
     return SPELL_SCHOOL_MASK_NORMAL;
-}
-
-/**
- * @brief Gets the player whose spell modifiers apply to this unit.
- *
- * @return The owning player for spell mods, or null if none exists.
- */
-Player* Unit::GetSpellModOwner() const
-{
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        return (Player*)this;
-    }
-    if (IsPet() || IsTotem())
-    {
-        Unit* owner = GetOwner();
-        if (owner && owner->GetTypeId() == TYPEID_PLAYER)
-        {
-            return (Player*)owner;
-        }
-    }
-    return NULL;
 }
 
 /**

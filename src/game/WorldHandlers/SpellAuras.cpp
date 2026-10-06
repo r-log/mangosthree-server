@@ -528,7 +528,7 @@ Aura::Aura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* currentBas
 
     SetModifier(AuraType(m_spellEffect->EffectAura), damage, m_spellEffect->EffectAuraPeriod, m_spellEffect->EffectMiscValue_0);
 
-    Player* modOwner = caster ? caster->GetSpellModOwner() : NULL;
+    SpellModMgr* modOwner = caster ? caster->GetSpellMods() : NULL;
 
     // Apply periodic time mod
     if (modOwner && m_modifier.periodictime)
@@ -557,7 +557,7 @@ AreaAura::AreaAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32* cu
     Unit* caster_ptr = caster ? caster : target;
 
     m_radius = GetSpellRadius(sSpellRadiusStore.LookupEntry(m_spellEffect->GetRadiusIndex()));
-    if (Player* modOwner = caster_ptr->GetSpellModOwner())
+    if (SpellModMgr* modOwner = caster_ptr->GetSpellMods())
     {
         modOwner->ApplySpellMod(spellproto->ID, SPELLMOD_RADIUS, m_radius);
     }
@@ -2800,7 +2800,7 @@ void Aura::PeriodicTick()
                             spell->cancel();
                         }
 
-            if (Player* modOwner = pCaster->GetSpellModOwner())
+            if (SpellModMgr* modOwner = pCaster->GetSpellMods())
             {
                 modOwner->ApplySpellMod(GetId(), SPELLMOD_ALL_EFFECTS, new_damage);
                 modOwner->ApplySpellMod(GetId(), SPELLMOD_MULTIPLE_VALUE, multiplier);
@@ -3009,7 +3009,7 @@ void Aura::PeriodicTick()
             {
                 gain_multiplier = m_spellEffect->EffectAmplitude;
 
-                if (Player* modOwner = pCaster->GetSpellModOwner())
+                if (SpellModMgr* modOwner = pCaster->GetSpellMods())
                 {
                     modOwner->ApplySpellMod(GetId(), SPELLMOD_MULTIPLE_VALUE, gain_multiplier);
                 }
@@ -4129,7 +4129,7 @@ SpellAuraHolder::SpellAuraHolder(SpellEntry const* spellproto, Unit* target, Wor
 
     if (unitCaster)
     {
-        if (Player* modOwner = unitCaster->GetSpellModOwner())
+        if (SpellModMgr* modOwner = unitCaster->GetSpellMods())
         {
             modOwner->ApplySpellMod(GetId(), SPELLMOD_CHARGES, m_procCharges);
         }
@@ -5782,7 +5782,7 @@ void SpellAuraHolder::Update(uint32 diff)
                     // Get spell range
                     float max_range = GetSpellMaxRange(sSpellRangeStore.LookupEntry(m_spellProto->RangeIndex));
 
-                    if (Player* modOwner = caster->GetSpellModOwner())
+                    if (SpellModMgr* modOwner = caster->GetSpellMods())
                     {
                         modOwner->ApplySpellMod(GetId(), SPELLMOD_RANGE, max_range);
                     }
