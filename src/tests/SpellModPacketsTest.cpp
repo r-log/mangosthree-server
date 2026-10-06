@@ -86,8 +86,8 @@ namespace
         return packet;
     }
 
-    /// The packet as the character's own statements wrote it before the fact: the count of pairs
-    /// as a placeholder, written back once the pairs are in.
+    /// The packet with the count of pairs written as a placeholder and written back once the
+    /// pairs are in.
     WorldPacket WrittenBack(SpellModChangedFact const& fact)
     {
         uint16 opcode = fact.flat ? SMSG_SET_FLAT_SPELL_MODIFIER : SMSG_SET_PCT_SPELL_MODIFIER;

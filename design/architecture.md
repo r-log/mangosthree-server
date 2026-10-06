@@ -81,9 +81,9 @@ gone, not before (section 6 splits the tier as one library first).
 | pvp | entities, social, maps, combat | a battleground is a map of groups fighting |
 | economy | entities, social | an auction or a trade is between players |
 
-Two consequences. `entities -> social` (344 lines today, the largest after maps) is debt: a player asks its group
+Two consequences. `entities -> social` (336 lines today, the largest after maps) is debt: a player asks its group
 through a fact callback declared beside the player and supplied by social, the shape the group update flags cluster
-waits for. And `entities -> pvp` (192) is the same shape: a battleground tells the player, not the reverse.
+waits for. And `entities -> pvp` (188) is the same shape: a battleground tells the player, not the reverse.
 
 ## 2. What each layer may know
 
@@ -335,8 +335,8 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 |---|---|---|
 | 1 | domain -> proto: 263 lines; 230 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 240 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
-| 3 | `World.h` included 222 times below app | the configuration interface (#143), when content touches it |
-| 4 | `Chat.h` (92) and `ScriptMgr.h` (86) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
+| 3 | `World.h` included 221 times below app | the configuration interface (#143), when content touches it |
+| 4 | `Chat.h` (91) and `ScriptMgr.h` (85) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
 | 5 | data -> domain: 161 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump`, `CharacterDatabaseCleaner` and `GameGlobals` (9 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
@@ -356,7 +356,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:241`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
-| 24 | `Unit`: three casts of `this` to the player, each closed by the successor the next column names. The two accessors, `GetCharmerOrOwnerPlayerOrPlayerItself` and its const twin (`Unit.cpp:3390`, `:3406`; the twin's `(Player const*)` cast is outside row 13's count), stay as counted casts: their 53 callers ask one question, "which player gets credit or control for this unit", and its answer becomes a fact on the charm and ownership model. The spell-mod owner, `GetSpellModOwner` (`:5727`), stays until the spell-mod move, the PR after the seam that put the player's spell modifiers in `spells/SpellModMgr` and gave `Unit` the holder's getter `GetSpellMods`; the move also closes the radius site (`UnitAuraProcHandler.cpp:1921`) and four `(Player*)m_caster` casts in the spells. | the accessors: the charm and ownership model's own peer (`social/` or `entities/creature/`); the spell-mod owner: the spell-mod move after the seam, D11 (#142) |
+| 24 | `Unit`: three casts of `this` to the player, each closed by the successor the next column names. The two accessors, `GetCharmerOrOwnerPlayerOrPlayerItself` and its const twin (`Unit.cpp:3390`, `:3406`; the twin's `(Player const*)` cast is outside row 13's count), stay as counted casts: their 53 callers ask one question, "which player gets credit or control for this unit", and its answer becomes a fact on the charm and ownership model. The spell-mod owner, `GetSpellModOwner` (`:5727`), stays until the spell-mod move, the PR after the seam that put the player's spell modifiers in `spells/SpellModMgr` and gave `Unit` the holder's getter `GetSpellMods` (its two type tests repeat `GetSpellModOwner`'s, so row 13 reads 215 until the move deletes `GetSpellModOwner` and returns the count to 213); the move also closes the radius site (`UnitAuraProcHandler.cpp:1921`) and four `(Player*)m_caster` casts in the spells. | the accessors: the charm and ownership model's own peer (`social/` or `entities/creature/`); the spell-mod owner: the spell-mod move after the seam, D11 (#142) |
 
 ## Appendix: how each number was measured
 
