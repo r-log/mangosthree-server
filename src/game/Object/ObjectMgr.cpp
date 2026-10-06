@@ -1168,7 +1168,7 @@ void ObjectMgr::LoadExplorationBaseXP()
         Field* fields = result->Fetch();
         uint32 level  = fields[0].GetUInt32();
         uint32 basexp = fields[1].GetUInt32();
-        mBaseXPTable[level] = basexp;
+        m_explorationBaseXp.Set(level, basexp);
         ++count;
     }
     while (result->NextRow());
@@ -1177,18 +1177,6 @@ void ObjectMgr::LoadExplorationBaseXP()
 
     sLog.outString(">> Loaded %u BaseXP definitions", count);
     sLog.outString();
-}
-
-/**
- * @brief Gets the exploration base experience for a level.
- *
- * @param level The player level.
- * @return The configured base exploration XP, or 0 if missing.
- */
-uint32 ObjectMgr::GetBaseXP(uint32 level) const
-{
-    BaseXPMap::const_iterator itr = mBaseXPTable.find(level);
-    return itr != mBaseXPTable.end() ? itr->second : 0;
 }
 
 /**
