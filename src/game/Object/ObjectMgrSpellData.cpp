@@ -134,7 +134,7 @@ void ObjectMgr::LoadNPCSpellClickSpells()
  */
 void ObjectMgr::LoadFishingBaseSkillLevel()
 {
-    mFishingBaseForArea.clear();                            // for reload case
+    m_fishingBaseSkill.Clear();                             // for reload case
 
     uint32 count = 0;
     QueryResult* result = WorldDatabase.Query("SELECT `entry`,`skill` FROM `skill_fishing_base_level`");
@@ -165,7 +165,7 @@ void ObjectMgr::LoadFishingBaseSkillLevel()
             continue;
         }
 
-        mFishingBaseForArea[entry] = skill;
+        m_fishingBaseSkill.Set(entry, skill);
         ++count;
     }
     while (result->NextRow());
