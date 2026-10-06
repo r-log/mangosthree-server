@@ -65,14 +65,9 @@ static void DefineOpcode(uint16 opcode, const char* name, SessionStatus status, 
     opcodeTable[opcode].handler = handler;
 }
 
-/// Names the row's handler by the table's signature, so a handler name that is overloaded
-/// binds the overload that takes the packet.
+/// Names the row's handler as the session member taking the packet, so a handler name that is
+/// overloaded binds the overload that takes the packet.
 static constexpr auto TableHandler(void (WorldSession::*handler)(WorldPacket& recvPacket))
-{
-    return handler;
-}
-
-static constexpr auto TableHandler(void (*handler)(WorldSession& session, WorldPacket& recvPacket))
 {
     return handler;
 }

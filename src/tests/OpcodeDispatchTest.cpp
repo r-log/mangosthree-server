@@ -88,7 +88,7 @@ TEST(OpcodeDispatch_PingRowAnswersWithThePongOfItsSequence)
     sent[0] >> sequence;
     CHECK_EQ(sequence, uint32(7));
 
-    session.SetSocketlessSink(NULL, NULL);
+    session.SetSocketlessSink(nullptr, nullptr);
 }
 
 TEST(OpcodeDispatch_PingRowHoldsThePingHandlersThunk)
