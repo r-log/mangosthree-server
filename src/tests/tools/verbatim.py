@@ -90,18 +90,18 @@ The run shapes beyond one label per line and a body that ends in its own termina
      or the switch's close, by lines that are comments (`//`) at exactly the label indent. They belong
      to that run: the handler holds them after its last statement at column 0, and the paste-back puts
      them after the block's `}` at the label indent. A code line, a comment at another indent or a
-     blank line there is still a block followed by more lines, and fails.
+     blank line there is a block followed by more lines, and fails.
   S, the shape read inside the site's switch: a run's label lines, `default:` included, are looked up
      only inside the switches the site's open lines start (each closed by the first close line after
      them) that hold one of the site's label lines, so a `default:` line standing in another switch of
-     the file is never read; found twice there fails as before.
+     the file is never read; found twice there fails.
   V, a valued return: a site in a function returning T names `value` T and lists
      valued_substitutions(T): `return SpellHandlerOutcome<T>::Return(x);` pastes back as `return x;`
      (x on that line), `return SpellHandlerOutcome<T>::Continue();` as `break;`. Every handler the site
      registers must answer SpellHandlerOutcome<T> (a site with no `value` answers void); another
      outcome type fails.
   M, several labels on one line: LABELS maps each id of a line `case 1: case 2: case 3:` to that same
-     line, and every label line must hold exactly the ids mapped to it. The ids of one line are rows
+     line, and every label line must hold exactly the ids mapped to it and nothing else. The ids of one line are rows
      of one run, so they share its function (an id of the line registered by another function
      fails); the line is pasted back once. In a partly moved switch every id on a standing line
      stands; a deleted id sharing its line with others fails.
@@ -542,7 +542,8 @@ def handler_body(lines, function, context, value='void'):
     if j is None:
         raise Failure('handler %s: no closing "}" in column 0' % function)
     code = [l for l in lines[i + 2:j] if l.strip() and not comment_only(l)]
-    if not code or not re.fullmatch(r'    return\b.*;', code[-1]):
+    if not code or not re.fullmatch(r'    return\b.*;', code[-1]) or (
+            len(code) > 1 and not blank(code[-2]).rstrip().endswith((';', '{', '}', ':'))):
         raise Failure('handler %s: its last statement is not a return at its own level (it could fall off its end)'
                       % function)
     return lines[i + 2:j]
@@ -750,6 +751,8 @@ def check_label_lines(site):
     """Every label line holds exactly the ids the site maps to it."""
     for line in set(site['labels'].values()):
         want = sorted(i for i, l in site['labels'].items() if l == line)
+        if re.sub(r'\bcase\s+\d+\s*:', '', blank(line.split('{body}')[0])).strip():
+            raise Failure('%s: the label line %r holds more than `case N:` labels' % (site['name'], line.strip()))
         if sorted(label_ids(line)) != want:
             raise Failure('%s: the label line %r holds case %s, and the site maps %s to it'
                           % (site['name'], line.strip(), label_ids(line), want))
@@ -2252,6 +2255,11 @@ def self_test():
         'with 2/2 bodies pasted back at their 4 labels in 1 sites',
         **form('multi part', multi_labels, multi_switch, multi_functions[1:], multi_rows[3:], standing=open_close,
                residual=True))
+    for label, line in [('a `default:`', '        case 11: default:                      // Trio'),
+                        ('a named case', '        case 11: case SPELL_X:                 // Trio')]:
+        run('M: a label line holding %s beside its case: fails' % label, 1, 'holds more than `case N:` labels',
+            **form('multi', {11: line}, [line, '            target->Drop(11);', '            return;'],
+                   multi_functions[:1], [(11, 'Trio')]))
     rest_close = form_site['open'] + multi_switch[5:] + form_site['close']
     run('M: a deleted id sharing its line with others: fails', 1, 'deleted label 12 shares its line with other labels',
         **form('multi part', multi_labels, multi_switch, multi_functions[:1], [(11, 'Trio'), (13, 'Trio')],
@@ -2288,6 +2296,10 @@ def self_test():
     run('F: the call dropped (the body falls off its end): fails', 1,
         'handler One: its last statement is not a return at its own level',
         **mutated(falls, 'handlers', '    return Two(ctx);\n', ''))
+    run('F: a control header over the call of the next run: fails', 1,
+        'handler One: its last statement is not a return at its own level',
+        **mutated(falls, 'handlers', '    // no break here\n\n    return Two(ctx);',
+                  '    // no break here\n    if (ctx.target->IsDead())\n    return Two(ctx);'))
     run('F: a call of a run still standing in the switch: fails', 1,
         'One ends in a call of Two, which is not the function of the run after it',
         **form('falls part', lab, fall_switch, fall_functions, [(1, 'One')] + fall_rows[2:], residual=True,
