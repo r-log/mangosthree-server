@@ -5600,6 +5600,24 @@ void Player::Uncharm()
 }
 
 /**
+ * @brief Sets the camera to a unit's view.
+ *
+ * @param target The unit whose view the camera takes.
+ */
+void Player::SetCameraView(Unit* target)
+{
+    GetCamera().SetView(target);
+}
+
+/**
+ * @brief Sets the camera back to the player's own view.
+ */
+void Player::ResetCameraView()
+{
+    GetCamera().ResetView();
+}
+
+/**
  * @brief Updates liquid auras and mirror timers based on the player's position.
  *
  * @param m The current map.

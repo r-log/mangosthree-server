@@ -3964,6 +3964,40 @@ class Unit : public WorldObject
          * compares with the spell's target: an empty guid here; Player returns its combo target's
          */
         virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }
+        /**
+         * Tells the client the action bar of the unit this unit possesses; TakePossessOf calls it on a
+         * player once the possession has taken hold.
+         * Does nothing here, a unit that is not a player has no client to tell; Player sends its
+         * charm's action bar.
+         */
+        virtual void PossessSpellInitialize() { }
+        /**
+         * Removes the unit's pet; ResetControlState calls it on a player whose possession of its own pet
+         * ends with the pet out of reach.
+         * @param mode how the pet is saved
+         * Does nothing here; Player removes its pet and saves it in that mode.
+         */
+        virtual void RemovePet(PetSaveMode /*mode*/) { }
+        /**
+         * Removes the pet action bar from the client; ResetControlState calls it on a player whose
+         * possession of a unit that is not its own pet ends.
+         * Does nothing here, a unit that is not a player has no client to tell; Player's pet manager
+         * clears the bar and tells its client.
+         */
+        virtual void RemovePetActionBar() { }
+        /**
+         * Sets the unit's camera to another unit's view; TakePossessOf calls it on a player as the
+         * possession takes hold.
+         * @param target the unit whose view the camera takes
+         * Does nothing here, a unit that is not a player has no camera; Player sets its camera's view.
+         */
+        virtual void SetCameraView(Unit* /*target*/) { }
+        /**
+         * Sets the unit's camera back to its own view; ResetControlState calls it on a player as the
+         * possession ends.
+         * Does nothing here, a unit that is not a player has no camera; Player resets its camera's view.
+         */
+        virtual void ResetCameraView() { }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

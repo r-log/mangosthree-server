@@ -124,6 +124,7 @@ set(SRC_GRP_TESTS
     UnitNearTeleportTest.cpp
     UnitDamageCreditTest.cpp
     UnitSpellDamagePlayerReadsTest.cpp
+    UnitPossessPlayerCallsTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

@@ -41,7 +41,8 @@ For each file in FILES, --check:
      nowhere in the working tree;
   6. requires no direct spelling of a FORM the file does not list, outside the added lines it
      dropped or found at their place; a FORM whose direct spelling also stands in code that never
-     cast (`elsewhere`) is only looked for in the files that list it; a file that `declares` the
+     cast (`elsewhere`: True for every file, or the list of the files where it so stands) is only
+     looked for in the files that list it; a file that `declares` the
      overrides (Player.h, whose own code calls its methods directly and never cast) lists no FORM
      and is not searched for one: only its entries are checked, at their place.
 A window set for a base line that holds no site fails.
@@ -93,7 +94,9 @@ as often as the spec lists them. The receiver is the FORM's: the pet-owner arms 
 lists (the pet aura's flag line holds the owner stat's spelling) does not claim the lines holding
 the longer one, at BASE or pasted back. A file's `deleted` names the header of each member
 deleted whole: it stands once at BASE with a body and nowhere in the working tree, and the cast
-spellings inside that body at BASE are no sites.
+spellings inside that body at BASE are no sites. An entry of `deleted` that is a list of lines names
+a block deleted inside a member: it stands once at BASE and nowhere pasted back, and the cast
+spellings inside it at BASE are no sites.
 
 An `inlined` FORM is the mirror of a `moved` one: a block of lines standing where one statement
 `<cast><args>);` stood, the call of another class's method whose body the block now is. The block
@@ -109,15 +112,23 @@ one). The cast spelling and the dropped line must stand nowhere in the file, and
 followed by `(` nowhere in the files `gone` names, which held its declaration and its definition.
 
 A `local` FORM is a pointer local turned into a flag: the line `direct`, `bool <local> = <test>;`,
-stands where the pointer line `cast`, `Player* <local> = (<test>) ? (Player*)this : NULL;`, stood,
-and each FORM it lists is a call that went through the pointer, a plain FORM whose cast spelling is
-its direct spelling called through `<local>->`, so pasting it back gives the call its receiver
-again. The flag line is written back as the pointer line, which is the site and must stand nowhere
-in the working tree. A flag line that does not read as the pointer line's test under the same name
-(a `!=`, another name, a parenthesis dropped) fails, and so does a listed FORM that is not listed in
-the file or does not call through the local. From the flag line to the member's end (the next `}`
-at column 0) the local may stand only as a test, `<local> &&`, `<local> ?` or `if (<local>)`; any
-other use, a `<local>->` left over among them, fails, named with its line.
+stands where the pointer line `cast`, `Player* <local> = (<test>) ? (Player*)this : NULL;` or
+`Player* <local> = <test> ? static_cast<Player*>(this): NULL;`, stood, and each FORM it lists is a
+call that went through the pointer, a plain FORM whose cast spelling is its direct spelling called
+through `<local>->`, or a call on a part of the player renamed (its cast spelling starts with
+`<local>->`), so pasting it back gives the call its receiver again. The flag line is written back
+as the pointer line, which is the site and must stand nowhere in the working tree. A local with a
+`declared` pair was declared and assigned in its type test: `direct` is `<local> = true;`, standing
+where `cast`, `<local> = static_cast<Player *>(this);`, stood, and three lines above it stands
+`bool <local> = false;` where `Player* <local> = NULL;` stood; both are written back, and the
+assignment is the site. A flag line that does not read as the pointer line's test under the same
+name (a `!=`, another name, a parenthesis dropped), or a declaration that is not three lines above
+its assignment, fails, and so does a listed FORM that is not listed in the file or does not call
+through the local. From the flag line to the member's end (the next `}` at column 0) the local may
+stand only as a test, `<local> &&`, `<local> ?` or `if (<local>)`, or in a `//` comment; any other
+use, a `<local>->` left over among them, fails, named with its line. A call that passed the pointer
+itself as an argument (`SetClientControl(player, 1)`, now `SetClientControl(this, 1)`) is a CHANGED
+line.
 
 A moved body and an inlined block are checked for the includes they depend on, not only for their
 bytes: a line of either that calls an overloaded standard math function (cos, sin, tan, acos, asin,
@@ -223,7 +234,19 @@ the armor specialization test :4624 and its call :4627, the combo points :4633, 
 :4714), and 104 reaches one line past the last. The armor specialization call stands 3 lines below
 its test, the combo points and the combo target on the test of their own line; the direct spelling
 of GetComboTargetGuid carries the comparison before it, since Unit.cpp:6042 calls it on another
-player.
+player. The possess sites are three `local` FORMs that set their own windows: in TakePossessOf
+(SpellEntry const*, ...), Unit.cpp:7114, the pointer's uses stand 21 to 36 lines below it (the
+camera, the client control and the forced update :7135-:7137, the possess bar :7150), and 37 reaches
+one line past the last; in TakePossessOf(Unit*), Unit.cpp:7176, the assignment, they stand 41 to 58
+below it (:7217-:7219, :7234), and 59 reaches one past; in ResetControlState, Unit.cpp:7257, the
+assignment, they stand 9 to 66 below it (the first release :7266-:7271, the second :7300-:7304,
+the pet's removal :7312, the pet bar :7323), and 67 reaches one past. Each call stands within 11
+lines of its own test. The direct spelling of SetClientControl in Unit.cpp is the fear and confuse
+states' own, so each FORM is `elsewhere` in the other's file only; the two calls that passed the
+pointer as their target
+(:7271, :7304) are CHANGED lines. The direct spelling of IsTaxiFlying carries the `(!` before it,
+since Unit.cpp calls it on other units. The dead pet case of ResetControlState's creature arm
+(:7342-:7353), whose `player->RemovePet` ran only on a NULL pointer, is a deleted block.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
@@ -420,7 +443,7 @@ FORMS = {
                                         'suffix': None},
     'SetClientControl': {'direct': ' SetClientControl(',
                          'cast': ' ((Player*)this)->SetClientControl(',
-                         'suffix': None},
+                         'suffix': None, 'elsewhere': ['src/game/Object/Unit.cpp']},
     'FitArmorSpecializationRules': {'direct': 'FitArmorSpecializationRules(',
                                     'cast': 'unitPlayer->FitArmorSpecializationRules(',
                                     'suffix': None},
@@ -434,6 +457,39 @@ FORMS = {
         'kind': 'local', 'local': 'unitPlayer', 'direct': 'bool unitPlayer = GetTypeId() == TYPEID_PLAYER;',
         'cast': 'Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;',
         'forms': ['FitArmorSpecializationRules', 'GetComboPoints', 'GetComboTargetGuid']},
+    'PossessClientControl': {'direct': ' SetClientControl(',
+                             'cast': ' player->SetClientControl(',
+                             'suffix': None, 'elsewhere': ['src/game/Object/UnitSpeed.cpp']},
+    'SendForcedObjectUpdate': {'direct': 'SendForcedObjectUpdate(',
+                               'cast': 'player->SendForcedObjectUpdate(',
+                               'suffix': None},
+    'IsTaxiFlying': {'direct': '(!IsTaxiFlying(',
+                     'cast': '(!player->IsTaxiFlying(',
+                     'suffix': None},
+    'PossessSpellInitialize': {'direct': 'PossessSpellInitialize(',
+                               'cast': 'player->PossessSpellInitialize(',
+                               'suffix': None},
+    'RemovePet': {'direct': 'RemovePet(',
+                  'cast': 'player->RemovePet(',
+                  'suffix': None},
+    'RemovePetActionBar': {'direct': 'RemovePetActionBar(',
+                           'cast': 'player->RemovePetActionBar(',
+                           'suffix': None},
+    'SetCameraView': {'direct': 'SetCameraView(',
+                      'cast': 'player->GetCamera().SetView(',
+                      'suffix': None},
+    'ResetCameraView': {'direct': 'ResetCameraView(',
+                        'cast': 'player->GetCamera().ResetView(',
+                        'suffix': None},
+    'player': {
+        'kind': 'local', 'local': 'player', 'direct': 'bool player = GetTypeId() == TYPEID_PLAYER;',
+        'cast': 'Player* player = GetTypeId() == TYPEID_PLAYER ? static_cast<Player*>(this): NULL;',
+        'forms': ['SetCameraView', 'PossessClientControl', 'SendForcedObjectUpdate', 'PossessSpellInitialize']},
+    'playerAssigned': {
+        'kind': 'local', 'local': 'player', 'direct': 'player = true;',
+        'cast': 'player = static_cast<Player *>(this);', 'declared': ('bool player = false;', 'Player* player = NULL;'),
+        'forms': ['SetCameraView', 'ResetCameraView', 'PossessClientControl', 'SendForcedObjectUpdate', 'IsTaxiFlying',
+                  'PossessSpellInitialize', 'RemovePet', 'RemovePetActionBar']},
     'CastPassiveSpellsForAuraState': {
         'kind': 'moved', 'direct': 'CastPassiveSpellsForAuraState(', 'cast': '((Player*)this)->GetSpellMap()',
         'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
@@ -876,7 +932,42 @@ UNIT_H_SPELL_DAMAGE = '''        /**
          * @return the guid of the unit this unit's combo points are on, which CalculateSpellDamage
          * compares with the spell's target: an empty guid here; Player returns its combo target's
          */
-        virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }
+        virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }'''
+
+UNIT_H_POSSESS = '''        /**
+         * Tells the client the action bar of the unit this unit possesses; TakePossessOf calls it on a
+         * player once the possession has taken hold.
+         * Does nothing here, a unit that is not a player has no client to tell; Player sends its
+         * charm's action bar.
+         */
+        virtual void PossessSpellInitialize() { }
+        /**
+         * Removes the unit's pet; ResetControlState calls it on a player whose possession of its own pet
+         * ends with the pet out of reach.
+         * @param mode how the pet is saved
+         * Does nothing here; Player removes its pet and saves it in that mode.
+         */
+        virtual void RemovePet(PetSaveMode /*mode*/) { }
+        /**
+         * Removes the pet action bar from the client; ResetControlState calls it on a player whose
+         * possession of a unit that is not its own pet ends.
+         * Does nothing here, a unit that is not a player has no client to tell; Player's pet manager
+         * clears the bar and tells its client.
+         */
+        virtual void RemovePetActionBar() { }
+        /**
+         * Sets the unit's camera to another unit's view; TakePossessOf calls it on a player as the
+         * possession takes hold.
+         * @param target the unit whose view the camera takes
+         * Does nothing here, a unit that is not a player has no camera; Player sets its camera's view.
+         */
+        virtual void SetCameraView(Unit* /*target*/) { }
+        /**
+         * Sets the unit's camera back to its own view; ResetControlState calls it on a player as the
+         * possession ends.
+         * Does nothing here, a unit that is not a player has no camera; Player resets its camera's view.
+         */
+        virtual void ResetCameraView() { }
 
     public:'''
 
@@ -936,6 +1027,15 @@ PLAYER_H_DAMAGE_CREDIT = '''
         // criteria, which Unit's DealDamage asks for; private, so only a call through Unit reaches it
         void CreditDamageDealt(Unit* pVictim, uint32 damage) override;'''
 
+PLAYER_H_CAMERA = '''
+        // Sets the camera to a unit's view, which Unit's TakePossessOf asks for as a possession takes
+        // hold; private, so only a call through Unit reaches it
+        void SetCameraView(Unit* target) override;
+
+        // Sets the camera back to the player's own view, which Unit's ResetControlState asks for as a
+        // possession ends; private, so only a call through Unit reaches it
+        void ResetCameraView() override;'''
+
 # file -> the count of each FORM rewritten in it, the lines the rewrite added, each with the base
 # line it follows, the lines it changed, each with the base line it replaced, the sites whose
 # window is not WINDOW, by base line, whether it `declares` the overrides, and the lines that
@@ -961,7 +1061,7 @@ FILES = {
                    + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS
                    + '\n' + UNIT_H_ACCOUNT_SECURITY + '\n' + UNIT_H_POSITION_AND_MOVING
                    + '\n' + UNIT_H_CLIENT_CONTROL + '\n' + UNIT_H_NEAR_TELEPORT + '\n' + UNIT_H_DAMAGE_CREDIT
-                   + '\n' + UNIT_H_SPELL_DAMAGE,
+                   + '\n' + UNIT_H_SPELL_DAMAGE + '\n' + UNIT_H_POSSESS,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -973,7 +1073,8 @@ FILES = {
                    'directly.'),
                   (PLAYER_H_ITEM_BY_GUID + '\n' + PLAYER_H_TALENT_RANK + '\n' + PLAYER_H_RUNE_COOLDOWN
                    + '\n' + PLAYER_H_AURA_STATE_CASTS + '\n' + PLAYER_H_OWN_SESSION_PACKETS
-                   + '\n' + PLAYER_H_ACCOUNT_SECURITY + '\n' + PLAYER_H_NEAR_TELEPORT + '\n' + PLAYER_H_DAMAGE_CREDIT,
+                   + '\n' + PLAYER_H_ACCOUNT_SECURITY + '\n' + PLAYER_H_NEAR_TELEPORT + '\n' + PLAYER_H_DAMAGE_CREDIT
+                   + '\n' + PLAYER_H_CAMERA,
                    '        ManagerPacketSink SessionSink() const;')],
         'changed': [('        // The item slots: the lookups (GetItemByPos, GetItemByGuid, GetItemByEntry,',
                      '        // The item slots. Decoupling D4i: the lookups (GetItemByPos, GetItemByGuid, '
@@ -1054,7 +1155,11 @@ FILES = {
                     ('        uint8 GetComboPoints() const override final { return m_comboPoints; }',
                      '        uint8 GetComboPoints() const { return m_comboPoints; }'),
                     ('        bool FitArmorSpecializationRules(SpellEntry const * spellProto) const override final;',
-                     '        bool FitArmorSpecializationRules(SpellEntry const * spellProto) const;')],
+                     '        bool FitArmorSpecializationRules(SpellEntry const * spellProto) const;'),
+                    ('        void RemovePet(PetSaveMode mode) override;', '        void RemovePet(PetSaveMode mode);'),
+                    ('        void PossessSpellInitialize() override;', '        void PossessSpellInitialize();'),
+                    ('        void RemovePetActionBar() override { m_petMgr.RemoveActionBar(SessionSink()); }',
+                     '        void RemovePetActionBar() { m_petMgr.RemoveActionBar(SessionSink()); }')],
         'byvalue': [('        ObjectGuid GetSelectionGuid() const override final { return m_curSelectionGuid; }',
                      '        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }'),
                     ('        ObjectGuid GetComboTargetGuid() const override final { return m_comboTargetGuid; }',
@@ -1068,7 +1173,9 @@ FILES = {
                   'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1,
                   'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1, 'TeleportNear': 1,
                   'SendKnockBack': 1, 'CreditDamageDealt': 1, 'FitArmorSpecializationRules': 1, 'GetComboPoints': 1,
-                  'GetComboTargetGuid': 1, 'unitPlayer': 1},
+                  'GetComboTargetGuid': 1, 'unitPlayer': 1, 'player': 1, 'playerAssigned': 2,
+                  'SetCameraView': 2, 'ResetCameraView': 2, 'PossessClientControl': 5, 'SendForcedObjectUpdate': 2,
+                  'IsTaxiFlying': 2, 'PossessSpellInitialize': 2, 'RemovePet': 1, 'RemovePetActionBar': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
                      '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())'),
@@ -1076,10 +1183,22 @@ FILES = {
                      '            if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && '
                      '((Player*)owner)->GetGroup())'),
                     ('        if (owner && (owner->GetTypeId() == TYPEID_PLAYER))',
-                     '        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())')],
+                     '        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())'),
+                    ('                player->SetClientControl(this, 1);',
+                     '                player->SetClientControl(player, 1);'),
+                    ('            player->SetClientControl(this, 1);',
+                     '            player->SetClientControl(player, 1);')],
         'folded': {'ReportGroupStat': [1], 'ReportOwnerGroupStat': [0, 1, 2, 3], 'ReportPetGroupAura': [0]},
         'window': {626: 13, 960: 17, 975: 32, 1057: 14, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15,
-                   4406: 12, 4611: 104}},
+                   4406: 12, 4611: 104, 7114: 37, 7176: 59, 7257: 67},
+        'deleted': [['        if (possessedCreature->IsPet() && possessedCreature->GetObjectGuid() == GetPetGuid())',
+                     '        {', '            // out of range pet dismissed',
+                     '            if (!InReach(*possessedCreature, *this, '
+                     'possessedCreature->GetMap()->GetVisibilityDistance()))',
+                     '            {', '                player->RemovePet(PET_SAVE_REAGENTS);', '            }',
+                     '            else', '            {',
+                     '                possessedCreature->GetMotionMaster()->MoveFollow(this, PET_FOLLOW_DIST, '
+                     'PET_FOLLOW_ANGLE);', '            }', '        }']]},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
         'added': []},
@@ -1528,7 +1647,9 @@ def reported_block(rel, at, tree, form, body, folded, spec, out):
     return lines
 
 
-LOCAL_POINTER = re.compile(r'^Player\* (\w+) = \((.+)\) \? \(Player\*\)this : NULL;$')
+LOCAL_POINTER = re.compile(r'^Player\* (\w+) = (?:\((.+)\) \? \(Player\*\)this : NULL'
+                           r'|(.+) \? static_cast<Player\*>\(this\): NULL);$')
+LOCAL_ASSIGNED = re.compile(r'^(\w+) = static_cast<Player \*>\(this\);$')
 
 
 def paste_locals(rel, text, spec, out, forms, starts=()):
@@ -1541,14 +1662,18 @@ def paste_locals(rel, text, spec, out, forms, starts=()):
         return 1, text
 
     for name in sorted(n for n in spec['forms'] if forms[n].get('kind') == 'local'):
-        form, local = forms[name], forms[name]['local']
-        m = LOCAL_POINTER.match(form['cast'])
-        if not m or m.group(1) != local or form['direct'] != 'bool %s = %s;' % (local, m.group(2)):
-            return fail('%s: FAILED: the flag line %r is not the pointer line %r read as `bool %s = <its test>;`'
-                        % (rel, form['direct'], form['cast'], local))
+        form, local, declared = forms[name], forms[name]['local'], forms[name].get('declared')
+        m = (LOCAL_ASSIGNED if declared else LOCAL_POINTER).match(form['cast'])
+        flag = '%s = true;' % local if declared else 'bool %s = %s;' % (local, m and (m.group(2) or m.group(3)))
+        if not m or m.group(1) != local or form['direct'] != flag or \
+                declared not in (None, ('bool %s = false;' % local, 'Player* %s = NULL;' % local)):
+            return fail('%s: FAILED: the flag line %r is not the pointer line %r read as `bool %s = <its test>;` '
+                        'or as `%s = true;` below `bool %s = false;`'
+                        % (rel, form['direct'], form['cast'], local, local, local))
         for f in form['forms']:
             cast = forms[f]['cast'] if f in spec['forms'] else ''
-            if local + '->' not in cast or cast.replace(local + '->', '', 1) != forms[f]['direct']:
+            renamed = cast.replace(local + '->', '', 1) != forms[f]['direct']
+            if local + '->' not in cast or renamed and not cast.startswith(local + '->'):
                 return fail('%s: FAILED: %s is no listed FORM whose cast spelling is its direct spelling called '
                             'through %s->' % (rel, f, local))
         if form['cast'] in text:
@@ -1559,11 +1684,16 @@ def paste_locals(rel, text, spec, out, forms, starts=()):
                         % (rel, len(at), form['direct'], spec['forms'][name]))
         tests = r'\b%s (?=&&|\?)|(?<=if \()%s(?=\))' % (local, local)
         for i in at:
+            if declared and lines[i - 3].strip() != declared[0]:
+                return fail('%s:%d: FAILED: %r is not declared three lines above it as %r'
+                            % (rel, tree_index(starts, i) + 1, form['direct'], declared[0]))
             for k in range(i + 1, lines.index('}', i)):
-                if re.search(r'\b%s\b' % local, re.sub(tests, '', lines[k])):
+                if re.search(r'\b%s\b' % local, re.sub(tests, '', lines[k].split('//')[0])):
                     return fail('%s:%d: FAILED: the local %s stands as neither `%s &&`, `%s ?` nor `if (%s)`: %r'
                                 % (rel, tree_index(starts, k) + 1, local, local, local, local, lines[k].strip()))
             lines[i] = lines[i][:len(lines[i]) - len(lines[i].lstrip())] + form['cast']
+            if declared:
+                lines[i - 3] = lines[i - 3].replace(declared[0], declared[1])
     return 0, '\n'.join(lines)
 
 
@@ -1625,7 +1755,8 @@ def lists_none(rel, lines, masked, spec, out, forms=None):
     forms = FORMS if forms is None else forms
     rest = '\n'.join(line for i, line in enumerate(lines) if i not in masked)
     for name in forms:
-        if name not in spec['forms'] and not forms[name].get('elsewhere') and forms[name]['direct'] in rest:
+        tolerated = forms[name].get('elsewhere') is True or rel in (forms[name].get('elsewhere') or ())
+        if name not in spec['forms'] and not tolerated and forms[name]['direct'] in rest:
             out('%s: FAILED: a call of %s in a file that lists none' % (rel, name))
             return 1
     return 0
@@ -1641,6 +1772,14 @@ def pair_sites(rel, old_text, pasted, spec, out, read=None, forms=None, by_form=
     pairs = []
     old_lines, new_lines, gone = old_text.split('\n'), pasted.split('\n'), set()
     for header in spec.get('deleted', []):
+        if isinstance(header, list):
+            at, left = block_at(old_lines, header), len(block_at(new_lines, header))
+            if len(at) != 1 or left:
+                out('%s: FAILED: the deleted block %r stands %d time(s) at the base and %d in the working tree, '
+                    'expected once and none' % (rel, header[0], len(at), left))
+                return 1, pairs
+            gone.update(range(at[0], at[0] + len(header)))
+            continue
         if old_lines.count(header) != 1 or header in new_lines or '}' not in old_lines[old_lines.index(header):]:
             out('%s: FAILED: the deleted member %r stands %d time(s) at the base with a body and %d in the working '
                 'tree, expected once and none' % (rel, header, old_lines.count(header), new_lines.count(header)))
@@ -2339,6 +2478,39 @@ SELF_LOCAL_FORMS = {
                    'cast': 'Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;',
                    'forms': ['Fits', 'GetPoints']}}
 
+SELF_ASSIGNED_OLD = '''void Unit::Reset()
+{
+    Player* player = NULL;
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        player = static_cast<Player *>(this);
+    }
+    if (player)
+    {
+        // the player's own camera
+        player->GetCamera().ResetView();
+        player->Grant(player, 1);
+        return;
+    }
+    if (IsPet())
+    {
+        player->Grant(player, 0);
+    }
+}
+'''
+
+SELF_ASSIGNED_NEW = SELF_ASSIGNED_OLD.replace('Player* player = NULL;', 'bool player = false;').replace(
+    'player = static_cast<Player *>(this);', 'player = true;').replace(
+    'player->GetCamera().ResetView(', 'ResetView(').replace('player->Grant(player, 1)', 'Grant(this, 1)').replace(
+    '    if (IsPet())\n    {\n        player->Grant(player, 0);\n    }\n', '')
+
+SELF_ASSIGNED_FORMS = {
+    'ResetView': {'direct': 'ResetView(', 'cast': 'player->GetCamera().ResetView(', 'suffix': None},
+    'Grant': {'direct': 'Grant(', 'cast': 'player->Grant(', 'suffix': None},
+    'assigned': {'kind': 'local', 'local': 'player', 'direct': 'player = true;',
+                 'cast': 'player = static_cast<Player *>(this);',
+                 'declared': ('bool player = false;', 'Player* player = NULL;'), 'forms': ['ResetView', 'Grant']}}
+
 OWNER_REPORTED_OLD = '''void Unit::SetHealth(uint32 val)
 {
     SetValue(val);
@@ -2932,13 +3104,14 @@ def self_test():
            files={'Unit.h': SELF_BRANCH_NEW})
     elsewhere_forms = dict(SELF_BRANCH_FORMS, Elsewhere={'direct': 'return dodge', 'cast': 'unused', 'suffix': None})
     for flag, want_rc, label in ((True, 0, 'an `elsewhere` FORM spelled in a file that lists none passes'),
-                                 (False, 1, '... and fails without the flag')):
+                                 (False, 1, '... and fails without the flag'),
+                                 (['other.cpp'], 1, '... and fails when `elsewhere` names another file only')):
         forms = dict(elsewhere_forms)
         forms['Elsewhere'] = dict(forms['Elsewhere'], elsewhere=flag)
         got = []
         rc = verify('fixture', SELF_BRANCH_OLD, SELF_BRANCH_NEW, SELF_BRANCH_SPEC, got.append,
                     read=dict(SELF_BRANCH_FILES, **{'Unit.h': SELF_BRANCH_NEW}).__getitem__, forms=forms)
-        ok = rc == want_rc and (flag or 'a call of Elsewhere in a file that lists none' in '\n'.join(got))
+        ok = rc == want_rc and (flag is True or 'a call of Elsewhere in a file that lists none' in '\n'.join(got))
         print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
         if not ok:
             failures.append('%s: rc %d\n%s' % (label, rc, '\n'.join(got)))
@@ -3080,6 +3253,39 @@ def self_test():
     local('the pointer line still standing fails', 1, 'the pointer line',
           swap=('    bool unitPlayer',
                 '    Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;\n    bool unitPlayer'))
+
+    def assigned(label, want_rc, needle, swap=('', ''), form=None, spec=None):
+        got = []
+        full = dict({'forms': {'ResetView': 1, 'Grant': 1, 'assigned': 1}, 'added': [], 'window': {6: 7},
+                     'changed': [('        player->Grant(this, 1);', '        player->Grant(player, 1);')],
+                     'deleted': [['    if (IsPet())', '    {', '        player->Grant(player, 0);', '    }']]},
+                    **(spec or {}))
+        rc = verify('fixture', SELF_ASSIGNED_OLD, SELF_ASSIGNED_NEW.replace(*swap), full, got.append, window=2,
+                    forms=dict(SELF_ASSIGNED_FORMS, **(form or {})))
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    assigned('a flag assigned in its type test pastes back; a comment naming it passes', 0, 'around 3/3')
+    assigned('the flag declared true fails', 1, 'is not declared three lines above it',
+             swap=('bool player = false;', 'bool player = true;'))
+    assigned('the flag assigned 1 fails', 1, "0 flag line(s) 'player = true;'", swap=('player = true;', 'player = 1;'))
+    assigned('a declaration pinned under another type fails', 1, 'is not the pointer line',
+             form={'assigned': dict(SELF_ASSIGNED_FORMS['assigned'],
+                                    declared=('int player = 0;', 'Player* player = NULL;'))})
+    assigned('the pointer argument without its changed line fails', 1, 'fixture:12: DIFFERS from the base at line 12',
+             spec={'changed': []})
+    assigned('a cast in a deleted block is no site', 1, '2 cast call(s) of Grant at the base, the spec lists 1',
+             spec={'deleted': []})
+    assigned('a deleted block that does not stand at the base fails', 1,
+             "the deleted block '    if (IsPet())' stands 0",
+             spec={'deleted': [['    if (IsPet())', '    {', '        Drop();', '    }']]})
+    local('a pointer line spelled with static_cast pastes back', 0, 'around 3/3',
+          old=('(GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL',
+               'GetTypeId() == TYPEID_PLAYER ? static_cast<Player*>(this): NULL'),
+          form={'unitPlayer': dict(SELF_LOCAL_FORMS['unitPlayer'], cast='Player* unitPlayer = GetTypeId() == '
+                                   'TYPEID_PLAYER ? static_cast<Player*>(this): NULL;')})
 
     def dropped(label, want_rc, needle, swap=('', ''), body=('', ''), line=None, window=6):
         got = []
