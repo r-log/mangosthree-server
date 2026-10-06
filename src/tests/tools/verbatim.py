@@ -8,8 +8,9 @@ back at its label, and the file must come back byte for byte as it was at BASE.
 For each file in SITES, --check:
   1. reads the file at BASE (`git show <base>:<file>`) and in the working tree, and for each of the
      two its handlers: the handler file (HANDLERS) where that version has it, else the handler block
-     appended to the sites' file (from TAIL_MARKER to the end of the file); a version holding both
-     fails, and so does a working tree holding neither;
+     appended to the sites' file (from TAIL_MARKER to the end of the file; a file whose handlers
+     were never appended names none); a version holding both fails, and so does a working tree
+     holding neither;
   2. drops the lines the moves added (ADDED: the handlers header's include) and that appended block;
   3. at each site, replaces the dispatch (the site's exact DISPATCH lines, found exactly once)
      with the switch it stood for: the switch's opening lines, then for each row of the site's
@@ -84,6 +85,35 @@ lines, so no default is registered under a spelling the paste-back does not read
 `Register` stands inside ROWS_FUNCTION, which registers the tables' rows, so no labelled row is
 registered outside the tables the paste-back reads.
 
+The run shapes beyond one label per line and a body that ends in its own terminator:
+  T, comment lines after a block: a braced run's closing `}` may be followed, before the next label
+     or the switch's close, by lines that are comments (`//`) at exactly the label indent. They belong
+     to that run: the handler holds them after its last statement at column 0, and the paste-back puts
+     them after the block's `}` at the label indent. A code line, a comment at another indent or a
+     blank line there is still a block followed by more lines, and fails.
+  S, the shape read inside the site's switch: a run's label lines, `default:` included, are looked up
+     only inside the switches the site's open lines start (each closed by the first close line after
+     them) that hold one of the site's label lines, so a `default:` line standing in another switch of
+     the file is never read; found twice there fails as before.
+  V, a valued return: a site in a function returning T names `value` T and lists
+     valued_substitutions(T): `return SpellHandlerOutcome<T>::Return(x);` pastes back as `return x;`
+     (x on that line), `return SpellHandlerOutcome<T>::Continue();` as `break;`. Every handler the site
+     registers must answer SpellHandlerOutcome<T> (a site with no `value` answers void); another
+     outcome type fails.
+  M, several labels on one line: LABELS maps each id of a line `case 1: case 2: case 3:` to that same
+     line, and every label line must hold exactly the ids mapped to it. The ids of one line are rows
+     of one run, so they share its function (an id of the line registered by another function
+     fails); the line is pasted back once. In a partly moved switch every id on a standing line
+     stands; a deleted id sharing its line with others fails.
+  F, a run falling into the next: its handler ends in `    return G(ctx);`, G being the function of
+     the next row of the table, whose first label is the label after the run's last in the original
+     order (no label standing between them). The paste-back drops that line, so the run falls into
+     the next one as it did. A call of any other function as the last line fails, and so does a
+     default ending in one. Moving both runs as one body under all their labels is not this shape:
+     the second run's labels stood between the bodies, and the paste-back differs.
+Every handler's last statement (comments aside) is a `return` at the function's own level, so no
+body falls off its end.
+
 Each handler body is also checked for what the paste-back cannot see: a live-out local used
 bare (a case body's name the move did not route through the context), and so any other name in
 scope at the site (IN_SCOPE: its function's parameters and locals); a member of the site's
@@ -144,6 +174,12 @@ ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
+
+
+def valued_substitutions(value):
+    """The outcome pairs of a site in a function returning `value`: `return x;` and `break;`."""
+    return [(re.compile(r'return SpellHandlerOutcome<%s>::Return\((.*)\);' % re.escape(value)), r'return \1;'),
+            ('return SpellHandlerOutcome<%s>::Continue();' % value, 'break;')]
 
 # One entry per file; each file lists its sites in the order they stand in it.
 SITES = {
@@ -488,20 +524,27 @@ def default_function(lines, traits):
     return found[0]
 
 
-def handler_body(lines, function, context):
-    """The lines between the braces of `static SpellHandlerOutcome<...> function(context& ctx)` (or
+def handler_body(lines, function, context, value='void'):
+    """The lines between the braces of `static SpellHandlerOutcome<value> function(context& ctx)` (or
     `/*ctx*/`, a body that reads no context)."""
-    head = re.compile(r'static SpellHandlerOutcome<[\w:]+> %s\(%s& (ctx|/\*ctx\*/)\)' % (re.escape(function),
-                                                                                        re.escape(context)))
-    starts = [i for i, l in enumerate(lines) if head.fullmatch(l)]
+    head = re.compile(r'static SpellHandlerOutcome<([\w:]+)> %s\(%s& (ctx|/\*ctx\*/)\)' % (re.escape(function),
+                                                                                          re.escape(context)))
+    starts = [(i, m.group(1)) for i, m in enumerate(head.fullmatch(l) for l in lines) if m]
     if len(starts) != 1:
         raise Failure('handler %s(%s& ctx) found %d times' % (function, context, len(starts)))
-    i = starts[0]
+    i, answers = starts[0]
+    if answers != value:
+        raise Failure('handler %s answers SpellHandlerOutcome<%s>, and its site\'s value is %s'
+                      % (function, answers, value))
     if lines[i + 1] != '{':
         raise Failure('handler %s: no "{" on the line after its head' % function)
     j = next((k for k in range(i + 2, len(lines)) if lines[k] == '}'), None)
     if j is None:
         raise Failure('handler %s: no closing "}" in column 0' % function)
+    code = [l for l in lines[i + 2:j] if l.strip() and not comment_only(l)]
+    if not code or not re.fullmatch(r'    return\b.*;', code[-1]):
+        raise Failure('handler %s: its last statement is not a return at its own level (it could fall off its end)'
+                      % function)
     return lines[i + 2:j]
 
 
@@ -613,14 +656,31 @@ def one_line(label_lines):
     return len(label_lines) == 1 and '{body}' in label_lines[0]
 
 
+def site_spans(lines, site):
+    """(first, close) of each switch in `lines` opened by the site's open lines (closed by the first
+    close line after them) that holds one of the site's label lines."""
+    n = len(site['open'])
+    heads = tuple(l.split('{body}')[0] for l in site['labels'].values())
+    spans = []
+    for i in range(len(lines) - n + 1):
+        if lines[i:i + n] != site['open']:
+            continue
+        end = next((k for k in range(i + n, len(lines)) if lines[k] == site['close'][0]), None)
+        if end is not None and any(lines[k].startswith(heads) for k in range(i + n, end)):
+            spans.append((i + n, end))
+    return spans
+
+
 def braced(origins, site, label_lines):
     """Whether the body under the run of labels `label_lines` is wrapped in `{` `}` at the label
     indent, read in the first of `origins` (each a version's whole file, as lines) holding the
-    run's label lines together; holding them more than once fails; False where none holds them."""
+    run's label lines together inside the site's switch; holding them more than once fails; False
+    where none holds them."""
     indent = ' ' * site['label_indent']
     n = len(label_lines)
     for lines in origins:
-        at = [i for i in range(len(lines) - n) if lines[i] == label_lines[0] and lines[i:i + n] == label_lines]
+        at = [i for first, end in site_spans(lines, site) for i in range(first, end - n + 1)
+              if lines[i] == label_lines[0] and lines[i:i + n] == label_lines]
         if len(at) > 1:
             raise Failure('%s: the labels %s stand %d times in one version' % (site['name'], label_lines, len(at)))
         if not at:
@@ -629,7 +689,10 @@ def braced(origins, site, label_lines):
         if lines[k] != indent + '{':
             return False
         close = next((j for j in range(k + 1, len(lines)) if lines[j] == indent + '}'), None)
-        follows = lines[close + 1] if close is not None and close + 1 < len(lines) else None
+        after = close + 1 if close is not None else len(lines)
+        while after < len(lines) and lines[after].startswith(indent + '//'):
+            after += 1
+        follows = lines[after] if after < len(lines) else None
         if follows is None or not (follows == site['close'][0] or follows.startswith(indent + 'case ')
                                    or follows.startswith(indent + 'default:')):
             raise Failure('%s: where it stands, the body under %s is a block followed by more lines, a shape the '
@@ -645,17 +708,51 @@ def paste(site, function, body, label_lines, wrapped=False):
     restored = []
     for line in body:
         for a, b in site['substitutions']:
-            line = line.replace(a, b)
+            line = a.sub(b, line) if isinstance(a, re.Pattern) else line.replace(a, b)
         restored.append(line)
     if one_line(label_lines):
         return [label_lines[0].replace('{body}', ' '.join(l.strip() for l in restored))]
     if any('{body}' in l for l in label_lines):
         raise Failure('%s: %s is a one-line case sharing its body with another label' % (site['name'], function))
     indent = ' ' * site['label_indent']
+    trailing = len(restored)
+    while wrapped and trailing > 0 and restored[trailing - 1].startswith('//'):
+        trailing -= 1
     restored = [indent + line if line else line for line in restored]
     if wrapped:
-        return label_lines + [indent + '{'] + restored + [indent + '}']
+        return label_lines + [indent + '{'] + restored[:trailing] + [indent + '}'] + restored[trailing:]
     return label_lines + restored
+
+
+FALLS = re.compile(r'    return (\w+)\(ctx\);')
+
+
+def falls_into(site, function, body, rows, j):
+    """`body` less its last line when that is `return G(ctx);`, a run falling into the run after it:
+    G must be the function of the next row, and that row's label the next in the switch."""
+    m = FALLS.fullmatch(body[-1]) if body else None
+    if not m:
+        return body
+    order = list(site['labels'])
+    after = order.index(rows[j - 1][0]) + 1
+    if j >= len(rows) or rows[j][1] != m.group(1) or after >= len(order) or order[after] != rows[j][0]:
+        raise Failure('%s: %s ends in a call of %s, which is not the function of the run after it in the switch'
+                      % (site['name'], function, m.group(1)))
+    return body[:-1]
+
+
+def label_ids(line):
+    """The spell ids of the `case N:` labels on a label line, comments and the `{body}` mark aside."""
+    return [int(i) for i in re.findall(r'\bcase\s+(\d+)\s*:', blank(line.replace('{body}', '')))]
+
+
+def check_label_lines(site):
+    """Every label line holds exactly the ids the site maps to it."""
+    for line in set(site['labels'].values()):
+        want = sorted(i for i, l in site['labels'].items() if l == line)
+        if sorted(label_ids(line)) != want:
+            raise Failure('%s: the label line %r holds case %s, and the site maps %s to it'
+                          % (site['name'], line.strip(), label_ids(line), want))
 
 
 def standing_labels(rest, at, n, site):
@@ -670,17 +767,16 @@ def standing_labels(rest, at, n, site):
     standing = {}
     label = re.compile(r' {%d}case (\d+):' % site['label_indent'])
     for k in range(first, end):
-        m = label.match(rest[k])
-        if not m:
+        if not label.match(rest[k]):
             continue
-        spell = int(m.group(1))
-        if spell not in site['labels']:
-            raise Failure('%s: case %d stands in the switch but is not one of its labels' % (site['name'], spell))
-        if spell in standing:
-            raise Failure('%s: case %d stands twice in the switch' % (site['name'], spell))
-        if rest[k] != site['labels'].get(spell):
-            raise Failure('%s: case %d in the switch is not its label line: %r' % (site['name'], spell, rest[k]))
-        standing[spell] = k
+        for spell in label_ids(rest[k]):
+            if spell not in site['labels']:
+                raise Failure('%s: case %d stands in the switch but is not one of its labels' % (site['name'], spell))
+            if spell in standing:
+                raise Failure('%s: case %d stands twice in the switch' % (site['name'], spell))
+            if rest[k] != site['labels'].get(spell):
+                raise Failure('%s: case %d in the switch is not its label line: %r' % (site['name'], spell, rest[k]))
+            standing[spell] = k
     if list(standing) != [i for i in site['labels'] if i in standing]:
         raise Failure('%s: the labels standing in the switch, %s, are not in the spec\'s order'
                       % (site['name'], list(standing)))
@@ -739,7 +835,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
     and a file with neither handler source is returned as is. `headers` maps a site's members_of
     header path to its text; `origins` are the versions' lines the brace shapes are read from."""
     new = text.split('\n')
-    marker = [i for i, l in enumerate(new) if l == spec['tail_marker']]
+    marker = [i for i, l in enumerate(new) if l == spec.get('tail_marker')]
     if handler_text is not None:
         if marker:
             raise Failure('the handlers are in %s and a handler block is still appended to the sites\' file'
@@ -763,6 +859,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         del rest[at[0]]
     pasted, labels, rebuilt, defaults = 0, 0, [], set()
     for site in spec['sites']:
+        check_label_lines(site)
         n = len(site['dispatch'])
         at = [i for i in range(len(rest) - n + 1) if rest[i:i + n] == site['dispatch']]
         unknown = [i for i in site.get('deleted', []) if i not in site['labels']]
@@ -806,9 +903,18 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             if function in [r[1] for r in rows[:i]]:
                 raise Failure('%s: %s registered in two runs of rows (its labels were not together)'
                               % (site['name'], function))
-            body = handler_body(handlers, function, site['context'])
+            body = falls_into(site, function, handler_body(handlers, function, site['context'],
+                                                           site.get('value', 'void')), rows, j)
             check_body(function, body, site, members)
-            label_lines = [site['labels'][r[0]] for r in rows[i:j]]
+            label_lines = []
+            for spell, _ in rows[i:j]:
+                line = site['labels'][spell]
+                shared = [s for s, l in site['labels'].items() if l == line and s not in [r[0] for r in rows[i:j]]]
+                if shared:
+                    raise Failure('%s: the label line %r holds case %s, which %s does not register'
+                                  % (site['name'], line.strip(), shared, function))
+                if line not in label_lines:
+                    label_lines.append(line)
             wrapped = not one_line(label_lines) and braced(origins, site, label_lines)
             pieces.append(([r[0] for r in rows[i:j]], paste(site, function, body, label_lines, wrapped)))
             pasted += 1
@@ -824,7 +930,9 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             defaults.add(line)
             if function in [r[1] for r in rows]:
                 raise Failure('%s: the default %s is also a labelled row' % (site['name'], function))
-            body = handler_body(handlers, function, site['context'])
+            body = handler_body(handlers, function, site['context'], site.get('value', 'void'))
+            if FALLS.fullmatch(body[-1] if body else ''):
+                raise Failure('%s: the default %s ends in a call, and no run follows it' % (site['name'], function))
             check_body(function, body, site, members)
             switch += paste(site, function, body, [site['default']], braced(origins, site, [site['default']]))
             pasted += 1
@@ -946,6 +1054,8 @@ def cut(text, spec):
                 raise Failure('%s: deleted, and the lines GONE names run past the file' % site['name'])
             ranges.append((start - above, end + 1 + below))
         for spell in site.get('deleted', []):
+            if len(label_ids(site['labels'][spell])) > 1:
+                raise Failure('%s: deleted label %d shares its line with other labels' % (site['name'], spell))
             i = label_at(site, spell)
             if i is not None:
                 ranges.append((i, label_run(lines, i, '%s: deleted label %d' % (site['name'], spell))))
@@ -1994,6 +2104,202 @@ def self_test():
     run('a site deleted whole whose GONE lines run above the file fails', 1, 'the lines GONE names run past the file',
         old_text=whole_origin, sites=gone_tree, handlers=no_rows,
         spec=dict(whole, sites=[dict(whole_site, gone=(100, 1))]))
+    form_site = {k: v for k, v in GEN_SPEC['sites'][0].items() if k not in ('residual', 'labels')}
+
+    def form(name, labels, switch, functions, rows, default=None, before=(), standing=(),
+             signature='void Thing::Remove(bool apply)', tail=('    target->Tail();',), **changes):
+        """run() arguments of a site moved from `switch` (its lines between the site's open and close)
+        into `functions` [(name, value, body)] registered by `rows` [(id, name)]: whole, or partly with
+        the switch `standing` (its lines, open and close included) after the dispatch; `before`
+        stands above the site in both versions."""
+        site = dict(form_site, name=name, labels=labels, **changes)
+        if default:
+            site['default'] = '        default:'
+        head = ['#include "A.h"', '', signature, '{', '    Unit* target = GetTarget();'] + list(before)
+        end = list(tail) + ['}', '']
+        origin = head + site['open'] + switch + site['close'] + end
+        tree = head[:1] + ['#include "Handlers.h"'] + head[1:] + site['dispatch'] + list(standing) + end
+        handlers = ['#include "Handlers.h"', '']
+        for function, value, body in functions:
+            handlers += ['static SpellHandlerOutcome<%s> %s(%s& ctx)' % (value, function, site['context']), '{']
+            handlers += body + ['}', '']
+        handlers += ['void Register(Registry& registry)', '{', '    static Row<%s> const rows[] =' % site['traits'],
+                     '    {'] + ['        { %d, &%s },' % row for row in rows] + ['    };']
+        if default:
+            handlers.append('    registry.RegisterDefault<%s>(&%s);' % (site['traits'], default))
+        handlers += ['}', '']
+        return dict(old_text='\n'.join(origin), sites='\n'.join(tree), handlers='\n'.join(handlers),
+                    spec=dict(GEN_SPEC, sites=[site]))
+
+    def mutated(args, key, a, b):
+        """`args` with a replaced by b in its `key` text; a must stand there."""
+        if a not in args[key]:
+            failures.append('the mutation %r matches nothing in %s' % (a, key))
+        return dict(args, **{key: args[key].replace(a, b)})
+
+    lab = {i: gen_labels[i] for i in (1, 2, 3, 4)}
+    ret, cont = '    return SpellHandlerOutcome<void>::Return();', '    return SpellHandlerOutcome<void>::Continue();'
+
+    trailing = form('trailing comments', lab, [
+        lab[1], '        {', '            target->Drop(1);', '            break;', '        }',
+        '        // case 90:                             // Ninety', '        // break;', '        // case 91:',
+        '        // break;',
+        lab[2], '        {', '            target->Drop(2);', '            return;', '        }', '        // case 92:',
+        '        // break;',
+        lab[3], '            target->Drop(3);', '            return;',
+        lab[4], '        {', '            target->Drop(4);', '            return;', '        }',
+        '        // case 93:'], [
+        ('One', 'void', ['    ctx.target->Drop(1);', cont, '// case 90:                             // Ninety',
+                         '// break;', '// case 91:', '// break;']),
+        ('Two', 'void', ['    ctx.target->Drop(2);', ret, '// case 92:', '// break;']),
+        ('Three', 'void', ['    ctx.target->Drop(3);', ret]),
+        ('Four', 'void', ['    ctx.target->Drop(4);', ret, '// case 93:'])],
+        [(1, 'One'), (2, 'Two'), (3, 'Three'), (4, 'Four')])
+    run('T: comment lines after a braced run, the last before the close: pass', 0,
+        'with 4/4 bodies pasted back at their 4 labels in 1 sites', **trailing)
+    run('T: a code line after a braced run, a comment on it: fails', 1, 'is a block followed by more lines',
+        **mutated(trailing, 'old_text', '        // case 91:', '        Log(); // case 91:'))
+    run('T: a comment line deeper than the label after a braced run: fails', 1, 'is a block followed by more lines',
+        **mutated(trailing, 'old_text', '        // case 91:', '            // case 91:'))
+    run('T: a blank line among the comment lines after a block: fails', 1, 'is a block followed by more lines',
+        **mutated(trailing, 'old_text', '        // case 91:', '\n        // case 91:'))
+    run('T: the comment lines kept at the body\'s indent in the handler: fails', 1, 'DIFFERS',
+        **mutated(trailing, 'handlers', '// case 92:\n// break;', '    // case 92:\n    // break;'))
+
+    other_switch = ['    switch (GetId())', '    {', '        case 90:                                // Ninety',
+                    '            target->Drop(90);', '            break;', '        default:', '        {',
+                    '            target->Log();', '            break;', '        }', '    }']
+    scoped = form('scoped default', {1: lab[1]}, [
+        lab[1], '            target->Drop(1);', '            return;',
+        '        default:', '            target->Drop(0);', '            return;'], [
+        ('One', 'void', ['    ctx.target->Drop(1);', ret]), ('Default', 'void', ['    ctx.target->Drop(0);', ret])],
+        [(1, 'One')], default='Default', before=other_switch)
+    run('S: a default line standing in another switch too: shape read in the site\'s', 0,
+        'with 2/2 bodies pasted back at their 1 labels in 1 sites', **scoped)
+    run('S: a run\'s label line standing in the other switch too: fails', 1, 'stand 2 times in one version',
+        **mutated(mutated(scoped, 'old_text', other_switch[2], lab[1]), 'sites', other_switch[2], lab[1]))
+    run('S: a default the site\'s switch lacks, standing in another: fails', 1, 'DIFFERS',
+        **mutated(scoped, 'old_text', '        default:\n            target->Drop(0);\n            return;\n', ''))
+    run('F: a default ending in a call (no run follows it): fails', 1, 'the default Default ends in a call',
+        **mutated(scoped, 'handlers', '    ctx.target->Drop(0);\n' + ret, '    return One(ctx);'))
+
+    valued_site = dict(value='SpellCastResult', traits='CheckSite', context='CheckContext',
+                 dispatch=['    CheckContext checkContext(this, target);',
+                           '    SpellHandlerOutcome<SpellCastResult> outcome = Dispatch<CheckSite>(checkContext);',
+                           '    if (outcome.IsReturn())', '    {', '        return outcome.GetValue();', '    }'],
+                 substitutions=[('ctx.target', 'target'), ('ctx.aura', 'this')]
+                 + valued_substitutions('SpellCastResult'))
+    valued_rows = ([lab[1], '        {', '            if (target->IsDead())', '            {',
+                    '                return SPELL_FAILED_TARGETS_DEAD;', '            }', '            break;',
+                    '        }',
+                    lab[2], '            return SPELL_FAILED_BAD_TARGETS;'],
+                   [('One', 'SpellCastResult', [
+                       '    if (ctx.target->IsDead())', '    {',
+                       '        return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_TARGETS_DEAD);',
+                       '    }',
+                       '    return SpellHandlerOutcome<SpellCastResult>::Continue();']),
+                    ('Two', 'SpellCastResult', [
+                        '    return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_BAD_TARGETS);'])],
+                   [(1, 'One'), (2, 'Two')])
+    valued = form('valued', {1: lab[1], 2: lab[2]}, *valued_rows, signature='SpellCastResult Thing::Check(bool apply)',
+                  tail=('    return SPELL_CAST_OK;',), **valued_site)
+    run('V: a valued return and a break in a SpellCastResult site: pass', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites', **valued)
+    void_site = dict(valued['spec']['sites'][0], substitutions=valued_site['substitutions'][:2] + VOID_SUBSTITUTIONS)
+    del void_site['value']
+    run('V: a valued site whose spec names no value (void pairs): fails', 1,
+        'handler One answers SpellHandlerOutcome<SpellCastResult>, and its site\'s value is void',
+        **dict(valued, spec=dict(GEN_SPEC, sites=[void_site])))
+    run('V: a handler answering void at a valued site: fails', 1,
+        'handler Two answers SpellHandlerOutcome<void>, and its site\'s value is SpellCastResult',
+        **mutated(valued, 'handlers', 'SpellHandlerOutcome<SpellCastResult> Two(', 'SpellHandlerOutcome<void> Two('))
+    as_void = dict(valued['spec']['sites'][0], substitutions=valued_site['substitutions'][:2] + [
+        (re.compile(r'return SpellHandlerOutcome<SpellCastResult>::Return\((.*)\);'), 'return;'),
+        ('return SpellHandlerOutcome<SpellCastResult>::Continue();', 'break;')])
+    run('V: a valued return pasted back as `return;`: fails', 1, 'DIFFERS',
+        **dict(valued, spec=dict(GEN_SPEC, sites=[as_void])))
+    run('V: a changed return value: fails', 1, 'DIFFERS',
+        **mutated(valued, 'handlers', 'Return(SPELL_FAILED_BAD_TARGETS)', 'Return(SPELL_FAILED_BAD_IMPLICIT_TARGETS)'))
+    run('V: a break taken as a return of the value after the switch: fails', 1, 'DIFFERS',
+        **mutated(valued, 'handlers', 'SpellCastResult>::Continue()', 'SpellCastResult>::Return(SPELL_CAST_OK)'))
+
+    trio = '        case 11: case 12: case 13:              // Trio'
+    trio2 = '        case 21: case 22: case 23:              // Trio, unbraced'
+    multi_labels = {11: trio, 12: trio, 13: trio, 21: trio2, 22: trio2, 23: trio2, 3: lab[3]}
+    trio_block = [trio, '        {', '            target->Drop(11);', '            return;', '        }']
+    multi_switch = trio_block + [trio2, '            target->Drop(21);', '            return;',
+                                 lab[3], '            target->Drop(3);', '            return;']
+    multi_functions = [('Trio', 'void', ['    ctx.target->Drop(11);', ret]),
+                       ('TrioUnbraced', 'void', ['    ctx.target->Drop(21);', ret]),
+                       ('Three', 'void', ['    ctx.target->Drop(3);', ret])]
+    multi_rows = [(11, 'Trio'), (12, 'Trio'), (13, 'Trio'), (21, 'TrioUnbraced'), (22, 'TrioUnbraced'),
+                  (23, 'TrioUnbraced'), (3, 'Three')]
+    run('M: three-label lines over a braced and an unbraced body: pass', 0,
+        'with 3/3 bodies pasted back at their 7 labels in 1 sites',
+        **form('multi', multi_labels, multi_switch, multi_functions, multi_rows))
+    run('M: an id of a multi-label line missing from LABELS and the table: fails', 1,
+        'holds case [11, 12, 13], and the site maps [11, 13] to it',
+        **form('multi', {i: l for i, l in multi_labels.items() if i != 12}, multi_switch, multi_functions,
+               [r for r in multi_rows if r[0] != 12]))
+    run('M: an id of a multi-label line registered to another function: fails', 1,
+        'holds case [12, 13], which Trio does not register',
+        **form('multi', multi_labels, multi_switch, multi_functions,
+               [(11, 'Trio'), (12, 'Three'), (13, 'Trio')] + multi_rows[3:]))
+    run('M: an id of a multi-label line missing from the table: fails', 1, 'table rows',
+        **form('multi', multi_labels, multi_switch, multi_functions, [r for r in multi_rows if r[0] != 12]))
+    open_close = form_site['open'] + trio_block + form_site['close']
+    run('M: a multi-label line still standing in a partly moved switch: passes', 0,
+        'with 2/2 bodies pasted back at their 4 labels in 1 sites',
+        **form('multi part', multi_labels, multi_switch, multi_functions[1:], multi_rows[3:], standing=open_close,
+               residual=True))
+    rest_close = form_site['open'] + multi_switch[5:] + form_site['close']
+    run('M: a deleted id sharing its line with others: fails', 1, 'deleted label 12 shares its line with other labels',
+        **form('multi part', multi_labels, multi_switch, multi_functions[:1], [(11, 'Trio'), (13, 'Trio')],
+               standing=rest_close, residual=True, deleted=[12]))
+
+    fall_switch = [lab[1], '            target->Drop(1);', '            // no break here', '',
+                   lab[2], '        {', '            target->Drop(2);', '            return;', '        }',
+                   lab[3], '        {', '            target->Drop(3);', '            // no break here', '        }',
+                   lab[4], '            target->Drop(4);', '            break;']
+    fall_functions = [('One', 'void', ['    ctx.target->Drop(1);', '    // no break here', '', '    return Two(ctx);']),
+                      ('Two', 'void', ['    ctx.target->Drop(2);', ret]),
+                      ('Three', 'void', ['    ctx.target->Drop(3);', '    // no break here', '    return Four(ctx);']),
+                      ('Four', 'void', ['    ctx.target->Drop(4);', cont])]
+    fall_rows = [(1, 'One'), (2, 'Two'), (3, 'Three'), (4, 'Four')]
+    falls = form('falls', lab, fall_switch, fall_functions, fall_rows)
+    run('a sites\' file naming no tail marker, its handlers in the handler file: passes', 0,
+        'with 4/4 bodies pasted back at their 4 labels in 1 sites',
+        **dict(trailing, spec={k: v for k, v in trailing['spec'].items() if k != 'tail_marker'}))
+    run('F: runs falling into the next (unbraced, braced) as calls of it: pass', 0,
+        'with 4/4 bodies pasted back at their 4 labels in 1 sites', **falls)
+    one_body = ('One', 'void', ['    ctx.target->Drop(1);', '    // no break here', '', '    ctx.target->Drop(2);',
+                                ret])
+    run('F: a fall-through moved as one body under both runs\' labels: fails', 1, 'DIFFERS',
+        **form('falls', lab, fall_switch, [one_body] + fall_functions[2:], [(1, 'One'), (2, 'One')] + fall_rows[2:]))
+    run('F: one body, the second run\'s ids missing: fails', 1, 'DIFFERS',
+        **form('falls', {i: lab[i] for i in (1, 3, 4)}, fall_switch, [one_body] + fall_functions[2:],
+               [(1, 'One')] + fall_rows[2:]))
+    run('F: a call of the next run, that run\'s ids missing: fails', 1,
+        'One ends in a call of Two, which is not the function of the run after it',
+        **form('falls', {i: lab[i] for i in (1, 3, 4)}, fall_switch, fall_functions, [(1, 'One')] + fall_rows[2:]))
+    run('F: a call of a run that is not the next: fails', 1,
+        'One ends in a call of Three, which is not the function of the run after it',
+        **mutated(falls, 'handlers', '    return Two(ctx);', '    return Three(ctx);'))
+    run('F: the call dropped (the body falls off its end): fails', 1,
+        'handler One: its last statement is not a return at its own level',
+        **mutated(falls, 'handlers', '    return Two(ctx);\n', ''))
+    run('F: a call of a run still standing in the switch: fails', 1,
+        'One ends in a call of Two, which is not the function of the run after it',
+        **form('falls part', lab, fall_switch, fall_functions, [(1, 'One')] + fall_rows[2:], residual=True,
+               standing=form_site['open'] + fall_switch[4:9] + form_site['close']))
+    run('F: a call of the next row past a label still standing between them: fails', 1,
+        'One ends in a call of Three, which is not the function of the run after it',
+        **form('falls part', lab, fall_switch, [(n, v, ['    ctx.target->Drop(1);', '    // no break here', '',
+                                                        '    return Three(ctx);']) if n == 'One' else (n, v, b)
+                                                for n, v, b in fall_functions],
+               [(1, 'One')] + fall_rows[2:], residual=True,
+               standing=form_site['open'] + fall_switch[4:9] + form_site['close']))
+
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
