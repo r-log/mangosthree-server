@@ -5,10 +5,13 @@ A handler class stores nothing: under src/game/session/handlers/ (every .h, .hpp
 any depth) a handler borrows the session for one call and keeps nothing past it, so no file there
 holds state that outlives a call or that two map workers could share.
 
-Every class and struct defined there is walked with method_count.py's class-scope scanner (its --all
-mode, which separates member functions from data members), and the check refuses, by name with file
-and line:
+Every class and struct defined there is walked, at its own place in the file, with method_count.py's
+class-scope scanner (its --all mode, which separates member functions from data members), and the
+check refuses, by name with file and line:
+  - a class, struct or union whose head it cannot read (an export macro, an attribute, `alignas`, a
+    template specialisation, any union): only `class|struct <name> [final] [: bases] {` is read;
   - a data member, and a static data member;
+  - an anonymous union, struct or class member (its members are the enclosing object's storage);
   - a member function that is not static (a constructor, a destructor or an operator included),
     unless it is deleted (`= delete`);
   - a base class (a base can carry storage);
@@ -16,15 +19,19 @@ and line:
 Outside the classes it refuses:
   - a `static` or `thread_local` inside a function body, a member function's or a free one's (a
     function-local static outlives the call and is shared between the threads that run it);
-  - a variable at namespace scope, named or anonymous namespaces and `extern "C"` blocks read
-    through (a static data member's out-of-class definition is one).
-A `constexpr` variable is accepted at either scope: it is a constant fixed at compile time, which no
-call can change, so it holds no state between calls and nothing two workers could race on. A `const`
-that is not `constexpr` is refused (its initialiser may run at start-up; spell it `constexpr`).
+  - a variable at namespace scope, or any declaration there with no body (a direct-initialised
+    variable, `uint32 g(0);`, reads as a function declaration; a free helper is defined before its
+    use instead), and an anonymous member there; named or anonymous namespaces and `extern "C"`
+    blocks are read through (a static data member's out-of-class definition is one).
+A `constexpr` variable of an arithmetic type (the fixed-width integers included) or of `char const*`
+is accepted at either scope: a constant fixed at compile time with nothing in it a call can write, so
+it holds no state between calls and nothing two workers could race on. Any other `constexpr` object
+is refused (a `mutable` member of a `constexpr` object can be written), and so is a `const` that is
+not `constexpr` (its initialiser may run at start-up; spell it `constexpr`).
 Accepted, and stored nowhere: static member functions, deleted ones, friend declarations, typedef and
 using, nested types, static_assert, free functions (static or not) and out-of-class definitions.
 
-A missing directory passes: there is nothing to check until the first handler class lands.
+A missing directory passes, saying so: there is nothing to check.
 
 KNOWN MISSES, stated rather than chased: a lambda capturing the session handed to an API that runs it
 later, a pointer kept through a template parameter or `auto`, state reached through a call (a
@@ -70,10 +77,24 @@ HANDLERS_DIR = 'src/game/session/handlers'
 SUFFIXES = ('.h', '.hpp', '.inl', '.cpp')
 DATA_REASONS = ('no parameter list', 'function-pointer data member')
 CLASS_DEF = re.compile(r'(?<![\w])(class|struct)\s+([A-Za-z_]\w*)\s*(?:final\s*)?(:[^;{}]*)?\{')
+CLASS_HEAD = re.compile(r'(?<![\w])(class|struct|union)\b')
+CONST_TYPES = {'bool', 'char', 'int', 'short', 'long', 'unsigned', 'signed', 'float', 'double', 'size_t', 'int8',
+               'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'const'}
 FUNCTION_HEAD = re.compile(r'\)\s*(?:(?:const|volatile|noexcept|override|final|&&?)\s*|->\s*[\w:<>*&, ]+)*$')
 NAMESPACE_HEAD = re.compile(r'(?:\bnamespace\b[\w\s:]*|\bextern\s*"\s*")$')
 FORWARD = re.compile(r'(class|struct|union|enum)\b[^{]*;$')
 STORAGE = re.compile(r'[{};]|\b(?:static|thread_local)\b')
+
+
+def constant(sig):
+    """A constexpr of an arithmetic type or of `char const*`: nothing in it can be written."""
+    head = re.split(r'=|\{', sig)[0]
+    w = re.findall(r'\w+|\*', head)
+    if 'constexpr' not in w:
+        return False
+    kept = [x for x in w[:-1] if x not in ('static', 'inline', 'constexpr')]
+    return all(x in CONST_TYPES for x in kept if x != '*') and (
+        '*' not in kept or kept in (['char', 'const', '*'], ['const', 'char', '*']))
 
 
 def words(signature):
@@ -113,24 +134,37 @@ def check_text(rel, text):
     """[(line, what)] for every refusal in one file."""
     clean = method_count.blank_comments_and_literals(text)
     found = []
+    read = set()
     for m in CLASS_DEF.finditer(clean):
         if re.search(r'\benum\s*$', clean[:m.start()]):
             continue
         name = m.group(2)
+        read.add(m.end() - 1)
         if m.group(3):
             found.append((clean.count('\n', 0, m.start()) + 1, 'class %s has a base class (%s)' % (
                 name, ' '.join(m.group(3)[1:].split()))))
-        for line, reason, sig in method_count.scan_members(text, name)[2]:
+        at = re.sub(r'[^\n]', ' ', text[:m.start()]) + text[m.start():]
+        for line, reason, sig in method_count.scan_members(at, name)[2]:
             w = words(sig)
             if FORWARD.match(sig):
                 continue
             if reason is None and 'static' not in w and not re.search(r'=\s*delete\s*;$', sig):
                 found.append((line, 'class %s: a member function that is not static: %s' % (name, sig)))
-            elif reason in DATA_REASONS and 'constexpr' not in w:
+            elif reason in DATA_REASONS and not constant(sig):
                 kind = 'a static data member' if 'static' in w else 'a data member'
                 found.append((line, 'class %s: %s: %s' % (name, kind, sig)))
+            elif reason == 'nested type' and re.match(r'(union|struct|class)\s*\{\.\.\.\}\s*;$', sig):
+                found.append((line, 'class %s: an anonymous member: %s' % (name, sig)))
             elif reason == 'nested type' and re.search(r'\{\.\.\.\}\s*[*&]*\s*\w', sig):
                 found.append((line, 'class %s: a variable declared with its type: %s' % (name, sig)))
+    for m in re.finditer(r'\{', clean):
+        head = clean[max(clean.rfind(';', 0, m.start()), clean.rfind('{', 0, m.start()),
+                         clean.rfind('}', 0, m.start())) + 1:m.start()]
+        if (m.start() not in read and CLASS_HEAD.search(head) and not re.search(r'\benum\b', head)
+                and not re.fullmatch(r'\s*(class|struct|union)\s*', head)
+                and not FUNCTION_HEAD.search(head.strip()) and '=' not in head):
+            found.append((clean.count('\n', 0, m.start()) + 1,
+                          'a class the gate cannot read: %s' % ' '.join(head.split())))
     local, braces = walk(clean)
     for at in local:
         found.append((clean.count('\n', 0, at) + 1, 'a function-local static: %s' % (
@@ -142,7 +176,12 @@ def check_text(rel, text):
     for line, reason, sig in method_count.scan_members(wrapped, 'HandlerFileScope')[2]:
         if sig.startswith('namespace ') or FORWARD.match(sig):
             continue
-        if reason in DATA_REASONS and 'constexpr' not in words(sig):
+        if reason is None and sig.endswith(';') and not re.search(r'=\s*delete\s*;$', sig):
+            found.append((line - 1, 'a declaration at namespace scope with no body (a direct-initialised variable '
+                                    'reads the same): %s' % sig))
+        elif reason == 'nested type' and re.match(r'(union|struct|class)\s*\{\.\.\.\}\s*;$', sig):
+            found.append((line - 1, 'an anonymous member at namespace scope: %s' % sig))
+        elif reason in DATA_REASONS and not constant(sig):
             found.append((line - 1, 'a variable at namespace scope: %s' % sig))
         elif reason == 'nested type' and re.search(r'\{\.\.\.\}\s*[*&]*\s*\w', sig):
             found.append((line - 1, 'a variable declared with its type: %s' % sig))
@@ -180,6 +219,7 @@ class WorldSession;
 namespace
 {
     constexpr uint32 MAX_SHEATH = 3;                    // "static int x;" in a literal is not read
+    constexpr char const* NAME = "combat";
 }
 
 struct CombatHandlers
@@ -237,6 +277,25 @@ SELF_REFUSED = [
      'static void Helper', 'WorldSession* g_last = nullptr;\n\nstatic void Helper'),
     ('a static variable in an anonymous namespace', 'a variable at namespace scope: static uint32 s_swings;',
      '    constexpr uint32 MAX_SHEATH = 3;', '    static uint32 s_swings;'),
+    ('a direct-initialised variable at namespace scope',
+     'a declaration at namespace scope with no body (a direct-initialised variable reads the same): '
+     'static Player* s_last(nullptr);',
+     'static void Helper', 'static Player* s_last(nullptr);\n\nstatic void Helper'),
+    ('a class head with an export macro', 'a class the gate cannot read: struct MANGOS_DLL_SPEC Cache',
+     'static void Helper', 'struct MANGOS_DLL_SPEC Cache { int m_n; };\n\nstatic void Helper'),
+    ('a union', 'a class the gate cannot read: union Cache',
+     'static void Helper', 'union Cache { static int s_n; };\n\nstatic void Helper'),
+    ('a second class of one name with a data member', 'class CombatHandlers: a data member: int m_n;',
+     'static void Helper', 'namespace other { struct CombatHandlers { int m_n; }; }\n\nstatic void Helper'),
+    ('an anonymous union member', 'class CombatHandlers: an anonymous member: union {...};',
+     '        friend class OpcodeTable;', '        union { int a; float b; };'),
+    ('a constexpr object of a class type', 'a variable at namespace scope: constexpr Counter g_c{...};',
+     'static void Helper', 'constexpr Counter g_c{};\n\nstatic void Helper'),
+    ('a static constexpr member of a class type',
+     'class CombatHandlers: a static data member: static constexpr Counter c{...};',
+     '        friend class OpcodeTable;', '        static constexpr Counter c{};'),
+    ('a constexpr pointer to a writable object', 'a variable at namespace scope: constexpr int* g_p = &g_plain;',
+     'static void Helper', 'constexpr int* g_p = &g_plain;\n\nstatic void Helper'),
     ('a static data member defined out of the class',
      'a variable at namespace scope: uint32 CombatHandlers::s_count = 0;',
      'static void Helper', 'uint32 CombatHandlers::s_count = 0;\n\nstatic void Helper'),

@@ -9,12 +9,14 @@ MOVES holds one entry per moved function:
   base, base_file, base_header  the commit the move is proven against (the parent of the change that
       moved it: each entry names its own, so moves from one file in several changes are proven apart),
       the file that held the function there and its definition line, `void WorldSession::<Name>(...)`;
-  new_file, new_header  the file that holds it in the working tree and its definition line: a handler,
+  new_file, new_header  the file that holds it in the working tree (under src/game/session/handlers/, so
+      handler_classes.py reads it) and its definition line: a handler,
       `void <Class>::Handle<X>(WorldSession& session, WorldPacket& <p>)`, <p> the base's own parameter
       name or that name commented out, or a sender, `void <Class>::Send<X>(WorldSession& session, ...)`;
-  substitutions  (new text, base text) pairs, each matching code at least once (a sender's call
-      `SendAttackStop(session, ` read back as `SendAttackStop(`);
-  edits  (new line, base line) pairs: a line changed beyond the substitutions, found once and read back whole.
+  substitutions  (new text, base text) pairs, each matching code at least once and only where no name,
+      `.`, `->` or `::` runs into it (a sender's call `SendAttackStop(session, ` read back as `SendAttackStop(`);
+  edits  (new line, base line) pairs: a line changed beyond the substitutions, found once and read back whole;
+      a new line listed twice fails.
 
 For each entry, --check:
   1. reads the function in each version: the comment lines directly above its definition line (`/*`,
@@ -26,7 +28,10 @@ For each entry, --check:
      verbatim.py's MEMBERS_OF reader (class_members);
   3. reverses the move: an edit's line becomes its base line; on every other line, in code only
      (comments and literals stay), `session.` not after a name, `.`, `->` or `::` is dropped and the
-     substitutions are read back; the definition line becomes base_header;
+     substitutions are read back; the definition line becomes base_header. A base function that names
+     `session` in code fails (a local of that name would make a `session.` the reversal drops mean
+     something else), and so does a span, base or new, whose braces do not balance (a `}` at column
+     0 inside a body would end the span early and hide the lines after it);
   4. pastes that at the function's place in base_file at base and compares the file byte for byte;
   5. fails when the working tree's base_file still holds base_header (the move deletes it).
 A definition line of another shape and an edit or substitution that matches nothing fail by name. The
@@ -72,6 +77,7 @@ from case_labels import blank  # noqa: E402
 from verbatim import Failure, class_members, first_difference  # noqa: E402
 
 SESSION_HEADER = 'src/game/Server/WorldSession.h'
+HANDLERS_DIR = 'src/game/session/handlers'
 
 MOVES = []
 
@@ -123,12 +129,17 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
         first, at, end = function_span(new_lines, entry['new_header'], entry['new_file'])
         check_members(new_lines[at + 1:end], members)
         span = new_lines[first:end]
+        if not entry['new_file'].startswith(HANDLERS_DIR + '/'):
+            raise Failure('the new file is not under %s, where handler_classes.py reads it' % HANDLERS_DIR)
         edits = dict(entry.get('edits', []))
+        if len(edits) != len(entry.get('edits', [])):
+            raise Failure('one new line is listed as two edits')
         for line in edits:
             hits = sum(1 for x in span if x == line)
             if hits != 1:
                 raise Failure('the edit %r matches %d lines of the function' % (line, hits))
-        rules = [(SESSION_DOT, '')] + [(re.compile(re.escape(a)), b) for a, b in entry.get('substitutions', [])]
+        rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a)), b)
+                                       for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
         pasted = []
         for k, (line, code) in enumerate(zip(span, blank('\n'.join(span)).split('\n'))):
@@ -149,6 +160,12 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
         base_lines = base_text.split('\n')
         b_first, _, b_end = function_span(base_lines, entry['base_header'], '%s at %s' % (entry['base_file'],
                                                                                            entry['base']))
+        b_code = blank('\n'.join(base_lines[b_first:b_end]))
+        if re.search(r'\bsession\b', b_code):
+            raise Failure('the base function names `session` in code: the reversal cannot tell it from the parameter')
+        n_code = blank('\n'.join(span))
+        if b_code.count('{') != b_code.count('}') or n_code.count('{') != n_code.count('}'):
+            raise Failure('a `}` at column 0 closes the function before its braces balance')
         if tree_base_text is not None and any(x.rstrip('\r') == entry['base_header']
                                               for x in tree_base_text.split('\n')):
             raise Failure('%s still defines %r: the move deletes it' % (entry['base_file'], entry['base_header']))
@@ -234,14 +251,16 @@ SELF_NEW = (SELF_BASE.replace('WorldSession.h', 'session/handlers/combat/Fixture
             .replace('_player->', 'session.GetPlayer()->').replace('    GetPlayer()', '    session.GetPlayer()')
             .replace('SendStop(', 'SendStop(session, '))
 
+SELF_NEW_FILE = 'src/game/session/handlers/combat/Fixture.cpp'
+
 SELF_MOVES = [
-    dict(base='fixture', base_file='Fixture.cpp', new_file='Fixture2.cpp',
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
          base_header='void WorldSession::HandleSwingOpcode(WorldPacket& recv_data)',
          new_header='void Fixture::HandleSwing(WorldSession& session, WorldPacket& recv_data)',
          substitutions=[('SendStop(session, ', 'SendStop(')],
          edits=[('    Unit* enemy = session.GetPlayer()->GetMap()->GetUnit(recv_data.ReadGuid());',
                  '    Unit* enemy = _player->GetMap()->GetUnit(recv_data.ReadGuid());')]),
-    dict(base='fixture', base_file='Fixture.cpp', new_file='Fixture2.cpp',
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
          base_header='void WorldSession::HandleStopOpcode(WorldPacket& /*recv_data*/)',
          new_header='void Fixture::HandleStop(WorldSession& session, WorldPacket& /*recv_data*/)'),
 ]
@@ -251,7 +270,8 @@ def self_test():
     failures = []
     members = class_members(SELF_SESSION, 'WorldSession')
 
-    def run(label, want_rc, needle, entry=0, swap=None, tree_base='#include "WorldSession.h"\n', **change):
+    def run(label, want_rc, needle, entry=0, swap=None, tree_base='#include "WorldSession.h"\n', base=SELF_BASE,
+            **change):
         new = SELF_NEW
         if swap:
             if swap[0] not in new:
@@ -261,7 +281,7 @@ def self_test():
             new = new.replace(*swap)
         got = []
         try:
-            rc = verify(dict(SELF_MOVES[entry], **change), SELF_BASE, tree_base, new, members, got.append)
+            rc = verify(dict(SELF_MOVES[entry], **change), base, tree_base, new, members, got.append)
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -294,6 +314,25 @@ def self_test():
     run('the edit not listed fails', 1, 'DIFFERS from Fixture.cpp at fixture: line 8', 0, edits=[])
     run('a base header not found fails', 1, 'Fixture.cpp at fixture: the definition line found 0 times', 1,
         base_header='void WorldSession::HandleStop(WorldPacket& /*recv_data*/)')
+    shadow = ('    GetPlayer()->AttackStop();\n',
+              '    {\n        WorldSession& session = *Other();\n        session.Ping();\n    }\n'
+              '    GetPlayer()->AttackStop();\n')
+    run('a base function naming session in code fails', 1, 'the base function names `session` in code', 1,
+        base=SELF_BASE.replace(*shadow), swap=('    session.GetPlayer()->AttackStop();\n',
+                                               '    {\n        WorldSession& session = *Other();\n'
+                                               '        session.Ping();\n    }\n'
+                                               '    session.GetPlayer()->AttackStop();\n'))
+    early = ('    GetPlayer()->AttackStop();\n', '    {\n    Prepare();\n}\n    GetPlayer()->AttackStop();\n')
+    run('a column-0 brace inside a base body fails', 1, 'closes the function before its braces balance', 1,
+        base=SELF_BASE.replace(*early), swap=('    session.GetPlayer()->AttackStop();\n',
+                                              '    {\n    Prepare();\n}\n    Evil();\n'))
+    run('a substitution inside a longer name is not read back: fails', 1, 'DIFFERS', 0,
+        swap=('        SendStop(session, NULL);', '        SendStop(session, NULL); XSendStop(session, NULL);'),
+        base=SELF_BASE.replace('        SendStop(NULL);', '        SendStop(NULL); XSendStop(NULL);'))
+    run('one new line listed as two edits fails', 1, 'one new line is listed as two edits', 0,
+        edits=SELF_MOVES[0]['edits'] * 2)
+    run('a new file outside the handlers directory fails', 1, 'the new file is not under', 1,
+        new_file='src/game/WorldHandlers/Fixture.cpp')
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
