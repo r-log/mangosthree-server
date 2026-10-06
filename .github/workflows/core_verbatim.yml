@@ -27,6 +27,8 @@ jobs:
         run: |
           python3 src/tests/tools/verbatim.py --self-test
           python3 src/tests/tools/cast_verbatim.py --self-test
+          python3 src/tests/tools/handler_verbatim.py --self-test
+          python3 src/tests/tools/handler_classes.py --self-test
 
       - name: Spell handler moves against this change's parent
         run: python3 src/tests/tools/verbatim.py --check
@@ -36,3 +38,9 @@ jobs:
 
       - name: Cast rewrites against their base
         run: python3 src/tests/tools/cast_verbatim.py --check
+
+      - name: Handler moves against their bases
+        run: python3 src/tests/tools/handler_verbatim.py --check
+
+      - name: Handler classes store nothing
+        run: python3 src/tests/tools/handler_classes.py --check
