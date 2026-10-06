@@ -851,7 +851,7 @@ TEST(AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault)
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraThreatSite::Key), std::size_t(2));
 
-    // Two bodies: 26400 sets two threat per level, 28862 one.
+    // Two labels, two distinct bodies.
     SpellHandler<AuraThreatSite>::Function arcaneShroud = registry.Find<AuraThreatSite>(26400);
     SpellHandler<AuraThreatSite>::Function eyeOfDiminution = registry.Find<AuraThreatSite>(28862);
     CHECK(arcaneShroud != NULL);
