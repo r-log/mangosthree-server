@@ -3944,6 +3944,26 @@ class Unit : public WorldObject
          * battleground and its achievements.
          */
         virtual void CreditDamageDealt(Unit* /*pVictim*/, uint32 /*damage*/) { }
+        /**
+         * Whether an armor specialization spell fits the unit's primary talent tree, its class and the
+         * armor it wears; CalculateSpellDamage gives such a spell no points on a player it does not fit.
+         * @param spellProto the spell asked about
+         * @return true here, a unit that is not a player has no armor specialization to fail; the
+         * spell damage asks only a player, so the default is not observed there; Player answers by its
+         * active talent tree, its class's specialization spell and its equipped items
+         */
+        virtual bool FitArmorSpecializationRules(SpellEntry const* /*spellProto*/) const { return true; }
+        /**
+         * @return the combo points the unit holds on its combo target, which CalculateSpellDamage
+         * multiplies by a spell's combo damage: 0 here, a unit that is not a player holds none; Player
+         * returns its own
+         */
+        virtual uint8 GetComboPoints() const { return 0; }
+        /**
+         * @return the guid of the unit this unit's combo points are on, which CalculateSpellDamage
+         * compares with the spell's target: an empty guid here; Player returns its combo target's
+         */
+        virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }
 
     public:
         void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool sendAutoRepeatCancelToClient = true);

@@ -108,6 +108,17 @@ does not read as its body line fails, named with both (`m_motion->` written for 
 one). The cast spelling and the dropped line must stand nowhere in the file, and the method's name
 followed by `(` nowhere in the files `gone` names, which held its declaration and its definition.
 
+A `local` FORM is a pointer local turned into a flag: the line `direct`, `bool <local> = <test>;`,
+stands where the pointer line `cast`, `Player* <local> = (<test>) ? (Player*)this : NULL;`, stood,
+and each FORM it lists is a call that went through the pointer, a plain FORM whose cast spelling is
+its direct spelling called through `<local>->`, so pasting it back gives the call its receiver
+again. The flag line is written back as the pointer line, which is the site and must stand nowhere
+in the working tree. A flag line that does not read as the pointer line's test under the same name
+(a `!=`, another name, a parenthesis dropped) fails, and so does a listed FORM that is not listed in
+the file or does not call through the local. From the flag line to the member's end (the next `}`
+at column 0) the local may stand only as a test, `<local> &&`, `<local> ?` or `if (<local>)`; any
+other use, a `<local>->` left over among them, fails, named with its line.
+
 A moved body and an inlined block are checked for the includes they depend on, not only for their
 bytes: a line of either that calls an overloaded standard math function (cos, sin, tan, acos, asin,
 atan, atan2, sqrt, pow, fabs, abs, floor, ceil, round, fmod, exp, log), unqualified or through
@@ -206,11 +217,18 @@ past it. The damage credit, Unit.cpp:1057, the `dropped` line above a `moved` bl
 stands 2 lines below its type test (:1055) and sets its own window: 14 reaches one line past the
 block's last line (13 below); its cast spelling is the whole dropped line, since the cast alone
 still stands elsewhere in the file, and its two achievement edits name their criteria type, so
-each new spelling stands once in the body.
+each new spelling stands once in the body. The spell damage's player flag, Unit.cpp:4611, a `local`
+FORM, sets its own window: its pointer's uses stand 4 to 103 lines below it (the mastery test :4615,
+the armor specialization test :4624 and its call :4627, the combo points :4633, the combo target
+:4714), and 104 reaches one line past the last. The armor specialization call stands 3 lines below
+its test, the combo points and the combo target on the test of their own line; the direct spelling
+of GetComboTargetGuid carries the comparison before it, since Unit.cpp:6042 calls it on another
+player.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
-What fails: a changed, swapped or dropped argument; a changed, moved or dropped guard, or any other
+What fails: a changed, swapped or dropped argument; a flag line that does not read as its pointer
+line's test, or a use of the flag that is not a test; a changed, moved or dropped guard, or any other
 changed line, inside a window; an inlined block line that does not read as its base body line; a
 math call of a moved body or an inlined block whose argument does not spell its type; a site lost,
 added or still cast; an added line inside a window that is not listed; a listed line that does not
@@ -403,6 +421,19 @@ FORMS = {
     'SetClientControl': {'direct': ' SetClientControl(',
                          'cast': ' ((Player*)this)->SetClientControl(',
                          'suffix': None},
+    'FitArmorSpecializationRules': {'direct': 'FitArmorSpecializationRules(',
+                                    'cast': 'unitPlayer->FitArmorSpecializationRules(',
+                                    'suffix': None},
+    'GetComboPoints': {'direct': 'GetComboPoints(',
+                       'cast': 'unitPlayer->GetComboPoints(',
+                       'suffix': None},
+    'GetComboTargetGuid': {'direct': '== GetComboTargetGuid(',
+                           'cast': '== unitPlayer->GetComboTargetGuid(',
+                           'suffix': None},
+    'unitPlayer': {
+        'kind': 'local', 'local': 'unitPlayer', 'direct': 'bool unitPlayer = GetTypeId() == TYPEID_PLAYER;',
+        'cast': 'Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;',
+        'forms': ['FitArmorSpecializationRules', 'GetComboPoints', 'GetComboTargetGuid']},
     'CastPassiveSpellsForAuraState': {
         'kind': 'moved', 'direct': 'CastPassiveSpellsForAuraState(', 'cast': '((Player*)this)->GetSpellMap()',
         'to': 'src/game/entities/player/spells/PlayerSpell.cpp',
@@ -824,7 +855,28 @@ UNIT_H_DAMAGE_CREDIT = '''        /**
          * Does nothing here, a unit that is not a player has no score and no criteria; Player credits its
          * battleground and its achievements.
          */
-        virtual void CreditDamageDealt(Unit* /*pVictim*/, uint32 /*damage*/) { }
+        virtual void CreditDamageDealt(Unit* /*pVictim*/, uint32 /*damage*/) { }'''
+
+UNIT_H_SPELL_DAMAGE = '''        /**
+         * Whether an armor specialization spell fits the unit's primary talent tree, its class and the
+         * armor it wears; CalculateSpellDamage gives such a spell no points on a player it does not fit.
+         * @param spellProto the spell asked about
+         * @return true here, a unit that is not a player has no armor specialization to fail; the
+         * spell damage asks only a player, so the default is not observed there; Player answers by its
+         * active talent tree, its class's specialization spell and its equipped items
+         */
+        virtual bool FitArmorSpecializationRules(SpellEntry const* /*spellProto*/) const { return true; }
+        /**
+         * @return the combo points the unit holds on its combo target, which CalculateSpellDamage
+         * multiplies by a spell's combo damage: 0 here, a unit that is not a player holds none; Player
+         * returns its own
+         */
+        virtual uint8 GetComboPoints() const { return 0; }
+        /**
+         * @return the guid of the unit this unit's combo points are on, which CalculateSpellDamage
+         * compares with the spell's target: an empty guid here; Player returns its combo target's
+         */
+        virtual ObjectGuid GetComboTargetGuid() const { return ObjectGuid(); }
 
     public:'''
 
@@ -908,7 +960,8 @@ FILES = {
                    + '\n' + UNIT_H_FACTION_GHOST_SPEED + '\n' + UNIT_H_PROC_ONE_OFFS + '\n' + UNIT_H_TALENT_RANK
                    + '\n' + UNIT_H_RUNE_COOLDOWN + '\n' + UNIT_H_AURA_STATE_CASTS + '\n' + UNIT_H_OWN_SESSION_PACKETS
                    + '\n' + UNIT_H_ACCOUNT_SECURITY + '\n' + UNIT_H_POSITION_AND_MOVING
-                   + '\n' + UNIT_H_CLIENT_CONTROL + '\n' + UNIT_H_NEAR_TELEPORT + '\n' + UNIT_H_DAMAGE_CREDIT,
+                   + '\n' + UNIT_H_CLIENT_CONTROL + '\n' + UNIT_H_NEAR_TELEPORT + '\n' + UNIT_H_DAMAGE_CREDIT
+                   + '\n' + UNIT_H_SPELL_DAMAGE,
                    '        virtual void ProhibitSpellSchool(SpellSchoolMask /*idSchoolMask*/, '
                    'uint32 /*unTimeMs*/) { }'),
                   ('        SpellCooldownMgr m_spellCooldownMgr;', '        AuraContainer m_auras;')]},
@@ -997,9 +1050,15 @@ FILES = {
                      'movementFlagsMask); }',
                      '        bool isMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }'),
                     ('        void SetClientControl(Unit* target, uint8 allowMove) override;',
-                     '        void SetClientControl(Unit* target, uint8 allowMove);')],
+                     '        void SetClientControl(Unit* target, uint8 allowMove);'),
+                    ('        uint8 GetComboPoints() const override final { return m_comboPoints; }',
+                     '        uint8 GetComboPoints() const { return m_comboPoints; }'),
+                    ('        bool FitArmorSpecializationRules(SpellEntry const * spellProto) const override final;',
+                     '        bool FitArmorSpecializationRules(SpellEntry const * spellProto) const;')],
         'byvalue': [('        ObjectGuid GetSelectionGuid() const override final { return m_curSelectionGuid; }',
-                     '        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }')]},
+                     '        ObjectGuid const& GetSelectionGuid() const { return m_curSelectionGuid; }'),
+                    ('        ObjectGuid GetComboTargetGuid() const override final { return m_comboTargetGuid; }',
+                     '        ObjectGuid const& GetComboTargetGuid() const { return m_comboTargetGuid; }')]},
     'src/game/Object/Unit.cpp': {
         'forms': {'HasSpell': 1, 'UnsummonPetTemporaryIfAny': 2, 'ResummonPetTemporaryUnSummonedIfAny': 1,
                   'InArena': 1, 'GetCollisionHeight': 2, 'isGameMaster': 1, 'UpdatePotionCooldown': 1,
@@ -1008,7 +1067,8 @@ FILES = {
                   'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1,
                   'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1,
                   'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1, 'TeleportNear': 1,
-                  'SendKnockBack': 1, 'CreditDamageDealt': 1},
+                  'SendKnockBack': 1, 'CreditDamageDealt': 1, 'FitArmorSpecializationRules': 1, 'GetComboPoints': 1,
+                  'GetComboTargetGuid': 1, 'unitPlayer': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
                      '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())'),
@@ -1019,7 +1079,7 @@ FILES = {
                      '        if (owner && (owner->GetTypeId() == TYPEID_PLAYER) && ((Player*)owner)->GetGroup())')],
         'folded': {'ReportGroupStat': [1], 'ReportOwnerGroupStat': [0, 1, 2, 3], 'ReportPetGroupAura': [0]},
         'window': {626: 13, 960: 17, 975: 32, 1057: 14, 3327: 17, 4092: 50, 4095: 53, 4103: 61, 4152: 12, 4155: 15,
-                   4406: 12}},
+                   4406: 12, 4611: 104}},
     'src/game/Object/UnitDynObject.cpp': {
         'forms': {'AddSpellAndCategoryCooldowns': 1, 'SendCooldownEvent': 1},
         'added': []},
@@ -1468,17 +1528,59 @@ def reported_block(rel, at, tree, form, body, folded, spec, out):
     return lines
 
 
+LOCAL_POINTER = re.compile(r'^Player\* (\w+) = \((.+)\) \? \(Player\*\)this : NULL;$')
+
+
+def paste_locals(rel, text, spec, out, forms, starts=()):
+    """(rc, text with the flag line of each listed `local` FORM written back as its pointer line); STARTS are
+    the moved blocks already written back, so a refused line is named by its working-tree number."""
+    lines = text.split('\n')
+
+    def fail(message):
+        out(message)
+        return 1, text
+
+    for name in sorted(n for n in spec['forms'] if forms[n].get('kind') == 'local'):
+        form, local = forms[name], forms[name]['local']
+        m = LOCAL_POINTER.match(form['cast'])
+        if not m or m.group(1) != local or form['direct'] != 'bool %s = %s;' % (local, m.group(2)):
+            return fail('%s: FAILED: the flag line %r is not the pointer line %r read as `bool %s = <its test>;`'
+                        % (rel, form['direct'], form['cast'], local))
+        for f in form['forms']:
+            cast = forms[f]['cast'] if f in spec['forms'] else ''
+            if local + '->' not in cast or cast.replace(local + '->', '', 1) != forms[f]['direct']:
+                return fail('%s: FAILED: %s is no listed FORM whose cast spelling is its direct spelling called '
+                            'through %s->' % (rel, f, local))
+        if form['cast'] in text:
+            return fail('%s: FAILED: the pointer line %r still stands' % (rel, form['cast']))
+        at = [i for i, line in enumerate(lines) if line.strip() == form['direct']]
+        if len(at) != spec['forms'][name]:
+            return fail('%s: FAILED: %d flag line(s) %r, expected %d'
+                        % (rel, len(at), form['direct'], spec['forms'][name]))
+        tests = r'\b%s (?=&&|\?)|(?<=if \()%s(?=\))' % (local, local)
+        for i in at:
+            for k in range(i + 1, lines.index('}', i)):
+                if re.search(r'\b%s\b' % local, re.sub(tests, '', lines[k])):
+                    return fail('%s:%d: FAILED: the local %s stands as neither `%s &&`, `%s ?` nor `if (%s)`: %r'
+                                % (rel, tree_index(starts, k) + 1, local, local, local, local, lines[k].strip()))
+            lines[i] = lines[i][:len(lines[i]) - len(lines[i].lstrip())] + form['cast']
+    return 0, '\n'.join(lines)
+
+
 def paste_back(rel, text, spec, out, read=None, forms=None):
     """(rc, text with every FORM written back, the number of calls written back, the (first index,
     line count) of each `moved` block and of each `branch` site, as two lists, {branch form: the
     pasted-back index of the first line of each of its sites, in order})."""
     forms = FORMS if forms is None else forms
     rc, text, sites, moved = paste_moved(rel, text, spec, out, read, forms)
+    if not rc:
+        rc, text = paste_locals(rel, text, spec, out, forms, moved)
     if rc:
         return 1, text, sites, [], {}
+    sites += sum(n for name, n in spec['forms'].items() if forms[name].get('kind') == 'local')
     for name, want in sorted(spec['forms'].items()):
         form = forms[name]
-        if form.get('kind') in ('branch', 'moved', 'reported', 'inlined'):
+        if form.get('kind') in ('branch', 'moved', 'reported', 'inlined', 'local'):
             continue
         if form['cast'] in text:
             out('%s: FAILED: %d call(s) still spelled %r: a site the rewrite missed'
@@ -2212,6 +2314,31 @@ SELF_INLINED_FORM = {'kind': 'inlined', 'direct': 'Params params;', 'cast': '((P
                      'dropped': 'Player* player = GetPlayer();', 'receiver': 'player->',
                      'gone': ['Session.h', 'Session.cpp'], 'edits': [('cos(angle)', 'float(cos(double(angle)))')]}
 
+SELF_LOCAL_OLD = '''int32 Unit::Points(SpellEntry const* spellProto)
+{
+    Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;
+    if (unitPlayer && spellProto->HasAttribute(1))
+    {
+        if (!unitPlayer->Fits(spellProto))
+        {
+            return 0;
+        }
+    }
+    uint8 points = unitPlayer ? unitPlayer->GetPoints() : 0;
+    return points;
+}
+'''
+
+SELF_LOCAL_NEW = SELF_LOCAL_OLD.replace('Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;',
+                                        'bool unitPlayer = GetTypeId() == TYPEID_PLAYER;').replace('unitPlayer->', '')
+
+SELF_LOCAL_FORMS = {
+    'Fits': {'direct': 'Fits(', 'cast': 'unitPlayer->Fits(', 'suffix': None},
+    'GetPoints': {'direct': 'GetPoints(', 'cast': 'unitPlayer->GetPoints(', 'suffix': None},
+    'unitPlayer': {'kind': 'local', 'local': 'unitPlayer', 'direct': 'bool unitPlayer = GetTypeId() == TYPEID_PLAYER;',
+                   'cast': 'Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;',
+                   'forms': ['Fits', 'GetPoints']}}
+
 OWNER_REPORTED_OLD = '''void Unit::SetHealth(uint32 val)
 {
     SetValue(val);
@@ -2923,6 +3050,36 @@ def self_test():
             swap=('speed));\n', 'speed));\n        Jump(angle, speed);\n'), window=0)
     inlined('... and a window of 1 fails it', 1, 'fixture:8: DIFFERS from the base at line 6',
             swap=('speed));\n', 'speed));\n        Jump(angle, speed);\n'), window=1)
+
+    def local(label, want_rc, needle, swap=('', ''), form=None, old=('', '')):
+        got = []
+        forms = dict(SELF_LOCAL_FORMS, **(form or {}))
+        rc = verify('fixture', SELF_LOCAL_OLD.replace(*old), SELF_LOCAL_NEW.replace(*old).replace(*swap),
+                    {'forms': {'Fits': 1, 'GetPoints': 1, 'unitPlayer': 1}, 'added': [], 'window': {3: 9}},
+                    got.append, forms=forms)
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    local('a pointer local turned into a flag pastes back with its calls', 0, 'around 3/3 call(s) pasted back')
+    local('the flag line spelled with != fails', 1, "0 flag line(s) 'bool unitPlayer = GetTypeId() == TYPEID_PLAYER;'",
+          swap=('GetTypeId() == TYPEID_PLAYER;', 'GetTypeId() != TYPEID_PLAYER;'))
+    local('a flag line pinned under another name fails', 1, 'is not the pointer line',
+          form={'unitPlayer': dict(SELF_LOCAL_FORMS['unitPlayer'],
+                                   direct='bool isPlayer = GetTypeId() == TYPEID_PLAYER;')})
+    local('a flag line pinned with a parenthesis dropped fails', 1, 'is not the pointer line',
+          form={'unitPlayer': dict(SELF_LOCAL_FORMS['unitPlayer'],
+                                   direct='bool unitPlayer = (GetTypeId() == TYPEID_PLAYER;')})
+    local('a unitPlayer-> left over fails', 1, "fixture:11: FAILED: the local unitPlayer stands as neither",
+          swap=('unitPlayer ? GetPoints()', 'unitPlayer ? unitPlayer->GetPoints()'))
+    local('a test the local reads as if (unitPlayer) passes', 0, 'around 3/3',
+          old=('if (unitPlayer && spellProto->HasAttribute(1))', 'if (unitPlayer)'))
+    local('a form whose receiver is not the local fails', 1, 'Fits is no listed FORM whose cast spelling',
+          form={'Fits': {'direct': 'Fits(', 'cast': 'player->Fits(', 'suffix': None}})
+    local('the pointer line still standing fails', 1, 'the pointer line',
+          swap=('    bool unitPlayer',
+                '    Player* unitPlayer = (GetTypeId() == TYPEID_PLAYER) ? (Player*)this : NULL;\n    bool unitPlayer'))
 
     def dropped(label, want_rc, needle, swap=('', ''), body=('', ''), line=None, window=6):
         got = []

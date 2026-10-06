@@ -123,6 +123,7 @@ set(SRC_GRP_TESTS
     UnitClientControlTest.cpp
     UnitNearTeleportTest.cpp
     UnitDamageCreditTest.cpp
+    UnitSpellDamagePlayerReadsTest.cpp
     GlyphMgrTest.cpp
     PetMgrTest.cpp
     SocialMgrTest.cpp

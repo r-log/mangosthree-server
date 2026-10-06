@@ -2101,10 +2101,10 @@ class Player : public Unit
         void SetSelectionGuid(ObjectGuid guid) { m_curSelectionGuid = guid; SetTargetGuid(guid); }
 
         // Get the player's combo points
-        uint8 GetComboPoints() const { return m_comboPoints; }
+        uint8 GetComboPoints() const override final { return m_comboPoints; }
 
         // Get the player's combo target GUID
-        ObjectGuid const& GetComboTargetGuid() const { return m_comboTargetGuid; }
+        ObjectGuid GetComboTargetGuid() const override final { return m_comboTargetGuid; }
 
         // Add combo points to the player
         void AddComboPoints(Unit* target, int8 count) override;
@@ -2745,7 +2745,7 @@ class Player : public Unit
         void UpdateManaRegen();
         void UpdateMasteryAuras();
         void UpdateArmorSpecializations();
-        bool FitArmorSpecializationRules(SpellEntry const * spellProto) const;
+        bool FitArmorSpecializationRules(SpellEntry const * spellProto) const override final;
 
         // Get the GUID of the loot
         ObjectGuid const& GetLootGuid() const
