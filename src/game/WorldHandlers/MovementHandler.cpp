@@ -694,25 +694,6 @@ void WorldSession::HandleMountSpecialAnimOpcode(WorldPacket& /*recvdata*/)
 }
 
 /**
- * @brief Sends a knockback packet to the client.
- *
- * @param angle The horizontal knockback angle.
- * @param horizontalSpeed The horizontal speed component.
- * @param verticalSpeed The vertical speed component.
- */
-void WorldSession::SendKnockBack(float angle, float horizontalSpeed, float verticalSpeed)
-{
-    Motion::KnockBackParams params;
-    // The direction is computed in double and narrowed to float.
-    params.directionX = float(cos(double(angle)));
-    params.directionY = float(sin(double(angle)));
-    params.horizontal = horizontalSpeed;
-    params.vertical = -verticalSpeed;   // as the wire carries it
-    Player* player = GetPlayer();
-    player->SendEmissions(player->MotionState().Apply(Motion::KnockBackChange(params), GameTime::GetGameTimeMS()));
-}
-
-/**
  * @brief Handles the client's response to a summon request.
  *
  * @param recv_data The received opcode packet.

@@ -791,9 +791,6 @@ class WorldSession
         // repair
         void HandleRepairItemOpcode(WorldPacket& recvPacket);
 
-        // Knockback
-        void SendKnockBack(float angle, float horizontalSpeed, float verticalSpeed);
-
         void HandleMoveTeleportAckOpcode(WorldPacket& recvPacket);
         /// Every movement ack the registry has a layout for (design v2 §6.2): decoded,
         /// matched against the mover's pending change, relocated on a match, and answered

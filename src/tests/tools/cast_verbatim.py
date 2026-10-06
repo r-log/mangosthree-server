@@ -95,6 +95,26 @@ the longer one, at BASE or pasted back. A file's `deleted` names the header of e
 deleted whole: it stands once at BASE with a body and nowhere in the working tree, and the cast
 spellings inside that body at BASE are no sites.
 
+An `inlined` FORM is the mirror of a `moved` one: a block of lines standing where one statement
+`<cast><args>);` stood, the call of another class's method whose body the block now is. The block
+opens with the line `direct` and must read, line for line, as the base body of `header` in the file
+`from` (read at BASE: the lines between the `{` directly below that header, which stands once there,
+and the next `}` at column 0), each line at the block's indentation instead of the body's four
+spaces, with the `dropped` line, which must stand once in that body, left out, and each `receiver`
+deleted, and each EDIT's base spelling, which must stand once in that body, read as its new
+spelling, which may hold more lines than one. It is written back as the one statement, its
+arguments the header's parameter names in order, and that line is the site. A block line that
+does not read as its body line fails, named with both (`m_motion->` written for `MotionState()` is
+one). The cast spelling and the dropped line must stand nowhere in the file, and the method's name
+followed by `(` nowhere in the files `gone` names, which held its declaration and its definition.
+
+A moved body and an inlined block are checked for the includes they depend on, not only for their
+bytes: a line of either that calls an overloaded standard math function (cos, sin, tan, acos, asin,
+atan, atan2, sqrt, pow, fabs, abs, floor, ceil, round, fmod, exp, log), unqualified or through
+`std::` or `::`, with an argument that is neither a cast to double nor
+a double literal fails, named with its line and the call: the overload such a call binds depends on
+the declarations its file's includes bring in. Comments and string literals are not read.
+
 WINDOW is 11 lines: measured over every site, the farthest guard or statement a site relies on
 stands 11 lines away (UnitDamage.cpp:655 under the preventDeathSpell test at :644;
 UnitAuraProcHandler.cpp:2822 under the type return at :2811); the rest stand within 6 lines
@@ -180,16 +200,19 @@ stands in (:264) is inside :261's window. One CHANGED owner guard stands in the 
 sites: a CHANGED line is written back at each line of the windows where its base line stands.
 The near-teleport, Unit.cpp:6519, a `moved` block of one line, stands 2 lines below its type test
 (:6517); the direct spelling of TeleportNear does not stand inside NearTeleportTo, the name of the
-member that calls it.
+member that calls it. The knockback, Unit.cpp:6629, an inlined block of 7 lines, stands 2 lines
+below its type test (:6627); written back, the block is one line, so a window of 1 already reaches
+past it.
 
 A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
 
-What fails: a changed, swapped or dropped argument; a changed, moved or dropped guard, or any
-other changed line, inside a window; a site lost, added or still cast; an added line inside a
-window that is not listed; a listed line that does not stand at its place; a base line an entry
-names that stands twice in a window's base text, or, an added entry's, in two windows at
-different lines. What passes: any edit outside every window, unlisted. Windows may overlap; each
-is checked on its own.
+What fails: a changed, swapped or dropped argument; a changed, moved or dropped guard, or any other
+changed line, inside a window; an inlined block line that does not read as its base body line; a
+math call of a moved body or an inlined block whose argument does not spell its type; a site lost,
+added or still cast; an added line inside a window that is not listed; a listed line that does not
+stand at its place; a base line an entry names that stands twice in a window's base text, or, an
+added entry's, in two windows at different lines. What passes: any edit outside every window,
+unlisted. Windows may overlap; each is checked on its own.
 
 The file:line of every rewritten site, old and new, is printed with its window.
 
@@ -425,6 +448,16 @@ FORMS = {
         'cast': '((Player*)owner)->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_AURAS)', 'fact': 'PetGroupAuraFact',
         'fields': ['flag', 'slot', 'pet'], 'to': 'src/game/WorldHandlers/Group.h',
         'lambda': '    callbacks.petAura = [owner](auto const& fact)', 'receiver': ('owner->', '((Player*)owner)->')},
+    'SendKnockBack': {
+        'kind': 'inlined', 'direct': 'Motion::KnockBackParams params;',
+        'cast': '((Player*)this)->GetSession()->SendKnockBack(', 'from': 'src/game/WorldHandlers/MovementHandler.cpp',
+        'header': 'void WorldSession::SendKnockBack(float angle, float horizontalSpeed, float verticalSpeed)',
+        'dropped': 'Player* player = GetPlayer();', 'receiver': 'player->',
+        'gone': ['src/game/Server/WorldSession.h', 'src/game/WorldHandlers/MovementHandler.cpp'],
+        'edits': [('    params.directionX = cos(angle);',
+                   '    // The direction is computed in double and narrowed to float.\n'
+                   '    params.directionX = float(cos(double(angle)));'),
+                  ('sin(angle)', 'float(sin(double(angle)))')]},
     'GetMeleeRollExpertiseReduction': {
         'kind': 'branch', 'direct': 'GetMeleeRollExpertiseReduction(',
         'guard': 'if (GetTypeId() == TYPEID_PLAYER)',
@@ -944,7 +977,8 @@ FILES = {
                   'setFactionForRace': 1, 'CastPassiveSpellsForAuraState': 1, 'SendAttackSwingCancelAttack': 2,
                   'SendAutoRepeatCancel': 1, 'SendPetGUIDs': 1, 'SendStandStateUpdate': 1, 'ReportSwingError': 1,
                   'SetPosition': 2, 'isMoving': 1, 'ReportGroupStat': 4, 'ReportGroupAura': 1,
-                  'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1, 'TeleportNear': 1},
+                  'ReportOwnerGroupStat': 4, 'ReportPetGroupAura': 1, 'TeleportNear': 1,
+                  'SendKnockBack': 1},
         'added': [('    m_spellCooldownMgr(),', '    movespline(new Movement::MoveSpline()),')],
         'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
                      '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())'),
@@ -1156,15 +1190,56 @@ def paste_branches(rel, text, spec, out, read, forms):
 
 def tree_index(starts, i):
     """The working tree's line index of pasted-back line index I: the lines a statement was written
-    back as, STARTS' (first index, count), all name that statement."""
+    back as, STARTS' (first index, count), all name that statement; an entry (first index, 1, count)
+    is one statement written back for COUNT lines of the working tree, and names the first."""
     shift = 0
-    for p, n in starts:
+    for start in starts:
+        p, n = start[0], start[1]
         if i < p:
             break
         if i < p + n:
             return p - shift
-        shift += n - 1
+        shift += n - (start[2] if len(start) > 2 else 1)
     return i - shift
+
+
+MATH_CALL = re.compile(r'(?:(?<![\w.>:])std::|(?<![\w.>:])::|(?<![\w.>:]))(?:cos|sin|tan|acos|asin|atan|atan2|sqrt|pow|'
+                       r'fabs|abs|floor|ceil|round|fmod|exp|log)\s*\(')
+CAST_TYPE = r'(?:double)'
+
+
+def unspelled_math(line):
+    """The first call in LINE, outside its comment and string literals, of an overloaded standard
+    math function with an argument that is neither a cast to double nor a double literal, or None."""
+    code = re.sub(r'"[^"]*"', '""', line).split('//')[0]
+    for m in MATH_CALL.finditer(code):
+        depth, args, at = 1, [''], m.end()
+        while depth and at < len(code):
+            depth += {'(': 1, ')': -1}.get(code[at], 0)
+            if depth == 1 and code[at] == ',':
+                args.append('')
+            elif depth:
+                args[-1] += code[at]
+            at += 1
+        if depth or not all(spelled(a.strip()) for a in args):
+            return code[m.start():at]
+    return None
+
+
+def spelled(arg):
+    """Whether ARG is a cast to double or a double literal, so the overload it binds is the double one."""
+    if re.match(r'^[-+]?(\d+\.\d*|\.\d+)([eE][-+]?\d+)?$', arg) or re.match(r'^\(%s\)\s*\w+$' % CAST_TYPE, arg):
+        return True
+    m = re.match(r'^(%s\s*|static_cast<double>\s*|\(%s\)\s*)\(' % (CAST_TYPE, CAST_TYPE), arg)
+    depth = 0
+    for k in range(m.end() - 1 if m else len(arg), len(arg)):
+        depth += {'(': 1, ')': -1}.get(arg[k], 0)
+        if not depth:
+            return k == len(arg) - 1
+    return False
+
+
+UNSPELLED = "an unqualified overloaded call binds by the file's includes: spell the argument as double"
 
 
 def paste_moved(rel, text, spec, out, read, forms):
@@ -1188,6 +1263,8 @@ def paste_moved(rel, text, spec, out, read, forms):
             if body[i] and not body[i].startswith('    '):
                 return fail('%s:%d: FAILED: the body line %r of %r does not start with four spaces'
                             % (form['to'], i + 1, body[i], form['header']))
+            if unspelled_math(body[i]):
+                return fail('%s:%d: FAILED: %s: %s' % (form['to'], i + 1, unspelled_math(body[i]), UNSPELLED))
         block = '\n'.join(body[heads[0] + 2:end])
         if 'body' in form or 'base_body' in form:
             if form.get('edits') or 'body' not in form or 'base_body' not in form:
@@ -1215,6 +1292,36 @@ def paste_moved(rel, text, spec, out, read, forms):
             return fail('%s: FAILED: %r still stands: a block the move missed' % (rel, form['cast']))
         params = form['header'][form['header'].index('(') + 1:form['header'].rindex(')')]
         moved[name] = (form, lines, ', '.join(p.split()[-1].lstrip('*&') for p in params.split(',') if p.strip()))
+    for name in sorted(n for n in spec['forms'] if forms[n].get('kind') == 'inlined'):
+        form = forms[name]
+        body = read('base:' + form['from']).split('\n')
+        heads = [i for i, line in enumerate(body) if line == form['header']]
+        if len(heads) != 1 or body[heads[0] + 1:heads[0] + 2] != ['{'] or '}' not in body[heads[0]:]:
+            return fail('%s: FAILED: %d definition(s) %r with a body at the base, expected 1'
+                        % (form['from'], len(heads), form['header']))
+        end = body.index('}', heads[0])
+        kept = [(i + 1, b.replace(form['receiver'], '')) for i, b in enumerate(body[:end])
+                if i > heads[0] + 1 and b != '    ' + form['dropped']]
+        if end - heads[0] - 2 != len(kept) + 1 or any(b and not b.startswith('    ') for _, b in kept) \
+                or not kept or kept[0][1] != '    ' + form['direct']:
+            return fail('%s: FAILED: the base body of %r does not hold its dropped line once, opens with no %r, or '
+                        'holds a line that does not start with four spaces'
+                        % (form['from'], form['header'], form['direct']))
+        for base, new in form.get('edits', ()):
+            at = [k for k, (_, b) in enumerate(kept) if base in b]
+            if len(at) != 1 or kept[at[0]][1].count(base) != 1:
+                return fail('%s: FAILED: the edit %r stands %d time(s) in the base body of %r, expected once'
+                            % (form['from'], base, sum(b.count(base) for _, b in kept), form['header']))
+            n, b = kept[at[0]]
+            kept[at[0]:at[0] + 1] = [(n, part) for part in b.replace(base, new).split('\n')]
+        if form['cast'] in text or any(line.strip() == form['dropped'] for line in text.split('\n')):
+            return fail('%s: FAILED: %r or the dropped line %r still stands' % (rel, form['cast'], form['dropped']))
+        for where in form['gone']:
+            if re.search(r'\b%s\(' % re.escape(name), read(where)):
+                return fail('%s: FAILED: %s is still declared or defined there' % (where, name))
+        params = form['header'][form['header'].index('(') + 1:form['header'].rindex(')')]
+        moved[name] = (form, kept, form['cast'] + ', '.join(p.split()[-1].lstrip('*&') for p in params.split(','))
+                       + ');')
     for name in sorted(n for n in spec['forms'] if forms[n].get('kind') == 'reported'):
         form = forms[name]
         body = read(form['to']).split('\n')
@@ -1243,8 +1350,28 @@ def paste_moved(rel, text, spec, out, read, forms):
         moved[name] = (form, lines, None)
     pasted, starts, found = [], [], dict((name, 0) for name in moved)
     tree = text.split('\n')
+    skip = 0
     for at, line in enumerate(tree):
-        hit = [name for name in moved if moved[name][0]['direct'] in line]
+        if skip:
+            skip -= 1
+            continue
+        hit = [n for n in moved if moved[n][0]['kind'] == 'inlined' and line.strip() == moved[n][0]['direct']]
+        if hit:
+            form, kept, call = moved[hit[0]]
+            indent = line[:len(line) - len(line.lstrip())]
+            for k, (n, b) in enumerate(kept):
+                now = tree[at + k] if at + k < len(tree) else '(end of file)'
+                if now != (indent + b[4:] if b else b):
+                    return fail('%s:%d: FAILED: %r does not read as the base body of %r at %s:%d: %r'
+                                % (rel, at + k + 1, now, form['header'], form['from'], n, b))
+                if unspelled_math(now):
+                    return fail('%s:%d: FAILED: %s: %s' % (rel, at + k + 1, unspelled_math(now), UNSPELLED))
+            starts.append((len(pasted), 1, len(kept)))
+            pasted.append(indent + call)
+            found[hit[0]] += 1
+            skip = len(kept) - 1
+            continue
+        hit = [name for name in moved if moved[name][0]['kind'] != 'inlined' and moved[name][0]['direct'] in line]
         if not hit:
             pasted.append(line)
             continue
@@ -1320,7 +1447,7 @@ def paste_back(rel, text, spec, out, read=None, forms=None):
         return 1, text, sites, [], {}
     for name, want in sorted(spec['forms'].items()):
         form = forms[name]
-        if form.get('kind') in ('branch', 'moved', 'reported'):
+        if form.get('kind') in ('branch', 'moved', 'reported', 'inlined'):
             continue
         if form['cast'] in text:
             out('%s: FAILED: %d call(s) still spelled %r: a site the rewrite missed'
@@ -1675,6 +1802,9 @@ def check(root, base, out=print):
     total = 0
 
     def read(rel):
+        if rel.startswith('base:'):
+            return subprocess.run(['git', '-C', root, 'show', '%s:%s' % (base, rel[5:])], capture_output=True,
+                                  check=True).stdout.decode('utf-8')
         with open(os.path.join(root, *rel.split('/')), encoding='utf-8', newline='') as fh:
             return fh.read()
 
@@ -2019,6 +2149,37 @@ SELF_REPORTED_SPEC = {'forms': {'Stat': 2, 'Aura': 1}, 'added': [],
                       'changed': [('    if (GetTypeId() == TYPEID_PLAYER)',
                                    '    if ((GetTypeId() == TYPEID_PLAYER) && ((Player*)this)->GetGroup())')],
                       'folded': {'Stat': [1]}, 'deleted': ['void Unit::Unused(uint32 val)']}
+
+SELF_INLINED_OLD = '''void Unit::Knock(float angle, float speed)
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        ((Player*)this)->GetSession()->Knock(angle, speed);
+    }
+    else
+    {
+        Jump(angle, speed);
+    }
+}
+'''
+
+SELF_INLINED_NEW = SELF_INLINED_OLD.replace('        ((Player*)this)->GetSession()->Knock(angle, speed);\n',
+                                            '        Params params;\n        params.x = float(cos(double(angle)));\n'
+                                            '        Send(MotionState().Apply(params, speed));\n')
+
+SELF_INLINED_BASE = '''void WorldSession::Knock(float angle, float speed)
+{
+    Params params;
+    params.x = cos(angle);
+    Player* player = GetPlayer();
+    player->Send(player->MotionState().Apply(params, speed));
+}
+'''
+
+SELF_INLINED_FORM = {'kind': 'inlined', 'direct': 'Params params;', 'cast': '((Player*)this)->GetSession()->Knock(',
+                     'from': 'Session.cpp', 'header': 'void WorldSession::Knock(float angle, float speed)',
+                     'dropped': 'Player* player = GetPlayer();', 'receiver': 'player->',
+                     'gone': ['Session.h', 'Session.cpp'], 'edits': [('cos(angle)', 'float(cos(double(angle)))')]}
 
 OWNER_REPORTED_OLD = '''void Unit::SetHealth(uint32 val)
 {
@@ -2658,6 +2819,20 @@ def self_test():
           body=('        }\n    }\n}', '        }\n    } \n}'), window=6)
     moved('... and the window reaching it fails', 1, 'DIFFERS from the base at line 15',
           body=('        }\n    }\n}', '        }\n    } \n}'), window=7)
+    moved('a moved body calling floor(itr->first) fails', 1, "Player.cpp:8: FAILED: floor(itr->first): an "
+          "unqualified overloaded call binds by the file's includes",
+          body=('this, itr->first', 'this, floor(itr->first)'))
+    for line, want in [('x = std::cos(angle);', 'std::cos(angle)'), ('x = ::sqrt(d) + 1;', '::sqrt(d)'),
+                       ('x = atan2(double(y), x);', 'atan2(double(y), x)'), ('x = float(cos(double(angle)));', None),
+                       ('x = cos(float(angle));', 'cos(float(angle))'),
+                       ('x = sin(static_cast<float>(angle));', 'sin(static_cast<float>(angle))'),
+                       ('x = tan((int)a);', 'tan((int)a)'), ('x = cos(static_cast<double>(angle));', None),
+                       ('x = pow(static_cast<double>(a), 2.0) + fabs((double)b); // cos(c)', None),
+                       ('x = Cosine(a) + m.sin(a) + p->tan(a) + Foo::log(a) + "abs(a)";', None)]:
+        ok = unspelled_math('    ' + line) == want
+        print('self-test: %-72s %s' % ('the include check on %s' % line[:52], 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('the include check on %r: %r (want %r)' % (line, unspelled_math('    ' + line), want))
 
     def pinned(label, want_rc, needle, body=('', ''), base=('', ''), edits=()):
         got = []
@@ -2677,6 +2852,46 @@ def self_test():
     pinned('a base body line changed fails', 1, 'fixture:8: DIFFERS from the base at line 13', base=('true', 'false'))
     pinned('a pinned body with edits fails', 1, 'takes a body and a base_body and no edits',
            edits=[('((Player*)this)->GetMap()', 'GetMap()')])
+
+    def inlined(label, want_rc, needle, swap=('', ''), old=('', ''), header='', window=11, edits=None):
+        got = []
+        form = dict(SELF_INLINED_FORM, edits=SELF_INLINED_FORM['edits'] if edits is None else edits)
+        rc = verify('fixture', SELF_INLINED_OLD.replace(*old), SELF_INLINED_NEW.replace(*swap),
+                    {'forms': {'Knock': 1}, 'added': [], 'window': {5: window}}, got.append,
+                    read={'base:Session.cpp': SELF_INLINED_BASE, 'Session.cpp': 'void WorldSession::Other()\n{\n}\n',
+                          'Session.h': '        void Other();\n' + header}.__getitem__,
+                    forms={'Knock': form})
+        ok = rc == want_rc and needle in '\n'.join(got)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, '\n'.join(got)))
+
+    inlined('an inlined block spelled float(cos(double(angle))) is its one call', 0,
+            'around 1/1 call(s) pasted back')
+    inlined('an inlined body line changed fails', 1, 'fixture:6: FAILED: ', swap=('float(cos', 'float(sin'))
+    inlined('an edit that stands nowhere in the base body fails', 1, "the edit 'tan(angle)' stands 0 time(s)",
+            edits=[('tan(angle)', 'float(cos(double(angle)))')])
+    inlined('an inlined cos(angle) fails, read as its base line', 1, 'fixture:6: FAILED: cos(angle): an unqualified '
+            "overloaded call binds by the file's includes", swap=('float(cos(double(angle)))', 'cos(angle)'), edits=[])
+    inlined('m_motion-> in place of MotionState() fails', 1, "'        Send(m_motion->Apply(params, speed));' does "
+            "not read as the base body of 'void WorldSession::Knock(float angle, float speed)' at Session.cpp:6",
+            swap=('MotionState().', 'm_motion->'))
+    inlined('the dropped line still standing fails', 1, "the dropped line 'Player* player = GetPlayer();' still stands",
+            swap=('        Params', '        Player* player = GetPlayer();\n        Params'))
+    inlined('the session method still declared fails', 1, 'Session.h: FAILED: Knock is still declared',
+            header='        void Knock(float angle, float speed);\n')
+    inlined('an argument changed at the base fails', 1, 'fixture:5: DIFFERS from the base at line 5',
+            old=('Knock(angle, speed)', 'Knock(-angle, speed)'))
+    inlined('the block wrapped in a guard the base has not fails', 1, 'fixture:6: DIFFERS from the base at line 4',
+            swap=('        Params params;\n        params.x = float(cos(double(angle)));\n'
+                  '        Send(MotionState().Apply(params, speed));',
+                  '        if (speed > 0)\n        {\n            Params params;\n'
+                  '            params.x = float(cos(double(angle)));\n'
+                  '            Send(MotionState().Apply(params, speed));\n        }'))
+    inlined('a window of 0 passes a line appended below the block', 0, 'around 1/1',
+            swap=('speed));\n', 'speed));\n        Jump(angle, speed);\n'), window=0)
+    inlined('... and a window of 1 fails it', 1, 'fixture:8: DIFFERS from the base at line 6',
+            swap=('speed));\n', 'speed));\n        Jump(angle, speed);\n'), window=1)
 
     def dropped(label, want_rc, needle, swap=('', ''), body=('', ''), line=None, window=6):
         got = []

@@ -296,7 +296,7 @@ TEST(MovementFamilies_judge_says_where_an_inexact_re_encoding_first_differs)
 
 TEST(KnockBackCodec_matches_the_tree_writer_and_cpp)
 {
-    // WorldSession::SendKnockBack: mask 0,3,6,7,2,5,1,4; byte 1; float sin;
+    // Unit::KnockBackWithAngle: mask 0,3,6,7,2,5,1,4; byte 1; float sin;
     // uint32 counter; bytes 6,7; float horizontal; bytes 4,5,3; float vertical;
     // float cos; bytes 2,0. For kGuid the mask is 0x80 (byte 0 listed first)
     // and the one guid byte lands last.

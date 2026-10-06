@@ -6584,7 +6584,13 @@ void Unit::KnockBackWithAngle(float angle, float horizontalSpeed, float vertical
 {
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        ((Player*)this)->GetSession()->SendKnockBack(angle, horizontalSpeed, verticalSpeed);
+        Motion::KnockBackParams params;
+        // The direction is computed in double and narrowed to float.
+        params.directionX = float(cos(double(angle)));
+        params.directionY = float(sin(double(angle)));
+        params.horizontal = horizontalSpeed;
+        params.vertical = -verticalSpeed;   // as the wire carries it
+        SendEmissions(MotionState().Apply(Motion::KnockBackChange(params), GameTime::GetGameTimeMS()));
     }
     else
     {

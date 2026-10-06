@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The knockback direction that WorldSession::SendKnockBack writes into Motion::KnockBackParams:
+/// The knockback direction that Unit::KnockBackWithAngle writes into Motion::KnockBackParams for a player:
 /// the cosine and sine of the angle computed in double and narrowed to float.
 ///
 /// The angles are ones where the float overloads round differently from the double path, two found

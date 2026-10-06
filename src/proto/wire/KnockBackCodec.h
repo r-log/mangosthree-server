@@ -33,13 +33,12 @@ class ByteBuffer;
 
 namespace Wire
 {
-    /// SMSG_MOVE_KNOCK_BACK (WorldSession::SendKnockBack): a masked guid split
+    /// SMSG_MOVE_KNOCK_BACK (Unit::KnockBackWithAngle): a masked guid split
     /// across the two direction/speed halves.
     ///
-    /// Provenance: the tree's own writer (WorldSession::SendKnockBack), CPP's
-    /// MoveKnockBack::Write, the client's reader sub_140354A80 through
-    /// lift_client_reader.py, and the real-client families golden x3 -- all four
-    /// agreeing on the same mask, byte and float order.
+    /// Provenance: CPP's MoveKnockBack::Write, the client's reader sub_140354A80
+    /// through lift_client_reader.py, and the real-client families golden x3 -- all
+    /// three agreeing on the same mask, byte and float order.
     struct KnockBack
     {
         uint64 guid = 0;
