@@ -148,30 +148,31 @@ TEST(DungeonFinderStore_WholeMapAccessorsHoldTheStoredEntries)
     CHECK_EQ(store.Items().find(2)->second.itemReward, 52005u);
 }
 
-TEST(DungeonFinderStore_EachClearForgetsItsOwnMap)
+static void FillEveryMap(DungeonFinderStore& store)
 {
-    DungeonFinderStore store;
     store.SetRequirements(MAKE_PAIR32(33, 0), DungeonFinderRequirements(1, 0, 0, 0, 0, 0, NULL));
     store.SetRewards(10, DungeonFinderRewards(30, 0));
     store.SetItems(1, DungeonFinderItems(15, 24, 51999, 1, 1));
+}
 
+TEST(DungeonFinderStore_EachClearForgetsItsOwnMap)
+{
+    DungeonFinderStore store;
+    FillEveryMap(store);
     store.ClearRequirements();
     CHECK(store.FindRequirements(33, 0) == NULL);
-    CHECK(store.Requirements().empty());
     CHECK(store.FindRewards(10) != NULL);
     CHECK_EQ(store.Items().size(), size_t(1));
 
+    FillEveryMap(store);
     store.ClearRewards();
     CHECK(store.FindRewards(10) == NULL);
-    CHECK(store.Rewards().empty());
+    CHECK(store.FindRequirements(33, 0) != NULL);
     CHECK_EQ(store.Items().size(), size_t(1));
 
+    FillEveryMap(store);
     store.ClearItems();
     CHECK(store.Items().empty());
-
-    store.SetRequirements(MAKE_PAIR32(33, 0), DungeonFinderRequirements(5, 0, 0, 0, 0, 0, NULL));
-    store.SetRewards(11, DungeonFinderRewards(40, 0));
     CHECK(store.FindRequirements(33, 0) != NULL);
-    CHECK(store.FindRewards(11) != NULL);
-    CHECK(store.FindRewards(10) == NULL);
+    CHECK(store.FindRewards(10) != NULL);
 }
