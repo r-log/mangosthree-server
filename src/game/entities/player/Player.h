@@ -4166,6 +4166,10 @@ class Player : public Unit
         // Unit's NearTeleportTo asks for; private, so only a call through Unit reaches it
         void TeleportNear(float x, float y, float z, float orientation, bool casting) override;
 
+        // Credits the damage the player dealt to a victim, its battleground score and its achievement
+        // criteria, which Unit's DealDamage asks for; private, so only a call through Unit reaches it
+        void CreditDamageDealt(Unit* pVictim, uint32 damage) override;
+
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions
         uint32 m_created_date = 0;

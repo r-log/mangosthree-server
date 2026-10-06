@@ -1045,20 +1045,7 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
 
     if (GetTypeId() == TYPEID_PLAYER && this != pVictim)
     {
-        Player* killer = ((Player*)this);
-
-        // in bg, count dmg if victim is also a player
-        if (pVictim->GetTypeId() == TYPEID_PLAYER)
-        {
-            if (BattleGround* bg = killer->GetBattleGround())
-            {
-                // FIXME: kept by compatibility. don't know in BG if the restriction apply.
-                bg->UpdatePlayerScore(killer, SCORE_DAMAGE_DONE, damage);
-            }
-        }
-
-        killer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DAMAGE_DONE, damage, 0, pVictim);
-        killer->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_HIT_DEALT, damage);
+        CreditDamageDealt(pVictim, damage);
     }
 
     if (pVictim->GetTypeId() == TYPEID_PLAYER)
