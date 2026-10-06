@@ -72,10 +72,11 @@
 #     number from opcode.txt and sends a packet under it, so a GM can put any row packet on the
 #     wire without its name; `.debug recv` does the same with a client packet. The rest
 #     -- WorldPacket(uint16) and Initialize(uint16) themselves, the proto and loadtest framing
-#     (PacketCodec.cpp, Framing.cpp), motion's EncodeRegistry, Player::AddSpellMod and
-#     `.debug spellmods` (a choice between two spelled spell-mod opcodes) -- are reached by no
-#     row name. Relays (SendDirectMessage, the broadcasts, the stream plumbing) forward a packet
-#     the owner already built; they are not builders.
+#     (PacketCodec.cpp, Framing.cpp) and motion's EncodeRegistry -- are reached by no row name;
+#     the spell modifier builder and `.debug spellmods` choose between two spell modifier
+#     opcodes, each spelled where it is chosen, so the spellmod row sees both. Relays
+#     (SendDirectMessage, the broadcasts, the stream plumbing) forward a packet the owner already
+#     built; they are not builders.
 #   - a table reached through a helper that takes the table name at runtime. Three exist on the
 #     character database. CharacterDatabaseCleaner::CheckUnique (the call in
 #     CleanCharacterAchievementProgress) and PlayerDump's table walker (its dumpTables list) are
@@ -411,6 +412,31 @@ state_allow(cooldown src/game/Harness/ScenariosSpell.cpp
 state_allow(cooldown src/tests/HarnessTest.cpp
     WHY "unit test of the harness decoders: hand-builds the packets' bytes as their writers lay them out and checks the decoded record, sends nothing"
     NAMES SMSG_COOLDOWN_EVENT SMSG_CLEAR_COOLDOWNS)
+
+state_row(spellmod
+    OWNER   SpellModMgr
+    PACKETS SMSG_SET_FLAT_SPELL_MODIFIER
+            SMSG_SET_PCT_SPELL_MODIFIER
+    TYPES   SpellModMgr)
+
+state_allow(spellmod src/game/session/packets/spells/SpellModPackets.cpp
+    WHY "the session's builder of the owner's fact: a modifier added or removed, flat or percentage"
+    NAMES SMSG_SET_FLAT_SPELL_MODIFIER SMSG_SET_PCT_SPELL_MODIFIER)
+state_allow(spellmod src/tests/SpellModPacketsTest.cpp
+    WHY "unit test of the session's builder and installed callback: checks each opcode and byte they produce, and replays the count written back to compare, sends nothing"
+    NAMES SMSG_SET_FLAT_SPELL_MODIFIER SMSG_SET_PCT_SPELL_MODIFIER)
+state_allow(spellmod src/game/ChatCommands/DebugCommands.cpp
+    WHY "the GM command .debug spellmods builds its own packet in another layout (backlog D-1)"
+    NAMES SMSG_SET_FLAT_SPELL_MODIFIER SMSG_SET_PCT_SPELL_MODIFIER)
+state_allow(spellmod src/game/entities/player/Player.cpp
+    WHY "comments in the login's initial packets naming the two packets, which the login does not send"
+    NAMES SMSG_SET_FLAT_SPELL_MODIFIER SMSG_SET_PCT_SPELL_MODIFIER)
+state_allow(spellmod src/game/Harness/Trace.cpp
+    WHY "harness recorder: classifies the packets by opcode and hashes their bytes into a TRACE line, builds nothing"
+    NAMES SMSG_SET_FLAT_SPELL_MODIFIER SMSG_SET_PCT_SPELL_MODIFIER)
+state_allow(spellmod src/tests/HarnessTest.cpp
+    WHY "unit test of the harness recorder: checks the rule the packets are recorded under, sends nothing"
+    NAMES SMSG_SET_FLAT_SPELL_MODIFIER SMSG_SET_PCT_SPELL_MODIFIER)
 
 # Decoupling D4k. The glyph state's table. Opcodes.h defines no SMSG_ name containing GLYPH, and
 # GlyphMgr builds no packet: the client sees glyphs through the owner's update fields and the

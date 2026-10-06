@@ -346,6 +346,7 @@ class Aura;
 class SpellAuraHolder;
 class Creature;
 class Spell;
+class SpellModMgr;
 class DynamicObject;
 class GameObject;
 class Item;
@@ -3307,6 +3308,14 @@ class Unit : public WorldObject
         Player* GetSpellModOwner() const;
 
         /**
+         * Returns the spell modifiers that apply to this \ref Unit's spells: a \ref Player's
+         * own; for a \ref Pet or \ref Totem, those of its owner when the owner is a
+         * \ref Player, looked up at each call
+         * @return the spell modifiers, NULL for any other unit or when there is no such owner
+         */
+        SpellModMgr* GetSpellMods() const;
+
+        /**
          * Returns the \ref Unit that owns this \ref Unit if any
          * @return the \ref Unit that owns this one, NULL if there is no owner
          * \see Unit::GetOwnerGuid
@@ -4466,6 +4475,8 @@ class Unit : public WorldObject
         VehicleInfo* m_vehicleInfo;
         // The player's group callbacks, NULL for a unit that is not a player
         GroupCallbacks const* m_groupCallbacks;
+        // The player's spell modifiers, NULL for a unit that is not a player
+        SpellModMgr* m_spellMods;
         void DisableSpline();
         bool m_isCreatureLinkingTrigger;
         bool m_isSpawningLinked;

@@ -1158,6 +1158,8 @@ src/game/entities/player [entities] -> src/game/WorldHandlers/Spell.h
 src/game/entities/player [entities] -> src/game/WorldHandlers/TransportMap.h
 src/game/entities/player [entities] -> src/game/WorldHandlers/Transports.h
 src/game/entities/player [entities] -> src/game/WorldHandlers/Weather.h
+# Player holds the spell modifier manager by value (Player.h).
+src/game/entities/player [entities] -> src/game/spells/SpellModMgr.h
 src/game/entities/player/Player.cpp -> src/game/Server/WorldSession.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/Player.cpp -> src/game/WorldHandlers/GossipDef.h
@@ -1709,15 +1711,7 @@ src/game/entities/player/spells/PlayerSpell.cpp -> src/game/WorldHandlers/Update
 src/game/entities/player/spells/PlayerSpell.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/spells/PlayerSpell.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/PlayerSpell.cpp -> src/proto/WorldPacket.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/Server/WorldSession.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/WorldHandlers/Chat.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/WorldHandlers/GossipDef.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/WorldHandlers/SpellAuras.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/game/WorldHandlers/World.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/proto/Opcodes.h
-src/game/entities/player/spells/PlayerSpellMod.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/spells/RuneMgr.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/RuneMgr.cpp -> src/proto/WorldPacket.h
 src/game/entities/player/talents [entities] -> src/game/BattleGround/BattleGround.h

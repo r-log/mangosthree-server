@@ -116,6 +116,8 @@ set(REACH_RULES
     "entities/GroupUpdateFacts.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,proto/WorldPacket.h,WorldHandlers/Group.h"
     "spells/SpellCooldownMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
     "spells/SpellCooldownMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h,proto/WorldPacket.h,proto/Opcodes.h"
+    "spells/SpellModMgr.h|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,Server/DBCStores.h,Database/DatabaseEnv.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,proto/WorldPacket.h,WorldHandlers/Spell.h"
+    "spells/SpellModMgr.cpp|entities/player/Player.h,Object/Unit.h,Server/WorldSession.h,ObjectMgr.h,WorldHandlers/World.h,entities/player/PlayerRegistry.h,Object/ObjectLookup.h,Object/CorpseManager.h,WorldHandlers/MapManager.h,WorldHandlers/SpellAuras.h,Object/SpellMgr.h,WorldHandlers/Spell.h,proto/WorldPacket.h,proto/Opcodes.h"
     # Decoupling D4k: the glyph manager, the rune manager's two rules plus the cast
     # (WorldHandlers/Spell.h): the glyph's spell is cast and its auras removed by callbacks the owner
     # builds, so the manager never sees a spell, an aura or a unit. It builds no packet, so neither
