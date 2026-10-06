@@ -1325,7 +1325,7 @@ class Player : public Unit
         }
 
         // Remove the player's pet
-        void RemovePet(PetSaveMode mode);
+        void RemovePet(PetSaveMode mode) override;
 
         uint32 GetPhaseMaskForSpawn() const;                // used for proper set phase for DB at GM-mode creature/GO spawn
 
@@ -2195,10 +2195,10 @@ class Player : public Unit
         void CharmSpellInitialize();
 
         // Initialize possess spells
-        void PossessSpellInitialize();
+        void PossessSpellInitialize() override;
 
         // Remove the pet action bar
-        void RemovePetActionBar() { m_petMgr.RemoveActionBar(SessionSink()); }
+        void RemovePetActionBar() override { m_petMgr.RemoveActionBar(SessionSink()); }
 
         // Check if the player has a specific spell
         bool HasSpell(uint32 spell) const override;
@@ -4169,6 +4169,14 @@ class Player : public Unit
         // Credits the damage the player dealt to a victim, its battleground score and its achievement
         // criteria, which Unit's DealDamage asks for; private, so only a call through Unit reaches it
         void CreditDamageDealt(Unit* pVictim, uint32 damage) override;
+
+        // Sets the camera to a unit's view, which Unit's TakePossessOf asks for as a possession takes
+        // hold; private, so only a call through Unit reaches it
+        void SetCameraView(Unit* target) override;
+
+        // Sets the camera back to the player's own view, which Unit's ResetControlState asks for as a
+        // possession ends; private, so only a call through Unit reaches it
+        void ResetCameraView() override;
 
         void _HandleDeadlyPoison(Unit* Target, WeaponAttackType attType, SpellEntry const* spellInfo);
         // internal common parts for CanStore/StoreItem functions

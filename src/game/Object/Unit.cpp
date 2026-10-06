@@ -7062,7 +7062,7 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
         return NULL;
     }
 
-    Player* player = GetTypeId() == TYPEID_PLAYER ? static_cast<Player*>(this): NULL;
+    bool player = GetTypeId() == TYPEID_PLAYER;
 
     pCreature->setFaction(getFaction());                                // set same faction than player
     pCreature->SetSpawn(pos);                                    // set spawn coord
@@ -7083,9 +7083,9 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
     // Give the control to the player
     if (player)
     {
-        player->GetCamera().SetView(pCreature);                         // modify camera view to the creature view
-        player->SetClientControl(pCreature, 1);                         // transfer client control to the creature
-        player->SendForcedObjectUpdate();                               // we have to update client data here to avoid problem with the "release spirit" windows reappear.
+        SetCameraView(pCreature);                         // modify camera view to the creature view
+        SetClientControl(pCreature, 1);                         // transfer client control to the creature
+        SendForcedObjectUpdate();                               // we have to update client data here to avoid problem with the "release spirit" windows reappear.
     }
 
     // initialize AI
@@ -7098,7 +7098,7 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
         {
             charmInfo->InitPossessCreateSpells();
         }
-        player->PossessSpellInitialize();
+        PossessSpellInitialize();
     }
     else
     {
@@ -7121,10 +7121,10 @@ Unit* Unit::TakePossessOf(SpellEntry const* spellEntry, SummonPropertiesEntry co
 
 bool Unit::TakePossessOf(Unit* possessed)
 {
-    Player* player = NULL;
+    bool player = false;
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        player = static_cast<Player *>(this);
+        player = true;
     }
 
     possessed->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
@@ -7165,9 +7165,9 @@ bool Unit::TakePossessOf(Unit* possessed)
             possessed->GetMotionMaster()->CancelControl(Motion::Kind::Confused);
         }
 
-        player->GetCamera().SetView(possessed);
-        player->SetClientControl(possessed, 1);
-        player->SendForcedObjectUpdate();
+        SetCameraView(possessed);
+        SetClientControl(possessed, 1);
+        SendForcedObjectUpdate();
 
         if (ownPet)
         {
@@ -7182,7 +7182,7 @@ bool Unit::TakePossessOf(Unit* possessed)
             charmInfo->SetReactState(REACT_PASSIVE);
             charmInfo->SetCommandState(COMMAND_STAY);
         }
-        player->PossessSpellInitialize();
+        PossessSpellInitialize();
     }
 
     possessed->CombatStop(true);
@@ -7202,10 +7202,10 @@ bool Unit::TakePossessOf(Unit* possessed)
 
 void Unit::ResetControlState(bool attackCharmer /*= true*/)
 {
-    Player* player = NULL;
+    bool player = false;
     if (GetTypeId() == TYPEID_PLAYER)
     {
-        player = static_cast<Player *>(this);
+        player = true;
     }
 
     Unit* possessed = GetCharm();
@@ -7214,12 +7214,12 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
     {
         if (player)
         {
-            player->GetCamera().ResetView();
+            ResetCameraView();
             // A flying body keeps its control revoked until the landing or the abort grants
             // (P5-B family 5): a possession ending mid-flight hands back the camera alone.
-            if (!player->IsTaxiFlying())
+            if (!IsTaxiFlying())
             {
-                player->SetClientControl(player, 1);
+                SetClientControl(this, 1);
             }
         }
         return;
@@ -7248,11 +7248,11 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
     {
         // The unit's revoke, the camera, then the player's own grant: today's release
         // sent only the first and left the client to recover on its own.
-        player->SetClientControl(possessed, 0);
-        player->GetCamera().ResetView();
-        if (!player->IsTaxiFlying())   // a flying body: the landing or the abort grants (P5-B family 5)
+        SetClientControl(possessed, 0);
+        ResetCameraView();
+        if (!IsTaxiFlying())   // a flying body: the landing or the abort grants (P5-B family 5)
         {
-            player->SetClientControl(player, 1);
+            SetClientControl(this, 1);
         }
 
         if (possessed->IsPet() && possessed->GetObjectGuid() == GetPetGuid())
@@ -7260,7 +7260,7 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
             // out of range pet dismissed
             if (!InReach(*possessed, *this, possessed->GetMap()->GetVisibilityDistance()))
             {
-                player->RemovePet(PET_SAVE_REAGENTS);
+                RemovePet(PET_SAVE_REAGENTS);
             }
             else
             {
@@ -7271,7 +7271,7 @@ void Unit::ResetControlState(bool attackCharmer /*= true*/)
         }
         else
         {
-            player->RemovePetActionBar();
+            RemovePetActionBar();
         }
     }
 
