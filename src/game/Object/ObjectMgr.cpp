@@ -1338,7 +1338,7 @@ void ObjectMgr::LoadCorpses()
  */
 void ObjectMgr::LoadPointsOfInterest()
 {
-    mPointsOfInterest.clear();                              // need for reload case
+    m_pointsOfInterest.Clear();                             // need for reload case
 
     uint32 count = 0;
 
@@ -1377,7 +1377,7 @@ void ObjectMgr::LoadPointsOfInterest()
             continue;
         }
 
-        mPointsOfInterest[point_id] = POI;
+        m_pointsOfInterest.Set(point_id, POI);
 
         ++count;
     }

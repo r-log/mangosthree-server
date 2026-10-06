@@ -58,6 +58,7 @@
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
 #include "data/MailLevelRewardStore.h"
+#include "data/PointOfInterestStore.h"
 
 #include <string>
 #include <map>
@@ -259,17 +260,6 @@ struct ReputationOnKillEntry
     uint32 reputation_max_cap2;
     int32 repvalue2;
     bool team_dependent;
-};
-
-struct PointOfInterest
-{
-    uint32 entry;
-    float x;
-    float y;
-    uint32 icon;
-    uint32 flags;
-    uint32 data;
-    std::string icon_name;
 };
 
 struct GossipMenuItems
@@ -590,8 +580,6 @@ class ObjectMgr
         typedef std::unordered_map<uint32, ReputationOnKillEntry> RepOnKillMap;
         typedef std::unordered_map<uint32, RepSpilloverTemplate> RepSpilloverTemplateMap;
 
-        typedef std::unordered_map<uint32, PointOfInterest> PointOfInterestMap;
-
         typedef std::multimap<uint32 /*mapId*/, uint32 /*guid*/> ActiveCreatureGuidsOnMap;
 
         void LoadGameobjectInfo();
@@ -734,12 +722,7 @@ class ObjectMgr
 
         PointOfInterest const* GetPointOfInterest(uint32 id) const
         {
-            PointOfInterestMap::const_iterator itr = mPointsOfInterest.find(id);
-            if (itr != mPointsOfInterest.end())
-            {
-                return &itr->second;
-            }
-            return NULL;
+            return m_pointsOfInterest.Find(id);
         }
 
         QuestPOIVector const* GetQuestPOIVector(uint32 questId)
@@ -1490,7 +1473,7 @@ class ObjectMgr
 
         GossipMenusMap      m_mGossipMenusMap;
         GossipMenuItemsMap  m_mGossipMenuItemsMap;
-        PointOfInterestMap  mPointsOfInterest;
+        PointOfInterestStore m_pointsOfInterest;
 
         QuestPOIMap         mQuestPOIMap;
 
