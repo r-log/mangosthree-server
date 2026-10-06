@@ -169,7 +169,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) proves every site against the switches as they first stood; CI runs both.
-BASE = 'afc28cec6'
+BASE = '2ca7aae4f'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -462,6 +462,42 @@ SITES = {
                 48395: '                    case 48395: {body}    // Rank 2',
                 48396: '                    case 48396: {body}    // Rank 3'},
             'gone': (5, 16),
+        }],
+    },
+    'src/game/WorldHandlers/SpellAuraShapeshift.cpp': {
+        'handlers': 'src/game/spells/handlers/AuraShapeshiftHandlers.cpp',
+        'rows_function': 'RegisterAuraShapeshiftRows',
+        'added': ['#include "spells/handlers/AuraShapeshiftHandlers.h"'],
+        'sites': [{
+            'name': 'HandleAuraTransform AT APPLY, no creature entry (switch (GetId()))',
+            'dispatch': [
+                '            AuraTransformContext ctx(GetId(), target);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<AuraTransformSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraTransformSite',
+            'default': '                default:',
+            'context': 'AuraTransformContext',
+            'live_outs': ['target'],
+            'in_scope': ['apply', 'Real'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.spellId', 'GetId()')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                16739: '                case 16739:                                 // Orb of Deception',
+                42365: '                case 42365:                                 // Murloc costume',
+                50517: '                case 50517:                                 // Dread Corsair',
+                51926: '                case 51926:                                 // Corsair Costume',
+                65386: '                case 65386:                                 // Honor the Dead',
+                65495: '                case 65495:',
+                65528: '                case 65528:                                 '
+                       "// Gossip NPC Appearance - Pirates' Day",
+                65529: '                case 65529:                                 '
+                       '// Gossip NPC Appearance - Day of the Dead (DotD)',
+                71450: '                case 71450:                                 // Crown Parcel Service Uniform'},
         }],
     },
 }
