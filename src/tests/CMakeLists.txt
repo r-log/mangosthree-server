@@ -139,6 +139,7 @@ set(SRC_GRP_TESTS
     PointOfInterestStoreTest.cpp
     QuestPOIStoreTest.cpp
     DungeonFinderStoreTest.cpp
+    LfgDungeonEntranceStoreTest.cpp
 )
 
 if(WITH_NET_TESTS)

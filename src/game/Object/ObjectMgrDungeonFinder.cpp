@@ -273,7 +273,7 @@ void ObjectMgr::LoadDungeonFinderItems()
 void ObjectMgr::LoadLfgDungeonEntrances()
 {
     uint32 count = 0;
-    mLfgDungeonEntranceMap.clear();    // in case of a reload
+    m_lfgDungeonEntrances.Clear();     // in case of a reload
 
     //                                                 0            1             2             3             4
     QueryResult* result = WorldDatabase.Query("SELECT `dungeonId`, `position_x`, `position_y`, `position_z`, `orientation` FROM `lfg_dungeon_entrances`");
@@ -307,7 +307,7 @@ void ObjectMgr::LoadLfgDungeonEntrances()
         entrance.y = fields[2].GetFloat();
         entrance.z = fields[3].GetFloat();
         entrance.o = fields[4].GetFloat();
-        mLfgDungeonEntranceMap[dungeonId] = entrance;
+        m_lfgDungeonEntrances.Set(dungeonId, entrance);
 
         ++count;
     }
