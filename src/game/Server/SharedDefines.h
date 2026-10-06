@@ -682,6 +682,47 @@ enum SpellAttributesEx10
     SPELL_ATTR_EX10_UNK31                      = 0x80000000,// 31 not used
 };
 
+/**
+ * @brief Spell modifier operation enumeration
+ *
+ * Defines the different operations that can be modified on spells.
+ */
+enum SpellModOp
+{
+    SPELLMOD_DAMAGE = 0,                ///< Damage modifier
+    SPELLMOD_DURATION = 1,              ///< Duration modifier
+    SPELLMOD_THREAT = 2,                ///< Threat modifier
+    SPELLMOD_EFFECT1 = 3,               ///< Attack power modifier
+    SPELLMOD_CHARGES = 4,               ///< Charges modifier
+    SPELLMOD_RANGE = 5,                 ///< Range modifier
+    SPELLMOD_RADIUS = 6,                ///< Radius modifier
+    SPELLMOD_CRITICAL_CHANCE = 7,       ///< Critical chance modifier
+    SPELLMOD_ALL_EFFECTS = 8,           ///< All effects modifier
+    SPELLMOD_NOT_LOSE_CASTING_TIME = 9, ///< Don't lose casting time modifier
+    SPELLMOD_CASTING_TIME = 10,         ///< Casting time modifier
+    SPELLMOD_COOLDOWN = 11,             ///< Cooldown modifier
+    SPELLMOD_EFFECT2 = 12,              ///< Speed modifier
+    // spellmod 13 unused
+    SPELLMOD_COST = 14,                 ///< Cost modifier
+    SPELLMOD_CRIT_DAMAGE_BONUS = 15,    ///< Critical damage bonus modifier
+    SPELLMOD_RESIST_MISS_CHANCE = 16,   ///< Resist miss chance modifier
+    SPELLMOD_JUMP_TARGETS = 17,         ///< Jump targets modifier
+    SPELLMOD_CHANCE_OF_SUCCESS = 18,    ///< Chance of success (only used with SPELL_AURA_ADD_FLAT_MODIFIER and affects proc spells)
+    SPELLMOD_ACTIVATION_TIME = 19,      ///< Activation time modifier
+    SPELLMOD_EFFECT_PAST_FIRST = 20,    ///< Effect past first modifier
+    SPELLMOD_GLOBAL_COOLDOWN = 21,      ///< Casting time old modifier
+    SPELLMOD_DOT = 22,                  ///< DoT modifier
+    SPELLMOD_EFFECT3 = 23,              ///< Haste modifier
+    SPELLMOD_SPELL_BONUS_DAMAGE = 24,   ///< Spell bonus damage modifier
+    // spellmod 25 unused
+    SPELLMOD_FREQUENCY_OF_SUCCESS = 26, ///< Only used with SPELL_AURA_ADD_PCT_MODIFIER and affects used on proc spells
+    SPELLMOD_MULTIPLE_VALUE = 27,       ///< Multiple value modifier
+    SPELLMOD_RESIST_DISPEL_CHANCE = 28,  ///< Resist dispel chance modifier
+    SPELLMOD_SPELL_COST_REFUND_ON_FAIL = 30,
+};
+
+#define MAX_SPELLMOD 32
+
 #define MAX_TALENT_SPEC_COUNT   2
 #define MAX_GLYPH_SLOT_INDEX    9
 #define REQ_PRIMARY_TREE_TALENTS 31
