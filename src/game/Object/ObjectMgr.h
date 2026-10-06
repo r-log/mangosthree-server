@@ -58,6 +58,7 @@
 #include "data/DungeonFinderStore.h"
 #include "data/ExplorationBaseXpStore.h"
 #include "data/FishingBaseSkillStore.h"
+#include "data/LfgDungeonEntranceStore.h"
 #include "data/MailLevelRewardStore.h"
 #include "data/PointOfInterestStore.h"
 #include "data/QuestPOIStore.h"
@@ -674,21 +675,13 @@ class ObjectMgr
         DungeonFinderRewardsMap const& GetDungeonFinderRewardsMap() const { return m_dungeonFinder.Rewards(); }
         DungeonFinderItemsMap const& GetDungeonFinderItemsMap() const { return m_dungeonFinder.Items(); }
 
-        struct LfgDungeonEntrance
-        {
-            float x;
-            float y;
-            float z;
-            float o;
-        };
-        typedef std::unordered_map<uint32 /*dungeonId*/, LfgDungeonEntrance> LfgDungeonEntranceMap;
+        typedef ::LfgDungeonEntrance LfgDungeonEntrance;
 
         /// Entrance override for one LFGDungeons.dbc id; NULL = fall back to
         /// GetMapEntranceTrigger (multi-wing maps only carry overrides).
         LfgDungeonEntrance const* GetLfgDungeonEntrance(uint32 dungeonId) const
         {
-            LfgDungeonEntranceMap::const_iterator itr = mLfgDungeonEntranceMap.find(dungeonId);
-            return itr != mLfgDungeonEntranceMap.end() ? &itr->second : NULL;
+            return m_lfgDungeonEntrances.Find(dungeonId);
         }
 
         // Static wrappers for various accessors
@@ -1393,7 +1386,7 @@ class ObjectMgr
         QuestPOIStore m_questPoi;
 
         DungeonFinderStore m_dungeonFinder;
-        LfgDungeonEntranceMap mLfgDungeonEntranceMap;
+        LfgDungeonEntranceStore m_lfgDungeonEntrances;
 
         // character reserved names
         typedef std::set<std::wstring> ReservedNamesMap;
