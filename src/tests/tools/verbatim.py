@@ -117,8 +117,8 @@ The run shapes beyond one label per line and a body that ends in its own termina
      (a code line, a blank line or a shallower comment there fails). They belong to the run of that
      label: its handler begins with them, each held at its indent less the `{`'s, and the paste-back
      writes them at the `{`'s indent plus that, before the label. A handler not beginning with that
-     many comment lines fails; a comment held at the body's indent pastes back too shallow and
-     differs. A partly moved switch keeps them in the switch that still stands.
+     many comment lines fails; a comment held at the body's indent pastes back at another indent
+     and differs. A partly moved switch keeps them in the switch that still stands.
   B, blank lines inside a run's labels: where the run stands, blank lines between two of its label
      lines are part of the run and paste back between those labels. Any other line between them is
      not, and the run then pastes back without it and differs. A blank line after a run's body is a
@@ -2526,7 +2526,7 @@ def self_test():
         'with 2/2 bodies pasted back at their 3 labels in 1 sites',
         **form('gap', lab123, [lab[1], '', '', lab[2], '        {', '            target->Drop(1);',
                                '            break;', '        }'] + three, gap_functions, gap_rows))
-    run('B: the blank line pasted after the body as well: fails', 1, 'DIFFERS',
+    run('B: the blank line pasted after the body as well: fails', 1, "line 13: base '        case 3:",
         **mutated(gap, 'handlers', drop1 + '\n' + cont, drop1 + '\n' + cont + '\n'))
     run1 = '\n            target->Drop(1);\n            break;\n'
     after_body = mutated(gap, 'old_text', lab[1] + '\n\n' + lab[2] + run1, lab[1] + '\n' + lab[2] + run1 + '\n')
@@ -2535,7 +2535,7 @@ def self_test():
     run('B: the blank line after the body, the handler holding it: passes', 0,
         'with 2/2 bodies pasted back at their 3 labels in 1 sites',
         **mutated(after_body, 'handlers', drop1 + '\n' + cont, drop1 + '\n' + cont + '\n'))
-    run('B: a comment line between two labels of one run: fails', 1, 'DIFFERS',
+    run('B: a comment line between two labels of one run: fails', 1, "line 9: base '        // between'",
         **mutated(gap, 'old_text', lab[1] + '\n\n', lab[1] + '\n        // between\n'))
 
     falling = two_functions[:1] + [('Default', 'void', [drop9, cont])]
@@ -2556,7 +2556,8 @@ def self_test():
     run('E: the falling default\'s handler ending in Return: fails', 1,
         'the default falls off the switch\'s end, and Default does not end in Continue',
         **mutated(off, 'handlers', drop9 + '\n' + cont, drop9 + '\n' + ret))
-    run('E: a default whose return stands under an if: fails', 1, 'DIFFERS',
+    run('E: a default whose return stands under an if: fails', 1,
+        "line 14: base '    }', rebuilt '            break;'",
         **mutated(mutated(off, 'old_text', nine, '            if (target->IsDead())\n                return;'),
                   'handlers', drop9 + '\n' + cont,
                   '    if (ctx.target->IsDead())\n        return SpellHandlerOutcome<void>::Return();\n' + cont))
