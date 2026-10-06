@@ -696,7 +696,6 @@ class World
         void LoadDBVersion();
         char const* GetDBVersion() { return m_DBVersion.c_str(); }
 
-        void UpdatePhaseDefinitions();
         void LoadBroadcastStrings();
 
         /**
