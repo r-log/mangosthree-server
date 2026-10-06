@@ -137,6 +137,7 @@ set(SRC_GRP_TESTS
     ExplorationBaseXpStoreTest.cpp
     FishingBaseSkillStoreTest.cpp
     PointOfInterestStoreTest.cpp
+    QuestPOIStoreTest.cpp
 )
 
 if(WITH_NET_TESTS)

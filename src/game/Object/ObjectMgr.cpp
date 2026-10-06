@@ -1390,7 +1390,7 @@ void ObjectMgr::LoadPointsOfInterest()
 
 void ObjectMgr::LoadQuestPOI()
 {
-    mQuestPOIMap.clear();                              // need for reload case
+    m_questPoi.Clear();                                // need for reload case
 
     uint32 count = 0;
 
@@ -1426,7 +1426,7 @@ void ObjectMgr::LoadQuestPOI()
 
         QuestPOI POI(poiId, objIndex, mapId, mapAreaId, floorId, unk3, unk4);
 
-        mQuestPOIMap[questId].push_back(POI);
+        m_questPoi.Add(questId, POI);
 
         ++count;
     }
@@ -1447,7 +1447,7 @@ void ObjectMgr::LoadQuestPOI()
             int32  x            = pointFields[2].GetInt32();
             int32  y            = pointFields[3].GetInt32();
 
-            QuestPOIVector& vect = mQuestPOIMap[questId];
+            QuestPOIVector& vect = m_questPoi.Edit(questId);
 
             for (QuestPOIVector::iterator itr = vect.begin(); itr != vect.end(); ++itr)
             {
