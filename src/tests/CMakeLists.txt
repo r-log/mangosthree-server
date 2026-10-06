@@ -131,6 +131,7 @@ set(SRC_GRP_TESTS
     CurrencyMgrTest.cpp
     ReputationMgrTest.cpp
     HonorMgrTest.cpp
+    MailLevelRewardStoreTest.cpp
 )
 
 if(WITH_NET_TESTS)

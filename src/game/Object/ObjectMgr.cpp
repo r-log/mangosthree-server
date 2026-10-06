@@ -2963,7 +2963,7 @@ SkillRangeType GetSkillRangeType(SkillLineEntry const* pSkill, bool racial)
 
 void ObjectMgr::LoadMailLevelRewards()
 {
-    m_mailLevelRewardMap.clear();                           // for reload case
+    m_mailLevelRewards.Clear();                             // for reload case
 
     uint32 count = 0;
     QueryResult* result = WorldDatabase.Query("SELECT `level`, `raceMask`, `mailTemplateId`, `senderEntry` FROM `mail_level_reward`");
@@ -3016,7 +3016,7 @@ void ObjectMgr::LoadMailLevelRewards()
             continue;
         }
 
-        m_mailLevelRewardMap[level].push_back(MailLevelReward(raceMask, mailTemplateId, senderEntry));
+        m_mailLevelRewards.Add(level, MailLevelReward(raceMask, mailTemplateId, senderEntry));
 
         ++count;
     }
