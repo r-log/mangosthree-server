@@ -436,6 +436,12 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME verbatim_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/verbatim.py --self-test)
 
+    add_test(NAME handler_verbatim_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/handler_verbatim.py --self-test)
+
+    add_test(NAME handler_classes_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/handler_classes.py --self-test)
+
     add_test(NAME raw_rand_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/raw_rand.py --self-test)
 
