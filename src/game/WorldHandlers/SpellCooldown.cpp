@@ -118,7 +118,7 @@ void Spell::TriggerGlobalCooldown()
         // gcd modifier auras applied only to self spells and only player have mods for this
         if (m_caster->GetTypeId() == TYPEID_PLAYER)
         {
-            ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd, this);
+            m_caster->GetSpellMods()->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd);
         }
 
         // apply haste rating

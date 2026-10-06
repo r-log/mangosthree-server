@@ -175,7 +175,7 @@ void Spell::TakePower()
                         if (ihit->missCondition != SPELL_MISS_NONE)
                         {
                             // lower spell cost on fail (by talent aura)
-                            if (Player* modOwner = ((Player*)m_caster)->GetSpellModOwner())
+                            if (SpellModMgr* modOwner = m_caster->GetSpellMods())
                             {
                                 modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_SPELL_COST_REFUND_ON_FAIL, m_powerCost);
                             }
@@ -270,7 +270,7 @@ SpellCastResult Spell::CheckRunePower()
     for (uint32 i = 0; i < RUNE_DEATH; ++i)
     {
         runeCost[i] = src->RuneCost[i];
-        if (Player* modOwner = m_caster->GetSpellModOwner())
+        if (SpellModMgr* modOwner = m_caster->GetSpellMods())
         {
             modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_COST, runeCost[i]);
         }
@@ -334,7 +334,7 @@ void Spell::TakeRunePower(bool hit)
     for (uint32 i = 0; i < RUNE_DEATH; ++i)
     {
         runeCost[i] = src->RuneCost[i];
-        if (Player* modOwner = m_caster->GetSpellModOwner())
+        if (SpellModMgr* modOwner = m_caster->GetSpellMods())
         {
             modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_COST, runeCost[i]);
         }
@@ -392,7 +392,7 @@ void Spell::TakeRunePower(bool hit)
         int32 rp = int32(src->runePowerGain);
         if (rp)
         {
-            if (Player* modOwner = m_caster->GetSpellModOwner())
+            if (SpellModMgr* modOwner = m_caster->GetSpellMods())
             {
                 modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_COST, rp);
             }

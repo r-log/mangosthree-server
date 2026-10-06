@@ -529,7 +529,7 @@ bool Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, SpellAuraHolder* holder, S
         chance = GetPPMProcChance(WeaponSpeed, spellProcEvent->ppmRate);
     }
     // Apply chance modifier aura
-    if (Player* modOwner = GetSpellModOwner())
+    if (SpellModMgr* modOwner = GetSpellMods())
     {
         modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_CHANCE_OF_SUCCESS, chance);
         modOwner->ApplySpellMod(spellProto->ID, SPELLMOD_FREQUENCY_OF_SUCCESS, chance);
@@ -1918,7 +1918,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                         radius = GetSpellMaxRange(sSpellRangeStore.LookupEntry(procSpell->RangeIndex));
                     }
 
-                    ((Player*)this)->ApplySpellMod(procSpell->ID, SPELLMOD_RADIUS, radius);
+                    GetSpellMods()->ApplySpellMod(procSpell->ID, SPELLMOD_RADIUS, radius);
 
                     Unit* second = pVictim->SelectRandomFriendlyTarget(pVictim, radius);
 
@@ -4835,7 +4835,7 @@ SpellAuraProcResult Unit::HandleMendingAuraProc(Unit* /*pVictim*/, uint32 /*dama
 
         if (Player* caster = ((Player*)triggeredByAura->GetCaster()))
         {
-            caster->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius, NULL);
+            caster->GetSpellMods()->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius);
 
             if (Player* target = GetNextRandomRaidMember(radius))
             {

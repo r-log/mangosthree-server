@@ -2286,7 +2286,7 @@ SpellCastResult Spell::CheckRange(bool strict)
                 }
 
                 float range_mod = strict ? 0.0f : 5.0f;
-                if (Player* modOwner = m_caster->GetSpellModOwner())
+                if (SpellModMgr* modOwner = m_caster->GetSpellMods())
                 {
                     float base = ATTACK_DISTANCE;
                     range_mod += modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_RANGE, base);
@@ -2307,7 +2307,7 @@ SpellCastResult Spell::CheckRange(bool strict)
     float max_range = GetSpellMaxRange(srange, friendly) + range_mod;
     float min_range = GetSpellMinRange(srange, friendly);
 
-    if (Player* modOwner = m_caster->GetSpellModOwner())
+    if (SpellModMgr* modOwner = m_caster->GetSpellMods())
     {
         modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_RANGE, max_range);
     }
@@ -2427,9 +2427,9 @@ uint32 Spell::CalculatePowerCost(SpellEntry const* spellInfo, Unit* caster, Spel
 
     // Apply cost mod by spell
     if (spell)
-        if (Player* modOwner = caster->GetSpellModOwner())
+        if (SpellModMgr* modOwner = caster->GetSpellMods())
         {
-            modOwner->ApplySpellMod(spellInfo->ID, SPELLMOD_COST, powerCost, spell);
+            modOwner->ApplySpellMod(spellInfo->ID, SPELLMOD_COST, powerCost);
         }
 
     if (spellInfo->HasAttribute(SPELL_ATTR_LEVEL_DAMAGE_CALCULATION))

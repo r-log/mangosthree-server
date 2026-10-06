@@ -198,9 +198,9 @@ void Spell::EffectDispel(SpellEffectEntry const* effect)
             // Apply dispel mod from aura caster
             if (Unit* caster = holder->GetCaster())
             {
-                if (Player* modOwner = caster->GetSpellModOwner())
+                if (SpellModMgr* modOwner = caster->GetSpellMods())
                 {
-                    modOwner->ApplySpellMod(spellInfo->ID, SPELLMOD_RESIST_DISPEL_CHANCE, miss_chance, this);
+                    modOwner->ApplySpellMod(spellInfo->ID, SPELLMOD_RESIST_DISPEL_CHANCE, miss_chance);
                 }
             }
             // Try dispel

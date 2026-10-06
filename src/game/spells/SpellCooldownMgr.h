@@ -111,7 +111,7 @@ class SpellCooldownMgr
         /// The item prototype store's lookup: `ObjectMgr::GetItemPrototype`.
         typedef std::function<ItemPrototype const*(uint32 itemId)> ItemPrototypeLookup;
         /// Applies the owner's cooldown spell mods to `cooldown` in place:
-        /// `ApplySpellMod(spellId, SPELLMOD_COOLDOWN, cooldown, spell)`, the cast passed through.
+        /// `ApplySpellMod(spellId, SPELLMOD_COOLDOWN, cooldown)` on the owner's spell modifiers.
         typedef std::function<void(uint32 spellId, int32& cooldown)> CooldownMod;
 
         /// What a cast's cooldown needs from the owner, read by the owner just before the call.

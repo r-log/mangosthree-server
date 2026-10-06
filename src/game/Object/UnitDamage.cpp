@@ -545,7 +545,7 @@ void Unit::CalculateDamageAbsorbAndResist(Unit* pCaster, SpellSchoolMask schoolM
 
         if (float manaMultiplier = (spellEffect ? spellEffect->EffectAmplitude : 0))
         {
-            if (Player* modOwner = GetSpellModOwner())
+            if (SpellModMgr* modOwner = GetSpellMods())
             {
                 modOwner->ApplySpellMod((*i)->GetId(), SPELLMOD_MULTIPLE_VALUE, manaMultiplier);
             }

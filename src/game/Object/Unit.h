@@ -3300,14 +3300,6 @@ class Unit : public WorldObject
         bool isCharmedOwnedByPlayerOrPlayer() const { return GetCharmerOrOwnerOrOwnGuid().IsPlayer(); }
 
         /**
-         * Get's the \ref Player that owns the \ref SpellModifier for this \ref Unit, if this
-         * \ref Unit is a \ref Player it's the owner, but if it's a \ref Pet och \ref Totem then
-         * then owner of the totem is returned if it's a \ref Player
-         * @return The \ref SpellModifier owner for this \ref Unit
-         */
-        Player* GetSpellModOwner() const;
-
-        /**
          * Returns the spell modifiers that apply to this \ref Unit's spells: a \ref Player's
          * own; for a \ref Pet or \ref Totem, those of its owner when the owner is a
          * \ref Player, looked up at each call
