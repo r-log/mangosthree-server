@@ -206,7 +206,7 @@ The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`
 
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
-see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 953, Unit 587, WorldSession 591, ObjectMgr 255), R1, M1,
+see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 953, Unit 587, WorldSession 589, ObjectMgr 251), R1, M1,
 the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |

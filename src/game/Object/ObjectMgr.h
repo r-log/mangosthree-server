@@ -64,13 +64,6 @@ class Group;
 class ArenaTeam;
 class Item;
 class SQLStorage;
-struct PhaseDefinition;
-struct SpellPhaseInfo;
-
-typedef std::list<PhaseDefinition*> PhaseDefinitionContainer;
-typedef std::unordered_map<uint32 /*zoneId*/, PhaseDefinitionContainer> PhaseDefinitionStore;
-
-typedef std::unordered_map<uint32 /*spellId*/, SpellPhaseInfo*> SpellPhaseStore;
 
 struct GameTele
 {
@@ -1467,12 +1460,6 @@ class ObjectMgr
             return ret ? ret : uint32(time(NULL));
         }
 
-        void LoadPhaseDefinitions();
-        void LoadSpellPhaseInfo();
-
-        PhaseDefinitionStore const* GetPhaseDefinitionStore() { return &_PhaseDefinitionStore; }
-        SpellPhaseStore const* GetSpellPhaseStore() { return &_SpellPhaseStore; }
-
     protected:
 
         // first free id for selected id type
@@ -1618,9 +1605,6 @@ class ObjectMgr
         CacheTrainerSpellMap m_mCacheTrainerSpellMap;
 
         HotfixData m_hotfixData;
-
-        PhaseDefinitionStore _PhaseDefinitionStore;
-        SpellPhaseStore _SpellPhaseStore;
 };
 
 #define sObjectMgr MaNGOS::Singleton<ObjectMgr>::Instance()
