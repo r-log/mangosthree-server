@@ -46,7 +46,8 @@ For each file in SITES, --check:
      `table` names; a version with typed tables never reads the name.
      BRACES: a run's shape is read from the version's file, the base's first, else the working
      tree's: the run's label lines (or a `default:` line), searched in the whole file, must stand
-     together there exactly once (more than once fails), and the line after them gives the shape.
+     together there exactly once (more than once fails; blank lines between them: B), and the line
+     after them gives the shape.
      `{` at the label indent there means the body is wrapped, and that block must close (`}` at
      the label indent) directly before the next `case` or `default:` at the label indent or the
      switch's close: a block followed by more lines of the body is a shape the paste-back cannot
@@ -111,6 +112,24 @@ The run shapes beyond one label per line and a body that ends in its own termina
      the next one as it did. A call of any other function as the last line fails, and so does a
      default ending in one. Moving both runs as one body under all their labels is not this shape:
      the second run's labels stood between the bodies, and the paste-back differs.
+  P, comment lines before the first label: lines between a whole site's switch `{` and its first
+     label, read where the switch stands, must each be a `//` comment at the `{`'s indent or deeper
+     (a code line, a blank line or a shallower comment there fails). They belong to the run of that
+     label: its handler begins with them, each held at its indent less the `{`'s, and the paste-back
+     writes them at the `{`'s indent plus that, before the label. A handler not beginning with that
+     many comment lines fails; a comment held at the body's indent pastes back too shallow and
+     differs. A partly moved switch keeps them in the switch that still stands.
+  B, blank lines inside a run's labels: where the run stands, blank lines between two of its label
+     lines are part of the run and paste back between those labels. Any other line between them is
+     not, and the run then pastes back without it and differs. A blank line after a run's body is a
+     line of that body, and its handler holds it.
+  E, a default falling off the switch's end: where the switch stands, a `default:` that is its last
+     run and whose last statement (inside its block's `}` when braced, comments after it aside) is
+     not a whole `return ...;`, `break;`, `continue;` or `goto ...;` line has a handler ending in
+     `return ...::Continue();`, and the paste-back drops that line. A default handler ending in
+     anything else there fails. A labelled run in that place fails: only a default may fall off
+     the end. A last statement that terminates only under a control header (`if (x)` over
+     `return;`) is not this shape and differs.
 Every handler's last statement (comments aside) is a `return` at the function's own level, so no
 body falls off its end.
 
@@ -708,21 +727,102 @@ def site_spans(lines, site):
     return spans
 
 
-def braced(origins, site, label_lines):
-    """Whether the body under the run of labels `label_lines` is wrapped in `{` `}` at the label
-    indent, read in the first of `origins` (each a version's whole file, as lines) holding the
-    run's label lines together inside the site's switch; holding them more than once fails; False
-    where none holds them."""
-    indent = ' ' * site['label_indent']
-    n = len(label_lines)
+def run_at(origins, site, label_lines):
+    """(lines, i, k, end) of the first of `origins` (each a version's whole file, as lines) holding the
+    run's label lines together inside the site's switch, blank lines between two of them allowed (B):
+    i its first label line, k the line after its last, end the switch's close; holding them more than
+    once fails; None where none holds them."""
     for lines in origins:
-        at = [i for first, end in site_spans(lines, site) for i in range(first, end - n + 1)
-              if lines[i] == label_lines[0] and lines[i:i + n] == label_lines]
+        at = []
+        for first, end in site_spans(lines, site):
+            for i in range(first, end):
+                if lines[i] != label_lines[0]:
+                    continue
+                k = i + 1
+                for want in label_lines[1:]:
+                    while k < end and lines[k] == '':
+                        k += 1
+                    if k >= end or lines[k] != want:
+                        break
+                    k += 1
+                else:
+                    at.append((lines, i, k, end))
         if len(at) > 1:
             raise Failure('%s: the labels %s stand %d times in one version' % (site['name'], label_lines, len(at)))
-        if not at:
+        if at:
+            return at[0]
+    return None
+
+
+def label_gaps(origins, site, label_lines):
+    """B: the number of blank lines after each label line of the run but its last, where it stands."""
+    found = run_at(origins, site, label_lines)
+    if found is None:
+        return [0] * (len(label_lines) - 1)
+    lines, i, k, _ = found
+    gaps, n = [], 0
+    for line in lines[i + 1:k]:
+        if line == '':
+            n += 1
+        else:
+            gaps.append(n)
+            n = 0
+    return gaps
+
+
+def falls_off(origins, site, label_lines):
+    """E: whether the run stands last in its switch, where it stands, and its last statement (inside the
+    closing `}` of a braced run, comment lines after it aside) is not a whole `return ...;`, `break;`,
+    `continue;` or `goto ...;` line, so it falls off the switch's end."""
+    found = run_at(origins, site, label_lines)
+    if found is None:
+        return False
+    lines, i, k, end = found
+    indent = ' ' * site['label_indent']
+    if any(l.startswith(indent + 'case ') or l.startswith(indent + 'default:') for l in lines[k:end]):
+        return False
+    last = code_above(lines, end - 1)
+    if last >= k and lines[last] == indent + '}' and lines[k] == indent + '{':
+        last = code_above(lines, last - 1)
+    if last < k:
+        return False
+    text = blank(lines[last]).strip()
+    return not TERMINATOR.fullmatch(text.rstrip(';').split(';')[-1].strip() + ';' if text.endswith(';') else text)
+
+
+def preamble(origins, site, label_line):
+    """P: the number of lines between the switch's `{` and its first label, read in the first of
+    `origins` holding the site's switch with `label_line` its first label; each must be a `//` comment
+    line no shallower than the `{`; 0 where none holds it."""
+    brace = len(site['open'][-1]) - len(site['open'][-1].lstrip(' '))
+    label = re.compile(r' {%d}(case |default:)' % site['label_indent'])
+    for lines in origins:
+        found = []
+        for first, end in site_spans(lines, site):
+            k = next((j for j in range(first, end) if label.match(lines[j])), end)
+            if k < end and lines[k] == label_line:
+                found.append((first, k))
+        if len(found) > 1:
+            raise Failure('%s: the switch opening with %r stands %d times in one version'
+                          % (site['name'], label_line.strip(), len(found)))
+        if not found:
             continue
-        k = at[0] + n
+        first, k = found[0]
+        for line in lines[first:k]:
+            if not line.strip().startswith('//') or len(line) - len(line.lstrip(' ')) < brace:
+                raise Failure('%s: before the first label, a line that is not a `//` comment at the indent of the '
+                              'switch\'s `{` or deeper: %r' % (site['name'], line))
+        return k - first
+    return 0
+
+
+def braced(origins, site, label_lines):
+    """Whether the body under the run of labels `label_lines` is wrapped in `{` `}` at the label
+    indent, read in the first of `origins` holding the run (run_at); False where none holds it."""
+    indent = ' ' * site['label_indent']
+    found = run_at(origins, site, label_lines)
+    if found is not None:
+        lines, _, k, _ = found
         if lines[k] != indent + '{':
             return False
         close = next((j for j in range(k + 1, len(lines)) if lines[j] == indent + '}'), None)
@@ -739,14 +839,33 @@ def braced(origins, site, label_lines):
     return False
 
 
-def paste(site, function, body, label_lines, wrapped=False):
-    """The switch lines one registered function stood for: its label line(s) and its body, in
-    `{` `}` at the label indent when `wrapped` (a one-line case is never wrapped)."""
+def substituted(site, body):
     restored = []
     for line in body:
         for a, b in site['substitutions']:
             line = a.sub(b, line) if isinstance(a, re.Pattern) else line.replace(a, b)
         restored.append(line)
+    return restored
+
+
+def paste(site, function, body, label_lines, wrapped=False, gaps=(), lead=0):
+    """The switch lines one registered function stood for: its label line(s) and its body, in
+    `{` `}` at the label indent when `wrapped` (a one-line case is never wrapped); `gaps[i]` blank lines
+    after label line i (B); the body's first `lead` lines are the preamble, written before the labels
+    at the indent of the switch's `{` (P)."""
+    restored = substituted(site, body)
+    brace = ' ' * (len(site['open'][-1]) - len(site['open'][-1].lstrip(' ')))
+    if lead:
+        if one_line(label_lines) or any(not l.strip().startswith('//') for l in restored[:lead]):
+            raise Failure('%s: the switch has %d comment lines before its first label, and %s does not begin with '
+                          'them' % (site['name'], lead, function))
+        head = [brace + l for l in restored[:lead]]
+        return head + paste(site, function, body[lead:], label_lines, wrapped, gaps)
+    if any(gaps):
+        spaced = []
+        for n, line in enumerate(label_lines):
+            spaced += [line] + [''] * (gaps[n] if n < len(gaps) else 0)
+        label_lines = spaced
     if one_line(label_lines):
         return [label_lines[0].replace('{body}', ' '.join(l.strip() for l in restored))]
     if any('{body}' in l for l in label_lines):
@@ -955,7 +1074,12 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
                 if line not in label_lines:
                     label_lines.append(line)
             wrapped = not one_line(label_lines) and braced(origins, site, label_lines)
-            pieces.append(([r[0] for r in rows[i:j]], paste(site, function, body, label_lines, wrapped)))
+            if not one_line(label_lines) and falls_off(origins, site, label_lines):
+                raise Failure('%s: the run under %s falls off the switch\'s end, which only a `default:` may'
+                              % (site['name'], [l.split('//')[0].strip() for l in label_lines]))
+            lead = preamble(origins, site, label_lines[0]) if 'residual' not in site else 0
+            pieces.append(([r[0] for r in rows[i:j]], paste(site, function, body, label_lines, wrapped,
+                                                             label_gaps(origins, site, label_lines), lead)))
             pasted += 1
             labels += j - i
             i = j
@@ -973,6 +1097,11 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             if FALLS.fullmatch(body[-1] if body else ''):
                 raise Failure('%s: the default %s ends in a call, and no run follows it' % (site['name'], function))
             check_body(function, body, site, members)
+            if falls_off(origins, site, [site['default']]):
+                if not body or body[-1].strip() not in [a for a, b in site['substitutions'] if b == 'break;']:
+                    raise Failure('%s: the default falls off the switch\'s end, and %s does not end in Continue'
+                                  % (site['name'], function))
+                body = body[:-1]
             switch += paste(site, function, body, [site['default']], braced(origins, site, [site['default']]))
             pasted += 1
         elif any(re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(.*' % re.escape(site['traits']), l)
@@ -2347,6 +2476,93 @@ def self_test():
                                                 for n, v, b in fall_functions],
                [(1, 'One')] + fall_rows[2:], residual=True,
                standing=form_site['open'] + fall_switch[4:9] + form_site['close']))
+
+    lab1, lab12, lab123 = ({i: lab[i] for i in ids} for ids in ((1,), (1, 2), (1, 2, 3)))
+    drop1, drop3, drop9 = ('    ctx.target->Drop(%d);' % n for n in (1, 3, 9))
+    two = [lab[1], '            target->Drop(1);', '            break;', lab[2], '            target->Drop(2);',
+           '            break;']
+    two_functions = [('One', 'void', [drop1, cont]), ('Two', 'void', ['    ctx.target->Drop(2);', cont])]
+    two_rows = [(1, 'One'), (2, 'Two')]
+    deeper = '            // One, deeper'
+    lead = form('lead', lab12, [deeper] + two,
+                [('One', 'void', ['        // One, deeper', drop1, cont])] + two_functions[1:], two_rows)
+    not_comment = ("before the first label, a line that is not a `//` comment at the indent of the switch's `{` "
+                   "or deeper: ")
+    run('P: a comment before the first label, deeper than the label: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites', **lead)
+    run('P: three comments at the brace\'s indent and deeper: pass', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **form('lead', lab12, ['    // the switch', '            // One', '            // more of One'] + two,
+               [('One', 'void', ['// the switch', '        // One', '        // more of One', drop1, cont])]
+               + two_functions[1:], two_rows))
+    run('P: a comment before a braced first run: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **form('lead', lab12, ['        // One', lab[1], '        {', '            target->Drop(1);',
+                               '            break;', '        }'] + two[3:],
+               [('One', 'void', ['    // One', drop1, cont])] + two_functions[1:], two_rows))
+    run('P: the comment kept at the body\'s indent in the handler: fails', 1,
+        "DIFFERS from the base after pasting back 2 bodies at 1 sites: line 8: base '            // One, deeper'",
+        **mutated(lead, 'handlers', '        // One, deeper', '    // One, deeper'))
+    run('P: the comment after the first statement in the handler: fails', 1,
+        'the switch has 1 comment lines before its first label, and One does not begin with them',
+        **mutated(lead, 'handlers', '        // One, deeper\n' + drop1, drop1 + '\n        // One, deeper'))
+    run('P: the comment dropped from the handler: fails', 1, 'One does not begin with them',
+        **mutated(lead, 'handlers', '        // One, deeper\n', ''))
+    run('P: a statement before the first label: fails', 1, not_comment + "'            target->Lead();'",
+        **mutated(lead, 'old_text', deeper, deeper + '\n            target->Lead();'))
+    run('P: a blank line among the comments before the first label: fails', 1, not_comment + "''",
+        **mutated(lead, 'old_text', deeper, deeper + '\n'))
+    run('P: a comment before the first label shallower than the switch\'s brace: fails', 1,
+        not_comment + "'  // One, deeper'", **mutated(lead, 'old_text', deeper, '  // One, deeper'))
+
+    gap_functions = [('One', 'void', [drop1, cont]), ('Three', 'void', [drop3, cont])]
+    gap_rows = [(1, 'One'), (2, 'One'), (3, 'Three')]
+    three = [lab[3], '            target->Drop(3);', '            break;']
+    gap = form('gap', lab123, [lab[1], '', lab[2], '            target->Drop(1);', '            break;'] + three,
+               gap_functions, gap_rows)
+    run('B: a blank line between two labels of one run: passes', 0,
+        'with 2/2 bodies pasted back at their 3 labels in 1 sites', **gap)
+    run('B: two blank lines between two labels of one braced run: pass', 0,
+        'with 2/2 bodies pasted back at their 3 labels in 1 sites',
+        **form('gap', lab123, [lab[1], '', '', lab[2], '        {', '            target->Drop(1);',
+                               '            break;', '        }'] + three, gap_functions, gap_rows))
+    run('B: the blank line pasted after the body as well: fails', 1, 'DIFFERS',
+        **mutated(gap, 'handlers', drop1 + '\n' + cont, drop1 + '\n' + cont + '\n'))
+    run1 = '\n            target->Drop(1);\n            break;\n'
+    after_body = mutated(gap, 'old_text', lab[1] + '\n\n' + lab[2] + run1, lab[1] + '\n' + lab[2] + run1 + '\n')
+    run('B: the blank line after the body, the handler without it: fails', 1,
+        "DIFFERS from the base after pasting back 2 bodies at 1 sites: line 12: base ''", **after_body)
+    run('B: the blank line after the body, the handler holding it: passes', 0,
+        'with 2/2 bodies pasted back at their 3 labels in 1 sites',
+        **mutated(after_body, 'handlers', drop1 + '\n' + cont, drop1 + '\n' + cont + '\n'))
+    run('B: a comment line between two labels of one run: fails', 1, 'DIFFERS',
+        **mutated(gap, 'old_text', lab[1] + '\n\n', lab[1] + '\n        // between\n'))
+
+    falling = two_functions[:1] + [('Default', 'void', [drop9, cont])]
+    off = form('off', lab1, two[:3] + ['        default:', '            target->Drop(9);'], falling, [(1, 'One')],
+               default='Default')
+    nine = '            target->Drop(9);'
+    run('E: a default that falls off the switch\'s end: passes', 0,
+        'with 2/2 bodies pasted back at their 1 labels in 1 sites', **off)
+    run('E: a braced default that falls off the switch\'s end: passes', 0,
+        'with 2/2 bodies pasted back at their 1 labels in 1 sites',
+        **form('off', lab1, two[:3] + ['        default:', '        {', nine, '        }'], falling, [(1, 'One')],
+               default='Default'))
+    run('E: a default ending in break: passes', 0, 'with 2/2 bodies pasted back at their 1 labels in 1 sites',
+        **mutated(off, 'old_text', nine, nine + '\n            break;'))
+    run('E: a default ending in return: passes', 0, 'with 2/2 bodies pasted back at their 1 labels in 1 sites',
+        **mutated(mutated(off, 'old_text', nine, nine + '\n            return;'),
+                  'handlers', drop9 + '\n' + cont, drop9 + '\n' + ret))
+    run('E: the falling default\'s handler ending in Return: fails', 1,
+        'the default falls off the switch\'s end, and Default does not end in Continue',
+        **mutated(off, 'handlers', drop9 + '\n' + cont, drop9 + '\n' + ret))
+    run('E: a default whose return stands under an if: fails', 1, 'DIFFERS',
+        **mutated(mutated(off, 'old_text', nine, '            if (target->IsDead())\n                return;'),
+                  'handlers', drop9 + '\n' + cont,
+                  '    if (ctx.target->IsDead())\n        return SpellHandlerOutcome<void>::Return();\n' + cont))
+    run('E: the last labelled run falling off the switch\'s end: fails', 1,
+        "the run under ['case 2:'] falls off the switch's end, which only a `default:` may",
+        **form('off', lab12, two[:-1], two_functions, two_rows))
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
