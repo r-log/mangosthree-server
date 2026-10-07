@@ -59,6 +59,19 @@ A reason is optional here; that a line needs one is decided by the review of the
     that matches no file, and a scan that reads no file or no include.
 It passes with a per-layer-pair summary in numbers. --generate rewrites the list from the tree and
 prints what it added and removed. --self-test runs the fixtures.
+
+--renamed <map>, with --check or --generate: the map holds one "<old path> -> <new path>" line per
+renamed file, paths from the repository root ("#" lines and blank lines aside), as
+`git diff -M100% --diff-filter=R --name-status` lists them. The list is then read at the tree's
+paths: each edge is also read with its includer and header at their old paths, and a tree key
+whose edge so read makes a listed line is carried from that line, which it replaces. A line
+carried to more than one key (a sideways key whose directory's files went to several directories)
+is a fan-out. Every carried line and every fan-out is printed, and a map line that carries no list
+line is named. An edge passes when its file, at its old path, would have passed, so a moved file
+with a new include fails as new. A key keeps the reason of the lines it is carried from; a key
+carried from lines with different reasons (no reason counts as one) fails. A malformed or repeated
+map line, an old path still in the tree and a new path the tree does not have fail, and --generate
+then writes nothing; otherwise --generate writes the list at the new paths with the reasons carried.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -121,7 +134,7 @@ MAY['realmd'] = {'foundation', 'persistence'}
 
 SEAMS = [
     ('entities/player', r'^game/entities/player/'),
-    ('spells/aura', r'^game/spells/(aura/|Aura)|^game/WorldHandlers/(SpellAura|UnitAuraProcHandler)|^game/Object/UnitAura\.'),
+    ('spells/aura', r'^game/spells/(auras/|Aura)|^game/WorldHandlers/(SpellAura|UnitAuraProcHandler)|^game/Object/UnitAura\.'),
 ]
 # True: an include into a seam from the seam's own peer, outside the seam, is a seam edge too.
 SEAM_SAME_PEER = True
@@ -466,7 +479,81 @@ def compare(edges, entries):
     return keys, new, moved, stale, (tree_n, list_n), sole
 
 
-def check(root, allow_path, out=print):
+def read_renames(path, files):
+    """{old path: new path} from the map's "<old path> -> <new path>" lines, paths from the
+    repository root; errors for a map that cannot be read, a malformed or repeated line, an old path
+    still in the tree and a new path the tree does not have."""
+    renames, errors = {}, []
+    tree = {'src/' + f for f in files}
+    try:
+        with open(path, encoding='utf-8') as fh:
+            lines = [ln.strip() for ln in fh]
+    except OSError as e:
+        return renames, ['the rename map %s cannot be read: %s' % (path, e)]
+    for n, s in enumerate(lines, 1):
+        if not s or s.startswith('#'):
+            continue
+        parts = [p.strip() for p in s.split(' -> ')]
+        if len(parts) != 2 or not all(parts):
+            errors.append('%s:%d: not "<old path> -> <new path>": %s' % (path, n, s))
+        elif parts[0] in renames or parts[1] in renames.values():
+            errors.append('%s:%d: a path renamed twice: %s' % (path, n, s))
+        elif parts[0] in tree:
+            errors.append('%s:%d: the old path %s is still in the tree' % (path, n, parts[0]))
+        elif parts[1] not in tree:
+            errors.append('%s:%d: the new path %s is not in the tree' % (path, n, parts[1]))
+        else:
+            renames[parts[0]] = parts[1]
+    return renames, errors
+
+
+def carry(edges, entries, reasons, renames):
+    """The list read in the tree's paths. A tree key is carried from each listed line that one of
+    its edges, its includer and header read at their old paths, makes; a line is replaced by the
+    keys it is carried to. Each key keeps the reason of the lines it comes from; a key coming from
+    lines with different reasons is an error. Returns (entries, reasons, {old line: [keys]} for
+    the lines carried to another key, the renames no carried line uses, errors)."""
+    back = {new: old for old, new in renames.items()}
+    keys = keys_of(edges)
+    carried, used = collections.defaultdict(set), set()
+    for k, (kind, es) in keys.items():
+        for e in es:
+            old = (back.get(e[0], e[0]), back.get(e[1], e[1]))
+            was = list_key(old, edges[e])
+            if was in entries:
+                carried[was].add(k)
+                if was != k:
+                    used.update(p for p in old if p in renames)
+    out = set(entries) - set(carried)
+    sources = collections.defaultdict(set)
+    for e in out:
+        sources[e].add(e)
+    for was, now in carried.items():
+        for k in now:
+            sources[k].add(was)
+    why, errors = {}, []
+    for k, olds in sorted(sources.items()):
+        told = sorted({reasons.get(w) for w in olds}, key=lambda r: r or '')
+        if len(told) > 1:
+            errors.append('%s -> %s is carried from lines with different reasons: %s' % (k + (' | '.join(
+                '%s -> %s %s' % (w + (reasons.get(w) or '(no reason)',)) for w in sorted(olds)),)))
+        elif told[0] is not None:
+            why[k] = told[0]
+    fan = {was: sorted(now) for was, now in carried.items() if now != {was}}
+    return set(sources), why, fan, sorted(set(renames) - used), errors
+
+
+def report_carry(renames, fan, unused, out):
+    out('CheckLayout: %d renamed file(s): %d list line(s) carried to new paths, %d of them to more than one key'
+        % (len(renames), len(fan), sum(1 for v in fan.values() if len(v) > 1)))
+    for was, now in sorted(fan.items()):
+        out('  %s: %s -> %s  =>  %s' % ('fan-out' if len(now) > 1 else 'carried', was[0], was[1],
+                                         ' | '.join('%s -> %s' % k for k in now)))
+    for old in unused:
+        out('  renamed, no list line carried: %s -> %s' % (old, renames[old]))
+
+
+def check(root, allow_path, out=print, renamed=None):
     """The gate: 0 when the tree's violations are exactly the list's, 1 otherwise."""
     try:
         result = scan(root)
@@ -476,6 +563,12 @@ def check(root, allow_path, out=print):
     entries, list_errors, reasons, _, _ = read_allow(allow_path)
     errors = result['errors'] + list_errors
     edges = result['edges']
+    if renamed:
+        renames, rename_errors = read_renames(renamed, result['files'])
+        errors += rename_errors
+        entries, reasons, fan, unused, carry_errors = carry(edges, entries, reasons, renames)
+        errors += carry_errors
+        report_carry(renames, fan, unused, out)
     keys, new, moved, stale, (tree_n, list_n), sole = compare(edges, entries)
     allow_rel = os.path.relpath(allow_path, root).replace(os.sep, '/')
     if not errors:
@@ -540,7 +633,7 @@ def check(root, allow_path, out=print):
     return 0
 
 
-def generate(root, allow_path, out=print):
+def generate(root, allow_path, out=print, renamed=None):
     try:
         result = scan(root)
     except GateError as e:
@@ -552,6 +645,16 @@ def generate(root, allow_path, out=print):
         out('CheckLayout: the list is not written while the tree has errors')
         return 1
     old, errors, reasons, lost, replaced = read_allow(allow_path)
+    if renamed:
+        renames, rename_errors = read_renames(renamed, result['files'])
+        if not rename_errors:
+            old, reasons, fan, unused, rename_errors = carry(result['edges'], old, reasons, renames)
+            report_carry(renames, fan, unused, out)
+        if rename_errors:
+            for e in rename_errors:
+                out('CheckLayout: ERROR: %s' % e)
+            out('CheckLayout: the list is not written while the rename map has errors')
+            return 1
     if lost:
         for e in errors:
             out('CheckLayout: ERROR: %s' % e)
@@ -598,7 +701,7 @@ SELF_TREE = {
     'src/game/entities/player/Player.h': '#include "Unit.h"\n',
     'src/game/entities/player/Player.cpp': '#include "Player.h"\n#include "Object/Unit.h"\n',
     'src/game/spells/AuraContainer.h': '#include "Common.h"\n',
-    'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n#include "WorldPacket.h"\n',
+    'src/game/spells/pipeline/Spell.cpp': '#include "Unit.h"\n#include "WorldPacket.h"\n',
     'src/game/Maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Map.h"\n',
     'src/game/Maps/Map.h': '#include "Common.h"\n',
     'src/game/pchdef.h': '#include "Unit.h"\n',
@@ -609,8 +712,8 @@ SELF_TREE = {
 }
 SELF_ALLOW = [('src/game/Maps [maps]', 'src/game/Object/Unit.h'),
               ('src/game/Maps/Map.cpp', 'src/game/entities/player/Player.h'),
-              ('src/game/WorldHandlers [spells]', 'src/game/Object/Unit.h'),
-              ('src/game/WorldHandlers/Spell.cpp', 'src/proto/WorldPacket.h')]
+              ('src/game/spells/pipeline [spells]', 'src/game/Object/Unit.h'),
+              ('src/game/spells/pipeline/Spell.cpp', 'src/proto/WorldPacket.h')]
 
 
 def self_test():
@@ -669,17 +772,17 @@ def self_test():
         ['1 new include edge(s) against section 1', 'an upward or forbidden include',
          'src/shared/Common.cpp -> src/game/Object/Unit.h   [against: foundation -> domain]'])
     run('a new sideways include fails (spells -> maps)',
-        with_file('src/game/WorldHandlers/Spell.cpp', '#include "Unit.h"\n#include "WorldPacket.h"\n#include "Map.h"\n'),
+        with_file('src/game/spells/pipeline/Spell.cpp', '#include "Unit.h"\n#include "WorldPacket.h"\n#include "Map.h"\n'),
         SELF_ALLOW, 1, ['1 new sideways include key(s) (includer directory, includer peer, header)',
                         'section 1 allows these lines but the keys cannot grow',
-                        '  src/game/WorldHandlers [spells] -> src/game/Maps/Map.h   [sideways: spells -> maps] '
+                        '  src/game/spells/pipeline [spells] -> src/game/Maps/Map.h   [sideways: spells -> maps] '
                         'included by '
-                        'src/game/WorldHandlers/Spell.cpp'])
+                        'src/game/spells/pipeline/Spell.cpp'])
     run('a new include into a gated seam fails as against',
-        with_file('src/game/WorldHandlers/Spell.cpp', '#include "WorldPacket.h"\n#include "Player.h"\n'),
+        with_file('src/game/spells/pipeline/Spell.cpp', '#include "WorldPacket.h"\n#include "Player.h"\n'),
         SELF_ALLOW, 1, ['1 new include edge(s) into a gated seam', '[seam: spells -> entities/player]'])
     run('a removed edge with a stale list entry fails',
-        with_file('src/game/WorldHandlers/Spell.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
+        with_file('src/game/spells/pipeline/Spell.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
         'allow-list line(s) name an edge that is gone')
     run('an allowed edge added is fine (session, same peer)',
         dict(SELF_TREE, **{'src/game/Server/WorldSession.cpp': '#include "Player.h"\n#include "WorldPacket.h"\n',
@@ -698,9 +801,8 @@ def self_test():
         SELF_ALLOW, 1, 'is ambiguous')
     run('relative first picks the includer\'s own World.h',
         dict(SELF_TREE, **{'src/game/WorldHandlers/World.h': '', 'src/shared/World.h': '',
-                           'src/game/WorldHandlers/Spell.cpp':
-                               '#include "Unit.h"\n#include "WorldPacket.h"\n#include "World.h"\n'}),
-        SELF_ALLOW, 1, 'src/game/WorldHandlers/Spell.cpp -> src/game/WorldHandlers/World.h   [against: domain -> app]')
+                           'src/game/WorldHandlers/Group.cpp': '#include "World.h"\n'}),
+        SELF_ALLOW, 1, 'src/game/WorldHandlers/Group.cpp -> src/game/WorldHandlers/World.h   [against: domain -> app]')
     run('a spelling matches at a directory boundary only',
         dict(SELF_TREE, **{'src/game/GameObject/X.h': '',
                            'src/game/Maps/Map.h': '#include "Common.h"\n#include "Object/X.h"\n'}),
@@ -734,8 +836,8 @@ def self_test():
     run('rule 1: a new file in a listed directory, listed header, passes',
         with_file('src/game/Maps/MapGrid.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
         ['CheckLayout: OK: 4 list lines', 'maps        -> entities            2 lines     2 edges     1 keys'])
-    run('rule 1: a split beside SpellAuraDummy.cpp (out of the seam) passes',
-        with_file('src/game/WorldHandlers/SpellAuraDummyWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
+    run('rule 1: a split beside Spell.cpp passes',
+        with_file('src/game/spells/pipeline/SpellEffectWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 0,
         ['CheckLayout: OK: 4 list lines', 'spells      -> entities            2 lines     2 edges     1 keys'])
     run('rule 1: a new (directory, header) pair fails (spells/handlers)',
         with_file('src/game/spells/handlers/AuraDummyWarrior.cpp', '#include "Unit.h"\n'), SELF_ALLOW, 1,
@@ -763,9 +865,9 @@ def self_test():
             'src/game/Maps [maps] -> src/game/Object/Unit.h]'])
 
     run('rule 2: a second file including a forbidden header fails',
-        with_file('src/game/WorldHandlers/SpellEffects.cpp', '#include "WorldPacket.h"\n'), SELF_ALLOW, 1,
+        with_file('src/game/spells/pipeline/SpellEffects.cpp', '#include "WorldPacket.h"\n'), SELF_ALLOW, 1,
         ['1 new include edge(s) against section 1',
-         '  src/game/WorldHandlers/SpellEffects.cpp -> src/proto/WorldPacket.h'
+         '  src/game/spells/pipeline/SpellEffects.cpp -> src/proto/WorldPacket.h'
          '   [against: domain -> proto] the header has 2 domain -> proto includer file(s) in the tree, 1 '
          'listed'], 'moved:')
     run('rule 2: a second file including a seam header fails',
@@ -774,14 +876,14 @@ def self_test():
          '   [seam: maps -> entities/player] the header has 2 maps -> entities/player includer file(s) in the '
          'tree, 1 listed'], 'moved:')
 
-    old_wp = ('src/game/WorldHandlers/Spell.cpp', 'src/proto/WorldPacket.h')
+    old_wp = ('src/game/spells/pipeline/Spell.cpp', 'src/proto/WorldPacket.h')
     new_wp = ('src/game/Maps/Map.cpp', 'src/proto/WorldPacket.h')
     moved_tree = dict(SELF_TREE, **{
-        'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n',
+        'src/game/spells/pipeline/Spell.cpp': '#include "Unit.h"\n',
         'src/game/Maps/Map.cpp':
             '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "WorldPacket.h"\n'})
     moved_allow = [e for e in SELF_ALLOW if e != old_wp] + [new_wp]
-    moved_text = ('  moved: replace the old line src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h with '
+    moved_text = ('  moved: replace the old line src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h with '
                   'src/game/Maps/Map.cpp -> src/proto/WorldPacket.h   [against: domain -> proto]')
     run('rule 3: a moved against line, replaced in the list, passes', moved_tree, moved_allow, 0,
         'CheckLayout: OK: 4 list lines')
@@ -790,7 +892,7 @@ def self_test():
         ['new include edge(s) against', 'allow-list line(s) name an edge that is gone'])
     run('rule 3: the old line kept beside the new one fails', moved_tree, SELF_ALLOW + [new_wp], 1,
         ['1 allow-list line(s) name an edge that is gone',
-         '  src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h'],
+         '  src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h'],
         'moved:')
     run('rule 3: the old include kept, a second includer: count grew, fails',
         with_file('src/game/Maps/Map.cpp', moved_tree['src/game/Maps/Map.cpp']), SELF_ALLOW, 1,
@@ -824,27 +926,27 @@ def self_test():
          '  src/game/Maps/Map.cpp -> src/game/entities/player/Player.h'], 'moved:')
     run('rule 3: a move does not cross headers (stale H1 line, new H2 edge)',
         dict(SELF_TREE, **{'src/proto/Opcodes.h': '#include "Common.h"\n',
-                           'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n',
+                           'src/game/spells/pipeline/Spell.cpp': '#include "Unit.h"\n',
                            'src/game/Maps/Map.cpp':
                                '#include "Map.h"\n#include "Unit.h"\n#include "Player.h"\n#include "Opcodes.h"\n'}),
         SELF_ALLOW, 1,
         ['1 new include edge(s) against', '  src/game/Maps/Map.cpp -> src/proto/Opcodes.h   [against: domain -> '
          'proto] the header has 1 domain -> proto includer file(s) in the tree, 0 listed',
          '1 allow-list line(s) name an edge that is gone',
-         '  src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h'],
+         '  src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h'],
         'moved:')
     run('rule 3: a move does not cross layer pairs (against)',
-        dict(SELF_TREE, **{'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n',
+        dict(SELF_TREE, **{'src/game/spells/pipeline/Spell.cpp': '#include "Unit.h"\n',
                            'src/game/Server/ObjectMgr.cpp': '#include "WorldPacket.h"\n'}), SELF_ALLOW, 1,
         ['  src/game/Server/ObjectMgr.cpp -> src/proto/WorldPacket.h   [against: data -> proto] the header has 1 '
          'data -> proto includer file(s) in the tree, 0 listed',
-         '  src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h'], 'moved:')
+         '  src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h'], 'moved:')
     run('rule 3: a move does not cross layer pairs (seam)',
         dict(SELF_TREE, **{'src/game/Maps/Map.cpp': '#include "Map.h"\n#include "Unit.h"\n',
-                           'src/game/WorldHandlers/Spell.cpp':
+                           'src/game/spells/pipeline/Spell.cpp':
                                '#include "Unit.h"\n#include "WorldPacket.h"\n#include "Player.h"\n'}),
         SELF_ALLOW, 1,
-        ['  src/game/WorldHandlers/Spell.cpp -> src/game/entities/player/Player.h   [seam: spells -> entities/player]',
+        ['  src/game/spells/pipeline/Spell.cpp -> src/game/entities/player/Player.h   [seam: spells -> entities/player]',
          '  src/game/Maps/Map.cpp -> src/game/entities/player/Player.h'], 'moved:')
     run('a zero scan fails', {'src/README': 'x', 'dep/zlib/zlib.h': ''}, [], 1, 'found no C/C++ file')
     with tempfile.TemporaryDirectory() as tmp:
@@ -904,7 +1006,7 @@ def self_test():
     two_line = ('src/game/Maps/MapPacket.cpp', 'src/proto/WorldPacket.h')
     two_allow = format_allow(SELF_ALLOW + [two_line], {SELF_ALLOW[0]: first, old_wp: r1, two_line: r2})
     two_before = dict(SELF_TREE, **{'src/game/Maps/MapPacket.cpp': '#include "WorldPacket.h"\n'})
-    two_moved = dict(SELF_TREE, **{'src/game/WorldHandlers/Spell.cpp': '#include "Unit.h"\n',
+    two_moved = dict(SELF_TREE, **{'src/game/spells/pipeline/Spell.cpp': '#include "Unit.h"\n',
                                    'src/game/Maps/AMapPacket.cpp': '#include "WorldPacket.h"\n',
                                    'src/game/Object/ZUnitPacket.cpp': '#include "WorldPacket.h"\n'})
     run('two moves, one header: the baseline list passes', two_before, two_allow, 0, 'CheckLayout: OK')
@@ -916,7 +1018,7 @@ def self_test():
     rc, text, got, rc2, kept = generated(two_moved, two_allow)
     row('two moves, one header: --generate carries no reason, names both',
         rc == 0 and rc2 == 0 and kept == {SELF_ALLOW[0]: first}
-        and any('reason NOT carried from src/game/WorldHandlers/Spell.cpp -> src/proto/WorldPacket.h' in g
+        and any('reason NOT carried from src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h' in g
                 and g.endswith(r1) for g in got)
         and any('reason NOT carried from src/game/Maps/MapPacket.cpp -> src/proto/WorldPacket.h' in g
                 and g.endswith(r2) for g in got), '%d %d %r\n%s' % (rc, rc2, kept, '\n'.join(got)))
@@ -954,13 +1056,106 @@ def self_test():
         reasoned.replace(why + '\n', '# first\n' + why + '\n'), 1, 'a reason line not directly above an entry: # first')
     run('a reason line at the end of the list fails', SELF_TREE, reasoned + '# trailing\n', 1,
         'a reason line not directly above an entry: # trailing')
+    def renamed(label, tree, allow, renames, want, needles=(), absent=(), generate_too=False, written=None):
+        """--check (or --generate) with a rename map; `written`: the list --generate must leave."""
+        needles = [needles] if isinstance(needles, str) else list(needles)
+        absent = [absent] if isinstance(absent, str) else list(absent)
+        with tempfile.TemporaryDirectory() as tmp:
+            ap = build(tmp, tree, allow)
+            rp = os.path.join(tmp, 'renames.txt')
+            with open(rp, 'w', encoding='utf-8') as fh:
+                fh.write('# old path -> new path\n' + ''.join(r + '\n' if isinstance(r, str) else '%s -> %s\n' % r
+                                                              for r in renames))
+            got = []
+            rc = (generate if generate_too else check)(tmp, ap, out=got.append, renamed=rp)
+            with open(ap, encoding='utf-8') as fh:
+                left = fh.read()
+            text = '\n'.join(got)
+            missing = [n for n in needles if n not in text]
+            present = [n for n in absent if n in text]
+            ok = rc == want and not missing and not present and (written is None or left == written)
+            row(label, ok, 'exit %d, expected %d, missing %r, unexpected %r\n%s\n%s'
+                % (rc, want, missing, present, text, left))
+
+    def rename(tree, old, new, text=None):
+        t = {k: v for k, v in tree.items() if k != old}
+        t[new] = tree[old] if text is None else text
+        return t
+
+    sp, sd = 'src/game/spells/pipeline/Spell.cpp', 'src/game/spells/data/Spell.cpp'
+    pk, dk = SELF_ALLOW[2], ('src/game/spells/data [spells]', 'src/game/Object/Unit.h')
+    moved_sp = rename(SELF_TREE, sp, sd)
+    renamed('renamed: an includer moved to another directory carries its lines', moved_sp, SELF_ALLOW, [(sp, sd)], 0,
+            ['1 renamed file(s): 2 list line(s) carried to new paths, 0 of them to more than one key',
+             '  carried: src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h  =>  '
+             'src/game/spells/data/Spell.cpp -> src/proto/WorldPacket.h',
+             '  carried: src/game/spells/pipeline [spells] -> src/game/Object/Unit.h  =>  '
+             'src/game/spells/data [spells] -> src/game/Object/Unit.h', 'CheckLayout: OK: 4 list lines'])
+    run('renamed: the same tree with no map fails', moved_sp, SELF_ALLOW, 1,
+        ['  src/game/spells/data [spells] -> src/game/Object/Unit.h   [sideways: spells -> entities]',
+         '  moved: replace the old line src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h with '
+         'src/game/spells/data/Spell.cpp -> src/proto/WorldPacket.h'])
+    pl, px = 'src/game/entities/player/Player.h', 'src/game/entities/player/core/Player.h'
+    renamed('renamed: a header moved carries the lines naming it', rename(SELF_TREE, pl, px), SELF_ALLOW, [(pl, px)], 0,
+            ['  carried: src/game/Maps/Map.cpp -> src/game/entities/player/Player.h  =>  src/game/Maps/Map.cpp -> '
+             'src/game/entities/player/core/Player.h', 'CheckLayout: OK'])
+    renamed('renamed: a moved file with a new include fails',
+            rename(SELF_TREE, sp, sd, SELF_TREE[sp] + '#include "Map.h"\n'), SELF_ALLOW, [(sp, sd)], 1,
+            '  src/game/spells/data [spells] -> src/game/Maps/Map.h   [sideways: spells -> maps]')
+    two = dict(SELF_TREE, **{'src/game/spells/pipeline/SpellHit.cpp': '#include "Unit.h"\n'})
+    renamed('renamed: a sideways key split over two directories names both', rename(two, sp, sd), SELF_ALLOW,
+            [(sp, sd)], 0, ['2 list line(s) carried to new paths, 1 of them to more than one key',
+                            '  fan-out: src/game/spells/pipeline [spells] -> src/game/Object/Unit.h  =>  '
+                            'src/game/spells/data [spells] -> src/game/Object/Unit.h | src/game/spells/pipeline '
+                            '[spells] -> src/game/Object/Unit.h', 'CheckLayout: OK: 5 list lines'])
+    renamed('renamed: an old path still in the tree fails', dict(moved_sp, **{sp: SELF_TREE[sp]}), SELF_ALLOW,
+            [(sp, sd)], 1, 'renames.txt:2: the old path src/game/spells/pipeline/Spell.cpp is still in the tree')
+    renamed('renamed: a new path the tree does not have fails', moved_sp, SELF_ALLOW,
+            [(sp, sd), ('src/game/Maps/Gone.cpp', 'src/game/Maps/Elsewhere.cpp')], 1,
+            'renames.txt:3: the new path src/game/Maps/Elsewhere.cpp is not in the tree')
+    renamed('renamed: a malformed or repeated map line fails', moved_sp, SELF_ALLOW,
+            [(sp, sd), sp + ' ' + sd, (sp, 'src/game/spells/data/Other.cpp')], 1,
+            ['renames.txt:3: not "<old path> -> <new path>"', 'renames.txt:4: a path renamed twice'])
+    mh, mb = 'src/shared/Common.cpp', 'src/shared/CommonInit.cpp'
+    renamed('renamed: a map entry no list line uses is reported', rename(moved_sp, mh, mb), SELF_ALLOW,
+            [(sp, sd), (mh, mb)], 0,
+            ['  renamed, no list line carried: src/shared/Common.cpp -> src/shared/CommonInit.cpp', 'CheckLayout: OK'])
+    why_wp, why_unit = '# Spell.cpp sends a packet', '# the spell code reads the unit'
+    reasoned_sp = format_allow(SELF_ALLOW, {old_wp: why_wp, pk: why_unit})
+    renamed('renamed: --generate carries the reasons to the renamed lines', moved_sp, reasoned_sp, [(sp, sd)], 0,
+            '  carried: src/game/spells/pipeline/Spell.cpp', generate_too=True,
+            written=format_allow([e for e in SELF_ALLOW if e not in (old_wp, pk)] + [(sd, old_wp[1]), dk],
+                                 {(sd, old_wp[1]): why_wp, dk: why_unit}))
+    renamed('renamed: --generate keeps a reason on every key of a fan-out', rename(two, sp, sd), reasoned_sp,
+            [(sp, sd)], 0, '  fan-out:', generate_too=True,
+            written=format_allow([e for e in SELF_ALLOW if e != old_wp] + [(sd, old_wp[1]), dk],
+                                 {(sd, old_wp[1]): why_wp, pk: why_unit, dk: why_unit}))
+    ob, ub = 'src/game/Object/UnitSpellBonus.cpp', 'src/game/spells/pipeline/UnitSpellBonus.cpp'
+    ok_ = ('src/game/Object [spells]', 'src/game/Object/Unit.h')
+    bonus = rename(dict(SELF_TREE, **{ob: '#include "Unit.h"\n'}), ob, ub)
+    why_bonus = '# the bonus code reads the unit'
+    differing = format_allow(SELF_ALLOW + [ok_], {pk: why_unit, ok_: why_bonus})
+    renamed('renamed: a key carried from lines with different reasons fails', bonus, differing, [(ob, ub)], 1,
+            'src/game/spells/pipeline [spells] -> src/game/Object/Unit.h is carried from lines with different '
+            'reasons: src/game/Object [spells] -> src/game/Object/Unit.h %s | src/game/spells/pipeline [spells] -> '
+            'src/game/Object/Unit.h %s' % (why_bonus, why_unit))
+    renamed('renamed: --generate writes nothing on different reasons', bonus, differing, [(ob, ub)], 1,
+            'the list is not written while the rename map has errors', generate_too=True, written=differing)
+    renamed('renamed: a key carried from lines with one reason passes', bonus,
+            format_allow(SELF_ALLOW + [ok_], {pk: why_unit, ok_: why_unit}), [(ob, ub)], 0,
+            ['  carried: src/game/Object [spells] -> src/game/Object/Unit.h  =>  src/game/spells/pipeline [spells] '
+             '-> src/game/Object/Unit.h', 'CheckLayout: OK: 4 list lines'])
+    renamed('renamed: --generate writes nothing while an old path is in the tree',
+            dict(moved_sp, **{sp: SELF_TREE[sp]}), reasoned_sp, [(sp, sd)], 1,
+            'the list is not written while the rename map has errors', generate_too=True, written=reasoned_sp)
+
     for a, b, want in [('game/Object/Unit.cpp', 'proto/WorldPacket.h', ('against', ('domain', 'proto'))),
                        ('game/Server/ObjectMgr.cpp', 'motion/State.h', ('against', ('data', 'motion'))),
                        ('motion/Kernel.cpp', 'shared/Database/Database.h', ('against', ('motion', 'persistence'))),
                        ('realmd/Main.cpp', 'proto/WorldPacket.h', ('against', ('realmd', 'proto'))),
                        ('realmd/Main.cpp', 'shared/Database/Database.h', None),
-                       ('game/Object/Unit.cpp', 'game/WorldHandlers/SpellAuras.h', ('seam', ('entities', 'spells/aura'))),
-                       ('game/WorldHandlers/SpellAuras.cpp', 'game/Object/SpellMgr.h', None),
+                       ('game/Object/Unit.cpp', 'game/spells/auras/SpellAuras.h', ('seam', ('entities', 'spells/aura'))),
+                       ('game/spells/auras/SpellAuras.cpp', 'game/spells/data/SpellMgr.h', None),
                        ('game/Maps/Map.cpp', 'game/Object/Creature.h', ('sideways', ('maps', 'entities'))),
                        ('game/Object/ObjectGuid.cpp', 'game/Object/ObjectMgr.h', ('against', ('foundation', 'data'))),
                        ('game/AuctionHouseBot/AuctionHouseBot.cpp', 'game/Object/Unit.h', None),
@@ -981,10 +1176,10 @@ def self_test():
         SEAM_SAME_PEER = flag
         for a, b, want in [('game/Object/Bag.cpp', 'game/entities/player/Player.h',
                             ('seam', ('entities', 'entities/player')) if flag else None),
-                           ('game/Object/SpellMgr.h', 'game/WorldHandlers/SpellAuraDefines.h',
+                           ('game/spells/data/SpellMgr.h', 'game/spells/auras/SpellAuraDefines.h',
                             ('seam', ('spells', 'spells/aura')) if flag else None),
                            ('game/entities/player/Player.cpp', 'game/entities/player/Player.h', None),
-                           ('game/WorldHandlers/SpellAuras.cpp', 'game/WorldHandlers/SpellAuras.h', None),
+                           ('game/spells/auras/SpellAuras.cpp', 'game/spells/auras/SpellAuras.h', None),
                            ('game/Maps/Map.cpp', 'game/entities/player/Player.h', ('seam', ('maps', 'entities/player')))]:
             got = classify(a, b)
             expect(got == want, 'classify, SEAM_SAME_PEER %s: (%s, %s) = %r, expected %r' % (flag, a, b, got, want))
@@ -1008,12 +1203,14 @@ def main(argv):
     g.add_argument('--check', action='store_true')
     g.add_argument('--generate', action='store_true')
     g.add_argument('--self-test', action='store_true')
+    ap.add_argument('--renamed', metavar='MAP',
+                    help='"<old path> -> <new path>" lines: the list is read at the tree\'s paths')
     args = ap.parse_args(argv[1:])
     if args.self_test:
         return self_test()
     root = os.path.abspath(args.root)
     allow = args.allow or os.path.join(root, *ALLOW_REL.split('/'))
-    return check(root, allow) if args.check else generate(root, allow)
+    return check(root, allow, renamed=args.renamed) if args.check else generate(root, allow, renamed=args.renamed)
 
 
 if __name__ == '__main__':
