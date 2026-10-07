@@ -192,7 +192,10 @@ MOVES = [
          substitutions=VENDOR_PLAYER),
 ]
 
-RESIDUES = []
+RESIDUES = [
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN,
+         removed=['#include "AchievementMgr.h"', '#include "Item.h"', '#include "UpdateData.h"']),
+]
 
 NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
 BASE_HEADER = re.compile(r'(?P<type>\S.*?) WorldSession::\w+\((?P<params>.*)\)$')
