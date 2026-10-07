@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""verbatim.py [--root <repo root>] [--base <ref>] --check | --self-test
+"""verbatim.py [--root <repo root>] [--base <ref>] [--original] --check | --self-test
 
 The spell handler registry's verbatim proof (decoupling D11, design/2026-09-28-unit-reopening.md
 3(b)): every case body that moved out of a per-spell-ID switch into a registered handler is pasted
@@ -143,11 +143,20 @@ member at class scope; and a `return ...::Continue();` inside a loop or a nested
 moved `break;` would have left that loop, not the case).
 
 python src/tests/tools/verbatim.py --check        # against BASE (this PR's parent), reading git
-python src/tests/tools/verbatim.py --check --original   # against ORIGINAL: master before the first move
+python src/tests/tools/verbatim.py --check --original   # each file against its original
 python src/tests/tools/verbatim.py --self-test    # fixtures only, no git
 
+ORIGINALS: --check --original reads each file at its original instead of BASE: the entry's own
+`original` where it names one, else ORIGINAL (master before the first move). A file's original is
+the commit at which it last stood with every one of its sites in place: for a file moved once, the
+parent of its move. The original is the proof that the file's text outside its sites has not changed
+since before its first move, so it may only move forward when a PR names the reason. Refused, each by
+name: a base or original that is not a commit of the repository, an original not spelled as a
+commit's hex SHA, an original that is not the base (BASE, or --base) or an ancestor of it (an
+original is never ahead of the base), and an original that does not hold the file.
+
 CI (.github/workflows/core_verbatim.yml) runs --check against both bases on every pull request: the
-parent proves this PR's own moves, the original re-proves every body ever moved against the switches
+parent proves this PR's own moves, the originals re-prove every body ever moved against the switches
 as they first stood, so a slip merged earlier is never inherited as the next PR's base. Both bases
 work because every later tree still holds the bodies to paste back. The same job runs the cast
 proof (cast_verbatim.py --check), whose base is frozen: it compares a window around each site.
@@ -187,7 +196,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
-# before the first move) proves every site against the switches as they first stood; CI runs both.
+# before the first move) is the original of every file whose entry names none (ORIGINALS above).
 BASE = '0e7fc259b'
 ORIGINAL = 'afdabc428'
 
@@ -200,7 +209,8 @@ def valued_substitutions(value):
     return [(re.compile(r'return SpellHandlerOutcome<%s>::Return\((.*)\);' % re.escape(value)), r'return \1;'),
             ('return SpellHandlerOutcome<%s>::Continue();' % value, 'break;')]
 
-# One entry per file; each file lists its sites in the order they stand in it.
+# One entry per file; each file lists its sites in the order they stand in it, and may name its
+# `original` (ORIGINALS in the docstring).
 SITES = {
     'src/game/WorldHandlers/SpellAuraDummy.cpp': {
         'handlers': 'src/game/spells/handlers/AuraDummyHandlers.cpp',
@@ -1335,40 +1345,75 @@ def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None,
     return 0, pasted
 
 
-def check(root, base, out=print):
-    rc = 0
-    for rel, spec in SITES.items():
-        path = os.path.join(root, *rel.split('/'))
-        with open(path, encoding='utf-8', newline='') as fh:
-            new_text = fh.read()
+SHA = re.compile(r'[0-9a-f]{7,40}')
+
+
+def git_runner(root):
+    """git(*args) in `root`: (exit code, stdout, stderr)."""
+    def git(*args):
         try:
-            old_text = subprocess.run(['git', '-C', root, 'show', '%s:%s' % (base, rel)], capture_output=True,
-                                      check=True).stdout.decode('utf-8')
-        except (OSError, subprocess.CalledProcessError) as e:
-            out('%s: FAILED: cannot read it at %s from git: %s' % (rel, base, e))
+            r = subprocess.run(['git', '-C', root] + list(args), capture_output=True)
+        except OSError as e:
+            return 1, '', str(e)
+        return r.returncode, r.stdout.decode('utf-8'), r.stderr.decode('utf-8', 'replace').strip()
+    return git
+
+
+def original_base(rel, spec, base, git):
+    """The commit --original reads `rel` at: the entry's `original`, else ORIGINAL (ORIGINALS)."""
+    ref = spec.get('original', ORIGINAL)
+    if not SHA.fullmatch(ref):
+        raise Failure("the original %r is not spelled as a commit's hex SHA" % ref)
+    if git('cat-file', '-e', ref + '^{commit}')[0] != 0:
+        raise Failure('the original %s is not a commit of the repository' % ref)
+    if git('merge-base', '--is-ancestor', ref, base)[0] != 0:
+        raise Failure('the original %s is ahead of the base %s (it is neither the base nor an ancestor of it)'
+                      % (ref, base))
+    if git('cat-file', '-e', '%s:%s' % (ref, rel))[0] != 0:
+        raise Failure('the original %s does not hold the file' % ref)
+    return ref
+
+
+def check(root, base, out=print, original=False, git=None, read=None, sites=None):
+    """`git` and `read` (a path's text in the working tree) default to the repository at `root`."""
+    git = git or git_runner(root)
+
+    def read_tree(rel):
+        with open(os.path.join(root, *rel.split('/')), encoding='utf-8', newline='') as fh:
+            return fh.read()
+    read = read or read_tree
+    rc = 0
+    for rel, spec in (SITES if sites is None else sites).items():
+        new_text = read(rel)
+        try:
+            if git('cat-file', '-e', base + '^{commit}')[0] != 0:
+                raise Failure('the base %s is not a commit of the repository' % base)
+            ref = original_base(rel, spec, base, git) if original else base
+        except Failure as e:
+            out('%s: FAILED: %s' % (rel, e))
             rc = 1
             continue
-        new_handlers = None
-        handler_path = os.path.join(root, *spec['handlers'].split('/'))
-        if os.path.isfile(handler_path):
-            with open(handler_path, encoding='utf-8', newline='') as fh:
-                new_handlers = fh.read()
+        code, old_text, err = git('show', '%s:%s' % (ref, rel))
+        if code != 0:
+            out('%s: FAILED: cannot read it at %s from git: %s' % (rel, ref, err))
+            rc = 1
+            continue
         try:
-            listed = subprocess.run(['git', '-C', root, 'ls-tree', '--name-only', base, '--', spec['handlers']],
-                                    capture_output=True, check=True).stdout.decode('utf-8').split()
-            old_handlers = None
-            if listed:
-                old_handlers = subprocess.run(['git', '-C', root, 'show', '%s:%s' % (base, spec['handlers'])],
-                                              capture_output=True, check=True).stdout.decode('utf-8')
-        except (OSError, subprocess.CalledProcessError) as e:
-            out('%s: FAILED: cannot read %s at %s from git: %s' % (rel, spec['handlers'], base, e))
+            new_handlers = read(spec['handlers'])
+        except OSError:
+            new_handlers = None
+        code, listed, err = git('ls-tree', '--name-only', ref, '--', spec['handlers'])
+        old_handlers = None
+        if code == 0 and listed.split():
+            code, old_handlers, err = git('show', '%s:%s' % (ref, spec['handlers']))
+        if code != 0:
+            out('%s: FAILED: cannot read %s at %s from git: %s' % (rel, spec['handlers'], ref, err))
             rc = 1
             continue
         headers = {}
         for site in spec['sites']:
             header = site['members_of'][0]
-            with open(os.path.join(root, *header.split('/')), encoding='utf-8', newline='') as fh:
-                headers[header] = fh.read()
+            headers[header] = read(header)
         got, _ = verify(rel, old_text, new_text, spec, headers, out, old_handlers, new_handlers)
         rc |= got
     out('verbatim: %s' % ('OK' if rc == 0 else 'FAILED'))
@@ -2618,6 +2663,67 @@ def self_test():
         "the run under ['case 2:'] falls off the switch's end, which only a `default:` may",
         **form('off', lab12, two[:-1], two_functions, two_rows))
 
+    # ORIGINALS: a repository of five commits in this order, ORIGINAL first; the fixture file holds an
+    # unrelated line at ORIGINAL that it no longer holds at its own original, and is missing at the second.
+    commits = [ORIGINAL, '2000000', '3000000', '4000000', '5000000']
+    unrelated = SELF_OLD.replace('#include "A.h"', '#include "Old.h"')
+    repo = {(ORIGINAL, 'fixture'): unrelated, ('3000000', 'fixture'): SELF_OLD,
+            ('4000000', 'fixture'): SELF_OLD, ('5000000', 'fixture'): SELF_OLD}
+    tree = {'fixture': SELF_SITES, 'Handlers.cpp': SELF_HANDLERS, 'Thing.h': SELF_HEADERS['Thing.h']}
+
+    def fake_git(*args):
+        if args[:2] == ('cat-file', '-e'):
+            ref, _, path = args[2].partition(':')
+            found = ref[:-len('^{commit}')] in commits if ref.endswith('^{commit}') else (ref, path) in repo
+            return (0 if found else 128), '', ''
+        if args[:2] == ('merge-base', '--is-ancestor'):
+            if args[2] not in commits or args[3] not in commits:
+                return 128, '', 'fatal: not a valid commit'
+            return (0 if commits.index(args[2]) <= commits.index(args[3]) else 1), '', ''
+        if args[0] == 'show':
+            ref, _, path = args[1].partition(':')
+            return (0, repo[(ref, path)], '') if (ref, path) in repo else (128, '', 'fatal: no such path')
+        if args[0] == 'ls-tree':
+            return 0, '', ''
+        raise AssertionError('fake git: %r' % (args,))
+
+    def originals(label, want_rc, needle, original=None, base='4000000', with_original=True):
+        spec = dict(SELF_SPEC, original=original) if original else SELF_SPEC
+        got = []
+        try:
+            rc = check('.', base, got.append, with_original, fake_git, tree.__getitem__, {'fixture': spec})
+        except Exception as e:                                  # a crash fails the row
+            rc = 2
+            got.append('crashed: %r' % e)
+        text = '\n'.join(got)
+        ok = rc == want_rc and needle in text
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    identical = 'fixture: IDENTICAL to the base, byte for byte, with 5/5 bodies'
+    originals('ORIGINALS: the file at its own original: passes', 0, identical, original='3000000')
+    originals('ORIGINALS: the same file at ORIGINAL: fails on the unrelated line', 1,
+              "fixture: DIFFERS from the base after pasting back 5 bodies at 2 sites: line 1: base "
+              "'#include \"Old.h\"', rebuilt '#include \"A.h\"'")
+    originals('ORIGINALS: an original equal to the base: passes', 0, identical, original='4000000')
+    originals('ORIGINALS: an original ahead of the base: fails', 1,
+              'fixture: FAILED: the original 5000000 is ahead of the base 4000000', original='5000000')
+    originals('ORIGINALS: an original not in the repository: fails', 1,
+              'fixture: FAILED: the original 6000000 is not a commit of the repository', original='6000000')
+    originals('ORIGINALS: an original that does not hold the file: fails', 1,
+              'fixture: FAILED: the original 2000000 does not hold the file', original='2000000')
+    originals('ORIGINALS: an original spelled as a ref name: fails', 1,
+              "fixture: FAILED: the original 'HEAD' is not spelled as a commit's hex SHA", original='HEAD')
+    originals('ORIGINALS: without --original the base is read: passes', 0, identical,
+              original=ORIGINAL, with_original=False)
+    originals('ORIGINALS: a base not in the repository: fails', 1,
+              'fixture: FAILED: the base 6000000 is not a commit of the repository', base='6000000',
+              with_original=False)
+    originals('ORIGINALS: a base not in the repository, with --original: fails', 1,
+              'fixture: FAILED: the base 6000000 is not a commit of the repository', original='3000000',
+              base='6000000')
+
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
@@ -2628,16 +2734,14 @@ def main(argv):
     ap = argparse.ArgumentParser(description='The spell handler registry\'s verbatim proof (decoupling D11).')
     ap.add_argument('--root', default=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..')))
     ap.add_argument('--base', default=BASE)
-    ap.add_argument('--original', action='store_true', help='check against ORIGINAL, the tree before the first move')
+    ap.add_argument('--original', action='store_true', help='check each file against its original (ORIGINALS)')
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--check', action='store_true')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
-    if args.original:
-        args.base = ORIGINAL
     if args.self_test:
         return self_test()
-    return check(os.path.abspath(args.root), args.base)
+    return check(os.path.abspath(args.root), args.base, original=args.original)
 
 
 if __name__ == '__main__':
