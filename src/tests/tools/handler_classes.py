@@ -356,6 +356,7 @@ SELF_GUARDS = [
     ('a keyword defined away under a guard', '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_H_FIXTURE\n#define constexpr\n'),
     ('an empty upper-case macro that guards nothing',
      '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_H_FIXTURE\n#define MANGOS_INLINE\n'),
+    ('an empty upper-case macro under another #ifndef', '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_INLINE\n'),
 ]
 
 

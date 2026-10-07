@@ -40,6 +40,7 @@
 
 #include "TestHarness.h"
 #include "Creature.h"
+#include "DBCStores.h"
 #include "Player.h"
 #include "Unit.h"
 #include "spells/SpellCooldownMgr.h"
@@ -160,6 +161,8 @@ TEST(UnitCooldownActions_ACreatureEndsNoCooldown)
 
     creature.m_spellCooldownMgr.AddSpellCooldown(kSpell, 0, end);
     creature._AddCreatureSpellCooldown(kSpell, end);
+    // The category holds the stored spell, so a removal that reached the manager would end it.
+    sSpellCategoryStore[kCategory].insert(kSpell);
 
     unit.RemoveSpellCooldown(kSpell);
     unit.RemoveSpellCooldown(kSpell, true);
@@ -169,4 +172,6 @@ TEST(UnitCooldownActions_ACreatureEndsNoCooldown)
     CHECK_EQ(creature.m_spellCooldownMgr.GetSpellCooldownMap().size(), size_t(1));
     CHECK(creature.m_spellCooldownMgr.HasSpellCooldown(kSpell, now));
     CHECK(creature.HasSpellCooldown(kSpell));
+
+    sSpellCategoryStore.erase(kCategory);
 }
