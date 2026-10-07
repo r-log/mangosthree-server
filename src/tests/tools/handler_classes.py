@@ -25,8 +25,9 @@ Outside the classes it refuses:
     `#define` or namespace alias could rebind the name to another type); a pointer or reference to
     one, an initialised or `thread_local` one, one of any other type and one at namespace or class
     scope are refused;
-  - a `#define`, but for an include guard (`#ifndef X` directly followed by `#define X`): a macro can
-    spell storage the gate does not read (`#define KEEP(t, n) static t n`);
+  - a `#define`, but for an include guard (`#ifndef X` directly followed by `#define X`, with no value,
+    X upper case so no keyword such as `constexpr` or `const` can be defined away): a macro can spell
+    storage the gate does not read (`#define KEEP(t, n) static t n`);
   - a variable at namespace scope, or any declaration there with no body (a direct-initialised
     variable, `uint32 g(0);`, reads as a function declaration; a free helper is defined before its
     use instead), and an anonymous member there; named or anonymous namespaces and `extern "C"`
@@ -190,7 +191,8 @@ def check_text(rel, text):
                       'static (an alias or macro could rebind the exempted type)'))
     for m in DEFINE.finditer(clean):
         above = clean[:m.start()].rstrip().rsplit('\n', 1)[-1]
-        if m.group(2).strip() or not re.fullmatch(r'\s*#\s*ifndef\s+%s\s*' % re.escape(m.group(1)), above):
+        if (m.group(2).strip() or not re.fullmatch(r'[A-Z_][A-Z0-9_]*', m.group(1))
+                or not re.fullmatch(r'\s*#\s*ifndef\s+%s\s*' % re.escape(m.group(1)), above)):
             found.append((clean.count('\n', 0, m.start()) + 1, 'a #define that is not an include guard: %s' % (
                 ' '.join(m.group().split()))))
     flat = list(clean)
@@ -348,6 +350,14 @@ SELF_REBOUND = [
      '#define KEEP(t, n) static t n\n', '    KEEP(Player*, s_q);\n'),
 ]
 
+SELF_GUARDS = [
+    ('a keyword defined away as a guard', '#ifndef constexpr\n#define constexpr\n'),
+    ('a guard with a value', '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_H_FIXTURE 1\n'),
+    ('a keyword defined away under a guard', '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_H_FIXTURE\n#define constexpr\n'),
+    ('an empty upper-case macro that guards nothing',
+     '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_H_FIXTURE\n#define MANGOS_INLINE\n'),
+]
+
 
 def self_test():
     failures = []
@@ -370,6 +380,9 @@ def self_test():
         row(label + ': refused', len(got) == 1 and needle in got[0][1], got)
     got = check_text('fixture', '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_H_FIXTURE\n' + SELF_ACCEPTED + '#endif\n')
     row('an include guard: accepted', got == [], got)
+    for label, top in SELF_GUARDS:
+        got = check_text('fixture', top + SELF_ACCEPTED)
+        row(label + ': refused', any(w.startswith('a #define that is not an include guard') for _, w in got), got)
     local = '    static SqlStatementID s_p;\n    s_p = session.GetPlayer();\n    Helper(session);'
     for label, needles, top, body in SELF_REBOUND:
         got = check_text('fixture', top + SELF_ACCEPTED.replace('    Helper(session);', body + local, 1))
