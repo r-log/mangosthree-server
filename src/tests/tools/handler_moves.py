@@ -3,7 +3,8 @@
 rules and the keys of each entry.
 
 MOVES     one entry per function moved whole from a `WorldSession` member into a handler class's static,
-          each naming the commit it is proven against.
+          each naming the commit it is proven against. An entry whose `new_header` takes no session
+          lists no substitution and no edit.
 RESIDUES  one entry per change that kept an old file: the include lines it removed from it. An entry
           may also carry `edits`: deletions or replacements of whole blocks, each standing once at its base.
 
