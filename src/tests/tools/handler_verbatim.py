@@ -6,6 +6,9 @@ class's static (src/game/session/handlers/) is pasted back at its old place, and
 back byte for byte as it was at the entry's base; an old file still in the working tree (a residue,
 holding the functions that stay) must be the old file less the moved functions.
 
+MOVES and RESIDUES live in handler_moves.py beside this file, which a move edits; this file holds neither,
+and split_gate.py refuses to run it when it binds one or when the data file holds anything else.
+
 MOVES holds one entry per moved function:
   base, base_file, base_header  the commit the move is proven against (the parent of the change that
       moved it: each entry names its own, so moves from one file in several changes are proven apart),
@@ -98,104 +101,14 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402
 from verbatim import Failure, class_members, first_difference  # noqa: E402
+import split_gate  # noqa: E402
+from handler_moves import MOVES, RESIDUES  # noqa: E402
 
 SESSION_HEADER = 'src/game/Server/WorldSession.h'
 HANDLERS_DIR = 'src/game/session/handlers'
 
-COMBAT_BASE = '5c56c3ca2'
-COMBAT_FILE = 'src/game/session/handlers/combat/CombatHandlers.cpp'
-COMBAT_SWING = 'src/game/WorldHandlers/CombatHandler.cpp'
-COMBAT_DUEL = 'src/game/WorldHandlers/DuelHandler.cpp'
-
-VENDOR_BASE = '70b59aeba'
-VENDOR_FILE = 'src/game/session/handlers/economy/VendorHandlers.cpp'
-VENDOR_ORIGIN = 'src/game/WorldHandlers/ItemHandlerVendor.cpp'
-VENDOR_PLAYER = [('GetPlayer()', '_player')]
-
-MOVES = [
-    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
-         base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
-         new_header='void CombatHandlers::HandleAttackSwing(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=[('SendAttackStop(session, ', 'SendAttackStop(')],
-         edits=[('    Unit* pEnemy = session.GetPlayer()->GetMap()->GetUnit(guid);',
-                 '    Unit* pEnemy = _player->GetMap()->GetUnit(guid);'),
-                ('    if (session.GetPlayer()->IsFriendlyTo(pEnemy) || pEnemy->HasFlag(UNIT_FIELD_FLAGS, '
-                 'UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))',
-                 '    if (_player->IsFriendlyTo(pEnemy) || pEnemy->HasFlag(UNIT_FIELD_FLAGS, '
-                 'UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))'),
-                ('    session.GetPlayer()->Attack(pEnemy, true);',
-                 '    _player->Attack(pEnemy, true);')]),
-    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
-         base_header='void WorldSession::HandleAttackStopOpcode(WorldPacket& /*recv_data*/)',
-         new_header='void CombatHandlers::HandleAttackStop(WorldSession& session, WorldPacket& /*recv_data*/)'),
-    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
-         base_header='void WorldSession::HandleSetSheathedOpcode(WorldPacket& recv_data)',
-         new_header='void CombatHandlers::HandleSetSheathed(WorldSession& session, WorldPacket& recv_data)'),
-    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
-         base_header='void WorldSession::SendAttackStop(Unit const* enemy)',
-         new_header='void CombatHandlers::SendAttackStop(WorldSession& session, Unit const* enemy)'),
-    dict(base=COMBAT_BASE, base_file=COMBAT_DUEL, new_file=COMBAT_FILE,
-         base_header='void WorldSession::HandleDuelAcceptedOpcode(WorldPacket& recvPacket)',
-         new_header='void CombatHandlers::HandleDuelAccepted(WorldSession& session, WorldPacket& recvPacket)'),
-    dict(base=COMBAT_BASE, base_file=COMBAT_DUEL, new_file=COMBAT_FILE,
-         base_header='void WorldSession::HandleDuelCancelledOpcode(WorldPacket& recvPacket)',
-         new_header='void CombatHandlers::HandleDuelCancelled(WorldSession& session, WorldPacket& recvPacket)'),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleSellItemOpcode(WorldPacket& recv_data)',
-         new_header='void VendorHandlers::HandleSellItemOpcode(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=VENDOR_PLAYER,
-         edits=[('    Creature* pCreature = session.GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, '
-                 'UNIT_NPC_FLAG_VENDOR);',
-                 '    Creature* pCreature = GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, UNIT_NPC_FLAG_VENDOR);'),
-                ('    if (session.GetPlayer()->IsFeigningDeath())',
-                 '    if (GetPlayer()->IsFeigningDeath())'),
-                ('        session.GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);',
-                 '        GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);')]),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleBuybackItem(WorldPacket& recv_data)',
-         new_header='void VendorHandlers::HandleBuybackItem(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=VENDOR_PLAYER,
-         edits=[('    Creature* pCreature = session.GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, '
-                 'UNIT_NPC_FLAG_VENDOR);',
-                 '    Creature* pCreature = GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, UNIT_NPC_FLAG_VENDOR);'),
-                ('    if (session.GetPlayer()->IsFeigningDeath())',
-                 '    if (GetPlayer()->IsFeigningDeath())'),
-                ('        session.GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);',
-                 '        GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);')]),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleBuyItemOpcode(WorldPacket& recv_data)',
-         new_header='void VendorHandlers::HandleBuyItemOpcode(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=VENDOR_PLAYER,
-         edits=[('            session.GetPlayer()->BuyItemFromVendorSlot(vendorGuid, slot, item, count, bag, bagSlot);',
-                 '            GetPlayer()->BuyItemFromVendorSlot(vendorGuid, slot, item, count, bag, bagSlot);'),
-                ('            session.GetPlayer()->BuyCurrencyFromVendorSlot(vendorGuid, slot, item, count);',
-                 '            GetPlayer()->BuyCurrencyFromVendorSlot(vendorGuid, slot, item, count);')]),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleListInventoryOpcode(WorldPacket& recv_data)',
-         new_header='void VendorHandlers::HandleListInventoryOpcode(WorldSession& session, WorldPacket& recv_data)'),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleAutoStoreBagItemOpcode(WorldPacket& recv_data)',
-         new_header='void VendorHandlers::HandleAutoStoreBagItemOpcode(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=VENDOR_PLAYER),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleBuyBankSlotOpcode(WorldPacket& recvPacket)',
-         new_header='void VendorHandlers::HandleBuyBankSlotOpcode(WorldSession& session, WorldPacket& recvPacket)',
-         substitutions=VENDOR_PLAYER),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleAutoBankItemOpcode(WorldPacket& recvPacket)',
-         new_header='void VendorHandlers::HandleAutoBankItemOpcode(WorldSession& session, WorldPacket& recvPacket)',
-         substitutions=VENDOR_PLAYER),
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
-         base_header='void WorldSession::HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket)',
-         new_header='void VendorHandlers::HandleAutoStoreBankItemOpcode(WorldSession& session, '
-                    'WorldPacket& recvPacket)',
-         substitutions=VENDOR_PLAYER),
-]
-
-RESIDUES = [
-    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN,
-         removed=['#include "AchievementMgr.h"', '#include "Item.h"', '#include "UpdateData.h"']),
-]
+# The names handler_moves.py assigns; split_gate.py holds the split.
+DATA_NAMES = ('MOVES', 'RESIDUES')
 
 NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
 BASE_HEADER = re.compile(r'(?P<type>\S.*?) WorldSession::\w+\((?P<params>.*)\)$')
@@ -754,6 +667,11 @@ def self_test():
     checked('--check: a deleted origin file holding a function no entry moves fails', 1, 'which no entry moves',
             [], tree=False)
 
+    split = split_gate.self_test('handler_verbatim.py', 'handler_moves', DATA_NAMES, 'MOVES')
+    print('self-test: %-62s %s' % ('the split: MOVES bound in the tool, a stray data name: REFUSED',
+                                   'PASS' if not split else 'FAIL'))
+    failures += split
+
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
     print('self-test: %s (%d failure(s))' % ('PASS' if not failures else 'FAIL', len(failures)))
@@ -769,6 +687,8 @@ def main(argv):
     g.add_argument('--check', action='store_true')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
+    if split_gate.check(__file__, 'handler_moves', DATA_NAMES):
+        return 1
     if args.self_test:
         return self_test()
     return check(os.path.abspath(args.root), args.base)
