@@ -29,11 +29,9 @@
 class WorldPacket;
 class WorldSession;
 
-/// The client's PvP opcodes: so far the arena team's, inspecting a player's teams, querying a
-/// team and its roster, creating a team, inviting, accepting and declining, leaving, disbanding,
-/// removing a member and handing the captaincy on; the battleground opcodes of
-/// BattleGround/BattleGroundHandler.cpp join this class next. Static entry points the opcode
-/// table binds, each borrowing the session for one call and storing nothing.
+/// The client's PvP opcodes: the arena team's inspect, query, roster, create, invite, accept,
+/// decline, leave, disband, remove and leader opcodes: static entry points the opcode table
+/// binds, each borrowing the session for one call and storing nothing.
 struct PvpHandlers
 {
     public:
