@@ -74,6 +74,7 @@
 #include "CellImpl.h"
 #include "Language.h"
 #include "MapManager.h"
+#include "spells/handlers/AuraPeriodicHandlers.h"
 
 #define NULL_AURA_SLOT 0xFF
 
@@ -92,30 +93,10 @@ void Aura::HandleAuraProcTriggerSpell(bool apply, bool Real)
 
     Unit* target = GetTarget();
 
-    switch (GetId())
+    AuraProcTriggerContext ctx(this, target, apply);
+    if (SpellHandlerRegistry::Game().Dispatch<AuraProcTriggerSite>(GetId(), ctx).IsReturn())
     {
-            // some spell have charges by functionality not have its in spell data
-        case 28200:                                         // Ascendance (Talisman of Ascendance trinket)
-            if (apply)
-            {
-                GetHolder()->SetAuraCharges(6);
-            }
-            break;
-        case 50720:                                         // Vigilance (threat transfering)
-            if (apply)
-            {
-                if (Unit* caster = GetCaster())
-                {
-                    target->CastSpell(caster, 59665, true);
-                }
-            }
-            else
-            {
-                target->GetHostileRefManager().ResetThreatRedirection();
-            }
-            break;
-        default:
-            break;
+        return;
     }
 }
 
@@ -150,48 +131,10 @@ void Aura::HandlePeriodicTriggerSpell(bool apply, bool /*Real*/)
 
     if (!apply)
     {
-        switch (GetId())
+        AuraPeriodicTriggerContext ctx(this, target);
+        if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicTriggerSite>(GetId(), ctx).IsReturn())
         {
-            case 66:                                        // Invisibility
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    target->CastSpell(target, 32612, true, NULL, this);
-                }
-
-                return;
-            case 42783:                                     // Wrath of the Astrom...
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE && GetEffIndex() + 1 < MAX_EFFECT_INDEX)
-                {
-                    target->CastSpell(target, GetSpellProto()->CalculateSimpleValue(SpellEffectIndex(GetEffIndex() + 1)), true);
-                }
-
-                return;
-            case 46221:                                     // Animal Blood
-                if (target->GetTypeId() == TYPEID_PLAYER && m_removeMode == AURA_REMOVE_BY_DEFAULT && target->IsInWater())
-                {
-                    // No water level means no surface to pool blood on -- the aura is
-                    // only reachable while IsInWater, so this is a race, not a normal path.
-                    if (const auto surface = target->GetTerrain()->GetWaterLevel(
-                            target->Where().X(), target->Where().Y(), target->Where().Z()))
-                    {
-                        // Spawn Blood Pool
-                        target->CastSpell(target->Where().X(), target->Where().Y(), *surface, 63471, true);
-                    }
-                }
-
-                return;
-            case 51912:                                     // Ultra-Advanced Proto-Typical Shortening Blaster
-                if (m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                {
-                    if (Unit* pCaster = GetCaster())
-                    {
-                        pCaster->CastSpell(target, m_spellEffect->EffectTriggerSpell, true, NULL, this);
-                    }
-                }
-
-                return;
-            default:
-                break;
+            return;
         }
     }
 }
@@ -227,39 +170,10 @@ void Aura::HandlePeriodicEnergize(bool apply, bool Real)
 
     if (apply && !loading)
     {
-        switch (GetId())
+        AuraPeriodicEnergizeContext ctx(this, target);
+        if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicEnergizeSite>(GetId(), ctx).IsReturn())
         {
-            case 54833:                                     // Glyph of Innervate (value%/2 of casters base mana)
-            {
-                if (Unit* caster = GetCaster())
-                {
-                    m_modifier.m_amount = int32(caster->GetCreateMana() * GetBasePoints() / (200 * GetAuraMaxTicks()));
-                }
-                break;
-            }
-            case 29166:                                     // Innervate (value% of casters base mana)
-            {
-                if (Unit* caster = GetCaster())
-                {
-                    // Glyph of Innervate
-                    if (caster->HasAura(54832))
-                    {
-                        caster->CastSpell(caster, 54833, true, NULL, this);
-                    }
-
-                    m_modifier.m_amount = int32(caster->GetCreateMana() * GetBasePoints() / (100 * GetAuraMaxTicks()));
-                }
-                break;
-            }
-            case 48391:                                     // Owlkin Frenzy 2% base mana
-                m_modifier.m_amount = target->GetCreateMana() * 2 / 100;
-                break;
-            case 57669:                                     // Replenishment (0.2% from max)
-            case 61782:                                     // Infinite Replenishment
-                m_modifier.m_amount = target->GetMaxPower(POWER_MANA) * 2 / 1000;
-                break;
-            default:
-                break;
+            return;
         }
     }
 
@@ -294,26 +208,10 @@ void Aura::HandleAuraPeriodicDummy(bool apply, bool Real)
     {
         case SPELLFAMILY_ROGUE:
         {
-            switch(GetSpellProto()->ID)
+            AuraPeriodicDummyRogueContext ctx(this, target, apply);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicDummyRogueSite>(GetSpellProto()->ID, ctx).IsReturn())
             {
-                // Master of Subtlety
-                case 31666:
-                {
-                    if (apply)
-                    {
-                        // for make duration visible
-                        if (SpellAuraHolder* holder = target->GetSpellAuraHolder(31665))
-                        {
-                            holder->SetAuraMaxDuration(GetHolder()->GetAuraDuration());
-                            holder->RefreshHolder();
-                        }
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(31665);
-                    }
-                    break;
-                }
+                return;
             }
             break;
         }
@@ -1144,57 +1042,10 @@ void Aura::HandleAuraModIncreaseHealth(bool apply, bool Real)
 {
     Unit* target = GetTarget();
 
-    switch (GetId())
+    AuraIncreaseHealthContext ctx(this, target, apply, Real);
+    if (SpellHandlerRegistry::Game().Dispatch<AuraIncreaseHealthSite>(GetId(), ctx).IsReturn())
     {
-    // Special case with temporary increase max/current health
-            // Cases where we need to manually calculate the amount for the spell (by percentage)
-            // recalculate to full amount at apply for proper remove
-        case 54443:                                         // Demonic Empowerment (Voidwalker)
-        case 55233:                                         // Vampiric Blood
-        case 61254:                                         // Will of Sartharion (Obsidian Sanctum)
-            if (Real && apply)
-            {
-                m_modifier.m_amount = target->GetMaxHealth() * m_modifier.m_amount / 100;
-            }
-            // no break here
-
-            // Cases where m_amount already has the correct value (spells cast with CastCustomSpell or absolute values)
-
-        case 12976:                                         // Warrior Last Stand triggered spell
-        case 28726:                                         // Nightmare Seed ( Nightmare Seed )
-        case 31616:                                         // Nature's Guardian
-        case 34511:                                         // Valor (Bulwark of Kings, Bulwark of the Ancient Kings)
-        case 44055: case 55915: case 55917: case 67596:     // Tremendous Fortitude (Battlemaster's Alacrity)
-        case 50322:                                         // Survival Instincts
-        case 53479:                                         // Hunter pet - Last Stand
-
-        case 59465:                                         // Brood Rage (Ahn'Kahet)
-        {
-            if (Real)
-            {
-                if (apply)
-                {
-                    target->HandleStatModifier(UNIT_MOD_HEALTH, TOTAL_VALUE, float(m_modifier.m_amount), apply);
-                    target->ModifyHealth(m_modifier.m_amount);
-                }
-                else
-                {
-                    if (int32(target->GetHealth()) > m_modifier.m_amount)
-                    {
-                        target->ModifyHealth(-m_modifier.m_amount);
-                    }
-                    else
-                    {
-                        target->SetHealth(1);
-                    }
-                    target->HandleStatModifier(UNIT_MOD_HEALTH, TOTAL_VALUE, float(m_modifier.m_amount), apply);
-                }
-            }
-            return;
-        }
-        // generic case
-        default:
-            target->HandleStatModifier(UNIT_MOD_HEALTH, TOTAL_VALUE, float(m_modifier.m_amount), apply);
+        return;
     }
 }
 

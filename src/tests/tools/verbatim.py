@@ -204,7 +204,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS above).
-BASE = '0e7fc259b'
+BASE = 'd88adf566'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -587,6 +587,158 @@ SITES = {
             'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.name_id', 'name_id')] + VOID_SUBSTITUTIONS,
             'labels': {
                 29886: '        case 29886: // Create Soulwell'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellAuraPeriodic.cpp': {
+        'handlers': 'src/game/spells/handlers/AuraPeriodicHandlers.cpp',
+        'rows_function': 'RegisterAuraPeriodicRows',
+        'added': ['#include "spells/handlers/AuraPeriodicHandlers.h"'],
+        'sites': [{
+            'name': 'HandleAuraProcTriggerSpell (switch (GetId()))',
+            'dispatch': [
+                '    AuraProcTriggerContext ctx(this, target, apply);',
+                '    if (SpellHandlerRegistry::Game().Dispatch<AuraProcTriggerSite>(GetId(), ctx).IsReturn())',
+                '    {',
+                '        return;',
+                '    }'],
+            'open': ['    switch (GetId())', '    {'],
+            'close': ['    }'],
+            'label_indent': 8,
+            'traits': 'AuraProcTriggerSite',
+            'default': '        default:',
+            'context': 'AuraProcTriggerContext',
+            'live_outs': ['target', 'apply'],
+            'in_scope': ['Real'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.apply', 'apply'),
+                              ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetHolder()', 'GetHolder()')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                28200: '        case 28200:                                         '
+                       '// Ascendance (Talisman of Ascendance trinket)',
+                50720: '        case 50720:                                         // Vigilance (threat transfering)'},
+        }, {
+            'name': 'HandlePeriodicTriggerSpell (switch (GetId()))',
+            'dispatch': [
+                '        AuraPeriodicTriggerContext ctx(this, target);',
+                '        if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicTriggerSite>(GetId(), ctx).IsReturn())',
+                '        {',
+                '            return;',
+                '        }'],
+            'open': ['        switch (GetId())', '        {'],
+            'close': ['        }'],
+            'label_indent': 12,
+            'traits': 'AuraPeriodicTriggerSite',
+            'default': '            default:',
+            'context': 'AuraPeriodicTriggerContext',
+            'live_outs': ['target'],
+            'in_scope': ['apply'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.aura->GetRemoveMode()', 'm_removeMode'),
+                              ('ctx.aura->GetSpellEffect()', 'm_spellEffect'), ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetEffIndex()', 'GetEffIndex()'),
+                              ('ctx.aura->GetSpellProto()', 'GetSpellProto()'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                66: '            case 66:                                        // Invisibility',
+                42783: '            case 42783:                                     // Wrath of the Astrom...',
+                46221: '            case 46221:                                     // Animal Blood',
+                51912: '            case 51912:                                     '
+                       '// Ultra-Advanced Proto-Typical Shortening Blaster'},
+        }, {
+            'name': 'HandlePeriodicEnergize (switch (GetId()))',
+            'dispatch': [
+                '        AuraPeriodicEnergizeContext ctx(this, target);',
+                '        if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicEnergizeSite>(GetId(), ctx).IsReturn())',
+                '        {',
+                '            return;',
+                '        }'],
+            'open': ['        switch (GetId())', '        {'],
+            'close': ['        }'],
+            'label_indent': 12,
+            'traits': 'AuraPeriodicEnergizeSite',
+            'default': '            default:',
+            'context': 'AuraPeriodicEnergizeContext',
+            'live_outs': ['target'],
+            'in_scope': ['apply', 'Real', 'loading'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.aura->GetModifier()->', 'm_modifier.'),
+                              ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetBasePoints()', 'GetBasePoints()'),
+                              ('ctx.aura->GetAuraMaxTicks()', 'GetAuraMaxTicks()'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                54833: '            case 54833:                                     '
+                       '// Glyph of Innervate (value%/2 of casters base mana)',
+                29166: '            case 29166:                                     '
+                       '// Innervate (value% of casters base mana)',
+                48391: '            case 48391:                                     // Owlkin Frenzy 2% base mana',
+                57669: '            case 57669:                                     // Replenishment (0.2% from max)',
+                61782: '            case 61782:                                     // Infinite Replenishment'},
+        }, {
+            'name': 'HandleAuraPeriodicDummy (switch(GetSpellProto()->ID))',
+            'dispatch': [
+                '            AuraPeriodicDummyRogueContext ctx(this, target, apply);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicDummyRogueSite>(GetSpellProto()->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch(GetSpellProto()->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraPeriodicDummyRogueSite',
+            'context': 'AuraPeriodicDummyRogueContext',
+            'live_outs': ['target', 'apply'],
+            'in_scope': ['Real', 'loading'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.apply', 'apply'),
+                              ('ctx.aura->GetHolder()', 'GetHolder()')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                31666: '                case 31666:'},
+        }, {
+            'name': 'HandleAuraModIncreaseHealth (switch (GetId()))',
+            'dispatch': [
+                '    AuraIncreaseHealthContext ctx(this, target, apply, Real);',
+                '    if (SpellHandlerRegistry::Game().Dispatch<AuraIncreaseHealthSite>(GetId(), ctx).IsReturn())',
+                '    {',
+                '        return;',
+                '    }'],
+            'open': ['    switch (GetId())', '    {'],
+            'close': ['    }'],
+            'label_indent': 8,
+            'traits': 'AuraIncreaseHealthSite',
+            'default': '        default:',
+            'context': 'AuraIncreaseHealthContext',
+            'live_outs': ['target', 'apply', 'Real'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.apply', 'apply'), ('ctx.real', 'Real'),
+                              ('ctx.aura->GetModifier()->', 'm_modifier.')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                54443: '        case 54443:                                         '
+                       '// Demonic Empowerment (Voidwalker)',
+                55233: '        case 55233:                                         // Vampiric Blood',
+                61254: '        case 61254:                                         '
+                       '// Will of Sartharion (Obsidian Sanctum)',
+                12976: '        case 12976:                                         '
+                       '// Warrior Last Stand triggered spell',
+                28726: '        case 28726:                                         '
+                       '// Nightmare Seed ( Nightmare Seed )',
+                31616: "        case 31616:                                         // Nature's Guardian",
+                34511: '        case 34511:                                         '
+                       '// Valor (Bulwark of Kings, Bulwark of the Ancient Kings)',
+                44055: '        case 44055: case 55915: case 55917: case 67596:     '
+                       "// Tremendous Fortitude (Battlemaster's Alacrity)",
+                55915: '        case 44055: case 55915: case 55917: case 67596:     '
+                       "// Tremendous Fortitude (Battlemaster's Alacrity)",
+                55917: '        case 44055: case 55915: case 55917: case 67596:     '
+                       "// Tremendous Fortitude (Battlemaster's Alacrity)",
+                67596: '        case 44055: case 55915: case 55917: case 67596:     '
+                       "// Tremendous Fortitude (Battlemaster's Alacrity)",
+                50322: '        case 50322:                                         // Survival Instincts',
+                53479: '        case 53479:                                         // Hunter pet - Last Stand',
+                59465: "        case 59465:                                         // Brood Rage (Ahn'Kahet)"},
         }],
     },
 }
