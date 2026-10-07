@@ -27,14 +27,16 @@
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
 /// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's,
-/// EffectEnergize's and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their
-/// contexts, and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps
-/// them off the Unit, the transmitted-object and energize defaults, the periodic-trigger labels on such a mode, the
-/// health labels on an apply that is not real, the health default and the energize injector labels on a bare
-/// Creature); a body that casts, sets a display or reads a level or an aura needs a live Unit, which the harness
-/// record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the coverage scenario
-/// two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid, quest-tame,
-/// transform, threat, transmitted-object, energize or periodic-aura label, nor another removal one).
+/// EffectEnergize's, EffectActivateObject's, EffectResurrect's and the five of SpellAuraPeriodic.cpp) are checked for
+/// their keys, their defaults and their contexts, and run where a body needs no live Unit (the quest-tame labels, the
+/// removal labels on a mode that keeps them off the Unit, the transmitted-object, energize and resurrect defaults,
+/// the periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default,
+/// the energize injector labels on a bare Creature and the 54732 defibrillate roll, which has no failure spell);
+/// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
+/// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
+/// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
+/// druid, quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect or periodic-aura
+/// label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -50,7 +52,9 @@
 ///                            AuraPeriodicHandlers_TheEnergizeSiteHoldsItsFiveLabelsAndTheDefault,
 ///                            AuraPeriodicHandlers_TheRogueSiteHoldsItsOneLabelAndNoDefault,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthSiteHoldsItsFourteenLabelsAndTheDefault,
-///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault,
+///                            SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
+///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -59,18 +63,24 @@
 ///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault,
 ///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault,
 ///                            the five AuraPeriodicHandlers_The...SiteHolds... tests (no id at another site),
-///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault,
+///                            SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
+///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
 ///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault,
-///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault,
+///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault
+///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
 ///                            AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs,
-///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault,
+///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault
+///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -83,7 +93,9 @@
 ///                            AuraControlHandlers_TheThreatContextAliasesTheThreeLocals,
 ///                            SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry,
 ///                            the five AuraPeriodicHandlers_The...ContextAliases... tests,
-///                            SpellEffectHealPowerHandlers_TheEnergizeContextAliasesTheSpellAndTheLevelLocals
+///                            SpellEffectHealPowerHandlers_TheEnergizeContextAliasesTheSpellAndTheLevelLocals,
+///                            SpellEffectObjectCombatHandlers_TheActivateObjectContextAliasesTheSpell,
+///                            SpellEffectObjectCombatHandlers_TheResurrectContextAliasesTheSpell
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
 
@@ -95,6 +107,8 @@
 #include "spells/handlers/SpellEffectTailHandlers.h"
 #include "spells/handlers/AuraPeriodicHandlers.h"
 #include "spells/handlers/SpellEffectHealPowerHandlers.h"
+#include "spells/handlers/SpellEffectObjectCombatHandlers.h"
+#include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
 #include "Creature.h"
@@ -559,11 +573,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
-    // transmitted-object site's row and default, the periodic auras' 26 rows and 4 defaults, and the energize site's
-    // 9 rows and default.
+    // transmitted-object site's row and default, the periodic auras' 26 rows and 4 defaults, the energize site's
+    // 9 rows and default, the activate-object site's 33 rows, and the resurrect site's 3 rows and default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(119));
-    CHECK_EQ(game.CountDefaults(), std::size_t(7));
+    CHECK_EQ(game.Count(), std::size_t(155));
+    CHECK_EQ(game.CountDefaults(), std::size_t(8));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -1108,8 +1122,8 @@ TEST(SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry)
 
 namespace
 {
-    // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize site and the
-    // earlier files' ids.
+    // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object
+    // and resurrect sites and the earlier files' ids.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
     {
         return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
@@ -1119,6 +1133,9 @@ namespace
                 registry.Find<AuraPeriodicDummyRogueSite>(spellId) != NULL) ||
                (site != AuraIncreaseHealthSite::Key && registry.Find<AuraIncreaseHealthSite>(spellId) != NULL) ||
                (site != SpellEffectEnergizeSite::Key && registry.Find<SpellEffectEnergizeSite>(spellId) != NULL) ||
+               (site != SpellEffectActivateObjectSite::Key &&
+                registry.Find<SpellEffectActivateObjectSite>(spellId) != NULL) ||
+               (site != SpellEffectResurrectSite::Key && registry.Find<SpellEffectResurrectSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -1549,4 +1566,221 @@ TEST(SpellEffectHealPowerHandlers_TheEnergizeContextAliasesTheSpellAndTheLevelLo
     level_multiplier = 4;
     CHECK_EQ(ctx.level_diff, -5);
     CHECK_EQ(ctx.level_multiplier, 4);
+}
+
+namespace
+{
+    // Spell.dbc rows as the loader makes them (SpellEntry has no default constructor: it declares a private copy
+    // constructor): zeroed, with the id set.
+    struct ObjectCombatSpellRow
+    {
+        alignas(SpellEntry) unsigned char bytes[sizeof(SpellEntry)];
+    };
+
+    ObjectCombatSpellRow s_objectCombatRows[2] = {};
+
+    SpellEntry const* ObjectCombatSpell(std::size_t slot, uint32 id)
+    {
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(s_objectCombatRows[slot].bytes);
+        row->ID = id;
+        return row;
+    }
+
+    // The 15 Wind Stone summons, the 11 Simon Game spells, the 5 Skettis summons, Place Fake Fur and Summon Ahune
+    // Lieutenant, in the switch's order.
+    uint32 const ACTIVATE_OBJECT_IDS[] =
+    {
+        24734, 24744, 24756, 24758, 24760, 24763, 24765, 24768, 24770, 24772, 24784, 24786, 24788, 24789, 24790,
+        40176, 40177, 40178, 40179, 40283, 40284, 40285, 40286, 40494, 40495, 40512,
+        40632, 40640, 40642, 40644, 41004,
+        46085,
+        46592
+    };
+}
+
+TEST(SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectObjectCombatHandlers(registry), uint32(37)); // 33 + 3 rows and the resurrect default
+    CHECK_EQ(registry.Count(), std::size_t(36));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK_EQ(registry.CountAt(SpellEffectActivateObjectSite::Key), std::size_t(33));
+
+    // 33 labels, five bodies: the Wind Stone summons share one, the Simon Game spells another, the Skettis summons a
+    // third; Place Fake Fur and Summon Ahune Lieutenant each have their own.
+    typedef SpellHandler<SpellEffectActivateObjectSite>::Function ActivateBody;
+    ActivateBody windStone = registry.Find<SpellEffectActivateObjectSite>(24734);
+    ActivateBody simonGame = registry.Find<SpellEffectActivateObjectSite>(40176);
+    ActivateBody skettis = registry.Find<SpellEffectActivateObjectSite>(40632);
+    ActivateBody fakeFur = registry.Find<SpellEffectActivateObjectSite>(46085);
+    ActivateBody ahune = registry.Find<SpellEffectActivateObjectSite>(46592);
+    std::set<ActivateBody> bodies = { windStone, simonGame, skettis, fakeFur, ahune };
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(5));
+    for (std::size_t i = 0; i < 33; ++i)
+    {
+        ActivateBody body = registry.Find<SpellEffectActivateObjectSite>(ACTIVATE_OBJECT_IDS[i]);
+        CHECK(body == (i < 15 ? windStone : i < 26 ? simonGame : i < 31 ? skettis : i == 31 ? fakeFur : ahune));
+    }
+
+    // No default: an id with no row finds nothing, and its dispatch is a miss, so the misc value's case goes on to
+    // its own `break;` with nothing changed.
+    CHECK(registry.FindDefault<SpellEffectActivateObjectSite>() == NULL);
+    CHECK(registry.Find<SpellEffectActivateObjectSite>(12345) == NULL);
+    GameObject* target = NULL;
+    Unit* caster = NULL;
+    SpellEntry const* spellInfo = ObjectCombatSpell(0, 12345);
+    SpellEffectActivateObjectContext ctx(target, caster, spellInfo);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<SpellEffectActivateObjectSite>(12345, ctx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+    CHECK(target == NULL);
+    CHECK(caster == NULL);
+    CHECK(spellInfo->ID == 12345);
+
+    // Registering again on the same table changes nothing: every key and the resurrect default are taken.
+    CHECK_EQ(RegisterSpellEffectObjectCombatHandlers(registry), uint32(37));
+    CHECK_EQ(registry.Count(), std::size_t(36));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK(registry.Find<SpellEffectActivateObjectSite>(24734) == windStone);
+    CHECK(registry.Find<SpellEffectActivateObjectSite>(46592) == ahune);
+
+    // Keyed on the activate-object site only: its labels are no other site's, and the other sites' are not its; the
+    // game's table holds the same rows and no default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : ACTIVATE_OBJECT_IDS)
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectActivateObjectSite::Key, spellId));
+        CHECK(game.Find<SpellEffectActivateObjectSite>(spellId) == registry.Find<SpellEffectActivateObjectSite>(spellId));
+    }
+    for (uint32 spellId : { 8342u, 22999u, 54732u, 29886u, 9512u, 41099u, 54833u })
+    {
+        CHECK(game.Find<SpellEffectActivateObjectSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectActivateObjectSite::Key), std::size_t(33));
+    CHECK(game.FindDefault<SpellEffectActivateObjectSite>() == NULL);
+}
+
+TEST(SpellEffectObjectCombatHandlers_TheActivateObjectContextAliasesTheSpell)
+{
+    alignas(16) static unsigned char objects[4][16];
+    GameObject* target = reinterpret_cast<GameObject*>(objects[0]);
+    Unit* caster = reinterpret_cast<Unit*>(objects[1]);
+    SpellEntry const* spellInfo = ObjectCombatSpell(0, 24734);
+    SpellEffectActivateObjectContext ctx(target, caster, spellInfo);
+    CHECK(ctx.gameObjTarget == target);
+    CHECK(ctx.m_caster == caster);
+    CHECK(ctx.m_spellInfo == spellInfo);
+
+    ctx.gameObjTarget = reinterpret_cast<GameObject*>(objects[2]); // the target is the spell's member, not a copy
+    CHECK(target == reinterpret_cast<GameObject*>(objects[2]));
+    target = reinterpret_cast<GameObject*>(objects[0]);
+    CHECK(ctx.gameObjTarget == reinterpret_cast<GameObject*>(objects[0]));
+    ctx.m_caster = reinterpret_cast<Unit*>(objects[3]);         // so is the caster
+    CHECK(caster == reinterpret_cast<Unit*>(objects[3]));
+    caster = reinterpret_cast<Unit*>(objects[1]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(objects[1]));
+    ctx.m_spellInfo = ObjectCombatSpell(1, 40176);              // and the spell's entry
+    CHECK(spellInfo->ID == 40176);
+    spellInfo = ObjectCombatSpell(0, 24734);
+    CHECK(ctx.m_spellInfo->ID == 24734);
+}
+
+TEST(SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectObjectCombatHandlers(registry), uint32(37));
+    CHECK_EQ(registry.CountAt(SpellEffectResurrectSite::Key), std::size_t(3));
+
+    // Three labels, one body, and a default that is not it.
+    typedef SpellHandler<SpellEffectResurrectSite>::Function ResurrectBody;
+    ResurrectBody defibrillate = registry.Find<SpellEffectResurrectSite>(8342);
+    ResurrectBody onMiss = registry.FindDefault<SpellEffectResurrectSite>();
+    CHECK(defibrillate != NULL);
+    CHECK(onMiss != NULL);
+    CHECK(defibrillate != onMiss);
+    CHECK(registry.Find<SpellEffectResurrectSite>(22999) == defibrillate);
+    CHECK(registry.Find<SpellEffectResurrectSite>(54732) == defibrillate);
+    CHECK(registry.Find<SpellEffectResurrectSite>(12345) == NULL);
+
+    // A miss runs the default, which answers Continue as a switch's `default: break;` does and changes nothing.
+    Unit* caster = NULL;
+    Item* castItem = NULL;
+    SpellEntry const* spellInfo = ObjectCombatSpell(0, 12345);
+    SpellEffectResurrectContext ctx(caster, castItem, spellInfo);
+    SpellHandlerOutcome<void> missed = registry.Dispatch<SpellEffectResurrectSite>(12345, ctx);
+    CHECK(missed.IsContinue());
+    CHECK(!missed.IsReturn());
+    CHECK(!missed.IsMiss());
+    CHECK(caster == NULL);
+    CHECK(castItem == NULL);
+
+    // 54732 has no failure spell, so its body needs no live caster: a failed roll (33 in 100) answers Return, ending
+    // the resurrection, and a successful one Continue; never a miss, and neither casts. 400 rolls see both.
+    spellInfo = ObjectCombatSpell(0, 54732);
+    uint32 returned = 0;
+    uint32 continued = 0;
+    for (uint32 roll = 0; roll < 400; ++roll)
+    {
+        SpellHandlerOutcome<void> rolled = registry.Dispatch<SpellEffectResurrectSite>(54732, ctx);
+        CHECK(rolled.IsReturn() || rolled.IsContinue());
+        if (rolled.IsReturn())
+        {
+            ++returned;
+        }
+        else if (rolled.IsContinue())
+        {
+            ++continued;
+        }
+    }
+    CHECK_EQ(returned + continued, uint32(400));
+    CHECK(returned > 0);
+    CHECK(continued > 0);
+    CHECK(caster == NULL);
+    CHECK(castItem == NULL);
+
+    // Registering again on the same table changes nothing.
+    CHECK_EQ(RegisterSpellEffectObjectCombatHandlers(registry), uint32(37));
+    CHECK_EQ(registry.CountAt(SpellEffectResurrectSite::Key), std::size_t(3));
+    CHECK(registry.Find<SpellEffectResurrectSite>(8342) == defibrillate);
+    CHECK(registry.FindDefault<SpellEffectResurrectSite>() == onMiss);
+
+    // Keyed on the resurrect site only; the game's table holds the same rows and the same default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 8342u, 22999u, 54732u })
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectResurrectSite::Key, spellId));
+        CHECK(game.Find<SpellEffectResurrectSite>(spellId) == defibrillate);
+    }
+    for (uint32 spellId : { 24734u, 40176u, 46592u, 29886u, 9512u, 41099u })
+    {
+        CHECK(game.Find<SpellEffectResurrectSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectResurrectSite::Key), std::size_t(3));
+    CHECK(game.FindDefault<SpellEffectResurrectSite>() == onMiss);
+}
+
+TEST(SpellEffectObjectCombatHandlers_TheResurrectContextAliasesTheSpell)
+{
+    alignas(16) static unsigned char objects[4][16];
+    Unit* caster = reinterpret_cast<Unit*>(objects[0]);
+    Item* castItem = reinterpret_cast<Item*>(objects[1]);
+    SpellEntry const* spellInfo = ObjectCombatSpell(0, 8342);
+    SpellEffectResurrectContext ctx(caster, castItem, spellInfo);
+    CHECK(ctx.m_caster == caster);
+    CHECK(ctx.m_CastItem == castItem);
+    CHECK(ctx.m_spellInfo == spellInfo);
+
+    ctx.m_caster = reinterpret_cast<Unit*>(objects[2]);         // the caster is the spell's member, not a copy
+    CHECK(caster == reinterpret_cast<Unit*>(objects[2]));
+    caster = reinterpret_cast<Unit*>(objects[0]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(objects[0]));
+    ctx.m_CastItem = reinterpret_cast<Item*>(objects[3]);       // so is the item it is cast with
+    CHECK(castItem == reinterpret_cast<Item*>(objects[3]));
+    castItem = NULL;
+    CHECK(ctx.m_CastItem == NULL);
+    ctx.m_spellInfo = ObjectCombatSpell(1, 22999);              // and the spell's entry
+    CHECK(spellInfo->ID == 22999);
+    spellInfo = ObjectCombatSpell(0, 8342);
+    CHECK(ctx.m_spellInfo->ID == 8342);
 }

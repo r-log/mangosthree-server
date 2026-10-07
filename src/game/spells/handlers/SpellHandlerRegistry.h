@@ -97,7 +97,11 @@ enum SpellHandlerSite
     /// `Aura::HandleAuraModIncreaseHealth`: its `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_INCREASE_HEALTH = 15,
     /// `Spell::EffectEnergize`, before the amount is shrunk by level: its `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_EFFECT_ENERGIZE = 16
+    SPELL_HANDLER_SITE_SPELL_EFFECT_ENERGIZE = 16,
+    /// `Spell::EffectActivateObject`, the custom-use misc value: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_ACTIVATE_OBJECT = 17,
+    /// `Spell::EffectResurrect`, before the request is sent: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_RESURRECT = 18
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.
