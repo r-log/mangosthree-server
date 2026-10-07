@@ -36,7 +36,9 @@
 /// of an empty item guid to its end and returns at that guid before it reads the player, sending
 /// nothing. The CMSG_ARENA_TEAM_INVITE row reads an invite to team 0 of an empty name to its end
 /// and, the name finding no player, answers with one SMSG_ARENA_TEAM_COMMAND_RESULT through the
-/// session before it reads the player.
+/// session before it reads the player. The CMSG_BATTLEFIELD_LIST row reads a list request for type
+/// 0 to its end and, no battlemaster list entry naming that type, returns before it reads the
+/// player, sending nothing.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -282,4 +284,48 @@ TEST(OpcodeDispatch_ArenaTeamRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_ARENA_TEAM_REMOVE].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamRemove>);
     CHECK(opcodeTable[CMSG_ARENA_TEAM_LEADER].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamLeader>);
     CHECK(opcodeTable[CMSG_ARENA_TEAM_INVITE].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_BattlefieldListRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket list(CMSG_BATTLEFIELD_LIST, 4);
+    list << uint32(0);
+
+    opcodeTable[CMSG_BATTLEFIELD_LIST].handler(session, list);
+
+    CHECK_EQ(list.rpos(), size_t(4));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_BattleGroundRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_BATTLEMASTER_HELLO].handler == &OpcodeThunk<&PvpHandlers::HandleBattlemasterHello>);
+    CHECK(opcodeTable[CMSG_BATTLEMASTER_JOIN].handler == &OpcodeThunk<&PvpHandlers::HandleBattlemasterJoin>);
+    CHECK(opcodeTable[CMSG_BATTLEGROUND_PLAYER_POSITIONS].handler
+          == &OpcodeThunk<&PvpHandlers::HandleBattleGroundPlayerPositions>);
+    CHECK(opcodeTable[CMSG_PVP_LOG_DATA].handler == &OpcodeThunk<&PvpHandlers::HandlePVPLogData>);
+    CHECK(opcodeTable[CMSG_BATTLEFIELD_LIST].handler == &OpcodeThunk<&PvpHandlers::HandleBattlefieldList>);
+    CHECK(opcodeTable[CMSG_BATTLEFIELD_PORT].handler == &OpcodeThunk<&PvpHandlers::HandleBattleFieldPort>);
+    CHECK(opcodeTable[CMSG_LEAVE_BATTLEFIELD].handler == &OpcodeThunk<&PvpHandlers::HandleLeaveBattlefield>);
+    CHECK(opcodeTable[CMSG_BATTLEFIELD_STATUS].handler == &OpcodeThunk<&PvpHandlers::HandleBattlefieldStatus>);
+    CHECK(opcodeTable[CMSG_AREA_SPIRIT_HEALER_QUERY].handler == &OpcodeThunk<&PvpHandlers::HandleAreaSpiritHealerQuery>);
+    CHECK(opcodeTable[CMSG_AREA_SPIRIT_HEALER_QUEUE].handler == &OpcodeThunk<&PvpHandlers::HandleAreaSpiritHealerQueue>);
+    CHECK(opcodeTable[CMSG_BATTLEMASTER_JOIN_ARENA].handler == &OpcodeThunk<&PvpHandlers::HandleBattlemasterJoinArena>);
+    CHECK(opcodeTable[CMSG_REPORT_PVP_AFK].handler == &OpcodeThunk<&PvpHandlers::HandleReportPvPAFK>);
+    CHECK(opcodeTable[CMSG_REQUEST_RATED_BG_STATS].handler == &OpcodeThunk<&PvpHandlers::HandleRequestRatedBGStats>);
+    CHECK(opcodeTable[CMSG_REQUEST_PVP_OPTIONS_ENABLED].handler
+          == &OpcodeThunk<&PvpHandlers::HandleRequestPvPOptionsEnabled>);
+    CHECK(opcodeTable[CMSG_REQUEST_PVP_REWARDS].handler == &OpcodeThunk<&PvpHandlers::HandleRequestPvPRewards>);
+    CHECK(opcodeTable[CMSG_REQUEST_RATED_BG_INFO].handler == &OpcodeThunk<&PvpHandlers::HandleRequestRatedBgInfo>);
+    CHECK(opcodeTable[CMSG_BATTLEFIELD_LIST].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }

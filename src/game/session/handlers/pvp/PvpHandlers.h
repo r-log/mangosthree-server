@@ -30,8 +30,11 @@ class WorldPacket;
 class WorldSession;
 
 /// The client's PvP opcodes: the arena team's inspect, query, roster, create, invite, accept,
-/// decline, leave, disband, remove and leader opcodes: static entry points the opcode table
-/// binds, each borrowing the session for one call and storing nothing.
+/// decline, leave, disband, remove and leader opcodes; the battlemaster's hello and join, the
+/// arena join, the battlefield list, port, leave and status, the flag carriers' positions, the
+/// PvP log, the spirit healer's query and queue, the AFK report, and the rated battleground
+/// stats, rated battleground info, PvP options and PvP rewards requests: static entry points the
+/// opcode table binds, each borrowing the session for one call and storing nothing.
 struct PvpHandlers
 {
     public:
@@ -46,6 +49,22 @@ struct PvpHandlers
         static void HandleArenaTeamDisband(WorldSession& session, WorldPacket& recv_data);
         static void HandleArenaTeamRemove(WorldSession& session, WorldPacket& recv_data);
         static void HandleArenaTeamLeader(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBattlemasterHello(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBattlemasterJoin(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBattleGroundPlayerPositions(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePVPLogData(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBattlefieldList(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBattleFieldPort(WorldSession& session, WorldPacket& recv_data);
+        static void HandleLeaveBattlefield(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBattlefieldStatus(WorldSession& session, WorldPacket& recv_data);
+        static void HandleAreaSpiritHealerQuery(WorldSession& session, WorldPacket& recv_data);
+        static void HandleAreaSpiritHealerQueue(WorldSession& session, WorldPacket& recv_data);
+        static void HandleBattlemasterJoinArena(WorldSession& session, WorldPacket& recv_data);
+        static void HandleReportPvPAFK(WorldSession& session, WorldPacket& recv_data);
+        static void HandleRequestRatedBGStats(WorldSession& session, WorldPacket& recv_data);
+        static void HandleRequestPvPOptionsEnabled(WorldSession& session, WorldPacket& recv_data);
+        static void HandleRequestPvPRewards(WorldSession& session, WorldPacket& recv_data);
+        static void HandleRequestRatedBgInfo(WorldSession& session, WorldPacket& recv_data);
 };
 
 #endif
