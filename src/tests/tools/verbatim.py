@@ -105,11 +105,15 @@ The run shapes beyond one label per line and a body that ends in its own termina
      only inside the switches the site's open lines start (each closed by the first close line after
      them) that hold one of the site's label lines, so a `default:` line standing in another switch of
      the file is never read; found twice there fails.
-  V, a valued return: a site in a function returning T names `value` T and lists
-     valued_substitutions(T): `return SpellHandlerOutcome<T>::Return(x);` pastes back as `return x;`
-     (x on that line), `return SpellHandlerOutcome<T>::Continue();` as `break;`. Every handler the site
-     registers must answer SpellHandlerOutcome<T> (a site with no `value` answers void); another
-     outcome type fails.
+  V, a valued return: a site in a function returning T names `value` T, and its outcome pairs are built
+     from it (valued_substitutions(T), after the site's own substitutions), so the data names only T:
+     `return SpellHandlerOutcome<T>::Return(x);` pastes back as `return x;` (x on that line),
+     `return SpellHandlerOutcome<T>::Continue();` as `break;`. Every handler the site registers must
+     answer SpellHandlerOutcome<T> (a site with no `value` answers void and ends its substitutions with
+     VOID_SUBSTITUTIONS); another outcome type fails. Each fails by name: a `value` that is not a plain
+     type spelling (empty, or holding a newline, `;`, `{` or `}`); a site with `value` none of whose
+     handlers in the working tree returns a value (a `Return(x)`, comments aside); a handler returning a
+     value at a site with no `value`.
   M, several labels on one line: LABELS maps each id of a line `case 1: case 2: case 3:` to that same
      line, and every label line must hold exactly the ids mapped to it and nothing else. The ids of one line are rows
      of one run, so they share its function (an id of the line registered by another function
@@ -224,6 +228,26 @@ def valued_substitutions(value):
 
 class Failure(Exception):
     pass
+
+
+def outcome_pairs(site):
+    """The site with its substitutions followed by the outcome pairs built from its `value` (V); a site
+    with no `value` as it is. A `value` that is not a plain type spelling fails."""
+    if 'value' not in site:
+        return site
+    value = site['value']
+    if not isinstance(value, str) or not value.strip() or any(c in value for c in '\n;{}'):
+        raise Failure('%s: its value %r is not a plain type spelling' % (site['name'], value))
+    return dict(site, substitutions=list(site['substitutions']) + valued_substitutions(value))
+
+
+VALUED_RETURN = re.compile(r'\bSpellHandlerOutcome<[\w:]+>::Return\(')
+
+
+def returns_value(body):
+    """Whether `body`, comments aside, holds a `SpellHandlerOutcome<...>::Return(` with something before its `)`."""
+    text = '\n'.join(body)
+    return any(not re.match(r'\s*\)', text[m.end():]) for m in VALUED_RETURN.finditer(blank(text)))
 
 
 TABLE_HEAD = re.compile(r'\s*static [\w:]+(?:<([\w:]+)>)? const (\w+)\[\] =')
@@ -354,6 +378,16 @@ def class_members(header, cls):
     if not names:
         raise Failure('class %s declares no member the check could read' % cls)
     return names
+
+
+def check_returns(site, function, body):
+    """Whether `body` returns a value (returns_value); one doing so at a site with no `value` fails."""
+    if not returns_value(body):
+        return False
+    if 'value' not in site:
+        raise Failure('%s: handler %s returns a value, and the site names no value (its void pairs paste back no '
+                      '`return x;`)' % (site['name'], function))
+    return True
 
 
 def check_body(function, body, site, members=()):
@@ -720,6 +754,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         del rest[at[0]]
     pasted, labels, rebuilt, defaults = 0, 0, [], set()
     for site in spec['sites']:
+        site = outcome_pairs(site)
         check_label_lines(site)
         n = len(site['dispatch'])
         at = [i for i in range(len(rest) - n + 1) if rest[i:i + n] == site['dispatch']]
@@ -754,7 +789,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             raise Failure('%s: table rows %s, labels %s' % (site['name'], ids, sorted(site['labels'])))
         header, cls = site['members_of']
         members = class_members(headers[header], cls)
-        pieces = []
+        pieces, returned, pasted_before = [], False, pasted
         i = 0
         while i < len(rows):
             function = rows[i][1]
@@ -767,6 +802,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             body = falls_into(site, function, handler_body(handlers, function, site['context'],
                                                            site.get('value', 'void')), rows, j)
             check_body(function, body, site, members)
+            returned = check_returns(site, function, body) or returned
             label_lines = []
             for spell, _ in rows[i:j]:
                 line = site['labels'][spell]
@@ -800,6 +836,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             if FALLS.fullmatch(body[-1] if body else ''):
                 raise Failure('%s: the default %s ends in a call, and no run follows it' % (site['name'], function))
             check_body(function, body, site, members)
+            returned = check_returns(site, function, body) or returned
             if falls_off(origins, site, [site['default']]):
                 if not body or body[-1].strip() not in [a for a, b in site['substitutions'] if b == 'break;']:
                     raise Failure('%s: the default falls off the switch\'s end, and %s does not end in Continue'
@@ -810,6 +847,9 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         elif any(re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(.*' % re.escape(site['traits']), l)
                  for l in handlers):
             raise Failure('%s: a default registered for a site whose switch had none' % site['name'])
+        if strict and 'value' in site and pasted > pasted_before and not returned:
+            raise Failure('%s: its value is %s, and no handler it registers returns one (no `Return(x)` to paste back '
+                          'as `return x;`)' % (site['name'], site['value']))
         if 'residual' in site:
             put_back(rest, at[0], n, site, pieces, end, standing)
         else:
@@ -2144,8 +2184,7 @@ def self_test():
                  dispatch=['    CheckContext checkContext(this, target);',
                            '    SpellHandlerOutcome<SpellCastResult> outcome = Dispatch<CheckSite>(checkContext);',
                            '    if (outcome.IsReturn())', '    {', '        return outcome.GetValue();', '    }'],
-                 substitutions=[('ctx.target', 'target'), ('ctx.aura', 'this')]
-                 + valued_substitutions('SpellCastResult'))
+                 substitutions=[('ctx.target', 'target'), ('ctx.aura', 'this')])
     valued_rows = ([lab[1], '        {', '            if (target->IsDead())', '            {',
                     '                return SPELL_FAILED_TARGETS_DEAD;', '            }', '            break;',
                     '        }',
@@ -2162,7 +2201,7 @@ def self_test():
                   tail=('    return SPELL_CAST_OK;',), **valued_site)
     run('V: a valued return and a break in a SpellCastResult site: pass', 0,
         'with 2/2 bodies pasted back at their 2 labels in 1 sites', **valued)
-    void_site = dict(valued['spec']['sites'][0], substitutions=valued_site['substitutions'][:2] + VOID_SUBSTITUTIONS)
+    void_site = dict(valued['spec']['sites'][0], substitutions=valued_site['substitutions'] + VOID_SUBSTITUTIONS)
     del void_site['value']
     run('V: a valued site whose spec names no value (void pairs): fails', 1,
         'handler One answers SpellHandlerOutcome<SpellCastResult>, and its site\'s value is void',
@@ -2170,7 +2209,7 @@ def self_test():
     run('V: a handler answering void at a valued site: fails', 1,
         'handler Two answers SpellHandlerOutcome<void>, and its site\'s value is SpellCastResult',
         **mutated(valued, 'handlers', 'SpellHandlerOutcome<SpellCastResult> Two(', 'SpellHandlerOutcome<void> Two('))
-    as_void = dict(valued['spec']['sites'][0], substitutions=valued_site['substitutions'][:2] + [
+    as_void = dict(valued['spec']['sites'][0], substitutions=valued_site['substitutions'] + [
         (re.compile(r'return SpellHandlerOutcome<SpellCastResult>::Return\((.*)\);'), 'return;'),
         ('return SpellHandlerOutcome<SpellCastResult>::Continue();', 'break;')])
     run('V: a valued return pasted back as `return;`: fails', 1, 'DIFFERS',
@@ -2179,6 +2218,33 @@ def self_test():
         **mutated(valued, 'handlers', 'Return(SPELL_FAILED_BAD_TARGETS)', 'Return(SPELL_FAILED_BAD_IMPLICIT_TARGETS)'))
     run('V: a break taken as a return of the value after the switch: fails', 1, 'DIFFERS',
         **mutated(valued, 'handlers', 'SpellCastResult>::Continue()', 'SpellCastResult>::Return(SPELL_CAST_OK)'))
+    for what, value in (('a semicolon', 'SpellCastResult;'), ('a newline', 'Spell\nCastResult'),
+                        ('a brace', 'SpellCastResult{'), ('nothing', '')):
+        run('V: a value holding %s: fails by name' % what, 1, 'its value %r is not a plain type spelling' % value,
+            **dict(valued, spec=dict(GEN_SPEC, sites=[dict(valued['spec']['sites'][0], value=value)])))
+    nothing_returned = mutated(mutated(valued, 'handlers', 'Return(SPELL_FAILED_TARGETS_DEAD)', 'Continue()'),
+                               'handlers', 'Return(SPELL_FAILED_BAD_TARGETS)', 'Continue()')
+    nothing_returned = mutated(mutated(nothing_returned, 'old_text', 'return SPELL_FAILED_TARGETS_DEAD;', 'break;'),
+                               'old_text', 'return SPELL_FAILED_BAD_TARGETS;', 'break;')
+    run('V: a valued site none of whose handlers returns a value: fails', 1,
+        'valued: its value is SpellCastResult, and no handler it registers returns one', **nothing_returned)
+    void_returning = mutated(mutated(valued, 'handlers', 'SpellHandlerOutcome<SpellCastResult> One(',
+                                     'SpellHandlerOutcome<void> One('),
+                             'handlers', 'SpellHandlerOutcome<SpellCastResult> Two(', 'SpellHandlerOutcome<void> Two(')
+    run('V: a void handler returning a value at a site with no value: fails', 1,
+        'valued: handler One returns a value, and the site names no value',
+        **dict(void_returning, spec=dict(GEN_SPEC, sites=[void_site])))
+    run('V: a valued Continue inside a loop: fails', 1, 'handler One, body line 4: a Continue inside a loop',
+        **mutated(valued, 'handlers',
+                  '        return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_TARGETS_DEAD);',
+                  '        while (ctx.target->IsDead())\n'
+                  '            return SpellHandlerOutcome<SpellCastResult>::Continue();\n'
+                  '        return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_TARGETS_DEAD);'))
+    commented = mutated(mutated(trailing, 'old_text', '        // break;',
+                                '        // return SpellHandlerOutcome<int>::Return(1);'),
+                        'handlers', '// break;', '// return SpellHandlerOutcome<int>::Return(1);')
+    run('V: a valued Return in a comment at a site with no value: pass', 0,
+        'with 4/4 bodies pasted back at their 4 labels in 1 sites', **commented)
 
     trio = '        case 11: case 12: case 13:              // Trio'
     trio2 = '        case 21: case 22: case 23:              // Trio, unbraced'
