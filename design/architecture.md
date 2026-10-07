@@ -98,8 +98,8 @@ domain therefore never names session or `WorldPacket`.
 
 `persistence/` makes every `CharacterDatabase.`, `WorldDatabase.` and `LoginDatabase.` call.
 
-**Today (packets):** 424 `WorldPacket data(` sites: session 181, the domain tier 230 (entities 157, 101 of them under
-`entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 5), scripts 7, app 4, motion 2. The shared sink
+**Today (packets):** 418 `WorldPacket data(` sites: session 178, the domain tier 227 (entities 157, 101 of them under
+`entities/player/`; social 34, spells 21, combat 7, maps 6, pvp 2), scripts 7, app 4, motion 2. The shared sink
 `ManagerPacketSink` is `std::function<void(WorldPacket const*)>`: it names the packet. What a player's own client is
 told when its swing is out of reach or faces away, its attack or its auto-repeat spell is cancelled, its pet is set
 or its stand state changes are six typed facts declared beside `Player` (`PlayerClientFacts.h`), built into packets by
@@ -384,7 +384,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
 - The edge tables: `python layers.py src against` (1,105, with the headers and the includers),
   `python layers.py src sideways` (2,332) and `python layers.py src edges` (every layer pair).
-- Packets and the database: `python layers.py src packets` (424 by layer and directory) and `python layers.py src db`
+- Packets and the database: `python layers.py src packets` (418 by layer and directory) and `python layers.py src db`
   (1,008). For game `.cpp` only:
   `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (996), with `-l` for the files
   (126).
