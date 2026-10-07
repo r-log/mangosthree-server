@@ -27,12 +27,14 @@
 /// Shattered Sun pendant's proc strikes the player's selection when there is no victim, and Prayer
 /// of Mending jumps to a random raid member of the player.
 ///
-/// Unit declares the three protected, with no default arguments. A Unit that is not a Player says
-/// nothing, has no selection and has no raid: a Creature probe with its update fields allocated
-/// (no map, no AI, no auras, no session) makes the three public with using-declarations and is
-/// asked through its own reference; the say leaves every update field as it was, the selection is
-/// an empty guid whatever target the creature holds, and the raid member is NULL. A Player cannot
-/// be built in this binary (it needs a WorldSession and a map); the static_asserts pin Unit's
+/// Unit declares the say and the selection public, the proc handlers asking them of the unit they
+/// run for, and the raid member protected, all three with no default arguments. A Unit that is not
+/// a Player says nothing, has no selection and has no raid: a Creature probe with its update fields
+/// allocated (no map, no AI, no auras, no session) is asked the say and the selection through a
+/// Unit reference, and makes the raid member public with a using-declaration and is asked it
+/// through its own reference; the say leaves every update field as it was, the selection is an
+/// empty guid whatever target the creature holds, and the raid member is NULL. A Player cannot be
+/// built in this binary (it needs a WorldSession and a map); the static_asserts pin Unit's
 /// declarations through the probe, that Player declares the three public with Unit's exact
 /// signature, the selection returned by value and `const` on both sides, and which references a
 /// call compiles through. That Player's selection and raid member are `final` is pinned by the
@@ -50,13 +52,10 @@
 
 namespace
 {
-    /// A Creature with its update fields allocated; the say, the selection and the raid member are
-    /// public here.
+    /// A Creature with its update fields allocated; the raid member is public here.
     class ProcOneOffUnit : public Creature
     {
         public:
-            using Unit::Say;
-            using Unit::GetSelectionGuid;
             using Unit::GetNextRandomRaidMember;
 
             static_assert(std::is_same<decltype(&ProcOneOffUnit::Say),
@@ -118,12 +117,12 @@ static_assert(std::is_same<decltype(std::declval<Player const&>().GetSelectionGu
 static_assert(std::is_same<decltype(&Player::GetNextRandomRaidMember), Player* (Player::*)(float)>::value,
               "Player returns a random member of its group");
 
-static_assert(!decltype(CallsSay<Unit>(0))::value,
-              "Unit's say is protected: a call through a Unit does not compile");
+static_assert(decltype(CallsSay<Unit>(0))::value,
+              "Unit's say is public: a call through a Unit compiles");
 static_assert(decltype(CallsSay<Player>(0))::value,
               "Player's say is public: a call through a Player compiles");
-static_assert(!decltype(CallsGetSelectionGuid<Unit>(0))::value,
-              "Unit's selection is protected: a call through a Unit does not compile");
+static_assert(decltype(CallsGetSelectionGuid<Unit>(0))::value,
+              "Unit's selection is public: a call through a const Unit compiles");
 static_assert(decltype(CallsGetSelectionGuid<Player>(0))::value,
               "Player's selection is public: a call through a const Player compiles");
 static_assert(!decltype(CallsGetNextRandomRaidMember<Unit>(0))::value,
@@ -134,7 +133,7 @@ static_assert(decltype(CallsGetNextRandomRaidMember<Player>(0))::value,
 TEST(UnitProcOneOffActions_ACreatureSaysNothing)
 {
     ProcOneOffUnit creature;
-    ProcOneOffUnit& unit = creature;
+    Unit& unit = creature;
     std::vector<uint32> const fields = creature.Fields();
     CHECK(!fields.empty());
 
@@ -147,7 +146,7 @@ TEST(UnitProcOneOffActions_ACreatureSaysNothing)
 TEST(UnitProcOneOffActions_ACreatureHasNoSelection)
 {
     ProcOneOffUnit creature;
-    ProcOneOffUnit const& unit = creature;
+    Unit const& unit = creature;
 
     CHECK(unit.GetSelectionGuid().IsEmpty());
     CHECK(unit.GetSelectionGuid() == ObjectGuid());
