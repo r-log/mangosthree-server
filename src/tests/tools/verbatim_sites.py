@@ -40,7 +40,7 @@ statement, name or value, and on a tool that binds or changes one of the five it
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = 'dc0af339e'
+BASE = 'e463e6415'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -686,6 +686,71 @@ SITES = {
                 8342: '        case 8342:                                          // Defibrillate (Goblin Jumper Cables) has 33% chance on success',
                 22999: '        case 22999:                                         // Defibrillate (Goblin Jumper Cables XL) has 50% chance on success',
                 54732: '        case 54732:                                         // Defibrillate (Gnomish Army Knife) has 67% chance on success'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellTargeting.cpp': {
+        'original': 'e463e64156898754a41237e69f06570df14369f4',
+        'handlers': 'src/game/spells/handlers/SpellTargetingHandlers.cpp',
+        'rows_function': 'RegisterSpellTargetingRows',
+        'added': ['#include "spells/handlers/SpellTargetingHandlers.h"'],
+        'sites': [{
+            'name': 'SetTargetMap, TARGET_ALL_ENEMY_IN_AREA (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            {',
+                '                SpellTargetAllEnemyInAreaContext ctx(m_caster, targetUnitMap, unMaxTargets);',
+                '                if (SpellHandlerRegistry::Game().Dispatch<SpellTargetAllEnemyInAreaSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '                {',
+                '                    return;',
+                '                }',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellTargetAllEnemyInAreaSite',
+            'default': '                default:',
+            'context': 'SpellTargetAllEnemyInAreaContext',
+            'live_outs': ['targetUnitMap', 'unMaxTargets'],
+            'in_scope': ['effIndex', 'targetMode', 'spellEffect', 'classOpt', 'EffectChainTarget', 'radius',
+                         'tempTargetGOList'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.targetUnitMap', 'targetUnitMap'),
+                              ('ctx.unMaxTargets', 'unMaxTargets')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                30769: '                case 30769:                                 // Pick Red Riding Hood',
+                30843: '                case 30843:                                 // Enfeeble',
+                31347: '                case 31347:                                 // Doom',
+                37676: '                case 37676:                                 // Insidious Whisper',
+                38028: '                case 38028:                                 // Watery Grave',
+                40618: '                case 40618:                                 // Insignificance',
+                41376: '                case 41376:                                 // Spite',
+                62166: '                case 62166:                                 // Stone Grip',
+                63981: '                case 63981:                                 // Stone Grip (h)',
+                42005: '                case 42005:                                 // Bloodboil (spell hits only the 5 furthest away targets)'},
+        }, {
+            'name': 'SetTargetMap, TARGET_EFFECT_SELECT, SPELL_EFFECT_DUMMY (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '                    SpellTargetEffectDummyContext ctx(this, m_caster, m_spellInfo, m_targets, targetUnitMap);',
+                '                    if (SpellHandlerRegistry::Game().Dispatch<SpellTargetEffectDummySite>(m_spellInfo->ID, ctx).IsReturn())',
+                '                    {',
+                '                        return;',
+                '                    }'],
+            'open': ['                    switch (m_spellInfo->ID)', '                    {'],
+            'close': ['                    }'],
+            'label_indent': 24,
+            'traits': 'SpellTargetEffectDummySite',
+            'default': '                        default:',
+            'context': 'SpellTargetEffectDummyContext',
+            'live_outs': ['targetUnitMap'],
+            'in_scope': ['effIndex', 'targetMode', 'spellEffect', 'classOpt', 'EffectChainTarget', 'unMaxTargets',
+                         'radius', 'tempTargetGOList'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.m_spellInfo', 'm_spellInfo'),
+                              ('ctx.m_targets', 'm_targets'), ('ctx.targetUnitMap', 'targetUnitMap'),
+                              ('ctx.spell->FindCorpseUsing', 'FindCorpseUsing'),
+                              ('ctx.spell->SendCastResult', 'SendCastResult'),
+                              ('ctx.spell->finish', 'finish')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                20577: '                        case 20577:                         // Cannibalize'},
         }],
     },
 }

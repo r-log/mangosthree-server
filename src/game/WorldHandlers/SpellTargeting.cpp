@@ -84,6 +84,7 @@
 #include "SQLStorages.h"
 #include "DisableMgr.h"
 #include "SpellTargetDistanceOrder.h"
+#include "spells/handlers/SpellTargetingHandlers.h"
 
 template<typename T>
 /**
@@ -494,37 +495,12 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
         case TARGET_ALL_ENEMY_IN_AREA:
             FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_AOE_DAMAGE);
 
-            switch (m_spellInfo->ID)
             {
-                // Do not target current victim
-                case 30769:                                 // Pick Red Riding Hood
-                case 30843:                                 // Enfeeble
-                case 31347:                                 // Doom
-                case 37676:                                 // Insidious Whisper
-                case 38028:                                 // Watery Grave
-                case 40618:                                 // Insignificance
-                case 41376:                                 // Spite
-                case 62166:                                 // Stone Grip
-                case 63981:                                 // Stone Grip (h)
+                SpellTargetAllEnemyInAreaContext ctx(m_caster, targetUnitMap, unMaxTargets);
+                if (SpellHandlerRegistry::Game().Dispatch<SpellTargetAllEnemyInAreaSite>(m_spellInfo->ID, ctx).IsReturn())
                 {
-                    if (Unit* pVictim = m_caster->getVictim())
-                    {
-                        targetUnitMap.remove(pVictim);
-                    }
-                    break;
+                    return;
                 }
-                // Other special cases
-                case 42005:                                 // Bloodboil (spell hits only the 5 furthest away targets)
-                {
-                    if (targetUnitMap.size() > unMaxTargets)
-                    {
-                        targetUnitMap.sort(TargetDistanceOrderFarAway(m_caster));
-                        targetUnitMap.resize(unMaxTargets);
-                    }
-                    break;
-                }
-                default:
-                    break;
             }
             break;
         case TARGET_AREAEFFECT_INSTANT:
@@ -1552,47 +1528,10 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             {
                 case SPELL_EFFECT_DUMMY:
                 {
-                    switch (m_spellInfo->ID)
+                    SpellTargetEffectDummyContext ctx(this, m_caster, m_spellInfo, m_targets, targetUnitMap);
+                    if (SpellHandlerRegistry::Game().Dispatch<SpellTargetEffectDummySite>(m_spellInfo->ID, ctx).IsReturn())
                     {
-                        case 20577:                         // Cannibalize
-                        {
-                            WorldObject* result = FindCorpseUsing<MaNGOS::CannibalizeObjectCheck> ();
-
-                            if (result)
-                            {
-                                switch (result->GetTypeId())
-                                {
-                                    case TYPEID_UNIT:
-                                    case TYPEID_PLAYER:
-                                        targetUnitMap.push_back((Unit*)result);
-                                        break;
-                                    case TYPEID_CORPSE:
-                                        m_targets.setCorpseTarget((Corpse*)result);
-                                        if (Player* owner = sPlayerRegistry.Find(((Corpse*)result)->GetOwnerGuid()))
-                                        {
-                                            targetUnitMap.push_back(owner);
-                                        }
-                                        break;
-                                }
-                            }
-                            else
-                            {
-                                // clear cooldown at fail
-                                if (m_caster->GetTypeId() == TYPEID_PLAYER)
-                                {
-                                    ((Player*)m_caster)->RemoveSpellCooldown(m_spellInfo->ID, true);
-                                }
-                                SendCastResult(SPELL_FAILED_NO_EDIBLE_CORPSES);
-                                finish(false);
-                            }
-                            break;
-                        }
-                        default:
-                            if (m_targets.getUnitTarget())
-                            {
-                                targetUnitMap.push_back(m_targets.getUnitTarget());
-                            }
-                            break;
+                        return;
                     }
                     // Add AoE target-mask to self, if no target-dest provided already
                     if ((m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION) == 0)
