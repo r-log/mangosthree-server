@@ -251,7 +251,7 @@ namespace Harness
         // Map::Update calls pSession->Update(updater) for every in-world player on the map
         // (Map.cpp:913-924), so this session is updated from the tick its player is added. What
         // makes that harmless is the filter and the null socket, not the absence of the call.
-        // MapSessionFilter::ProcessLogout() is false (WorldSession.h:284-287), so the logout
+        // MapSessionFilter::ProcessLogout() is false (WorldSession.h:249-252), so the logout
         // block at WorldSession.cpp:599-611 -- which logs out exactly a session whose socket is
         // gone -- is skipped; and with m_Socket null the packet loop (WorldSession.cpp:458) and
         // UpdateSecondStream (WorldSession.cpp:1545-1548) each return before doing anything.
@@ -263,7 +263,7 @@ namespace Harness
 
         Player* player = new Player(session);
         InstallPlayerPacketSinks(*player);
-        session->SetPlayer(player);                      // as login does (CharacterHandler.cpp:771)
+        session->SetPlayer(player);                      // as login does (CharacterHandler.cpp:1158)
         player->GetMotionMaster()->Initialize();         // as login does, before the player ever moves
 
         // The phase-map refusal above is what makes this call safe to make against any database:

@@ -10,7 +10,7 @@ master 7b6a481ce.
 A layer includes only what its row allows, and nothing includes upward. The chain
 `proto -> session -> entities/spells/combat/maps -> motion` is the path a packet takes, not the include direction:
 proto is the wire library near the bottom that session and motion build on. The tree agrees: `src/proto` includes
-only `src/shared`; session includes it 102 times, the motion layer 19 times (8 from the kernel's writers, 11 from
+only `src/shared`; session includes it 103 times, the motion layer 19 times (8 from the kernel's writers, 11 from
 `game/movement`).
 
 | Layer | Directories in the target | May include |
@@ -206,7 +206,7 @@ The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`
 
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
-see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 925, Unit 639, WorldSession 583, ObjectMgr 251), R1, M1,
+see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 925, Unit 639, WorldSession 555, ObjectMgr 249), R1, M1,
 the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
@@ -389,7 +389,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (996), with `-l` for the files
   (126).
 - Proto: `python layers.py src edges | grep -E '^(proto|session +-> proto|motion +-> proto)'` (proto -> proto and
-  foundation only; session 102; motion 19), split by
+  foundation only; session 103; motion 19), split by
   `grep -hE '#\s*include\s*"(wire/[A-Za-z]+\.h|WorldPacket\.h|Opcodes\.h)"' src/motion/* | wc -l` (8) and the
   same over `src/game/movement/*` (11).
 - The manager audit, per manager `M`:

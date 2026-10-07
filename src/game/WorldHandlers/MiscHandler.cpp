@@ -429,16 +429,6 @@ void WorldSession::HandleLogoutRequestOpcode(WorldPacket & /*recv_data*/)
 }
 
 /**
- * @brief Acknowledges the client logout opcode.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandlePlayerLogoutOpcode(WorldPacket & /*recv_data*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_PLAYER_LOGOUT Message");
-}
-
-/**
  * @brief Cancels a pending logout request.
  *
  * @param recv_data The received opcode packet.
@@ -521,32 +511,6 @@ void WorldSession::HandleZoneUpdateOpcode(WorldPacket& recv_data)
     uint32 newzone, newarea;
     GetPlayer()->GetTerrain()->GetZoneAndAreaId(newzone, newarea, GetPlayer()->Where().X(), GetPlayer()->Where().Y(), GetPlayer()->Where().Z());
     GetPlayer()->UpdateZone(newzone, newarea);
-}
-
-/**
- * @brief Sets the player's current target selection.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleSetTargetOpcode(WorldPacket& recv_data)
-{
-    // When this packet send?
-    ObjectGuid guid ;
-    recv_data >> guid;
-
-    _player->SetTargetGuid(guid);
-
-    // update reputation list if need
-    Unit* unit = ObjectLookup::GetUnit(*_player, guid);   // can select group members at diff maps
-    if (!unit)
-    {
-        return;
-    }
-
-    if (FactionTemplateEntry const* factionTemplateEntry = sFactionTemplateStore.LookupEntry(unit->getFaction()))
-    {
-        _player->SetFactionVisible(factionTemplateEntry);
-    }
 }
 
 /**

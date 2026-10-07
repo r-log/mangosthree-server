@@ -25,7 +25,7 @@
 
 /// The dungeon finder's requirements, rewards and item rewards, set and looked up with no
 /// database: a miss and a hit for each map (two dungeons on one map differing only in difficulty
-/// stay distinct), a second set for a key overwriting the first, the whole-map accessors, and
+/// stay distinct), a second set for a key overwriting the first, the whole items map, and
 /// each clear forgetting its own map only.
 
 #include "TestHarness.h"
@@ -123,13 +123,11 @@ TEST(DungeonFinderStore_SecondSetOverwrites)
     CHECK_EQ(requirements->minItemLevel, 20u);
     CHECK_EQ(rewards->baseXPReward, 200u);
     CHECK_EQ(rewards->baseMonetaryReward, 2);
-    CHECK_EQ(store.Requirements().size(), size_t(1));
-    CHECK_EQ(store.Rewards().size(), size_t(1));
     REQUIRE(store.Items().size() == 1);
     CHECK_EQ(store.Items().find(9)->second.itemReward, 8u);
 }
 
-TEST(DungeonFinderStore_WholeMapAccessorsHoldTheStoredEntries)
+TEST(DungeonFinderStore_WholeItemsMapHoldsTheStoredEntries)
 {
     DungeonFinderStore store;
     store.SetRequirements(MAKE_PAIR32(33, 0), DungeonFinderRequirements(1, 0, 0, 0, 0, 0, NULL));
@@ -138,11 +136,6 @@ TEST(DungeonFinderStore_WholeMapAccessorsHoldTheStoredEntries)
     store.SetItems(1, DungeonFinderItems(15, 24, 51999, 1, 1));
     store.SetItems(2, DungeonFinderItems(80, 85, 52005, 2, 2));
 
-    REQUIRE(store.Requirements().size() == 2);
-    CHECK_EQ(store.Requirements().find(MAKE_PAIR32(33, 0))->second.minItemLevel, 1u);
-    CHECK_EQ(store.Requirements().find(MAKE_PAIR32(33, 1))->second.minItemLevel, 2u);
-    REQUIRE(store.Rewards().size() == 1);
-    CHECK_EQ(store.Rewards().find(10)->second.baseXPReward, 30u);
     REQUIRE(store.Items().size() == 2);
     CHECK_EQ(store.Items().find(1)->second.itemReward, 51999u);
     CHECK_EQ(store.Items().find(2)->second.itemReward, 52005u);

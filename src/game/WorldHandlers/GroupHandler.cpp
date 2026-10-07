@@ -439,57 +439,6 @@ void WorldSession::HandleGroupUninviteGuidOpcode(WorldPacket& recv_data)
 }
 
 /**
- * @brief Uninvites a group member or invitee by player name.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleGroupUninviteOpcode(WorldPacket& recv_data)
-{
-    std::string membername;
-    recv_data >> membername;
-
-    // player not found
-    if (!normalizePlayerName(membername))
-    {
-        return;
-    }
-
-    // can't uninvite yourself
-    if (GetPlayer()->GetName() == membername)
-    {
-        sLog.outError("WorldSession::HandleGroupUninviteOpcode: leader %s tried to uninvite himself from the group.", GetPlayer()->GetGuidStr().c_str());
-        return;
-    }
-
-    PartyResult res = GetPlayer()->CanUninviteFromGroup();
-    if (res != ERR_PARTY_RESULT_OK)
-    {
-        SendPartyResult(PARTY_OP_LEAVE, "", res);
-        return;
-    }
-
-    Group* grp = GetPlayer()->GetGroup();
-    if (!grp)
-    {
-        return;
-    }
-
-    if (ObjectGuid guid = grp->GetMemberGuid(membername))
-    {
-        Player::RemoveFromGroup(grp, guid, GetPlayer()->GetObjectGuid(), "");
-        return;
-    }
-
-    if (Player* plr = grp->GetInvited(membername))
-    {
-        plr->UninviteFromGroup();
-        return;
-    }
-
-    SendPartyResult(PARTY_OP_LEAVE, membername, ERR_TARGET_NOT_IN_GROUP_S);
-}
-
-/**
  * @brief Changes the leader of the current group.
  *
  * @param recv_data The received opcode packet.
