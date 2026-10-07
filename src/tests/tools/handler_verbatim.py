@@ -3,20 +3,28 @@
 
 The handler classes' verbatim proof: a function moved whole from a `WorldSession` member into a handler
 class's static (src/game/session/handlers/) is pasted back at its old place, and the old file must come
-back byte for byte as it was at the entry's base.
+back byte for byte as it was at the entry's base; an old file still in the working tree (a residue,
+holding the functions that stay) must be the old file less the moved functions.
 
 MOVES holds one entry per moved function:
   base, base_file, base_header  the commit the move is proven against (the parent of the change that
       moved it: each entry names its own, so moves from one file in several changes are proven apart),
-      the file that held the function there and its definition line, `void WorldSession::<Name>(...)`;
+      the file that held the function there and its definition line, `<type> WorldSession::<Name>(<p>)`;
   new_file, new_header  the file that holds it in the working tree (under src/game/session/handlers/, so
-      handler_classes.py reads it) and its definition line: a handler,
-      `void <Class>::Handle<X>(WorldSession& session, WorldPacket& <p>)`, <p> the base's own parameter
-      name or that name commented out, or a sender, `void <Class>::Send<X>(WorldSession& session, ...)`;
+      handler_classes.py reads it) and its definition line, `<type> <Class>::<Name2>(WorldSession& session)`
+      or `<type> <Class>::<Name2>(WorldSession& session, <p>)`: any name, the base's return type and the
+      base's parameters, text for text, but that a parameter name may stand commented out on either side
+      (`name`, `/*name*/` and `/* name */` read alike). A handler, a sender and a helper returning a
+      value are all this shape;
   substitutions  (new text, base text) pairs, each matching code at least once and only where no name,
       `.`, `->` or `::` runs into it (a sender's call `SendAttackStop(session, ` read back as `SendAttackStop(`);
-  edits  (new line, base line) pairs: a line changed beyond the substitutions, found once and read back whole;
-      a new line listed twice fails.
+  edits  (new line, base line) or (new line, base line, count) entries: a line changed beyond the
+      substitutions, read back whole; it must be found exactly count times in the function (1 when not
+      given; fewer or more fails, naming which), and every one of them is read back; a new line listed
+      twice fails.
+RESIDUES holds one entry per change that kept an old file: base, base_file and removed, the include lines
+that change removed from it (`#include ...`, exact text), the only lines a residue may lose beyond the
+moved functions.
 
 For each entry, --check:
   1. reads the function in each version: the comment lines directly above its definition line (`/*`,
@@ -25,7 +33,8 @@ For each entry, --check:
   2. fails on a body line naming a member of `WorldSession` bare (an implicit `this->` the move missed:
      the static would compile against a free function or global of that name); the names are every
      member function and data member at class scope in the working tree's `WorldSession.h`, read by
-     verbatim.py's MEMBERS_OF reader (class_members);
+     verbatim.py's MEMBERS_OF reader (class_members). A name followed by `::` is a namespace or class
+     qualifier (`std::string`, `Motion::Reason`), not a member use, and passes; the same name alone fails;
   3. reverses the move: an edit's line becomes its base line; on every other line, in code only
      (comments and literals stay), `session.` not after a name, `.`, `->` or `::` is dropped and the
      substitutions are read back; the definition line becomes base_header. A base function that names
@@ -34,6 +43,15 @@ For each entry, --check:
      0 inside a body would end the span early and hide the lines after it);
   4. pastes that at the function's place in base_file at base and compares the file byte for byte;
   5. fails when the working tree's base_file still holds base_header (the move deletes it).
+For each base_file still in the working tree, and for each base its entries name, --check then rebuilds
+the residue from base_file at that base: every entry's function that stands there (whatever its own
+base, so the functions moved later are cut too and the ones moved before are not looked for) is cut,
+its doc comment and the blank lines after its `}` with it; the include lines its RESIDUES entries at that
+base list are removed, each found exactly once, and those listed at another base wherever they still
+stand. The result must equal the working tree's file byte for byte: a line changed outside the cut spans
+fails with its line, an include removed and not listed fails by name, a listed removal not found or not
+an include line fails, and a moved function the residue still defines fails. A deleted base_file has no
+residue to prove, and a RESIDUES entry for it, or at a base no entry of the file names, fails.
 A definition line of another shape and an edit or substitution that matches nothing fail by name. The
 header's `static` is handler_classes.py's to check (a handler class has static member functions only).
 
@@ -114,9 +132,12 @@ MOVES = [
          new_header='void CombatHandlers::HandleDuelCancelled(WorldSession& session, WorldPacket& recvPacket)'),
 ]
 
-HANDLER = re.compile(r'void \w+::Handle\w+\(WorldSession& session, WorldPacket& (\w+|/\*\w+\*/)\)$')
-SENDER = re.compile(r'void \w+::Send\w+\(WorldSession& session(, [^()]+)?\)$')
-BASE_HEADER = re.compile(r'void WorldSession::\w+\(.*\)$')
+RESIDUES = []
+
+NEW_HEADER = re.compile(r'(?P<type>\S.*?) \w+::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
+BASE_HEADER = re.compile(r'(?P<type>\S.*?) WorldSession::\w+\((?P<params>.*)\)$')
+PARAM_COMMENT = re.compile(r'/\*\s*(\w+)\s*\*/')
+INCLUDE = re.compile(r'#\s*include\s*(<[^<>]+>|"[^"]+")\s*(//.*)?$')
 SESSION_DOT = re.compile(r'(?<![\w.>:])session\.')
 COMMENT = re.compile(r'\s*(/\*|\*|//)')
 
@@ -142,7 +163,7 @@ def check_members(body, members):
     """A member of WorldSession named bare in a body line (comments and literals blanked)."""
     if not members:
         return
-    bare = re.compile(r'(?<![\w.>:~])(%s)\b' % '|'.join(re.escape(m) for m in sorted(members)))
+    bare = re.compile(r'(?<![\w.>:~])(%s)\b(?!\s*::)' % '|'.join(re.escape(m) for m in sorted(members)))
     for n, line in enumerate(blank('\n'.join(body)).split('\n'), 1):
         m = bare.search(line)
         if m:
@@ -150,27 +171,50 @@ def check_members(body, members):
                           'move missed): %r' % (n, m.group(1), body[n - 1]))
 
 
+def check_shape(new_header, base_header):
+    """The new definition line is the base's, `WorldSession::` replaced by a class and the session put first."""
+    new, base = NEW_HEADER.match(new_header), BASE_HEADER.match(base_header)
+    if not new:
+        raise Failure('the definition line is not `<type> <Class>::<Name>(WorldSession& session[, ...])`')
+    if not base:
+        raise Failure('the base definition line is not a WorldSession member\'s: %r' % base_header)
+    if new.group('type') != base.group('type'):
+        raise Failure('the definition line returns %r, the base %r' % (new.group('type'), base.group('type')))
+    params = [PARAM_COMMENT.sub(r'\1', x or '') for x in (new.group('params'), base.group('params'))]
+    if params[0] != params[1]:
+        raise Failure('the definition line takes (%s) after the session, the base (%s)' % tuple(params))
+
+
+def read_edits(entry):
+    """{new line: base line} and {new line: how many identical lines it covers} of an entry's edits."""
+    edits, counts = {}, {}
+    for e in entry.get('edits', []):
+        if e[0] in edits:
+            raise Failure('one new line is listed as two edits')
+        count = e[2] if len(e) > 2 else 1
+        if not isinstance(count, int) or count < 1:
+            raise Failure('the edit %r covers %r lines: a count is 1 or more' % (e[0], count))
+        edits[e[0]], counts[e[0]] = e[1], count
+    return edits, counts
+
+
 def verify(entry, base_text, tree_base_text, new_text, members, out=print):
     """0 when the entry's function pastes back byte for byte; 1 with the reason printed."""
     name = '%s %s' % (entry['new_file'], entry['new_header'])
     try:
-        if not (HANDLER.match(entry['new_header']) or SENDER.match(entry['new_header'])):
-            raise Failure('the definition line is neither a handler\'s nor a sender\'s shape')
-        if not BASE_HEADER.match(entry['base_header']):
-            raise Failure('the base definition line is not a WorldSession member\'s: %r' % entry['base_header'])
+        check_shape(entry['new_header'], entry['base_header'])
         new_lines = new_text.split('\n')
         first, at, end = function_span(new_lines, entry['new_header'], entry['new_file'])
         check_members(new_lines[at + 1:end], members)
         span = new_lines[first:end]
         if not entry['new_file'].startswith(HANDLERS_DIR + '/'):
             raise Failure('the new file is not under %s, where handler_classes.py reads it' % HANDLERS_DIR)
-        edits = dict(entry.get('edits', []))
-        if len(edits) != len(entry.get('edits', [])):
-            raise Failure('one new line is listed as two edits')
+        edits, counts = read_edits(entry)
         for line in edits:
             hits = sum(1 for x in span if x == line)
-            if hits != 1:
-                raise Failure('the edit %r matches %d lines of the function' % (line, hits))
+            if hits != counts[line]:
+                raise Failure('the edit %r matches %d lines of the function, not the %d it covers: too %s found' % (
+                    line, hits, counts[line], 'few' if hits < counts[line] else 'many'))
         rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a)), b)
                                        for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
@@ -211,7 +255,52 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
                                                first_difference(base_text, rebuilt)))
         return 1
     out('%s: IDENTICAL to %s at %s, byte for byte, with %d lines pasted back (%d edits)' % (
-        name, entry['base_file'], entry['base'], len(pasted), len(edits)))
+        name, entry['base_file'], entry['base'], len(pasted), sum(counts.values())))
+    return 0
+
+
+def verify_residue(base_file, base, base_text, tree_text, headers, removed, removed_elsewhere=(), out=print):
+    """0 when the working tree's base_file is base_file at base with the moved functions cut and the listed
+    includes removed, byte for byte; 1 with the reason printed."""
+    name = '%s, the residue' % base_file
+    tree = tree_text.split('\n')
+    try:
+        for header in headers:
+            if any(x.rstrip('\r') == header for x in tree):
+                raise Failure('it still defines %r: the move deletes it' % header)
+        lines = base_text.split('\n')
+        spans = []
+        for header in headers:
+            if any(x.rstrip('\r') == header for x in lines):
+                first, _, end = function_span(lines, header, '%s at %s' % (base_file, base))
+                while end < len(lines) and not lines[end].strip():
+                    end += 1
+                spans.append((first, end))
+        for a, b in sorted(spans, reverse=True):
+            del lines[a:b]
+        for line in removed:
+            if not INCLUDE.match(line):
+                raise Failure('the listed removal %r is not an include line' % line)
+        for line, own in [(x, True) for x in removed] + [(x, False) for x in removed_elsewhere]:
+            hits = [i for i, x in enumerate(lines) if x.rstrip('\r') == line]
+            if len(hits) > 1 or (own and not hits):
+                raise Failure('the listed removal %r found %d times outside the moved functions at %s' % (
+                    line, len(hits), base))
+            if hits:
+                del lines[hits[0]]
+    except Failure as e:
+        out('%s: FAILED: %s' % (name, e))
+        return 1
+    if lines != tree:
+        k = next((i for i, (x, y) in enumerate(zip(lines, tree)) if x != y), min(len(lines), len(tree)))
+        if k < len(lines) and INCLUDE.match(lines[k].rstrip('\r')) and lines[k + 1:k + 2] == tree[k:k + 1]:
+            out('%s: FAILED: line %d, %r, is removed and not listed' % (name, k + 1, lines[k]))
+        else:
+            out('%s: DIFFERS from %s at %s with the moved functions cut: line %d: base %r, tree %r' % (
+                name, base_file, base, k + 1, lines[k] if k < len(lines) else None, tree[k] if k < len(tree) else None))
+        return 1
+    out('%s: IDENTICAL to %s at %s, byte for byte, with %d moved functions cut and %d includes removed' % (
+        name, base_file, base, len(spans), len(base_text.split('\n')) - len(lines) - sum(b - a for a, b in spans)))
     return 0
 
 
@@ -223,14 +312,18 @@ def read(root, rel):
         return fh.read()
 
 
+def git_show(root, ref, rel):
+    return subprocess.run(['git', '-C', root, 'show', '%s:%s' % (ref, rel)],
+                          capture_output=True, check=True).stdout.decode('utf-8')
+
+
 def check(root, base=None, out=print):
     rc = 0
     members = class_members(read(root, SESSION_HEADER), 'WorldSession') if MOVES else set()
     for entry in MOVES:
         entry = dict(entry, base=base or entry['base'])
         try:
-            base_text = subprocess.run(['git', '-C', root, 'show', '%s:%s' % (entry['base'], entry['base_file'])],
-                                       capture_output=True, check=True).stdout.decode('utf-8')
+            base_text = git_show(root, entry['base'], entry['base_file'])
         except (OSError, subprocess.CalledProcessError) as e:
             out('%s: FAILED: cannot read it at %s from git: %s' % (entry['base_file'], entry['base'], e))
             rc = 1
@@ -241,6 +334,28 @@ def check(root, base=None, out=print):
             rc = 1
             continue
         rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out)
+    for rel in sorted({e['base_file'] for e in MOVES} | {r['base_file'] for r in RESIDUES}):
+        entries = [e for e in MOVES if e['base_file'] == rel]
+        residues = [dict(r, base=base or r['base']) for r in RESIDUES if r['base_file'] == rel]
+        bases = sorted({base or e['base'] for e in entries})
+        tree_text = read(root, rel)
+        stray = [r['base'] for r in residues if tree_text is None or r['base'] not in bases]
+        if stray:
+            out('%s: FAILED: a residue entry at %s with no move from the file at that base, or the file deleted'
+                % (rel, stray[0]))
+            rc = 1
+        if tree_text is None:
+            continue
+        for b in bases:
+            try:
+                base_text = git_show(root, b, rel)
+            except (OSError, subprocess.CalledProcessError) as e:
+                out('%s: FAILED: cannot read it at %s from git: %s' % (rel, b, e))
+                rc = 1
+                continue
+            rc |= verify_residue(rel, b, base_text, tree_text, [e['base_header'] for e in entries],
+                                 [x for r in residues if r['base'] == b for x in r['removed']],
+                                 [x for r in residues if r['base'] != b for x in r['removed']], out)
     out('handler_verbatim: %d moved functions; %s' % (len(MOVES), 'OK' if rc == 0 else 'FAILED'))
     return rc
 
@@ -252,11 +367,11 @@ SELF_SESSION = '''class WorldSession
         void SendPacket(WorldPacket const* packet);
     private:
         Player* _player;
+        std::string m_name;
+        Motion::Reason m_reason;
 };'''
 
-SELF_BASE = '''#include "WorldSession.h"
-
-/**
+SELF_SWING = '''/**
  * @brief Swing.
  */
 void WorldSession::HandleSwingOpcode(WorldPacket& recv_data)
@@ -269,12 +384,41 @@ void WorldSession::HandleSwingOpcode(WorldPacket& recv_data)
     }
     GetPlayer()->Attack(enemy, true);
 }
+'''
 
-void WorldSession::HandleStopOpcode(WorldPacket& /*recv_data*/)
+SELF_STOP = '''void WorldSession::HandleStopOpcode(WorldPacket& /*recv_data*/)
 {
     GetPlayer()->AttackStop();
 }
 '''
+
+SELF_HELPERS = '''bool WorldSession::CheckBanker(ObjectGuid guid)
+{
+    if (!_player->IsBanker(guid, Motion::Reason::Bank))
+        return false;
+    if (!_player->IsBanker(guid, Motion::Reason::Bank))
+        return false;
+    return GetPlayer()->IsInWorld();
+}
+
+AuctionHouseEntry const* WorldSession::GetCheckedAuctionHouse(ObjectGuid guid)
+{
+    return sAuctionMgr.GetEntry(guid);
+}
+
+uint8 WorldSession::CheckName(ObjectGuid guid)
+{
+    std::string name;
+    return GetPlayer()->GetName(guid, name) ? 1 : 0;
+}
+
+void WorldSession::HandleGuildLogOpcode(WorldPacket& /* recvPacket */)
+{
+    GetPlayer()->SendLog();
+}
+'''
+
+SELF_BASE = '#include "WorldSession.h"\n\n' + SELF_SWING + '\n' + SELF_STOP + '\n' + SELF_HELPERS
 
 SELF_NEW = (SELF_BASE.replace('WorldSession.h', 'session/handlers/combat/Fixture.h')
             .replace('void WorldSession::HandleSwingOpcode(WorldPacket& recv_data)',
@@ -282,9 +426,18 @@ SELF_NEW = (SELF_BASE.replace('WorldSession.h', 'session/handlers/combat/Fixture
             .replace('void WorldSession::HandleStopOpcode(WorldPacket& /*recv_data*/)',
                      'void Fixture::HandleStop(WorldSession& session, WorldPacket& /*recv_data*/)')
             .replace('_player->', 'session.GetPlayer()->').replace('    GetPlayer()', '    session.GetPlayer()')
-            .replace('SendStop(', 'SendStop(session, '))
+            .replace('SendStop(', 'SendStop(session, ').replace('return GetPlayer()', 'return session.GetPlayer()')
+            .replace(' WorldSession::CheckBanker(', ' Fixture::CheckBanker(WorldSession& session, ')
+            .replace(' WorldSession::GetCheckedAuctionHouse(',
+                     ' Fixture::GetCheckedAuctionHouse(WorldSession& session, ')
+            .replace(' WorldSession::CheckName(', ' Fixture::CheckName(WorldSession& session, ')
+            .replace('void WorldSession::HandleGuildLogOpcode(WorldPacket& /* recvPacket */)',
+                     'void Fixture::HandleGuildLog(WorldSession& session, WorldPacket& /*recvPacket*/)'))
 
 SELF_NEW_FILE = 'src/game/session/handlers/combat/Fixture.cpp'
+
+SELF_BANKER = ('    if (!session.GetPlayer()->IsBanker(guid, Motion::Reason::Bank))',
+               '    if (!_player->IsBanker(guid, Motion::Reason::Bank))')
 
 SELF_MOVES = [
     dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
@@ -296,7 +449,29 @@ SELF_MOVES = [
     dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
          base_header='void WorldSession::HandleStopOpcode(WorldPacket& /*recv_data*/)',
          new_header='void Fixture::HandleStop(WorldSession& session, WorldPacket& /*recv_data*/)'),
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
+         base_header='bool WorldSession::CheckBanker(ObjectGuid guid)',
+         new_header='bool Fixture::CheckBanker(WorldSession& session, ObjectGuid guid)',
+         edits=[SELF_BANKER + (2,)]),
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
+         base_header='AuctionHouseEntry const* WorldSession::GetCheckedAuctionHouse(ObjectGuid guid)',
+         new_header='AuctionHouseEntry const* Fixture::GetCheckedAuctionHouse(WorldSession& session, ObjectGuid guid)'),
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
+         base_header='uint8 WorldSession::CheckName(ObjectGuid guid)',
+         new_header='uint8 Fixture::CheckName(WorldSession& session, ObjectGuid guid)'),
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
+         base_header='void WorldSession::HandleGuildLogOpcode(WorldPacket& /* recvPacket */)',
+         new_header='void Fixture::HandleGuildLog(WorldSession& session, WorldPacket& /*recvPacket*/)'),
 ]
+
+SELF_HEADERS = [e['base_header'] for e in SELF_MOVES]
+SELF_RESIDUE_BASE = '#include "Chat.h"\n#include "Log.h"\n' + SELF_BASE
+SELF_RESIDUE_HEAD = '#include "Chat.h"\n#include "Log.h"\n#include "WorldSession.h"\n\n'
+SELF_RESIDUES = {
+    'swing': SELF_RESIDUE_HEAD + SELF_STOP + '\n' + SELF_HELPERS,
+    'swing and stop': SELF_RESIDUE_HEAD + SELF_HELPERS,
+    'swing, Log.h': SELF_RESIDUE_HEAD.replace('#include "Log.h"\n', '') + SELF_STOP + '\n' + SELF_HELPERS,
+}
 
 
 def self_test():
@@ -334,10 +509,10 @@ def self_test():
         swap=('Attack(enemy, true)', 'Attack(enemy, false)'))
     run('a changed doc comment line fails', 1, 'DIFFERS from Fixture.cpp at fixture: line 4', 0,
         swap=(' * @brief Swing.', ' * @brief Swing at the target.'))
-    run('a handler of another shape fails', 1, 'neither a handler\'s nor a sender\'s shape', 1,
+    run('a handler of another shape fails', 1, 'the definition line is not `<type> <Class>::<Name>(', 1,
         new_header='void Fixture::HandleStop(WorldSession* session, WorldPacket& /*recv_data*/)')
-    run('a sender\'s definition line passes the shape check', 1, 'the definition line found 0 times', 1,
-        new_header='void Fixture::SendStop(WorldSession& session, Unit const* enemy)')
+    run('a definition line taking other parameters than its base fails', 1, 'takes (ObjectGuid other)', 2,
+        new_header='bool Fixture::CheckBanker(WorldSession& session, ObjectGuid other)')
     run('the base function still in the working tree fails', 1, 'still defines', 1, tree_base=SELF_BASE)
     run('the base file deleted in the working tree passes', 0, 'IDENTICAL', 1, tree_base=None)
     run('an edit that matches no line fails', 1, 'matches 0 lines of the function', 0,
@@ -366,6 +541,63 @@ def self_test():
         edits=SELF_MOVES[0]['edits'] * 2)
     run('a new file outside the handlers directory fails', 1, 'the new file is not under', 1,
         new_file='src/game/WorldHandlers/Fixture.cpp')
+
+    run('std::string in a body is a qualifier, not a member: passes', 0, 'IDENTICAL', 4)
+    run('Motion:: in a body is a qualifier, not a member: passes', 0, 'IDENTICAL', 2)
+    run('a member named std used alone fails', 1, '"std", a member of WorldSession, used bare', 4,
+        swap=('    std::string name;', '    std::string name = std;'),
+        base=SELF_BASE.replace('    std::string name;', '    std::string name = std;'))
+    run('a bool helper pastes back', 0, 'IDENTICAL to Fixture.cpp at fixture', 2)
+    run('a helper returning a pointer pastes back', 0, 'IDENTICAL', 3)
+    run('a uint8 helper pastes back', 0, 'with 5 lines pasted back', 4)
+    run('a helper whose base is not a WorldSession member fails', 1, 'is not a WorldSession member\'s', 2,
+        base_header='bool Other::CheckBanker(ObjectGuid guid)')
+    run('a helper returning another type than its base fails', 1, 'returns \'uint8\', the base \'bool\'', 2,
+        new_header='uint8 Fixture::CheckBanker(WorldSession& session, ObjectGuid guid)')
+    run('a /*name*/ head over a /* name */ base pastes back', 0, 'IDENTICAL', 5)
+    run('a /* name */ head pastes back', 0, 'IDENTICAL', 5,
+        swap=('WorldPacket& /*recvPacket*/)', 'WorldPacket& /* recvPacket */)'),
+        new_header='void Fixture::HandleGuildLog(WorldSession& session, WorldPacket& /* recvPacket */)')
+    run('an edit with its count of 1 stated pastes back', 0, '(1 edits)', 0,
+        edits=[SELF_MOVES[0]['edits'][0] + (1,)])
+    run('an edit covering 2 identical lines pastes back', 0, '(2 edits)', 2)
+    run('an edit of 2 identical lines listed as 1 fails', 1, 'not the 1 it covers: too many found', 2,
+        edits=[SELF_BANKER + (1,)])
+    run('an edit of 2 identical lines listed as 3 fails', 1, 'not the 3 it covers: too few found', 2,
+        edits=[SELF_BANKER + (3,)])
+    run('an edit covering 0 lines fails', 1, 'a count is 1 or more', 2, edits=[SELF_BANKER + (0,)])
+
+    def residue(label, want_rc, needle, tree, headers=SELF_HEADERS[:1], removed=(), elsewhere=()):
+        got = []
+        try:
+            rc = verify_residue('Fixture.cpp', 'fixture', SELF_RESIDUE_BASE, tree, headers, list(removed),
+                                list(elsewhere), got.append)
+        except Exception as e:                                  # a crash fails the row
+            rc = 2
+            got.append('crashed: %r' % e)
+        text = '\n'.join(got)
+        ok = rc == want_rc and needle in text
+        print('self-test: %-62s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    swing = SELF_RESIDUES['swing']
+    residue('a residue equal to the base less the moved function passes', 0,
+            'IDENTICAL to Fixture.cpp at fixture, byte for byte, with 1 moved functions cut and 0', swing)
+    residue('two moved functions adjacent in the base, cut in order: passes', 0, 'with 2 moved functions cut',
+            SELF_RESIDUES['swing and stop'], headers=SELF_HEADERS[:2])
+    residue('a listed include removal passes', 0, 'and 1 includes removed', SELF_RESIDUES['swing, Log.h'],
+            removed=['#include "Log.h"'])
+    residue('an include removal not listed fails', 1, 'line 2, \'#include "Log.h"\', is removed and not listed',
+            SELF_RESIDUES['swing, Log.h'])
+    residue('a changed residue line fails', 1, 'DIFFERS from Fixture.cpp at fixture with the moved functions cut: '
+            'line 7', swing.replace('AttackStop();', 'AttackStop(true);'))
+    residue('a moved function still in the residue fails', 1, 'it still defines', swing, headers=SELF_HEADERS[:2])
+    residue('a listed removal not found fails', 1, 'found 0 times', swing, removed=['#include "Map.h"'])
+    residue('a listed removal that is not an include line fails', 1, 'is not an include line',
+            swing.replace('    GetPlayer()->SendLog();\n', ''), removed=['    GetPlayer()->SendLog();'])
+    residue('a removal listed at another base, gone here, passes', 0, 'IDENTICAL', swing,
+            elsewhere=['#include "Map.h"'])
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)

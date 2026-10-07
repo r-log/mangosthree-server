@@ -18,7 +18,11 @@ check refuses, by name with file and line:
   - a variable declared with its type (`struct S { ... } s;`).
 Outside the classes it refuses:
   - a `static` or `thread_local` inside a function body, a member function's or a free one's (a
-    function-local static outlives the call and is shared between the threads that run it);
+    function-local static outlives the call and is shared between the threads that run it), but for
+    `static SqlStatementID <name>;` read by that type name, alone, unqualified and uninitialised: the
+    prepared statement's id the database layer fills and caches, which holds no session or player.
+    A pointer or reference to one, an initialised or `thread_local` one, one of any other type and
+    one at namespace or class scope are refused as before;
   - a variable at namespace scope, or any declaration there with no body (a direct-initialised
     variable, `uint32 g(0);`, reads as a function declaration; a free helper is defined before its
     use instead), and an anonymous member there; named or anonymous namespaces and `extern "C"`
@@ -84,6 +88,7 @@ FUNCTION_HEAD = re.compile(r'\)\s*(?:(?:const|volatile|noexcept|override|final|&
 NAMESPACE_HEAD = re.compile(r'(?:\bnamespace\b[\w\s:]*|\bextern\s*"\s*")$')
 FORWARD = re.compile(r'(class|struct|union|enum)\b[^{]*;$')
 STORAGE = re.compile(r'[{};]|\b(?:static|thread_local)\b')
+STATEMENT_ID = re.compile(r'static SqlStatementID [A-Za-z_]\w* ?;')
 
 
 def constant(sig):
@@ -167,8 +172,9 @@ def check_text(rel, text):
                           'a class the gate cannot read: %s' % ' '.join(head.split())))
     local, braces = walk(clean)
     for at in local:
-        found.append((clean.count('\n', 0, at) + 1, 'a function-local static: %s' % (
-            ' '.join(clean[at:clean.find(';', at) + 1].split()))))
+        statement = ' '.join(clean[at:clean.find(';', at) + 1].split())
+        if not STATEMENT_ID.fullmatch(statement):
+            found.append((clean.count('\n', 0, at) + 1, 'a function-local static: %s' % statement))
     flat = list(clean)
     for a, b in braces:
         flat[a:b] = [c if c == '\n' else ' ' for c in clean[a:b]]
@@ -296,6 +302,16 @@ SELF_REFUSED = [
      '        friend class OpcodeTable;', '        static constexpr Counter c{};'),
     ('a constexpr pointer to a writable object', 'a variable at namespace scope: constexpr int* g_p = &g_plain;',
      'static void Helper', 'constexpr int* g_p = &g_plain;\n\nstatic void Helper'),
+    ('a function-local static pointer to a statement id', 'a function-local static: static SqlStatementID* p;',
+     '    Helper(session);', '    static SqlStatementID* p;\n    Helper(session);'),
+    ('a function-local static statement id initialised', 'a function-local static: static SqlStatementID id = other;',
+     '    Helper(session);', '    static SqlStatementID id = other;\n    Helper(session);'),
+    ('a function-local static of another type', 'a function-local static: static OtherType x;',
+     '    Helper(session);', '    static OtherType x;\n    Helper(session);'),
+    ('a function-local thread_local statement id', 'a function-local static: thread_local SqlStatementID x;',
+     '    Helper(session);', '    thread_local SqlStatementID x;\n    Helper(session);'),
+    ('a statement id at namespace scope', 'a variable at namespace scope: static SqlStatementID s_id;',
+     'static void Helper', 'static SqlStatementID s_id;\n\nstatic void Helper'),
     ('a static data member defined out of the class',
      'a variable at namespace scope: uint32 CombatHandlers::s_count = 0;',
      'static void Helper', 'uint32 CombatHandlers::s_count = 0;\n\nstatic void Helper'),
@@ -312,6 +328,9 @@ def self_test():
 
     got = check_text('fixture', SELF_ACCEPTED)
     row('statics only, a deleted constructor, constexpr constants: accepted', got == [], got)
+    got = check_text('fixture', SELF_ACCEPTED.replace('    Helper(session);', '    static SqlStatementID updPetName;\n'
+                                                      '    Helper(session);'))
+    row('a function-local static SqlStatementID: accepted', got == [], got)
     for label, needle, a, b in SELF_REFUSED:
         if a not in SELF_ACCEPTED:
             row(label, False, 'the mutation %r matches nothing' % a)
