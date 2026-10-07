@@ -29,6 +29,7 @@
 #include "spells/handlers/AuraControlHandlers.h"
 #include "spells/handlers/SpellEffectTailHandlers.h"
 #include "spells/handlers/AuraPeriodicHandlers.h"
+#include "spells/handlers/SpellEffectHealPowerHandlers.h"
 #include "Utilities/Errors.h"
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
@@ -44,6 +45,7 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
         rows += RegisterAuraControlHandlers(built);
         rows += RegisterSpellEffectTailHandlers(built);
         rows += RegisterAuraPeriodicHandlers(built);
+        rows += RegisterSpellEffectHealPowerHandlers(built);
         MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();

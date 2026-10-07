@@ -1863,5 +1863,7 @@ src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The handlers pass the aura to CastSpell (66, 29166, 51912) and read it: GetRemoveMode(), GetSpellEffect(), GetModifier()->m_amount, GetCaster(), GetHolder(), GetEffIndex(), GetSpellProto(), GetBasePoints(), GetAuraMaxTicks().
 src/game/spells/handlers/AuraPeriodicHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
+# The injector bodies read the target's skill as a player.
+src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 src/modules/SD3/include/precompiled.h -> src/game/WorldHandlers/World.h
 src/modules/SD3/include/sc_grid_searchers.cpp -> src/game/WorldHandlers/World.h

@@ -95,7 +95,9 @@ enum SpellHandlerSite
     /// `Aura::HandleAuraPeriodicDummy`, SPELLFAMILY_ROGUE's `switch(GetSpellProto()->ID)`.
     SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_ROGUE = 14,
     /// `Aura::HandleAuraModIncreaseHealth`: its `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_INCREASE_HEALTH = 15
+    SPELL_HANDLER_SITE_AURA_INCREASE_HEALTH = 15,
+    /// `Spell::EffectEnergize`, before the amount is shrunk by level: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_ENERGIZE = 16
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

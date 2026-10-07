@@ -26,14 +26,15 @@
 /// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry.
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
-/// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's
-/// and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their contexts, and run where
-/// a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the
-/// transmitted-object default, the periodic-trigger labels on such a mode, the health labels on an apply that is not
-/// real, the health default on a bare Creature); a body that casts, sets a display or reads a level or an aura needs a
-/// live Unit, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
-/// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
-/// druid, quest-tame, transform, threat, transmitted-object or periodic-aura label, nor another removal one).
+/// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's,
+/// EffectEnergize's and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their
+/// contexts, and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps
+/// them off the Unit, the transmitted-object and energize defaults, the periodic-trigger labels on such a mode, the
+/// health labels on an apply that is not real, the health default and the energize injector labels on a bare
+/// Creature); a body that casts, sets a display or reads a level or an aura needs a live Unit, which the harness
+/// record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the coverage scenario
+/// two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid, quest-tame,
+/// transform, threat, transmitted-object, energize or periodic-aura label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -48,7 +49,8 @@
 ///                            AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault,
 ///                            AuraPeriodicHandlers_TheEnergizeSiteHoldsItsFiveLabelsAndTheDefault,
 ///                            AuraPeriodicHandlers_TheRogueSiteHoldsItsOneLabelAndNoDefault,
-///                            AuraPeriodicHandlers_TheIncreaseHealthSiteHoldsItsFourteenLabelsAndTheDefault
+///                            AuraPeriodicHandlers_TheIncreaseHealthSiteHoldsItsFourteenLabelsAndTheDefault,
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -56,16 +58,19 @@
 ///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
 ///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault,
 ///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault,
-///                            the five AuraPeriodicHandlers_The...SiteHolds... tests (no id at another site)
+///                            the five AuraPeriodicHandlers_The...SiteHolds... tests (no id at another site),
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
-///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault
+///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault,
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
 ///                            AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault,
-///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
+///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs,
+///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -77,7 +82,8 @@
 ///                            AuraShapeshiftHandlers_TheTransformContextAliasesTheTargetLocal,
 ///                            AuraControlHandlers_TheThreatContextAliasesTheThreeLocals,
 ///                            SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry,
-///                            the five AuraPeriodicHandlers_The...ContextAliases... tests
+///                            the five AuraPeriodicHandlers_The...ContextAliases... tests,
+///                            SpellEffectHealPowerHandlers_TheEnergizeContextAliasesTheSpellAndTheLevelLocals
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
 
@@ -88,6 +94,7 @@
 #include "spells/handlers/AuraControlHandlers.h"
 #include "spells/handlers/SpellEffectTailHandlers.h"
 #include "spells/handlers/AuraPeriodicHandlers.h"
+#include "spells/handlers/SpellEffectHealPowerHandlers.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
 #include "Creature.h"
@@ -552,10 +559,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
-    // transmitted-object site's row and default, and the periodic auras' 26 rows and 4 defaults.
+    // transmitted-object site's row and default, the periodic auras' 26 rows and 4 defaults, and the energize site's
+    // 9 rows and default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(110));
-    CHECK_EQ(game.CountDefaults(), std::size_t(6));
+    CHECK_EQ(game.Count(), std::size_t(119));
+    CHECK_EQ(game.CountDefaults(), std::size_t(7));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -1100,7 +1108,8 @@ TEST(SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry)
 
 namespace
 {
-    // Whether `spellId` is a key at a site other than `site`: the periodic auras' five and the earlier files' ids.
+    // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize site and the
+    // earlier files' ids.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
     {
         return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
@@ -1109,6 +1118,7 @@ namespace
                (site != AuraPeriodicDummyRogueSite::Key &&
                 registry.Find<AuraPeriodicDummyRogueSite>(spellId) != NULL) ||
                (site != AuraIncreaseHealthSite::Key && registry.Find<AuraIncreaseHealthSite>(spellId) != NULL) ||
+               (site != SpellEffectEnergizeSite::Key && registry.Find<SpellEffectEnergizeSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -1423,4 +1433,120 @@ TEST(AuraPeriodicHandlers_TheIncreaseHealthContextAliasesTheTargetApplyAndReal)
     real = true;
     CHECK(!ctx.apply);
     CHECK(ctx.real);
+}
+
+TEST(SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectHealPowerHandlers(registry), uint32(10)); // nine rows and the default
+    CHECK_EQ(registry.Count(), std::size_t(9));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK_EQ(registry.CountAt(SpellEffectEnergizeSite::Key), std::size_t(9));
+
+    // Nine labels, five bodies (the four base-mana labels share one, the two injectors another), and a default that
+    // is none of them.
+    typedef SpellHandler<SpellEffectEnergizeSite>::Function EnergizeBody;
+    EnergizeBody restoreEnergy = registry.Find<SpellEffectEnergizeSite>(9512);
+    EnergizeBody bloodFury = registry.Find<SpellEffectEnergizeSite>(24571);
+    EnergizeBody burstOfEnergy = registry.Find<SpellEffectEnergizeSite>(24532);
+    EnergizeBody baseManaPercent = registry.Find<SpellEffectEnergizeSite>(31930);
+    EnergizeBody injector = registry.Find<SpellEffectEnergizeSite>(67487);
+    EnergizeBody onMiss = registry.FindDefault<SpellEffectEnergizeSite>();
+    std::set<EnergizeBody> bodies = { restoreEnergy, bloodFury, burstOfEnergy, baseManaPercent, injector, onMiss };
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(6));
+    for (uint32 spellId : { 48542u, 63375u, 68082u })
+    {
+        CHECK(registry.Find<SpellEffectEnergizeSite>(spellId) == baseManaPercent);
+    }
+    CHECK(registry.Find<SpellEffectEnergizeSite>(67490) == injector);
+    CHECK(registry.Find<SpellEffectEnergizeSite>(12345) == NULL);
+
+    // A miss runs the default, which answers Continue as the old `default: break;` did and changes nothing.
+    Unit* caster = NULL;
+    Unit* target = NULL;
+    int32 damage = 100;
+    int level_diff = 0;
+    int level_multiplier = 0;
+    SpellEffectEnergizeContext ctx(caster, target, damage, level_diff, level_multiplier);
+    SpellHandlerOutcome<void> missed = registry.Dispatch<SpellEffectEnergizeSite>(12345, ctx);
+    CHECK(missed.IsContinue());
+    CHECK(!missed.IsReturn());
+    CHECK(!missed.IsMiss());
+    CHECK_EQ(damage, int32(100));
+    CHECK_EQ(level_diff, 0);
+    CHECK_EQ(level_multiplier, 0);
+    CHECK(caster == NULL);
+    CHECK(target == NULL);
+
+    // The injectors on a target that is not a player: the type test fails, the amount stays, and the member goes on.
+    Creature creature(CREATURE_SUBTYPE_GENERIC);
+    target = &creature;
+    for (uint32 spellId : { 67487u, 67490u })
+    {
+        SpellHandlerOutcome<void> injected = registry.Dispatch<SpellEffectEnergizeSite>(spellId, ctx);
+        CHECK(injected.IsContinue());
+        CHECK(!injected.IsReturn());
+        CHECK_EQ(damage, int32(100));
+    }
+    target = NULL;
+
+    // Registering again on the same table changes nothing: the keys and the default are taken.
+    CHECK_EQ(RegisterSpellEffectHealPowerHandlers(registry), uint32(10));
+    CHECK_EQ(registry.Count(), std::size_t(9));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK(registry.Find<SpellEffectEnergizeSite>(9512) == restoreEnergy);
+    CHECK(registry.FindDefault<SpellEffectEnergizeSite>() == onMiss);
+
+    // Keyed on the energize site only: its labels are no other site's, and the other sites' are not its; the game's
+    // table holds the same rows and the same default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 9512u, 24571u, 24532u, 31930u, 48542u, 63375u, 68082u, 67487u, 67490u })
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectEnergizeSite::Key, spellId));
+        CHECK(game.Find<SpellEffectEnergizeSite>(spellId) == registry.Find<SpellEffectEnergizeSite>(spellId));
+    }
+    for (uint32 spellId : { 29886u, 41099u, 54833u, 29166u, 57669u, 12976u })
+    {
+        CHECK(game.Find<SpellEffectEnergizeSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectEnergizeSite::Key), std::size_t(9));
+    CHECK(game.FindDefault<SpellEffectEnergizeSite>() == onMiss);
+}
+
+TEST(SpellEffectHealPowerHandlers_TheEnergizeContextAliasesTheSpellAndTheLevelLocals)
+{
+    alignas(16) static unsigned char units[4][16];
+    Unit* caster = reinterpret_cast<Unit*>(units[0]);
+    Unit* target = reinterpret_cast<Unit*>(units[1]);
+    int32 damage = 100;
+    int level_diff = 0;
+    int level_multiplier = 0;
+    SpellEffectEnergizeContext ctx(caster, target, damage, level_diff, level_multiplier);
+    CHECK(ctx.m_caster == caster);
+    CHECK(ctx.unitTarget == target);
+    CHECK_EQ(ctx.damage, int32(100));
+    CHECK_EQ(ctx.level_diff, 0);
+    CHECK_EQ(ctx.level_multiplier, 0);
+
+    ctx.m_caster = reinterpret_cast<Unit*>(units[2]);           // the caster is the spell's member, not a copy
+    CHECK(caster == reinterpret_cast<Unit*>(units[2]));
+    caster = reinterpret_cast<Unit*>(units[0]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
+    ctx.unitTarget = reinterpret_cast<Unit*>(units[3]);         // so is the target
+    CHECK(target == reinterpret_cast<Unit*>(units[3]));
+    target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(ctx.unitTarget == reinterpret_cast<Unit*>(units[1]));
+    ctx.damage = 125;                                           // a body's write to `damage`...
+    CHECK_EQ(damage, int32(125));                               // ...is the spell's amount, which it reads after
+    damage = 90;
+    CHECK_EQ(ctx.damage, int32(90));
+    ctx.level_diff = 7;                                         // the two locals the member shrinks the amount by
+    ctx.level_multiplier = 10;
+    CHECK_EQ(level_diff, 7);
+    CHECK_EQ(level_multiplier, 10);
+    level_diff = -5;
+    level_multiplier = 4;
+    CHECK_EQ(ctx.level_diff, -5);
+    CHECK_EQ(ctx.level_multiplier, 4);
 }
