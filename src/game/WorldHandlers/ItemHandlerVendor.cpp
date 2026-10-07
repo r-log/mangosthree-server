@@ -724,31 +724,3 @@ void WorldSession::HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket)
         _player->BankItem(dest, pItem, true);
     }
 }
-
-/**
- * @brief Sets or clears the player's equipped ammunition.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleSetAmmoOpcode(WorldPacket& recv_data)
-{
-    if (!GetPlayer()->IsAlive())
-    {
-        GetPlayer()->SendEquipError(EQUIP_ERR_YOU_ARE_DEAD, NULL, NULL);
-        return;
-    }
-
-    DEBUG_LOG("WORLD: CMSG_SET_AMMO");
-    uint32 item;
-
-    recv_data >> item;
-
-    if (!item)
-    {
-        GetPlayer()->RemoveAmmo();
-    }
-    else
-    {
-        GetPlayer()->SetAmmo(item);
-    }
-}

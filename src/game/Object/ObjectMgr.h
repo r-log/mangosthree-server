@@ -656,7 +656,7 @@ class ObjectMgr
             return m_pointsOfInterest.Find(id);
         }
 
-        QuestPOIVector const* GetQuestPOIVector(uint32 questId)
+        QuestPOIVector const* GetQuestPOIVector(uint32 questId) const
         {
             return m_questPoi.Find(questId);
         }
@@ -671,8 +671,6 @@ class ObjectMgr
             return m_dungeonFinder.FindRewards(level);
         }
 
-        DungeonFinderRequirementsMap const& GetDungeonFinderRequirementsMap() const { return m_dungeonFinder.Requirements(); }
-        DungeonFinderRewardsMap const& GetDungeonFinderRewardsMap() const { return m_dungeonFinder.Rewards(); }
         DungeonFinderItemsMap const& GetDungeonFinderItemsMap() const { return m_dungeonFinder.Items(); }
 
         typedef ::LfgDungeonEntrance LfgDungeonEntrance;

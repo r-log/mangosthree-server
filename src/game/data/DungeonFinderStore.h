@@ -97,8 +97,6 @@ class DungeonFinderStore
         void SetItems(uint32 id, DungeonFinderItems const& items);
         DungeonFinderRequirements const* FindRequirements(uint32 mapId, uint32 difficulty) const;
         DungeonFinderRewards const* FindRewards(uint32 level) const;
-        DungeonFinderRequirementsMap const& Requirements() const { return m_requirements; }
-        DungeonFinderRewardsMap const& Rewards() const { return m_rewards; }
         DungeonFinderItemsMap const& Items() const { return m_items; }
 
     private:

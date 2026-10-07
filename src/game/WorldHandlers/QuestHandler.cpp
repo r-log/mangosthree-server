@@ -409,38 +409,6 @@ void WorldSession::HandleQuestgiverRequestRewardOpcode(WorldPacket& recv_data)
 }
 
 /**
- * @brief Cancels the current quest giver gossip interaction.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleQuestgiverCancel(WorldPacket& /*recv_data*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_QUESTGIVER_CANCEL");
-
-    _player->PlayerTalkClass->CloseGossip();
-}
-
-/**
- * @brief Swaps two quest log entries.
- *
- * @param recv_data The received opcode packet.
- */
-void WorldSession::HandleQuestLogSwapQuest(WorldPacket& recv_data)
-{
-    uint8 slot1, slot2;
-    recv_data >> slot1 >> slot2;
-
-    if (slot1 == slot2 || slot1 >= MAX_QUEST_LOG_SIZE || slot2 >= MAX_QUEST_LOG_SIZE)
-    {
-        return;
-    }
-
-    DEBUG_LOG("WORLD: Received opcode CMSG_QUESTLOG_SWAP_QUEST slot 1 = %u, slot 2 = %u", slot1, slot2);
-
-    GetPlayer()->SwapQuestSlot(slot1, slot2);
-}
-
-/**
  * @brief Removes a quest from the player's quest log.
  *
  * @param recv_data The received opcode packet.
@@ -598,16 +566,6 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPacket& recv_data)
             }
         }
     }
-}
-
-/**
- * @brief Handles the client quest auto-launch notification.
- *
- * @param recvPacket The received opcode packet.
- */
-void WorldSession::HandleQuestgiverQuestAutoLaunch(WorldPacket& /*recvPacket*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_QUESTGIVER_QUEST_AUTOLAUNCH");
 }
 
 /**

@@ -188,8 +188,5 @@ extern uint32 GetSkillLevel(Player* pPlayer, uint32 uiSkill);
 // a - is always the npc guid (ObjectGuid)
 #define SEND_VENDORLIST(a)         GetSession()->SendListInventory(a)
 #define SEND_TRAINERLIST(a)        GetSession()->SendTrainerList(a)
-#define SEND_BANKERLIST(a)         GetSession()->SendShowBank(a)
-#define SEND_TABARDLIST(a)         GetSession()->SendTabardVendorActivate(a)
-#define SEND_TAXILIST(a)           GetSession()->SendTaxiStatus(a)
 
 #endif

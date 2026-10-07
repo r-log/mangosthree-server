@@ -86,55 +86,6 @@ void WorldSession::HandleGuildQueryOpcode(WorldPacket& recvPacket)
 }
 
 /**
- * @brief Creates a new guild for the current player.
- *
- * @param recvPacket The received opcode packet.
- */
-void WorldSession::HandleGuildCreateOpcode(WorldPacket& recvPacket)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_GUILD_CREATE");
-
-    std::string gname;
-    recvPacket >> gname;
-
-    if (GetPlayer()->GetGuildId())                          // already in guild
-    {
-        return;
-    }
-
-    Guild* guild = new Guild;
-    if (!guild->Create(GetPlayer(), gname))
-    {
-        delete guild;
-        return;
-    }
-
-    sGuildMgr.AddGuild(guild);
-}
-
-/**
- * @brief Sends a guild invitation packet to another player.
- *
- * @param player The invited player.
- * @param alreadyInGuild Unused legacy flag for prior guild membership checks.
- */
-void WorldSession::SendGuildInvite(Player* player, bool alreadyInGuild /*= false*/)
-{
-    Guild* guild = sGuildMgr.GetGuildById(GetPlayer()->GetGuildId());
-    if (!guild)
-    {
-        return;
-    }
-
-    player->SetGuildIdInvited(GetPlayer()->GetGuildId());
-
-    WorldPacket data(SMSG_GUILD_INVITE, (8 + 10));          // guess size
-    data << GetPlayer()->GetName();
-    data << guild->GetName();
-    player->GetSession()->SendPacket(&data);                                  // unk
-}
-
-/**
  * @brief Invites another player to the current guild.
  *
  * @param recvPacket The received opcode packet.
@@ -381,30 +332,6 @@ void WorldSession::HandleGuildDeclineOpcode(WorldPacket& recvPacket)
 
     GetPlayer()->SetGuildIdInvited(0);
     GetPlayer()->SetGuildLevel(0);
-}
-
-/**
- * @brief Sends general information about the current guild.
- *
- * @param recvPacket The received opcode packet.
- */
-void WorldSession::HandleGuildInfoOpcode(WorldPacket& /*recvPacket*/)
-{
-    DEBUG_LOG("WORLD: Received opcode CMSG_GUILD_INFO");
-
-    Guild* guild = sGuildMgr.GetGuildById(GetPlayer()->GetGuildId());
-    if (!guild)
-    {
-        SendGuildCommandResult(GUILD_CREATE_S, "", ERR_GUILD_PLAYER_NOT_IN_GUILD);
-        return;
-    }
-
-    WorldPacket data(SMSG_GUILD_INFO, (guild->GetName().size() + 4 + 4 + 4));
-    data << guild->GetName();
-    data << uint32(secsToTimeBitFields(guild->GetCreatedDate())); // 3.x (prev. day + month + year)
-    data << uint32(guild->GetMemberSize());                 // amount of chars
-    data << uint32(guild->GetAccountsNumber());             // amount of accounts
-    SendPacket(&data);
 }
 
 /**

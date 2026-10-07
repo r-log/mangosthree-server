@@ -450,24 +450,6 @@ void WorldSession::HandleChannelAnnouncementsOpcode(WorldPacket& recvPacket)
 }
 
 /**
- * @brief Toggles moderated mode for a channel.
- *
- * @param recvPacket The received opcode packet.
- */
-void WorldSession::HandleChannelModerateOpcode(WorldPacket& recvPacket)
-{
-    DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
-    // recvPacket.hexlike();
-    std::string channelname;
-    recvPacket >> channelname;
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
-        {
-            chn->Moderate(_player);
-        }
-}
-
-/**
  * @brief Handles a channel display list query.
  *
  * @param recvPacket The received opcode packet.
@@ -482,30 +464,6 @@ void WorldSession::HandleChannelDisplayListQueryOpcode(WorldPacket& recvPacket)
         {
             chn->List(_player);
         }
-}
-
-/**
- * @brief Sends the current member count for a channel.
- *
- * @param recvPacket The received opcode packet.
- */
-void WorldSession::HandleGetChannelMemberCountOpcode(WorldPacket& recvPacket)
-{
-    DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
-    // recvPacket.hexlike();
-    std::string channelname;
-    recvPacket >> channelname;
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-    {
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
-        {
-            WorldPacket data(SMSG_CHANNEL_MEMBER_COUNT, chn->GetName().size() + 1 + 1 + 4);
-            data << chn->GetName();
-            data << uint8(chn->GetFlags());
-            data << uint32(chn->GetNumPlayers());
-            SendPacket(&data);
-        }
-    }
 }
 
 /**

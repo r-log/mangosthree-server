@@ -239,7 +239,7 @@ namespace Harness
         /// SMSG_AI_REACTION (Creature::SendAIReaction, Creature.cpp:2464-2467; Unit.cpp:5875-5877):
         /// the creature's raw guid as a role and the reaction.
         bool DecodeAiReaction(uint8 const* data, size_t size, Roles const& roles, std::string& out);
-        /// SMSG_ATTACKSTOP (Unit::SendMeleeAttackStop, UnitCombat.cpp:483-486; CombatHandlers::
+        /// SMSG_ATTACKSTOP (Unit::SendMeleeAttackStop, UnitCombat.cpp:469-472; CombatHandlers::
         /// SendAttackStop, CombatHandlers.cpp:150-153): the attacker's and the victim's packed guids
         /// and the trailing word.
         bool DecodeAttackStop(uint8 const* data, size_t size, Roles const& roles, std::string& out);
