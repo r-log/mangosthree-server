@@ -558,11 +558,8 @@ class WorldSession
         void SendAuctionOwnerNotification(AuctionEntry* auction);
         void SendAuctionRemovedNotification(AuctionEntry* auction);
         static void SendAuctionOutbiddedMail(AuctionEntry* auction);
-        void SendAuctionCancelledToBidderMail(AuctionEntry* auction);
         void BuildListAuctionItems(std::vector<AuctionEntry*> const& auctions, WorldPacket& data, std::wstring const& searchedname, uint32 listfrom, uint32 levelmin,
                                    uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, uint32& count, uint32& totalcount, bool isFull);
-
-        AuctionHouseEntry const* GetCheckedAuctionHouseForAuctioneer(ObjectGuid guid);
 
         // Item Enchantment
         void SendEnchantmentLog(ObjectGuid targetGuid, ObjectGuid casterGuid, uint32 itemId, uint32 enchantId);
@@ -999,17 +996,6 @@ class WorldSession
         void HandleSetTradeGoldOpcode(WorldPacket& recvPacket);
         void HandleSetTradeItemOpcode(WorldPacket& recvPacket);
         void HandleUnacceptTradeOpcode(WorldPacket& recvPacket);
-
-        void HandleAuctionHelloOpcode(WorldPacket& recvPacket);
-        void HandleAuctionListItems(WorldPacket& recv_data);
-        void HandleAuctionListBidderItems(WorldPacket& recv_data);
-        void HandleAuctionSellItem(WorldPacket& recv_data);
-
-        void HandleAuctionRemoveItem(WorldPacket& recv_data);
-        void HandleAuctionListOwnerItems(WorldPacket& recv_data);
-        void HandleAuctionPlaceBid(WorldPacket& recv_data);
-
-        void HandleAuctionListPendingSales(WorldPacket& recv_data);
 
         void HandleGetMailList(WorldPacket& recv_data);
 

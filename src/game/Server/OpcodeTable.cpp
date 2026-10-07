@@ -45,6 +45,7 @@
 #include "OpcodeTable.h"
 #include "WorldSession.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
@@ -747,12 +748,12 @@ void InitializeOpcodes()
     //OPCODE(SMSG_RESURRECT_FAILED,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_TOGGLE_PVP,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleTogglePvP                 );
     OPCODE(SMSG_ZONE_UNDER_ATTACK,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(MSG_AUCTION_HELLO,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionHelloOpcode        );
-    OPCODE(CMSG_AUCTION_SELL_ITEM,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionSellItem           );
-    OPCODE(CMSG_AUCTION_REMOVE_ITEM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionRemoveItem         );
-    OPCODE(CMSG_AUCTION_LIST_ITEMS,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionListItems          );
-    OPCODE(CMSG_AUCTION_LIST_OWNER_ITEMS,                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionListOwnerItems     );
-    OPCODE(CMSG_AUCTION_PLACE_BID,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionPlaceBid           );
+    OPCODE(MSG_AUCTION_HELLO,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionHello           );
+    OPCODE(CMSG_AUCTION_SELL_ITEM,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionSellItem        );
+    OPCODE(CMSG_AUCTION_REMOVE_ITEM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionRemoveItem      );
+    OPCODE(CMSG_AUCTION_LIST_ITEMS,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionListItems       );
+    OPCODE(CMSG_AUCTION_LIST_OWNER_ITEMS,                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionListOwnerItems  );
+    OPCODE(CMSG_AUCTION_PLACE_BID,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionPlaceBid        );
     OPCODE(SMSG_AUCTION_COMMAND_RESULT,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_AUCTION_LIST_RESULT,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_AUCTION_OWNER_LIST_RESULT,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -762,7 +763,7 @@ void InitializeOpcodes()
     //OPCODE(SMSG_COMBAT_EVENT_FAILED,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_DISPEL_FAILED,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPELLOGDAMAGE_IMMUNE,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_AUCTION_LIST_BIDDER_ITEMS,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionListBidderItems    );
+    OPCODE(CMSG_AUCTION_LIST_BIDDER_ITEMS,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionListBidderItems );
     OPCODE(SMSG_AUCTION_BIDDER_LIST_RESULT,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SET_FLAT_SPELL_MODIFIER,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SET_PCT_SPELL_MODIFIER,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1336,7 +1337,7 @@ void InitializeOpcodes()
     //OPCODE(SMSG_DUMP_OBJECTS_DATA,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_DISMISS_CRITTER,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleDismissCritter);
     //OPCODE(SMSG_NOTIFY_DEST_LOC_SPELL_CAST,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_AUCTION_LIST_PENDING_SALES,              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAuctionListPendingSales   );
+    OPCODE(CMSG_AUCTION_LIST_PENDING_SALES,              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionListPendingSales);
     OPCODE(SMSG_AUCTION_LIST_PENDING_SALES,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_MODIFY_COOLDOWN,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PET_UPDATE_COMBO_POINTS,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
