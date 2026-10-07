@@ -1860,11 +1860,17 @@ src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
 # The Animal Blood body (46221) reads the water level from the target's TerrainInfo: read-only on the grid map, dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
+# Read-only, a search over the grid: a reader is not a reach; dies with D9's map surface.
+src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
 # The handlers read the aura: 61336 GetModifier()->m_amount; the removal bodies GetRemoveMode() and GetCaster(), 61900 GetSpellProto(); the feign-death body GetCasterGuid() and GetId().
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The handlers pass the aura to CastSpell (66, 29166, 51912) and read it: GetRemoveMode(), GetSpellEffect(), GetModifier()->m_amount, GetCaster(), GetHolder(), GetEffIndex(), GetSpellProto(), GetBasePoints(), GetAuraMaxTicks().
 src/game/spells/handlers/AuraPeriodicHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
+# The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.
+src/game/spells/handlers/SpellTargetingHandlers.cpp -> src/game/entities/player/Player.h
+# The Cannibalize body finds the corpse's owner through the player registry, the origin's own edge carried; the registry accessor is a macro, so the line retires when the registry becomes a query on the player's owning store, or with row 13's successor.
+src/game/spells/handlers/SpellTargetingHandlers.cpp -> src/game/entities/player/PlayerRegistry.h
 src/modules/SD3/include/precompiled.h -> src/game/WorldHandlers/World.h
 src/modules/SD3/include/sc_grid_searchers.cpp -> src/game/WorldHandlers/World.h
