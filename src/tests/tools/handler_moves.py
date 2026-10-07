@@ -69,6 +69,12 @@ _LOOT_FILE = 'src/game/session/handlers/economy/LootHandlers.cpp'
 _LOOT_ORIGIN = 'src/game/WorldHandlers/LootHandler.cpp'
 _LOOT_PLAYER = [('GetPlayer()', '_player')]
 
+_AUCTION_BASE = '5f5b94ca2'
+_AUCTION_FILE = 'src/game/session/handlers/economy/AuctionHandlers.cpp'
+_AUCTION_ORIGIN = 'src/game/WorldHandlers/AuctionHouseHandler.cpp'
+_AUCTION_PLAYER = [('GetPlayer()', '_player')]
+_AUCTION_CHECKED = [('GetCheckedAuctionHouseForAuctioneer(session, ', 'GetCheckedAuctionHouseForAuctioneer(')]
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -296,6 +302,47 @@ MOVES = [
                  '!_player->Where().ShareFrame(target->Where()))'),
                 ('        session.GetPlayer()->SendEquipError(msg, NULL, NULL, item.itemid);',
                  '        _player->SendEquipError(msg, NULL, NULL, item.itemid);')]),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionHelloOpcode(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionHello(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::SendAuctionCancelledToBidderMail(AuctionEntry* auction)',
+         new_header='void AuctionHandlers::SendAuctionCancelledToBidderMail(AuctionEntry* auction)'),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='AuctionHouseEntry const* WorldSession::GetCheckedAuctionHouseForAuctioneer(ObjectGuid guid)',
+         new_header='AuctionHouseEntry const* AuctionHandlers::GetCheckedAuctionHouseForAuctioneer('
+                    'WorldSession& session, ObjectGuid guid)'),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionSellItem(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_AUCTION_CHECKED),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionPlaceBid(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionPlaceBid(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_AUCTION_CHECKED),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionRemoveItem(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionRemoveItem(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_AUCTION_CHECKED),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionListBidderItems(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionListBidderItems(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_AUCTION_CHECKED),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionListOwnerItems(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionListOwnerItems(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_AUCTION_CHECKED,
+         edits=[('    auctionHouse->BuildListOwnerItems(data, session.GetPlayer(), count, totalcount);',
+                 '    auctionHouse->BuildListOwnerItems(data, _player, count, totalcount);')]),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionListItems(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionListItems(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_AUCTION_CHECKED),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
+         base_header='void WorldSession::HandleAuctionListPendingSales(WorldPacket& recv_data)',
+         new_header='void AuctionHandlers::HandleAuctionListPendingSales(WorldSession& session, '
+                    'WorldPacket& recv_data)',
+         substitutions=_AUCTION_PLAYER + _AUCTION_CHECKED),
 ]
 
 RESIDUES = [
@@ -326,4 +373,7 @@ RESIDUES = [
          removed=['#include <cmath>', '#include <vector>', '#include "OpcodeTable.h"', '#include "WorldPacket.h"',
                   '#include "Log.h"', '#include "AchievementMgr.h"', '#include "PlayerRegistry.h"',
                   '#include "Group.h"', '#include "World.h"', '#include "Util.h"', '#include "DBCStores.h"']),
+    dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN,
+         removed=['#include <algorithm>', '#include <string>', '#include <vector>', '#include "Log.h"',
+                  '#include "World.h"', '#include "AchievementMgr.h"', '#include "Util.h"', '#include "Chat.h"']),
 ]

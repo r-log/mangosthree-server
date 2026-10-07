@@ -747,8 +747,6 @@ src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/proto/WorldPacket.h
-src/game/WorldHandlers/AuctionHouseHandler.cpp -> src/game/WorldHandlers/Chat.h
-src/game/WorldHandlers/AuctionHouseHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/CalendarHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Channel.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/Channel.cpp -> src/game/WorldHandlers/Chat.h
@@ -1846,6 +1844,10 @@ src/game/movement/MovementBridge.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
+# The auction house check accepts the player's own guid as the auctioneer when the player may use the auction command: ChatHandler(session.GetPlayer()).FindCommand("auction").
+src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/Chat.h
+# The auction sell handler reads the world config CONFIG_BOOL_GM_LOG_TRADE to log a GM's auction; dies with row 3.
+src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/World.h
 # The battlemaster join answers a disabled battleground through ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED).
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The spirit healer queue opens the spirit healer's gossip through sScriptMgr.OnGossipHello.

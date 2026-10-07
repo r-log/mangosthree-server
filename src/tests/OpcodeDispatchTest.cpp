@@ -38,6 +38,8 @@
 /// and, the name finding no player, answers with one SMSG_ARENA_TEAM_COMMAND_RESULT through the
 /// session before it reads the player. The CMSG_BATTLEFIELD_LIST row reads a list request for type
 /// 0 to its end and, no battlemaster list entry naming that type, returns before it reads the
+/// player, sending nothing. The CMSG_AUCTION_PLACE_BID row reads a bid of price 0 on auction 0 at
+/// an empty auctioneer guid to its end and returns at the empty auction id before it reads the
 /// player, sending nothing.
 
 #include "TestHarness.h"
@@ -48,6 +50,7 @@
 #include "ArenaTeam.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
@@ -343,4 +346,43 @@ TEST(OpcodeDispatch_LootRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_LOOT_RELEASE].handler == &OpcodeThunk<&LootHandlers::HandleLootRelease>);
     CHECK(opcodeTable[CMSG_LOOT_MASTER_GIVE].handler == &OpcodeThunk<&LootHandlers::HandleLootMasterGive>);
     CHECK(opcodeTable[CMSG_LOOT].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_AuctionRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket bid(CMSG_AUCTION_PLACE_BID, 20);
+    bid << uint64(0);
+    bid << uint32(0);
+    bid << uint64(0);
+
+    opcodeTable[CMSG_AUCTION_PLACE_BID].handler(session, bid);
+
+    CHECK_EQ(bid.rpos(), size_t(20));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_AuctionRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[MSG_AUCTION_HELLO].handler == &OpcodeThunk<&AuctionHandlers::HandleAuctionHello>);
+    CHECK(opcodeTable[CMSG_AUCTION_SELL_ITEM].handler == &OpcodeThunk<&AuctionHandlers::HandleAuctionSellItem>);
+    CHECK(opcodeTable[CMSG_AUCTION_REMOVE_ITEM].handler == &OpcodeThunk<&AuctionHandlers::HandleAuctionRemoveItem>);
+    CHECK(opcodeTable[CMSG_AUCTION_LIST_ITEMS].handler == &OpcodeThunk<&AuctionHandlers::HandleAuctionListItems>);
+    CHECK(opcodeTable[CMSG_AUCTION_LIST_OWNER_ITEMS].handler
+          == &OpcodeThunk<&AuctionHandlers::HandleAuctionListOwnerItems>);
+    CHECK(opcodeTable[CMSG_AUCTION_PLACE_BID].handler == &OpcodeThunk<&AuctionHandlers::HandleAuctionPlaceBid>);
+    CHECK(opcodeTable[CMSG_AUCTION_LIST_BIDDER_ITEMS].handler
+          == &OpcodeThunk<&AuctionHandlers::HandleAuctionListBidderItems>);
+    CHECK(opcodeTable[CMSG_AUCTION_LIST_PENDING_SALES].handler
+          == &OpcodeThunk<&AuctionHandlers::HandleAuctionListPendingSales>);
+    CHECK(opcodeTable[CMSG_AUCTION_PLACE_BID].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
