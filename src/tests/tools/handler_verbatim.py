@@ -20,7 +20,14 @@ MOVES holds one entry per moved function:
       or `<type> <Class>::<Name2>(WorldSession& session, <p>)`, <Class> any class but WorldSession: any
       name, the base's return type and the base's parameters, text for text, but that a commented-out
       parameter may be spelt `/*name*/` or `/* name */` on either side (a named parameter is not a
-      commented-out one). A handler, a sender and a helper returning a value are all this shape;
+      commented-out one). A handler, a sender and a helper returning a value are all this shape. A function
+      whose body reads nothing of the session may take none: `<type> <Class>::<Name2>(<p>)`, the base's
+      parameters alone, text for text, none named `session`; its body, moved and at its base, names no
+      `session`, `_player` or `this` in code and names `GetPlayer` and `SendPacket` only on another
+      object or class (`sObjectMgr.GetPlayer(guid)`, `ObjectAccessor::GetPlayer(guid)`,
+      `bidder->GetSession()->SendPacket(...)`), never bare or through `WorldSession::`, and its entry lists
+      no substitution and no edit, so the reversal pastes base_header back over the definition and the
+      body comes back as it stands;
   substitutions  (new text, base text) pairs, each matching code at least once and only where no name,
       `.`, `->` or `::` runs into it (a sender's call `SendAttackStop(session, ` read back as `SendAttackStop(`);
   edits  (new line, base line) or (new line, base line, count) entries: a line changed beyond the
@@ -84,11 +91,13 @@ moved function the residue still defines fails. A deleted base_file has no resid
 base its entries name every `WorldSession::` definition it held must be one an entry moves (otherwise
 deleting the file would skip the residue proof); a RESIDUES entry for a deleted file, or at a base no entry
 of the file names, fails.
-A definition line of another shape and an edit or substitution that matches nothing fail by name. A
-carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
-working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
-there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
-class has static member functions only).
+A definition line of another shape and an edit or substitution that matches nothing fail by name; so do a
+definition taking no session over a body, moved or at its base, that reads the session (naming the body
+line), and an entry with such a definition listing a substitution or an edit. A carriage return anywhere
+but before a line break, in any text the proof reads (a file at a base or in the working tree, a
+definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line there, and the
+comment reader does not. The header's `static` is handler_classes.py's to check (a handler class has static
+member functions only).
 
 python src/tests/tools/handler_verbatim.py --check       # every entry against its base, reading git
 python src/tests/tools/handler_verbatim.py --self-test   # fixtures only, no git
@@ -141,6 +150,8 @@ HANDLERS_DIR = 'src/game/session/handlers'
 DATA_NAMES = ('MOVES', 'RESIDUES')
 
 NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
+NO_SESSION_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\((?P<params>.*)\)$')
+SESSION_READ = re.compile(r'\b(?:session|_player|this)\b|(?<![\w.>:])(?:WorldSession::)?(?:GetPlayer|SendPacket)\b')
 BASE_HEADER = re.compile(r'(?P<type>\S.*?) WorldSession::\w+\((?P<params>.*)\)$')
 PARAM_COMMENT = re.compile(r'/\*\s*(\w+)\s*\*/')
 INCLUDE = re.compile(r'#\s*include\s*(<[^<>]+>|"[^"]+")\s*(//.*)?$')
@@ -218,11 +229,26 @@ def check_members(body, members):
                           'move missed): %r' % (n, m.group(1), body[n - 1]))
 
 
+def check_reads_session(body, where):
+    """A body line (comments and literals blanked) naming `session`, `_player` or `this`, or naming `GetPlayer` or
+    `SendPacket` bare or through `WorldSession::`: the body of a function whose head takes no session."""
+    for n, line in enumerate(blank('\n'.join(body)).split('\n'), 1):
+        m = SESSION_READ.search(line)
+        if m:
+            raise Failure('%s, body line %d: "%s": the body reads the session but the head takes none: %r' % (
+                where, n, m.group(0), body[n - 1]))
+
+
 def check_shape(new_header, base_header):
-    """The new definition line is the base's, `WorldSession::` replaced by a class and the session put first."""
+    """The new definition line is the base's, `WorldSession::` replaced by a class and the session put first,
+    or put nowhere; True when it takes the session."""
     new, base = NEW_HEADER.match(joined(new_header)), BASE_HEADER.match(joined(base_header))
+    takes = bool(new)
     if not new:
-        raise Failure('the definition line is not `<type> <Class>::<Name>(WorldSession& session[, ...])`')
+        new = NO_SESSION_HEADER.match(joined(new_header))
+    if not new or (not takes and re.search(r'\bsession\b', new.group('params'))):
+        raise Failure('the definition line is not `<type> <Class>::<Name>(WorldSession& session[, ...])` nor '
+                      '`<type> <Class>::<Name>(...)` taking no session')
     if new.group('cls') == 'WorldSession':
         raise Failure('the definition line names WorldSession as its class: a handler class is another class')
     if not base:
@@ -231,7 +257,9 @@ def check_shape(new_header, base_header):
         raise Failure('the definition line returns %r, the base %r' % (new.group('type'), base.group('type')))
     params = [PARAM_COMMENT.sub(r'/*\1*/', x or '') for x in (new.group('params'), base.group('params'))]
     if params[0] != params[1]:
-        raise Failure('the definition line takes (%s) after the session, the base (%s)' % tuple(params))
+        raise Failure('the definition line takes (%s)%s, the base (%s)' % (
+            params[0], ' after the session' if takes else '', params[1]))
+    return takes
 
 
 def read_edits(entry):
@@ -251,7 +279,10 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
     """0 when the entry's function pastes back byte for byte; 1 with the reason printed."""
     name = '%s %s' % (entry['new_file'], re.sub(r'\n[ \t]*', ' ', entry['new_header']))
     try:
-        check_shape(entry['new_header'], entry['base_header'])
+        takes = check_shape(entry['new_header'], entry['base_header'])
+        for key, what in (('substitutions', 'a substitution'), ('edits', 'an edit')):
+            if not takes and entry.get(key):
+                raise Failure('the definition line takes no session, but the entry lists %s' % what)
         texts = [new_text, base_text, tree_base_text or '', entry['new_header'], entry['base_header']] + [
             x for e in entry.get('edits', []) + entry.get('substitutions', []) for x in e[:2]]
         if any(isinstance(x, str) and CARRIAGE_RETURN.search(x) for x in texts):
@@ -259,6 +290,8 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
         new_lines = new_text.split('\n')
         first, at, end = function_span(new_lines, entry['new_header'], entry['new_file'])
         head = range(at - first, at - first + head_lines(entry['new_header']))
+        if not takes:
+            check_reads_session(new_lines[at + len(head):end], entry['new_file'])
         check_members(new_lines[at + len(head):end], members)
         span = new_lines[first:end]
         if not entry['new_file'].startswith(HANDLERS_DIR + '/'):
@@ -291,8 +324,10 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
         if unused:
             raise Failure('the substitution %r matches no code in the function' % unused[0])
         base_lines = base_text.split('\n')
-        b_first, _, b_end = function_span(base_lines, entry['base_header'], '%s at %s' % (entry['base_file'],
-                                                                                           entry['base']))
+        where = '%s at %s' % (entry['base_file'], entry['base'])
+        b_first, b_at, b_end = function_span(base_lines, entry['base_header'], where)
+        if not takes:
+            check_reads_session(base_lines[b_at + head_lines(entry['base_header']):b_end], where)
         b_code = blank('\n'.join(base_lines[b_first:b_end]))
         if re.search(r'\bsession\b', b_code):
             raise Failure('the base function names `session` in code: the reversal cannot tell it from the parameter')
@@ -681,6 +716,27 @@ SELF_MULTI_MOVES = [
          base_header=SELF_CALLBACK_HEAD, new_header=SELF_CALLBACK_NEW),
 ]
 
+SELF_MAIL_HEAD = 'void WorldSession::SendCancelledMail(AuctionEntry* auction)'
+SELF_MAIL_NEW_HEAD = 'void Fixture::SendCancelledMail(AuctionEntry* auction)'
+SELF_MAIL_BASE = '#include "WorldSession.h"\n\n// sends the mail when the auction is cancelled\n' + SELF_MAIL_HEAD + '''
+{
+    Player* bidder = sObjectMgr.GetPlayer(auction->bidder);    // "session." and _player in a comment stay
+    Player* old_player = ObjectAccessor::GetPlayer(auction->owner);
+    uint32 accountId = bidder ? 0 : GetPlayerAccountIdByGUID(auction->bidder);
+    if (bidder)
+        bidder->GetSession()->SendPacket(BuildSendPacket(auction));
+    MailDraft("this", "").SendMailTo(MailReceiver(bidder, accountId), old_player);
+}
+'''
+
+SELF_MAIL_NEW = (SELF_MAIL_BASE.replace('WorldSession.h', 'session/handlers/combat/Fixture.h')
+                 .replace(SELF_MAIL_HEAD, SELF_MAIL_NEW_HEAD))
+
+SELF_MAIL_MOVES = [
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
+         base_header=SELF_MAIL_HEAD, new_header=SELF_MAIL_NEW_HEAD),
+]
+
 
 def self_test():
     failures = []
@@ -858,6 +914,47 @@ def self_test():
         **multi)
     run('a head whose continuation is not the file\'s fails', 1, 'the definition line found 0 times', 0,
         new_header=SELF_QUEUE_NEW.split('\n')[0] + '\n    ObjectGuid playerGuid, std::string name)', **multi)
+
+    mail = dict(base=SELF_MAIL_BASE, new=SELF_MAIL_NEW, moves=SELF_MAIL_MOVES)
+    run('a helper taking no session pastes back', 0, 'IDENTICAL to Fixture.cpp at fixture, byte for byte, with '
+        '10 lines pasted back (0 edits)', **mail)
+    added = '    if (bidder)\n'
+
+    def reads(label, needle, line, base_line=None):
+        run(label, 1, needle, base=SELF_MAIL_BASE.replace(added, (base_line or line) + '\n' + added),
+            new=SELF_MAIL_NEW.replace(added, line + '\n' + added), moves=SELF_MAIL_MOVES)
+
+    reading = 'body line 5: "%s": the body reads the session but the head takes none'
+    reads('a no-session head over a body naming session. fails', 'combat/Fixture.cpp, ' + reading % 'session',
+          '    session.Ping();', '    Ping();')
+    reads('a no-session head over a body naming _player fails', 'combat/Fixture.cpp, ' + reading % '_player',
+          '    _player->Ping();')
+    reads('a no-session head over a body calling GetPlayer() fails', 'combat/Fixture.cpp, ' + reading % 'GetPlayer',
+          '    GetPlayer()->Ping();')
+    reads('a no-session head over a body calling SendPacket fails', 'combat/Fixture.cpp, ' + reading % 'SendPacket',
+          '    SendPacket(BuildSendPacket(auction));')
+    reads('a no-session head over a body naming this fails', 'combat/Fixture.cpp, ' + reading % 'this',
+          '    Ping(this);')
+    reads('a no-session head over WorldSession::SendPacket fails',
+          'combat/Fixture.cpp, ' + reading % 'WorldSession::SendPacket', '    WorldSession::SendPacket(NULL);')
+    reads('a no-session head over a base body reading the session fails',
+          'Fixture.cpp at fixture, ' + reading % 'GetPlayer', '    Ping();', '    GetPlayer()->Ping();')
+    guarded = ('    if (bidder)', '    if (bidder && auction)')
+    run('a no-session head with a substitution listed fails', 1,
+        'the definition line takes no session, but the entry lists a substitution', swap=guarded,
+        substitutions=[('bidder && auction)', 'bidder)')], **mail)
+    run('a no-session head with an edit listed fails', 1,
+        'the definition line takes no session, but the entry lists an edit', swap=guarded, edits=[guarded[::-1]],
+        **mail)
+    queue_bare = SELF_QUEUE_NEW.replace('WorldSession& session, ', '')
+    run('a no-session head over two lines pastes back', 0, 'IDENTICAL to Fixture.cpp at fixture', 0,
+        swap=(SELF_QUEUE_NEW, queue_bare), new_header=queue_bare, **multi)
+    renamed_mail = SELF_MAIL_NEW_HEAD.replace('auction)', 'entry)')
+    run('a no-session head taking other parameters than its base fails', 1,
+        'the definition line takes (AuctionEntry* entry), the base (AuctionEntry* auction)',
+        swap=(SELF_MAIL_NEW_HEAD, renamed_mail), new_header=renamed_mail, **mail)
+    run('a no-session head naming WorldSession as its class fails', 1, 'names WorldSession as its class',
+        swap=(SELF_MAIL_NEW_HEAD, SELF_MAIL_HEAD), new_header=SELF_MAIL_HEAD, **mail)
 
     def residue(label, want_rc, needle, tree, headers=SELF_HEADERS[:1], removed=(), elsewhere=(),
                 base=SELF_RESIDUE_BASE, edits=()):
