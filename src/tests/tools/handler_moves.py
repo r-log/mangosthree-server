@@ -4,7 +4,8 @@ rules and the keys of each entry.
 
 MOVES     one entry per function moved whole from a `WorldSession` member into a handler class's static,
           each naming the commit it is proven against.
-RESIDUES  one entry per change that kept an old file: the include lines it removed from it.
+RESIDUES  one entry per change that kept an old file: the include lines it removed from it. An entry
+          may also carry `edits`: deletions or replacements of whole blocks, each standing once at its base.
 
 A move edits this file, never handler_verbatim.py. The file holds assignments only, each to one of the two
 names or to a spelling aid of its own (a name beginning with `_`, such as a move's base or files spelt
@@ -61,6 +62,11 @@ _BG_PLAYER = [('GetPlayer()', '_player')]
 _BG_PLAYER_THIS = _BG_PLAYER + [('&session', 'this')]
 _BG_HEALER = [('    BattleGround* bg = session.GetPlayer()->GetBattleGround();',
                '    BattleGround* bg = _player->GetBattleGround();')]
+
+_LOOT_BASE = '30b8c664f'
+_LOOT_FILE = 'src/game/session/handlers/economy/LootHandlers.cpp'
+_LOOT_ORIGIN = 'src/game/WorldHandlers/LootHandler.cpp'
+_LOOT_PLAYER = [('GetPlayer()', '_player')]
 
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
@@ -247,6 +253,48 @@ MOVES = [
     dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
          base_header='void WorldSession::HandleRequestRatedBgInfo(WorldPacket & recvData)',
          new_header='void PvpHandlers::HandleRequestRatedBgInfo(WorldSession& session, WorldPacket & recvData)'),
+    dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN, new_file=_LOOT_FILE,
+         base_header='void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)',
+         new_header='void LootHandlers::HandleAutostoreLootItem(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_LOOT_PLAYER,
+         edits=[('    Player*  player = session.GetPlayer();',
+                 '    Player*  player = GetPlayer();'),
+                ('        Creature* creature = session.GetPlayer()->GetMap()->GetCreature(lguid);',
+                 '        Creature* creature = GetPlayer()->GetMap()->GetCreature(lguid);')]),
+    dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN, new_file=_LOOT_FILE,
+         base_header='void WorldSession::HandleLootMoneyOpcode(WorldPacket & /*recv_data*/)',
+         new_header='void LootHandlers::HandleLootMoney(WorldSession& session, WorldPacket & /*recv_data*/)',
+         substitutions=_LOOT_PLAYER,
+         edits=[('    Player* player = session.GetPlayer();',
+                 '    Player* player = GetPlayer();'),
+                ('            GameObject* pGameObject = session.GetPlayer()->GetMap()->GetGameObject(guid);',
+                 '            GameObject* pGameObject = GetPlayer()->GetMap()->GetGameObject(guid);'),
+                ('            if (Item* item = session.GetPlayer()->GetInventoryMgr().GetItemByGuid(guid))',
+                 '            if (Item* item = GetPlayer()->GetInventoryMgr().GetItemByGuid(guid))'),
+                ('            Creature* pCreature = session.GetPlayer()->GetMap()->GetCreature(guid);',
+                 '            Creature* pCreature = GetPlayer()->GetMap()->GetCreature(guid);')]),
+    dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN, new_file=_LOOT_FILE,
+         base_header='void WorldSession::HandleLootOpcode(WorldPacket& recv_data)',
+         new_header='void LootHandlers::HandleLoot(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN, new_file=_LOOT_FILE,
+         base_header='void WorldSession::HandleLootReleaseOpcode(WorldPacket& recv_data)',
+         new_header='void LootHandlers::HandleLootRelease(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN, new_file=_LOOT_FILE,
+         base_header='void WorldSession::HandleLootMasterGiveOpcode(WorldPacket& recv_data)',
+         new_header='void LootHandlers::HandleLootMasterGive(WorldSession& session, WorldPacket& recv_data)',
+         edits=[('    if (!session.GetPlayer()->GetGroup() || session.GetPlayer()->GetGroup()->GetLooterGuid() != '
+                 'session.GetPlayer()->GetObjectGuid())',
+                 '    if (!_player->GetGroup() || _player->GetGroup()->GetLooterGuid() != _player->GetObjectGuid())'),
+                ('        session.GetPlayer()->SendLootRelease(session.GetPlayer()->GetLootGuid());',
+                 '        _player->SendLootRelease(GetPlayer()->GetLootGuid());'),
+                ('    if (session.GetPlayer()->GetLootGuid() != lootguid)',
+                 '    if (_player->GetLootGuid() != lootguid)'),
+                ('    if (!session.GetPlayer()->IsInSameRaidWith(target->ToPlayer()) || '
+                 '!session.GetPlayer()->Where().ShareFrame(target->Where()))',
+                 '    if (!_player->IsInSameRaidWith(target->ToPlayer()) || '
+                 '!_player->Where().ShareFrame(target->Where()))'),
+                ('        session.GetPlayer()->SendEquipError(msg, NULL, NULL, item.itemid);',
+                 '        _player->SendEquipError(msg, NULL, NULL, item.itemid);')]),
 ]
 
 RESIDUES = [
@@ -261,4 +309,8 @@ RESIDUES = [
                   '#include "BattleGroundWS.h"', '#include "BattleGround.h"', '#include "ArenaTeam.h"',
                   '#include "Language.h"', '#include "ScriptMgr.h"', '#include "World.h"', '#include "DisableMgr.h"',
                   '#include "GameTime.h"', '#include "MotionMaster.h"']),
+    dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN,
+         removed=['#include <cmath>', '#include <vector>', '#include "OpcodeTable.h"', '#include "WorldPacket.h"',
+                  '#include "Log.h"', '#include "AchievementMgr.h"', '#include "PlayerRegistry.h"',
+                  '#include "Group.h"', '#include "World.h"', '#include "Util.h"', '#include "DBCStores.h"']),
 ]
