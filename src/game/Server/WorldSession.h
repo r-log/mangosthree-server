@@ -1222,19 +1222,6 @@ class WorldSession
         void HandleResetInstancesOpcode(WorldPacket& recv_data);
         void HandleHearthandResurrect(WorldPacket& recv_data);
 
-        // Arena Team
-        void HandleInspectArenaTeamsOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamQueryOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamRosterOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamCreateOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamInviteOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamAcceptOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamDeclineOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamLeaveOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamRemoveOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamDisbandOpcode(WorldPacket& recv_data);
-        void HandleArenaTeamLeaderOpcode(WorldPacket& recv_data);
-
         void HandleAreaSpiritHealerQueryOpcode(WorldPacket& recv_data);
         void HandleAreaSpiritHealerQueueOpcode(WorldPacket& recv_data);
         void HandleCancelMountAuraOpcode(WorldPacket& recv_data);

@@ -47,6 +47,13 @@ _VENDOR_FILE = 'src/game/session/handlers/economy/VendorHandlers.cpp'
 _VENDOR_ORIGIN = 'src/game/WorldHandlers/ItemHandlerVendor.cpp'
 _VENDOR_PLAYER = [('GetPlayer()', '_player')]
 
+_ARENA_BASE = 'b0dd077c0'
+_ARENA_FILE = 'src/game/session/handlers/pvp/PvpHandlers.cpp'
+_ARENA_ORIGIN = 'src/game/WorldHandlers/ArenaTeamHandler.cpp'
+_ARENA_PLAYER = [('GetPlayer()', '_player')]
+_ARENA_THIS = [('&session', 'this')]
+_ARENA_PLAYER_THIS = _ARENA_PLAYER + _ARENA_THIS
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -125,9 +132,57 @@ MOVES = [
          new_header='void VendorHandlers::HandleAutoStoreBankItemOpcode(WorldSession& session, '
                     'WorldPacket& recvPacket)',
          substitutions=_VENDOR_PLAYER),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleInspectArenaTeamsOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleInspectArenaTeams(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_PLAYER_THIS),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamQueryOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamQuery(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_THIS),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamRosterOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamRoster(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_THIS),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamCreateOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamCreate(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_PLAYER),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamInviteOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamInvite(WorldSession& session, WorldPacket& recv_data)',
+         edits=[('    if (arenateam->GetCaptainGuid() != session.GetPlayer()->GetObjectGuid())',
+                 '    if (arenateam->GetCaptainGuid() != _player->GetObjectGuid())')]),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamAcceptOpcode(WorldPacket & /*recv_data*/)',
+         new_header='void PvpHandlers::HandleArenaTeamAccept(WorldSession& session, WorldPacket & /*recv_data*/)',
+         substitutions=_ARENA_PLAYER),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamDeclineOpcode(WorldPacket & /*recv_data*/)',
+         new_header='void PvpHandlers::HandleArenaTeamDecline(WorldSession& session, WorldPacket & /*recv_data*/)',
+         substitutions=_ARENA_PLAYER),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamLeaveOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamLeave(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_PLAYER_THIS),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamDisbandOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamDisband(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_PLAYER_THIS),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamRemoveOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamRemove(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_PLAYER),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
+         base_header='void WorldSession::HandleArenaTeamLeaderOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleArenaTeamLeader(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ARENA_PLAYER),
 ]
 
 RESIDUES = [
     dict(base=_VENDOR_BASE, base_file=_VENDOR_ORIGIN,
          removed=['#include "AchievementMgr.h"', '#include "Item.h"', '#include "UpdateData.h"']),
+    dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN,
+         removed=['#include "Player.h"', '#include "ObjectMgr.h"', '#include "ArenaTeam.h"', '#include "World.h"',
+                  '#include "SocialMgr.h"', '#include "PlayerRegistry.h"']),
 ]

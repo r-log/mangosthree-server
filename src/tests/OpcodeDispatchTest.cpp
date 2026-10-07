@@ -34,16 +34,20 @@
 /// way: the CMSG_ATTACKSWING row reads a swing at an empty guid to its end and, the guid naming no
 /// unit, returns before it reads the player, sending nothing. The CMSG_SELL_ITEM row reads a sale
 /// of an empty item guid to its end and returns at that guid before it reads the player, sending
-/// nothing.
+/// nothing. The CMSG_ARENA_TEAM_INVITE row reads an invite to team 0 of an empty name to its end
+/// and, the name finding no player, answers with one SMSG_ARENA_TEAM_COMMAND_RESULT through the
+/// session before it reads the player.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
 #include "WorldSession.h"
 #include "WorldPacket.h"
 #include "SharedDefines.h"
+#include "ArenaTeam.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
+#include "session/handlers/pvp/PvpHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -231,4 +235,51 @@ TEST(OpcodeDispatch_ZoneUpdateRowIsLoggedInAndThreadUnsafe)
 
     CHECK_EQ(opcodeTable[CMSG_ZONEUPDATE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_ZONEUPDATE].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_ArenaInviteRowReachesItsHandlerAndItsSender)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket invite(CMSG_ARENA_TEAM_INVITE, 5);
+    invite << uint32(0);
+    invite << uint8(0);
+
+    opcodeTable[CMSG_ARENA_TEAM_INVITE].handler(session, invite);
+
+    CHECK_EQ(invite.rpos(), size_t(5));
+    REQUIRE(sent.size() == 1);
+    CHECK_EQ(sent[0].GetOpcode(), uint16(SMSG_ARENA_TEAM_COMMAND_RESULT));
+    REQUIRE(sent[0].size() == 10);
+    uint16 lengths = 1;
+    uint32 action = 1;
+    uint32 error = 0;
+    sent[0] >> lengths >> action >> error;
+    CHECK_EQ(lengths, uint16(0));
+    CHECK_EQ(action, uint32(ERR_ARENA_TEAM_CREATE_S));
+    CHECK_EQ(error, uint32(ERR_ARENA_TEAM_PLAYER_NOT_FOUND_S));
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ArenaTeamRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[MSG_INSPECT_ARENA_TEAMS].handler == &OpcodeThunk<&PvpHandlers::HandleInspectArenaTeams>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_QUERY].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamQuery>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_ROSTER].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamRoster>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_CREATE].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamCreate>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_INVITE].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamInvite>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_ACCEPT].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamAccept>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_DECLINE].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamDecline>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_LEAVE].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamLeave>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_DISBAND].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamDisband>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_REMOVE].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamRemove>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_LEADER].handler == &OpcodeThunk<&PvpHandlers::HandleArenaTeamLeader>);
+    CHECK(opcodeTable[CMSG_ARENA_TEAM_INVITE].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
