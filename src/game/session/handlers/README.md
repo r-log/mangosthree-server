@@ -1,0 +1,9 @@
+# The opcode handlers (`session/handlers/`)
+
+One directory per domain, one class per directory. A handler class is stateless: static entry points only, each `static void HandleX(WorldSession& session, WorldPacket& packet)`, bound by the rows of `Server/OpcodeTable.cpp` through `OpcodeThunk`; status and processing stay table metadata. A handler reaches the session through its public members and borrows it by reference for one call, on the world thread or on the map worker that owns the player's map; `World` owns the sessions and deletes them only between calls. A handler keeps nothing: no data member, no static variable, no session or player pointer in anything that outlives the call. It reads the player through `session.GetPlayer()`, and takes the pointer fresh after any call that can log the player out. Work that finishes later carries the account id and the session id and finds the session again with `WorldSession::FindRequesterSession`, which drops the answer when a reconnect has replaced the session.
+
+| Domain | Class | Handles |
+|---|---|---|
+| `combat/` | `CombatHandlers` | the client's melee swing, attack stop and sheath (`CMSG_ATTACKSWING`, `CMSG_ATTACKSTOP`, `CMSG_SETSHEATHED`) and duel accept and cancel (`CMSG_DUEL_ACCEPTED`, `CMSG_DUEL_CANCELLED`); `SendAttackStop`, the `SMSG_ATTACKSTOP` the swing sends when it refuses a target, is its private static |
+
+Includes are path-qualified (`#include "session/handlers/combat/CombatHandlers.h"`): this directory is not on the `game` target's include path. `CheckLayout` classifies every file here as session, `CheckHeaderReach` keeps each header that has a rule to forward declarations, and every handler PR adds its header's rule, `handler_classes.py` fails on a data member, a non-static member function, a static variable or a base class in any file here, and `handler_verbatim.py` proves each moved body against the `WorldSession` member it was.

@@ -79,7 +79,40 @@ from verbatim import Failure, class_members, first_difference  # noqa: E402
 SESSION_HEADER = 'src/game/Server/WorldSession.h'
 HANDLERS_DIR = 'src/game/session/handlers'
 
-MOVES = []
+COMBAT_BASE = '5c56c3ca2'
+COMBAT_FILE = 'src/game/session/handlers/combat/CombatHandlers.cpp'
+COMBAT_SWING = 'src/game/WorldHandlers/CombatHandler.cpp'
+COMBAT_DUEL = 'src/game/WorldHandlers/DuelHandler.cpp'
+
+MOVES = [
+    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
+         base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
+         new_header='void CombatHandlers::HandleAttackSwing(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=[('SendAttackStop(session, ', 'SendAttackStop(')],
+         edits=[('    Unit* pEnemy = session.GetPlayer()->GetMap()->GetUnit(guid);',
+                 '    Unit* pEnemy = _player->GetMap()->GetUnit(guid);'),
+                ('    if (session.GetPlayer()->IsFriendlyTo(pEnemy) || pEnemy->HasFlag(UNIT_FIELD_FLAGS, '
+                 'UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))',
+                 '    if (_player->IsFriendlyTo(pEnemy) || pEnemy->HasFlag(UNIT_FIELD_FLAGS, '
+                 'UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))'),
+                ('    session.GetPlayer()->Attack(pEnemy, true);',
+                 '    _player->Attack(pEnemy, true);')]),
+    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
+         base_header='void WorldSession::HandleAttackStopOpcode(WorldPacket& /*recv_data*/)',
+         new_header='void CombatHandlers::HandleAttackStop(WorldSession& session, WorldPacket& /*recv_data*/)'),
+    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
+         base_header='void WorldSession::HandleSetSheathedOpcode(WorldPacket& recv_data)',
+         new_header='void CombatHandlers::HandleSetSheathed(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
+         base_header='void WorldSession::SendAttackStop(Unit const* enemy)',
+         new_header='void CombatHandlers::SendAttackStop(WorldSession& session, Unit const* enemy)'),
+    dict(base=COMBAT_BASE, base_file=COMBAT_DUEL, new_file=COMBAT_FILE,
+         base_header='void WorldSession::HandleDuelAcceptedOpcode(WorldPacket& recvPacket)',
+         new_header='void CombatHandlers::HandleDuelAccepted(WorldSession& session, WorldPacket& recvPacket)'),
+    dict(base=COMBAT_BASE, base_file=COMBAT_DUEL, new_file=COMBAT_FILE,
+         base_header='void WorldSession::HandleDuelCancelledOpcode(WorldPacket& recvPacket)',
+         new_header='void CombatHandlers::HandleDuelCancelled(WorldSession& session, WorldPacket& recvPacket)'),
+]
 
 HANDLER = re.compile(r'void \w+::Handle\w+\(WorldSession& session, WorldPacket& (\w+|/\*\w+\*/)\)$')
 SENDER = re.compile(r'void \w+::Send\w+\(WorldSession& session(, [^()]+)?\)$')

@@ -29,7 +29,10 @@
 /// harness builds one, answers a CMSG_PING handed to the CMSG_PING row with one SMSG_PONG through
 /// its sink, carrying the ping's sequence; the row consumes the whole packet. The slots no row
 /// names hold the thunk of Handle_NULL, every slot bound to one handler holds one address, and
-/// the row of an overloaded handler name holds the overload that takes the packet.
+/// the row of an overloaded handler name holds the overload that takes the packet. A row bound to
+/// a handler class's static entry point holds the thunk of that static and reaches it the same
+/// way: the CMSG_ATTACKSWING row reads a swing at an empty guid to its end and, the guid naming no
+/// unit, returns before it reads the player, sending nothing.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -37,6 +40,7 @@
 #include "WorldPacket.h"
 #include "SharedDefines.h"
 #include "Auth/BigNumber.h"
+#include "session/handlers/combat/CombatHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -133,4 +137,35 @@ TEST(OpcodeDispatch_OverloadedHandlerNameBindsThePacketOverload)
 
     CHECK(opcodeTable[MSG_MOVE_WORLDPORT_ACK].handler
           == &OpcodeThunk<static_cast<void (WorldSession::*)(WorldPacket&)>(&WorldSession::HandleMoveWorldportAckOpcode)>);
+}
+
+TEST(OpcodeDispatch_FreeFunctionRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket swing(CMSG_ATTACKSWING, 8);
+    swing << uint64(0);
+
+    opcodeTable[CMSG_ATTACKSWING].handler(session, swing);
+
+    CHECK_EQ(swing.rpos(), size_t(8));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_FreeFunctionRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_ATTACKSWING].handler == &OpcodeThunk<&CombatHandlers::HandleAttackSwing>);
+    CHECK(opcodeTable[CMSG_ATTACKSTOP].handler == &OpcodeThunk<&CombatHandlers::HandleAttackStop>);
+    CHECK(opcodeTable[CMSG_SETSHEATHED].handler == &OpcodeThunk<&CombatHandlers::HandleSetSheathed>);
+    CHECK(opcodeTable[CMSG_DUEL_ACCEPTED].handler == &OpcodeThunk<&CombatHandlers::HandleDuelAccepted>);
+    CHECK(opcodeTable[CMSG_DUEL_CANCELLED].handler == &OpcodeThunk<&CombatHandlers::HandleDuelCancelled>);
+    CHECK(opcodeTable[CMSG_ATTACKSWING].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }

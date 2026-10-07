@@ -46,6 +46,7 @@
 
 #include "OpcodeTable.h"
 #include "WorldSession.h"
+#include "session/handlers/combat/CombatHandlers.h"
 
 /**
  * @brief Define opcode handler
@@ -68,6 +69,12 @@ static void DefineOpcode(uint16 opcode, const char* name, SessionStatus status, 
 /// Names the row's handler as the session member taking the packet, so a handler name that is
 /// overloaded binds the overload that takes the packet.
 static constexpr auto TableHandler(void (WorldSession::*handler)(WorldPacket& recvPacket))
+{
+    return handler;
+}
+
+/// Names the row's handler as a handler class's static entry point taking the session and the packet.
+static constexpr auto TableHandler(void (*handler)(WorldSession& session, WorldPacket& recvPacket))
 {
     return handler;
 }
@@ -458,8 +465,8 @@ void InitializeOpcodes()
     OPCODE(CMSG_EQUIPMENT_SET_DELETE,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleEquipmentSetDeleteOpcode  );
     //OPCODE(CMSG_INSTANCE_LOCK_RESPONSE,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_DEBUG_PASSIVE_AURA,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_ATTACKSWING,                             STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleAttackSwingOpcode         );
-    OPCODE(CMSG_ATTACKSTOP,                              STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleAttackStopOpcode          );
+    OPCODE(CMSG_ATTACKSWING,                             STATUS_LOGGEDIN, PROCESS_INPLACE,      &CombatHandlers::HandleAttackSwing             );
+    OPCODE(CMSG_ATTACKSTOP,                              STATUS_LOGGEDIN, PROCESS_INPLACE,      &CombatHandlers::HandleAttackStop              );
     OPCODE(SMSG_ATTACKSTART,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_ATTACKSTOP,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_ATTACKSWING_NOTINRANGE,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -503,8 +510,8 @@ void InitializeOpcodes()
     OPCODE(SMSG_DUEL_INBOUNDS,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_DUEL_COMPLETE,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_DUEL_WINNER,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_DUEL_ACCEPTED,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleDuelAcceptedOpcode        );
-    OPCODE(CMSG_DUEL_CANCELLED,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleDuelCancelledOpcode       );
+    OPCODE(CMSG_DUEL_ACCEPTED,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CombatHandlers::HandleDuelAccepted            );
+    OPCODE(CMSG_DUEL_CANCELLED,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &CombatHandlers::HandleDuelCancelled           );
     OPCODE(SMSG_MOUNTRESULT,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_DISMOUNTRESULT,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_REMOVED_FROM_PVP_QUEUE,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -618,7 +625,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_PONG,                                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CLEAR_COOLDOWNS,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_GAMEOBJECT_PAGETEXT,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_SETSHEATHED,                             STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleSetSheathedOpcode         );
+    OPCODE(CMSG_SETSHEATHED,                             STATUS_LOGGEDIN, PROCESS_INPLACE,      &CombatHandlers::HandleSetSheathed             );
     OPCODE(SMSG_COOLDOWN_CHEAT,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPELL_DELAYED,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_QUEST_POI_QUERY,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQuestPOIQueryOpcode       );

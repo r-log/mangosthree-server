@@ -515,8 +515,6 @@ class WorldSession
         void SendBindPoint(Creature* npc);
         void SendGMTicketGetTicket(uint32 status, GMTicket* ticket = NULL);
 
-        void SendAttackStop(Unit const* enemy);
-
         void SendBattlegGroundList(ObjectGuid guid, BattleGroundTypeId bgTypeId);
 
         void SendTradeStatus(TradeStatus status);
@@ -1025,9 +1023,6 @@ class WorldSession
         void HandleStableRevivePet(WorldPacket& recvPacket);
         void HandleStableSwapPet(WorldPacket& recvPacket);
 
-        void HandleDuelAcceptedOpcode(WorldPacket& recvPacket);
-        void HandleDuelCancelledOpcode(WorldPacket& recvPacket);
-
         void HandleAcceptTradeOpcode(WorldPacket& recvPacket);
         void HandleBeginTradeOpcode(WorldPacket& recvPacket);
         void HandleBusyTradeOpcode(WorldPacket& recvPacket);
@@ -1103,10 +1098,6 @@ class WorldSession
         void HandleAutoBankItemOpcode(WorldPacket& recvPacket);
         void HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket);
         void HandleWrapItemOpcode(WorldPacket& recvPacket);
-
-        void HandleAttackSwingOpcode(WorldPacket& recvPacket);
-        void HandleAttackStopOpcode(WorldPacket& recvPacket);
-        void HandleSetSheathedOpcode(WorldPacket& recvPacket);
 
         void HandleUseItemOpcode(WorldPacket& recvPacket);
         void HandleOpenItemOpcode(WorldPacket& recvPacket);
