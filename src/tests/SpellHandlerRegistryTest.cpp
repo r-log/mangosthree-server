@@ -67,6 +67,8 @@
 ///                            AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
+///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
+///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
 ///   a lost live-out          SpellHandlerRegistry_ALiveOutWrittenByAHandlerReachesTheSite,
 ///                            AuraDummyHandlers_TheApplyContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal,
@@ -196,6 +198,41 @@ namespace
             return outcome.GetValue();
         }
         return triggered ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_CANT_TRIGGER;
+    }
+
+    VoidOutcome LoopContinues(VoidContext& ctx)
+    {
+        ctx.handled = 4;
+        return VoidOutcome::LoopContinue();
+    }
+
+    ProcOutcome ProcLoopContinues(ProcContext& ctx)
+    {
+        ctx.triggered_spell_id = 777;
+        return ProcOutcome::LoopContinue();
+    }
+
+    // The shape a void site takes inside a loop with a statement after its switch: Return leaves the
+    // function, LoopContinue takes the next id, Continue and Miss run the statement after the switch.
+    // Returns how many times that statement ran.
+    uint32 RunVoidSiteInALoop(SpellHandlerRegistry const& registry, uint32 const* spellIds, std::size_t count,
+                              VoidContext& ctx)
+    {
+        uint32 after = 0;
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            VoidOutcome outcome = registry.Dispatch<VoidSiteA>(spellIds[i], ctx);
+            if (outcome.IsReturn())
+            {
+                return after;
+            }
+            if (outcome.IsLoopContinue())
+            {
+                continue;
+            }
+            ++after;
+        }
+        return after;
     }
 }
 
@@ -369,6 +406,62 @@ TEST(SpellHandlerRegistry_AProcSiteReturnsItsValue)
     // A miss with no default reaches the tail with the live-outs as they were.
     triggered = 0;
     CHECK_EQ(int(RunProcSite(registry, 600, triggered)), int(SPELL_AURA_PROC_CANT_TRIGGER));
+}
+
+TEST(SpellHandlerRegistry_LoopContinueIsAFourthOutcome)
+{
+    CHECK(VoidOutcome::LoopContinue().IsLoopContinue());
+    CHECK(!VoidOutcome::LoopContinue().IsReturn());
+    CHECK(!VoidOutcome::LoopContinue().IsContinue());
+    CHECK(!VoidOutcome::LoopContinue().IsMiss());
+    CHECK(!VoidOutcome::Return().IsLoopContinue());
+    CHECK(!VoidOutcome::Continue().IsLoopContinue());
+    CHECK(!VoidOutcome::Miss().IsLoopContinue());
+
+    CHECK(ProcOutcome::LoopContinue().IsLoopContinue());
+    CHECK(!ProcOutcome::LoopContinue().IsReturn());
+    CHECK(!ProcOutcome::LoopContinue().IsContinue());
+    CHECK(!ProcOutcome::LoopContinue().IsMiss());
+    CHECK(!ProcOutcome::Return(SPELL_AURA_PROC_OK).IsLoopContinue());
+    CHECK(!ProcOutcome::Continue().IsLoopContinue());
+    CHECK(!ProcOutcome::Miss().IsLoopContinue());
+
+    // Through a dispatch: the handler's answer reaches the site; a miss is not a loop continue.
+    SpellHandlerRegistry registry;
+    CHECK(registry.Register<VoidSiteA>(700, &LoopContinues));
+    CHECK(registry.Register<ProcSite>(700, &ProcLoopContinues));
+    int local = 0;
+    VoidContext ctx(local);
+    CHECK(registry.Dispatch<VoidSiteA>(700, ctx).IsLoopContinue());
+    CHECK_EQ(ctx.handled, uint32(4));
+    CHECK(!registry.Dispatch<VoidSiteA>(701, ctx).IsLoopContinue());
+
+    uint32 triggered = 0;
+    ProcContext procCtx(triggered);
+    ProcOutcome outcome = registry.Dispatch<ProcSite>(700, procCtx);
+    CHECK(outcome.IsLoopContinue());
+    CHECK(!outcome.IsReturn());
+    CHECK_EQ(triggered, uint32(777));
+    CHECK(!registry.Dispatch<ProcSite>(701, procCtx).IsLoopContinue());
+}
+
+TEST(SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody)
+{
+    SpellHandlerRegistry registry;
+    CHECK(registry.Register<VoidSiteA>(100, &ReturnsA));
+    CHECK(registry.Register<VoidSiteA>(300, &Continues));
+    CHECK(registry.Register<VoidSiteA>(700, &LoopContinues));
+    int local = 0;
+    VoidContext ctx(local);
+
+    static uint32 const loopContinues[] = { 700, 700 };
+    CHECK_EQ(RunVoidSiteInALoop(registry, loopContinues, 2, ctx), uint32(0));
+    CHECK_EQ(ctx.handled, uint32(4));
+
+    // 300 continues and 999 misses: both run the statement; 700 skips it; 100 returns before the last 300.
+    static uint32 const mixed[] = { 300, 700, 999, 100, 300 };
+    CHECK_EQ(RunVoidSiteInALoop(registry, mixed, 5, ctx), uint32(2));
+    CHECK_EQ(ctx.handled, uint32(1));
 }
 
 TEST(AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances)
