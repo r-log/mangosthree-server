@@ -26,12 +26,12 @@
 /// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry.
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
-/// contexts, and the game's sites (HandleAuraDummy's and HandleAuraTransform's) are checked for their keys, their
-/// defaults and their contexts, and run where a body needs no live Unit (the quest-tame labels, the removal labels on
-/// a mode that keeps them off the Unit); a body that casts or sets a display needs a live Unit, which the harness
-/// record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the coverage scenario
-/// two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid, quest-tame or
-/// transform label, nor another removal one).
+/// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's and HandleModThreat's) are checked for
+/// their keys, their defaults and their contexts, and run where a body needs no live Unit (the quest-tame labels, the
+/// removal labels on a mode that keeps them off the Unit); a body that casts, sets a display or reads a level needs a
+/// live Unit, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
+/// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
+/// druid, quest-tame, transform or threat label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -39,12 +39,14 @@
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheTableRegistersEveryRowOnce,
-///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault
+///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
+///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
-///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault
+///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
+///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts
@@ -53,7 +55,8 @@
 ///                            AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheApplyRemoveContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId,
-///                            AuraShapeshiftHandlers_TheTransformContextAliasesTheTargetLocal
+///                            AuraShapeshiftHandlers_TheTransformContextAliasesTheTargetLocal,
+///                            AuraControlHandlers_TheThreatContextAliasesTheThreeLocals
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
 
@@ -61,6 +64,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/handlers/AuraShapeshiftHandlers.h"
+#include "spells/handlers/AuraControlHandlers.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
 
@@ -432,9 +436,9 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(72));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these and the transform site's 9 rows and default.
+    // The game's table holds these, the transform site's 9 rows and default, and the threat site's 2 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(81));
+    CHECK_EQ(game.Count(), std::size_t(83));
     CHECK_EQ(game.CountDefaults(), std::size_t(1));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -837,4 +841,74 @@ TEST(AuraShapeshiftHandlers_TheTransformContextAliasesTheTargetLocal)
     CHECK(ctx.target == target);
     ctx.target = reinterpret_cast<Unit*>(units[1]);             // a body's write to `target`...
     CHECK(target == reinterpret_cast<Unit*>(units[1]));         // ...is the function's local
+}
+
+TEST(AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterAuraControlHandlers(registry), uint32(2));
+    CHECK_EQ(registry.Count(), std::size_t(2));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(AuraThreatSite::Key), std::size_t(2));
+
+    // Two labels, two distinct bodies.
+    SpellHandler<AuraThreatSite>::Function arcaneShroud = registry.Find<AuraThreatSite>(26400);
+    SpellHandler<AuraThreatSite>::Function eyeOfDiminution = registry.Find<AuraThreatSite>(28862);
+    CHECK(arcaneShroud != NULL);
+    CHECK(eyeOfDiminution != NULL);
+    CHECK(arcaneShroud != eyeOfDiminution);
+
+    // No default: an id with no row finds nothing, and its dispatch is a miss, so the member goes on.
+    CHECK(registry.FindDefault<AuraThreatSite>() == NULL);
+    CHECK(registry.Find<AuraThreatSite>(12345) == NULL);
+    Unit* target = NULL;
+    int level_diff = 0;
+    int multiplier = 0;
+    AuraThreatContext ctx(target, level_diff, multiplier);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<AuraThreatSite>(12345, ctx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+    CHECK_EQ(level_diff, 0);
+    CHECK_EQ(multiplier, 0);
+
+    // Registering again on the same table changes nothing: both keys are taken.
+    CHECK_EQ(RegisterAuraControlHandlers(registry), uint32(2));
+    CHECK_EQ(registry.Count(), std::size_t(2));
+    CHECK(registry.Find<AuraThreatSite>(26400) == arcaneShroud);
+    CHECK(registry.Find<AuraThreatSite>(28862) == eyeOfDiminution);
+
+    // Keyed on the threat site only: its labels are no other site's, and the other sites' are not its.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 26400u, 28862u })
+    {
+        CHECK(game.Find<AuraTransformSite>(spellId) == NULL);
+        CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(spellId) == NULL);
+        CHECK(game.Find<AuraDummyRemoveSite>(spellId) == NULL);
+    }
+    CHECK(game.Find<AuraThreatSite>(16739) == NULL);
+    CHECK(game.Find<AuraThreatSite>(29266) == NULL);
+
+    // The game's table holds the same rows and no default.
+    CHECK_EQ(game.CountAt(AuraThreatSite::Key), std::size_t(2));
+    CHECK(game.Find<AuraThreatSite>(26400) == arcaneShroud);
+    CHECK(game.Find<AuraThreatSite>(28862) == eyeOfDiminution);
+    CHECK(game.FindDefault<AuraThreatSite>() == NULL);
+}
+
+TEST(AuraControlHandlers_TheThreatContextAliasesTheThreeLocals)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    int level_diff = 0;
+    int multiplier = 0;
+    AuraThreatContext ctx(target, level_diff, multiplier);
+    CHECK(ctx.target == target);
+    ctx.level_diff = 13;                                        // a body's writes to the two locals...
+    ctx.multiplier = 2;
+    CHECK_EQ(level_diff, 13);                                   // ...are the function's locals, which it reads after
+    CHECK_EQ(multiplier, 2);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));
+    level_diff = -5;
+    CHECK_EQ(ctx.level_diff, -5);
 }

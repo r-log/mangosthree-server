@@ -26,6 +26,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/handlers/AuraShapeshiftHandlers.h"
+#include "spells/handlers/AuraControlHandlers.h"
 #include "Utilities/Errors.h"
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
@@ -38,6 +39,7 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
         SpellHandlerRegistry built;
         uint32 rows = RegisterAuraDummyHandlers(built);
         rows += RegisterAuraShapeshiftHandlers(built);
+        rows += RegisterAuraControlHandlers(built);
         MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();

@@ -188,7 +188,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) proves every site against the switches as they first stood; CI runs both.
-BASE = '2ca7aae4f'
+BASE = '5c56c3ca2'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -517,6 +517,33 @@ SITES = {
                 65529: '                case 65529:                                 '
                        '// Gossip NPC Appearance - Day of the Dead (DotD)',
                 71450: '                case 71450:                                 // Crown Parcel Service Uniform'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellAuraControl.cpp': {
+        'handlers': 'src/game/spells/handlers/AuraControlHandlers.cpp',
+        'rows_function': 'RegisterAuraControlRows',
+        'added': ['#include "spells/handlers/AuraControlHandlers.h"'],
+        'sites': [{
+            'name': 'HandleModThreat (switch (GetId()))',
+            'dispatch': [
+                '    AuraThreatContext ctx(target, level_diff, multiplier);',
+                '    if (SpellHandlerRegistry::Game().Dispatch<AuraThreatSite>(GetId(), ctx).IsReturn())',
+                '    {',
+                '        return;',
+                '    }'],
+            'open': ['    switch (GetId())', '    {'],
+            'close': ['    }'],
+            'label_indent': 8,
+            'traits': 'AuraThreatSite',
+            'context': 'AuraThreatContext',
+            'live_outs': ['target', 'level_diff', 'multiplier'],
+            'in_scope': ['apply', 'Real'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.level_diff', 'level_diff'),
+                              ('ctx.multiplier', 'multiplier')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                26400: '        case 26400:',
+                28862: '        case 28862:'},
         }],
     },
 }
