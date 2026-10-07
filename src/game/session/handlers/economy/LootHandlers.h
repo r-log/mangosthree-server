@@ -29,10 +29,10 @@
 class WorldPacket;
 class WorldSession;
 
-/// The client's loot opcodes: opening a loot window, taking an item or a currency into the bags,
-/// taking the money, closing the window and the master looter's giving of an item to a group
-/// member: static entry points the opcode table binds, each borrowing the session for one call
-/// and storing nothing.
+/// The client's loot opcodes: opening a loot window, taking an item, which is stored into the
+/// bags, or a currency, which is added to the player's currency count, taking the money, closing
+/// the window and the master looter's giving of an item to a group member: static entry points
+/// the opcode table binds, each borrowing the session for one call and storing nothing.
 struct LootHandlers
 {
     public:
