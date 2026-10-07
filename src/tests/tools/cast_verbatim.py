@@ -6,7 +6,9 @@ rewritten call is pasted back to the cast form it stands for, and the lines arou
 byte for byte as they did at BASE.
 
 BASE, FORMS and FILES live in cast_sites.py beside this file, which a rewrite edits; this file holds none
-of them, and split_gate.py refuses to run it when it binds one or when the data file holds anything else.
+of them and never changes them, and split_gate.py (whose docstring holds the rules) refuses to run it when
+it binds or changes one, when it runs with values other than the data file's, or when the data file holds
+anything but literal values.
 
 For each file in FILES, --check:
   1. reads the file in the working tree and at BASE (`git show <base>:<file>`);
@@ -199,7 +201,10 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import split_gate  # noqa: E402
-from cast_sites import BASE, FILES, FORMS  # noqa: E402
+try:
+    from cast_sites import BASE, FILES, FORMS  # noqa: E402
+except ImportError as e:
+    sys.exit(split_gate.unloaded(__file__, 'cast_sites', e))
 
 # The names cast_sites.py assigns; split_gate.py holds the split.
 DATA_NAMES = ('BASE', 'FORMS', 'FILES')
@@ -2477,10 +2482,9 @@ def self_test():
             {'base': {old_p: SELF_OLD}}, moved,
             dict(own, AddSpellCooldown=dict(own['AddSpellCooldown'], elsewhere=[old_p])))
 
-    split = split_gate.self_test('cast_verbatim.py', 'cast_sites', DATA_NAMES, 'FILES')
-    print('self-test: %-72s %s' % ('the split: FILES bound in the tool, a stray data name: REFUSED',
-                                   'PASS' if not split else 'FAIL'))
-    failures += split
+    for label, bad in split_gate.self_test(__file__, 'cast_sites', DATA_NAMES, 'FILES'):
+        print('self-test: %-72s %s' % (label, 'PASS' if not bad else 'FAIL'))
+        failures += bad
 
     for f in failures:
         print('FAILED: ' + f)
@@ -2489,6 +2493,8 @@ def self_test():
 
 
 def main(argv):
+    if split_gate.check(__file__, 'cast_sites', DATA_NAMES, globals()):
+        return 1
     ap = argparse.ArgumentParser(description='The verbatim proof for call sites that stopped casting this.')
     here = os.path.dirname(os.path.abspath(__file__))
     ap.add_argument('--root', default=os.path.abspath(os.path.join(here, '..', '..', '..')))
@@ -2497,8 +2503,6 @@ def main(argv):
     g.add_argument('--check', action='store_true')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
-    if split_gate.check(__file__, 'cast_sites', DATA_NAMES):
-        return 1
     if args.self_test:
         return self_test()
     return check(os.path.abspath(args.root), args.base)

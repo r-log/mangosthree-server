@@ -7,7 +7,9 @@ back byte for byte as it was at the entry's base; an old file still in the worki
 holding the functions that stay) must be the old file less the moved functions.
 
 MOVES and RESIDUES live in handler_moves.py beside this file, which a move edits; this file holds neither,
-and split_gate.py refuses to run it when it binds one or when the data file holds anything else.
+and never changes them, and split_gate.py (whose docstring holds the rules) refuses to run it when it binds
+or changes one, when it runs with values other than the data file's, or when the data file holds anything
+but literal values.
 
 MOVES holds one entry per moved function:
   base, base_file, base_header  the commit the move is proven against (the parent of the change that
@@ -102,7 +104,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402
 from verbatim import Failure, class_members, first_difference  # noqa: E402
 import split_gate  # noqa: E402
-from handler_moves import MOVES, RESIDUES  # noqa: E402
+try:
+    from handler_moves import MOVES, RESIDUES  # noqa: E402
+except ImportError as e:
+    sys.exit(split_gate.unloaded(__file__, 'handler_moves', e))
 
 SESSION_HEADER = 'src/game/Server/WorldSession.h'
 HANDLERS_DIR = 'src/game/session/handlers'
@@ -302,10 +307,13 @@ def git_show(root, ref, rel):
                           capture_output=True, check=True).stdout.decode('utf-8')
 
 
-def check(root, base=None, out=print):
+def check(root, base=None, out=print, moves=None, residues=None):
+    """--check: `moves` and `residues` replace MOVES and RESIDUES."""
+    moves = MOVES if moves is None else moves
+    residues_all = RESIDUES if residues is None else residues
     rc = 0
-    members = class_members(read(root, SESSION_HEADER), 'WorldSession') if MOVES else set()
-    for entry in MOVES:
+    members = class_members(read(root, SESSION_HEADER), 'WorldSession') if moves else set()
+    for entry in moves:
         entry = dict(entry, base=base or entry['base'])
         try:
             base_text = git_show(root, entry['base'], entry['base_file'])
@@ -319,9 +327,9 @@ def check(root, base=None, out=print):
             rc = 1
             continue
         rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out)
-    for rel in sorted({e['base_file'] for e in MOVES} | {r['base_file'] for r in RESIDUES}):
-        entries = [e for e in MOVES if e['base_file'] == rel]
-        residues = [dict(r, base=base or r['base']) for r in RESIDUES if r['base_file'] == rel]
+    for rel in sorted({e['base_file'] for e in moves} | {r['base_file'] for r in residues_all}):
+        entries = [e for e in moves if e['base_file'] == rel]
+        residues = [dict(r, base=base or r['base']) for r in residues_all if r['base_file'] == rel]
         bases = sorted({base or e['base'] for e in entries})
         tree_text = read(root, rel)
         stray = [r['base'] for r in residues if tree_text is None or r['base'] not in bases]
@@ -352,7 +360,7 @@ def check(root, base=None, out=print):
             rc |= verify_residue(rel, b, base_text, tree_text, [e['base_header'] for e in entries],
                                  [x for r in residues if r['base'] == b for x in r['removed']],
                                  [x for r in residues if r['base'] != b for x in r['removed']], out)
-    out('handler_verbatim: %d moved functions; %s' % (len(MOVES), 'OK' if rc == 0 else 'FAILED'))
+    out('handler_verbatim: %d moved functions; %s' % (len(moves), 'OK' if rc == 0 else 'FAILED'))
     return rc
 
 
@@ -636,19 +644,17 @@ def self_test():
         shown = {('b1', 'O.cpp'): b1, ('b2', 'O.cpp'): b2}
         files = {SESSION_HEADER: SELF_SESSION, SELF_NEW_FILE: SELF_NEW, 'O.cpp': tree or None}
         two = [dict(SELF_MOVES[0], base='b1', base_file='O.cpp'), dict(SELF_MOVES[1], base='b2', base_file='O.cpp')]
-        saved = MOVES[:], RESIDUES[:], globals()['git_show'], globals()['read']
-        MOVES[:], RESIDUES[:] = two if moves is None else moves, residues
+        saved = globals()['git_show'], globals()['read']
         globals()['git_show'] = lambda root, ref, rel: shown[(ref, rel)]
         globals()['read'] = lambda root, rel: files.get(rel)
         got = []
         try:
-            rc = check('.', out=got.append)
+            rc = check('.', out=got.append, moves=two if moves is None else moves, residues=residues)
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
         finally:
-            MOVES[:], RESIDUES[:] = saved[0], saved[1]
-            globals()['git_show'], globals()['read'] = saved[2], saved[3]
+            globals()['git_show'], globals()['read'] = saved
         text = '\n'.join(got)
         ok = rc == want_rc and needle in text
         print('self-test: %-62s %s' % (label, 'PASS' if ok else 'FAIL'))
@@ -667,10 +673,9 @@ def self_test():
     checked('--check: a deleted origin file holding a function no entry moves fails', 1, 'which no entry moves',
             [], tree=False)
 
-    split = split_gate.self_test('handler_verbatim.py', 'handler_moves', DATA_NAMES, 'MOVES')
-    print('self-test: %-62s %s' % ('the split: MOVES bound in the tool, a stray data name: REFUSED',
-                                   'PASS' if not split else 'FAIL'))
-    failures += split
+    for label, bad in split_gate.self_test(__file__, 'handler_moves', DATA_NAMES, 'MOVES'):
+        print('self-test: %-62s %s' % (label, 'PASS' if not bad else 'FAIL'))
+        failures += bad
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
@@ -679,6 +684,8 @@ def self_test():
 
 
 def main(argv):
+    if split_gate.check(__file__, 'handler_moves', DATA_NAMES, globals()):
+        return 1
     ap = argparse.ArgumentParser(description='The handler classes\' verbatim proof.')
     ap.add_argument('--root', default=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                                    '..', '..', '..')))
@@ -687,8 +694,6 @@ def main(argv):
     g.add_argument('--check', action='store_true')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
-    if split_gate.check(__file__, 'handler_moves', DATA_NAMES):
-        return 1
     if args.self_test:
         return self_test()
     return check(os.path.abspath(args.root), args.base)

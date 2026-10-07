@@ -8,8 +8,9 @@ RESIDUES  one entry per change that kept an old file: the include lines it remov
 
 A move edits this file, never handler_verbatim.py. The file holds assignments only, each to one of the two
 names or to a spelling aid of its own (a name beginning with `_`, such as a move's base or files spelt
-once); split_gate.py refuses to run handler_verbatim.py on any other statement or name, and on a tool that
-binds one of the two itself.
+once), each value a literal (split_gate.py's value rule: constants, lists, tuples, dicts, + and *, names
+assigned above it, dict(...) with keywords); split_gate.py refuses to run handler_verbatim.py on any other
+statement, name or value, and on a tool that binds or changes one of the two itself.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later

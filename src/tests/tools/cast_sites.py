@@ -9,8 +9,10 @@ FILES  file -> the count of each FORM rewritten in it and the lines the rewrite 
 
 A rewrite edits this file, never cast_verbatim.py. The file holds assignments only, each to one of
 the three names or to a spelling aid of its own (a name beginning with `_`: the blocks Unit.h and
-Player.h gained, spelt once); split_gate.py refuses to run cast_verbatim.py on any other statement or
-name, and on a tool that binds one of the three itself.
+Player.h gained, spelt once), each value a literal (split_gate.py's value rule: constants, lists,
+tuples, dicts, + and *, names assigned above it, dict(...) with keywords); split_gate.py refuses to run
+cast_verbatim.py on any other statement, name or value, and on a tool that binds or changes one of the
+three itself.
 
 Player.h:2098, the selection guid, is the one BYVALUE entry.
 

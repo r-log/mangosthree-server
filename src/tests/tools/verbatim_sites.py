@@ -7,9 +7,10 @@ VOID_SUBSTITUTIONS  the outcome pairs every site in a function returning void en
 SITES               one entry per file, its sites in the order they stand in it.
 
 A move edits this file, never verbatim.py: its sites' entries, and BASE. The file holds assignments
-only, each to one of the four names or to a spelling aid of its own (a name beginning with `_`);
-split_gate.py refuses to run verbatim.py on any other statement or name, and on a tool that binds one
-of the four itself.
+only, each to one of the four names or to a spelling aid of its own (a name beginning with `_`), each
+value a literal (split_gate.py's value rule: constants, lists, tuples, dicts, + and *, names assigned
+above it, dict(...) with keywords); split_gate.py refuses to run verbatim.py on any other statement,
+name or value, and on a tool that binds or changes one of the four itself.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later

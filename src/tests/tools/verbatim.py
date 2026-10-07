@@ -6,8 +6,9 @@ The spell handler registry's verbatim proof (decoupling D11, design/2026-09-28-u
 back at its label, and the file must come back byte for byte as it was at BASE.
 
 BASE, ORIGINAL, VOID_SUBSTITUTIONS and SITES live in verbatim_sites.py beside this file, which a move
-edits (its sites' entries and BASE); this file holds none of them, and split_gate.py refuses to run it
-when it binds one or when the data file holds anything else.
+edits (its sites' entries and BASE); this file holds none of them and never changes them, and
+split_gate.py (whose docstring holds the rules) refuses to run it when it binds or changes one, when it
+runs with values other than the data file's, or when the data file holds anything but literal values.
 
 For each file in SITES, --check:
   1. reads the file at BASE (`git show <base>:<file>`) and in the working tree, and for each of the
@@ -206,7 +207,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
 import split_gate  # noqa: E402
-from verbatim_sites import BASE, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
+try:
+    from verbatim_sites import BASE, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
+except ImportError as e:
+    sys.exit(split_gate.unloaded(__file__, 'verbatim_sites', e))
 
 # The names verbatim_sites.py assigns; split_gate.py holds the split.
 DATA_NAMES = ('BASE', 'ORIGINAL', 'VOID_SUBSTITUTIONS', 'SITES')
@@ -2519,10 +2523,9 @@ def self_test():
             new_p + ': FAILED: the working tree has no Thing.h, its members_of', before, moved, base='3000000',
             work={new_p: SELF_SITES, 'Handlers.cpp': SELF_HANDLERS})
 
-    split = split_gate.self_test('verbatim.py', 'verbatim_sites', DATA_NAMES, 'SITES')
-    print('self-test: %-66s %s' % ('the split: SITES bound in the tool, a stray data name: REFUSED',
-                                   'PASS' if not split else 'FAIL'))
-    failures += split
+    for label, bad in split_gate.self_test(__file__, 'verbatim_sites', DATA_NAMES, 'SITES'):
+        print('self-test: %-66s %s' % (label, 'PASS' if not bad else 'FAIL'))
+        failures += bad
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
@@ -2531,6 +2534,8 @@ def self_test():
 
 
 def main(argv):
+    if split_gate.check(__file__, 'verbatim_sites', DATA_NAMES, globals()):
+        return 1
     ap = argparse.ArgumentParser(description='The spell handler registry\'s verbatim proof (decoupling D11).')
     ap.add_argument('--root', default=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..')))
     ap.add_argument('--base', default=BASE)
@@ -2539,8 +2544,6 @@ def main(argv):
     g.add_argument('--check', action='store_true')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
-    if split_gate.check(__file__, 'verbatim_sites', DATA_NAMES):
-        return 1
     if args.self_test:
         return self_test()
     return check(os.path.abspath(args.root), args.base, original=args.original)
