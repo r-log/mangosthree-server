@@ -61,8 +61,8 @@ static SpellHandlerOutcome<void> TargetAllEnemyInAreaDefault(SpellTargetAllEnemy
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 20577: Cannibalize: the nearest dead unit is the target, or the nearest corpse and its owner; with none, a
-/// player caster's cooldown is cleared and the cast fails
+/// 20577: Cannibalize: the first match the corpse search finds in range is the target, a dead unit or a corpse and
+/// its owner; with none, a player caster's cooldown is cleared and the cast fails
 static SpellHandlerOutcome<void> TargetEffectDummyCannibalize(SpellTargetEffectDummyContext& ctx)
 {
     WorldObject* result = ctx.spell->FindCorpseUsing<MaNGOS::CannibalizeObjectCheck> ();

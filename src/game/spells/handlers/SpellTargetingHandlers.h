@@ -83,7 +83,7 @@ struct SpellTargetEffectDummyContext
 };
 
 /// `Spell::SetTargetMap`, TARGET_EFFECT_SELECT, SPELL_EFFECT_DUMMY: its `switch (m_spellInfo->ID)`. Cannibalize
-/// targets the nearest corpse or fails the cast; the `default:` targets the unit target, if any; every outcome
+/// targets the first corpse in range or fails the cast; the `default:` targets the unit target, if any; every outcome
 /// continues after the switch.
 struct SpellTargetEffectDummySite
 {
