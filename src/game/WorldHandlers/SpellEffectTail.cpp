@@ -73,6 +73,7 @@
 #include "LootMgr.h"
 #include "MotionMaster.h"
 #include <random>
+#include "spells/handlers/SpellEffectTailHandlers.h"
 
 /**
  * @brief Removes auras from the target that match the specified mechanic.
@@ -311,20 +312,10 @@ void Spell::EffectTransmitted(SpellEffectEntry const* effect)
 {
     uint32 name_id = effect->EffectMiscValue_0;
 
-    switch (m_spellInfo->ID)
+    SpellEffectTransmittedContext ctx(m_caster, name_id);
+    if (SpellHandlerRegistry::Game().Dispatch<SpellEffectTransmittedSite>(m_spellInfo->ID, ctx).IsReturn())
     {
-        case 29886: // Create Soulwell
-            if (m_caster->HasAura(18692))
-            {
-                name_id = 183510;
-            }
-            else if (m_caster->HasAura(18693))
-            {
-                name_id = 183511;
-            }
-            break;
-        default:
-            break;
+        return;
     }
 
     GameObjectInfo const* goinfo = ObjectMgr::GetGameObjectInfo(name_id);

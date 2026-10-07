@@ -188,7 +188,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) proves every site against the switches as they first stood; CI runs both.
-BASE = '5c56c3ca2'
+BASE = '0e7fc259b'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -544,6 +544,32 @@ SITES = {
             'labels': {
                 26400: '        case 26400:',
                 28862: '        case 28862:'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellEffectTail.cpp': {
+        'handlers': 'src/game/spells/handlers/SpellEffectTailHandlers.cpp',
+        'rows_function': 'RegisterSpellEffectTailRows',
+        'added': ['#include "spells/handlers/SpellEffectTailHandlers.h"'],
+        'sites': [{
+            'name': 'EffectTransmitted (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '    SpellEffectTransmittedContext ctx(m_caster, name_id);',
+                '    if (SpellHandlerRegistry::Game().Dispatch<SpellEffectTransmittedSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '    {',
+                '        return;',
+                '    }'],
+            'open': ['    switch (m_spellInfo->ID)', '    {'],
+            'close': ['    }'],
+            'label_indent': 8,
+            'traits': 'SpellEffectTransmittedSite',
+            'default': '        default:',
+            'context': 'SpellEffectTransmittedContext',
+            'live_outs': ['name_id'],
+            'in_scope': ['effect'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.name_id', 'name_id')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                29886: '        case 29886: // Create Soulwell'},
         }],
     },
 }
