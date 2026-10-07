@@ -5,10 +5,11 @@ The spell handler registry's verbatim proof (decoupling D11, design/2026-09-28-u
 3(b)): every case body that moved out of a per-spell-ID switch into a registered handler is pasted
 back at its label, and the file must come back byte for byte as it was at BASE.
 
-BASE, ORIGINAL, VOID_SUBSTITUTIONS and SITES live in verbatim_sites.py beside this file, which a move
-edits (its sites' entries and BASE); this file holds none of them and never changes them, and
-split_gate.py (whose docstring holds the rules) refuses to run it when it binds or changes one, when it
-runs with values other than the data file's, or when the data file holds anything but literal values.
+BASE, ORIGINAL, VOID_SUBSTITUTIONS, SITES and BLOCKS live in verbatim_sites.py beside this file, which a
+move edits (its sites' entries and BASE, or its block's entry); this file holds none of them and never
+changes them, and split_gate.py (whose docstring holds the rules) refuses to run it when it binds or
+changes one, when it runs with values other than the data file's, or when the data file holds anything
+but literal values.
 
 For each file in SITES, --check:
   1. reads the file at BASE (`git show <base>:<file>`) and in the working tree, and for each of the
@@ -173,6 +174,32 @@ of it (an original is never ahead of the base), and an original that does not ho
 --anchor <sha> takes the base's place in that ancestry check and nowhere else; CI passes master's head
 there (the first parent of the checkout it tests), so no original is ahead of master whatever BASE a PR sets.
 
+BLOCKS: a block of type definitions moved from a source file into a header. Each entry names the commit
+before the move (`base`, spelled and resolved as an original is), the file the block stood in (`origin`),
+the header that holds it now (`header`), the block's first line (`first`, exact text), its number of
+lines (`lines`), and the lines the move added to the origin (`added`, each exact text); an entry with
+other keys, or a `lines` that is not a positive count, is refused. --check, with or without --original,
+runs every entry after the sites, each against its own base, and prints one line for it:
+  1. the block: the origin at the base holds `first` exactly once, and the block is the `lines` lines
+     from there; its braces balance, its last line is `};`, and it defines a type (a column-0
+     `struct N` or `class N` line not ending in `;`). The base must be HEAD or an ancestor of it, or,
+     with --anchor, the anchor or an ancestor of it;
+  2. the origin read: the working tree's while SITES has no entry for the origin, else the origin at
+     that entry's `original`, which the entry must name and which must be the base or descend from it.
+     So the entry proves the base against the merge of the move, and once the origin's sites move,
+     their --check --original proves every later tree against that merge;
+  3. the origin as read, less each `added` line (each found exactly once), equals the origin at the
+     base less the block and the blank lines directly after it, byte for byte; the first difference
+     is named;
+  4. the working tree's header holds the block's lines contiguous and byte for byte, exactly once;
+  5. no twin: each type the block defines is defined once in the header and in no other C or C++ file
+     under src/ (`git ls-files src`), nor in the origin as read at an original. A definition is
+     `struct` or `class`, the name, then a body (past `final` and a base clause), comments and
+     literals aside; a declaration or a use is none. A copy left in a file that does not include the
+     header is one no compiler sees, and this check is what refuses it.
+Check 5 runs before check 3, so a block left in its origin as well is named as a twin. Each fails by
+name.
+
 CI (.github/workflows/core_verbatim.yml) runs --check against both bases on every pull request: the
 parent proves this PR's own moves, the originals re-prove every body ever moved against the switches
 as they first stood, so a slip merged earlier is never inherited as the next PR's base. Both bases
@@ -207,19 +234,21 @@ proof (cast_verbatim.py --check), whose base is frozen: it compares a window aro
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
 import split_gate  # noqa: E402
 try:
-    from verbatim_sites import BASE, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
+    from verbatim_sites import BASE, BLOCKS, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
 except Exception as e:
     sys.exit(split_gate.unloaded(__file__, 'verbatim_sites', e))
 
 # The names verbatim_sites.py assigns; split_gate.py holds the split.
-DATA_NAMES = ('BASE', 'ORIGINAL', 'VOID_SUBSTITUTIONS', 'SITES')
+DATA_NAMES = ('BASE', 'ORIGINAL', 'VOID_SUBSTITUTIONS', 'SITES', 'BLOCKS')
 
 
 def valued_substitutions(value):
@@ -993,12 +1022,13 @@ def cut(text, spec):
     return '\n'.join(lines), len(ranges), sum(b - a for a, b in ranges)
 
 
-def first_difference(a, b):
+def first_difference(a, b, other='rebuilt'):
+    """The first line where `a` (the base) and `b` (named `other`) differ, or their lengths."""
     al, bl = a.split('\n'), b.split('\n')
     for n, (x, y) in enumerate(zip(al, bl), 1):
         if x != y:
-            return 'line %d: base %r, rebuilt %r' % (n, x, y)
-    return 'lengths differ: base %d lines, rebuilt %d' % (len(al), len(bl))
+            return 'line %d: base %r, %s %r' % (n, x, other, y)
+    return 'lengths differ: base %d lines, %s %d' % (len(al), other, len(bl))
 
 
 def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None, new_handlers=None):
@@ -1103,14 +1133,134 @@ def read_at(rel, spec, base, original, git, read, anchor=None):
     return ref, have[0]
 
 
-def check(root, base, out=print, original=False, git=None, read=None, sites=None, anchor=None):
-    """`git` and `read` (a path's text in the working tree) default to the repository at `root`;
-    `anchor`, under --original, is the commit no original may be ahead of, in the base's place."""
-    git = git or git_runner(root)
+BLOCK_KEYS = ('base', 'origin', 'header', 'first', 'lines', 'added')
 
-    def read_tree(rel):
-        with open(os.path.join(root, *rel.split('/')), encoding='utf-8', newline='') as fh:
+# The files a type is compiled from: a definition in any other file is no twin.
+TYPE_SOURCES = ('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inc', '.inl', '.ipp')
+
+
+def block_types(block):
+    """The names of the types `block` defines: each column-0 `struct N` or `class N` line, comments and
+    literals aside, that is not a declaration ending in `;`."""
+    names = []
+    for line in blank('\n'.join(block)).split('\n'):
+        m = re.match(r'(?:struct|class)\s+(\w+)', line)
+        if m and not line.rstrip().endswith(';'):
+            names.append(m.group(1))
+    return names
+
+
+def definitions(text, name):
+    """The number of definitions of the type `name` in `text`, comments and literals aside: `struct` or
+    `class`, the name, then its body, past `final` and a base clause."""
+    if name not in text:
+        return 0
+    return len(re.findall(r'\b(?:struct|class)\s+%s\b\s*(?:final\b\s*)?(?::(?!:)[^;{}()]*)?\{' % re.escape(name),
+                          blank(text)))
+
+
+def check_block(entry, sites, git, read, scan, anchor=None):
+    """The line --check prints for one BLOCKS entry, its checks 1 to 5 passed (BLOCKS); `scan` reads a
+    file under src/ for the twin search, `anchor` (a full SHA) takes HEAD's place in the base's ancestry."""
+    if sorted(entry) != sorted(BLOCK_KEYS):
+        raise Failure('the entry\'s keys are %s, and a block entry has exactly %s' % (sorted(entry), list(BLOCK_KEYS)))
+    origin, header, n = entry['origin'], entry['header'], entry['lines']
+    if not isinstance(n, int) or n < 1:
+        raise Failure('its lines %r is not a positive count' % (n,))
+    base = resolve('base', entry['base'], git)
+    if git('merge-base', '--is-ancestor', base, anchor or 'HEAD')[0] != 0:
+        raise Failure('the base %s is not an ancestor of %s' % (entry['base'], 'the anchor ' + anchor if anchor
+                                                                else 'HEAD'))
+    code, old, err = git('show', '%s:%s' % (base, origin))
+    if code != 0:
+        raise Failure('cannot read the origin at the base %s from git: %s' % (base, err))
+    old = old.split('\n')
+    at = [i for i, l in enumerate(old) if l == entry['first']]
+    if len(at) != 1:
+        raise Failure('the block\'s first line found %d times in the origin at the base' % len(at))
+    block = old[at[0]:at[0] + n]
+    if len(block) != n:
+        raise Failure('the block\'s %d lines run past the end of the origin at the base' % n)
+    code_text = blank('\n'.join(block))
+    if code_text.count('{') != code_text.count('}'):
+        raise Failure('the block\'s braces do not balance')
+    if block[-1] != '};':
+        raise Failure('the block\'s last line is not `};`, the close of a type: %r' % block[-1])
+    types = block_types(block)
+    if not types:
+        raise Failure('the block defines no type (no column-0 `struct N` or `class N` line)')
+    spec, others = sites.get(origin), []
+    if spec is None:
+        try:
+            new = read(origin)
+        except OSError:
+            raise Failure('the working tree has no %s' % origin)
+        where = 'in the working tree'
+    else:
+        if 'original' not in spec:
+            raise Failure('the origin has a SITES entry, and the entry names no original to read it at')
+        ref = resolve('original', spec['original'], git)
+        if git('merge-base', '--is-ancestor', base, ref)[0] != 0:
+            raise Failure('the original %s of the origin\'s SITES entry does not descend from the base %s'
+                          % (spec['original'], entry['base']))
+        code, new, err = git('show', '%s:%s' % (ref, origin))
+        if code != 0:
+            raise Failure('cannot read the origin at its original %s from git: %s' % (ref, err))
+        where = 'at ' + ref
+        others.append(('%s at %s' % (origin, ref), new))
+    try:
+        held = read(header)
+    except OSError:
+        raise Failure('the working tree has no header %s' % header)
+    lines = held.split('\n')
+    found = [k for k in range(len(lines) - n + 1) if lines[k:k + n] == block]
+    if len(found) != 1:
+        raise Failure('the header holds the block %d times (contiguous, byte for byte)' % len(found))
+    code, listed, err = git('ls-files', '-z', '--', 'src')
+    if code != 0:
+        raise Failure('cannot list the files under src/: %s' % err)
+    for path in listed.split('\0'):
+        if path.endswith(TYPE_SOURCES) and path != header:
+            try:
+                others.append((path, scan(path)))
+            except OSError:
+                continue
+    for name in types:
+        if definitions(held, name) != 1:
+            raise Failure('type %s is defined %d times in the header' % (name, definitions(held, name)))
+        for place, text in others:
+            if definitions(text, name):
+                raise Failure('type %s is defined again in %s, a twin of the block\'s' % (name, place))
+    rest = new.split('\n')
+    for added in entry['added']:
+        hits = [k for k, l in enumerate(rest) if l == added]
+        if len(hits) != 1:
+            raise Failure('added line %r found %d times in the origin as read' % (added, len(hits)))
+        del rest[hits[0]]
+    end = at[0] + n
+    while old[end:end + 1] == ['']:
+        end += 1
+    want = old[:at[0]] + old[end:]
+    if rest != want:
+        raise Failure('the origin as read, less its added lines, is not the base\'s less the block: %s'
+                      % first_difference('\n'.join(want), '\n'.join(rest), 'read'))
+    return ('%s -> %s: IDENTICAL to the base %s, byte for byte: the block of %d lines at its line %d stands once in '
+            'the header; the origin, read %s, is the base\'s less the block and the %d blank line(s) after it, '
+            'with %d added line(s); its types %s are defined nowhere else under src/'
+            % (origin, header, base, n, at[0] + 1, where, end - at[0] - n, len(entry['added']), ', '.join(types)))
+
+
+def check(root, base, out=print, original=False, git=None, read=None, sites=None, anchor=None, blocks=None):
+    """`git` and `read` (a path's text in the working tree) default to the repository at `root`;
+    `anchor`, under --original, is the commit no original may be ahead of, in the base's place;
+    `sites` and `blocks` default to SITES and BLOCKS."""
+    git = git or git_runner(root)
+    sites = SITES if sites is None else sites
+
+    def read_tree(rel, errors='strict'):
+        with open(os.path.join(root, *rel.split('/')), encoding='utf-8', errors=errors, newline='') as fh:
             return fh.read()
+    scan = read or (lambda rel: read_tree(rel, 'replace'))
     read = read or read_tree
     if anchor is not None:
         try:
@@ -1120,7 +1270,7 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
             return 1
         out('verbatim: each original is measured against the anchor %s' % anchor)
     rc = 0
-    for rel, spec in (SITES if sites is None else sites).items():
+    for rel, spec in sites.items():
         try:
             ref, at = read_at(rel, spec, base, original, git, read, anchor)
             new_text = read(rel)
@@ -1157,6 +1307,12 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
         else:
             got, _ = verify(rel, old_text, new_text, spec, headers, out, old_handlers, new_handlers)
             rc |= got
+    for entry in BLOCKS if blocks is None else blocks:
+        try:
+            out(check_block(entry, sites, git, read, scan, anchor))
+        except Failure as e:
+            out('%s -> %s: FAILED: %s' % (entry.get('origin'), entry.get('header'), e))
+            rc = 1
     out('verbatim: %s' % ('OK' if rc == 0 else 'FAILED'))
     return rc
 
@@ -1591,6 +1747,68 @@ class  Thing
         uint64 m_casterGuid = 0;
 };
 """}
+
+
+# ---- BLOCKS: a source file before and after its comparator types moved into a header, the move adding
+# ---- the header's include and an explicit instantiation; two blank lines stand after the block.
+BLOCK_LINES = ['// Order of the far targets',
+               'class Unit;',
+               'template <class A>',
+               'struct Pair',
+               '{',
+               '    typedef A first_type;',
+               '};',
+               '',
+               'struct FarOrder : public Pair<int>',
+               '{',
+               '    // the far side first: a "{" here opens no body',
+               '    bool operator()(int a, int b) const { return a > b; }',
+               '};']
+
+BLOCK_ORIGIN = '''#include "Far.h"
+
+enum FarKind
+{
+    FAR_ONE,
+};
+
+void Far::Pick()
+{
+}
+
+''' + '\n'.join(BLOCK_LINES) + '''
+
+
+void Far::Sort()
+{
+    list.sort(FarOrder());
+}
+'''
+
+BLOCK_MOVED = '''#include "Far.h"
+#include "spells/FarOrder.h"
+
+enum FarKind
+{
+    FAR_ONE,
+};
+
+void Far::Pick()
+{
+}
+template void Far::Pick<int>();
+
+void Far::Sort()
+{
+    list.sort(FarOrder());
+}
+'''
+
+BLOCK_HEADER = '#pragma once\n\n' + '\n'.join(BLOCK_LINES) + '\n'
+
+BLOCK_ENTRY = {'base': '2b00000', 'origin': 'src/game/Far.cpp', 'header': 'src/game/spells/FarOrder.h',
+               'first': '// Order of the far targets', 'lines': 13,
+               'added': ['#include "spells/FarOrder.h"', 'template void Far::Pick<int>();']}
 
 
 def self_test():
@@ -2629,6 +2847,232 @@ def self_test():
     renamed('a members_of header the working tree does not hold: FAILED', 1,
             new_p + ': FAILED: the working tree has no Thing.h, its members_of', before, moved, base='3000000',
             work={new_p: SELF_SITES, 'Handlers.cpp': SELF_HANDLERS})
+
+    # BLOCKS: a repository of five commits in this order, the base second, the move's merge third, HEAD
+    # fourth; the origin stands as it was before the move at the first, second and fifth.
+    block_commits = [full(c) for c in ('1b00000', '2b00000', '3b00000', '4b00000', '5b00000')]
+    origin, header = BLOCK_ENTRY['origin'], BLOCK_ENTRY['header']
+    block_files = {(block_commits[0], origin): BLOCK_ORIGIN, (block_commits[1], origin): BLOCK_ORIGIN,
+                   (block_commits[2], origin): BLOCK_MOVED, (block_commits[3], origin): BLOCK_MOVED,
+                   (block_commits[4], origin): BLOCK_ORIGIN, (block_commits[1], 'fixture'): SELF_OLD}
+    block_tree = {origin: BLOCK_MOVED, header: BLOCK_HEADER, 'src/game/Other.cpp': 'void Other() {}\n',
+                  'fixture': SELF_SITES, 'Handlers.cpp': SELF_HANDLERS, 'Thing.h': SELF_HEADERS['Thing.h']}
+
+    def blocked(label, want_rc, needles, entry=None, tree=None, files=None, sites=None, anchor=None, argv=None,
+                original=None, listed=True, disk=None):
+        """check_block() on `entry` (BLOCK_ENTRY changed by it) in the working tree `tree` (block_tree changed
+        by it, None deleting a file), the commits holding `files` (block_files changed by it); with `argv`
+        main(), with `original` check(), each with the sites `sites` and the block; with `disk` ({path: bytes}
+        over the tree) check() reading the tree written to a directory. `needles` in order."""
+        needles = [needles] if isinstance(needles, str) else needles
+        entry = {k: v for k, v in dict(BLOCK_ENTRY, **(entry or {})).items() if v is not None}
+        work = {k: v for k, v in dict(block_tree, **(tree or {})).items() if v is not None}
+        have = {**block_files, **{(full(c), p): t for (c, p), t in (files or {}).items()}}
+        have = {k: v for k, v in have.items() if v is not None}
+        sites = {} if sites is None else sites
+
+        def git(*args):
+            if args[:3] == ('rev-parse', '--verify', '--quiet'):
+                found = [c for c in block_commits if c.startswith(args[3][:-len('^{commit}')])]
+                return (0, found[0] + '\n', '') if len(found) == 1 else (1, '', '')
+            if args[0] == 'rev-parse':
+                return 0, '', ''
+            if args[:2] == ('merge-base', '--is-ancestor'):
+                a, b = (block_commits[3] if c == 'HEAD' else c for c in args[2:4])
+                return (0 if block_commits.index(a) <= block_commits.index(b) else 1), '', ''
+            if args[:2] == ('cat-file', '-e'):
+                return (0 if tuple(args[2].partition(':')[::2]) in have else 128), '', ''
+            if args[0] == 'show':
+                ref, _, path = args[1].partition(':')
+                return (0, have[(ref, path)], '') if (ref, path) in have else (128, '', 'fatal: no such path')
+            if args[0] == 'ls-files':
+                if not listed:
+                    return 128, '', 'fatal: not a git repository'
+                return 0, ''.join(p + '\0' for p in sorted(work) + ['src/game/Gone.cpp'] if p.startswith('src/')), ''
+            if args[0] == 'ls-tree':
+                return 0, '', ''
+            raise AssertionError('fake git: %r' % (args,))
+
+        def read(path):
+            if path not in work:
+                raise FileNotFoundError(path)
+            return work[path]
+        got = []
+        real_check = check
+        try:
+            if argv:
+                globals()['check'] = lambda root, base, original=False, anchor=None: real_check(
+                    root, base, got.append, original, git, read, sites, anchor, [entry])
+                rc = main(argv)
+            elif original is not None:
+                rc = check('.', '2b00000', got.append, original, git, read, sites, anchor, [entry])
+            elif disk is not None:
+                where = tempfile.mkdtemp()
+                try:
+                    for path, data in dict({p: t.encode('utf-8') for p, t in work.items()}, **disk).items():
+                        os.makedirs(os.path.join(where, os.path.dirname(path)), exist_ok=True)
+                        with open(os.path.join(where, path), 'wb') as f:
+                            f.write(data)
+                    rc = check(where, '2b00000', got.append, False, git, None, sites, None, [entry])
+                finally:
+                    shutil.rmtree(where, ignore_errors=True)
+            else:
+                try:
+                    got.append(check_block(entry, sites, git, read, read,
+                                           anchor and full(anchor)))
+                    rc = 0
+                except Failure as e:
+                    got.append('FAILED: %s' % e)
+                    rc = 1
+        except Exception as e:                                  # a crash fails the row
+            rc = 2
+            got.append('crashed: %r' % e)
+        finally:
+            globals()['check'] = real_check
+        text = '\n'.join(got)
+        at, ok = 0, rc == want_rc
+        for needle in needles:
+            at = text.find(needle, at)
+            ok = ok and at >= 0
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    moved_line = ("src/game/Far.cpp -> src/game/spells/FarOrder.h: IDENTICAL to the base %s, byte for byte: the block "
+                  "of 13 lines at its line 12 stands once in the header; the origin, read %%s, is the base's less the "
+                  "block and the 2 blank line(s) after it, with 2 added line(s); its types Pair, FarOrder are defined "
+                  "nowhere else under src/" % block_commits[1])
+    twin = "FAILED: type FarOrder is defined again in src/game/Other.cpp, a twin of the block's"
+    twin_file = {'src/game/Other.cpp': 'struct FarOrder : public Pair<int>\n{\n};\n'}
+    blocked('BLOCKS: a block moved into a header byte for byte: IDENTICAL', 0, moved_line % 'in the working tree')
+    blocked('BLOCKS: its first line twice in the origin at the base: fails', 1,
+            "FAILED: the block's first line found 2 times in the origin at the base",
+            files={('2b00000', origin): BLOCK_ORIGIN.replace('void Far::Sort', '// Order of the far targets\nvoid '
+                                                                                'Far::Sort')})
+    blocked('BLOCKS: its first line not in the origin at the base: fails', 1,
+            "FAILED: the block's first line found 0 times in the origin at the base",
+            entry={'first': '// Order of the near targets'})
+    blocked('BLOCKS: a block running past the end of the origin: fails', 1,
+            "FAILED: the block's 99 lines run past the end of the origin at the base", entry={'lines': 99})
+    blocked('BLOCKS: a block whose braces do not balance: fails', 1, "FAILED: the block's braces do not balance",
+            entry={'lines': 12})
+    blocked('BLOCKS: a block whose last line is not `};`: fails', 1,
+            "FAILED: the block's last line is not `};`, the close of a type: ''", entry={'lines': 14})
+    blocked('BLOCKS: a block that defines no type: fails', 1,
+            'FAILED: the block defines no type (no column-0 `struct N` or `class N` line)',
+            entry={'first': 'enum FarKind', 'lines': 4})
+    commented = BLOCK_LINES[:1] + ['/* the old order:', 'struct OldOrder', '*/'] + BLOCK_LINES[1:]
+    blocked('BLOCKS: a struct line inside a comment in the block names no type: passes', 0,
+            'the block of 16 lines at its line 12 stands once in the header',
+            entry={'lines': 16}, files={('2b00000', origin): BLOCK_ORIGIN.replace('\n'.join(BLOCK_LINES),
+                                                                                 '\n'.join(commented))},
+            tree={header: '#pragma once\n\n' + '\n'.join(commented) + '\n'})
+    blocked('BLOCKS: an entry with a key missing: fails', 1,
+            "FAILED: the entry's keys are ['base', 'first', 'header', 'lines', 'origin'], and a block entry has "
+            "exactly ['base', 'origin', 'header', 'first', 'lines', 'added']", entry={'added': None})
+    blocked('BLOCKS: a lines of 0: fails', 1, 'FAILED: its lines 0 is not a positive count', entry={'lines': 0})
+    blocked('BLOCKS: a lines spelled as text: fails', 1, "FAILED: its lines '13' is not a positive count",
+            entry={'lines': '13'})
+    blocked('BLOCKS: the header holding the block twice: fails', 1,
+            'FAILED: the header holds the block 2 times (contiguous, byte for byte)',
+            tree={header: BLOCK_HEADER + '\n'.join(BLOCK_LINES) + '\n'})
+    blocked('BLOCKS: the header\'s copy one byte off: fails', 1,
+            'FAILED: the header holds the block 0 times (contiguous, byte for byte)',
+            tree={header: BLOCK_HEADER.replace('a > b', 'a >= b')})
+    blocked('BLOCKS: no header in the working tree: fails', 1,
+            'FAILED: the working tree has no header src/game/spells/FarOrder.h', tree={header: None})
+    blocked('BLOCKS: the header\'s copy inside a comment: fails', 1,
+            'FAILED: type Pair is defined 0 times in the header',
+            tree={header: '#pragma once\n\n/*\n' + '\n'.join(BLOCK_LINES) + '\n*/\n'})
+    blocked('BLOCKS: a second definition in the header: fails', 1,
+            'FAILED: type FarOrder is defined 2 times in the header',
+            tree={header: BLOCK_HEADER + '\nclass FarOrder final\n{\n};\n'})
+    blocked('BLOCKS: a twin type in a third file under src/: fails', 1, twin, tree=twin_file)
+    blocked('BLOCKS: the block left in the origin as well: fails as a twin', 1,
+            "FAILED: type Pair is defined again in src/game/Far.cpp, a twin of the block's",
+            tree={origin: BLOCK_ORIGIN.replace('#include "Far.h"\n', '#include "Far.h"\n#include "spells/FarOrder.h"\n')
+                  .replace('{\n}\n\n', '{\n}\ntemplate void Far::Pick<int>();\n\n', 1)})
+    blocked('BLOCKS: a declaration, a use and a comment elsewhere are no twin: passes', 0,
+            moved_line % 'in the working tree',
+            tree={'src/game/Other.cpp': 'struct FarOrder;\nclass Pair;\nvoid Use(struct FarOrder* order) {}\n'
+                                        'template <class FarOrder> void Sort() {}\n// struct FarOrder { };\n'
+                                        'struct FarOrderLess { };\nstruct FarOrder::Inner { };\n'})
+    blocked('BLOCKS: a definition in a file that is not C or C++: no twin, passes', 0,
+            moved_line % 'in the working tree', tree={'src/tests/tools/fixture.py': twin_file['src/game/Other.cpp']})
+    blocked('BLOCKS: the origin with a change not listed in added: fails', 1,
+            "FAILED: the origin as read, less its added lines, is not the base's less the block: line 14: base "
+            "'    list.sort(FarOrder());', read '    list.sort(FarOrder(1));'",
+            tree={origin: BLOCK_MOVED.replace('FarOrder()', 'FarOrder(1)')})
+    blocked('BLOCKS: a listed added line missing from the origin: fails', 1,
+            "FAILED: added line 'template void Far::Pick<int>();' found 0 times in the origin as read",
+            tree={origin: BLOCK_MOVED.replace('template void Far::Pick<int>();\n', '')})
+    blocked('BLOCKS: a listed added line standing twice: fails', 1,
+            "FAILED: added line 'template void Far::Pick<int>();' found 2 times in the origin as read",
+            tree={origin: BLOCK_MOVED + 'template void Far::Pick<int>();\n'})
+    blocked('BLOCKS: a base that is not an ancestor of HEAD: fails', 1,
+            'FAILED: the base 5b00000 is not an ancestor of HEAD', entry={'base': '5b00000'})
+    blocked('BLOCKS: a base that is not an ancestor of the anchor: fails', 1,
+            'FAILED: the base 3b00000 is not an ancestor of the anchor %s' % block_commits[1],
+            entry={'base': '3b00000'}, anchor='2b00000')
+    blocked('BLOCKS: a base spelled as a ref name: fails', 1,
+            "FAILED: the base 'HEAD' is not spelled as a commit's hex SHA", entry={'base': 'HEAD'})
+    blocked('BLOCKS: the origin missing from the working tree: fails', 1,
+            'FAILED: the working tree has no src/game/Far.cpp', tree={origin: None})
+    blocked('BLOCKS: the origin missing at the base: fails', 1,
+            'FAILED: cannot read the origin at the base %s from git: fatal: no such path' % block_commits[1],
+            files={('2b00000', origin): None})
+    blocked('BLOCKS: the files under src/ not listed: fails', 1,
+            'FAILED: cannot list the files under src/: fatal: not a git repository', listed=False)
+    blocked('BLOCKS: the tree read from disk, a file not UTF-8 searched: its twin fails', 1,
+            ['src/game/Far.cpp -> src/game/spells/FarOrder.h: ' + twin, 'verbatim: FAILED'], tree=twin_file,
+            disk={'src/game/Other.cpp': b'// caf\xe9\n' + twin_file['src/game/Other.cpp'].encode('utf-8')})
+    at_original = {origin: {'original': '3b00000'}}
+    later = {origin: BLOCK_MOVED.replace('    list.sort(FarOrder());\n', '    Dispatch();\n')}
+    blocked('BLOCKS: the origin read at its SITES entry\'s original: IDENTICAL', 0,
+            moved_line % ('at ' + block_commits[2]), tree=later, sites=at_original)
+    blocked('BLOCKS: the same, the working tree differing, without the entry: fails', 1,
+            "is not the base's less the block: line 14: base '    list.sort(FarOrder());', read '    Dispatch();'",
+            tree=later)
+    blocked('BLOCKS: a SITES entry naming no original: fails', 1,
+            'FAILED: the origin has a SITES entry, and the entry names no original to read it at', sites={origin: {}})
+    blocked('BLOCKS: a SITES entry whose original is older than the base: fails', 1,
+            "FAILED: the original 1b00000 of the origin's SITES entry does not descend from the base 2b00000",
+            sites={origin: {'original': '1b00000'}})
+    blocked('BLOCKS: the origin missing at its original: fails', 1,
+            'FAILED: cannot read the origin at its original %s from git: fatal: no such path' % block_commits[2],
+            sites=at_original, files={('3b00000', origin): None})
+    blocked('BLOCKS: a twin in the origin read at its original: fails', 1,
+            "FAILED: type FarOrder is defined again in src/game/Far.cpp at %s, a twin of the block's"
+            % block_commits[2], sites=at_original, files={('3b00000', origin): BLOCK_MOVED + 'class FarOrder {};\n'},
+            entry={'added': BLOCK_ENTRY['added'] + ['class FarOrder {};']})
+    blocked('BLOCKS: --original runs the block checks as --check does', 0,
+            [moved_line % 'in the working tree', 'verbatim: OK'], original=True)
+    blocked('BLOCKS: main() runs them after the site checks, a refusal failing the run', 1,
+            ['fixture: IDENTICAL to the base, byte for byte',
+             'src/game/Far.cpp -> src/game/spells/FarOrder.h: ' + twin, 'verbatim: FAILED'],
+            sites={'fixture': SELF_SPEC}, tree=twin_file, argv=['verbatim.py', '--check', '--base', '2b00000'])
+    blocked('BLOCKS: main() with --original and --anchor: the anchor reaches them', 1,
+            'FAILED: the base 2b00000 is not an ancestor of the anchor %s' % block_commits[0],
+            argv=['verbatim.py', '--check', '--original', '--anchor', '1b00000'])
+
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, 'verbatim.py'), encoding='utf-8-sig') as f:
+            tool_source = f.read()
+        with open(os.path.join(here, 'verbatim_sites.py'), encoding='utf-8-sig') as f:
+            data_source = f.read()
+        bound = split_gate.problems('verbatim.py', tool_source + 'BLOCKS = []\n', 'verbatim_sites', data_source,
+                                    DATA_NAMES)
+        unset = split_gate.problems('verbatim.py', tool_source, 'verbatim_sites',
+                                    data_source.replace('\nBLOCKS = []\n', '\n'), DATA_NAMES)
+        ok = (any('binds BLOCKS, a data name of verbatim_sites.py' in p for p in bound)
+              and 'verbatim_sites.py does not assign BLOCKS' in unset)
+    except Exception as e:                                      # a crash fails the row
+        ok, bound, unset = False, ['crashed: %r' % e], []
+    label = 'the split: BLOCKS bound in the tool, or not assigned: REFUSED'
+    print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+    if not ok:
+        failures.append('the split, BLOCKS: %s %s' % (bound, unset))
 
     for label, bad in split_gate.self_test(__file__, 'verbatim_sites', DATA_NAMES, 'SITES'):
         print('self-test: %-66s %s' % (label, 'PASS' if not bad else 'FAIL'))
