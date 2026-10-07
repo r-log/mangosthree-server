@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""verbatim.py [--root <repo root>] [--base <ref>] [--original] --check | --self-test
+"""verbatim.py [--root <repo root>] [--base <ref>] [--original [--anchor <sha>]] --check | --self-test
 
 The spell handler registry's verbatim proof (decoupling D11, design/2026-09-28-unit-reopening.md
 3(b)): every case body that moved out of a per-spell-ID switch into a registered handler is pasted
@@ -170,6 +170,8 @@ not spelled as a hex SHA, one that names no commit, one that is ambiguous (more 
 begins with it and none is the one commit), one that resolves to a commit it does not spell (a ref
 of that name read in its place), an original that is not the base (BASE, or --base) or an ancestor
 of it (an original is never ahead of the base), and an original that does not hold the file.
+--anchor <sha> takes the base's place in that ancestry check and nowhere else; CI passes master's head
+there (the first parent of the checkout it tests), so no original is ahead of master whatever BASE a PR sets.
 
 CI (.github/workflows/core_verbatim.yml) runs --check against both bases on every pull request: the
 parent proves this PR's own moves, the originals re-prove every body ever moved against the switches
@@ -213,7 +215,7 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 import split_gate  # noqa: E402
 try:
     from verbatim_sites import BASE, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
-except ImportError as e:
+except Exception as e:
     sys.exit(split_gate.unloaded(__file__, 'verbatim_sites', e))
 
 # The names verbatim_sites.py assigns; split_gate.py holds the split.
@@ -1056,25 +1058,31 @@ def resolve(what, spelling, git):
     return full
 
 
-def original_base(rel, spec, base, git):
+def original_base(rel, spec, base, git, what='base'):
     """The full SHA --original reads `rel` at: the entry's `original`, else ORIGINAL (ORIGINALS);
-    `base` is the base's full SHA."""
+    `base` is the full SHA of the commit no original is ahead of, the base or the anchor (`what`)."""
     spelling = spec.get('original', ORIGINAL)
     ref = resolve('original', spelling, git)
     if git('merge-base', '--is-ancestor', ref, base)[0] != 0:
-        raise Failure('the original %s is ahead of the base %s (it is neither the base nor an ancestor of it)'
-                      % (spelling, base))
+        raise Failure('the original %s is ahead of the %s %s (it is neither the %s nor an ancestor of it)'
+                      % (spelling, what, base, what))
     if not any(git('cat-file', '-e', '%s:%s' % (ref, p))[0] == 0 for p in (rel, spec.get('renamed_from')) if p):
         raise Failure('the original %s does not hold the file' % spelling)
     return ref
 
 
-def read_at(rel, spec, base, original, git, read):
+def read_at(rel, spec, base, original, git, read, anchor=None):
     """(ref, path): the full SHA a SITES key is read at, the base or under --original its original,
     and the path there: the key, or `was`, its renamed_from. The working tree must hold the key and not
-    `was`, and the commit exactly one of the two."""
+    `was`, and the commit exactly one of the two. `anchor`, a full SHA, replaces the base in the
+    original's ancestry check."""
     full_base = resolve('base', base, git)
-    ref = original_base(rel, spec, full_base, git) if original else full_base
+    if not original:
+        ref = full_base
+    elif anchor is not None:
+        ref = original_base(rel, spec, anchor, git, 'anchor')
+    else:
+        ref = original_base(rel, spec, full_base, git)
     was = spec.get('renamed_from')
 
     def in_tree(p):
@@ -1095,18 +1103,26 @@ def read_at(rel, spec, base, original, git, read):
     return ref, have[0]
 
 
-def check(root, base, out=print, original=False, git=None, read=None, sites=None):
-    """`git` and `read` (a path's text in the working tree) default to the repository at `root`."""
+def check(root, base, out=print, original=False, git=None, read=None, sites=None, anchor=None):
+    """`git` and `read` (a path's text in the working tree) default to the repository at `root`;
+    `anchor`, under --original, is the commit no original may be ahead of, in the base's place."""
     git = git or git_runner(root)
 
     def read_tree(rel):
         with open(os.path.join(root, *rel.split('/')), encoding='utf-8', newline='') as fh:
             return fh.read()
     read = read or read_tree
+    if anchor is not None:
+        try:
+            anchor = resolve('anchor', anchor, git)
+        except Failure as e:
+            out('verbatim: FAILED: %s' % e)
+            return 1
+        out('verbatim: each original is measured against the anchor %s' % anchor)
     rc = 0
     for rel, spec in (SITES if sites is None else sites).items():
         try:
-            ref, at = read_at(rel, spec, base, original, git, read)
+            ref, at = read_at(rel, spec, base, original, git, read, anchor)
             new_text = read(rel)
         except Failure as e:
             out('%s: FAILED: %s' % (rel, e))
@@ -2459,7 +2475,8 @@ def self_test():
             return 0, '', ''
         raise AssertionError('fake git: %r' % (args,))
 
-    def originals(label, want_rc, needle, original=None, base='4000000', with_original=True, refs=None, argv=None):
+    def originals(label, want_rc, needle, original=None, base='4000000', with_original=True, refs=None, argv=None,
+                  anchor=None):
         """`refs`: tags of the fake repository, {name: spelling of the commit}; `argv`: run main() with it."""
         spec = dict(SELF_SPEC, original=original) if original else SELF_SPEC
         tags.clear()
@@ -2468,11 +2485,12 @@ def self_test():
         real_check = check
         try:
             if argv:
-                globals()['check'] = lambda root, base, original=False: real_check(
-                    root, base, got.append, original, fake_git, tree.__getitem__, {'fixture': spec})
+                globals()['check'] = lambda root, base, original=False, anchor=None: real_check(
+                    root, base, got.append, original, fake_git, tree.__getitem__, {'fixture': spec}, anchor)
                 rc = main(argv)
             else:
-                rc = check('.', base, got.append, with_original, fake_git, tree.__getitem__, {'fixture': spec})
+                rc = check('.', base, got.append, with_original, fake_git, tree.__getitem__, {'fixture': spec},
+                           anchor)
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -2526,6 +2544,20 @@ def self_test():
               "'#include \"Old.h\"'", argv=['verbatim.py', '--check', '--original', '--base', '4000000'])
     originals('ORIGINALS: main() without --original reads the base: passes', 0, identical,
               argv=['verbatim.py', '--check', '--base', '4000000'])
+    originals('ANCHOR: an original equal to the base, ahead of the anchor: fails', 1,
+              'fixture: FAILED: the original 5000000 is ahead of the anchor 4000000', original='5000000',
+              base='5000000', anchor='4000000')
+    originals('ANCHOR: an original equal to the anchor: passes', 0,
+              'verbatim: each original is measured against the anchor %s\n%s' % (full('4000000'), identical),
+              original='4000000', base='5000000', anchor='4000000')
+    originals('ANCHOR: an anchor not in the repository: fails', 1,
+              'verbatim: FAILED: the anchor 6000000 is not a commit of the repository', original='3000000',
+              anchor='6000000')
+    originals('ANCHOR: an empty anchor: fails', 1,
+              "verbatim: FAILED: the anchor '' is not spelled as a commit's hex SHA", original='3000000', anchor='')
+    originals('ANCHOR: main() with --anchor measures against it: fails', 1,
+              'fixture: FAILED: the original 5000000 is ahead of the anchor 4000000', original='5000000',
+              argv=['verbatim.py', '--check', '--original', '--base', '5000000', '--anchor', '4000000'])
 
     # renamed_from: a file renamed from old_p to new_p between 3000000 and 4000000.
     old_p, new_p = 'src/game/WorldHandlers/Sites.cpp', 'src/game/spells/auras/Sites.cpp'
@@ -2615,13 +2647,16 @@ def main(argv):
     ap.add_argument('--root', default=os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..')))
     ap.add_argument('--base', default=BASE)
     ap.add_argument('--original', action='store_true', help='check each file against its original (ORIGINALS)')
+    ap.add_argument('--anchor', help='under --original, the commit no original may be ahead of (ORIGINALS)')
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--check', action='store_true')
     g.add_argument('--self-test', action='store_true')
     args = ap.parse_args(argv[1:])
+    if args.anchor is not None and not args.original:
+        ap.error('--anchor applies to --original only')
     if args.self_test:
         return self_test()
-    return check(os.path.abspath(args.root), args.base, original=args.original)
+    return check(os.path.abspath(args.root), args.base, original=args.original, anchor=args.anchor)
 
 
 if __name__ == '__main__':
