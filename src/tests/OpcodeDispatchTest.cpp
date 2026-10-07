@@ -48,6 +48,7 @@
 #include "ArenaTeam.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
@@ -328,4 +329,18 @@ TEST(OpcodeDispatch_BattleGroundRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_REQUEST_PVP_REWARDS].handler == &OpcodeThunk<&PvpHandlers::HandleRequestPvPRewards>);
     CHECK(opcodeTable[CMSG_REQUEST_RATED_BG_INFO].handler == &OpcodeThunk<&PvpHandlers::HandleRequestRatedBgInfo>);
     CHECK(opcodeTable[CMSG_BATTLEFIELD_LIST].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_LootRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_AUTOSTORE_LOOT_ITEM].handler == &OpcodeThunk<&LootHandlers::HandleAutostoreLootItem>);
+    CHECK(opcodeTable[CMSG_LOOT_CURRENCY].handler == &OpcodeThunk<&LootHandlers::HandleAutostoreLootItem>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LootHandlers::HandleAutostoreLootItem>), 2);
+    CHECK(opcodeTable[CMSG_LOOT].handler == &OpcodeThunk<&LootHandlers::HandleLoot>);
+    CHECK(opcodeTable[CMSG_LOOT_MONEY].handler == &OpcodeThunk<&LootHandlers::HandleLootMoney>);
+    CHECK(opcodeTable[CMSG_LOOT_RELEASE].handler == &OpcodeThunk<&LootHandlers::HandleLootRelease>);
+    CHECK(opcodeTable[CMSG_LOOT_MASTER_GIVE].handler == &OpcodeThunk<&LootHandlers::HandleLootMasterGive>);
+    CHECK(opcodeTable[CMSG_LOOT].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }

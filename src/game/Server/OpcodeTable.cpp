@@ -45,6 +45,7 @@
 #include "OpcodeTable.h"
 #include "WorldSession.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
@@ -407,8 +408,8 @@ void InitializeOpcodes()
     OPCODE(SMSG_TEXT_EMOTE,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_AUTOEQUIP_GROUND_ITEM,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_AUTOSTORE_GROUND_ITEM,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_AUTOSTORE_LOOT_ITEM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutostoreLootItemOpcode   );
-    OPCODE(CMSG_LOOT_CURRENCY,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutostoreLootItemOpcode   );
+    OPCODE(CMSG_AUTOSTORE_LOOT_ITEM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleAutostoreLootItem         );
+    OPCODE(CMSG_LOOT_CURRENCY,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleAutostoreLootItem         );
     //OPCODE(CMSG_STORE_LOOT_IN_SLOT,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_AUTOEQUIP_ITEM,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutoEquipItemOpcode       );
     OPCODE(CMSG_AUTOSTORE_BAG_ITEM,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleAutoStoreBagItemOpcode  );
@@ -494,9 +495,9 @@ void InitializeOpcodes()
     OPCODE(SMSG_RESURRECT_REQUEST,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_RESURRECT_RESPONSE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleResurrectResponseOpcode   );
     OPCODE(CMSG_RETURN_TO_GRAVEYARD,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleReturnToGraveyard         );
-    OPCODE(CMSG_LOOT,                                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLootOpcode                );
-    OPCODE(CMSG_LOOT_MONEY,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLootMoneyOpcode           );
-    OPCODE(CMSG_LOOT_RELEASE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLootReleaseOpcode         );
+    OPCODE(CMSG_LOOT,                                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleLoot                      );
+    OPCODE(CMSG_LOOT_MONEY,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleLootMoney                 );
+    OPCODE(CMSG_LOOT_RELEASE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleLootRelease               );
     OPCODE(SMSG_LOOT_RESPONSE,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_LOOT_RELEASE_RESPONSE,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_LOOT_REMOVED,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -833,7 +834,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_LOOT_ROLL,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLootRoll                  );
     OPCODE(SMSG_LOOT_START_ROLL,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_LOOT_ROLL,                               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_LOOT_MASTER_GIVE,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLootMasterGiveOpcode      );
+    OPCODE(CMSG_LOOT_MASTER_GIVE,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &LootHandlers::HandleLootMasterGive            );
     OPCODE(SMSG_LOOT_MASTER_LIST,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SET_FORCED_REACTIONS,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPELL_FAILED_OTHER,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );

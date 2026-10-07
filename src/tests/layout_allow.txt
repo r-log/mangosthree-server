@@ -833,7 +833,6 @@ src/game/WorldHandlers/LFGMgrProposal.cpp -> src/game/entities/player/PlayerRegi
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/LFGMgrQueue.cpp -> src/game/entities/player/PlayerRegistry.h
-src/game/WorldHandlers/LootHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Mail.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Mail.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/MailHandler.cpp -> src/game/WorldHandlers/Chat.h

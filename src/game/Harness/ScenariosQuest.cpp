@@ -220,7 +220,7 @@ namespace Harness
             return canAdd;
         }
 
-        /// The loot handler's three calls for one item (LootHandler.cpp): CanStoreNewItem,
+        /// The loot handler's three calls for one item (LootHandlers.cpp): CanStoreNewItem,
         /// StoreNewItem -- which itself credits the item to every quest that wants it
         /// (ItemAddedQuestCheck, F5: the harness makes no second call) -- and SendNewItem. The
         /// loot-only criteria after them (LOOT_ITEM, LOOT_TYPE) are not loot's to a quest and are
