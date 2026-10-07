@@ -73,16 +73,22 @@ together in the base (lines of a moved function are cut before any edit, so an e
 either stands nowhere or spans the cut, and fails), two edits must not overlap, and each old block where it
 stands and each new block where it lands must stand alone: no line splice at either edge, the lines from
 its first on read alone as they do in place, and the block read alone ends outside any comment or literal,
-so no comment or literal opens or closes across an edge and an edit changes no line it does not quote.
+so no comment or literal opens or closes across an edge; and every block, old or new, holds no directive
+but includes and conditional groups that open and close inside it (`%:` read as `#`), so an edit changes no
+line it does not quote.
 The result must equal the working tree's file byte for byte: a line changed that no cut, removal or edit
 accounts for fails with its line, an include removed and not listed fails by name, a listed removal not
 found, found twice or not an include line fails, an edit that stands no times or more than once, spans a
-cut, overlaps another or does not stand alone fails by its first line, and a moved function the residue
-still defines fails. A deleted base_file has no residue to prove, but at each base its entries name every
-`WorldSession::` definition it held must be one an entry moves (otherwise deleting the file would skip the
-residue proof); a RESIDUES entry for a deleted file, or at a base no entry of the file names, fails.
-A definition line of another shape and an edit or substitution that matches nothing fail by name. The
-header's `static` is handler_classes.py's to check (a handler class has static member functions only).
+cut, overlaps another, does not stand alone or holds another directive fails by its first line, and a
+moved function the residue still defines fails. A deleted base_file has no residue to prove, but at each
+base its entries name every `WorldSession::` definition it held must be one an entry moves (otherwise
+deleting the file would skip the residue proof); a RESIDUES entry for a deleted file, or at a base no entry
+of the file names, fails.
+A definition line of another shape and an edit or substitution that matches nothing fail by name. A
+carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
+working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
+there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
+class has static member functions only).
 
 python src/tests/tools/handler_verbatim.py --check       # every entry against its base, reading git
 python src/tests/tools/handler_verbatim.py --self-test   # fixtures only, no git
@@ -140,6 +146,8 @@ PARAM_COMMENT = re.compile(r'/\*\s*(\w+)\s*\*/')
 INCLUDE = re.compile(r'#\s*include\s*(<[^<>]+>|"[^"]+")\s*(//.*)?$')
 SESSION_DOT = re.compile(r'(?<![\w.>:])session\.')
 COMMENT = re.compile(r'\s*(/\*|\*|//)')
+CARRIAGE_RETURN = re.compile(r'\r(?!\n|\Z)')
+DIRECTIVE = re.compile(r'\s*(?:#|%:)\s*(\w*)')
 
 
 def find_lines(lines, text):
@@ -244,6 +252,10 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
     name = '%s %s' % (entry['new_file'], re.sub(r'\n[ \t]*', ' ', entry['new_header']))
     try:
         check_shape(entry['new_header'], entry['base_header'])
+        texts = [new_text, base_text, tree_base_text or '', entry['new_header'], entry['base_header']] + [
+            x for e in entry.get('edits', []) + entry.get('substitutions', []) for x in e[:2]]
+        if any(isinstance(x, str) and CARRIAGE_RETURN.search(x) for x in texts):
+            raise Failure('a carriage return inside a line (a compiler ends the line there)')
         new_lines = new_text.split('\n')
         first, at, end = function_span(new_lines, entry['new_header'], entry['new_file'])
         head = range(at - first, at - first + head_lines(entry['new_header']))
@@ -313,6 +325,24 @@ def stands_alone(lines, a, b):
     return blank('\n'.join(lines[a:b] + ['x'])).endswith('x')
 
 
+def directives_close(block):
+    """The block's directives are includes and conditional groups that open and close inside it (`%:` read as
+    `#`)."""
+    depth = 0
+    for line in blank(block).split('\n'):
+        m = DIRECTIVE.match(line)
+        word = m.group(1) if m else None
+        if word in ('if', 'ifdef', 'ifndef'):
+            depth += 1
+        elif word in ('elif', 'elifdef', 'elifndef', 'else', 'endif'):
+            if not depth:
+                return False
+            depth -= word == 'endif'
+        elif m and word != 'include':
+            return False
+    return depth == 0
+
+
 def apply_residue_edits(lines, index, own, elsewhere, base):
     """Applies the listed residue edits to the rebuilt residue in place; the number applied. `index` holds
     each line's number in the base."""
@@ -320,6 +350,9 @@ def apply_residue_edits(lines, index, own, elsewhere, base):
     for e, mine in [(e, True) for e in own] + [(e, False) for e in elsewhere]:
         if not (isinstance(e, (tuple, list)) and len(e) in (1, 2) and all(isinstance(x, str) for x in e)):
             raise Failure('the residue edit %r is not (old block,) or (old block, new block)' % (e,))
+        if not all(directives_close(x) for x in e):
+            raise Failure('the residue edit of %r holds a directive other than an include or a conditional group '
+                          'that closes inside it' % e[0].split('\n')[0])
         hits = find_lines(lines, e[0])
         if len(hits) > 1 or (mine and not hits):
             raise Failure('the residue edit of %r stands %d times in the residue rebuilt at %s, not once' % (
@@ -361,6 +394,10 @@ def verify_residue(base_file, base, base_text, tree_text, headers, removed, remo
         for header in headers:
             if find_lines(tree, header):
                 raise Failure('it still defines %r: the move deletes it' % header)
+        blocks = [x for e in list(edits) + list(edits_elsewhere) if isinstance(e, (tuple, list)) for x in e]
+        if any(isinstance(x, str) and CARRIAGE_RETURN.search(x)
+               for x in [base_text, tree_text] + list(headers) + blocks):
+            raise Failure('a carriage return inside a line (a compiler ends the line there)')
         lines = base_text.split('\n')
         index = list(range(len(lines)))
         spans = []
@@ -799,6 +836,24 @@ def self_test():
         new_header=shadow[1])
     run('an edit naming a head line matches nothing: fails', 1, 'matches 0 lines of the function', 0,
         edits=[(SELF_QUEUE_NEW.split('\n')[1], SELF_QUEUE_HEAD.split('\n')[1])], **multi)
+
+    def both(label, needle, old, new):
+        heads = [h.replace(old, new) for h in (SELF_QUEUE_HEAD, SELF_QUEUE_NEW)]
+        run(label, 1, needle, 0, base=SELF_MULTI_BASE.replace(SELF_QUEUE_HEAD, heads[0]),
+            new=SELF_MULTI_NEW.replace(SELF_QUEUE_NEW, heads[1]), moves=SELF_MULTI_MOVES, base_header=heads[0],
+            new_header=heads[1])
+
+    banned = 'holds a brace, a semicolon, a backslash or a `#`'
+    both('a semicolon in a head over two lines fails', banned, 'playerGuid,', 'playerGuid;')
+    both('a backslash in a head over two lines fails', banned, 'sessionId,\n', 'sessionId, \\\n')
+    both('a # line in a head over three lines fails', banned, 'sessionId,\n', 'sessionId,\n#if 1\n')
+    unopened = 'does not open on its first line and close on its last'
+    both('a ) before the parameter list in a two-line head fails', unopened, 'void ', 'void) ')
+    both('an unclosed parameter list in a two-line head fails', unopened, 'proto::', '(proto::')
+    run('a lone CR in a moved body line fails', 1, 'a carriage return inside a line', 1,
+        swap=('    session.GetPlayer()->AttackStop();', '    session.GetPlayer()->AttackStop(); // a' + chr(13) + '/*'))
+    run('a lone CR in a moved function\'s edit fails', 1, 'a carriage return inside a line', 0,
+        edits=[(SELF_MOVES[0]['edits'][0][0], SELF_MOVES[0]['edits'][0][1] + ' // a' + chr(13) + '/*')])
     run('a two-line base head still in the working tree fails', 1, 'still defines', 0, tree_base=SELF_MULTI_BASE,
         **multi)
     run('a head whose continuation is not the file\'s fails', 1, 'the definition line found 0 times', 0,
@@ -911,6 +966,46 @@ def self_test():
     opened = ('    GetPlayer()->SendLog();', '    /* GetPlayer()->SendLog();')
     residue('a residue edit opening a comment after a deletion fails', 1, 'leaves text that does not stand alone',
             swing.replace(auction + '\n', '').replace(*opened), edits=[(auction,), opened])
+    shut = ('    return sAuctionMgr.GetEntry(guid);', '    return sAuctionMgr.GetEntry(guid); /* the entry')
+    residue('a residue edit listed after a later one, opening a comment, fails', 1,
+            'leaves text that does not stand alone', undead.replace(*shut), edits=[dead, shut])
+    banker = 'bool WorldSession::CheckBanker(ObjectGuid guid)\n{'
+    in_world = '    return GetPlayer()->IsInWorld();'
+    residue('residue edits wrapping unquoted lines in #if 0 and #endif fail', 1,
+            'holds a directive other than an include or a conditional group that closes inside it',
+            swing.replace(banker, banker + '\n#if 0').replace(in_world, '#endif\n' + in_world),
+            edits=[(banker, banker + '\n#if 0'), (in_world, '#endif\n' + in_world)])
+    name_head = SELF_CHECK_NAME.split('\n')[0]
+    residue('a residue edit adding a #define above an unquoted call fails', 1, 'holds a directive other than',
+            swing.replace(name_head, '%:define GetName(g, n) Drop()\n' + name_head),
+            edits=[(name_head, '%:define GetName(g, n) Drop()\n' + name_head)])
+    group = '#if 0\nvoid Dead();\n#endif\n'
+    grouped = SELF_RESIDUE_BASE.replace(note, note + group)
+    residue('residue edits deleting #if 0 and #endif apart fail', 1, 'holds a directive other than',
+            swing.replace(note, note + 'void Dead();\n'), base=grouped, edits=[('#if 0',), ('#endif',)])
+    residue('a residue edit turning #if 0 into #if 1 fails', 1, 'holds a directive other than',
+            swing.replace(note, note + group.replace('#if 0', '#if 1')), base=grouped, edits=[('#if 0', '#if 1')])
+    groups = group + '#if 1\nvoid Live();\n#endif\n'
+    residue('a residue edit closing one group and opening the next fails', 1, 'holds a directive other than',
+            swing.replace(note, note + group.replace('#endif', 'void Live();\n#endif')),
+            base=SELF_RESIDUE_BASE.replace(note, note + groups), edits=[('#endif\n#if 1',)])
+    residue('a residue edit deleting a whole #if 0 group passes', 0, 'and 1 edits applied', swing, base=grouped,
+            edits=[(group.rstrip('\n'),)])
+    qualified = ('#include "Chat.h"', '#include "chat/Chat.h"')
+    residue('a residue edit qualifying an include path passes', 0, 'and 1 edits applied', swing.replace(*qualified),
+            edits=[qualified])
+    cr = chr(13)
+    hidden = [(banker, banker + ' // a' + cr + '/*'), (in_world, '    // b' + cr + '*/' + in_world[4:])]
+    residue('residue edits hiding unquoted lines behind a lone CR fail', 1, 'a carriage return inside a line',
+            swing.replace(*hidden[0]).replace(*hidden[1]), edits=hidden)
+    residue('a residue holding a lone CR in a kept line fails', 1, 'a carriage return inside a line',
+            swing.replace(in_world, in_world + ' // b' + cr + '/* */'))
+    crlf = SELF_RESIDUE_BASE.replace('\n', cr + '\n')
+    residue('a CRLF residue with a dead function deleted passes', 0, 'and 1 edits applied',
+            undead.replace('\n', cr + '\n'), base=crlf, edits=[dead])
+    residue('a CRLF residue edit after a line splice fails', 1, 'does not stand alone',
+            swing.replace(SELF_CHECK_NAME + '\n', '// keeps the name \\\n').replace('\n', cr + '\n'),
+            base=spliced.replace('\n', cr + '\n'), edits=[dead])
     multi_tree = SELF_MULTI_BASE.replace(SELF_MULTI_BASE[SELF_MULTI_BASE.index('/**'):
                                                          SELF_MULTI_BASE.index(SELF_CALLBACK_HEAD)], '')
     residue('a residue cut of a function with a two-line head passes', 0, 'with 1 moved functions cut', multi_tree,
