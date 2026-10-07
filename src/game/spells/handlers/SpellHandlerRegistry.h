@@ -81,7 +81,9 @@ enum SpellHandlerSite
     /// `Aura::HandleAuraTransform`, AT APPLY with no creature entry: its `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_TRANSFORM = 8,
     /// `Aura::HandleModThreat`, at a real apply or remove on a living target: its `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_THREAT = 9
+    SPELL_HANDLER_SITE_AURA_THREAT = 9,
+    /// `Spell::EffectTransmitted`, before the game object entry is looked up: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_TRANSMITTED = 10
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

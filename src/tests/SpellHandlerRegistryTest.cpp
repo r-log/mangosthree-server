@@ -26,12 +26,13 @@
 /// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry.
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
-/// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's and HandleModThreat's) are checked for
-/// their keys, their defaults and their contexts, and run where a body needs no live Unit (the quest-tame labels, the
-/// removal labels on a mode that keeps them off the Unit); a body that casts, sets a display or reads a level needs a
-/// live Unit, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
-/// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
-/// druid, quest-tame, transform or threat label, nor another removal one).
+/// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's and
+/// EffectTransmitted's) are checked for their keys, their defaults and their contexts, and run where a body needs no
+/// live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the transmitted-object
+/// default); a body that casts, sets a display or reads a level or an aura needs a live Unit, which the harness record
+/// covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the coverage scenario
+/// two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid, quest-tame,
+/// transform, threat or transmitted-object label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -40,14 +41,18 @@
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheTableRegistersEveryRowOnce,
 ///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
-///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault
+///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault,
+///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
 ///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
-///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault
+///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault,
+///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss
+///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
+///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts
 ///   a lost live-out          SpellHandlerRegistry_ALiveOutWrittenByAHandlerReachesTheSite,
@@ -56,7 +61,8 @@
 ///                            AuraDummyHandlers_TheApplyRemoveContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId,
 ///                            AuraShapeshiftHandlers_TheTransformContextAliasesTheTargetLocal,
-///                            AuraControlHandlers_TheThreatContextAliasesTheThreeLocals
+///                            AuraControlHandlers_TheThreatContextAliasesTheThreeLocals,
+///                            SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
 
@@ -65,6 +71,7 @@
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/handlers/AuraShapeshiftHandlers.h"
 #include "spells/handlers/AuraControlHandlers.h"
+#include "spells/handlers/SpellEffectTailHandlers.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
 
@@ -436,10 +443,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(72));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these, the transform site's 9 rows and default, and the threat site's 2 rows.
+    // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, and the
+    // transmitted-object site's row and default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(83));
-    CHECK_EQ(game.CountDefaults(), std::size_t(1));
+    CHECK_EQ(game.Count(), std::size_t(84));
+    CHECK_EQ(game.CountDefaults(), std::size_t(2));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -911,4 +919,73 @@ TEST(AuraControlHandlers_TheThreatContextAliasesTheThreeLocals)
     CHECK(target == reinterpret_cast<Unit*>(units[1]));
     level_diff = -5;
     CHECK_EQ(ctx.level_diff, -5);
+}
+
+TEST(SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectTailHandlers(registry), uint32(2)); // one row and the default
+    CHECK_EQ(registry.Count(), std::size_t(1));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK_EQ(registry.CountAt(SpellEffectTransmittedSite::Key), std::size_t(1));
+
+    // One label with its own body, and the default, another body.
+    SpellHandler<SpellEffectTransmittedSite>::Function createSoulwell =
+        registry.Find<SpellEffectTransmittedSite>(29886);
+    SpellHandler<SpellEffectTransmittedSite>::Function onMiss = registry.FindDefault<SpellEffectTransmittedSite>();
+    CHECK(createSoulwell != NULL);
+    CHECK(onMiss != NULL);
+    CHECK(createSoulwell != onMiss);
+    CHECK(registry.Find<SpellEffectTransmittedSite>(12345) == NULL);
+
+    // A miss runs the default, which answers Continue as the old `default: break;` did and keeps the effect's entry.
+    Unit* caster = NULL;
+    uint32 name_id = 177000;
+    SpellEffectTransmittedContext ctx(caster, name_id);
+    SpellHandlerOutcome<void> missed = registry.Dispatch<SpellEffectTransmittedSite>(12345, ctx);
+    CHECK(missed.IsContinue());
+    CHECK(!missed.IsReturn());
+    CHECK(!missed.IsMiss());
+    CHECK_EQ(name_id, uint32(177000));
+    CHECK(caster == NULL);
+
+    // Registering again on the same table changes nothing: the key and the default are taken.
+    CHECK_EQ(RegisterSpellEffectTailHandlers(registry), uint32(2));
+    CHECK_EQ(registry.Count(), std::size_t(1));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK(registry.Find<SpellEffectTransmittedSite>(29886) == createSoulwell);
+    CHECK(registry.FindDefault<SpellEffectTransmittedSite>() == onMiss);
+
+    // Keyed on the transmitted-object site only: its label is no other site's, and the other sites' are not its.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(game.Find<AuraTransformSite>(29886) == NULL);
+    CHECK(game.Find<AuraThreatSite>(29886) == NULL);
+    CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(29886) == NULL);
+    CHECK(game.Find<AuraDummyRemoveSite>(29886) == NULL);
+    CHECK(game.Find<SpellEffectTransmittedSite>(16739) == NULL);
+    CHECK(game.Find<SpellEffectTransmittedSite>(26400) == NULL);
+    CHECK(game.Find<SpellEffectTransmittedSite>(29266) == NULL);
+
+    // The game's table holds the same row and the same default.
+    CHECK_EQ(game.CountAt(SpellEffectTransmittedSite::Key), std::size_t(1));
+    CHECK(game.Find<SpellEffectTransmittedSite>(29886) == createSoulwell);
+    CHECK(game.FindDefault<SpellEffectTransmittedSite>() == onMiss);
+}
+
+TEST(SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* caster = reinterpret_cast<Unit*>(units[0]);
+    uint32 name_id = 177000;
+    SpellEffectTransmittedContext ctx(caster, name_id);
+    CHECK(ctx.m_caster == caster);
+    CHECK_EQ(ctx.name_id, uint32(177000));
+    ctx.name_id = 183510;                                       // a body's write to `name_id`...
+    CHECK_EQ(name_id, uint32(183510));                          // ...is the function's local, which it reads after
+    name_id = 183511;
+    CHECK_EQ(ctx.name_id, uint32(183511));
+    ctx.m_caster = reinterpret_cast<Unit*>(units[1]);           // the caster is the spell's member, not a copy
+    CHECK(caster == reinterpret_cast<Unit*>(units[1]));
+    caster = reinterpret_cast<Unit*>(units[0]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
 }
