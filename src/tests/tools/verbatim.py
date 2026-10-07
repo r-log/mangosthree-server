@@ -306,7 +306,10 @@ def handler_body(lines, function, context, value='void'):
 
 def class_members(header, cls):
     """The names class `cls` declares at class scope in `header` (its text): member functions and
-    data members, not its constructors, friends, nested types or what inline bodies call."""
+    data members, not its constructors, friends, nested types or what inline bodies call. A data
+    member's name is the last name before its initialiser, array bound or bit-field colon; a `::`
+    is not such a colon, so the parts of a qualified type (`std::string`, `proto::SessionId`) are
+    never member names and the member the line declares is."""
     t = blank(header)
     m = re.search(r'\bclass\s+%s\b[^;{]*\{' % re.escape(cls), t)
     if not m:
@@ -324,7 +327,7 @@ def class_members(header, cls):
             if name in (cls, '~' + cls) or (name and name.startswith('operator')):
                 return None
             return name
-        text = re.split(r'=|\[|:(?!:)', text)[0]
+        text = re.split(r'=|\[|(?<!:):(?!:)', text)[0]
         found = re.findall(r'\w+', text)
         return found[-1] if found else None
 
@@ -1524,6 +1527,7 @@ class  Thing
         int& operator[](int i);
     protected:
         Modifier m_modifier;
+        proto::Link m_link;
         bool m_positive : 1;
         int m_table[4];
         enum { KIND_A, KIND_B };
@@ -1536,7 +1540,8 @@ class  Thing
 def self_test():
     failures = []
     got = sorted(class_members(SELF_HEADERS['Thing.h'], 'Thing'))
-    want = ['GetCaster', 'GetId', 'Handle', 'IsPositive', 'm_casterGuid', 'm_modifier', 'm_positive', 'm_table']
+    want = ['GetCaster', 'GetId', 'Handle', 'IsPositive', 'm_casterGuid', 'm_link', 'm_modifier', 'm_positive',
+            'm_table']
     print('self-test: %-66s %s' % ('the class-scope member names are read', 'PASS' if got == want else 'FAIL'))
     if got != want:
         failures.append('class_members: got %r, expected %r' % (got, want))
@@ -1596,6 +1601,10 @@ def self_test():
         swap=('ctx.target->Cast(ctx.aura);', 'ctx.target->Cast(GetCaster());'))
     run('a bare data member (m_modifier.) in a body fails', 1, '"m_modifier", a member of Thing, used bare',
         swap=('ctx.rank = 2;', 'ctx.rank = m_modifier.m_amount;'))
+    run('a qualified member bare fails, a local named its qualifier passes', 1,
+        'body line 2: "m_link", a member of Thing, used bare',
+        swap=('    ctx.target->Cast(ctx.aura);',
+              '    Proto* proto = ctx.target->GetProto();\n    proto->Cast(m_link);'))
     run('an implicit GetId() the move missed fails', 1, '"GetId", a member of Thing, used bare',
         swap=('Log(ctx.aura->GetId());', 'Log(GetId());'))
     run('a member reached through the context passes the member check', 1, 'DIFFERS',
