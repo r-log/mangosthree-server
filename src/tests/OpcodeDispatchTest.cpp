@@ -216,3 +216,11 @@ TEST(OpcodeDispatch_GuildAutoDeclineRowIsLoggedInAndThreadUnsafe)
     CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE].packetProcessing, PROCESS_THREADUNSAFE);
 }
+
+TEST(OpcodeDispatch_SetSelectionRowIsLoggedInAndThreadUnsafe)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_SET_SELECTION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_SELECTION].packetProcessing, PROCESS_THREADUNSAFE);
+}
