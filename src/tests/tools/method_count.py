@@ -26,6 +26,11 @@ quirk of the pipeline is kept on purpose (the number means what the facts measur
 It over-counts a few inline-body statements and counts the methods of nested types; the same
 bias before and after a change, so the delta is honest.
 
+Every mode reads the first `class <ClassName>` or `struct <ClassName>` whose name is followed by
+its body, a base clause or `final`: a template's explicit or partial specialisation
+(`class <ClassName><void>`) is never read, so a class template is measured by its primary
+definition alone.
+
 --all counts every member function instead (ruling 17: the D4 finish line counts every one,
 one-liners and commented declarations included). Over the same range, with comments and
 string/char literals blanked by the same function, it walks the braces of the class body and

@@ -63,6 +63,7 @@ that is a review item.
 import ast
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -308,7 +309,8 @@ def main(argv):
 
 def self_test(tool_file, data_module, names, bound):
     """The gate on fixtures shaped as the tool `tool_file` and its data file, `bound` one of the data names,
-    and on the tool's own source: [(row label, the row's failures as text)]."""
+    on the tool's own source and on the tool run without its data file: [(row label, the row's failures as
+    text)]."""
     tool_name = os.path.basename(tool_file)
     tool = FIXTURE_TOOL.format(data=data_module, names=', '.join(names), tuple=tuple(names), bound=bound)
     data = ('"""The data."""\n_AID = [(\'a\', \'b\')] + [1] * 2\n_DICT = dict(key=_AID, other={\'x\': (1, None)})\n'
@@ -359,6 +361,26 @@ def self_test(tool_file, data_module, names, bound):
         ok = rc == 1 and got == ['%s: REFUSED: %s does not import from beside the tool: no module'
                                  % (os.path.splitext(tool_name)[0], data_module)]
         return [] if ok else ['split gate, a data module that does not import: rc %d %s' % (rc, got)]
+
+    def missing_data_case():
+        """The tool run from a copy of its directory without its data file."""
+        here = os.path.dirname(os.path.abspath(tool_file))
+        where = tempfile.mkdtemp()
+        try:
+            for name in os.listdir(here):
+                if name.endswith('.py') and name != data_module + '.py':
+                    shutil.copy(os.path.join(here, name), where)
+            run = subprocess.run([sys.executable, '-E', os.path.join(where, tool_name)], cwd=where,
+                                 capture_output=True, text=True)
+        except Exception as e:                                  # a crash fails the row
+            return ['split gate, %s with no data file: crashed: %r' % (tool_name, e)]
+        finally:
+            shutil.rmtree(where, ignore_errors=True)
+        want = '%s: REFUSED: %s does not import from beside the tool: ' % (os.path.splitext(tool_name)[0],
+                                                                         data_module)
+        ok = run.returncode == 1 and run.stdout.startswith(want) and 'Traceback' not in run.stderr
+        return [] if ok else ['split gate, %s with no data file: rc %d, stdout %r, stderr %r'
+                              % (tool_name, run.returncode, run.stdout[-300:], run.stderr[-300:])]
 
     try:
         evaluated = data_values(data_module, data, names)[1]
@@ -433,6 +455,12 @@ def self_test(tool_file, data_module, names, bound):
         + checked('check() on a data file with a byte order mark', '\ufeff' + data, evaluated, None, 0)
         + checked('check() on a data file that does not parse', data + 'X =\n', evaluated, 'does not parse', 1)
         + unloaded_case())))
+    other_gate = tool.replace("split_gate.check(__file__, '%s'" % data_module,
+                              "split_gate.check(__file__, 'other_data'")
+    rows.append(('the split: main() gating another data module: REFUSED', (
+        source('the gate run on other_data', other_gate, data, 'main() does not run')
+        + ([] if other_gate != tool else ['split gate, the gate run on other_data: the mutation matches nothing']))))
+    rows.append(('the split: this tool with no data file beside it: REFUSED by name', missing_data_case()))
     try:
         with open(os.path.abspath(tool_file), encoding='utf-8-sig') as f:
             own = tool_problems(tool_name, f.read(), data_module, names)
