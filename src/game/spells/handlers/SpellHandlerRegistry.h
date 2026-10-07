@@ -45,7 +45,9 @@
  *   locals (by reference, so a handler's write reaches the code after the switch);
  * - a handler returns SpellHandlerOutcome::Return(value) -- the case's `return` (no value in a
  *   void function, else the function's return value) -- or SpellHandlerOutcome::Continue() -- the
- *   case's `break`;
+ *   case's `break`; at a site standing in a loop, SpellHandlerOutcome::LoopContinue() is the case's
+ *   `continue`, and the site writes `if (r.IsReturn()) { return; } if (r.IsLoopContinue()) { continue; }`
+ *   after the dispatch;
  * - a miss runs the site's own `default:` body, registered with RegisterDefault(), if it has
  *   one; otherwise Dispatch() answers Miss() and the site continues after where its switch stood;
  * - labels that share a body register one function under each of their ids.
@@ -105,17 +107,20 @@ class SpellHandlerOutcome
         static SpellHandlerOutcome Return(V value) { return SpellHandlerOutcome(KIND_RETURN, value); }
         /// The case's `break;`: the site continues after where its switch stood.
         static SpellHandlerOutcome Continue() { return SpellHandlerOutcome(KIND_CONTINUE, V()); }
+        /// The case's `continue;`: the loop around the site's switch takes its next iteration.
+        static SpellHandlerOutcome LoopContinue() { return SpellHandlerOutcome(KIND_LOOP_CONTINUE, V()); }
         /// No handler and no default at the site: the site continues after where its switch stood.
         static SpellHandlerOutcome Miss() { return SpellHandlerOutcome(KIND_MISS, V()); }
 
         bool IsReturn() const { return m_kind == KIND_RETURN; }
         bool IsContinue() const { return m_kind == KIND_CONTINUE; }
+        bool IsLoopContinue() const { return m_kind == KIND_LOOP_CONTINUE; }
         bool IsMiss() const { return m_kind == KIND_MISS; }
         /// The returned value; meaningful only when IsReturn().
         V GetValue() const { return m_value; }
 
     private:
-        enum Kind { KIND_MISS, KIND_CONTINUE, KIND_RETURN };
+        enum Kind { KIND_MISS, KIND_CONTINUE, KIND_LOOP_CONTINUE, KIND_RETURN };
 
         SpellHandlerOutcome(Kind kind, V value) : m_kind(kind), m_value(value) {}
 
@@ -123,7 +128,7 @@ class SpellHandlerOutcome
         V m_value;
 };
 
-/// The outcome at a site in a void function: `return;` or `break;`.
+/// The outcome at a site in a void function: `return;`, `break;` or, in a loop, `continue;`.
 template <>
 class SpellHandlerOutcome<void>
 {
@@ -132,15 +137,18 @@ class SpellHandlerOutcome<void>
         static SpellHandlerOutcome Return() { return SpellHandlerOutcome(KIND_RETURN); }
         /// The case's `break;`: the site continues after where its switch stood.
         static SpellHandlerOutcome Continue() { return SpellHandlerOutcome(KIND_CONTINUE); }
+        /// The case's `continue;`: the loop around the site's switch takes its next iteration.
+        static SpellHandlerOutcome LoopContinue() { return SpellHandlerOutcome(KIND_LOOP_CONTINUE); }
         /// No handler and no default at the site: the site continues after where its switch stood.
         static SpellHandlerOutcome Miss() { return SpellHandlerOutcome(KIND_MISS); }
 
         bool IsReturn() const { return m_kind == KIND_RETURN; }
         bool IsContinue() const { return m_kind == KIND_CONTINUE; }
+        bool IsLoopContinue() const { return m_kind == KIND_LOOP_CONTINUE; }
         bool IsMiss() const { return m_kind == KIND_MISS; }
 
     private:
-        enum Kind { KIND_MISS, KIND_CONTINUE, KIND_RETURN };
+        enum Kind { KIND_MISS, KIND_CONTINUE, KIND_LOOP_CONTINUE, KIND_RETURN };
 
         explicit SpellHandlerOutcome(Kind kind) : m_kind(kind) {}
 
