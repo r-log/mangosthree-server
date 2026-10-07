@@ -131,7 +131,7 @@ from verbatim import Failure, class_members, first_difference  # noqa: E402
 import split_gate  # noqa: E402
 try:
     from handler_moves import MOVES, RESIDUES  # noqa: E402
-except ImportError as e:
+except Exception as e:
     sys.exit(split_gate.unloaded(__file__, 'handler_moves', e))
 
 SESSION_HEADER = 'src/game/Server/WorldSession.h'

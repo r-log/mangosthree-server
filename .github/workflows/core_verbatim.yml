@@ -34,7 +34,7 @@ jobs:
         run: python3 src/tests/tools/verbatim.py --check
 
       - name: Spell handler moves against the original switches
-        run: python3 src/tests/tools/verbatim.py --check --original
+        run: python3 src/tests/tools/verbatim.py --check --original --anchor "$(git rev-parse HEAD^1)"
 
       - name: Cast rewrites against their base
         run: python3 src/tests/tools/cast_verbatim.py --check

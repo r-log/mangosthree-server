@@ -203,7 +203,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import split_gate  # noqa: E402
 try:
     from cast_sites import BASE, FILES, FORMS  # noqa: E402
-except ImportError as e:
+except Exception as e:
     sys.exit(split_gate.unloaded(__file__, 'cast_sites', e))
 
 # The names cast_sites.py assigns; split_gate.py holds the split.

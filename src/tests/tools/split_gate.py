@@ -29,9 +29,10 @@ data file's assignments by the value rule above (nothing in it runs) and refuses
 names, read from its globals, are not equal to those values: data replaced, emptied or changed by the
 tool's module-level code, or loaded from another file, fails there. It prints each problem as
 `<tool>: REFUSED: <problem>`. Each tool calls it as the first statement of main(), before any mode
-runs, and stops with 1 when it prints one. A tool imports its data inside `try: ... except ImportError
-as e: sys.exit(split_gate.unloaded(__file__, '<data module>', e))`, so a data file that does not import
-is refused by name too, with no traceback. Not seen:
+runs, and stops with 1 when it prints one. A tool imports its data inside `try: ... except Exception
+as e: sys.exit(split_gate.unloaded(__file__, '<data module>', e))`, so a data file that does not import,
+or raises while it runs, is refused by name too, with no traceback: unloaded() names the data file's line
+that raised and the error. Not seen:
 a change made after check() through another name bound to a data value (`x = SITES; x.clear()`);
 that is a review item.
 """
@@ -66,6 +67,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import traceback
 import types
 
 VALUE_RULE = ('a value holds only constants, lists, tuples, dicts, + and *, names assigned above it and '
@@ -284,9 +286,13 @@ def check(tool_file, data_module, names, tool_values, out=print):
 
 
 def unloaded(tool_file, data_module, error, out=print):
-    """1, having printed that the data module of the tool `tool_file` does not import."""
+    """1, having printed that the data module of the tool `tool_file` does not import: `error`, led by the
+    data file's line and the error's type when the data file raised it while it ran."""
+    data_file = data_module + '.py'
+    lines = [f.lineno for f in traceback.extract_tb(error.__traceback__) if os.path.basename(f.filename) == data_file]
+    what = '%s:%d: %s: %s' % (data_file, lines[-1], type(error).__name__, error) if lines else error
     out('%s: REFUSED: %s does not import from beside the tool: %s'
-        % (os.path.splitext(os.path.basename(tool_file))[0], data_module, error))
+        % (os.path.splitext(os.path.basename(tool_file))[0], data_module, what))
     return 1
 
 
@@ -309,8 +315,8 @@ def main(argv):
 
 def self_test(tool_file, data_module, names, bound):
     """The gate on fixtures shaped as the tool `tool_file` and its data file, `bound` one of the data names,
-    on the tool's own source and on the tool run without its data file: [(row label, the row's failures as
-    text)]."""
+    on the tool's own source and on the tool run without its data file and with one that raises: [(row label,
+    the row's failures as text)]."""
     tool_name = os.path.basename(tool_file)
     tool = FIXTURE_TOOL.format(data=data_module, names=', '.join(names), tuple=tuple(names), bound=bound)
     data = ('"""The data."""\n_AID = [(\'a\', \'b\')] + [1] * 2\n_DICT = dict(key=_AID, other={\'x\': (1, None)})\n'
@@ -362,25 +368,50 @@ def self_test(tool_file, data_module, names, bound):
                                  % (os.path.splitext(tool_name)[0], data_module)]
         return [] if ok else ['split gate, a data module that does not import: rc %d %s' % (rc, got)]
 
-    def missing_data_case():
-        """The tool run from a copy of its directory without its data file."""
+    def run_copy(data_text):
+        """The tool run from a copy of its directory, its data file holding `data_text` (None: no data file)."""
         here = os.path.dirname(os.path.abspath(tool_file))
         where = tempfile.mkdtemp()
         try:
             for name in os.listdir(here):
                 if name.endswith('.py') and name != data_module + '.py':
                     shutil.copy(os.path.join(here, name), where)
-            run = subprocess.run([sys.executable, '-E', os.path.join(where, tool_name)], cwd=where,
-                                 capture_output=True, text=True)
-        except Exception as e:                                  # a crash fails the row
-            return ['split gate, %s with no data file: crashed: %r' % (tool_name, e)]
+            if data_text is not None:
+                with open(os.path.join(where, data_module + '.py'), 'w', encoding='utf-8') as f:
+                    f.write(data_text)
+            return subprocess.run([sys.executable, '-E', '-B', os.path.join(where, tool_name)], cwd=where,
+                                  capture_output=True, text=True)
         finally:
             shutil.rmtree(where, ignore_errors=True)
-        want = '%s: REFUSED: %s does not import from beside the tool: ' % (os.path.splitext(tool_name)[0],
-                                                                         data_module)
+
+    refused = '%s: REFUSED: %s does not import from beside the tool: ' % (os.path.splitext(tool_name)[0], data_module)
+
+    def refused_by_name(what, data_text, want):
+        """The tool run by run_copy(`data_text`) stops with 1, its output beginning with `want`, no traceback."""
+        try:
+            run = run_copy(data_text)
+        except Exception as e:                                  # a crash fails the row
+            return ['split gate, %s %s: crashed: %r' % (tool_name, what, e)]
         ok = run.returncode == 1 and run.stdout.startswith(want) and 'Traceback' not in run.stderr
-        return [] if ok else ['split gate, %s with no data file: rc %d, stdout %r, stderr %r'
-                              % (tool_name, run.returncode, run.stdout[-300:], run.stderr[-300:])]
+        return [] if ok else ['split gate, %s %s: rc %d, stdout %r, stderr %r'
+                              % (tool_name, what, run.returncode, run.stdout[-300:], run.stderr[-300:])]
+
+    def missing_data_case():
+        """The tool run from a copy of its directory without its data file."""
+        return refused_by_name('with no data file', None, refused)
+
+    def raising_data_case():
+        """The tool run with its data file ending in a line that raises as it runs: refused at that line."""
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(tool_file)), data_module + '.py'),
+                      encoding='utf-8-sig') as f:
+                own = f.read().rstrip('\n') + '\n'
+        except Exception as e:                                  # a crash fails the row
+            return ['split gate, %s with a raising data file: crashed: %r' % (tool_name, e)]
+        at = '%s%s.py:%d: ' % (refused, data_module, own.count('\n') + 1)
+        return [p for line, error in (('_X = 1 / 0', 'ZeroDivisionError'), ('_X = UNSET', 'NameError'),
+                                      ("_X = [1] * 'a'", 'TypeError'))
+                for p in refused_by_name('with %r in its data' % line, own + line + '\n', at + error + ': ')]
 
     try:
         evaluated = data_values(data_module, data, names)[1]
@@ -461,6 +492,7 @@ def self_test(tool_file, data_module, names, bound):
         source('the gate run on other_data', other_gate, data, 'main() does not run')
         + ([] if other_gate != tool else ['split gate, the gate run on other_data: the mutation matches nothing']))))
     rows.append(('the split: this tool with no data file beside it: REFUSED by name', missing_data_case()))
+    rows.append(('the split: this tool with a data file that raises: REFUSED by name', raising_data_case()))
     try:
         with open(os.path.abspath(tool_file), encoding='utf-8-sig') as f:
             own = tool_problems(tool_name, f.read(), data_module, names)
