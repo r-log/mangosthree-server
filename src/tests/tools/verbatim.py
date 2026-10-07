@@ -77,6 +77,10 @@ For each file in SITES, --check:
      neither registered nor standing in it. A site with a dispatch deletes labels only when it
      is a residual one; cuts may not overlap;
   6. compares the two, byte for byte, and names the first difference.
+A file renamed since a commit it is read at (the base or its original) keeps its key, the working
+tree's path, and names its old path in `renamed_from`: the working tree must hold the key and not the
+old path, and the commit exactly one of the two, the one read; a commit holding neither or both
+fails, naming the paths. A key or a members_of header the working tree does not hold fails by name.
 Because the bodies are pasted from the functions the table registers, a row pointing at the wrong
 function, a lost row or default, a changed line, or a body moved in the wrong order all fail; a
 body a PR before this one moved is proven again, against its own base's copy. Every
@@ -1387,9 +1391,35 @@ def original_base(rel, spec, base, git):
     if git('merge-base', '--is-ancestor', ref, base)[0] != 0:
         raise Failure('the original %s is ahead of the base %s (it is neither the base nor an ancestor of it)'
                       % (spelling, base))
-    if git('cat-file', '-e', '%s:%s' % (ref, rel))[0] != 0:
+    if not any(git('cat-file', '-e', '%s:%s' % (ref, p))[0] == 0 for p in (rel, spec.get('renamed_from')) if p):
         raise Failure('the original %s does not hold the file' % spelling)
     return ref
+
+
+def read_at(rel, spec, base, original, git, read):
+    """(ref, path): the full SHA a SITES key is read at, the base or under --original its original,
+    and the path there: the key, or `was`, its renamed_from. The working tree must hold the key and not
+    `was`, and the commit exactly one of the two."""
+    full_base = resolve('base', base, git)
+    ref = original_base(rel, spec, full_base, git) if original else full_base
+    was = spec.get('renamed_from')
+
+    def in_tree(p):
+        try:
+            read(p)
+        except OSError:
+            return False
+        return True
+    if not in_tree(rel):
+        raise Failure('the working tree has no such file')
+    if was and in_tree(was):
+        raise Failure('its renamed_from %s is still in the working tree' % was)
+    have = [p for p in (rel, was) if p and git('cat-file', '-e', '%s:%s' % (ref, p))[0] == 0]
+    if len(have) != 1:
+        raise Failure('%s at %s' % ('both it and its renamed_from %s are there' % was if have else
+                                    'neither it nor its renamed_from %s is there' % was if was else 'it is not there',
+                                    ref))
+    return ref, have[0]
 
 
 def check(root, base, out=print, original=False, git=None, read=None, sites=None):
@@ -1402,15 +1432,14 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
     read = read or read_tree
     rc = 0
     for rel, spec in (SITES if sites is None else sites).items():
-        new_text = read(rel)
         try:
-            full_base = resolve('base', base, git)
-            ref = original_base(rel, spec, full_base, git) if original else full_base
+            ref, at = read_at(rel, spec, base, original, git, read)
+            new_text = read(rel)
         except Failure as e:
             out('%s: FAILED: %s' % (rel, e))
             rc = 1
             continue
-        code, old_text, err = git('show', '%s:%s' % (ref, rel))
+        code, old_text, err = git('show', '%s:%s' % (ref, at))
         if code != 0:
             out('%s: FAILED: cannot read it at %s from git: %s' % (rel, ref, err))
             rc = 1
@@ -1430,9 +1459,15 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
         headers = {}
         for site in spec['sites']:
             header = site['members_of'][0]
-            headers[header] = read(header)
-        got, _ = verify(rel, old_text, new_text, spec, headers, out, old_handlers, new_handlers)
-        rc |= got
+            try:
+                headers[header] = read(header)
+            except OSError:
+                out('%s: FAILED: the working tree has no %s, its members_of' % (rel, header))
+                rc = 1
+                break
+        else:
+            got, _ = verify(rel, old_text, new_text, spec, headers, out, old_handlers, new_handlers)
+            rc |= got
     out('verbatim: %s' % ('OK' if rc == 0 else 'FAILED'))
     return rc
 
@@ -2786,6 +2821,77 @@ def self_test():
               "'#include \"Old.h\"'", argv=['verbatim.py', '--check', '--original', '--base', '4000000'])
     originals('ORIGINALS: main() without --original reads the base: passes', 0, identical,
               argv=['verbatim.py', '--check', '--base', '4000000'])
+
+    # renamed_from: a file renamed from old_p to new_p between 3000000 and 4000000.
+    old_p, new_p = 'src/game/WorldHandlers/Sites.cpp', 'src/game/spells/auras/Sites.cpp'
+
+    def renamed(label, want_rc, needles, files, sites, base='4000000', work=None, original=False):
+        """check() with `files` {(commit's spelling, path): text} and `work` as the working tree."""
+        needles = [needles] if isinstance(needles, str) else needles
+        work = dict(moved_tree) if work is None else work
+        files = {(full(c), path): text for (c, path), text in files.items()}
+
+        def git(*args):
+            if args[:3] == ('rev-parse', '--verify', '--quiet'):
+                found = [c for c in commits if c.startswith(args[3][:-len('^{commit}')])]
+                return (0, found[0] + '\n', '') if len(found) == 1 else (1, '', '')
+            if args[:2] == ('cat-file', '-e'):
+                ref, _, path = args[2].partition(':')
+                return (0 if (ref, path) in files else 128), '', ''
+            if args[:2] == ('merge-base', '--is-ancestor'):
+                return (0 if commits.index(args[2]) <= commits.index(args[3]) else 1), '', ''
+            if args[0] == 'show':
+                ref, _, path = args[1].partition(':')
+                return (0, files[(ref, path)], '') if (ref, path) in files else (128, '', 'fatal: no such path')
+            return 0, '', ''
+
+        def read(path):
+            if path not in work:
+                raise FileNotFoundError(path)
+            return work[path]
+        got = []
+        try:
+            rc = check('.', base, got.append, original, git, read, sites)
+        except Exception as e:                                  # a crash fails the row
+            rc = 2
+            got.append('crashed: %r' % e)
+        text = '\n'.join(got)
+        ok = rc == want_rc and all(n in text for n in needles)
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    moved = {new_p: dict(SELF_SPEC, renamed_from=old_p)}
+    moved_tree = {new_p: SELF_SITES, 'Handlers.cpp': SELF_HANDLERS, 'Thing.h': SELF_HEADERS['Thing.h']}
+    before, after = {('3000000', old_p): SELF_OLD}, {('4000000', new_p): SELF_OLD}
+    renamed('renamed_from: a commit holding the old path reads it: IDENTICAL', 0,
+            [new_p + ': IDENTICAL to the base', 'verbatim: OK'], before, moved, base='3000000')
+    renamed('renamed_from: a commit holding the new path reads it: IDENTICAL', 0,
+            [new_p + ': IDENTICAL to the base', 'verbatim: OK'], after, moved)
+    renamed('renamed_from: an original holding the old path reads it: IDENTICAL', 0,
+            new_p + ': IDENTICAL to the base', {**before, **after}, dict(moved, **{new_p: dict(
+                moved[new_p], original='3000000')}), original=True)
+    renamed('renamed_from: changed content at the old path DIFFERS', 1, new_p + ': DIFFERS from the base',
+            {('3000000', old_p): SELF_OLD.replace('if (i == 1)', 'if (i == 2)')}, moved, base='3000000')
+    renamed('renamed_from: a wrong old path is refused by name', 1,
+            new_p + ': FAILED: neither it nor its renamed_from src/game/Object/Sites.cpp is there at %s'
+            % full('3000000'),
+            before, {new_p: dict(SELF_SPEC, renamed_from='src/game/Object/Sites.cpp')}, base='3000000')
+    renamed('renamed_from: a commit holding both paths is refused', 1,
+            new_p + ': FAILED: both it and its renamed_from %s are there at %s' % (old_p, full('4000000')),
+            {**after, ('4000000', old_p): SELF_OLD}, moved)
+    renamed('renamed_from: the old path still in the working tree is refused', 1,
+            new_p + ': FAILED: its renamed_from %s is still in the working tree' % old_p, before, moved,
+            base='3000000', work=dict(moved_tree, **{old_p: SELF_SITES}))
+    renamed('a key without renamed_from, not at the base: FAILED', 1,
+            new_p + ': FAILED: it is not there at %s' % full('3000000'),
+            before, {new_p: SELF_SPEC}, base='3000000')
+    renamed('a key the working tree does not hold: FAILED by name', 1,
+            [old_p + ': FAILED: the working tree has no such file', 'verbatim: FAILED'], before, {old_p: SELF_SPEC},
+            base='3000000')
+    renamed('a members_of header the working tree does not hold: FAILED', 1,
+            new_p + ': FAILED: the working tree has no Thing.h, its members_of', before, moved, base='3000000',
+            work={new_p: SELF_SITES, 'Handlers.cpp': SELF_HANDLERS})
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)

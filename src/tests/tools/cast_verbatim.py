@@ -47,6 +47,11 @@ For each file in FILES, --check:
      and is not searched for one: only its entries are checked, at their place.
 A window set for a base line that holds no site fails.
 
+A file renamed since BASE keeps its key, the working tree's path, and names its old path in
+`renamed_from`: the working tree must hold the key and not the old path, and BASE exactly one of the
+two, the one read; BASE holding neither or both fails, naming the paths. A key the working tree does
+not hold fails by name, and so does an `elsewhere` path that is not a key of FILES.
+
 A BYVALUE entry (the line as it reads now, listed with the base line it replaced) is the known
 transformation of a getter override that returns a guid by value: its base line declares a getter
 whose return type, the line's first word, is `ObjectGuid const&` (once on the line, with no
@@ -306,6 +311,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 BASE = '26df9c56a'
 
@@ -2118,33 +2124,74 @@ def verify(rel, old_text, new_text, spec, out, window=WINDOW, read=None, forms=N
     return prove(rel, old_text, new_text, spec, out, window=window, read=read, forms=forms)[0]
 
 
-def check(root, base, out=print):
+class Refused(Exception):
+    pass
+
+
+def run_git(root, *args):
+    return subprocess.run(['git', '-C', root] + list(args), capture_output=True, check=True).stdout.decode('utf-8')
+
+
+def ref_path(root, rel, was, ref, git=run_git):
+    """The path a FILES key is read at `ref`: the key, or `was`, its renamed_from. The working tree
+    must hold the key and not `was`, and `ref` exactly one of the two."""
+    def in_tree(p):
+        return os.path.isfile(os.path.join(root, *p.split('/')))
+    if not in_tree(rel):
+        raise Refused('the working tree has no such file')
+    if was and in_tree(was):
+        raise Refused('its renamed_from %s is still in the working tree' % was)
+    listed = git(root, 'ls-tree', '--name-only', ref, '--', *[p for p in (rel, was) if p]).splitlines()
+    have = [p for p in (rel, was) if p and p in listed]
+    if len(have) != 1:
+        raise Refused('%s at %s' % ('both it and its renamed_from %s are there' % was if have else
+                                    'neither it nor its renamed_from %s is there' % was if was else 'it is not there',
+                                    ref))
+    return have[0]
+
+
+def check(root, base, out=print, files=None, forms=None, git=run_git):
+    files = FILES if files is None else files
+    forms = FORMS if forms is None else forms
     rc = 0
     total = 0
 
     def read(rel):
         if rel.startswith('base:'):
-            return subprocess.run(['git', '-C', root, 'show', '%s:%s' % (base, rel[5:])], capture_output=True,
-                                  check=True).stdout.decode('utf-8')
+            return git(root, 'show', '%s:%s' % (base, rel[5:]))
         with open(os.path.join(root, *rel.split('/')), encoding='utf-8', newline='') as fh:
             return fh.read()
 
-    for rel, spec in FILES.items():
-        new_text = read(rel)
+    for name, form in sorted(forms.items()):
+        for where in form.get('elsewhere') if isinstance(form.get('elsewhere'), list) else ():
+            if where not in files:
+                out('%s: FAILED: FORM %s is elsewhere there, and FILES holds no such key' % (where, name))
+                rc = 1
+    for rel, spec in files.items():
         try:
-            old_text = subprocess.run(['git', '-C', root, 'show', '%s:%s' % (base, rel)], capture_output=True,
-                                      check=True).stdout.decode('utf-8')
+            at = ref_path(root, rel, spec.get('renamed_from'), base, git)
+            new_text = read(rel)
+            old_text = git(root, 'show', '%s:%s' % (base, at))
+        except Refused as e:
+            out('%s: FAILED: %s' % (rel, e))
+            rc = 1
+            continue
         except (OSError, subprocess.CalledProcessError) as e:
             out('%s: FAILED: cannot read it at %s from git: %s' % (rel, base, e))
             rc = 1
             continue
-        got, sites = prove(rel, old_text, new_text, spec, out, read=read)
+        try:
+            got, sites = prove(rel, old_text, new_text, spec, out, read=read, forms=forms)
+        except (OSError, subprocess.CalledProcessError) as e:
+            out('%s: FAILED: cannot read a file its FORMs name: %s' % (rel, e))
+            rc = 1
+            continue
         rc |= got
         for name, old_line, new_line, k in sorted(sites, key=lambda s: s[2]):
             out('  %s:%d -> :%d  %s  (window %d)' % (rel, old_line, new_line, name, k))
             total += 1
     out('cast_verbatim: %s (%d call site(s) in %d file(s), %d line(s) each side of a site)'
-        % ('OK' if rc == 0 else 'FAILED', total, len(FILES), WINDOW))
+        % ('OK' if rc == 0 else 'FAILED', total, len(files), WINDOW))
     return rc
 
 
@@ -3446,6 +3493,73 @@ def self_test():
     print('self-test: %-72s %s' % (label, 'PASS' if sites == want else 'FAIL'))
     if sites != want:
         failures.append('prove: got %r, expected %r' % (sites, want))
+
+    def git_of(refs):
+        """A git reading `refs`, {ref: {path: text}}, as ls-tree and show would."""
+        def git(root, *args):
+            if args[0] == 'ls-tree':
+                ref, paths = args[2], args[4:]
+                if ref not in refs:
+                    raise subprocess.CalledProcessError(128, 'git ls-tree')
+                return ''.join(p + '\n' for p in paths if p in refs[ref])
+            ref, path = args[1].split(':', 1)
+            if path not in refs.get(ref, {}):
+                raise subprocess.CalledProcessError(128, 'git show')
+            return refs[ref][path]
+        return git
+
+    def checked(label, want_rc, needles, tree, refs, files, forms=None):
+        """check() on a working tree `tree` ({path: text}) and the refs, with `files` for FILES."""
+        needles = [needles] if isinstance(needles, str) else needles
+        got = []
+        with tempfile.TemporaryDirectory() as root:
+            for rel, text in tree.items():
+                p = os.path.join(root, *rel.split('/'))
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, 'w', encoding='utf-8', newline='') as fh:
+                    fh.write(text)
+            try:
+                rc = check(root, 'base', got.append, files, own if forms is None else forms, git_of(refs))
+            except Exception as e:                              # a crash fails the row
+                rc = 2
+                got.append('crashed: %r' % e)
+        text = '\n'.join(got)
+        ok = rc == want_rc and all(n in text for n in needles)
+        print('self-test: %-72s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    own = {name: FORMS[name] for name in SELF_SPEC['forms']}
+    old_p, new_p = 'src/game/Object/UnitAura.cpp', 'src/game/spells/auras/UnitAura.cpp'
+    work = {new_p: SELF_NEW}
+    moved = {new_p: dict(SELF_SPEC, renamed_from=old_p)}
+    checked('renamed_from: a ref holding the old path reads it: IDENTICAL', 0,
+            [new_p + ': IDENTICAL to the base', 'cast_verbatim: OK (3 call site(s) in 1 file(s)'], work,
+            {'base': {old_p: SELF_OLD}}, moved)
+    checked('renamed_from: a ref holding the new path reads it: IDENTICAL', 0, new_p + ': IDENTICAL to the base',
+            work, {'base': {new_p: SELF_OLD}}, moved)
+    checked('renamed_from: changed content at the old path DIFFERS', 1, new_p + ':13: DIFFERS from the base at line 13', work,
+            {'base': {old_p: SELF_OLD.replace('dummySpell->ID, 0,', 'dummySpell->ID, 1,')}}, moved)
+    checked('renamed_from: a wrong old path is refused by name', 1,
+            new_p + ': FAILED: neither it nor its renamed_from src/game/Object/UnitAuras.cpp is there at base', work,
+            {'base': {old_p: SELF_OLD}}, {new_p: dict(SELF_SPEC, renamed_from='src/game/Object/UnitAuras.cpp')})
+    checked('renamed_from: a ref holding both paths is refused', 1,
+            new_p + ': FAILED: both it and its renamed_from %s are there at base' % old_p, work,
+            {'base': {old_p: SELF_OLD, new_p: SELF_OLD}}, moved)
+    checked('renamed_from: the old path still in the working tree is refused', 1,
+            new_p + ': FAILED: its renamed_from %s is still in the working tree' % old_p,
+            dict(work, **{old_p: SELF_NEW}), {'base': {old_p: SELF_OLD}}, moved)
+    checked('a key without renamed_from reads its own path: IDENTICAL', 0, new_p + ': IDENTICAL to the base', work,
+            {'base': {new_p: SELF_OLD}}, {new_p: SELF_SPEC})
+    checked('a key the working tree does not hold: FAILED by name', 1,
+            [old_p + ': FAILED: the working tree has no such file', 'cast_verbatim: FAILED'], work,
+            {'base': {old_p: SELF_OLD}}, {old_p: SELF_SPEC})
+    checked('an elsewhere path naming a FILES key passes', 0, 'cast_verbatim: OK', work, {'base': {old_p: SELF_OLD}},
+            moved, dict(own, AddSpellCooldown=dict(own['AddSpellCooldown'], elsewhere=[new_p])))
+    checked('an elsewhere path FILES does not hold: FAILED by name', 1,
+            old_p + ': FAILED: FORM AddSpellCooldown is elsewhere there, and FILES holds no such key', work,
+            {'base': {old_p: SELF_OLD}}, moved,
+            dict(own, AddSpellCooldown=dict(own['AddSpellCooldown'], elsewhere=[old_p])))
 
     for f in failures:
         print('FAILED: ' + f)
