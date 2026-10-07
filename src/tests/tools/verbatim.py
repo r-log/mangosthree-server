@@ -150,10 +150,13 @@ ORIGINALS: --check --original reads each file at its original instead of BASE: t
 `original` where it names one, else ORIGINAL (master before the first move). A file's original is
 the commit at which it last stood with every one of its sites in place: for a file moved once, the
 parent of its move. The original is the proof that the file's text outside its sites has not changed
-since before its first move, so it may only move forward when a PR names the reason. Refused, each by
-name: a base or original that is not a commit of the repository, an original not spelled as a
-commit's hex SHA, an original that is not the base (BASE, or --base) or an ancestor of it (an
-original is never ahead of the base), and an original that does not hold the file.
+since before its first move, so it may only move forward when a PR names the reason. A base or
+original is spelled as a commit's hex SHA, full or abbreviated, and is resolved once to the full SHA
+of the one commit it names, which every later read uses. Refused, each by name: a base or original
+not spelled as a hex SHA, one that names no commit, one that is ambiguous (more than one object
+begins with it and none is the one commit), one that resolves to a commit it does not spell (a ref
+of that name read in its place), an original that is not the base (BASE, or --base) or an ancestor
+of it (an original is never ahead of the base), and an original that does not hold the file.
 
 CI (.github/workflows/core_verbatim.yml) runs --check against both bases on every pull request: the
 parent proves this PR's own moves, the originals re-prove every body ever moved against the switches
@@ -1359,18 +1362,33 @@ def git_runner(root):
     return git
 
 
+def resolve(what, spelling, git):
+    """The full SHA of the one commit `spelling` (a commit's hex SHA, full or abbreviated) names."""
+    if not SHA.fullmatch(spelling):
+        raise Failure("the %s %r is not spelled as a commit's hex SHA" % (what, spelling))
+    code, full, _ = git('rev-parse', '--verify', '--quiet', spelling + '^{commit}')
+    full = full.strip()
+    if code != 0 or not full:
+        code, objects, _ = git('rev-parse', '--disambiguate=' + spelling)
+        if code == 0 and len(objects.split()) > 1:
+            raise Failure('the %s %s is ambiguous: %d objects of the repository begin with it'
+                          % (what, spelling, len(objects.split())))
+        raise Failure('the %s %s is not a commit of the repository' % (what, spelling))
+    if not full.startswith(spelling):
+        raise Failure('the %s %s names %s, not the commit it spells (a ref of that name)' % (what, spelling, full))
+    return full
+
+
 def original_base(rel, spec, base, git):
-    """The commit --original reads `rel` at: the entry's `original`, else ORIGINAL (ORIGINALS)."""
-    ref = spec.get('original', ORIGINAL)
-    if not SHA.fullmatch(ref):
-        raise Failure("the original %r is not spelled as a commit's hex SHA" % ref)
-    if git('cat-file', '-e', ref + '^{commit}')[0] != 0:
-        raise Failure('the original %s is not a commit of the repository' % ref)
+    """The full SHA --original reads `rel` at: the entry's `original`, else ORIGINAL (ORIGINALS);
+    `base` is the base's full SHA."""
+    spelling = spec.get('original', ORIGINAL)
+    ref = resolve('original', spelling, git)
     if git('merge-base', '--is-ancestor', ref, base)[0] != 0:
         raise Failure('the original %s is ahead of the base %s (it is neither the base nor an ancestor of it)'
-                      % (ref, base))
+                      % (spelling, base))
     if git('cat-file', '-e', '%s:%s' % (ref, rel))[0] != 0:
-        raise Failure('the original %s does not hold the file' % ref)
+        raise Failure('the original %s does not hold the file' % spelling)
     return ref
 
 
@@ -1386,9 +1404,8 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
     for rel, spec in (SITES if sites is None else sites).items():
         new_text = read(rel)
         try:
-            if git('cat-file', '-e', base + '^{commit}')[0] != 0:
-                raise Failure('the base %s is not a commit of the repository' % base)
-            ref = original_base(rel, spec, base, git) if original else base
+            full_base = resolve('base', base, git)
+            ref = original_base(rel, spec, full_base, git) if original else full_base
         except Failure as e:
             out('%s: FAILED: %s' % (rel, e))
             rc = 1
@@ -2663,19 +2680,34 @@ def self_test():
         "the run under ['case 2:'] falls off the switch's end, which only a `default:` may",
         **form('off', lab12, two[:-1], two_functions, two_rows))
 
-    # ORIGINALS: a repository of five commits in this order, ORIGINAL first; the fixture file holds an
-    # unrelated line at ORIGINAL that it no longer holds at its own original, and is missing at the second.
-    commits = [ORIGINAL, '2000000', '3000000', '4000000', '5000000']
+    # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
+    # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
+    # its own original, and is missing at the second. Two commits off that line share the prefix 8000000.
+    def full(spelling):
+        return spelling.ljust(40, '0')
+    commits = [full(c) for c in (ORIGINAL, '2000000', '3000000', '4000000', '5000000')]
+    others = ['8000000a' + '0' * 32, '8000000b' + '0' * 32]
     unrelated = SELF_OLD.replace('#include "A.h"', '#include "Old.h"')
-    repo = {(ORIGINAL, 'fixture'): unrelated, ('3000000', 'fixture'): SELF_OLD,
-            ('4000000', 'fixture'): SELF_OLD, ('5000000', 'fixture'): SELF_OLD}
+    repo = {(full(ORIGINAL), 'fixture'): unrelated, (full('3000000'), 'fixture'): SELF_OLD,
+            (full('4000000'), 'fixture'): SELF_OLD, (full('5000000'), 'fixture'): SELF_OLD}
     tree = {'fixture': SELF_SITES, 'Handlers.cpp': SELF_HANDLERS, 'Thing.h': SELF_HEADERS['Thing.h']}
+    tags = {}
 
     def fake_git(*args):
+        if args[:3] == ('rev-parse', '--verify', '--quiet') and args[3].endswith('^{commit}'):
+            name = args[3][:-len('^{commit}')]
+            if name in commits + others:
+                return 0, name + '\n', ''
+            if name in tags:
+                return 0, tags[name] + '\n', ''
+            found = [c for c in commits + others if c.startswith(name)]
+            return (0, found[0] + '\n', '') if len(found) == 1 else (1, '', '')
+        if args[0] == 'rev-parse' and args[1].startswith('--disambiguate='):
+            prefix = args[1][len('--disambiguate='):]
+            return 0, ''.join(c + '\n' for c in commits + others if c.startswith(prefix)), ''
         if args[:2] == ('cat-file', '-e'):
             ref, _, path = args[2].partition(':')
-            found = ref[:-len('^{commit}')] in commits if ref.endswith('^{commit}') else (ref, path) in repo
-            return (0 if found else 128), '', ''
+            return (0 if (ref, path) in repo else 128), '', ''
         if args[:2] == ('merge-base', '--is-ancestor'):
             if args[2] not in commits or args[3] not in commits:
                 return 128, '', 'fatal: not a valid commit'
@@ -2687,14 +2719,26 @@ def self_test():
             return 0, '', ''
         raise AssertionError('fake git: %r' % (args,))
 
-    def originals(label, want_rc, needle, original=None, base='4000000', with_original=True):
+    def originals(label, want_rc, needle, original=None, base='4000000', with_original=True, refs=None, argv=None):
+        """`refs`: tags of the fake repository, {name: spelling of the commit}; `argv`: run main() with it."""
         spec = dict(SELF_SPEC, original=original) if original else SELF_SPEC
+        tags.clear()
+        tags.update((name, full(c)) for name, c in (refs or {}).items())
         got = []
+        real_check = check
         try:
-            rc = check('.', base, got.append, with_original, fake_git, tree.__getitem__, {'fixture': spec})
+            if argv:
+                globals()['check'] = lambda root, base, original=False: real_check(
+                    root, base, got.append, original, fake_git, tree.__getitem__, {'fixture': spec})
+                rc = main(argv)
+            else:
+                rc = check('.', base, got.append, with_original, fake_git, tree.__getitem__, {'fixture': spec})
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
+        finally:
+            globals()['check'] = real_check
+            tags.clear()
         text = '\n'.join(got)
         ok = rc == want_rc and needle in text
         print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
@@ -2723,6 +2767,25 @@ def self_test():
     originals('ORIGINALS: a base not in the repository, with --original: fails', 1,
               'fixture: FAILED: the base 6000000 is not a commit of the repository', original='3000000',
               base='6000000')
+    originals('ORIGINALS: a tag spelled like a real commit\'s prefix: fails', 1,
+              'fixture: FAILED: the original 2000000 names %s, not the commit it spells' % full('4000000'),
+              original='2000000', refs={'2000000': '4000000'})
+    originals('ORIGINALS: a tag spelled like no commit: fails', 1,
+              'fixture: FAILED: the original 7000000 names %s, not the commit it spells' % full('3000000'),
+              original='7000000', refs={'7000000': '3000000'})
+    originals('ORIGINALS: an ambiguous abbreviation: fails', 1,
+              'fixture: FAILED: the original 8000000 is ambiguous: 2 objects of the repository begin with it',
+              original='8000000')
+    originals('ORIGINALS: a base shadowed by a tag of its spelling: fails', 1,
+              'fixture: FAILED: the base 4000000 names %s, not the commit it spells' % full('5000000'),
+              refs={'4000000': '5000000'}, with_original=False)
+    originals('ORIGINALS: an original spelled as a SHA and more: fails', 1,
+              "fixture: FAILED: the original '4000000~1' is not spelled as a commit's hex SHA", original='4000000~1')
+    originals('ORIGINALS: main() with --original reads the original: fails', 1,
+              "fixture: DIFFERS from the base after pasting back 5 bodies at 2 sites: line 1: base "
+              "'#include \"Old.h\"'", argv=['verbatim.py', '--check', '--original', '--base', '4000000'])
+    originals('ORIGINALS: main() without --original reads the base: passes', 0, identical,
+              argv=['verbatim.py', '--check', '--base', '4000000'])
 
     for f in failures:
         print('SELF-TEST FAILED: ' + f)
