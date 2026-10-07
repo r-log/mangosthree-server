@@ -47,6 +47,7 @@
 #include "OpcodeTable.h"
 #include "WorldSession.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/economy/VendorHandlers.h"
 
 /**
  * @brief Define opcode handler
@@ -411,7 +412,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_LOOT_CURRENCY,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutostoreLootItemOpcode   );
     //OPCODE(CMSG_STORE_LOOT_IN_SLOT,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_AUTOEQUIP_ITEM,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutoEquipItemOpcode       );
-    OPCODE(CMSG_AUTOSTORE_BAG_ITEM,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutoStoreBagItemOpcode    );
+    OPCODE(CMSG_AUTOSTORE_BAG_ITEM,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleAutoStoreBagItemOpcode  );
     OPCODE(CMSG_SWAP_ITEM,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSwapItem                  );
     OPCODE(CMSG_SWAP_INV_ITEM,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSwapInvItemOpcode         );
     OPCODE(CMSG_SPLIT_ITEM,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSplitItemOpcode           );
@@ -560,12 +561,12 @@ void InitializeOpcodes()
     OPCODE(CMSG_QUEST_CONFIRM_ACCEPT,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQuestConfirmAccept        );
     OPCODE(SMSG_QUEST_CONFIRM_ACCEPT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PUSHQUESTTOPARTY,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePushQuestToParty          );
-    OPCODE(CMSG_LIST_INVENTORY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleListInventoryOpcode       );
+    OPCODE(CMSG_LIST_INVENTORY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleListInventoryOpcode     );
     OPCODE(SMSG_LIST_INVENTORY,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_LOAD_SCREEN,                             STATUS_AUTHED,    PROCESS_THREADUNSAFE, &WorldSession::HandleLoadScreenOpcode         );
-    OPCODE(CMSG_SELL_ITEM,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSellItemOpcode            );
+    OPCODE(CMSG_SELL_ITEM,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleSellItemOpcode          );
     OPCODE(SMSG_SELL_ITEM,                               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_BUY_ITEM,                                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleBuyItemOpcode             );
+    OPCODE(CMSG_BUY_ITEM,                                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleBuyItemOpcode           );
     OPCODE(SMSG_BUY_ITEM,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_BUY_FAILED,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_TAXICLEARALLNODES,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
@@ -587,7 +588,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_PLAYERBINDERROR,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_BANKER_ACTIVATE,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleBankerActivateOpcode      );
     OPCODE(SMSG_SHOW_BANK,                               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_BUY_BANK_SLOT,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleBuyBankSlotOpcode         );
+    OPCODE(CMSG_BUY_BANK_SLOT,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleBuyBankSlotOpcode       );
     OPCODE(CMSG_PETITION_SHOWLIST,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetitionShowListOpcode    );
     OPCODE(SMSG_PETITION_SHOWLIST,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PETITION_BUY,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetitionBuyOpcode         );
@@ -799,8 +800,8 @@ void InitializeOpcodes()
     OPCODE(CMSG_REQUEST_PARTY_MEMBER_STATS,              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRequestPartyMemberStatsOpcode);
     //OPCODE(CMSG_GROUP_SWAP_SUB_GROUP,                    STATUS_UNHANDLED, PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_RESET_FACTION_CHEAT,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_AUTOSTORE_BANK_ITEM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutoStoreBankItemOpcode   );
-    OPCODE(CMSG_AUTOBANK_ITEM,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAutoBankItemOpcode        );
+    OPCODE(CMSG_AUTOSTORE_BANK_ITEM,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleAutoStoreBankItemOpcode );
+    OPCODE(CMSG_AUTOBANK_ITEM,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleAutoBankItemOpcode      );
     OPCODE(MSG_QUERY_NEXT_MAIL_TIME,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleQueryNextMailTime         );
     OPCODE(SMSG_RECEIVED_MAIL,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_RAID_GROUP_ONLY,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -814,7 +815,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_GROUP_RAID_CONVERT,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGroupRaidConvertOpcode    );
     OPCODE(CMSG_GROUP_REQUEST_JOIN_UPDATES,              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGroupRequestJoinUpdates);
     OPCODE(CMSG_GROUP_ASSISTANT_LEADER,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGroupAssistantLeaderOpcode);
-    OPCODE(CMSG_BUYBACK_ITEM,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleBuybackItem               );
+    OPCODE(CMSG_BUYBACK_ITEM,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VendorHandlers::HandleBuybackItem             );
     OPCODE(SMSG_SERVER_MESSAGE,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_SET_SAVED_INSTANCE_EXTEND,               STATUS_UNHANDLED, PROCESS_INPLACE,     &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_LFG_OFFER_CONTINUE,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );

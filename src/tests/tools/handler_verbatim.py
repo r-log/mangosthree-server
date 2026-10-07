@@ -107,6 +107,11 @@ COMBAT_FILE = 'src/game/session/handlers/combat/CombatHandlers.cpp'
 COMBAT_SWING = 'src/game/WorldHandlers/CombatHandler.cpp'
 COMBAT_DUEL = 'src/game/WorldHandlers/DuelHandler.cpp'
 
+VENDOR_BASE = '70b59aeba'
+VENDOR_FILE = 'src/game/session/handlers/economy/VendorHandlers.cpp'
+VENDOR_ORIGIN = 'src/game/WorldHandlers/ItemHandlerVendor.cpp'
+VENDOR_PLAYER = [('GetPlayer()', '_player')]
+
 MOVES = [
     dict(base=COMBAT_BASE, base_file=COMBAT_SWING, new_file=COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -135,9 +140,62 @@ MOVES = [
     dict(base=COMBAT_BASE, base_file=COMBAT_DUEL, new_file=COMBAT_FILE,
          base_header='void WorldSession::HandleDuelCancelledOpcode(WorldPacket& recvPacket)',
          new_header='void CombatHandlers::HandleDuelCancelled(WorldSession& session, WorldPacket& recvPacket)'),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleSellItemOpcode(WorldPacket& recv_data)',
+         new_header='void VendorHandlers::HandleSellItemOpcode(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=VENDOR_PLAYER,
+         edits=[('    Creature* pCreature = session.GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, '
+                 'UNIT_NPC_FLAG_VENDOR);',
+                 '    Creature* pCreature = GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, UNIT_NPC_FLAG_VENDOR);'),
+                ('    if (session.GetPlayer()->IsFeigningDeath())',
+                 '    if (GetPlayer()->IsFeigningDeath())'),
+                ('        session.GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);',
+                 '        GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);')]),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleBuybackItem(WorldPacket& recv_data)',
+         new_header='void VendorHandlers::HandleBuybackItem(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=VENDOR_PLAYER,
+         edits=[('    Creature* pCreature = session.GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, '
+                 'UNIT_NPC_FLAG_VENDOR);',
+                 '    Creature* pCreature = GetPlayer()->GetNPCIfCanInteractWith(vendorGuid, UNIT_NPC_FLAG_VENDOR);'),
+                ('    if (session.GetPlayer()->IsFeigningDeath())',
+                 '    if (GetPlayer()->IsFeigningDeath())'),
+                ('        session.GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);',
+                 '        GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);')]),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleBuyItemOpcode(WorldPacket& recv_data)',
+         new_header='void VendorHandlers::HandleBuyItemOpcode(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=VENDOR_PLAYER,
+         edits=[('            session.GetPlayer()->BuyItemFromVendorSlot(vendorGuid, slot, item, count, bag, bagSlot);',
+                 '            GetPlayer()->BuyItemFromVendorSlot(vendorGuid, slot, item, count, bag, bagSlot);'),
+                ('            session.GetPlayer()->BuyCurrencyFromVendorSlot(vendorGuid, slot, item, count);',
+                 '            GetPlayer()->BuyCurrencyFromVendorSlot(vendorGuid, slot, item, count);')]),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleListInventoryOpcode(WorldPacket& recv_data)',
+         new_header='void VendorHandlers::HandleListInventoryOpcode(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleAutoStoreBagItemOpcode(WorldPacket& recv_data)',
+         new_header='void VendorHandlers::HandleAutoStoreBagItemOpcode(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=VENDOR_PLAYER),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleBuyBankSlotOpcode(WorldPacket& recvPacket)',
+         new_header='void VendorHandlers::HandleBuyBankSlotOpcode(WorldSession& session, WorldPacket& recvPacket)',
+         substitutions=VENDOR_PLAYER),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleAutoBankItemOpcode(WorldPacket& recvPacket)',
+         new_header='void VendorHandlers::HandleAutoBankItemOpcode(WorldSession& session, WorldPacket& recvPacket)',
+         substitutions=VENDOR_PLAYER),
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN, new_file=VENDOR_FILE,
+         base_header='void WorldSession::HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket)',
+         new_header='void VendorHandlers::HandleAutoStoreBankItemOpcode(WorldSession& session, '
+                    'WorldPacket& recvPacket)',
+         substitutions=VENDOR_PLAYER),
 ]
 
-RESIDUES = []
+RESIDUES = [
+    dict(base=VENDOR_BASE, base_file=VENDOR_ORIGIN,
+         removed=['#include "AchievementMgr.h"', '#include "Item.h"', '#include "UpdateData.h"']),
+]
 
 NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
 BASE_HEADER = re.compile(r'(?P<type>\S.*?) WorldSession::\w+\((?P<params>.*)\)$')

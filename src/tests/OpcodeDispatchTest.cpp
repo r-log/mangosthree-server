@@ -32,7 +32,9 @@
 /// the row of an overloaded handler name holds the overload that takes the packet. A row bound to
 /// a handler class's static entry point holds the thunk of that static and reaches it the same
 /// way: the CMSG_ATTACKSWING row reads a swing at an empty guid to its end and, the guid naming no
-/// unit, returns before it reads the player, sending nothing.
+/// unit, returns before it reads the player, sending nothing. The CMSG_SELL_ITEM row reads a sale
+/// of an empty item guid to its end and returns at that guid before it reads the player, sending
+/// nothing.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -41,6 +43,7 @@
 #include "SharedDefines.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
+#include "session/handlers/economy/VendorHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -168,4 +171,40 @@ TEST(OpcodeDispatch_FreeFunctionRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_DUEL_ACCEPTED].handler == &OpcodeThunk<&CombatHandlers::HandleDuelAccepted>);
     CHECK(opcodeTable[CMSG_DUEL_CANCELLED].handler == &OpcodeThunk<&CombatHandlers::HandleDuelCancelled>);
     CHECK(opcodeTable[CMSG_ATTACKSWING].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_VendorRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket sell(CMSG_SELL_ITEM, 20);
+    sell << uint64(0);
+    sell << uint64(0);
+    sell << uint32(0);
+
+    opcodeTable[CMSG_SELL_ITEM].handler(session, sell);
+
+    CHECK_EQ(sell.rpos(), size_t(20));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_VendorRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_SELL_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleSellItemOpcode>);
+    CHECK(opcodeTable[CMSG_BUYBACK_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleBuybackItem>);
+    CHECK(opcodeTable[CMSG_BUY_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleBuyItemOpcode>);
+    CHECK(opcodeTable[CMSG_LIST_INVENTORY].handler == &OpcodeThunk<&VendorHandlers::HandleListInventoryOpcode>);
+    CHECK(opcodeTable[CMSG_AUTOSTORE_BAG_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleAutoStoreBagItemOpcode>);
+    CHECK(opcodeTable[CMSG_BUY_BANK_SLOT].handler == &OpcodeThunk<&VendorHandlers::HandleBuyBankSlotOpcode>);
+    CHECK(opcodeTable[CMSG_AUTOBANK_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleAutoBankItemOpcode>);
+    CHECK(opcodeTable[CMSG_AUTOSTORE_BANK_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleAutoStoreBankItemOpcode>);
+    CHECK(opcodeTable[CMSG_SELL_ITEM].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
