@@ -26,13 +26,13 @@
 /// The rank Unit's proc handlers ask a player for: its rank with a faction, by which the Shattered
 /// Sun pendants' proc picks the Aldor's or the Scryers' spell.
 ///
-/// Unit declares it protected: its own proc handlers ask it, and a call through a Unit reference
-/// from outside does not compile. A Unit that is not a Player answers with Unit's default: a bare
-/// Creature probe (no map, no AI, no auras) makes it public with a using-declaration and is asked
-/// through its own reference. A Player cannot be built in this binary (it needs a WorldSession and
-/// a map); the static_asserts pin Unit's declaration through the probe, that Player declares it
-/// public with Unit's exact signature, and which references a call compiles through; Player.h
-/// marks it `override final`, so a Player answers with its own.
+/// Unit declares it public: the proc handlers ask it of the unit they run for, and a call through
+/// a Unit reference compiles. A Unit that is not a Player answers with Unit's default: a bare
+/// Creature probe (no map, no AI, no auras) is asked through a Unit reference. A Player cannot be
+/// built in this binary (it needs a WorldSession and a map); the static_asserts pin Unit's
+/// declaration through the probe, that Player declares it public with Unit's exact signature, and
+/// which references a call compiles through; Player.h marks it `override final`, so a Player
+/// answers with its own.
 
 #include "TestHarness.h"
 #include "Creature.h"
@@ -45,12 +45,10 @@
 
 namespace
 {
-    /// A bare Creature; the rank Unit asks a player for is public here.
+    /// A bare Creature.
     class RankedUnit : public Creature
     {
         public:
-            using Unit::GetReputationRank;
-
             static_assert(std::is_same<decltype(&RankedUnit::GetReputationRank),
                                        ReputationRank (Unit::*)(uint32) const>::value,
                           "Unit declares the rank with a faction");
@@ -68,15 +66,15 @@ namespace
 static_assert(std::is_same<decltype(&Player::GetReputationRank), ReputationRank (Player::*)(uint32) const>::value,
               "Player returns its rank by its reputation with the faction");
 
-static_assert(!decltype(CallsReputationRank<Unit>(0))::value,
-              "Unit's rank is protected: a call through a Unit does not compile");
+static_assert(decltype(CallsReputationRank<Unit>(0))::value,
+              "Unit's rank is public: a call through a Unit compiles");
 static_assert(decltype(CallsReputationRank<Player>(0))::value,
               "Player's rank is public: a call through a Player compiles");
 
 TEST(UnitReputationRank_ACreatureIsNeutralWithEveryFaction)
 {
     RankedUnit creature;
-    RankedUnit const& unit = creature;
+    Unit const& unit = creature;
 
     CHECK_EQ(int(unit.GetReputationRank(932)), int(REP_NEUTRAL));
     CHECK_EQ(int(unit.GetReputationRank(934)), int(REP_NEUTRAL));
@@ -87,7 +85,7 @@ TEST(UnitReputationRank_ACreatureIsNeutralWithEveryFaction)
 TEST(UnitReputationRank_ACreatureAnswersAsAReputationWithNoStanding)
 {
     RankedUnit creature;
-    RankedUnit const& unit = creature;
+    Unit const& unit = creature;
 
     CHECK_EQ(int(unit.GetReputationRank(932)), int(ReputationMgr::ReputationToRank(0)));
 }

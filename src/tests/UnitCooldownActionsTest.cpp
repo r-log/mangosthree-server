@@ -27,11 +27,14 @@
 /// category's cooldown, AddGameObject and RemoveGameObject start one for a spell disabled while
 /// its object stands, and ClearInCombat starts the cooldown of the potion used in combat.
 ///
-/// Unit declares them protected, with the default arguments its own calls leave out: a call binds
-/// the defaults of the type it is made through, so the calls inside Unit take Unit's. A Unit that
-/// is not a Player does nothing: a bare Creature probe (no map, no AI, no auras) makes the five
-/// and the cooldown manager Unit holds public with using-declarations and is asked through its own
-/// reference. A Player cannot be built in this binary (it needs a WorldSession and a map); the
+/// Unit declares the end of a category's cooldown public, the proc handlers asking it of the unit
+/// they run for, and the other four protected, each with the default arguments its own calls leave
+/// out: a call binds the defaults of the type it is made through, so the calls inside Unit and
+/// through a Unit reference take Unit's. A Unit that is not a Player does nothing: a bare Creature
+/// probe (no map, no AI, no auras) is asked the end of a category's cooldown through a Unit
+/// reference, and makes the other four and the cooldown manager Unit holds public with
+/// using-declarations and is asked them through its own reference. A Player cannot be built in
+/// this binary (it needs a WorldSession and a map); the
 /// static_asserts pin Unit's declarations through the probe, that Player declares each public with
 /// Unit's exact signature, and which references a call compiles through.
 
@@ -47,14 +50,13 @@
 
 namespace
 {
-    /// A bare Creature; the five cooldown actions and the cooldown manager are public here.
+    /// A bare Creature; the other four cooldown actions and the cooldown manager are public here.
     class CooledUnit : public Creature
     {
         public:
             using Unit::AddSpellAndCategoryCooldowns;
             using Unit::SendCooldownEvent;
             using Unit::RemoveSpellCooldown;
-            using Unit::RemoveSpellCategoryCooldown;
             using Unit::UpdatePotionCooldown;
             using Unit::m_spellCooldownMgr;
 
@@ -122,10 +124,11 @@ static_assert(std::is_same<decltype(&Player::RemoveSpellCategoryCooldown), void 
 static_assert(std::is_same<decltype(&Player::UpdatePotionCooldown), void (Player::*)(Spell*)>::value,
               "Player sends the cooldown event of its last potion");
 
+static_assert(decltype(CallsRemoveCategory<Unit>(0))::value,
+              "Unit's end of a category's cooldown is public: a call through a Unit compiles");
 static_assert(!decltype(CallsAddCooldowns<Unit>(0))::value && !decltype(CallsCooldownEvent<Unit>(0))::value
-              && !decltype(CallsRemoveCooldown<Unit>(0))::value && !decltype(CallsRemoveCategory<Unit>(0))::value
-              && !decltype(CallsPotionCooldown<Unit>(0))::value,
-              "Unit's five are protected: a call through a Unit does not compile");
+              && !decltype(CallsRemoveCooldown<Unit>(0))::value && !decltype(CallsPotionCooldown<Unit>(0))::value,
+              "Unit's other four are protected: a call through a Unit does not compile");
 static_assert(decltype(CallsAddCooldowns<Player>(0))::value && decltype(CallsCooldownEvent<Player>(0))::value
               && decltype(CallsRemoveCooldown<Player>(0))::value && decltype(CallsRemoveCategory<Player>(0))::value
               && decltype(CallsPotionCooldown<Player>(0))::value,
@@ -151,6 +154,7 @@ TEST(UnitCooldownActions_ACreatureEndsNoCooldown)
 {
     CooledUnit creature;
     CooledUnit& unit = creature;
+    Unit& bare = creature;
     time_t const now = time(NULL);
     time_t const end = now + 3600;
 
@@ -159,8 +163,8 @@ TEST(UnitCooldownActions_ACreatureEndsNoCooldown)
 
     unit.RemoveSpellCooldown(kSpell);
     unit.RemoveSpellCooldown(kSpell, true);
-    unit.RemoveSpellCategoryCooldown(kCategory);
-    unit.RemoveSpellCategoryCooldown(kCategory, true);
+    bare.RemoveSpellCategoryCooldown(kCategory);
+    bare.RemoveSpellCategoryCooldown(kCategory, true);
 
     CHECK_EQ(creature.m_spellCooldownMgr.GetSpellCooldownMap().size(), size_t(1));
     CHECK(creature.m_spellCooldownMgr.HasSpellCooldown(kSpell, now));

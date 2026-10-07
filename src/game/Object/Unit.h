@@ -3712,12 +3712,16 @@ class Unit : public WorldObject
          * Does nothing here; Player removes it from its manager and, with update, tells its client.
          */
         virtual void RemoveSpellCooldown(uint32 /*spell_id*/, bool /*update*/ = false) { }
+
+    public:
         /**
          * Ends the cooldown of every spell of a category; the Glyph of Ice Block, Sword and Board
          * and Freezing Fog procs end one.
          * Does nothing here; Player removes them from its manager and, with update, tells its client.
          */
         virtual void RemoveSpellCategoryCooldown(uint32 /*cat*/, bool /*update*/ = false) { }
+
+    protected:
         /**
          * Starts the cooldown of the potion used in combat; ClearInCombat calls it when combat ends.
          * Does nothing here; Player, out of combat, sends the cooldown event of the last potion it used
@@ -3768,6 +3772,8 @@ class Unit : public WorldObject
          * applies to a dead player: false here; Player answers by its battleground instance
          */
         virtual bool InBattleGround() const { return false; }
+
+    public:
         /**
          * Says a text in a language to the units in say range; the Aura of Madness proc has a player
          * say "This is Madness!".
@@ -3779,6 +3785,8 @@ class Unit : public WorldObject
          * proc strikes when there is no victim: an empty guid here; Player returns its selection
          */
         virtual ObjectGuid GetSelectionGuid() const { return ObjectGuid(); }
+
+    protected:
         /**
          * The raid member Prayer of Mending jumps to next.
          * @param radius the distance the member stands within
@@ -4227,7 +4235,6 @@ class Unit : public WorldObject
          */
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }
 
-    protected:
         /**
          * The rank this unit holds with a faction; the Shattered Sun pendants' proc picks its spell
          * by the Aldor's or the Scryers' rank.
@@ -4236,7 +4243,6 @@ class Unit : public WorldObject
          */
         virtual ReputationRank GetReputationRank(uint32 /*faction_id*/) const { return REP_NEUTRAL; }
 
-    public:
         // Aura proc handlers
         SpellAuraProcResult HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown);
         SpellAuraProcResult HandleHasteAuraProc(Unit* pVictim, uint32 damage, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown);

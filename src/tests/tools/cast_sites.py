@@ -470,7 +470,6 @@ _UNIT_H_ITEM_BY_GUID = '''        /**
         virtual Item* GetItemByGuid(ObjectGuid /*guid*/) const { return NULL; }'''
 
 _UNIT_H_REPUTATION = '''
-    protected:
         /**
          * The rank this unit holds with a faction; the Shattered Sun pendants' proc picks its spell
          * by the Aldor's or the Scryers' rank.
@@ -478,8 +477,7 @@ _UNIT_H_REPUTATION = '''
          * @return REP_NEUTRAL here; Player returns its rank by its reputation with that faction
          */
         virtual ReputationRank GetReputationRank(uint32 /*faction_id*/) const { return REP_NEUTRAL; }
-
-    public:'''
+'''
 
 _UNIT_H_MOUNT_PET = '''
     protected:
@@ -567,12 +565,16 @@ _UNIT_H_COOLDOWNS = '''
          * Does nothing here; Player removes it from its manager and, with update, tells its client.
          */
         virtual void RemoveSpellCooldown(uint32 /*spell_id*/, bool /*update*/ = false) { }
+
+    public:
         /**
          * Ends the cooldown of every spell of a category; the Glyph of Ice Block, Sword and Board
          * and Freezing Fog procs end one.
          * Does nothing here; Player removes them from its manager and, with update, tells its client.
          */
         virtual void RemoveSpellCategoryCooldown(uint32 /*cat*/, bool /*update*/ = false) { }
+
+    protected:
         /**
          * Starts the cooldown of the potion used in combat; ClearInCombat calls it when combat ends.
          * Does nothing here; Player, out of combat, sends the cooldown event of the last potion it used
@@ -628,7 +630,9 @@ _UNIT_H_FACTION_GHOST_SPEED = '''        /**
          */
         virtual bool InBattleGround() const { return false; }'''
 
-_UNIT_H_PROC_ONE_OFFS = '''        /**
+_UNIT_H_PROC_ONE_OFFS = '''
+    public:
+        /**
          * Says a text in a language to the units in say range; the Aura of Madness proc has a player
          * say "This is Madness!".
          * Does nothing here; Player sends the say message to the players in its listen range.
@@ -639,6 +643,8 @@ _UNIT_H_PROC_ONE_OFFS = '''        /**
          * proc strikes when there is no victim: an empty guid here; Player returns its selection
          */
         virtual ObjectGuid GetSelectionGuid() const { return ObjectGuid(); }
+
+    protected:
         /**
          * The raid member Prayer of Mending jumps to next.
          * @param radius the distance the member stands within
