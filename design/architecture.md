@@ -261,7 +261,7 @@ which aborts the process when the tick counter stops moving.
 | Rule | Enforced by |
 |---|---|
 | Game state is touched by the world thread, or by the worker whose scope owns the map | `MapPhase::Owns` (counted process-wide, asserted under `MANGOS_DEBUG`), today at the movement kernel |
-| Session handlers run on the world thread in `UpdateSessions`, outside the map phase, or on the thread updating the player's map: `Map::Update` drains each in-world player's queue through `MapSessionFilter` under the map phase, on a map worker when the pool runs and, when no worker pool runs, on the world thread, which updates the maps itself, map by map, under the map phase (`MapManager.cpp:318`, `:333-341`), taking the rows marked `PROCESS_THREADSAFE` and `PROCESS_INPLACE`, 74 of the 437 bound rows (attack swing, attack stop and sheathing among them). Each drain stops at the first packet its filter refuses, so a `PROCESS_THREADSAFE` row of an in-world player runs only on the map's thread, and a `PROCESS_INPLACE` row on whichever drain reaches it (`World.cpp:1566`, `Map.cpp:916-925`, `WorldSession.cpp:213-272`, `LockedQueue.h:82-99`) | not yet built: `CheckSessionSeam` checks four named files for session calls and no threading |
+| Session handlers run on the world thread in `UpdateSessions`, outside the map phase, or on the thread updating the player's map: `Map::Update` drains each in-world player's queue through `MapSessionFilter` under the map phase, on a map worker when the pool runs and, when no worker pool runs, on the world thread, which updates the maps itself, map by map, under the map phase (`MapManager.cpp:318`, `:333-341`), taking the rows marked `PROCESS_THREADSAFE` and `PROCESS_INPLACE`, 73 of the 437 bound rows (attack swing, attack stop and sheathing among them). Each drain stops at the first packet its filter refuses, so a `PROCESS_THREADSAFE` row of an in-world player runs only on the map's thread, and a `PROCESS_INPLACE` row on whichever drain reaches it (`World.cpp:1566`, `Map.cpp:916-925`, `WorldSession.cpp:213-272`, `LockedQueue.h:82-99`) | not yet built: `CheckSessionSeam` checks four named files for session calls and no threading |
 | No synchronous database acquisition under the tick | `TickGuard` (strict mode asserts; the CI job proves the four strict cases stand) and `CheckSyncDb` |
 | Packets cross from the network only through `SessionMailbox` | the `proto` boundary: `IClientLink` / `IWorldGateway` |
 | A map never writes into another map during the phase | transport crossings run after the barrier |
@@ -414,7 +414,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   `shared/Log`, one delay thread per database); the network pool's size is `net/reactor/ReactorServer.cpp:110`;
   the map-phase rows are
   `grep -E '^\s*OPCODE\(' src/game/Server/OpcodeTable.cpp | grep -vE 'Handle_(ServerSide|NULL|EarlyProccess|Deprecated)\b' | grep -cE 'PROCESS_(THREADSAFE|INPLACE)'`
-  (74; without the last filter, 437 bound rows);
+  (73; without the last filter, 437 bound rows);
   `grep -rl "Network\.\(OutKBuff\|OutUBuff\|TcpNodelay\)" src` finds only `mangosd.conf.dist.in`; the strict-mode proof is the
   "Check strict tick mode is armed" step of `core_linux_build.yml`. Raw generators:
   `python src/tests/tools/raw_rand.py --list` (0 draws in `src/game`, one `srand` in `World.cpp`; comments and literals
