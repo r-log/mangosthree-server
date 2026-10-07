@@ -208,3 +208,11 @@ TEST(OpcodeDispatch_VendorRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_AUTOSTORE_BANK_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleAutoStoreBankItemOpcode>);
     CHECK(opcodeTable[CMSG_SELL_ITEM].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
+
+TEST(OpcodeDispatch_GuildAutoDeclineRowIsLoggedInAndThreadUnsafe)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GUILD_AUTO_DECLINE].packetProcessing, PROCESS_THREADUNSAFE);
+}

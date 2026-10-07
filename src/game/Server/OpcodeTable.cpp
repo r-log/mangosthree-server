@@ -249,7 +249,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_GUILD_EVENT,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_GUILD_COMMAND_RESULT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_GUILD_AUTO_DECLINE_TOGGLE,               STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleGuildAutoDeclineToggleOpcode );
-    OPCODE(CMSG_GUILD_AUTO_DECLINE,                      STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::HandleGuildDeclineOpcode        );
+    OPCODE(CMSG_GUILD_AUTO_DECLINE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildDeclineOpcode        );
     OPCODE(CMSG_GUILD_QUERY_RANKS,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildQueryRanksOpcode     );
     OPCODE(SMSG_GUILD_QUERY_RANKS_RESULT,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(UMSG_UPDATE_GUILD,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
