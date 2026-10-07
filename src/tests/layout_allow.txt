@@ -753,7 +753,6 @@ src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/AchievementMgr.cpp -> src/proto/WorldPacket.h
-src/game/WorldHandlers/ArenaTeamHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/AuctionHouseHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/AuctionHouseHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/CalendarHandler.cpp -> src/game/WorldHandlers/World.h
@@ -1854,6 +1853,8 @@ src/game/movement/MovementBridge.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Object/Unit.h
 src/game/movement/WireParity.cpp -> src/game/Server/OpcodeTable.h
 src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
+# The arena team bodies read the world config: the invite CONFIG_UINT32_MAX_PLAYER_LEVEL, the invite and the accept CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD; dies with row 3.
+src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/World.h
 # The warrior stance handlers (41099-41101, 53790-53792) call SetVirtualItem with VIRTUAL_ITEM_SLOT_*.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 # The Animal Blood body (46221) reads the water level from the target's TerrainInfo: read-only on the grid map, dies with D9's surface.

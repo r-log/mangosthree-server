@@ -48,6 +48,7 @@
 #include "WorldSession.h"
 #include "session/handlers/combat/CombatHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
+#include "session/handlers/pvp/PvpHandlers.h"
 
 /**
  * @brief Define opcode handler
@@ -1006,21 +1007,21 @@ void InitializeOpcodes()
     OPCODE(CMSG_MOVE_SET_CAN_FLY_ACK,                    STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMovementAck               );
     //OPCODE(CMSG_MOVE_SET_FLY,                            STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMovementOpcodes           );
     OPCODE(CMSG_SOCKET_GEMS,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSocketOpcode              );
-    OPCODE(CMSG_ARENA_TEAM_CREATE,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamCreateOpcode     );
+    OPCODE(CMSG_ARENA_TEAM_CREATE,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamCreate            );
     OPCODE(SMSG_ARENA_TEAM_COMMAND_RESULT,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(MSG_MOVE_UPDATE_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY, STATUS_NEVER, PROCESS_INPLACE,    &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_ARENA_TEAM_QUERY,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamQueryOpcode      );
+    OPCODE(CMSG_ARENA_TEAM_QUERY,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamQuery             );
     OPCODE(SMSG_ARENA_TEAM_QUERY_RESPONSE,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_ARENA_TEAM_ROSTER,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamRosterOpcode     );
+    OPCODE(CMSG_ARENA_TEAM_ROSTER,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamRoster            );
     OPCODE(SMSG_ARENA_TEAM_ROSTER,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_ARENA_TEAM_INVITE,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamInviteOpcode     );
+    OPCODE(CMSG_ARENA_TEAM_INVITE,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamInvite            );
     OPCODE(SMSG_ARENA_TEAM_INVITE,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_ARENA_TEAM_ACCEPT,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamAcceptOpcode     );
-    OPCODE(CMSG_ARENA_TEAM_DECLINE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamDeclineOpcode    );
-    OPCODE(CMSG_ARENA_TEAM_LEAVE,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamLeaveOpcode      );
-    OPCODE(CMSG_ARENA_TEAM_REMOVE,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamRemoveOpcode     );
-    OPCODE(CMSG_ARENA_TEAM_DISBAND,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamDisbandOpcode    );
-    OPCODE(CMSG_ARENA_TEAM_LEADER,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleArenaTeamLeaderOpcode     );
+    OPCODE(CMSG_ARENA_TEAM_ACCEPT,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamAccept            );
+    OPCODE(CMSG_ARENA_TEAM_DECLINE,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamDecline           );
+    OPCODE(CMSG_ARENA_TEAM_LEAVE,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamLeave             );
+    OPCODE(CMSG_ARENA_TEAM_REMOVE,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamRemove            );
+    OPCODE(CMSG_ARENA_TEAM_DISBAND,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamDisband           );
+    OPCODE(CMSG_ARENA_TEAM_LEADER,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleArenaTeamLeader            );
     OPCODE(SMSG_ARENA_TEAM_EVENT,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_BATTLEMASTER_JOIN_ARENA,                 STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleBattlemasterJoinArena     );
     OPCODE(CMSG_MOVE_START_ASCEND,                       STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMovementOpcodes           );
@@ -1051,7 +1052,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_SET_TITLE,                               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSetTitleOpcode            );
     OPCODE(CMSG_CANCEL_MOUNT_AURA,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCancelMountAuraOpcode     );
     OPCODE(SMSG_ARENA_ERROR,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(MSG_INSPECT_ARENA_TEAMS,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleInspectArenaTeamsOpcode   );
+    OPCODE(MSG_INSPECT_ARENA_TEAMS,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleInspectArenaTeams          );
     OPCODE(SMSG_DEATH_RELEASE_LOC,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_CANCEL_TEMP_ENCHANTMENT,                 STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCancelTempEnchantmentOpcode);
     OPCODE(SMSG_FORCED_DEATH_UPDATE,                     STATUS_UNHANDLED,    PROCESS_INPLACE,  &WorldSession::Handle_ServerSide               );
