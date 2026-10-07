@@ -26,6 +26,8 @@
 #include "TestHarness.h"
 
 #include "BareMap.h"
+#include "GridDefines.h"
+#include "MapManager.h"
 
 // The Map constructor used to decide the harness's bare map by comparing
 // Movement.HarnessBareMap against its own id and nothing else:
@@ -73,4 +75,46 @@ TEST(BareMapNeverAppliesToAnInstance)
     CHECK(MapIsBare(1, 1, 0));
     CHECK(!MapIsBare(1, 1, 1));
     CHECK(!MapIsBare(1, 1, 4271));
+}
+
+namespace
+{
+    /// Hands out a pointer to a private member: an explicit instantiation may name it, and the
+    /// friend the instantiation defines returns it.
+    template<class Tag, typename Tag::type Member>
+    struct MapManagerMemberAccess
+    {
+        friend typename Tag::type MemberOf(Tag)
+        {
+            return Member;
+        }
+    };
+
+    struct MapManagerUpdateTimer
+    {
+        typedef IntervalTimer MapManager::* type;
+        friend type MemberOf(MapManagerUpdateTimer);
+    };
+
+    template struct MapManagerMemberAccess<MapManagerUpdateTimer, &MapManager::i_timer>;
+
+    /// The interval the map manager's update timer holds after the setter is given a value.
+    time_t MapUpdateIntervalAfterSetting(uint32 interval)
+    {
+        sMapMgr.SetMapUpdateInterval(interval);
+        return (sMapMgr.*MemberOf(MapManagerUpdateTimer())).GetInterval();
+    }
+}
+
+TEST(MapUpdateInterval_RaisesAValueBelowTheMinimumAndKeepsTheMinimumAndAnyValueAboveIt)
+{
+    CHECK_EQ(MapUpdateIntervalAfterSetting(1), time_t(MIN_MAP_UPDATE_DELAY));
+    CHECK_EQ(MapUpdateIntervalAfterSetting(MIN_MAP_UPDATE_DELAY - 1), time_t(MIN_MAP_UPDATE_DELAY));
+
+    CHECK_EQ(MapUpdateIntervalAfterSetting(MIN_MAP_UPDATE_DELAY), time_t(MIN_MAP_UPDATE_DELAY));
+
+    CHECK_EQ(MapUpdateIntervalAfterSetting(MIN_MAP_UPDATE_DELAY + 1), time_t(MIN_MAP_UPDATE_DELAY + 1));
+    CHECK_EQ(MapUpdateIntervalAfterSetting(100), time_t(100));
+    CHECK_EQ(MapUpdateIntervalAfterSetting(1000), time_t(1000));
+    CHECK_EQ(MapUpdateIntervalAfterSetting(0xFFFFFFFF), time_t(0xFFFFFFFF));
 }
