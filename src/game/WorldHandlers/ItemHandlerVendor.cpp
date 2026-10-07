@@ -36,7 +36,7 @@
 
 /**
  * @file ItemHandlerVendor.cpp
- * @brief Cohesion split of ItemHandler.cpp -- vendor and bank opcode handlers: sell/buyback/buy, list-inventory, bag/bank auto-store, buy bank slot and set-ammo. Same WorldSession class; no behaviour change. CMake file(GLOB) picks this file up automatically; WorldSession.h is unchanged.
+ * @brief Defines two WorldSession members: SendListInventory, which sends the client a vendor's inventory list, and CheckBanker, which checks that a guid may be used as a banker interaction target.
  */
 
 /**

@@ -251,7 +251,19 @@ MOVES = [
 
 RESIDUES = [
     dict(base=_VENDOR_BASE, base_file=_VENDOR_ORIGIN,
-         removed=['#include "AchievementMgr.h"', '#include "Item.h"', '#include "UpdateData.h"']),
+         removed=['#include "AchievementMgr.h"', '#include "Item.h"', '#include "UpdateData.h"'],
+         edits=[('/**\n'
+                 ' * @file ItemHandlerVendor.cpp\n'
+                 ' * @brief Cohesion split of ItemHandler.cpp -- vendor and bank opcode handlers: sell/buyback/buy, '
+                 'list-inventory, bag/bank auto-store, buy bank slot and set-ammo. Same WorldSession class; no '
+                 'behaviour change. CMake file(GLOB) picks this file up automatically; WorldSession.h is unchanged.\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file ItemHandlerVendor.cpp\n'
+                 " * @brief Defines two WorldSession members: SendListInventory, which sends the client a vendor's "
+                 'inventory list, and CheckBanker, which checks that a guid may be used as a banker interaction '
+                 'target.\n'
+                 ' */')]),
     dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN,
          removed=['#include "Player.h"', '#include "ObjectMgr.h"', '#include "ArenaTeam.h"', '#include "World.h"',
                   '#include "SocialMgr.h"', '#include "PlayerRegistry.h"']),
