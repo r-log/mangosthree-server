@@ -373,6 +373,8 @@ SELF_SESSION = '''class WorldSession
         Player* _player;
         std::string m_name;
         Motion::Reason m_reason;
+        proto::SessionId m_sessionId;
+        uint32 std;
 };'''
 
 SELF_SWING = '''/**
@@ -551,6 +553,9 @@ def self_test():
     run('a member named std used alone fails', 1, '"std", a member of WorldSession, used bare', 4,
         swap=('    std::string name;', '    std::string name = std;'),
         base=SELF_BASE.replace('    std::string name;', '    std::string name = std;'))
+    proto = '    ItemPrototype const* proto = sObjectMgr.GetItemPrototype(guid);\n    std::string name = proto->Name1;'
+    run('a local named proto through an arrow, proto no member: passes', 0, 'IDENTICAL', 4,
+        swap=('    std::string name;', proto), base=SELF_BASE.replace('    std::string name;', proto))
     run('a bool helper pastes back', 0, 'IDENTICAL to Fixture.cpp at fixture', 2)
     run('a helper returning a pointer pastes back', 0, 'IDENTICAL', 3)
     run('a uint8 helper pastes back', 0, 'with 5 lines pasted back', 4)
