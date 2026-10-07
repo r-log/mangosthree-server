@@ -83,7 +83,17 @@ enum SpellHandlerSite
     /// `Aura::HandleModThreat`, at a real apply or remove on a living target: its `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_THREAT = 9,
     /// `Spell::EffectTransmitted`, before the game object entry is looked up: its `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_EFFECT_TRANSMITTED = 10
+    SPELL_HANDLER_SITE_SPELL_EFFECT_TRANSMITTED = 10,
+    /// `Aura::HandleAuraProcTriggerSpell`, at a real apply or remove: its `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_PROC_TRIGGER = 11,
+    /// `Aura::HandlePeriodicTriggerSpell`, at remove: its `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_TRIGGER = 12,
+    /// `Aura::HandlePeriodicEnergize`, at an apply that is not a load: its `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_ENERGIZE = 13,
+    /// `Aura::HandleAuraPeriodicDummy`, SPELLFAMILY_ROGUE's `switch(GetSpellProto()->ID)`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_ROGUE = 14,
+    /// `Aura::HandleAuraModIncreaseHealth`: its `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_INCREASE_HEALTH = 15
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

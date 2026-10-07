@@ -26,13 +26,14 @@
 /// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry.
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
-/// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's and
-/// EffectTransmitted's) are checked for their keys, their defaults and their contexts, and run where a body needs no
-/// live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the transmitted-object
-/// default); a body that casts, sets a display or reads a level or an aura needs a live Unit, which the harness record
-/// covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the coverage scenario
-/// two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid, quest-tame,
-/// transform, threat or transmitted-object label, nor another removal one).
+/// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's
+/// and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their contexts, and run where
+/// a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the
+/// transmitted-object default, the periodic-trigger labels on such a mode, the health labels on an apply that is not
+/// real, the health default on a bare Creature); a body that casts, sets a display or reads a level or an aura needs a
+/// live Unit, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
+/// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
+/// druid, quest-tame, transform, threat, transmitted-object or periodic-aura label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -42,19 +43,30 @@
 ///                            AuraDummyHandlers_TheTableRegistersEveryRowOnce,
 ///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
 ///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault,
-///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault
+///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault,
+///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
+///                            AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault,
+///                            AuraPeriodicHandlers_TheEnergizeSiteHoldsItsFiveLabelsAndTheDefault,
+///                            AuraPeriodicHandlers_TheRogueSiteHoldsItsOneLabelAndNoDefault,
+///                            AuraPeriodicHandlers_TheIncreaseHealthSiteHoldsItsFourteenLabelsAndTheDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
 ///                            AuraDummyHandlers_TheQuestTameSiteHoldsEighteenLabelsAndNoDefault,
 ///                            AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
 ///                            AuraControlHandlers_TheThreatSiteHoldsItsTwoLabelsAndNoDefault,
-///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault
-///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss
+///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault,
+///                            the five AuraPeriodicHandlers_The...SiteHolds... tests (no id at another site)
+///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
+///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
 ///                            SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
-///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts
+///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
+///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
+///                            AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault,
+///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
+///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost live-out          SpellHandlerRegistry_ALiveOutWrittenByAHandlerReachesTheSite,
 ///                            AuraDummyHandlers_TheApplyContextAliasesTheTargetLocal,
 ///                            AuraDummyHandlers_TheRemoveContextAliasesTheTargetLocal,
@@ -62,7 +74,8 @@
 ///                            AuraDummyHandlers_TheQuestTameContextAliasesFinalSpellId,
 ///                            AuraShapeshiftHandlers_TheTransformContextAliasesTheTargetLocal,
 ///                            AuraControlHandlers_TheThreatContextAliasesTheThreeLocals,
-///                            SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry
+///                            SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry,
+///                            the five AuraPeriodicHandlers_The...ContextAliases... tests
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
 
@@ -72,8 +85,10 @@
 #include "spells/handlers/AuraShapeshiftHandlers.h"
 #include "spells/handlers/AuraControlHandlers.h"
 #include "spells/handlers/SpellEffectTailHandlers.h"
+#include "spells/handlers/AuraPeriodicHandlers.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
+#include "Creature.h"
 
 #include <set>
 
@@ -443,11 +458,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(72));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, and the
-    // transmitted-object site's row and default.
+    // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
+    // transmitted-object site's row and default, and the periodic auras' 26 rows and 4 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(84));
-    CHECK_EQ(game.CountDefaults(), std::size_t(2));
+    CHECK_EQ(game.Count(), std::size_t(110));
+    CHECK_EQ(game.CountDefaults(), std::size_t(6));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -988,4 +1003,331 @@ TEST(SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry)
     CHECK(caster == reinterpret_cast<Unit*>(units[1]));
     caster = reinterpret_cast<Unit*>(units[0]);
     CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
+}
+
+namespace
+{
+    // Whether `spellId` is a key at a site other than `site`: the periodic auras' five and the earlier files' ids.
+    bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
+    {
+        return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
+               (site != AuraPeriodicTriggerSite::Key && registry.Find<AuraPeriodicTriggerSite>(spellId) != NULL) ||
+               (site != AuraPeriodicEnergizeSite::Key && registry.Find<AuraPeriodicEnergizeSite>(spellId) != NULL) ||
+               (site != AuraPeriodicDummyRogueSite::Key &&
+                registry.Find<AuraPeriodicDummyRogueSite>(spellId) != NULL) ||
+               (site != AuraIncreaseHealthSite::Key && registry.Find<AuraIncreaseHealthSite>(spellId) != NULL) ||
+               registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
+               registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
+               registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
+               registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) != NULL;
+    }
+
+    // 2 proc-trigger labels, 4 periodic-trigger labels, 5 energize labels, 1 rogue label and 14 health labels: 26
+    // rows; four of the five sites have a `default:`.
+    uint32 const PERIODIC_ROWS = 26;
+    uint32 const PERIODIC_DEFAULTS = 4;
+
+    // Registers the file's handlers on an empty `registry`, checks the counts, and that a second registration
+    // changes none of them.
+    void RegisterPeriodicTwice(SpellHandlerRegistry& registry)
+    {
+        CHECK_EQ(RegisterAuraPeriodicHandlers(registry), PERIODIC_ROWS + PERIODIC_DEFAULTS);
+        CHECK_EQ(registry.Count(), std::size_t(PERIODIC_ROWS));
+        CHECK_EQ(registry.CountDefaults(), std::size_t(PERIODIC_DEFAULTS));
+        CHECK_EQ(RegisterAuraPeriodicHandlers(registry), PERIODIC_ROWS + PERIODIC_DEFAULTS);
+        CHECK_EQ(registry.Count(), std::size_t(PERIODIC_ROWS));
+        CHECK_EQ(registry.CountDefaults(), std::size_t(PERIODIC_DEFAULTS));
+    }
+}
+
+TEST(AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterPeriodicTwice(registry);
+    CHECK_EQ(registry.CountAt(AuraProcTriggerSite::Key), std::size_t(2));
+
+    // Two labels, two distinct bodies, and a default that is neither.
+    SpellHandler<AuraProcTriggerSite>::Function ascendance = registry.Find<AuraProcTriggerSite>(28200);
+    SpellHandler<AuraProcTriggerSite>::Function vigilance = registry.Find<AuraProcTriggerSite>(50720);
+    SpellHandler<AuraProcTriggerSite>::Function onMiss = registry.FindDefault<AuraProcTriggerSite>();
+    CHECK(ascendance != NULL);
+    CHECK(vigilance != NULL);
+    CHECK(onMiss != NULL);
+    CHECK(ascendance != vigilance);
+    CHECK(onMiss != ascendance && onMiss != vigilance);
+    CHECK(registry.Find<AuraProcTriggerSite>(12345) == NULL);
+
+    // The switch's `default: break;`: a miss runs the default, which continues after the switch, as the old
+    // fall-out did; 28200 at remove reads only `apply` and continues too.
+    Unit* target = NULL;
+    bool apply = false;
+    AuraProcTriggerContext ctx(ModeAura(), target, apply);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<AuraProcTriggerSite>(12345, ctx);
+    CHECK(miss.IsContinue());
+    CHECK(!miss.IsReturn());
+    CHECK(registry.Dispatch<AuraProcTriggerSite>(28200, ctx).IsContinue());
+    CHECK(target == NULL);
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 28200u, 50720u })
+    {
+        CHECK(!HeldByAnotherSite(game, AuraProcTriggerSite::Key, spellId));
+    }
+    CHECK_EQ(game.CountAt(AuraProcTriggerSite::Key), std::size_t(2));
+    CHECK(game.Find<AuraProcTriggerSite>(28200) == ascendance);
+    CHECK(game.Find<AuraProcTriggerSite>(50720) == vigilance);
+    CHECK(game.FindDefault<AuraProcTriggerSite>() == onMiss);
+}
+
+TEST(AuraPeriodicHandlers_TheProcTriggerContextAliasesTheTargetAndApply)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    bool apply = true;
+    AuraProcTriggerContext ctx(ModeAura(), target, apply);
+    CHECK(ctx.aura == ModeAura());
+    CHECK(ctx.target == target);
+    CHECK(ctx.apply);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));
+    apply = false;
+    CHECK(!ctx.apply);
+}
+
+TEST(AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterPeriodicTwice(registry);
+    CHECK_EQ(registry.CountAt(AuraPeriodicTriggerSite::Key), std::size_t(4));
+
+    // Four labels, four distinct bodies, and a default that is none of them.
+    static uint32 const ids[] = { 66, 42783, 46221, 51912 };
+    std::set<SpellHandler<AuraPeriodicTriggerSite>::Function> bodies;
+    for (uint32 spellId : ids)
+    {
+        SpellHandler<AuraPeriodicTriggerSite>::Function body = registry.Find<AuraPeriodicTriggerSite>(spellId);
+        CHECK(body != NULL);
+        bodies.insert(body);
+    }
+    CHECK_EQ(bodies.size(), std::size_t(4));
+    SpellHandler<AuraPeriodicTriggerSite>::Function onMiss = registry.FindDefault<AuraPeriodicTriggerSite>();
+    CHECK(onMiss != NULL);
+    CHECK(bodies.count(onMiss) == 0);
+    CHECK(registry.Find<AuraPeriodicTriggerSite>(12345) == NULL);
+
+    // A miss runs the `default: break;` and continues, as the old fall-out did. 66, 42783 and 51912 act only at
+    // expiry: at another removal mode they read the mode alone and return from the member, as their `return;` did.
+    Aura* aura = ModeAura();
+    Unit* target = NULL;
+    aura->SetRemoveMode(AURA_REMOVE_BY_DEFAULT);
+    AuraPeriodicTriggerContext ctx(aura, target);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<AuraPeriodicTriggerSite>(12345, ctx);
+    CHECK(miss.IsContinue());
+    CHECK(!miss.IsReturn());
+    for (uint32 spellId : { 66u, 42783u, 51912u })
+    {
+        CHECK(registry.Dispatch<AuraPeriodicTriggerSite>(spellId, ctx).IsReturn());
+    }
+    CHECK(target == NULL);
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : ids)
+    {
+        CHECK(!HeldByAnotherSite(game, AuraPeriodicTriggerSite::Key, spellId));
+        CHECK(game.Find<AuraPeriodicTriggerSite>(spellId) == registry.Find<AuraPeriodicTriggerSite>(spellId));
+    }
+    CHECK_EQ(game.CountAt(AuraPeriodicTriggerSite::Key), std::size_t(4));
+    CHECK(game.FindDefault<AuraPeriodicTriggerSite>() == onMiss);
+}
+
+TEST(AuraPeriodicHandlers_ThePeriodicTriggerContextAliasesTheTarget)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    AuraPeriodicTriggerContext ctx(ModeAura(), target);
+    CHECK(ctx.aura == ModeAura());
+    CHECK(ctx.target == target);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));
+    target = NULL;
+    CHECK(ctx.target == NULL);
+}
+
+TEST(AuraPeriodicHandlers_TheEnergizeSiteHoldsItsFiveLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterPeriodicTwice(registry);
+    CHECK_EQ(registry.CountAt(AuraPeriodicEnergizeSite::Key), std::size_t(5));
+
+    // Five labels, four bodies (the two Replenishment labels share one), and a default that is none of them.
+    SpellHandler<AuraPeriodicEnergizeSite>::Function glyph = registry.Find<AuraPeriodicEnergizeSite>(54833);
+    SpellHandler<AuraPeriodicEnergizeSite>::Function innervate = registry.Find<AuraPeriodicEnergizeSite>(29166);
+    SpellHandler<AuraPeriodicEnergizeSite>::Function owlkin = registry.Find<AuraPeriodicEnergizeSite>(48391);
+    SpellHandler<AuraPeriodicEnergizeSite>::Function replenishment = registry.Find<AuraPeriodicEnergizeSite>(57669);
+    SpellHandler<AuraPeriodicEnergizeSite>::Function onMiss = registry.FindDefault<AuraPeriodicEnergizeSite>();
+    std::set<SpellHandler<AuraPeriodicEnergizeSite>::Function> bodies = { glyph, innervate, owlkin, replenishment,
+                                                                          onMiss };
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(5));
+    CHECK(registry.Find<AuraPeriodicEnergizeSite>(61782) == replenishment);
+    CHECK(registry.Find<AuraPeriodicEnergizeSite>(12345) == NULL);
+
+    // A miss runs the `default: break;` and continues, as the old fall-out did.
+    Unit* target = NULL;
+    AuraPeriodicEnergizeContext ctx(ModeAura(), target);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<AuraPeriodicEnergizeSite>(12345, ctx);
+    CHECK(miss.IsContinue());
+    CHECK(!miss.IsReturn());
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 54833u, 29166u, 48391u, 57669u, 61782u })
+    {
+        CHECK(!HeldByAnotherSite(game, AuraPeriodicEnergizeSite::Key, spellId));
+        CHECK(game.Find<AuraPeriodicEnergizeSite>(spellId) == registry.Find<AuraPeriodicEnergizeSite>(spellId));
+    }
+    CHECK_EQ(game.CountAt(AuraPeriodicEnergizeSite::Key), std::size_t(5));
+    CHECK(game.FindDefault<AuraPeriodicEnergizeSite>() == onMiss);
+}
+
+TEST(AuraPeriodicHandlers_TheEnergizeContextAliasesTheTarget)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    AuraPeriodicEnergizeContext ctx(ModeAura(), target);
+    CHECK(ctx.aura == ModeAura());
+    CHECK(ctx.target == target);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));
+    target = NULL;
+    CHECK(ctx.target == NULL);
+}
+
+TEST(AuraPeriodicHandlers_TheRogueSiteHoldsItsOneLabelAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterPeriodicTwice(registry);
+    CHECK_EQ(registry.CountAt(AuraPeriodicDummyRogueSite::Key), std::size_t(1));
+    SpellHandler<AuraPeriodicDummyRogueSite>::Function masterOfSubtlety =
+        registry.Find<AuraPeriodicDummyRogueSite>(31666);
+    CHECK(masterOfSubtlety != NULL);
+
+    // No default: an id with no row finds nothing, and its dispatch is a miss, so the family case goes on.
+    CHECK(registry.FindDefault<AuraPeriodicDummyRogueSite>() == NULL);
+    CHECK(registry.Find<AuraPeriodicDummyRogueSite>(31665) == NULL);
+    Unit* target = NULL;
+    bool apply = true;
+    AuraPeriodicDummyRogueContext ctx(ModeAura(), target, apply);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<AuraPeriodicDummyRogueSite>(31665, ctx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK(!HeldByAnotherSite(game, AuraPeriodicDummyRogueSite::Key, 31666));
+    CHECK_EQ(game.CountAt(AuraPeriodicDummyRogueSite::Key), std::size_t(1));
+    CHECK(game.Find<AuraPeriodicDummyRogueSite>(31666) == masterOfSubtlety);
+    CHECK(game.FindDefault<AuraPeriodicDummyRogueSite>() == NULL);
+}
+
+TEST(AuraPeriodicHandlers_TheRogueContextAliasesTheTargetAndApply)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    bool apply = false;
+    AuraPeriodicDummyRogueContext ctx(ModeAura(), target, apply);
+    CHECK(ctx.aura == ModeAura());
+    CHECK(ctx.target == target);
+    CHECK(!ctx.apply);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));
+    apply = true;
+    CHECK(ctx.apply);
+}
+
+TEST(AuraPeriodicHandlers_TheIncreaseHealthSiteHoldsItsFourteenLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterPeriodicTwice(registry);
+    CHECK_EQ(registry.CountAt(AuraIncreaseHealthSite::Key), std::size_t(14));
+
+    // Fourteen labels, two bodies and a default: the three percentage labels share one body, the eleven flat
+    // labels the other.
+    static uint32 const percent[] = { 54443, 55233, 61254 };
+    static uint32 const flat[] = { 12976, 28726, 31616, 34511, 44055, 55915, 55917, 67596, 50322, 53479, 59465 };
+    SpellHandler<AuraIncreaseHealthSite>::Function percentBody = registry.Find<AuraIncreaseHealthSite>(54443);
+    SpellHandler<AuraIncreaseHealthSite>::Function flatBody = registry.Find<AuraIncreaseHealthSite>(12976);
+    SpellHandler<AuraIncreaseHealthSite>::Function onMiss = registry.FindDefault<AuraIncreaseHealthSite>();
+    CHECK(percentBody != NULL);
+    CHECK(flatBody != NULL);
+    CHECK(onMiss != NULL);
+    CHECK(percentBody != flatBody);
+    CHECK(onMiss != percentBody && onMiss != flatBody);
+    CHECK(registry.Find<AuraIncreaseHealthSite>(60430) == NULL);   // HandleAuraModIncreaseHealthPercent's, a lookup
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : percent)
+    {
+        CHECK(registry.Find<AuraIncreaseHealthSite>(spellId) == percentBody);
+        CHECK(game.Find<AuraIncreaseHealthSite>(spellId) == percentBody);
+        CHECK(!HeldByAnotherSite(game, AuraIncreaseHealthSite::Key, spellId));
+    }
+    for (uint32 spellId : flat)
+    {
+        CHECK(registry.Find<AuraIncreaseHealthSite>(spellId) == flatBody);
+        CHECK(game.Find<AuraIncreaseHealthSite>(spellId) == flatBody);
+        CHECK(!HeldByAnotherSite(game, AuraIncreaseHealthSite::Key, spellId));
+    }
+    CHECK_EQ(game.CountAt(AuraIncreaseHealthSite::Key), std::size_t(14));
+    CHECK(game.FindDefault<AuraIncreaseHealthSite>() == onMiss);
+}
+
+TEST(AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs)
+{
+    // A bare Creature: HandleStatModifier records the amount in its modifier group and, with its stats not yet
+    // modifiable, touches nothing else.
+    Creature creature(CREATURE_SUBTYPE_GENERIC);
+    Unit* target = &creature;
+    Aura* aura = ModeAura();
+    aura->GetModifier()->m_amount = 7;
+    bool apply = true;
+    bool real = false;
+    AuraIncreaseHealthContext ctx(aura, target, apply, real);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+
+    // Not a real apply: the flat labels return from the member without touching the target, and the percentage
+    // labels fall into the flat body (no break) and return with it.
+    CHECK(game.Dispatch<AuraIncreaseHealthSite>(12976, ctx).IsReturn());
+    CHECK(game.Dispatch<AuraIncreaseHealthSite>(54443, ctx).IsReturn());
+    CHECK(game.Dispatch<AuraIncreaseHealthSite>(61254, ctx).IsReturn());
+    CHECK_EQ(aura->GetModifier()->m_amount, 7);
+    CHECK_EQ(creature.GetModifierValue(UNIT_MOD_HEALTH, TOTAL_VALUE), 0.0f);
+
+    // A miss runs the default, which falls off the switch's end: it adds the amount as a flat health bonus and
+    // continues after the switch.
+    SpellHandlerOutcome<void> miss = game.Dispatch<AuraIncreaseHealthSite>(60430, ctx);
+    CHECK(miss.IsContinue());
+    CHECK(!miss.IsReturn());
+    CHECK_EQ(creature.GetModifierValue(UNIT_MOD_HEALTH, TOTAL_VALUE), 7.0f);
+    apply = false;                                              // the remove takes it back
+    CHECK(game.Dispatch<AuraIncreaseHealthSite>(60430, ctx).IsContinue());
+    CHECK_EQ(creature.GetModifierValue(UNIT_MOD_HEALTH, TOTAL_VALUE), 0.0f);
+    aura->GetModifier()->m_amount = 0;
+}
+
+TEST(AuraPeriodicHandlers_TheIncreaseHealthContextAliasesTheTargetApplyAndReal)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    bool apply = true;
+    bool real = false;
+    AuraIncreaseHealthContext ctx(ModeAura(), target, apply, real);
+    CHECK(ctx.aura == ModeAura());
+    CHECK(ctx.target == target);
+    CHECK(ctx.apply);
+    CHECK(!ctx.real);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));
+    apply = false;
+    real = true;
+    CHECK(!ctx.apply);
+    CHECK(ctx.real);
 }
