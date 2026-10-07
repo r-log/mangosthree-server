@@ -28,7 +28,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `packets/spells/` | `SpellModPackets` | `SMSG_SET_FLAT_SPELL_MODIFIER` or `SMSG_SET_PCT_SPELL_MODIFIER`, from `SpellModMgr`'s modifier added or removed: the count of operations, 1, the count of pairs, the operation, then each effect bit and its sum as a float |
 | `handlers/combat/` | `CombatHandlers` | the client's melee swing, attack stop, sheath and duel accept and cancel, and the `SMSG_ATTACKSTOP` the swing sends when it refuses a target |
 | `handlers/economy/` | `VendorHandlers` | the client's vendor sell, buyback, buy and inventory list, bag auto-store, bank slot purchase and bank auto-store |
-| `handlers/pvp/` | `PvpHandlers` | the client's arena team inspect, query, roster, create, invite, accept, decline, leave, disband, remove and leader opcodes |
+| `handlers/pvp/` | `PvpHandlers` | the client's arena team inspect, query, roster, create, invite, accept, decline, leave, disband, remove and leader opcodes; the battlemaster's hello and join, the arena join, the battlefield list, port, leave and status, the flag carriers' positions, the PvP log, the spirit healer's query and queue, the AFK report, and the rated battleground stats, rated battleground info, PvP options and PvP rewards requests |
 
 ## The layer and the threads
 

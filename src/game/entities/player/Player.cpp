@@ -1367,7 +1367,7 @@ void Player::SetDeathState(DeathState s)
         // standing for Die() to finish -- and the second resummon would land behind RemovePet
         // exactly as it does today, which is the bug. This is the same expiry the flight
         // master's reboarding (TaxiHandler::SendDoFlight) and the battleground's port
-        // (BattleGroundHandler) already use to put a flight down.
+        // (PvpHandlers::HandleBattleFieldPort) already use to put a flight down.
         while (GetMotionMaster()->IsOnTaxi())
         {
             GetMotionMaster()->MovementExpired(false);

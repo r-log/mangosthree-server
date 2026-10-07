@@ -1179,22 +1179,6 @@ class WorldSession
 
         void HandleTotemDestroyed(WorldPacket& recv_data);
 
-        // BattleGround
-        void HandleBattlemasterHelloOpcode(WorldPacket& recv_data);
-        void HandleBattlemasterJoinOpcode(WorldPacket& recv_data);
-        void HandleBattleGroundPlayerPositionsOpcode(WorldPacket& recv_data);
-        void HandlePVPLogDataOpcode(WorldPacket& recv_data);
-        void HandleBattlefieldStatusOpcode(WorldPacket& recv_data);
-        void HandleBattleFieldPortOpcode(WorldPacket& recv_data);
-        void HandleBattlefieldListOpcode(WorldPacket& recv_data);
-        void HandleLeaveBattlefieldOpcode(WorldPacket& recv_data);
-        void HandleBattlemasterJoinArena(WorldPacket& recv_data);
-        void HandleReportPvPAFK(WorldPacket& recv_data);
-        void HandleRequestPvPOptionsEnabledOpcode(WorldPacket& recv_data);
-        void HandleRequestPvPRewardsOpcode(WorldPacket& recv_data);
-        void HandleRequestRatedBGStatsOpcode(WorldPacket& recv_data);
-        void HandleRequestRatedBgInfo(WorldPacket & recvData);
-
         void HandleWorldTeleportOpcode(WorldPacket& recv_data);
         void HandleMinimapPingOpcode(WorldPacket& recv_data);
         void HandleRandomRollOpcode(WorldPacket& recv_data);
@@ -1222,8 +1206,6 @@ class WorldSession
         void HandleResetInstancesOpcode(WorldPacket& recv_data);
         void HandleHearthandResurrect(WorldPacket& recv_data);
 
-        void HandleAreaSpiritHealerQueryOpcode(WorldPacket& recv_data);
-        void HandleAreaSpiritHealerQueueOpcode(WorldPacket& recv_data);
         void HandleCancelMountAuraOpcode(WorldPacket& recv_data);
         void HandleSelfResOpcode(WorldPacket& recv_data);
         void HandleComplainOpcode(WorldPacket& recv_data);

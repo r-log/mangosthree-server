@@ -54,6 +54,14 @@ _ARENA_PLAYER = [('GetPlayer()', '_player')]
 _ARENA_THIS = [('&session', 'this')]
 _ARENA_PLAYER_THIS = _ARENA_PLAYER + _ARENA_THIS
 
+_BG_BASE = 'dfb6969ac'
+_BG_FILE = _ARENA_FILE
+_BG_ORIGIN = 'src/game/BattleGround/BattleGroundHandler.cpp'
+_BG_PLAYER = [('GetPlayer()', '_player')]
+_BG_PLAYER_THIS = _BG_PLAYER + [('&session', 'this')]
+_BG_HEALER = [('    BattleGround* bg = session.GetPlayer()->GetBattleGround();',
+               '    BattleGround* bg = _player->GetBattleGround();')]
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -177,6 +185,68 @@ MOVES = [
          base_header='void WorldSession::HandleArenaTeamLeaderOpcode(WorldPacket& recv_data)',
          new_header='void PvpHandlers::HandleArenaTeamLeader(WorldSession& session, WorldPacket& recv_data)',
          substitutions=_ARENA_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleBattlemasterHelloOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleBattlemasterHello(WorldSession& session, WorldPacket& recv_data)',
+         edits=[('    if (!session.GetPlayer()->GetBGAccessByLevel(bgTypeId))',
+                 '    if (!_player->GetBGAccessByLevel(bgTypeId))')]),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleBattlemasterJoinOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_BG_PLAYER_THIS),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleBattleGroundPlayerPositionsOpcode(WorldPacket & /*recv_data*/)',
+         new_header='void PvpHandlers::HandleBattleGroundPlayerPositions(WorldSession& session, '
+                    'WorldPacket & /*recv_data*/)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandlePVPLogDataOpcode(WorldPacket & /*recv_data*/)',
+         new_header='void PvpHandlers::HandlePVPLogData(WorldSession& session, WorldPacket & /*recv_data*/)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleBattlefieldListOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleBattlefieldList(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleBattleFieldPort(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleLeaveBattlefieldOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleLeaveBattlefield(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleBattlefieldStatusOpcode(WorldPacket & /*recv_data*/)',
+         new_header='void PvpHandlers::HandleBattlefieldStatus(WorldSession& session, WorldPacket & /*recv_data*/)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleAreaSpiritHealerQueryOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleAreaSpiritHealerQuery(WorldSession& session, WorldPacket& recv_data)',
+         edits=_BG_HEALER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleAreaSpiritHealerQueueOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleAreaSpiritHealerQueue(WorldSession& session, WorldPacket& recv_data)',
+         edits=_BG_HEALER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleBattlemasterJoinArena(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleBattlemasterJoinArena(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleReportPvPAFK(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleReportPvPAFK(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_BG_PLAYER),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleRequestRatedBGStatsOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleRequestRatedBGStats(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleRequestPvPOptionsEnabledOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleRequestPvPOptionsEnabled(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleRequestPvPRewardsOpcode(WorldPacket& recv_data)',
+         new_header='void PvpHandlers::HandleRequestPvPRewards(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
+         base_header='void WorldSession::HandleRequestRatedBgInfo(WorldPacket & recvData)',
+         new_header='void PvpHandlers::HandleRequestRatedBgInfo(WorldSession& session, WorldPacket & recvData)'),
 ]
 
 RESIDUES = [
@@ -185,4 +255,10 @@ RESIDUES = [
     dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN,
          removed=['#include "Player.h"', '#include "ObjectMgr.h"', '#include "ArenaTeam.h"', '#include "World.h"',
                   '#include "SocialMgr.h"', '#include "PlayerRegistry.h"']),
+    dict(base=_BG_BASE, base_file=_BG_ORIGIN,
+         removed=['#include "Platform/Define.h"', '#include "Opcodes.h"', '#include "Log.h"', '#include "Player.h"',
+                  '#include "Chat.h"', '#include "ObjectMgr.h"', '#include "Object.h"', '#include "BattleGroundEY.h"',
+                  '#include "BattleGroundWS.h"', '#include "BattleGround.h"', '#include "ArenaTeam.h"',
+                  '#include "Language.h"', '#include "ScriptMgr.h"', '#include "World.h"', '#include "DisableMgr.h"',
+                  '#include "GameTime.h"', '#include "MotionMaster.h"']),
 ]
