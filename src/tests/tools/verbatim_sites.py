@@ -692,4 +692,12 @@ SITES = {
 
 # One entry per block moved from a source file into a header: base, origin, header, first, lines, added
 # (BLOCKS in verbatim.py).
-BLOCKS = []
+BLOCKS = [{
+    'base': '5f5b94ca226655fec0a31b9ce0a76805f262338c',
+    'origin': 'src/game/WorldHandlers/SpellTargeting.cpp',
+    'header': 'src/game/WorldHandlers/SpellTargetDistanceOrder.h',
+    'first': '// Helper for targets furthest away to the spell target',
+    'lines': 20,
+    'added': ['#include "SpellTargetDistanceOrder.h"',
+              'template WorldObject* Spell::FindCorpseUsing<MaNGOS::CannibalizeObjectCheck>();'],
+}]

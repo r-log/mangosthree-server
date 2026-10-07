@@ -83,6 +83,7 @@
 #include "TemporarySummon.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
+#include "SpellTargetDistanceOrder.h"
 
 template<typename T>
 /**
@@ -112,6 +113,7 @@ WorldObject* Spell::FindCorpseUsing()
     return result;
 }
 
+template WorldObject* Spell::FindCorpseUsing<MaNGOS::CannibalizeObjectCheck>();
 
 // Helper for Chain Healing
 // Spell target first
@@ -173,27 +175,6 @@ struct TargetDistanceOrderNear
     bool operator()(const Unit* _Left, const Unit* _Right) const
     {
         return MainTarget->Where().IsNearer(_Left->Where(), _Right->Where());
-    }
-};
-
-// Helper for targets furthest away to the spell target
-template <class Arg1, class Arg2, class Result>
-struct binary_function
-{
-    typedef Arg1   first_argument_type;
-    typedef Arg2   second_argument_type;
-    typedef Result result_type;
-};
-
-// The spell target is always first unless there is a target at _completely_ the same position (unbelievable case)
-struct TargetDistanceOrderFarAway : public binary_function<const Unit, const Unit, bool>
-{
-    const Unit* MainTarget;
-    TargetDistanceOrderFarAway(const Unit* Target) : MainTarget(Target) {};
-    // functor for operator "<"
-    bool operator()(const Unit* _Left, const Unit* _Right) const
-    {
-        return !MainTarget->Where().IsNearer(_Left->Where(), _Right->Where());
     }
 };
 
