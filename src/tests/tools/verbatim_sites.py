@@ -39,7 +39,7 @@ name or value, and on a tool that binds or changes one of the four itself.
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = 'd88adf566'
+BASE = 'dfb6969ac'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -568,6 +568,43 @@ SITES = {
                 50322: '        case 50322:                                         // Survival Instincts',
                 53479: '        case 53479:                                         // Hunter pet - Last Stand',
                 59465: "        case 59465:                                         // Brood Rage (Ahn'Kahet)"},
+        }],
+    },
+    'src/game/WorldHandlers/SpellEffectHealPower.cpp': {
+        'original': 'dfb6969ac09ba68864d8d3a32477e512242cb89c',
+        'handlers': 'src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp',
+        'rows_function': 'RegisterSpellEffectHealPowerRows',
+        'added': ['#include "spells/handlers/SpellEffectHealPowerHandlers.h"'],
+        'sites': [{
+            'name': 'EffectEnergize (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '    SpellEffectEnergizeContext ctx(m_caster, unitTarget, damage, level_diff, level_multiplier);',
+                '    if (SpellHandlerRegistry::Game().Dispatch<SpellEffectEnergizeSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '    {',
+                '        return;',
+                '    }'],
+            'open': ['    switch (m_spellInfo->ID)', '    {'],
+            'close': ['    }'],
+            'label_indent': 8,
+            'traits': 'SpellEffectEnergizeSite',
+            'default': '        default:',
+            'context': 'SpellEffectEnergizeContext',
+            'live_outs': ['level_diff', 'level_multiplier', 'damage'],
+            'in_scope': ['effect', 'power'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget'),
+                              ('ctx.damage', 'damage'), ('ctx.level_diff', 'level_diff'),
+                              ('ctx.level_multiplier', 'level_multiplier')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                9512: '        case 9512:                                          // Restore Energy',
+                24571: '        case 24571:                                         // Blood Fury',
+                24532: '        case 24532:                                         // Burst of Energy',
+                31930: '        case 31930:                                         // Judgements of the Wise',
+                48542: '        case 48542:                                         // Revitalize (mana restore case)',
+                63375: '        case 63375:                                         // Improved Stormstrike',
+                68082: '        case 68082:                                         // Glyph of Seal of Command',
+                67487: '        case 67487:                                         // Mana Potion Injector',
+                67490: '        case 67490:                                         // Runic Mana Injector'},
         }],
     },
 }

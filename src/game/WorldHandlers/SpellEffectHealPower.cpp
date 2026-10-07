@@ -70,6 +70,7 @@
 
 #include "Transports.h"
 #include "TransportMap.h"
+#include "spells/handlers/SpellEffectHealPowerHandlers.h"
 
 /**
  * @brief Creates and attaches an aura effect to the current unit target.
@@ -763,41 +764,10 @@ void Spell::EffectEnergize(SpellEffectEntry const* effect)
     // Some level depends spells
     int level_multiplier = 0;
     int level_diff = 0;
-    switch (m_spellInfo->ID)
+    SpellEffectEnergizeContext ctx(m_caster, unitTarget, damage, level_diff, level_multiplier);
+    if (SpellHandlerRegistry::Game().Dispatch<SpellEffectEnergizeSite>(m_spellInfo->ID, ctx).IsReturn())
     {
-        case 9512:                                          // Restore Energy
-            level_diff = m_caster->getLevel() - 40;
-            level_multiplier = 2;
-            break;
-        case 24571:                                         // Blood Fury
-            level_diff = m_caster->getLevel() - 60;
-            level_multiplier = 10;
-            break;
-        case 24532:                                         // Burst of Energy
-            level_diff = m_caster->getLevel() - 60;
-            level_multiplier = 4;
-            break;
-        case 31930:                                         // Judgements of the Wise
-        case 48542:                                         // Revitalize (mana restore case)
-        case 63375:                                         // Improved Stormstrike
-        case 68082:                                         // Glyph of Seal of Command
-            damage = damage * unitTarget->GetCreateMana() / 100;
-            break;
-        case 67487:                                         // Mana Potion Injector
-        case 67490:                                         // Runic Mana Injector
-        {
-            if (unitTarget->GetTypeId() == TYPEID_PLAYER)
-            {
-                Player* player = (Player*)unitTarget;
-                if (player->HasSkill(SKILL_ENGINEERING))
-                {
-                    damage += int32(damage * 0.25);
-                }
-            }
-            break;
-        }
-        default:
-            break;
+        return;
     }
 
     if (level_diff > 0)
