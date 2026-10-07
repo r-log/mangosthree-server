@@ -31,9 +31,7 @@
  * It maps each opcode to its corresponding handler function in WorldSession,
  * along with session status requirements and processing mode.
  *
- * Opcode processing modes:
- * - PROCESS_INPLACE: Process immediately in network thread
- * - PROCESS_THREADUNSAFE: Process in world update thread
+ * Opcode processing modes: see \ref PacketProcessing in OpcodeTable.h.
  *
  * Session status requirements:
  * - STATUS_NEVER: Never process (deprecated/debug opcodes)

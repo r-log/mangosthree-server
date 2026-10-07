@@ -58,16 +58,16 @@ enum SessionStatus
 };
 
 /**
- * This determines how a \ref WorldPacket is handled by MaNGOS. This can be either in the
- * same function as we received it in, this is unusual, or it can be in:
- * - \ref World::UpdateSessions if it's not thread safe
- * - \ref Map::Update if it is thread safe
+ * Where the handler of a \ref WorldPacket runs. A session's packets wait in one queue in
+ * arrival order, and two drains take them, each stopping at the first packet it may not take:
+ * - \ref World::UpdateSessions, on the world thread, outside the map phase
+ * - \ref Map::Update, for a player in the world, on the thread updating the player's map
  */
 enum PacketProcessing
 {
-    PROCESS_INPLACE = 0,   ///< process packet whenever we receive it - mostly for non-handled or non-implemented packets
-    PROCESS_THREADUNSAFE,  ///< packet is not thread-safe - process it in \ref World::UpdateSessions
-    PROCESS_THREADSAFE     ///< packet is thread-safe - process it in \ref Map::Update
+    PROCESS_INPLACE = 0,   ///< runs at whichever of the two drains reaches it first
+    PROCESS_THREADUNSAFE,  ///< runs on the world thread in \ref World::UpdateSessions
+    PROCESS_THREADSAFE     ///< runs in \ref Map::Update for a player in the world, on the world thread otherwise
 };
 
 class WorldPacket;
