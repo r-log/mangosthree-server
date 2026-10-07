@@ -232,6 +232,7 @@ proof (cast_verbatim.py --check), whose base is frozen: it compares a window aro
 #
 
 import argparse
+import ast
 import os
 import re
 import shutil
@@ -1238,7 +1239,7 @@ def check_block(entry, sites, git, read, scan, anchor=None):
             raise Failure('added line %r found %d times in the origin as read' % (added, len(hits)))
         del rest[hits[0]]
     end = at[0] + n
-    while old[end:end + 1] == ['']:
+    while end + 1 < len(old) and old[end] == '':
         end += 1
     want = old[:at[0]] + old[end:]
     if rest != want:
@@ -2704,11 +2705,11 @@ def self_test():
         try:
             if argv:
                 globals()['check'] = lambda root, base, original=False, anchor=None: real_check(
-                    root, base, got.append, original, fake_git, tree.__getitem__, {'fixture': spec}, anchor)
+                    root, base, got.append, original, fake_git, tree.__getitem__, {'fixture': spec}, anchor, [])
                 rc = main(argv)
             else:
                 rc = check('.', base, got.append, with_original, fake_git, tree.__getitem__, {'fixture': spec},
-                           anchor)
+                           anchor, [])
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -2806,7 +2807,7 @@ def self_test():
             return work[path]
         got = []
         try:
-            rc = check('.', base, got.append, original, git, read, sites)
+            rc = check('.', base, got.append, original, git, read, sites, blocks=[])
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -2858,13 +2859,12 @@ def self_test():
     block_tree = {origin: BLOCK_MOVED, header: BLOCK_HEADER, 'src/game/Other.cpp': 'void Other() {}\n',
                   'fixture': SELF_SITES, 'Handlers.cpp': SELF_HANDLERS, 'Thing.h': SELF_HEADERS['Thing.h']}
 
-    def blocked(label, want_rc, needles, entry=None, tree=None, files=None, sites=None, anchor=None, argv=None,
-                original=None, listed=True, disk=None):
-        """check_block() on `entry` (BLOCK_ENTRY changed by it) in the working tree `tree` (block_tree changed
-        by it, None deleting a file), the commits holding `files` (block_files changed by it); with `argv`
-        main(), with `original` check(), each with the sites `sites` and the block; with `disk` ({path: bytes}
-        over the tree) check() reading the tree written to a directory. `needles` in order."""
-        needles = [needles] if isinstance(needles, str) else needles
+    def block_run(entry=None, tree=None, files=None, sites=None, anchor=None, argv=None, original=None, listed=True,
+                  disk=None):
+        """(rc, output) of check_block() on `entry` (BLOCK_ENTRY changed by it) in the working tree `tree`
+        (block_tree changed by it, None deleting a file), the commits holding `files` (block_files changed by
+        it); with `argv` main(), with `original` check(), each with the sites `sites` and the block; with
+        `disk` ({path: bytes} over the tree) check() reading the tree written to a directory."""
         entry = {k: v for k, v in dict(BLOCK_ENTRY, **(entry or {})).items() if v is not None}
         work = {k: v for k, v in dict(block_tree, **(tree or {})).items() if v is not None}
         have = {**block_files, **{(full(c), p): t for (c, p), t in (files or {}).items()}}
@@ -2888,7 +2888,10 @@ def self_test():
             if args[0] == 'ls-files':
                 if not listed:
                     return 128, '', 'fatal: not a git repository'
-                return 0, ''.join(p + '\0' for p in sorted(work) + ['src/game/Gone.cpp'] if p.startswith('src/')), ''
+                specs = [d for d in args[args.index('--') + 1:] if d != '.'] if '--' in args else []
+                paths = [p for p in sorted(work) + ['src/game/Gone.cpp']
+                         if not specs or any(p == d or p.startswith(d + '/') for d in specs)]
+                return 0, ''.join(p + ('\0' if '-z' in args else '\n') for p in paths), ''
             if args[0] == 'ls-tree':
                 return 0, '', ''
             raise AssertionError('fake git: %r' % (args,))
@@ -2929,7 +2932,12 @@ def self_test():
             got.append('crashed: %r' % e)
         finally:
             globals()['check'] = real_check
-        text = '\n'.join(got)
+        return rc, '\n'.join(got)
+
+    def blocked(label, want_rc, needles, **run):
+        """block_run(**run) giving `want_rc` and the `needles` in order."""
+        needles = [needles] if isinstance(needles, str) else needles
+        rc, text = block_run(**run)
         at, ok = 0, rc == want_rc
         for needle in needles:
             at = text.find(needle, at)
@@ -2988,6 +2996,16 @@ def self_test():
             'FAILED: type FarOrder is defined 2 times in the header',
             tree={header: BLOCK_HEADER + '\nclass FarOrder final\n{\n};\n'})
     blocked('BLOCKS: a twin type in a third file under src/: fails', 1, twin, tree=twin_file)
+    sources = ['.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inc', '.inl', '.ipp']
+    missed = [(ext, run) for ext in sources
+              for run in [block_run(tree={'src/shared/Twin' + ext: twin_file['src/game/Other.cpp']})]
+              if run != (1, twin.replace('src/game/Other.cpp', 'src/shared/Twin' + ext))]
+    label = 'BLOCKS: a twin in each C or C++ file kind under src/: fails'
+    print('self-test: %-66s %s' % (label, 'PASS' if not missed else 'FAIL'))
+    if missed:
+        failures.append('%s: not refused as a twin: %s' % (label, missed))
+    blocked('BLOCKS: a definition outside src/ is no twin: passes', 0, moved_line % 'in the working tree',
+            tree={'dep/Twin.cpp': twin_file['src/game/Other.cpp']})
     blocked('BLOCKS: the block left in the origin as well: fails as a twin', 1,
             "FAILED: type Pair is defined again in src/game/Far.cpp, a twin of the block's",
             tree={origin: BLOCK_ORIGIN.replace('#include "Far.h"\n', '#include "Far.h"\n#include "spells/FarOrder.h"\n')
@@ -3003,6 +3021,14 @@ def self_test():
             "FAILED: the origin as read, less its added lines, is not the base's less the block: line 14: base "
             "'    list.sort(FarOrder());', read '    list.sort(FarOrder(1));'",
             tree={origin: BLOCK_MOVED.replace('FarOrder()', 'FarOrder(1)')})
+    ends = {('2b00000', origin): BLOCK_ORIGIN[:BLOCK_ORIGIN.index('\n\n\nvoid Far::Sort')] + '\n'}
+    ends_moved = BLOCK_MOVED[:BLOCK_MOVED.index('void Far::Sort')]
+    blocked('BLOCKS: a block that ends the origin: IDENTICAL', 0,
+            "the origin, read in the working tree, is the base's less the block and the 0 blank line(s) after it",
+            files=ends, tree={origin: ends_moved})
+    blocked('BLOCKS: a block that ends the origin, the final newline dropped: fails', 1,
+            "FAILED: the origin as read, less its added lines, is not the base's less the block: lengths differ: "
+            "base 12 lines, read 11", files=ends, tree={origin: ends_moved[:-1]})
     blocked('BLOCKS: a listed added line missing from the origin: fails', 1,
             "FAILED: added line 'template void Far::Pick<int>();' found 0 times in the origin as read",
             tree={origin: BLOCK_MOVED.replace('template void Far::Pick<int>();\n', '')})
@@ -3055,16 +3081,23 @@ def self_test():
             'FAILED: the base 2b00000 is not an ancestor of the anchor %s' % block_commits[0],
             argv=['verbatim.py', '--check', '--original', '--anchor', '1b00000'])
 
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    def blocks_replaced(data_source, text):
+        """The data file's source with its BLOCKS assignment's lines replaced by `text` (lines)."""
+        found = [n for n in ast.parse(data_source).body
+                 if isinstance(n, ast.Assign) and [getattr(t, 'id', None) for t in n.targets] == ['BLOCKS']]
+        lines = data_source.split('\n')
+        return '\n'.join(lines[:found[0].lineno - 1] + text + lines[found[0].end_lineno:])
     try:
-        here = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(here, 'verbatim.py'), encoding='utf-8-sig') as f:
             tool_source = f.read()
         with open(os.path.join(here, 'verbatim_sites.py'), encoding='utf-8-sig') as f:
             data_source = f.read()
         bound = split_gate.problems('verbatim.py', tool_source + 'BLOCKS = []\n', 'verbatim_sites', data_source,
                                     DATA_NAMES)
-        unset = split_gate.problems('verbatim.py', tool_source, 'verbatim_sites',
-                                    data_source.replace('\nBLOCKS = []\n', '\n'), DATA_NAMES)
+        unset = split_gate.problems('verbatim.py', tool_source, 'verbatim_sites', blocks_replaced(data_source, []),
+                                    DATA_NAMES)
         ok = (any('binds BLOCKS, a data name of verbatim_sites.py' in p for p in bound)
               and 'verbatim_sites.py does not assign BLOCKS' in unset)
     except Exception as e:                                      # a crash fails the row
@@ -3073,6 +3106,38 @@ def self_test():
     print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
     if not ok:
         failures.append('the split, BLOCKS: %s %s' % (bound, unset))
+
+    # The self-test run again from a copy of this directory whose data holds a BLOCKS entry; that run (marked
+    # by VERBATIM_SELF_TEST_NESTED) leaves this row out.
+    if os.environ.get('VERBATIM_SELF_TEST_NESTED') != '1':
+        where = tempfile.mkdtemp()
+        try:
+            for name in os.listdir(here):
+                if name.endswith('.py'):
+                    shutil.copy(os.path.join(here, name), where)
+            with open(os.path.join(where, 'verbatim_sites.py'), 'w', encoding='utf-8', newline='') as f:
+                f.write(blocks_replaced(data_source, [
+                    "BLOCKS = [{'base': 'dc0af339ec81b2b2d7f70a05c145172dd3c80437',",
+                    "           'origin': 'src/game/WorldHandlers/SpellTargeting.cpp',",
+                    "           'header': 'src/game/WorldHandlers/SpellTargetDistanceOrder.h',",
+                    "           'first': '// Helper for targets furthest away to the spell target',",
+                    "           'lines': 20,",
+                    "           'added': ['#include \"SpellTargetDistanceOrder.h\"',",
+                    "                     'template WorldObject* '",
+                    "                     'Spell::FindCorpseUsing<MaNGOS::CannibalizeObjectCheck>();']}]"]))
+            nested = subprocess.run([sys.executable, '-W', 'error', '-B', os.path.join(where, 'verbatim.py'),
+                                     '--self-test'], cwd=where, capture_output=True, text=True, timeout=600,
+                                    env=dict(os.environ, VERBATIM_SELF_TEST_NESTED='1'))
+            ok = nested.returncode == 0 and nested.stdout.rstrip('\n').endswith('self-test: PASS (0 failure(s))')
+            text = nested.stdout[-2000:] + nested.stderr[-1000:]
+        except Exception as e:                                  # a crash fails the row
+            ok, text = False, 'crashed: %r' % e
+        finally:
+            shutil.rmtree(where, ignore_errors=True)
+        label = 'the self-test with a BLOCKS entry in the data file: passes'
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s:\n%s' % (label, text))
 
     for label, bad in split_gate.self_test(__file__, 'verbatim_sites', DATA_NAMES, 'SITES'):
         print('self-test: %-66s %s' % (label, 'PASS' if not bad else 'FAIL'))
