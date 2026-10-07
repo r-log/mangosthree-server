@@ -224,3 +224,11 @@ TEST(OpcodeDispatch_SetSelectionRowIsLoggedInAndThreadUnsafe)
     CHECK_EQ(opcodeTable[CMSG_SET_SELECTION].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_SET_SELECTION].packetProcessing, PROCESS_THREADUNSAFE);
 }
+
+TEST(OpcodeDispatch_ZoneUpdateRowIsLoggedInAndThreadUnsafe)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_ZONEUPDATE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ZONEUPDATE].packetProcessing, PROCESS_THREADUNSAFE);
+}
