@@ -991,7 +991,6 @@ class WorldSession
 
         void HandleTabardVendorActivateOpcode(WorldPacket& recvPacket);
         void HandleBankerActivateOpcode(WorldPacket& recvPacket);
-        void HandleBuyBankSlotOpcode(WorldPacket& recvPacket);
         void HandleTrainerListOpcode(WorldPacket& recvPacket);
         void HandleTrainerBuySpellOpcode(WorldPacket& recvPacket);
 
@@ -1067,16 +1066,9 @@ class WorldSession
         void HandleSwapInvItemOpcode(WorldPacket& recvPacket);
         void HandleDestroyItemOpcode(WorldPacket& recvPacket);
         void HandleAutoEquipItemOpcode(WorldPacket& recvPacket);
-        void HandleSellItemOpcode(WorldPacket& recvPacket);
-        void HandleBuyItemOpcode(WorldPacket& recvPacket);
-        void HandleListInventoryOpcode(WorldPacket& recvPacket);
-        void HandleAutoStoreBagItemOpcode(WorldPacket& recvPacket);
         void HandleReadItemOpcode(WorldPacket& recvPacket);
         void HandleAutoEquipItemSlotOpcode(WorldPacket& recvPacket);
         void HandleSwapItem(WorldPacket& recvPacket);
-        void HandleBuybackItem(WorldPacket& recvPacket);
-        void HandleAutoBankItemOpcode(WorldPacket& recvPacket);
-        void HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket);
         void HandleWrapItemOpcode(WorldPacket& recvPacket);
 
         void HandleUseItemOpcode(WorldPacket& recvPacket);
