@@ -21,8 +21,12 @@ Outside the classes it refuses:
     function-local static outlives the call and is shared between the threads that run it), but for
     `static SqlStatementID <name>;` read by that type name, alone, unqualified and uninitialised: the
     prepared statement's id the database layer fills and caches, which holds no session or player.
-    A pointer or reference to one, an initialised or `thread_local` one, one of any other type and
-    one at namespace or class scope are refused as before;
+    The exemption holds only while the file names `SqlStatementID` nowhere else (a `using`, `typedef`,
+    `#define` or namespace alias could rebind the name to another type); a pointer or reference to
+    one, an initialised or `thread_local` one, one of any other type and one at namespace or class
+    scope are refused;
+  - a `#define`, but for an include guard (`#ifndef X` directly followed by `#define X`): a macro can
+    spell storage the gate does not read (`#define KEEP(t, n) static t n`);
   - a variable at namespace scope, or any declaration there with no body (a direct-initialised
     variable, `uint32 g(0);`, reads as a function declaration; a free helper is defined before its
     use instead), and an anonymous member there; named or anonymous namespaces and `extern "C"`
@@ -88,6 +92,7 @@ FUNCTION_HEAD = re.compile(r'\)\s*(?:(?:const|volatile|noexcept|override|final|&
 NAMESPACE_HEAD = re.compile(r'(?:\bnamespace\b[\w\s:]*|\bextern\s*"\s*")$')
 FORWARD = re.compile(r'(class|struct|union|enum)\b[^{]*;$')
 STORAGE = re.compile(r'[{};]|\b(?:static|thread_local)\b')
+DEFINE = re.compile(r'^[ \t]*#[ \t]*define[ \t]+(\w+)(.*)$', re.M)
 STATEMENT_ID = re.compile(r'static SqlStatementID [A-Za-z_]\w* ?;')
 
 
@@ -171,10 +176,23 @@ def check_text(rel, text):
             found.append((clean.count('\n', 0, m.start()) + 1,
                           'a class the gate cannot read: %s' % ' '.join(head.split())))
     local, braces = walk(clean)
+    exempt = 0
     for at in local:
         statement = ' '.join(clean[at:clean.find(';', at) + 1].split())
-        if not STATEMENT_ID.fullmatch(statement):
+        if STATEMENT_ID.fullmatch(statement):
+            exempt += 1
+        else:
             found.append((clean.count('\n', 0, at) + 1, 'a function-local static: %s' % statement))
+    outside = [m.start() for m in re.finditer(r'\bSqlStatementID\b', clean)
+               if not any(at <= m.start() < clean.find(';', at) for at in local)]
+    if exempt and outside:
+        found.append((clean.count('\n', 0, outside[0]) + 1, 'SqlStatementID named outside a function-local '
+                      'static (an alias or macro could rebind the exempted type)'))
+    for m in DEFINE.finditer(clean):
+        above = clean[:m.start()].rstrip().rsplit('\n', 1)[-1]
+        if m.group(2).strip() or not re.fullmatch(r'\s*#\s*ifndef\s+%s\s*' % re.escape(m.group(1)), above):
+            found.append((clean.count('\n', 0, m.start()) + 1, 'a #define that is not an include guard: %s' % (
+                ' '.join(m.group().split()))))
     flat = list(clean)
     for a, b in braces:
         flat[a:b] = [c if c == '\n' else ' ' for c in clean[a:b]]
@@ -318,6 +336,19 @@ SELF_REFUSED = [
 ]
 
 
+REBOUND = 'SqlStatementID named outside a function-local static'
+SELF_REBOUND = [
+    ('a statement id rebound by a local using', [REBOUND], '', '    using SqlStatementID = Player*;\n'),
+    ('a statement id rebound by a local typedef', [REBOUND], '', '    typedef Player* SqlStatementID;\n'),
+    ('a statement id rebound by a #define', [REBOUND, 'a #define that is not an include guard'],
+     '#define SqlStatementID Player*\n', ''),
+    ('a statement id rebound through a namespace alias', [REBOUND],
+     'namespace Fx { using SqlStatementID = Player*; }\nusing Fx::SqlStatementID;\n', ''),
+    ('a macro that spells a static', ['a #define that is not an include guard: #define KEEP(t, n) static t n'],
+     '#define KEEP(t, n) static t n\n', '    KEEP(Player*, s_q);\n'),
+]
+
+
 def self_test():
     failures = []
 
@@ -337,6 +368,12 @@ def self_test():
             continue
         got = check_text('fixture', SELF_ACCEPTED.replace(a, b, 1))
         row(label + ': refused', len(got) == 1 and needle in got[0][1], got)
+    got = check_text('fixture', '#ifndef MANGOS_H_FIXTURE\n#define MANGOS_H_FIXTURE\n' + SELF_ACCEPTED + '#endif\n')
+    row('an include guard: accepted', got == [], got)
+    local = '    static SqlStatementID s_p;\n    s_p = session.GetPlayer();\n    Helper(session);'
+    for label, needles, top, body in SELF_REBOUND:
+        got = check_text('fixture', top + SELF_ACCEPTED.replace('    Helper(session);', body + local, 1))
+        row(label + ': refused', sorted(n for _, w in got for n in needles if n in w) == sorted(needles), got)
     lines = []
     rc = check(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'no-such-root'), lines.append)
     row('a missing directory: passes, saying so', rc == 0 and 'does not exist' in lines[0], lines)
