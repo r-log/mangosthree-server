@@ -47,6 +47,7 @@
 #include "session/handlers/economy/TradeHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/entities/EnchantHandlers.h"
+#include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
@@ -515,8 +516,8 @@ void InitializeOpcodes()
     OPCODE(CMSG_MOUNTSPECIAL_ANIM,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMountSpecialAnimOpcode    );
     OPCODE(SMSG_MOUNTSPECIAL_ANIM,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PET_TAME_FAILURE,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_PET_SET_ACTION,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetSetAction              );
-    OPCODE(CMSG_PET_ACTION,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetAction                 );
+    OPCODE(CMSG_PET_SET_ACTION,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetSetAction               );
+    OPCODE(CMSG_PET_ACTION,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetAction                  );
     OPCODE(CMSG_PET_ABANDON,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetAbandon                );
     OPCODE(CMSG_PET_RENAME,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetRename                 );
     OPCODE(SMSG_PET_NAME_INVALID,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -632,7 +633,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_ITEM_TIME_UPDATE,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_ITEM_ENCHANT_TIME_UPDATE,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(MSG_GM_SHOWLABEL,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_PET_CAST_SPELL,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetCastSpellOpcode        );
+    OPCODE(CMSG_PET_CAST_SPELL,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetCastSpell               );
     OPCODE(MSG_SAVE_GUILD_EMBLEM,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSaveGuildEmblemOpcode     );
     OPCODE(MSG_TABARDVENDOR_ACTIVATE,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleTabardVendorActivateOpcode);
     OPCODE(SMSG_PLAY_SPELL_VISUAL,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -896,7 +897,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_WARDEN_DATA,                               STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleWardenDataOpcode          );
     OPCODE(CMSG_BATTLEGROUND_PLAYER_POSITIONS,           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PvpHandlers::HandleBattleGroundPlayerPositions);
     OPCODE(SMSG_BATTLEGROUND_PLAYER_POSITIONS,           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_PET_STOP_ATTACK,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetStopAttack             );
+    OPCODE(CMSG_PET_STOP_ATTACK,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetStopAttack              );
     OPCODE(SMSG_BINDER_CONFIRM,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_BATTLEGROUND_PLAYER_JOINED,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_BATTLEGROUND_PLAYER_LEFT,                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -904,7 +905,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_ADDON_INFO,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_PET_UNLEARN_CONFIRM,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PARTY_MEMBER_STATS_FULL,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_PET_SPELL_AUTOCAST,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetSpellAutocastOpcode    );
+    OPCODE(CMSG_PET_SPELL_AUTOCAST,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetSpellAutocast           );
     OPCODE(SMSG_WEATHER,                                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PLAY_TIME_WARNING,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_MINIGAME_SETUP,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );

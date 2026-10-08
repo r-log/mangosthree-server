@@ -654,8 +654,8 @@ namespace Harness
             return out + "]";
         }
 
-        /// The CMSG_PET_CAST_SPELL handler's calls (PetHandler.cpp:819-886,
-        /// WorldSession::HandlePetCastSpellOpcode) for `pet` -- the player's pet or his charm --
+        /// The CMSG_PET_CAST_SPELL handler's calls (PetHandlers.cpp,
+        /// PetHandlers::HandlePetCastSpell) for `pet` -- the player's pet or his charm --
         /// casting `spellId` at `target`: the pet GCD's silent return, the spellbook check (no
         /// client-triggering aura), `new Spell(pet, info, false, pet guid, NULL)` with the cast
         /// count and the unit target, ClearMovingLatches, CheckPetCast(NULL); then on OK

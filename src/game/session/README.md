@@ -32,6 +32,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `handlers/economy/` | `TradeHandlers` | the client's trade request and window open, the ignored and busy notices, the offer's gold, item and item clearing, accept, unaccept and cancel |
 | `handlers/economy/` | `VendorHandlers` | the client's vendor sell, buyback, buy and inventory list, bag auto-store, bank slot purchase and bank auto-store |
 | `handlers/entities/` | `EnchantHandlers` | the client's gift wrapping of an item, gem socketing and the cancelling of a temporary enchantment |
+| `handlers/entities/` | `PetHandlers` | the client's pet bar commands, the stop of a pet's attack, the pet bar's arrangement, a spell's autocast toggle and a spell the pet casts |
 | `handlers/entities/` | `SkillHandlers` | the client's talent learning, one rank or the talent preview's choices as one group, the talent wipe at a class trainer and the skill unlearning |
 | `handlers/pvp/` | `PvpHandlers` | the client's arena team inspect, query, roster, create, invite, accept, decline, leave, disband, remove and leader opcodes; the battlemaster's hello and join, the arena join, the battlefield list, port, leave and status, the flag carriers' positions, the PvP log, the spirit healer's query and queue, the AFK report, and the rated battleground stats, rated battleground info, PvP options and PvP rewards requests |
 

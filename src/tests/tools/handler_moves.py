@@ -94,6 +94,11 @@ _ENCHANT_FILE = 'src/game/session/handlers/entities/EnchantHandlers.cpp'
 _ENCHANT_ORIGIN = 'src/game/WorldHandlers/ItemHandlerEnchant.cpp'
 _ENCHANT_PLAYER = [('GetPlayer()', '_player')]
 
+_PET_BASE = 'f896bda39'
+_PET_FILE = 'src/game/session/handlers/entities/PetHandlers.cpp'
+_PET_ORIGIN = 'src/game/WorldHandlers/PetHandler.cpp'
+_PET_PLAYER = [('GetPlayer()', '_player')]
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -455,6 +460,37 @@ MOVES = [
     dict(base=_ENCHANT_BASE, base_file=_ENCHANT_ORIGIN, new_file=_ENCHANT_FILE,
          base_header='void WorldSession::HandleCancelTempEnchantmentOpcode(WorldPacket& recv_data)',
          new_header='void EnchantHandlers::HandleCancelTempEnchantment(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetAction(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PET_PLAYER,
+         edits=[('                && !(session.GetPlayer()->IsFriendlyTo(unit_target) || pet->HasAuraType(SPELL_AURA_MOD_POSSESS)))',
+                 '                && !(GetPlayer()->IsFriendlyTo(unit_target) || pet->HasAuraType(SPELL_AURA_MOD_POSSESS)))'),
+                ('                    Spell::SendCastResult(session.GetPlayer(), spellInfo, 0, result);',
+                 '                    Spell::SendCastResult(GetPlayer(), spellInfo, 0, result);'),
+                ('                    session.GetPlayer()->SendClearCooldown(spellid, pet);',
+                 '                    GetPlayer()->SendClearCooldown(spellid, pet);')]),
+    dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetStopAttack(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandlePetStopAttack(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetSetAction(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandlePetSetAction(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PET_PLAYER),
+    dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetSpellAutocastOpcode(WorldPacket& recvPacket)',
+         new_header='void PetHandlers::HandlePetSpellAutocast(WorldSession& session, WorldPacket& recvPacket)',
+         substitutions=_PET_PLAYER,
+         edits=[('        sLog.outError("HandlePetSpellAutocastOpcode. %s isn\'t pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());',
+                 '        sLog.outError("HandlePetSpellAutocastOpcode. %s isn\'t pet of %s .", guid.GetString().c_str(), GetPlayer()->GetGuidStr().c_str());')]),
+    dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetCastSpellOpcode(WorldPacket& recvPacket)',
+         new_header='void PetHandlers::HandlePetCastSpell(WorldSession& session, WorldPacket& recvPacket)',
+         substitutions=_PET_PLAYER,
+         edits=[('        sLog.outError("HandlePetCastSpellOpcode: %s isn\'t pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());',
+                 '        sLog.outError("HandlePetCastSpellOpcode: %s isn\'t pet of %s .", guid.GetString().c_str(), GetPlayer()->GetGuidStr().c_str());'),
+                ('            session.GetPlayer()->SendClearCooldown(spellid, pet);',
+                 '            GetPlayer()->SendClearCooldown(spellid, pet);')]),
 ]
 
 RESIDUES = [
@@ -604,4 +640,7 @@ RESIDUES = [
     dict(base=_ENCHANT_BASE, base_file=_ENCHANT_ORIGIN,
          removed=['#include "Log.h"', '#include "ObjectMgr.h"', '#include "Player.h"', '#include "Item.h"',
                   '#include "UpdateData.h"', '#include "Chat.h"']),
+    dict(base=_PET_BASE, base_file=_PET_ORIGIN,
+         removed=['#include "SpellMgr.h"', '#include "Spell.h"', '#include "CreatureAI.h"', '#include "SpellAuras.h"',
+                  '#include "MotionMaster.h"']),
 ]

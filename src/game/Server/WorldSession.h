@@ -1103,15 +1103,10 @@ class WorldSession
         void HandleTutorialResetOpcode(WorldPacket& recv_data);
 
         // Pet
-        void HandlePetAction(WorldPacket& recv_data);
-        void HandlePetStopAttack(WorldPacket& recv_data);
         void HandlePetNameQueryOpcode(WorldPacket& recv_data);
-        void HandlePetSetAction(WorldPacket& recv_data);
         void HandlePetAbandon(WorldPacket& recv_data);
         void HandlePetRename(WorldPacket& recv_data);
         void HandlePetCancelAuraOpcode(WorldPacket& recvPacket);
-        void HandlePetSpellAutocastOpcode(WorldPacket& recvPacket);
-        void HandlePetCastSpellOpcode(WorldPacket& recvPacket);
         void HandlePetLearnTalent(WorldPacket& recvPacket);
         void HandleLearnPreviewTalentsPet(WorldPacket& recvPacket);
         void HandleDismissCritter(WorldPacket& recvData);
