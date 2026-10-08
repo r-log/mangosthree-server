@@ -1104,7 +1104,6 @@ src/game/WorldHandlers/SpellTargeting.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/SpellTargeting.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/WorldHandlers/SpellTargeting.cpp -> src/proto/Opcodes.h
 src/game/WorldHandlers/SpellTargeting.cpp -> src/proto/WorldPacket.h
-src/game/WorldHandlers/TradeHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/TransportMap.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/TransportMap.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/Transports.cpp -> src/game/WorldHandlers/ScriptMgr.h
@@ -1848,6 +1847,8 @@ src/game/movement/packet_builder.cpp -> src/game/Object/Creature.h
 src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The auction sell handler reads the world config CONFIG_BOOL_GM_LOG_TRADE to log a GM's auction; dies with row 3.
 src/game/session/handlers/economy/AuctionHandlers.cpp -> src/game/WorldHandlers/World.h
+# The trade item store and the accept handler read the world config CONFIG_BOOL_GM_LOG_TRADE to log a GM's traded items and money; dies with row 3.
+src/game/session/handlers/economy/TradeHandlers.cpp -> src/game/WorldHandlers/World.h
 # The battlemaster join answers a disabled battleground through ChatHandler(&session).SendSysMessage(LANG_BG_IS_DISABLED).
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The spirit healer queue opens the spirit healer's gossip through sScriptMgr.OnGossipHello.

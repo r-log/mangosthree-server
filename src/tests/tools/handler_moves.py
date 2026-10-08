@@ -75,6 +75,15 @@ _AUCTION_ORIGIN = 'src/game/WorldHandlers/AuctionHouseHandler.cpp'
 _AUCTION_PLAYER = [('GetPlayer()', '_player')]
 _AUCTION_CHECKED = [('GetCheckedAuctionHouseForAuctioneer(session, ', 'GetCheckedAuctionHouseForAuctioneer(')]
 
+_TRADE_BASE = '3b8b0ae53'
+_TRADE_FILE = 'src/game/session/handlers/economy/TradeHandlers.cpp'
+_TRADE_ORIGIN = 'src/game/WorldHandlers/TradeHandler.cpp'
+_TRADE_PLAYER = [('GetPlayer()', '_player')]
+_TRADE_MOVE = [('moveItems(session, ', 'moveItems(')]
+_TRADE_GET = [('src/game/entities/player/Player.h', 'Player', 'GetTradeData')]
+_TRADE_MY = [('    TradeData* my_trade = session.GetPlayer()->GetTradeData();',
+              '    TradeData* my_trade = _player->m_trade;')]
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -343,6 +352,71 @@ MOVES = [
          new_header='void AuctionHandlers::HandleAuctionListPendingSales(WorldSession& session, '
                     'WorldPacket& recv_data)',
          substitutions=_AUCTION_PLAYER + _AUCTION_CHECKED),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleIgnoreTradeOpcode(WorldPacket& /*recvPacket*/)',
+         new_header='void TradeHandlers::HandleIgnoreTrade(WorldSession& session, WorldPacket& /*recvPacket*/)',
+         substitutions=_TRADE_PLAYER),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleBusyTradeOpcode(WorldPacket& /*recvPacket*/)',
+         new_header='void TradeHandlers::HandleBusyTrade(WorldSession& session, WorldPacket& /*recvPacket*/)',
+         substitutions=_TRADE_PLAYER),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::moveItems(Item* myItems[], Item* hisItems[])',
+         new_header='void TradeHandlers::moveItems(WorldSession& session, Item* myItems[], Item* hisItems[])',
+         substitutions=_TRADE_PLAYER),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)',
+         new_header='void TradeHandlers::HandleAcceptTrade(WorldSession& session, WorldPacket& recvPacket)',
+         accessors=_TRADE_GET,
+         substitutions=_TRADE_PLAYER + _TRADE_MOVE,
+         edits=_TRADE_MY + [('    TradeData* his_trade = trader->GetTradeData();',
+                             '    TradeData* his_trade = trader->m_trade;')]),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleUnacceptTradeOpcode(WorldPacket& /*recvPacket*/)',
+         new_header='void TradeHandlers::HandleUnacceptTrade(WorldSession& session, WorldPacket& /*recvPacket*/)',
+         accessors=_TRADE_GET,
+         edits=_TRADE_MY),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleBeginTradeOpcode(WorldPacket& /*recvPacket*/)',
+         new_header='void TradeHandlers::HandleBeginTrade(WorldSession& session, WorldPacket& /*recvPacket*/)',
+         accessors=_TRADE_GET,
+         edits=_TRADE_MY),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleCancelTradeOpcode(WorldPacket& /*recvPacket*/)',
+         new_header='void TradeHandlers::HandleCancelTrade(WorldSession& session, WorldPacket& /*recvPacket*/)',
+         substitutions=_TRADE_PLAYER),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)',
+         new_header='void TradeHandlers::HandleInitiateTrade(WorldSession& session, WorldPacket& recvPacket)',
+         accessors=_TRADE_GET,
+         substitutions=_TRADE_PLAYER,
+         edits=[('    if (session.GetPlayer()->GetTradeData())',
+                 '    if (GetPlayer()->m_trade)'),
+                ('    if (!session.GetPlayer()->IsAlive())',
+                 '    if (!GetPlayer()->IsAlive())'),
+                ('    if (session.GetPlayer()->Blocked(Motion::ReasonStunned))',
+                 '    if (GetPlayer()->Blocked(Motion::ReasonStunned))'),
+                ('    if (session.GetPlayer()->IsTaxiFlying())',
+                 '    if (GetPlayer()->IsTaxiFlying())'),
+                ('    if (pOther == session.GetPlayer() || pOther->GetTradeData())',
+                 '    if (pOther == GetPlayer() || pOther->m_trade)'),
+                ('    if (pOther->GetSocial()->HasIgnore(session.GetPlayer()->GetObjectGuid()))',
+                 '    if (pOther->GetSocial()->HasIgnore(GetPlayer()->GetObjectGuid()))')]),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleSetTradeGoldOpcode(WorldPacket& recvPacket)',
+         new_header='void TradeHandlers::HandleSetTradeGold(WorldSession& session, WorldPacket& recvPacket)',
+         substitutions=_TRADE_PLAYER),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)',
+         new_header='void TradeHandlers::HandleSetTradeItem(WorldSession& session, WorldPacket& recvPacket)',
+         accessors=_TRADE_GET,
+         substitutions=_TRADE_PLAYER,
+         edits=_TRADE_MY),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN, new_file=_TRADE_FILE,
+         base_header='void WorldSession::HandleClearTradeItemOpcode(WorldPacket& recvPacket)',
+         new_header='void TradeHandlers::HandleClearTradeItem(WorldSession& session, WorldPacket& recvPacket)',
+         accessors=_TRADE_GET,
+         edits=_TRADE_MY),
 ]
 
 RESIDUES = [
@@ -376,4 +450,72 @@ RESIDUES = [
     dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN,
          removed=['#include <algorithm>', '#include <string>', '#include <vector>', '#include "Log.h"',
                   '#include "World.h"', '#include "AchievementMgr.h"', '#include "Util.h"', '#include "Chat.h"']),
+    dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN,
+         removed=['#include "Common/ServerDefines.h"', '#include "World.h"', '#include "PlayerRegistry.h"',
+                  '#include "Log.h"', '#include "Spell.h"', '#include "SocialMgr.h"', '#include "Language.h"',
+                  '#include "DBCStores.h"'],
+         edits=[('//==============================================================\n'
+                 '// transfer the items to the players\n',),
+                ('//==============================================================\n'
+                 'static void setAcceptTradeMode(TradeData* myTrade, TradeData* hisTrade, Item** myItems, '
+                 'Item** hisItems)\n'
+                 '{\n'
+                 '    myTrade->SetInAcceptProcess(true);\n'
+                 '    hisTrade->SetInAcceptProcess(true);\n'
+                 '\n'
+                 "    // store items in local list and set 'in-trade' flag\n"
+                 '    for (int i = 0; i < TRADE_SLOT_TRADED_COUNT; ++i)\n'
+                 '    {\n'
+                 '        if (Item* item = myTrade->GetItem(TradeSlots(i)))\n'
+                 '        {\n'
+                 '            DEBUG_LOG("player trade %s bag: %u slot: %u", item->GetGuidStr().c_str(), '
+                 'item->GetBagSlot(), item->GetSlot());\n'
+                 '            // Can return NULL\n'
+                 '            myItems[i] = item;\n'
+                 '            myItems[i]->SetInTrade();\n'
+                 '        }\n'
+                 '\n'
+                 '        if (Item* item = hisTrade->GetItem(TradeSlots(i)))\n'
+                 '        {\n'
+                 '            DEBUG_LOG("partner trade %s bag: %u slot: %u", item->GetGuidStr().c_str(), '
+                 'item->GetBagSlot(), item->GetSlot());\n'
+                 '            hisItems[i] = item;\n'
+                 '            hisItems[i]->SetInTrade();\n'
+                 '        }\n'
+                 '    }\n'
+                 '}\n'
+                 '\n'
+                 '/**\n'
+                 ' * @brief Clears the accept-in-progress state on both trade objects.\n'
+                 ' *\n'
+                 " * @param myTrade The initiating player's trade data.\n"
+                 " * @param hisTrade The target player's trade data.\n"
+                 ' */\n'
+                 'static void clearAcceptTradeMode(TradeData* myTrade, TradeData* hisTrade)\n'
+                 '{\n'
+                 '    myTrade->SetInAcceptProcess(false);\n'
+                 '    hisTrade->SetInAcceptProcess(false);\n'
+                 '}\n'
+                 '\n'
+                 '/**\n'
+                 ' * @brief Clears the in-trade flag on cached traded items.\n'
+                 ' *\n'
+                 " * @param myItems The initiating player's cached items.\n"
+                 " * @param hisItems The target player's cached items.\n"
+                 ' */\n'
+                 'static void clearAcceptTradeMode(Item** myItems, Item** hisItems)\n'
+                 '{\n'
+                 "    // clear 'in-trade' flag\n"
+                 '    for (int i = 0; i < TRADE_SLOT_TRADED_COUNT; ++i)\n'
+                 '    {\n'
+                 '        if (myItems[i])\n'
+                 '        {\n'
+                 '            myItems[i]->SetInTrade(false);\n'
+                 '        }\n'
+                 '        if (hisItems[i])\n'
+                 '        {\n'
+                 '            hisItems[i]->SetInTrade(false);\n'
+                 '        }\n'
+                 '    }\n'
+                 '}\n',)]),
 ]

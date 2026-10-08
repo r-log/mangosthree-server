@@ -29,6 +29,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `handlers/combat/` | `CombatHandlers` | the client's melee swing, attack stop, sheath and duel accept and cancel, and the `SMSG_ATTACKSTOP` the swing sends when it refuses a target |
 | `handlers/economy/` | `AuctionHandlers` | the client's auction house open, sale, bid and buyout, cancel, and its search, own auctions, bid-on auctions and pending sales lists |
 | `handlers/economy/` | `LootHandlers` | the client's loot window open and close, item and currency taking, money taking and the master looter's give |
+| `handlers/economy/` | `TradeHandlers` | the client's trade request and window open, the ignored and busy notices, the offer's gold, item and item clearing, accept, unaccept and cancel |
 | `handlers/economy/` | `VendorHandlers` | the client's vendor sell, buyback, buy and inventory list, bag auto-store, bank slot purchase and bank auto-store |
 | `handlers/pvp/` | `PvpHandlers` | the client's arena team inspect, query, roster, create, invite, accept, decline, leave, disband, remove and leader opcodes; the battlemaster's hello and join, the arena join, the battlefield list, port, leave and status, the flag carriers' positions, the PvP log, the spirit healer's query and queue, the AFK report, and the rated battleground stats, rated battleground info, PvP options and PvP rewards requests |
 
