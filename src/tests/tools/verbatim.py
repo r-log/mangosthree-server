@@ -2581,6 +2581,11 @@ def self_test():
             **mutated(mutated(trailing, 'old_text', lab[1] + '\n        {' + literal,
                               lab[1] + '\n        {\n' + base_line + literal),
                       'handlers', '    ctx.target->Drop(1);\n', handler_line + '\n    ctx.target->Drop(1);\n'))
+    run('a substitution\'s left side inside a string literal after a use in code: fails by name', 1,
+        "handler One, body line 2: 'ctx.target', the left side of a substitution, stands inside a string literal",
+        **mutated(mutated(trailing, 'old_text', lab[1] + '\n        {\n            target->Drop(1);\n',
+                          lab[1] + '\n        {\n            target->Drop(1);\n            Log("target here");\n'),
+                  'handlers', '    ctx.target->Drop(1);\n', '    ctx.target->Drop(1);\n    Log("ctx.target here");\n'))
     noted = 'const char* note = "%s";'
     run('a valued pair\'s left side inside a string literal: fails by name', 1,
         "handler Two, body line 1: %r, the left side of a substitution, stands inside a string literal"

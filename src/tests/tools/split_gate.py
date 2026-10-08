@@ -303,15 +303,19 @@ def refused_before_import(tool_file, data_module, names, out=print):
     `tool_file`, read in the encoding its import reads it in; else 0. A tool runs it before it imports its
     data, so a data file holding anything but assignments of literal values (an exit, an import, a call)
     never runs. A data file that is missing, unreadable or does not parse is left to the import, which
-    cannot run it either and which unloaded() names."""
+    cannot run it either and which unloaded() names; one that parses but is nested too deeply for the
+    rules to be read is refused."""
     data_path = os.path.join(os.path.dirname(os.path.abspath(tool_file)), data_module + '.py')
     try:
         with tokenize.open(data_path) as f:
             data_source = f.read()
         ast.parse(data_source, data_module + '.py')
-    except (OSError, SyntaxError, ValueError):
+    except (OSError, SyntaxError, ValueError, LookupError, RecursionError, MemoryError):
         return 0
-    found = source_problems(data_module, data_source, names)[0]
+    try:
+        found = source_problems(data_module, data_source, names)[0]
+    except RecursionError:
+        found = ['%s.py is nested too deeply for its rules to be read before it runs' % data_module]
     for problem in found:
         out('%s: REFUSED: %s' % (os.path.splitext(os.path.basename(tool_file))[0], problem))
     return 1 if found else 0
@@ -322,7 +326,7 @@ def unloaded(tool_file, data_module, error, out=print):
     data file's line and the error's type when the data file raised it while it ran or does not parse."""
     data_file = data_module + '.py'
     lines = [f.lineno for f in traceback.extract_tb(error.__traceback__) if os.path.basename(f.filename) == data_file]
-    if isinstance(error, SyntaxError):
+    if isinstance(error, SyntaxError) and error.lineno:
         what = '%s:%d: %s: %s' % (data_file, error.lineno, type(error).__name__, error.msg)
     else:
         what = '%s:%d: %s: %s' % (data_file, lines[-1], type(error).__name__, error) if lines else error
@@ -419,7 +423,8 @@ def self_test(tool_file, data_module, names, bound, checked_first=False):
             elif data_text is not None:
                 with open(os.path.join(where, data_module + '.py'), 'w', encoding='utf-8') as f:
                     f.write(data_text)
-            return subprocess.run([sys.executable, '-E', '-B', os.path.join(where, tool_name)], cwd=where,
+            return subprocess.run([sys.executable, '-E', '-B', os.path.join(where, tool_name)],
+                                  cwd=os.path.dirname(where),
                                   capture_output=True, text=True)
         finally:
             shutil.rmtree(where, ignore_errors=True)
@@ -480,6 +485,14 @@ def self_test(tool_file, data_module, names, bound, checked_first=False):
                                          % (refused, data_module, e.lineno, type(e).__name__, e.msg), True)
             except Exception as e:                              # a crash fails the row
                 found.append('split gate, %s with %r in its data: crashed: %r' % (tool_name, line, e))
+        found += refused_by_name('with a null byte in its data', own + b'_X = 1\x00\n',
+                                 '%ssource code string cannot contain null bytes\n' % refused, True)
+        head, rest = own.split(b'\n', 1)
+        found += refused_by_name('with an encoding declared that is not a text encoding',
+                                 head + b'\n# coding: rot13\n' + rest, refused)
+        found += refused_by_name('with a sum of 30000 terms in its data',
+                                 own + b'_X = ' + b' + '.join([b'1'] * 30000) + b'\n',
+                                 '%s: REFUSED: ' % os.path.splitext(tool_name)[0])
         return found
 
     def exiting_data_case():
@@ -501,7 +514,11 @@ def self_test(tool_file, data_module, names, bound, checked_first=False):
                   % (tool, data_module, n, VALUE_RULE)),
                  ('import os and os._exit(0)', (own + 'import os\nos._exit(0)\n').encode('utf-8'),
                   statement % (n, 'Import') + statement % (n + 1, 'Expr')),
-                 ('a latin-1 file that exits', latin.encode('latin-1', 'replace'), statement % (n + 2, 'Raise'))]
+                 ('a latin-1 file that exits', latin.encode('latin-1', 'replace'), statement % (n + 2, 'Raise')),
+                 ('a sum too deep for the rules, then an exit',
+                  (own + '_X = ' + ' + '.join(['1'] * 1500) + '\nraise SystemExit(0)\n').encode('utf-8'),
+                  '%s: REFUSED: %s.py is nested too deeply for its rules to be read before it runs\n'
+                  % (tool, data_module))]
         return [p for what, data, want in cases
                 for p in refused_by_name('with %s in its data' % what, data, want, True)]
 
