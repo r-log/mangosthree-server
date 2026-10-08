@@ -22,12 +22,12 @@ MOVES holds one entry per moved function:
       parameter may be spelt `/*name*/` or `/* name */` on either side (a named parameter is not a
       commented-out one). A handler, a sender and a helper returning a value are all this shape. A function
       whose body reads nothing of the session may take none: `<type> <Class>::<Name2>(<p>)`, the base's
-      parameters alone, text for text, none named `session`; its body, moved and at its base, names no
-      `session`, `_player` or `this` in code and names `GetPlayer` and `SendPacket` only on another
-      object or class (`sObjectMgr.GetPlayer(guid)`, `ObjectAccessor::GetPlayer(guid)`,
-      `bidder->GetSession()->SendPacket(...)`), never bare or through `WorldSession::`, and its entry lists
-      no substitution, edit or accessor, so the reversal pastes base_header back over the definition and the
-      body comes back as it stands;
+      parameters alone, text for text, none named `session`; its body, moved and at its base (with a rename,
+      the base's `session` read as <name>), names no `session`, `_player` or `this` in code and names
+      `GetPlayer` and `SendPacket` only on another object or class (`sObjectMgr.GetPlayer(guid)`,
+      `ObjectAccessor::GetPlayer(guid)`, `bidder->GetSession()->SendPacket(...)`), never bare or through
+      `WorldSession::`, and its entry lists no substitution, edit or accessor, so the reversal pastes
+      base_header back over the definition and the body comes back as it stands;
   substitutions  (new text, base text) pairs, each side one line, each matching code at least once and
       only where no name, `.`, `->` or `::` runs into it and, when its new text ends in a name character,
       where no name runs on from it (`&session` does not match in `&sessionTarget`); a pair is a player
@@ -41,6 +41,12 @@ MOVES holds one entry per moved function:
       as it does alone; it must be found exactly count times in the function, its definition aside (1 when
       not given; fewer or more fails, naming which), and every one of them is read back; a new line listed
       twice fails;
+  rename  ('session', <name>): the base function names `session` in code, a local or a parameter of its own,
+      and the moved function calls it <name>, a name base_file holds nowhere at base, not even inside a longer
+      name, a comment or a literal. The new file holds <name> only in the functions whose entries rename
+      `session` to it, and there only as a whole word in code that follows no `.`, `->` or `::` (blanks and
+      line breaks between aside) and no lone `>` or `:`. The definition's parameters are compared with <name>
+      read as `session`. No edit or substitution names <name>, and none reads back `session`;
   accessors  (header, class, name) entries: a member function of <class> that the entry's edits call on a
       receiver where the base read or wrote one of its data members. The proof reads <header> as git holds it
       at the entry's base (the entry names the header and the class; nothing in the data stands in for the
@@ -93,9 +99,12 @@ For each entry, --check:
      qualifier (`std::string`, `Motion::Reason`), not a member use, and passes; the same name alone fails;
   3. reverses the move: an edit's line becomes its base line; on every other line, in code only
      (comments and literals stay), `session.` not after a name, `.`, `->` or `::` is dropped and the
-     substitutions are read back; the definition's lines become base_header's. A base function that names
-     `session` in code fails (a local of that name would make a `session.` the reversal drops mean
-     something else), and so does a span, base or new, whose braces do not balance (a `}` at column
+     substitutions are read back; with a rename, the line's code then holds no `session` (a `session` the
+     reversal neither drops nor reads back is the session parameter where the base had its own), and
+     <name> is read back as `session`; the definition's lines become base_header's. A base function that
+     names `session` in code fails unless its entry lists a rename (a local of that name would make a
+     `session.` the reversal drops mean something else), an entry listing a rename fails when the base
+     function names none, and so does a span, base or new, whose braces do not balance (a `}` at column
      0 inside a body would end the span early and hide the lines after it);
   4. pastes that at the function's place in base_file at base and compares the file byte for byte;
   5. fails when the working tree's base_file still holds base_header (the move deletes it).
@@ -129,8 +138,11 @@ than how the player is read or reading otherwise in place than alone, an accesso
 does not hold in the class's body as a getter or setter of that shape, that is virtual, whose declared type is
 not its member's, or that no edit calls, an edit calling one on another receiver than its base line or where
 its base line reads no such member, a substitution of another shape, a definition taking no session over a
-body, moved or at its base, that reads the session (naming the body line), and an entry with such a
-definition listing a substitution, an edit or an accessor.
+body, moved or at its base, that reads the session (naming the body line), an entry with such a
+definition listing a substitution, an edit or an accessor, a rename of another shape, a rename whose name
+the base file holds, or the new file holds outside the functions renamed to it or other than as a whole word
+in code, a `session` left in a moved line under a rename, and an edit or substitution naming the rename's
+name or reading back `session`.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
 there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
@@ -165,6 +177,7 @@ python src/tests/tools/handler_verbatim.py --self-test   # fixtures only, no git
 #
 
 import argparse
+import bisect
 import os
 import re
 import subprocess
@@ -175,6 +188,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402
 from verbatim import Failure, class_members, first_difference  # noqa: E402
 import split_gate  # noqa: E402
+
+# The names handler_moves.py assigns; split_gate.py holds the split.
+DATA_NAMES = ('MOVES', 'RESIDUES')
+
+if split_gate.refused_before_import(__file__, 'handler_moves', DATA_NAMES):
+    sys.exit(1)
 try:
     from handler_moves import MOVES, RESIDUES  # noqa: E402
 except Exception as e:
@@ -182,9 +201,6 @@ except Exception as e:
 
 SESSION_HEADER = 'src/game/Server/WorldSession.h'
 HANDLERS_DIR = 'src/game/session/handlers'
-
-# The names handler_moves.py assigns; split_gate.py holds the split.
-DATA_NAMES = ('MOVES', 'RESIDUES')
 
 NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
 NO_SESSION_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\((?P<params>.*)\)$')
@@ -200,6 +216,7 @@ DIRECTIVE = re.compile(r'\s*(?:#|%:)\s*(\w*)')
 PLAYER_FORM = re.compile(r'session\.GetPlayer\(\)|_player\b|GetPlayer\(\)|session\.|&session(?![\w.])')
 PLAYER_READ = {'session.': '', '&session': 'this'}
 SENDER = re.compile(r'(\w+)\(session(, |\))$')
+RENAME_NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 ACCESSOR_GET = re.compile(r'return\s+(\w+)\s*;')
 ACCESSOR_SET = re.compile(r'(\w+)\s*=\s*(\w+)\s*;')
 ACCESSOR_PARAM = re.compile(r'[^,=()]*[\s*&](\w+)')
@@ -271,6 +288,52 @@ def function_span(lines, header, where):
     return first, at, end + 1
 
 
+def read_rename(entry):
+    """The name the entry's `rename` reads back as `session`, or None when it lists none."""
+    if 'rename' not in entry:
+        return None
+    r = entry['rename']
+    if not (isinstance(r, (tuple, list)) and len(r) == 2 and r[0] == 'session' and isinstance(r[1], str)
+            and RENAME_NAME.fullmatch(r[1]) and r[1] != 'session'):
+        raise Failure("the rename %r is not ('session', '<name>'), <name> a name other than session" % (r,))
+    return r[1]
+
+
+def renamed_at(code, name):
+    """Where `name` stands in `code` (comments and literals blanked) as a whole word read back as `session`: after
+    no name character, `.`, `>` or `:`, and after no `.`, `->` or `::` with blanks and line breaks between."""
+    return [m for m in re.finditer(r'(?<![\w.>:])%s(?!\w)' % re.escape(name), code)
+            if not code[:m.start()].rstrip().endswith(('.', '->', '::'))]
+
+
+def rename_code(text, old, new):
+    """`text` with `old` read as `new` wherever renamed_at() finds it in code (comments and literals stay)."""
+    for m in reversed(renamed_at(blank(text), old)):
+        text = text[:m.start()] + new + text[m.end():]
+    return text
+
+
+def check_renamed_file(new_lines, name, own, spans, where):
+    """`name` stands in the new file only inside `own` and `spans` ((first, end) line ranges: the entry's function
+    and the others whose entries rename `session` to it), and in `own` only where renamed_at() reads it (each
+    other function is its own entry's to read)."""
+    text = '\n'.join(new_lines)
+    read = {m.start() for m in renamed_at(blank(text), name)}
+    starts = [0]
+    for line in new_lines[:-1]:
+        starts.append(starts[-1] + len(line) + 1)
+    for m in re.finditer(re.escape(name), text):
+        k = bisect.bisect_right(starts, m.start()) - 1
+        if not own[0] <= k < own[1]:
+            if any(a <= k < b for a, b in spans):
+                continue
+            raise Failure('%s: the rename\'s name %r stands outside the functions whose entries rename `session` '
+                          'to it: %r' % (where, name, new_lines[k]))
+        if m.start() not in read:
+            raise Failure('%s: the rename\'s name %r stands in a longer name, after `.`, `->` or `::`, or in a '
+                          'comment or a literal: %r' % (where, name, new_lines[k]))
+
+
 def check_members(body, members):
     """A member of WorldSession named bare in a body line (comments and literals blanked)."""
     if not members:
@@ -293,9 +356,9 @@ def check_reads_session(body, where):
                 where, n, m.group(0), body[n - 1]))
 
 
-def check_shape(new_header, base_header):
+def check_shape(new_header, base_header, rename=None):
     """The new definition line is the base's, `WorldSession::` replaced by a class and the session put first,
-    or put nowhere; True when it takes the session."""
+    or put nowhere, its parameters read with `rename` read as `session`; True when it takes the session."""
     new, base = NEW_HEADER.match(joined(new_header)), BASE_HEADER.match(joined(base_header))
     takes = bool(new)
     if not new:
@@ -309,10 +372,14 @@ def check_shape(new_header, base_header):
         raise Failure('the base definition line is not a WorldSession member\'s: %r' % base_header)
     if new.group('type') != base.group('type'):
         raise Failure('the definition line returns %r, the base %r' % (new.group('type'), base.group('type')))
-    params = [PARAM_COMMENT.sub(r'/*\1*/', x or '') for x in (new.group('params'), base.group('params'))]
+    new_params = new.group('params') or ''
+    if rename is not None:
+        new_params = rename_code(new_params, rename, 'session')
+    params = [PARAM_COMMENT.sub(r'/*\1*/', x or '') for x in (new_params, base.group('params'))]
     if params[0] != params[1]:
         raise Failure('the definition line takes (%s)%s, the base (%s)' % (
-            params[0], ' after the session' if takes else '', params[1]))
+            PARAM_COMMENT.sub(r'/*\1*/', new.group('params') or ''), ' after the session' if takes else '',
+            params[1]))
     return takes
 
 
@@ -477,11 +544,13 @@ def check_forms(entry, accessors=()):
                           'session' % (a, b))
 
 
-def verify(entry, base_text, tree_base_text, new_text, members, out=print, headers=None):
-    """0 when the entry's function pastes back byte for byte; 1 with the reason printed."""
+def verify(entry, base_text, tree_base_text, new_text, members, out=print, headers=None, beside=()):
+    """0 when the entry's function pastes back byte for byte; 1 with the reason printed. `beside` holds the
+    new definition lines of the other entries whose rename puts the same name in the same new file."""
     name = '%s %s' % (entry['new_file'], re.sub(r'\n[ \t]*', ' ', entry['new_header']))
     try:
-        takes = check_shape(entry['new_header'], entry['base_header'])
+        new_name = read_rename(entry)
+        takes = check_shape(entry['new_header'], entry['base_header'], new_name)
         for key, what in (('substitutions', 'a substitution'), ('edits', 'an edit'), ('accessors', 'an accessor')):
             if not takes and entry.get(key):
                 raise Failure('the definition line takes no session, but the entry lists %s' % what)
@@ -489,6 +558,14 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             x for e in entry.get('edits', []) + entry.get('substitutions', []) for x in e[:2]]
         if any(isinstance(x, str) and CARRIAGE_RETURN.search(x) for x in texts):
             raise Failure('a carriage return inside a line (a compiler ends the line there)')
+        if new_name is not None:
+            if new_name in base_text:
+                raise Failure('the rename\'s name %r stands in %s at %s: the name read back as `session` is '
+                              'new to the file' % (new_name, entry['base_file'], entry['base']))
+            for e in entry.get('edits', []) + entry.get('substitutions', []):
+                if new_name in e[0] or new_name in e[1] or re.search(r'\bsession\b', blank(e[1])):
+                    raise Failure('the edit or substitution %r names the rename\'s name or reads back `session`: '
+                                  'the renamed local is read back by the rename alone' % (e[0],))
         new_lines = new_text.split('\n')
         first, at, end = function_span(new_lines, entry['new_header'], entry['new_file'])
         head = range(at - first, at - first + head_lines(entry['new_header']))
@@ -496,6 +573,14 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             check_reads_session(new_lines[at + len(head):end], entry['new_file'])
         check_members(new_lines[at + len(head):end], members)
         span = new_lines[first:end]
+        if new_name is not None:
+            spans = []
+            for header in beside:
+                try:
+                    spans.append(function_span(new_lines, header, entry['new_file'])[::2])
+                except Failure:
+                    pass
+            check_renamed_file(new_lines, new_name, (first, end), spans, entry['new_file'])
         if not entry['new_file'].startswith(HANDLERS_DIR + '/'):
             raise Failure('the new file is not under %s, where handler_classes.py reads it' % HANDLERS_DIR)
         check_lines(entry)
@@ -509,6 +594,7 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a) + name_edge(a)), b)
                                        for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
+        renamed = 0
         pasted = []
         for k, (line, code) in enumerate(zip(span, blank('\n'.join(span)).split('\n'))):
             if k in head:
@@ -528,6 +614,15 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
                         used[r] += 1
                         line = line[:m.start()] + text + line[m.end():]
                         code = code[:m.start()] + text + code[m.end():]
+                if new_name is not None:
+                    if re.search(r'\bsession\b', code):
+                        raise Failure('%s: %r names `session` where the reversal does not read it as the session '
+                                      'parameter: with a rename, `session` in a moved body is that parameter alone'
+                                      % (entry['new_file'], span[k]))
+                    for m in reversed(renamed_at(code, new_name)):
+                        renamed += 1
+                        line = line[:m.start()] + 'session' + line[m.end():]
+                        code = code[:m.start()] + 'session' + code[m.end():]
             pasted.append(line)
         unused = [a for (a, _), n in zip(entry.get('substitutions', []), used[1:]) if n == 0]
         if unused:
@@ -536,10 +631,15 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         where = '%s at %s' % (entry['base_file'], entry['base'])
         b_first, b_at, b_end = function_span(base_lines, entry['base_header'], where)
         if not takes:
-            check_reads_session(base_lines[b_at + head_lines(entry['base_header']):b_end], where)
+            b_body = '\n'.join(base_lines[b_at + head_lines(entry['base_header']):b_end])
+            if new_name is not None:
+                b_body = rename_code(b_body, 'session', new_name)
+            check_reads_session(b_body.split('\n'), where)
         b_code = blank('\n'.join(base_lines[b_first:b_end]))
-        if re.search(r'\bsession\b', b_code):
+        if new_name is None and re.search(r'\bsession\b', b_code):
             raise Failure('the base function names `session` in code: the reversal cannot tell it from the parameter')
+        if new_name is not None and not re.search(r'\bsession\b', b_code):
+            raise Failure('the entry renames `session`, but the base function names no `session` in code')
         n_code = blank('\n'.join(span))
         if b_code.count('{') != b_code.count('}') or n_code.count('{') != n_code.count('}'):
             raise Failure('a `}` at column 0 closes the function before its braces balance')
@@ -553,8 +653,11 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         out('%s: DIFFERS from %s at %s: %s' % (name, entry['base_file'], entry['base'],
                                                first_difference(base_text, rebuilt)))
         return 1
-    out('%s: IDENTICAL to %s at %s, byte for byte, with %d lines pasted back (%d edits)' % (
-        name, entry['base_file'], entry['base'], len(pasted), sum(counts.values())))
+    done = '%d edits' % sum(counts.values())
+    if new_name is not None:
+        done += ', %r read back as session %d times' % (new_name, renamed)
+    out('%s: IDENTICAL to %s at %s, byte for byte, with %d lines pasted back (%s)' % (
+        name, entry['base_file'], entry['base'], len(pasted), done))
     return 0
 
 
@@ -704,13 +807,21 @@ def git_show(root, ref, rel):
                           capture_output=True, check=True).stdout.decode('utf-8')
 
 
+def renames_to(entry):
+    """The name the entry's rename reads back as `session`; None when it lists none or one of another shape."""
+    try:
+        return read_rename(entry)
+    except Failure:
+        return None
+
+
 def check(root, base=None, out=print, moves=None, residues=None):
     """--check: `moves` and `residues` replace MOVES and RESIDUES."""
     moves = MOVES if moves is None else moves
     residues_all = RESIDUES if residues is None else residues
     rc = 0
     members = class_members(read(root, SESSION_HEADER), 'WorldSession') if moves else set()
-    for entry in moves:
+    for i, entry in enumerate(moves):
         entry = dict(entry, base=base or entry['base'])
         try:
             base_text = git_show(root, entry['base'], entry['base_file'])
@@ -730,7 +841,9 @@ def check(root, base=None, out=print, moves=None, residues=None):
                     headers[a[0]] = git_show(root, entry['base'], a[0])
                 except (OSError, subprocess.CalledProcessError):
                     headers[a[0]] = None
-        rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out, headers)
+        beside = [e['new_header'] for j, e in enumerate(moves) if j != i and e['new_file'] == entry['new_file']
+                  and renames_to(e) is not None and renames_to(e) == renames_to(entry)]
+        rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out, headers, beside)
     for rel in sorted({e['base_file'] for e in moves} | {r['base_file'] for r in residues_all}):
         entries = [e for e in moves if e['base_file'] == rel]
         residues = [dict(r, base=base or r['base']) for r in residues_all if r['base_file'] == rel]
@@ -985,13 +1098,96 @@ SELF_MAIL_MOVES = [
          base_header=SELF_MAIL_HEAD, new_header=SELF_MAIL_NEW_HEAD),
 ]
 
+SELF_RENAME_CB_HEAD = ('void WorldSession::HandleReadCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n'
+                       '                                      proto::SessionId sessionId, ObjectGuid playerGuid)')
+SELF_RENAME_CB_NEW_HEAD = ('void Fixture::HandleReadCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n'
+                           '                                 proto::SessionId sessionId, ObjectGuid playerGuid)')
+SELF_RENAME_CB_BODY = '''
+{
+    WorldSession* session = NULL;
+    Player* player = NULL;
+    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
+    {
+        return;
+    }
+    if (!result)
+    {
+        session->SendGuildCommandResult(GUILD_CREATE_S, "", ERR_GUILD_NAME_INVALID);   // tell the session
+        return;
+    }
+    WorldPacket data(SMSG_PETITION_QUERY_RESPONSE, 4);
+    session->SendPacket(&data);
+}
+'''
+SELF_RENAME_CB_NEW_BODY = (SELF_RENAME_CB_BODY.replace('* session =', '* requestSession =')
+                           .replace(', session, ', ', requestSession, ')
+                           .replace('    session->', '    requestSession->'))
+
+SELF_RENAME_PARAM_HEAD = ('bool WorldSession::FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, '
+                          'ObjectGuid playerGuid,\n'
+                          '                                       WorldSession*& session, Player*& player)')
+SELF_RENAME_PARAM_NEW_HEAD = ('bool Fixture::FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, '
+                              'ObjectGuid playerGuid,\n'
+                              '                                  WorldSession*& requestSession, Player*& player)')
+SELF_RENAME_PARAM_BODY = '''
+{
+    session = FindRequesterSession(accountId, sessionId);
+    if (!session)
+    {
+        return false;
+    }
+    player = session->GetPlayer();
+    return player != NULL;
+}
+'''
+SELF_RENAME_PARAM_NEW_BODY = (SELF_RENAME_PARAM_BODY.replace('session =', 'requestSession =')
+                              .replace('!session)', '!requestSession)').replace('= session->', '= requestSession->'))
+
+SELF_RENAME_SELF_HEAD = 'void WorldSession::CompleteAdd(ObjectGuid guid)'
+SELF_RENAME_SELF_NEW_HEAD = 'void Fixture::CompleteAdd(WorldSession& session, ObjectGuid guid)'
+SELF_RENAME_SELF_BODY = '''
+{
+    WorldSession* session = this;
+    if (!session->GetPlayer())
+    {
+        return;
+    }
+    GetPlayer()->SendLog();
+    session->GetPlayer()->AddFriend(guid);
+}
+'''
+SELF_RENAME_SELF_NEW_BODY = (SELF_RENAME_SELF_BODY.replace('* session = this;', '* requestSession = &session;')
+                             .replace('!session->', '!requestSession->')
+                             .replace('    GetPlayer()->SendLog', '    session.GetPlayer()->SendLog')
+                             .replace('    session->GetPlayer()->AddFriend',
+                                      '    requestSession->GetPlayer()->AddFriend'))
+
+SELF_RENAME_DOC = '/**\n * @brief Answers the read.\n *\n * @param sessionId The session the request arrived on.\n */\n'
+SELF_RENAME_TOP = '#include "WorldSession.h"\n\n// the read answers on a later tick\n'
+SELF_RENAME_BASE = (SELF_RENAME_TOP + SELF_RENAME_DOC + SELF_RENAME_CB_HEAD + SELF_RENAME_CB_BODY + '\n'
+                    + SELF_RENAME_PARAM_HEAD + SELF_RENAME_PARAM_BODY + '\n' + SELF_RENAME_SELF_HEAD
+                    + SELF_RENAME_SELF_BODY)
+SELF_RENAME_NEW = (SELF_RENAME_TOP.replace('WorldSession.h', 'session/handlers/combat/Fixture.h') + SELF_RENAME_DOC
+                   + SELF_RENAME_CB_NEW_HEAD + SELF_RENAME_CB_NEW_BODY + '\n' + SELF_RENAME_PARAM_NEW_HEAD
+                   + SELF_RENAME_PARAM_NEW_BODY + '\n' + SELF_RENAME_SELF_NEW_HEAD + SELF_RENAME_SELF_NEW_BODY)
+
+SELF_RENAME = ('session', 'requestSession')
+SELF_RENAME_MOVES = [
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE, base_header=SELF_RENAME_CB_HEAD,
+         new_header=SELF_RENAME_CB_NEW_HEAD, rename=SELF_RENAME),
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE, base_header=SELF_RENAME_PARAM_HEAD,
+         new_header=SELF_RENAME_PARAM_NEW_HEAD, rename=SELF_RENAME),
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE, base_header=SELF_RENAME_SELF_HEAD,
+         new_header=SELF_RENAME_SELF_NEW_HEAD, substitutions=[('&session', 'this')], rename=SELF_RENAME),
+]
+
 
 def self_test():
     failures = []
     members = class_members(SELF_SESSION, 'WorldSession')
 
     def run(label, want_rc, needle, entry=0, swap=None, tree_base='#include "WorldSession.h"\n', base=SELF_BASE,
-            new=SELF_NEW, moves=SELF_MOVES, headers=None, **change):
+            new=SELF_NEW, moves=SELF_MOVES, headers=None, beside=(), **change):
         if swap:
             if swap[0] not in new:
                 failures.append('%s: the mutation %r matches nothing' % (label, swap[0]))
@@ -1000,7 +1196,7 @@ def self_test():
             new = new.replace(*swap)
         got = []
         try:
-            rc = verify(dict(moves[entry], **change), base, tree_base, new, members, got.append, headers)
+            rc = verify(dict(moves[entry], **change), base, tree_base, new, members, got.append, headers, beside)
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -1430,6 +1626,126 @@ def self_test():
         new=SELF_MAIL_NEW.replace(SELF_MAIL_NEW_HEAD + '\n{', mail_open[1] + '\n// */ ) { _player->Ping();'),
         moves=SELF_MAIL_MOVES, base_header=mail_open[0], new_header=mail_open[1])
 
+    renamed_heads = [m['new_header'] for m in SELF_RENAME_MOVES]
+
+    def renamed(label, want_rc, needle, entry=0, base_swap=None, beside=None, **change):
+        """A row on the rename fixture: entry `entry` of SELF_RENAME_MOVES, the other two beside it unless
+        `beside` says otherwise, the base changed by `base_swap`; `rename=None` drops the entry's rename."""
+        base = SELF_RENAME_BASE
+        if base_swap:
+            if base_swap[0] not in base:
+                failures.append('%s: the base mutation %r matches nothing' % (label, base_swap[0]))
+                print('self-test: %-62s FAIL' % label)
+                return
+            base = base.replace(*base_swap)
+        moves = SELF_RENAME_MOVES
+        if 'rename' in change and change['rename'] is None:
+            del change['rename']
+            moves = [{k: v for k, v in m.items() if k != 'rename'} for m in moves]
+        if beside is None:
+            beside = [h for k, h in enumerate(renamed_heads) if k != entry]
+        run(label, want_rc, needle, entry, base=base, new=SELF_RENAME_NEW, moves=moves, beside=beside, **change)
+
+    names = "is not ('session', '<name>'), <name> a name other than session"
+    held = "the rename's name 'requestSession' stands in Fixture.cpp at fixture: the name read back as `session` is new"
+    stray = "the rename's name 'requestSession' stands in a longer name, after `.`, `->` or `::`, or in a comment or a"
+    reads_back = "names the rename's name or reads back `session`: the renamed local is read back by the rename alone"
+    tick = '// the read answers on a later tick'
+    friend = ('    requestSession->GetPlayer()->AddFriend', '    session->GetPlayer()->AddFriend')
+    send_log = '    session.GetPlayer()->SendLog();'
+    renamed('a callback renaming its session local pastes back', 0,
+            "IDENTICAL to Fixture.cpp at fixture, byte for byte, with 23 lines pasted back (0 edits, 'requestSession' "
+            "read back as session 4 times)")
+    renamed('a parameter named session renamed in the head and body pastes back', 0,
+            "(0 edits, 'requestSession' read back as session 3 times)", 1)
+    renamed('a member reading its session parameter and a renamed local pastes back', 0,
+            "(0 edits, 'requestSession' read back as session 3 times)", 2)
+    renamed('a rename of another name fails', 1, "the rename ('player', 'requestSession') " + names,
+            rename=('player', 'requestSession'))
+    renamed('a rename to a text that is not a name fails', 1, names, rename=('session', 'request->session'))
+    renamed('a rename to session itself fails', 1, names, rename=('session', 'session'))
+    renamed('a rename to a name ending in a line feed fails', 1, names, rename=('session', 'requestSession\n'))
+    renamed('a rename\'s name standing in the base file fails', 1, held,
+            base_swap=(tick, '// the requestSession answers on a later tick'))
+    renamed('a rename\'s name inside a longer name in the base file fails', 1, held,
+            base_swap=(tick, 'uint32 requestSessionCount = 0;'))
+    renamed('a rename on a body naming no session fails', 1,
+            'the entry renames `session`, but the base function names no `session` in code', 2,
+            base_swap=(SELF_RENAME_SELF_BODY, SELF_RENAME_SELF_BODY.replace('* session = this;', '* other = this;')
+                       .replace('session->', 'other->')),
+            swap=(SELF_RENAME_SELF_NEW_BODY, SELF_RENAME_SELF_NEW_BODY.replace(
+                '* requestSession = &session;', '* other = &session;').replace('requestSession->', 'other->')))
+    renamed('a rename\'s name in a comment of the moved function fails', 1, stray,
+            swap=('// tell the session', '// tell the requestSession'))
+    renamed('a rename\'s name in a literal of the moved function fails', 1, stray,
+            swap=('"", ERR_GUILD_NAME_INVALID', '"requestSession", ERR_GUILD_NAME_INVALID'))
+    renamed('a partial-word hit in the moved function fails', 1, stray,
+            swap=('(accountId, sessionId, playerGuid, requestSession',
+                  '(accountId, requestSessionId, playerGuid, requestSession'))
+    unset = '    Player* player = NULL;'
+    for label, base_line, new_line in (
+            ('a rename\'s name ending a longer name in the moved function fails', '    int mysession = 0;',
+             '    int myrequestSession = 0;'),
+            ('a rename\'s name after a lone > in the moved function fails', '    bool b = player>session;',
+             '    bool b = player>requestSession;')):
+        renamed(label, 1, stray, base_swap=(unset, unset + '\n' + base_line), swap=(unset, unset + '\n' + new_line))
+    renamed('a rename\'s name misused in a function beside is that function\'s to refuse: passes', 0,
+            "(0 edits, 'requestSession' read back as session 3 times)", 1,
+            swap=('(accountId, sessionId, playerGuid, requestSession',
+                  '(accountId, requestSessionId, playerGuid, requestSession'))
+    deref = ('    player = session->GetPlayer();', '    player = requestSession->GetPlayer();')
+    for label, base_line, new_line in (
+            ('a rename\'s name after -> in the moved function fails', '    player = session->session->GetPlayer();',
+             '    player = requestSession->requestSession->GetPlayer();'),
+            ('a rename\'s name after -> and a blank in the moved function fails',
+             '    player = session-> session->GetPlayer();',
+             '    player = requestSession-> requestSession->GetPlayer();'),
+            ('a rename\'s name after -> ending the line above fails',
+             '    player = session->\n        session->GetPlayer();',
+             '    player = requestSession->\n        requestSession->GetPlayer();')):
+        renamed(label, 1, stray, 1, base_swap=(deref[0], base_line), swap=(deref[1], new_line))
+    renamed('a rename\'s name elsewhere in the new file fails', 1,
+            "combat/Fixture.cpp: the rename's name 'requestSession' stands outside the functions whose entries rename "
+            "`session` to it: 'static WorldSession* requestSession = NULL;'",
+            swap=('Fixture.h"\n', 'Fixture.h"\nstatic WorldSession* requestSession = NULL;\n'))
+    renamed('a rename\'s name in a moved function not renamed to it fails', 1,
+            "stands outside the functions whose entries rename `session` to it: '    WorldSession* requestSession = "
+            "&session;'", beside=[renamed_heads[1]])
+    renamed('a session local left unrenamed beside the session parameter fails', 1,
+            "names `session` where the reversal does not read it as the session parameter: with a rename", 2,
+            swap=friend)
+    renamed('the session parameter read where the base reads the local: DIFFERS', 1,
+            'DIFFERS from Fixture.cpp at fixture', 2,
+            swap=(friend[0], '    session.GetPlayer()->AddFriend'))
+    renamed('the renamed local read where the base reads the session: DIFFERS', 1,
+            'DIFFERS from Fixture.cpp at fixture', 2,
+            swap=(send_log, '    requestSession->GetPlayer()->SendLog();'))
+    renamed('an edit reading back a line that names session fails', 1,
+            "the edit or substitution '    Ping(session);' " + reads_back, 2,
+            swap=(send_log, send_log + '\n    Ping(session);'),
+            base_swap=('    GetPlayer()->SendLog();', '    GetPlayer()->SendLog();\n    Ping(session);'),
+            edits=[('    Ping(session);', '    Ping(session);')])
+    renamed('an edit naming the rename\'s name fails', 1, reads_back, 2,
+            edits=[('    requestSession->GetPlayer()->AddFriend(guid);', '    session->GetPlayer()->AddFriend(guid);')])
+    renamed('a substitution naming the rename\'s name fails', 1, reads_back, 2,
+            substitutions=[('&session', 'this'), ('requestSession->GetPlayer()', 'session->GetPlayer()')])
+    kept = SELF_RENAME_PARAM_NEW_HEAD.replace('*& requestSession', '*& session')
+    renamed('a head keeping session over a renamed body fails', 1,
+            'the definition line is not `<type> <Class>::<Name>(', 1, swap=(SELF_RENAME_PARAM_NEW_HEAD, kept),
+            new_header=kept)
+    other = SELF_RENAME_PARAM_NEW_HEAD.replace('sessionId, ObjectGuid', 'requestSession, ObjectGuid')
+    renamed('a head renaming another parameter fails', 1,
+            'takes (uint32 accountId, proto::SessionId requestSession, ObjectGuid playerGuid, WorldSession*& '
+            'requestSession', 1, swap=(SELF_RENAME_PARAM_NEW_HEAD, other), new_header=other)
+    renamed('a no-session head over a renamed base still reading the session fails', 1,
+            'Fixture.cpp at fixture, body line 15: "GetPlayer": the body reads the session but the head takes none',
+            base_swap=('    session->SendPacket(&data);\n}',
+                       '    session->SendPacket(&data);\n    GetPlayer()->SendLog();\n}'),
+            swap=('    requestSession->SendPacket(&data);\n}',
+                  '    requestSession->SendPacket(&data);\n    requestSession->GetPlayer()->SendLog();\n}'))
+    renamed('the rename not listed: the base names session fails', 1,
+            'the base function names `session` in code: the reversal cannot tell it from the parameter', 2, rename=None)
+
     def residue(label, want_rc, needle, tree, headers=SELF_HEADERS[:1], removed=(), elsewhere=(),
                 base=SELF_RESIDUE_BASE, edits=()):
         got = []
@@ -1655,8 +1971,26 @@ def self_test():
             headers=player_h, **trade)
     checked('--check: an accessor whose header git does not hold at the base fails', 1,
             'Player::GetTradeData: cannot read Player.h at b1', [], **trade)
+    rename_moves = [dict(m, base='b1', base_file='O.cpp') for m in SELF_RENAME_MOVES]
+    rename = dict(tree=False, b1=SELF_RENAME_BASE, new=SELF_RENAME_NEW)
+    checked('--check: three functions renaming session alike in one new file pass', 0, '3 moved functions; OK', [],
+            moves=rename_moves, **rename)
+    checked('--check: a rename\'s name in a function whose entry lists no rename fails', 1,
+            "FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid, "
+            "WorldSession*& requestSession, Player*& player): FAILED: src/game/session/handlers/combat/Fixture.cpp: "
+            "the rename's name 'requestSession' stands outside the functions whose entries rename `session` to it: "
+            "'    WorldSession* requestSession = &session;'", [],
+            moves=rename_moves[:2] + [{k: v for k, v in rename_moves[2].items() if k != 'rename'}], **rename)
+    checked('--check: a rename\'s name in a function renamed to another name fails', 1,
+            "stands outside the functions whose entries rename `session` to it: '    WorldSession* requestSession = "
+            "&session;'", [], moves=rename_moves[:2] + [dict(rename_moves[2], rename=('session', 'otherSession'))],
+            **rename)
+    checked('--check: a rename\'s name in a function another new file\'s entry renames fails', 1,
+            "stands outside the functions whose entries rename `session` to it: '    WorldSession* requestSession = "
+            "&session;'", [], moves=rename_moves[:2] + [dict(rename_moves[2], new_file=SELF_NEW_FILE + '.other')],
+            **rename)
 
-    for label, bad in split_gate.self_test(__file__, 'handler_moves', DATA_NAMES, 'MOVES'):
+    for label, bad in split_gate.self_test(__file__, 'handler_moves', DATA_NAMES, 'MOVES', checked_first=True):
         print('self-test: %-62s %s' % (label, 'PASS' if not bad else 'FAIL'))
         failures += bad
 
