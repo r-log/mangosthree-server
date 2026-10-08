@@ -40,7 +40,8 @@
 /// 0 to its end and, no battlemaster list entry naming that type, returns before it reads the
 /// player, sending nothing. The CMSG_AUCTION_PLACE_BID row reads a bid of price 0 on auction 0 at
 /// an empty auctioneer guid to its end and returns at the empty auction id before it reads the
-/// player, sending nothing.
+/// player, sending nothing. The CMSG_CANCEL_TRADE row, given an empty packet on a session with no
+/// player, finds no player to cancel the trade of and returns, reading nothing and sending nothing.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -52,6 +53,7 @@
 #include "session/handlers/combat/CombatHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
 #include "session/handlers/economy/LootHandlers.h"
+#include "session/handlers/economy/TradeHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
@@ -385,4 +387,65 @@ TEST(OpcodeDispatch_AuctionRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_AUCTION_LIST_PENDING_SALES].handler
           == &OpcodeThunk<&AuctionHandlers::HandleAuctionListPendingSales>);
     CHECK(opcodeTable[CMSG_AUCTION_PLACE_BID].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_TradeRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket cancel(CMSG_CANCEL_TRADE, 0);
+
+    opcodeTable[CMSG_CANCEL_TRADE].handler(session, cancel);
+
+    CHECK_EQ(cancel.rpos(), size_t(0));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_TradeRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_INITIATE_TRADE].handler == &OpcodeThunk<&TradeHandlers::HandleInitiateTrade>);
+    CHECK(opcodeTable[CMSG_BEGIN_TRADE].handler == &OpcodeThunk<&TradeHandlers::HandleBeginTrade>);
+    CHECK(opcodeTable[CMSG_BUSY_TRADE].handler == &OpcodeThunk<&TradeHandlers::HandleBusyTrade>);
+    CHECK(opcodeTable[CMSG_IGNORE_TRADE].handler == &OpcodeThunk<&TradeHandlers::HandleIgnoreTrade>);
+    CHECK(opcodeTable[CMSG_ACCEPT_TRADE].handler == &OpcodeThunk<&TradeHandlers::HandleAcceptTrade>);
+    CHECK(opcodeTable[CMSG_UNACCEPT_TRADE].handler == &OpcodeThunk<&TradeHandlers::HandleUnacceptTrade>);
+    CHECK(opcodeTable[CMSG_CANCEL_TRADE].handler == &OpcodeThunk<&TradeHandlers::HandleCancelTrade>);
+    CHECK(opcodeTable[CMSG_SET_TRADE_ITEM].handler == &OpcodeThunk<&TradeHandlers::HandleSetTradeItem>);
+    CHECK(opcodeTable[CMSG_CLEAR_TRADE_ITEM].handler == &OpcodeThunk<&TradeHandlers::HandleClearTradeItem>);
+    CHECK(opcodeTable[CMSG_SET_TRADE_GOLD].handler == &OpcodeThunk<&TradeHandlers::HandleSetTradeGold>);
+    CHECK(opcodeTable[CMSG_CANCEL_TRADE].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_TradeRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_INITIATE_TRADE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_INITIATE_TRADE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BEGIN_TRADE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BEGIN_TRADE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BUSY_TRADE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BUSY_TRADE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_IGNORE_TRADE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_IGNORE_TRADE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ACCEPT_TRADE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ACCEPT_TRADE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_UNACCEPT_TRADE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_UNACCEPT_TRADE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_TRADE].status, STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_TRADE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_TRADE_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_TRADE_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CLEAR_TRADE_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CLEAR_TRADE_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_TRADE_GOLD].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_TRADE_GOLD].packetProcessing, PROCESS_THREADUNSAFE);
 }

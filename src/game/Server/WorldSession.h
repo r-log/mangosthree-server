@@ -986,17 +986,6 @@ class WorldSession
         void HandleStablePet(WorldPacket& recvPacket);
         void HandleUnstablePet(WorldPacket& recvPacket);
 
-        void HandleAcceptTradeOpcode(WorldPacket& recvPacket);
-        void HandleBeginTradeOpcode(WorldPacket& recvPacket);
-        void HandleBusyTradeOpcode(WorldPacket& recvPacket);
-        void HandleCancelTradeOpcode(WorldPacket& recvPacket);
-        void HandleClearTradeItemOpcode(WorldPacket& recvPacket);
-        void HandleIgnoreTradeOpcode(WorldPacket& recvPacket);
-        void HandleInitiateTradeOpcode(WorldPacket& recvPacket);
-        void HandleSetTradeGoldOpcode(WorldPacket& recvPacket);
-        void HandleSetTradeItemOpcode(WorldPacket& recvPacket);
-        void HandleUnacceptTradeOpcode(WorldPacket& recvPacket);
-
         void HandleGetMailList(WorldPacket& recv_data);
 
         /// Everything CMSG_SEND_MAIL carries, captured by value into the continuation
@@ -1281,8 +1270,6 @@ class WorldSession
         void HandleMoverRelocation(Unit* mover, MovementInfo& movementInfo);
 
     private:
-        // private trade methods
-        void moveItems(Item* myItems[], Item* hisItems[]);
         bool VerifyMovementInfo(MovementInfo const& movementInfo) const;
         /// The caller passes the matching pair of members for one outcome; this bumps
         /// the session's plain counter and the process-wide atomic one together. The

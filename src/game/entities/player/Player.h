@@ -1009,6 +1009,7 @@ class TradeData
 class Player : public Unit
 {
         friend class WorldSession;
+        friend struct TradeHandlers;
         friend void Item::AddToUpdateQueueOf(Player* player);
         friend void Item::RemoveFromUpdateQueueOf(Player* player);
     public:

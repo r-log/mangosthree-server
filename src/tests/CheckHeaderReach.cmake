@@ -200,6 +200,7 @@ set(REACH_RULES
     "session/handlers/combat/CombatHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/economy/AuctionHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h,Object/AuctionHouseMgr.h"
     "session/handlers/economy/LootHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
+    "session/handlers/economy/TradeHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/economy/VendorHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h"
     "session/handlers/pvp/PvpHandlers.h|Server/WorldSession.h,entities/player/Player.h,Object/Unit.h,proto/WorldPacket.h,ObjectMgr.h,WorldHandlers/World.h,BattleGround/BattleGround.h,BattleGround/BattleGroundMgr.h,Object/ArenaTeam.h")
 set(MOTION_ONLY_HEADER "Object/Unit.h")
