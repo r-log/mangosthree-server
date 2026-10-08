@@ -38,7 +38,7 @@
 
 #include <type_traits>
 
-// Don't forget to change this value and add opcode name to Opcodes.cpp when you add new opcode!
+// The opcode table's size: one slot per opcode value below 0xFFFF, the same value proto/Opcodes.h defines.
 #define NUM_MSG_TYPES 0xFFFF
 
 /**

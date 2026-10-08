@@ -36,13 +36,11 @@
  * - Movement and action handling
  * - Chat and social interactions
  *
- * The session filters packets based on thread safety and context:
- * - Map::Update() context: Only process thread-safe packets
- * - World::UpdateSessions() context: Process all packets
+ * Which of the two drains runs a packet's handler: see \ref PacketProcessing in OpcodeTable.h.
  *
  * @see WorldSession for the session class
  * @see proto::ClientConnection for the network connection
- * @see Opcodes.cpp for opcode registration
+ * @see OpcodeTable.cpp for opcode registration
  */
 
 #include <zlib.h>
@@ -236,7 +234,7 @@ static bool MapSessionFilterHelper(WorldSession* session, OpcodeHandler const& o
  * @return True if packet should be processed
  *
  * Filters packets for processing in Map::Update context.
- * Only processes thread-safe packets when player is in world.
+ * Takes an in-place packet, and a thread-safe packet while the session's player is in the world.
  */
 bool MapSessionFilter::Process(WorldPacket* packet)
 {
@@ -256,13 +254,12 @@ bool MapSessionFilter::Process(WorldPacket* packet)
  * @return True if packet should be processed
  *
  * Filters packets for processing in World::UpdateSessions context.
- * Processes all packets when player is not in world or when
- * packet handler is not thread-safe.
+ * Takes an in-place or thread-unsafe packet, and a thread-safe packet while the session has no player in the world.
  */
 bool WorldSessionFilter::Process(WorldPacket* packet)
 {
     OpcodeHandler const& opHandle = opcodeTable[packet->GetOpcode()];
-    // check if packet handler is supposed to be safe
+    // an in-place packet runs at whichever drain reaches it first
     if (opHandle.packetProcessing == PROCESS_INPLACE)
     {
         return true;

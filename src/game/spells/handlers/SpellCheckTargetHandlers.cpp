@@ -37,7 +37,8 @@ static SpellHandlerOutcome<bool> CheckTargetSpout(SpellCheckTargetContext& ctx)
     return SpellHandlerOutcome<bool>::Continue();
 }
 
-/// 68921, 69049: Soulstorm: only a target farther than 10 yards from the caster
+/// 68921, 69049: Soulstorm: refuses a target in the caster's frame less than 10 yards from the caster, edge to edge
+/// in 2D
 static SpellHandlerOutcome<bool> CheckTargetSoulstorm(SpellCheckTargetContext& ctx)
 {
     if (ctx.m_caster->Where().WithinDist(ctx.target->Where(), 10.0f, false))

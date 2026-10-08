@@ -25,19 +25,8 @@
 
 /**
  * @file LootHandler.cpp
- * @brief Loot interaction opcode handlers
- *
- * This file handles loot-related opcodes including:
- * - CMSG_AUTOSTORE_LOOT_ITEM: Auto-loot item to inventory
- * - CMSG_LOOT: Open loot window
- * - CMSG_LOOT_MONEY: Loot money
- * - CMSG_LOOT_RELEASE: Close loot window
- * - CMSG_LOOT_ROLL: Roll for loot item
- * - CMSG_MASTER_LOOT_ITEM: Master looter distributes item
- *
- * Loot can come from creatures, gameobjects, fishing, and mail.
- * Different loot methods (Free for All, Round Robin, Master Looter, Group Loot)
- * determine how items are distributed among party members.
+ * @brief Defines one WorldSession member: DoLootRelease, which ends the player's looting of a game object, corpse,
+ * item or creature and updates the source's loot state.
  */
 
 #include "Platform/Define.h"

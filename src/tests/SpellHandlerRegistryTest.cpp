@@ -23,7 +23,7 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// Decoupling D11 (design/2026-09-28-unit-reopening.md 3(b)): the spell handler registry.
+/// Tests of the spell handler registry.
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
 /// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's,
@@ -1111,7 +1111,8 @@ TEST(SpellEffectTailHandlers_TheTransmittedSiteHoldsItsLabelAndTheDefault)
     CHECK(createSoulwell != onMiss);
     CHECK(registry.Find<SpellEffectTransmittedSite>(12345) == NULL);
 
-    // A miss runs the default, which answers Continue as the old `default: break;` did and keeps the effect's entry.
+    // A miss runs the default, which answers Continue as a switch's `default: break;` does and keeps the
+    // effect's entry.
     Unit* caster = NULL;
     uint32 name_id = 177000;
     SpellEffectTransmittedContext ctx(caster, name_id);
@@ -1228,8 +1229,8 @@ TEST(AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault)
     CHECK(onMiss != ascendance && onMiss != vigilance);
     CHECK(registry.Find<AuraProcTriggerSite>(12345) == NULL);
 
-    // The switch's `default: break;`: a miss runs the default, which continues after the switch, as the old
-    // fall-out did; 28200 at remove reads only `apply` and continues too.
+    // The switch's `default: break;`: a miss runs the default, which continues after the switch; 28200 at remove
+    // reads only `apply` and continues too.
     Unit* target = NULL;
     bool apply = false;
     AuraProcTriggerContext ctx(ModeAura(), target, apply);
@@ -1286,8 +1287,8 @@ TEST(AuraPeriodicHandlers_ThePeriodicTriggerSiteHoldsItsFourLabelsAndTheDefault)
     CHECK(bodies.count(onMiss) == 0);
     CHECK(registry.Find<AuraPeriodicTriggerSite>(12345) == NULL);
 
-    // A miss runs the `default: break;` and continues, as the old fall-out did. 66, 42783 and 51912 act only at
-    // expiry: at another removal mode they read the mode alone and return from the member, as their `return;` did.
+    // A miss runs the `default: break;` and continues after the switch. 66, 42783 and 51912 act only at expiry: at
+    // another removal mode they read the mode alone and return from the member at their `return;`.
     Aura* aura = ModeAura();
     Unit* target = NULL;
     aura->SetRemoveMode(AURA_REMOVE_BY_DEFAULT);
@@ -1343,7 +1344,7 @@ TEST(AuraPeriodicHandlers_TheEnergizeSiteHoldsItsFiveLabelsAndTheDefault)
     CHECK(registry.Find<AuraPeriodicEnergizeSite>(61782) == replenishment);
     CHECK(registry.Find<AuraPeriodicEnergizeSite>(12345) == NULL);
 
-    // A miss runs the `default: break;` and continues, as the old fall-out did.
+    // A miss runs the `default: break;` and continues after the switch.
     Unit* target = NULL;
     AuraPeriodicEnergizeContext ctx(ModeAura(), target);
     SpellHandlerOutcome<void> miss = registry.Dispatch<AuraPeriodicEnergizeSite>(12345, ctx);
@@ -1530,7 +1531,7 @@ TEST(SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault
     CHECK(registry.Find<SpellEffectEnergizeSite>(67490) == injector);
     CHECK(registry.Find<SpellEffectEnergizeSite>(12345) == NULL);
 
-    // A miss runs the default, which answers Continue as the old `default: break;` did and changes nothing.
+    // A miss runs the default, which answers Continue as a switch's `default: break;` does and changes nothing.
     Unit* caster = NULL;
     Unit* target = NULL;
     int32 damage = 100;
@@ -1621,8 +1622,8 @@ TEST(SpellEffectHealPowerHandlers_TheEnergizeContextAliasesTheSpellAndTheLevelLo
 
 namespace
 {
-    // Spell.dbc rows as the loader makes them (SpellEntry has no default constructor: it declares a private copy
-    // constructor): zeroed, with the id set.
+    // Spell.dbc rows in raw storage, as the loader makes them (SpellEntry has no default constructor: it declares a
+    // private copy constructor); zeroed here, with the id set.
     struct ObjectCombatSpellRow
     {
         alignas(SpellEntry) unsigned char bytes[sizeof(SpellEntry)];
@@ -2000,7 +2001,7 @@ TEST(SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault)
     CHECK(cannibalize != onMiss);
     CHECK(registry.Find<SpellTargetEffectDummySite>(12345) == NULL);
 
-    // A miss runs the default, which answers Continue as the switch's `default:` did and targets the unit target the
+    // A miss runs the default, which answers Continue as a switch's `default:` does and targets the unit target the
     // cast holds, if any; it reads nothing else of the spell.
     Creature caster(CREATURE_SUBTYPE_GENERIC);
     ValuedCreature target;
@@ -2248,7 +2249,7 @@ TEST(SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget)
 
 namespace
 {
-    // SpellEffect.dbc rows as the loader makes them: zeroed, with the effect index set.
+    // SpellEffect.dbc rows in raw storage, as the loader makes them; zeroed here, with the effect index set.
     struct WeaponDamageEffectRow
     {
         alignas(SpellEffectEntry) unsigned char bytes[sizeof(SpellEffectEntry)];

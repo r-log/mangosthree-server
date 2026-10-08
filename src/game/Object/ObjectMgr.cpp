@@ -663,11 +663,8 @@ GossipText const* ObjectMgr::GetGossipText(uint32 Text_ID) const
 
 namespace
 {
-    /// The slots of the expired-mail holder (decoupling D7f). Two independent reads over
-    /// the same `expire_time` cut-off, run back to back on the delay thread under one
-    /// connection lock -- so both see the same set of mails, which the two statements this
-    /// replaced (a blocking mail SELECT, then one item SELECT per mail, interleaved with
-    /// the returns and deletes themselves) did not.
+    /// The slots of the expired-mail holder: two reads over the same `expire_time` cut-off, run back to back on
+    /// the delay thread under one connection lock, so no other statement on that connection runs between them.
     enum ExpiredMailSlot
     {
         EXPIRED_MAIL_ROWS   = 0,
@@ -692,18 +689,9 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
         CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `expire_time` < '" UI64FMTD "' AND `has_items` = '0' AND `body` = ''", (uint64)basetime);
     }
 
-    // Decoupling D7f: this runs on the WUPDATE_AUCTIONS mail timer inside World::Update as
-    // well as at start-up, so its two reads are in the tick. Both are staged here and the
-    // returns and deletes happen in the continuation below.
-    //
-    // Slot 1 is the one statement that is not a copy of an old one. The old body issued
-    // `SELECT item_guid,item_template FROM mail_items WHERE mail_id = M` INSIDE its mail
-    // loop -- a read whose key it cannot know before the mail rows answer, so it cannot be
-    // staged as it stood. It becomes ONE join over the same set of mails, ordered by
-    // `mail_id`, walked as a cursor: each mail consumes the contiguous run of rows carrying
-    // its own id, and a mail that consumes nothing (an online receiver) is stepped over at
-    // the top of the next iteration, because both results ascend in the same key. That is
-    // the shape D7d's character delete uses for the same problem.
+    // Runs at start-up and on the daily mail timer inside World::Update, so both reads are staged here and the
+    // returns and deletes happen in the callback. Slot 1 reads the expired mails' items in one join ordered by
+    // `mail_id`; the callback walks it as a cursor beside the mail rows, since both results ascend in that key.
     SqlQueryHolder* holder = new SqlQueryHolder;
     holder->SetSize(EXPIRED_MAIL_COUNT);
     //                                       0     1              2         3           4            5              6      7          8
@@ -727,9 +715,8 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
 /**
  * @brief Returns or deletes the expired mails, once both reads have answered.
  *
- * The old body, with its per-mail item read replaced by a cursor over slot 1 and its two
- * `delete result` calls replaced by the holder's unique_ptrs. Every write it makes was
- * already queued (PExecute), so nothing here acquires anything.
+ * Walks slot 1 as a cursor beside the mail rows. Every write it makes is queued (PExecute), so nothing here
+ * runs a synchronous database call.
  *
  * @param holder   The two staged reads.
  * @param basetime The expiry cut-off the reads were staged with, which the returned mails'
@@ -750,7 +737,7 @@ void ObjectMgr::ReturnOrDeleteOldMailsCallback(std::unique_ptr<SqlQueryHolder> h
         bar.step();
         sLog.outString(">> Only expired mails (need to be return or delete) or DB table `mail` is empty.");
         sLog.outString();
-        return;                                             // any mails need to be returned or deleted
+        return;                                             // no mail needs to be returned or deleted
     }
 
     // std::ostringstream delitems, delmails; // will be here for optimization
