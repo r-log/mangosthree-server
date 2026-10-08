@@ -389,7 +389,7 @@ jobs:
 
           flags=(--verify-tag --title "MangosThree $tag" --notes-file notes.md "--latest=$latest")
           [ "$prerelease" = true ] && flags+=(--prerelease)
-          if gh release view "$tag" > /dev/null 2>&1; then
+          if out=$(gh release view "$tag" 2>&1); then
             target=$(gh api "repos/$GH_REPO/commits/$tag" --jq .sha)
             if [ "$target" != "$GITHUB_SHA" ]; then
               echo "::error::release $tag exists for ${target::7}, not for ${GITHUB_SHA::7}"; exit 1
@@ -399,7 +399,10 @@ jobs:
             [ "$prerelease" = true ] && editflags+=(--prerelease)
             gh release edit "$tag" "${editflags[@]}"
             echo "Refreshed existing release $tag"
-          else
+          elif [[ "$out" == *"release not found"* || "$out" == *"HTTP 404"* ]]; then
             gh release create "$tag" "${flags[@]}" "$zip"
             echo "Published $tag (latest=$latest, prerelease=$prerelease)"
+          else
+            echo "::error::cannot read the release $tag: $out"
+            exit 1
           fi
