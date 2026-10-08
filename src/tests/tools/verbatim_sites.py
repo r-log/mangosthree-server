@@ -40,7 +40,7 @@ statement, name or value, and on a tool that binds or changes one of the five it
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = 'b372321cc'
+BASE = 'f896bda39'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -1020,6 +1020,146 @@ SITES = {
                 23442: '        case 23442:',
                 36941: '        case 36941:',
                 36890: '        case 36890:'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellEffectDummy.cpp': {
+        'original': '6b4cd43c10a0416bb31135623095d2bb5a87e77c',
+        'handlers': 'src/game/spells/handlers/SpellEffectDummyHandlers.cpp',
+        'rows_function': 'RegisterSpellEffectDummyRows',
+        'added': ['#include "spells/handlers/SpellEffectDummyHandlers.h"'],
+        'sites': [{
+            'name': 'EffectDummy, case SPELLFAMILY_MAGE (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectDummyMageContext ctx(this, m_caster, unitTarget, damage, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectDummyMageSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectDummyMageSite',
+            'context': 'SpellEffectDummyMageContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.spell->DoCreateItem', 'DoCreateItem'), ('ctx.m_caster', 'm_caster'),
+                              ('ctx.unitTarget', 'unitTarget'), ('ctx.damage', 'damage'),
+                              ('ctx.effect', 'effect')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                11958: '                case 11958:                                 // Cold Snap',
+                31687: '                case 31687:                                 // Summon Water Elemental',
+                32826: '                case 32826:                                 // Polymorph Cast Visual',
+                38194: '                case 38194:                                 // Blink',
+                42955: '                case 42955:                                 // Conjure Refreshment'},
+        }, {
+            'name': 'EffectDummy, case SPELLFAMILY_WARRIOR (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectDummyWarriorContext ctx(m_caster, unitTarget, damage);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectDummyWarriorSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectDummyWarriorSite',
+            'context': 'SpellEffectDummyWarriorContext',
+            'live_outs': [],
+            'in_scope': ['effect', 'warClassOptions'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget'),
+                              ('ctx.damage', 'damage')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                21977: '                case 21977:',
+                12975: '                case 12975:',
+                23881: '                case 23881:',
+                30012: '                case 30012:                                 // Move',
+                30284: '                case 30284:                                 // Change Facing',
+                37144: '                case 37144:                                 // Move (Chess event player knight move)',
+                37146: '                case 37146:                                 // Move (Chess event player pawn move)',
+                37148: '                case 37148:                                 // Move (Chess event player queen move)',
+                37151: '                case 37151:                                 // Move (Chess event player rook move)',
+                37152: '                case 37152:                                 // Move (Chess event player bishop move)',
+                37153: '                case 37153:                                 // Move (Chess event player king move)'},
+        }, {
+            'name': 'EffectDummy, case SPELLFAMILY_ROGUE (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectDummyRogueContext ctx(m_caster, unitTarget);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectDummyRogueSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectDummyRogueSite',
+            'context': 'SpellEffectDummyRogueContext',
+            'live_outs': [],
+            'in_scope': ['effect'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                5938: '                case 5938:                                  // Shiv',
+                14185: '                case 14185:                                 // Preparation',
+                31231: '                case 31231:                                 // Cheat Death',
+                51662: '                case 51662:                                 // Hunger for Blood'},
+        }, {
+            'name': 'EffectDummy, case SPELLFAMILY_HUNTER (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectDummyHunterContext ctx(m_caster, unitTarget, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectDummyHunterSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectDummyHunterSite',
+            'context': 'SpellEffectDummyHunterContext',
+            'live_outs': ['effect'],
+            'in_scope': ['huntClassOptions'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget'),
+                              ('ctx.effect', 'effect')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                23989: '                case 23989:                                 // Readiness talent',
+                37506: '                case 37506:                                 // Scatter Shot',
+                53478: '                case 53478:',
+                53271: '                case 53271:'},
+        }, {
+            'name': 'EffectDummy, case SPELLFAMILY_PALADIN (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectDummyPaladinContext ctx(this, m_caster, unitTarget, m_spellInfo,',
+                '                                               m_currentBasePoints, m_UniqueTargetInfo, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectDummyPaladinSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectDummyPaladinSite',
+            'context': 'SpellEffectDummyPaladinContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.spell->SendCastResult', 'SendCastResult'),
+                              ('ctx.spell->AddUnitTarget', 'AddUnitTarget'), ('ctx.m_caster', 'm_caster'),
+                              ('ctx.unitTarget', 'unitTarget'), ('ctx.m_spellInfo', 'm_spellInfo'),
+                              ('ctx.m_currentBasePoints', 'm_currentBasePoints'),
+                              ('ctx.m_UniqueTargetInfo', 'm_UniqueTargetInfo'), ('ctx.effect', 'effect'),
+                              ('Spell::TargetList', 'TargetList')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                19740: '                case 19740:                                 // Blessing of Might',
+                20217: '                case 20217:                                 // Blessing of Kings',
+                31789: '                case 31789:                                 // Righteous Defense (step 1)',
+                37877: '                case 37877:                                 // Blessing of Faith'},
         }],
     },
 }
