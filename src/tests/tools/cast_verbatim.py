@@ -8,7 +8,8 @@ byte for byte as they did at BASE.
 BASE, FORMS and FILES live in cast_sites.py beside this file, which a rewrite edits; this file holds none
 of them and never changes them, and split_gate.py (whose docstring holds the rules) refuses to run it when
 it binds or changes one, when it runs with values other than the data file's, or when the data file holds
-anything but literal values.
+anything but literal values. The data file's rules are read from its source before it is imported, so a
+data file that would run anything else (an exit among them) is refused before it runs.
 
 For each file in FILES, --check:
   1. reads the file in the working tree and at BASE (`git show <base>:<file>`);
@@ -201,13 +202,16 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import split_gate  # noqa: E402
+
+# The names cast_sites.py assigns; split_gate.py holds the split.
+DATA_NAMES = ('BASE', 'FORMS', 'FILES')
+
+if split_gate.refused_before_import(__file__, 'cast_sites', DATA_NAMES):
+    sys.exit(1)
 try:
     from cast_sites import BASE, FILES, FORMS  # noqa: E402
 except Exception as e:
     sys.exit(split_gate.unloaded(__file__, 'cast_sites', e))
-
-# The names cast_sites.py assigns; split_gate.py holds the split.
-DATA_NAMES = ('BASE', 'FORMS', 'FILES')
 
 # The lines compared above and below each site.
 WINDOW = 11
@@ -2482,7 +2486,7 @@ def self_test():
             {'base': {old_p: SELF_OLD}}, moved,
             dict(own, AddSpellCooldown=dict(own['AddSpellCooldown'], elsewhere=[old_p])))
 
-    for label, bad in split_gate.self_test(__file__, 'cast_sites', DATA_NAMES, 'FILES'):
+    for label, bad in split_gate.self_test(__file__, 'cast_sites', DATA_NAMES, 'FILES', checked_first=True):
         print('self-test: %-72s %s' % (label, 'PASS' if not bad else 'FAIL'))
         failures += bad
 

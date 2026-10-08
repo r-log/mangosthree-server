@@ -32,10 +32,11 @@ tool's module-level code, or loaded from another file, fails there. It prints ea
 runs, and stops with 1 when it prints one. A tool imports its data inside `try: ... except Exception
 as e: sys.exit(split_gate.unloaded(__file__, '<data module>', e))`, so a data file that does not import,
 or raises while it runs, is refused by name too, with no traceback: unloaded() names the data file's line
-that raised or does not parse, the error's type and its message. verbatim.py runs refused_before_import()
-on its data file before that import: the data file's rules above, read from its source alone, so a data
-file holding anything that runs (an exit, which would end the tool with nothing printed, an import, a
-call) is refused before it runs, and only literal assignments ever run. Not seen:
+that raised or does not parse, the error's type and its message. verbatim.py and cast_verbatim.py run
+refused_before_import() on their data files before that import: the data file's rules above, read from
+its source alone, so a data file holding anything that runs (an exit, which would end the tool with
+nothing printed, an import, a call) is refused before it runs, and only literal assignments ever run.
+Not seen:
 a change made after check() through another name bound to a data value (`x = SITES; x.clear()`);
 that is a review item.
 """
@@ -347,10 +348,11 @@ def main(argv):
 '''
 
 
-def self_test(tool_file, data_module, names, bound):
+def self_test(tool_file, data_module, names, bound, checked_first=False):
     """The gate on fixtures shaped as the tool `tool_file` and its data file, `bound` one of the data names,
-    on the tool's own source and on the tool run without its data file and with one that raises: [(row label,
-    the row's failures as text)]."""
+    on the tool's own source and on the tool run without its data file, with one that raises and with one
+    that does not parse; with `checked_first` (a tool that runs refused_before_import()), also with one that
+    exits as it is imported: [(row label, the row's failures as text)]."""
     tool_name = os.path.basename(tool_file)
     tool = FIXTURE_TOOL.format(data=data_module, names=', '.join(names), tuple=tuple(names), bound=bound)
     data = ('"""The data."""\n_AID = [(\'a\', \'b\')] + [1] * 2\n_DICT = dict(key=_AID, other={\'x\': (1, None)})\n'
@@ -431,8 +433,8 @@ def self_test(tool_file, data_module, names, bound):
             run = run_copy(data_text)
         except Exception as e:                                  # a crash fails the row
             return ['split gate, %s %s: crashed: %r' % (tool_name, what, e)]
-        ok = (run.returncode == 1 and (run.stdout == want if whole else run.stdout.startswith(want))
-              and 'Traceback' not in run.stderr)
+        ok = (run.returncode == 1 and run.stdout != ''
+              and (run.stdout == want if whole else run.stdout.startswith(want)) and 'Traceback' not in run.stderr)
         return [] if ok else ['split gate, %s %s: rc %d, stdout %r, stderr %r'
                               % (tool_name, what, run.returncode, run.stdout[-300:], run.stderr[-300:])]
 
@@ -479,6 +481,29 @@ def self_test(tool_file, data_module, names, bound):
             except Exception as e:                              # a crash fails the row
                 found.append('split gate, %s with %r in its data: crashed: %r' % (tool_name, line, e))
         return found
+
+    def exiting_data_case():
+        """The tool run with its data file ending in lines that would exit as it is imported: each run stops
+        with 1 and prints the refusal, before the data file runs; never rc 0, never nothing printed."""
+        try:
+            own = own_data()
+        except Exception as e:                                  # a crash fails the row
+            return ['split gate, %s with an exiting data file: crashed: %r' % (tool_name, e)]
+        n = own.count('\n') + 1
+        tool = os.path.splitext(tool_name)[0]
+        statement = ('%s: REFUSED: %s.py:%%d: a %%s statement: a data file holds assignments to plain names only\n'
+                     % (tool, data_module))
+        head, rest = own.split('\n', 1)
+        latin = head + '\n# -*- coding: latin-1 -*-\n' + rest + '_C = "caf\xe9"\nraise SystemExit(0)\n'
+        cases = [('raise SystemExit(0)', (own + 'raise SystemExit(0)\n').encode('utf-8'), statement % (n, 'Raise')),
+                 ("os._exit(0) through __import__", (own + "_X = __import__('os')._exit(0)\n").encode('utf-8'),
+                  "%s: REFUSED: %s.py:%d: a Call (__import__('os')._exit(0)) in a value: %s\n"
+                  % (tool, data_module, n, VALUE_RULE)),
+                 ('import os and os._exit(0)', (own + 'import os\nos._exit(0)\n').encode('utf-8'),
+                  statement % (n, 'Import') + statement % (n + 1, 'Expr')),
+                 ('a latin-1 file that exits', latin.encode('latin-1', 'replace'), statement % (n + 2, 'Raise'))]
+        return [p for what, data, want in cases
+                for p in refused_by_name('with %s in its data' % what, data, want, True)]
 
     try:
         evaluated = data_values(data_module, data, names)[1]
@@ -562,6 +587,9 @@ def self_test(tool_file, data_module, names, bound):
     rows.append(('the split: this tool with a data file that raises: REFUSED by name', raising_data_case()))
     rows.append(('the split: this tool with a data file that does not parse: REFUSED at its line',
                  unparsed_data_case()))
+    if checked_first:
+        rows.append(('the split: a data file that exits as it is imported: REFUSED before it runs',
+                     exiting_data_case()))
     try:
         with open(os.path.abspath(tool_file), encoding='utf-8-sig') as f:
             own = tool_problems(tool_name, f.read(), data_module, names)
