@@ -46,7 +46,8 @@ MOVES holds one entry per moved function:
       name, a comment or a literal. The new file holds <name> only in the functions whose entries rename
       `session` to it, and there only as a whole word in code that follows no `.`, `->` or `::` (blanks and
       line breaks between aside) and no lone `>` or `:`. The definition's parameters are compared with <name>
-      read as `session`. No edit or substitution names <name>, and none reads back `session`;
+      read as `session`. No edit or substitution names <name>, and none reads back `session`. No line of the
+      moved function ends in a line splice (the compiler would join a name the reading reads as two);
   accessors  (header, class, name) entries: a member function of <class> that the entry's edits call on a
       receiver where the base read or wrote one of its data members. The proof reads <header> as git holds it
       at the entry's base (the entry names the header and the class; nothing in the data stands in for the
@@ -141,8 +142,8 @@ its base line reads no such member, a substitution of another shape, a definitio
 body, moved or at its base, that reads the session (naming the body line), an entry with such a
 definition listing a substitution, an edit or an accessor, a rename of another shape, a rename whose name
 the base file holds, or the new file holds outside the functions renamed to it or other than as a whole word
-in code, a `session` left in a moved line under a rename, and an edit or substitution naming the rename's
-name or reading back `session`.
+in code, a `session` left in a moved line under a rename, a line splice in a function under a rename, and an
+edit or substitution naming the rename's name or reading back `session`.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
 there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
@@ -574,6 +575,10 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         check_members(new_lines[at + len(head):end], members)
         span = new_lines[first:end]
         if new_name is not None:
+            spliced = [x for x in span if re.search(r'\\[ \t]*\r?$', x)]
+            if spliced:
+                raise Failure('%s: %r ends in a line splice: under a rename every moved line is read alone'
+                              % (entry['new_file'], spliced[0]))
             spans = []
             for header in beside:
                 try:
@@ -1743,6 +1748,37 @@ def self_test():
                        '    session->SendPacket(&data);\n    GetPlayer()->SendLog();\n}'),
             swap=('    requestSession->SendPacket(&data);\n}',
                   '    requestSession->SendPacket(&data);\n    requestSession->GetPlayer()->SendLog();\n}'))
+    pt = ('    player = requestSession->GetPlayer();', '    player = session->GetPlayer();')
+    for label, base_line, new_line in (
+            ('a rename\'s name after . and a blank in the moved function fails',
+             '    player = other. session->GetPlayer();', '    player = other. requestSession->GetPlayer();'),
+            ('a rename\'s name after :: and a blank in the moved function fails',
+             '    player = Other:: session->GetPlayer();', '    player = Other:: requestSession->GetPlayer();')):
+        renamed(label, 1, stray, 1, base_swap=(pt[1], base_line), swap=(pt[0], new_line))
+    renamed('a rename\'s name after a lone : in the moved function fails', 1, stray, 1,
+            base_swap=(pt[1], '    player = player ? player :session->GetPlayer();'),
+            swap=(pt[0], '    player = player ? player :requestSession->GetPlayer();'))
+    renamed('a rename\'s name on the line after the moved function fails', 1,
+            "stands outside the functions whose entries rename `session` to it: 'static WorldSession* requestSession;'",
+            swap=('    requestSession->SendPacket(&data);\n}\n', '    requestSession->SendPacket(&data);\n}\n'
+                  'static WorldSession* requestSession;'))
+    renamed('a renamed local read twice on one line pastes back', 0,
+            "(0 edits, 'requestSession' read back as session 4 times)", 1,
+            base_swap=('    if (!session)\n', '    if (!session || !session->GetPlayer())\n'),
+            swap=('    if (!requestSession)\n', '    if (!requestSession || !requestSession->GetPlayer())\n'))
+    for label, spliced in (
+            ('a line splice with a blank after the backslash under a rename fails', '    ses\\ \nsion.Kick();'),
+            ('a line splice in a function under a rename fails', '    ses\\\nsion.Kick();')):
+        renamed(label, 1, 'ends in a line splice: under a rename', 2,
+                base_swap=('    GetPlayer()->SendLog();', '    GetPlayer()->SendLog();\n' + spliced),
+                swap=(send_log, send_log + '\n' + spliced))
+    crlf_splice = [t.replace(a, a + '\n    ses\\\nsion.Kick();').replace('\n', '\r\n') for t, a in (
+        (SELF_RENAME_BASE, '    GetPlayer()->SendLog();'), (SELF_RENAME_NEW, send_log))]
+    run('a CRLF line splice in a function under a rename fails', 1, 'ends in a line splice: under a rename', 2,
+        base=crlf_splice[0], new=crlf_splice[1], moves=SELF_RENAME_MOVES, beside=renamed_heads[:2])
+    brief = (' * @brief Answers the read.', ' * @brief Answers the read. \\')
+    renamed('a doc comment line ending in a line splice under a rename fails', 1,
+            "' * @brief Answers the read. \\\\' ends in a line splice", base_swap=brief, swap=brief)
     renamed('the rename not listed: the base names session fails', 1,
             'the base function names `session` in code: the reversal cannot tell it from the parameter', 2, rename=None)
 
