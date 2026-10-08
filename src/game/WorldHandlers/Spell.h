@@ -747,7 +747,9 @@ class Spell
             uint8 effectMask;
         };
 
+    public:
         typedef std::list<TargetInfo>     TargetList;
+    protected:
         typedef std::list<GOTargetInfo>   GOTargetList;
         typedef std::list<ItemTargetInfo> ItemTargetList;
 
