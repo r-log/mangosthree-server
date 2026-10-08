@@ -26,21 +26,52 @@ MOVES holds one entry per moved function:
       `session`, `_player` or `this` in code and names `GetPlayer` and `SendPacket` only on another
       object or class (`sObjectMgr.GetPlayer(guid)`, `ObjectAccessor::GetPlayer(guid)`,
       `bidder->GetSession()->SendPacket(...)`), never bare or through `WorldSession::`, and its entry lists
-      no substitution and no edit, so the reversal pastes base_header back over the definition and the
+      no substitution, edit or accessor, so the reversal pastes base_header back over the definition and the
       body comes back as it stands;
-  substitutions  (new text, base text) pairs, each matching code at least once and only where no name,
-      `.`, `->` or `::` runs into it (a sender's call `SendAttackStop(session, ` read back as `SendAttackStop(`);
+  substitutions  (new text, base text) pairs, each side one line, each matching code at least once and
+      only where no name, `.`, `->` or `::` runs into it and, when its new text ends in a name character,
+      where no name runs on from it (`&session` does not match in `&sessionTarget`); a pair is a player
+      form, its two texts reading the same under the player reading below (`GetPlayer()` read back as
+      `_player`, `&session` as `this`), or a call read back without the session, `<Name>(session, ` as
+      `<Name>(` or `<Name>(session)` as `<Name>()`, the same <Name> on both sides (a sender's call
+      `SendAttackStop(session, ` read back as `SendAttackStop(`);
   edits  (new line, base line) or (new line, base line, count) entries: a line changed beyond the
-      substitutions, read back whole; it must be found exactly count times in the function, its definition
-      aside (1 when not given; fewer or more fails, naming which), and every one of them is read back; a
-      new line listed twice fails.
-A definition line may span lines: its parameter list continues on the following lines up to the line that
-closes it. The entry quotes such a definition with its lines joined by line breaks, each line exactly as the
-file holds it, and the definition must open its parameter list on its first line and close it at the end of
-its last, holding no comment but a commented-out parameter, and no literal, brace, semicolon, backslash or
-`#`. The shape is checked on the definition read as one line, each line break and the indentation after it
-read as one space; nothing else reads it so. new_header may span one line or any number: the reversal
-pastes back base_header's lines whole, and the proof is on the body.
+      substitutions, read back whole; each side is one line, the two read the same under the player
+      reading (the new line read after its listed accessors' calls, below), and the new line reads in place
+      as it does alone; it must be found exactly count times in the function, its definition aside (1 when
+      not given; fewer or more fails, naming which), and every one of them is read back; a new line listed
+      twice fails;
+  accessors  (header, class, name) entries: a member function of <class> that the entry's edits call on a
+      receiver where the base read or wrote one of its data members. The proof reads <header> as git holds it
+      at the entry's base (the entry names the header and the class; nothing in the data stands in for the
+      read) and takes the function's body from the class's body, where it is named once: a getter takes
+      nothing and its body is exactly `return <member>;`, a setter takes one parameter and its body is exactly
+      `<member> = <parameter>;`, blanks aside (no comment, no other statement, no cast, no call), <member> a
+      data member the class declares (`<type> <member>;`); the getter's declared return type, or the setter's
+      parameter type, is the member's declared type (blanks, a getter's trailing `const`, and `inline`,
+      `static`, `constexpr` and `mutable` aside), and the function is not `virtual`, `override` or `final`;
+      each listed accessor is called by an edit. On an edit's new line, in
+      code only, a getter called on a receiver, `->name()` or `.name()`, reads as `-><member>` or `.<member>`,
+      and a setter called on one as a statement, `->name(<arg>);`, reads as `-><member> = <arg>;`; the
+      receiver and the rest of the line stay as they are and must read as the base line does under the player
+      reading, and a call on the session itself (`session.`, `(&session)->`) is not read. The receiver's type
+      is not read: the base line compiles only where the receiver has <member>, and the form trusts that
+      class to be <class>.
+The player reading reads a line alone and in its code only, comments and literals staying as they are (so
+an edit's comments and literals are byte-equal on both sides): `session.GetPlayer()`, `_player` and
+`GetPlayer()` read as one token, `session.` is dropped and `&session` not followed by a name or `.` reads as
+`this`, each where it neither runs on from a name nor follows `.`, `->` or `::` (blanks between aside), and
+`_player` only as a whole word. A new line reads in place as it does alone when no comment or literal is
+open across it, no line splice joins it to the line before or after, and the reading of it after the lines
+above it is its reading alone (no `.`, `->` or `::` ending the line above runs into it). These are the only
+shapes of an edit and of a substitution; no key of an entry admits another.
+A definition holds no comment but a commented-out parameter, and no literal. It may span lines: its
+parameter list continues on the following lines up to the line that closes it. The entry quotes such a
+definition with its lines joined by line breaks, each line exactly as the file holds it, and the definition
+must open its parameter list on its first line and close it at the end of its last, holding no brace,
+semicolon, backslash or `#`. The shape is checked on the definition read as one line, each line break and
+the indentation after it read as one space; nothing else reads it so. new_header may span one line or any
+number: the reversal pastes back base_header's lines whole, and the proof is on the body.
 RESIDUES holds one entry per change that kept an old file: base, base_file, and each of these when it has
 some:
   removed  the include lines that change removed from it (`#include ...`, exact text);
@@ -54,8 +85,9 @@ For each entry, --check:
      to the first `}` at column 0, each definition found exactly once; the comment lines read above it
      must hold no code when read alone (a block comment opening above them, or a directive after a `*/`,
      fails);
-  2. fails on a body line naming a member of `WorldSession` bare (an implicit `this->` the move missed:
-     the static would compile against a free function or global of that name); the names are every
+  2. fails on a body line naming a member of `WorldSession` bare, not after a name, `.`, `->`, `::` or `~`
+     (a lone `>` or `:` is none of them): an implicit `this->` the move missed, where the static would
+     compile against a free function or global of that name; the names are every
      member function and data member at class scope in the working tree's `WorldSession.h`, read by
      verbatim.py's MEMBERS_OF reader (class_members). A name followed by `::` is a namespace or class
      qualifier (`std::string`, `Motion::Reason`), not a member use, and passes; the same name alone fails;
@@ -91,13 +123,18 @@ moved function the residue still defines fails. A deleted base_file has no resid
 base its entries name every `WorldSession::` definition it held must be one an entry moves (otherwise
 deleting the file would skip the residue proof); a RESIDUES entry for a deleted file, or at a base no entry
 of the file names, fails.
-A definition line of another shape and an edit or substitution that matches nothing fail by name; so do a
-definition taking no session over a body, moved or at its base, that reads the session (naming the body
-line), and an entry with such a definition listing a substitution or an edit. A carriage return anywhere
-but before a line break, in any text the proof reads (a file at a base or in the working tree, a
-definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line there, and the
-comment reader does not. The header's `static` is handler_classes.py's to check (a handler class has static
-member functions only).
+A definition line of another shape or holding a comment or a literal, and an edit or substitution that
+matches nothing, fail by name; so do an edit or substitution holding a line break, an edit changing more
+than how the player is read or reading otherwise in place than alone, an accessor its header at the base
+does not hold in the class's body as a getter or setter of that shape, that is virtual, whose declared type is
+not its member's, or that no edit calls, an edit calling one on another receiver than its base line or where
+its base line reads no such member, a substitution of another shape, a definition taking no session over a
+body, moved or at its base, that reads the session (naming the body line), and an entry with such a
+definition listing a substitution, an edit or an accessor.
+A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
+working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
+there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
+class has static member functions only).
 
 python src/tests/tools/handler_verbatim.py --check       # every entry against its base, reading git
 python src/tests/tools/handler_verbatim.py --self-test   # fixtures only, no git
@@ -151,7 +188,8 @@ DATA_NAMES = ('MOVES', 'RESIDUES')
 
 NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
 NO_SESSION_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\((?P<params>.*)\)$')
-SESSION_READ = re.compile(r'\b(?:session|_player|this)\b|(?<![\w.>:])(?:WorldSession::)?(?:GetPlayer|SendPacket)\b')
+SESSION_READ = re.compile(r'\b(?:session|_player|this)\b|'
+                          r'(?<![\w.])(?<!->)(?<!::)(?:WorldSession::)?(?:GetPlayer|SendPacket)\b')
 BASE_HEADER = re.compile(r'(?P<type>\S.*?) WorldSession::\w+\((?P<params>.*)\)$')
 PARAM_COMMENT = re.compile(r'/\*\s*(\w+)\s*\*/')
 INCLUDE = re.compile(r'#\s*include\s*(<[^<>]+>|"[^"]+")\s*(//.*)?$')
@@ -159,6 +197,20 @@ SESSION_DOT = re.compile(r'(?<![\w.>:])session\.')
 COMMENT = re.compile(r'\s*(/\*|\*|//)')
 CARRIAGE_RETURN = re.compile(r'\r(?!\n|\Z)')
 DIRECTIVE = re.compile(r'\s*(?:#|%:)\s*(\w*)')
+PLAYER_FORM = re.compile(r'session\.GetPlayer\(\)|_player\b|GetPlayer\(\)|session\.|&session(?![\w.])')
+PLAYER_READ = {'session.': '', '&session': 'this'}
+SENDER = re.compile(r'(\w+)\(session(, |\))$')
+ACCESSOR_GET = re.compile(r'return\s+(\w+)\s*;')
+ACCESSOR_SET = re.compile(r'(\w+)\s*=\s*(\w+)\s*;')
+ACCESSOR_PARAM = re.compile(r'[^,=()]*[\s*&](\w+)')
+ACCESS_LABEL = re.compile(r'\b(?:public|private|protected)\s*:')
+DECLARATION_WORDS = ('inline', 'static', 'constexpr', 'mutable')
+
+
+def name_edge(text):
+    """The right edge of a substitution: a text ending in a name character matches only where no name
+    character follows it."""
+    return r'(?!\w)' if re.match(r'\w', text[-1:]) else ''
 
 
 def find_lines(lines, text):
@@ -174,14 +226,16 @@ def head_lines(header):
 
 
 def joined(header):
-    """The definition as one line, for the shape check only: a definition spanning lines opens its parameter
-    list on its first line and closes it on its last, holds no comment but a commented-out parameter, no
-    literal, brace, semicolon, backslash or `#`, and reads with each line break and the indentation after it
-    as one space."""
+    """The definition as one line, for the shape check only: a definition holds no comment but a commented-out
+    parameter and no literal; one spanning lines opens its parameter list on its first line and closes it on
+    its last, holds no brace, semicolon, backslash or `#`, and reads with each line break and the indentation
+    after it as one space."""
     lines = header.split('\n')
-    if len(lines) == 1:
-        return header
     bare = re.sub(r'/\*[ \t]*\w+[ \t]*\*/', '', header)
+    if len(lines) == 1:
+        if blank(bare) != bare:
+            raise Failure('the definition holds a comment or a literal: %r' % header)
+        return header
     if blank(bare) != bare:
         raise Failure('the definition spans %d lines and holds a comment or a literal: %r' % (len(lines), header))
     if re.search(r'[{};\\#]', bare):
@@ -221,7 +275,7 @@ def check_members(body, members):
     """A member of WorldSession named bare in a body line (comments and literals blanked)."""
     if not members:
         return
-    bare = re.compile(r'(?<![\w.>:~])(%s)\b(?!\s*::)' % '|'.join(re.escape(m) for m in sorted(members)))
+    bare = re.compile(r'(?<![\w.~])(?<!->)(?<!::)(%s)\b(?!\s*::)' % '|'.join(re.escape(m) for m in sorted(members)))
     for n, line in enumerate(blank('\n'.join(body)).split('\n'), 1):
         m = bare.search(line)
         if m:
@@ -275,12 +329,160 @@ def read_edits(entry):
     return edits, counts
 
 
-def verify(entry, base_text, tree_base_text, new_text, members, out=print):
+def player_form(line, before=''):
+    """The line as the player reading reads it, in its code only (comments and literals stay as they are):
+    `session.GetPlayer()`, `_player` and `GetPlayer()` read as one token, `session.` dropped and `&session` not
+    followed by a name or `.` read as `this`, each where it neither runs on from a name nor follows `.`, `->` or
+    `::` (blanks between aside). `before` is the text the line is read after; without it, the line alone."""
+    whole = blank(before + line)
+    out, last = [], 0
+    for m in PLAYER_FORM.finditer(whole, len(before)):
+        prior = whole[:m.start()]
+        if prior[-1:].isalnum() or prior[-1:] == '_' or prior.rstrip().endswith(('.', '->', '::')):
+            continue
+        out.append(line[last:m.start() - len(before)] + PLAYER_READ.get(m.group(0), '\0'))
+        last = m.end() - len(before)
+    return ''.join(out) + line[last:]
+
+
+def check_lines(entry):
+    """Each side of each edit and substitution is one line."""
+    for e in entry.get('edits', []) + entry.get('substitutions', []):
+        if any(isinstance(x, str) and '\n' in x for x in e[:2]):
+            raise Failure('the edit or substitution %r holds a line break: each side is one line' % (e[0],))
+
+
+def closing(code, at):
+    """Where the bracket opened at code[at] closes (len(code) when it never does)."""
+    pair = {'(': ')', '{': '}'}[code[at]]
+    depth = 0
+    for k in range(at, len(code)):
+        depth += (code[k] == code[at]) - (code[k] == pair)
+        if depth == 0:
+            return k
+    return len(code)
+
+
+def type_of(text):
+    """A declared type, blanks and `inline`, `static`, `constexpr` and `mutable` aside."""
+    return ''.join(w for w in re.split(r'(\W)', text) if w.strip() and w not in DECLARATION_WORDS)
+
+
+def read_accessors(entry, headers):
+    """[(name, member, kind)] of the entry's accessors, each read from its header as git holds it at the entry's
+    base (`headers`: {path: text, or None when git has none}): a getter taking nothing whose body is `return
+    <member>;` (kind 'get'), or a setter taking one parameter whose body is `<member> = <parameter>;` (kind 'set'),
+    blanks aside, defined in the class's body, <member> a data member the class declares."""
+    found = []
+    for a in entry.get('accessors', []):
+        if not (isinstance(a, (tuple, list)) and len(a) == 3 and all(isinstance(x, str) for x in a)):
+            raise Failure('the accessor %r is not (header, class, name)' % (a,))
+        path, cls, name = a
+        what, where = '%s::%s' % (cls, name), '%s at %s' % (path, entry['base'])
+        text = (headers or {}).get(path)
+        if text is None:
+            raise Failure('the accessor %s: cannot read %s' % (what, where))
+        code = blank(text)
+        opened = re.search(r'\b(?:class|struct)\s+%s\b[^;{]*\{' % re.escape(cls), code)
+        if not opened:
+            raise Failure('the accessor %s: %s defines no class %s' % (what, where, cls))
+        start = opened.end()
+        cls_code = code[start:closing(code, start - 1)]
+        flat, depth = [], 0
+        for c in cls_code:
+            depth -= c == '}'
+            flat.append(c if depth == 0 else ' ')
+            depth += c == '{'
+        flat = ACCESS_LABEL.sub(lambda m: ';' + ' ' * (len(m.group(0)) - 1), ''.join(flat))
+        named = list(re.finditer(r'\b%s\s*\(' % re.escape(name), flat))
+        if len(named) != 1:
+            raise Failure('the accessor %s: the class in %s names it %d times, not once' % (what, where, len(named)))
+        close = closing(cls_code, named[0].end() - 1)
+        params = text[start + named[0].end():start + close].strip()
+        head = flat[:named[0].start()]
+        declared = head[max(head.rfind(';'), head.rfind('{'), head.rfind('}')) + 1:]
+        braced = re.match(r'\s*((?:\w+\s*)*)\{', cls_code[close + 1:])
+        qualifiers = braced.group(1).split() if braced else []
+        if re.search(r'\bvirtual\b', declared) or {'override', 'final'} & set(qualifiers):
+            raise Failure('the accessor %s in %s is virtual: the call may not run the body read' % (what, where))
+        if not braced:
+            raise Failure('the accessor %s: the class in %s holds no body of it' % (what, where))
+        at = close + 1 + braced.end()
+        body = text[start + at:start + closing(cls_code, at - 1)].strip()
+        get, put = ACCESSOR_GET.fullmatch(body), ACCESSOR_SET.fullmatch(body)
+        param = ACCESSOR_PARAM.fullmatch(params)
+        if get and not params:
+            member, kind = get.group(1), 'get'
+        elif put and param and put.group(2) == param.group(1):
+            member, kind = put.group(1), 'set'
+        else:
+            raise Failure('the accessor %s in %s is neither a getter `return <member>;` nor a setter `<member> = '
+                          '<parameter>;` of one parameter: (%s) { %s }' % (what, where, params, ' '.join(body.split())))
+        held = re.search(r'(?:^|[;{}])([^;{}]*?)\b%s\s*;' % re.escape(member), flat)
+        if not held:
+            raise Failure('the accessor %s in %s reads %s, which the class declares no data member as' % (
+                what, where, member))
+        have = declared if kind == 'get' else params[:param.start(1)]
+        if type_of(have) != type_of(held.group(1)):
+            raise Failure('the accessor %s in %s %s %r, the member %s is %r' % (
+                what, where, 'returns' if kind == 'get' else 'takes', ' '.join(have.split()), member,
+                ' '.join(held.group(1).split())))
+        found.append((name, member, kind))
+    return found
+
+
+def accessor_form(line, accessors):
+    """The line with each listed getter called on a receiver, `->name()` or `.name()`, read as `-><member>` or
+    `.<member>`, and each listed setter called on one as a statement, `->name(<arg>);`, read as `-><member> =
+    <arg>;`, in its code only; a call on the session itself is not read."""
+    for name, member, kind in accessors:
+        code = blank(line)
+        for m in reversed(list(re.finditer(r'(?:->|\.)(%s)\(' % re.escape(name), code))):
+            close = closing(code, m.end() - 1)
+            if re.search(r'(?:(?<![\w.])session|&\s*session\s*\))\s*$', code[:m.start()]):
+                continue
+            if kind == 'get' and close == m.end():
+                line = line[:m.start(1)] + member + line[close + 1:]
+            elif kind == 'set' and code[close + 1:close + 2] == ';':
+                line = line[:m.start(1)] + member + ' = ' + line[m.end():close] + line[close + 1:]
+    return line
+
+
+def check_forms(entry, accessors=()):
+    """An edit's two lines read the same under the player reading, each read alone, after the listed accessors'
+    calls on the new line are read as the members they read or write; so do a substitution's two texts, or it is
+    a call read back without the session (`<Name>(session, ` as `<Name>(`, `<Name>(session)` as `<Name>()`).
+    Each listed accessor is called by an edit."""
+    called = set()
+    for e in entry.get('edits', []):
+        calls = [a for a in accessors if accessor_form(e[0], [a]) != e[0]]
+        called |= {a[0] for a in calls}
+        if player_form(accessor_form(e[0], calls)) == player_form(e[1]):
+            continue
+        if not calls:
+            raise Failure('the edit %r changes more than how the player is read: base %r' % (e[0], e[1]))
+        absent = [a for a in calls if not re.search(r'(?:->|\.)%s\b' % re.escape(a[1]), blank(e[1]))]
+        if absent:
+            raise Failure('the edit %r calls %s, which reads %s, and its base line reads no %s: base %r' % (
+                e[0], absent[0][0], absent[0][1], absent[0][1], e[1]))
+        raise Failure('the edit %r calls %s on another receiver than its base line reads %s on, or changes more '
+                      'than how the player is read: base %r' % (e[0], calls[0][0], calls[0][1], e[1]))
+    unused = [a[0] for a in accessors if a[0] not in called]
+    if unused:
+        raise Failure('the accessor %s is called by no edit' % unused[0])
+    for a, b in entry.get('substitutions', []):
+        m = SENDER.match(a)
+        if player_form(a) != player_form(b) and not (m and b == m.group(1) + ('(' if m.group(2) == ', ' else '()')):
+            raise Failure('the substitution %r -> %r is neither a player form nor a call read back without the '
+                          'session' % (a, b))
+
+
+def verify(entry, base_text, tree_base_text, new_text, members, out=print, headers=None):
     """0 when the entry's function pastes back byte for byte; 1 with the reason printed."""
     name = '%s %s' % (entry['new_file'], re.sub(r'\n[ \t]*', ' ', entry['new_header']))
     try:
         takes = check_shape(entry['new_header'], entry['base_header'])
-        for key, what in (('substitutions', 'a substitution'), ('edits', 'an edit')):
+        for key, what in (('substitutions', 'a substitution'), ('edits', 'an edit'), ('accessors', 'an accessor')):
             if not takes and entry.get(key):
                 raise Failure('the definition line takes no session, but the entry lists %s' % what)
         texts = [new_text, base_text, tree_base_text or '', entry['new_header'], entry['base_header']] + [
@@ -296,13 +498,15 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
         span = new_lines[first:end]
         if not entry['new_file'].startswith(HANDLERS_DIR + '/'):
             raise Failure('the new file is not under %s, where handler_classes.py reads it' % HANDLERS_DIR)
+        check_lines(entry)
         edits, counts = read_edits(entry)
         for line in edits:
             hits = sum(1 for k, x in enumerate(span) if x == line and k not in head)
             if hits != counts[line]:
                 raise Failure('the edit %r matches %d lines of the function, not the %d it covers: too %s found' % (
                     line, hits, counts[line], 'few' if hits < counts[line] else 'many'))
-        rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a)), b)
+        check_forms(entry, read_accessors(entry, headers))
+        rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a) + name_edge(a)), b)
                                        for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
         pasted = []
@@ -312,6 +516,11 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
                     pasted += [x + ('\r' if line.endswith('\r') else '') for x in entry['base_header'].split('\n')]
                 continue
             if line in edits:
+                before = '\n'.join(span[:k]) + '\n'
+                if (blank(line) != code or player_form(line, before) != player_form(line)
+                        or before[:-1].rstrip('\r').endswith('\\') or line.rstrip('\r').endswith('\\')):
+                    raise Failure('the edit %r reads otherwise in place than alone: a comment or literal open across '
+                                  'it, a line splice at its edge, or a `.`, `->` or `::` before it' % line)
                 line = edits[line]
             else:
                 for r, (pattern, text) in enumerate(rules):
@@ -514,7 +723,14 @@ def check(root, base=None, out=print, moves=None, residues=None):
             out('%s: FAILED: not in the working tree' % entry['new_file'])
             rc = 1
             continue
-        rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out)
+        headers = {}
+        for a in entry.get('accessors', []):
+            if isinstance(a, (tuple, list)) and a and isinstance(a[0], str) and a[0] not in headers:
+                try:
+                    headers[a[0]] = git_show(root, entry['base'], a[0])
+                except (OSError, subprocess.CalledProcessError):
+                    headers[a[0]] = None
+        rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out, headers)
     for rel in sorted({e['base_file'] for e in moves} | {r['base_file'] for r in residues_all}):
         entries = [e for e in moves if e['base_file'] == rel]
         residues = [dict(r, base=base or r['base']) for r in residues_all if r['base_file'] == rel]
@@ -567,6 +783,38 @@ SELF_SESSION = '''class WorldSession
         Motion::Reason m_reason;
         proto::SessionId m_sessionId;
         uint32 std;
+};'''
+
+SELF_PLAYER = '''class Player;
+
+class Player : public Unit
+{
+    public:
+        TradeData* GetTradeData() const { return m_trade; }
+        void SetTradeData(TradeData* data) { m_trade = data; }
+        TradeData* GetTradeTwice() const { Touch(); return m_trade; }
+        TradeData* GetTradeCast() const { return (TradeData*)m_trade; }
+        TradeData* GetTradeCall() const { return Trade(); }
+        TradeData* GetTradeNoted() const { return m_trade; /* the trade */ }
+        TradeData* GetGlobal() const { return g_trade; }
+        TradeData* GetTradeOut() const;
+        TradeData* GetTradeFor(int n = 0) const { return m_trade; }
+        void SetTradeBoth(TradeData* data) { m_trade = data; m_other = data; }
+        void SetTradeTwo(int n, TradeData* data) { m_trade = data; }
+        void SetTradeOther(TradeData* data) { m_trade = m_other; }
+        void Twice() { GetTradeData(); }
+        void Twice(int n) { }
+        virtual TradeData* GetTradeVirtual() const { return m_trade; }
+        TradeData* GetTradeOverride() const override { return m_trade; }
+        uint8 GetNarrow() const { return m_count; }
+        inline TradeData* GetTradeInline() const { return m_trade; }
+        bool HasTrade() const { return m_trade; }
+        void SetNarrow(uint8 n) { m_count = n; }
+        void SetTradeFirst(TradeData* data, int n) { m_trade = data; }
+    private:
+        TradeData* m_trade;
+        TradeData* m_other;
+        uint32 m_count;
 };'''
 
 SELF_SWING = '''/**
@@ -743,7 +991,7 @@ def self_test():
     members = class_members(SELF_SESSION, 'WorldSession')
 
     def run(label, want_rc, needle, entry=0, swap=None, tree_base='#include "WorldSession.h"\n', base=SELF_BASE,
-            new=SELF_NEW, moves=SELF_MOVES, **change):
+            new=SELF_NEW, moves=SELF_MOVES, headers=None, **change):
         if swap:
             if swap[0] not in new:
                 failures.append('%s: the mutation %r matches nothing' % (label, swap[0]))
@@ -752,7 +1000,7 @@ def self_test():
             new = new.replace(*swap)
         got = []
         try:
-            rc = verify(dict(moves[entry], **change), base, tree_base, new, members, got.append)
+            rc = verify(dict(moves[entry], **change), base, tree_base, new, members, got.append, headers)
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -843,6 +1091,223 @@ def self_test():
     run('an edit of 2 identical lines listed as 3 fails', 1, 'not the 3 it covers: too few found', 2,
         edits=[SELF_BANKER + (3,)])
     run('an edit covering 0 lines fails', 1, 'a count is 1 or more', 2, edits=[SELF_BANKER + (0,)])
+
+    enemy = SELF_MOVES[0]['edits'][0]
+    attack = ('    session.GetPlayer()->Attack(enemy, true);', '    GetPlayer()->Attack(enemy, true);')
+    unguarded = ('ReadGuid());\n    if (!enemy)\n', 'ReadGuid());\n')
+    broken = 'a line break: each side is one line'
+    more = 'changes more than how the player is read'
+    otherwise = 'reads otherwise in place than alone'
+    neither = 'is neither a player form nor a call read back without the session'
+
+    def edited(label, want_rc, needle, new_lines, base_lines, **change):
+        """The attack line replaced by new_lines in the new file and base_lines at the base, their last lines
+        listed as an edit beside the entry's own."""
+        change.setdefault('edits', [enemy, (new_lines.split('\n')[-1], base_lines.split('\n')[-1])])
+        run(label, want_rc, needle, 0, swap=(attack[0], new_lines), base=SELF_BASE.replace(attack[1], base_lines),
+            **change)
+
+    run('an edit whose base line holds a line break fails', 1, broken, 0, swap=unguarded,
+        edits=[(enemy[0], enemy[1] + '\n    if (!enemy)')])
+    run('an edit whose new line holds a line break fails', 1, broken, 0,
+        edits=[(enemy[0] + '\n    if (!enemy)', enemy[1] + '\n    if (!enemy)')])
+    run('a substitution whose base text holds a line break fails', 1, broken, 0, swap=unguarded, edits=[],
+        substitutions=[('SendStop(session, ', 'SendStop('),
+                       ('Unit* enemy = GetPlayer()->GetMap()->GetUnit(recv_data.ReadGuid());',
+                        'Unit* enemy = _player->GetMap()->GetUnit(recv_data.ReadGuid());\n    if (!enemy)')])
+    edited('an edit changing more than how the player is read fails', 1, more,
+           '    session.GetPlayer()->Attack(enemy, false);', attack[1])
+    run('an edit reading the player bare at its base passes', 0, 'IDENTICAL', 0,
+        base=SELF_BASE.replace(enemy[1], enemy[1].replace('_player', 'GetPlayer()')),
+        edits=[(enemy[0], enemy[1].replace('_player', 'GetPlayer()'))])
+    edited('an edit holding both base spellings on one line passes', 0, '(2 edits)',
+           '    session.GetPlayer()->Attack(session.GetPlayer()->GetVictim(), true);',
+           '    _player->Attack(GetPlayer()->GetVictim(), true);')
+    edited('an edit reading &session as this passes', 0, 'IDENTICAL',
+           '    session.GetPlayer()->Attack(enemy, &session);', '    _player->Attack(enemy, this);')
+    edited('an edit dropping session. beside the player passes', 0, 'IDENTICAL',
+           '    session.SendPacket(session.GetPlayer()->Data());', '    SendPacket(_player->Data());')
+    edited('an edit changing a player read inside a literal fails', 1, more,
+           '    session.GetPlayer()->Say("session.GetPlayer()");', '    _player->Say("_player");')
+    run('an edit reading another object\'s player fails', 1, more, 0,
+        swap=(enemy[0], enemy[0].replace('session.GetPlayer()', 'other->GetPlayer()')),
+        base=SELF_BASE.replace(enemy[1], enemy[1].replace('_player', 'other->_player')),
+        edits=[(enemy[0].replace('session.GetPlayer()', 'other->GetPlayer()'),
+                enemy[1].replace('_player', 'other->_player'))])
+    edited('an edit reading a class\'s player through :: fails', 1, more,
+           '    Other::GetPlayer()->Attack(enemy, true);', '    Other::_player->Attack(enemy, true);')
+    edited('an edit reading another object\'s player after a blank fails', 1, more,
+           '    enemy-> session.GetPlayer()->Attack(enemy, true);', '    enemy-> _player->Attack(enemy, true);')
+    run('an edit of another shape (this->_player) fails', 1, more, 0,
+        base=SELF_BASE.replace(attack[1], '    this->_player->Attack(enemy, true);'),
+        edits=[enemy, (attack[0], '    this->_player->Attack(enemy, true);')])
+    edited('an edit running a name on past the player fails', 1, more,
+           '    session.GetPlayer()Guid->Attack(enemy, true);', '    _playerGuid->Attack(enemy, true);')
+    edited('an edit running a name into the player fails', 1, more,
+           '    xsession.GetPlayer()->Attack(enemy, true);', '    x_player->Attack(enemy, true);')
+    edited('an edit reading &session on into a name fails', 1, more,
+           '    session.GetPlayer()->Attack(enemy, &sessionId);', '    _player->Attack(enemy, thisId);')
+    for opening in ('R"(', 'u8R"('):
+        edited('an edit inside a %s raw string literal fails' % opening[:-2], 1, otherwise,
+               '    char const* k = %s\nsession.GetPlayer()\n)";\n%s' % (opening, attack[0]),
+               '    char const* k = %s\n_player\n)";\n%s' % (opening, attack[1]),
+               edits=[enemy, ('session.GetPlayer()', '_player')])
+    edited('an edit continuing a member access from the line above fails', 1, otherwise,
+           '    enemy->\n        session.GetPlayer()->Attack(enemy, true);',
+           '    enemy->\n        _player->Attack(enemy, true);')
+    edited('an edit after a line splice fails', 1, otherwise,
+           '    Unit* other\\\nsession.GetPlayer()->Attack(enemy, true);',
+           '    Unit* other\\\n_player->Attack(enemy, true);')
+    edited('an edit ending in a line splice fails', 1, otherwise, '    Ping(&session\\\nId);\n' + attack[0],
+           '    Ping(this\\\nId);\n' + attack[1], edits=[enemy, ('    Ping(&session\\', '    Ping(this\\')])
+    edited('a substitution changing more than the player fails', 1, neither,
+           '    session.GetPlayer()->Attack(enemy, false);', attack[1],
+           substitutions=[('SendStop(session, ', 'SendStop('), ('enemy, false', 'enemy, true')], edits=[enemy])
+    run('a call read back under another name fails', 1, neither, 0,
+        base=SELF_BASE.replace('SendStop(NULL)', 'SendHalt(NULL)'), substitutions=[('SendStop(session, ', 'SendHalt(')])
+    edited('a call taking only the session read back as () passes', 0, 'IDENTICAL',
+           '    Ping(session);\n' + attack[0], '    Ping();\n' + attack[1],
+           substitutions=[('SendStop(session, ', 'SendStop('), ('Ping(session)', 'Ping()')], edits=[enemy])
+    run('a substitution reading the player as _player passes', 0, 'IDENTICAL', 0, edits=[],
+        substitutions=[('SendStop(session, ', 'SendStop('), ('GetPlayer()->GetMap()', '_player->GetMap()')])
+    crlf = dict(base=SELF_BASE.replace('\n', '\r\n'), new=SELF_NEW.replace('\n', '\r\n'))
+    run('a CRLF move with an edit ending in CR on both sides passes', 0, 'IDENTICAL', 0,
+        edits=[(enemy[0] + '\r', enemy[1] + '\r')], **crlf)
+    run('an edit ending in CR on one side only fails', 1, more, 0, edits=[(enemy[0] + '\r', enemy[1])], **crlf)
+    stop_pair = ('SendStop(session, ', 'SendStop(')
+    for label, new_line, base_line, pair in (
+            ('a sender pair reading back more than its name fails', '    Ping(session, 1);', '    Ping(NULL, 1);',
+             ('Ping(session, ', 'Ping(NULL, ')),
+            ('a sender pair on another object fails', '    x=other->Ping(session, 1);', '    x=other->Ping(1);',
+             ('x=other->Ping(session, ', 'x=other->Ping(')),
+            ('a sender pair running past the session fails', '    Ping(session, NULL); Kick(1);', '    Ping(1);',
+             ('Ping(session, NULL); Kick(', 'Ping('))):
+        edited(label, 1, neither, new_line + '\n' + attack[0], base_line + '\n' + attack[1],
+               substitutions=[stop_pair, pair], edits=[enemy])
+    edited('a &session pair over a name running on from it fails', 1, '\'&session\' matches no code in the function',
+           '    Ping(&sessionTarget);\n' + attack[0], '    Ping(thisTarget);\n' + attack[1],
+           substitutions=[stop_pair, ('&session', 'this')], edits=[enemy])
+    edited('an edit changing a literal before the player fails', 1, more,
+           '    Say("a", session.GetPlayer());', '    Say("b", _player);')
+    edited('an edit reading another object\'s player through . fails', 1, more,
+           '    other.GetPlayer()->Attack(enemy, true);', '    other._player->Attack(enemy, true);')
+    edited('an edit running a name with _ into the player fails', 1, more,
+           '    x_session.GetPlayer()->Attack(enemy, true);', '    x__player->Attack(enemy, true);')
+    edited('an edit after a blank line below a member access fails', 1, otherwise,
+           '    enemy->\n\n        session.GetPlayer()->Attack(enemy, true);',
+           '    enemy->\n\n        _player->Attack(enemy, true);')
+    run('an edit whose new line holds a line break over one base line fails', 1, broken, 0,
+        edits=[(enemy[0] + '\n    if (!enemy)', enemy[1])])
+    for label, new_lines, base_lines, pair in (
+            ('a CRLF edit after a line splice fails', '    Unit* other\\\nsession.GetPlayer()->Attack(enemy, true);',
+             '    Unit* other\\\n_player->Attack(enemy, true);',
+             ('session.GetPlayer()->Attack(enemy, true);', '_player->Attack(enemy, true);')),
+            ('a CRLF edit ending in a line splice fails', '    Ping(&session\\\nId);\n' + attack[0],
+             '    Ping(this\\\nId);\n' + attack[1], ('    Ping(&session\\', '    Ping(this\\'))):
+        run(label, 1, otherwise, 0, new=SELF_NEW.replace(attack[0], new_lines).replace('\n', '\r\n'),
+            base=SELF_BASE.replace(attack[1], base_lines).replace('\n', '\r\n'),
+            edits=[(enemy[0] + '\r', enemy[1] + '\r'), (pair[0] + '\r', pair[1] + '\r')])
+    player_h = {'Player.h': SELF_PLAYER}
+    getter = ('Player.h', 'Player', 'GetTradeData')
+
+    def accessed(label, want_rc, needle, new_line, base_line, name='GetTradeData', cls='Player', headers=player_h):
+        edited(label, want_rc, needle, new_line, base_line, accessors=[('Player.h', cls, name)], headers=headers)
+
+    accessed('an edit calling a listed getter passes', 0, 'IDENTICAL',
+             '    session.GetPlayer()->GetTradeData()->Clear();', '    _player->m_trade->Clear();')
+    accessed('an edit calling a listed getter on another object passes', 0, 'IDENTICAL',
+             '    trader->GetTradeData()->Clear();', '    trader->m_trade->Clear();')
+    accessed('an edit calling a listed setter passes', 0, 'IDENTICAL',
+             '    session.GetPlayer()->SetTradeData(NULL);', '    _player->m_trade = NULL;', name='SetTradeData')
+    edited('an edit calling a listed setter on a listed getter passes', 0, 'IDENTICAL',
+           '    session.GetPlayer()->SetTradeData(trader->GetTradeData());', '    _player->m_trade = trader->m_trade;',
+           accessors=[getter, ('Player.h', 'Player', 'SetTradeData')], headers=player_h)
+    edited('an edit calling a getter that is not listed fails', 1, more,
+           '    trader->GetTradeData()->Clear();', '    trader->m_trade->Clear();')
+    accessed('an edit calling a getter on another receiver fails', 1,
+             'calls GetTradeData on another receiver than its base line reads m_trade on',
+             '    trader->GetTradeData()->Clear();', '    pOther->m_trade->Clear();')
+    accessed('an edit calling a getter where its base reads another member fails', 1,
+             'calls GetTradeData, which reads m_trade, and its base line reads no m_trade',
+             '    trader->GetTradeData()->Clear();', '    trader->m_other->Clear();')
+    neither_accessor = 'is neither a getter `return <member>;` nor a setter `<member> = <parameter>;`'
+    for label, name in (('a getter whose body holds another statement fails', 'GetTradeTwice'),
+                        ('a getter whose body casts fails', 'GetTradeCast'),
+                        ('a getter whose body calls fails', 'GetTradeCall'),
+                        ('a getter whose body holds a comment fails', 'GetTradeNoted'),
+                        ('a setter whose body holds two statements fails', 'SetTradeBoth'),
+                        ('a getter taking a parameter fails', 'GetTradeFor'),
+                        ('a setter taking two parameters fails', 'SetTradeTwo'),
+                        ('a setter assigning other than its parameter fails', 'SetTradeOther')):
+        accessed(label, 1, neither_accessor, '    trader->%s()->Clear();' % name, '    trader->m_trade->Clear();',
+                 name=name)
+    accessed('an edit calling a listed getter through . passes', 0, 'IDENTICAL',
+             '    trader.GetTradeData()->Clear();', '    trader.m_trade->Clear();')
+    accessed('an edit calling a listed inline getter passes', 0, 'IDENTICAL',
+             '    trader->GetTradeInline()->Clear();', '    trader->m_trade->Clear();', name='GetTradeInline')
+    accessed('a setter assigning its first of two parameters fails', 1, neither_accessor,
+             '    trader->SetTradeFirst(NULL, 0);', '    trader->m_trade = NULL;', name='SetTradeFirst')
+    for label, name in (('a virtual getter fails', 'GetTradeVirtual'),
+                        ('a getter declared override fails', 'GetTradeOverride')):
+        accessed(label, 1, 'Player::%s in Player.h at fixture is virtual: the call may not run the body read' % name,
+                 '    trader->%s()->Clear();' % name, '    trader->m_trade->Clear();', name=name)
+    for label, name, needle, new_line, base_line in (
+            ('a getter returning another type than its member fails', 'GetNarrow',
+             "returns 'uint8', the member m_count is 'uint32'", '    Ping(trader->GetNarrow());',
+             '    Ping(trader->m_count);'),
+            ('a getter returning bool over a pointer member fails', 'HasTrade',
+             "returns 'bool', the member m_trade is 'TradeData*'", '    if (trader->HasTrade()) Ping();',
+             '    if (trader->m_trade) Ping();'),
+            ('a setter taking another type than its member fails', 'SetNarrow',
+             "takes 'uint8', the member m_count is 'uint32'", '    trader->SetNarrow(1);', '    trader->m_count = 1;')):
+        accessed(label, 1, needle, new_line, base_line, name=name)
+    accessed('a getter returning no data member of the class fails', 1,
+             'reads g_trade, which the class declares no data member as', '    trader->GetGlobal()->Clear();',
+             '    trader->g_trade->Clear();', name='GetGlobal')
+    accessed('a getter with no body in the class fails', 1, 'the class in Player.h at fixture holds no body of it',
+             '    trader->GetTradeOut()->Clear();', '    trader->m_trade->Clear();', name='GetTradeOut')
+    accessed('an accessor named twice in the class fails', 1, 'names it 2 times, not once',
+             '    trader->Twice()->Clear();', '    trader->m_trade->Clear();', name='Twice')
+    accessed('an accessor whose header cannot be read fails', 1,
+             'Player::GetTradeData: cannot read Player.h at fixture',
+             '    trader->GetTradeData()->Clear();', '    trader->m_trade->Clear();', headers={})
+    accessed('an accessor of a class its header does not define fails', 1,
+             'Player.h at fixture defines no class Trader',
+             '    trader->GetTradeData()->Clear();', '    trader->m_trade->Clear();', cls='Trader')
+    run('a listed accessor no edit calls fails', 1, 'the accessor GetTradeData is called by no edit', 0,
+        accessors=[getter], headers=player_h)
+    run('an accessor not given as (header, class, name) fails', 1, 'is not (header, class, name)', 0,
+        accessors=[('Player.h', 'GetTradeData')], headers=player_h)
+    for label, new_line, base_line in (
+            ('a getter called on the session itself is not read: fails', '    session.GetTradeData()->Clear();',
+             '    m_trade->Clear();'),
+            ('a getter called in a literal is not read: fails', '    Say("x->GetTradeData()");',
+             '    Say("x->m_trade");'),
+            ('a getter called with an argument is not read: fails', '    trader->GetTradeData(1)->Clear();',
+             '    trader->m_trade->Clear();'),
+            ('a getter called with no receiver is not read: fails', '    GetTradeData()->Clear();',
+             '    m_trade->Clear();')):
+        accessed(label, 1, more, new_line, base_line)
+    accessed('a setter called inside an expression is not read: fails', 1, more,
+             '    Ping(trader->SetTradeData(NULL));', '    Ping(trader->m_trade = NULL);', name='SetTradeData')
+    run('a no-session head with an accessor listed fails', 1,
+        'the definition line takes no session, but the entry lists an accessor', base=SELF_MAIL_BASE,
+        new=SELF_MAIL_NEW, moves=SELF_MAIL_MOVES, accessors=[getter], headers=player_h)
+    stop = ('    session.GetPlayer()->AttackStop();\n', '    GetPlayer()->AttackStop();\n')
+    for label, needle, line in (
+            ('a member after a lone > in a body fails', '"m_name", a member', '    bool b = 0>m_name.empty();'),
+            ('a member after a case label\'s colon fails', '"SendPacket", a member',
+             '    switch (b) { case 1:SendPacket(NULL); }'),
+            ('a member name after -> or :: in a body passes', 'IDENTICAL',
+             '    Ping(other->m_name, Other::SendPacket);')):
+        run(label, 0 if needle == 'IDENTICAL' else 1, needle, 1, swap=(stop[0], line + '\n' + stop[0]),
+            base=SELF_BASE.replace(stop[1], line + '\n' + stop[1]))
+    heads = [SELF_MOVES[2][k] for k in ('base_header', 'new_header')]
+    opened = [h.replace('guid)', 'guid /*)') for h in heads]
+    run('a head on one line ending inside a comment fails', 1, 'the definition holds a comment or a literal', 2,
+        swap=(heads[1] + '\n{', opened[1] + '\n// */ ) { session.Ping();'),
+        base=SELF_BASE.replace(heads[0] + '\n{', opened[0] + '\n// */ ) { Ping();'), base_header=opened[0],
+        new_header=opened[1])
 
     multi = dict(base=SELF_MULTI_BASE, new=SELF_MULTI_NEW, moves=SELF_MULTI_MOVES)
     queue_one = SELF_QUEUE_NEW.replace(',\n                        ', ', ')
@@ -955,6 +1420,15 @@ def self_test():
         swap=(SELF_MAIL_NEW_HEAD, renamed_mail), new_header=renamed_mail, **mail)
     run('a no-session head naming WorldSession as its class fails', 1, 'names WorldSession as its class',
         swap=(SELF_MAIL_NEW_HEAD, SELF_MAIL_HEAD), new_header=SELF_MAIL_HEAD, **mail)
+    reads('a no-session head over GetPlayer after a lone > fails', 'combat/Fixture.cpp, ' + reading % 'GetPlayer',
+          '    bool b = bidder>GetPlayer();')
+    reads('a no-session head over GetPlayer after a lone : fails', 'combat/Fixture.cpp, ' + reading % 'GetPlayer',
+          '    Player* p = bidder ? 0 :GetPlayer();')
+    mail_open = [h.replace('auction)', 'auction /*)') for h in (SELF_MAIL_HEAD, SELF_MAIL_NEW_HEAD)]
+    run('a no-session head ending inside a comment fails', 1, 'the definition holds a comment or a literal',
+        base=SELF_MAIL_BASE.replace(SELF_MAIL_HEAD + '\n{', mail_open[0] + '\n// */ ) { _player->Ping();'),
+        new=SELF_MAIL_NEW.replace(SELF_MAIL_NEW_HEAD + '\n{', mail_open[1] + '\n// */ ) { _player->Ping();'),
+        moves=SELF_MAIL_MOVES, base_header=mail_open[0], new_header=mail_open[1])
 
     def residue(label, want_rc, needle, tree, headers=SELF_HEADERS[:1], removed=(), elsewhere=(),
                 base=SELF_RESIDUE_BASE, edits=()):
@@ -1091,6 +1565,10 @@ def self_test():
     qualified = ('#include "Chat.h"', '#include "chat/Chat.h"')
     residue('a residue edit qualifying an include path passes', 0, 'and 1 edits applied', swing.replace(*qualified),
             edits=[qualified])
+    for prefix in ('L', 'u', 'U', 'u8'):
+        raw = [(banker, banker + '\n    (void)%sR"(";' % prefix), (in_world, '    )"; //"\n' + in_world)]
+        residue('residue edits opening a %sR"( raw string fail' % prefix, 1, 'leaves text that does not stand alone',
+                swing.replace(*raw[0]).replace(*raw[1]), edits=raw)
     cr = chr(13)
     hidden = [(banker, banker + ' // a' + cr + '/*'), (in_world, '    // b' + cr + '*/' + in_world[4:])]
     residue('residue edits hiding unquoted lines behind a lone CR fail', 1, 'a carriage return inside a line',
@@ -1111,13 +1589,20 @@ def self_test():
             headers=[SELF_QUEUE_HEAD], base=SELF_MULTI_BASE)
 
     def checked(label, want_rc, needle, residues, tree=None, moves=None, b1=SELF_RESIDUE_BASE,
-                b2=SELF_RESIDUES['swing, Log.h'], new=SELF_NEW):
+                b2=SELF_RESIDUES['swing, Log.h'], new=SELF_NEW, headers=None):
         tree = SELF_RESIDUE_HEAD.replace('#include "Log.h"\n', '') + SELF_HELPERS if tree is None else tree
         shown = {('b1', 'O.cpp'): b1, ('b2', 'O.cpp'): b2}
+        shown.update({('b1', p): t for p, t in (headers or {}).items()})
         files = {SESSION_HEADER: SELF_SESSION, SELF_NEW_FILE: new, 'O.cpp': tree or None}
         two = [dict(SELF_MOVES[0], base='b1', base_file='O.cpp'), dict(SELF_MOVES[1], base='b2', base_file='O.cpp')]
         saved = globals()['git_show'], globals()['read']
-        globals()['git_show'] = lambda root, ref, rel: shown[(ref, rel)]
+
+        def shown_at(root, ref, rel):
+            if (ref, rel) not in shown:
+                raise subprocess.CalledProcessError(128, ['git', 'show', '%s:%s' % (ref, rel)])
+            return shown[(ref, rel)]
+
+        globals()['git_show'] = shown_at
         globals()['read'] = lambda root, rel: files.get(rel)
         got = []
         try:
@@ -1160,6 +1645,16 @@ def self_test():
     checked('--check: a deleted origin file, every multi-line head moved: passes', 0, '2 moved functions; OK', [],
             tree=False, moves=[dict(m, base='b1', base_file='O.cpp') for m in SELF_MULTI_MOVES], b1=SELF_MULTI_BASE,
             new=SELF_MULTI_NEW)
+    traded = ('    session.GetPlayer()->GetTradeData()->Attack(enemy, true);',
+              '    _player->m_trade->Attack(enemy, true);')
+    trade_moves = [dict(m, base='b1', base_file='O.cpp') for m in SELF_MOVES]
+    trade_moves[0] = dict(trade_moves[0], accessors=[getter], edits=[enemy, traded])
+    trade = dict(tree=False, moves=trade_moves, new=SELF_NEW.replace(attack[0], traded[0]),
+                 b1=SELF_RESIDUE_BASE.replace(attack[1], traded[1]))
+    checked('--check: an accessor read from its header at the entry\'s base passes', 0, '6 moved functions; OK', [],
+            headers=player_h, **trade)
+    checked('--check: an accessor whose header git does not hold at the base fails', 1,
+            'Player::GetTradeData: cannot read Player.h at b1', [], **trade)
 
     for label, bad in split_gate.self_test(__file__, 'handler_moves', DATA_NAMES, 'MOVES'):
         print('self-test: %-62s %s' % (label, 'PASS' if not bad else 'FAIL'))
