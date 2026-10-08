@@ -57,13 +57,32 @@ jobs:
           case "$tag" in
             *-*) ;;
             *)
-              latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null) || latest=""
-              [[ "$latest" =~ ^v[0-9] ]] || latest=""
+              if out=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>&1); then
+                if [[ ! "$out" =~ ^v[0-9] ]]; then
+                  echo "::error::the latest release lookup answered '$out'"
+                  exit 1
+                fi
+                latest="$out"
+              elif [[ "$out" == *"HTTP 404"* ]]; then
+                latest=""
+              else
+                echo "::error::cannot read the latest release: $out"
+                exit 1
+              fi
               if [ -z "$latest" ] || [ "$(printf '%s\n' "$latest" "$tag" | sort -V | tail -n1)" = "$tag" ]; then
                 is_latest=true
               fi
               prefix="${tag%.*}."
-              top=$( { gh release list --exclude-pre-releases --exclude-drafts --limit 200 --json tagName --jq '.[].tagName' 2>/dev/null || true; echo "$tag"; } \
+              if out=$(gh release list --exclude-pre-releases --exclude-drafts --limit 200 --json tagName --jq '.[].tagName' 2>&1); then
+                if [ -n "$out" ] && grep -qvE '^v[0-9]' <<< "$out"; then
+                  echo "::error::the release list answered '$out'"
+                  exit 1
+                fi
+              else
+                echo "::error::cannot read the release list: $out"
+                exit 1
+              fi
+              top=$( { printf '%s\n' "$out"; echo "$tag"; } \
                      | grep -F "$prefix" | sort -V | tail -n1 )
               [ "$top" = "$tag" ] && minor_latest=true
               ;;

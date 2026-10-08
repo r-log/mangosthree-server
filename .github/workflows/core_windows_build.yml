@@ -313,11 +313,14 @@ jobs:
           **Windows:** extract, copy \`mangosd.conf.dist\` to \`mangosd.conf\` and \`realmd.conf.dist\` to \`realmd.conf\`, set the \`*DatabaseInfo\` lines, run \`realmd.exe\` and \`mangosd.exe\`. No Visual C++ redistributable needed; crash logs (with symbols) land in the Crashes folder.
           BODY
 
-          if gh release view nightly > /dev/null 2>&1; then
+          if out=$(gh release view nightly 2>&1); then
             gh release edit nightly --prerelease --latest=false --title "Nightly build" --notes-file body.md
             gh release upload nightly "dist/$zip" --clobber
-          else
+          elif [[ "$out" == *"release not found"* || "$out" == *"HTTP 404"* ]]; then
             gh release create nightly --prerelease --latest=false --title "Nightly build" --notes-file body.md "dist/$zip"
+          else
+            echo "::error::cannot read the nightly release: $out"
+            exit 1
           fi
           echo "Published nightly for $sha7"
 
@@ -350,8 +353,18 @@ jobs:
           version="${tag#v}"
           images="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mangosthree"
 
-          prev=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2>/dev/null) || prev=""
-          [[ "$prev" =~ ^v[0-9] ]] || prev=""
+          if out=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2>&1); then
+            if [[ ! "$out" =~ ^v[0-9] ]]; then
+              echo "::error::the latest release lookup answered '$out'"
+              exit 1
+            fi
+            prev="$out"
+          elif [[ "$out" == *"HTTP 404"* ]]; then
+            prev=""
+          else
+            echo "::error::cannot read the latest release: $out"
+            exit 1
+          fi
           prerelease=false; case "$tag" in *-*) prerelease=true ;; esac
           latest=false
           if [ "$prerelease" = false ]; then
