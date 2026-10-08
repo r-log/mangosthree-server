@@ -32,7 +32,11 @@ tool's module-level code, or loaded from another file, fails there. It prints ea
 runs, and stops with 1 when it prints one. A tool imports its data inside `try: ... except Exception
 as e: sys.exit(split_gate.unloaded(__file__, '<data module>', e))`, so a data file that does not import,
 or raises while it runs, is refused by name too, with no traceback: unloaded() names the data file's line
-that raised and the error. Not seen:
+that raised or does not parse, the error's type and its message. verbatim.py and cast_verbatim.py run
+refused_before_import() on their data files before that import: the data file's rules above, read from
+its source alone, so a data file holding anything that runs (an exit, which would end the tool with
+nothing printed, an import, a call) is refused before it runs, and only literal assignments ever run.
+Not seen:
 a change made after check() through another name bound to a data value (`x = SITES; x.clear()`);
 that is a review item.
 """
@@ -67,8 +71,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tokenize
 import traceback
 import types
+import warnings
 
 VALUE_RULE = ('a value holds only constants, lists, tuples, dicts, + and *, names assigned above it and '
               'dict(...) with keyword arguments only')
@@ -152,15 +158,15 @@ def evaluate(node, values):
     return {k.arg: evaluate(k.value, values) for k in node.keywords}
 
 
-def data_values(data_module, data_source, names):
-    """(problems, values): each break of the split in the data file, and its assignments evaluated when
-    there is none."""
+def source_problems(data_module, data_source, names):
+    """(problems, tree): each break of the split in the data file, read from its source alone (nothing in it
+    runs or is evaluated), and its parsed tree."""
     data_file = data_module + '.py'
     found = []
     try:
         tree = ast.parse(data_source, data_file)
     except SyntaxError as e:
-        return ['%s does not parse: %s' % (data_file, e)], {}
+        return ['%s does not parse: %s' % (data_file, e)], None
     assigned = set()
     for i, stmt in enumerate(tree.body):
         if i == 0 and isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant) \
@@ -178,6 +184,13 @@ def data_values(data_module, data_source, names):
                 found.append('%s:%d: %s is neither a data name (%s) nor a spelling aid of the file\'s own '
                              '(a name beginning with `_`)' % (data_file, stmt.lineno, target.id, ', '.join(names)))
     found += ['%s does not assign %s' % (data_file, name) for name in names if name not in assigned]
+    return found, tree
+
+
+def data_values(data_module, data_source, names):
+    """(problems, values): each break of the split in the data file, and its assignments evaluated when
+    there is none."""
+    found, tree = source_problems(data_module, data_source, names)
     values = {}
     if not found:
         for stmt in tree.body[1:] if tree.body and isinstance(tree.body[0], ast.Expr) else tree.body:
@@ -285,12 +298,38 @@ def check(tool_file, data_module, names, tool_values, out=print):
     return 1 if found else 0
 
 
+def refused_before_import(tool_file, data_module, names, out=print):
+    """1, having printed each break of the split that source_problems() finds in the data file beside the tool
+    `tool_file`, read in the encoding its import reads it in; else 0. A tool runs it before it imports its
+    data, so a data file holding anything but assignments of literal values (an exit, an import, a call)
+    never runs. A data file that is missing, unreadable or does not parse is left to the import, which
+    cannot run it either and which unloaded() names; one that parses but is nested too deeply for the
+    rules to be read is refused."""
+    data_path = os.path.join(os.path.dirname(os.path.abspath(tool_file)), data_module + '.py')
+    try:
+        with tokenize.open(data_path) as f:
+            data_source = f.read()
+        ast.parse(data_source, data_module + '.py')
+    except (OSError, SyntaxError, ValueError, LookupError, RecursionError, MemoryError):
+        return 0
+    try:
+        found = source_problems(data_module, data_source, names)[0]
+    except RecursionError:
+        found = ['%s.py is nested too deeply for its rules to be read before it runs' % data_module]
+    for problem in found:
+        out('%s: REFUSED: %s' % (os.path.splitext(os.path.basename(tool_file))[0], problem))
+    return 1 if found else 0
+
+
 def unloaded(tool_file, data_module, error, out=print):
     """1, having printed that the data module of the tool `tool_file` does not import: `error`, led by the
-    data file's line and the error's type when the data file raised it while it ran."""
+    data file's line and the error's type when the data file raised it while it ran or does not parse."""
     data_file = data_module + '.py'
     lines = [f.lineno for f in traceback.extract_tb(error.__traceback__) if os.path.basename(f.filename) == data_file]
-    what = '%s:%d: %s: %s' % (data_file, lines[-1], type(error).__name__, error) if lines else error
+    if isinstance(error, SyntaxError) and error.lineno:
+        what = '%s:%d: %s: %s' % (data_file, error.lineno, type(error).__name__, error.msg)
+    else:
+        what = '%s:%d: %s: %s' % (data_file, lines[-1], type(error).__name__, error) if lines else error
     out('%s: REFUSED: %s does not import from beside the tool: %s'
         % (os.path.splitext(os.path.basename(tool_file))[0], data_module, what))
     return 1
@@ -313,10 +352,11 @@ def main(argv):
 '''
 
 
-def self_test(tool_file, data_module, names, bound):
+def self_test(tool_file, data_module, names, bound, checked_first=False):
     """The gate on fixtures shaped as the tool `tool_file` and its data file, `bound` one of the data names,
-    on the tool's own source and on the tool run without its data file and with one that raises: [(row label,
-    the row's failures as text)]."""
+    on the tool's own source and on the tool run without its data file, with one that raises and with one
+    that does not parse; with `checked_first` (a tool that runs refused_before_import()), also with one that
+    exits as it is imported: [(row label, the row's failures as text)]."""
     tool_name = os.path.basename(tool_file)
     tool = FIXTURE_TOOL.format(data=data_module, names=', '.join(names), tuple=tuple(names), bound=bound)
     data = ('"""The data."""\n_AID = [(\'a\', \'b\')] + [1] * 2\n_DICT = dict(key=_AID, other={\'x\': (1, None)})\n'
@@ -369,49 +409,118 @@ def self_test(tool_file, data_module, names, bound):
         return [] if ok else ['split gate, a data module that does not import: rc %d %s' % (rc, got)]
 
     def run_copy(data_text):
-        """The tool run from a copy of its directory, its data file holding `data_text` (None: no data file)."""
+        """The tool run from a copy of its directory, its data file holding `data_text` (text, or bytes written
+        as they are; None: no data file)."""
         here = os.path.dirname(os.path.abspath(tool_file))
         where = tempfile.mkdtemp()
         try:
             for name in os.listdir(here):
                 if name.endswith('.py') and name != data_module + '.py':
                     shutil.copy(os.path.join(here, name), where)
-            if data_text is not None:
+            if isinstance(data_text, bytes):
+                with open(os.path.join(where, data_module + '.py'), 'wb') as f:
+                    f.write(data_text)
+            elif data_text is not None:
                 with open(os.path.join(where, data_module + '.py'), 'w', encoding='utf-8') as f:
                     f.write(data_text)
-            return subprocess.run([sys.executable, '-E', '-B', os.path.join(where, tool_name)], cwd=where,
+            return subprocess.run([sys.executable, '-E', '-B', os.path.join(where, tool_name)],
+                                  cwd=os.path.dirname(where),
                                   capture_output=True, text=True)
         finally:
             shutil.rmtree(where, ignore_errors=True)
 
     refused = '%s: REFUSED: %s does not import from beside the tool: ' % (os.path.splitext(tool_name)[0], data_module)
 
-    def refused_by_name(what, data_text, want):
-        """The tool run by run_copy(`data_text`) stops with 1, its output beginning with `want`, no traceback."""
+    def refused_by_name(what, data_text, want, whole=False):
+        """The tool run by run_copy(`data_text`) stops with 1, its output beginning with `want` (or, `whole`,
+        being `want`), no traceback."""
         try:
             run = run_copy(data_text)
         except Exception as e:                                  # a crash fails the row
             return ['split gate, %s %s: crashed: %r' % (tool_name, what, e)]
-        ok = run.returncode == 1 and run.stdout.startswith(want) and 'Traceback' not in run.stderr
+        ok = (run.returncode == 1 and run.stdout != ''
+              and (run.stdout == want if whole else run.stdout.startswith(want)) and 'Traceback' not in run.stderr)
         return [] if ok else ['split gate, %s %s: rc %d, stdout %r, stderr %r'
                               % (tool_name, what, run.returncode, run.stdout[-300:], run.stderr[-300:])]
 
     def missing_data_case():
-        """The tool run from a copy of its directory without its data file."""
-        return refused_by_name('with no data file', None, refused)
+        """The tool run from a copy of its directory without its data file: its whole output."""
+        return refused_by_name('with no data file', None, "%sNo module named '%s'\n" % (refused, data_module), True)
+
+    def own_data():
+        """The data file beside the tool, ending in one line feed."""
+        with open(os.path.join(os.path.dirname(os.path.abspath(tool_file)), data_module + '.py'),
+                  encoding='utf-8-sig') as f:
+            return f.read().rstrip('\n') + '\n'
 
     def raising_data_case():
-        """The tool run with its data file ending in a line that raises as it runs: refused at that line."""
+        """The tool run with its data file ending in a line of literals that raises as it runs (the split's
+        rules hold, so the line runs): refused at that line."""
         try:
-            with open(os.path.join(os.path.dirname(os.path.abspath(tool_file)), data_module + '.py'),
-                      encoding='utf-8-sig') as f:
-                own = f.read().rstrip('\n') + '\n'
+            own = own_data()
         except Exception as e:                                  # a crash fails the row
             return ['split gate, %s with a raising data file: crashed: %r' % (tool_name, e)]
         at = '%s%s.py:%d: ' % (refused, data_module, own.count('\n') + 1)
-        return [p for line, error in (('_X = 1 / 0', 'ZeroDivisionError'), ('_X = UNSET', 'NameError'),
+        return [p for line, error in (("_X = 1 + 'a'", 'TypeError'), ('_X = {[]: 1}', 'TypeError'),
                                       ("_X = [1] * 'a'", 'TypeError'))
                 for p in refused_by_name('with %r in its data' % line, own + line + '\n', at + error + ': ')]
+
+    def unparsed_data_case():
+        """The tool run with its data file ending in a line that does not parse, or in bytes that are not UTF-8
+        with no encoding declared: its whole output names that line, the error's type and its message, as
+        the import compiles the file."""
+        found = []
+        try:
+            own = own_data().encode('utf-8')
+        except Exception as e:                                  # a crash fails the row
+            return ['split gate, %s with a data file that does not parse: crashed: %r' % (tool_name, e)]
+        for line in (b'_X = (\n', b'_X = "\xe9"\n'):
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    compile(own + line, data_module + '.py', 'exec')
+                found.append('split gate, %s with %r in its data: it parses' % (tool_name, line))
+            except SyntaxError as e:
+                found += refused_by_name('with %r in its data' % line, own + line, '%s%s.py:%d: %s: %s\n'
+                                         % (refused, data_module, e.lineno, type(e).__name__, e.msg), True)
+            except Exception as e:                              # a crash fails the row
+                found.append('split gate, %s with %r in its data: crashed: %r' % (tool_name, line, e))
+        found += refused_by_name('with a null byte in its data', own + b'_X = 1\x00\n',
+                                 '%ssource code string cannot contain null bytes\n' % refused, True)
+        head, rest = own.split(b'\n', 1)
+        found += refused_by_name('with an encoding declared that is not a text encoding',
+                                 head + b'\n# coding: rot13\n' + rest, refused)
+        found += refused_by_name('with a sum of 30000 terms in its data',
+                                 own + b'_X = ' + b' + '.join([b'1'] * 30000) + b'\n',
+                                 '%s: REFUSED: ' % os.path.splitext(tool_name)[0])
+        return found
+
+    def exiting_data_case():
+        """The tool run with its data file ending in lines that would exit as it is imported: each run stops
+        with 1 and prints the refusal, before the data file runs; never rc 0, never nothing printed."""
+        try:
+            own = own_data()
+        except Exception as e:                                  # a crash fails the row
+            return ['split gate, %s with an exiting data file: crashed: %r' % (tool_name, e)]
+        n = own.count('\n') + 1
+        tool = os.path.splitext(tool_name)[0]
+        statement = ('%s: REFUSED: %s.py:%%d: a %%s statement: a data file holds assignments to plain names only\n'
+                     % (tool, data_module))
+        head, rest = own.split('\n', 1)
+        latin = head + '\n# -*- coding: latin-1 -*-\n' + rest + '_C = "caf\xe9"\nraise SystemExit(0)\n'
+        cases = [('raise SystemExit(0)', (own + 'raise SystemExit(0)\n').encode('utf-8'), statement % (n, 'Raise')),
+                 ("os._exit(0) through __import__", (own + "_X = __import__('os')._exit(0)\n").encode('utf-8'),
+                  "%s: REFUSED: %s.py:%d: a Call (__import__('os')._exit(0)) in a value: %s\n"
+                  % (tool, data_module, n, VALUE_RULE)),
+                 ('import os and os._exit(0)', (own + 'import os\nos._exit(0)\n').encode('utf-8'),
+                  statement % (n, 'Import') + statement % (n + 1, 'Expr')),
+                 ('a latin-1 file that exits', latin.encode('latin-1', 'replace'), statement % (n + 2, 'Raise')),
+                 ('a sum too deep for the rules, then an exit',
+                  (own + '_X = ' + ' + '.join(['1'] * 1500) + '\nraise SystemExit(0)\n').encode('utf-8'),
+                  '%s: REFUSED: %s.py is nested too deeply for its rules to be read before it runs\n'
+                  % (tool, data_module))]
+        return [p for what, data, want in cases
+                for p in refused_by_name('with %s in its data' % what, data, want, True)]
 
     try:
         evaluated = data_values(data_module, data, names)[1]
@@ -493,6 +602,11 @@ def self_test(tool_file, data_module, names, bound):
         + ([] if other_gate != tool else ['split gate, the gate run on other_data: the mutation matches nothing']))))
     rows.append(('the split: this tool with no data file beside it: REFUSED by name', missing_data_case()))
     rows.append(('the split: this tool with a data file that raises: REFUSED by name', raising_data_case()))
+    rows.append(('the split: this tool with a data file that does not parse: REFUSED at its line',
+                 unparsed_data_case()))
+    if checked_first:
+        rows.append(('the split: a data file that exits as it is imported: REFUSED before it runs',
+                     exiting_data_case()))
     try:
         with open(os.path.abspath(tool_file), encoding='utf-8-sig') as f:
             own = tool_problems(tool_name, f.read(), data_module, names)
