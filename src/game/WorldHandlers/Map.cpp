@@ -173,6 +173,7 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
       m_persistentState(NULL),
       m_activeNonPlayersIter(m_activeNonPlayers.end()),
       i_gridExpiry(expiry), m_TerrainData(sTerrainMgr.LoadTerrain(id)),
+      m_teamBuffs(this),
       i_data(NULL),
       m_bare(MapIsBare(sWorld.getConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP), id, InstanceId))
 {
@@ -911,6 +912,8 @@ void Map::Update(const uint32& t_diff)
     // deck's Update runs nested inside its world map's own tick, on the same
     // thread, and this Scope is the whole of what makes that nesting correct.
     MapPhase::Scope phase(this);
+
+    ApplyTeamBuffs();
 
     /// update worldsessions for existing players
     for (m_mapRefIter = m_mapRefManager.begin(); m_mapRefIter != m_mapRefManager.end(); ++m_mapRefIter)
@@ -2979,6 +2982,78 @@ Player* Map::GetPlayer(ObjectGuid guid)
 {
     Player* plr = sPlayerRegistry.Find(guid);         // return only in world players
     return plr && plr->GetMap() == this ? plr : NULL;
+}
+
+bool TeamBuffQueue::Post(TeamBuff const& buff)
+{
+    if (MapPhase::Owns(m_owner))
+    {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_buffs.push_back(buff);
+    return true;
+}
+
+std::vector<TeamBuff> TeamBuffQueue::Take()
+{
+    std::vector<TeamBuff> taken;
+    std::lock_guard<std::mutex> guard(m_lock);
+    taken.swap(m_buffs);
+    return taken;
+}
+
+bool Map::PostTeamBuff(ObjectGuid guid, Team team, uint32 spellId, bool remove)
+{
+    if (!MapPhase::Active())
+    {
+        return false;
+    }
+
+    Player* player = sPlayerRegistry.Find(guid, false);
+    if (!player)
+    {
+        return true;
+    }
+
+    Map* map = sMapMgr.FindMap(player->GetMapId(), player->GetInstanceId());
+    if (!map)
+    {
+        return true;
+    }
+
+    TeamBuff const buff = { guid, team, spellId, remove };
+    return map->m_teamBuffs.Post(buff);
+}
+
+void Map::ApplyTeamBuffs()
+{
+    std::vector<TeamBuff> const buffs = m_teamBuffs.Take();
+    for (TeamBuff const& buff : buffs)
+    {
+        Player* player = NULL;
+        for (MapRefManager::iterator itr = m_mapRefManager.begin(); itr != m_mapRefManager.end(); ++itr)
+        {
+            if (itr->getSource()->GetObjectGuid() == buff.guid)
+            {
+                player = itr->getSource();
+                break;
+            }
+        }
+
+        if (player && player->IsInWorld() && player->GetTeam() == buff.team)
+        {
+            if (buff.remove)
+            {
+                player->RemoveAurasDueToSpell(buff.spellId);
+            }
+            else
+            {
+                player->CastSpell(player, buff.spellId, true);
+            }
+        }
+    }
 }
 
 /**
