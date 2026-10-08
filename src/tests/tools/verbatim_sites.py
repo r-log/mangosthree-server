@@ -40,7 +40,7 @@ statement, name or value, and on a tool that binds or changes one of the five it
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = 'e463e6415'
+BASE = 'abee2491b'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -751,6 +751,67 @@ SITES = {
                               ('ctx.spell->finish', 'finish')] + VOID_SUBSTITUTIONS,
             'labels': {
                 20577: '                        case 20577:                         // Cannibalize'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellChecks.cpp': {
+        'original': 'abee2491bede2c47be0a1b5acee34c128eb19cf7',
+        'handlers': 'src/game/spells/handlers/SpellChecksHandlers.cpp',
+        'rows_function': 'RegisterSpellChecksRows',
+        'added': ['#include "spells/handlers/SpellChecksHandlers.h"'],
+        'sites': [{
+            'name': 'CheckCast, SPELL_AURA_DUMMY (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '                SpellCheckCastAuraDummyContext ctx(m_caster);',
+                '                SpellHandlerOutcome<SpellCastResult> outcome = SpellHandlerRegistry::Game().Dispatch<SpellCheckCastAuraDummySite>(m_spellInfo->ID, ctx);',
+                '                if (outcome.IsReturn())',
+                '                {',
+                '                    return outcome.GetValue();',
+                '                }'],
+            'open': ['                switch (m_spellInfo->ID)', '                {'],
+            'close': ['                }'],
+            'label_indent': 20,
+            'traits': 'SpellCheckCastAuraDummySite',
+            'value': 'SpellCastResult',
+            'default': '                    default:',
+            'context': 'SpellCheckCastAuraDummyContext',
+            'live_outs': [],
+            'in_scope': ['strict', 'auraRestrictions', 'classOptions', 'zone', 'area', 'locRes', 'i', 'spellEffect',
+                         'expectedTarget'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster')],
+            'labels': {
+                34026: '                    case 34026:                             // Kill Command',
+                61336: '                    case 61336:                             // Survival Instincts'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellCheckTarget.cpp': {
+        'handlers': 'src/game/spells/handlers/SpellCheckTargetHandlers.cpp',
+        'rows_function': 'RegisterSpellCheckTargetRows',
+        'added': ['#include "spells/handlers/SpellCheckTargetHandlers.h"'],
+        'sites': [{
+            'name': 'CheckTarget (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '    SpellCheckTargetContext ctx(m_caster, target);',
+                '    SpellHandlerOutcome<bool> outcome = SpellHandlerRegistry::Game().Dispatch<SpellCheckTargetSite>(m_spellInfo->ID, ctx);',
+                '    if (outcome.IsReturn())',
+                '    {',
+                '        return outcome.GetValue();',
+                '    }'],
+            'open': ['    switch (m_spellInfo->ID)', '    {'],
+            'close': ['    }'],
+            'label_indent': 8,
+            'traits': 'SpellCheckTargetSite',
+            'value': 'bool',
+            'default': '        default:',
+            'context': 'SpellCheckTargetContext',
+            'live_outs': ['target'],
+            'in_scope': ['eff', 'spellEffect', 'auraRestrictions'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.target', 'target')],
+            'labels': {
+                37433: '        case 37433:                                         // Spout (The Lurker Below), only players affected if its not in water',
+                68921: '        case 68921:                                         // Soulstorm (FoS), only targets farer than 10 away',
+                69049: '        case 69049:                                         // Soulstorm            - = -'},
         }],
     },
 }

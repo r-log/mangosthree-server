@@ -32,6 +32,8 @@
 #include "spells/handlers/SpellEffectHealPowerHandlers.h"
 #include "spells/handlers/SpellEffectObjectCombatHandlers.h"
 #include "spells/handlers/SpellTargetingHandlers.h"
+#include "spells/handlers/SpellChecksHandlers.h"
+#include "spells/handlers/SpellCheckTargetHandlers.h"
 #include "Utilities/Errors.h"
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
@@ -50,6 +52,8 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
         rows += RegisterSpellEffectHealPowerHandlers(built);
         rows += RegisterSpellEffectObjectCombatHandlers(built);
         rows += RegisterSpellTargetingHandlers(built);
+        rows += RegisterSpellChecksHandlers(built);
+        rows += RegisterSpellCheckTargetHandlers(built);
         MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();

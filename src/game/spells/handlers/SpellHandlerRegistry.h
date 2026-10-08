@@ -105,7 +105,11 @@ enum SpellHandlerSite
     /// `Spell::SetTargetMap`, TARGET_ALL_ENEMY_IN_AREA, after the area is filled: its `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_TARGET_ALL_ENEMY_IN_AREA = 19,
     /// `Spell::SetTargetMap`, TARGET_EFFECT_SELECT, SPELL_EFFECT_DUMMY: its `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_TARGET_EFFECT_DUMMY = 20
+    SPELL_HANDLER_SITE_SPELL_TARGET_EFFECT_DUMMY = 20,
+    /// `Spell::CheckCast`, an effect that applies SPELL_AURA_DUMMY: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_CHECK_CAST_AURA_DUMMY = 21,
+    /// `Spell::CheckTarget`, after the player-only attribute check: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_CHECK_TARGET = 22
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

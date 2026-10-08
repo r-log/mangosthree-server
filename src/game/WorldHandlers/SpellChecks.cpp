@@ -79,6 +79,7 @@
 #include "TemporarySummon.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
+#include "spells/handlers/SpellChecksHandlers.h"
 
 /**
  * @brief Validates whether the spell can currently be cast.
@@ -1557,22 +1558,11 @@ SpellCastResult Spell::CheckCast(bool strict)
             case SPELL_AURA_DUMMY:
             {
                 // custom check
-                switch (m_spellInfo->ID)
+                SpellCheckCastAuraDummyContext ctx(m_caster);
+                SpellHandlerOutcome<SpellCastResult> outcome = SpellHandlerRegistry::Game().Dispatch<SpellCheckCastAuraDummySite>(m_spellInfo->ID, ctx);
+                if (outcome.IsReturn())
                 {
-                    case 34026:                             // Kill Command
-                        if (!m_caster->GetPet())
-                        {
-                            return SPELL_FAILED_NO_PET;
-                        }
-                        break;
-                    case 61336:                             // Survival Instincts
-                        if (m_caster->GetTypeId() != TYPEID_PLAYER || !((Player*)m_caster)->IsInFeralForm())
-                        {
-                            return SPELL_FAILED_ONLY_SHAPESHIFT;
-                        }
-                        break;
-                    default:
-                        break;
+                    return outcome.GetValue();
                 }
                 break;
             }
