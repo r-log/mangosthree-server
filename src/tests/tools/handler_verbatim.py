@@ -37,8 +37,10 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       `<Name>(` or `<Name>(session)` as `<Name>()`, the same <Name> on both sides (a sender's call
       `SendAttackStop(session, ` read back as `SendAttackStop(`), or a static of the session called
       through its class, `WorldSession::<Name>(` read back as `<Name>(`, <Name> a member function
-      WorldSession.h declares `static` at the entry's base, named once; a call read back without the
-      session names a member function the header declares there, named once. The header is read as git
+      WorldSession.h declares `static` at the entry's base, named once, and no parameter of the base
+      definition (a bare call there reads the parameter), and no line of the base function ends in a line
+      splice (the compiler would join a local's name the member check reads as two); a call read back
+      without the session names a member function the header declares there, named once. The header is read as git
       holds it at the entry's base, its class body read as an accessor's is (nested bodies blanked); nothing
       in the data stands in for the read. A pair applies only where its left side runs on from no name,
       `.`, `->` or `::`: a whole token, so `WorldSession::X(` is not read inside `MyWorldSession::X(`;
@@ -154,7 +156,8 @@ not its member's, or that no edit calls, an edit calling one on another receiver
 its base line reads no such member, an accessor whose name or member another class under src/game
 declares at the base, a substitution of another shape, a sender's call naming no member function the
 session's header declares once at the base, a static called through its class naming no static it
-declares once there, a line beginning with `session.` or a substitution's text after a `.`, `->` or `::`
+declares once there or naming a parameter of the base definition, a line splice in a base function whose
+entry lists such a static, a line beginning with `session.` or a substitution's text after a `.`, `->` or `::`
 ending the line above, a definition taking no session over a body, moved or at its base, that reads the
 session (naming the body line), an entry with such a definition listing an edit, an accessor or a
 substitution other than a static called through its class, a rename of another shape, a rename whose name
@@ -758,6 +761,17 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         base_lines = base_text.split('\n')
         where = '%s at %s' % (entry['base_file'], entry['base'])
         b_first, b_at, b_end = function_span(base_lines, entry['base_header'], where)
+        statics = [n for n in (static_call(x) for x in entry.get('substitutions', [])) if n]
+        if statics:
+            b_params = blank(BASE_HEADER.match(joined(entry['base_header'])).group('params'))
+            named = [n for n in statics if re.search(r'(?<!\w)%s(?!\w)' % n, b_params)]
+            if named:
+                raise Failure('the base definition takes a parameter named %s, which the entry reads back bare as a '
+                              'static: the base\'s bare call reads the parameter' % named[0])
+            spliced = [x for x in base_lines[b_first:b_end] if SPLICE.search(x)]
+            if spliced:
+                raise Failure('%s: %r ends in a line splice: with a static called through its class every line of '
+                              'the function is read alone' % (where, spliced[0]))
         if not takes:
             b_body = '\n'.join(base_lines[b_at + head_lines(entry['base_header']):b_end])
             if new_name is not None:
@@ -1585,6 +1599,9 @@ def self_test():
                          ('a line beginning with session. after a comment below -> fails',
                           '    enemy->\n    // the target\n\n')):
         run(label, 1, member, 1, swap=(lead[0], above + lead[0]), base=SELF_BASE.replace(lead[1], above + lead[1]))
+    run('a line beginning with session. after -> and a trailing comment fails', 1, member, 1,
+        swap=(lead[0], '    enemy-> // the target\n' + lead[0]),
+        base=SELF_BASE.replace(lead[1], '    enemy-> // the target\n' + lead[1]))
     run('a line beginning with session. under a comment ending in -> passes', 0, 'IDENTICAL', 1,
         swap=(lead[0], '    Ping(); // enemy->\n' + lead[0]),
         base=SELF_BASE.replace(lead[1], '    Ping(); // enemy->\n' + lead[1]))
@@ -1909,6 +1926,35 @@ def self_test():
     called('a static pair whose session header git does not hold fails', 1,
            "the substitution 'WorldSession::QueuePetitionSignHolder(' -> 'QueuePetitionSignHolder(': cannot read "
            "src/game/Server/WorldSession.h at fixture", *holder, [holder_pair], headers={SESSION_HEADER: None})
+    called('a static pair after :: is not read back: fails', 1,
+           "the substitution 'WorldSession::QueuePetitionSignHolder(' matches no code in the function",
+           '    ::WorldSession::QueuePetitionSignHolder(accountId);', '    ::QueuePetitionSignHolder(accountId);',
+           [holder_pair])
+    for label, on in (('a static pair after -> is not read back: DIFFERS', 'bidder->'),
+                      ('a static pair after . is not read back: DIFFERS', 'other.')):
+        called(label, 1, 'DIFFERS from Fixture.cpp at fixture',
+               holder[0] + '\n    %sWorldSession::QueuePetitionSignHolder(1);' % on,
+               holder[1] + '\n    %sQueuePetitionSignHolder(1);' % on, [holder_pair])
+    hooked = [h.replace('auction)', 'auction, Hook QueuePetitionSignHolder)')
+              for h in (SELF_MAIL_HEAD, SELF_MAIL_NEW_HEAD)]
+    run('a static pair named by a parameter of the base definition fails', 1,
+        'the base definition takes a parameter named QueuePetitionSignHolder, which the entry reads back bare as a '
+        'static', base=SELF_MAIL_BASE.replace(added, holder[1] + '\n' + added).replace(SELF_MAIL_HEAD, hooked[0]),
+        new=SELF_MAIL_NEW.replace(added, holder[0] + '\n' + added).replace(SELF_MAIL_NEW_HEAD, hooked[1]),
+        moves=SELF_MAIL_MOVES, substitutions=[holder_pair], base_header=hooked[0], new_header=hooked[1])
+    for label, param in (('a static pair beside a commented-out parameter of its name passes',
+                          'Hook /*QueuePetitionSignHolder*/'),
+                         ('a static pair beside a parameter its name runs into passes',
+                          'Hook QueuePetitionSignHolderId')):
+        heads = [h.replace('auction)', 'auction, %s)' % param) for h in (SELF_MAIL_HEAD, SELF_MAIL_NEW_HEAD)]
+        run(label, 0, 'IDENTICAL', base=SELF_MAIL_BASE.replace(added, holder[1] + '\n' + added).replace(
+            SELF_MAIL_HEAD, heads[0]), new=SELF_MAIL_NEW.replace(added, holder[0] + '\n' + added).replace(
+            SELF_MAIL_NEW_HEAD, heads[1]), moves=SELF_MAIL_MOVES, substitutions=[holder_pair], base_header=heads[0],
+            new_header=heads[1])
+    spliced_local = '    auto QueuePetition\\\nSignHolder = [](uint32) {};\n'
+    called('a line splice in a function listing a static pair fails', 1,
+           "Fixture.cpp at fixture: '    auto QueuePetition\\\\' ends in a line splice: with a static called through "
+           "its class", spliced_local + holder[0], spliced_local + holder[1], [holder_pair])
 
     renamed_heads = [m['new_header'] for m in SELF_RENAME_MOVES]
 
