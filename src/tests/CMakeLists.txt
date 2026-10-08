@@ -60,6 +60,7 @@ set(SRC_GRP_TESTS
     TickGuardTest.cpp
     InstanceDataCacheTest.cpp
     ZonePlayerSetTest.cpp
+    PlaguelandsTowerCountTest.cpp
     TestSeamTest.cpp
     PetitionAsyncTest.cpp
     CharacterCacheTest.cpp
