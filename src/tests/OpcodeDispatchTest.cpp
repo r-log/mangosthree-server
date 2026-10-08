@@ -42,6 +42,10 @@
 /// an empty auctioneer guid to its end and returns at the empty auction id before it reads the
 /// player, sending nothing. The CMSG_CANCEL_TRADE row, given an empty packet on a session with no
 /// player, finds no player to cancel the trade of and returns, reading nothing and sending nothing.
+/// Every row bound to the combat, vendor, pvp, loot, auction or trade handler class holds the
+/// status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING,
+/// CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE
+/// row, of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -185,6 +189,22 @@ TEST(OpcodeDispatch_FreeFunctionRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_ATTACKSWING].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
 
+TEST(OpcodeDispatch_CombatRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_ATTACKSWING].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ATTACKSWING].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_ATTACKSTOP].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ATTACKSTOP].packetProcessing, PROCESS_INPLACE);
+    CHECK_EQ(opcodeTable[CMSG_DUEL_ACCEPTED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_DUEL_ACCEPTED].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_DUEL_CANCELLED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_DUEL_CANCELLED].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SETSHEATHED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SETSHEATHED].packetProcessing, PROCESS_INPLACE);
+}
+
 TEST(OpcodeDispatch_VendorRowReachesItsHandlerWithThePacket)
 {
     InitializeOpcodes();
@@ -219,6 +239,28 @@ TEST(OpcodeDispatch_VendorRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_AUTOBANK_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleAutoBankItemOpcode>);
     CHECK(opcodeTable[CMSG_AUTOSTORE_BANK_ITEM].handler == &OpcodeThunk<&VendorHandlers::HandleAutoStoreBankItemOpcode>);
     CHECK(opcodeTable[CMSG_SELL_ITEM].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_VendorRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_AUTOSTORE_BAG_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUTOSTORE_BAG_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LIST_INVENTORY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LIST_INVENTORY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SELL_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SELL_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BUY_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BUY_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BUY_BANK_SLOT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BUY_BANK_SLOT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUTOSTORE_BANK_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUTOSTORE_BANK_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUTOBANK_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUTOBANK_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BUYBACK_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BUYBACK_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
 }
 
 TEST(OpcodeDispatch_GuildAutoDeclineRowIsLoggedInAndThreadUnsafe)
@@ -336,6 +378,66 @@ TEST(OpcodeDispatch_BattleGroundRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_BATTLEFIELD_LIST].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
 
+TEST(OpcodeDispatch_PvpRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_BATTLEFIELD_LIST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEFIELD_LIST].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEFIELD_STATUS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEFIELD_STATUS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEFIELD_PORT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEFIELD_PORT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEMASTER_HELLO].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEMASTER_HELLO].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PVP_LOG_DATA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PVP_LOG_DATA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LEAVE_BATTLEFIELD].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LEAVE_BATTLEFIELD].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AREA_SPIRIT_HEALER_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AREA_SPIRIT_HEALER_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AREA_SPIRIT_HEALER_QUEUE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AREA_SPIRIT_HEALER_QUEUE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEGROUND_PLAYER_POSITIONS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEGROUND_PLAYER_POSITIONS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEMASTER_JOIN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEMASTER_JOIN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_CREATE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_CREATE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_ROSTER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_ROSTER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_INVITE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_INVITE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_ACCEPT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_ACCEPT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_DECLINE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_DECLINE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_LEAVE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_LEAVE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_REMOVE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_REMOVE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_DISBAND].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_DISBAND].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_LEADER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ARENA_TEAM_LEADER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEMASTER_JOIN_ARENA].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_BATTLEMASTER_JOIN_ARENA].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_INSPECT_ARENA_TEAMS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_INSPECT_ARENA_TEAMS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REPORT_PVP_AFK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REPORT_PVP_AFK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_RATED_BG_INFO].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_RATED_BG_INFO].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_RATED_BG_STATS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_RATED_BG_STATS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PVP_REWARDS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PVP_REWARDS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PVP_OPTIONS_ENABLED].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_REQUEST_PVP_OPTIONS_ENABLED].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
 TEST(OpcodeDispatch_LootRowsHoldTheirHandlersThunks)
 {
     InitializeOpcodes();
@@ -348,6 +450,24 @@ TEST(OpcodeDispatch_LootRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_LOOT_RELEASE].handler == &OpcodeThunk<&LootHandlers::HandleLootRelease>);
     CHECK(opcodeTable[CMSG_LOOT_MASTER_GIVE].handler == &OpcodeThunk<&LootHandlers::HandleLootMasterGive>);
     CHECK(opcodeTable[CMSG_LOOT].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_LootRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_AUTOSTORE_LOOT_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUTOSTORE_LOOT_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_CURRENCY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_CURRENCY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOOT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOOT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_MONEY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_MONEY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_RELEASE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_RELEASE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_MASTER_GIVE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LOOT_MASTER_GIVE].packetProcessing, PROCESS_THREADUNSAFE);
 }
 
 TEST(OpcodeDispatch_AuctionRowReachesItsHandlerWithThePacket)
@@ -387,6 +507,28 @@ TEST(OpcodeDispatch_AuctionRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_AUCTION_LIST_PENDING_SALES].handler
           == &OpcodeThunk<&AuctionHandlers::HandleAuctionListPendingSales>);
     CHECK(opcodeTable[CMSG_AUCTION_PLACE_BID].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_AuctionRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[MSG_AUCTION_HELLO].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_AUCTION_HELLO].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_SELL_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_SELL_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_REMOVE_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_REMOVE_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_ITEMS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_ITEMS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_OWNER_ITEMS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_OWNER_ITEMS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_PLACE_BID].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_PLACE_BID].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_BIDDER_ITEMS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_BIDDER_ITEMS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_PENDING_SALES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_AUCTION_LIST_PENDING_SALES].packetProcessing, PROCESS_THREADUNSAFE);
 }
 
 TEST(OpcodeDispatch_TradeRowReachesItsHandlerWithThePacket)
