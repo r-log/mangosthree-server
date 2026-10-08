@@ -11,7 +11,7 @@ and never changes them, and split_gate.py (whose docstring holds the rules) refu
 or changes one, when it runs with values other than the data file's, or when the data file holds anything
 but literal values.
 
-MOVES holds one entry per moved function:
+MOVES holds one entry per moved function, with these keys, no other key, and none of the first five missing:
   base, base_file, base_header  the commit the move is proven against (the parent of the change that
       moved it: each entry names its own, so moves from one file in several changes are proven apart),
       the file that held the function there and its definition line, `<type> WorldSession::<Name>(<p>)`;
@@ -26,15 +26,24 @@ MOVES holds one entry per moved function:
       the base's `session` read as <name>), names no `session`, `_player` or `this` in code and names
       `GetPlayer` and `SendPacket` only on another object or class (`sObjectMgr.GetPlayer(guid)`,
       `ObjectAccessor::GetPlayer(guid)`, `bidder->GetSession()->SendPacket(...)`), never bare or through
-      `WorldSession::`, and its entry lists no substitution, edit or accessor, so the reversal pastes
-      base_header back over the definition and the body comes back as it stands;
+      `WorldSession::`, and its entry lists no edit or accessor and no substitution but a static called
+      through its class, so the reversal pastes base_header back over the definition and the body comes
+      back as it stands;
   substitutions  (new text, base text) pairs, each side one line, each matching code at least once and
       only where no name, `.`, `->` or `::` runs into it and, when its new text ends in a name character,
       where no name runs on from it (`&session` does not match in `&sessionTarget`); a pair is a player
       form, its two texts reading the same under the player reading below (`GetPlayer()` read back as
       `_player`, `&session` as `this`), or a call read back without the session, `<Name>(session, ` as
       `<Name>(` or `<Name>(session)` as `<Name>()`, the same <Name> on both sides (a sender's call
-      `SendAttackStop(session, ` read back as `SendAttackStop(`);
+      `SendAttackStop(session, ` read back as `SendAttackStop(`), or a static of the session called
+      through its class, `WorldSession::<Name>(` read back as `<Name>(`, <Name> a member function
+      WorldSession.h declares `static` at the entry's base, named once, and no parameter of the base
+      definition (a bare call there reads the parameter), and no line of the base function ends in a line
+      splice (the compiler would join a local's name the member check reads as two); a call read back
+      without the session names a member function the header declares there, named once. The header is read as git
+      holds it at the entry's base, its class body read as an accessor's is (nested bodies blanked); nothing
+      in the data stands in for the read. A pair applies only where its left side runs on from no name,
+      `.`, `->` or `::`: a whole token, so `WorldSession::X(` is not read inside `MyWorldSession::X(`;
   edits  (new line, base line) or (new line, base line, count) entries: a line changed beyond the
       substitutions, read back whole; each side is one line, the two read the same under the player
       reading (the new line read after its listed accessors' calls, below), and the new line reads in place
@@ -63,15 +72,18 @@ MOVES holds one entry per moved function:
       receiver and the rest of the line stay as they are and must read as the base line does under the player
       reading, and a call on the session itself (`session.`, `(&session)->`) is not read. The receiver's type
       is not read: the base line compiles only where the receiver has <member>, and the form trusts that
-      class to be <class>.
+      class to be <class>; and, at the base, no other class under src/game declares <name> or <member>
+      (every header under src/game naming either as a whole word read, each class or struct body in it
+      counted when its own body declares `<name>(` or `<member>;`, nested bodies blanked).
 The player reading reads a line alone and in its code only, comments and literals staying as they are (so
 an edit's comments and literals are byte-equal on both sides): `session.GetPlayer()`, `_player` and
 `GetPlayer()` read as one token, `session.` is dropped and `&session` not followed by a name or `.` reads as
 `this`, each where it neither runs on from a name nor follows `.`, `->` or `::` (blanks between aside), and
 `_player` only as a whole word. A new line reads in place as it does alone when no comment or literal is
-open across it, no line splice joins it to the line before or after, and the reading of it after the lines
-above it is its reading alone (no `.`, `->` or `::` ending the line above runs into it). These are the only
-shapes of an edit and of a substitution; no key of an entry admits another.
+open across it, no line splice (a backslash, blanks after it or not, ending a line) joins it to the line
+before or after, and the reading of it after the lines above it is its reading alone (no `.`, `->` or `::`
+ending the line above runs into it). These are the only shapes of an edit and of a substitution; no key of
+an entry admits another.
 A definition holds no comment but a commented-out parameter, and no literal. It may span lines: its
 parameter list continues on the following lines up to the line that closes it. The entry quotes such a
 definition with its lines joined by line breaks, each line exactly as the file holds it, and the definition
@@ -80,7 +92,7 @@ semicolon, backslash or `#`. The shape is checked on the definition read as one 
 the indentation after it read as one space; nothing else reads it so. new_header may span one line or any
 number: the reversal pastes back base_header's lines whole, and the proof is on the body.
 RESIDUES holds one entry per change that kept an old file: base, base_file, and each of these when it has
-some:
+some, no other key, and none of the first two missing:
   removed  the include lines that change removed from it (`#include ...`, exact text);
   edits  the other changes made to it, each (old block,), which deletes the block, or (old block, new
       block), which replaces it; a block is whole lines joined by line breaks, exact text.
@@ -100,13 +112,16 @@ For each entry, --check:
      qualifier (`std::string`, `Motion::Reason`), not a member use, and passes; the same name alone fails;
   3. reverses the move: an edit's line becomes its base line; on every other line, in code only
      (comments and literals stay), `session.` not after a name, `.`, `->` or `::` is dropped and the
-     substitutions are read back; with a rename, the line's code then holds no `session` (a `session` the
-     reversal neither drops nor reads back is the session parameter where the base had its own), and
-     <name> is read back as `session`; the definition's lines become base_header's. A base function that
-     names `session` in code fails unless its entry lists a rename (a local of that name would make a
-     `session.` the reversal drops mean something else), an entry listing a rename fails when the base
-     function names none, and so does a span, base or new, whose braces do not balance (a `}` at column
-     0 inside a body would end the span early and hide the lines after it);
+     substitutions are read back, and a line whose code begins, blanks aside, with `session.` or a
+     substitution's text where the code of the nearest line above that holds code ends, blanks aside, in
+     `.`, `->` or `::` fails (the compiler reads it as a member of what that line names); with a rename,
+     the line's code then holds no `session` (a `session` the reversal neither drops nor reads back is the
+     session parameter where the base had its own), and <name> is read back as `session`; the
+     definition's lines become base_header's. A base function that names `session` in code fails unless
+     its entry lists a rename (a local of that name would make a `session.` the reversal drops mean
+     something else), an entry listing a rename fails when the base function names none, and so does a
+     span, base or new, whose braces do not balance (a `}` at column 0 inside a body would end the span
+     early and hide the lines after it);
   4. pastes that at the function's place in base_file at base and compares the file byte for byte;
   5. fails when the working tree's base_file still holds base_header (the move deletes it).
 For each base_file still in the working tree, and for each base its entries name, --check then rebuilds
@@ -115,16 +130,16 @@ base, so the functions moved later are cut too and the ones moved before are not
 its doc comment and the blank lines after its `}` with it; the include lines its RESIDUES entries at that
 base list are removed, each found exactly once, and those listed at another base wherever they still
 stand; each removal must be an include directive in code (not in a literal), neither ending in nor
-following a backslash, so no removal splices two lines or un-splices one. Then the listed edits are
-applied: each one its RESIDUES entries at that base list must stand exactly once in the residue so far, and
-each one listed at another base is applied where it stands once; every old block must be lines that stood
-together in the base (lines of a moved function are cut before any edit, so an edit reaching into one
-either stands nowhere or spans the cut, and fails), two edits must not overlap, and each old block where it
-stands and each new block where it lands must stand alone: no line splice at either edge, the lines from
-its first on read alone as they do in place, and the block read alone ends outside any comment or literal,
-so no comment or literal opens or closes across an edge; and every block, old or new, holds no directive
-but includes and conditional groups that open and close inside it (`%:` read as `#`), so an edit changes no
-line it does not quote.
+following a line splice (a backslash, blanks after it or not, ending a line), so no removal splices two
+lines or un-splices one. Then the listed edits are applied: each one its RESIDUES entries at that base list
+must stand exactly once in the residue so far, and each one listed at another base is applied where it
+stands once; every old block must be lines that stood together in the base (lines of a moved function are
+cut before any edit, so an edit reaching into one either stands nowhere or spans the cut, and fails), two
+edits must not overlap, and each old block where it stands and each new block where it lands must stand
+alone: no line splice at either edge, the lines from its first on read alone as they do in place, and the
+block read alone ends outside any comment or literal, so no comment or literal opens or closes across an
+edge; and every block, old or new, holds no directive but includes and conditional groups that open and
+close inside it (`%:` read as `#`), so an edit changes no line it does not quote.
 The result must equal the working tree's file byte for byte: a line changed that no cut, removal or edit
 accounts for fails with its line, an include removed and not listed fails by name, a listed removal not
 found, found twice or not an include line fails, an edit that stands no times or more than once, spans a
@@ -138,12 +153,18 @@ matches nothing, fail by name; so do an edit or substitution holding a line brea
 than how the player is read or reading otherwise in place than alone, an accessor its header at the base
 does not hold in the class's body as a getter or setter of that shape, that is virtual, whose declared type is
 not its member's, or that no edit calls, an edit calling one on another receiver than its base line or where
-its base line reads no such member, a substitution of another shape, a definition taking no session over a
-body, moved or at its base, that reads the session (naming the body line), an entry with such a
-definition listing a substitution, an edit or an accessor, a rename of another shape, a rename whose name
+its base line reads no such member, an accessor whose name or member another class under src/game
+declares at the base, a substitution of another shape, a sender's call naming no member function the
+session's header declares once at the base, a static called through its class naming no static it
+declares once there or naming a parameter of the base definition, a line splice in a base function whose
+entry lists such a static, a line beginning with `session.` or a substitution's text after a `.`, `->` or `::`
+ending the line above, a definition taking no session over a body, moved or at its base, that reads the
+session (naming the body line), an entry with such a definition listing an edit, an accessor or a
+substitution other than a static called through its class, a rename of another shape, a rename whose name
 the base file holds, or the new file holds outside the functions renamed to it or other than as a whole word
-in code, a `session` left in a moved line under a rename, a line splice in a function under a rename, and an
-edit or substitution naming the rename's name or reading back `session`.
+in code, a `session` left in a moved line under a rename, a line splice in a function under a rename, an
+edit or substitution naming the rename's name or reading back `session`, and an entry holding a key no
+entry admits or lacking one it needs.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
 there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
@@ -217,6 +238,12 @@ DIRECTIVE = re.compile(r'\s*(?:#|%:)\s*(\w*)')
 PLAYER_FORM = re.compile(r'session\.GetPlayer\(\)|_player\b|GetPlayer\(\)|session\.|&session(?![\w.])')
 PLAYER_READ = {'session.': '', '&session': 'this'}
 SENDER = re.compile(r'(\w+)\(session(, |\))$')
+STATIC_CALL = re.compile(r'WorldSession::([A-Za-z_][A-Za-z0-9_]*)\(')
+SPLICE = re.compile(r'\\[ \t]*\r?\Z')
+CLASS_HEAD = re.compile(r'\b(?:class|struct)\s+(\w+)(?:\s+final)?\s*(?::(?!:)[^;{}]*)?\{')
+MOVE_KEYS = ('base', 'base_file', 'base_header', 'new_file', 'new_header', 'substitutions', 'edits', 'rename',
+             'accessors')
+RESIDUE_KEYS = ('base', 'base_file', 'removed', 'edits')
 RENAME_NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 ACCESSOR_GET = re.compile(r'return\s+(\w+)\s*;')
 ACCESSOR_SET = re.compile(r'(\w+)\s*=\s*(\w+)\s*;')
@@ -287,6 +314,18 @@ def function_span(lines, header, where):
     if end == len(lines):
         raise Failure('%s: no `}` at column 0 closes %r' % (where, header))
     return first, at, end + 1
+
+
+def check_keys(entry, keys, required):
+    """The entry's keys are among `keys` and hold the first `required` of them."""
+    what = entry.get('new_header', entry.get('base_file'))
+    other = [k for k in entry if k not in keys]
+    if other:
+        raise Failure('the entry for %r has the key %r, which no entry admits (the keys are %s)' % (
+            what, other[0], ', '.join(keys)))
+    missing = [k for k in keys[:required] if k not in entry]
+    if missing:
+        raise Failure('the entry for %r lacks the key %r' % (what, missing[0]))
 
 
 def read_rename(entry):
@@ -413,6 +452,15 @@ def player_form(line, before=''):
     return ''.join(out) + line[last:]
 
 
+def static_call(pair):
+    """<Name> when the substitution is a static of the session called through its class, `WorldSession::<Name>(`
+    read back as `<Name>(`; None otherwise."""
+    if not (isinstance(pair, (tuple, list)) and len(pair) == 2 and isinstance(pair[0], str)):
+        return None
+    m = STATIC_CALL.fullmatch(pair[0])
+    return m.group(1) if m and pair[1] == m.group(1) + '(' else None
+
+
 def check_lines(entry):
     """Each side of each edit and substitution is one line."""
     for e in entry.get('edits', []) + entry.get('substitutions', []):
@@ -436,11 +484,64 @@ def type_of(text):
     return ''.join(w for w in re.split(r'(\W)', text) if w.strip() and w not in DECLARATION_WORDS)
 
 
-def read_accessors(entry, headers):
+def read_body(code, start):
+    """(body, flat) of the class body opening at code[start] (code with comments and literals blanked): its text
+    to the closing brace, and the same with nested bodies blanked and each access label read as `;`."""
+    body = code[start:closing(code, start - 1)]
+    flat, depth = [], 0
+    for c in body:
+        depth -= c == '}'
+        flat.append(c if depth == 0 else ' ')
+        depth += c == '{'
+    return body, ACCESS_LABEL.sub(lambda m: ';' + ' ' * (len(m.group(0)) - 1), ''.join(flat))
+
+
+def class_body(code, cls):
+    """(start, body, flat) of class or struct `cls` in `code` (see read_body), or None when it defines none."""
+    opened = re.search(r'\b(?:class|struct)\s+%s\b[^;{]*\{' % re.escape(cls), code)
+    return (opened.end(),) + read_body(code, opened.end()) if opened else None
+
+
+def declarations(flat, name):
+    """The declaration words of each function `name` a flattened class body names: the text from the `;`, `{` or
+    `}` before the name to the name."""
+    found = []
+    for m in re.finditer(r'\b%s\s*\(' % re.escape(name), flat):
+        head = flat[:m.start()]
+        found.append(head[max(head.rfind(';'), head.rfind('{'), head.rfind('}')) + 1:])
+    return found
+
+
+def classes_declaring(text, pattern):
+    """The classes and structs in `text` whose own body, nested bodies blanked, matches `pattern`."""
+    code = blank(text)
+    return [m.group(1) for m in CLASS_HEAD.finditer(code) if re.search(pattern, read_body(code, m.end())[1])]
+
+
+def check_session_function(entry, headers, pair, name, static):
+    """`name` is a member function, `static` when asked, that WorldSession's body in its header as git holds it at
+    the entry's base (`headers`) names once."""
+    what = 'the substitution %r -> %r' % pair
+    text = (headers or {}).get(SESSION_HEADER)
+    if text is None:
+        raise Failure('%s: cannot read %s at %s' % (what, SESSION_HEADER, entry['base']))
+    body = class_body(blank(text), 'WorldSession')
+    words = declarations(body[2], name) if body else []
+    if len(words) > 1:
+        raise Failure('%s: WorldSession in %s at %s names it %d times, not once' % (
+            what, SESSION_HEADER, entry['base'], len(words)))
+    if not words or (static and not re.search(r'\bstatic\b', words[0])):
+        raise Failure('%s: WorldSession declares no %smember function %s at %s' % (
+            what, 'static ' if static else '', name, entry['base']))
+
+
+def read_accessors(entry, headers, declaring=None):
     """[(name, member, kind)] of the entry's accessors, each read from its header as git holds it at the entry's
     base (`headers`: {path: text, or None when git has none}): a getter taking nothing whose body is `return
     <member>;` (kind 'get'), or a setter taking one parameter whose body is `<member> = <parameter>;` (kind 'set'),
-    blanks aside, defined in the class's body, <member> a data member the class declares."""
+    blanks aside, defined in the class's body, <member> a data member the class declares; and no other class in
+    the headers under src/game naming <name> or <member> at the base (`declaring(words)`: {path: text}; without
+    it, the headers in `headers` naming either) declares either."""
     found = []
     for a in entry.get('accessors', []):
         if not (isinstance(a, (tuple, list)) and len(a) == 3 and all(isinstance(x, str) for x in a)):
@@ -451,17 +552,10 @@ def read_accessors(entry, headers):
         if text is None:
             raise Failure('the accessor %s: cannot read %s' % (what, where))
         code = blank(text)
-        opened = re.search(r'\b(?:class|struct)\s+%s\b[^;{]*\{' % re.escape(cls), code)
-        if not opened:
+        body = class_body(code, cls)
+        if not body:
             raise Failure('the accessor %s: %s defines no class %s' % (what, where, cls))
-        start = opened.end()
-        cls_code = code[start:closing(code, start - 1)]
-        flat, depth = [], 0
-        for c in cls_code:
-            depth -= c == '}'
-            flat.append(c if depth == 0 else ' ')
-            depth += c == '{'
-        flat = ACCESS_LABEL.sub(lambda m: ';' + ' ' * (len(m.group(0)) - 1), ''.join(flat))
+        start, cls_code, flat = body
         named = list(re.finditer(r'\b%s\s*\(' % re.escape(name), flat))
         if len(named) != 1:
             raise Failure('the accessor %s: the class in %s names it %d times, not once' % (what, where, len(named)))
@@ -495,6 +589,16 @@ def read_accessors(entry, headers):
             raise Failure('the accessor %s in %s %s %r, the member %s is %r' % (
                 what, where, 'returns' if kind == 'get' else 'takes', ' '.join(have.split()), member,
                 ' '.join(held.group(1).split())))
+        if declaring is None:
+            texts = {p: t for p, t in (headers or {}).items() if t is not None
+                     and any(re.search(r'(?<!\w)%s(?!\w)' % re.escape(w), t) for w in (name, member))}
+        else:
+            texts = declaring((name, member))
+        for word, pattern in ((name, r'\b%s\s*\('), (member, r'\b%s\s*;')):
+            classes = [c for p in sorted(texts) for c in classes_declaring(texts[p], pattern % re.escape(word))]
+            if len(classes) > 1:
+                raise Failure('the accessor %s: %d classes under src/game declare %s at %s: %s' % (
+                    what, len(classes), word, entry['base'], ', '.join(classes)))
         found.append((name, member, kind))
     return found
 
@@ -516,11 +620,13 @@ def accessor_form(line, accessors):
     return line
 
 
-def check_forms(entry, accessors=()):
+def check_forms(entry, accessors=(), headers=None):
     """An edit's two lines read the same under the player reading, each read alone, after the listed accessors'
     calls on the new line are read as the members they read or write; so do a substitution's two texts, or it is
-    a call read back without the session (`<Name>(session, ` as `<Name>(`, `<Name>(session)` as `<Name>()`).
-    Each listed accessor is called by an edit."""
+    a call read back without the session (`<Name>(session, ` as `<Name>(`, `<Name>(session)` as `<Name>()`),
+    <Name> a member function of the session, or a static of the session called through its class
+    (`WorldSession::<Name>(` as `<Name>(`), each read from WorldSession.h in `headers`. Each listed accessor is
+    called by an edit."""
     called = set()
     for e in entry.get('edits', []):
         calls = [a for a in accessors if accessor_form(e[0], [a]) != e[0]]
@@ -539,21 +645,32 @@ def check_forms(entry, accessors=()):
     if unused:
         raise Failure('the accessor %s is called by no edit' % unused[0])
     for a, b in entry.get('substitutions', []):
-        m = SENDER.match(a)
-        if player_form(a) != player_form(b) and not (m and b == m.group(1) + ('(' if m.group(2) == ', ' else '()')):
+        m, name = SENDER.match(a), static_call((a, b))
+        if player_form(a) == player_form(b):
+            continue
+        if m and b == m.group(1) + ('(' if m.group(2) == ', ' else '()'):
+            check_session_function(entry, headers, (a, b), m.group(1), False)
+        elif name:
+            check_session_function(entry, headers, (a, b), name, True)
+        else:
             raise Failure('the substitution %r -> %r is neither a player form nor a call read back without the '
-                          'session' % (a, b))
+                          'session, nor a static of the session called through its class' % (a, b))
 
 
-def verify(entry, base_text, tree_base_text, new_text, members, out=print, headers=None, beside=()):
+def verify(entry, base_text, tree_base_text, new_text, members, out=print, headers=None, beside=(), declaring=None):
     """0 when the entry's function pastes back byte for byte; 1 with the reason printed. `beside` holds the
-    new definition lines of the other entries whose rename puts the same name in the same new file."""
-    name = '%s %s' % (entry['new_file'], re.sub(r'\n[ \t]*', ' ', entry['new_header']))
+    new definition lines of the other entries whose rename puts the same name in the same new file;
+    `declaring` is read_accessors()'s."""
+    name = '%s %s' % (entry.get('new_file'), re.sub(r'\n[ \t]*', ' ', str(entry.get('new_header'))))
     try:
+        check_keys(entry, MOVE_KEYS, 5)
         new_name = read_rename(entry)
         takes = check_shape(entry['new_header'], entry['base_header'], new_name)
         for key, what in (('substitutions', 'a substitution'), ('edits', 'an edit'), ('accessors', 'an accessor')):
-            if not takes and entry.get(key):
+            listed = entry.get(key)
+            if key == 'substitutions' and isinstance(listed, (tuple, list)):
+                listed = [x for x in listed if not static_call(x)]
+            if not takes and listed:
                 raise Failure('the definition line takes no session, but the entry lists %s' % what)
         texts = [new_text, base_text, tree_base_text or '', entry['new_header'], entry['base_header']] + [
             x for e in entry.get('edits', []) + entry.get('substitutions', []) for x in e[:2]]
@@ -575,7 +692,7 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         check_members(new_lines[at + len(head):end], members)
         span = new_lines[first:end]
         if new_name is not None:
-            spliced = [x for x in span if re.search(r'\\[ \t]*\r?$', x)]
+            spliced = [x for x in span if SPLICE.search(x)]
             if spliced:
                 raise Failure('%s: %r ends in a line splice: under a rename every moved line is read alone'
                               % (entry['new_file'], spliced[0]))
@@ -595,13 +712,14 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             if hits != counts[line]:
                 raise Failure('the edit %r matches %d lines of the function, not the %d it covers: too %s found' % (
                     line, hits, counts[line], 'few' if hits < counts[line] else 'many'))
-        check_forms(entry, read_accessors(entry, headers))
+        check_forms(entry, read_accessors(entry, headers, declaring), headers)
         rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a) + name_edge(a)), b)
                                        for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
         renamed = 0
         pasted = []
-        for k, (line, code) in enumerate(zip(span, blank('\n'.join(span)).split('\n'))):
+        codes = blank('\n'.join(span)).split('\n')
+        for k, (line, code) in enumerate(zip(span, codes)):
             if k in head:
                 if k == head[0]:
                     pasted += [x + ('\r' if line.endswith('\r') else '') for x in entry['base_header'].split('\n')]
@@ -609,11 +727,19 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             if line in edits:
                 before = '\n'.join(span[:k]) + '\n'
                 if (blank(line) != code or player_form(line, before) != player_form(line)
-                        or before[:-1].rstrip('\r').endswith('\\') or line.rstrip('\r').endswith('\\')):
+                        or SPLICE.search(before[:-1]) or SPLICE.search(line)):
                     raise Failure('the edit %r reads otherwise in place than alone: a comment or literal open across '
                                   'it, a line splice at its edge, or a `.`, `->` or `::` before it' % line)
                 line = edits[line]
             else:
+                above = next((c for c in reversed(codes[:k]) if c.strip()), '')
+                if above.rstrip().endswith(('.', '->', '::')):
+                    for pattern, _ in rules:
+                        m = pattern.search(code)
+                        if m and not code[:m.start()].strip():
+                            raise Failure('%s: %r begins with %r after a \'.\', \'->\' or \'::\' ending the line '
+                                          'above: the reversal reads it as the session parameter and the compiler '
+                                          'as a member' % (entry['new_file'], span[k], m.group(0)))
                 for r, (pattern, text) in enumerate(rules):
                     for m in reversed(list(pattern.finditer(code))):
                         used[r] += 1
@@ -635,6 +761,17 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         base_lines = base_text.split('\n')
         where = '%s at %s' % (entry['base_file'], entry['base'])
         b_first, b_at, b_end = function_span(base_lines, entry['base_header'], where)
+        statics = [n for n in (static_call(x) for x in entry.get('substitutions', [])) if n]
+        if statics:
+            b_params = blank(BASE_HEADER.match(joined(entry['base_header'])).group('params'))
+            named = [n for n in statics if re.search(r'(?<!\w)%s(?!\w)' % n, b_params)]
+            if named:
+                raise Failure('the base definition takes a parameter named %s, which the entry reads back bare as a '
+                              'static: the base\'s bare call reads the parameter' % named[0])
+            spliced = [x for x in base_lines[b_first:b_end] if SPLICE.search(x)]
+            if spliced:
+                raise Failure('%s: %r ends in a line splice: with a static called through its class every line of '
+                              'the function is read alone' % (where, spliced[0]))
         if not takes:
             b_body = '\n'.join(base_lines[b_at + head_lines(entry['base_header']):b_end])
             if new_name is not None:
@@ -670,7 +807,7 @@ def stands_alone(lines, a, b):
     """No comment or literal opens or closes across an edge of lines[a:b]: the lines from a on read the same
     alone as in place, the block read alone ends outside any comment or literal, and no line splice joins
     it to the line before or the line after."""
-    if (a and lines[a - 1].rstrip('\r').endswith('\\')) or (b > a and lines[b - 1].rstrip('\r').endswith('\\')):
+    if (a and SPLICE.search(lines[a - 1])) or (b > a and SPLICE.search(lines[b - 1])):
         return False
     if lines[a:] and blank('\n'.join(lines[a:])).split('\n') != blank('\n'.join(lines)).split('\n')[a:]:
         return False
@@ -774,8 +911,8 @@ def verify_residue(base_file, base, base_text, tree_text, headers, removed, remo
             if hits:
                 code = blank('\n'.join(lines)).split('\n')
                 i = hits[0]
-                if (not code[i].lstrip().startswith('#') or lines[i].rstrip('\r').endswith('\\')
-                        or (i and lines[i - 1].rstrip('\r').endswith('\\'))):
+                if (not code[i].lstrip().startswith('#') or SPLICE.search(lines[i])
+                        or (i and SPLICE.search(lines[i - 1]))):
                     raise Failure('the listed removal %r is not an include directive standing alone' % line)
                 del lines[hits[0]]
                 del index[hits[0]]
@@ -812,6 +949,16 @@ def git_show(root, ref, rel):
                           capture_output=True, check=True).stdout.decode('utf-8')
 
 
+def git_grep(root, ref, words):
+    """The headers under src/game at `ref` that name any of `words` as a whole word."""
+    args = ['git', '-C', root, 'grep', '-l', '-w'] + [x for w in words for x in ('-e', w)] + [
+        ref, '--', 'src/game/*.h', 'src/game/**/*.h']
+    run = subprocess.run(args, capture_output=True)
+    if run.returncode not in (0, 1):
+        raise subprocess.CalledProcessError(run.returncode, args)
+    return [x.split(':', 1)[1] for x in run.stdout.decode('utf-8').splitlines()]
+
+
 def renames_to(entry):
     """The name the entry's rename reads back as `session`; None when it lists none or one of another shape."""
     try:
@@ -820,14 +967,35 @@ def renames_to(entry):
         return None
 
 
+def keyed(entries, keys, required, out):
+    """The entries holding admitted keys only, the first `required` among them; each other one fails by name."""
+    kept = []
+    for entry in entries:
+        try:
+            check_keys(entry, keys, required)
+            kept.append(entry)
+        except Failure as e:
+            out('%s: FAILED: %s' % (entry.get('new_file', entry.get('base_file')), e))
+    return kept
+
+
 def check(root, base=None, out=print, moves=None, residues=None):
     """--check: `moves` and `residues` replace MOVES and RESIDUES."""
-    moves = MOVES if moves is None else moves
-    residues_all = RESIDUES if residues is None else residues
-    rc = 0
+    listed = MOVES if moves is None else moves
+    listed_residues = RESIDUES if residues is None else residues
+    moves = keyed(listed, MOVE_KEYS, 5, out)
+    residues_all = keyed(listed_residues, RESIDUE_KEYS, 2, out)
+    rc = int(len(moves) != len(listed) or len(residues_all) != len(listed_residues))
     members = class_members(read(root, SESSION_HEADER), 'WorldSession') if moves else set()
     for i, entry in enumerate(moves):
         entry = dict(entry, base=base or entry['base'])
+
+        def declaring(words, ref=entry['base']):
+            try:
+                return {p: git_show(root, ref, p) for p in git_grep(root, ref, words)}
+            except (OSError, subprocess.CalledProcessError) as e:
+                raise Failure('cannot read the headers under src/game at %s from git: %s' % (ref, e))
+
         try:
             base_text = git_show(root, entry['base'], entry['base_file'])
         except (OSError, subprocess.CalledProcessError) as e:
@@ -846,9 +1014,15 @@ def check(root, base=None, out=print, moves=None, residues=None):
                     headers[a[0]] = git_show(root, entry['base'], a[0])
                 except (OSError, subprocess.CalledProcessError):
                     headers[a[0]] = None
+        if entry.get('substitutions') and SESSION_HEADER not in headers:
+            try:
+                headers[SESSION_HEADER] = git_show(root, entry['base'], SESSION_HEADER)
+            except (OSError, subprocess.CalledProcessError):
+                headers[SESSION_HEADER] = None
         beside = [e['new_header'] for j, e in enumerate(moves) if j != i and e['new_file'] == entry['new_file']
                   and renames_to(e) is not None and renames_to(e) == renames_to(entry)]
-        rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out, headers, beside)
+        rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out, headers, beside,
+                     declaring)
     for rel in sorted({e['base_file'] for e in moves} | {r['base_file'] for r in residues_all}):
         entries = [e for e in moves if e['base_file'] == rel]
         residues = [dict(r, base=base or r['base']) for r in residues_all if r['base_file'] == rel]
@@ -886,7 +1060,7 @@ def check(root, base=None, out=print, moves=None, residues=None):
                                  [x for r in residues if r['base'] != b for x in r.get('removed', [])], out,
                                  [x for r in residues if r['base'] == b for x in r.get('edits', [])],
                                  [x for r in residues if r['base'] != b for x in r.get('edits', [])])
-    out('handler_verbatim: %d moved functions; %s' % (len(moves), 'OK' if rc == 0 else 'FAILED'))
+    out('handler_verbatim: %d moved functions; %s' % (len(listed), 'OK' if rc == 0 else 'FAILED'))
     return rc
 
 
@@ -895,6 +1069,8 @@ SELF_SESSION = '''class WorldSession
     public:
         Player* GetPlayer() const { return _player; }
         void SendPacket(WorldPacket const* packet);
+        static void QueueRead(uint32 accountId, proto::SessionId sessionId);
+        static void QueuePetitionSignHolder(uint32 accountId);
     private:
         Player* _player;
         std::string m_name;
@@ -902,6 +1078,12 @@ SELF_SESSION = '''class WorldSession
         proto::SessionId m_sessionId;
         uint32 std;
 };'''
+
+SELF_SESSION_BASE = SELF_SESSION.replace('    private:', '''        void SendStop(Unit* enemy);
+        void Ping();
+        static void Notify(uint32 accountId);
+        static void Notify(uint32 accountId, uint32 reason);
+    private:''')
 
 SELF_PLAYER = '''class Player;
 
@@ -1200,6 +1382,7 @@ def self_test():
                 return
             new = new.replace(*swap)
         got = []
+        headers = dict({SESSION_HEADER: SELF_SESSION_BASE}, **(headers or {}))
         try:
             rc = verify(dict(moves[entry], **change), base, tree_base, new, members, got.append, headers, beside)
         except Exception as e:                                  # a crash fails the row
@@ -1361,6 +1544,12 @@ def self_test():
            '    Unit* other\\\n_player->Attack(enemy, true);')
     edited('an edit ending in a line splice fails', 1, otherwise, '    Ping(&session\\\nId);\n' + attack[0],
            '    Ping(this\\\nId);\n' + attack[1], edits=[enemy, ('    Ping(&session\\', '    Ping(this\\')])
+    edited('an edit after a line splice with a blank after the backslash fails', 1, otherwise,
+           '    Unit* other\\ \nsession.GetPlayer()->Attack(enemy, true);',
+           '    Unit* other\\ \n_player->Attack(enemy, true);')
+    edited('an edit ending in a line splice with a blank after the backslash fails', 1, otherwise,
+           '    Ping(&session\\\t\nId);\n' + attack[0], '    Ping(this\\\t\nId);\n' + attack[1],
+           edits=[enemy, ('    Ping(&session\\\t', '    Ping(this\\\t')])
     edited('a substitution changing more than the player fails', 1, neither,
            '    session.GetPlayer()->Attack(enemy, false);', attack[1],
            substitutions=[('SendStop(session, ', 'SendStop('), ('enemy, false', 'enemy, true')], edits=[enemy])
@@ -1388,6 +1577,61 @@ def self_test():
     edited('a &session pair over a name running on from it fails', 1, '\'&session\' matches no code in the function',
            '    Ping(&sessionTarget);\n' + attack[0], '    Ping(thisTarget);\n' + attack[1],
            substitutions=[stop_pair, ('&session', 'this')], edits=[enemy])
+    for label, pair, needle in (
+            ('a sender pair naming a keyword fails', ('decltype(session, ', 'decltype('),
+             "the substitution 'decltype(session, ' -> 'decltype(': WorldSession declares no member function "
+             "decltype at fixture"),
+            ('a sender pair naming a type fails', ('Guard(session)', 'Guard()'),
+             "the substitution 'Guard(session)' -> 'Guard()': WorldSession declares no member function Guard at"),
+            ('a sender pair naming an overloaded member fails', ('Notify(session, ', 'Notify('),
+             "the substitution 'Notify(session, ' -> 'Notify(': WorldSession in src/game/Server/WorldSession.h at "
+             "fixture names it 2 times, not once")):
+        run(label, 1, needle, 0, substitutions=[stop_pair, pair])
+    run('a sender pair whose session header git does not hold fails', 1,
+        "the substitution 'SendStop(session, ' -> 'SendStop(': cannot read src/game/Server/WorldSession.h at fixture",
+        0, headers={SESSION_HEADER: None})
+    lead = ('    session.GetPlayer()->AttackStop();\n', '    GetPlayer()->AttackStop();\n')
+    member = ("begins with 'session.' after a '.', '->' or '::' ending the line above: the reversal reads it as the "
+              "session parameter and the compiler as a member")
+    for label, above in (('a line beginning with session. after -> ending the line above fails', '    enemy->\n'),
+                         ('a line beginning with session. after . ending the line above fails', '    enemy.\n'),
+                         ('a line beginning with session. after :: ending the line above fails', '    Enemy::\n'),
+                         ('a line beginning with session. after a comment below -> fails',
+                          '    enemy->\n    // the target\n\n')):
+        run(label, 1, member, 1, swap=(lead[0], above + lead[0]), base=SELF_BASE.replace(lead[1], above + lead[1]))
+    run('a line beginning with session. after -> and a trailing comment fails', 1, member, 1,
+        swap=(lead[0], '    enemy-> // the target\n' + lead[0]),
+        base=SELF_BASE.replace(lead[1], '    enemy-> // the target\n' + lead[1]))
+    run('a line beginning with session. under a comment ending in -> passes', 0, 'IDENTICAL', 1,
+        swap=(lead[0], '    Ping(); // enemy->\n' + lead[0]),
+        base=SELF_BASE.replace(lead[1], '    Ping(); // enemy->\n' + lead[1]))
+    run('a substitution\'s text beginning a line after -> ending the line above fails', 1,
+        "'        SendStop(session, NULL);                 // \"session.\" in a comment stays' begins with "
+        "'SendStop(session, ' after", 0,
+        swap=('        SendStop(session, NULL);', '        enemy->\n        SendStop(session, NULL);'),
+        base=SELF_BASE.replace('        SendStop(NULL);', '        enemy->\n        SendStop(NULL);'))
+    queue = ('    WorldSession::QueueRead(session.GetAccountId(), 0);\n', '    QueueRead(GetAccountId(), 0);\n')
+    run('a handler calling a session static through its class pastes back', 0,
+        'IDENTICAL to Fixture.cpp at fixture, byte for byte, with 5 lines pasted back (0 edits)', 1,
+        swap=(lead[0], queue[0] + lead[0]), base=SELF_BASE.replace(lead[1], queue[1] + lead[1]),
+        substitutions=[('WorldSession::QueueRead(', 'QueueRead(')])
+    run('a static pair whose two names differ fails', 1,
+        "the substitution 'WorldSession::QueueRead(' -> 'QueueReads(' is neither a player form nor a call read back "
+        "without the session, nor a static of the session called through its class", 1,
+        swap=(lead[0], queue[0] + lead[0]), base=SELF_BASE.replace(lead[1], queue[1] + lead[1]),
+        substitutions=[('WorldSession::QueueRead(', 'QueueReads(')])
+    run('a static pair running past its name fails', 1,
+        "the substitution 'WorldSession::QueueRead(session.' -> 'QueueRead(' is neither a player form", 1,
+        swap=(lead[0], queue[0] + lead[0]), base=SELF_BASE.replace(lead[1], queue[1] + lead[1]),
+        substitutions=[('WorldSession::QueueRead(session.', 'QueueRead(')])
+    run('a static pair naming the tail of a static\'s name fails', 1,
+        "the substitution 'WorldSession::Read(' -> 'Read(': WorldSession declares no static member function Read", 1,
+        swap=(lead[0], queue[0].replace('QueueRead', 'Read') + lead[0]),
+        base=SELF_BASE.replace(lead[1], queue[1].replace('QueueRead', 'Read') + lead[1]),
+        substitutions=[('WorldSession::Read(', 'Read(')])
+    run('a line holding session. past its start after -> ending the line above passes', 0, 'IDENTICAL', 1,
+        swap=(lead[0], '    enemy->\n        Attack(session.GetPlayer());\n' + lead[0]),
+        base=SELF_BASE.replace(lead[1], '    enemy->\n        Attack(GetPlayer());\n' + lead[1]))
     edited('an edit changing a literal before the player fails', 1, more,
            '    Say("a", session.GetPlayer());', '    Say("b", _player);')
     edited('an edit reading another object\'s player through . fails', 1, more,
@@ -1491,6 +1735,22 @@ def self_test():
         accessed(label, 1, more, new_line, base_line)
     accessed('a setter called inside an expression is not read: fails', 1, more,
              '    Ping(trader->SetTradeData(NULL));', '    Ping(trader->m_trade = NULL);', name='SetTradeData')
+    pet = '\n\nstruct Pet\n{\n    TradeData* GetTradeData() const;\n};\n'
+    trader = '\n\nclass Trader : public Unit\n{\n    public:\n        TradeData* m_trade;\n};\n'
+    caller = '\n\nclass Trader\n{\n    void Clear() { GetTradeData(); m_trade; }\n};\n'
+    for label, texts, needle in (
+            ('an accessor whose getter two classes in its header declare fails', {'Player.h': SELF_PLAYER + pet},
+             'the accessor Player::GetTradeData: 2 classes under src/game declare GetTradeData at fixture: '
+             'Player, Pet'),
+            ('an accessor whose member two classes in its header declare fails', {'Player.h': SELF_PLAYER + trader},
+             'the accessor Player::GetTradeData: 2 classes under src/game declare m_trade at fixture: Player, Trader'),
+            ('an accessor whose getter a class in another header declares fails',
+             {'Player.h': SELF_PLAYER, 'Pet.h': pet[2:]}, '2 classes under src/game declare GetTradeData at fixture: '
+             'Pet, Player'),
+            ('an accessor another class only calls in its bodies passes', {'Player.h': SELF_PLAYER + caller},
+             'IDENTICAL')):
+        accessed(label, 0 if needle == 'IDENTICAL' else 1, needle, '    trader->GetTradeData()->Clear();',
+                 '    trader->m_trade->Clear();', headers=texts)
     run('a no-session head with an accessor listed fails', 1,
         'the definition line takes no session, but the entry lists an accessor', base=SELF_MAIL_BASE,
         new=SELF_MAIL_NEW, moves=SELF_MAIL_MOVES, accessors=[getter], headers=player_h)
@@ -1630,6 +1890,71 @@ def self_test():
         base=SELF_MAIL_BASE.replace(SELF_MAIL_HEAD + '\n{', mail_open[0] + '\n// */ ) { _player->Ping();'),
         new=SELF_MAIL_NEW.replace(SELF_MAIL_NEW_HEAD + '\n{', mail_open[1] + '\n// */ ) { _player->Ping();'),
         moves=SELF_MAIL_MOVES, base_header=mail_open[0], new_header=mail_open[1])
+    holder = ('    WorldSession::QueuePetitionSignHolder(accountId);', '    QueuePetitionSignHolder(accountId);')
+    holder_pair = ('WorldSession::QueuePetitionSignHolder(', 'QueuePetitionSignHolder(')
+
+    def called(label, want_rc, needle, new_line, base_line, pairs, **change):
+        run(label, want_rc, needle, base=SELF_MAIL_BASE.replace(added, base_line + '\n' + added),
+            new=SELF_MAIL_NEW.replace(added, new_line + '\n' + added), moves=SELF_MAIL_MOVES, substitutions=pairs,
+            **change)
+
+    called('a callback calling a session static through its class pastes back', 0,
+           'IDENTICAL to Fixture.cpp at fixture, byte for byte, with 11 lines pasted back (0 edits)', *holder,
+           [holder_pair])
+    for label, name in (('a static pair naming a member that is not static fails', 'Ping'),
+                        ('a static pair naming no member of the session fails', 'Absent')):
+        called(label, 1, "the substitution 'WorldSession::%s(' -> '%s(': WorldSession declares no static member "
+               "function %s at fixture" % (name, name, name), '    WorldSession::%s(accountId);' % name,
+               '    %s(accountId);' % name, [('WorldSession::%s(' % name, '%s(' % name)])
+    called('a static pair naming an overloaded static fails', 1,
+           "the substitution 'WorldSession::Notify(' -> 'Notify(': WorldSession in src/game/Server/WorldSession.h at "
+           "fixture names it 2 times, not once", '    WorldSession::Notify(accountId);', '    Notify(accountId);',
+           [('WorldSession::Notify(', 'Notify(')])
+    called('a no-session head with a static pair and a player-form pair fails', 1,
+           'the definition line takes no session, but the entry lists a substitution', *holder,
+           [holder_pair, ('GetPlayer()', '_player')])
+    called('a session static left bare beside its pair fails', 1,
+           'body line 6: "QueuePetitionSignHolder", a member of WorldSession, used bare', holder[0] + '\n' + holder[1],
+           holder[1] + '\n' + holder[1], [holder_pair])
+    called('a static pair inside a longer name is not read back: DIFFERS', 1, 'DIFFERS from Fixture.cpp at fixture',
+           holder[0] + '\n    MyWorldSession::QueuePetitionSignHolder(accountId);',
+           holder[1] + '\n    MyQueuePetitionSignHolder(accountId);', [holder_pair])
+    for name in ('SendPacket', 'GetPlayer'):
+        called('a static pair on WorldSession::%s under a no-session head fails' % name, 1,
+               'combat/Fixture.cpp, ' + reading % ('WorldSession::' + name), '    WorldSession::%s(NULL);' % name,
+               '    %s(NULL);' % name, [('WorldSession::%s(' % name, '%s(' % name)])
+    called('a static pair whose session header git does not hold fails', 1,
+           "the substitution 'WorldSession::QueuePetitionSignHolder(' -> 'QueuePetitionSignHolder(': cannot read "
+           "src/game/Server/WorldSession.h at fixture", *holder, [holder_pair], headers={SESSION_HEADER: None})
+    called('a static pair after :: is not read back: fails', 1,
+           "the substitution 'WorldSession::QueuePetitionSignHolder(' matches no code in the function",
+           '    ::WorldSession::QueuePetitionSignHolder(accountId);', '    ::QueuePetitionSignHolder(accountId);',
+           [holder_pair])
+    for label, on in (('a static pair after -> is not read back: DIFFERS', 'bidder->'),
+                      ('a static pair after . is not read back: DIFFERS', 'other.')):
+        called(label, 1, 'DIFFERS from Fixture.cpp at fixture',
+               holder[0] + '\n    %sWorldSession::QueuePetitionSignHolder(1);' % on,
+               holder[1] + '\n    %sQueuePetitionSignHolder(1);' % on, [holder_pair])
+    hooked = [h.replace('auction)', 'auction, Hook QueuePetitionSignHolder)')
+              for h in (SELF_MAIL_HEAD, SELF_MAIL_NEW_HEAD)]
+    run('a static pair named by a parameter of the base definition fails', 1,
+        'the base definition takes a parameter named QueuePetitionSignHolder, which the entry reads back bare as a '
+        'static', base=SELF_MAIL_BASE.replace(added, holder[1] + '\n' + added).replace(SELF_MAIL_HEAD, hooked[0]),
+        new=SELF_MAIL_NEW.replace(added, holder[0] + '\n' + added).replace(SELF_MAIL_NEW_HEAD, hooked[1]),
+        moves=SELF_MAIL_MOVES, substitutions=[holder_pair], base_header=hooked[0], new_header=hooked[1])
+    for label, param in (('a static pair beside a commented-out parameter of its name passes',
+                          'Hook /*QueuePetitionSignHolder*/'),
+                         ('a static pair beside a parameter its name runs into passes',
+                          'Hook QueuePetitionSignHolderId')):
+        heads = [h.replace('auction)', 'auction, %s)' % param) for h in (SELF_MAIL_HEAD, SELF_MAIL_NEW_HEAD)]
+        run(label, 0, 'IDENTICAL', base=SELF_MAIL_BASE.replace(added, holder[1] + '\n' + added).replace(
+            SELF_MAIL_HEAD, heads[0]), new=SELF_MAIL_NEW.replace(added, holder[0] + '\n' + added).replace(
+            SELF_MAIL_NEW_HEAD, heads[1]), moves=SELF_MAIL_MOVES, substitutions=[holder_pair], base_header=heads[0],
+            new_header=heads[1])
+    spliced_local = '    auto QueuePetition\\\nSignHolder = [](uint32) {};\n'
+    called('a line splice in a function listing a static pair fails', 1,
+           "Fixture.cpp at fixture: '    auto QueuePetition\\\\' ends in a line splice: with a static called through "
+           "its class", spliced_local + holder[0], spliced_local + holder[1], [holder_pair])
 
     renamed_heads = [m['new_header'] for m in SELF_RENAME_MOVES]
 
@@ -1826,6 +2151,13 @@ def self_test():
     residue('a listed removal after a line splice fails', 1, 'is not an include directive standing alone',
             '// note \\\n' + swing.replace('#include "Chat.h"\n', ''), removed=['#include "Chat.h"'],
             base='// note \\\n' + SELF_RESIDUE_BASE)
+    residue('a listed removal ending in a line splice with a blank after it fails', 1,
+            'is not an include directive standing alone', swing.replace('#include "Chat.h"\n', ''),
+            removed=['#include "Chat.h" // pulls Log in: \\ '],
+            base=SELF_RESIDUE_BASE.replace('#include "Chat.h"', '#include "Chat.h" // pulls Log in: \\ '))
+    residue('a listed removal after a line splice with a blank after it fails', 1,
+            'is not an include directive standing alone', '// note \\ \n' + swing.replace('#include "Chat.h"\n', ''),
+            removed=['#include "Chat.h"'], base='// note \\ \n' + SELF_RESIDUE_BASE)
     residue('a listed removal inside a raw string literal fails', 1, 'is not an include directive standing alone',
             swing.replace('#include "WorldSession.h"\n', 'char const* k = R"(\n)";\n#include "WorldSession.h"\n'),
             removed=['#include "Z.h"'], base=SELF_RESIDUE_BASE.replace(
@@ -1835,7 +2167,7 @@ def self_test():
             base=SELF_RESIDUE_BASE.replace('#include "Log.h"\n', '#include "Log.h"\n#include "Log.h"\n'))
     residue('a listed removal of another directive fails', 1, 'is not an include line', swing,
             removed=['#define FIXTURE 1'], base=SELF_RESIDUE_BASE.replace('#include "Log.h"\n',
-                                                                           '#include "Log.h"\n#define FIXTURE 1\n'))
+                                                                          '#include "Log.h"\n#define FIXTURE 1\n'))
 
     dead = (SELF_CHECK_NAME,)
     undead = swing.replace(SELF_CHECK_NAME + '\n', '')
@@ -1868,6 +2200,11 @@ def self_test():
             edits=[('// keeps the name \\',)])
     residue('a residue edit after a line splice fails', 1, 'does not stand alone',
             swing.replace(SELF_CHECK_NAME + '\n', '// keeps the name \\\n'), base=spliced, edits=[dead])
+    blanked = SELF_RESIDUE_BASE.replace(SELF_CHECK_NAME, '// keeps the name \\ \n' + SELF_CHECK_NAME)
+    residue('a residue edit ending in a line splice with a blank after the backslash fails', 1,
+            'does not stand alone', swing, base=blanked, edits=[('// keeps the name \\ ',)])
+    residue('a residue edit after a line splice with a blank after the backslash fails', 1, 'does not stand alone',
+            swing.replace(SELF_CHECK_NAME + '\n', '// keeps the name \\ \n'), base=blanked, edits=[dead])
     residue('a residue edit starting inside a comment fails', 1, 'does not stand alone',
             swing.replace(note, note + '\n' + SELF_FILE_NOTE_NEW),
             edits=[(' * @brief Split of Old.cpp; no behaviour change.', ' * @brief The fixture\'s handlers.')],
@@ -1943,18 +2280,23 @@ def self_test():
     def checked(label, want_rc, needle, residues, tree=None, moves=None, b1=SELF_RESIDUE_BASE,
                 b2=SELF_RESIDUES['swing, Log.h'], new=SELF_NEW, headers=None):
         tree = SELF_RESIDUE_HEAD.replace('#include "Log.h"\n', '') + SELF_HELPERS if tree is None else tree
-        shown = {('b1', 'O.cpp'): b1, ('b2', 'O.cpp'): b2}
+        shown = {('b1', 'O.cpp'): b1, ('b2', 'O.cpp'): b2, ('b1', SESSION_HEADER): SELF_SESSION_BASE,
+                 ('b2', SESSION_HEADER): SELF_SESSION_BASE}
         shown.update({('b1', p): t for p, t in (headers or {}).items()})
         files = {SESSION_HEADER: SELF_SESSION, SELF_NEW_FILE: new, 'O.cpp': tree or None}
         two = [dict(SELF_MOVES[0], base='b1', base_file='O.cpp'), dict(SELF_MOVES[1], base='b2', base_file='O.cpp')]
-        saved = globals()['git_show'], globals()['read']
+        saved = globals()['git_show'], globals()['read'], globals()['git_grep']
 
         def shown_at(root, ref, rel):
             if (ref, rel) not in shown:
                 raise subprocess.CalledProcessError(128, ['git', 'show', '%s:%s' % (ref, rel)])
             return shown[(ref, rel)]
 
-        globals()['git_show'] = shown_at
+        def grep_at(root, ref, words):
+            return [p for (r, p), t in sorted(shown.items()) if r == ref and p.endswith('.h')
+                    and any(re.search(r'(?<!\w)%s(?!\w)' % re.escape(w), t) for w in words)]
+
+        globals()['git_show'], globals()['git_grep'] = shown_at, grep_at
         globals()['read'] = lambda root, rel: files.get(rel)
         got = []
         try:
@@ -1963,7 +2305,7 @@ def self_test():
             rc = 2
             got.append('crashed: %r' % e)
         finally:
-            globals()['git_show'], globals()['read'] = saved
+            globals()['git_show'], globals()['read'], globals()['git_grep'] = saved
         text = '\n'.join(got)
         ok = rc == want_rc and needle in text
         print('self-test: %-62s %s' % (label, 'PASS' if ok else 'FAIL'))
@@ -2025,6 +2367,39 @@ def self_test():
             "stands outside the functions whose entries rename `session` to it: '    WorldSession* requestSession = "
             "&session;'", [], moves=rename_moves[:2] + [dict(rename_moves[2], new_file=SELF_NEW_FILE + '.other')],
             **rename)
+
+    checked('--check: an accessor whose getter another header declares at the base fails', 1,
+            'the accessor Player::GetTradeData: 2 classes under src/game declare GetTradeData at b1: Pet, Player', [],
+            headers={'Player.h': SELF_PLAYER, 'Pet.h': pet[2:]}, **trade)
+    stop_head = "'void Fixture::HandleStop(WorldSession& session, WorldPacket& /*recv_data*/)'"
+    run('an entry with a key no entry admits fails', 1,
+        "the entry for %s has the key 'substitution', which no entry admits (the keys are base, base_file, "
+        "base_header, new_file, new_header, substitutions, edits, rename, accessors)" % stop_head, 1,
+        substitution=[('SendStop(session, ', 'SendStop(')])
+    for label, key, needle in (('an entry lacking its base header fails', 'base_header', stop_head),
+                               ('an entry lacking its new header fails', 'new_header', "'Fixture.cpp'")):
+        run(label, 1, "the entry for %s lacks the key '%s'" % (needle, key),
+            moves=[{k: v for k, v in SELF_MOVES[1].items() if k != key}])
+    checked('--check: an entry lacking its base fails', 1, "combat/Fixture.cpp: FAILED: the entry for 'void "
+            "Fixture::HandleSwing(WorldSession& session, WorldPacket& recv_data)' lacks the key 'base'", log,
+            moves=[{k: v for k, v in dict(SELF_MOVES[0], base_file='O.cpp').items() if k != 'base'},
+                   dict(SELF_MOVES[1], base='b2', base_file='O.cpp')])
+    checked('--check: a residue entry with a key no entry admits fails', 1,
+            "O.cpp: FAILED: the entry for 'O.cpp' has the key 'remove', which no entry admits (the keys are base, "
+            "base_file, removed, edits)", [dict(base='b1', base_file='O.cpp', remove=['#include "Log.h"'])])
+    checked('--check: a residue entry lacking its base fails', 1, "the entry for 'O.cpp' lacks the key 'base'",
+            [dict(base_file='O.cpp', removed=['#include "Log.h"'])])
+    checked('--check: a refused move entry fails the run alone', 1, '3 moved functions; FAILED', log,
+            moves=[dict(SELF_MOVES[0], base='b1', base_file='O.cpp'), dict(SELF_MOVES[1], base='b2', base_file='O.cpp'),
+                   dict(SELF_MOVES[1], base='b2', base_file='O.cpp', note='x')])
+    checked('--check: a refused residue entry fails the run alone', 1, '2 moved functions; FAILED',
+            log + [dict(base='b1', base_file='O.cpp', note='x')])
+    bad = []
+    keyed(MOVES, MOVE_KEYS, 5, bad.append)
+    keyed(RESIDUES, RESIDUE_KEYS, 2, bad.append)
+    print('self-test: %-62s %s' % ('the data file\'s entries hold the keys an entry admits', 'PASS' if not bad else
+                                   'FAIL'))
+    failures += bad
 
     for label, bad in split_gate.self_test(__file__, 'handler_moves', DATA_NAMES, 'MOVES', checked_first=True):
         print('self-test: %-62s %s' % (label, 'PASS' if not bad else 'FAIL'))
