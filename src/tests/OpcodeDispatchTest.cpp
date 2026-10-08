@@ -59,6 +59,7 @@
 #include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/TradeHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
+#include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
 #include <cstring>
@@ -590,4 +591,30 @@ TEST(OpcodeDispatch_TradeRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_CLEAR_TRADE_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_SET_TRADE_GOLD].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_SET_TRADE_GOLD].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_SkillRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_LEARN_TALENT].handler == &OpcodeThunk<&SkillHandlers::HandleLearnTalent>);
+    CHECK(opcodeTable[CMSG_LEARN_TALENT_GROUP].handler == &OpcodeThunk<&SkillHandlers::HandleLearnPreviewTalents>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&SkillHandlers::HandleLearnPreviewTalents>), 1);
+    CHECK(opcodeTable[MSG_TALENT_WIPE_CONFIRM].handler == &OpcodeThunk<&SkillHandlers::HandleTalentWipeConfirm>);
+    CHECK(opcodeTable[CMSG_UNLEARN_SKILL].handler == &OpcodeThunk<&SkillHandlers::HandleUnlearnSkill>);
+    CHECK(opcodeTable[CMSG_LEARN_TALENT].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_SkillRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_LEARN_TALENT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LEARN_TALENT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LEARN_TALENT_GROUP].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LEARN_TALENT_GROUP].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_TALENT_WIPE_CONFIRM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_TALENT_WIPE_CONFIRM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_UNLEARN_SKILL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_UNLEARN_SKILL].packetProcessing, PROCESS_THREADUNSAFE);
 }

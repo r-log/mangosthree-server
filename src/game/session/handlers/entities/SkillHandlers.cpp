@@ -23,32 +23,17 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/**
- * @file SkillHandler.cpp
- * @brief Character talent and skill management handlers
- *
- * This file handles player-initiated talent and skill operations:
- * - LearnTalent: Spending talent points to acquire talents
- * - TalentWipeConfirm: Resetting all talents (via trainer)
- * - UnlearnSkill: Abandoning a profession skill
- *
- * These are distinct from automatic skill gains from crafting/usage,
- * which are handled elsewhere.
- *
- * @note Talent wipes require interaction with a class trainer NPC
- */
+#include "session/handlers/entities/SkillHandlers.h"
 
 #include "Platform/Define.h"
-#include "Database/DatabaseEnv.h"
-#include "DBCStores.h"
+#include "Server/DBCStores.h"
 #include "Opcodes.h"
-#include "Log.h"
-#include "Creature.h"
-#include "Pet.h"
-#include "Player.h"
+#include "Log/Log.h"
+#include "Object/Creature.h"
+#include "Object/Pet.h"
+#include "entities/player/Player.h"
 #include "WorldPacket.h"
-#include "WorldSession.h"
-#include "UpdateMask.h"
+#include "Server/WorldSession.h"
 
 /**
  * @brief Handle talent learning (CMSG_LEARN_TALENT)
@@ -62,28 +47,28 @@
  * Validation and point deduction handled by Player::LearnTalent().
  * If player has an active pet, owner talent auras are recast on it.
  */
-void WorldSession::HandleLearnTalentOpcode(WorldPacket& recv_data)
+void SkillHandlers::HandleLearnTalent(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");
 
     uint32 talent_id, requested_rank;
     recv_data >> talent_id >> requested_rank;
 
-    if (_player->LearnTalent(talent_id, requested_rank))
+    if (session.GetPlayer()->LearnTalent(talent_id, requested_rank))
     {
-        _player->SendTalentsInfoData(false);
+        session.GetPlayer()->SendTalentsInfoData(false);
     }
     else
-        sLog.outError("WorldSession::HandleLearnTalentOpcode: learn talent %u rank %u failed for %s (account %u)", talent_id, requested_rank, GetPlayerName(), GetAccountId());
+        sLog.outError("WorldSession::HandleLearnTalentOpcode: learn talent %u rank %u failed for %s (account %u)", talent_id, requested_rank, session.GetPlayerName(), session.GetAccountId());
 
     // if player has a pet, update owner talent auras
-    if (_player->GetPet())
+    if (session.GetPlayer()->GetPet())
     {
-        _player->GetPet()->CastOwnerTalentAuras();
+        session.GetPlayer()->GetPet()->CastOwnerTalentAuras();
     }
 }
 
-void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
+void SkillHandlers::HandleLearnPreviewTalents(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");
 
@@ -94,12 +79,12 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
     // prevent cheating (selecting new tree with points already in another)
     if (tabPage >= 0)   // -1 if player already has specialization
     {
-        if (TalentTabEntry const* talentTabEntry = sTalentTabStore.LookupEntry(_player->GetTalentMgr().PrimaryTree(_player->GetTalentMgr().ActiveSpec())))
+        if (TalentTabEntry const* talentTabEntry = sTalentTabStore.LookupEntry(session.GetPlayer()->GetTalentMgr().PrimaryTree(session.GetPlayer()->GetTalentMgr().ActiveSpec())))
         {
             if (talentTabEntry->OrderIndex != tabPage)
             {
                 recvPacket.rfinish();
-                sLog.outError("WorldSession::HandleLearnPreviewTalents: tabPage != talent tabPage for %s (account %u)", GetPlayerName(), GetAccountId());
+                sLog.outError("WorldSession::HandleLearnPreviewTalents: tabPage != talent tabPage for %s (account %u)", session.GetPlayerName(), session.GetAccountId());
                 return;
             }
         }
@@ -113,20 +98,20 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
     {
         recvPacket >> talentId >> talentRank;
 
-        if (!_player->LearnTalent(talentId, talentRank))
+        if (!session.GetPlayer()->LearnTalent(talentId, talentRank))
         {
             recvPacket.rfinish();
-            sLog.outError("WorldSession::HandleLearnPreviewTalents: learn talent %u rank %u tab %u failed for %s (account %u)", talentId, talentRank, tabPage, GetPlayerName(), GetAccountId());
+            sLog.outError("WorldSession::HandleLearnPreviewTalents: learn talent %u rank %u tab %u failed for %s (account %u)", talentId, talentRank, tabPage, session.GetPlayerName(), session.GetAccountId());
             break;
         }
     }
 
-    _player->SendTalentsInfoData(false);
+    session.GetPlayer()->SendTalentsInfoData(false);
 
     // if player has a pet, update owner talent auras
-    if (_player->GetPet())
+    if (session.GetPlayer()->GetPet())
     {
-        _player->GetPet()->CastOwnerTalentAuras();
+        session.GetPlayer()->GetPet()->CastOwnerTalentAuras();
     }
 }
 
@@ -144,38 +129,38 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
  *
  * @note Player cannot be feign death during the interaction
  */
-void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recv_data)
+void SkillHandlers::HandleTalentWipeConfirm(WorldSession& session, WorldPacket& recv_data)
 {
     DETAIL_LOG("MSG_TALENT_WIPE_CONFIRM");
     ObjectGuid guid;
     recv_data >> guid;
 
-    Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
+    Creature* unit = session.GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
     {
         DEBUG_LOG("WORLD: HandleTalentWipeConfirmOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
         return;
     }
 
-    if (!unit->CanTrainAndResetTalentsOf(_player))
+    if (!unit->CanTrainAndResetTalentsOf(session.GetPlayer()))
     {
         return;
     }
 
-    if (!(_player->resetTalents()))
+    if (!(session.GetPlayer()->resetTalents()))
     {
         WorldPacket data(MSG_TALENT_WIPE_CONFIRM, 8 + 4);   // No talents to reset
         data << uint64(0);
         data << uint32(0);
-        SendPacket(&data);
+        session.SendPacket(&data);
         return;
     }
 
-    _player->SendTalentsInfoData(false);
-    unit->CastSpell(_player, 14867, true);                  // spell: "Untalent Visual Effect"
-    if (_player->GetPet())
+    session.GetPlayer()->SendTalentsInfoData(false);
+    unit->CastSpell(session.GetPlayer(), 14867, true);                  // spell: "Untalent Visual Effect"
+    if (session.GetPlayer()->GetPet())
     {
-        _player->GetPet()->CastOwnerTalentAuras();
+        session.GetPlayer()->GetPet()->CastOwnerTalentAuras();
     }
 }
 
@@ -189,9 +174,9 @@ void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recv_data)
  * @warning This action is permanent and removes all skill progress
  * @note Does not refund any costs or recipe purchases
  */
-void WorldSession::HandleUnlearnSkillOpcode(WorldPacket& recv_data)
+void SkillHandlers::HandleUnlearnSkill(WorldSession& session, WorldPacket& recv_data)
 {
     uint32 skill_id;
     recv_data >> skill_id;
-    GetPlayer()->SetSkill(skill_id, 0, 0);
+    session.GetPlayer()->SetSkill(skill_id, 0, 0);
 }
