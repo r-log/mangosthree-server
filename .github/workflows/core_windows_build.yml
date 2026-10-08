@@ -313,13 +313,17 @@ jobs:
           **Windows:** extract, copy \`mangosd.conf.dist\` to \`mangosd.conf\` and \`realmd.conf.dist\` to \`realmd.conf\`, set the \`*DatabaseInfo\` lines, run \`realmd.exe\` and \`mangosd.exe\`. No Visual C++ redistributable needed; crash logs (with symbols) land in the Crashes folder.
           BODY
 
-          if out=$(gh release view nightly 2>&1); then
+          if out=$(gh api "repos/$GH_REPO/releases/tags/nightly" --jq .id 2>&1); then
+            if [[ ! "$out" =~ ^[0-9]+$ ]]; then
+              echo "::error::the release nightly lookup answered '$out'"
+              exit 1
+            fi
             gh release edit nightly --prerelease --latest=false --title "Nightly build" --notes-file body.md
             gh release upload nightly "dist/$zip" --clobber
-          elif [[ "$out" == *"release not found"* || "$out" == *"HTTP 404"* ]]; then
+          elif [[ "$out" == *"HTTP 404"* ]]; then
             gh release create nightly --prerelease --latest=false --title "Nightly build" --notes-file body.md "dist/$zip"
           else
-            echo "::error::cannot read the nightly release: $out"
+            echo "::error::cannot read the release nightly: $out"
             exit 1
           fi
           echo "Published nightly for $sha7"
@@ -389,7 +393,11 @@ jobs:
 
           flags=(--verify-tag --title "MangosThree $tag" --notes-file notes.md "--latest=$latest")
           [ "$prerelease" = true ] && flags+=(--prerelease)
-          if out=$(gh release view "$tag" 2>&1); then
+          if out=$(gh api "repos/$GH_REPO/releases/tags/$tag" --jq .id 2>&1); then
+            if [[ ! "$out" =~ ^[0-9]+$ ]]; then
+              echo "::error::the release $tag lookup answered '$out'"
+              exit 1
+            fi
             target=$(gh api "repos/$GH_REPO/commits/$tag" --jq .sha)
             if [ "$target" != "$GITHUB_SHA" ]; then
               echo "::error::release $tag exists for ${target::7}, not for ${GITHUB_SHA::7}"; exit 1
@@ -399,7 +407,7 @@ jobs:
             [ "$prerelease" = true ] && editflags+=(--prerelease)
             gh release edit "$tag" "${editflags[@]}"
             echo "Refreshed existing release $tag"
-          elif [[ "$out" == *"release not found"* || "$out" == *"HTTP 404"* ]]; then
+          elif [[ "$out" == *"HTTP 404"* ]]; then
             gh release create "$tag" "${flags[@]}" "$zip"
             echo "Published $tag (latest=$latest, prerelease=$prerelease)"
           else
