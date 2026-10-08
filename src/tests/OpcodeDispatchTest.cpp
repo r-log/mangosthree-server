@@ -42,10 +42,12 @@
 /// an empty auctioneer guid to its end and returns at the empty auction id before it reads the
 /// player, sending nothing. The CMSG_CANCEL_TRADE row, given an empty packet on a session with no
 /// player, finds no player to cancel the trade of and returns, reading nothing and sending nothing.
-/// Every row bound to the combat, vendor, pvp, loot, auction or trade handler class holds the
-/// status STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING,
-/// CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE
-/// row, of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
+/// The CMSG_SOCKET_GEMS row reads an empty item guid to its end and, the guid naming no item,
+/// returns before it reads the player, sending nothing. Every row bound to the combat, vendor,
+/// pvp, loot, auction, trade, skill or enchant handler class holds the status STATUS_LOGGEDIN and
+/// the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
+/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
+/// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -59,6 +61,7 @@
 #include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/TradeHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
+#include "session/handlers/entities/EnchantHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
@@ -617,4 +620,46 @@ TEST(OpcodeDispatch_SkillRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[MSG_TALENT_WIPE_CONFIRM].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_UNLEARN_SKILL].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_UNLEARN_SKILL].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_EnchantRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket socket(CMSG_SOCKET_GEMS, 8);
+    socket << uint64(0);
+
+    opcodeTable[CMSG_SOCKET_GEMS].handler(session, socket);
+
+    CHECK_EQ(socket.rpos(), size_t(8));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_EnchantRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_WRAP_ITEM].handler == &OpcodeThunk<&EnchantHandlers::HandleWrapItem>);
+    CHECK(opcodeTable[CMSG_SOCKET_GEMS].handler == &OpcodeThunk<&EnchantHandlers::HandleSocket>);
+    CHECK(opcodeTable[CMSG_CANCEL_TEMP_ENCHANTMENT].handler
+          == &OpcodeThunk<&EnchantHandlers::HandleCancelTempEnchantment>);
+    CHECK(opcodeTable[CMSG_SOCKET_GEMS].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_EnchantRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_WRAP_ITEM].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_WRAP_ITEM].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SOCKET_GEMS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SOCKET_GEMS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_TEMP_ENCHANTMENT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CANCEL_TEMP_ENCHANTMENT].packetProcessing, PROCESS_THREADUNSAFE);
 }

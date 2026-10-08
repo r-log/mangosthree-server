@@ -1030,7 +1030,6 @@ class WorldSession
         void HandleReadItemOpcode(WorldPacket& recvPacket);
         void HandleAutoEquipItemSlotOpcode(WorldPacket& recvPacket);
         void HandleSwapItem(WorldPacket& recvPacket);
-        void HandleWrapItemOpcode(WorldPacket& recvPacket);
 
         void HandleUseItemOpcode(WorldPacket& recvPacket);
         void HandleOpenItemOpcode(WorldPacket& recvPacket);
@@ -1167,10 +1166,6 @@ class WorldSession
         void HandleComplainOpcode(WorldPacket& recv_data);
         void HandleRequestPetInfoOpcode(WorldPacket& recv_data);
 
-        // Socket gem
-        void HandleSocketOpcode(WorldPacket& recv_data);
-
-        void HandleCancelTempEnchantmentOpcode(WorldPacket& recv_data);
         void HandleItemRefundInfoRequest(WorldPacket& recv_data);
 
         void HandleChannelVoiceOnOpcode(WorldPacket& recv_data);
