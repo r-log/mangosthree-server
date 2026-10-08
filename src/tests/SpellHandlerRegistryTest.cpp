@@ -1622,8 +1622,8 @@ TEST(SpellEffectHealPowerHandlers_TheEnergizeContextAliasesTheSpellAndTheLevelLo
 
 namespace
 {
-    // Spell.dbc rows as the loader makes them (SpellEntry has no default constructor: it declares a private copy
-    // constructor): zeroed, with the id set.
+    // Spell.dbc rows in raw storage, as the loader makes them (SpellEntry has no default constructor: it declares a
+    // private copy constructor); zeroed here, with the id set.
     struct ObjectCombatSpellRow
     {
         alignas(SpellEntry) unsigned char bytes[sizeof(SpellEntry)];
@@ -2001,7 +2001,7 @@ TEST(SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault)
     CHECK(cannibalize != onMiss);
     CHECK(registry.Find<SpellTargetEffectDummySite>(12345) == NULL);
 
-    // A miss runs the default, which answers Continue as the switch's `default:` did and targets the unit target the
+    // A miss runs the default, which answers Continue as a switch's `default:` does and targets the unit target the
     // cast holds, if any; it reads nothing else of the spell.
     Creature caster(CREATURE_SUBTYPE_GENERIC);
     ValuedCreature target;
