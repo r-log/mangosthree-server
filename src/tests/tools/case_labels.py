@@ -358,7 +358,16 @@ def self_test():
          [3, 3, 4, 4, 5, 5, 6, 6]),
         ('an R ending a longer name opens no raw string',
          'switch (GetId())\n{\n case 1: s = xLR"(" case 9: ")"; break;\n case 2: break;\n}\n',
-         [3, 3, 4])]:
+         [3, 3, 4]),
+        ('an R after a name ending in _L opens no raw string',
+         'switch (GetId())\n{\n case 1: s = _LR"(" case 9: ")"; break;\n case 2: break;\n}\n',
+         [3, 3, 4]),
+        ('U8 is no raw string prefix',
+         'switch (GetId())\n{\n case 1: s = U8R"(" case 9: ")"; break;\n case 2: break;\n}\n',
+         [3, 3, 4]),
+        ('a raw string at the start of the text is read',
+         'R"(")"; switch (GetId()) { case 9: } //")"\nswitch (GetId())\n{\n case 1: break;\n}\n',
+         [1, 4])]:
         got = [line for line, key, value in labels(text) if counts(key, value)]
         ok = got == want
         print('self-test: %-58s %s' % (label, 'PASS' if ok else 'FAIL'))

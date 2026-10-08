@@ -29,11 +29,12 @@ MOVES holds one entry per moved function:
       no substitution and no edit, so the reversal pastes base_header back over the definition and the
       body comes back as it stands;
   substitutions  (new text, base text) pairs, each side one line, each matching code at least once and
-      only where no name, `.`, `->` or `::` runs into it; a pair is a player form, its two texts reading the
-      same under the player reading below (`GetPlayer()` read back as `_player`, `&session` as `this`), or a
-      call read back without the session, `<Name>(session, ` as `<Name>(` or `<Name>(session)` as
-      `<Name>()`, the same <Name> on both sides (a sender's call `SendAttackStop(session, ` read back as
-      `SendAttackStop(`);
+      only where no name, `.`, `->` or `::` runs into it and, when its new text ends in a name character,
+      where no name runs on from it (`&session` does not match in `&sessionTarget`); a pair is a player
+      form, its two texts reading the same under the player reading below (`GetPlayer()` read back as
+      `_player`, `&session` as `this`), or a call read back without the session, `<Name>(session, ` as
+      `<Name>(` or `<Name>(session)` as `<Name>()`, the same <Name> on both sides (a sender's call
+      `SendAttackStop(session, ` read back as `SendAttackStop(`);
   edits  (new line, base line) or (new line, base line, count) entries: a line changed beyond the
       substitutions, read back whole; each side is one line, the two read the same under the player
       reading, and the new line reads in place as it does alone; it must be found exactly count times in
@@ -179,6 +180,12 @@ DIRECTIVE = re.compile(r'\s*(?:#|%:)\s*(\w*)')
 PLAYER_FORM = re.compile(r'session\.GetPlayer\(\)|_player\b|GetPlayer\(\)|session\.|&session(?![\w.])')
 PLAYER_READ = {'session.': '', '&session': 'this'}
 SENDER = re.compile(r'(\w+)\(session(, |\))$')
+
+
+def name_edge(text):
+    """The right edge of a substitution: a text ending in a name character matches only where no name
+    character follows it."""
+    return r'(?!\w)' if re.match(r'\w', text[-1:]) else ''
 
 
 def find_lines(lines, text):
@@ -363,7 +370,7 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print):
                 raise Failure('the edit %r matches %d lines of the function, not the %d it covers: too %s found' % (
                     line, hits, counts[line], 'few' if hits < counts[line] else 'many'))
         check_forms(entry)
-        rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a)), b)
+        rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a) + name_edge(a)), b)
                                        for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
         pasted = []
@@ -992,6 +999,39 @@ def self_test():
     run('a CRLF move with an edit ending in CR on both sides passes', 0, 'IDENTICAL', 0,
         edits=[(enemy[0] + '\r', enemy[1] + '\r')], **crlf)
     run('an edit ending in CR on one side only fails', 1, more, 0, edits=[(enemy[0] + '\r', enemy[1])], **crlf)
+    stop_pair = ('SendStop(session, ', 'SendStop(')
+    for label, new_line, base_line, pair in (
+            ('a sender pair reading back more than its name fails', '    Ping(session, 1);', '    Ping(NULL, 1);',
+             ('Ping(session, ', 'Ping(NULL, ')),
+            ('a sender pair on another object fails', '    x=other->Ping(session, 1);', '    x=other->Ping(1);',
+             ('x=other->Ping(session, ', 'x=other->Ping(')),
+            ('a sender pair running past the session fails', '    Ping(session, NULL); Kick(1);', '    Ping(1);',
+             ('Ping(session, NULL); Kick(', 'Ping('))):
+        edited(label, 1, neither, new_line + '\n' + attack[0], base_line + '\n' + attack[1],
+               substitutions=[stop_pair, pair], edits=[enemy])
+    edited('a &session pair over a name running on from it fails', 1, '\'&session\' matches no code in the function',
+           '    Ping(&sessionTarget);\n' + attack[0], '    Ping(thisTarget);\n' + attack[1],
+           substitutions=[stop_pair, ('&session', 'this')], edits=[enemy])
+    edited('an edit changing a literal before the player fails', 1, more,
+           '    Say("a", session.GetPlayer());', '    Say("b", _player);')
+    edited('an edit reading another object\'s player through . fails', 1, more,
+           '    other.GetPlayer()->Attack(enemy, true);', '    other._player->Attack(enemy, true);')
+    edited('an edit running a name with _ into the player fails', 1, more,
+           '    x_session.GetPlayer()->Attack(enemy, true);', '    x__player->Attack(enemy, true);')
+    edited('an edit after a blank line below a member access fails', 1, otherwise,
+           '    enemy->\n\n        session.GetPlayer()->Attack(enemy, true);',
+           '    enemy->\n\n        _player->Attack(enemy, true);')
+    run('an edit whose new line holds a line break over one base line fails', 1, broken, 0,
+        edits=[(enemy[0] + '\n    if (!enemy)', enemy[1])])
+    for label, new_lines, base_lines, pair in (
+            ('a CRLF edit after a line splice fails', '    Unit* other\\\nsession.GetPlayer()->Attack(enemy, true);',
+             '    Unit* other\\\n_player->Attack(enemy, true);',
+             ('session.GetPlayer()->Attack(enemy, true);', '_player->Attack(enemy, true);')),
+            ('a CRLF edit ending in a line splice fails', '    Ping(&session\\\nId);\n' + attack[0],
+             '    Ping(this\\\nId);\n' + attack[1], ('    Ping(&session\\', '    Ping(this\\'))):
+        run(label, 1, otherwise, 0, new=SELF_NEW.replace(attack[0], new_lines).replace('\n', '\r\n'),
+            base=SELF_BASE.replace(attack[1], base_lines).replace('\n', '\r\n'),
+            edits=[(enemy[0] + '\r', enemy[1] + '\r'), (pair[0] + '\r', pair[1] + '\r')])
     stop = ('    session.GetPlayer()->AttackStop();\n', '    GetPlayer()->AttackStop();\n')
     for label, needle, line in (
             ('a member after a lone > in a body fails', '"m_name", a member', '    bool b = 0>m_name.empty();'),
