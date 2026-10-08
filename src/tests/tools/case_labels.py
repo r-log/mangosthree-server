@@ -8,7 +8,8 @@ PR, into the spell handler registry (src/game/spells/handlers/); this gate keeps
 labels still in switches from growing, and makes each PR that moves a family lower it.
 
 The lexer:
-  - blanks comments, string and character literals (raw strings too), keeping line breaks;
+  - blanks comments, string and character literals (raw strings too, with or without a u8, u, U or L
+    prefix), keeping line breaks;
   - tracks every `switch (<key>) {` with its key expression and the brace depth of its body;
   - gives every `case` label the key of its INNERMOST enclosing switch, so a switch nested in a
     case body owns its own labels (an effect switch inside a spell-ID case counts nothing, and a
@@ -107,7 +108,7 @@ def blank(text):
             j = n if j < 0 else j + 2
             out.append(spaces(text[i:j]))
             i = j
-        elif c == 'R' and text.startswith('R"', i) and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == '_')):
+        elif c == 'R' and text.startswith('R"', i) and raw_prefix_start(text, i) is not None:
             m = re.match(r'R"([^()\\\s]{0,16})\(', text[i:])
             if not m:
                 out.append(c)
@@ -129,6 +130,16 @@ def blank(text):
             out.append(c)
             i += 1
     return ''.join(out)
+
+
+def raw_prefix_start(text, i):
+    """Where the raw string whose R stands at i starts (its u8, u, U or L prefix included), or None when the R
+    ends a longer name."""
+    for p in ('u8', 'u', 'U', 'L', ''):
+        s = i - len(p)
+        if s >= 0 and text[s:i] == p and (s == 0 or not (text[s - 1].isalnum() or text[s - 1] == '_')):
+            return s
+    return None
 
 
 def digit_separator(text, i):
@@ -340,7 +351,14 @@ def self_test():
          [4, 5, 8, 8]),
         ('a raw string is blanked',
          'switch (GetId())\n{\n case 1: s = R"x(case 9: })x"; break;\n case 2: break;\n}\n',
-         [3, 4])]:
+         [3, 4]),
+        ('a raw string with an encoding prefix ends at its delimiter',
+         'switch (GetId())\n{\n case 1: a = LR"(")"; case 5: //")";\n case 2: b = uR"(")"; case 6: //")";\n'
+         ' case 3: c = UR"(")"; case 7: //")";\n case 4: d = u8R"(")"; case 8: //")";\n}\n',
+         [3, 3, 4, 4, 5, 5, 6, 6]),
+        ('an R ending a longer name opens no raw string',
+         'switch (GetId())\n{\n case 1: s = xLR"(" case 9: ")"; break;\n case 2: break;\n}\n',
+         [3, 3, 4])]:
         got = [line for line, key, value in labels(text) if counts(key, value)]
         ok = got == want
         print('self-test: %-58s %s' % (label, 'PASS' if ok else 'FAIL'))
