@@ -446,10 +446,55 @@ RESIDUES = [
     dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN,
          removed=['#include <cmath>', '#include <vector>', '#include "OpcodeTable.h"', '#include "WorldPacket.h"',
                   '#include "Log.h"', '#include "AchievementMgr.h"', '#include "PlayerRegistry.h"',
-                  '#include "Group.h"', '#include "World.h"', '#include "Util.h"', '#include "DBCStores.h"']),
+                  '#include "Group.h"', '#include "World.h"', '#include "Util.h"', '#include "DBCStores.h"'],
+         edits=[('/**\n'
+                 ' * @file LootHandler.cpp\n'
+                 ' * @brief Loot interaction opcode handlers\n'
+                 ' *\n'
+                 ' * This file handles loot-related opcodes including:\n'
+                 ' * - CMSG_AUTOSTORE_LOOT_ITEM: Auto-loot item to inventory\n'
+                 ' * - CMSG_LOOT: Open loot window\n'
+                 ' * - CMSG_LOOT_MONEY: Loot money\n'
+                 ' * - CMSG_LOOT_RELEASE: Close loot window\n'
+                 ' * - CMSG_LOOT_ROLL: Roll for loot item\n'
+                 ' * - CMSG_MASTER_LOOT_ITEM: Master looter distributes item\n'
+                 ' *\n'
+                 ' * Loot can come from creatures, gameobjects, fishing, and mail.\n'
+                 ' * Different loot methods (Free for All, Round Robin, Master Looter, Group Loot)\n'
+                 ' * determine how items are distributed among party members.\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file LootHandler.cpp\n'
+                 " * @brief Defines one WorldSession member: DoLootRelease, which ends the player's looting of a game "
+                 'object, corpse,\n'
+                 " * item or creature and updates the source's loot state.\n"
+                 ' */')]),
     dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN,
          removed=['#include <algorithm>', '#include <string>', '#include <vector>', '#include "Log.h"',
-                  '#include "World.h"', '#include "AchievementMgr.h"', '#include "Util.h"', '#include "Chat.h"']),
+                  '#include "World.h"', '#include "AchievementMgr.h"', '#include "Util.h"', '#include "Chat.h"'],
+         edits=[('/**\n'
+                 ' * @file AuctionHouseHandler.cpp\n'
+                 ' * @brief Auction house opcode handlers\n'
+                 ' *\n'
+                 ' * This file handles auction house-related opcodes including:\n'
+                 ' * - CMSG_AUCTION_HELLO: Open auction house interface\n'
+                 ' * - CMSG_AUCTION_LIST_ITEMS: List auction items\n'
+                 ' * - CMSG_AUCTION_SELL_ITEM: Sell item on auction\n'
+                 ' * - CMSG_AUCTION_BID: Bid on auction\n'
+                 ' * - CMSG_AUCTION_REMOVE_ITEM: Cancel auction\n'
+                 ' *\n'
+                 ' * The auction house allows players to buy and sell items\n'
+                 ' * with other players using the in-game currency.\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file AuctionHouseHandler.cpp\n'
+                 ' * @brief Defines six WorldSession members: SendAuctionHello, SendAuctionCommandResult, '
+                 'SendAuctionBidderNotification,\n'
+                 ' * SendAuctionOwnerNotification and SendAuctionRemovedNotification, which send the client its '
+                 'auction packets, and\n'
+                 ' * the static SendAuctionOutbiddedMail, which mails an outbid bidder their bid back and notifies '
+                 'the bidder if online.\n'
+                 ' */')]),
     dict(base=_TRADE_BASE, base_file=_TRADE_ORIGIN,
          removed=['#include "Common/ServerDefines.h"', '#include "World.h"', '#include "PlayerRegistry.h"',
                   '#include "Log.h"', '#include "Spell.h"', '#include "SocialMgr.h"', '#include "Language.h"',

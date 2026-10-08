@@ -24,19 +24,16 @@
  */
 
 /**
- * @file Opcodes.cpp
+ * @file OpcodeTable.cpp
  * @brief Network opcode handler registration
  *
  * This file registers all network packet handlers for the world server.
- * It maps each opcode to its corresponding handler function in WorldSession,
+ * It maps each opcode to the function that handles it, a WorldSession member or a handler class's static,
  * along with session status requirements and processing mode.
  *
  * Opcode processing modes: see \ref PacketProcessing in OpcodeTable.h.
  *
- * Session status requirements:
- * - STATUS_NEVER: Never process (deprecated/debug opcodes)
- * - STATUS_LOGGEDIN: Require player to be logged in
- * - STATUS_UNHANDLED: No handler assigned
+ * Session status requirements: see \ref SessionStatus in OpcodeTable.h.
  *
  * @see Opcodes.h for opcode definitions
  * @see WorldSession for packet handler implementations
@@ -366,7 +363,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_MOVE_KNOCK_BACK,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_MOVE_KNOCK_BACK_ACK,                     STATUS_LOGGEDIN, PROCESS_THREADSAFE,   &WorldSession::HandleMovementAck               );
     OPCODE(SMSG_MOVE_UPDATE_KNOCK_BACK,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    // The observer relay family (design v2 §7): what the server tells everyone but the
+    // The observer relay family: what the server tells everyone but the
     // mover once the mover acked. Registered together, or SendPacket's opcodeTable
     // guard (STATUS_UNHANDLED) silently drops whichever sibling is missing.
     OPCODE(SMSG_MOVE_UPDATE_WALK_SPEED,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );

@@ -25,17 +25,9 @@
 
 /**
  * @file AuctionHouseHandler.cpp
- * @brief Auction house opcode handlers
- *
- * This file handles auction house-related opcodes including:
- * - CMSG_AUCTION_HELLO: Open auction house interface
- * - CMSG_AUCTION_LIST_ITEMS: List auction items
- * - CMSG_AUCTION_SELL_ITEM: Sell item on auction
- * - CMSG_AUCTION_BID: Bid on auction
- * - CMSG_AUCTION_REMOVE_ITEM: Cancel auction
- *
- * The auction house allows players to buy and sell items
- * with other players using the in-game currency.
+ * @brief Defines six WorldSession members: SendAuctionHello, SendAuctionCommandResult, SendAuctionBidderNotification,
+ * SendAuctionOwnerNotification and SendAuctionRemovedNotification, which send the client its auction packets, and
+ * the static SendAuctionOutbiddedMail, which mails an outbid bidder their bid back and notifies the bidder if online.
  */
 
 #include <sstream>

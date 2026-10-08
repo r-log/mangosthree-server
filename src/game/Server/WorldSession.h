@@ -216,7 +216,8 @@ class PacketFilter
 /**
  * @brief Map session filter class
  *
- * Process only thread-safe packets in Map::Update().
+ * The map's drain in Map::Update(): takes in-place packets, and thread-safe packets while the session's
+ * player is in the world.
  */
 class MapSessionFilter : public PacketFilter
 {
@@ -255,8 +256,8 @@ class MapSessionFilter : public PacketFilter
 /**
  * @brief World session filter class
  *
- * Class used to filter only thread-unsafe packets from queue.
- * Used in World::UpdateSessions().
+ * The session update's drain in World::UpdateSessions(): takes in-place and thread-unsafe packets, and
+ * thread-safe packets while the session has no player in the world.
  */
 class WorldSessionFilter : public PacketFilter
 {

@@ -79,8 +79,8 @@ static SpellHandlerOutcome<void> EffectActivateObjectSkettisSummon(SpellEffectAc
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 46085: Place Fake Fur: a creature (25835) is summoned near the game object for 15 seconds, and the object is
-/// marked in use
+/// 46085: Place Fake Fur: a creature (25835) is summoned near the game object, despawning after 15 unbroken seconds
+/// alive and out of combat or once its corpse is gone, and the object is marked in use
 static SpellHandlerOutcome<void> EffectActivateObjectPlaceFakeFur(SpellEffectActivateObjectContext& ctx)
 {
     float x, y, z;
