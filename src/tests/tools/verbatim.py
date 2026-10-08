@@ -2902,7 +2902,19 @@ def self_test():
                                    'PASS' if pasted == ["    Log('\\n');"] else 'FAIL'))
     if pasted != ["    Log('\\n');"]:
         failures.append('a right side holding a backslash pasted back as %r' % pasted)
-    spelled =[('ctx.target', 'target'), ('ctx.aura', 'this'), ('Spell::TargetList', 'TargetList')]
+    for label, cases in (
+            ('whole tokens: a digit or an underscore before a left side is a name character',
+             [('my_ctx.target->Drop(1);', False), ('2ctx.target->Drop(1);', False), ('(ctx.target->Drop(1);', True)]),
+            ('whole tokens: a digit after a left side is a name character',
+             [('Drop(ctx.m_caster2);', False), ('Drop(ctx.m_caster);', True)]),
+            ('whole tokens: an underscore after a left side is a name character',
+             [('Drop(ctx.m_caster_old);', False), ('Drop(ctx.m_caster);', True)])):
+        pair = ('ctx.target', 'target') if 'target' in cases[0][0] else ('ctx.m_caster', 'm_caster')
+        wrong = [text for text, applies in cases if bool(token_pattern(*pair).search(text)) != applies]
+        print('self-test: %-66s %s' % (label, 'FAIL' if wrong else 'PASS'))
+        if wrong:
+            failures.append('%s: token_pattern%r misreads %r' % (label, pair, wrong))
+    spelled = [('ctx.target', 'target'), ('ctx.aura', 'this'), ('Spell::TargetList', 'TargetList')]
     listed = form('tokens', lab1, [
         lab[1], '            for (TargetList::const_iterator i = list.begin(); i != list.end(); ++i)',
         '                target->Drop(*i);', '            MySpell::TargetListX::Clear();',
@@ -2988,6 +3000,10 @@ def self_test():
         "tied: the pair ('ctx.spell->finish', 'finish') reads the spell the context holds, and the dispatch passes "
         "the context no `this`: CheckTargetContext ctx(m_caster, target)",
         **rebound(tied, '    CheckTargetContext ctx(m_caster, target);'))
+    run('context tie: a route through the spell, this only inside an argument: fails by name', 1,
+        "tied: the pair ('ctx.spell->finish', 'finish') reads the spell the context holds, and the dispatch passes "
+        "the context no `this`: CheckTargetContext ctx(m_thisSpell, m_caster, target)",
+        **rebound(tied, '    CheckTargetContext ctx(m_thisSpell, m_caster, target);'))
     run('context tie: arguments spelled with other blanks than the pairs: passes', 0,
         'with 1/1 bodies pasted back at their 1 labels in 1 sites',
         **rebound(tied, '    CheckTargetContext  ctx ( this,m_caster ,\ttarget );'))
@@ -3064,6 +3080,13 @@ def self_test():
     run('key tie: open lines opening no switch: fails by name', 1,
         "keyed: its open lines hold no `switch (KEY)` to tie the dispatch's key to",
         **rekeyed(keyed['spec']['sites'][0]['dispatch'][1], opened=['    if (triggered_spell_id)', '    {']))
+    run('key tie: open lines whose first statement is not the switch: fails by name', 1,
+        "keyed: its open lines hold no `switch (KEY)` to tie the dispatch's key to",
+        **rekeyed(keyed['spec']['sites'][0]['dispatch'][1],
+                  opened=['    if (apply) switch (triggered_spell_id)', '    {']))
+    run('key tie: a switch key the dispatch\'s key only begins: fails by name', 1,
+        "keyed: the dispatch's key 'triggered_spell_id' is not its switch's key 'triggered_spell_id+1'",
+        **rekeyed(keyed['spec']['sites'][0]['dispatch'][1], opened=['    switch (triggered_spell_id + 1)', '    {']))
 
     # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
     # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
