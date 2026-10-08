@@ -1866,6 +1866,8 @@ src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The handlers pass the aura to CastSpell (66, 29166, 51912) and read it: GetRemoveMode(), GetSpellEffect(), GetModifier()->m_amount, GetCaster(), GetHolder(), GetEffIndex(), GetSpellProto(), GetBasePoints(), GetAuraMaxTicks().
 src/game/spells/handlers/AuraPeriodicHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
+# The Survival Instincts body downcasts the caster to a player for a method the unit already has; retired by the cast tidy that drops the downcast, or by row 13's successor.
+src/game/spells/handlers/SpellChecksHandlers.cpp -> src/game/entities/player/Player.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 # The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.

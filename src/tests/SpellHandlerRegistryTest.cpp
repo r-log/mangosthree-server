@@ -27,17 +27,18 @@
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
 /// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's,
-/// EffectEnergize's, EffectActivateObject's, EffectResurrect's, the two of SetTargetMap and the five of
-/// SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their contexts, and run where a body needs no
-/// live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the
-/// transmitted-object, energize, resurrect and targeting defaults, the periodic-trigger labels on such a mode, the
-/// health labels on an apply that is not real, the health default, the energize injector labels on a bare Creature,
-/// the 54732 defibrillate roll, which has no failure spell, and the area-target labels on bare Creatures);
+/// EffectEnergize's, EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's
+/// and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their contexts, and run where
+/// a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the
+/// transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the periodic-trigger
+/// labels on such a mode, the health labels on an apply that is not real, the health default, the energize injector
+/// labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the area-target labels on bare
+/// Creatures, the cast-check labels on a creature caster and the target-check labels on creature targets);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
 /// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
-/// druid, quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting or
-/// periodic-aura label, nor another removal one).
+/// druid, quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting,
+/// cast-check, target-check or periodic-aura label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -57,7 +58,9 @@
 ///                            SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
 ///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
-///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault
+///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
+///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -70,7 +73,9 @@
 ///                            SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
 ///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
-///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault
+///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
+///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -78,7 +83,9 @@
 ///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault,
 ///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
-///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault
+///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
+///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
 ///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
@@ -88,8 +95,12 @@
 ///                            SpellEffectHealPowerHandlers_TheEnergizeSiteHoldsItsNineLabelsAndTheDefault,
 ///                            SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
-///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault
-///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault
+///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
+///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
+///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -108,8 +119,13 @@
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaContextAliasesTheSpellAndTheLocals,
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
-///                            SpellTargetingHandlers_TheEffectDummyContextAliasesTheSpell
+///                            SpellTargetingHandlers_TheEffectDummyContextAliasesTheSpell,
+///                            SpellChecksHandlers_TheCastAuraDummyContextAliasesTheCaster,
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
+///                            SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
+///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
 
 #include "TestHarness.h"
@@ -122,6 +138,8 @@
 #include "spells/handlers/SpellEffectHealPowerHandlers.h"
 #include "spells/handlers/SpellEffectObjectCombatHandlers.h"
 #include "spells/handlers/SpellTargetingHandlers.h"
+#include "spells/handlers/SpellChecksHandlers.h"
+#include "spells/handlers/SpellCheckTargetHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
@@ -589,11 +607,12 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
 
     // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
     // transmitted-object site's row and default, the periodic auras' 26 rows and 4 defaults, the energize site's
-    // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, and the two
-    // targeting sites' 10 and 1 rows and their two defaults.
+    // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, the two
+    // targeting sites' 10 and 1 rows and their two defaults, the cast-check site's 2 rows and default, and the
+    // target-check site's 3 rows and default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(166));
-    CHECK_EQ(game.CountDefaults(), std::size_t(10));
+    CHECK_EQ(game.Count(), std::size_t(171));
+    CHECK_EQ(game.CountDefaults(), std::size_t(12));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -1139,7 +1158,7 @@ TEST(SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry)
 namespace
 {
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
-    // resurrect and two targeting sites and the earlier files' ids.
+    // resurrect, two targeting, cast-check and target-check sites and the earlier files' ids.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
     {
         return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
@@ -1156,6 +1175,9 @@ namespace
                 registry.Find<SpellTargetAllEnemyInAreaSite>(spellId) != NULL) ||
                (site != SpellTargetEffectDummySite::Key &&
                 registry.Find<SpellTargetEffectDummySite>(spellId) != NULL) ||
+               (site != SpellCheckCastAuraDummySite::Key &&
+                registry.Find<SpellCheckCastAuraDummySite>(spellId) != NULL) ||
+               (site != SpellCheckTargetSite::Key && registry.Find<SpellCheckTargetSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -2043,4 +2065,174 @@ TEST(SpellTargetingHandlers_TheEffectDummyContextAliasesTheSpell)
     CHECK_EQ(targets.size(), std::size_t(1));
     targets.clear();
     CHECK(ctx.targetUnitMap.empty());
+}
+
+TEST(SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellChecksHandlers(registry), uint32(3)); // 2 rows and the default
+    CHECK_EQ(registry.Count(), std::size_t(2));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK_EQ(registry.CountAt(SpellCheckCastAuraDummySite::Key), std::size_t(2));
+
+    // Two labels, two bodies; the default is neither.
+    typedef SpellHandler<SpellCheckCastAuraDummySite>::Function CastBody;
+    CastBody killCommand = registry.Find<SpellCheckCastAuraDummySite>(34026);
+    CastBody survivalInstincts = registry.Find<SpellCheckCastAuraDummySite>(61336);
+    CastBody onMiss = registry.FindDefault<SpellCheckCastAuraDummySite>();
+    std::set<CastBody> bodies = { killCommand, survivalInstincts, onMiss };
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(3));
+    CHECK(registry.Find<SpellCheckCastAuraDummySite>(12345) == NULL);
+
+    // A creature caster with no pet, in no world.
+    ValuedCreature caster;
+    Unit* casterMember = &caster;
+    SpellCheckCastAuraDummyContext ctx(casterMember);
+
+    // A miss runs the default, which answers Continue as the switch's `default: break;` does.
+    SpellHandlerOutcome<SpellCastResult> missed = registry.Dispatch<SpellCheckCastAuraDummySite>(12345, ctx);
+    CHECK(missed.IsContinue());
+    CHECK(!missed.IsReturn());
+    CHECK(!missed.IsMiss());
+
+    // Kill Command with no pet fails the cast with its result.
+    SpellHandlerOutcome<SpellCastResult> noPet = registry.Dispatch<SpellCheckCastAuraDummySite>(34026, ctx);
+    REQUIRE(noPet.IsReturn());
+    CHECK(noPet.GetValue() == SPELL_FAILED_NO_PET);
+
+    // Survival Instincts on a caster that is not a player fails the cast with its result.
+    SpellHandlerOutcome<SpellCastResult> notFeral = registry.Dispatch<SpellCheckCastAuraDummySite>(61336, ctx);
+    REQUIRE(notFeral.IsReturn());
+    CHECK(notFeral.GetValue() == SPELL_FAILED_ONLY_SHAPESHIFT);
+    CHECK(casterMember == &caster);
+
+    // Registering again on the same table changes nothing: both keys and the default are taken.
+    CHECK_EQ(RegisterSpellChecksHandlers(registry), uint32(3));
+    CHECK_EQ(registry.Count(), std::size_t(2));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK(registry.Find<SpellCheckCastAuraDummySite>(34026) == killCommand);
+    CHECK(registry.FindDefault<SpellCheckCastAuraDummySite>() == onMiss);
+
+    // Keyed on the cast-check site only; the game's table holds the same rows and the same default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 34026u, 61336u })
+    {
+        CHECK(!HeldByAnotherSite(game, SpellCheckCastAuraDummySite::Key, spellId));
+        CHECK(game.Find<SpellCheckCastAuraDummySite>(spellId) == registry.Find<SpellCheckCastAuraDummySite>(spellId));
+    }
+    for (uint32 spellId : { 37433u, 68921u, 69049u, 20577u, 30769u, 24734u, 8342u, 9512u, 41099u })
+    {
+        CHECK(game.Find<SpellCheckCastAuraDummySite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellCheckCastAuraDummySite::Key), std::size_t(2));
+    CHECK(game.FindDefault<SpellCheckCastAuraDummySite>() == onMiss);
+}
+
+TEST(SpellChecksHandlers_TheCastAuraDummyContextAliasesTheCaster)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* caster = reinterpret_cast<Unit*>(units[0]);
+    SpellCheckCastAuraDummyContext ctx(caster);
+    CHECK(ctx.m_caster == caster);
+
+    ctx.m_caster = reinterpret_cast<Unit*>(units[1]);           // the caster is the spell's member, not a copy
+    CHECK(caster == reinterpret_cast<Unit*>(units[1]));
+    caster = reinterpret_cast<Unit*>(units[0]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
+}
+
+TEST(SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellCheckTargetHandlers(registry), uint32(4)); // 3 rows and the default
+    CHECK_EQ(registry.Count(), std::size_t(3));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK_EQ(registry.CountAt(SpellCheckTargetSite::Key), std::size_t(3));
+
+    // Three labels, two bodies: the two Soulstorm labels share one, Spout has its own; the default is neither.
+    typedef SpellHandler<SpellCheckTargetSite>::Function TargetBody;
+    TargetBody spout = registry.Find<SpellCheckTargetSite>(37433);
+    TargetBody soulstorm = registry.Find<SpellCheckTargetSite>(68921);
+    TargetBody onMiss = registry.FindDefault<SpellCheckTargetSite>();
+    std::set<TargetBody> bodies = { spout, soulstorm, onMiss };
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(3));
+    CHECK(registry.Find<SpellCheckTargetSite>(69049) == soulstorm);
+    CHECK(registry.Find<SpellCheckTargetSite>(12345) == NULL);
+
+    // A caster at the origin and two creature targets, 5 and 15 yards from it.
+    Creature caster(CREATURE_SUBTYPE_GENERIC);
+    Creature near(CREATURE_SUBTYPE_GENERIC);
+    Creature far(CREATURE_SUBTYPE_GENERIC);
+    PlaceTargetAt(caster, 0.0f);
+    PlaceTargetAt(near, 5.0f);
+    PlaceTargetAt(far, 15.0f);
+    Unit* casterMember = &caster;
+    Unit* target = &near;
+    SpellCheckTargetContext ctx(casterMember, target);
+
+    // A miss runs the default, which answers Continue as the switch's `default: break;` does: the target stands.
+    SpellHandlerOutcome<bool> missed = registry.Dispatch<SpellCheckTargetSite>(12345, ctx);
+    CHECK(missed.IsContinue());
+    CHECK(!missed.IsReturn());
+    CHECK(!missed.IsMiss());
+
+    // Spout refuses a target that is not a player.
+    SpellHandlerOutcome<bool> notPlayer = registry.Dispatch<SpellCheckTargetSite>(37433, ctx);
+    REQUIRE(notPlayer.IsReturn());
+    CHECK(!notPlayer.GetValue());
+
+    // Soulstorm refuses a target within 10 yards of the caster and lets one further away stand; the body reads the
+    // target the member holds when it runs.
+    for (uint32 spellId : { 68921u, 69049u })
+    {
+        target = &near;
+        SpellHandlerOutcome<bool> tooNear = registry.Dispatch<SpellCheckTargetSite>(spellId, ctx);
+        REQUIRE(tooNear.IsReturn());
+        CHECK(!tooNear.GetValue());
+        target = &far;
+        SpellHandlerOutcome<bool> farEnough = registry.Dispatch<SpellCheckTargetSite>(spellId, ctx);
+        CHECK(farEnough.IsContinue());
+        CHECK(!farEnough.IsReturn());
+    }
+    CHECK(casterMember == &caster);
+
+    // Registering again on the same table changes nothing: every key and the default are taken.
+    CHECK_EQ(RegisterSpellCheckTargetHandlers(registry), uint32(4));
+    CHECK_EQ(registry.Count(), std::size_t(3));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK(registry.Find<SpellCheckTargetSite>(37433) == spout);
+    CHECK(registry.FindDefault<SpellCheckTargetSite>() == onMiss);
+
+    // Keyed on the target-check site only; the game's table holds the same rows and the same default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 37433u, 68921u, 69049u })
+    {
+        CHECK(!HeldByAnotherSite(game, SpellCheckTargetSite::Key, spellId));
+        CHECK(game.Find<SpellCheckTargetSite>(spellId) == registry.Find<SpellCheckTargetSite>(spellId));
+    }
+    for (uint32 spellId : { 34026u, 61336u, 20577u, 30769u, 24734u, 8342u, 9512u, 41099u })
+    {
+        CHECK(game.Find<SpellCheckTargetSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellCheckTargetSite::Key), std::size_t(3));
+    CHECK(game.FindDefault<SpellCheckTargetSite>() == onMiss);
+}
+
+TEST(SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget)
+{
+    alignas(16) static unsigned char units[4][16];
+    Unit* caster = reinterpret_cast<Unit*>(units[0]);
+    Unit* target = reinterpret_cast<Unit*>(units[1]);
+    SpellCheckTargetContext ctx(caster, target);
+    CHECK(ctx.m_caster == caster);
+    CHECK(&ctx.target == &target);
+
+    ctx.m_caster = reinterpret_cast<Unit*>(units[2]);           // the caster is the spell's member, not a copy
+    CHECK(caster == reinterpret_cast<Unit*>(units[2]));
+    caster = reinterpret_cast<Unit*>(units[0]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
+    target = reinterpret_cast<Unit*>(units[3]);                 // and the target is the member's parameter, read
+    CHECK(ctx.target == reinterpret_cast<Unit*>(units[3]));
 }

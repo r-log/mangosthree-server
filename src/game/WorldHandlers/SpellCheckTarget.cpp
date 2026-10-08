@@ -76,6 +76,7 @@
 #include "TemporarySummon.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
+#include "spells/handlers/SpellCheckTargetHandlers.h"
 
 /**
  * @brief Checks whether a target matches the spell's creature type restrictions.
@@ -285,23 +286,11 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
         return false;
     }
 
-    switch (m_spellInfo->ID)
+    SpellCheckTargetContext ctx(m_caster, target);
+    SpellHandlerOutcome<bool> outcome = SpellHandlerRegistry::Game().Dispatch<SpellCheckTargetSite>(m_spellInfo->ID, ctx);
+    if (outcome.IsReturn())
     {
-        case 37433:                                         // Spout (The Lurker Below), only players affected if its not in water
-            if (target->GetTypeId() != TYPEID_PLAYER || target->IsInWater())
-            {
-                return false;
-            }
-            break;
-        case 68921:                                         // Soulstorm (FoS), only targets farer than 10 away
-        case 69049:                                         // Soulstorm            - = -
-            if (m_caster->Where().WithinDist(target->Where(), 10.0f, false))
-            {
-                return false;
-            }
-            break;
-        default:
-            break;
+        return outcome.GetValue();
     }
 
     return true;
