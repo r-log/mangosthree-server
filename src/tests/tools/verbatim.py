@@ -9,7 +9,8 @@ BASE, ORIGINAL, VOID_SUBSTITUTIONS, SITES and BLOCKS live in verbatim_sites.py b
 move edits (its sites' entries and BASE, or its block's entry); this file holds none of them and never
 changes them, and split_gate.py (whose docstring holds the rules) refuses to run it when it binds or
 changes one, when it runs with values other than the data file's, or when the data file holds anything
-but literal values.
+but literal values. The data file's rules are read from its source before it is imported, so a data
+file that would run anything else (an exit among them) is refused before it runs.
 
 For each file in SITES, --check:
   1. reads the file at BASE (`git show <base>:<file>`) and in the working tree, and for each of the
@@ -112,9 +113,12 @@ The run shapes beyond one label per line and a body that ends in its own termina
      `return SpellHandlerOutcome<T>::Continue();` as `break;`. Every handler the site registers must
      answer SpellHandlerOutcome<T> (a site with no `value` answers void and ends its substitutions with
      VOID_SUBSTITUTIONS); another outcome type fails. Each fails by name: a `value` that is not a plain
-     type spelling (empty, or holding a newline, `;`, `{` or `}`); a site with `value` none of whose
-     handlers in the working tree returns a value (a `Return(x)`, comments aside); a handler returning a
-     value at a site with no `value`.
+     type spelling (one or more word characters and `:`, the spelling a handler's head is read with); a
+     site with `value` whose own substitutions list an outcome pair (a left side holding
+     `SpellHandlerOutcome<`); a site with `value` at which no value is returned anywhere in the working
+     tree: none of its handlers returns one (a `Return(x)`, comments aside) and, at a partly moved site,
+     no run still standing in its switch holds a `return`; a handler returning a value at a site with no
+     `value`.
   M, several labels on one line: LABELS maps each id of a line `case 1: case 2: case 3:` to that same
      line, and every label line must hold exactly the ids mapped to it and nothing else. The ids of one line are rows
      of one run, so they share its function (an id of the line registered by another function
@@ -153,8 +157,11 @@ scope at the site (IN_SCOPE: its function's parameters and locals); a member of 
 class used bare (an implicit `this->` the move missed: in a free function the name could still
 compile if a free function or global of that name exists, and then means something else) -- the
 names are read from the class's own declaration (MEMBERS_OF), every member function and data
-member at class scope; and a `return ...::Continue();` inside a loop or a nested switch (the
-moved `break;` would have left that loop, not the case).
+member at class scope; a substitution's left side inside a string literal, plain or raw (the
+paste-back rewrites it there too, so a literal changed by the move would come back as the base's;
+comments are rewritten and read as they stand); and a `return ...::Continue();` inside a loop or a
+nested switch (the moved `break;` would have left that loop, not the case). A site whose substitutions
+hold no pair pasting back as `break;` fails by name before any Continue is read.
 
 python src/tests/tools/verbatim.py --check        # against BASE (this PR's parent), reading git
 python src/tests/tools/verbatim.py --check --original   # each file against its original
@@ -243,13 +250,16 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
 import split_gate  # noqa: E402
+
+# The names verbatim_sites.py assigns; split_gate.py holds the split.
+DATA_NAMES = ('BASE', 'ORIGINAL', 'VOID_SUBSTITUTIONS', 'SITES', 'BLOCKS')
+
+if split_gate.refused_before_import(__file__, 'verbatim_sites', DATA_NAMES):
+    sys.exit(1)
 try:
     from verbatim_sites import BASE, BLOCKS, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
 except Exception as e:
     sys.exit(split_gate.unloaded(__file__, 'verbatim_sites', e))
-
-# The names verbatim_sites.py assigns; split_gate.py holds the split.
-DATA_NAMES = ('BASE', 'ORIGINAL', 'VOID_SUBSTITUTIONS', 'SITES', 'BLOCKS')
 
 
 def valued_substitutions(value):
@@ -264,12 +274,17 @@ class Failure(Exception):
 
 def outcome_pairs(site):
     """The site with its substitutions followed by the outcome pairs built from its `value` (V); a site
-    with no `value` as it is. A `value` that is not a plain type spelling fails."""
+    with no `value` as it is. A `value` that is not a plain type spelling fails, and so does a site with a
+    `value` whose own substitutions list an outcome pair."""
     if 'value' not in site:
         return site
     value = site['value']
-    if not isinstance(value, str) or not value.strip() or any(c in value for c in '\n;{}'):
+    if not isinstance(value, str) or not re.fullmatch(r'[\w:]+', value):
         raise Failure('%s: its value %r is not a plain type spelling' % (site['name'], value))
+    listed = [a for a, _ in site['substitutions'] if isinstance(a, str) and 'SpellHandlerOutcome<' in a]
+    if listed:
+        raise Failure('%s: its value is %s, and its substitutions list the outcome pair %r, which the tool builds '
+                      'from the value' % (site['name'], value, listed[0]))
     return dict(site, substitutions=list(site['substitutions']) + valued_substitutions(value))
 
 
@@ -280,6 +295,21 @@ def returns_value(body):
     """Whether `body`, comments aside, holds a `SpellHandlerOutcome<...>::Return(` with something before its `)`."""
     text = '\n'.join(body)
     return any(not re.match(r'\s*\)', text[m.end():]) for m in VALUED_RETURN.finditer(blank(text)))
+
+
+def in_literal(text, at):
+    """Whether text[at] stands inside a string literal, as blank() reads `text`: a mark after text[:at]
+    stays blanked behind a `*/` (no block comment holds it) and is code behind a `"` (a literal closes)
+    or stays blanked behind a line end (a raw string holds it; a line comment would end)."""
+    def code(tail):
+        return blank(text[:at] + tail).endswith('@')
+    return not code('*/@') and (code('"@') or not code('\n@'))
+
+
+def standing_returns(lines):
+    """Whether `lines`, comments and literals aside, hold a `return` (in a function returning a value, a
+    return of one)."""
+    return bool(re.search(r'\breturn\b', blank('\n'.join(lines))))
 
 
 TABLE_HEAD = re.compile(r'\s*static [\w:]+(?:<([\w:]+)>)? const (\w+)\[\] =')
@@ -423,9 +453,10 @@ def check_returns(site, function, body):
 
 
 def check_body(function, body, site, members=()):
-    """What the paste-back cannot see: a bare live-out, a bare member of the site's class, and a
-    Continue inside a loop or switch."""
-    text = blank('\n'.join(body))
+    """What the paste-back cannot see: a bare live-out, a bare member of the site's class, a substitution's
+    left side inside a string literal, and a Continue inside a loop or switch."""
+    raw = '\n'.join(body)
+    text = blank(raw)
     for n, line in enumerate(text.split('\n'), 1):
         for name in sorted(members):
             if re.search(r'(?<![\w.>:~])%s\b' % re.escape(name), line):
@@ -441,7 +472,17 @@ def check_body(function, body, site, members=()):
             if re.search(r'(?<![\w.>])%s\b' % re.escape(name), line):
                 raise Failure('handler %s, body line %d: "%s", a name in scope at the site and not in its context, '
                               'used: %r' % (function, n, name, body[n - 1]))
+    for a, _ in site['substitutions']:
+        found = a.finditer(raw) if isinstance(a, re.Pattern) else re.finditer(re.escape(a), raw)
+        for m in found:
+            if in_literal(raw, m.start()):
+                n = raw.count('\n', 0, m.start())
+                raise Failure('handler %s, body line %d: %r, the left side of a substitution, stands inside a string '
+                              'literal, which the paste-back would rewrite: %r'
+                              % (function, n + 1, a.pattern if isinstance(a, re.Pattern) else a, body[n]))
     continues = [a for a, b in site['substitutions'] if b == 'break;']
+    if not continues:
+        raise Failure('%s: its substitutions hold no Continue pair (none pastes back as `break;`)' % site['name'])
     stack, pending, header_parens = [], False, None
     tokens = re.compile(r'\b(for|while|do|switch)\b|[{}();]|' + '|'.join(re.escape(c) for c in continues))
     pos = 0
@@ -811,8 +852,10 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
                           % (site['name'], site['traits'], site['traits']))
         rows = site_table(handlers, site)
         ids = [r[0] for r in rows]
+        stands_returning = False
         if 'residual' in site:
             end, standing = standing_labels(rest, at[0], n, site)
+            stands_returning = standing_returns(rest[at[0] + n:end])
             absent = [i for i in site.get('deleted', []) if i not in ids and i not in standing]
             if absent:
                 site = dict(site, labels={i: l for i, l in site['labels'].items() if i not in absent})
@@ -821,7 +864,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             raise Failure('%s: table rows %s, labels %s' % (site['name'], ids, sorted(site['labels'])))
         header, cls = site['members_of']
         members = class_members(headers[header], cls)
-        pieces, returned, pasted_before = [], False, pasted
+        pieces, returned = [], False
         i = 0
         while i < len(rows):
             function = rows[i][1]
@@ -879,9 +922,10 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         elif any(re.fullmatch(r'\s*registry\.RegisterDefault<%s>\(.*' % re.escape(site['traits']), l)
                  for l in handlers):
             raise Failure('%s: a default registered for a site whose switch had none' % site['name'])
-        if strict and 'value' in site and pasted > pasted_before and not returned:
+        if strict and 'value' in site and not returned and not stands_returning:
             raise Failure('%s: its value is %s, and no handler it registers returns one (no `Return(x)` to paste back '
-                          'as `return x;`)' % (site['name'], site['value']))
+                          'as `return x;`)%s' % (site['name'], site['value'], ', nor does a run still standing in its '
+                                                 'switch' if 'residual' in site else ''))
         if 'residual' in site:
             put_back(rest, at[0], n, site, pieces, end, standing)
         else:
@@ -2445,8 +2489,7 @@ def self_test():
         'handler Two answers SpellHandlerOutcome<void>, and its site\'s value is SpellCastResult',
         **mutated(valued, 'handlers', 'SpellHandlerOutcome<SpellCastResult> Two(', 'SpellHandlerOutcome<void> Two('))
     as_void = dict(valued['spec']['sites'][0], substitutions=valued_site['substitutions'] + [
-        (re.compile(r'return SpellHandlerOutcome<SpellCastResult>::Return\((.*)\);'), 'return;'),
-        ('return SpellHandlerOutcome<SpellCastResult>::Continue();', 'break;')])
+        (re.compile(r'return SpellHandlerOutcome<SpellCastResult>::Return\((.*)\);'), 'return;')])
     run('V: a valued return pasted back as `return;`: fails', 1, 'DIFFERS',
         **dict(valued, spec=dict(GEN_SPEC, sites=[as_void])))
     run('V: a changed return value: fails', 1, 'DIFFERS',
@@ -2480,6 +2523,77 @@ def self_test():
                         'handlers', '// break;', '// return SpellHandlerOutcome<int>::Return(1);')
     run('V: a valued Return in a comment at a site with no value: pass', 0,
         'with 4/4 bodies pasted back at their 4 labels in 1 sites', **commented)
+
+    def respec(args, **changes):
+        """`args` (form()'s) with its one site changed by `changes`."""
+        return dict(args, spec=dict(args['spec'], sites=[dict(args['spec']['sites'][0], **changes)]))
+
+    for what, value in (('holding a space', 'unsigned int'), ('holding a template argument', 'std::pair<int, int>'),
+                        ('holding a trailing space', 'SpellCastResult '), ('that is not text', 7)):
+        run('V: a value %s: fails by name' % what, 1, 'its value %r is not a plain type spelling' % (value,),
+            **respec(valued, value=value))
+    for what, pairs in (('the void pairs', VOID_SUBSTITUTIONS),
+                        ('its own Continue pair', [('return SpellHandlerOutcome<SpellCastResult>::Continue();',
+                                                    'break;')])):
+        run('V: a valued site listing %s beside its value: fails by name' % what, 1,
+            'valued: its value is SpellCastResult, and its substitutions list the outcome pair %r, which the tool '
+            'builds from the value' % pairs[0][0], **respec(valued, substitutions=valued_site['substitutions'] + pairs))
+    breaks = [lab[1], '            target->Drop(1);', '            break;']
+    bad = '            return SPELL_FAILED_BAD_TARGETS;'
+    breaking = ('One', 'SpellCastResult',
+                ['    ctx.target->Drop(1);', '    return SpellHandlerOutcome<SpellCastResult>::Continue();'])
+    checking = dict(valued_site, signature='SpellCastResult Thing::Check(bool apply)',
+                    tail=('    return SPELL_CAST_OK;',))
+    run('V: a partly moved valued site whose moved runs only break, a standing run returning: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites',
+        **form('still', {1: lab[1], 2: lab[2]}, breaks + [lab[2], bad], [breaking], [(1, 'One')],
+               standing=form_site['open'] + [lab[2], bad] + form_site['close'], residual=True, **checking))
+    no_value = ['            target->Drop(2);', '            // return SPELL_FAILED_BAD_TARGETS;', '            break;']
+    run('V: a partly moved valued site returning no value anywhere: fails by name', 1,
+        'still: its value is SpellCastResult, and no handler it registers returns one (no `Return(x)` to paste back '
+        'as `return x;`), nor does a run still standing in its switch',
+        **form('still', {1: lab[1], 2: lab[2]}, breaks + [lab[2]] + no_value, [breaking], [(1, 'One')],
+               standing=form_site['open'] + [lab[2]] + no_value + form_site['close'], residual=True, **checking))
+    run('V: a valued site whose only returned value is its default\'s: passes', 0,
+        'with 2/2 bodies pasted back at their 1 labels in 1 sites',
+        **form('default only', {1: lab[1]}, breaks + ['        default:', bad],
+               [breaking, ('Default', 'SpellCastResult',
+                           ['    return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_BAD_TARGETS);'])],
+               [(1, 'One')], default='Default', **checking))
+    run('V: a base returning no value at a valued site is read, not refused: DIFFERS', 1,
+        'DIFFERS from the base after pasting back 2 bodies at 1 sites',
+        **dict(valued, old_text=nothing_returned['sites'], old_handlers=nothing_returned['handlers']))
+
+    run('a site whose substitutions hold no Continue pair: fails by name', 1,
+        'trailing comments: its substitutions hold no Continue pair (none pastes back as `break;`)',
+        **respec(trailing, substitutions=[('ctx.target', 'target'), ('ctx.aura', 'this')]))
+    literal = '\n            target->Drop(1);\n            break;\n'
+    for what, base_line, handler_line in (
+            ('a string literal', '            Log("target here");', '    Log("ctx.target here");'),
+            ('a raw string literal', '            Log(R"(the target)");', '    Log(R"(the ctx.target)");')):
+        run('a substitution\'s left side inside %s: fails by name' % what, 1,
+            "handler One, body line 1: 'ctx.target', the left side of a substitution, stands inside a string literal, "
+            "which the paste-back would rewrite: %r" % handler_line,
+            **mutated(mutated(trailing, 'old_text', lab[1] + '\n        {' + literal,
+                              lab[1] + '\n        {\n' + base_line + literal),
+                      'handlers', '    ctx.target->Drop(1);\n', handler_line + '\n    ctx.target->Drop(1);\n'))
+    noted = 'const char* note = "%s";'
+    run('a valued pair\'s left side inside a string literal: fails by name', 1,
+        "handler Two, body line 1: %r, the left side of a substitution, stands inside a string literal"
+        % valued_substitutions('SpellCastResult')[0][0].pattern,
+        **mutated(mutated(valued, 'old_text', '            return SPELL_FAILED_BAD_TARGETS;',
+                          '            %s\n            return SPELL_FAILED_BAD_TARGETS;' % (noted % 'return 1;')),
+                  'handlers', '    return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_BAD_TARGETS);',
+                  '    %s\n    return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_BAD_TARGETS);'
+                  % (noted % 'return SpellHandlerOutcome<SpellCastResult>::Return(1);')))
+    for what, base_line, handler_line in (
+            ('a line comment', '            // the target here', '    // the ctx.target here'),
+            ('a block comment', '            /* the target */ Log();', '    /* the ctx.target */ Log();')):
+        run('a substitution\'s left side inside %s is rewritten: passes' % what, 0,
+            'with 4/4 bodies pasted back at their 4 labels in 1 sites',
+            **mutated(mutated(trailing, 'old_text', lab[1] + '\n        {' + literal,
+                              lab[1] + '\n        {\n' + base_line + literal),
+                      'handlers', '    ctx.target->Drop(1);\n', handler_line + '\n    ctx.target->Drop(1);\n'))
 
     trio = '        case 11: case 12: case 13:              // Trio'
     trio2 = '        case 21: case 22: case 23:              // Trio, unbraced'
@@ -2658,35 +2772,53 @@ def self_test():
     # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
     # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
     # its own original, and is missing at the second. Two commits off that line share the prefix 8000000.
+    # Around that line: 1000000, ORIGINAL's parent; BASE, after the fifth; a000000, a side branch off the
+    # second holding the file; b000000, a merge of the fourth (its first parent) and a000000.
     def full(spelling):
         return spelling.ljust(40, '0')
     commits = [full(c) for c in (ORIGINAL, '2000000', '3000000', '4000000', '5000000')]
     others = ['8000000a' + '0' * 32, '8000000b' + '0' * 32]
+    root, side, merge = full('1000000'), full('a000000'), full('b000000')
+    parents = {c: [p] for p, c in zip([root] + commits, commits + [full(BASE)])}
+    parents.update({side: [commits[1]], merge: [commits[3], side]})
     unrelated = SELF_OLD.replace('#include "A.h"', '#include "Old.h"')
     repo = {(full(ORIGINAL), 'fixture'): unrelated, (full('3000000'), 'fixture'): SELF_OLD,
-            (full('4000000'), 'fixture'): SELF_OLD, (full('5000000'), 'fixture'): SELF_OLD}
+            (full('4000000'), 'fixture'): SELF_OLD, (full('5000000'), 'fixture'): SELF_OLD,
+            (full(BASE), 'fixture'): SELF_OLD, (side, 'fixture'): SELF_OLD}
     tree = {'fixture': SELF_SITES, 'Handlers.cpp': SELF_HANDLERS, 'Thing.h': SELF_HEADERS['Thing.h']}
     tags = {}
 
+    def ancestry(commit):
+        """`commit` and every commit it descends from, through every parent."""
+        found, todo = set(), [commit]
+        while todo:
+            c = todo.pop()
+            if c not in found:
+                found.add(c)
+                todo += parents.get(c, [])
+        return found
+
     def fake_git(*args):
+        dag = list(parents) + [root]
+        known = dag + others
         if args[:3] == ('rev-parse', '--verify', '--quiet') and args[3].endswith('^{commit}'):
             name = args[3][:-len('^{commit}')]
-            if name in commits + others:
+            if name in known:
                 return 0, name + '\n', ''
             if name in tags:
                 return 0, tags[name] + '\n', ''
-            found = [c for c in commits + others if c.startswith(name)]
+            found = [c for c in known if c.startswith(name)]
             return (0, found[0] + '\n', '') if len(found) == 1 else (1, '', '')
         if args[0] == 'rev-parse' and args[1].startswith('--disambiguate='):
             prefix = args[1][len('--disambiguate='):]
-            return 0, ''.join(c + '\n' for c in commits + others if c.startswith(prefix)), ''
+            return 0, ''.join(c + '\n' for c in known if c.startswith(prefix)), ''
         if args[:2] == ('cat-file', '-e'):
             ref, _, path = args[2].partition(':')
             return (0 if (ref, path) in repo else 128), '', ''
         if args[:2] == ('merge-base', '--is-ancestor'):
-            if args[2] not in commits or args[3] not in commits:
+            if args[2] not in dag or args[3] not in dag:
                 return 128, '', 'fatal: not a valid commit'
-            return (0 if commits.index(args[2]) <= commits.index(args[3]) else 1), '', ''
+            return (0 if args[2] in ancestry(args[3]) else 1), '', ''
         if args[0] == 'show':
             ref, _, path = args[1].partition(':')
             return (0, repo[(ref, path)], '') if (ref, path) in repo else (128, '', 'fatal: no such path')
@@ -2777,6 +2909,17 @@ def self_test():
     originals('ANCHOR: main() with --anchor measures against it: fails', 1,
               'fixture: FAILED: the original 5000000 is ahead of the anchor 4000000', original='5000000',
               argv=['verbatim.py', '--check', '--original', '--base', '5000000', '--anchor', '4000000'])
+    originals('ANCHOR: an original on a side branch, an ancestor of neither: fails', 1,
+              'fixture: FAILED: the original a000000 is ahead of the anchor %s' % full('4000000'), original='a000000',
+              base='5000000', anchor='4000000')
+    originals('ANCHOR: BASE ahead of the anchor, read from the data, an original set to it: fails', 1,
+              'fixture: FAILED: the original %s is ahead of the anchor %s' % (BASE, full('4000000')), original=BASE,
+              argv=['verbatim.py', '--check', '--original', '--anchor', '4000000'])
+    originals('ANCHOR: the global ORIGINAL ahead of the anchor: fails', 1,
+              'fixture: FAILED: the original %s is ahead of the anchor %s' % (ORIGINAL, root), anchor='1000000')
+    originals('ANCHOR: a merge commit as the anchor, the original on its second parent: passes', 0,
+              'verbatim: each original is measured against the anchor %s\n%s' % (merge, identical), original='a000000',
+              anchor='b000000')
 
     # renamed_from: a file renamed from old_p to new_p between 3000000 and 4000000.
     old_p, new_p = 'src/game/WorldHandlers/Sites.cpp', 'src/game/spells/auras/Sites.cpp'
@@ -3106,6 +3249,46 @@ def self_test():
     print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
     if not ok:
         failures.append('the split, BLOCKS: %s %s' % (bound, unset))
+
+    def with_data(data):
+        """(rc, stdout, stderr) of this tool run from a copy of this directory whose data file holds `data`."""
+        where = tempfile.mkdtemp()
+        try:
+            for name in os.listdir(here):
+                if name.endswith('.py') and name != 'verbatim_sites.py':
+                    shutil.copy(os.path.join(here, name), where)
+            with open(os.path.join(where, 'verbatim_sites.py'), 'wb') as f:
+                f.write(data)
+            run = subprocess.run([sys.executable, '-E', '-B', os.path.join(where, 'verbatim.py')], cwd=where,
+                                 capture_output=True, text=True, timeout=600)
+            return run.returncode, run.stdout, run.stderr
+        finally:
+            shutil.rmtree(where, ignore_errors=True)
+
+    # A data file that exits as it is imported: each run must stop with 1 and print the refusal, never end with
+    # nothing printed, whatever its exit code.
+    try:
+        own = data_source.rstrip('\n') + '\n'
+        n = own.count('\n') + 1
+        refusal = ('verbatim: REFUSED: verbatim_sites.py:%d: a %s statement: a data file holds assignments to plain '
+                   'names only\n')
+        head, rest = own.split('\n', 1)
+        latin = head + '\n# -*- coding: latin-1 -*-\n' + rest + '_C = "caf\xe9"\nraise SystemExit(0)\n'
+        cases = [((own + 'raise SystemExit(0)\n').encode('utf-8'), refusal % (n, 'Raise')),
+                 ((own + "_X = __import__('os')._exit(0)\n").encode('utf-8'),
+                  "verbatim: REFUSED: verbatim_sites.py:%d: a Call (__import__('os')._exit(0)) in a value: %s\n"
+                  % (n, split_gate.VALUE_RULE)),
+                 ((own + 'import os\nos._exit(0)\n').encode('utf-8'),
+                  refusal % (n, 'Import') + refusal % (n + 1, 'Expr')),
+                 (latin.encode('latin-1', 'replace'), refusal % (n + 2, 'Raise'))]
+        missed = [(want, got) for data, want in cases for got in [with_data(data)]
+                  if got[0] != 1 or not got[1] or got[1] != want or 'Traceback' in got[2]]
+    except Exception as e:                                      # a crash fails the row
+        missed = ['crashed: %r' % e]
+    label = 'the split: a data file that exits as it is imported: REFUSED before it runs'
+    print('self-test: %-66s %s' % (label, 'PASS' if not missed else 'FAIL'))
+    if missed:
+        failures.append('%s: %s' % (label, missed))
 
     # The self-test run again from a copy of this directory whose data holds a BLOCKS entry; that run (marked
     # by VERBATIM_SELF_TEST_NESTED) leaves this row out.
