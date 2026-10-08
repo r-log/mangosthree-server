@@ -1859,6 +1859,8 @@ src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 # The bodies read the game object they target; dies with D9's map surface, or earlier if the game object's targeting facts move to entities/.
 src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
+# The Shadowfiend body needs the pet complete; retires with a pet query on the unit that answers a unit.
+src/game/spells/handlers [spells] -> src/game/Object/Pet.h
 # The Animal Blood body (46221) reads the water level from the target's TerrainInfo: read-only on the grid map, dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
 # Read-only, a search over the grid: a reader is not a reach; dies with D9's map surface.
@@ -1869,6 +1871,10 @@ src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAu
 src/game/spells/handlers/AuraPeriodicHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The Survival Instincts body downcasts the caster to a player for a method the unit already has; retired by the cast tidy that drops the downcast, or by row 13's successor.
 src/game/spells/handlers/SpellChecksHandlers.cpp -> src/game/entities/player/Player.h
+# The Cloak of Shadows body reads the aura holders, the origin's own edge; retires when the Cloak of Shadows read becomes a query on the unit that answers holders without the aura header.
+src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
+# Six casts for player-only methods; retires with the Unit page's row 13 successor.
+src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/entities/player/Player.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 # The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.

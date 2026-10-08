@@ -72,6 +72,7 @@
 #include "movement/JumpArc.h"
 #include "MotionMaster.h"
 #include <random>
+#include "spells/handlers/SpellEffectDamageTeleportHandlers.h"
 
 /**
  * @brief Sends a resurrection request to a dead player target.
@@ -175,117 +176,10 @@ void Spell::EffectSchoolDMG(SpellEffectEntry const* effect)
         {
             case SPELLFAMILY_GENERIC:
             {
-                switch (m_spellInfo->ID)                    // better way to check unknown
+                SpellEffectSchoolDmgContext ctx(m_caster, unitTarget, damage, m_UniqueTargetInfo, effect);
+                if (SpellHandlerRegistry::Game().Dispatch<SpellEffectSchoolDmgSite>(m_spellInfo->ID, ctx).IsReturn())
                 {
-                    // Meteor like spells (divided damage to targets)
-                    case 24340: case 26558: case 28884:     // Meteor
-                    case 36837: case 38903: case 41276:     // Meteor
-                    case 57467:                             // Meteor
-                    case 26789:                             // Shard of the Fallen Star
-                    case 31436:                             // Malevolent Cleave
-                    case 35181:                             // Dive Bomb
-                    case 40810: case 43267: case 43268:     // Saber Lash
-                    case 42384:                             // Brutal Swipe
-                    case 45150:                             // Meteor Slash
-                    case 64422: case 64688:                 // Sonic Screech
-                    case 70492: case 72505:                 // Ooze Eruption
-                    case 71904:                             // Chaos Bane
-                    case 72624: case 72625:                 // Ooze Eruption
-                    case 77679: case 92968: case 92969: case 92970:     // Scorching Blast
-                    case 82935: case 88915: case 88916: case 88917:     // Caustic Slime
-                    case 86014: case 92863: case 92864: case 92865:     // Twilight Meteorite
-                    case 86367: case 93135: case 93136: case 93137:     // Sleet Storm
-                    case 86825: case 92879: case 92880: case 92881:     // Blackout
-                    case 88942: case 95172:                 // Meteor Slash
-                    case 89348: case 95178:                 // Demon Repellent Ray
-                    case 98474: case 100212: case 100213: case 100214:  //Flame Scythe
-                    case 103414: case 108571: case 109033: case 109034: //Stomp
-                    case 105069: case 108094:               // Seething Hate
-                    case 106375: case 109182: case 109183: case 109184: //Twilight Unstable
-                    {
-                        uint32 count = 0;
-                        for(TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
-                            if (ihit->effectMask & (1<<effect->EffectIndex))
-                            {
-                                ++count;
-                            }
-
-                        damage /= count;                    // divide to all targets
-                        break;
-                    }
-                    // percent from health with min
-                    case 25599:                             // Thundercrash
-                    {
-                        damage = unitTarget->GetHealth() / 2;
-                        if (damage < 200)
-                        {
-                            damage = 200;
-                        }
-                        break;
-                    }
-                    // Intercept (warrior spell trigger)
-                    case 20253:
-                    case 61491:
-                    {
-                        damage += uint32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.12f);
-                        break;
-                    }
-                    // percent max target health
-                    case 29142:                             // Eyesore Blaster
-                    case 35139:                             // Throw Boom's Doom
-                    case 49882:                             // Leviroth Self-Impale
-                    case 55269:                             // Deathly Stare
-                    {
-                        damage = damage * unitTarget->GetMaxHealth() / 100;
-                        break;
-                    }
-                    // Lightning Strike
-                    case 37841:
-                        if (unitTarget->GetTypeId() == TYPEID_PLAYER && unitTarget->HasAura(37830)) // Repolarized Magneto Sphere
-                        {
-                            ((Player*)unitTarget)->KilledMonsterCredit(21910);
-                        }
-                        break;
-                    // Cataclysmic Bolt
-                    // Cataclysmic Bolt
-                    case 38441:
-                    {
-                        damage = unitTarget->GetMaxHealth() / 2;
-                        break;
-                    }
-                    // Touch the Nightmare
-                    case 50341:
-                    {
-                        if (SpellEffectIndex(effect->EffectIndex) == EFFECT_INDEX_2)
-                        {
-                            damage = int32(unitTarget->GetMaxHealth() * 0.3f);
-                        }
-                        break;
-                    }
-                    // Tympanic Tantrum
-                    case 62775:
-                    {
-                        damage = unitTarget->GetMaxHealth() / 10;
-                        break;
-                    }
-                    // Hand of Rekoning (name not have typos ;) )
-                    case 67485:
-                        damage += uint32(0.5f * m_caster->GetTotalAttackPowerValue(BASE_ATTACK));
-                        break;
-                    // Magic Bane normal (Forge of Souls - Bronjahm)
-                    case 68793:
-                    {
-                        damage += uint32(unitTarget->GetMaxPower(POWER_MANA) / 2);
-                        damage = std::min(damage, 10000);
-                        break;
-                    }
-                    // Magic Bane heroic (Forge of Souls - Bronjahm)
-                    case 69050:
-                    {
-                        damage += uint32(unitTarget->GetMaxPower(POWER_MANA) / 2);
-                        damage = std::min(damage, 15000);
-                        break;
-                    }
+                    return;
                 }
                 break;
             }
@@ -799,75 +693,10 @@ void Spell::EffectTriggerSpell(SpellEffectEntry const* effect)
     uint32 triggered_spell_id = effect->EffectTriggerSpell;
 
     // special cases
-    switch (triggered_spell_id)
+    SpellEffectTriggerSpellContext ctx(unitTarget, m_caster, m_CastItem, m_originalCasterGUID);
+    if (SpellHandlerRegistry::Game().Dispatch<SpellEffectTriggerSpellSite>(triggered_spell_id, ctx).IsReturn())
     {
-        case 18461:                                         // Vanish (not exist)
-        {
-            unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_ROOT);
-            unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
-            unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_STALKED);
-
-            // if this spell is given to NPC it must handle rest by it's own AI
-            if (unitTarget->GetTypeId() != TYPEID_PLAYER)
-            {
-                return;
-            }
-
-            uint32 spellId = 1784;
-            // reset cooldown on it if needed
-            if (((Player*)unitTarget)->HasSpellCooldown(spellId))
-            {
-                ((Player*)unitTarget)->RemoveSpellCooldown(spellId);
-            }
-
-            m_caster->CastSpell(unitTarget, spellId, true);
-            return;
-        }
-        case 29284:                                         // Brittle Armor - (need add max stack of 24575 Brittle Armor)
-            m_caster->CastSpell(unitTarget, 24575, true, m_CastItem, NULL, m_originalCasterGUID);
-            return;
-        case 29286:                                         // Mercurial Shield - (need add max stack of 26464 Mercurial Shield)
-            m_caster->CastSpell(unitTarget, 26464, true, m_CastItem, NULL, m_originalCasterGUID);
-            return;
-        case 31980:                                         // Righteous Defense
-        {
-            m_caster->CastSpell(unitTarget, 31790, true, m_CastItem, NULL, m_originalCasterGUID);
-            return;
-        }
-        case 35729:                                         // Cloak of Shadows
-        {
-            Unit::SpellAuraHolderMap& Auras = unitTarget->GetSpellAuraHolderMap();
-            for (Unit::SpellAuraHolderMap::iterator iter = Auras.begin(); iter != Auras.end(); ++iter)
-            {
-                // Remove all harmful spells on you except positive/passive/physical auras
-                if (!iter->second->IsPositive() &&
-                        !iter->second->IsPassive() &&
-                        !iter->second->IsDeathPersistent() &&
-                        (GetSpellSchoolMask(iter->second->GetSpellProto()) & SPELL_SCHOOL_MASK_NORMAL) == 0)
-                {
-                    m_caster->RemoveAurasDueToSpell(iter->second->GetSpellProto()->ID);
-                    iter = Auras.begin();
-                }
-            }
-            return;
-        }
-        case 41967:                                         // Priest Shadowfiend (34433) need apply mana gain trigger aura on pet
-        {
-            if (Unit* pet = unitTarget->GetPet())
-            {
-                pet->CastSpell(pet, 28305, true);
-            }
-            return;
-        }
-        case 58832:                                         // Mirror Image
-        {
-            // Glyph of Mirror Image
-            if (m_caster->HasAura(63093))
-            {
-                m_caster->CastSpell(m_caster, 65047, true, m_CastItem, NULL, m_originalCasterGUID);
-            }
-            break;
-        }
+        return;
     }
 
     // normal case
@@ -1059,30 +888,10 @@ void Spell::EffectTeleportUnits(SpellEffectEntry const* effect)   // TODO - Use 
         return;
     }
 
-        switch (m_spellInfo->ID)
+        SpellEffectTeleportRecallContext recallCtx(unitTarget, m_spellInfo);
+        if (SpellHandlerRegistry::Game().Dispatch<SpellEffectTeleportRecallSite>(m_spellInfo->ID, recallCtx).IsReturn())
         {
-            case 48129:                                 // Scroll of Recall
-            case 60320:                                 // Scroll of Recall II
-            case 60321:                                 // Scroll of Recall III
-            {
-                uint32 failAtLevel = 0;
-                switch (m_spellInfo->ID)
-                {
-                    case 48129: failAtLevel = 40; break;
-                    case 60320: failAtLevel = 70; break;
-                    case 60321: failAtLevel = 80; break;
-                }
-
-                if (unitTarget->getLevel() > failAtLevel && unitTarget->GetTypeId() == TYPEID_PLAYER)
-                {
-                    unitTarget->CastSpell(unitTarget, 60444, true);
-                    // TODO: Unclear use of probably related spell 60322
-                    uint32 spellId = (((Player*)unitTarget)->GetTeam() == ALLIANCE ? 60323 : 60328) + urand(0, 7);
-                    unitTarget->CastSpell(unitTarget, spellId, true);
-                    return;
-                }
-                break;
-            }
+            return;
         }
 
     // Target dependend on TargetB, if there is none provided, decide dependend on A
@@ -1184,110 +993,9 @@ void Spell::EffectTeleportUnits(SpellEffectEntry const* effect)   // TODO - Use 
     }
 
     // post effects for TARGET_TABLE_X_Y_Z_COORDINATES
-    switch (m_spellInfo->ID)
+    SpellEffectTeleportPostContext ctx(m_caster);
+    if (SpellHandlerRegistry::Game().Dispatch<SpellEffectTeleportPostSite>(m_spellInfo->ID, ctx).IsReturn())
     {
-            // Dimensional Ripper - Everlook
-        case 23442:
-        {
-            int32 r = irand(0, 119);
-            if (r >= 70)                                    // 7/12 success
-            {
-                if (r < 100)                                // 4/12 evil twin
-                {
-                    m_caster->CastSpell(m_caster, 23445, true);
-                }
-                else                                        // 1/12 fire
-                {
-                    m_caster->CastSpell(m_caster, 23449, true);
-                }
-            }
-            return;
-        }
-        // Ultrasafe Transporter: Toshley's Station
-        case 36941:
-        {
-            if (roll_chance_i(50))                          // 50% success
-            {
-                int32 rand_eff = urand(1, 7);
-                switch (rand_eff)
-                {
-                    case 1:
-                        // soul split - evil
-                        m_caster->CastSpell(m_caster, 36900, true);
-                        break;
-                    case 2:
-                        // soul split - good
-                        m_caster->CastSpell(m_caster, 36901, true);
-                        break;
-                    case 3:
-                        // Increase the size
-                        m_caster->CastSpell(m_caster, 36895, true);
-                        break;
-                    case 4:
-                        // Decrease the size
-                        m_caster->CastSpell(m_caster, 36893, true);
-                        break;
-                    case 5:
-                        // Transform
-                    {
-                        if (((Player*)m_caster)->GetTeam() == ALLIANCE)
-                        {
-                            m_caster->CastSpell(m_caster, 36897, true);
-                        }
-                        else
-                        {
-                            m_caster->CastSpell(m_caster, 36899, true);
-                        }
-                        break;
-                    }
-                    case 6:
-                        // chicken
-                        m_caster->CastSpell(m_caster, 36940, true);
-                        break;
-                    case 7:
-                        // evil twin
-                        m_caster->CastSpell(m_caster, 23445, true);
-                        break;
-                }
-            }
-            return;
-        }
-        // Dimensional Ripper - Area 52
-        case 36890:
-        {
-            if (roll_chance_i(50))                          // 50% success
-            {
-                int32 rand_eff = urand(1, 4);
-                switch (rand_eff)
-                {
-                    case 1:
-                        // soul split - evil
-                        m_caster->CastSpell(m_caster, 36900, true);
-                        break;
-                    case 2:
-                        // soul split - good
-                        m_caster->CastSpell(m_caster, 36901, true);
-                        break;
-                    case 3:
-                        // Increase the size
-                        m_caster->CastSpell(m_caster, 36895, true);
-                        break;
-                    case 4:
-                        // Transform
-                    {
-                        if (((Player*)m_caster)->GetTeam() == ALLIANCE)
-                        {
-                            m_caster->CastSpell(m_caster, 36897, true);
-                        }
-                        else
-                        {
-                            m_caster->CastSpell(m_caster, 36899, true);
-                        }
-                        break;
-                    }
-                }
-            }
-            return;
-        }
+        return;
     }
 }

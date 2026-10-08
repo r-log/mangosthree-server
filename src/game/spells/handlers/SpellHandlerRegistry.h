@@ -111,7 +111,15 @@ enum SpellHandlerSite
     /// `Spell::CheckTarget`, after the player-only attribute check: its `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_CHECK_TARGET = 22,
     /// `Spell::EffectWeaponDmg`, SPELLFAMILY_GENERIC: its `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_EFFECT_WEAPON_DAMAGE = 23
+    SPELL_HANDLER_SITE_SPELL_EFFECT_WEAPON_DAMAGE = 23,
+    /// `Spell::EffectSchoolDMG`, SPELLFAMILY_GENERIC: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCHOOL_DAMAGE = 24,
+    /// `Spell::EffectTriggerSpell`, before the triggered spell is looked up: its `switch (triggered_spell_id)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_TRIGGER_SPELL = 25,
+    /// `Spell::EffectTeleportUnits`, before the target type is read: its first `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_TELEPORT_RECALL = 26,
+    /// `Spell::EffectTeleportUnits`, after a table-coordinates teleport: its second `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_TELEPORT_POST = 27
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

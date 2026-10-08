@@ -28,18 +28,22 @@
 /// The registry is tested without a map: its sites here are test sites with their own keys and
 /// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's,
 /// EffectEnergize's, EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's,
-/// EffectWeaponDmg's and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their
-/// contexts, and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps
-/// them off the Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults,
-/// the periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default,
-/// the energize injector labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the
-/// area-target labels on bare Creatures, the cast-check labels on a creature caster, the target-check labels on
-/// creature targets and the weapon-damage labels on a target list built by hand);
+/// EffectWeaponDmg's, EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits and the five of
+/// SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their contexts, and run where a body needs
+/// no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the
+/// transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the periodic-trigger
+/// labels on such a mode, the health labels on an apply that is not real, the health default, the energize injector
+/// labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the area-target labels on bare
+/// Creatures, the cast-check labels on a creature caster, the target-check labels on creature targets, the
+/// weapon-damage and divided school-damage labels on a target list built by hand, the other school-damage labels on
+/// creatures with their update fields, the Vanish, Cloak of Shadows, Shadowfiend and Mirror Image labels on creatures
+/// with no aura and no pet, and the recall label on creature targets);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
 /// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
 /// druid, quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting,
-/// cast-check, target-check, weapon-damage or periodic-aura label, nor another removal one).
+/// cast-check, target-check, weapon-damage, school-damage, trigger-spell, teleport or periodic-aura label, nor another
+/// removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -62,7 +66,11 @@
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
-///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAndNoDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -78,7 +86,11 @@
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
-///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -90,7 +102,11 @@
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
 ///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
-///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAndNoDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
@@ -102,10 +118,15 @@
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
-///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits,
+///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault
 ///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
-///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
+///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -129,10 +150,18 @@
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
-///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageContextAliasesTheSpell
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageContextAliasesTheSpell,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageContextAliasesTheSpell,
+///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellContextAliasesTheSpell,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallContextAliasesTheSpell,
+///                            SpellEffectDamageTeleportHandlers_TheTeleportPostContextAliasesTheCaster
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///   a damage value changed   SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
+///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
 
 #include "TestHarness.h"
@@ -148,6 +177,7 @@
 #include "spells/handlers/SpellChecksHandlers.h"
 #include "spells/handlers/SpellCheckTargetHandlers.h"
 #include "spells/handlers/SpellEffectSkillEnchantPetHandlers.h"
+#include "spells/handlers/SpellEffectDamageTeleportHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
@@ -617,9 +647,10 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // transmitted-object site's row and default, the periodic auras' 26 rows and 4 defaults, the energize site's
     // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, the two
     // targeting sites' 10 and 1 rows and their two defaults, the cast-check site's 2 rows and default, the
-    // target-check site's 3 rows and default, and the weapon-damage site's 6 rows.
+    // target-check site's 3 rows and default, the weapon-damage site's 6 rows, and the school-damage, trigger-spell
+    // and two teleport sites' 74, 7, 3 and 3 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(177));
+    CHECK_EQ(game.Count(), std::size_t(264));
     CHECK_EQ(game.CountDefaults(), std::size_t(12));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -1167,7 +1198,8 @@ TEST(SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry)
 namespace
 {
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
-    // resurrect, two targeting, cast-check, target-check and weapon-damage sites and the earlier files' ids.
+    // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell and two teleport
+    // sites and the earlier files' ids.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
     {
         return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
@@ -1188,6 +1220,13 @@ namespace
                 registry.Find<SpellCheckCastAuraDummySite>(spellId) != NULL) ||
                (site != SpellCheckTargetSite::Key && registry.Find<SpellCheckTargetSite>(spellId) != NULL) ||
                (site != SpellEffectWeaponDmgSite::Key && registry.Find<SpellEffectWeaponDmgSite>(spellId) != NULL) ||
+               (site != SpellEffectSchoolDmgSite::Key && registry.Find<SpellEffectSchoolDmgSite>(spellId) != NULL) ||
+               (site != SpellEffectTriggerSpellSite::Key &&
+                registry.Find<SpellEffectTriggerSpellSite>(spellId) != NULL) ||
+               (site != SpellEffectTeleportRecallSite::Key &&
+                registry.Find<SpellEffectTeleportRecallSite>(spellId) != NULL) ||
+               (site != SpellEffectTeleportPostSite::Key &&
+                registry.Find<SpellEffectTeleportPostSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -2376,4 +2415,502 @@ TEST(SpellEffectSkillEnchantPetHandlers_TheWeaponDamageContextAliasesTheSpell)
     effect = WeaponDamageEffect(1, 1);                                  // and the effect is its parameter, read
     CHECK(ctx.effect == effect);
     CHECK_EQ(ctx.effect->EffectIndex, uint32(1));
+}
+
+namespace
+{
+    // The sixty ids whose damage is divided among the targets, in the switch's order.
+    uint32 const SCHOOL_DAMAGE_DIVIDE_IDS[] =
+    {
+        24340, 26558, 28884, 36837, 38903, 41276, 57467, 26789, 31436, 35181, 40810, 43267, 43268, 42384, 45150,
+        64422, 64688, 70492, 72505, 71904, 72624, 72625, 77679, 92968, 92969, 92970, 82935, 88915, 88916, 88917,
+        86014, 92863, 92864, 92865, 86367, 93135, 93136, 93137, 86825, 92879, 92880, 92881, 88942, 95172, 89348,
+        95178, 98474, 100212, 100213, 100214, 103414, 108571, 109033, 109034, 105069, 108094, 106375, 109182, 109183,
+        109184
+    };
+
+    // The fourteen other school-damage labels, in the switch's order.
+    uint32 const SCHOOL_DAMAGE_OTHER_IDS[] =
+    {
+        25599, 20253, 61491, 29142, 35139, 49882, 55269, 37841, 38441, 50341, 62775, 67485, 68793, 69050
+    };
+
+    // The trigger-spell, recall and post-teleport labels, in the switches' order.
+    uint32 const TRIGGER_SPELL_IDS[] = { 18461, 29284, 29286, 31980, 35729, 41967, 58832 };
+    uint32 const TELEPORT_RECALL_IDS[] = { 48129, 60320, 60321 };
+    uint32 const TELEPORT_POST_IDS[] = { 23442, 36941, 36890 };
+
+    // The file registers 74 + 7 + 3 + 3 rows and no default.
+    uint32 const DAMAGE_TELEPORT_ROWS = 87;
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.Count(), std::size_t(DAMAGE_TELEPORT_ROWS));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(SpellEffectSchoolDmgSite::Key), std::size_t(74));
+
+    // 74 labels, eleven bodies: the sixty divided-damage ids share one, Intercept's two another, the four
+    // percent-of-health ids a third; every other label has its own.
+    typedef SpellHandler<SpellEffectSchoolDmgSite>::Function SchoolDamageBody;
+    SchoolDamageBody divide = registry.Find<SpellEffectSchoolDmgSite>(24340);
+    for (uint32 spellId : SCHOOL_DAMAGE_DIVIDE_IDS)
+    {
+        CHECK(registry.Find<SpellEffectSchoolDmgSite>(spellId) == divide);
+    }
+    SchoolDamageBody intercept = registry.Find<SpellEffectSchoolDmgSite>(20253);
+    CHECK(registry.Find<SpellEffectSchoolDmgSite>(61491) == intercept);
+    SchoolDamageBody percent = registry.Find<SpellEffectSchoolDmgSite>(29142);
+    for (uint32 spellId : { 35139u, 49882u, 55269u })
+    {
+        CHECK(registry.Find<SpellEffectSchoolDmgSite>(spellId) == percent);
+    }
+    std::set<SchoolDamageBody> bodies = { divide, intercept, percent };
+    for (uint32 spellId : { 25599u, 37841u, 38441u, 50341u, 62775u, 67485u, 68793u, 69050u })
+    {
+        bodies.insert(registry.Find<SpellEffectSchoolDmgSite>(spellId));
+    }
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(11));
+
+    // No default: an id with no row finds nothing, and its dispatch is a miss, so the family's case goes on to its
+    // own `break;` with nothing changed.
+    Unit* caster = NULL;
+    Unit* target = NULL;
+    int32 damage = 90;
+    Spell::TargetList targets = WeaponDamageTargets();
+    SpellEffectEntry const* effect = WeaponDamageEffect(0, 0);
+    SpellEffectSchoolDmgContext ctx(caster, target, damage, targets, effect);
+    CHECK(registry.FindDefault<SpellEffectSchoolDmgSite>() == NULL);
+    CHECK(registry.Find<SpellEffectSchoolDmgSite>(40739) == NULL);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<SpellEffectSchoolDmgSite>(40739, ctx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+    CHECK_EQ(damage, int32(90));
+    CHECK(caster == NULL);
+    CHECK(target == NULL);
+    CHECK_EQ(targets.size(), std::size_t(3));
+    CHECK_EQ(effect->EffectIndex, uint32(0));
+
+    // Each divided-damage label divides the damage by the number of targets the effect hits and continues: effect 0
+    // hits two of the three targets, effect 1 one. The body reads the effect the member holds when it runs.
+    for (uint32 spellId : SCHOOL_DAMAGE_DIVIDE_IDS)
+    {
+        effect = WeaponDamageEffect(0, 0);
+        damage = 90;
+        SpellHandlerOutcome<void> first = registry.Dispatch<SpellEffectSchoolDmgSite>(spellId, ctx);
+        CHECK(first.IsContinue());
+        CHECK(!first.IsReturn());
+        CHECK_EQ(damage, int32(45));
+
+        effect = WeaponDamageEffect(1, 1);
+        damage = 90;
+        SpellHandlerOutcome<void> second = registry.Dispatch<SpellEffectSchoolDmgSite>(spellId, ctx);
+        CHECK(second.IsContinue());
+        CHECK(!second.IsReturn());
+        CHECK_EQ(damage, int32(90));
+    }
+    CHECK_EQ(targets.size(), std::size_t(3));
+
+    // Registering again on the same table changes nothing: every key is taken.
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.Count(), std::size_t(DAMAGE_TELEPORT_ROWS));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK(registry.Find<SpellEffectSchoolDmgSite>(109184) == divide);
+
+    // Keyed on the school-damage site only: its labels are no other site's, and the other sites' are not its; the
+    // game's table holds the same rows and no default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : SCHOOL_DAMAGE_DIVIDE_IDS)
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectSchoolDmgSite::Key, spellId));
+        CHECK(game.Find<SpellEffectSchoolDmgSite>(spellId) == divide);
+    }
+    for (uint32 spellId : SCHOOL_DAMAGE_OTHER_IDS)
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectSchoolDmgSite::Key, spellId));
+        CHECK(game.Find<SpellEffectSchoolDmgSite>(spellId) == registry.Find<SpellEffectSchoolDmgSite>(spellId));
+    }
+    for (uint32 spellId : { 18461u, 58832u, 48129u, 23442u, 66765u, 34026u, 37433u, 8342u, 41099u })
+    {
+        CHECK(game.Find<SpellEffectSchoolDmgSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectSchoolDmgSite::Key), std::size_t(74));
+    CHECK(game.FindDefault<SpellEffectSchoolDmgSite>() == NULL);
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits)
+{
+    // Creatures with their update fields allocated: the caster's attack power 1000, the target's health and maximum
+    // health 1000, no mana; neither is a player.
+    ValuedCreature casterUnit;
+    ValuedCreature targetUnit;
+    casterUnit.SetInt32Value(UNIT_FIELD_ATTACK_POWER, 1000);
+    targetUnit.SetUInt32Value(UNIT_FIELD_HEALTH, 1000);
+    targetUnit.SetUInt32Value(UNIT_FIELD_MAXHEALTH, 1000);
+    Unit* caster = &casterUnit;
+    Unit* target = &targetUnit;
+    int32 damage = 0;
+    Spell::TargetList targets;
+    SpellEffectEntry const* effect = WeaponDamageEffect(0, 0);
+    SpellEffectSchoolDmgContext ctx(caster, target, damage, targets, effect);
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+
+    // Thundercrash: half the target's health, at least 200.
+    damage = 7;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(25599, ctx).IsContinue());
+    CHECK_EQ(damage, int32(500));
+    targetUnit.SetUInt32Value(UNIT_FIELD_HEALTH, 300);
+    damage = 7;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(25599, ctx).IsContinue());
+    CHECK_EQ(damage, int32(200));
+    targetUnit.SetUInt32Value(UNIT_FIELD_HEALTH, 1000);
+
+    // Intercept: the damage gains 12% of the caster's attack power.
+    for (uint32 spellId : { 20253u, 61491u })
+    {
+        damage = 100;
+        CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(spellId, ctx).IsContinue());
+        CHECK_EQ(damage, int32(220));
+    }
+
+    // The four percent-of-health labels: the damage is that percent of the target's maximum health.
+    for (uint32 spellId : { 29142u, 35139u, 49882u, 55269u })
+    {
+        damage = 25;
+        CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(spellId, ctx).IsContinue());
+        CHECK_EQ(damage, int32(250));
+    }
+
+    // Lightning Strike: a target that is not a player is given no credit, and the damage stands.
+    damage = 77;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(37841, ctx).IsContinue());
+    CHECK_EQ(damage, int32(77));
+
+    // Cataclysmic Bolt and Tympanic Tantrum: a half and a tenth of the target's maximum health.
+    damage = 7;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(38441, ctx).IsContinue());
+    CHECK_EQ(damage, int32(500));
+    damage = 7;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(62775, ctx).IsContinue());
+    CHECK_EQ(damage, int32(100));
+
+    // Touch the Nightmare: the third effect's damage is 30% of the target's maximum health; the others' stand.
+    effect = WeaponDamageEffect(0, 2);
+    damage = 9;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(50341, ctx).IsContinue());
+    CHECK_EQ(damage, int32(300));
+    effect = WeaponDamageEffect(0, 0);
+    damage = 9;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(50341, ctx).IsContinue());
+    CHECK_EQ(damage, int32(9));
+
+    // Hand of Reckoning: the damage gains half the caster's attack power.
+    damage = 100;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(67485, ctx).IsContinue());
+    CHECK_EQ(damage, int32(600));
+
+    // Magic's Bane: the target has no mana to add, so the damage stands up to the cap, 10000 and 15000 heroic.
+    damage = 4000;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(68793, ctx).IsContinue());
+    CHECK_EQ(damage, int32(4000));
+    damage = 20000;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(68793, ctx).IsContinue());
+    CHECK_EQ(damage, int32(10000));
+    damage = 12000;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(69050, ctx).IsContinue());
+    CHECK_EQ(damage, int32(12000));
+    damage = 20000;
+    CHECK(game.Dispatch<SpellEffectSchoolDmgSite>(69050, ctx).IsContinue());
+    CHECK_EQ(damage, int32(15000));
+
+    // No body changes the units the context holds.
+    CHECK(caster == &casterUnit);
+    CHECK(target == &targetUnit);
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheSchoolDamageContextAliasesTheSpell)
+{
+    alignas(16) static unsigned char units[4][16];
+    Unit* caster = reinterpret_cast<Unit*>(units[0]);
+    Unit* target = reinterpret_cast<Unit*>(units[1]);
+    int32 damage = 10;
+    Spell::TargetList targets;
+    SpellEffectEntry const* effect = WeaponDamageEffect(0, 0);
+    SpellEffectSchoolDmgContext ctx(caster, target, damage, targets, effect);
+    CHECK(&ctx.m_caster == &caster);
+    CHECK(&ctx.unitTarget == &target);
+    CHECK(&ctx.damage == &damage);
+    CHECK(&ctx.m_UniqueTargetInfo == &targets);
+    CHECK(&ctx.effect == &effect);
+
+    ctx.m_caster = reinterpret_cast<Unit*>(units[2]);           // the caster is the spell's member, not a copy
+    CHECK(caster == reinterpret_cast<Unit*>(units[2]));
+    caster = reinterpret_cast<Unit*>(units[0]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
+    ctx.unitTarget = reinterpret_cast<Unit*>(units[3]);         // so is the unit target
+    CHECK(target == reinterpret_cast<Unit*>(units[3]));
+    target = reinterpret_cast<Unit*>(units[1]);
+    CHECK(ctx.unitTarget == reinterpret_cast<Unit*>(units[1]));
+    ctx.damage = 25;                                            // and the damage
+    CHECK_EQ(damage, int32(25));
+    damage = 40;
+    CHECK_EQ(ctx.damage, int32(40));
+    ctx.m_UniqueTargetInfo.push_back(Spell::TargetList::value_type()); // and the target list
+    CHECK_EQ(targets.size(), std::size_t(1));
+    targets.clear();
+    CHECK(ctx.m_UniqueTargetInfo.empty());
+    effect = WeaponDamageEffect(1, 1);                          // the effect is the member's parameter, read
+    CHECK(ctx.effect == effect);
+    CHECK_EQ(ctx.effect->EffectIndex, uint32(1));
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(SpellEffectTriggerSpellSite::Key), std::size_t(7));
+
+    // Seven labels, seven bodies.
+    typedef SpellHandler<SpellEffectTriggerSpellSite>::Function TriggerBody;
+    std::set<TriggerBody> bodies;
+    for (uint32 spellId : TRIGGER_SPELL_IDS)
+    {
+        bodies.insert(registry.Find<SpellEffectTriggerSpellSite>(spellId));
+    }
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(7));
+
+    // No default: a trigger id with no row (Web's 11920) finds nothing, and its dispatch is a miss, so the triggered
+    // spell is looked up and cast as usual, with nothing changed.
+    ValuedCreature targetUnit;
+    Creature casterUnit(CREATURE_SUBTYPE_GENERIC);
+    Unit* target = NULL;
+    Unit* caster = NULL;
+    Item* castItem = NULL;
+    ObjectGuid originalCaster;
+    SpellEffectTriggerSpellContext ctx(target, caster, castItem, originalCaster);
+    CHECK(registry.FindDefault<SpellEffectTriggerSpellSite>() == NULL);
+    CHECK(registry.Find<SpellEffectTriggerSpellSite>(11920) == NULL);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<SpellEffectTriggerSpellSite>(11920, ctx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+    CHECK(target == NULL);
+    CHECK(caster == NULL);
+    CHECK(castItem == NULL);
+    CHECK(originalCaster.IsEmpty());
+
+    // The bodies that need no live unit: Vanish ends the effect for a target that is not a player; Cloak of Shadows
+    // with no aura on the target and Shadowfiend with no pet end it too; Mirror Image without the glyph goes on to
+    // the triggered spell. The other three cast a spell and need a live unit.
+    target = &targetUnit;
+    caster = &casterUnit;
+    SpellHandlerOutcome<void> vanish = registry.Dispatch<SpellEffectTriggerSpellSite>(18461, ctx);
+    CHECK(vanish.IsReturn());
+    CHECK(!vanish.IsContinue());
+    SpellHandlerOutcome<void> cloak = registry.Dispatch<SpellEffectTriggerSpellSite>(35729, ctx);
+    CHECK(cloak.IsReturn());
+    SpellHandlerOutcome<void> shadowfiend = registry.Dispatch<SpellEffectTriggerSpellSite>(41967, ctx);
+    CHECK(shadowfiend.IsReturn());
+    SpellHandlerOutcome<void> mirrorImage = registry.Dispatch<SpellEffectTriggerSpellSite>(58832, ctx);
+    CHECK(mirrorImage.IsContinue());
+    CHECK(!mirrorImage.IsReturn());
+    CHECK(target == &targetUnit);
+    CHECK(caster == &casterUnit);
+
+    // Registering again on the same table changes nothing.
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.Count(), std::size_t(DAMAGE_TELEPORT_ROWS));
+    CHECK_EQ(registry.CountAt(SpellEffectTriggerSpellSite::Key), std::size_t(7));
+
+    // Keyed on the trigger-spell site only; the game's table holds the same rows and no default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : TRIGGER_SPELL_IDS)
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectTriggerSpellSite::Key, spellId));
+        CHECK(game.Find<SpellEffectTriggerSpellSite>(spellId) == registry.Find<SpellEffectTriggerSpellSite>(spellId));
+    }
+    for (uint32 spellId : { 745u, 24340u, 25599u, 48129u, 23442u, 66765u, 34026u, 8342u, 41099u })
+    {
+        CHECK(game.Find<SpellEffectTriggerSpellSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectTriggerSpellSite::Key), std::size_t(7));
+    CHECK(game.FindDefault<SpellEffectTriggerSpellSite>() == NULL);
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheTriggerSpellContextAliasesTheSpell)
+{
+    alignas(16) static unsigned char objects[4][16];
+    Unit* target = reinterpret_cast<Unit*>(objects[0]);
+    Unit* caster = reinterpret_cast<Unit*>(objects[1]);
+    Item* castItem = reinterpret_cast<Item*>(objects[2]);
+    ObjectGuid originalCaster(HIGHGUID_PLAYER, uint32(7));
+    SpellEffectTriggerSpellContext ctx(target, caster, castItem, originalCaster);
+    CHECK(&ctx.unitTarget == &target);
+    CHECK(&ctx.m_caster == &caster);
+    CHECK(&ctx.m_CastItem == &castItem);
+    CHECK(&ctx.m_originalCasterGUID == &originalCaster);
+
+    ctx.unitTarget = reinterpret_cast<Unit*>(objects[3]);       // the unit target is the spell's member, not a copy
+    CHECK(target == reinterpret_cast<Unit*>(objects[3]));
+    target = reinterpret_cast<Unit*>(objects[0]);
+    CHECK(ctx.unitTarget == reinterpret_cast<Unit*>(objects[0]));
+    ctx.m_caster = reinterpret_cast<Unit*>(objects[3]);         // so is the caster
+    CHECK(caster == reinterpret_cast<Unit*>(objects[3]));
+    caster = reinterpret_cast<Unit*>(objects[1]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(objects[1]));
+    ctx.m_CastItem = NULL;                                      // and the item it is cast with
+    CHECK(castItem == NULL);
+    castItem = reinterpret_cast<Item*>(objects[2]);
+    CHECK(ctx.m_CastItem == reinterpret_cast<Item*>(objects[2]));
+    ctx.m_originalCasterGUID = ObjectGuid(HIGHGUID_PLAYER, uint32(9)); // and the original caster
+    CHECK(originalCaster == ObjectGuid(HIGHGUID_PLAYER, uint32(9)));
+    originalCaster = ObjectGuid();
+    CHECK(ctx.m_originalCasterGUID.IsEmpty());
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(SpellEffectTeleportRecallSite::Key), std::size_t(3));
+
+    // Three labels, one body.
+    typedef SpellHandler<SpellEffectTeleportRecallSite>::Function RecallBody;
+    RecallBody recall = registry.Find<SpellEffectTeleportRecallSite>(48129);
+    CHECK(recall != NULL);
+    for (uint32 spellId : TELEPORT_RECALL_IDS)
+    {
+        CHECK(registry.Find<SpellEffectTeleportRecallSite>(spellId) == recall);
+    }
+
+    // No default: an id with no row finds nothing, and its dispatch is a miss, so the teleport goes on with nothing
+    // changed.
+    Unit* target = NULL;
+    SpellEntry const* spellInfo = ObjectCombatSpell(0, 23442);
+    SpellEffectTeleportRecallContext recallCtx(target, spellInfo);
+    CHECK(registry.FindDefault<SpellEffectTeleportRecallSite>() == NULL);
+    CHECK(registry.Find<SpellEffectTeleportRecallSite>(23442) == NULL);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<SpellEffectTeleportRecallSite>(23442, recallCtx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+    CHECK(target == NULL);
+    CHECK(spellInfo->ID == 23442);
+
+    // A target that is not a player is never lost, whatever its level: each scroll goes on to the teleport.
+    ValuedCreature targetUnit;
+    target = &targetUnit;
+    for (uint32 level : { 1u, 81u })
+    {
+        targetUnit.SetUInt32Value(UNIT_FIELD_LEVEL, level);
+        for (uint32 spellId : TELEPORT_RECALL_IDS)
+        {
+            spellInfo = ObjectCombatSpell(0, spellId);
+            SpellHandlerOutcome<void> scroll = registry.Dispatch<SpellEffectTeleportRecallSite>(spellId, recallCtx);
+            CHECK(scroll.IsContinue());
+            CHECK(!scroll.IsReturn());
+        }
+    }
+    CHECK(target == &targetUnit);
+
+    // Registering again on the same table changes nothing.
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.CountAt(SpellEffectTeleportRecallSite::Key), std::size_t(3));
+
+    // Keyed on the recall site only; the game's table holds the same rows and no default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : TELEPORT_RECALL_IDS)
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectTeleportRecallSite::Key, spellId));
+        CHECK(game.Find<SpellEffectTeleportRecallSite>(spellId) == recall);
+    }
+    for (uint32 spellId : { 23442u, 36941u, 36890u, 24340u, 18461u, 66765u, 8342u })
+    {
+        CHECK(game.Find<SpellEffectTeleportRecallSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectTeleportRecallSite::Key), std::size_t(3));
+    CHECK(game.FindDefault<SpellEffectTeleportRecallSite>() == NULL);
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheTeleportRecallContextAliasesTheSpell)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    SpellEntry const* spellInfo = ObjectCombatSpell(0, 48129);
+    SpellEffectTeleportRecallContext recallCtx(target, spellInfo);
+    CHECK(&recallCtx.unitTarget == &target);
+    CHECK(&recallCtx.m_spellInfo == &spellInfo);
+
+    recallCtx.unitTarget = reinterpret_cast<Unit*>(units[1]);   // the unit target is the spell's member, not a copy
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));
+    target = reinterpret_cast<Unit*>(units[0]);
+    CHECK(recallCtx.unitTarget == reinterpret_cast<Unit*>(units[0]));
+    recallCtx.m_spellInfo = ObjectCombatSpell(1, 60321);        // and so is the spell's entry
+    CHECK(spellInfo->ID == 60321);
+    spellInfo = ObjectCombatSpell(0, 60320);
+    CHECK(recallCtx.m_spellInfo->ID == 60320);
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheTeleportPostSiteHoldsItsThreeLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(SpellEffectTeleportPostSite::Key), std::size_t(3));
+
+    // Three labels, three bodies; each rolls and casts on the caster, so none runs without a live unit.
+    typedef SpellHandler<SpellEffectTeleportPostSite>::Function PostBody;
+    std::set<PostBody> bodies;
+    for (uint32 spellId : TELEPORT_POST_IDS)
+    {
+        bodies.insert(registry.Find<SpellEffectTeleportPostSite>(spellId));
+    }
+    CHECK(bodies.count(NULL) == 0);
+    CHECK_EQ(bodies.size(), std::size_t(3));
+
+    // No default: an id with no row finds nothing, and its dispatch is a miss, so the member reaches its end with
+    // nothing changed.
+    Unit* caster = NULL;
+    SpellEffectTeleportPostContext ctx(caster);
+    CHECK(registry.FindDefault<SpellEffectTeleportPostSite>() == NULL);
+    CHECK(registry.Find<SpellEffectTeleportPostSite>(48129) == NULL);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<SpellEffectTeleportPostSite>(48129, ctx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+    CHECK(caster == NULL);
+
+    // Registering again on the same table changes nothing.
+    CHECK_EQ(RegisterSpellEffectDamageTeleportHandlers(registry), DAMAGE_TELEPORT_ROWS);
+    CHECK_EQ(registry.CountAt(SpellEffectTeleportPostSite::Key), std::size_t(3));
+
+    // Keyed on the post-teleport site only; the game's table holds the same rows and no default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : TELEPORT_POST_IDS)
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectTeleportPostSite::Key, spellId));
+        CHECK(game.Find<SpellEffectTeleportPostSite>(spellId) == registry.Find<SpellEffectTeleportPostSite>(spellId));
+    }
+    for (uint32 spellId : { 48129u, 60320u, 60321u, 24340u, 18461u, 66765u, 8342u })
+    {
+        CHECK(game.Find<SpellEffectTeleportPostSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectTeleportPostSite::Key), std::size_t(3));
+    CHECK(game.FindDefault<SpellEffectTeleportPostSite>() == NULL);
+}
+
+TEST(SpellEffectDamageTeleportHandlers_TheTeleportPostContextAliasesTheCaster)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* caster = reinterpret_cast<Unit*>(units[0]);
+    SpellEffectTeleportPostContext ctx(caster);
+    CHECK(&ctx.m_caster == &caster);
+
+    ctx.m_caster = reinterpret_cast<Unit*>(units[1]);           // the caster is the spell's member, not a copy
+    CHECK(caster == reinterpret_cast<Unit*>(units[1]));
+    caster = reinterpret_cast<Unit*>(units[0]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
 }

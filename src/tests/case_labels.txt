@@ -1,6 +1,6 @@
 # CheckCaseLabels (src/tests/tools/case_labels.py): spell-ID case labels per file under src/game.
 # A PR that moves labels into the spell handler registry lowers its lines (--generate); a new
-# label fails the gate. Total: 1620 labels in 23 files.
+# label fails the gate. Total: 1533 labels in 24 files.
 src/game/Object/GameObjectUse.cpp 5
 src/game/Object/SpellMgr.cpp 80
 src/game/Object/Unit.cpp 5
@@ -14,7 +14,7 @@ src/game/WorldHandlers/SpellAuraPeriodic.cpp 3
 src/game/WorldHandlers/SpellAuras.cpp 175
 src/game/WorldHandlers/SpellCast.cpp 9
 src/game/WorldHandlers/SpellChecks.cpp 3
-src/game/WorldHandlers/SpellEffectDamageTeleport.cpp 94
+src/game/WorldHandlers/SpellEffectDamageTeleport.cpp 4
 src/game/WorldHandlers/SpellEffectDummy.cpp 289
 src/game/WorldHandlers/SpellEffectHealPower.cpp 2
 src/game/WorldHandlers/SpellEffectObjectCombat.cpp 1
@@ -23,4 +23,5 @@ src/game/WorldHandlers/SpellPackets.cpp 5
 src/game/WorldHandlers/SpellTargeting.cpp 2
 src/game/WorldHandlers/UnitAuraProcHandler.cpp 264
 src/game/entities/player/Player.cpp 7
+src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp 3
 src/game/spells/handlers/SpellEffectObjectCombatHandlers.cpp 18
