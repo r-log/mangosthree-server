@@ -817,7 +817,6 @@ src/game/WorldHandlers/InstanceData.cpp -> src/proto/Opcodes.h
 src/game/WorldHandlers/InstanceData.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/InstanceData.h -> src/proto/WorldPacket.h
 src/game/WorldHandlers/ItemHandler.cpp -> src/game/WorldHandlers/Chat.h
-src/game/WorldHandlers/ItemHandlerEnchant.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/ItemHandlerVendor.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/LFGHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/LFGMgr.cpp -> src/game/Server/WorldSession.h

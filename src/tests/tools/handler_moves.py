@@ -89,6 +89,11 @@ _SKILL_FILE = 'src/game/session/handlers/entities/SkillHandlers.cpp'
 _SKILL_ORIGIN = 'src/game/WorldHandlers/SkillHandler.cpp'
 _SKILL_PLAYER = [('GetPlayer()', '_player')]
 
+_ENCHANT_BASE = '41bd064f4'
+_ENCHANT_FILE = 'src/game/session/handlers/entities/EnchantHandlers.cpp'
+_ENCHANT_ORIGIN = 'src/game/WorldHandlers/ItemHandlerEnchant.cpp'
+_ENCHANT_PLAYER = [('GetPlayer()', '_player')]
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -439,6 +444,17 @@ MOVES = [
     dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
          base_header='void WorldSession::HandleUnlearnSkillOpcode(WorldPacket& recv_data)',
          new_header='void SkillHandlers::HandleUnlearnSkill(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_ENCHANT_BASE, base_file=_ENCHANT_ORIGIN, new_file=_ENCHANT_FILE,
+         base_header='void WorldSession::HandleWrapItemOpcode(WorldPacket& recv_data)',
+         new_header='void EnchantHandlers::HandleWrapItem(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ENCHANT_PLAYER),
+    dict(base=_ENCHANT_BASE, base_file=_ENCHANT_ORIGIN, new_file=_ENCHANT_FILE,
+         base_header='void WorldSession::HandleSocketOpcode(WorldPacket& recv_data)',
+         new_header='void EnchantHandlers::HandleSocket(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_ENCHANT_PLAYER),
+    dict(base=_ENCHANT_BASE, base_file=_ENCHANT_ORIGIN, new_file=_ENCHANT_FILE,
+         base_header='void WorldSession::HandleCancelTempEnchantmentOpcode(WorldPacket& recv_data)',
+         new_header='void EnchantHandlers::HandleCancelTempEnchantment(WorldSession& session, WorldPacket& recv_data)'),
 ]
 
 RESIDUES = [
@@ -585,4 +601,7 @@ RESIDUES = [
                  '        }\n'
                  '    }\n'
                  '}\n',)]),
+    dict(base=_ENCHANT_BASE, base_file=_ENCHANT_ORIGIN,
+         removed=['#include "Log.h"', '#include "ObjectMgr.h"', '#include "Player.h"', '#include "Item.h"',
+                  '#include "UpdateData.h"', '#include "Chat.h"']),
 ]
