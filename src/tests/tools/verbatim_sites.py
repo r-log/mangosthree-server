@@ -6,12 +6,13 @@ ORIGINAL            the original of every file whose entry names none (ORIGINALS
 VOID_SUBSTITUTIONS  the outcome pairs every site in a function returning void ends its substitutions with.
 SITES               one entry per file, its sites in the order they stand in it.
 BLOCKS              one entry per block of type definitions moved from a source file into a header.
+CONTEXT_EXCEPTIONS  the context pairs that read different names on their two sides, each with its reason.
 
 A move edits this file, never verbatim.py: its sites' entries, and BASE, or its block's entry. The file
-holds assignments only, each to one of the five names or to a spelling aid of its own (a name beginning
+holds assignments only, each to one of the six names or to a spelling aid of its own (a name beginning
 with `_`), each value a literal (split_gate.py's value rule: constants, lists, tuples, dicts, + and *,
 names assigned above it, dict(...) with keywords); split_gate.py refuses to run verbatim.py on any other
-statement, name or value, and on a tool that binds or changes one of the five itself.
+statement, name or value, and on a tool that binds or changes one of the six itself.
 """
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -1035,3 +1036,10 @@ BLOCKS = [{
     'added': ['#include "SpellTargetDistanceOrder.h"',
               'template WorldObject* Spell::FindCorpseUsing<MaNGOS::CannibalizeObjectCheck>();'],
 }]
+
+# The context pairs whose two sides read different names, each with its reason (CONTEXT_EXCEPTIONS in verbatim.py).
+CONTEXT_EXCEPTIONS = (
+    (('ctx.aura', 'this'), 'the context holds the aura the handler was a member of, `this` in the case bodies'),
+    (('ctx.spellId', 'GetId()'), 'the context holds the aura\'s spell id, `GetId()` in the case bodies'),
+    (('ctx.real', 'Real'), 'the context holds the function\'s parameter `Real` under a lower-case member name'),
+)

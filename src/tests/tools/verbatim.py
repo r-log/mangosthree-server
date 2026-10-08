@@ -167,14 +167,33 @@ letter, a digit or `_`) stands beside an end of a that is one, nor beside an end
 neither a nor b, in its place, stands inside a longer name; a pattern the tool builds (V) applies as it
 is. A text pair that applies nowhere in a body still holding its left side once every pair has been
 applied (it stood there only inside a longer name, or where its right side would join one) fails by
-name. Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH lines call
+name. A context pair reads the same name on both sides or is a listed exception in the sites' data, each
+with its reason; no pair's right side holds another pair's left side, and no pair's left side holds an
+earlier pair's. So a context pair (`ctx.X`, b) whose left side holds no `->` has b == X, or is one of the
+pairs CONTEXT_EXCEPTIONS lists, each entry the pair and its reason; and of a site's text pairs, which apply
+in sequence, none rewrites another's right side, nor the left side of a pair after it, read where that
+pair would apply (as a whole token).
+
+Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH lines call
 `Dispatch<TRAITS>(KEY, NAME)` once and construct the context they pass, `CONTEXT NAME(ARGUMENTS);`, once;
 the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a route through the aura
 or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`) needs `this` among
 them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are compared with their
-blanks dropped, but one between two name characters. The paste-back cannot see what the ties read: it
-puts the entry's own switch where the entry's own dispatch stands, so a binding or a key changed in the
-sites' file and in the entry together would come back byte for byte.
+blanks dropped, but one between two name characters. The dispatch lines hold the context's construction,
+the dispatch call (whole or split over two lines, or assigned to `outcome` and tested on the next line),
+its return, braces and blank lines, and nothing else: each line, comments and literals blanked and blanks
+aside, is `CONTEXT NAME(ARGUMENTS);`; `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())`, whole or split after
+its `(` or after KEY's comma; `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with
+`if (OUT.IsReturn())` the next line (VALUE the site's `value`, void where it names none; OUT any name);
+`return;` at a site with no `value`, `return OUT.GetValue();` at a site with one; `{`, `}`; or blank
+(`SpellHandlerRegistry::Game().` may stand before `Dispatch`). A line holding a comment is none of these.
+The paste-back cannot see what the ties and the shape read: it puts the entry's own switch where the
+entry's own dispatch stands, so a binding or a key changed in the sites' file and in the entry together,
+or a statement or another return added to the dispatch lines of both, would come back byte for byte.
+Refused, each by name: a context pair reading two names that is not listed; a listed exception no site
+uses, or an entry that is not a pair and its reason; a pair rewriting another's right side or a later
+pair's left side; a dispatch line of none of the shapes (a statement, a comment, a return of the other
+kind or one changed).
 
 python src/tests/tools/verbatim.py --check        # against BASE (this PR's parent), reading git
 python src/tests/tools/verbatim.py --check --original   # each file against its original
@@ -266,12 +285,12 @@ from case_labels import blank  # noqa: E402  (the same comment/literal blanking 
 import split_gate  # noqa: E402
 
 # The names verbatim_sites.py assigns; split_gate.py holds the split.
-DATA_NAMES = ('BASE', 'ORIGINAL', 'VOID_SUBSTITUTIONS', 'SITES', 'BLOCKS')
+DATA_NAMES = ('BASE', 'ORIGINAL', 'VOID_SUBSTITUTIONS', 'SITES', 'BLOCKS', 'CONTEXT_EXCEPTIONS')
 
 if split_gate.refused_before_import(__file__, 'verbatim_sites', DATA_NAMES):
     sys.exit(1)
 try:
-    from verbatim_sites import BASE, BLOCKS, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
+    from verbatim_sites import BASE, BLOCKS, CONTEXT_EXCEPTIONS, ORIGINAL, SITES, VOID_SUBSTITUTIONS  # noqa: E402
 except Exception as e:
     sys.exit(split_gate.unloaded(__file__, 'verbatim_sites', e))
 
@@ -768,7 +787,8 @@ def check_ties(site):
     """The dispatch tied to its site: its lines call `Dispatch<TRAITS>(KEY, NAME)` once and construct the
     context they pass, `CONTEXT NAME(ARGUMENTS);`, once; every context pair `(ctx.X, b)` has b among the
     ARGUMENTS, and every route through the aura or spell the context holds (`ctx.aura->`, `ctx.spell->`)
-    has `this` among them; KEY is the key of the open lines' `switch (KEY)`. Blanks aside throughout."""
+    has `this` among them; KEY is the key of the open lines' `switch (KEY)`. Blanks aside throughout. Returns
+    KEY and NAME, squeezed."""
     text = '\n'.join(site['dispatch'])
     calls = list(re.finditer(r'Dispatch<%s>\s*\(' % re.escape(site['traits']), text))
     passed = held(text, calls[0].end() - 1) if len(calls) == 1 else None
@@ -802,6 +822,73 @@ def check_ties(site):
     if squeezed(switched) != key:
         raise Failure('%s: the dispatch\'s key %r is not its switch\'s key %r'
                       % (site['name'], key, squeezed(switched)))
+    return key, name
+
+
+DISPATCH_REGISTRY = r'(?:SpellHandlerRegistry::Game\(\)\.)?'
+
+
+def check_dispatch_shape(site, key, name):
+    """The dispatch lines in their fixed shape, read with comments and literals blanked and blanks aside as the
+    ties read them: each line is the context's construction `CONTEXT NAME(ARGUMENTS);`; the dispatch call
+    `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())` (`SpellHandlerRegistry::Game().` before `Dispatch` or not),
+    whole or split over two lines after its `(` or after KEY's comma; the call assigned,
+    `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` (VALUE the site's value, void where it names
+    none), with `if (OUT.IsReturn())` the next line; the site's return, `return;` where it names no value and
+    `return OUT.GetValue();` where it does; `{`, `}` or a blank line. A line holding a comment is none of them."""
+    text = '\n'.join(site['dispatch'])
+    noted = [text.count('\n', 0, m.start()) for m in re.finditer(r'/[/*]', text) if not in_literal(text, m.start())]
+    read = [squeezed(line) for line in blank(text).split('\n')]
+    call = r'%sDispatch<%s>\(' % (DISPATCH_REGISTRY, re.escape(site['traits']))
+    passed = r'%s,%s\)' % (re.escape(key), re.escape(name))
+    whole = r'if\(%s%s\.IsReturn\(\)\)' % (call, passed)
+    assigned = r'SpellHandlerOutcome<%s>(\w+)=%s%s;' % (re.escape(site.get('value', 'void')), call, passed)
+    out, i = None, 0
+    while i < len(read):
+        line, after = read[i], read[i + 1] if i + 1 < len(read) else ''
+        built = re.match(r'%s %s\(' % (re.escape(site['context']), re.escape(name)), line)
+        given = held(line, built.end() - 1) if built else None
+        valued = re.fullmatch(assigned, line)
+        returned = 'return;' if 'value' not in site else out and 'return %s.GetValue();' % out
+        if valued and after == 'if(%s.IsReturn())' % valued.group(1):
+            out, i = valued.group(1), i + 2
+        elif re.fullmatch(whole, line + after) and re.fullmatch(r'if\(%s(?:%s,)?' % (call, re.escape(key)), line):
+            i += 2
+        elif (re.fullmatch(whole, line) or line in ('{', '}', returned) or not site['dispatch'][i].strip()
+              or given is not None and line[built.end() + len(given):] == ');'):
+            i += 1
+        else:
+            break
+    wrong = [n for n in noted + [i] if n < len(read)]
+    if wrong:
+        raise Failure('%s: its dispatch line %r is not the context\'s construction, the dispatch call, its return or '
+                      'a brace' % (site['name'], site['dispatch'][min(wrong)].strip()))
+
+
+def check_pairs(site, listed):
+    """The site's text pairs read as they apply: each context pair (`ctx.X`, b) whose left side holds no `->`
+    has b == X or is one of the `listed` pairs; no pair's right side holds another pair's left side, and no
+    pair's left side holds an earlier pair's, each where that other pair would apply (token_pattern)."""
+    pairs = [(a, b) for a, b in site['substitutions'] if isinstance(a, str)]
+    for a, b in pairs:
+        if a.startswith('ctx.') and '->' not in a and b != a[len('ctx.'):] and (a, b) not in listed:
+            raise Failure('%s: the pair %r does not read the same name on both sides and is no listed exception'
+                          % (site['name'], (a, b)))
+    for k, (a, b) in enumerate(pairs):
+        for j, (c, d) in enumerate(pairs):
+            if j != k and token_pattern(c, d).search(b) or j < k and token_pattern(c, d).search(a):
+                raise Failure('%s: the pair %r is rewritten by the pair %r: pairs apply in sequence and none may '
+                              'read another\'s output' % (site['name'], (a, b), (c, d)))
+
+
+def exception_pairs(exceptions):
+    """The pairs CONTEXT_EXCEPTIONS lists, each entry a pair of texts and its reason, a text not blank; any other
+    entry fails."""
+    for entry in exceptions:
+        if not (isinstance(entry, tuple) and len(entry) == 2 and isinstance(entry[0], tuple) and len(entry[0]) == 2
+                and all(isinstance(t, str) for t in entry[0]) and isinstance(entry[1], str) and entry[1].strip()):
+            raise Failure('the exception %r is not a pair and its reason' % (entry,))
+    return [entry[0] for entry in exceptions]
 
 
 def label_ids(line):
@@ -947,7 +1034,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         if 'Dispatch<%s>' % site['traits'] not in ''.join(site['dispatch']):
             raise Failure('%s: its traits %s do not appear as Dispatch<%s> in its dispatch lines'
                           % (site['name'], site['traits'], site['traits']))
-        check_ties(site)
+        key, name = check_ties(site)
         rows = site_table(handlers, site)
         ids = [r[0] for r in rows]
         if 'residual' in site:
@@ -1021,6 +1108,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         if strict and 'value' in site and pasted > pasted_before and not returned:
             raise Failure('%s: its value is %s, and no handler it registers returns one (no `Return(x)` to paste back '
                           'as `return x;`)' % (site['name'], site['value']))
+        check_dispatch_shape(site, key, name)
         if 'residual' in site:
             put_back(rest, at[0], n, site, pieces, end, standing)
         else:
@@ -1390,12 +1478,18 @@ def check_block(entry, sites, git, read, scan, anchor=None):
             % (origin, header, base, n, at[0] + 1, where, end - at[0] - n, len(entry['added']), ', '.join(types)))
 
 
-def check(root, base, out=print, original=False, git=None, read=None, sites=None, anchor=None, blocks=None):
+def check(root, base, out=print, original=False, git=None, read=None, sites=None, anchor=None, blocks=None,
+          exceptions=None):
     """`git` and `read` (a path's text in the working tree) default to the repository at `root`;
     `anchor`, under --original, is the commit no original may be ahead of, in the base's place;
-    `sites` and `blocks` default to SITES and BLOCKS."""
+    `sites`, `blocks` and `exceptions` default to SITES, BLOCKS and CONTEXT_EXCEPTIONS."""
     git = git or git_runner(root)
     sites = SITES if sites is None else sites
+    try:
+        excepted = exception_pairs(CONTEXT_EXCEPTIONS if exceptions is None else exceptions)
+    except Failure as e:
+        out('verbatim: FAILED: %s' % e)
+        return 1
 
     def read_tree(rel, errors='strict'):
         with open(os.path.join(root, *rel.split('/')), encoding='utf-8', errors=errors, newline='') as fh:
@@ -1410,8 +1504,15 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
             return 1
         out('verbatim: each original is measured against the anchor %s' % anchor)
     rc = 0
+    used = {(a, b) for spec in sites.values() for site in spec['sites'] for a, b in site['substitutions']}
+    for pair in excepted:
+        if pair not in used:
+            out('verbatim: FAILED: the exception %r is listed and used by no site' % (pair,))
+            rc = 1
     for rel, spec in sites.items():
         try:
+            for site in spec['sites']:
+                check_pairs(site, excepted)
             ref, at = read_at(rel, spec, base, original, git, read, anchor)
             new_text = read(rel)
         except Failure as e:
@@ -1956,6 +2057,14 @@ BLOCK_ENTRY = {'base': '2b00000', 'origin': 'src/game/Far.cpp', 'header': 'src/g
 
 def self_test():
     failures = []
+
+    def fixture_exceptions(sites):
+        """The context exceptions check() is given with the fixture `sites`: the one reading `this` as `ctx.aura`,
+        where a site reads it so."""
+        aura = (('ctx.aura', 'this'), 'the context holds the aura the handler was a member of')
+        return (aura,) if any(aura[0] in site['substitutions'] for spec in sites.values()
+                              for site in spec.get('sites', ())) else ()
+
     got = sorted(class_members(SELF_HEADERS['Thing.h'], 'Thing'))
     want = ['GetCaster', 'GetId', 'Handle', 'IsPositive', 'm_casterGuid', 'm_link', 'm_modifier', 'm_positive',
             'm_table']
@@ -3088,6 +3197,150 @@ def self_test():
         "keyed: the dispatch's key 'triggered_spell_id' is not its switch's key 'triggered_spell_id+1'",
         **rekeyed(keyed['spec']['sites'][0]['dispatch'][1], opened=['    switch (triggered_spell_id + 1)', '    {']))
 
+    def reshaped(args, dispatch):
+        """`args` (form()'s) with `dispatch` in place of its dispatch lines, in the entry and the sites' file alike."""
+        old = '\n'.join(args['spec']['sites'][0]['dispatch'])
+        if old not in args['sites']:
+            failures.append('reshaped: the dispatch lines %r stand nowhere in the sites\' file' % old)
+        return dict(respec(args, dispatch=dispatch), sites=args['sites'].replace(old, '\n'.join(dispatch)))
+
+    unshaped = "%s: its dispatch line %r is not the context's construction, the dispatch call, its return or a brace"
+    shaped = 'with 1/1 bodies pasted back at their 1 labels in 1 sites'
+    for where, dispatch in (('before the context\'s construction', ['    target = m_caster;'] + passing),
+                            ('between the call and its block', passing[:2] + ['    target = m_caster;'] + passing[2:]),
+                            ('before the return', passing[:3] + ['        target = m_caster;'] + passing[3:])):
+        run('dispatch shape: a statement %s: fails by name' % where, 1, unshaped % ('tied', 'target = m_caster;'),
+            **reshaped(tied, dispatch))
+    for what, line in (('after the construction on its line', passing[0] + ' target = m_caster;'),
+                       ('before the construction on its line', '    target = m_caster; ' + passing[0].strip())):
+        run('dispatch shape: a statement %s: fails by name' % what, 1, unshaped % ('tied', line.strip()),
+            **reshaped(tied, [line] + passing[1:]))
+    for what, line in (('through another registry',
+                        '    if (Other::Game().Dispatch<RemoveSite>(GetId(), ctx).IsReturn())'),
+                       ('with more in its condition',
+                        '    if (Dispatch<RemoveSite>(GetId(), ctx).IsReturn() && target)'),
+                       ('negated', '    if (!Dispatch<RemoveSite>(GetId(), ctx).IsReturn())'),
+                       ('with a statement after it on its line',
+                        '    if (Dispatch<RemoveSite>(GetId(), ctx).IsReturn()) target = m_caster;')):
+        run('dispatch shape: a dispatch call %s: fails by name' % what, 1, unshaped % ('tied', line.strip()),
+            **reshaped(tied, passing[:1] + [line] + passing[2:]))
+    for where, lines in (('after its parenthesis, through the registry',
+                          ['    if (SpellHandlerRegistry::Game().Dispatch<RemoveSite>(',
+                           '            GetId(), ctx).IsReturn())']),
+                         ('after the key\'s comma',
+                          ['    if (Dispatch<RemoveSite>(GetId(),', '            ctx).IsReturn())'])):
+        run('dispatch shape: the call split over two lines %s: passes' % where, 0, shaped,
+            **reshaped(tied, passing[:1] + lines + passing[2:]))
+    for where, lines in (('inside its key', ['    if (Dispatch<RemoveSite>(GetId(', '            ), ctx).IsReturn())']),
+                         ('before its test',
+                          ['    if (Dispatch<RemoveSite>(GetId(), ctx)', '            .IsReturn())'])):
+        run('dispatch shape: the call split %s: fails by name' % where, 1, unshaped % ('tied', lines[0].strip()),
+            **reshaped(tied, passing[:1] + lines + passing[2:]))
+    run('dispatch shape: a block around the dispatch and a blank line after it: passes', 0, shaped,
+        **reshaped(tied, ['    {'] + ['    ' + line for line in passing] + ['    }', '']))
+    for what, dispatch, line in (
+            ('a comment line', passing[:1] + ['    // dispatch them'] + passing[1:], '// dispatch them'),
+            ('a comment after a brace', passing[:2] + ['    {    // handled'] + passing[3:], '{    // handled'),
+            ('a block comment line', passing[:1] + ['    /* dispatch */'] + passing[1:], '/* dispatch */'),
+            ('a comment on the call\'s second line', passing[:1] + [
+                '    if (Dispatch<RemoveSite>(', '            GetId(), ctx).IsReturn())    // handled'] + passing[2:],
+             'GetId(), ctx).IsReturn())    // handled'),
+            ('a line holding only a literal', passing[:1] + ['    "dispatch"'] + passing[1:], '"dispatch"')):
+        run('dispatch shape: %s among the dispatch lines: fails by name' % what, 1, unshaped % ('tied', line),
+            **reshaped(tied, dispatch))
+    run('dispatch shape: a statement, then a comment line: the first is named', 1,
+        unshaped % ('tied', 'target = m_caster;'),
+        **reshaped(tied, ['    target = m_caster;'] + passing[:1] + ['    // dispatch them'] + passing[1:]))
+    run('dispatch shape: a comment mark inside a literal argument is no comment: passes', 0, shaped,
+        **reshaped(tied, ['    CheckTargetContext ctx(this, m_caster, target, "a // b /* c");'] + passing[1:]))
+    assigned = [passing[0], '    SpellHandlerOutcome<void> outcome = Dispatch<RemoveSite>(GetId(), ctx);',
+                '    if (outcome.IsReturn())', '    {', '        return;', '    }']
+    run('dispatch shape: the call assigned at a site with no value, a bare return: passes', 0, shaped,
+        **reshaped(tied, assigned))
+    run('dispatch shape: return outcome.GetValue() at a site with no value: fails by name', 1,
+        unshaped % ('tied', 'return outcome.GetValue();'),
+        **reshaped(tied, assigned[:4] + ['        return outcome.GetValue();'] + assigned[5:]))
+    worth = valued['spec']['sites'][0]['dispatch']
+    run('dispatch shape: the valued form, its outcome under another name: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **reshaped(valued, [line.replace('outcome', 'result') for line in worth]))
+    for what, line in (('an inverted return of the outcome', 'return !outcome.GetValue();'),
+                       ('a bare return at a site with a value', 'return;'),
+                       ('a return of another outcome', 'return other.GetValue();')):
+        run('dispatch shape: %s: fails by name' % what, 1, unshaped % ('valued', line),
+            **reshaped(valued, worth[:4] + ['        ' + line] + worth[5:]))
+    for what, dispatch in (('tested a line after the assignment', worth[:2] + [''] + worth[2:]),
+                           ('tested that the call was not assigned to',
+                            worth[:2] + ['    if (other.IsReturn())'] + worth[3:]),
+                           ('assigned as another outcome type',
+                            worth[:1] + [worth[1].replace('<SpellCastResult>', '<bool>')] + worth[2:])):
+        run('dispatch shape: the valued form\'s outcome %s: fails by name' % what, 1,
+            unshaped % ('valued', dispatch[1].strip()), **reshaped(valued, dispatch))
+
+    def paired(*pairs):
+        """A site whose substitutions are `pairs`, then the void outcome pairs."""
+        return dict(name='paired', substitutions=list(pairs) + VOID_SUBSTITUTIONS)
+    aura = (('ctx.aura', 'this'), 'the context holds the aura the handler was a member of')
+    spell = (('ctx.spellId', 'GetId()'), 'the context holds the aura\'s spell id')
+    misnamed = "paired: the pair %r does not read the same name on both sides and is no listed exception"
+    raises('context pairs: swapped, each right side the other\'s name: fails by name',
+           misnamed % (('ctx.m_caster', 'target'),),
+           lambda: check_pairs(paired(('ctx.m_caster', 'target'), ('ctx.target', 'm_caster')), []))
+    swapped = mutated(respec(tied, substitutions=[('ctx.m_caster', 'target'), ('ctx.target', 'm_caster'),
+                                                  ('ctx.spell->finish', 'finish')] + VOID_SUBSTITUTIONS),
+                      'handlers', 'ctx.target->Drop(ctx.m_caster);', 'ctx.m_caster->Drop(ctx.target);')
+    run('context pairs: swapped with the body, the paste-back and the ties alone pass', 0, shaped, **swapped)
+    raises('context pairs: (ctx.spellId, GetId()) listed: passes', 'no failure',
+           lambda: check_pairs(paired(('ctx.target', 'target'), ('ctx.spellId', 'GetId()')), [spell[0]]))
+    raises('context pairs: (ctx.spellId, GetId()) unlisted: fails by name', misnamed % (('ctx.spellId', 'GetId()'),),
+           lambda: check_pairs(paired(('ctx.target', 'target'), ('ctx.spellId', 'GetId()')), [aura[0]]))
+    raises('context pairs: a route through the aura reading another name: passes', 'no failure',
+           lambda: check_pairs(paired(('ctx.aura->GetModifier()->', 'm_modifier.'), ('ctx.aura', 'this')), [aura[0]]))
+    chained = ("paired: the pair %r is rewritten by the pair %r: pairs apply in sequence and none may read another's "
+               "output")
+    raises('pair sequence: a right side a later pair rewrites: fails by name',
+           chained % (('ctx.target', 'target'), ('target', 'm_target')),
+           lambda: check_pairs(paired(('ctx.target', 'target'), ('target', 'm_target')), []))
+    raises('pair sequence: a right side an earlier pair would rewrite: fails by name',
+           chained % (('ctx.target', 'target'), ('target', 'm_target')),
+           lambda: check_pairs(paired(('target', 'm_target'), ('ctx.target', 'target')), []))
+    raises('pair sequence: a left side an earlier pair rewrites: fails by name',
+           chained % (('ctx.aura->GetId()', 'GetId()'), ('ctx.aura', 'this')),
+           lambda: check_pairs(paired(('ctx.aura', 'this'), ('ctx.aura->GetId()', 'GetId()')), [aura[0]]))
+    for label, pairs, listed in (
+            ('a left side holding a later pair\'s', [('ctx.aura->GetId()', 'GetId()'), ('ctx.aura', 'this')],
+             [aura[0]]),
+            ('Spell::TargetList beside ctx.target',
+             [('ctx.target', 'target'), ('Spell::TargetList', 'TargetList'), ('ctx.aura', 'this')], [aura[0]]),
+            ('a right side holding another\'s left side inside a longer name',
+             [('ctx.targets', 'targets'), ('target', 'm_target')], []),
+            ('a left side holding an earlier one\'s inside a longer name',
+             [('ctx.target', 'target'), ('ctx.targetUnit', 'targetUnit')], []),
+            ('a right side holding its own left side', [('caster', 'm_caster->caster')], [])):
+        raises('pair sequence: %s: passes' % label, 'no failure',
+               lambda pairs=pairs, listed=listed: check_pairs(paired(*pairs), listed))
+    raises('pair sequence: the tool\'s own pattern pairs are not read: passes', 'no failure',
+           lambda: check_pairs(dict(name='paired', substitutions=[('ctx.target', 'target')]
+                                    + valued_substitutions('bool')), []))
+    wrong = []
+    for entry in ('ctx.aura', list(aura), (aura[0],), aura + ('more',), (list(aura[0]), aura[1]),
+                  (('ctx.aura',), aura[1]), (('ctx.aura', 1), aura[1]), (aura[0], ' '), (aura[0], None)):
+        try:
+            exception_pairs([aura, entry])
+            wrong.append(entry)
+        except Failure as e:
+            if str(e) != 'the exception %r is not a pair and its reason' % (entry,):
+                wrong.append(entry)
+    print('self-test: %-66s %s' % ('context exceptions: an entry that is not a pair and its reason: fails by name',
+                                   'FAIL' if wrong else 'PASS'))
+    if wrong:
+        failures.append('exception_pairs lets through or misnames %r' % (wrong,))
+    read_pairs = exception_pairs([aura, spell])
+    print('self-test: %-66s %s' % ('context exceptions: the pairs each entry lists are read',
+                                   'PASS' if read_pairs == [aura[0], spell[0]] else 'FAIL'))
+    if read_pairs != [aura[0], spell[0]]:
+        failures.append('exception_pairs read %r' % (read_pairs,))
+
     # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
     # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
     # its own original, and is missing at the second. Two commits off that line share the prefix 8000000.
@@ -3156,11 +3409,12 @@ def self_test():
         try:
             if argv:
                 globals()['check'] = lambda root, base, original=False, anchor=None: real_check(
-                    root, base, got.append, original, fake_git, tree.__getitem__, {'fixture': spec}, anchor, [])
+                    root, base, got.append, original, fake_git, tree.__getitem__, {'fixture': spec}, anchor, [],
+                    fixture_exceptions({'fixture': spec}))
                 rc = main(argv)
             else:
                 rc = check('.', base, got.append, with_original, fake_git, tree.__getitem__, {'fixture': spec},
-                           anchor, [])
+                           anchor, [], fixture_exceptions({'fixture': spec}))
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -3240,6 +3494,42 @@ def self_test():
               'verbatim: each original is measured against the anchor %s\n%s' % (merge, identical), original='a000000',
               anchor='b000000')
 
+    def excepting(label, want_rc, needles, substitutions, exceptions):
+        """check() against the base 4000000, the fixture's first site reading `substitutions` and the context
+        exceptions `exceptions`: `want_rc` and the `needles` in order."""
+        first = dict(SELF_SPEC['sites'][0], substitutions=substitutions)
+        spec = dict(SELF_SPEC, sites=[first] + SELF_SPEC['sites'][1:])
+        got = []
+        try:
+            rc = check('.', '4000000', got.append, False, fake_git, tree.__getitem__, {'fixture': spec}, None, [],
+                       exceptions)
+        except Exception as e:                                  # a crash fails the row
+            rc = 2
+            got.append('crashed: %r' % e)
+        text, at, ok = '\n'.join(got), 0, rc == want_rc
+        for needle in needles:
+            at = text.find(needle, at)
+            ok = ok and at >= 0
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    own = SELF_SPEC['sites'][0]['substitutions']
+    excepting('context pairs: each one name or a listed exception, through check(): passes', 0,
+              [identical, 'verbatim: OK'], own, (aura,))
+    excepting('context pairs: one reading two names, unlisted, through check(): fails by name', 1,
+              ["fixture: FAILED: fixture: the pair ('ctx.aura', 'this') does not read the same name on both sides and "
+               "is no listed exception", 'verbatim: FAILED'], own, ())
+    excepting('pair sequence: a right side another pair rewrites, through check(): fails by name', 1,
+              ["fixture: FAILED: fixture: the pair ('ctx.target', 'target') is rewritten by the pair ('target', "
+               "'m_target')", 'verbatim: FAILED'], own[:1] + [('target', 'm_target')] + own[1:], (aura,))
+    excepting('context exceptions: one listed and used by no site: fails by name', 1,
+              ["verbatim: FAILED: the exception ('ctx.spellId', 'GetId()') is listed and used by no site", identical,
+               'verbatim: FAILED'], own, (aura, spell))
+    excepting('context exceptions: an entry that is not a pair and its reason, through check(): fails by name', 1,
+              ["verbatim: FAILED: the exception (('ctx.aura', 'this'), '') is not a pair and its reason"], own,
+              ((aura[0], ''),))
+
     # renamed_from: a file renamed from old_p to new_p between 3000000 and 4000000.
     old_p, new_p = 'src/game/WorldHandlers/Sites.cpp', 'src/game/spells/auras/Sites.cpp'
 
@@ -3269,7 +3559,8 @@ def self_test():
             return work[path]
         got = []
         try:
-            rc = check('.', base, got.append, original, git, read, sites, blocks=[])
+            rc = check('.', base, got.append, original, git, read, sites, blocks=[],
+                       exceptions=fixture_exceptions(sites))
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -3367,10 +3658,11 @@ def self_test():
         try:
             if argv:
                 globals()['check'] = lambda root, base, original=False, anchor=None: real_check(
-                    root, base, got.append, original, git, read, sites, anchor, [entry])
+                    root, base, got.append, original, git, read, sites, anchor, [entry], fixture_exceptions(sites))
                 rc = main(argv)
             elif original is not None:
-                rc = check('.', '2b00000', got.append, original, git, read, sites, anchor, [entry])
+                rc = check('.', '2b00000', got.append, original, git, read, sites, anchor, [entry],
+                           fixture_exceptions(sites))
             elif disk is not None:
                 where = tempfile.mkdtemp()
                 try:
@@ -3378,7 +3670,8 @@ def self_test():
                         os.makedirs(os.path.join(where, os.path.dirname(path)), exist_ok=True)
                         with open(os.path.join(where, path), 'wb') as f:
                             f.write(data)
-                    rc = check(where, '2b00000', got.append, False, git, None, sites, None, [entry])
+                    rc = check(where, '2b00000', got.append, False, git, None, sites, None, [entry],
+                               fixture_exceptions(sites))
                 finally:
                     shutil.rmtree(where, ignore_errors=True)
             else:
