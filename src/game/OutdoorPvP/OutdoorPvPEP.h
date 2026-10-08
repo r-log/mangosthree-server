@@ -27,6 +27,7 @@
 #define WORLD_PVP_EP
 
 #include "Platform/Define.h"
+#include <atomic>
 #include <list>
 #include "OutdoorPvP.h"
 #include "Language.h"
@@ -364,8 +365,8 @@ class OutdoorPvPEP : public OutdoorPvP
 
         Team m_towerOwner[MAX_EP_TOWERS]; ///< Current owner of each tower
         uint32 m_towerWorldState[MAX_EP_TOWERS]; ///< World state for each tower
-        uint8 m_towersAlliance; ///< Number of towers controlled by Alliance
-        uint8 m_towersHorde; ///< Number of towers controlled by Horde
+        std::atomic<uint8> m_towersAlliance; ///< Number of towers controlled by Alliance
+        std::atomic<uint8> m_towersHorde; ///< Number of towers controlled by Horde
 
         ObjectGuid m_flightMaster; ///< GUID of flight master NPC
         ObjectGuid m_lordaeronShrineAlliance; ///< GUID of Alliance shrine

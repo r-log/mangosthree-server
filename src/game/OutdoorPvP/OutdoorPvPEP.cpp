@@ -98,19 +98,23 @@ void OutdoorPvPEP::HandlePlayerEnterZone(Player* player, bool isMainZone)
         player->RemoveAurasDueToSpell(player->GetTeam() == ALLIANCE ? plaguelandsTowerBuffs[i].spellIdAlliance : plaguelandsTowerBuffs[i].spellIdHorde);
     }
 
+    // each count is read once: the continent's map thread can change it while this runs
+    uint8 const towersAlliance = m_towersAlliance.load();
+    uint8 const towersHorde = m_towersHorde.load();
+
     // buff the player
     switch (player->GetTeam())
     {
         case ALLIANCE:
-            if (m_towersAlliance > 0)
+            if (towersAlliance > 0)
             {
-                player->CastSpell(player, plaguelandsTowerBuffs[m_towersAlliance - 1].spellIdAlliance, true);
+                player->CastSpell(player, plaguelandsTowerBuffs[towersAlliance - 1].spellIdAlliance, true);
             }
             break;
         case HORDE:
-            if (m_towersHorde > 0)
+            if (towersHorde > 0)
             {
-                player->CastSpell(player, plaguelandsTowerBuffs[m_towersHorde - 1].spellIdHorde, true);
+                player->CastSpell(player, plaguelandsTowerBuffs[towersHorde - 1].spellIdHorde, true);
             }
             break;
         default:
