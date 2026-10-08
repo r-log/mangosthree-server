@@ -84,6 +84,11 @@ _TRADE_GET = [('src/game/entities/player/Player.h', 'Player', 'GetTradeData')]
 _TRADE_MY = [('    TradeData* my_trade = session.GetPlayer()->GetTradeData();',
               '    TradeData* my_trade = _player->m_trade;')]
 
+_SKILL_BASE = '136bdacff'
+_SKILL_FILE = 'src/game/session/handlers/entities/SkillHandlers.cpp'
+_SKILL_ORIGIN = 'src/game/WorldHandlers/SkillHandler.cpp'
+_SKILL_PLAYER = [('GetPlayer()', '_player')]
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -417,6 +422,23 @@ MOVES = [
          new_header='void TradeHandlers::HandleClearTradeItem(WorldSession& session, WorldPacket& recvPacket)',
          accessors=_TRADE_GET,
          edits=_TRADE_MY),
+    dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
+         base_header='void WorldSession::HandleLearnTalentOpcode(WorldPacket& recv_data)',
+         new_header='void SkillHandlers::HandleLearnTalent(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_SKILL_PLAYER),
+    dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
+         base_header='void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)',
+         new_header='void SkillHandlers::HandleLearnPreviewTalents(WorldSession& session, WorldPacket& recvPacket)',
+         substitutions=_SKILL_PLAYER),
+    dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
+         base_header='void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recv_data)',
+         new_header='void SkillHandlers::HandleTalentWipeConfirm(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_SKILL_PLAYER,
+         edits=[('    Creature* unit = session.GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);',
+                 '    Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);')]),
+    dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
+         base_header='void WorldSession::HandleUnlearnSkillOpcode(WorldPacket& recv_data)',
+         new_header='void SkillHandlers::HandleUnlearnSkill(WorldSession& session, WorldPacket& recv_data)'),
 ]
 
 RESIDUES = [

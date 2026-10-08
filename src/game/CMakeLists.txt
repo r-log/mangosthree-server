@@ -82,6 +82,9 @@ source_group("Session\\Handlers\\Combat" FILES ${SRC_GRP_SESSION_HANDLERS_COMBAT
 file(GLOB SRC_GRP_SESSION_HANDLERS_ECONOMY session/handlers/economy/*.cpp session/handlers/economy/*.h)
 source_group("Session\\Handlers\\Economy" FILES ${SRC_GRP_SESSION_HANDLERS_ECONOMY})
 
+file(GLOB SRC_GRP_SESSION_HANDLERS_ENTITIES session/handlers/entities/*.cpp session/handlers/entities/*.h)
+source_group("Session\\Handlers\\Entities" FILES ${SRC_GRP_SESSION_HANDLERS_ENTITIES})
+
 file(GLOB SRC_GRP_SESSION_HANDLERS_PVP session/handlers/pvp/*.cpp session/handlers/pvp/*.h)
 source_group("Session\\Handlers\\Pvp" FILES ${SRC_GRP_SESSION_HANDLERS_PVP})
 
@@ -143,6 +146,7 @@ add_library(game STATIC
     ${SRC_GRP_SERVER}
     ${SRC_GRP_SESSION_HANDLERS_COMBAT}
     ${SRC_GRP_SESSION_HANDLERS_ECONOMY}
+    ${SRC_GRP_SESSION_HANDLERS_ENTITIES}
     ${SRC_GRP_SESSION_HANDLERS_PVP}
     ${SRC_GRP_SESSION_PACKETS}
     ${SRC_GRP_SESSION_PACKETS_COMBAT}

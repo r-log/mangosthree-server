@@ -46,6 +46,7 @@
 #include "session/handlers/economy/LootHandlers.h"
 #include "session/handlers/economy/TradeHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
+#include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
 /**
@@ -647,7 +648,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_LFG_PLAYER_REWARD,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_LFG_TELEPORT_DENIED,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_UNLEARN_SPELL,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_UNLEARN_SKILL,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleUnlearnSkillOpcode        );
+    OPCODE(CMSG_UNLEARN_SKILL,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleUnlearnSkill             );
     OPCODE(SMSG_REMOVED_SPELL,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_DECHARGE,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_GMTICKET_CREATE,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketCreateOpcode      );
@@ -734,7 +735,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_PERIODICAURALOG,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPELLDAMAGESHIELD,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_SPELLNONMELEEDAMAGELOG,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_LEARN_TALENT,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLearnTalentOpcode         );
+    OPCODE(CMSG_LEARN_TALENT,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleLearnTalent              );
     //OPCODE(SMSG_RESURRECT_FAILED,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_TOGGLE_PVP,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleTogglePvP                 );
     OPCODE(SMSG_ZONE_UNDER_ATTACK,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -825,7 +826,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_GAMEOBJECT_RESET_STATE,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_REPAIR_ITEM,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRepairItemOpcode          );
     OPCODE(SMSG_CHAT_PLAYER_NOT_FOUND,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(MSG_TALENT_WIPE_CONFIRM,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleTalentWipeConfirmOpcode   );
+    OPCODE(MSG_TALENT_WIPE_CONFIRM,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleTalentWipeConfirm        );
     OPCODE(SMSG_SUMMON_REQUEST,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_SUMMON_RESPONSE,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSummonResponseOpcode      );
     //OPCODE(MSG_DEV_SHOWLABEL,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
@@ -1364,7 +1365,7 @@ void InitializeOpcodes()
     //OPCODE(CMSG_ON_MISSILE_TRAJECTORY_COLLISION,         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_NOTIFY_MISSILE_TRAJECTORY_COLLISION,     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_TALENT_UPDATE,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_LEARN_TALENT_GROUP,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLearnPreviewTalents       );
+    OPCODE(CMSG_LEARN_TALENT_GROUP,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleLearnPreviewTalents      );
     OPCODE(CMSG_PET_LEARN_TALENT_GROUP,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLearnPreviewTalentsPet    );
     //OPCODE(CMSG_SET_ACTIVE_TALENT_GROUP_OBSOLETE,        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_GRANT_ACHIEVEMENT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
