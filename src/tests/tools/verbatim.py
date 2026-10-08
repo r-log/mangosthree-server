@@ -162,6 +162,20 @@ comments are rewritten and read as they stand); and a `return ...::Continue();` 
 nested switch (the moved `break;` would have left that loop, not the case). A site whose substitutions
 hold no pair pasting back as `break;` fails by name before any Continue is read.
 
+SUBSTITUTIONS apply at whole tokens: a text pair (a, b) rewrites a only where no name character (a
+letter, a digit or `_`) stands beside an end of a that is one, nor beside an end of b that is one, so
+neither a nor b, in its place, stands inside a longer name; a pattern the tool builds (V) applies as it
+is. A text pair that applies nowhere in a body still holding its left side once every pair has been
+applied (it stood there only inside a longer name, or where its right side would join one) fails by
+name. Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH lines call
+`Dispatch<TRAITS>(KEY, NAME)` once and construct the context they pass, `CONTEXT NAME(ARGUMENTS);`, once;
+the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a route through the aura
+or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`) needs `this` among
+them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are compared with their
+blanks dropped, but one between two name characters. The paste-back cannot see what the ties read: it
+puts the entry's own switch where the entry's own dispatch stands, so a binding or a key changed in the
+sites' file and in the entry together would come back byte for byte.
+
 python src/tests/tools/verbatim.py --check        # against BASE (this PR's parent), reading git
 python src/tests/tools/verbatim.py --check --original   # each file against its original
 python src/tests/tools/verbatim.py --self-test    # fixtures only, no git
@@ -644,12 +658,34 @@ def braced(origins, site, label_lines):
     return False
 
 
-def substituted(site, body):
-    restored = []
+def token_pattern(a, b):
+    """Where the text pair (a, b) applies: at `a`, with no name character beside an end of `a` that is one,
+    nor beside an end of `b` that is one (`b` takes its place), so neither stands inside a longer name."""
+    head = r'(?<!\w)' if re.match(r'\w', a) or re.match(r'\w', b) else ''
+    tail = r'(?!\w)' if re.search(r'\w\Z', a) or re.search(r'\w\Z', b) else ''
+    return re.compile(head + re.escape(a) + tail)
+
+
+def substituted(site, body, function):
+    """`body` reverse-substituted, each line pair after pair: a pattern the tool builds as it is, a text pair
+    at whole tokens only (token_pattern). A text pair that applies nowhere in the body, whose left side the
+    body still holds once every pair has been applied, fails."""
+    restored, applied = [], set()
     for line in body:
-        for a, b in site['substitutions']:
-            line = a.sub(b, line) if isinstance(a, re.Pattern) else line.replace(a, b)
+        for k, (a, b) in enumerate(site['substitutions']):
+            if isinstance(a, re.Pattern):
+                line = a.sub(b, line)
+                continue
+            line, count = token_pattern(a, b).subn(lambda _, text=b: text, line)
+            if count:
+                applied.add(k)
         restored.append(line)
+    for k, (a, _) in enumerate(site['substitutions']):
+        n = next((n for n, line in enumerate(restored, 1) if isinstance(a, str) and a in line), None)
+        if n and k not in applied:
+            raise Failure('handler %s, body line %d: %r, the left side of a substitution, stands in its body only '
+                          'where it or its right side would join a longer name, so the pair applies nowhere there: '
+                          '%r' % (function, n, a, body[n - 1]))
     return restored
 
 
@@ -658,7 +694,7 @@ def paste(site, function, body, label_lines, wrapped=False, gaps=(), lead=0):
     `{` `}` at the label indent when `wrapped` (a one-line case is never wrapped); `gaps[i]` blank lines
     after label line i (B); the body's first `lead` lines are the preamble, written before the labels
     at the indent of the switch's `{` (P)."""
-    restored = substituted(site, body)
+    restored = substituted(site, body, function)
     brace = ' ' * (len(site['open'][-1]) - len(site['open'][-1].lstrip(' ')))
     if lead:
         if one_line(label_lines) or any(not l.strip().startswith('//') for l in restored[:lead]):
@@ -700,6 +736,72 @@ def falls_into(site, function, body, rows, j):
         raise Failure('%s: %s ends in a call of %s, which is not the function of the run after it in the switch'
                       % (site['name'], function, m.group(1)))
     return body[:-1]
+
+
+def squeezed(text):
+    """`text` with its blanks dropped, but one between two name characters."""
+    return re.sub(r' (?!\w)|(?<!\w) ', '', re.sub(r'\s+', ' ', text))
+
+
+def held(text, at):
+    """What the parenthesis at text[at] holds, up to the one closing it; None where none does."""
+    depth = 0
+    for k in range(at, len(text)):
+        depth += (text[k] == '(') - (text[k] == ')')
+        if depth == 0:
+            return text[at + 1:k]
+    return None
+
+
+def arguments(text):
+    """`text` split at the commas outside its parentheses, each part squeezed."""
+    parts, depth, start = [], 0, 0
+    for k, c in enumerate(text):
+        depth += (c == '(') - (c == ')')
+        if c == ',' and depth == 0:
+            parts.append(text[start:k])
+            start = k + 1
+    return [squeezed(p) for p in parts + [text[start:]]]
+
+
+def check_ties(site):
+    """The dispatch tied to its site: its lines call `Dispatch<TRAITS>(KEY, NAME)` once and construct the
+    context they pass, `CONTEXT NAME(ARGUMENTS);`, once; every context pair `(ctx.X, b)` has b among the
+    ARGUMENTS, and every route through the aura or spell the context holds (`ctx.aura->`, `ctx.spell->`)
+    has `this` among them; KEY is the key of the open lines' `switch (KEY)`. Blanks aside throughout."""
+    text = '\n'.join(site['dispatch'])
+    calls = list(re.finditer(r'Dispatch<%s>\s*\(' % re.escape(site['traits']), text))
+    passed = held(text, calls[0].end() - 1) if len(calls) == 1 else None
+    passed = arguments(passed) if passed is not None else []
+    if len(passed) != 2 or not re.fullmatch(r'\w+', passed[1]):
+        raise Failure('%s: its dispatch lines hold no one call `Dispatch<%s>(KEY, CONTEXT)`'
+                      % (site['name'], site['traits']))
+    key, name = passed
+    built = list(re.finditer(r'(?<!\w)%s\s+%s\s*\(' % (re.escape(site['context']), name), text))
+    given = held(text, built[0].end() - 1) if len(built) == 1 else None
+    if given is None:
+        raise Failure('%s: its dispatch lines do not construct the context they pass, `%s %s(...)`, once'
+                      % (site['name'], site['context'], name))
+    given = arguments(given)
+    at = '%s %s(%s)' % (site['context'], name, ', '.join(given))
+    for a, b in site['substitutions']:
+        if not isinstance(a, str) or not a.startswith('ctx.'):
+            continue
+        route = re.match(r'ctx\.(aura|spell)->', a)
+        if route and 'this' not in given:
+            raise Failure('%s: the pair (%r, %r) reads the %s the context holds, and the dispatch passes the context '
+                          'no `this`: %s' % (site['name'], a, b, route.group(1), at))
+        if not route and squeezed(b) not in given:
+            raise Failure('%s: the pair (%r, %r): its right side %r is passed to no context argument at the '
+                          'dispatch: %s' % (site['name'], a, b, b, at))
+    opened = '\n'.join(site['open'])
+    switch = re.match(r'\s*switch\s*\(', opened)
+    switched = held(opened, switch.end() - 1) if switch else None
+    if switched is None:
+        raise Failure('%s: its open lines hold no `switch (KEY)` to tie the dispatch\'s key to' % site['name'])
+    if squeezed(switched) != key:
+        raise Failure('%s: the dispatch\'s key %r is not its switch\'s key %r'
+                      % (site['name'], key, squeezed(switched)))
 
 
 def label_ids(line):
@@ -845,6 +947,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         if 'Dispatch<%s>' % site['traits'] not in ''.join(site['dispatch']):
             raise Failure('%s: its traits %s do not appear as Dispatch<%s> in its dispatch lines'
                           % (site['name'], site['traits'], site['traits']))
+        check_ties(site)
         rows = site_table(handlers, site)
         ids = [r[0] for r in rows]
         if 'residual' in site:
@@ -1399,13 +1502,13 @@ void Thing::Handle(bool apply)
 {
     Unit* target = GetTarget();
     SelfContext handlerContext(this, target);
-    if (Dispatch<SelfSite>(handlerContext).IsReturn())
+    if (Dispatch<SelfSite>(GetId(), handlerContext).IsReturn())
     {
         return;
     }
     uint32 rank;
     RankContext rankContext(this, rank);
-    if (Dispatch<RankSite>(rankContext).IsReturn())
+    if (Dispatch<RankSite>(GetId(), rankContext).IsReturn())
     {
         return;
     }
@@ -1488,7 +1591,7 @@ void Thing::Handle(bool apply)
 {
     Unit* target = GetTarget();
     SelfContext handlerContext(this, target);
-    if (Dispatch<SelfSite>(handlerContext).IsReturn())
+    if (Dispatch<SelfSite>(GetId(), handlerContext).IsReturn())
     {
         return;
     }
@@ -1547,7 +1650,8 @@ SELF_SPEC = {
     'sites': [{
         'name': 'fixture',
         'dispatch': ['    SelfContext handlerContext(this, target);',
-                     '    if (Dispatch<SelfSite>(handlerContext).IsReturn())', '    {', '        return;', '    }'],
+                     '    if (Dispatch<SelfSite>(GetId(), handlerContext).IsReturn())', '    {', '        return;',
+                     '    }'],
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
         'label_indent': 8,
@@ -1563,8 +1667,9 @@ SELF_SPEC = {
                    3: '        case 3:                                 // Three'},
     }, {
         'name': 'fixture ranks',
-        'dispatch': ['    RankContext rankContext(this, rank);', '    if (Dispatch<RankSite>(rankContext).IsReturn())',
-                     '    {', '        return;', '    }'],
+        'dispatch': ['    RankContext rankContext(this, rank);',
+                     '    if (Dispatch<RankSite>(GetId(), rankContext).IsReturn())', '    {', '        return;',
+                     '    }'],
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
         'label_indent': 8,
@@ -1627,7 +1732,7 @@ void Thing::Remove(bool apply)
 {
     Unit* target = GetTarget();
     RemoveContext removeContext(this, target);
-    if (Dispatch<RemoveSite>(removeContext).IsReturn())
+    if (Dispatch<RemoveSite>(GetId(), removeContext).IsReturn())
     {
         return;
     }
@@ -1697,7 +1802,8 @@ SELF_SPEC_PART = {
     'sites': [{
         'name': 'fixture part',
         'dispatch': ['    RemoveContext removeContext(this, target);',
-                     '    if (Dispatch<RemoveSite>(removeContext).IsReturn())', '    {', '        return;', '    }'],
+                     '    if (Dispatch<RemoveSite>(GetId(), removeContext).IsReturn())', '    {', '        return;',
+                     '    }'],
         'open': ['    switch (GetId())', '    {'],
         'close': ['    }'],
         'residual': True,
@@ -1938,7 +2044,7 @@ def self_test():
         swap=('if (i == 1)\n            break;',
               'if (i == 1)\n            return SpellHandlerOutcome<void>::Continue();'))
     run('a lost dispatch fails', 1, 'the dispatch found 0 times',
-        swap=('    if (Dispatch<SelfSite>(handlerContext).IsReturn())\n', ''))
+        swap=('    if (Dispatch<SelfSite>(GetId(), handlerContext).IsReturn())\n', ''))
     run('Return taken for Continue fails', 1, 'DIFFERS',
         swap=('return SpellHandlerOutcome<void>::Continue();', 'return SpellHandlerOutcome<void>::Return();'))
     run('a one-line case\'s body changed fails', 1,
@@ -2467,7 +2573,8 @@ def self_test():
 
     valued_site = dict(value='SpellCastResult', traits='CheckSite', context='CheckContext',
                  dispatch=['    CheckContext checkContext(this, target);',
-                           '    SpellHandlerOutcome<SpellCastResult> outcome = Dispatch<CheckSite>(checkContext);',
+                           '    SpellHandlerOutcome<SpellCastResult> outcome = '
+                           'Dispatch<CheckSite>(GetId(), checkContext);',
                            '    if (outcome.IsReturn())', '    {', '        return outcome.GetValue();', '    }'],
                  substitutions=[('ctx.target', 'target'), ('ctx.aura', 'this')])
     valued_rows = ([lab[1], '        {', '            if (target->IsDead())', '            {',
@@ -2777,6 +2884,186 @@ def self_test():
     run('E: the last labelled run falling off the switch\'s end: fails', 1,
         "the run under ['case 2:'] falls off the switch's end, which only a `default:` may",
         **form('off', lab12, two[:-1], two_functions, two_rows))
+
+    reads = [('Spell::TargetList', 'TargetList', '(Spell::TargetList::const_iterator', True),
+             ('Spell::TargetList', 'TargetList', 'MySpell::TargetList::const_iterator', False),
+             ('Spell::TargetList', 'TargetList', 'Spell::TargetListX::const_iterator', False),
+             (' target', 'target', 'Drop( target);', True), (' target', 'target', 'delete target;', False),
+             ('target ', 'target', 'Drop(target );', True), ('target ', 'target', 'Drop(target or);', False),
+             ('->Get()', '.value', 'a->Get()->b', True), ('->', '.', 'a->b', True),
+             ('ctx.spellId', '::GetId()', 'xctx.spellId', False), ('ctx.aura', 'this->', 'ctx.auraX', False)]
+    misread = [(a, b, text) for a, b, text, applies in reads if bool(token_pattern(a, b).search(text)) != applies]
+    print('self-test: %-66s %s' % ('whole tokens: where a text pair applies, read at both ends of both sides',
+                                   'FAIL' if misread else 'PASS'))
+    if misread:
+        failures.append('token_pattern misreads %r' % misread)
+    pasted = substituted(dict(substitutions=[('ctx.separator', "'\\n'")]), ['    Log(ctx.separator);'], 'One')
+    print('self-test: %-66s %s' % ('whole tokens: a right side pastes back as written, a backslash included',
+                                   'PASS' if pasted == ["    Log('\\n');"] else 'FAIL'))
+    if pasted != ["    Log('\\n');"]:
+        failures.append('a right side holding a backslash pasted back as %r' % pasted)
+    spelled =[('ctx.target', 'target'), ('ctx.aura', 'this'), ('Spell::TargetList', 'TargetList')]
+    listed = form('tokens', lab1, [
+        lab[1], '            for (TargetList::const_iterator i = list.begin(); i != list.end(); ++i)',
+        '                target->Drop(*i);', '            MySpell::TargetListX::Clear();',
+        '            MySpell::TargetList::Clear();', '            Spell::TargetListX::Clear();', '            break;'],
+        [('One', 'void', ['    for (Spell::TargetList::const_iterator i = list.begin(); i != list.end(); ++i)',
+                          '        ctx.target->Drop(*i);', '    MySpell::TargetListX::Clear();',
+                          '    MySpell::TargetList::Clear();', '    Spell::TargetListX::Clear();', cont])],
+        [(1, 'One')], substitutions=spelled + VOID_SUBSTITUTIONS)
+    run('whole tokens: a pair inside a longer name does not apply there, a whole one does: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites', **listed)
+    inside = ('the left side of a substitution, stands in its body only where it or its right side would join a '
+              'longer name')
+    for what, name in (('begins', 'MySpell::TargetList'), ('ends', 'Spell::TargetListX')):
+        run('whole tokens: a pair whose only use in a body %s inside a longer name: fails by name' % what, 1,
+            "handler One, body line 1: 'Spell::TargetList', %s, so the pair applies nowhere there: '    %s::Clear();'"
+            % (inside, name),
+            **form('tokens', lab1, [lab[1], '            %s::Clear();' % name, '            break;'],
+                   [('One', 'void', ['    %s::Clear();' % name, cont])], [(1, 'One')],
+                   substitutions=spelled + VOID_SUBSTITUTIONS))
+    run('whole tokens: a pair whole in one body, only inside a longer name in another: fails by name', 1,
+        "handler Two, body line 1: 'Spell::TargetList', %s, so the pair applies nowhere there: "
+        "'    ctx.target->Use(MySpell::TargetList::Make());'" % inside,
+        **form('tokens', lab12, [lab[1], '            TargetList::Clear();', '            break;',
+                                 lab[2], '            target->Use(MySpell::TargetList::Make());', '            break;'],
+               [('One', 'void', ['    Spell::TargetList::Clear();', cont]),
+                ('Two', 'void', ['    ctx.target->Use(MySpell::TargetList::Make());', cont])], two_rows,
+               substitutions=spelled + VOID_SUBSTITUTIONS))
+    run('whole tokens: a pair whose right side would join the name before it: fails by name', 1,
+        "handler One, body line 1: ' ctx.target', %s" % inside,
+        **form('tokens', lab1, [lab[1], '            delete target;', '            break;'],
+               [('One', 'void', ['    delete ctx.target;', cont])], [(1, 'One')],
+               substitutions=[(' ctx.target', 'target'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS))
+    units = [('ctx.target', 'target'), ('ctx.targetUnit', 'targetUnit'), ('ctx.aura', 'this')]
+    run('whole tokens: a context name listed before a longer one it begins: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites',
+        **form('tokens', lab1, [lab[1], '            targetUnit->Drop(1);', '            break;'],
+               [('One', 'void', ['    ctx.targetUnit->Drop(1);', cont])], [(1, 'One')],
+               substitutions=units + VOID_SUBSTITUTIONS,
+               dispatch=['    RemoveContext removeContext(this, target, targetUnit);'] + form_site['dispatch'][1:]))
+    run('whole tokens: the void outcome pairs apply after a condition on one line: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites',
+        **form('tokens', lab1, [lab[1], '            if (target->IsDead()) return;', '            target->Drop(1);',
+                                '            if (target->IsDead()) break;', '            break;'],
+               [('One', 'void', ['    if (ctx.target->IsDead()) return SpellHandlerOutcome<void>::Return();',
+                                 '    ctx.target->Drop(1);',
+                                 '    if (ctx.target->IsDead()) return SpellHandlerOutcome<void>::Continue();', cont])],
+               [(1, 'One')]))
+    run('whole tokens: the valued outcome pairs apply after a condition on one line: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **mutated(mutated(valued, 'old_text', '            break;\n',
+                          '            if (target->IsDead()) break;\n            break;\n'),
+                  'handlers', '    return SpellHandlerOutcome<SpellCastResult>::Continue();\n',
+                  '    if (ctx.target->IsDead()) return SpellHandlerOutcome<SpellCastResult>::Continue();\n'
+                  '    return SpellHandlerOutcome<SpellCastResult>::Continue();\n'))
+
+    passing = ['    CheckTargetContext ctx(this, m_caster, target);',
+               '    if (Dispatch<RemoveSite>(GetId(), ctx).IsReturn())', '    {', '        return;', '    }']
+    tied = form('tied', lab1, [lab[1], '            target->Drop(m_caster);', '            finish();',
+                               '            break;'],
+                [('One', 'void', ['    ctx.target->Drop(ctx.m_caster);', '    ctx.spell->finish();', cont])],
+                [(1, 'One')], context='CheckTargetContext', dispatch=passing,
+                substitutions=[('ctx.m_caster', 'm_caster'), ('ctx.target', 'target'), ('ctx.spell->finish', 'finish')]
+                + VOID_SUBSTITUTIONS)
+
+    def rebound(args, line, *lines):
+        """`args` (form()'s) with its dispatch's first line `line`, then `lines` in place of its second when given,
+        in the entry and the sites' file alike."""
+        dispatch = [line] + (list(lines) or passing[1:2]) + passing[2:]
+        return dict(respec(args, dispatch=dispatch),
+                    sites=args['sites'].replace('\n'.join(passing), '\n'.join(dispatch)))
+
+    run('context tie: each pair\'s right side passed to the context, a route through the spell: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites', **tied)
+    unpassed = "tied: the pair ('ctx.m_caster', 'm_caster'): its right side 'm_caster' is passed to no context argument"
+    run('context tie: a binding changed in the origin and the entry together: fails by name', 1,
+        unpassed + ' at the dispatch: CheckTargetContext ctx(this, m_originalCaster, target)',
+        **rebound(tied, '    CheckTargetContext ctx(this, m_originalCaster, target);'))
+    run('context tie: the caster bound in the target\'s place too: fails by name', 1,
+        "tied: the pair ('ctx.target', 'target'): its right side 'target' is passed to no context argument at the "
+        "dispatch: CheckTargetContext ctx(this, m_caster, m_caster)",
+        **rebound(tied, '    CheckTargetContext ctx(this, m_caster, m_caster);'))
+    run('context tie: a route through the spell, the dispatch passing no this: fails by name', 1,
+        "tied: the pair ('ctx.spell->finish', 'finish') reads the spell the context holds, and the dispatch passes "
+        "the context no `this`: CheckTargetContext ctx(m_caster, target)",
+        **rebound(tied, '    CheckTargetContext ctx(m_caster, target);'))
+    run('context tie: arguments spelled with other blanks than the pairs: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites',
+        **rebound(tied, '    CheckTargetContext  ctx ( this,m_caster ,\ttarget );'))
+    run('context tie: an expression passed to a member named as a route begins (ctx.spellId): passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites',
+        **form('spell id', lab1, [lab[1], '            target->Drop(GetId() + 1);', '            break;'],
+               [('One', 'void', ['    ctx.target->Drop(ctx.spellId);', cont])], [(1, 'One')],
+               context='SpellIdContext', dispatch=['    SpellIdContext ctx(GetId() + 1, target);'] + passing[1:],
+               substitutions=[('ctx.target', 'target'), ('ctx.spellId', 'GetId() + 1')] + VOID_SUBSTITUTIONS))
+    run('context tie: an argument holding a call with commas: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites',
+        **rebound(tied, '    CheckTargetContext ctx(this, m_caster, target, Pick(m_caster, target));'))
+    run('context tie: names passed inside a call, not as arguments: fails by name', 1,
+        unpassed + ' at the dispatch: CheckTargetContext ctx(Pick(this,m_caster,target))',
+        **rebound(tied, '    CheckTargetContext ctx(Pick(this, m_caster, target));'))
+    unbuilt = 'tied: its dispatch lines do not construct the context they pass, `CheckTargetContext %s(...)`, once'
+    run('context tie: a dispatch passing a context its lines do not construct: fails by name', 1, unbuilt % 'other',
+        **rebound(tied, passing[0], '    if (Dispatch<RemoveSite>(GetId(), other).IsReturn())'))
+    run('context tie: a context constructed twice in the dispatch lines: fails by name', 1, unbuilt % 'ctx',
+        **rebound(tied, passing[0], passing[0], passing[1]))
+    run('context tie: a context of another type under the name passed: fails by name', 1, unbuilt % 'ctx',
+        **rebound(tied, '    MyCheckTargetContext ctx(this, m_caster, target);'))
+    run('context tie: a constructor that does not close: fails by name', 1, unbuilt % 'ctx',
+        **rebound(tied, '    CheckTargetContext ctx(this, m_caster, target;'))
+
+    local = [lab[1], '            target->Drop(1);', '            break;']
+    keyed = form('keyed', lab1, local, [('One', 'void', [drop1, cont])], [(1, 'One')],
+                 open=['    switch (triggered_spell_id)', '    {'],
+                 dispatch=['    RemoveContext removeContext(this, target);',
+                           '    if (Dispatch<RemoveSite>(triggered_spell_id, removeContext).IsReturn())', '    {',
+                           '        return;', '    }'])
+
+    def rekeyed(*lines, opened=None):
+        """`keyed` with `lines` in place of its dispatch's second line, in the entry and the sites' file alike, and
+        its open lines `opened` when given."""
+        site = keyed['spec']['sites'][0]
+        dispatch = site['dispatch'][:1] + list(lines) + site['dispatch'][2:]
+        args = dict(respec(keyed, dispatch=dispatch, open=opened or site['open']),
+                    sites=keyed['sites'].replace('\n'.join(site['dispatch']), '\n'.join(dispatch)))
+        if opened:
+            args['old_text'] = args['old_text'].replace('\n'.join(site['open']), '\n'.join(opened))
+        return args
+
+    run('key tie: a site keyed on a local (triggered_spell_id): passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites', **keyed)
+    run('key tie: a key changed in the origin and the entry together: fails by name', 1,
+        "keyed: the dispatch's key 'm_spellInfo->ID' is not its switch's key 'triggered_spell_id'",
+        **rekeyed('    if (Dispatch<RemoveSite>(m_spellInfo->ID, removeContext).IsReturn())'))
+    run('key tie: a key broken over lines, with other blanks than the switch\'s: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites',
+        **rekeyed('    if (Dispatch<RemoveSite> (',
+                  '            (*itr)->GetSpellProto()->ID, removeContext).IsReturn())',
+                  opened=['    switch(( *itr )->GetSpellProto()->ID )', '    {']))
+    run('key tie: a key whose blanks part two names: fails by name', 1,
+        "keyed: the dispatch's key 'unsigned id' is not its switch's key 'unsignedid'",
+        **rekeyed('    if (Dispatch<RemoveSite>(unsigned', 'id, removeContext).IsReturn())',
+                  opened=['    switch (unsignedid)', '    {']))
+    run('key tie: a switch key whose blanks part two names: fails by name', 1,
+        "keyed: the dispatch's key 'unsignedid' is not its switch's key 'unsigned id'",
+        **rekeyed('    if (Dispatch<RemoveSite>(unsignedid, removeContext).IsReturn())',
+                  opened=['    switch (unsigned', 'id)', '    {']))
+    nocall = 'keyed: its dispatch lines hold no one call `Dispatch<RemoveSite>(KEY, CONTEXT)`'
+    run('key tie: a dispatch passing no key: fails by name', 1, nocall,
+        **rekeyed('    if (Dispatch<RemoveSite>(removeContext).IsReturn())'))
+    run('key tie: a dispatch passing three arguments: fails by name', 1, nocall,
+        **rekeyed('    if (Dispatch<RemoveSite>(triggered_spell_id, removeContext, 0).IsReturn())'))
+    run('key tie: a dispatch passing its context through a pointer: fails by name', 1, nocall,
+        **rekeyed('    if (Dispatch<RemoveSite>(triggered_spell_id, *removeContext).IsReturn())'))
+    run('key tie: two dispatch calls in the dispatch lines: fails by name', 1, nocall,
+        **rekeyed('    if (Dispatch<RemoveSite>(triggered_spell_id, removeContext).IsReturn() ||',
+                  '        Dispatch<RemoveSite>(triggered_spell_id, removeContext).IsReturn())'))
+    run('key tie: a dispatch call that does not close: fails by name', 1, nocall,
+        **rekeyed('    if (Dispatch<RemoveSite>(triggered_spell_id, removeContext.IsReturn()'))
+    run('key tie: open lines opening no switch: fails by name', 1,
+        "keyed: its open lines hold no `switch (KEY)` to tie the dispatch's key to",
+        **rekeyed(keyed['spec']['sites'][0]['dispatch'][1], opened=['    if (triggered_spell_id)', '    {']))
 
     # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
     # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
