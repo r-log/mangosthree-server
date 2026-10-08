@@ -47,7 +47,10 @@ MOVES holds one entry per moved function:
       read) and takes the function's body from the class's body, where it is named once: a getter takes
       nothing and its body is exactly `return <member>;`, a setter takes one parameter and its body is exactly
       `<member> = <parameter>;`, blanks aside (no comment, no other statement, no cast, no call), <member> a
-      data member the class declares; each listed accessor is called by an edit. On an edit's new line, in
+      data member the class declares (`<type> <member>;`); the getter's declared return type, or the setter's
+      parameter type, is the member's declared type (blanks, a getter's trailing `const`, and `inline`,
+      `static`, `constexpr` and `mutable` aside), and the function is not `virtual`, `override` or `final`;
+      each listed accessor is called by an edit. On an edit's new line, in
       code only, a getter called on a receiver, `->name()` or `.name()`, reads as `-><member>` or `.<member>`,
       and a setter called on one as a statement, `->name(<arg>);`, reads as `-><member> = <arg>;`; the
       receiver and the rest of the line stay as they are and must read as the base line does under the player
@@ -123,10 +126,11 @@ of the file names, fails.
 A definition line of another shape or holding a comment or a literal, and an edit or substitution that
 matches nothing, fail by name; so do an edit or substitution holding a line break, an edit changing more
 than how the player is read or reading otherwise in place than alone, an accessor its header at the base
-does not hold in the class's body as a getter or setter of that shape or that no edit calls, an edit calling
-one on another receiver than its base line or where its base line reads no such member, a substitution of
-another shape, a definition taking no session over a body, moved or at its base, that reads the session
-(naming the body line), and an entry with such a definition listing a substitution, an edit or an accessor.
+does not hold in the class's body as a getter or setter of that shape, that is virtual, whose declared type is
+not its member's, or that no edit calls, an edit calling one on another receiver than its base line or where
+its base line reads no such member, a substitution of another shape, a definition taking no session over a
+body, moved or at its base, that reads the session (naming the body line), and an entry with such a
+definition listing a substitution, an edit or an accessor.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
 there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
@@ -199,6 +203,8 @@ SENDER = re.compile(r'(\w+)\(session(, |\))$')
 ACCESSOR_GET = re.compile(r'return\s+(\w+)\s*;')
 ACCESSOR_SET = re.compile(r'(\w+)\s*=\s*(\w+)\s*;')
 ACCESSOR_PARAM = re.compile(r'[^,=()]*[\s*&](\w+)')
+ACCESS_LABEL = re.compile(r'\b(?:public|private|protected)\s*:')
+DECLARATION_WORDS = ('inline', 'static', 'constexpr', 'mutable')
 
 
 def name_edge(text):
@@ -357,6 +363,11 @@ def closing(code, at):
     return len(code)
 
 
+def type_of(text):
+    """A declared type, blanks and `inline`, `static`, `constexpr` and `mutable` aside."""
+    return ''.join(w for w in re.split(r'(\W)', text) if w.strip() and w not in DECLARATION_WORDS)
+
+
 def read_accessors(entry, headers):
     """[(name, member, kind)] of the entry's accessors, each read from its header as git holds it at the entry's
     base (`headers`: {path: text, or None when git has none}): a getter taking nothing whose body is `return
@@ -382,13 +393,18 @@ def read_accessors(entry, headers):
             depth -= c == '}'
             flat.append(c if depth == 0 else ' ')
             depth += c == '{'
-        flat = ''.join(flat)
+        flat = ACCESS_LABEL.sub(lambda m: ';' + ' ' * (len(m.group(0)) - 1), ''.join(flat))
         named = list(re.finditer(r'\b%s\s*\(' % re.escape(name), flat))
         if len(named) != 1:
             raise Failure('the accessor %s: the class in %s names it %d times, not once' % (what, where, len(named)))
         close = closing(cls_code, named[0].end() - 1)
         params = text[start + named[0].end():start + close].strip()
-        braced = re.match(r'\s*(?:const\s*)?\{', cls_code[close + 1:])
+        head = flat[:named[0].start()]
+        declared = head[max(head.rfind(';'), head.rfind('{'), head.rfind('}')) + 1:]
+        braced = re.match(r'\s*((?:\w+\s*)*)\{', cls_code[close + 1:])
+        qualifiers = braced.group(1).split() if braced else []
+        if re.search(r'\bvirtual\b', declared) or {'override', 'final'} & set(qualifiers):
+            raise Failure('the accessor %s in %s is virtual: the call may not run the body read' % (what, where))
         if not braced:
             raise Failure('the accessor %s: the class in %s holds no body of it' % (what, where))
         at = close + 1 + braced.end()
@@ -402,9 +418,15 @@ def read_accessors(entry, headers):
         else:
             raise Failure('the accessor %s in %s is neither a getter `return <member>;` nor a setter `<member> = '
                           '<parameter>;` of one parameter: (%s) { %s }' % (what, where, params, ' '.join(body.split())))
-        if not re.search(r'[\w*&>]\s*\b%s\s*(?:;|\[|=|\{)' % re.escape(member), flat):
+        held = re.search(r'(?:^|[;{}])([^;{}]*?)\b%s\s*;' % re.escape(member), flat)
+        if not held:
             raise Failure('the accessor %s in %s reads %s, which the class declares no data member as' % (
                 what, where, member))
+        have = declared if kind == 'get' else params[:param.start(1)]
+        if type_of(have) != type_of(held.group(1)):
+            raise Failure('the accessor %s in %s %s %r, the member %s is %r' % (
+                what, where, 'returns' if kind == 'get' else 'takes', ' '.join(have.split()), member,
+                ' '.join(held.group(1).split())))
         found.append((name, member, kind))
     return found
 
@@ -782,9 +804,17 @@ class Player : public Unit
         void SetTradeOther(TradeData* data) { m_trade = m_other; }
         void Twice() { GetTradeData(); }
         void Twice(int n) { }
+        virtual TradeData* GetTradeVirtual() const { return m_trade; }
+        TradeData* GetTradeOverride() const override { return m_trade; }
+        uint8 GetNarrow() const { return m_count; }
+        inline TradeData* GetTradeInline() const { return m_trade; }
+        bool HasTrade() const { return m_trade; }
+        void SetNarrow(uint8 n) { m_count = n; }
+        void SetTradeFirst(TradeData* data, int n) { m_trade = data; }
     private:
         TradeData* m_trade;
         TradeData* m_other;
+        uint32 m_count;
 };'''
 
 SELF_SWING = '''/**
@@ -1211,6 +1241,26 @@ def self_test():
                         ('a setter assigning other than its parameter fails', 'SetTradeOther')):
         accessed(label, 1, neither_accessor, '    trader->%s()->Clear();' % name, '    trader->m_trade->Clear();',
                  name=name)
+    accessed('an edit calling a listed getter through . passes', 0, 'IDENTICAL',
+             '    trader.GetTradeData()->Clear();', '    trader.m_trade->Clear();')
+    accessed('an edit calling a listed inline getter passes', 0, 'IDENTICAL',
+             '    trader->GetTradeInline()->Clear();', '    trader->m_trade->Clear();', name='GetTradeInline')
+    accessed('a setter assigning its first of two parameters fails', 1, neither_accessor,
+             '    trader->SetTradeFirst(NULL, 0);', '    trader->m_trade = NULL;', name='SetTradeFirst')
+    for label, name in (('a virtual getter fails', 'GetTradeVirtual'),
+                        ('a getter declared override fails', 'GetTradeOverride')):
+        accessed(label, 1, 'Player::%s in Player.h at fixture is virtual: the call may not run the body read' % name,
+                 '    trader->%s()->Clear();' % name, '    trader->m_trade->Clear();', name=name)
+    for label, name, needle, new_line, base_line in (
+            ('a getter returning another type than its member fails', 'GetNarrow',
+             "returns 'uint8', the member m_count is 'uint32'", '    Ping(trader->GetNarrow());',
+             '    Ping(trader->m_count);'),
+            ('a getter returning bool over a pointer member fails', 'HasTrade',
+             "returns 'bool', the member m_trade is 'TradeData*'", '    if (trader->HasTrade()) Ping();',
+             '    if (trader->m_trade) Ping();'),
+            ('a setter taking another type than its member fails', 'SetNarrow',
+             "takes 'uint8', the member m_count is 'uint32'", '    trader->SetNarrow(1);', '    trader->m_count = 1;')):
+        accessed(label, 1, needle, new_line, base_line, name=name)
     accessed('a getter returning no data member of the class fails', 1,
              'reads g_trade, which the class declares no data member as', '    trader->GetGlobal()->Clear();',
              '    trader->g_trade->Clear();', name='GetGlobal')
