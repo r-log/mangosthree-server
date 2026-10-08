@@ -565,7 +565,8 @@ void OutdoorPvPNA::Update(uint32 diff)
 // Handle soldiers respawn on timer - this will summon a replacement for the dead soldier
 void OutdoorPvPNA::RespawnSoldier()
 {
-    for (GuidZoneMap::const_iterator itr = m_zonePlayers.begin(); itr != m_zonePlayers.end(); ++itr)
+    GuidZoneMap const players = m_zonePlayers.Snapshot();
+    for (GuidZoneMap::const_iterator itr = players.begin(); itr != players.end(); ++itr)
     {
         // Find player who is in main zone (Nagrand) to get correct map reference
         if (!itr->second)

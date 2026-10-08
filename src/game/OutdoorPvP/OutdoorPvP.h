@@ -28,6 +28,7 @@
 
 #include "Platform/Define.h"
 #include <map>
+#include <mutex>
 #include <list>
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
@@ -65,6 +66,19 @@ enum CapturePointAnimations
  * @brief Map of player GUIDs to zone status
  */
 typedef std::map < ObjectGuid /*playerGuid*/, bool /*isMainZone*/ > GuidZoneMap;
+
+/// The players in an outdoor PvP script's zones; locked because the map threads of different maps write it.
+class ZonePlayerSet
+{
+    public:
+        void Insert(ObjectGuid guid, bool isMainZone);
+        bool Erase(ObjectGuid guid);
+        GuidZoneMap Snapshot() const;
+
+    private:
+        GuidZoneMap m_players;
+        mutable std::mutex m_lock;
+};
 
 /**
  * @brief Base class for outdoor PvP zones
@@ -247,7 +261,7 @@ class OutdoorPvP
          */
         void RespawnGO(const WorldObject* objRef, ObjectGuid goGuid, bool respawn);
 
-        GuidZoneMap m_zonePlayers; ///< Map of players inside the area
+        ZonePlayerSet m_zonePlayers; ///< Players inside the area
 };
 
 #endif

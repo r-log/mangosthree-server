@@ -310,7 +310,8 @@ void OutdoorPvPTF::UnlockZone()
     SendUpdateWorldState(WORLD_STATE_TF_TOWER_COUNT_A, m_towersAlliance);
     SendUpdateWorldState(WORLD_STATE_TF_TOWER_COUNT_H, m_towersHorde);
 
-    for (GuidZoneMap::const_iterator itr = m_zonePlayers.begin(); itr != m_zonePlayers.end(); ++itr)
+    GuidZoneMap const players = m_zonePlayers.Snapshot();
+    for (GuidZoneMap::const_iterator itr = players.begin(); itr != players.end(); ++itr)
     {
         // Find player who is in main zone (Terokkar Forest) to get correct map reference
         if (!itr->second)

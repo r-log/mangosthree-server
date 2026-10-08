@@ -59,6 +59,7 @@ set(SRC_GRP_TESTS
     NullDatabaseTest.cpp
     TickGuardTest.cpp
     InstanceDataCacheTest.cpp
+    ZonePlayerSetTest.cpp
     TestSeamTest.cpp
     PetitionAsyncTest.cpp
     CharacterCacheTest.cpp

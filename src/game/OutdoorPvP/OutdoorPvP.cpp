@@ -32,6 +32,24 @@
 #include "Player.h"
 #include "WorldSession.h"
 
+void ZonePlayerSet::Insert(ObjectGuid guid, bool isMainZone)
+{
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_players[guid] = isMainZone;
+}
+
+bool ZonePlayerSet::Erase(ObjectGuid guid)
+{
+    std::lock_guard<std::mutex> guard(m_lock);
+    return m_players.erase(guid) != 0;
+}
+
+GuidZoneMap ZonePlayerSet::Snapshot() const
+{
+    std::lock_guard<std::mutex> guard(m_lock);
+    return m_players;
+}
+
 /**
    Function that adds a player to the players of the affected outdoor pvp zones
 
@@ -40,7 +58,7 @@
  */
 void OutdoorPvP::HandlePlayerEnterZone(Player* player, bool isMainZone)
 {
-    m_zonePlayers[player->GetObjectGuid()] = isMainZone;
+    m_zonePlayers.Insert(player->GetObjectGuid(), isMainZone);
 }
 
 /**
@@ -51,7 +69,7 @@ void OutdoorPvP::HandlePlayerEnterZone(Player* player, bool isMainZone)
  */
 void OutdoorPvP::HandlePlayerLeaveZone(Player* player, bool isMainZone)
 {
-    if (m_zonePlayers.erase(player->GetObjectGuid()))
+    if (m_zonePlayers.Erase(player->GetObjectGuid()))
     {
         // remove the world state information from the player
         if (isMainZone && !player->GetSession()->PlayerLogout())
@@ -71,7 +89,8 @@ void OutdoorPvP::HandlePlayerLeaveZone(Player* player, bool isMainZone)
  */
 void OutdoorPvP::SendUpdateWorldState(uint32 field, uint32 value)
 {
-    for (GuidZoneMap::const_iterator itr = m_zonePlayers.begin(); itr != m_zonePlayers.end(); ++itr)
+    GuidZoneMap const players = m_zonePlayers.Snapshot();
+    for (GuidZoneMap::const_iterator itr = players.begin(); itr != players.end(); ++itr)
     {
         // only send world state update to main zone
         if (!itr->second)
@@ -170,7 +189,8 @@ void OutdoorPvP::HandlePlayerKill(Player* killer, Player* victim)
 // apply a team buff for the main and affected zones
 void OutdoorPvP::BuffTeam(Team team, uint32 spellId, bool remove /*= false*/)
 {
-    for (GuidZoneMap::const_iterator itr = m_zonePlayers.begin(); itr != m_zonePlayers.end(); ++itr)
+    GuidZoneMap const players = m_zonePlayers.Snapshot();
+    for (GuidZoneMap::const_iterator itr = players.begin(); itr != players.end(); ++itr)
     {
         Player* player = sObjectMgr.GetPlayer(itr->first);
         if (player && player->GetTeam() == team)
