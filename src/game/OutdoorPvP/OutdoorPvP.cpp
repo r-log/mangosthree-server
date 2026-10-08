@@ -31,6 +31,7 @@
 #include "GameObject.h"
 #include "Player.h"
 #include "WorldSession.h"
+#include "Map.h"
 
 void ZonePlayerSet::Insert(ObjectGuid guid, bool isMainZone)
 {
@@ -192,6 +193,12 @@ void OutdoorPvP::BuffTeam(Team team, uint32 spellId, bool remove /*= false*/)
     GuidZoneMap const players = m_zonePlayers.Snapshot();
     for (GuidZoneMap::const_iterator itr = players.begin(); itr != players.end(); ++itr)
     {
+        // a player on a map this thread does not own is buffed by that map's own update
+        if (Map::PostTeamBuff(itr->first, team, spellId, remove))
+        {
+            continue;
+        }
+
         Player* player = sObjectMgr.GetPlayer(itr->first);
         if (player && player->GetTeam() == team)
         {

@@ -142,6 +142,32 @@ enum LevelRequirementVsMode
 
 #define MIN_UNLOAD_DELAY      1                             // immediate unload
 
+class Map;
+
+/// A team buff cast or removal waiting for the map its player is on.
+struct TeamBuff
+{
+    ObjectGuid guid;
+    Team team;
+    uint32 spellId;
+    bool remove;
+};
+
+/// The team buffs posted to one map by threads that do not own it; locked because any map thread may post.
+class TeamBuffQueue
+{
+    public:
+        explicit TeamBuffQueue(Map const* owner) : m_owner(owner) {}
+
+        bool Post(TeamBuff const& buff);
+        std::vector<TeamBuff> Take();
+
+    private:
+        Map const* const m_owner;
+        std::vector<TeamBuff> m_buffs;
+        mutable std::mutex m_lock;
+};
+
 class Map : public GridRefManager<NGridType>
 {
         friend class MapReference;
@@ -327,6 +353,9 @@ class Map : public GridRefManager<NGridType>
         bool IsActive(WorldObject const* obj) const { return m_activeNonPlayers.find(const_cast<WorldObject*>(obj)) != m_activeNonPlayers.end(); }
 
         Player* GetPlayer(ObjectGuid guid);
+        /// Queues a team buff on the map a player is on when this thread does not own that map, or drops it when the
+        /// player is on no map; answers false only when the caller is to apply the buff itself.
+        static bool PostTeamBuff(ObjectGuid guid, Team team, uint32 spellId, bool remove);
         Creature* GetCreature(ObjectGuid guid);
         Pet* GetPet(ObjectGuid guid);
         Creature* GetAnyTypeCreature(ObjectGuid guid);      // normal creature or pet or vehicle
@@ -485,6 +514,7 @@ class Map : public GridRefManager<NGridType>
 
         void setNGrid(NGridType* grid, uint32 x, uint32 y);
         void ScriptsProcess();
+        void ApplyTeamBuffs();
 
         void SendObjectUpdates();
         std::set<Object*> i_objectsToClientUpdate;
@@ -557,6 +587,7 @@ class Map : public GridRefManager<NGridType>
 
         typedef std::multimap<time_t, ScriptAction> ScriptScheduleMap;
         ScriptScheduleMap m_scriptSchedule;
+        TeamBuffQueue m_teamBuffs;
 
         InstanceData* i_data;
 
