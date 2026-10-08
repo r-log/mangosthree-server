@@ -6,9 +6,6 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ master, united, devel ]
-    # A pull request that touches only documentation does not need a build; the
-    # Codestyle workflow still runs on every pull request, so a status always exists.
-    # Pushes (master, tags) are never filtered: the nightly and the releases depend on them.
     paths-ignore:
       - '**.md'
       - 'extra/doc/**'
@@ -192,8 +189,6 @@ jobs:
         shell: bash
         run: ctest --test-dir "$BUILD_DIR" --output-on-failure
 
-      # The assembly tier of the Montgomery kernel must be the one that ran here (see the
-      # Linux workflow); the ml64-assembled twin is what this job exercises.
       - name: Check the assembly tier ran
         shell: bash
         run: |
@@ -267,8 +262,36 @@ jobs:
           stamp=$(date -u '+%Y-%m-%d %H:%M UTC')
           branch='${{ github.event.repository.default_branch }}'
 
-          current=$(gh api "repos/$GH_REPO/git/ref/tags/nightly" --jq .object.sha 2>/dev/null) || current=""
-          [[ "$current" =~ ^[0-9a-f]{40}$ ]] || current=""
+          lookup() {
+            local out
+            if out=$(gh api "repos/$GH_REPO/git/ref/tags/nightly" --jq .object.sha 2>&1); then
+              if [[ ! "$out" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "::error::the nightly tag lookup answered '$out'"
+                exit 1
+              fi
+              current="$out"
+            elif [[ "$out" == *"HTTP 404"* ]]; then
+              current=""
+            else
+              echo "::error::cannot read the nightly tag: $out"
+              exit 1
+            fi
+          }
+
+          lookup
+          if [ -z "$current" ]; then
+            if ! out=$(gh api -X POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/nightly -f sha="$GITHUB_SHA" 2>&1); then
+              if [[ "$out" != *"Reference already exists"* && "$out" != *"HTTP 422"* ]]; then
+                echo "::error::cannot create the nightly tag: $out"
+                exit 1
+              fi
+              lookup
+              if [ -z "$current" ]; then
+                echo "::error::the nightly tag create answered '$out' but the tag cannot be found"
+                exit 1
+              fi
+            fi
+          fi
           if [ -n "$current" ]; then
             status=$(gh api "repos/$GH_REPO/compare/$current...$GITHUB_SHA" --jq .status)
             case "$status" in
@@ -276,8 +299,6 @@ jobs:
               *) echo "::notice::nightly already points at ${current::7} ($status of this commit); nothing to do"; exit 0 ;;
             esac
             gh api -X PATCH "repos/$GH_REPO/git/refs/tags/nightly" -f sha="$GITHUB_SHA" -F force=true > /dev/null
-          else
-            gh api -X POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/nightly -f sha="$GITHUB_SHA" > /dev/null
           fi
 
           cat > body.md <<BODY

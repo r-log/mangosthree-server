@@ -6,9 +6,6 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ master, united, devel ]
-    # A pull request that touches only documentation does not need a build; the
-    # Codestyle workflow still runs on every pull request, so a status always exists.
-    # Pushes (master, tags) are never filtered: the nightly and the releases depend on them.
     paths-ignore:
       - '**.md'
       - 'extra/doc/**'
@@ -35,18 +32,12 @@ jobs:
             cxx: g++
             pkg: g++
             pch: 1
-          # The one build without the precompiled header (decoupling D2): pchdef.h hands every
-          # translation unit the whole world, so only a PCH-off build proves that each file
-          # includes what it uses. gcc, aarch64 and MSVC keep proving the shipping PCH build.
           - name: clang
             runner: ubuntu-latest
             cc: clang
             cxx: clang++
             pkg: clang
             pch: 0
-          # The one build without the x86-64 tiers: no mulx, no assembly, no s2n-bignum
-          # oracle -- the portable kernel and the fallbacks are what this job proves,
-          # on the hardware the design promises them for.
           - name: aarch64
             runner: ubuntu-24.04-arm
             cc: gcc
@@ -103,8 +94,6 @@ jobs:
       - name: Build
         run: cmake --build "$BUILD_DIR" --parallel
 
-      # The s2n-bignum oracle must exist on these jobs: if it silently vanished, the kernel
-      # comparisons in CryptoOracleTest would vanish with it.
       - name: Check the big-integer oracle was built
         if: matrix.name != 'aarch64'
         run: cmake --build "$BUILD_DIR" --target s2n_bignum_oracle
@@ -112,11 +101,6 @@ jobs:
       - name: Test
         run: ctest --test-dir "$BUILD_DIR" --output-on-failure
 
-      # Strict tick mode is on for these three jobs (decoupling D7): a synchronous database
-      # acquisition inside the world tick aborts instead of being counted, so a change that
-      # brings one back fails here. The Windows job stays off -- it builds the release and
-      # nightly packages, and operators run those. Prove the option reached the test binary:
-      # its four violation-provoking cases stand down under a strict build and say so.
       - name: Check strict tick mode is armed
         run: |
           grep -q "MANGOS_STRICT_TICK:BOOL=ON" "$BUILD_DIR/CMakeCache.txt"
@@ -124,9 +108,6 @@ jobs:
           echo "$out"
           test "$(echo "$out" | grep -c '(strict build:')" -eq 4
 
-      # The assembly tier of the Montgomery kernel must be the one that ran here: a
-      # silent fall-back to a C++ tier (a CPU without ADX, a wiring mistake) would pass
-      # every test without executing the listing. The runners have BMI2 and ADX.
       - name: Check the assembly tier ran
         if: matrix.name != 'aarch64'
         run: |
@@ -134,8 +115,6 @@ jobs:
           echo "$out"
           echo "$out" | grep -q "tier: asm"
 
-      # And on aarch64 the opposite: the assembly tier is not compiled in, the portable
-      # kernel is what ran -- the tier test says so, and the whole suite passed on it.
       - name: Check the portable tier ran
         if: matrix.name == 'aarch64'
         run: |
@@ -143,9 +122,6 @@ jobs:
           echo "$out"
           echo "$out" | grep -q "tier: portable"
 
-      # No binary of ours links the crypto library the tree used to sit on. Direct imports
-      # only (readelf, not ldd): the MySQL client brings its own copy, and that one is its.
-      # And no binary carries a static copy: none defines the library's entry points.
       - name: Check the import tables and the defined symbols
         run: |
           checked=0
