@@ -44,8 +44,8 @@
 /// player, finds no player to cancel the trade of and returns, reading nothing and sending nothing.
 /// The CMSG_SOCKET_GEMS row reads an empty item guid to its end and, the guid naming no item,
 /// returns before it reads the player, sending nothing. Every row bound to the combat, vendor,
-/// pvp, loot, auction, trade, skill or enchant handler class holds the status STATUS_LOGGEDIN and
-/// the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
+/// pvp, loot, auction, trade, skill, enchant or pet handler class holds the status STATUS_LOGGEDIN
+/// and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
 /// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
 
@@ -62,6 +62,7 @@
 #include "session/handlers/economy/TradeHandlers.h"
 #include "session/handlers/economy/VendorHandlers.h"
 #include "session/handlers/entities/EnchantHandlers.h"
+#include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 
@@ -662,4 +663,37 @@ TEST(OpcodeDispatch_EnchantRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_SOCKET_GEMS].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_CANCEL_TEMP_ENCHANTMENT].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_CANCEL_TEMP_ENCHANTMENT].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_PetCommandRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_PET_ACTION].handler == &OpcodeThunk<&PetHandlers::HandlePetAction>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetAction>), 1);
+    CHECK(opcodeTable[CMSG_PET_STOP_ATTACK].handler == &OpcodeThunk<&PetHandlers::HandlePetStopAttack>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetStopAttack>), 1);
+    CHECK(opcodeTable[CMSG_PET_SET_ACTION].handler == &OpcodeThunk<&PetHandlers::HandlePetSetAction>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetSetAction>), 1);
+    CHECK(opcodeTable[CMSG_PET_SPELL_AUTOCAST].handler == &OpcodeThunk<&PetHandlers::HandlePetSpellAutocast>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetSpellAutocast>), 1);
+    CHECK(opcodeTable[CMSG_PET_CAST_SPELL].handler == &OpcodeThunk<&PetHandlers::HandlePetCastSpell>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetCastSpell>), 1);
+    CHECK(opcodeTable[CMSG_PET_ACTION].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_PetCommandRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_PET_ACTION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_ACTION].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_STOP_ATTACK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_STOP_ATTACK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_SET_ACTION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_SET_ACTION].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_SPELL_AUTOCAST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_SPELL_AUTOCAST].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_CAST_SPELL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_CAST_SPELL].packetProcessing, PROCESS_THREADUNSAFE);
 }
