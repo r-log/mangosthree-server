@@ -87,6 +87,7 @@ set(SRC_GRP_TESTS
     AuraContainerTest.cpp
     SpellHandlerRegistryTest.cpp
     SpellTargetDistanceOrderTest.cpp
+    SpellTargetListTypeTest.cpp
     QuestStatusMgrTest.cpp
     QuestPredicateTest.cpp
     QuestCompletePacketTest.cpp
