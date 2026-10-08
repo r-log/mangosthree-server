@@ -607,6 +607,7 @@ class Spell
         void CastTriggerSpells();
 
         void CleanupTargetList();
+        void AddUnitTarget(Unit* target, SpellEffectIndex effIndex);
         void ClearCastItem();
 
         static void SelectMountByAreaAndSkill(Unit* target, SpellEntry const* parentSpell, uint32 spellId75, uint32 spellId150, uint32 spellId225, uint32 spellId300, uint32 spellIdSpecial);
@@ -757,7 +758,6 @@ class Spell
         GOTargetList   m_UniqueGOTargetInfo;
         ItemTargetList m_UniqueItemInfo;
 
-        void AddUnitTarget(Unit* target, SpellEffectIndex effIndex);
         void AddUnitTarget(ObjectGuid unitGuid, SpellEffectIndex effIndex);
         void AddGOTarget(GameObject* target, SpellEffectIndex effIndex);
         void AddGOTarget(ObjectGuid goGuid, SpellEffectIndex effIndex);

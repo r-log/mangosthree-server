@@ -23,8 +23,8 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/// The spell's target list type can be named outside the spell; its entry type and its game object
-/// target list type cannot.
+/// The spell's target list type and its unit target add can be named outside the spell; its entry
+/// type and its game object target list type cannot.
 
 #include "TestHarness.h"
 #include "WorldHandlers/Spell.h"
@@ -55,6 +55,9 @@ static_assert(!decltype(NamesTargetInfo<Spell>(nullptr))::value,
               "the spell's target entry type is protected: a name outside the spell does not compile");
 static_assert(!decltype(NamesGOTargetList<Spell>(nullptr))::value,
               "the spell's game object target list type is protected: a name outside the spell does not compile");
+static_assert(std::is_same<decltype(static_cast<void (Spell::*)(Unit*, SpellEffectIndex)>(&Spell::AddUnitTarget)),
+                           void (Spell::*)(Unit*, SpellEffectIndex)>::value,
+              "the spell's unit target add is public: its member pointer taken outside the spell compiles");
 
 TEST(SpellTargetListType_AListOfTheSpellsTargetsIsBuiltOutsideTheSpell)
 {
