@@ -34,6 +34,7 @@
 #include "spells/handlers/SpellTargetingHandlers.h"
 #include "spells/handlers/SpellChecksHandlers.h"
 #include "spells/handlers/SpellCheckTargetHandlers.h"
+#include "spells/handlers/SpellEffectSkillEnchantPetHandlers.h"
 #include "Utilities/Errors.h"
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
@@ -54,6 +55,7 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
         rows += RegisterSpellTargetingHandlers(built);
         rows += RegisterSpellChecksHandlers(built);
         rows += RegisterSpellCheckTargetHandlers(built);
+        rows += RegisterSpellEffectSkillEnchantPetHandlers(built);
         MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();

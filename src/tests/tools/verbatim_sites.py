@@ -40,7 +40,7 @@ statement, name or value, and on a tool that binds or changes one of the five it
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = 'abee2491b'
+BASE = 'cf8edfa79'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -812,6 +812,40 @@ SITES = {
                 37433: '        case 37433:                                         // Spout (The Lurker Below), only players affected if its not in water',
                 68921: '        case 68921:                                         // Soulstorm (FoS), only targets farer than 10 away',
                 69049: '        case 69049:                                         // Soulstorm            - = -'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellEffectSkillEnchantPet.cpp': {
+        'original': '3c25961835cb31756c8c2849669cf802712ce3bc',
+        'handlers': 'src/game/spells/handlers/SpellEffectSkillEnchantPetHandlers.cpp',
+        'rows_function': 'RegisterSpellEffectSkillEnchantPetRows',
+        'added': ['#include "spells/handlers/SpellEffectSkillEnchantPetHandlers.h"'],
+        'sites': [{
+            'name': 'EffectWeaponDmg, SPELLFAMILY_GENERIC (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectWeaponDmgContext ctx(m_UniqueTargetInfo, effect, totalDamagePercentMod);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectWeaponDmgSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectWeaponDmgSite',
+            'context': 'SpellEffectWeaponDmgContext',
+            'live_outs': ['effect', 'totalDamagePercentMod'],
+            'in_scope': ['spellBonusNeedWeaponDamagePercentMod', 'weaponDamagePercentMod', 'normalized',
+                         'spell_bonus', 'classOptions'],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_UniqueTargetInfo', 'm_UniqueTargetInfo'), ('ctx.effect', 'effect'),
+                              ('ctx.totalDamagePercentMod', 'totalDamagePercentMod'),
+                              ('Spell::TargetList', 'TargetList')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                66765: '                case 66765: case 66809: case 67331:         // Meteor Fists',
+                66809: '                case 66765: case 66809: case 67331:         // Meteor Fists',
+                67331: '                case 66765: case 66809: case 67331:         // Meteor Fists',
+                67333: '                case 67333:                                 // Meteor Fists',
+                69055: '                case 69055:                                 // Bone Slice',
+                71021: '                case 71021:                                 // Saber Lash'},
         }],
     },
 }

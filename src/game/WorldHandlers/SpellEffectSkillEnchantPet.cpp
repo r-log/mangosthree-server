@@ -75,6 +75,7 @@
 #include "LootMgr.h"
 #include "MotionMaster.h"
 #include <random>
+#include "spells/handlers/SpellEffectSkillEnchantPetHandlers.h"
 
 /**
  * @brief Teaches a spell to the target player or pet.
@@ -1110,24 +1111,10 @@ void Spell::EffectWeaponDmg(SpellEffectEntry const* effect)
     {
         case SPELLFAMILY_GENERIC:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectWeaponDmgContext ctx(m_UniqueTargetInfo, effect, totalDamagePercentMod);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectWeaponDmgSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                    // for spells with divided damage to targets
-                case 66765: case 66809: case 67331:         // Meteor Fists
-                case 67333:                                 // Meteor Fists
-                case 69055:                                 // Bone Slice
-                case 71021:                                 // Saber Lash
-                {
-                    uint32 count = 0;
-                    for(TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
-                        if (ihit->effectMask & (1<<effect->EffectIndex))
-                        {
-                            ++count;
-                        }
-
-                    totalDamagePercentMod /= float(count);  // divide to all targets
-                    break;
-                }
+                return;
             }
             break;
         }

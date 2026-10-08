@@ -109,7 +109,9 @@ enum SpellHandlerSite
     /// `Spell::CheckCast`, an effect that applies SPELL_AURA_DUMMY: its `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_CHECK_CAST_AURA_DUMMY = 21,
     /// `Spell::CheckTarget`, after the player-only attribute check: its `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_CHECK_TARGET = 22
+    SPELL_HANDLER_SITE_SPELL_CHECK_TARGET = 22,
+    /// `Spell::EffectWeaponDmg`, SPELLFAMILY_GENERIC: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_WEAPON_DAMAGE = 23
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

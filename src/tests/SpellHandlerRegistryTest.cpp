@@ -27,18 +27,19 @@
 ///
 /// The registry is tested without a map: its sites here are test sites with their own keys and
 /// contexts, and the game's sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's,
-/// EffectEnergize's, EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's
-/// and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their contexts, and run where
-/// a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the Unit, the
-/// transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the periodic-trigger
-/// labels on such a mode, the health labels on an apply that is not real, the health default, the energize injector
-/// labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the area-target labels on bare
-/// Creatures, the cast-check labels on a creature caster and the target-check labels on creature targets);
+/// EffectEnergize's, EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's,
+/// EffectWeaponDmg's and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their
+/// contexts, and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps
+/// them off the Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults,
+/// the periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default,
+/// the energize injector labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the
+/// area-target labels on bare Creatures, the cast-check labels on a creature caster, the target-check labels on
+/// creature targets and the weapon-damage labels on a target list built by hand);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed;
 /// the coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a
 /// druid, quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting,
-/// cast-check, target-check or periodic-aura label, nor another removal one).
+/// cast-check, target-check, weapon-damage or periodic-aura label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -60,7 +61,8 @@
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
-///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -75,7 +77,8 @@
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
-///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -86,7 +89,8 @@
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
-///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault
+///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
@@ -97,7 +101,8 @@
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
-///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault
 ///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
@@ -122,7 +127,9 @@
 ///                            SpellTargetingHandlers_TheEffectDummyContextAliasesTheSpell,
 ///                            SpellChecksHandlers_TheCastAuraDummyContextAliasesTheCaster,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
-///                            SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget
+///                            SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget,
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
+///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageContextAliasesTheSpell
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
@@ -140,6 +147,7 @@
 #include "spells/handlers/SpellTargetingHandlers.h"
 #include "spells/handlers/SpellChecksHandlers.h"
 #include "spells/handlers/SpellCheckTargetHandlers.h"
+#include "spells/handlers/SpellEffectSkillEnchantPetHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
@@ -608,10 +616,10 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
     // transmitted-object site's row and default, the periodic auras' 26 rows and 4 defaults, the energize site's
     // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, the two
-    // targeting sites' 10 and 1 rows and their two defaults, the cast-check site's 2 rows and default, and the
-    // target-check site's 3 rows and default.
+    // targeting sites' 10 and 1 rows and their two defaults, the cast-check site's 2 rows and default, the
+    // target-check site's 3 rows and default, and the weapon-damage site's 6 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(171));
+    CHECK_EQ(game.Count(), std::size_t(177));
     CHECK_EQ(game.CountDefaults(), std::size_t(12));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -1158,7 +1166,7 @@ TEST(SpellEffectTailHandlers_TheTransmittedContextAliasesTheCasterAndTheEntry)
 namespace
 {
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
-    // resurrect, two targeting, cast-check and target-check sites and the earlier files' ids.
+    // resurrect, two targeting, cast-check, target-check and weapon-damage sites and the earlier files' ids.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
     {
         return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
@@ -1178,6 +1186,7 @@ namespace
                (site != SpellCheckCastAuraDummySite::Key &&
                 registry.Find<SpellCheckCastAuraDummySite>(spellId) != NULL) ||
                (site != SpellCheckTargetSite::Key && registry.Find<SpellCheckTargetSite>(spellId) != NULL) ||
+               (site != SpellEffectWeaponDmgSite::Key && registry.Find<SpellEffectWeaponDmgSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -2235,4 +2244,135 @@ TEST(SpellCheckTargetHandlers_TheTargetContextAliasesTheCasterAndTheTarget)
     CHECK(ctx.m_caster == reinterpret_cast<Unit*>(units[0]));
     target = reinterpret_cast<Unit*>(units[3]);                 // and the target is the member's parameter, read
     CHECK(ctx.target == reinterpret_cast<Unit*>(units[3]));
+}
+
+namespace
+{
+    // SpellEffect.dbc rows as the loader makes them: zeroed, with the effect index set.
+    struct WeaponDamageEffectRow
+    {
+        alignas(SpellEffectEntry) unsigned char bytes[sizeof(SpellEffectEntry)];
+    };
+
+    WeaponDamageEffectRow s_weaponDamageEffects[2] = {};
+
+    SpellEffectEntry const* WeaponDamageEffect(std::size_t slot, uint32 effectIndex)
+    {
+        SpellEffectEntry* row = reinterpret_cast<SpellEffectEntry*>(s_weaponDamageEffects[slot].bytes);
+        row->EffectIndex = effectIndex;
+        return row;
+    }
+
+    uint32 const WEAPON_DAMAGE_IDS[] = { 66765, 66809, 67331, 67333, 69055, 71021 };
+
+    // Three targets whose effect masks are 1, 1 and 2: two carry effect 0, one carries effect 1.
+    Spell::TargetList WeaponDamageTargets()
+    {
+        Spell::TargetList targets;
+        for (uint8 mask : { uint8(1), uint8(1), uint8(2) })
+        {
+            Spell::TargetList::value_type entry = Spell::TargetList::value_type();
+            entry.effectMask = mask;
+            targets.push_back(entry);
+        }
+        return targets;
+    }
+}
+
+TEST(SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectSkillEnchantPetHandlers(registry), uint32(6)); // 6 rows, no default
+    CHECK_EQ(registry.Count(), std::size_t(6));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(SpellEffectWeaponDmgSite::Key), std::size_t(6));
+
+    // Six labels, one body.
+    typedef SpellHandler<SpellEffectWeaponDmgSite>::Function WeaponDamageBody;
+    WeaponDamageBody divide = registry.Find<SpellEffectWeaponDmgSite>(66765);
+    CHECK(divide != NULL);
+    for (uint32 spellId : WEAPON_DAMAGE_IDS)
+    {
+        CHECK(registry.Find<SpellEffectWeaponDmgSite>(spellId) == divide);
+    }
+
+    Spell::TargetList targets = WeaponDamageTargets();
+    SpellEffectEntry const* effect = WeaponDamageEffect(0, 0);
+    float totalDamagePercentMod = 1.0f;
+    SpellEffectWeaponDmgContext ctx(targets, effect, totalDamagePercentMod);
+
+    // No default: an id with no row finds nothing, and its dispatch is a miss, so the family's case goes on to its
+    // own `break;` with nothing changed.
+    CHECK(registry.FindDefault<SpellEffectWeaponDmgSite>() == NULL);
+    CHECK(registry.Find<SpellEffectWeaponDmgSite>(12345) == NULL);
+    SpellHandlerOutcome<void> miss = registry.Dispatch<SpellEffectWeaponDmgSite>(12345, ctx);
+    CHECK(miss.IsMiss());
+    CHECK(!miss.IsReturn());
+    CHECK(totalDamagePercentMod == 1.0f);
+    CHECK_EQ(targets.size(), std::size_t(3));
+    CHECK_EQ(effect->EffectIndex, uint32(0));
+
+    // Each label divides the multiplier by the number of targets the effect hits and continues: effect 0 hits two
+    // of the three targets, effect 1 one. The body reads the effect the member holds when it runs.
+    for (uint32 spellId : WEAPON_DAMAGE_IDS)
+    {
+        effect = WeaponDamageEffect(0, 0);
+        totalDamagePercentMod = 1.0f;
+        SpellHandlerOutcome<void> first = registry.Dispatch<SpellEffectWeaponDmgSite>(spellId, ctx);
+        CHECK(first.IsContinue());
+        CHECK(!first.IsReturn());
+        CHECK(totalDamagePercentMod == 0.5f);
+
+        effect = WeaponDamageEffect(1, 1);
+        totalDamagePercentMod = 1.0f;
+        SpellHandlerOutcome<void> second = registry.Dispatch<SpellEffectWeaponDmgSite>(spellId, ctx);
+        CHECK(second.IsContinue());
+        CHECK(!second.IsReturn());
+        CHECK(totalDamagePercentMod == 1.0f);
+    }
+    CHECK_EQ(targets.size(), std::size_t(3));
+
+    // Registering again on the same table changes nothing: every key is taken.
+    CHECK_EQ(RegisterSpellEffectSkillEnchantPetHandlers(registry), uint32(6));
+    CHECK_EQ(registry.Count(), std::size_t(6));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK(registry.Find<SpellEffectWeaponDmgSite>(71021) == divide);
+
+    // Keyed on the weapon-damage site only: its labels are no other site's, and the other sites' are not its; the
+    // game's table holds the same rows and no default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : WEAPON_DAMAGE_IDS)
+    {
+        CHECK(!HeldByAnotherSite(game, SpellEffectWeaponDmgSite::Key, spellId));
+        CHECK(game.Find<SpellEffectWeaponDmgSite>(spellId) == registry.Find<SpellEffectWeaponDmgSite>(spellId));
+    }
+    for (uint32 spellId : { 34026u, 61336u, 37433u, 68921u, 69049u, 20577u, 30769u, 24734u, 8342u, 9512u, 41099u })
+    {
+        CHECK(game.Find<SpellEffectWeaponDmgSite>(spellId) == NULL);
+    }
+    CHECK_EQ(game.CountAt(SpellEffectWeaponDmgSite::Key), std::size_t(6));
+    CHECK(game.FindDefault<SpellEffectWeaponDmgSite>() == NULL);
+}
+
+TEST(SpellEffectSkillEnchantPetHandlers_TheWeaponDamageContextAliasesTheSpell)
+{
+    Spell::TargetList targets;
+    SpellEffectEntry const* effect = WeaponDamageEffect(0, 0);
+    float totalDamagePercentMod = 1.0f;
+    SpellEffectWeaponDmgContext ctx(targets, effect, totalDamagePercentMod);
+    CHECK(&ctx.m_UniqueTargetInfo == &targets);
+    CHECK(&ctx.effect == &effect);
+    CHECK(&ctx.totalDamagePercentMod == &totalDamagePercentMod);
+
+    ctx.m_UniqueTargetInfo.push_back(Spell::TargetList::value_type()); // the target list is the spell's member
+    CHECK_EQ(targets.size(), std::size_t(1));
+    targets.clear();
+    CHECK(ctx.m_UniqueTargetInfo.empty());
+    ctx.totalDamagePercentMod = 0.25f;                                  // the multiplier is the member's local
+    CHECK(totalDamagePercentMod == 0.25f);
+    totalDamagePercentMod = 1.0f;
+    CHECK(ctx.totalDamagePercentMod == 1.0f);
+    effect = WeaponDamageEffect(1, 1);                                  // and the effect is its parameter, read
+    CHECK(ctx.effect == effect);
+    CHECK_EQ(ctx.effect->EffectIndex, uint32(1));
 }
