@@ -1874,6 +1874,8 @@ src/game/spells/handlers/SpellChecksHandlers.cpp -> src/game/entities/player/Pla
 src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # Six casts for player-only methods; retires with the Unit page's row 13 successor.
 src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/entities/player/Player.h
+# Eleven casts for player-only methods; retires with the Unit page's row 13 successor.
+src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/entities/player/Player.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 # The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.

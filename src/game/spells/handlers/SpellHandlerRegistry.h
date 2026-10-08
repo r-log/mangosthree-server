@@ -119,7 +119,17 @@ enum SpellHandlerSite
     /// `Spell::EffectTeleportUnits`, before the target type is read: its first `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_EFFECT_TELEPORT_RECALL = 26,
     /// `Spell::EffectTeleportUnits`, after a table-coordinates teleport: its second `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_EFFECT_TELEPORT_POST = 27
+    SPELL_HANDLER_SITE_SPELL_EFFECT_TELEPORT_POST = 27,
+    /// `Spell::EffectDummy`, SPELLFAMILY_MAGE: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_MAGE = 28,
+    /// `Spell::EffectDummy`, SPELLFAMILY_WARRIOR: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_WARRIOR = 29,
+    /// `Spell::EffectDummy`, SPELLFAMILY_ROGUE: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_ROGUE = 30,
+    /// `Spell::EffectDummy`, SPELLFAMILY_HUNTER: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_HUNTER = 31,
+    /// `Spell::EffectDummy`, SPELLFAMILY_PALADIN: its `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_PALADIN = 32
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.
