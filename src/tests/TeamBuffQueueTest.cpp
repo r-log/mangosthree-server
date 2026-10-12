@@ -171,6 +171,9 @@ namespace
         uint32 next;
         uint32 wrong;
     };
+
+    /// A player guid counter that no test adds to the player registry.
+    const uint32 kUnregisteredCounter = 900000;
 }
 
 TEST(TeamBuffQueue_TakeReturnsPostsInOrderAndEmptiesTheQueue)
@@ -313,4 +316,22 @@ TEST(TeamBuffQueue_TwoPostersAndATakerLoseNothing)
     CHECK_EQ(first.wrong, uint32(0));
     CHECK_EQ(second.next, kPosts);
     CHECK_EQ(second.wrong, uint32(0));
+}
+
+/// The route answers false outside the map phase, so the caller applies the buff itself, and inside the
+/// phase drops a buff for a guid the player registry does not hold, both an application and a removal.
+TEST(Map_PostTeamBuffAnswersFalseWithThePhaseClosedAndDropsAnUnregisteredPlayer)
+{
+    ObjectGuid const guid = PlayerGuid(kUnregisteredCounter);
+
+    REQUIRE(!MapPhase::Active());
+    CHECK(!Map::PostTeamBuff(guid, ALLIANCE, 11413, false));
+
+    {
+        OpenMapPhase phase;
+        CHECK(Map::PostTeamBuff(guid, ALLIANCE, 11413, false));
+        CHECK(Map::PostTeamBuff(guid, ALLIANCE, 11413, true));
+    }
+
+    CHECK(!MapPhase::Active());
 }
