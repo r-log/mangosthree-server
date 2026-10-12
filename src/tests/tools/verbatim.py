@@ -169,10 +169,11 @@ is. A text pair that applies nowhere in a body still holding its left side once 
 applied (it stood there only inside a longer name, or where its right side would join one) fails by
 name. A context pair reads the same name on both sides or is a listed exception in the sites' data, each
 with its reason; no pair's right side holds another pair's left side, and no pair's left side holds an
-earlier pair's. So a context pair (`ctx.X`, b) whose left side holds no `->` has b == X, or is one of the
-pairs CONTEXT_EXCEPTIONS lists, each entry the pair and its reason; and of a site's text pairs, which apply
-in sequence, none rewrites another's right side, nor the left side of a pair after it, read where that
-pair would apply (as a whole token).
+earlier pair's. So a context pair (`ctx.X`, b) that is no route through the aura or spell the context
+holds (a left side beginning `ctx.aura->` or `ctx.spell->`) has b == X, or is one of the pairs
+CONTEXT_EXCEPTIONS lists, each entry the pair and its reason; and of a site's text pairs, which apply in
+sequence, none rewrites another's right side, nor the left side of a pair after it, read where that pair
+would apply (as a whole token).
 
 Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH lines call
 `Dispatch<TRAITS>(KEY, NAME)` once and construct the context they pass, `CONTEXT NAME(ARGUMENTS);`, once;
@@ -877,12 +878,14 @@ def check_dispatch_shape(site, key, name):
 
 
 def check_pairs(site, listed):
-    """The site's text pairs read as they apply: each context pair (`ctx.X`, b) whose left side holds no `->`
-    has b == X or is one of the `listed` pairs; no pair's right side holds another pair's left side, and no
-    pair's left side holds an earlier pair's, each where that other pair would apply (token_pattern)."""
+    """The site's text pairs read as they apply: each context pair (`ctx.X`, b) that is no route through the
+    aura or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`) has b == X or is one
+    of the `listed` pairs; no pair's right side holds another pair's left side, and no pair's left side holds an
+    earlier pair's, each where that other pair would apply (token_pattern)."""
     pairs = [(a, b) for a, b in site['substitutions'] if isinstance(a, str)]
     for a, b in pairs:
-        if a.startswith('ctx.') and '->' not in a and b != a[len('ctx.'):] and (a, b) not in listed:
+        if (a.startswith('ctx.') and not re.match(r'ctx\.(aura|spell)->', a) and b != a[len('ctx.'):]
+                and (a, b) not in listed):
             raise Failure('%s: the pair %r does not read the same name on both sides and is no listed exception'
                           % (site['name'], (a, b)))
     for k, (a, b) in enumerate(pairs):
@@ -3331,6 +3334,14 @@ def self_test():
            lambda: check_pairs(paired(('ctx.target', 'target'), ('ctx.spellId', 'GetId()')), [aura[0]]))
     raises('context pairs: a route through the aura reading another name: passes', 'no failure',
            lambda: check_pairs(paired(('ctx.aura->GetModifier()->', 'm_modifier.'), ('ctx.aura', 'this')), [aura[0]]))
+    raises('context pairs: a route through the spell reading another name: passes', 'no failure',
+           lambda: check_pairs(paired(('ctx.spell->finish', 'finish')), []))
+    raises('context pairs: a pair through another member reading another name: fails by name',
+           misnamed % (('ctx.target->GetOwner()', 'target'),),
+           lambda: check_pairs(paired(('ctx.target->GetOwner()', 'target')), []))
+    raises('context pairs: a pair through another member, a route in its argument: fails by name',
+           misnamed % (('ctx.target->IsWithin(ctx.aura->GetCaster())', 'target'),),
+           lambda: check_pairs(paired(('ctx.target->IsWithin(ctx.aura->GetCaster())', 'target')), []))
     chained = ("paired: the pair %r is rewritten by the pair %r: pairs apply in sequence and none may read another's "
                "output")
     raises('pair sequence: a right side a later pair rewrites: fails by name',
