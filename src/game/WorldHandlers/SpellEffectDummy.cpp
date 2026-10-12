@@ -75,6 +75,7 @@
 #include "LootMgr.h"
 #include "MotionMaster.h"
 #include <random>
+#include "spells/handlers/SpellEffectDummyHandlers.h"
 
 /**
  * @brief Executes spell-specific dummy effect behavior.
@@ -2914,119 +2915,10 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
         }
         case SPELLFAMILY_MAGE:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectDummyMageContext ctx(this, m_caster, unitTarget, damage, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyMageSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 11958:                                 // Cold Snap
-                {
-                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        return;
-                    }
-
-                    // immediately finishes the cooldown on Frost spells
-                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
-                    for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
-                    {
-                        SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
-
-                        if (spellInfo->GetSpellFamilyName() == SPELLFAMILY_MAGE &&
-                            (GetSpellSchoolMask(spellInfo) & SPELL_SCHOOL_MASK_FROST) &&
-                            spellInfo->ID != 11958 && GetSpellRecoveryTime(spellInfo) > 0)
-                        {
-                            ((Player*)m_caster)->RemoveSpellCooldown((itr++)->first, true);
-                        }
-                        else
-                        {
-                            ++itr;
-                        }
-                    }
-                    return;
-                }
-                case 31687:                                 // Summon Water Elemental
-                {
-                    if (m_caster->HasAura(70937))           // Glyph of Eternal Water (permanent limited by known spells version)
-                    {
-                        m_caster->CastSpell(m_caster, 70908, true);
-                    }
-                    else                                    // temporary version
-                    {
-                        m_caster->CastSpell(m_caster, 70907, true);
-                    }
-
-                    return;
-                }
-                case 32826:                                 // Polymorph Cast Visual
-                {
-                    if (unitTarget && unitTarget->GetTypeId() == TYPEID_UNIT)
-                    {
-                        // Polymorph Cast Visual Rank 1
-                        const uint32 spell_list[6] =
-                        {
-                            32813,                          // Squirrel Form
-                            32816,                          // Giraffe Form
-                            32817,                          // Serpent Form
-                            32818,                          // Dragonhawk Form
-                            32819,                          // Worgen Form
-                            32820                           // Sheep Form
-                        };
-                        unitTarget->CastSpell(unitTarget, spell_list[urand(0, 5)], true);
-                    }
-                    return;
-                }
-                case 38194:                                 // Blink
-                {
-                    // Blink
-                    if (unitTarget)
-                    {
-                        m_caster->CastSpell(unitTarget, 38203, true);
-                    }
-
-                    return;
-                }
-                case 42955:                                 // Conjure Refreshment
-                {
-                    uint32 item = 0;
-
-                    uint32 level = unitTarget->getLevel();
-
-                    if (level < 44)
-                    {
-                        item = 65500;                                 // Conjured Mana Cookie (lvl 34)
-                    }
-                    else if (level < 54)
-                    {
-                        item = 65515;                            // Conjured Mana Brownie (lvl 44)
-                    }
-                    else if (level < 64)
-                    {
-                        item = 65516;                            // Conjured Mana Cupcake (lvl 54)
-                    }
-                    else if (level < 65)
-                    {
-                        item = 65517;                            // Conjured Mana Lollipop (lvl 64)
-                    }
-                    else if (level < 74)
-                    {
-                        item = 34062;                            // Conjured Mana Biscuit (lvl 65)
-                    }
-                    else if (level < 80)
-                    {
-                        item = 43518;                            // Conjured Mana Pie (lvl 74)
-                    }
-                    else if (level < 85)
-                    {
-                        item = 43523;                            // Conjured Mana Strudel (lvl 80)
-                    }
-                    else
-                    {
-                        item = 65499;                                            // Conjured Mana Cake (lvl 85)
-                    }
-
-                    damage = 20; // Used to set stack size.
-                    DoCreateItem(effect,item);
-
-                    return;
-                }
+                return;
             }
 
             // Conjure Mana Gem
@@ -3130,66 +3022,10 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 return;
             }
 
-            switch (m_spellInfo->ID)
+            SpellEffectDummyWarriorContext ctx(m_caster, unitTarget, damage);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyWarriorSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                // Warrior's Wrath
-                case 21977:
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-                    m_caster->CastSpell(unitTarget, 21887, true); // spell mod
-                    return;
-                }
-                // Last Stand
-                case 12975:
-                {
-                    int32 healthModSpellBasePoints0 = int32(m_caster->GetMaxHealth() * 0.3);
-                    m_caster->CastCustomSpell(m_caster, 12976, &healthModSpellBasePoints0, NULL, NULL, true, NULL);
-                    return;
-                }
-                // Bloodthirst
-                case 23881:
-                {
-                    m_caster->CastCustomSpell(unitTarget, 23885, &damage, NULL, NULL, true, NULL);
-                    return;
-                }
-                case 30012:                                 // Move
-                {
-                    if (!unitTarget || unitTarget->HasAura(39400))
-                    {
-                        return;
-                    }
-
-                    unitTarget->CastSpell(m_caster, 30253, true);
-                }
-                case 30284:                                 // Change Facing
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    unitTarget->CastSpell(m_caster, 30270, true);
-                    return;
-                }
-                case 37144:                                 // Move (Chess event player knight move)
-                case 37146:                                 // Move (Chess event player pawn move)
-                case 37148:                                 // Move (Chess event player queen move)
-                case 37151:                                 // Move (Chess event player rook move)
-                case 37152:                                 // Move (Chess event player bishop move)
-                case 37153:                                 // Move (Chess event player king move)
-                {
-                    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT)
-                    {
-                        return;
-                    }
-
-                    // cast generic move spell
-                    m_caster->CastSpell(unitTarget, 30012, true);
-                    return;
-                }
+                return;
             }
             break;
         }
@@ -3324,90 +3160,10 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
         }
         case SPELLFAMILY_ROGUE:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectDummyRogueContext ctx(m_caster, unitTarget);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyRogueSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 5938:                                  // Shiv
-                {
-                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        return;
-                    }
-
-                    Player* pCaster = ((Player*)m_caster);
-
-                    Item* item = pCaster->GetWeaponForAttack(OFF_ATTACK);
-                    if (!item)
-                    {
-                        return;
-                    }
-
-                    // all poison enchantments is temporary
-                    uint32 enchant_id = item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
-                    if (!enchant_id)
-                    {
-                        return;
-                    }
-
-                    SpellItemEnchantmentEntry const* pEnchant = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
-                    if (!pEnchant)
-                    {
-                        return;
-                    }
-
-                    for (int s = 0; s < 3; ++s)
-                    {
-                        if (pEnchant->Effect[s] != ITEM_ENCHANTMENT_TYPE_COMBAT_SPELL)
-                        {
-                            continue;
-                        }
-
-                        SpellEntry const* combatEntry = sSpellStore.LookupEntry(pEnchant->EffectArg[s]);
-                        if (!combatEntry || combatEntry->GetDispel() != DISPEL_POISON)
-                        {
-                            continue;
-                        }
-
-                        m_caster->CastSpell(unitTarget, combatEntry, true, item);
-                    }
-
-                    m_caster->CastSpell(unitTarget, 5940, true);
-                    return;
-                }
-                case 14185:                                 // Preparation
-                {
-                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        return;
-                    }
-
-                    // immediately finishes the cooldown on certain Rogue abilities
-                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
-                    for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
-                    {
-                        SpellEntry const *spellInfo = sSpellStore.LookupEntry(itr->first);
-                        SpellClassOptionsEntry const* prepClassOptions = spellInfo->GetSpellClassOptions();
-                        if (prepClassOptions && prepClassOptions->SpellClassSet == SPELLFAMILY_ROGUE && (prepClassOptions->SpellClassMask & UI64LIT(0x0000024000000860)))
-                        {
-                            ((Player*)m_caster)->RemoveSpellCooldown((itr++)->first,true);
-                        }
-                        else
-                        {
-                            ++itr;
-                        }
-                    }
-                    return;
-                }
-                case 31231:                                 // Cheat Death
-                {
-                    // Cheating Death
-                    m_caster->CastSpell(m_caster, 45182, true);
-                    return;
-                }
-                case 51662:                                 // Hunger for Blood
-                {
-                    m_caster->CastSpell(m_caster, 63848, true);
-                    return;
-                }
+                return;
             }
             break;
         }
@@ -3462,68 +3218,10 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 m_caster->CastSpell(target, spellid, true, NULL);
             }
 
-            switch (m_spellInfo->ID)
+            SpellEffectDummyHunterContext ctx(m_caster, unitTarget, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyHunterSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 23989:                                 // Readiness talent
-                {
-                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        return;
-                    }
-
-                    // immediately finishes the cooldown for hunter abilities
-                    const SpellCooldowns& cm = ((Player*)m_caster)->GetSpellCooldownMgr().GetSpellCooldownMap();
-                    for (SpellCooldowns::const_iterator itr = cm.begin(); itr != cm.end();)
-                    {
-                        SpellEntry const* spellInfo = sSpellStore.LookupEntry(itr->first);
-
-                        if (spellInfo->GetSpellFamilyName() == SPELLFAMILY_HUNTER && spellInfo->ID != 23989 && GetSpellRecoveryTime(spellInfo) > 0 )
-                        {
-                            ((Player*)m_caster)->RemoveSpellCooldown((itr++)->first,true);
-                        }
-                        else
-                        {
-                            ++itr;
-                        }
-                    }
-                    return;
-                }
-                case 37506:                                 // Scatter Shot
-                {
-                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        return;
-                    }
-
-                    // break Auto Shot and autohit
-                    m_caster->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
-                    m_caster->AttackStop();
-                    ((Player*)m_caster)->SendAttackSwingCancelAttack();
-                    return;
-                }
-                // Last Stand
-                case 53478:
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-                    int32 healthModSpellBasePoints0 = int32(unitTarget->GetMaxHealth() * 0.3);
-                    unitTarget->CastCustomSpell(unitTarget, 53479, &healthModSpellBasePoints0, NULL, NULL, true, NULL);
-                    return;
-                }
-                // Master's Call
-                case 53271:
-                {
-                    Pet* pet = m_caster->GetPet();
-                    if (!pet || !unitTarget)
-                    {
-                        return;
-                    }
-
-                    pet->CastSpell(unitTarget, effect->CalculateSimpleValue(), true);
-                    return;
-                }
+                return;
             }
             break;
         }
@@ -3585,105 +3283,11 @@ void Spell::EffectDummy(SpellEffectEntry const* effect)
                 }
             }
 
-            switch (m_spellInfo->ID)
+            SpellEffectDummyPaladinContext ctx(this, m_caster, unitTarget, m_spellInfo,
+                                               m_currentBasePoints, m_UniqueTargetInfo, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectDummyPaladinSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 19740:                                 // Blessing of Might
-                case 20217:                                 // Blessing of Kings
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    // Cata 4.3.4: dummy carries the buff spell id; id + 1 is the raid-wide variant
-                    uint32 buffId = m_currentBasePoints[effect->EffectIndex];
-                    if (!sSpellStore.LookupEntry(buffId))
-                    {
-                        return;
-                    }
-
-                    Player* casterPlayer = m_caster->GetTypeId() == TYPEID_PLAYER ? (Player*)m_caster : NULL;
-                    Player* targetPlayer = unitTarget->GetCharmerOrOwnerPlayerOrPlayerItself();
-                    if (casterPlayer && targetPlayer && casterPlayer != targetPlayer &&
-                        casterPlayer->IsInSameRaidWith(targetPlayer) && sSpellStore.LookupEntry(buffId + 1))
-                    {
-                        m_caster->CastSpell(m_caster, buffId + 1, true);
-                    }
-                    else
-                    {
-                        m_caster->CastSpell(unitTarget, buffId, true);
-                    }
-                    return;
-                }
-                case 31789:                                 // Righteous Defense (step 1)
-                {
-                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        SendCastResult(SPELL_FAILED_TARGET_AFFECTING_COMBAT);
-                        return;
-                    }
-
-                    // 31989 -> dummy effect (step 1) + dummy effect (step 2) -> 31709 (taunt like spell for each target)
-                    Unit* friendTarget = !unitTarget || unitTarget->IsFriendlyTo(m_caster) ? unitTarget : unitTarget->getVictim();
-                    if (friendTarget)
-                    {
-                        Player* player = friendTarget->GetCharmerOrOwnerPlayerOrPlayerItself();
-                        if (!player || !player->IsInSameRaidWith((Player*)m_caster))
-                        {
-                            friendTarget = NULL;
-                        }
-                    }
-
-                    // non-standard cast requirement check
-                    if (!friendTarget || friendTarget->getAttackers().empty())
-                    {
-                        ((Player*)m_caster)->RemoveSpellCooldown(m_spellInfo->ID, true);
-                        SendCastResult(SPELL_FAILED_TARGET_AFFECTING_COMBAT);
-                        return;
-                    }
-
-                    // Righteous Defense (step 2) (in old version 31980 dummy effect)
-                    // Clear targets for eff 1
-                    for (TargetList::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
-                    {
-                        ihit->effectMask &= ~(1 << 1);
-                    }
-
-                    // not empty (checked), copy
-                    Unit::AttackerSet attackers = friendTarget->getAttackers();
-
-                    // selected from list 3
-                    for (uint32 i = 0; i < std::min(size_t(3), attackers.size()); ++i)
-                    {
-                        Unit::AttackerSet::iterator aItr = attackers.begin();
-                        std::advance(aItr, urand(0, attackers.size() - 1));
-                        AddUnitTarget((*aItr), EFFECT_INDEX_1);
-                        attackers.erase(aItr);
-                    }
-
-                    // now let next effect cast spell at each target.
-                    return;
-                }
-                case 37877:                                 // Blessing of Faith
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    uint32 spell_id = 0;
-                    switch (unitTarget->getClass())
-                    {
-                        case CLASS_DRUID:   spell_id = 37878; break;
-                        case CLASS_PALADIN: spell_id = 37879; break;
-                        case CLASS_PRIEST:  spell_id = 37880; break;
-                        case CLASS_SHAMAN:  spell_id = 37881; break;
-                        default: return;                    // ignore for not healing classes
-                    }
-
-                    m_caster->CastSpell(m_caster, spell_id, true);
-                    return;
-                }
+                return;
             }
             break;
         }
