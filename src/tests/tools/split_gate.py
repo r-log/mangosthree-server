@@ -4,7 +4,7 @@
 A proof tool holds code only; the entries a move adds live in the tool's data file, a Python file in
 this directory that the move edits and the tool never does:
 
-  verbatim.py          verbatim_sites.py   BASE, ORIGINAL, VOID_SUBSTITUTIONS, SITES, BLOCKS
+  verbatim.py          verbatim_sites.py   BASE, ORIGINAL, VOID_SUBSTITUTIONS, SITES, BLOCKS, CONTEXT_EXCEPTIONS
   handler_verbatim.py  handler_moves.py    MOVES, RESIDUES
   cast_verbatim.py     cast_sites.py       BASE, FORMS, FILES
 
