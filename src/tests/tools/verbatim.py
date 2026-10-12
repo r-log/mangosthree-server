@@ -830,7 +830,8 @@ DISPATCH_REGISTRY = r'(?:SpellHandlerRegistry::Game\(\)\.)?'
 
 def check_dispatch_shape(site, key, name):
     """The dispatch lines in their fixed shape, read with comments and literals blanked and blanks aside as the
-    ties read them: each line is the context's construction `CONTEXT NAME(ARGUMENTS);`; the dispatch call
+    ties read them: each line is the context's construction `CONTEXT NAME(ARGUMENTS);`, whole or split over two
+    lines after an argument's comma that no inner parenthesis holds; the dispatch call
     `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())` (`SpellHandlerRegistry::Game().` before `Dispatch` or not),
     whole or split over two lines after its `(` or after KEY's comma; the call assigned,
     `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` (VALUE the site's value, void where it names
@@ -848,12 +849,20 @@ def check_dispatch_shape(site, key, name):
         line, after = read[i], read[i + 1] if i + 1 < len(read) else ''
         built = re.match(r'%s %s\(' % (re.escape(site['context']), re.escape(name)), line)
         given = held(line, built.end() - 1) if built else None
+        split = (built and given is None and line.endswith(',')
+                 and line.count('(', built.end()) == line.count(')', built.end()))
+        joined = held(line + after, built.end() - 1) if split else None
         valued = re.fullmatch(assigned, line)
         returned = 'return;' if 'value' not in site else out and 'return %s.GetValue();' % out
         if valued and after == 'if(%s.IsReturn())' % valued.group(1):
             out, i = valued.group(1), i + 2
         elif re.fullmatch(whole, line + after) and re.fullmatch(r'if\(%s(?:%s,)?' % (call, re.escape(key)), line):
             i += 2
+        elif joined is not None and (line + after)[built.end() + len(joined):] == ');':
+            i += 2
+        elif split and i + 1 < len(read):
+            i += 1
+            break
         elif (re.fullmatch(whole, line) or line in ('{', '}', returned) or not site['dispatch'][i].strip()
               or given is not None and line[built.end() + len(given):] == ');'):
             i += 1
@@ -3276,6 +3285,30 @@ def self_test():
                             worth[:1] + [worth[1].replace('<SpellCastResult>', '<bool>')] + worth[2:])):
         run('dispatch shape: the valued form\'s outcome %s: fails by name' % what, 1,
             unshaped % ('valued', dispatch[1].strip()), **reshaped(valued, dispatch))
+    begun, under = '    CheckTargetContext ctx(', ' ' * 27
+    run('dispatch shape: the construction split after an argument\'s comma, four arguments on its first line: passes',
+        0, shaped, **reshaped(tied, [begun + 'this, m_caster, target, m_spellInfo,',
+                                     under + 'm_currentBasePoints, m_UniqueTargetInfo, effect);'] + passing[1:]))
+    run('dispatch shape: the construction split after its first argument\'s comma, one argument on each line: passes',
+        0, 'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **reshaped(valued, ['    CheckContext checkContext(this,', ' ' * 30 + 'target);'] + worth[1:]))
+    for where, lines, line in (
+            ('inside a nested parenthesis',
+             [begun + 'this, m_caster, target, Foo(m_spellInfo,', under + 'effect));'], 0),
+            ('before its comma', [begun + 'this, m_caster, target', under + ', effect);'], 0),
+            ('after its parenthesis', [begun, under + 'this, m_caster, target);'], 0),
+            ('at a comma after its close',
+             [begun + 'this, m_caster, target), Foo(m_spellInfo,', under + 'effect);'], 0),
+            ('over three lines', [begun + 'this, m_caster,', under + 'target,', under + 'effect);'], 1),
+            ('with a statement after it on its second line',
+             [begun + 'this, m_caster,', under + 'target); target = m_caster;'], 1),
+            ('with a comment on its second line', [begun + 'this, m_caster,', under + 'target);    // built'], 1)):
+        run('dispatch shape: the construction split %s: fails by name' % where, 1,
+            unshaped % ('tied', lines[line].strip()), **reshaped(tied, lines + passing[1:]))
+    opened = dict(tied['spec']['sites'][0], dispatch=passing[1:] + [begun + 'this, m_caster,'])
+    raises('dispatch shape: the construction opened on the last dispatch line: fails by name',
+           unshaped % ('tied', 'CheckTargetContext ctx(this, m_caster,'),
+           lambda: check_dispatch_shape(opened, 'GetId()', 'ctx'))
 
     def paired(*pairs):
         """A site whose substitutions are `pairs`, then the void outcome pairs."""
