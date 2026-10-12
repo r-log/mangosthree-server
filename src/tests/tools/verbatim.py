@@ -179,14 +179,16 @@ Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH
 the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a route through the aura
 or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`) needs `this` among
 them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are compared with their
-blanks dropped, but one between two name characters. The dispatch lines hold the context's construction,
-the dispatch call (whole or split over two lines, or assigned to `outcome` and tested on the next line),
-its return, braces and blank lines, and nothing else: each line, comments and literals blanked and blanks
-aside, is `CONTEXT NAME(ARGUMENTS);`; `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())`, whole or split after
-its `(` or after KEY's comma; `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with
-`if (OUT.IsReturn())` the next line (VALUE the site's `value`, void where it names none; OUT any name);
-`return;` at a site with no `value`, `return OUT.GetValue();` at a site with one; `{`, `}`; or blank
-(`SpellHandlerRegistry::Game().` may stand before `Dispatch`). A line holding a comment is none of these.
+blanks dropped, but one between two name characters. The dispatch lines hold the context's construction
+(whole or split over two lines), the dispatch call (whole or split over two lines, or assigned to
+`outcome` and tested on the next line), its return, braces and blank lines, and nothing else: each line,
+comments and literals blanked and blanks aside, is `CONTEXT NAME(ARGUMENTS);`, whole or split over two
+lines after an argument's comma that no inner parenthesis holds;
+`if (Dispatch<TRAITS>(KEY, NAME).IsReturn())`, whole or split after its `(` or after KEY's comma;
+`SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with `if (OUT.IsReturn())` the next line
+(VALUE the site's `value`, void where it names none; OUT any name); `return;` at a site with no `value`,
+`return OUT.GetValue();` at a site with one; `{`, `}`; or blank (`SpellHandlerRegistry::Game().` may
+stand before `Dispatch`). A line holding a comment is none of these.
 The paste-back cannot see what the ties and the shape read: it puts the entry's own switch where the
 entry's own dispatch stands, so a binding or a key changed in the sites' file and in the entry together,
 or a statement or another return added to the dispatch lines of both, would come back byte for byte.
