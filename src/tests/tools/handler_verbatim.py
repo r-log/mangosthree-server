@@ -57,9 +57,13 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       name, a comment or a literal. <name> is no C++ keyword or literal, and the base declares `session` in the
       function's head or body, in code, read as text (which declaration a use binds to, a nested block's or a
       lambda's, is not read): text that reads `WorldSession`, with no name character before it, then one or
-      more `*` or `&` signs with no blank between them, then `session`, and not under `extern` (a body line
-      beginning, blanks aside, with `extern` names the file's variable, and a body holding one is refused even
-      beside a declaration of its own). The new file holds <name> only in the functions whose entries rename
+      more `*` or `&` signs with no blank between them, then `session`, and not under `extern`: the words of
+      the declaration's own statement, from after the last `;`, `{` or `}` before it to it (blanks and line
+      breaks aside, comments and literals blanked), hold no `extern` anywhere among them (such a declaration
+      names a variable outside the function, and a body holding one is refused even beside a declaration of
+      its own; a declaration of its own after another name's `extern` statement on its line, `extern int x;
+      WorldSession* session = ...;`, is read as its own). The new file holds <name> only in the functions whose
+      entries rename
       `session` to it, and there only as a whole word in code that follows no `.`, `->` or `::` (blanks and
       line breaks between aside) and no lone `>` or `:`. The definition's parameters are compared with <name>
       read as `session`. No edit or substitution names <name>, and none reads back `session`. No line of the
@@ -83,16 +87,33 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       (every header under src/game naming either as a whole word read, each class or struct body in it
       counted when its own body declares `<name>(` or `<member>;`, nested bodies blanked). The scan does not
       read a head with a word between `class` and the name or a template specialisation as a class, and does
-      not count a member declared with an initialiser or a bound.
-The player reading reads a line alone and in its code only, comments and literals staying as they are (so
-an edit's comments and literals are byte-equal on both sides): `session.GetPlayer()`, `_player` and
+      not count a member declared with an initialiser or a bound;
+  texts  (new line, base line) or (new block, base block) pairs, a block a list of one or more lines: comment
+      text and string-literal text changed in the moved function. They are read back before anything else, so
+      a pair's base side is the text the edits, the substitutions and the rename then read. A line pair reads
+      the same on both sides once each comment's text and each string literal's contents are read as one
+      mark between its delimiters (as blank() reads them; code, character literals and the delimiters stay),
+      and each string literal keeps its `%` conversions, equal in number and in type (each read as its width
+      and precision stars, its length modifier and its conversion character; `%%` is none); a line pair whose
+      literals differ holds, on either side, no literal with a numeric or universal-character escape (`\\0` to
+      `\\7`, `\\x`, `\\u`, `\\U`) or a `%` that starts no conversion, so the conversions read are the ones the
+      compiled literal holds; a block is comment lines and blank lines only and ends outside any comment. No
+      line of a pair holds a line break or ends in a line splice. Each new side stands exactly once in the
+      moved function and each base side, read back, exactly once in the base function, outside the definition
+      and reading in place as it does alone (stands alone, as a residue edit does); no two overlap, and no line
+      a new side holds is an edit's new line. The form admits comment lines and literals whose conversions are
+      equal in number and type: a literal's words are not read, only its conversions. RESIDUES take no texts
+      (a residue's changes are its edits).
+The player reading reads a line alone and in its code only, comments and literals staying as they are but
+for the entry's listed texts, each a comment line or a literal with its conversions kept (so an edit's
+comments and literals are byte-equal on both sides): `session.GetPlayer()`, `_player` and
 `GetPlayer()` read as one token, `session.` is dropped and `&session` not followed by a name or `.` reads as
 `this`, each where it neither runs on from a name nor follows `.`, `->` or `::` (blanks between aside), and
 `_player` only as a whole word. A new line reads in place as it does alone when no comment or literal is
 open across it, no line splice (a backslash, blanks after it or not, ending a line) joins it to the line
 before or after, and the reading of it after the lines above it is its reading alone (no `.`, `->` or `::`
-ending the line above runs into it). These are the only shapes of an edit and of a substitution; no key of
-an entry admits another.
+ending the line above runs into it). These are the only shapes of an edit, a substitution and a text pair; no
+key of an entry admits another.
 A definition holds no comment but a commented-out parameter, and no literal. It may span lines: its
 parameter list continues on the following lines up to the line that closes it. The entry quotes such a
 definition with its lines joined by line breaks, each line exactly as the file holds it, and the definition
@@ -119,7 +140,8 @@ For each entry, --check:
      member function and data member at class scope in the working tree's `WorldSession.h`, read by
      verbatim.py's MEMBERS_OF reader (class_members). A name followed by `::` is a namespace or class
      qualifier (`std::string`, `Motion::Reason`), not a member use, and passes; the same name alone fails;
-  3. reverses the move: an edit's line becomes its base line; on every other line, in code only
+  3. reverses the move: each text pair's new side becomes its base side first; then an edit's line
+     becomes its base line; on every other line, in code only
      (comments and literals stay), `session.` not after a name, `.`, `->` or `::` is dropped and the
      substitutions are read back, and a line beginning, blanks aside, with `session.` or a substitution's
      text where the code of the nearest line above that holds code ends, blanks aside, in `.`, `->` or `::`,
@@ -176,11 +198,16 @@ function declares no `session` in its head or body (a name running into `WorldSe
 declares one under `extern`, a rename whose name the base file holds, or the new file
 holds outside the functions renamed to it or other than as a whole word in code, a `session` left in a moved
 line under a rename, a line splice in a function under a rename, an edit or substitution naming the rename's
-name or reading back `session`, and an entry holding a key no entry admits or lacking one it needs.
+name or reading back `session`, a text pair of another shape, holding a line break or a line splice,
+changing code (a line pair) or holding a line that is not a comment line or a blank line (a block),
+changing a literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block
+inside a comment, standing other than once (its new side in the moved function, its base side read back in
+the base function) or not alone, overlapping another, or holding an edit's new line, and an entry holding a
+key no entry admits or lacking one it needs.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
-working tree, a definition, an edit, a substitution, a residue edit's block), fails: a compiler ends a line
-there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a handler
-class has static member functions only).
+working tree, a definition, an edit, a substitution, a text pair, a residue edit's block), fails: a compiler
+ends a line there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a
+handler class has static member functions only).
 
 python src/tests/tools/handler_verbatim.py --check       # every entry against its base, reading git
 python src/tests/tools/handler_verbatim.py --self-test   # fixtures only, no git
@@ -219,7 +246,7 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from case_labels import blank  # noqa: E402
+from case_labels import blank, digit_separator, raw_prefix_start  # noqa: E402
 from verbatim import Failure, class_members, first_difference  # noqa: E402
 import split_gate  # noqa: E402
 
@@ -254,7 +281,7 @@ STATIC_CALL = re.compile(r'WorldSession::([A-Za-z_][A-Za-z0-9_]*)\(')
 SPLICE = re.compile(r'\\[ \t]*\r?\Z')
 CLASS_HEAD = re.compile(r'\b(?:class|struct)\s+(\w+)(?:\s+final)?\s*(?::(?!:)[^;{}]*)?\{')
 MOVE_KEYS = ('base', 'base_file', 'base_header', 'new_file', 'new_header', 'substitutions', 'edits', 'rename',
-             'accessors')
+             'accessors', 'texts')
 RESIDUE_KEYS = ('base', 'base_file', 'removed', 'edits')
 RENAME_NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 KEYWORDS = frozenset((
@@ -268,12 +295,15 @@ KEYWORDS = frozenset((
     'throw', 'true', 'try', 'typedef', 'typeid', 'typename', 'union', 'unsigned', 'using', 'virtual', 'void',
     'volatile', 'wchar_t', 'while', 'xor', 'xor_eq'))
 SESSION_DECLARED = re.compile(r'(?<!\w)WorldSession\s*[*&]+\s*session(?!\w)')
-EXTERN_LINE = re.compile(r'\s*extern\b')
+EXTERN_WORD = re.compile(r'\bextern\b')
 ACCESSOR_GET = re.compile(r'return\s+(\w+)\s*;')
 ACCESSOR_SET = re.compile(r'(\w+)\s*=\s*(\w+)\s*;')
 ACCESSOR_PARAM = re.compile(r'[^,=()]*[\s*&](\w+)')
 ACCESS_LABEL = re.compile(r'\b(?:public|private|protected)\s*:')
 DECLARATION_WORDS = ('inline', 'static', 'constexpr', 'mutable')
+CONVERSION = re.compile(r"%(?:(%)|[-+ #0']*(\*|\d+)?(?:\.(\*|\d*))?(hh|h|ll|l|j|z|t|L|q|I64|I32|I)?"
+                        r"([diouxXeEfFgGaAcspn])|(.?))", re.S)
+NUMERIC_ESCAPE = re.compile(r'(?<!\\)(?:\\\\)*\\[0-7xuU]')
 
 
 def name_edge(text):
@@ -422,6 +452,12 @@ def check_reads_session(body, where):
                 where, n, m.group(0), body[n - 1]))
 
 
+def statement_start(code, at):
+    """Where the statement holding code[at] starts: after the last `;`, `{` or `}` before it (code with comments
+    and literals blanked)."""
+    return max(code.rfind(';', 0, at), code.rfind('{', 0, at), code.rfind('}', 0, at)) + 1
+
+
 def check_shape(new_header, base_header, rename=None):
     """The new definition line is the base's, `WorldSession::` replaced by a class and the session put first,
     or put nowhere, its parameters read with `rename` read as `session`; True when it takes the session."""
@@ -492,6 +528,157 @@ def check_lines(entry):
     for e in entry.get('edits', []) + entry.get('substitutions', []):
         if any(isinstance(x, str) and '\n' in x for x in e[:2]):
             raise Failure('the edit or substitution %r holds a line break: each side is one line' % (e[0],))
+
+
+def tokens(text):
+    """[(kind, opening, inside, closing)] of `text`, read as blank() reads it: 'code' (its text the opening),
+    'char' (a character literal, whole, the opening), 'comment' and 'string' (a string literal, a prefix before
+    its quote read as code), each with its delimiters apart from the text inside them."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        c = text[i]
+        raw = re.match(r'R"([^()\\\s]{0,16})\(', text[i:]) if c == 'R' else None
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            j = n if j < 0 else j
+            out.append(('comment', '//', text[i + 2:j], ''))
+            i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            out.append(('comment', '/*', text[i + 2:n if j < 0 else j], '' if j < 0 else '*/'))
+            i = n if j < 0 else j + 2
+        elif raw and raw_prefix_start(text, i) is not None:
+            end = ')' + raw.group(1) + '"'
+            j = text.find(end, i + raw.end())
+            out.append(('string', raw.group(0), text[i + raw.end():n if j < 0 else j], '' if j < 0 else end))
+            i = n if j < 0 else j + len(end)
+        elif c == '"' or (c == "'" and not digit_separator(text, i)):
+            j = i + 1
+            while j < n and text[j] != c and text[j] != '\n':
+                j += 2 if text[j] == '\\' else 1
+            end = min(j + 1, n)
+            if c == "'":
+                out.append(('char', text[i:end], '', ''))
+            else:
+                out.append(('string', c, text[i + 1:min(j, n)], text[j] if j < n else ''))
+            i = end
+        else:
+            if out and out[-1][0] == 'code':
+                out[-1] = ('code', out[-1][1] + c, '', '')
+            else:
+                out.append(('code', c, '', ''))
+            i += 1
+    if ''.join(t[1] if t[0] == 'code' else re.sub(r'[^\n]', ' ', ''.join(t[1:])) for t in out) != blank(text):
+        raise Failure('the text %r is not read as the comment reader reads it' % text)
+    return out
+
+
+def text_read(text):
+    """`text` with each comment's text and each string literal's contents read as one mark between its
+    delimiters, code and character literals as they are; and the string literals' contents, in order."""
+    found = tokens(text)
+    return (''.join(t[1] + '\0' + t[3] if t[0] in ('comment', 'string') else t[1] for t in found),
+            [t[2] for t in found if t[0] == 'string'])
+
+
+def conversions(literal):
+    """The `%` conversions of a literal's text, in order, each read as its width and precision stars, its length
+    modifier and its conversion character (`%%` is none; a `%` starting no conversion is read as its text)."""
+    found = []
+    for m in CONVERSION.finditer(literal):
+        if m.group(1):
+            continue
+        if m.group(5):
+            found.append('%' + ('*' if m.group(2) == '*' else '') + ('.*' if m.group(3) == '*' else '')
+                         + (m.group(4) or '') + m.group(5))
+        else:
+            found.append('%' + m.group(6))
+    return found
+
+
+def read_texts(entry):
+    """[(new lines, base lines)] of an entry's texts: each (new line, base line), or (new block, base block),
+    a block one or more lines; no line holds a line break or ends in a line splice. A line pair reads the
+    same with each comment's text and each string literal's contents read as one mark, and each string literal
+    keeps its conversions; a block is comment lines and blank lines only, and ends outside any comment."""
+    found = []
+    for t in entry.get('texts', []):
+        pair = isinstance(t, (tuple, list)) and len(t) == 2
+        if pair and all(isinstance(x, str) for x in t):
+            new, base, block = [t[0]], [t[1]], False
+        elif pair and all(isinstance(x, (tuple, list)) and x and all(isinstance(y, str) for y in x) for x in t):
+            new, base, block = list(t[0]), list(t[1]), True
+        else:
+            raise Failure('the text pair %r is not (new line, base line) nor (new block, base block), a block one '
+                          'or more lines' % (t,))
+        what = 'the text pair %r' % new[0]
+        if any('\n' in x for x in new + base):
+            raise Failure('%s holds a line break inside a line: a block is a list of lines' % what)
+        if any(SPLICE.search(x) for x in new + base):
+            raise Failure('%s ends a line in a line splice: every line of a text pair is read alone' % what)
+        if block:
+            for side in (new, base):
+                text = '\n'.join(side)
+                kept = ''.join(re.sub(r'[^\n]', ' ', ''.join(x[1:])) if x[0] == 'comment' else ''.join(x[1:])
+                               for x in tokens(text))
+                code = [x for x, k in zip(side, kept.split('\n')) if k.strip()]
+                if code:
+                    raise Failure('%s is a block holding a line that is not a comment line or a blank line: %r' % (
+                        what, code[0]))
+                if not blank(text + '\nx').endswith('x'):
+                    raise Failure('%s is a block ending inside a comment' % what)
+        else:
+            (new_code, new_literals), (base_code, base_literals) = text_read(new[0]), text_read(base[0])
+            if new_code != base_code:
+                raise Failure('%s changes code, not a comment or a literal: base %r' % (what, base[0]))
+            unread = [x for x in base_literals + new_literals if NUMERIC_ESCAPE.search(x)
+                      or any(m.group(6) is not None for m in CONVERSION.finditer(x))]
+            if new_literals != base_literals and unread:
+                raise Failure('%s holds a literal whose conversions its spelling does not show (a numeric or '
+                              'universal-character escape, or a %% that starts no conversion): base %r' % (
+                                  what, base[0]))
+            for a, b in zip(base_literals, new_literals):
+                if conversions(a) != conversions(b):
+                    raise Failure("%s changes the literal's conversions (%s -> %s): base %r" % (
+                        what, ', '.join(conversions(a)) or 'none', ', '.join(conversions(b)) or 'none', base[0]))
+        found.append((new, base))
+    return found
+
+
+def texts_at(lines, head, wanted, where, side):
+    """[(first, end, pair)] of `wanted`, [(lines, pair)], in `lines`, a function's lines with its definition at
+    `head`, in order: each stands once outside the definition and alone (stands_alone), and no two overlap."""
+    found = []
+    for want, pair in wanted:
+        hits = [k for k in range(len(lines) - len(want) + 1)
+                if lines[k:k + len(want)] == want and not any(k <= h < k + len(want) for h in head)]
+        if len(hits) != 1:
+            raise Failure('the text pair %r: its %s stands %d times in %s, not once' % (pair[0][0], side, len(hits),
+                                                                                        where))
+        if not stands_alone(lines, hits[0], hits[0] + len(want)):
+            raise Failure('the text pair %r does not stand alone in %s: a line splice or a comment or literal open '
+                          'across its edges' % (pair[0][0], where))
+        found.append((hits[0], hits[0] + len(want), pair))
+    found.sort(key=lambda x: x[:2])
+    for (_, b, p), (c, _, q) in zip(found, found[1:]):
+        if c < b:
+            raise Failure('the text pairs %r and %r overlap in %s' % (p[0][0], q[0][0], where))
+    return found
+
+
+def apply_texts(span, head, texts):
+    """(lines, head, places): the moved function's lines with each text pair's new side read back as its base
+    side, the definition's place among them, and each base side's place, [(first, end, pair)]."""
+    lines = list(span)
+    found = texts_at(span, head, [(t[0], t) for t in texts], 'the moved function', 'new side')
+    places, shift = [], 0
+    for a, b, pair in found:
+        places.append((a + shift, a + shift + len(pair[1]), pair))
+        shift += len(pair[1]) - (b - a)
+    for a, b, pair in reversed(found):
+        lines[a:b] = pair[1]
+    moved = sum(len(p[1]) - (b - a) for a, b, p in found if b <= head.start)
+    return lines, range(head.start + moved, head.stop + moved), places
 
 
 def closing(code, at):
@@ -698,9 +885,11 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
                 listed = [x for x in listed if not static_call(x)]
             if not takes and listed:
                 raise Failure('the definition line takes no session, but the entry lists %s' % what)
-        texts = [new_text, base_text, tree_base_text or '', entry['new_header'], entry['base_header']] + [
-            x for e in entry.get('edits', []) + entry.get('substitutions', []) for x in e[:2]]
-        if any(isinstance(x, str) and CARRIAGE_RETURN.search(x) for x in texts):
+        texts = read_texts(entry)
+        inputs = [new_text, base_text, tree_base_text or '', entry['new_header'], entry['base_header']] + [
+            x for e in entry.get('edits', []) + entry.get('substitutions', []) for x in e[:2]] + [
+            x for t in texts for side in t for x in side]
+        if any(isinstance(x, str) and CARRIAGE_RETURN.search(x) for x in inputs):
             raise Failure('a carriage return inside a line (a compiler ends the line there)')
         if new_name is not None:
             if new_name in base_text:
@@ -733,6 +922,11 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             raise Failure('the new file is not under %s, where handler_classes.py reads it' % HANDLERS_DIR)
         check_lines(entry)
         edits, counts = read_edits(entry)
+        twice = [t[0][0] for t in texts if any(x in edits for x in t[0])]
+        if twice:
+            raise Failure('the text pair %r is also listed as an edit: a line is read back by one of them' % twice[0])
+        moved = span
+        span, head, places = apply_texts(span, head, texts)
         for line in edits:
             hits = sum(1 for k, x in enumerate(span) if x == line and k not in head)
             if hits != counts[line]:
@@ -743,9 +937,10 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
                                        for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
         renamed = 0
-        pasted = []
+        pasted, landed = [], []
         codes = blank('\n'.join(span)).split('\n')
         for k, (line, code) in enumerate(zip(span, codes)):
+            landed.append(len(pasted))
             if k in head:
                 if k == head[0]:
                     pasted += [x + ('\r' if line.endswith('\r') else '') for x in entry['base_header'].split('\n')]
@@ -791,6 +986,9 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         base_lines = base_text.split('\n')
         where = '%s at %s' % (entry['base_file'], entry['base'])
         b_first, b_at, b_end = function_span(base_lines, entry['base_header'], where)
+        texts_at(base_lines[b_first:b_end], range(b_at - b_first, b_at - b_first + head_lines(entry['base_header'])),
+                 [(pasted[landed[a]:landed[b - 1] + 1], pair) for a, b, pair in places], 'the base function',
+                 'base side, read back,')
         statics = [n for n in (static_call(x) for x in entry.get('substitutions', [])) if n]
         if statics:
             b_params = blank(BASE_HEADER.match(joined(entry['base_header'])).group('params'))
@@ -817,13 +1015,13 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             b_own = blank('\n'.join(base_lines[b_at + head_lines(entry['base_header']):b_end]))
             function = re.match(r'.*?WorldSession::(\w+)\(', joined(entry['base_header'])).group(1)
             declared = list(SESSION_DECLARED.finditer(b_own))
-            if any(EXTERN_LINE.match(b_own, b_own.rfind('\n', 0, m.start()) + 1, m.start()) for m in declared):
+            if any(EXTERN_WORD.search(b_own, statement_start(b_own, m.start()), m.start()) for m in declared):
                 raise Failure('the base\'s `session` is declared extern in WorldSession::%s: the rename reads a name '
                               'the function does not own' % function)
             if not SESSION_DECLARED.search(b_head) and not declared:
                 raise Failure('the base\'s `session` is declared in neither the head nor the body of WorldSession::%s: '
                               'the rename reads a name the function does not own' % function)
-        n_code = blank('\n'.join(span))
+        n_code = blank('\n'.join(moved))
         if b_code.count('{') != b_code.count('}') or n_code.count('{') != n_code.count('}'):
             raise Failure('a `}` at column 0 closes the function before its braces balance')
         if tree_base_text is not None and find_lines(tree_base_text.split('\n'), entry['base_header']):
@@ -837,6 +1035,8 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
                                                first_difference(base_text, rebuilt)))
         return 1
     done = '%d edits' % sum(counts.values())
+    if texts:
+        done += ', %d texts applied' % len(texts)
     if new_name is not None:
         done += ', %r read back as session %d times' % (new_name, renamed)
     out('%s: IDENTICAL to %s at %s, byte for byte, with %d lines pasted back (%s)' % (
@@ -2108,7 +2308,30 @@ def self_test():
              '    extern WorldSession* session;\n', '    extern WorldSession* requestSession;\n'),
             ('a rename over an extern session beside its own fails', 1, extern,
              '    extern WorldSession* session;\n' + local[0],
-             '    extern WorldSession* requestSession;\n' + local[1])):
+             '    extern WorldSession* requestSession;\n' + local[1]),
+            ('a rename over an extern session after a statement on its line fails', 1, extern,
+             '    Ping(); extern WorldSession* session;\n', '    Ping(); extern WorldSession* requestSession;\n'),
+            ('a rename over an extern session in a one-line block fails', 1, extern,
+             '    { extern WorldSession* session; }\n', '    { extern WorldSession* requestSession; }\n'),
+            ('a rename over an extern alone on the line above the session fails', 1, extern,
+             '    extern\n    WorldSession* session;\n', '    extern\n    WorldSession* requestSession;\n'),
+            ('a rename over an extern session after an attribute fails', 1, extern,
+             '    [[maybe_unused]] extern WorldSession* session;\n',
+             '    [[maybe_unused]] extern WorldSession* requestSession;\n'),
+            ('a rename over a thread_local extern session fails', 1, extern,
+             '    thread_local extern WorldSession* session;\n',
+             '    thread_local extern WorldSession* requestSession;\n'),
+            ('a rename over its own session after another name\'s extern passes', 0, 'IDENTICAL',
+             '    extern int x; WorldSession* session = NULL;\n',
+             '    extern int x; WorldSession* requestSession = NULL;\n'),
+            ('a rename over its own session after a comment holding extern passes', 0, 'IDENTICAL',
+             '    /* extern */ WorldSession* session = NULL;\n',
+             '    /* extern */ WorldSession* requestSession = NULL;\n'),
+            ('a rename over its own session below a comment holding extern passes', 0, 'IDENTICAL',
+             '    // extern\n' + local[0], '    // extern\n' + local[1]),
+            ('a rename over a session declared through a name ending in extern passes', 0, 'IDENTICAL',
+             '    myextern::WorldSession* session = NULL;\n',
+             '    myextern::WorldSession* requestSession = NULL;\n')):
         run(label, want_rc, needle, 0, base=SELF_RENAME_BASE.replace(local[0], base_local),
             new=SELF_RENAME_NEW.replace(local[1], new_local), moves=SELF_RENAME_MOVES, beside=renamed_heads[1:])
     longer = [h.replace('WorldSession*&', 'MyWorldSession*&')
@@ -2228,6 +2451,228 @@ def self_test():
             "' * @brief Answers the read. \\\\' ends in a line splice", base_swap=brief, swap=brief)
     renamed('the rename not listed: the base names session fails', 1,
             'the base function names `session` in code: the reversal cannot tell it from the parameter', 2, rename=None)
+
+    def texted(label, want_rc, needle, new_lines, base_lines, pairs, entry=1, **change):
+        """`new_lines` above the stop line in the moved function and `base_lines` above it at the base, the
+        entry listing `pairs` as its texts."""
+        run(label, want_rc, needle, entry, swap=(lead[0], new_lines + '\n' + lead[0]),
+            base=SELF_BASE.replace(lead[1], base_lines + '\n' + lead[1]), texts=pairs, **change)
+
+    unk = ('    DEBUG_LOG("Fixture::HandleStop: unk = %u of %s", unk, name);',
+           '    DEBUG_LOG("WorldSession::HandleStopOpcode: unk = %u of %s", unk, name);')
+    conversions_changed = "the text pair %r changes the literal's conversions (%s): base %r"
+    texted('a text pair changing a literal, its conversions kept, passes', 0,
+           'with 5 lines pasted back (0 edits, 1 texts applied)', unk[0], unk[1], [unk])
+    for label, new_line, said in (
+            ('a text pair making a literal\'s %u a %s fails', unk[0].replace('%u of', '%s of'), '%u, %s -> %s, %s'),
+            ('a text pair reordering a literal\'s conversions fails', unk[0].replace('%u of %s', '%s of %u'),
+             '%u, %s -> %s, %u'),
+            ('a text pair adding a conversion to a literal fails', unk[0].replace('%s"', '%s %u"'),
+             '%u, %s -> %u, %s, %u'),
+            ('a text pair dropping a conversion from a literal fails', unk[0].replace(' of %s', ''), '%u, %s -> %u'),
+            ('a text pair widening a literal\'s %u to %lu fails', unk[0].replace('%u', '%lu'), '%u, %s -> %lu, %s'),
+            ('a text pair giving a literal\'s %u a star width fails', unk[0].replace('%u', '%*u'),
+             '%u, %s -> %*u, %s')):
+        texted(label, 1, conversions_changed % (new_line, said, unk[0]), new_line, unk[1], [(new_line, unk[0])])
+    for label, new_line in (
+            ('a text pair changing a literal\'s width and %% passes', unk[0].replace('%u of', '%5u%% of')),
+            ('a text pair changing only a literal\'s words passes', unk[0].replace('unk', 'value', 1))):
+        texted(label, 0, '(0 edits, 1 texts applied)', new_line, unk[1], [(new_line, unk[1])])
+    texted('a text pair changing code fails', 1,
+           "the text pair %r changes code, not a comment or a literal" % unk[0].replace('name)', 'other)'),
+           unk[0].replace('name)', 'other)'), unk[1], [(unk[0].replace('name)', 'other)'), unk[1])])
+    for label, new_line, base_line in (
+            ('a text pair changing a character literal fails', "    Ping('b');", "    Ping('a');"),
+            ('a text pair dropping a comment from a line fails', '    Ping();', '    Ping(); // the stop'),
+            ('a text pair making a comment a literal fails', '    Ping("x");', '    Ping(/* x */);'),
+            ('a text pair splitting a literal in two fails', '    Ping("a" "b");', '    Ping("ab");')):
+        texted(label, 1, 'changes code, not a comment or a literal', new_line, base_line, [(new_line, base_line)])
+    spelt = ('    DEBUG_LOG("unk = %u", unk);', 'holds a literal whose conversions its spelling does not show')
+    for label, new_line, base_line in (
+            ('a text pair spelling a conversion by a \\x escape fails', '    DEBUG_LOG("unk = \\x25s %u", unk);',
+             spelt[0]),
+            ('a text pair spelling a conversion by an octal escape fails', '    DEBUG_LOG("unk = \\045s %u", unk);',
+             spelt[0]),
+            ('a text pair spelling a conversion by a \\u escape fails', '    DEBUG_LOG("unk = \\u0025s %u", unk);',
+             spelt[0]),
+            ('a text pair spelling a conversion by a \\U escape fails',
+             '    DEBUG_LOG("unk = \\U00000025s %u", unk);', spelt[0]),
+            ('a text pair ending a literal at a \\0 escape fails', '    DEBUG_LOG("\\0unk = %u", unk);', spelt[0]),
+            ('a text pair changing a conversion split across literals fails',
+             '    DEBUG_LOG("unk = %" "s", unk);', '    DEBUG_LOG("unk = %" "u", unk);')):
+        texted(label, 1, "the text pair %r %s" % (new_line, spelt[1]), new_line, base_line, [(new_line, base_line)])
+    for label, new_line, base_line in (
+            ('a text pair over literals holding simple escapes passes', '    DEBUG_LOG("val = %u\\n\\t\\"x\\"", unk);',
+             '    DEBUG_LOG("unk = %u\\n\\t\\"x\\"", unk);'),
+            ('a text pair over an escaped backslash before a digit passes', '    DEBUG_LOG("a\\\\0 val = %u", unk);',
+             '    DEBUG_LOG("a\\\\0 unk = %u", unk);'),
+            ('a text pair changing a comment beside an escaped literal passes',
+             '    DEBUG_LOG("\\x25u", unk); // the value', '    DEBUG_LOG("\\x25u", unk); // the unk')):
+        texted(label, 0, '(0 edits, 1 texts applied)', new_line, base_line, [(new_line, base_line)])
+    noted = ('    // the stop, read anew', '    // the stop')
+    texted('a text pair changing a comment line passes', 0, '(0 edits, 1 texts applied)', *noted, [noted])
+    texted('a text pair changing a trailing comment passes', 0, '(0 edits, 1 texts applied)',
+           '    Ping(); /* the stop, read anew */', '    Ping(); /* the stop */',
+           [('    Ping(); /* the stop, read anew */', '    Ping(); /* the stop */')])
+    seven = ['    // The two tables this handler writes are both in the',
+             '    // character\'s cache, so each statement gets its mirror',
+             '    // beside it.',
+             '    //',
+             '    // Every string is a bound parameter. That is also why the',
+             '    // cache needs no copies of its own: nothing mutates the',
+             '    // name, so the statement and the cache read one object.']
+    three = ['    // Both tables this handler writes are in the character\'s cache, so each statement has its',
+             '    // mirror beside it. Every string is a bound parameter, and nothing mutates the name, so the',
+             '    // statement and the cache read one object.']
+    texted('a seven-line comment block read back from three passes', 0,
+           'with 11 lines pasted back (0 edits, 1 texts applied)', '\n'.join(three), '\n'.join(seven),
+           [(three, seven)])
+    run('a comment block read back above the definition passes', 0, '(1 edits, 1 texts applied)', 0,
+        swap=(' * @brief Swing.', ' * @brief Swing\n * at the target.'),
+        texts=[(['/**', ' * @brief Swing', ' * at the target.', ' */'], ['/**', ' * @brief Swing.', ' */'])])
+    for label, block, needle in (
+            ('a comment block holding a code line fails', ['    // the stop', '    Ping();'], "'    Ping();'"),
+            ('a comment block holding a literal line fails', ['    // the stop', '    "the stop"'],
+             '\'    "the stop"\''),
+            ('a comment block holding a commented code line passes', ['    // the stop', '    /* x */ // Ping();'],
+             'IDENTICAL')):
+        texted(label, 0 if needle == 'IDENTICAL' else 1,
+               needle if needle == 'IDENTICAL' else 'is a block holding a line that is not a comment line or a '
+               'blank line: ' + needle, '\n'.join(block), '    // the stop\n    // read',
+               [(block, ['    // the stop', '    // read'])])
+    texted('a comment block ending inside a comment fails', 1, 'is a block ending inside a comment',
+           '    // the stop\n    /* read', '    // the stop\n    // read */',
+           [(['    // the stop', '    /* read'], ['    // the stop', '    // read */'])])
+    texted('a text pair standing twice in the moved function fails', 1,
+           "the text pair %r: its new side stands 2 times in the moved function, not once" % noted[0],
+           noted[0] + '\n' + noted[0], noted[1] + '\n' + noted[1], [noted])
+    texted('a text pair standing nowhere in the moved function fails', 1,
+           "the text pair %r: its new side stands 0 times in the moved function, not once" % noted[0],
+           noted[1], noted[1], [noted])
+    texted('a text pair whose base side stands twice in the base fails', 1,
+           "the text pair %r: its base side, read back, stands 2 times in the base function, not once" % noted[0],
+           noted[0] + '\n' + noted[1], noted[1] + '\n' + noted[1], [noted])
+    texted('a text pair whose base side stands nowhere in the base fails', 1,
+           "the text pair %r: its base side, read back, stands 0 times in the base function, not once" % noted[0],
+           noted[0], '    // the halt', [noted])
+    texted('two text pairs overlapping fail', 1, 'overlap in the moved function', noted[0] + '\n    // read',
+           noted[1] + '\n    // read', [noted, ([noted[0], '    // read'], [noted[1], '    // read'])])
+    texted('a text pair ending in a line splice fails', 1, 'ends a line in a line splice', noted[0] + ' \\',
+           noted[1] + ' \\', [(noted[0] + ' \\', noted[1] + ' \\')])
+    texted('a text pair inside a raw string literal fails', 1,
+           'does not stand alone in the moved function: a line splice or a comment or literal open', '    Ping(R"(\n'
+           + noted[0] + '\n)");', '    Ping(R"(\n' + noted[1] + '\n)");', [noted])
+    texted('a text pair of another shape fails', 1, 'is not (new line, base line) nor (new block, base block)',
+           *noted, [noted + ('x',)])
+    texted('a text pair of an empty block fails', 1, 'is not (new line, base line) nor (new block, base block)',
+           *noted, [([], [noted[1]])])
+    swing = ('        SendStop(session, NULL);                 // "session." in a comment stays',
+             '        SendStop(session, NULL);                 // "session." in a comment is read anew')
+    run('a text pair on a line carrying a substitution reads back right', 0,
+        'with 13 lines pasted back (1 edits, 1 texts applied)', 0, swap=swing, texts=[swing[::-1]])
+    read = ('    Ping(session.GetPlayer()); // read anew', '    Ping(session.GetPlayer()); // read',
+            '    Ping(_player); // read')
+    run('a text pair and an edit on one line read back right', 0, '(2 edits, 1 texts applied)', 0,
+        swap=(attack[0], read[0] + '\n' + attack[0]), base=SELF_BASE.replace(attack[1], read[2] + '\n' + attack[1]),
+        texts=[read[:2]], edits=[enemy, read[1:]])
+    run('a text pair duplicating an edit fails', 1,
+        "the text pair %r is also listed as an edit: a line is read back by one of them" % read[0], 0,
+        swap=(attack[0], read[0] + '\n' + attack[0]), base=SELF_BASE.replace(attack[1], read[2] + '\n' + attack[1]),
+        texts=[read[:2]], edits=[enemy, (read[0], read[2] + ' anew')])
+    bidder = [x for x in SELF_MAIL_NEW.split('\n') if 'in a comment stay' in x][0]
+    bidder = (bidder.replace('// "session." and _player in a comment stay', '// a comment read anew'), bidder)
+    run('a text pair on a no-session head passes', 0, '(0 edits, 1 texts applied)', swap=bidder[::-1],
+        texts=[bidder], base=SELF_MAIL_BASE, new=SELF_MAIL_NEW, moves=SELF_MAIL_MOVES)
+    renamed('a text pair under a rename passes', 0,
+            "(0 edits, 1 texts applied, 'requestSession' read back as session 4 times)",
+            swap=('// tell the session', '// tell the caller'),
+            texts=[(x.replace('// tell the session', '// tell the caller'), x)
+                   for x in SELF_RENAME_CB_NEW_BODY.split('\n') if '// tell the session' in x])
+    for label, logged, old, new in (
+            ('LootHandlers::HandleLootMasterGive',
+             '    DEBUG_LOG("WorldSession::HandleLootMasterGiveOpcode (CMSG_LOOT_MASTER_GIVE, 0x02A3) Target = %s'
+             ' [%s].", target_playerguid.GetString().c_str(), target->GetName());',
+             'WorldSession::HandleLootMasterGiveOpcode (CMSG_LOOT_MASTER_GIVE, 0x02A3)',
+             'LootHandlers::HandleLootMasterGive (CMSG_LOOT_MASTER_GIVE)'),
+            ('LootHandlers::HandleLootMasterGive (2)',
+             '        sLog.outError("WorldSession::HandleLootMasterGiveOpcode: player %s tried to give currency via'
+             ' master loot! Hack alert! Slot %u, currency id %u",',
+             'WorldSession::HandleLootMasterGiveOpcode:', 'LootHandlers::HandleLootMasterGive:'),
+            ('AuctionHandlers::HandleAuctionHello',
+             '        DEBUG_LOG("WORLD: HandleAuctionHelloOpcode - %s not found or you can\'t interact with him.",'
+             ' auctioneerGuid.GetString().c_str());',
+             'HandleAuctionHelloOpcode', 'HandleAuctionHello'),
+            ('PetHandlers::HandlePetAction',
+             '        sLog.outError("WorldSession::HandlePetAction: object (GUID: %u TypeId: %u) is considered'
+             ' pet-like but doesn\'t have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());',
+             'WorldSession::HandlePetAction', 'PetHandlers::HandlePetAction'),
+            ('PetHandlers::HandlePetSetAction',
+             '        sLog.outError("WorldSession::HandlePetSetAction: object (GUID: %u TypeId: %u) is considered'
+             ' pet-like but doesn\'t have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());',
+             'WorldSession::HandlePetSetAction', 'PetHandlers::HandlePetSetAction'),
+            ('PetHandlers::HandlePetSpellAutocast',
+             '        sLog.outError("HandlePetSpellAutocastOpcode. %s isn\'t pet of %s .", guid.GetString().c_str(),'
+             ' session.GetPlayer()->GetGuidStr().c_str());',
+             'HandlePetSpellAutocastOpcode.', 'HandlePetSpellAutocast.'),
+            ('PetHandlers::HandlePetSpellAutocast (2)',
+             '        sLog.outError("WorldSession::HandlePetSpellAutocastOpcod: %s is considered pet-like but'
+             ' doesn\'t have a charminfo!", guid.GetString().c_str());',
+             'WorldSession::HandlePetSpellAutocastOpcod:', 'PetHandlers::HandlePetSpellAutocast:'),
+            ('PetHandlers::HandlePetCastSpell',
+             '        sLog.outError("HandlePetCastSpellOpcode: %s isn\'t pet of %s .", guid.GetString().c_str(),'
+             ' session.GetPlayer()->GetGuidStr().c_str());',
+             'HandlePetCastSpellOpcode', 'HandlePetCastSpell'),
+            ('PetHandlers::HandleLearnPreviewTalentsPet',
+             '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS_PET");',
+             'CMSG_LEARN_PREVIEW_TALENTS_PET', 'CMSG_PET_LEARN_TALENT_GROUP'),
+            ('SkillHandlers::HandleLearnTalent',
+             '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");',
+             'CMSG_LEARN_PREVIEW_TALENTS', 'CMSG_LEARN_TALENT'),
+            ('SkillHandlers::HandleLearnTalent (2)',
+             '        sLog.outError("WorldSession::HandleLearnTalentOpcode: learn talent %u rank %u failed for %s'
+             ' (account %u)", talent_id, requested_rank, session.GetPlayerName(), session.GetAccountId());',
+             'WorldSession::HandleLearnTalentOpcode', 'SkillHandlers::HandleLearnTalent'),
+            ('SkillHandlers::HandleLearnPreviewTalents',
+             '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");',
+             'CMSG_LEARN_PREVIEW_TALENTS', 'CMSG_LEARN_TALENT_GROUP'),
+            ('SkillHandlers::HandleLearnPreviewTalents (2)',
+             '                sLog.outError("WorldSession::HandleLearnPreviewTalents: tabPage != talent tabPage for'
+             ' %s (account %u)", session.GetPlayerName(), session.GetAccountId());',
+             'WorldSession::', 'SkillHandlers::'),
+            ('SkillHandlers::HandleLearnPreviewTalents (3)',
+             '            sLog.outError("WorldSession::HandleLearnPreviewTalents: learn talent %u rank %u tab %u'
+             ' failed for %s (account %u)", talentId, talentRank, tabPage, session.GetPlayerName(),'
+             ' session.GetAccountId());',
+             'WorldSession::', 'SkillHandlers::'),
+            ('SkillHandlers::HandleTalentWipeConfirm',
+             '        DEBUG_LOG("WORLD: HandleTalentWipeConfirmOpcode - %s not found or you can\'t interact with'
+             ' him.", guid.GetString().c_str());',
+             'HandleTalentWipeConfirmOpcode', 'HandleTalentWipeConfirm'),
+            ('PvpHandlers::HandleArenaTeamCreate',
+             '        sLog.outError("WorldSession::HandleArenaTeamCreateOpcode: arena team create failed.");',
+             'WorldSession::HandleArenaTeamCreateOpcode', 'PvpHandlers::HandleArenaTeamCreate'),
+            ('PvpHandlers::HandleArenaTeamCreate (2)',
+             '    DEBUG_LOG("WorldSession::HandleArenaTeamCreateOpcode: arena team added to objmrg");',
+             'WorldSession::HandleArenaTeamCreateOpcode', 'PvpHandlers::HandleArenaTeamCreate'),
+            ('PvpHandlers::HandleReportPvPAFK',
+             '        DEBUG_LOG("WorldSession::HandleReportPvPAFK: player not found");',
+             'WorldSession::', 'PvpHandlers::'),
+            ('PvpHandlers::HandleReportPvPAFK (2)',
+             '    DEBUG_LOG("WorldSession::HandleReportPvPAFK: %s reported %s", session.GetPlayer()->GetName(),'
+             ' reportedPlayer->GetName());',
+             'WorldSession::', 'PvpHandlers::'),
+            ('PvpHandlers::HandleRequestRatedBgInfo',
+             '    DEBUG_LOG("WorldSession::HandleRequestRatedBgInfo: unk = %u", unk);',
+             'WorldSession::', 'PvpHandlers::')):
+        tail = '\n            0, 0, 0);' if logged.endswith(',') else ''
+        texted('the log text of %s as a text pair passes' % label, 0, '(0 edits, 1 texts applied)',
+               logged.replace(old, new) + tail, logged.replace('session.', '') + tail,
+               [(logged.replace(old, new), logged)])
+    preview = '    DEBUG_LOG("CMSG_PET_LEARN_TALENT_GROUP %u");'
+    texted('a log text gaining a conversion as a text pair fails', 1,
+           conversions_changed % (preview, 'none -> %u', '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS_PET");'),
+           preview, '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS_PET");',
+           [(preview, '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS_PET");')])
 
     def residue(label, want_rc, needle, tree, headers=SELF_HEADERS[:1], removed=(), elsewhere=(),
                 base=SELF_RESIDUE_BASE, edits=()):
@@ -2496,7 +2941,7 @@ def self_test():
     stop_head = "'void Fixture::HandleStop(WorldSession& session, WorldPacket& /*recv_data*/)'"
     run('an entry with a key no entry admits fails', 1,
         "the entry for %s has the key 'substitution', which no entry admits (the keys are base, base_file, "
-        "base_header, new_file, new_header, substitutions, edits, rename, accessors)" % stop_head, 1,
+        "base_header, new_file, new_header, substitutions, edits, rename, accessors, texts)" % stop_head, 1,
         substitution=[('SendStop(session, ', 'SendStop(')])
     for label, key, needle in (('an entry lacking its base header fails', 'base_header', stop_head),
                                ('an entry lacking its new header fails', 'new_header', "'Fixture.cpp'")):
@@ -2509,6 +2954,9 @@ def self_test():
     checked('--check: a residue entry with a key no entry admits fails', 1,
             "O.cpp: FAILED: the entry for 'O.cpp' has the key 'remove', which no entry admits (the keys are base, "
             "base_file, removed, edits)", [dict(base='b1', base_file='O.cpp', remove=['#include "Log.h"'])])
+    checked('--check: a residue entry listing texts fails', 1,
+            "O.cpp: FAILED: the entry for 'O.cpp' has the key 'texts', which no entry admits (the keys are base, "
+            "base_file, removed, edits)", [dict(base='b1', base_file='O.cpp', texts=[(dead[0], dead[0])])])
     checked('--check: a residue entry lacking its base fails', 1, "the entry for 'O.cpp' lacks the key 'base'",
             [dict(base_file='O.cpp', removed=['#include "Log.h"'])])
     checked('--check: a refused move entry fails the run alone', 1, '3 moved functions; FAILED', log,
