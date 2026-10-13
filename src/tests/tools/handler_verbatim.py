@@ -94,14 +94,16 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       the same on both sides once each comment's text and each string literal's contents are read as one
       mark between its delimiters (as blank() reads them; code, character literals and the delimiters stay),
       and each string literal keeps its `%` conversions, equal in number and in type (each read as its width
-      and precision stars, its length modifier and its conversion character; `%%` is none); a block is
-      comment lines and blank lines only and ends outside any comment. No line of a pair holds a line break
-      or ends in a line splice. Each new side stands exactly once in the moved function and each base side,
-      read back, exactly once in the base function, outside the definition and reading in place as it does
-      alone (stands alone, as a residue edit does); no two overlap, and no line a new side holds is an edit's
-      new line. The form admits comment lines and literals whose conversions are equal in number and type: a
-      literal's words are not read, only its conversions. RESIDUES take no texts (a residue's changes are its
-      edits).
+      and precision stars, its length modifier and its conversion character; `%%` is none); a line pair whose
+      literals differ holds, on either side, no literal with a numeric or universal-character escape (`\\0` to
+      `\\7`, `\\x`, `\\u`, `\\U`) or a `%` that starts no conversion, so the conversions read are the ones the
+      compiled literal holds; a block is comment lines and blank lines only and ends outside any comment. No
+      line of a pair holds a line break or ends in a line splice. Each new side stands exactly once in the
+      moved function and each base side, read back, exactly once in the base function, outside the definition
+      and reading in place as it does alone (stands alone, as a residue edit does); no two overlap, and no line
+      a new side holds is an edit's new line. The form admits comment lines and literals whose conversions are
+      equal in number and type: a literal's words are not read, only its conversions. RESIDUES take no texts
+      (a residue's changes are its edits).
 The player reading reads a line alone and in its code only, comments and literals staying as they are but
 for the entry's listed texts, each a comment line or a literal with its conversions kept (so an edit's
 comments and literals are byte-equal on both sides): `session.GetPlayer()`, `_player` and
@@ -198,9 +200,10 @@ holds outside the functions renamed to it or other than as a whole word in code,
 line under a rename, a line splice in a function under a rename, an edit or substitution naming the rename's
 name or reading back `session`, a text pair of another shape, holding a line break or a line splice,
 changing code (a line pair) or holding a line that is not a comment line or a blank line (a block),
-changing a literal's conversions, ending a block inside a comment, standing other than once (its new side in
-the moved function, its base side read back in the base function) or not alone, overlapping another, or
-holding an edit's new line, and an entry holding a key no entry admits or lacking one it needs.
+changing a literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block
+inside a comment, standing other than once (its new side in the moved function, its base side read back in
+the base function) or not alone, overlapping another, or holding an edit's new line, and an entry holding a
+key no entry admits or lacking one it needs.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a text pair, a residue edit's block), fails: a compiler
 ends a line there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a
@@ -300,6 +303,7 @@ ACCESS_LABEL = re.compile(r'\b(?:public|private|protected)\s*:')
 DECLARATION_WORDS = ('inline', 'static', 'constexpr', 'mutable')
 CONVERSION = re.compile(r"%(?:(%)|[-+ #0']*(\*|\d+)?(?:\.(\*|\d*))?(hh|h|ll|l|j|z|t|L|q|I64|I32|I)?"
                         r"([diouxXeEfFgGaAcspn])|(.?))", re.S)
+NUMERIC_ESCAPE = re.compile(r'(?<!\\)(?:\\\\)*\\[0-7xuU]')
 
 
 def name_edge(text):
@@ -627,6 +631,12 @@ def read_texts(entry):
             (new_code, new_literals), (base_code, base_literals) = text_read(new[0]), text_read(base[0])
             if new_code != base_code:
                 raise Failure('%s changes code, not a comment or a literal: base %r' % (what, base[0]))
+            unread = [x for x in base_literals + new_literals if NUMERIC_ESCAPE.search(x)
+                      or any(m.group(6) is not None for m in CONVERSION.finditer(x))]
+            if new_literals != base_literals and unread:
+                raise Failure('%s holds a literal whose conversions its spelling does not show (a numeric or '
+                              'universal-character escape, or a %% that starts no conversion): base %r' % (
+                                  what, base[0]))
             for a, b in zip(base_literals, new_literals):
                 if conversions(a) != conversions(b):
                     raise Failure("%s changes the literal's conversions (%s -> %s): base %r" % (
@@ -2477,6 +2487,28 @@ def self_test():
             ('a text pair making a comment a literal fails', '    Ping("x");', '    Ping(/* x */);'),
             ('a text pair splitting a literal in two fails', '    Ping("a" "b");', '    Ping("ab");')):
         texted(label, 1, 'changes code, not a comment or a literal', new_line, base_line, [(new_line, base_line)])
+    spelt = ('    DEBUG_LOG("unk = %u", unk);', 'holds a literal whose conversions its spelling does not show')
+    for label, new_line, base_line in (
+            ('a text pair spelling a conversion by a \\x escape fails', '    DEBUG_LOG("unk = \\x25s %u", unk);',
+             spelt[0]),
+            ('a text pair spelling a conversion by an octal escape fails', '    DEBUG_LOG("unk = \\045s %u", unk);',
+             spelt[0]),
+            ('a text pair spelling a conversion by a \\u escape fails', '    DEBUG_LOG("unk = \\u0025s %u", unk);',
+             spelt[0]),
+            ('a text pair spelling a conversion by a \\U escape fails',
+             '    DEBUG_LOG("unk = \\U00000025s %u", unk);', spelt[0]),
+            ('a text pair ending a literal at a \\0 escape fails', '    DEBUG_LOG("\\0unk = %u", unk);', spelt[0]),
+            ('a text pair changing a conversion split across literals fails',
+             '    DEBUG_LOG("unk = %" "s", unk);', '    DEBUG_LOG("unk = %" "u", unk);')):
+        texted(label, 1, "the text pair %r %s" % (new_line, spelt[1]), new_line, base_line, [(new_line, base_line)])
+    for label, new_line, base_line in (
+            ('a text pair over literals holding simple escapes passes', '    DEBUG_LOG("val = %u\\n\\t\\"x\\"", unk);',
+             '    DEBUG_LOG("unk = %u\\n\\t\\"x\\"", unk);'),
+            ('a text pair over an escaped backslash before a digit passes', '    DEBUG_LOG("a\\\\0 val = %u", unk);',
+             '    DEBUG_LOG("a\\\\0 unk = %u", unk);'),
+            ('a text pair changing a comment beside an escaped literal passes',
+             '    DEBUG_LOG("\\x25u", unk); // the value', '    DEBUG_LOG("\\x25u", unk); // the unk')):
+        texted(label, 0, '(0 edits, 1 texts applied)', new_line, base_line, [(new_line, base_line)])
     noted = ('    // the stop, read anew', '    // the stop')
     texted('a text pair changing a comment line passes', 0, '(0 edits, 1 texts applied)', *noted, [noted])
     texted('a text pair changing a trailing comment passes', 0, '(0 edits, 1 texts applied)',
