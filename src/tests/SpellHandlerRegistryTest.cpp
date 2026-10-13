@@ -680,10 +680,10 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, the two
     // targeting sites' 10 and 1 rows and their two defaults, the cast-check site's 2 rows and default, the
     // target-check site's 3 rows and default, the weapon-damage site's 6 rows, the school-damage, trigger-spell
-    // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 59 rows and the five dummy-effect
+    // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 120 rows and the five dummy-effect
     // family sites' 5, 11, 4, 4 and 4 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(351));
+    CHECK_EQ(game.Count(), std::size_t(412));
     CHECK_EQ(game.CountDefaults(), std::size_t(12));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -2966,7 +2966,11 @@ namespace
         23074, 23075, 23076, 23133, 23138, 23448, 23453, 23645, 23725, 24930, 25860, 26074, 28006, 29126, 29135,
         29136, 29137, 29138, 29139, 29200, 29858, 29969, 29979, 30004, 30458, 30507, 32027, 32146, 32300, 32312,
         37388, 33060, 34803, 36677, 33923, 38796, 35745, 37674, 39189, 39635, 39849, 40802, 40834, 40869, 40962,
-        41283, 41333, 42287, 42485, 42489, 42628, 42631, 42793, 43014, 43036, 43069, 43096, 43144, 43209
+        41283, 41333, 42287, 42485, 42489, 42628, 42631, 42793, 43014, 43036, 43069, 43096, 43144, 43209, 43498,
+        43572, 43723, 43882, 44454, 44869, 44875, 44997, 45030, 45449, 45583, 45685, 45958, 45976, 46177, 45980,
+        45989, 45990, 46167, 50918, 50926, 51026, 51592, 51961, 55364, 61832, 63125, 74904, 46171, 46292, 46372,
+        46485, 46606, 46671, 46672, 46797, 47110, 47170, 47176, 47305, 47381, 47386, 47389, 47408, 50441, 48046,
+        48790, 49357, 49634, 49859, 50133, 50243, 50440, 50546, 50547, 50548, 51276, 51330, 51333, 51336, 51420
     };
     uint32 const DUMMY_MAGE_IDS[] = { 11958, 31687, 32826, 38194, 42955 };
     uint32 const DUMMY_WARRIOR_IDS[] = { 21977, 12975, 23881, 30012, 30284, 37144, 37146, 37148, 37151, 37152, 37153 };
@@ -2977,8 +2981,8 @@ namespace
     // The six chess moves share one body.
     uint32 const DUMMY_CHESS_MOVE_IDS[] = { 37144, 37146, 37148, 37151, 37152, 37153 };
 
-    // The file registers 59 + 5 + 11 + 4 + 4 + 4 rows and no default.
-    uint32 const DUMMY_ROWS = 87;
+    // The file registers 120 + 5 + 11 + 4 + 4 + 4 rows and no default.
+    uint32 const DUMMY_ROWS = 148;
 }
 
 TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
@@ -2987,10 +2991,11 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     CHECK_EQ(RegisterSpellEffectDummyHandlers(registry), DUMMY_ROWS);
     CHECK_EQ(registry.Count(), std::size_t(DUMMY_ROWS));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
-    CHECK_EQ(registry.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(59));
+    CHECK_EQ(registry.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(120));
 
-    // Fifty-nine labels, fifty-two bodies: the five Cleansing Flames cities share one, as do Move 1 and Move 2, the
-    // two Sonic Booms and the two Throw Glaives.
+    // A hundred and twenty labels, ninety-six bodies: the five Cleansing Flames cities share one, as do Move 1 and
+    // Move 2, the two Sonic Booms, the two Throw Glaives, the two Open Portals, the ten cover spells, the two Exodar
+    // and Silvermoon Cleansing Flames, the five Reagent Checks and the three Ley Line Focus Controls.
     typedef SpellHandler<SpellEffectDummyGenericSite>::Function GenericBody;
     GenericBody cleansingFlames = registry.Find<SpellEffectDummyGenericSite>(29135);
     for (uint32 spellId : { 29136u, 29137u, 29138u, 29139u })
@@ -3002,17 +3007,34 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     CHECK(registry.Find<SpellEffectDummyGenericSite>(39849) == registry.Find<SpellEffectDummyGenericSite>(39635));
     CHECK(registry.Find<SpellEffectDummyGenericSite>(29126) != cleansingFlames);
     CHECK(registry.Find<SpellEffectDummyGenericSite>(42628) != registry.Find<SpellEffectDummyGenericSite>(42631));
+    CHECK(registry.Find<SpellEffectDummyGenericSite>(46177) == registry.Find<SpellEffectDummyGenericSite>(45976));
+    GenericBody cover = registry.Find<SpellEffectDummyGenericSite>(46167);
+    for (uint32 spellId : { 50918u, 50926u, 51026u, 51592u, 51961u, 55364u, 61832u, 63125u, 74904u })
+    {
+        CHECK(registry.Find<SpellEffectDummyGenericSite>(spellId) == cover);
+    }
+    CHECK(registry.Find<SpellEffectDummyGenericSite>(46672) == registry.Find<SpellEffectDummyGenericSite>(46671));
+    CHECK(registry.Find<SpellEffectDummyGenericSite>(46671) != registry.Find<SpellEffectDummyGenericSite>(29126));
+    CHECK(registry.Find<SpellEffectDummyGenericSite>(46671) != cleansingFlames);
+    GenericBody reagentCheck = registry.Find<SpellEffectDummyGenericSite>(47381);
+    for (uint32 spellId : { 47386u, 47389u, 47408u, 50441u })
+    {
+        CHECK(registry.Find<SpellEffectDummyGenericSite>(spellId) == reagentCheck);
+    }
+    CHECK(registry.Find<SpellEffectDummyGenericSite>(50547) == registry.Find<SpellEffectDummyGenericSite>(50546));
+    CHECK(registry.Find<SpellEffectDummyGenericSite>(50548) == registry.Find<SpellEffectDummyGenericSite>(50546));
+    CHECK(registry.Find<SpellEffectDummyGenericSite>(43882) != registry.Find<SpellEffectDummyGenericSite>(50133));
     std::set<GenericBody> bodies;
     for (uint32 spellId : DUMMY_GENERIC_IDS)
     {
         bodies.insert(registry.Find<SpellEffectDummyGenericSite>(spellId));
     }
     CHECK(bodies.count(NULL) == 0);
-    CHECK_EQ(bodies.size(), std::size_t(52));
+    CHECK_EQ(bodies.size(), std::size_t(96));
 
-    // No default: an id that stands in the switch (Curse of the Eye's 3360, its first label, and Siphon Soul's 43498,
-    // the first after the moved labels) finds nothing, and its dispatch is a miss, so the switch runs as before with
-    // nothing changed.
+    // No default: an id that stands in the switch (Curse of the Eye's 3360, its first label, and Rocket Boots
+    // Engaged's 51582, the first after the registered labels) finds nothing, and its dispatch is a miss, so the switch
+    // runs as before with nothing changed.
     alignas(16) static unsigned char objects[1][16];
     Spell* spell = reinterpret_cast<Spell*>(objects[0]);
     SpellEntry const* spellInfo = ObjectCombatSpell(0, 3360);
@@ -3032,7 +3054,7 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
                                        originalCaster, duration, target, itemTarget, damage, targets, triggeredBy,
                                        effect);
     CHECK(registry.FindDefault<SpellEffectDummyGenericSite>() == NULL);
-    for (uint32 spellId : { 3360u, 43498u })
+    for (uint32 spellId : { 3360u, 51582u })
     {
         CHECK(registry.Find<SpellEffectDummyGenericSite>(spellId) == NULL);
         SpellHandlerOutcome<void> miss = registry.Dispatch<SpellEffectDummyGenericSite>(spellId, ctx);
@@ -3056,8 +3078,9 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
 
     // The bodies that need no live unit end the effect with nothing changed: Holiday Cheer, which does nothing; the
     // item bodies with no cast item; the target bodies with no unit target (Cast Ooze Zap When Energized on the first
-    // effect); the player-caster bodies for a creature caster. The others cast, summon, despawn, create an item or read
-    // the caster's area, and need a live unit and a spell.
+    // effect, the Open Portals before they answer continue, the Ley Line Focus Controls with no original caster
+    // either); the player-caster bodies for a creature caster. The others cast, summon, despawn, create an item or
+    // read the caster's area, and need a live unit and a spell.
     for (uint32 spellId : { 26074u, 23074u, 23075u, 23076u, 23133u, 30458u, 30507u })
     {
         SpellHandlerOutcome<void> noItem = registry.Dispatch<SpellEffectDummyGenericSite>(spellId, ctx);
@@ -3067,7 +3090,11 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     for (uint32 spellId : { 23138u, 28006u, 29126u, 29135u, 29136u, 29137u, 29138u, 29139u, 29858u, 29969u, 29979u,
                             30004u, 32146u, 32300u, 32312u, 37388u, 36677u, 33923u, 38796u, 37674u, 39189u, 39635u,
                             39849u, 40834u, 40869u, 40962u, 41283u, 41333u, 42485u, 42489u, 42628u, 42631u, 42793u,
-                            43036u, 43096u, 43144u, 43209u })
+                            43036u, 43096u, 43144u, 43209u, 43498u, 43572u, 43882u, 44454u, 44869u, 44875u, 44997u,
+                            45583u, 45976u, 46177u, 45989u, 45990u, 46167u, 50918u, 50926u, 51026u, 51592u, 51961u,
+                            55364u, 61832u, 63125u, 74904u, 46171u, 46292u, 46372u, 46485u, 46606u, 46671u, 46672u,
+                            46797u, 47170u, 47176u, 47305u, 48046u, 48790u, 49634u, 49859u, 50133u, 50440u, 50546u,
+                            50547u, 50548u, 51276u, 51330u, 51333u, 51336u, 51420u })
     {
         SpellHandlerOutcome<void> noTarget = registry.Dispatch<SpellEffectDummyGenericSite>(spellId, ctx);
         CHECK(noTarget.IsReturn());
@@ -3075,7 +3102,8 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     }
     Creature casterUnit(CREATURE_SUBTYPE_GENERIC);
     caster = &casterUnit;
-    for (uint32 spellId : { 29200u, 33060u, 42287u })
+    for (uint32 spellId : { 29200u, 33060u, 42287u, 43723u, 45980u, 47381u, 47386u, 47389u, 47408u, 50441u, 49357u,
+                            50243u })
     {
         SpellHandlerOutcome<void> notPlayer = registry.Dispatch<SpellEffectDummyGenericSite>(spellId, ctx);
         CHECK(notPlayer.IsReturn());
@@ -3093,7 +3121,7 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     CHECK_EQ(RegisterSpellEffectDummyHandlers(registry), DUMMY_ROWS);
     CHECK_EQ(registry.Count(), std::size_t(DUMMY_ROWS));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
-    CHECK_EQ(registry.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(59));
+    CHECK_EQ(registry.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(120));
     CHECK(registry.Find<SpellEffectDummyGenericSite>(29139) == cleansingFlames);
 
     // Keyed on the generic site only: its labels are no other site's, and the other sites' and the standing labels
@@ -3105,11 +3133,11 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) ==
               registry.Find<SpellEffectDummyGenericSite>(spellId));
     }
-    for (uint32 spellId : { 11958u, 21977u, 5938u, 23989u, 19740u, 3360u, 23019u, 43498u, 13567u, 10254u, 17251u })
+    for (uint32 spellId : { 11958u, 21977u, 5938u, 23989u, 19740u, 3360u, 23019u, 51582u, 13567u, 10254u, 17251u })
     {
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) == NULL);
     }
-    CHECK_EQ(game.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(59));
+    CHECK_EQ(game.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(120));
     CHECK(game.FindDefault<SpellEffectDummyGenericSite>() == NULL);
 }
 

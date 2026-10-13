@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '938a467e7'
+BASE = 'b373bedf7'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -1055,7 +1055,10 @@ SITES = {
             'substitutions': [('ctx.spell->DoCreateItem', 'DoCreateItem'), ('ctx.m_caster', 'm_caster'),
                               ('ctx.unitTarget', 'unitTarget'), ('ctx.m_spellInfo', 'm_spellInfo'),
                               ('ctx.m_CastItem', 'm_CastItem'), ('ctx.m_duration', 'm_duration'),
-                              ('ctx.effect', 'effect')] + VOID_SUBSTITUTIONS,
+                              ('ctx.effect', 'effect'), ('ctx.m_originalCasterGUID', 'm_originalCasterGUID'),
+                              ('ctx.m_originalCaster', 'm_originalCaster'),
+                              ('ctx.m_UniqueTargetInfo', 'm_UniqueTargetInfo'),
+                              ('Spell::TargetList', 'TargetList')] + VOID_SUBSTITUTIONS,
             'labels': {
                 3360: '                case 3360:                                  // Curse of the Eye',
                 7671: '                case 7671:                                  // Transformation (human<->worgen)',

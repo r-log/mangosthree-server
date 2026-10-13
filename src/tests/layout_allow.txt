@@ -1862,10 +1862,14 @@ src/game/spells/handlers [spells] -> src/game/Object/CreatureAI.h
 src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
 # The Shadowfiend body needs the pet complete; retires with a pet query on the unit that answers a unit.
 src/game/spells/handlers [spells] -> src/game/Object/Pet.h
+# The grenade and scuttle bodies visit the grid cells around the target for game objects; read-only on the grid; dies with D9's map surface.
+src/game/spells/handlers [spells] -> src/game/WorldHandlers/CellImpl.h
 # The Animal Blood body (46221) reads the water level from the target's TerrainInfo: read-only on the grid map, dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
 # Read-only, a search over the grid: a reader is not a reach; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
+# The grenade and scuttle bodies search the grid with the game-object searchers' visits; read-only on the grid; dies with D9's map surface.
+src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
 # Read-only on the map; dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/Map.h
 # The handlers read the aura: 61336 GetModifier()->m_amount; the removal bodies GetRemoveMode() and GetCaster(), 61900 GetSpellProto(); the feign-death body GetCasterGuid() and GetId().

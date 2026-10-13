@@ -26,10 +26,14 @@
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "WorldHandlers/Spell.h"
+#include "WorldHandlers/CellImpl.h"
 #include "WorldHandlers/GridMap.h"
+#include "WorldHandlers/GridNotifiers.h"
+#include "WorldHandlers/GridNotifiersImpl.h"
 #include "WorldHandlers/Map.h"
 #include "Object/Creature.h"
 #include "Object/CreatureAI.h"
+#include "Object/GameObject.h"
 #include "Object/Pet.h"
 #include "Object/SpellMgr.h"
 #include "Server/DBCStores.h"
@@ -38,6 +42,7 @@
 #include <algorithm>
 #include <ctime>
 #include <iterator>
+#include <list>
 #include <random>
 #include <vector>
 
@@ -865,6 +870,940 @@ static SpellHandlerOutcome<void> EffectDummyGenericPlaceRamMeat(SpellEffectDummy
     ctx.unitTarget->RemoveAurasDueToSpell(6606);
     return SpellHandlerOutcome<void>::Return();
 }
+
+/// 43498: Siphon Soul: when the unit target is the last of the spell's targets, the caster casts Siphon Soul (43501) on
+/// one of the targets that are players on its map, at random; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSiphonSoul(SpellEffectDummyGenericContext& ctx)
+{
+    // This spell should cast the next spell only for one (player)target, however it should hit multiple targets, hence this kind of implementation
+    if (!ctx.unitTarget || ctx.m_UniqueTargetInfo.rbegin()->targetGUID != ctx.unitTarget->GetObjectGuid())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    std::vector<Unit*> possibleTargets;
+    possibleTargets.reserve(ctx.m_UniqueTargetInfo.size());
+    for (Spell::TargetList::const_iterator itr = ctx.m_UniqueTargetInfo.begin(); itr != ctx.m_UniqueTargetInfo.end(); ++itr)
+    {
+        // Skip Non-Players
+        if (!itr->targetGUID.IsPlayer())
+        {
+            continue;
+        }
+
+        if (Unit* target = ctx.m_caster->GetMap()->GetPlayer(itr->targetGUID))
+        {
+            possibleTargets.push_back(target);
+        }
+    }
+
+    // Cast Siphon Soul channeling spell
+    if (!possibleTargets.empty())
+    {
+        ctx.m_caster->CastSpell(possibleTargets[urand(0, possibleTargets.size() - 1)], 43501, false);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 43572: Send Them Packing: On /Raise Emote Dummy to Player: the caster casts Send Them Packing: On Successful Dummy
+/// Spell Kill Credit (42721) on the unit target, if any; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSendThemPacking(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // m_caster (creature) should start walking back to it's "home" here, no clear way how to do that
+
+    // Send Them Packing: On Successful Dummy Spell Kill Credit
+    ctx.m_caster->CastSpell(ctx.unitTarget, 42721, true);
+    return SpellHandlerOutcome<void>::Return();
+// Demon Broiled Surprise
+}
+
+/// 43723: Demon Broiled Surprise: a player caster casts Demon Broiled Surprise (43753) on the unit target through the
+/// cast item, as from the original caster and triggered by this spell; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDemonBroiledSurprise(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ((Player*)ctx.m_caster)->CastSpell(ctx.unitTarget, 43753, true, ctx.m_CastItem, NULL, ctx.m_originalCasterGUID, ctx.m_spellInfo);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 43882: Scourging Crystal Controller Dummy: a creature target loses Scourge Mur'gul Camp: Force Shield Arcane Purple
+/// x3 (43874); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericScourgingCrystalControllerDummy(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // see spell dummy 50133
+    ctx.unitTarget->RemoveAurasDueToSpell(43874);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44454: Tasty Reef Fish: the caster casts The Way to His Heart...: Character Script Effect Reverse Cast (44455) on a
+/// creature target through the cast item; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTastyReefFish(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 44455, true, ctx.m_CastItem);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44869: Spectral Blast: a player target without Spectral Exhaustion (44867) or Spectral Realm (46021) casts on itself
+/// Spectral Blast (44866 and 46648) as from the caster and Spectral Realm (44811); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSpectralBlast(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // If target has spectral exhaustion or spectral realm aura return
+    if (ctx.unitTarget->HasAura(44867) || ctx.unitTarget->HasAura(46021))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Cast the spectral realm effect spell, visual spell and spectral blast rift summoning
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 44866, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 46648, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 44811, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44875: Complete Raptor Capture: a creature target despawns, and the caster casts Raptor Capture Credit (42337) on
+/// itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCompleteRaptorCapture(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Creature* creatureTarget = (Creature*)ctx.unitTarget;
+
+    creatureTarget->ForcedDespawn();
+
+    // cast spell Raptor Capture Credit
+    ctx.m_caster->CastSpell(ctx.m_caster, 42337, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44997: Converting Sentry: a creature target despawns, and the caster casts Converted Sentry Credit (45009) on
+/// itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericConvertingSentry(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Creature* creatureTarget = (Creature*)ctx.unitTarget;
+
+    creatureTarget->ForcedDespawn();
+
+    // Converted Sentry Credit
+    ctx.m_caster->CastSpell(ctx.m_caster, 45009, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45030: Impale Emissary: the caster casts Emissary of Hate Credit (45088) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericImpaleEmissary(SpellEffectDummyGenericContext& ctx)
+{
+    // Emissary of Hate Credit
+    ctx.m_caster->CastSpell(ctx.m_caster, 45088, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45449: Arcane Prisoner Rescue: the caster casts Summon Arcane Prisoner (45446 or 45448, at random) on itself; with
+/// no unit target the effect ends, otherwise the target casts Arcane Prisoner Kill Credit (45456) on the caster and the
+/// effect goes on to the script library
+static SpellHandlerOutcome<void> EffectDummyGenericArcanePrisonerRescue(SpellEffectDummyGenericContext& ctx)
+{
+    uint32 spellId = 0;
+    switch (urand(0, 1))
+    {
+        case 0: spellId = 45446; break;    // Summon Arcane Prisoner - Male
+        case 1: spellId = 45448; break;    // Summon Arcane Prisoner - Female
+    }
+    // Spawn
+    ctx.m_caster->CastSpell(ctx.m_caster, spellId, true);
+
+    if (!ctx.unitTarget) return SpellHandlerOutcome<void>::Return();
+    // Arcane Prisoner Kill Credit
+    ctx.unitTarget->CastSpell(ctx.m_caster, 45456, true);
+
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 45583: Throw Gnomish Grenade: for a player caster and a unit target, the caster gets the target's kill credit, and
+/// the nearest game object 187675 and every game object 187676 within the spell's range of the target that is not
+/// spawned is spawned for thirty seconds; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericThrowGnomishGrenade(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+
+    // look for gameobject within max spell range of unitTarget, and respawn if found
+
+    // big fire
+    GameObject* pGo = NULL;
+
+    float fMaxDist = GetSpellMaxRange(sSpellRangeStore.LookupEntry(ctx.m_spellInfo->RangeIndex));
+
+    MaNGOS::NearestGameObjectEntryInPosRangeCheck go_check_big(*ctx.unitTarget, 187675, ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z(), fMaxDist);
+    MaNGOS::GameObjectSearcher<MaNGOS::NearestGameObjectEntryInPosRangeCheck> checker1(pGo, go_check_big);
+
+    Cell::VisitGridObjects(ctx.unitTarget, checker1, fMaxDist);
+
+    if (pGo && !pGo->isSpawned())
+    {
+        pGo->SetRespawnTime(MINUTE / 2);
+        pGo->Refresh();
+    }
+
+    // small fire
+    std::list<GameObject*> lList;
+
+    MaNGOS::GameObjectEntryInPosRangeCheck go_check_small(*ctx.unitTarget, 187676, ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z(), fMaxDist);
+    MaNGOS::GameObjectListSearcher<MaNGOS::GameObjectEntryInPosRangeCheck> checker2(lList, go_check_small);
+
+    Cell::VisitGridObjects(ctx.unitTarget, checker2, fMaxDist);
+
+    for (std::list<GameObject*>::iterator iter = lList.begin(); iter != lList.end(); ++iter)
+    {
+        if (!(*iter)->isSpawned())
+        {
+            (*iter)->SetRespawnTime(MINUTE / 2);
+            (*iter)->Refresh();
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45685: Hah... : Magnataur On Death 2: the caster loses Bigger! (45673), Shrunk (45672), Yellow (45677), Ghost
+/// (45681) and Polymorph: Crafty Wobblesprocket (45683); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericHahMagnataurOnDeath2(SpellEffectDummyGenericContext& ctx)
+{
+    ctx.m_caster->RemoveAurasDueToSpell(45673);
+    ctx.m_caster->RemoveAurasDueToSpell(45672);
+    ctx.m_caster->RemoveAurasDueToSpell(45677);
+    ctx.m_caster->RemoveAurasDueToSpell(45681);
+    ctx.m_caster->RemoveAurasDueToSpell(45683);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45958: Signal Alliance: the caster casts on itself the spell the effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSignalAlliance(SpellEffectDummyGenericContext& ctx)
+{
+    ctx.m_caster->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45976: Open Portal; 46177: Open All Portals: with no unit target the effect ends, otherwise the target casts Open
+/// Portal (45977) on itself and the effect goes on to the script library
+static SpellHandlerOutcome<void> EffectDummyGenericOpenPortal(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // portal visual
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 45977, true);
+
+    // break in case additional procressing in scripting library required
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 45980: Re-Cursive Transmatter Injection: for a player caster and a unit target, the caster casts Summon Fizzcrank
+/// Survivor (46022) on the target and gets the kill credit of the creature that spell's first effect names, and a
+/// creature target despawns; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericReCursiveTransmatterInjection(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() == TYPEID_PLAYER && ctx.unitTarget)
+    {
+        if (const SpellEntry* pSpell = sSpellStore.LookupEntry(46022))
+        {
+            ctx.m_caster->CastSpell(ctx.unitTarget, pSpell, true);
+            SpellEffectEntry const* killSpellEffect = pSpell->GetSpellEffect(EFFECT_INDEX_0);
+            ((Player*)ctx.m_caster)->KilledMonsterCredit(killSpellEffect ? killSpellEffect->EffectMiscValue_0 : 0);
+        }
+
+        if (ctx.unitTarget->GetTypeId() == TYPEID_UNIT)
+        {
+            ((Creature*)ctx.unitTarget)->ForcedDespawn();
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45989: Summon Void Sentinel Summoner Visual: the unit target, if any, casts Summon Void Sentinel (45988) on itself;
+/// the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSummonVoidSentinelSummonerVisual(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // summon void sentinel
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 45988, true);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45990: Collect Oil: a creature target casts Summon Oil Collector (45991) on itself and despawns after the spell's
+/// duration; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCollectOil(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (const SpellEntry* pSpell = sSpellStore.LookupEntry(45991))
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, pSpell, true);
+        ((Creature*)ctx.unitTarget)->ForcedDespawn(ctx.m_duration);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46167: Planning for the Future: Create Snowfall Glade Pup Cover; 50918: Gluttonous Lurkers: Create Basilisk Crystals
+/// Cover; 50926: Gluttonous Lurkers: Create Zul'Drak Rat Cover; 51026: Create Drakkari Medallion Cover; 51592: Pickup
+/// Primordial Hatchling; 51961: Captured Chicken Cover; 55364: Create Ghoul Drool Cover; 61832: Rifle the Bodies:
+/// Create Magehunter Personal Effects Cover; 63125: Search Maloric; 74904: Pickup Sen'jin Frog: for a creature target
+/// and a player caster, the target casts on the caster the spell the label names (46773, 50919, 50927, 50737, 51593,
+/// 51037, 55363, 47096, 63126 or 74905) and despawns a millisecond after that spell's cast time; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCreateCover(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellId = 0;
+
+    switch (ctx.m_spellInfo->ID)
+    {
+        case 46167: spellId = 46773; break;
+        case 50918: spellId = 50919; break;
+        case 50926: spellId = 50927; break;
+        case 51026: spellId = 50737; break;
+        case 51592: spellId = 51593; break;
+        case 51961: spellId = 51037; break;
+        case 55364: spellId = 55363; break;
+        case 61832: spellId = 47096; break;
+        case 63125: spellId = 63126; break;
+        case 74904: spellId = 74905; break;
+    }
+
+    if (const SpellEntry* pSpell = sSpellStore.LookupEntry(spellId))
+    {
+        ctx.unitTarget->CastSpell(ctx.m_caster, spellId, true);
+
+        Creature* creatureTarget = (Creature*)ctx.unitTarget;
+
+        if (const SpellCastTimesEntry* pCastTime = sSpellCastTimesStore.LookupEntry(pSpell->CastingTimeIndex))
+        {
+            creatureTarget->ForcedDespawn(pCastTime->CastTime + 1);
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46171: Scuttle Wrecked Flying Machine: for a player caster and a unit target, the caster gets the target's kill
+/// credit, and the nearest game object 187675 within the spell's range of the target, if it is not spawned, is spawned
+/// for thirty seconds; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericScuttleWreckedFlyingMachine(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+
+    // look for gameobject within max spell range of unitTarget, and respawn if found
+    GameObject* pGo = NULL;
+
+    float fMaxDist = GetSpellMaxRange(sSpellRangeStore.LookupEntry(ctx.m_spellInfo->RangeIndex));
+
+    MaNGOS::NearestGameObjectEntryInPosRangeCheck go_check(*ctx.unitTarget, 187675, ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z(), fMaxDist);
+    MaNGOS::GameObjectSearcher<MaNGOS::NearestGameObjectEntryInPosRangeCheck> checker(pGo, go_check);
+
+    Cell::VisitGridObjects(ctx.unitTarget, checker, fMaxDist);
+
+    if (pGo && !pGo->isSpawned())
+    {
+        pGo->SetRespawnTime(MINUTE / 2);
+        pGo->Refresh();
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46292: Cataclysm Breath: the caster casts on a player target one of eight spells at random (Corrosive Poison 46293,
+/// Fevered Fatigue 46294, Hex 46295, Necrotic Poison 46296, Piercing Shadow 46297, Shrink 46298, Wavering Will 46299 or
+/// Withered Touch 46300); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCataclysmBreath(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellId = 0;
+
+    switch (urand(0, 7))
+    {
+        case 0: spellId = 46293; break;     // Corrosive Poison
+        case 1: spellId = 46294; break;     // Fevered Fatigue
+        case 2: spellId = 46295; break;     // Hex
+        case 3: spellId = 46296; break;     // Necrotic Poison
+        case 4: spellId = 46297; break;     // Piercing Shadow
+        case 5: spellId = 46298; break;     // Shrink
+        case 6: spellId = 46299; break;     // Wavering Will
+        case 7: spellId = 46300; break;     // Withered Touch
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, spellId, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46372: Ice Spear Target Picker: the caster casts Summon Ice Spear Bunny (46359) on a player target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericIceSpearTargetPicker(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 46359, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46485: The Greatmother's Soulcatcher: the caster casts Player Force Cast (46486) on a creature target and, read as a
+/// player, gets the kill credit of the creature named by the spell that 46486 triggers, and the target despawns; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTheGreatmothersSoulcatcher(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (const SpellEntry* pSpell = sSpellStore.LookupEntry(46486))
+    {
+        ctx.m_caster->CastSpell(ctx.unitTarget, pSpell, true);
+
+        if (SpellEffectEntry const* pSpellEffect = pSpell->GetSpellEffect(EFFECT_INDEX_0))
+            if (const SpellEntry *pSpellCredit = sSpellStore.LookupEntry(pSpellEffect->EffectTriggerSpell))
+                if (SpellEffectEntry const* pSpellCreditEffect = pSpellCredit->GetSpellEffect(EFFECT_INDEX_0))
+                {
+                    ((Player*)ctx.m_caster)->KilledMonsterCredit(pSpellCreditEffect->EffectMiscValue_0);
+                }
+
+        ((Creature*)ctx.unitTarget)->ForcedDespawn();
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46606: Tillinghast's Plague Canister Dummy: a creature target casts Green Eggs and Whelps: Summon Plagued
+/// Proto-Whelp (43160) on the caster, dies and has its health set to zero; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTillinghastsPlagueCanisterDummy(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, 43160, true);
+    ctx.unitTarget->SetDeathState(JUST_DIED);
+    ctx.unitTarget->SetHealth(0);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46671, 46672: Cleansing Flames: a player target casts on itself Create Flame of the Exodar (46690) for 46671 or
+/// Create Flame of Silvermoon (46689) for 46672; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCleansingFlamesExodar(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.m_spellInfo->ID == 46671 ? 46690 : 46689, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46797: Quest - Borean Tundra - Set Explosives Cart: for a player caster and a unit target, the caster gets the
+/// target's kill credit and the target casts Quest - Borean Tundra - Summon Explosives Cart (46798) on itself; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSetExplosivesCart(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+
+    // Quest - Borean Tundra - Summon Explosives Cart
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 46798, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47110: Summon Drakuru's Image: a caster in area 4255, 4209, 4270, 4216 or 4196 casts on itself that area's Reagent
+/// Check (47381, 47386, 47389, 47408 or 50441) through the cast item, as from itself and triggered by this spell; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSummonDrakurusImage(SpellEffectDummyGenericContext& ctx)
+{
+    uint32 spellId = 0;
+
+    // Spell 47117,47149,47316,47405,50439 exist, are these used to check area/meet requirement
+    // and to cast correct spell in correct area?
+
+    switch (ctx.m_caster->GetTerrain()->GetAreaId(ctx.m_caster->Where().X(), ctx.m_caster->Where().Y(), ctx.m_caster->Where().Z()))
+    {
+        case 4255: spellId = 47381; break;  // Reagent Check (Frozen Mojo)
+        case 4209: spellId = 47386; break;  // Reagent Check (Zim'Bo's Mojo)
+        case 4270: spellId = 47389; break;  // Reagent Check (Desperate Mojo)
+        case 4216: spellId = 47408; break;  // Reagent Check (Sacred Mojo)
+        case 4196: spellId = 50441; break;  // Reagent Check (Survival Mojo)
+    }
+
+    // The additional castspell arguments are needed here to remove reagents for triggered spells
+    if (spellId)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, spellId, true, ctx.m_CastItem, NULL, ctx.m_caster->GetObjectGuid(), ctx.m_spellInfo);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47170: Impale Leviroth: a creature target goes to eight percent health, casts Cosmetic - Underwater Blood (no sound)
+/// (47172) on itself, and its AI attacks the caster; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericImpaleLeviroth(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->SetHealthPercent(8.0f);
+
+    // Cosmetic - Underwater Blood (no sound)
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47172, true);
+
+    ((Creature*)ctx.unitTarget)->AI()->AttackStart(ctx.m_caster);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47176: Infect Ice Troll: the unit target, if any, casts Plague Effect Self (47178) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericInfectIceTroll(SpellEffectDummyGenericContext& ctx)
+{
+    // Spell has wrong areaGroupid, so it can not be casted where expected.
+    // TODO: research if spells casted by NPC, having TARGET_SCRIPT, can have disabled area check
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Plague Effect Self
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47178, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47305: Potent Explosive Charge: a creature target at eighty percent health or less casts Quest - Jormungar Explosion
+/// Spell Spawner (47311) and Potent Explosive Charge (47306) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericPotentExplosiveCharge(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // only if below 80% hp
+    if (ctx.unitTarget->GetHealthPercent() > 80.0f)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Issues with explosion animation (remove insta kill spell resolves the issue)
+
+    // Quest - Jormungar Explosion Spell Spawner
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47311, true);
+
+    // Potent Explosive Charge
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47306, true);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47381, 47386, 47389, 47408, 50441: Reagent Check: a player caster casts on itself the Envision Drakuru of the
+/// label's mojo (47118, 47150, 47317, 47406 or 50440); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericReagentCheck(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    switch (ctx.m_spellInfo->ID)
+    {
+        case 47381:
+            // Envision Drakuru
+            ctx.m_caster->CastSpell(ctx.m_caster, 47118, true);
+            break;
+        case 47386:
+            ctx.m_caster->CastSpell(ctx.m_caster, 47150, true);
+            break;
+        case 47389:
+            ctx.m_caster->CastSpell(ctx.m_caster, 47317, true);
+            break;
+        case 47408:
+            ctx.m_caster->CastSpell(ctx.m_caster, 47406, true);
+            break;
+        case 50441:
+            ctx.m_caster->CastSpell(ctx.m_caster, 50440, true);
+            break;
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 48046: Use Camera: with a unit target, the caster casts Iron Dwarf Snapshot Credit (48047) on itself through the
+/// cast item, as from the target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericUseCamera(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // No despawn expected, nor any change in dynamic flags/other flags.
+    // Need internal way to track if credit has been given for this object.
+
+    // Iron Dwarf Snapshot Credit
+    ctx.m_caster->CastSpell(ctx.m_caster, 48047, true, ctx.m_CastItem, NULL, ctx.unitTarget->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 48790: Neltharion's Flame: the unit target, if any, casts Neltharion's Flame Fire Bunny: Periodic Fire Aura (48786)
+/// on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericNeltharionsFlame(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Neltharion's Flame Fire Bunny: Periodic Fire Aura
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 48786, false);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 49357: Brewfest Mount Transformation: a mounted player caster is dismounted and casts on itself, at a run speed rate
+/// of two or more, Swift Brewfest Ram (43900) for the Alliance or Great Brewfest Kodo (49379) for the Horde, and below
+/// it Brewfest Ram (43899) or Brewfest Riding Kodo (49378); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountTransformation(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (!ctx.m_caster->HasAuraType(SPELL_AURA_MOUNTED))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+
+    // Ram for Alliance, Kodo for Horde
+    if (((Player*)ctx.m_caster)->GetTeam() == ALLIANCE)
+    {
+        if (ctx.m_caster->GetSpeedRate(MOVE_RUN) >= 2.0f)
+            // 100% Ram
+            ctx.m_caster->CastSpell(ctx.m_caster, 43900, true);
+        else
+            // 60% Ram
+            ctx.m_caster->CastSpell(ctx.m_caster, 43899, true);
+    }
+    else
+    {
+        if (((Player*)ctx.m_caster)->GetSpeedRate(MOVE_RUN) >= 2.0f)
+            // 100% Kodo
+            ctx.m_caster->CastSpell(ctx.m_caster, 49379, true);
+        else
+            // 60% Kodo
+            ctx.m_caster->CastSpell(ctx.m_caster, 49378, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 49634: Sergeant's Flare: the caster casts Towers of Certain Doom: Tower Bunny Smoke Flare Effect (56511) on a
+/// creature target, then on itself the first of the four Towers of Certain Doom kill credits (43077, 43067, 43087,
+/// 43086) whose first effect names the target's entry; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSergeantsFlare(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Towers of Certain Doom: Tower Bunny Smoke Flare Effect
+    // TODO: MaNGOS::DynamicObjectUpdater::VisitHelper prevent aura to be applied to dummy creature (see HandleAuraDummy for effect of aura)
+    ctx.m_caster->CastSpell(ctx.unitTarget, 56511, true);
+
+    static uint32 const spellCredit[4] =
+    {
+        43077,                              // E Kill Credit
+        43067,                              // NW Kill Credit
+        43087,                              // SE Kill Credit
+        43086,                              // SW Kill Credit
+    };
+
+    // for sizeof(spellCredit)
+    for (int i = 0; i < 4; ++i)
+    {
+        const SpellEntry* pSpell = sSpellStore.LookupEntry(spellCredit[i]);
+
+        if (pSpell->GetEffectMiscValue(EFFECT_INDEX_0) == ctx.unitTarget->GetEntry())
+        {
+            ctx.m_caster->CastSpell(ctx.m_caster, spellCredit[i], true);
+            break;
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 49859: Rune of Command: a creature target casts Captive Stone Giant Kill Credit (43564) on the caster and despawns;
+/// the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericRuneOfCommand(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Captive Stone Giant Kill Credit
+    ctx.unitTarget->CastSpell(ctx.m_caster, 43564, true);
+    // Is it supposed to despawn?
+    ((Creature*)ctx.unitTarget)->ForcedDespawn();
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50133: Scourging Crystal Controller: for a creature target with Scourge Mur'gul Camp: Force Shield Arcane Purple x3
+/// (43874) and without Scourging Crystal Controller (43878), the caster casts 43878 on it through the cast item; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericScourgingCrystalController(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Scourge Mur'gul Camp: Force Shield Arcane Purple x3
+    if (ctx.unitTarget->HasAura(43874))
+    {
+        // someone else is already channeling target
+        if (ctx.unitTarget->HasAura(43878))
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        // Scourging Crystal Controller
+        ctx.m_caster->CastSpell(ctx.unitTarget, 43878, true, ctx.m_CastItem);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50243: Teach Language: a player caster casts on itself, 34 times in 100, 1000001 (50242) for the Alliance or
+/// 01001000 (50246) for the Horde; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTeachLanguage(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // spell has a 1/3 chance to trigger one of the below
+    if (roll_chance_i(66))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (((Player*)ctx.m_caster)->GetTeam() == ALLIANCE)
+    {
+        // 1000001 - gnomish binary
+        ctx.m_caster->CastSpell(ctx.m_caster, 50242, true);
+    }
+    else
+    {
+        // 01001000 - goblin binary
+        ctx.m_caster->CastSpell(ctx.m_caster, 50246, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50440: Envision Drakuru: the unit target, if any, casts Script Cast Summon Image of Drakuru 05 (50439) on itself;
+/// the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericEnvisionDrakuru(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Script Cast Summon Image of Drakuru 05
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 50439, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50546: The Focus on the Beach: Ley Line Focus Control Ring Effect; 50547: Atop the Woodlands: Ley Line Focus Control
+/// Amulet Effect; 50548: The End of the Line: Ley Line Focus Control Talisman Effect: with an original caster, a
+/// creature target casts on it the label's Ley Line Focus Bunny Beam (47390, 47472 or 47635); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericLeyLineFocusControl(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.m_originalCaster || !ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    switch (ctx.m_spellInfo->ID)
+    {
+        case 50546: ctx.unitTarget->CastSpell(ctx.m_originalCaster, 47390, true); break;
+        case 50547: ctx.unitTarget->CastSpell(ctx.m_originalCaster, 47472, true); break;
+        case 50548: ctx.unitTarget->CastSpell(ctx.m_originalCaster, 47635, true); break;
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51276: Incinerate Corpse: a creature target casts Incineration (51278) on itself and Defeated Argent Footman KC
+/// (51279) on the caster, and dies; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericIncinerateCorpse(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 51278, true);
+    ctx.unitTarget->CastSpell(ctx.m_caster, 51279, true);
+
+    ctx.unitTarget->SetDeathState(JUST_DIED);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51330: Shoot RJR: with a unit target, the caster casts on it through the cast item, 75 times in 100, Miss Apple
+/// (51332) or Miss Apple, Hit Bird (51366) at even odds, otherwise Hit Apple (51331); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericShootRJR(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // guessed chances
+    if (roll_chance_i(75))
+    {
+        ctx.m_caster->CastSpell(ctx.unitTarget, roll_chance_i(50) ? 51332 : 51366, true, ctx.m_CastItem);
+    }
+    else
+    {
+        ctx.m_caster->CastSpell(ctx.unitTarget, 51331, true, ctx.m_CastItem);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51333: Dig For Treasure: with a unit target, the caster casts Summon Drakkari Spectre (51370) on it through the cast
+/// item 75 times in 100, otherwise Summon Ancient Drakkari Chest (51345) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDigForTreasure(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (roll_chance_i(75))
+    {
+        ctx.m_caster->CastSpell(ctx.unitTarget, 51370, true, ctx.m_CastItem);
+    }
+    else
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 51345, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51336: Magic Pull: the caster casts Magic Pull (50770) on the unit target, if any; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericMagicPull(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 50770, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51420: Digging for Treasure Ping: for a creature target and a caster with a protector pet, the pet faces the target
+/// and casts Digging for Treasure (51405) on it, and the target despawns after a millisecond; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDiggingForTreasurePing(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // only spell related protector pets exist currently
+    Pet* pPet = ctx.m_caster->GetProtectorPet();
+    if (!pPet)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    pPet->SetFacingToObject(ctx.unitTarget);
+
+    // Digging for Treasure
+    pPet->CastSpell(ctx.unitTarget, 51405, true);
+
+    ((Creature*)ctx.unitTarget)->ForcedDespawn(1);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// 11958: Cold Snap: for a player caster, every frost mage spell on cooldown with a recovery time, but Cold Snap
 /// itself, is made ready; the effect ends
 static SpellHandlerOutcome<void> EffectDummyMageColdSnap(SpellEffectDummyMageContext& ctx)
@@ -1411,6 +2350,67 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
         { 43096, &EffectDummyGenericSummonAllPlayers },
         { 43144, &EffectDummyGenericHatchAllEggs },
         { 43209, &EffectDummyGenericPlaceRamMeat },
+        { 43498, &EffectDummyGenericSiphonSoul },
+        { 43572, &EffectDummyGenericSendThemPacking },
+        { 43723, &EffectDummyGenericDemonBroiledSurprise },
+        { 43882, &EffectDummyGenericScourgingCrystalControllerDummy },
+        { 44454, &EffectDummyGenericTastyReefFish },
+        { 44869, &EffectDummyGenericSpectralBlast },
+        { 44875, &EffectDummyGenericCompleteRaptorCapture },
+        { 44997, &EffectDummyGenericConvertingSentry },
+        { 45030, &EffectDummyGenericImpaleEmissary },
+        { 45449, &EffectDummyGenericArcanePrisonerRescue },
+        { 45583, &EffectDummyGenericThrowGnomishGrenade },
+        { 45685, &EffectDummyGenericHahMagnataurOnDeath2 },
+        { 45958, &EffectDummyGenericSignalAlliance },
+        { 45976, &EffectDummyGenericOpenPortal },
+        { 46177, &EffectDummyGenericOpenPortal },
+        { 45980, &EffectDummyGenericReCursiveTransmatterInjection },
+        { 45989, &EffectDummyGenericSummonVoidSentinelSummonerVisual },
+        { 45990, &EffectDummyGenericCollectOil },
+        { 46167, &EffectDummyGenericCreateCover },
+        { 50918, &EffectDummyGenericCreateCover },
+        { 50926, &EffectDummyGenericCreateCover },
+        { 51026, &EffectDummyGenericCreateCover },
+        { 51592, &EffectDummyGenericCreateCover },
+        { 51961, &EffectDummyGenericCreateCover },
+        { 55364, &EffectDummyGenericCreateCover },
+        { 61832, &EffectDummyGenericCreateCover },
+        { 63125, &EffectDummyGenericCreateCover },
+        { 74904, &EffectDummyGenericCreateCover },
+        { 46171, &EffectDummyGenericScuttleWreckedFlyingMachine },
+        { 46292, &EffectDummyGenericCataclysmBreath },
+        { 46372, &EffectDummyGenericIceSpearTargetPicker },
+        { 46485, &EffectDummyGenericTheGreatmothersSoulcatcher },
+        { 46606, &EffectDummyGenericTillinghastsPlagueCanisterDummy },
+        { 46671, &EffectDummyGenericCleansingFlamesExodar },
+        { 46672, &EffectDummyGenericCleansingFlamesExodar },
+        { 46797, &EffectDummyGenericSetExplosivesCart },
+        { 47110, &EffectDummyGenericSummonDrakurusImage },
+        { 47170, &EffectDummyGenericImpaleLeviroth },
+        { 47176, &EffectDummyGenericInfectIceTroll },
+        { 47305, &EffectDummyGenericPotentExplosiveCharge },
+        { 47381, &EffectDummyGenericReagentCheck },
+        { 47386, &EffectDummyGenericReagentCheck },
+        { 47389, &EffectDummyGenericReagentCheck },
+        { 47408, &EffectDummyGenericReagentCheck },
+        { 50441, &EffectDummyGenericReagentCheck },
+        { 48046, &EffectDummyGenericUseCamera },
+        { 48790, &EffectDummyGenericNeltharionsFlame },
+        { 49357, &EffectDummyGenericBrewfestMountTransformation },
+        { 49634, &EffectDummyGenericSergeantsFlare },
+        { 49859, &EffectDummyGenericRuneOfCommand },
+        { 50133, &EffectDummyGenericScourgingCrystalController },
+        { 50243, &EffectDummyGenericTeachLanguage },
+        { 50440, &EffectDummyGenericEnvisionDrakuru },
+        { 50546, &EffectDummyGenericLeyLineFocusControl },
+        { 50547, &EffectDummyGenericLeyLineFocusControl },
+        { 50548, &EffectDummyGenericLeyLineFocusControl },
+        { 51276, &EffectDummyGenericIncinerateCorpse },
+        { 51330, &EffectDummyGenericShootRJR },
+        { 51333, &EffectDummyGenericDigForTreasure },
+        { 51336, &EffectDummyGenericMagicPull },
+        { 51420, &EffectDummyGenericDiggingForTreasurePing },
     };
 
     static SpellEffectDummyRow<SpellEffectDummyMageSite> const mage[] =
