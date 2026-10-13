@@ -186,7 +186,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_LOGOUT_CANCEL_ACK,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_NAME_QUERY,                              STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleNameQueryOpcode           );
     OPCODE(SMSG_NAME_QUERY_RESPONSE,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_PET_NAME_QUERY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetNameQueryOpcode        );
+    OPCODE(CMSG_PET_NAME_QUERY,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetNameQuery               );
     OPCODE(SMSG_PET_NAME_QUERY_RESPONSE,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_GUILD_QUERY,                             STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleGuildQueryOpcode          );
     OPCODE(SMSG_GUILD_QUERY_RESPONSE,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -518,8 +518,8 @@ void InitializeOpcodes()
     OPCODE(SMSG_PET_TAME_FAILURE,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_PET_SET_ACTION,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetSetAction               );
     OPCODE(CMSG_PET_ACTION,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetAction                  );
-    OPCODE(CMSG_PET_ABANDON,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetAbandon                );
-    OPCODE(CMSG_PET_RENAME,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetRename                 );
+    OPCODE(CMSG_PET_ABANDON,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetAbandon                 );
+    OPCODE(CMSG_PET_RENAME,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetRename                  );
     OPCODE(SMSG_PET_NAME_INVALID,                        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PET_SPELLS,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_PET_MODE,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1298,7 +1298,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_REQUEST_VEHICLE_PREV_SEAT,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRequestVehiclePrevSeat    );
     OPCODE(CMSG_REQUEST_VEHICLE_NEXT_SEAT,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRequestVehicleNextSeat    );
     OPCODE(CMSG_REQUEST_VEHICLE_SWITCH_SEAT,             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRequestVehicleSwitchSeat  );
-    OPCODE(CMSG_PET_LEARN_TALENT,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandlePetLearnTalent            );
+    OPCODE(CMSG_PET_LEARN_TALENT,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandlePetLearnTalent             );
     //OPCODE(CMSG_PET_UNLEARN_TALENTS,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_SET_PHASE_SHIFT,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_ALL_ACHIEVEMENT_DATA,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1316,7 +1316,7 @@ void InitializeOpcodes()
     //OPCODE(CMSG_START_QUEST,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_DUMP_OBJECTS,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_DUMP_OBJECTS_DATA,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_DISMISS_CRITTER,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleDismissCritter);
+    OPCODE(CMSG_DISMISS_CRITTER,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandleDismissCritter             );
     //OPCODE(SMSG_NOTIFY_DEST_LOC_SPELL_CAST,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_AUCTION_LIST_PENDING_SALES,              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &AuctionHandlers::HandleAuctionListPendingSales);
     OPCODE(SMSG_AUCTION_LIST_PENDING_SALES,              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1368,7 +1368,7 @@ void InitializeOpcodes()
     //OPCODE(SMSG_NOTIFY_MISSILE_TRAJECTORY_COLLISION,     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_TALENT_UPDATE,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_LEARN_TALENT_GROUP,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleLearnPreviewTalents      );
-    OPCODE(CMSG_PET_LEARN_TALENT_GROUP,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLearnPreviewTalentsPet    );
+    OPCODE(CMSG_PET_LEARN_TALENT_GROUP,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &PetHandlers::HandleLearnPreviewTalentsPet     );
     //OPCODE(CMSG_SET_ACTIVE_TALENT_GROUP_OBSOLETE,        STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_GRANT_ACHIEVEMENT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_REMOVE_ACHIEVEMENT,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );

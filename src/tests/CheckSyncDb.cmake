@@ -64,6 +64,7 @@ set(CONVERTED_FILES
     src/game/entities/player/social/ReputationMgr.cpp
     src/game/entities/player/pvp/HonorMgr.h
     src/game/entities/player/pvp/HonorMgr.cpp
+    src/game/session/handlers/entities/PetHandlers.cpp
 )
 
 set(ADMIN_SCOPE_FILES
