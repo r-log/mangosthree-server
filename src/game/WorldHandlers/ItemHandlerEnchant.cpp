@@ -30,7 +30,8 @@
 
 /**
  * @file ItemHandlerEnchant.cpp
- * @brief Cohesion split of ItemHandler.cpp -- enchantment, gem-socket and wrap opcode handlers: enchant log / time-update packets, wrap item, socket gems and cancel temporary enchantment. Same WorldSession class; no behaviour change. CMake file(GLOB) picks this file up automatically; WorldSession.h is unchanged.
+ * @brief Defines two WorldSession members: SendEnchantmentLog, which sends the client an enchantment log, and
+ * SendItemEnchantTimeUpdate, which sends the remaining time of an item's temporary enchantment.
  */
 
 /**

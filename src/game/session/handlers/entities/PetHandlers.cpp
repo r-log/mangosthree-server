@@ -736,13 +736,9 @@ void PetHandlers::HandlePetRename(WorldSession& session, WorldPacket& recv_data)
         }
     }
 
-    // Decoupling D7e: the two tables this handler writes are both in the character's pet
-    // cache, so each statement gets its mirror beside it.
-    //
-    // Decoupling D7i: the six escapes are gone -- five declined-name cases and the name --
-    // and every string is a bound parameter (C5). That is also why the cache no longer
-    // needs its own copies of them: nothing mutates `name` or `declinedname` any more, so
-    // the value the statement binds and the value the cache takes are the same object.
+    // Both tables this handler writes are in the character's pet cache, so each statement has its
+    // mirror beside it. Every string is a bound parameter, and nothing mutates `name` or `declinedname`,
+    // so the value the statement binds and the value the cache takes are the same object.
     PlayerPetCache& petCache = session.GetPlayer()->GetPetCache();
     const uint32 renamedPetNumber = pet->GetCharmInfo()->GetPetNumber();
 

@@ -25,20 +25,8 @@
 
 /**
  * @file PetHandler.cpp
- * @brief Pet interaction opcode handlers
- *
- * This file handles pet-related opcodes including:
- * - CMSG_PET_ACTION: Pet action (attack, follow, stay, etc.)
- * - CMSG_PET_NAME_QUERY: Query pet name
- * - CMSG_PET_ABANDON: Abandon pet
- * - CMSG_PET_RENAME: Rename pet
- * - CMSG_PET_SPELL_AUTOCAST: Toggle autocast
- * - CMSG_PET_CANCEL_AURA: Cancel pet aura
- * - CMSG_PET_STOP_ATTACK: Stop pet attack
- * - CMSG_PET_SET_ACTION: Set pet action bar slot
- *
- * Pets include hunter pets, warlock minions, and temporary summons.
- * Pet actions are validated and synchronized with the owner.
+ * @brief Defines two WorldSession members: SendPetNameQuery, which answers a pet name query, and
+ * SendPetNameInvalid, which tells the client a pet name was refused.
  */
 
 #include "Platform/Define.h"

@@ -194,7 +194,7 @@ class PacketFilter
         /**
          * @brief Process packet
          * @param packet World packet to process
-         * @return True if processed successfully
+         * @return True when the drain takes the packet
          */
         virtual bool Process(WorldPacket* /*packet*/)
         {
@@ -216,7 +216,7 @@ class PacketFilter
 /**
  * @brief Map session filter class
  *
- * The map's drain in Map::Update(): takes in-place packets, and thread-safe packets while the session's
+ * The filter of the map's drain in Map::Update(): takes in-place packets, and thread-safe packets while the session's
  * player is in the world.
  */
 class MapSessionFilter : public PacketFilter
@@ -236,7 +236,7 @@ class MapSessionFilter : public PacketFilter
         /**
          * @brief Process packet
          * @param packet World packet to process
-         * @return True if processed successfully
+         * @return True when the drain takes the packet
          */
         bool Process(WorldPacket* packet) override;
 
@@ -256,7 +256,7 @@ class MapSessionFilter : public PacketFilter
 /**
  * @brief World session filter class
  *
- * The session update's drain in World::UpdateSessions(): takes in-place and thread-unsafe packets, and
+ * The filter of the session update's drain in World::UpdateSessions(): takes in-place and thread-unsafe packets, and
  * thread-safe packets while the session has no player in the world.
  */
 class WorldSessionFilter : public PacketFilter
@@ -276,7 +276,7 @@ class WorldSessionFilter : public PacketFilter
         /**
          * @brief Process packet
          * @param packet World packet to process
-         * @return True if processed successfully
+         * @return True when the drain takes the packet
          */
         bool Process(WorldPacket* packet) override;
 };
@@ -444,7 +444,7 @@ class WorldSession
             _player = plr;
         }
 
-        /// Where SendPacket hands a packet when this session has no socket (decoupling D4f0).
+        /// Where SendPacket hands a packet when this session has no socket.
         /// A plain function and its context, so this header reaches nothing new. The sink is
         /// handed the packet as the caller built it, and it copies what it keeps: the caller's
         /// packet is never changed through it.
@@ -619,13 +619,13 @@ class WorldSession
             m_latency[static_cast<size_t>(stream)] = latency;
         }
 
-        /// Bad packets received on this session (design v2 §10.1): every
+        /// Bad packets received on this session: every
         /// ByteBufferException caught in WorldSession::Update, codec
         /// rejections included, attributed to the session that sent it.
         uint32 GetBadPacketCount() const { return m_badPackets; }
 
-        /// Every movement ack this session sent, by what the kernel made of it (design
-        /// v2 §6.2, §10.1): seen; matched; the payload disagreed (and the change was
+        /// Every movement ack this session sent, by what the kernel made of it:
+        /// seen; matched; the payload disagreed (and the change was
         /// resent once); a tombstone (silent); stale or unknown; a counter never issued;
         /// the wrong mover's guid; matched but its status failed validation; seen while
         /// the mover was mid-teleport, which skips the relocation and the observer form.
@@ -645,8 +645,8 @@ class WorldSession
         };
         static AckTotalsCounters const& AckTotals();
 
-        /// The units this client may move and the one it has selected (design v2 §7,
-        /// F1): fed by control transitions through Player::SetClientControl, read by
+        /// The units this client may move and the one it has selected: fed by control
+        /// transitions through Player::SetClientControl, read by
         /// every inbound movement handler. Map-phase state like the packets it judges.
         Motion::Authority&       Movers()       { return m_movers; }
         Motion::Authority const& Movers() const { return m_movers; }
@@ -659,7 +659,7 @@ class WorldSession
         /// take the teleporting path), another member only while the player is in the
         /// world; callers check membership first.
         Unit* MemberUnit(ObjectGuid guid);
-        /// A control transition's membership half (spec §4): the unit's kernel mode, its
+        /// A control transition's membership half: the unit's kernel mode, its
         /// mover session and the set change together; the packets are SetClientControl's.
         void GrantMover(Unit* unit, uint32 now);
         void RevokeMover(Unit* unit, uint32 now);
@@ -668,7 +668,7 @@ class WorldSession
 
         uint32 getDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
 
-        /// The session's clock model (design v2 §6.3): the delta between the
+        /// The session's clock model: the delta between the
         /// client's millisecond tick and the server's, learned from time-sync
         /// pairs, used to rebase every inbound movement timestamp.
         Motion::TimeBase& TimeBase() { return m_timeBase; }
@@ -689,8 +689,8 @@ class WorldSession
         void HandlePlayerLogin(LoginQueryHolder* holder);
         void HandleReorderCharactersOpcode(WorldPacket& recvPacket);
 
-        // The character create, delete and customize continuations (decoupling D7d). The
-        // same shape D7b gave the petition handlers: the handler queues its reads and
+        // The character create, delete and customize continuations, in the petition handlers'
+        // shape: the handler queues its reads and
         // returns, and a static callback -- identities only, never a pointer across a tick
         // -- is answered a tick later out of UpdateResultQueue() on the world thread.
         //
@@ -700,19 +700,18 @@ class WorldSession
         static WorldSession* FindRequesterSession(uint32 accountId, proto::SessionId sessionId);
 
         /**
-         * @brief The same check for a continuation that also needs the CHARACTER (D7b, C1).
+         * @brief The same check for a continuation that also needs the CHARACTER.
          *
          * FindRequesterSession() plus the guid: the player reached through the session is
          * compared against the one the registry has under that guid, so a character swap on
-         * the same session is caught as well. Lived as a file-local helper in
-         * PetitionsHandler.cpp until D7g needed it in three more files.
+         * the same session is caught as well.
          *
          * Both out-parameters are NULL on failure (the player is the session's own character
          * in the one case where a live session holds a different one); neither means anything
          * after a false return, and no caller reads one.
          *
          * @return false when either is gone or has been replaced -- the continuation then
-         *         does nothing, which is what happens today when a player logs out with a
+         *         does nothing, as it does when a player logs out with a
          *         request in flight.
          */
         static bool FindRequesterPlayer(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
@@ -781,7 +780,7 @@ class WorldSession
         void HandleRepairItemOpcode(WorldPacket& recvPacket);
 
         void HandleMoveTeleportAckOpcode(WorldPacket& recvPacket);
-        /// Every movement ack the registry has a layout for (design v2 §6.2): decoded,
+        /// Every movement ack the registry has a layout for: decoded,
         /// matched against the mover's pending change, relocated on a match, and answered
         /// with the observer packet the matrix names. The teleport ack has its own.
         void HandleMovementAck(WorldPacket& recv_data);
@@ -811,14 +810,12 @@ class WorldSession
         void HandleEmoteOpcode(WorldPacket& recvPacket);
         void HandleContactListOpcode(WorldPacket& recvPacket);
         void HandleAddFriendOpcode(WorldPacket& recvPacket);
-        /// Decoupling D7i: the body of the old HandleAddFriendOpcodeCallBack. The
-        /// `SELECT guid, race FROM characters WHERE name` it used to wait for is a
-        /// CharacterCache lookup (D7c), so this runs in the handler's own tick and the
-        /// session it answers is `this` instead of one re-found by account id.
+        /// Completes an add-friend request with the character HandleAddFriendOpcode resolved
+        /// from CharacterCache, in the handler's own tick, and answers this session.
         void CompleteAddFriend(ObjectGuid friendGuid, Team team, std::string const& friendNote);
         void HandleDelFriendOpcode(WorldPacket& recvPacket);
         void HandleAddIgnoreOpcode(WorldPacket& recvPacket);
-        /// Decoupling D7i, the ignore twin of CompleteAddFriend.
+        /// The ignore twin of CompleteAddFriend.
         void CompleteAddIgnore(ObjectGuid ignoreGuid);
         void HandleDelIgnoreOpcode(WorldPacket& recvPacket);
         void HandleSetContactNotesOpcode(WorldPacket& recvPacket);
@@ -889,7 +886,7 @@ class WorldSession
         void HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data);
         void HandlePartyAssignmentOpcode(WorldPacket& recv_data);
 
-        // The petition handlers and their continuations (decoupling D7b). None of these
+        // The petition handlers and their continuations. None of these
         // handlers waits on the database: each queues its reads and is answered a tick
         // later by the matching callback, which runs on the world thread out of
         // UpdateResultQueue(). The callbacks are static and take identities rather than
@@ -929,7 +926,7 @@ class WorldSession
 
         void HandlePetitionDeclineOpcode(WorldPacket& recv_data);
         // No identity: the only packet it sends goes to the petition's OWNER and names the
-        // decliner by guid, so it must survive a decliner who logged out (decoupling D7f).
+        // decliner by guid, so it must survive a decliner who logged out.
         static void HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid);
 
         void HandleOfferPetitionOpcode(WorldPacket& recv_data);
@@ -989,8 +986,8 @@ class WorldSession
 
         void HandleGetMailList(WorldPacket& recv_data);
 
-        /// Everything CMSG_SEND_MAIL carries, captured by value into the continuation
-        /// (decoupling D7g), plus the receiver guid the handler resolved from memory.
+        /// Everything CMSG_SEND_MAIL carries, captured by value into the continuation,
+        /// plus the receiver guid the handler resolved from memory.
         struct MailSendRequest
         {
             ObjectGuid mailboxGuid;
@@ -1112,7 +1109,7 @@ class WorldSession
                                                          proto::SessionId sessionId, std::string newname);
         void HandleSetPlayerDeclinedNamesOpcode(WorldPacket& recv_data);
 
-        // Customize (decoupling D7d): the at_login flag and the appearance row are read by
+        // Customize: the at_login flag and the appearance row are read by
         // one holder, and everything the handler did after them -- the name checks, the
         // cache update, the writes and the reply -- runs in the continuation.
         static void QueueCharCustomizeReads(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid,
@@ -1142,7 +1139,7 @@ class WorldSession
         void HandleRealmSplitOpcode(WorldPacket& recv_data);
         void HandleTimeSyncResp(WorldPacket& recv_data);
         void HandleWhoisOpcode(WorldPacket& recv_data);
-        /// Decoupling D7i: the `account` row CMSG_WHOIS waited for. The opcode is
+        /// Answers CMSG_WHOIS from the `account` row the handler queues. The opcode is
         /// SEC_ADMINISTRATOR-gated but is not a chat command, so no AdminScope can cover
         /// it and it is a continuation instead.
         static void HandleWhoisCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
@@ -1187,7 +1184,7 @@ class WorldSession
         void HandleCalendarRemoveEvent(WorldPacket& recv_data);
         void HandleCalendarCopyEvent(WorldPacket& recv_data);
         /// Everything CMSG_CALENDAR_EVENT_INVITE carries, plus the invitee the handler
-        /// resolved from the character cache (decoupling D7g).
+        /// resolved from the character cache.
         struct CalendarInviteRequest
         {
             ObjectGuid playerGuid;                          ///< the inviter
@@ -1321,7 +1318,7 @@ class WorldSession
         LocaleConstant m_sessionDbcLocale;
         int m_sessionDbLocaleIndex;
         uint32 m_latency[2];   ///< indexed by proto::LinkSlot
-        uint32 m_badPackets;   ///< bad packets received on this session (design v2 §10.1)
+        uint32 m_badPackets;   ///< bad packets received on this session
         AckCounters m_ackCounters;
         Motion::TimeBase m_timeBase;
         Motion::Authority m_movers;

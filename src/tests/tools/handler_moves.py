@@ -564,7 +564,18 @@ MOVES = [
     dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandlePetRename(WorldPacket& recv_data)',
          new_header='void PetHandlers::HandlePetRename(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=_PET_PLAYER),
+         substitutions=_PET_PLAYER,
+         texts=[(["    // Both tables this handler writes are in the character's pet cache, so each statement has its",
+                  '    // mirror beside it. Every string is a bound parameter, and nothing mutates `name` or '
+                  '`declinedname`,',
+                  '    // so the value the statement binds and the value the cache takes are the same object.'],
+                 ["    // Decoupling D7e: the two tables this handler writes are both in the character's pet",
+                  '    // cache, so each statement gets its mirror beside it.',
+                  '    //',
+                  '    // Decoupling D7i: the six escapes are gone -- five declined-name cases and the name --',
+                  '    // and every string is a bound parameter (C5). That is also why the cache no longer',
+                  '    // needs its own copies of them: nothing mutates `name` or `declinedname` any more, so',
+                  '    // the value the statement binds and the value the cache takes are the same object.'])]),
     dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandlePetAbandon(WorldPacket& recv_data)',
          new_header='void PetHandlers::HandlePetAbandon(WorldSession& session, WorldPacket& recv_data)',
@@ -610,7 +621,24 @@ RESIDUES = [
                   '#include "Chat.h"', '#include "ObjectMgr.h"', '#include "Object.h"', '#include "BattleGroundEY.h"',
                   '#include "BattleGroundWS.h"', '#include "BattleGround.h"', '#include "ArenaTeam.h"',
                   '#include "Language.h"', '#include "ScriptMgr.h"', '#include "World.h"', '#include "DisableMgr.h"',
-                  '#include "GameTime.h"', '#include "MotionMaster.h"']),
+                  '#include "GameTime.h"', '#include "MotionMaster.h"'],
+         edits=[('/**\n'
+                 ' * @file BattleGroundHandler.cpp\n'
+                 ' * @brief Handles battle ground related packet opcodes and world session operations.\n'
+                 ' *\n'
+                 ' * This file contains the implementation of packet handlers for battleground interactions,\n'
+                 ' * including:\n'
+                 ' * - Battlemaster interactions\n'
+                 ' * - Queue management operations\n'
+                 ' * - Battleground status requests\n'
+                 ' * - Join/Leave battleground operations\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file BattleGroundHandler.cpp\n'
+                 " * @brief Defines one WorldSession member: SendBattlegGroundList, which sends a battlemaster's "
+                 'battleground\n'
+                 ' * list to the player.\n'
+                 ' */')]),
     dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN,
          removed=['#include <cmath>', '#include <vector>', '#include "OpcodeTable.h"', '#include "WorldPacket.h"',
                   '#include "Log.h"', '#include "AchievementMgr.h"', '#include "PlayerRegistry.h"',
@@ -733,10 +761,45 @@ RESIDUES = [
                  '}\n',)]),
     dict(base=_ENCHANT_BASE, base_file=_ENCHANT_ORIGIN,
          removed=['#include "Log.h"', '#include "ObjectMgr.h"', '#include "Player.h"', '#include "Item.h"',
-                  '#include "UpdateData.h"', '#include "Chat.h"']),
+                  '#include "UpdateData.h"', '#include "Chat.h"'],
+         edits=[('/**\n'
+                 ' * @file ItemHandlerEnchant.cpp\n'
+                 ' * @brief Cohesion split of ItemHandler.cpp -- enchantment, gem-socket and wrap opcode handlers: '
+                 'enchant log / time-update packets, wrap item, socket gems and cancel temporary enchantment. Same '
+                 'WorldSession class; no behaviour change. CMake file(GLOB) picks this file up automatically; '
+                 'WorldSession.h is unchanged.\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file ItemHandlerEnchant.cpp\n'
+                 ' * @brief Defines two WorldSession members: SendEnchantmentLog, which sends the client an '
+                 'enchantment log, and\n'
+                 " * SendItemEnchantTimeUpdate, which sends the remaining time of an item's temporary enchantment.\n"
+                 ' */')]),
     dict(base=_PET_BASE, base_file=_PET_ORIGIN,
          removed=['#include "SpellMgr.h"', '#include "Spell.h"', '#include "CreatureAI.h"', '#include "SpellAuras.h"',
                   '#include "MotionMaster.h"']),
     dict(base=_PET2_BASE, base_file=_PET_ORIGIN,
-         removed=['#include <ctime>', '#include "Log.h"', '#include "Util.h"', '#include "TemporarySummon.h"']),
+         removed=['#include <ctime>', '#include "Log.h"', '#include "Util.h"', '#include "TemporarySummon.h"'],
+         edits=[('/**\n'
+                 ' * @file PetHandler.cpp\n'
+                 ' * @brief Pet interaction opcode handlers\n'
+                 ' *\n'
+                 ' * This file handles pet-related opcodes including:\n'
+                 ' * - CMSG_PET_ACTION: Pet action (attack, follow, stay, etc.)\n'
+                 ' * - CMSG_PET_NAME_QUERY: Query pet name\n'
+                 ' * - CMSG_PET_ABANDON: Abandon pet\n'
+                 ' * - CMSG_PET_RENAME: Rename pet\n'
+                 ' * - CMSG_PET_SPELL_AUTOCAST: Toggle autocast\n'
+                 ' * - CMSG_PET_CANCEL_AURA: Cancel pet aura\n'
+                 ' * - CMSG_PET_STOP_ATTACK: Stop pet attack\n'
+                 ' * - CMSG_PET_SET_ACTION: Set pet action bar slot\n'
+                 ' *\n'
+                 ' * Pets include hunter pets, warlock minions, and temporary summons.\n'
+                 ' * Pet actions are validated and synchronized with the owner.\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file PetHandler.cpp\n'
+                 ' * @brief Defines two WorldSession members: SendPetNameQuery, which answers a pet name query, and\n'
+                 ' * SendPetNameInvalid, which tells the client a pet name was refused.\n'
+                 ' */')]),
 ]
