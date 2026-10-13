@@ -808,17 +808,6 @@ class WorldSession
         void HandleSetSelectionOpcode(WorldPacket& recvPacket);
         void HandleStandStateChangeOpcode(WorldPacket& recvPacket);
         void HandleEmoteOpcode(WorldPacket& recvPacket);
-        void HandleContactListOpcode(WorldPacket& recvPacket);
-        void HandleAddFriendOpcode(WorldPacket& recvPacket);
-        /// Completes an add-friend request with the character HandleAddFriendOpcode resolved
-        /// from CharacterCache, in the handler's own tick, and answers this session.
-        void CompleteAddFriend(ObjectGuid friendGuid, Team team, std::string const& friendNote);
-        void HandleDelFriendOpcode(WorldPacket& recvPacket);
-        void HandleAddIgnoreOpcode(WorldPacket& recvPacket);
-        /// The ignore twin of CompleteAddFriend.
-        void CompleteAddIgnore(ObjectGuid ignoreGuid);
-        void HandleDelIgnoreOpcode(WorldPacket& recvPacket);
-        void HandleSetContactNotesOpcode(WorldPacket& recvPacket);
         void HandleBugOpcode(WorldPacket& recvPacket);
 
         void HandleAreaTriggerOpcode(WorldPacket& recvPacket);

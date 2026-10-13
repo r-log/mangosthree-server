@@ -50,6 +50,7 @@
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
+#include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 
 /**
@@ -203,14 +204,14 @@ void InitializeOpcodes()
     OPCODE(SMSG_WHO,                                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_WHOIS,                                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleWhoisOpcode               );
     OPCODE(SMSG_WHOIS,                                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CONTACT_LIST,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleContactListOpcode         );
+    OPCODE(CMSG_CONTACT_LIST,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ContactHandlers::HandleContactList            );
     OPCODE(SMSG_CONTACT_LIST,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_FRIEND_STATUS,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_ADD_FRIEND,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAddFriendOpcode           );
-    OPCODE(CMSG_DEL_FRIEND,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleDelFriendOpcode           );
-    OPCODE(CMSG_SET_CONTACT_NOTES,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSetContactNotesOpcode     );
-    OPCODE(CMSG_ADD_IGNORE,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAddIgnoreOpcode           );
-    OPCODE(CMSG_DEL_IGNORE,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleDelIgnoreOpcode           );
+    OPCODE(CMSG_ADD_FRIEND,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ContactHandlers::HandleAddFriend              );
+    OPCODE(CMSG_DEL_FRIEND,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ContactHandlers::HandleDelFriend              );
+    OPCODE(CMSG_SET_CONTACT_NOTES,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ContactHandlers::HandleSetContactNotes        );
+    OPCODE(CMSG_ADD_IGNORE,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ContactHandlers::HandleAddIgnore              );
+    OPCODE(CMSG_DEL_IGNORE,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ContactHandlers::HandleDelIgnore              );
     OPCODE(CMSG_GROUP_INVITE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGroupInviteOpcode         );
     OPCODE(SMSG_GROUP_INVITE,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_GROUP_CANCEL,                            STATUS_LOGGEDIN, PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );

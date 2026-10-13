@@ -35,7 +35,6 @@ set(CONVERTED_FILES
     src/game/BattleGround/BattleGroundReward.cpp
     src/game/BattleGround/BattleGroundMgr.cpp
     src/game/WorldHandlers/PetHandler.cpp
-    src/game/WorldHandlers/MiscHandlerSocial.cpp
     src/game/WorldHandlers/MiscHandler.cpp
     src/game/entities/player/social/SocialMgr.cpp
     src/game/Object/GMTicketMgr.cpp
@@ -65,6 +64,7 @@ set(CONVERTED_FILES
     src/game/entities/player/pvp/HonorMgr.h
     src/game/entities/player/pvp/HonorMgr.cpp
     src/game/session/handlers/entities/PetHandlers.cpp
+    src/game/session/handlers/social/ContactHandlers.cpp
 )
 
 set(ADMIN_SCOPE_FILES

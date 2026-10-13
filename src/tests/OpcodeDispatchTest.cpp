@@ -45,10 +45,12 @@
 /// The CMSG_SOCKET_GEMS row reads an empty item guid to its end and, the guid naming no item,
 /// returns before it reads the player, sending nothing. The CMSG_LFG_JOIN row reads a join with no
 /// slot and no comment to its end and, the Dungeon Finder being off, returns before it reads the
-/// player, sending nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade,
-/// skill, enchant, pet or LFG handler class holds the status STATUS_LOGGEDIN and the processing
-/// PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows,
-/// processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
+/// player, sending nothing. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name
+/// and an empty note to its end and, the name being empty, returns before it reads the player,
+/// sending nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill,
+/// enchant, pet, LFG or contact list handler class holds the status STATUS_LOGGEDIN and the
+/// processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
+/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
 
 #include "TestHarness.h"
@@ -67,6 +69,7 @@
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
+#include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 
 #include <cstring>
@@ -802,4 +805,60 @@ TEST(OpcodeDispatch_LfgRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_LFG_LOCK_INFO_REQUEST].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_LFG_SET_BOOT_VOTE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_LFG_SET_BOOT_VOTE].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_AddFriendRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket addFriend(CMSG_ADD_FRIEND, 2);
+    addFriend << std::string("");
+    addFriend << std::string("");
+
+    opcodeTable[CMSG_ADD_FRIEND].handler(session, addFriend);
+
+    CHECK_EQ(addFriend.rpos(), size_t(2));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ContactRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_CONTACT_LIST].handler == &OpcodeThunk<&ContactHandlers::HandleContactList>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ContactHandlers::HandleContactList>), 1);
+    CHECK(opcodeTable[CMSG_ADD_FRIEND].handler == &OpcodeThunk<&ContactHandlers::HandleAddFriend>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ContactHandlers::HandleAddFriend>), 1);
+    CHECK(opcodeTable[CMSG_DEL_FRIEND].handler == &OpcodeThunk<&ContactHandlers::HandleDelFriend>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ContactHandlers::HandleDelFriend>), 1);
+    CHECK(opcodeTable[CMSG_ADD_IGNORE].handler == &OpcodeThunk<&ContactHandlers::HandleAddIgnore>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ContactHandlers::HandleAddIgnore>), 1);
+    CHECK(opcodeTable[CMSG_DEL_IGNORE].handler == &OpcodeThunk<&ContactHandlers::HandleDelIgnore>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ContactHandlers::HandleDelIgnore>), 1);
+    CHECK(opcodeTable[CMSG_SET_CONTACT_NOTES].handler == &OpcodeThunk<&ContactHandlers::HandleSetContactNotes>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ContactHandlers::HandleSetContactNotes>), 1);
+}
+
+TEST(OpcodeDispatch_ContactRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_CONTACT_LIST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CONTACT_LIST].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ADD_FRIEND].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ADD_FRIEND].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_DEL_FRIEND].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_DEL_FRIEND].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_ADD_IGNORE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_ADD_IGNORE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_DEL_IGNORE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_DEL_IGNORE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_CONTACT_NOTES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_CONTACT_NOTES].packetProcessing, PROCESS_THREADUNSAFE);
 }
