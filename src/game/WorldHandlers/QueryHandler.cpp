@@ -543,7 +543,7 @@ void WorldSession::HandlePageTextQueryOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleCorpseMapPositionQueryOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Recv CMSG_CORPSE_MAP_POSITION_QUERY");
+    DEBUG_LOG("WORLD: Recv CMSG_CORPSE_TRANSPORT_QUERY");
 
     uint32 unk;
     recv_data >> unk;

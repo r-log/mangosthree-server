@@ -49,7 +49,7 @@
  */
 void SkillHandlers::HandleLearnTalent(WorldSession& session, WorldPacket& recv_data)
 {
-    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");
+    DEBUG_LOG("CMSG_LEARN_TALENT");
 
     uint32 talent_id, requested_rank;
     recv_data >> talent_id >> requested_rank;
@@ -59,7 +59,7 @@ void SkillHandlers::HandleLearnTalent(WorldSession& session, WorldPacket& recv_d
         session.GetPlayer()->SendTalentsInfoData(false);
     }
     else
-        sLog.outError("WorldSession::HandleLearnTalentOpcode: learn talent %u rank %u failed for %s (account %u)", talent_id, requested_rank, session.GetPlayerName(), session.GetAccountId());
+        sLog.outError("SkillHandlers::HandleLearnTalent: learn talent %u rank %u failed for %s (account %u)", talent_id, requested_rank, session.GetPlayerName(), session.GetAccountId());
 
     // if player has a pet, update owner talent auras
     if (session.GetPlayer()->GetPet())
@@ -70,7 +70,7 @@ void SkillHandlers::HandleLearnTalent(WorldSession& session, WorldPacket& recv_d
 
 void SkillHandlers::HandleLearnPreviewTalents(WorldSession& session, WorldPacket& recvPacket)
 {
-    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");
+    DEBUG_LOG("CMSG_LEARN_TALENT_GROUP");
 
     int32 tabPage;
     uint32 talentsCount;
@@ -84,7 +84,7 @@ void SkillHandlers::HandleLearnPreviewTalents(WorldSession& session, WorldPacket
             if (talentTabEntry->OrderIndex != tabPage)
             {
                 recvPacket.rfinish();
-                sLog.outError("WorldSession::HandleLearnPreviewTalents: tabPage != talent tabPage for %s (account %u)", session.GetPlayerName(), session.GetAccountId());
+                sLog.outError("SkillHandlers::HandleLearnPreviewTalents: tabPage != talent tabPage for %s (account %u)", session.GetPlayerName(), session.GetAccountId());
                 return;
             }
         }
@@ -101,7 +101,7 @@ void SkillHandlers::HandleLearnPreviewTalents(WorldSession& session, WorldPacket
         if (!session.GetPlayer()->LearnTalent(talentId, talentRank))
         {
             recvPacket.rfinish();
-            sLog.outError("WorldSession::HandleLearnPreviewTalents: learn talent %u rank %u tab %u failed for %s (account %u)", talentId, talentRank, tabPage, session.GetPlayerName(), session.GetAccountId());
+            sLog.outError("SkillHandlers::HandleLearnPreviewTalents: learn talent %u rank %u tab %u failed for %s (account %u)", talentId, talentRank, tabPage, session.GetPlayerName(), session.GetAccountId());
             break;
         }
     }
@@ -138,7 +138,7 @@ void SkillHandlers::HandleTalentWipeConfirm(WorldSession& session, WorldPacket& 
     Creature* unit = session.GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: HandleTalentWipeConfirmOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
+        DEBUG_LOG("WORLD: HandleTalentWipeConfirm - %s not found or you can't interact with him.", guid.GetString().c_str());
         return;
     }
 

@@ -101,7 +101,7 @@ void PetHandlers::HandlePetAction(WorldSession& session, WorldPacket& recv_data)
     CharmInfo* charmInfo = pet->GetCharmInfo();
     if (!charmInfo)
     {
-        sLog.outError("WorldSession::HandlePetAction: object (GUID: %u TypeId: %u) is considered pet-like but doesn't have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());
+        sLog.outError("PetHandlers::HandlePetAction: object (GUID: %u TypeId: %u) is considered pet-like but doesn't have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());
         return;
     }
 
@@ -426,7 +426,7 @@ void PetHandlers::HandlePetSetAction(WorldSession& session, WorldPacket& recv_da
     CharmInfo* charmInfo = pet->GetCharmInfo();
     if (!charmInfo)
     {
-        sLog.outError("WorldSession::HandlePetSetAction: object (GUID: %u TypeId: %u) is considered pet-like but doesn't have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());
+        sLog.outError("PetHandlers::HandlePetSetAction: object (GUID: %u TypeId: %u) is considered pet-like but doesn't have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());
         return;
     }
 
@@ -544,7 +544,7 @@ void PetHandlers::HandlePetSpellAutocast(WorldSession& session, WorldPacket& rec
     Creature* pet = session.GetPlayer()->GetMap()->GetAnyTypeCreature(guid);
     if (!pet || (guid != session.GetPlayer()->GetPetGuid() && guid != session.GetPlayer()->GetCharmGuid()))
     {
-        sLog.outError("HandlePetSpellAutocastOpcode. %s isn't pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());
+        sLog.outError("HandlePetSpellAutocast. %s isn't pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());
         return;
     }
 
@@ -557,7 +557,7 @@ void PetHandlers::HandlePetSpellAutocast(WorldSession& session, WorldPacket& rec
     CharmInfo* charmInfo = pet->GetCharmInfo();
     if (!charmInfo)
     {
-        sLog.outError("WorldSession::HandlePetSpellAutocastOpcod: %s is considered pet-like but doesn't have a charminfo!", guid.GetString().c_str());
+        sLog.outError("PetHandlers::HandlePetSpellAutocast: %s is considered pet-like but doesn't have a charminfo!", guid.GetString().c_str());
         return;
     }
 
@@ -594,7 +594,7 @@ void PetHandlers::HandlePetCastSpell(WorldSession& session, WorldPacket& recvPac
 
     if (!pet || (guid != session.GetPlayer()->GetPetGuid() && guid != session.GetPlayer()->GetCharmGuid()))
     {
-        sLog.outError("HandlePetCastSpellOpcode: %s isn't pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());
+        sLog.outError("HandlePetCastSpell: %s isn't pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());
         return;
     }
 
@@ -835,7 +835,7 @@ void PetHandlers::HandlePetLearnTalent(WorldSession& session, WorldPacket& recv_
 
 void PetHandlers::HandleLearnPreviewTalentsPet(WorldSession& session, WorldPacket& recv_data)
 {
-    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS_PET");
+    DEBUG_LOG("CMSG_PET_LEARN_TALENT_GROUP");
 
     ObjectGuid guid;
     recv_data >> guid;

@@ -554,7 +554,7 @@ void WorldSession::HandleCharCustomizeCallback(std::unique_ptr<SqlQueryHolder> h
 
 void WorldSession::HandleEquipmentSetSaveOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("CMSG_EQUIPMENT_SET_SAVE");
+    DEBUG_LOG("CMSG_SAVE_EQUIPMENT_SET");
 
     ObjectGuid setGuid;
     uint32 index;
@@ -623,7 +623,7 @@ void WorldSession::HandleEquipmentSetDeleteOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleEquipmentSetUseOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("CMSG_EQUIPMENT_SET_USE");
+    DEBUG_LOG("CMSG_USE_EQUIPMENT_SET");
     recv_data.hexlike();
 
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)

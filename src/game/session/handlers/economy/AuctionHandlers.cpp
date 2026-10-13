@@ -53,7 +53,7 @@ void AuctionHandlers::HandleAuctionHello(WorldSession& session, WorldPacket& rec
     Creature* unit = session.GetPlayer()->GetNPCIfCanInteractWith(auctioneerGuid, UNIT_NPC_FLAG_AUCTIONEER);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: HandleAuctionHelloOpcode - %s not found or you can't interact with him.", auctioneerGuid.GetString().c_str());
+        DEBUG_LOG("WORLD: HandleAuctionHello - %s not found or you can't interact with him.", auctioneerGuid.GetString().c_str());
         return;
     }
 

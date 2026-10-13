@@ -398,7 +398,7 @@ void WorldSession::HandleReadItemOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleItemRefundInfoRequest(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: CMSG_ITEM_REFUND_INFO_REQUEST");
+    DEBUG_LOG("WORLD: CMSG_GET_ITEM_PURCHASE_DATA");
 
     ObjectGuid itemGuid;
     recv_data >> itemGuid;
