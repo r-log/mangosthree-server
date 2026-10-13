@@ -29,6 +29,7 @@
 #include "Platform/Define.h"
 #include "Common/TimeConstants.h"
 #include <map>
+#include <mutex>
 #include "Policies/Singleton.h"
 #include "Timer.h"
 
@@ -126,6 +127,18 @@ class OutdoorPvP;
  */
 typedef std::map<uint32 /*capture point entry*/, CapturePointSlider /*slider value and lock state*/> CapturePointSliderMap;
 
+/// The saved slider of each capture point; locked because the continents' map threads read and write it.
+class CapturePointSliderStore
+{
+    public:
+        void Set(uint32 entry, CapturePointSlider const& value);
+        bool Find(uint32 entry, CapturePointSlider& value) const;
+
+    private:
+        CapturePointSliderMap m_sliders;
+        mutable std::mutex m_lock;
+};
+
 /**
  * @brief Manager class for outdoor PvP zones
  *
@@ -178,17 +191,22 @@ class OutdoorPvPMgr
         void Update(uint32 diff);
 
         /**
-         * @brief Get capture point slider map
-         * @return Pointer to capture point slider map
+         * @brief Get capture point slider value
+         * @param entry Capture point entry
+         * @param value Receives the slider value and lock state
+         * @return Whether a slider value is saved for the entry
          */
-        CapturePointSliderMap const* GetCapturePointSliderMap() const { return &m_capturePointSlider; }
+        bool GetCapturePointSlider(uint32 entry, CapturePointSlider& value) const
+        {
+            return m_capturePointSliders.Find(entry, value);
+        }
 
         /**
          * @brief Set capture point slider value
          * @param entry Capture point entry
          * @param value Slider value and lock state
          */
-        void SetCapturePointSlider(uint32 entry, CapturePointSlider value) { m_capturePointSlider[entry] = value; }
+        void SetCapturePointSlider(uint32 entry, CapturePointSlider value) { m_capturePointSliders.Set(entry, value); }
 
     private:
         /**
@@ -200,7 +218,7 @@ class OutdoorPvPMgr
 
         OutdoorPvP* m_scripts[MAX_OPVP_ID]; ///< Array of all outdoor PvP scripts
 
-        CapturePointSliderMap m_capturePointSlider; ///< Map of capture point slider states
+        CapturePointSliderStore m_capturePointSliders; ///< Map of capture point slider states
 
         IntervalTimer m_updateTimer; ///< Update interval timer
 };

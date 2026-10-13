@@ -81,6 +81,7 @@
 #include "LootMgr.h"
 #include "ItemEnchantmentMgr.h"
 #include "MapManager.h"
+#include "MapPhase.h"
 #include "Harness.h"
 #include "ScriptMgr.h"
 #include "CreatureAIRegistry.h"
@@ -1104,6 +1105,7 @@ void World::Update(uint32 diff)
     /// <li> Handle all other objects
     ///- Update objects (maps, transport, creatures,...)
     sMapMgr.Update(diff);
+    ApplyAfterMapPhasePosts();
     // The GM harness (movement P0-C): scenario steps and samples run here, after
     // every map's tick and before anything else touches units, where console
     // commands run too -- outside the map phase the ownership guard watches.
@@ -1267,6 +1269,12 @@ void World::SendServerMessage(ServerMessageType type, const char* text /*=""*/, 
 /// Sends a zone under attack message to all players not in an instance
 void World::SendZoneUnderAttackMessage(uint32 zoneId, Team team)
 {
+    AfterMapPhasePost const post = { AfterMapPhasePost::ZONE_UNDER_ATTACK, zoneId, 0, team, 0 };
+    if (m_afterMapPhase.Post(post))
+    {
+        return;
+    }
+
     WorldPacket data(SMSG_ZONE_UNDER_ATTACK, 4);
     data << uint32(zoneId);
 
@@ -1286,6 +1294,12 @@ void World::SendZoneUnderAttackMessage(uint32 zoneId, Team team)
 /// Sends a world defense message to all players not in an instance
 void World::SendDefenseMessage(uint32 zoneId, int32 textId)
 {
+    AfterMapPhasePost const post = { AfterMapPhasePost::DEFENSE_MESSAGE, zoneId, textId, TEAM_NONE, 0 };
+    if (m_afterMapPhase.Post(post))
+    {
+        return;
+    }
+
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
     {
         if (WorldSession* session = itr->second)
@@ -1302,6 +1316,51 @@ void World::SendDefenseMessage(uint32 zoneId, int32 textId)
                 data << message;
                 session->SendPacket(&data);
             }
+        }
+    }
+}
+
+bool AfterMapPhaseQueue::Post(AfterMapPhasePost const& post)
+{
+    if (!MapPhase::Active())
+    {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_posts.push_back(post);
+    return true;
+}
+
+std::vector<AfterMapPhasePost> AfterMapPhaseQueue::Take()
+{
+    std::vector<AfterMapPhasePost> taken;
+    std::lock_guard<std::mutex> guard(m_lock);
+    taken.swap(m_posts);
+    return taken;
+}
+
+bool World::PostAfterMapPhase(AfterMapPhasePost const& post)
+{
+    return m_afterMapPhase.Post(post);
+}
+
+void World::ApplyAfterMapPhasePosts()
+{
+    std::vector<AfterMapPhasePost> const posts = m_afterMapPhase.Take();
+    for (std::vector<AfterMapPhasePost>::const_iterator itr = posts.begin(); itr != posts.end(); ++itr)
+    {
+        switch (itr->kind)
+        {
+            case AfterMapPhasePost::DEFENSE_MESSAGE:
+                SendDefenseMessage(itr->zoneId, itr->textId);
+                break;
+            case AfterMapPhasePost::ZONE_UNDER_ATTACK:
+                SendZoneUnderAttackMessage(itr->zoneId, itr->team);
+                break;
+            case AfterMapPhasePost::GRAVEYARD_LINK_TEAM:
+                sObjectMgr.SetGraveYardLinkTeam(itr->graveyardId, itr->zoneId, itr->team);
+                break;
         }
     }
 }
