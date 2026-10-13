@@ -384,7 +384,7 @@ state_allow(social src/game/WorldHandlers/CharacterHandler.cpp
 state_allow(social src/game/WorldHandlers/CalendarHandler.cpp
     WHY "an offline invitee's ignore flag for the inviter (the calendar invite's read, and its comments): the invitee's list is not loaded"
     NAMES character_social)
-state_allow(social src/game/WorldHandlers/MiscHandlerSocial.cpp
+state_allow(social src/game/session/handlers/social/ContactHandlers.cpp
     WHY "the social handlers' debug log lines name the packet SocialMgr::SendFriendStatus sent (a relay, builds nothing)"
     NAMES SMSG_FRIEND_STATUS)
 state_allow(social src/tests/CalendarMailAsyncTest.cpp

@@ -849,9 +849,6 @@ src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/MiscHandlerInstance.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/MiscHandlerInstance.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/MiscHandlerInstance.cpp -> src/game/WorldHandlers/World.h
-src/game/WorldHandlers/MiscHandlerSocial.cpp -> src/game/WorldHandlers/Chat.h
-src/game/WorldHandlers/MiscHandlerSocial.cpp -> src/game/WorldHandlers/ScriptMgr.h
-src/game/WorldHandlers/MiscHandlerSocial.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/ScriptMgr.h
@@ -1853,6 +1850,8 @@ src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/Chat.h
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/ScriptMgr.h
 # The pvp bodies read the world config: the arena team invite CONFIG_UINT32_MAX_PLAYER_LEVEL, the arena team invite and accept CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD, the battlemaster join CONFIG_UINT32_BATTLEGROUND_PREMADE_GROUP_WAIT_FOR_MATCH; dies with row 3.
 src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/World.h
+# The add-friend completion reads the world config CONFIG_BOOL_ALLOW_TWO_SIDE_ADD_FRIEND; dies with row 3.
+src/game/session/handlers/social/ContactHandlers.cpp -> src/game/WorldHandlers/World.h
 # The Dungeon Finder join and status handlers read the world config CONFIG_BOOL_LFG_ENABLE; dies with row 3.
 src/game/session/handlers/social/LfgHandlers.cpp -> src/game/WorldHandlers/World.h
 # The warrior stance handlers (41099-41101, 53790-53792) call SetVirtualItem with VIRTUAL_ITEM_SLOT_*.

@@ -169,7 +169,7 @@ class PlayerSocial
         void SetFriendNote(ObjectGuid friend_guid, std::string note);
         // Packet send's
         /// Defined in SocialMgr.cpp, on the owner side, because two callers that may not change call it
-        /// without arguments (the contact list handler in MiscHandlerSocial.cpp, and the character's
+        /// without arguments (the contact list handler in session/handlers/social/ContactHandlers.cpp, and the character's
         /// SendInitialPacketsBeforeAddToMap). Not for tests: it finds the character by guid, finds none in
         /// mangos_tests and sends nothing -- call SendSocialList(fill, send) instead. The one entry in
         /// CheckManagerIsolation.cmake's OWNER_DEFINED allowlist.

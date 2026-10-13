@@ -23,56 +23,34 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include <zlib.h>
+#include "session/handlers/social/ContactHandlers.h"
+
 #include "Common/ServerDefines.h"
 #include "Platform/Define.h"
 #include <string>
-#include "Language.h"
-#include "Database/DatabaseEnv.h"
+#include "Tools/Language.h"
 #include "WorldPacket.h"
-#include "Opcodes.h"
-#include "Log.h"
-#include "Player.h"
-#include "World.h"
-#include "CinematicFlyover.h"
-#include "GuildMgr.h"
-#include "ObjectMgr.h"
-#include "WorldSession.h"
-#include "Auth/BigNumber.h"
-#include "Auth/Sha1.h"
-#include "UpdateData.h"
-#include "LootMgr.h"
-#include "Chat.h"
-#include "ScriptMgr.h"
-#include "zlib.h"
-#include "PlayerRegistry.h"
-#include "CharacterCache.h"
-#include "Object.h"
-#include "BattleGround/BattleGround.h"
-#include "OutdoorPvP/OutdoorPvP.h"
-#include "Guild.h"
-#include "Pet.h"
-#include "SocialMgr.h"
-#include "DBCEnums.h"
-
-/**
- * @file MiscHandlerSocial.cpp
- * @brief WorldSession's contact-list handlers: the contact list, friend and ignore add and remove with their
- * completions, and contact notes.
- */
+#include "Log/Log.h"
+#include "entities/player/Player.h"
+#include "WorldHandlers/World.h"
+#include "Object/ObjectMgr.h"
+#include "Server/WorldSession.h"
+#include "entities/player/PlayerRegistry.h"
+#include "Object/CharacterCache.h"
+#include "entities/player/social/SocialMgr.h"
 
 /**
  * @brief Sends the player's friend list.
  *
  * @param recv_data The received opcode packet.
  */
-void WorldSession::HandleContactListOpcode(WorldPacket& recv_data)
+void ContactHandlers::HandleContactList(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_CONTACT_LIST");
     uint32 unk;
     recv_data >> unk;
     DEBUG_LOG("unk value is %u", unk);
-    _player->GetSocial()->SendSocialList();
+    session.GetPlayer()->GetSocial()->SendSocialList();
 }
 
 /**
@@ -80,11 +58,11 @@ void WorldSession::HandleContactListOpcode(WorldPacket& recv_data)
  *
  * @param recv_data The received opcode packet.
  */
-void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
+void ContactHandlers::HandleAddFriend(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_ADD_FRIEND");
 
-    std::string friendName = GetMangosString(LANG_FRIEND_IGNORE_UNKNOWN);
+    std::string friendName = session.GetMangosString(LANG_FRIEND_IGNORE_UNKNOWN);
     std::string friendNote;
 
     recv_data >> friendName;
@@ -97,38 +75,34 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
     }
 
     DEBUG_LOG("WORLD: %s asked to add friend : '%s'",
-              GetPlayer()->GetName(), friendName.c_str());
+              session.GetPlayer()->GetName(), friendName.c_str());
 
-    // Decoupling D7i: the escape and the `SELECT guid, race FROM characters WHERE name`
-    // it protected are one CharacterCache lookup (D7c's fold table reproduces the column's
-    // utf8_general_ci comparison), so the answer is here in the handler's own tick. No
-    // cache entry is the old NULL result: the request is dropped with no reply at all,
-    // exactly as before.
+    // The name is resolved through CharacterCache, which compares names as the characters
+    // table's utf8_general_ci column does, so the answer is here in the handler's own call;
+    // a name with no cache entry drops the request with no reply.
     CharacterCacheRef cached = sCharacterCache.GetByName(friendName);
     if (!cached)
     {
         return;
     }
 
-    CompleteAddFriend(cached->guid, Player::TeamForRace(cached->race), friendNote);
+    CompleteAddFriend(session, cached->guid, Player::TeamForRace(cached->race), friendNote);
 }
 
 /**
  * @brief Completes an add-friend request once the character has been resolved.
  *
- * Decoupling D7i: this is the old HandleAddFriendOpcodeCallBack's body, unchanged below
- * the lookup. What it used to do first -- decode the row and re-find the session by
- * account id -- the caller has already done: the row is a CharacterCache entry and the
- * session is this one, because no tick passes between the packet and this call.
+ * The caller resolved the name through CharacterCache in the same call, so the session is
+ * the one the request arrived on.
  *
  * @param friendGuid The resolved character guid.
  * @param team The resolved character's team.
  * @param friendNote The note the client sent with the request.
  */
-void WorldSession::CompleteAddFriend(ObjectGuid friendGuid, Team team, std::string const& friendNote)
+void ContactHandlers::CompleteAddFriend(WorldSession& session, ObjectGuid friendGuid, Team team, std::string const& friendNote)
 {
-    WorldSession* session = this;
-    if (!session->GetPlayer())
+    WorldSession* requestSession = &session;
+    if (!requestSession->GetPlayer())
     {
         return;
     }
@@ -136,22 +110,22 @@ void WorldSession::CompleteAddFriend(ObjectGuid friendGuid, Team team, std::stri
     FriendsResult friendResult = FRIEND_NOT_FOUND;
     if (friendGuid)
     {
-        if (friendGuid == session->GetPlayer()->GetObjectGuid())
+        if (friendGuid == requestSession->GetPlayer()->GetObjectGuid())
         {
             friendResult = FRIEND_SELF;
         }
-        else if (session->GetPlayer()->GetTeam() != team && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_ADD_FRIEND) && session->GetSecurity() < SEC_MODERATOR)
+        else if (requestSession->GetPlayer()->GetTeam() != team && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_ADD_FRIEND) && requestSession->GetSecurity() < SEC_MODERATOR)
         {
             friendResult = FRIEND_ENEMY;
         }
-        else if (session->GetPlayer()->GetSocial()->HasFriend(friendGuid))
+        else if (requestSession->GetPlayer()->GetSocial()->HasFriend(friendGuid))
         {
             friendResult = FRIEND_ALREADY;
         }
         else
         {
             Player* pFriend = sPlayerRegistry.Find(friendGuid);
-            if (pFriend && pFriend->IsInWorld() && pFriend->IsVisibleGloballyFor(session->GetPlayer()))
+            if (pFriend && pFriend->IsInWorld() && pFriend->IsVisibleGloballyFor(requestSession->GetPlayer()))
             {
                 friendResult = FRIEND_ADDED_ONLINE;
             }
@@ -160,17 +134,17 @@ void WorldSession::CompleteAddFriend(ObjectGuid friendGuid, Team team, std::stri
                 friendResult = FRIEND_ADDED_OFFLINE;
             }
 
-            if (!session->GetPlayer()->GetSocial()->AddToSocialList(friendGuid, false))
+            if (!requestSession->GetPlayer()->GetSocial()->AddToSocialList(friendGuid, false))
             {
                 friendResult = FRIEND_LIST_FULL;
-                DEBUG_LOG("WORLD: %s's friend list is full.", session->GetPlayer()->GetName());
+                DEBUG_LOG("WORLD: %s's friend list is full.", requestSession->GetPlayer()->GetName());
             }
 
-            session->GetPlayer()->GetSocial()->SetFriendNote(friendGuid, friendNote);
+            requestSession->GetPlayer()->GetSocial()->SetFriendNote(friendGuid, friendNote);
         }
     }
 
-    sSocialMgr.SendFriendStatus(session->GetPlayer(), friendResult, friendGuid, false);
+    sSocialMgr.SendFriendStatus(requestSession->GetPlayer(), friendResult, friendGuid, false);
 
     DEBUG_LOG("WORLD: Sent (SMSG_FRIEND_STATUS)");
 }
@@ -180,7 +154,7 @@ void WorldSession::CompleteAddFriend(ObjectGuid friendGuid, Team team, std::stri
  *
  * @param recv_data The received opcode packet.
  */
-void WorldSession::HandleDelFriendOpcode(WorldPacket& recv_data)
+void ContactHandlers::HandleDelFriend(WorldSession& session, WorldPacket& recv_data)
 {
     ObjectGuid friendGuid;
 
@@ -188,9 +162,9 @@ void WorldSession::HandleDelFriendOpcode(WorldPacket& recv_data)
 
     recv_data >> friendGuid;
 
-    _player->GetSocial()->RemoveFromSocialList(friendGuid, false);
+    session.GetPlayer()->GetSocial()->RemoveFromSocialList(friendGuid, false);
 
-    sSocialMgr.SendFriendStatus(GetPlayer(), FRIEND_REMOVED, friendGuid, false);
+    sSocialMgr.SendFriendStatus(session.GetPlayer(), FRIEND_REMOVED, friendGuid, false);
 
     DEBUG_LOG("WORLD: Sent motd (SMSG_FRIEND_STATUS)");
 }
@@ -200,11 +174,11 @@ void WorldSession::HandleDelFriendOpcode(WorldPacket& recv_data)
  *
  * @param recv_data The received opcode packet.
  */
-void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recv_data)
+void ContactHandlers::HandleAddIgnore(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_ADD_IGNORE");
 
-    std::string IgnoreName = GetMangosString(LANG_FRIEND_IGNORE_UNKNOWN);
+    std::string IgnoreName = session.GetMangosString(LANG_FRIEND_IGNORE_UNKNOWN);
 
     recv_data >> IgnoreName;
 
@@ -214,29 +188,29 @@ void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recv_data)
     }
 
     DEBUG_LOG("WORLD: %s asked to Ignore: '%s'",
-              GetPlayer()->GetName(), IgnoreName.c_str());
+              session.GetPlayer()->GetName(), IgnoreName.c_str());
 
-    // Decoupling D7i, the twin of HandleAddFriendOpcode above.
+    // The name is resolved as the add-friend handler resolves it.
     CharacterCacheRef cached = sCharacterCache.GetByName(IgnoreName);
     if (!cached)
     {
         return;
     }
 
-    CompleteAddIgnore(cached->guid);
+    CompleteAddIgnore(session, cached->guid);
 }
 
 /**
  * @brief Completes an add-ignore request once the character has been resolved.
  *
- * Decoupling D7i, the twin of CompleteAddFriend above.
+ * The ignore twin of CompleteAddFriend above.
  *
  * @param ignoreGuid The resolved character guid.
  */
-void WorldSession::CompleteAddIgnore(ObjectGuid ignoreGuid)
+void ContactHandlers::CompleteAddIgnore(WorldSession& session, ObjectGuid ignoreGuid)
 {
-    WorldSession* session = this;
-    if (!session->GetPlayer())
+    WorldSession* requestSession = &session;
+    if (!requestSession->GetPlayer())
     {
         return;
     }
@@ -244,11 +218,11 @@ void WorldSession::CompleteAddIgnore(ObjectGuid ignoreGuid)
     FriendsResult ignoreResult = FRIEND_IGNORE_NOT_FOUND;
     if (ignoreGuid)
     {
-        if (ignoreGuid == session->GetPlayer()->GetObjectGuid())
+        if (ignoreGuid == requestSession->GetPlayer()->GetObjectGuid())
         {
             ignoreResult = FRIEND_IGNORE_SELF;
         }
-        else if (session->GetPlayer()->GetSocial()->HasIgnore(ignoreGuid))
+        else if (requestSession->GetPlayer()->GetSocial()->HasIgnore(ignoreGuid))
         {
             ignoreResult = FRIEND_IGNORE_ALREADY;
         }
@@ -257,14 +231,14 @@ void WorldSession::CompleteAddIgnore(ObjectGuid ignoreGuid)
             ignoreResult = FRIEND_IGNORE_ADDED;
 
             // ignore list full
-            if (!session->GetPlayer()->GetSocial()->AddToSocialList(ignoreGuid, true))
+            if (!requestSession->GetPlayer()->GetSocial()->AddToSocialList(ignoreGuid, true))
             {
                 ignoreResult = FRIEND_IGNORE_FULL;
             }
         }
     }
 
-    sSocialMgr.SendFriendStatus(session->GetPlayer(), ignoreResult, ignoreGuid, false);
+    sSocialMgr.SendFriendStatus(requestSession->GetPlayer(), ignoreResult, ignoreGuid, false);
 
     DEBUG_LOG("WORLD: Sent (SMSG_FRIEND_STATUS)");
 }
@@ -274,7 +248,7 @@ void WorldSession::CompleteAddIgnore(ObjectGuid ignoreGuid)
  *
  * @param recv_data The received opcode packet.
  */
-void WorldSession::HandleDelIgnoreOpcode(WorldPacket& recv_data)
+void ContactHandlers::HandleDelIgnore(WorldSession& session, WorldPacket& recv_data)
 {
     ObjectGuid ignoreGuid;
 
@@ -282,19 +256,18 @@ void WorldSession::HandleDelIgnoreOpcode(WorldPacket& recv_data)
 
     recv_data >> ignoreGuid;
 
-    _player->GetSocial()->RemoveFromSocialList(ignoreGuid, true);
+    session.GetPlayer()->GetSocial()->RemoveFromSocialList(ignoreGuid, true);
 
-    sSocialMgr.SendFriendStatus(GetPlayer(), FRIEND_IGNORE_REMOVED, ignoreGuid, false);
+    sSocialMgr.SendFriendStatus(session.GetPlayer(), FRIEND_IGNORE_REMOVED, ignoreGuid, false);
 
     DEBUG_LOG("WORLD: Sent motd (SMSG_FRIEND_STATUS)");
 }
 
-void WorldSession::HandleSetContactNotesOpcode(WorldPacket& recv_data)
+void ContactHandlers::HandleSetContactNotes(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_SET_CONTACT_NOTES");
     ObjectGuid guid;
     std::string note;
     recv_data >> guid >> note;
-    _player->GetSocial()->SetFriendNote(guid, note);
+    session.GetPlayer()->GetSocial()->SetFriendNote(guid, note);
 }
-
