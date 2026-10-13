@@ -25,11 +25,7 @@
 
 /**
  * @file SpellMgrChains.cpp
- * @brief Cohesion split of SpellMgr.cpp -- spell rank-chain and learn-skill / learn-spell
- *        loaders.
- *        Same `SpellMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        SpellMgr.h is unchanged.
+ * @brief SpellMgr's spell rank-chain, learn-skill and learn-spell loaders.
  */
 
 #include <unordered_map>

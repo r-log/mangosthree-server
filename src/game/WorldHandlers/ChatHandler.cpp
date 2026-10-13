@@ -27,13 +27,6 @@
  * @file ChatHandler.cpp
  * @brief Chat message opcode handlers
  *
- * This file handles chat-related opcodes including:
- * - CMSG_MESSAGECHAT: Send chat messages (say, yell, whisper, channel, etc.)
- * - CMSG_TEXT_EMOTE: Send text emotes
- * - CMSG_CHAT_MESSAGE_AFK: Set AFK status
- * - CMSG_CHAT_MESSAGE_DND: Set DND status
- * - CMSG_CHAT_IGNORED: Manage ignore list
- *
  * Chat messages are routed based on type (say, yell, whisper, channel, emote)
  * and filtered by language, distance, and other rules.
  */

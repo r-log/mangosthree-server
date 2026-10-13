@@ -27,14 +27,6 @@
  * @file SpellHandler.cpp
  * @brief Spell casting opcode handlers
  *
- * This file handles spell-related opcodes including:
- * - CMSG_USE_ITEM: Use item (cast item spell)
- * - CMSG_CAST_SPELL: Cast spell
- * - CMSG_CANCEL_CAST: Cancel spell cast
- * - CMSG_CANCEL_AURA: Cancel aura
- * - CMSG_CANCEL_CHANNELING: Cancel channeled spell
- * - CMSG_SELF_RES: Self resurrection
- *
  * Spell handlers validate cast requirements, initiate spell casting,
  * and manage spell cancellation.
  */

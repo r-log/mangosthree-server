@@ -25,10 +25,7 @@
 
 /**
  * @file PlayerItemEnchant.cpp
- * @brief Cohesion split of PlayerItem.cpp -- item duration + enchantment/reforge lifecycle and item packet senders.
- *        Same `Player` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        Player.h is unchanged.
+ * @brief Player's item duration, the enchantment and reforge lifecycle and the item packet senders.
  */
 
 #include "Utilities/Errors.h"

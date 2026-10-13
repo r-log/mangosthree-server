@@ -90,7 +90,8 @@
 
 /**
  * @file WorldConfig.cpp
- * @brief Cohesion split of World.cpp -- configuration: LoadConfigSettings, LoadDBVersion and the typed setConfig / setConfigMin / setConfigMinMax / configNoReload helpers. Same World class; no behaviour change. CMake file(GLOB) picks this file up automatically; World.h is unchanged.
+ * @brief World's configuration: LoadConfigSettings, LoadDBVersion and the typed setConfig, setConfigPos, setConfigMin,
+ * setConfigMinMax and configNoReload helpers.
  */
 
 /// Initialize config values

@@ -25,11 +25,7 @@
 
 /**
  * @file SpellMgrData.cpp
- * @brief Cohesion split of SpellMgr.cpp -- spell target-position / bonus / elixir / threat /
- *        script-target loaders.
- *        Same `SpellMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        SpellMgr.h is unchanged.
+ * @brief SpellMgr's spell target-position, bonus, elixir, threat and script-target loaders.
  */
 
 #include <set>

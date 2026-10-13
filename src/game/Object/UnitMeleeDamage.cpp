@@ -60,7 +60,8 @@
 
 /**
  * @file UnitMeleeDamage.cpp
- * @brief Cohesion split of Unit.cpp -- melee damage: CalculateMeleeDamage (hit outcome + damage roll) and DealMeleeDamage (apply damage, durability, on-hit side effects). Same Unit class; no behaviour change. CMake file(GLOB) picks this file up automatically; Unit.h is unchanged.
+ * @brief Unit's melee damage: CalculateMeleeDamage (the hit outcome and the damage roll) and DealMeleeDamage (the
+ * damage, durability and on-hit effects).
  */
 
 // TODO for melee need create structure as in

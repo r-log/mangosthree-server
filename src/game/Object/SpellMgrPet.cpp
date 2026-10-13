@@ -25,11 +25,7 @@
 
 /**
  * @file SpellMgrPet.cpp
- * @brief Cohesion split of SpellMgr.cpp -- pet aura / level-up spell map / default pet spell
- *        loaders.
- *        Same `SpellMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        SpellMgr.h is unchanged.
+ * @brief SpellMgr's pet aura, pet level-up spell and default pet spell loaders.
  */
 
 #include "Utilities/Errors.h"

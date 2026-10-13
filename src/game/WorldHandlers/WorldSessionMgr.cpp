@@ -35,7 +35,7 @@
 
 /**
  * @file WorldSessionMgr.cpp
- * @brief Cohesion split of World.cpp -- session management: zone player lookup, session add/remove and the login wait-queue. Same World class; no behaviour change. CMake file(GLOB) picks this file up automatically; World.h is unchanged.
+ * @brief World's session management: zone player lookup, session add and remove and the login wait queue.
  */
 
 /// Find a player in a specified zone

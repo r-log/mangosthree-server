@@ -43,7 +43,8 @@
 
 /**
  * @file BattleGroundObjects.cpp
- * @brief Cohesion split of BattleGround.cpp -- battleground door and object/creature spawning: door open/close, DB-load event objects, event spawn and BG object/creature spawn. Same BattleGround class; no behaviour change. CMake file(GLOB) picks this file up automatically; BattleGround.h is unchanged.
+ * @brief BattleGround's doors and its object and creature spawning: door open and close, the event objects loaded from
+ * the database, event spawn and object and creature spawn.
  */
 
 /// <summary>

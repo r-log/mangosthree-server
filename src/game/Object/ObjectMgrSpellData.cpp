@@ -25,10 +25,7 @@
 
 /**
  * @file ObjectMgrSpellData.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- creature spell-click, creature-template spell and fishing-skill loaders.
- *        Same `ObjectMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's creature spell-click, creature template spell and fishing skill loaders.
  */
 
 #include "ObjectMgr.h"

@@ -82,7 +82,7 @@
 
 /**
  * @file PlayerLoadFromDB.cpp
- * @brief Cohesion split of PlayerLoad.cpp -- Player::LoadFromDB, the full character-hydration entry point that drives the _Load* helpers from the login query holder. Same Player class; no behaviour change. CMake file(GLOB) picks this file up automatically; Player.h is unchanged.
+ * @brief Player::LoadFromDB, the character load that drives the _Load* helpers from the login query holder.
  */
 
 #define DEATH_EXPIRE_STEP (5*MINUTE)

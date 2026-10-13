@@ -30,9 +30,7 @@
 
 /**
  * @file GuildRank.cpp
- * @brief Cohesion split of Guild.cpp -- guild rank create/delete/reorder and
- * rank name/rights management. Same Guild class; no behaviour change. CMake
- * file(GLOB Object/*.cpp) picks this file up automatically; Guild.h is unchanged.
+ * @brief Guild's ranks: create, delete and reorder, and the rank names and rights.
  */
 
 /**

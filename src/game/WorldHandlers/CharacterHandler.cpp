@@ -27,15 +27,6 @@
  * @file CharacterHandler.cpp
  * @brief Character creation, deletion, and management handlers
  *
- * This file handles character-related opcodes including:
- * - CMSG_CHAR_ENUM: List characters on account
- * - CMSG_CHAR_CREATE: Create new character
- * - CMSG_CHAR_DELETE: Delete character
- * - CMSG_PLAYER_LOGIN: Login to world with character
- * - CMSG_PLAYER_LOGOUT: Logout from world
- * - CMSG_NAME_QUERY: Query character name
- * - CMSG_CHAR_RENAME: Rename character
- *
  * Character creation includes validation of name, race, class,
  * appearance customization, and starting location setup.
  */

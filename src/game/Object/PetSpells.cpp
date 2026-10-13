@@ -41,7 +41,8 @@
 
 /**
  * @file PetSpells.cpp
- * @brief Cohesion split of Pet.cpp -- pet spells, auras and talents: spell/cooldown/aura DB load-save, spell learn/remove, action bar, talent reset and autocast toggling. Same Pet class; no behaviour change. CMake file(GLOB) picks this file up automatically; Pet.h is unchanged.
+ * @brief Pet's spells, auras and talents: the spell, cooldown and aura loads and saves, spell learn and remove, the
+ * action bar, talent reset and the autocast toggle.
  */
 
 /**

@@ -26,20 +26,6 @@
 /**
  * @file ChannelHandler.cpp
  * @brief Channel-related opcode handlers
- *
- * This file handles channel-related opcodes including:
- * - CMSG_JOIN_CHANNEL: Join a channel
- * - CMSG_LEAVE_CHANNEL: Leave a channel
- * - CMSG_CHANNEL_LIST: List channels
- * - CMSG_CHANNEL_PASSWORD: Set channel password
- * - CMSG_CHANNEL_OWNER: Set channel owner
- * - CMSG_CHANNEL_MODERATOR: Set channel moderator
- * - CMSG_CHANNEL_MUTE: Mute channel member
- * - CMSG_CHANNEL_UNMUTE: Unmute channel member
- * - CMSG_CHANNEL_INVITE: Invite to channel
- * - CMSG_CHANNEL_KICK: Kick from channel
- * - CMSG_CHANNEL_BAN: Ban from channel
- * - CMSG_CHANNEL_UNBAN: Unban from channel
  */
 
 #include <string>

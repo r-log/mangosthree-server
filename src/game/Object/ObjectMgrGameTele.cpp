@@ -25,10 +25,7 @@
 
 /**
  * @file ObjectMgrGameTele.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- game teleport (.tele) location
- *        load/get/add/delete. Same `ObjectMgr` class; no behaviour change.
- *        CMake `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's game teleport (.tele) locations: load, get, add and delete.
  */
 
 #include <string>

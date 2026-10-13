@@ -53,7 +53,7 @@
 
 /**
  * @file MiscHandlerInstance.cpp
- * @brief Cohesion split of MiscHandler.cpp -- instance reset and dungeon/raid difficulty opcode handlers. Same WorldSession class; no behaviour change. CMake file(GLOB) picks this file up automatically; WorldSession.h is unchanged.
+ * @brief WorldSession's instance reset and dungeon and raid difficulty handlers.
  */
 
 /**

@@ -58,7 +58,8 @@
 
 /**
  * @file BattleGroundQueue.cpp
- * @brief Cohesion split of BattleGroundMgr.cpp -- the BattleGroundQueue class (SelectionPool team balancing, group queue add/remove, wait-time tracking, invite/fill/match logic, queue Update) plus the BGQueueInvite/Remove timeout events. Same classes; no behaviour change. CMake file(GLOB) picks this file up automatically; BattleGroundMgr.h is unchanged.
+ * @brief The BattleGroundQueue class (selection pools, group add and remove, wait-time tracking, invite, fill and
+ * match, the queue update) and the BGQueueInviteEvent and BGQueueRemoveEvent timeout events.
  */
 
 /*********************************************************/

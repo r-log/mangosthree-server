@@ -33,7 +33,8 @@
 
 /**
  * @file ItemEnchantment.cpp
- * @brief Cohesion split of Item.cpp -- enchantments and gem sockets: set/clear enchantment, duration/charges, socket update broadcast and gem fit/count queries. Same Item class; no behaviour change. CMake file(GLOB) picks this file up automatically; Item.h is unchanged.
+ * @brief Item's enchantments and gem sockets: set and clear enchantment, duration and charges, the socket update
+ * broadcast and the gem fit and count queries.
  */
 
 /**

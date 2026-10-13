@@ -56,7 +56,8 @@
 
 /**
  * @file CharacterHandlerCustomize.cpp
- * @brief Cohesion split of CharacterHandler.cpp -- character customization and client-settings opcode handlers: rename, declined names, alter appearance, remove glyph, customize, equipment sets, reorder characters, currency flags and load screen. Same WorldSession class; no behaviour change. CMake file(GLOB) picks this file up automatically; WorldSession.h is unchanged.
+ * @brief WorldSession's character customization and client-settings handlers: rename, declined names, alter appearance,
+ * customize, equipment sets, reorder characters, currency flags and load screen.
  */
 
 namespace

@@ -25,12 +25,8 @@
 
 /**
  * @file ObjectMgrNameCheck.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- reserved-name loading and
- *        player / charter / pet name validation (incl. the file-local
- *        LanguageType enum + GetRealmLanguageType helper used only here).
- *        Same `ObjectMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's reserved-name loader and the player, charter and pet name checks, with the file-local realm
+ * language helper.
  */
 
 #include <string>

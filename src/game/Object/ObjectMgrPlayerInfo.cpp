@@ -24,15 +24,8 @@
  */
 
 /**
- * @file ObjectMgrCreatures.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- creature template, addon, model,
- *        equipment, and spawn loaders. Same `ObjectMgr` class; no behaviour
- *        change. CMake `file(GLOB Object/*.cpp)` picks this file up
- *        automatically; ObjectMgr.h is unchanged.
- *
- * Splits out 24 methods (~1,250 lines) so the parent file drops below ~11K
- * lines and the creature subsystem can be grep'd as a self-contained block
- * instead of scattered through a 12K-line god file.
+ * @file ObjectMgrPlayerInfo.cpp
+ * @brief ObjectMgr's pet and player level info: the loaders, the lookups and the player level-info builder.
  */
 
 #include "ObjectMgr.h"

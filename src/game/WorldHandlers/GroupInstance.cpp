@@ -43,7 +43,8 @@
 
 /**
  * @file GroupInstance.cpp
- * @brief Cohesion split of Group.cpp -- instances and rewards: group skill, looter rotation, battleground-queue eligibility, dungeon/raid difficulty, instance binding/reset and group kill rewards. Same Group class; no behaviour change. CMake file(GLOB) picks this file up automatically; Group.h is unchanged.
+ * @brief Group's instances and rewards: the group skill, looter rotation, battleground queue eligibility, dungeon and
+ * raid difficulty, instance binding and reset, and group kill rewards.
  */
 
 uint32 Group::GetMaxSkillValueForGroup(SkillType skill)

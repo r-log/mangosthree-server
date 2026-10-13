@@ -25,11 +25,7 @@
 
 /**
  * @file UnitDynObject.cpp
- * @brief Unit-owned dynamic-object and game-object attachment helpers split
- *        out of Unit.cpp.
- *
- * Pure file move (cohesion split): method bodies are byte-identical and the
- * declarations remain in Unit.h. No behaviour change.
+ * @brief Unit's owned dynamic objects and game objects: add, find and remove.
  */
 
 #include "Utilities/Errors.h"

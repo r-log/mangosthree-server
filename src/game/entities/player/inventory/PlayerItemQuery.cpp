@@ -25,10 +25,8 @@
 
 /**
  * @file PlayerItemQuery.cpp
- * @brief Cohesion split of PlayerItem.cpp -- inventory/equip slot lookup + item-count accessors.
- *        Same `Player` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        Player.h is unchanged.
+ * @brief Player's virtual item slots and sheath, the slot lookup by inventory type, the unequip check and the weapon
+ * and shield lookups.
  */
 
 #include "Utilities/Errors.h"

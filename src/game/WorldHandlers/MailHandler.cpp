@@ -27,16 +27,6 @@
  * @file MailHandler.cpp
  * @brief Mail system opcode handlers
  *
- * This file handles mail-related opcodes including:
- * - CMSG_SEND_MAIL: Send mail to another player
- * - CMSG_MAIL_DELETE: Delete mail
- * - CMSG_MAIL_RETURN: Return mail to sender
- * - CMSG_MAIL_MARK_AS_READ: Mark mail as read
- * - CMSG_MAIL_CREATE_TEXT_ITEM: Create item from mail text
- * - CMSG_MAIL_TAKE_ITEM: Take item from mail
- * - CMSG_MAIL_TAKE_MONEY: Take money from mail
- * - CMSG_MAIL_QUERY_NEXT_TIME: Query next mail delivery time
- *
  * Mail operations require proper validation of recipient, money,
  * and item attachments.
  */

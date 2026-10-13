@@ -25,11 +25,8 @@
 
 /**
  * @file PlayerLoad.cpp
- * @brief Cohesion split of Player.cpp -- the LOAD SYSTEM block:
- *        `_Load*` DB helpers, `LoadFromDB`, instance-binding lifecycle,
- *        and the raid-info/saved-instance packet senders. Same `Player`
- *        class; no behaviour change. CMake `file(GLOB Object/*.cpp)`
- *        picks this file up automatically; Player.h is unchanged.
+ * @brief Player's _Load* database helpers, LoadPositionFromDB, LoadCorpse and LoadPet, the instance-binding lifecycle
+ * and the raid-info and saved-instance packet senders.
  */
 
 #include "Utilities/Errors.h"

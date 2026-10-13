@@ -25,11 +25,7 @@
 
 /**
  * @file ScriptMgrDbScripts.cpp
- * @brief Cohesion split of ScriptMgr.cpp -- database-script table loaders (LoadScripts/LoadDbScripts/strings + spell-start gating).
- *
- * Same ScriptMgr/ScriptAction classes; no behaviour change. CMake
- * file(GLOB WorldHandlers/*.cpp) picks this file up automatically;
- * ScriptMgr.h is unchanged.
+ * @brief ScriptMgr's database script loaders (scripts, DB scripts and script strings) and the spell-start gating.
  */
 
 #include <set>

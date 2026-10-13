@@ -26,26 +26,6 @@
 /**
  * @file NPCHandler.cpp
  * @brief NPC interaction opcode handlers
- *
- * This file handles NPC-related opcodes including:
- * - CMSG_NPC_TEXT_QUERY: Query NPC text/gossip
- * - CMSG_GOSSIP_HELLO: Open gossip menu
- * - CMSG_GOSSIP_SELECT_OPTION: Select gossip option
- * - CMSG_NPC_WELCOME: NPC welcome
- * - CMSG_TABARD_VENDOR_ACTIVATE: Activate tabard vendor
- * - CMSG_BANKER_ACTIVATE: Activate banker
- * - CMSG_BUY_BANK_SLOT: Buy bank slot
- * - CMSG_TRAINER_LIST: Query trainer list
- * - CMSG_TRAINER_BUY_SPELL: Buy spell from trainer
- * - CMSG_PETITION_SHOW_LIST: Show petition list
- * - CMSG_PETITION_BUY: Buy petition
- * - CMSG_PETITION_SIGN: Sign petition
- * - CMSG_PETITION_QUERY: Query petition
- * - CMSG_OFFER_PETITION: Offer petition
- * - CMSG_TURN_IN_PETITION: Turn in petition
- * - CMSG_STABLE_PET: Stable pet
- * - CMSG_UNSTABLE_PET: Unstable pet
- * - CMSG_BUY_STABLE_SLOT: Buy stable slot
  */
 
 #include <cmath>

@@ -25,10 +25,7 @@
 
 /**
  * @file ObjectMgrLocaleStrings.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- localized string accessors for
- *        creatures, items, quests, and NPC text. Same `ObjectMgr` class; no
- *        behaviour change. CMake `file(GLOB Object/*.cpp)` picks this file up
- *        automatically; ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's localized string accessors for creatures, items, quests and NPC text.
  */
 
 #include <string>

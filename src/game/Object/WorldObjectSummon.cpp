@@ -56,7 +56,8 @@
 
 /**
  * @file WorldObjectSummon.cpp
- * @brief Cohesion split of Object.cpp -- WorldObject map binding, creature/gameobject summoning, near-point selection, visibility refresh and sound/music playback. Same WorldObject class; no behaviour change. CMake file(GLOB Object/*.cpp) picks this file up automatically; Object.h is unchanged.
+ * @brief WorldObject's map binding, creature and game object summoning, free-spot and near-point selection, phase mask,
+ * visibility refresh, client update list and sound and music playback.
  */
 
 /**

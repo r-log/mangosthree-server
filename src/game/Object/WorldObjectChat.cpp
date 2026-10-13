@@ -56,7 +56,8 @@
 
 /**
  * @file WorldObjectChat.cpp
- * @brief Cohesion split of Object.cpp -- WorldObject chat/messaging: monster say/yell/emote/whisper, localized text broadcast, message-to-set delivery and despawn/custom-anim packets. Same WorldObject class; no behaviour change. CMake file(GLOB Object/*.cpp) picks this file up automatically; Object.h is unchanged.
+ * @brief WorldObject's chat and messages: monster say, yell, emote and whisper, localized text broadcast,
+ * message-to-set delivery and the despawn and custom-animation packets.
  */
 
 /**

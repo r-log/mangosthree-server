@@ -36,7 +36,9 @@
 
 /**
  * @file PlayerStateCommands.cpp
- * @brief Cohesion split of PlayerCommands.cpp -- player state and item/skill GM commands: revive, dismount, save, start, taxi/explore cheats, level-up, add item/itemset, skill, combat-stop and repair. Same ChatHandler class; no behaviour change. CMake file(GLOB) picks this file up automatically; Chat.h is unchanged.
+ * @brief ChatHandler's player-state, item and skill GM commands: revive, dismount, graveyard link, item move, cooldown,
+ * save, start, taxi and explore cheats, level, area show and hide, add item and item set, skill, combat stop and
+ * repair.
  */
 
 /**

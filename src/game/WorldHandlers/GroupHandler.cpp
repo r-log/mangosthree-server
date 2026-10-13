@@ -27,18 +27,6 @@
  * @file GroupHandler.cpp
  * @brief Group/party opcode handlers
  *
- * This file handles group-related opcodes including:
- * - CMSG_GROUP_INVITE: Invite player to group
- * - CMSG_GROUP_ACCEPT: Accept group invitation
- * - CMSG_GROUP_DECLINE: Decline group invitation
- * - CMSG_GROUP_UNINVITE: Remove member from group
- * - CMSG_GROUP_LEAVE: Leave group
- * - CMSG_GROUP_DISBAND: Disband group
- * - CMSG_GROUP_CHANGE_LEADER: Transfer leadership
- * - CMSG_GROUP_SET_LEADER: Set new leader
- * - CMSG_LOOT_METHOD: Set loot method
- * - CMSG_MINIMAP_PING: Send minimap ping
- *
  * Group operations require proper permission checks and state validation.
  */
 

@@ -33,7 +33,7 @@
 
 /**
  * @file ItemPersistence.cpp
- * @brief Cohesion split of Item.cpp -- item lifecycle and persistence: construct/create, duration update, SaveToDB/LoadFromDB/LoadLootFromDB and delete. Same Item class; no behaviour change. CMake file(GLOB) picks this file up automatically; Item.h is unchanged.
+ * @brief Item's lifecycle and persistence: construct and create, duration update, save, load, loot load and delete.
  */
 
 /**

@@ -25,10 +25,7 @@
 
 /**
  * @file ObjectMgrTaxi.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- taxi node / path / mount-display
- *        lookups. Same `ObjectMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's taxi node, path and mount display lookups.
  */
 
 #include "ObjectMgr.h"

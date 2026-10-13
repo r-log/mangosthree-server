@@ -23,10 +23,8 @@
 
 /**
  * @file AchievementCriteriaRequirement.cpp
- * @brief Cohesion split of AchievementMgr.cpp -- AchievementCriteriaRequirement[Set] validation (IsValid + Meets criterion gating).
- *
- * Same classes; no behaviour change. CMake file(GLOB WorldHandlers/*.cpp)
- * picks this file up automatically; AchievementMgr.h is unchanged.
+ * @brief AchievementCriteriaRequirement and AchievementCriteriaRequirementSet: the criterion requirement checks
+ * (IsValid and Meets).
  */
 
 #include "Platform/Define.h"

@@ -25,10 +25,7 @@
 
 /**
  * @file ObjectMgrText.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- page-text and gossip-text table loaders.
- *        Same `ObjectMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's page text and gossip text loaders.
  */
 
 #include <sstream>

@@ -60,7 +60,8 @@
 
 /**
  * @file GameObjectUse.cpp
- * @brief Cohesion split of GameObject.cpp -- the Use interaction dispatcher handling every gameobject type (doors, chests, traps, rituals, meeting stones, fishing, capture flags and more). Same GameObject class; no behaviour change. CMake file(GLOB) picks this file up automatically; GameObject.h is unchanged.
+ * @brief GameObject::Use, the use interaction for every game object type (doors, chests, traps, rituals, meeting
+ * stones, fishing, capture flags and more).
  */
 
 /**

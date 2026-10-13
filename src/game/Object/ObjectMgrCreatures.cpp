@@ -25,14 +25,8 @@
 
 /**
  * @file ObjectMgrCreatures.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- creature template, addon, model,
- *        equipment, and spawn loaders. Same `ObjectMgr` class; no behaviour
- *        change. CMake `file(GLOB Object/*.cpp)` picks this file up
- *        automatically; ObjectMgr.h is unchanged.
- *
- * Splits out 24 methods (~1,250 lines) so the parent file drops below ~11K
- * lines and the creature subsystem can be grep'd as a self-contained block
- * instead of scattered through a 12K-line god file.
+ * @brief ObjectMgr's creature template, addon, class-level stat, equipment, model and spawn loaders and the creature
+ * grid placement.
  */
 
 #include <algorithm>
@@ -81,10 +75,7 @@
 
 #include <limits>
 
-// Translation-unit-local SQL loader helper, moved here from ObjectMgr.cpp
-// alongside the only method that uses it (LoadCreatureTemplates). Keeps
-// the cohesion split clean: no orphan declarations left in the parent
-// file, no header churn.
+// The SQL loader of LoadCreatureTemplates, its only user, local to this file.
 struct SQLCreatureLoader : public SQLStorageLoaderBase<SQLCreatureLoader, SQLStorage>
 {
     template<class D>
