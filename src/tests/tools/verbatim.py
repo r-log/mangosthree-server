@@ -180,11 +180,12 @@ Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH
 the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a route through the aura
 or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`) needs `this` among
 them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are compared with their
-blanks dropped, but one between two name characters. The dispatch lines hold the context's construction
-(whole or split over two lines), the dispatch call (whole or split over two lines, or assigned to
-`outcome` and tested on the next line), its return, braces and blank lines, and nothing else: each line,
-comments and literals blanked and blanks aside, is `CONTEXT NAME(ARGUMENTS);`, whole or split over two
-lines after an argument's comma that no inner parenthesis holds;
+blanks dropped, but one between two name characters. The dispatch lines hold, blank lines aside, in this
+order and each once, the context's construction (whole or split over two lines), the dispatch call (whole
+or split over two lines, or assigned to `outcome` and tested on the next line), `{`, its return and `}`,
+the five inside one outer `{` and `}` or in none, and nothing else: each line, comments and literals
+blanked and blanks aside, is `CONTEXT NAME(ARGUMENTS);`, whole or split over two lines after an
+argument's comma that no inner parenthesis holds;
 `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())`, whole or split after its `(` or after KEY's comma;
 `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with `if (OUT.IsReturn())` the next line
 (VALUE the site's `value`, void where it names none; OUT any name); `return;` at a site with no `value`,
@@ -196,7 +197,7 @@ or a statement or another return added to the dispatch lines of both, would come
 Refused, each by name: a context pair reading two names that is not listed; a listed exception no site
 uses, or an entry that is not a pair and its reason; a pair rewriting another's right side or a later
 pair's left side; a dispatch line of none of the shapes (a statement, a comment, a return of the other
-kind or one changed).
+kind or one changed), or one out of that order or repeated, and dispatch lines that end short of it.
 
 python src/tests/tools/verbatim.py --check        # against BASE (this PR's parent), reading git
 python src/tests/tools/verbatim.py --check --original   # each file against its original
@@ -839,7 +840,9 @@ def check_dispatch_shape(site, key, name):
     whole or split over two lines after its `(` or after KEY's comma; the call assigned,
     `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` (VALUE the site's value, void where it names
     none), with `if (OUT.IsReturn())` the next line; the site's return, `return;` where it names no value and
-    `return OUT.GetValue();` where it does; `{`, `}` or a blank line. A line holding a comment is none of them."""
+    `return OUT.GetValue();` where it does; `{`, `}` or a blank line. A line holding a comment is none of them.
+    Blank lines aside, the lines stand in this order, each once: the construction, the call (or the call assigned),
+    `{`, the return and `}`, the five inside one outer `{` and `}` or in none."""
     text = '\n'.join(site['dispatch'])
     noted = [text.count('\n', 0, m.start()) for m in re.finditer(r'/[/*]', text) if not in_literal(text, m.start())]
     read = [squeezed(line) for line in blank(text).split('\n')]
@@ -847,7 +850,7 @@ def check_dispatch_shape(site, key, name):
     passed = r'%s,%s\)' % (re.escape(key), re.escape(name))
     whole = r'if\(%s%s\.IsReturn\(\)\)' % (call, passed)
     assigned = r'SpellHandlerOutcome<%s>(\w+)=%s%s;' % (re.escape(site.get('value', 'void')), call, passed)
-    out, i = None, 0
+    out, i, items = None, 0, []
     while i < len(read):
         line, after = read[i], read[i + 1] if i + 1 < len(read) else ''
         built = re.match(r'%s %s\(' % (re.escape(site['context']), re.escape(name)), line)
@@ -857,24 +860,42 @@ def check_dispatch_shape(site, key, name):
         joined = held(line + after, built.end() - 1) if split else None
         valued = re.fullmatch(assigned, line)
         returned = 'return;' if 'value' not in site else out and 'return %s.GetValue();' % out
+        kind, step = None, 1
         if valued and after == 'if(%s.IsReturn())' % valued.group(1):
-            out, i = valued.group(1), i + 2
+            out, kind, step = valued.group(1), 'dispatch call', 2
         elif re.fullmatch(whole, line + after) and re.fullmatch(r'if\(%s(?:%s,)?' % (call, re.escape(key)), line):
-            i += 2
+            kind, step = 'dispatch call', 2
         elif joined is not None and (line + after)[built.end() + len(joined):] == ');':
-            i += 2
+            kind, step = 'construction', 2
         elif split and i + 1 < len(read):
             i += 1
             break
-        elif (re.fullmatch(whole, line) or line in ('{', '}', returned) or not site['dispatch'][i].strip()
-              or given is not None and line[built.end() + len(given):] == ');'):
-            i += 1
-        else:
+        elif re.fullmatch(whole, line):
+            kind = 'dispatch call'
+        elif line in ('{', '}'):
+            kind = line
+        elif line == returned:
+            kind = 'return'
+        elif given is not None and line[built.end() + len(given):] == ');':
+            kind = 'construction'
+        elif site['dispatch'][i].strip():
             break
+        if kind:
+            items.append((kind, i))
+        i += step
     wrong = [n for n in noted + [i] if n < len(read)]
     if wrong:
         raise Failure('%s: its dispatch line %r is not the context\'s construction, the dispatch call, its return or '
                       'a brace' % (site['name'], site['dispatch'][min(wrong)].strip()))
+    order = ['construction', 'dispatch call', '{', 'return', '}']
+    if items[:1] and items[0][0] == '{':
+        order = ['{'] + order + ['}']
+    for at, (kind, n) in enumerate(items):
+        if at >= len(order) or kind != order[at]:
+            raise Failure('%s: its dispatch line %r stands outside the sequence construction, dispatch, {, return, }'
+                          % (site['name'], site['dispatch'][n].strip()))
+    if len(items) < len(order):
+        raise Failure('%s: its dispatch lines end before the %s' % (site['name'], order[len(items)]))
 
 
 def check_pairs(site, listed):
@@ -3314,6 +3335,31 @@ def self_test():
     raises('dispatch shape: the construction opened on the last dispatch line: fails by name',
            unshaped % ('tied', 'CheckTargetContext ctx(this, m_caster,'),
            lambda: check_dispatch_shape(opened, 'GetId()', 'ctx'))
+    astray = "%s: its dispatch line %r stands outside the sequence construction, dispatch, {, return, }"
+    short = '%s: its dispatch lines end before the %s'
+    for what, dispatch, line in (
+            ('a second valued return after the block', worth + ['    return outcome.GetValue();'],
+             'return outcome.GetValue();'),
+            ('braces after the outcome\'s test', worth[:3] + ['    {', '    }'] + worth[3:], '}')):
+        run('dispatch sequence: %s: fails by name' % what, 1, astray % ('valued', line), **reshaped(valued, dispatch))
+    for what, dispatch, line in (
+            ('a second return after the block', passing + ['    return;'], 'return;'),
+            ('the return before the dispatch call', passing[:1] + ['    return;'] + passing[1:3] + passing[4:],
+             'return;'),
+            ('the construction after the dispatch call', passing[1:2] + passing[:1] + passing[2:],
+             passing[1].strip())):
+        run('dispatch sequence: %s: fails by name' % what, 1, astray % ('tied', line), **reshaped(tied, dispatch))
+    for what, dispatch in (('the block\'s closing brace missing', passing[:4]),
+                           ('the outer brace not closed', ['    {'] + ['    ' + line for line in passing])):
+        run('dispatch sequence: %s: fails by name' % what, 1, short % ('tied', '}'), **reshaped(tied, dispatch))
+    run('dispatch sequence: the lines ending at the dispatch call: fails by name', 1, short % ('tied', '{'),
+        **reshaped(tied, passing[:2]))
+    run('dispatch sequence: a blank line between every two lines: passes', 0, shaped,
+        **reshaped(tied, [line for each in passing for line in ('', each)] + ['']))
+    run('dispatch sequence: a blank line after the block: passes', 0, shaped, **reshaped(tied, passing + ['']))
+    run('dispatch sequence: the valued form inside an outer block: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **reshaped(valued, ['    {'] + ['    ' + line for line in worth] + ['    }']))
 
     def paired(*pairs):
         """A site whose substitutions are `pairs`, then the void outcome pairs."""
