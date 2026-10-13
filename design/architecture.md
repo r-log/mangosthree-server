@@ -10,7 +10,7 @@ master 7b6a481ce.
 A layer includes only what its row allows, and nothing includes upward. The chain
 `proto -> session -> entities/spells/combat/maps -> motion` is the path a packet takes, not the include direction:
 proto is the wire library near the bottom that session and motion build on. The tree agrees: `src/proto` includes
-only `src/shared`; session includes it 103 times, the motion layer 19 times (8 from the kernel's writers, 11 from
+only `src/shared`; session includes it 112 times, the motion layer 19 times (8 from the kernel's writers, 11 from
 `game/movement`).
 
 | Layer | Directories in the target | May include |
@@ -31,8 +31,8 @@ only `src/shared`; session includes it 103 times, the motion layer 19 times (8 f
 These directories **dissolve**:
 - `Object/` (152 files): 63 to entities, 28 to data, 25 to ai, 10 to social, 9 to spells, 9 to combat, 6 to economy
   and 2 to foundation (`ObjectGuid`).
-- `WorldHandlers/` (177 files): 42 to session (the 32 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
-  `AccountMgr`, `WorldSessionMgr`, `ChatMessage*`), 40 to maps, 34 to spells, 26 to social, 12 to scripts, 12 to
+- `WorldHandlers/` (178 files): 42 to session (the 32 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
+  `AccountMgr`, `WorldSessionMgr`, `ChatMessage*`), 40 to maps, 35 to spells, 26 to social, 12 to scripts, 12 to
   data, 4 to economy, 4 to entities (achievements) and 3 to app.
 - `Server/`: 11 files to session, 15 to data and `GameGlobals` to persistence. `References/`: threat to combat,
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
@@ -62,8 +62,8 @@ is listed per includer file and header and cannot grow, and so is an include aga
 change its includer file in the PR that deletes the old one or removes the include from it, only within the same layer pair and header; a change of
 layer pair or header is a new edge.
 
-**Today:** 2,332 such lines, the largest being entities -> maps 464, -> social 336, -> pvp 188 and -> spells 168,
-and spells -> entities 296.
+**Today:** 2,348 such lines, the largest being entities -> maps 464, -> social 336, -> pvp 188 and -> spells 168,
+and spells -> entities 313.
 
 **Which peers may know which (decided 2026-10-02).** The ratchet above keeps the cross lines from growing; it does
 not say which of them are the design and which are debt. This table does. A pair not listed is debt: its ratchet
@@ -106,9 +106,9 @@ or its stand state changes are six typed facts declared beside `Player` (`Player
 `session/packets/combat/`, `spells/` and `entities/` and sent through the callbacks `InstallPlayerPacketSinks`
 installs where a player is created.
 
-**Today (database):** 984 of the 1,008 calls are outside persistence: entities 240 (62 in
-`entities/player/persistence/`), social 192, data 142, session 136, scripts 94, app 74, maps 62, economy 22,
-spells 11, pvp 9, ai 2. Game `.cpp` files hold 996 calls in 126 files.
+**Today (database):** 982 of the 1,006 calls are outside persistence: entities 238 (62 in
+`entities/player/persistence/`), social 192, data 142, session 134, scripts 94, app 74, maps 62, economy 22,
+spells 13, pvp 9, ai 2. Game `.cpp` files hold 994 calls in 126 files.
 
 **Today (entities, the manager audit):**
 - Six managers build packets: `CurrencyMgr` (4 opcodes), `PetMgr` (1), `HonorMgr` (1), `ReputationMgr` (5),
@@ -211,7 +211,7 @@ the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
 |---|---|---|
-| every file | lives in a directory named here; includes by path; only the edges section 1 allows | `CheckLayout`, built (#179). It ratchets from today's measured edges (1,118 against the rule plus 2,354 across the domain tier). Edges against the rule or into a gated seam are keyed per includer file and header; a line may change its includer file in the PR that deletes the old one or removes the include from it, only within the same layer pair and header, and a change of layer pair or header is a new edge. Sideways edges are keyed per includer directory, includer peer and header: the peer is the coupling unit, the directory stands in for it until `Object/`, `WorldHandlers/` and `References/` dissolve, and the key then collapses to directory and header. A file can split inside its directory. An edge leaves its allow-list in the PR that removes it, and a new one fails. `CheckIncludeCollisions` is in #174. |
+| every file | lives in a directory named here; includes by path; only the edges section 1 allows | `CheckLayout`, built (#179). It ratchets from the measured edges listed in `layout_allow.txt`; `layout_gate.py --check` prints the count per bucket. Edges against the rule or into a gated seam are keyed per includer file and header; a line may change its includer file in the PR that deletes the old one or removes the include from it, only within the same layer pair and header, and a change of layer pair or header is a new edge. Sideways edges are keyed per includer directory, includer peer and header: the peer is the coupling unit, the directory stands in for it until `Object/`, `WorldHandlers/` and `References/` dissolve, and the key then collapses to directory and header. A file can split inside its directory. An edge leaves its allow-list in the PR that removes it, and a new one fails. `CheckIncludeCollisions` is in #174. |
 | proto, foundation | nothing above | `CheckProtoBoundary` (holds, 0 lines out). Foundation has no gate yet (2 lines out, `ObjectGuid.cpp`). |
 | motion | proto and foundation only | `CheckMotionBoundary`. It holds for `src/motion`; `game/movement/` (12 lines) is outside it. |
 | persistence | the only place a `*Database.` call is spelled | `CheckSyncDb` today covers only blocking calls in converted files. #144 extends it, or `CheckLayout` takes the rule. |
@@ -230,7 +230,7 @@ that is correct and invisible.
 timed managers (mail, auctions, the auction bot, LFG), then `UpdateSessions` (each session's queued packets are
 handled here, on this thread, outside any map, until the first one only a map's update may take (a
 `PROCESS_THREADSAFE` packet of a player in the world): the session rule below),
-then `MapManager::Update`, then the harness, battlegrounds and
+then `MapManager::Update`, then the posts the map phase left for the world thread (`ApplyAfterMapPhasePosts`), then the harness, battlegrounds and
 outdoor PvP, then `ProcessResultQueue` for the three databases (every async query's continuation runs here), then the
 console's queued commands. Nothing else touches game state.
 
@@ -258,13 +258,27 @@ through `World::AddSession` (`WorldSessionMgr.cpp:104-109`), never as a packet, 
 the console reader queues commands for the world thread, the log's console writer, and the anti-freeze watchdog,
 which aborts the process when the tick counter stops moving.
 
+**Locks between map threads are leaves.** A lock that guards game state reached from more than one map thread is
+taken under nothing on a map thread, and nothing is called while it is held but its own container, so no lock order
+through it can cycle. There are four: a script's outdoor PvP zone player set (`ZonePlayerSet`), each map's team-buff
+queue (`TeamBuffQueue`), the capture-point slider store (`CapturePointSliderStore`) and the world's after-phase queue
+(`AfterMapPhaseQueue`); each has a test that holds it and shows its operations pending. Three locks are held across
+game code. Two are the queue locks, both held on the world thread outside the map phase: the console command queue's,
+across each console command in `World::ProcessCliCommands`, and the session-add queue's, across `World::AddSession_`
+in `World::UpdateSessions`. A leaf reached from code the world thread runs can be taken under either (the zone player
+set, the slider store); a leaf taken only inside a map's update or in `World::Update` itself never is (the team-buff
+queue, the after-phase queue). The third is the map manager's lock, held while `MapManager::CreateMap` builds an
+instance and loads its active objects and while `MapManager::DeleteInstance` unloads one; it sits above a leaf only
+through a capture point on an instance map, of which the shipped data has none.
+
 | Rule | Enforced by |
 |---|---|
 | Game state is touched by the world thread, or by the worker whose scope owns the map | `MapPhase::Owns` (counted process-wide, asserted under `MANGOS_DEBUG`), today at the movement kernel |
-| Session handlers run on the world thread in `UpdateSessions`, outside the map phase, or on the thread updating the player's map: `Map::Update` drains each in-world player's queue through `MapSessionFilter` under the map phase, on a map worker when the pool runs and, when no worker pool runs, on the world thread, which updates the maps itself, map by map, under the map phase (`MapManager.cpp:318`, `:333-341`), taking the rows marked `PROCESS_THREADSAFE` and `PROCESS_INPLACE`, 73 of the 437 bound rows (attack swing, attack stop and sheathing among them). Each drain stops at the first packet its filter refuses, so a `PROCESS_THREADSAFE` row of an in-world player runs only on the map's thread, and a `PROCESS_INPLACE` row on whichever drain reaches it (`World.cpp:1566`, `Map.cpp:916-925`, `WorldSession.cpp:213-272`, `LockedQueue.h:82-99`) | not yet built: `CheckSessionSeam` checks four named files for session calls and no threading |
+| Session handlers run on the world thread in `UpdateSessions`, outside the map phase, or on the thread updating the player's map: `Map::Update` drains each in-world player's queue through `MapSessionFilter` under the map phase, on a map worker when the pool runs and, when no worker pool runs, on the world thread, which updates the maps itself, map by map, under the map phase (`MapManager.cpp:318`, `:333-341`), taking the rows marked `PROCESS_THREADSAFE` and `PROCESS_INPLACE`, 73 of the 437 bound rows (attack swing, attack stop and sheathing among them). Each drain stops at the first packet its filter refuses, so a `PROCESS_THREADSAFE` row of an in-world player runs only on the map's thread, and a `PROCESS_INPLACE` row on whichever drain reaches it (`World.cpp:1625`, `Map.cpp:919-928`, `WorldSession.cpp:211-270`, `LockedQueue.h:82-99`) | not yet built: `CheckSessionSeam` checks four named files for session calls and no threading |
 | No synchronous database acquisition under the tick | `TickGuard` (strict mode asserts; the CI job proves the four strict cases stand) and `CheckSyncDb` |
 | Packets cross from the network only through `SessionMailbox` | the `proto` boundary: `IClientLink` / `IWorldGateway` |
-| A map never writes into another map during the phase | transport crossings run after the barrier |
+| A map never writes into another map during the phase | transport crossings run after the barrier; a team buff for a player on a map the calling thread does not own is posted to that map's `TeamBuffQueue` and applied by that map's own update, the first statement after its `MapPhase::Scope` (`Map::ApplyTeamBuffs`, pinned by `CheckTeamBuffDrain`); a defense or zone-under-attack message and a missing graveyard link raised during the phase are posted to the world's `AfterMapPhaseQueue` and applied by the world thread after the barrier, the statement after `sMapMgr.Update` (`World::ApplyAfterMapPhasePosts`, pinned by `CheckAfterMapPhaseDrain`) |
+| State every map thread can reach (outdoor PvP's scripts) is touched under a leaf lock, as an atomic, or after the barrier | the zone player set and the capture-point slider store are leaf locks; Eastern Plaguelands' tower counts are atomics, each read once per zone entry; the team buffs and the after-phase posts are the routes of the row above. A caller that bypasses a route or reads a count twice passes every test: review holds them |
 | A harness run is deterministic | the stepped clock runs every map inline, in order, on one thread |
 
 **Today:**
@@ -278,7 +292,7 @@ which aborts the process when the tick counter stops moving.
 - The game draws from the seeded `RNG` only: its 7 C library `rand()` draws moved to it, and `CheckRawRand` holds
   `src/game` at 0 draws and one `srand`, `World.cpp`'s. SD3 is the exception until #83: its 21 `rand()` draws (20
   lines in 10 script files) still use the C library. On Windows the UCRT keeps `rand()` state per thread, so
-  `World.cpp:241`'s `srand` seeds only the main thread, and SD3's draws on the pooled map workers
+  `World.cpp:242`'s `srand` seeds only the main thread, and SD3's draws on the pooled map workers
   (`MapUpdateThreads` 2) come from an unseeded per-thread stream (seed 1, the same on every worker and every boot);
   on glibc they share one stream, seeded from the wall clock by that `srand`.
 
@@ -296,24 +310,24 @@ compile-and-pass, it fails to link. A library cannot lie about its dependencies.
 | persistence (driver) | `shared_db` | `shared`, MySQL |
 | proto | `proto` | `shared`, `mangos_crypto` |
 | motion | `motion` | `proto` |
-| data, domain, session, `persistence/<domain>/`, and the app and scripts files inside `src/game` | **`game`**, one library: 27 globbed directories, 388k lines, one precompiled header | `shared_db`, `terrain`, `geometry`, `proto`, `motion`, Detour, zlib, and `mangosscript` |
+| data, domain, session, `persistence/<domain>/`, and the app and scripts files inside `src/game` | **`game`**, one library: 39 globbed directories, 398k lines, one precompiled header | `shared_db`, `terrain`, `geometry`, `proto`, `motion`, Detour, zlib, and `mangosscript` |
 | scripts (SD3) | `mangosscript` | `game` |
 | app | `mangosd` | `game`, `proto` |
 | tests | `mangos_tests` | `game`, `motion`, `proto` |
 
-Two things the table shows. `game` and `mangosscript` link *each other* (`game/CMakeLists.txt:170`,
+Two things the table shows. `game` and `mangosscript` link *each other* (`game/CMakeLists.txt:214`,
 `modules/SD3/CMakeLists.txt:361`): scripts are above the domain in the page and beside it in the build. And the only
 layer boundary the linker checks today is the one around `motion` and `proto`; every include the gate counts as
 against the rule in section 1 lives inside `game`, where the linker sees one target.
 
 The sizes, by target layer (from `layers.py files`, lines of `.h`/`.cpp`): scripts 264k (SD3 and `ChatCommands`),
-entities 98k, spells 60k, data 38k, session 38k, app 32k (with the harness), social 21k, pvp 21k, maps 19k,
-persistence 10k, combat 9k, ai 7k, economy 5k.
+entities 98k, spells 64k, session 39k, data 39k, app 37k (with the harness), social 21k, pvp 20k, maps 19k,
+persistence 10k, combat 8k, ai 7k, economy 5k.
 
 **The rule for splitting.** A layer becomes its own target in the PR that brings its upward edges to zero, never
 before: a library with an upward include does not link, so the split *is* that layer's finish line, and it cannot be
 faked. The domain tier splits as one library first (its directories are peers with cycles: entities <-> spells
-295 / 168) and into per-directory libraries only if a cycle is ever cut on purpose. The order follows section 8:
+313 / 168) and into per-directory libraries only if a cycle is ever cut on purpose. The order follows section 8:
 
 1. `data`: after rows 5 and 7 (161 lines into the domain, 20 into session).
 2. `domain`: after rows 1, 2, 3 and 4 (proto, session, `World.h`, `Chat.h` / `ScriptMgr.h`).
@@ -340,14 +354,14 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 
 | # | Today, against the target | Closed by |
 |---|---|---|
-| 1 | domain -> proto: 263 lines; 230 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
+| 1 | domain -> proto: 262 lines; 227 `WorldPacket data(` sites in the domain tier; `ManagerPacketSink` names `WorldPacket`; `Player::SetClientControl`, reached from `Unit` as an override, builds its control packet and grants or revokes its session's mover authority on a `Unit*`: a seam of its own kind, not a client fact | when content touches each domain; spells in D11 (#142); `SetClientControl`'s own seam |
 | 2 | domain -> session: 240 lines (`WorldSession.h`, `UpdateData.h`, `GossipDef.h`) | Unit reopen, D11, then when content touches it |
-| 3 | `World.h` included 221 times below app | the configuration interface (#143), when content touches it |
-| 4 | `Chat.h` (91) and `ScriptMgr.h` (85) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
+| 3 | `World.h` included 219 times below app | the configuration interface (#143), when content touches it |
+| 4 | `Chat.h` (90) and `ScriptMgr.h` (85) included below scripts | the `Chat` split when content touches it; the hook interface (#83) |
 | 5 | data -> domain: 161 lines (`ObjectMgr.h` names the entities) | #121, when content needs it |
 | 6 | `game/movement/` includes `Unit.h`, transports and `OpcodeTable.h` (12 lines) | when content touches it |
 | 7 | `PlayerDump`, `CharacterDatabaseCleaner` and `GameGlobals` (9 lines) and `ObjectGuid.cpp` (2: `World.h`, `ObjectMgr.h`) include above their layer | when content touches it |
-| 8 | 984 database calls outside persistence | #144, when content needs it |
+| 8 | 982 database calls outside persistence | #144, when content needs it |
 | 9 | **Entities, Today:** six managers build packets (`CurrencyMgr`, `PetMgr`, `HonorMgr`, `ReputationMgr`, `SocialList`/`PlayerSocial`, `RuneMgr`); six call the database (`CurrencyMgr`, `QuestStatusMgr`, `ReputationMgr`, `SocialList`, `GlyphMgr`, `TalentMgr`); three are clean (`InventoryMgr`, `PlayerPetCache`, `QuestRewardRules`). **Spells, Today:** `SpellCooldownMgr` calls the database and builds no packet: its cooldown event and clear of every cooldown are typed facts, built into packets by `session/packets/spells/` and sent through the callbacks the session installs where a player is created. `SpellModMgr` builds no packet and calls no database: its modifier change is a typed fact built by `session/packets/spells/` | when the domain is next touched |
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
@@ -360,11 +374,11 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory, peer and header on 2026-09-29); #144 |
 | 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel only | the D11 spell seam takes the second check |
 | 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by no source file (`Network.Threads` was, and is deleted) | delete them or wire them through #143 |
-| 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:241`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
+| 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:242`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
 | 23 | `game` and `mangosscript` link each other | the hook interface (#83), section 6 step 4 |
 | 24 | `Unit`: two casts of `this` to the player, closed by the successor the next column names. They are the two accessors, `GetCharmerOrOwnerPlayerOrPlayerItself` and its const twin (`Unit.cpp:3390`, `:3406`; the twin's `(Player const*)` cast is outside row 13's count), which stay as counted casts: their 53 callers ask one question, "which player gets credit or control for this unit", and its answer becomes a fact on the charm and ownership model. The spell-mod owner is closed: spell computations read the player's spell modifiers through `Unit::GetSpellMods`, the getter of the holder in `spells/SpellModMgr`, and `GetSpellModOwner` is gone. | the charm and ownership model's own peer (`social/` or `entities/creature/`) |
-| 25 | **Session handlers.** Before the first handler moved, `WorldSession` declared 418 `Handle*` members (589 methods) and the opcode table bound 372 of them through a pointer to a `WorldSession` member, from 36 files: 34 in `WorldHandlers/`, `BattleGround/BattleGroundHandler.cpp` and `Server/WorldSession.cpp`. **The target:** `session/handlers/<domain>/`, one stateless class per origin file in the domain's directory (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, the two exceptions) with static entry points, each `static void HandleX(WorldSession& session, WorldPacket& packet)`; the table stores `void (*)(WorldSession&, WorldPacket&)`, the address of the named template `OpcodeThunk<&Class::HandleX>`; status and processing stay table metadata. **Who owns what:** the table and its thunks are code: they own nothing and live as long as the program. `World` owns every client session and deletes it only on the world thread, in `UpdateSessions` (`World.cpp:1572`, and `WorldSessionMgr.cpp:123`, `:143` in `AddSession_` at its top) or at shutdown (`World.cpp:212`, `:222`), never during a handler call; a session owns its player. A handler borrows the session by reference for one call, on the world thread or on the map worker that owns the player's map (section 5), and keeps nothing: no data member, no static variable, no session or player pointer in anything that outlives the call. The player pointer is taken fresh after any call that can log out; the two such calls are `LogoutPlayer` (the logout request, `MiscHandler.cpp:411`) and `PlayerRegistry::Kick` (`PlayerRegistry.cpp:79`, reached from account deletion). Work that finishes later carries the account id and the session id and finds the session again with `WorldSession::FindRequesterSession` (`CharacterHandler.cpp:153-161`), which drops the answer when a reconnect has replaced the session (`WorldSessionMgr.cpp:132-143`). `handler_classes.py` fails on a data member, a non-static member function, a static variable (a static data member, a function-local `static` or a namespace-scope variable) or a base class under `session/handlers/`, an arithmetic `constexpr` constant aside. | the table seam (no handler moves), done; then combat (`CombatHandlers`: the five handlers and `SendAttackStop`, WorldSession 589 -> 583), done; then economy's vendor file (`VendorHandlers`: the eight vendor and bank handlers, `SendListInventory` and `CheckBanker` staying on `WorldSession` in the origin file, WorldSession 555 -> 547), done; then pvp's arena team file (`PvpHandlers`: the eleven arena team handlers, `SendArenaTeamCommandResult` and `SendNotInArenaTeamPacket` staying on `WorldSession` in the origin file, WorldSession 547 -> 536), done; then pvp's battleground file into the same class (`PvpHandlers`: the sixteen battleground handlers, `SendBattlegGroundList` staying on `WorldSession` in the origin file, WorldSession 536 -> 520), done, and with it pvp; then economy's loot file (`LootHandlers`: the five loot handlers, `DoLootRelease` staying on `WorldSession` in the origin file, WorldSession 520 -> 515), done; then economy's auction file (`AuctionHandlers`: the eight auction house handlers, `GetCheckedAuctionHouseForAuctioneer` and `SendAuctionCancelledToBidderMail` as its private statics, the six auction senders staying on `WorldSession` in the origin file, `SendAuctionCommandResult` and `SendAuctionRemovedNotification` among them as packet senders whose callers all moved, WorldSession 515 -> 505), done; then economy's trade file (`TradeHandlers`: the ten trade handlers, `moveItems` as its private static, `SendTradeStatus`, `SendUpdateTrade` and `SendCancelTrade` staying on `WorldSession` in the origin file as packet senders that code outside the file also calls, the class `Player`'s friend for the six writes of the player's trade data, which has no setter, WorldSession 505 -> 494), done; then entities' skill file (`SkillHandlers`: the four talent and skill handlers, no member staying on `WorldSession`, the origin file deleted, WorldSession 494 -> 490), done; then entities' enchant file (`EnchantHandlers`: the three wrap, socket and temporary enchantment handlers, `SendEnchantmentLog` and `SendItemEnchantTimeUpdate` staying on `WorldSession` in the origin file as packet senders that code outside the file calls, WorldSession 490 -> 487), done; then entities' pet file, its command half (`PetHandlers`: the five pet command handlers, the name query, rename, abandon, talent and critter handlers and the two pet name senders staying on `WorldSession` in the origin file, WorldSession 487 -> 482), done; then entities' pet file, its second half into the same class (`PetHandlers`: the name query, rename, abandon, the two pet talent handlers and the critter dismissal, `SendPetNameQuery` and `SendPetNameInvalid` staying on `WorldSession` in the origin file as packet senders whose callers all moved, WorldSession 482 -> 476), done, and with it the pet file; then one origin file per PR, never `SpellHandler.cpp` (D11), the movement and vehicle handlers after D9 |
+| 25 | **Session handlers.** Before the first handler moved, `WorldSession` declared 418 `Handle*` members (589 methods) and the opcode table bound 372 of them through a pointer to a `WorldSession` member, from 36 files: 34 in `WorldHandlers/`, `BattleGround/BattleGroundHandler.cpp` and `Server/WorldSession.cpp`. **The target:** `session/handlers/<domain>/`, one stateless class per origin file in the domain's directory (combat's, made from two files, and pvp's, the class of both the arena team and the battleground files, the two exceptions) with static entry points, each `static void HandleX(WorldSession& session, WorldPacket& packet)`; the table stores `void (*)(WorldSession&, WorldPacket&)`, the address of the named template `OpcodeThunk<&Class::HandleX>`; status and processing stay table metadata. **Who owns what:** the table and its thunks are code: they own nothing and live as long as the program. `World` owns every client session and deletes it only on the world thread, in `UpdateSessions` (`World.cpp:1631`, and `WorldSessionMgr.cpp:123`, `:143` in `AddSession_` at its top) or at shutdown (`World.cpp:213`, `:223`), never during a handler call; a session owns its player. A handler borrows the session by reference for one call, on the world thread or on the map worker that owns the player's map (section 5), and keeps nothing: no data member, no static variable, no session or player pointer in anything that outlives the call. The player pointer is taken fresh after any call that can log out; the two such calls are `LogoutPlayer` (the logout request, `MiscHandler.cpp:411`) and `PlayerRegistry::Kick` (`PlayerRegistry.cpp:79`, reached from account deletion). Work that finishes later carries the account id and the session id and finds the session again with `WorldSession::FindRequesterSession` (`CharacterHandler.cpp:153-161`), which drops the answer when a reconnect has replaced the session (`WorldSessionMgr.cpp:132-143`). `handler_classes.py` fails on a data member, a non-static member function, a static variable (a static data member, a function-local `static` or a namespace-scope variable) or a base class under `session/handlers/`, an arithmetic `constexpr` constant aside. | the table seam (no handler moves), done; then combat (`CombatHandlers`: the five handlers and `SendAttackStop`, WorldSession 589 -> 583), done; then economy's vendor file (`VendorHandlers`: the eight vendor and bank handlers, `SendListInventory` and `CheckBanker` staying on `WorldSession` in the origin file, WorldSession 555 -> 547), done; then pvp's arena team file (`PvpHandlers`: the eleven arena team handlers, `SendArenaTeamCommandResult` and `SendNotInArenaTeamPacket` staying on `WorldSession` in the origin file, WorldSession 547 -> 536), done; then pvp's battleground file into the same class (`PvpHandlers`: the sixteen battleground handlers, `SendBattlegGroundList` staying on `WorldSession` in the origin file, WorldSession 536 -> 520), done, and with it pvp; then economy's loot file (`LootHandlers`: the five loot handlers, `DoLootRelease` staying on `WorldSession` in the origin file, WorldSession 520 -> 515), done; then economy's auction file (`AuctionHandlers`: the eight auction house handlers, `GetCheckedAuctionHouseForAuctioneer` and `SendAuctionCancelledToBidderMail` as its private statics, the six auction senders staying on `WorldSession` in the origin file, `SendAuctionCommandResult` and `SendAuctionRemovedNotification` among them as packet senders whose callers all moved, WorldSession 515 -> 505), done; then economy's trade file (`TradeHandlers`: the ten trade handlers, `moveItems` as its private static, `SendTradeStatus`, `SendUpdateTrade` and `SendCancelTrade` staying on `WorldSession` in the origin file as packet senders that code outside the file also calls, the class `Player`'s friend for the six writes of the player's trade data, which has no setter, WorldSession 505 -> 494), done; then entities' skill file (`SkillHandlers`: the four talent and skill handlers, no member staying on `WorldSession`, the origin file deleted, WorldSession 494 -> 490), done; then entities' enchant file (`EnchantHandlers`: the three wrap, socket and temporary enchantment handlers, `SendEnchantmentLog` and `SendItemEnchantTimeUpdate` staying on `WorldSession` in the origin file as packet senders that code outside the file calls, WorldSession 490 -> 487), done; then entities' pet file, its command half (`PetHandlers`: the five pet command handlers, the name query, rename, abandon, talent and critter handlers and the two pet name senders staying on `WorldSession` in the origin file, WorldSession 487 -> 482), done; then entities' pet file, its second half into the same class (`PetHandlers`: the name query, rename, abandon, the two pet talent handlers and the critter dismissal, `SendPetNameQuery` and `SendPetNameInvalid` staying on `WorldSession` in the origin file as packet senders whose callers all moved, WorldSession 482 -> 476), done, and with it the pet file; then one origin file per PR, never `SpellHandler.cpp` (D11), the movement and vehicle handlers after D9 |
 
 ## Appendix: how each number was measured
 
@@ -383,13 +397,13 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
 - Where the files go: `python layers.py src files | grep ' game/Object/' | cut -d' ' -f1 | sort | uniq -c` (and
   likewise for `WorldHandlers/`, `Server/`, `References/` and `Tools/`).
 - The edge tables: `python layers.py src against` (1,103, with the headers and the includers),
-  `python layers.py src sideways` (2,332) and `python layers.py src edges` (every layer pair).
+  `python layers.py src sideways` (2,348) and `python layers.py src edges` (every layer pair).
 - Packets and the database: `python layers.py src packets` (418 by layer and directory) and `python layers.py src db`
-  (1,008). For game `.cpp` only:
-  `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (996), with `-l` for the files
+  (1,006). For game `.cpp` only:
+  `grep -rhoE '\b(Character|World|Login)Database\.' --include=*.cpp src/game | wc -l` (994), with `-l` for the files
   (126).
 - Proto: `python layers.py src edges | grep -E '^(proto|session +-> proto|motion +-> proto)'` (proto -> proto and
-  foundation only; session 103; motion 19), split by
+  foundation only; session 112; motion 19), split by
   `grep -hE '#\s*include\s*"(wire/[A-Za-z]+\.h|WorldPacket\.h|Opcodes\.h)"' src/motion/* | wc -l` (8) and the
   same over `src/game/movement/*` (11).
 - The manager audit, per manager `M`:
@@ -407,7 +421,7 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h`, where only a
   unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (59 of 88).
 - Creature cooldowns: `grep -nE '^\w.*Creature::\w+\(' src/game/Object/CreatureSpellCooldown.cpp` (6).
-- The threads (section 5): the tick's order is `World::Update` (`WorldHandlers/World.cpp:970`, the `TickGuard::Scope` at the top of its
+- The threads (section 5): the tick's order is `World::Update` (`WorldHandlers/World.cpp:971`, the `TickGuard::Scope` at the top of its
   body) read top to bottom; the map split is `MapManager::Update` (`WorldHandlers/MapManager.cpp:306`);
   the thread starts are `grep -rnE "std::thread|StartConsoleThread|HaltDelayThread" src/mangosd src/game src/shared`
   (the map pool in `Maps/MapUpdater.cpp`, the CLI reader and the watchdog in `mangosd/`, the console writer in
@@ -426,8 +440,8 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   `grep -rlE '^\w.*\bWorldSession::\w+\s*\(' src/game --include=*.cpp | while read f; do grep -oE '^\w.*\bWorldSession::\w+\s*\(' "$f" | grep -oE 'WorldSession::\w+' | grep -qxFf bound.txt && echo "$f"; done`
   (36, 34 of them in `WorldHandlers/`).
 - The build targets (section 6): `grep -rnE "^\s*add_(library|executable)" --include=CMakeLists.txt src` and each
-  target's `target_link_libraries`; the `game` globs are `src/game/CMakeLists.txt:1-82` (27 directories); its size is
-  `find src/game -name '*.cpp' -o -name '*.h' | xargs cat | wc -l` (388,249). Lines per target layer:
+  target's `target_link_libraries`; the `game` globs are `src/game/CMakeLists.txt:1-116` (39 directories); its size is
+  `find src/game -name '*.cpp' -o -name '*.h' | xargs cat | wc -l` (398,404). Lines per target layer:
   `python layers.py src files`, summing `wc -l` per file by layer.
 
 <details><summary>layers.py</summary>
