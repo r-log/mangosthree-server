@@ -355,6 +355,12 @@ void ObjectMgr::SetGraveYardLinkTeam(uint32 id, uint32 zoneId, Team team)
         return;
     }
 
+    AfterMapPhasePost const post = { AfterMapPhasePost::GRAVEYARD_LINK_TEAM, zoneId, 0, team, id };
+    if (sWorld.PostAfterMapPhase(post))
+    {
+        return;
+    }
+
     // Link expected but not exist.
     sLog.outErrorDb("ObjectMgr::SetGraveYardLinkTeam called for safeLoc %u, zoneId %u, but no graveyard link for this found in database.", id, zoneId);
     AddGraveYardLink(id, zoneId, team);                     // Add to prevent further error message and correct mechanismn

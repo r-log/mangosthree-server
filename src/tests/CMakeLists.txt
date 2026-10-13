@@ -62,6 +62,8 @@ set(SRC_GRP_TESTS
     ZonePlayerSetTest.cpp
     PlaguelandsTowerCountTest.cpp
     TeamBuffQueueTest.cpp
+    CapturePointSliderStoreTest.cpp
+    AfterMapPhaseQueueTest.cpp
     TestSeamTest.cpp
     PetitionAsyncTest.cpp
     CharacterCacheTest.cpp
@@ -358,6 +360,11 @@ add_test(NAME team_buff_drain
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckTeamBuffDrain.cmake)
+
+add_test(NAME after_map_phase_drain
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckAfterMapPhaseDrain.cmake)
 
 # Decoupling D4l: no two include directories of game, mangos_tests, mangosd or mangosscript offer
 # a header under the same spelling, so no include is resolved by directory order.

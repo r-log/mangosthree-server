@@ -529,6 +529,30 @@ struct CliCommandHolder
     ~CliCommandHolder() { delete[] m_command; }
 };
 
+/// World-thread work raised inside the map phase, applied after the barrier.
+struct AfterMapPhasePost
+{
+    enum Kind { DEFENSE_MESSAGE, ZONE_UNDER_ATTACK, GRAVEYARD_LINK_TEAM };
+
+    Kind kind;
+    uint32 zoneId;
+    int32 textId;
+    Team team;
+    uint32 graveyardId;
+};
+
+/// The posts made by map threads during the map phase; locked because any map thread may post.
+class AfterMapPhaseQueue
+{
+    public:
+        bool Post(AfterMapPhasePost const& post);
+        std::vector<AfterMapPhasePost> Take();
+
+    private:
+        std::vector<AfterMapPhasePost> m_posts;
+        mutable std::mutex m_lock;
+};
+
 /// The World
 
 typedef std::unordered_map<uint32, WorldSession*> SessionMap;
@@ -612,6 +636,7 @@ class World
         void SendServerMessage(ServerMessageType type, const char* text = "", Player* player = NULL);
         void SendZoneUnderAttackMessage(uint32 zoneId, Team team);
         void SendDefenseMessage(uint32 zoneId, int32 textId);
+        bool PostAfterMapPhase(AfterMapPhasePost const& post);
 
         /// Are we in the middle of a shutdown?
         bool IsShutdowning() const { return m_ShutdownTimer > 0; }
@@ -823,6 +848,9 @@ class World
 
         std::mutex m_sessionAddQueueLock;
         std::deque<WorldSession *> m_sessionAddQueue;
+
+        void ApplyAfterMapPhasePosts();
+        AfterMapPhaseQueue m_afterMapPhase;
 
         // used versions
         std::string m_DBVersion;

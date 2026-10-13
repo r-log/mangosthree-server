@@ -38,6 +38,25 @@
 #include "DisableMgr.h"
 
 
+void CapturePointSliderStore::Set(uint32 entry, CapturePointSlider const& value)
+{
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_sliders[entry] = value;
+}
+
+bool CapturePointSliderStore::Find(uint32 entry, CapturePointSlider& value) const
+{
+    std::lock_guard<std::mutex> guard(m_lock);
+    CapturePointSliderMap::const_iterator itr = m_sliders.find(entry);
+    if (itr == m_sliders.end())
+    {
+        return false;
+    }
+
+    value = itr->second;
+    return true;
+}
+
 OutdoorPvPMgr::OutdoorPvPMgr()
 {
     m_updateTimer.SetInterval(TIMER_OPVP_MGR_UPDATE);
