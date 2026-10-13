@@ -55,7 +55,8 @@
 
 /**
  * @file ObjectUpdate.cpp
- * @brief Cohesion split of Object.cpp -- Object update-data serialization: create/values update-block building, movement-block packing, update masks and value (de)serialization. Same Object class; no behaviour change. CMake file(GLOB Object/*.cpp) picks this file up automatically; Object.h is unchanged.
+ * @brief Object's update-data serialization: create and values update blocks, the movement block, update masks and
+ * value loading.
  */
 
 /**

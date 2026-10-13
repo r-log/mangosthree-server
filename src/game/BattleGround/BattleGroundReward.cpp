@@ -44,7 +44,8 @@
 
 /**
  * @file BattleGroundReward.cpp
- * @brief Cohesion split of BattleGround.cpp -- match end and rewards: honor/reputation award, EndBattleGround, mark/spell/item/quest rewards and reward-mark mail. Same BattleGround class; no behaviour change. CMake file(GLOB) picks this file up automatically; BattleGround.h is unchanged.
+ * @brief BattleGround's match end and rewards: honor and reputation awards, world-state updates, EndBattleGround, the
+ * mark, spell, item and quest rewards and the reward-mark mail.
  */
 
 /// <summary>

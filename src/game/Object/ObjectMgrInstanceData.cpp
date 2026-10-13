@@ -25,10 +25,7 @@
 
 /**
  * @file ObjectMgrInstanceData.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- instance encounter, group and arena-team loaders.
- *        Same `ObjectMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's instance and world template lookups and the instance encounter, group and arena team loaders.
  */
 
 #include "ObjectMgr.h"

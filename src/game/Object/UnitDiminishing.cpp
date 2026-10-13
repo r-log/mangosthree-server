@@ -25,11 +25,7 @@
 
 /**
  * @file UnitDiminishing.cpp
- * @brief Unit diminishing-returns tracking (crowd-control DR) split out of
- *        Unit.cpp.
- *
- * Pure file move (cohesion split): method bodies are byte-identical and the
- * declarations remain in Unit.h. No behaviour change.
+ * @brief Unit's diminishing-returns tracking for crowd control.
  */
 
 #include "Unit.h"

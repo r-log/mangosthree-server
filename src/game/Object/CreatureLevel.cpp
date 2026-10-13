@@ -25,10 +25,7 @@
 
 /**
  * @file CreatureLevel.cpp
- * @brief Cohesion split of Creature.cpp -- creature level selection and elite-rank stat modifiers.
- *
- * Same Creature class; no behaviour change. CMake file(GLOB Object/*.cpp)
- * picks this file up automatically; Creature.h is unchanged.
+ * @brief Creature's level selection and its elite-rank health, damage and spell-damage modifiers.
  */
 
 #include <algorithm>

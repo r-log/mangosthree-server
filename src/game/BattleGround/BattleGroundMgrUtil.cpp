@@ -56,7 +56,8 @@
 
 /**
  * @file BattleGroundMgrUtil.cpp
- * @brief Cohesion split of BattleGroundMgr.cpp -- BattleGroundMgr type/arena mapping, testing toggles, queue-update scheduling, rating/timer config getters, weekend-holiday mapping and battlemaster/event-index DB loaders. Same class; no behaviour change. CMake file(GLOB) picks this file up automatically; BattleGroundMgr.h is unchanged.
+ * @brief BattleGroundMgr's type and arena mappings, testing toggles, queue-update scheduling, rating and timer config
+ * getters, weekend-holiday mapping and the battlemaster and event-index loaders.
  */
 
 bool BattleGroundMgr::IsArenaType(BattleGroundTypeId bgTypeId)

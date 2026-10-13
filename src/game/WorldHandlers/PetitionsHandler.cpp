@@ -27,18 +27,10 @@
  * @file PetitionsHandler.cpp
  * @brief Guild and arena charter opcode handlers
  *
- * This file handles petition-related opcodes for guild and arena charters:
- * - CMSG_PETITION_BUY: Buy guild/arena charter
- * - CMSG_PETITION_SHOW_SIGNATURES: Show charter signatures
- * - CMSG_PETITION_SIGN: Sign charter
- * - CMSG_PETITION_OFFER: Offer charter to player
- * - CMSG_PETITION_TURN_IN: Turn in completed charter
- * - CMSG_QUERY_PETITION: Query charter info
- *
  * Charters require a certain number of signatures before they can be
  * turned in to create a guild or arena team.
  *
- * Decoupling D7b: none of these handlers waits on the database any more. Each one does
+ * None of these handlers waits on the database. Each one does
  * whatever it can decide from memory, queues its reads (AsyncPQuery, or one SqlQueryHolder
  * where a handler needs several independent rows), and answers from a continuation that
  * runs on the world thread out of UpdateResultQueue() a tick later. The petition UI waits

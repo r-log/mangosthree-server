@@ -25,12 +25,8 @@
 
 /**
  * @file ObjectMgrGameObjectInfo.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- gameobject template loading and
- *        type-specific field validation (the file-local SQLGameObjectLoader
- *        struct + CheckGO* helpers travel with LoadGameobjectInfo, their sole
- *        user). Same `ObjectMgr` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        ObjectMgr.h is unchanged.
+ * @brief ObjectMgr::LoadGameobjectInfo, the game object template loader, with its file-local SQL loader and the
+ * CheckGO* checks of each type's fields.
  */
 
 #include "ObjectMgr.h"

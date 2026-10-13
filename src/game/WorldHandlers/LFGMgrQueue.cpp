@@ -42,7 +42,8 @@
 
 /**
  * @file LFGMgrQueue.cpp
- * @brief Cohesion split of LFGMgr.cpp -- queue join/leave and player/party access: JoinLFG/LeaveLFG, player-or-party data, join-result computation, player status getters/setters. Same LFGMgr class; no behaviour change. CMake file(GLOB) picks this file up automatically; LFGMgr.h is unchanged.
+ * @brief LFGMgr's queue join and leave and its player and party access: JoinLFG and LeaveLFG, the group membership
+ * events, player-or-party data, the join result and the player status getters and setters.
  */
 
 void LFGMgr::JoinLFG(uint32 roles, std::set<uint32> dungeons, std::string comments, Player* plr)

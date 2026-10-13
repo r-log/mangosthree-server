@@ -34,7 +34,8 @@
 
 /**
  * @file ObjectValues.cpp
- * @brief Cohesion split of Object.cpp -- Object field accessors: typed value setters, flag bit setters, index/entry error reporting and client-update-list registration. Same Object class; no behaviour change. CMake file(GLOB) picks this file up automatically; Object.h is unchanged.
+ * @brief Object's field accessors: typed value setters, flag bit setters, the index and entry error reports and the
+ * client update list registration.
  */
 
 /**

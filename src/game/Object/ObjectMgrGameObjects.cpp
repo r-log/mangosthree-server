@@ -25,10 +25,7 @@
 
 /**
  * @file ObjectMgrGameObjects.cpp
- * @brief Cohesion split of ObjectMgr.cpp -- gameobject spawn loading, addon
- *        data, and grid placement. Same `ObjectMgr` class; no behaviour
- *        change. CMake `file(GLOB Object/*.cpp)` picks this file up
- *        automatically; ObjectMgr.h is unchanged.
+ * @brief ObjectMgr's game object spawn and addon loaders and the game object grid placement.
  */
 
 #include <map>

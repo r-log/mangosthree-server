@@ -26,21 +26,6 @@
 /**
  * @file ItemHandler.cpp
  * @brief Item inventory and interaction opcode handlers
- *
- * This file handles item-related opcodes including:
- * - CMSG_SPLIT_ITEM: Split item stack
- * - CMSG_SWAP_ITEM: Swap items between inventory slots
- * - CMSG_SWAP_INV_ITEM: Swap inventory items
- * - CMSG_DESTROYITEM: Destroy item
- * - CMSG_AUTOEQUIP_ITEM: Auto-equip item
- * - CMSG_ITEM_NAME_QUERY: Query item name
- * - CMSG_READ_ITEM: Read item (books, scrolls)
- * - CMSG_WRAP_ITEM: Wrap item with gift wrap
- * - CMSG_USE_ITEM: Use item (consume, equip, etc.)
- * - CMSG_OPEN_ITEM: Open item (containers)
- * - CMSG_BUY_ITEM: Buy item from vendor
- * - CMSG_SELL_ITEM: Sell item to vendor
- * - CMSG_REPAIR_ITEM: Repair item
  */
 
 #include "Platform/Define.h"

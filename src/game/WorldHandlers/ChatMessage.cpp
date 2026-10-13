@@ -25,10 +25,7 @@
 
 /**
  * @file ChatMessage.cpp
- * @brief Cohesion split of Chat.cpp -- system-message output helpers and chat-packet builder.
- *        Same ChatHandler class; no behaviour change. CMake
- *        file(GLOB WorldHandlers/*.cpp) picks this file up automatically;
- *        Chat.h is unchanged.
+ * @brief ChatHandler's system-message output helpers and chat-packet builder.
  */
 
 #include "Utilities/Errors.h"

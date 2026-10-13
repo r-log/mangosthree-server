@@ -25,11 +25,8 @@
 
 /**
  * @file ScriptAction.cpp
- * @brief Cohesion split of ScriptMgr.cpp -- the ScriptAction runtime DB-script-command executor (HandleScriptStep et al.).
- *
- * Same ScriptMgr/ScriptAction classes; no behaviour change. CMake
- * file(GLOB WorldHandlers/*.cpp) picks this file up automatically;
- * ScriptMgr.h is unchanged.
+ * @brief ScriptAction, the runtime executor of database script commands (HandleScriptStep and its target and log
+ * helpers).
  */
 
 #include <algorithm>

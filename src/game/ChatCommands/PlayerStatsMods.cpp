@@ -36,7 +36,9 @@
 
 /**
  * @file PlayerStatsMods.cpp
- * @brief Cohesion split of PlayerCommands.cpp -- player stat/property modify GM commands: HP/mana/energy/rage/runic/holy-power, speed/swim/fly/scale, mount, money, drunk, reputation, gender and currency. Same ChatHandler class; no behaviour change. CMake file(GLOB) picks this file up automatically; Chat.h is unchanged.
+ * @brief ChatHandler's GM commands that modify a player's stats and properties: health, mana, energy, rage, runic and
+ * holy power, talent points, speeds and scale, mount, money, drunk state, reputation, gender and currency, and the
+ * currency lookup.
  */
 
 // Gold/silver/copper is a game concept, so it stays out of shared; this file is

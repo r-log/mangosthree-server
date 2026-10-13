@@ -55,7 +55,7 @@
 
 /**
  * @file GameObjectUpdate.cpp
- * @brief Cohesion split of GameObject.cpp -- the per-tick Update state machine (loot/spawn/trap timers, cooldowns and AI tick). Same GameObject class; no behaviour change. CMake file(GLOB) picks this file up automatically; GameObject.h is unchanged.
+ * @brief GameObject::Update, the per-tick state machine (loot, spawn and trap timers, cooldowns and the AI tick).
  */
 
 /**

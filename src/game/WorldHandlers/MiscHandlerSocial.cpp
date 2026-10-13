@@ -57,7 +57,8 @@
 
 /**
  * @file MiscHandlerSocial.cpp
- * @brief Cohesion split of MiscHandler.cpp -- social contact-list opcode handlers: friend/ignore add-remove (with async name lookups) and contact notes. Same WorldSession class; no behaviour change. CMake file(GLOB) picks this file up automatically; WorldSession.h is unchanged.
+ * @brief WorldSession's contact-list handlers: the contact list, friend and ignore add and remove with their
+ * completions, and contact notes.
  */
 
 /**

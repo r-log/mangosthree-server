@@ -27,28 +27,6 @@
  * @file MovementHandler.cpp
  * @brief Movement opcode handlers
  *
- * This file handles movement-related opcodes including:
- * - MSG_MOVE_WORLDPORT_ACK: Acknowledge map teleport
- * - MSG_MOVE_TELEPORT_ACK: Acknowledge teleport
- * - MSG_MOVE_HEARTBEAT: Movement heartbeat
- * - MSG_MOVE_SET_FACING: Set facing direction
- * - MSG_MOVE_JUMP: Jump
- * - MSG_MOVE_START_FORWARD: Start moving forward
- * - MSG_MOVE_START_BACKWARD: Start moving backward
- * - MSG_MOVE_STOP: Stop movement
- * - MSG_MOVE_START_STRAFE_LEFT: Start strafing left
- * - MSG_MOVE_START_STRAFE_RIGHT: Start strafing right
- * - MSG_MOVE_START_PITCH_UP: Start pitching up
- * - MSG_MOVE_START_PITCH_DOWN: Start pitching down
- * - MSG_MOVE_SET_RUN_MODE: Set run mode
- * - MSG_MOVE_SET_WALK_MODE: Set walk mode
- * - MSG_MOVE_FALL_LAND: Land after fall
- * - MSG_MOVE_START_SWIM: Start swimming
- * - MSG_MOVE_STOP_SWIM: Stop swimming
- * - MSG_MOVE_SPLASH: Water splash
- * - MSG_MOVE_ASCEND: Ascend (flying)
- * - MSG_MOVE_DESCEND: Descend (flying)
- *
  * Movement packets are validated and synchronized with the server's
  * authoritative position to prevent cheating.
  */

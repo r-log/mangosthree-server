@@ -27,14 +27,6 @@
  * @file QueryHandler.cpp
  * @brief Query opcode handlers for game data lookups
  *
- * This file handles query opcodes for requesting game data:
- * - CMSG_NAME_QUERY: Query character name by GUID
- * - CMSG_ITEM_QUERY: Query item info
- * - CMSG_GAMEOBJECT_QUERY: Query gameobject info
- * - CMSG_CREATURE_QUERY: Query creature info
- * - CMSG_PAGE_TEXT_QUERY: Query page text
- * - CMSG_QUERY_TIME: Query server time
- *
  * Query responses include name, display ID, and other metadata
  * for the requested object type.
  */

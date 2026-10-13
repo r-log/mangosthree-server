@@ -25,10 +25,7 @@
 
 /**
  * @file PlayerItemStorage.cpp
- * @brief Cohesion split of PlayerItem.cpp -- store/equip/move/destroy/split/swap, buyback, and item error senders.
- *        Same `Player` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        Player.h is unchanged.
+ * @brief Player's item store, equip, move, destroy, split and swap, the buyback slots and the item error senders.
  */
 
 #include "AchievementMgr.h"

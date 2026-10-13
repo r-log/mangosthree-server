@@ -27,17 +27,6 @@
  * @file QuestHandler.cpp
  * @brief Quest interaction opcode handlers
  *
- * This file handles quest-related opcodes including:
- * - CMSG_QUESTGIVER_STATUS_QUERY: Query quest giver status
- * - CMSG_QUESTGIVER_HELLO: Open quest menu
- * - CMSG_QUESTGIVER_ACCEPT_QUEST: Accept quest
- * - CMSG_QUESTGIVER_COMPLETE_QUEST: Complete quest
- * - CMSG_QUESTGIVER_CHOOSE_REWARD: Choose quest reward
- * - CMSG_QUESTGIVER_QUERY_QUEST: Query quest details
- * - CMSG_QUESTLOG_REMOVE_QUEST: Abandon quest
- * - CMSG_QUEST_QUERY: Query quest info
- * - CMSG_QUEST_CONFIRM_ACCEPT: Confirm quest accept
- *
  * Quest handlers validate requirements, update quest state,
  * and distribute rewards.
  */

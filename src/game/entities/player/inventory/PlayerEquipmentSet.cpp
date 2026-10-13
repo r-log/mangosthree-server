@@ -25,10 +25,7 @@
 
 /**
  * @file PlayerEquipmentSet.cpp
- * @brief Cohesion split of PlayerTalent.cpp -- equipment set list/save/delete.
- *        Same `Player` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        Player.h is unchanged.
+ * @brief Player's equipment sets: list, save and delete.
  */
 
 #include "Player.h"

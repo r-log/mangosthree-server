@@ -25,17 +25,12 @@
 
 /**
  * @file PlayerItemValidation.cpp
- * @brief Cohesion split of PlayerItem.cpp -- Can/_CanStore inventory placement and use/ammo checks.
- *        Same `Player` class; no behaviour change. CMake
- *        `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        Player.h is unchanged.
+ * @brief Player's item placement, equip, bank, use and ammo checks.
  *
- * Decoupling D4e2: the storage checks (can this item go into the backpack, a bag or a given
- * slot) live in the InventoryMgr; this file keeps their wrappers, which hand the manager the
- * character's binding verdict and the template lookups. Decoupling D4e3: the bank check as
- * well; its wrapper also hands over the bank bag slots bought (an update field) and the use
- * check a bag must pass to go into a bank bag slot. What else stays here reads the character
- * itself: equipping and unequipping (class, level, skills, combat state), use and ammo.
+ * The backpack, bag, slot and bank storage checks live in InventoryMgr; the wrappers here hand the manager the
+ * character's binding verdict, the template lookups, the bank bag slots bought (an update field) and the use
+ * check a bag must pass to go into a bank bag slot. Equipping and unequipping (class, level, skills, combat
+ * state), use and ammo read the character itself.
  */
 
 #include "Player.h"

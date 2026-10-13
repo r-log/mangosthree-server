@@ -25,11 +25,8 @@
 
 /**
  * @file PlayerQuest.cpp
- * @brief Cohesion split of Player.cpp -- quest menu, requirement checks,
- *        quest log mutation, reward + completion paths, and quest-side
- *        client packet senders. Same `Player` class; no behaviour change.
- *        CMake `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        Player.h is unchanged.
+ * @brief Player's quest menu, requirement checks, quest log changes, reward and completion paths and the quest packet
+ * senders.
  */
 
 #include "Utilities/Errors.h"

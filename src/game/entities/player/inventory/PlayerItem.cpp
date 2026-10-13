@@ -25,12 +25,7 @@
 
 /**
  * @file PlayerItem.cpp
- * @brief Cohesion split of Player.cpp -- the STORAGE SYSTEM block:
- *        inventory/bag/bank/equip placement queries, buyback, splits,
- *        durability, enchant + reforge lifecycle, and item-side client
- *        packet senders. Same `Player` class; no behaviour change.
- *        CMake `file(GLOB Object/*.cpp)` picks this file up automatically;
- *        Player.h is unchanged.
+ * @brief Player's equip-slot lookup, the equipped item and gem queries, QuickEquipItem and TradeCancel.
  */
 
 #include "Player.h"

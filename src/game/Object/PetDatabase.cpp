@@ -42,7 +42,7 @@
 
 /**
  * @file PetDatabase.cpp
- * @brief Cohesion split of Pet.cpp -- pet persistence: LoadPetFromDB, SavePetToDB and DeleteFromDB. Same Pet class; no behaviour change. CMake file(GLOB) picks this file up automatically; Pet.h is unchanged.
+ * @brief Pet's persistence: LoadPetFromDB, SavePetToDB and DeleteFromDB.
  */
 
 /**

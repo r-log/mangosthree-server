@@ -26,27 +26,6 @@
 /**
  * @file GuildHandler.cpp
  * @brief Guild opcode handlers
- *
- * This file handles guild-related opcodes including:
- * - CMSG_GUILD_QUERY: Query guild information
- * - CMSG_GUILD_CREATE: Create new guild
- * - CMSG_GUILD_INVITE: Invite player to guild
- * - CMSG_GUILD_ACCEPT: Accept guild invitation
- * - CMSG_GUILD_DECLINE: Decline guild invitation
- * - CMSG_GUILD_INFO: Query guild roster
- * - CMSG_GUILD_ROSTER: Request guild roster
- * - CMSG_GUILD_LEAVE: Leave guild
- * - CMSG_GUILD_DISBAND: Disband guild
- * - CMSG_GUILD_LEADER: Transfer guild leadership
- * - CMSG_GUILD_MOTD: Set guild message of the day
- * - CMSG_GUILD_RANK: Modify guild ranks
- * - CMSG_GUILD_ADD_RANK: Add guild rank
- * - CMSG_GUILD_DELETE_RANK: Delete guild rank
- * - CMSG_GUILD_DEMOTE: Demote guild member
- * - CMSG_GUILD_PROMOTE: Promote guild member
- * - CMSG_GUILD_REMOVE: Remove guild member
- * - CMSG_GUILD_CHAT: Send guild chat message
- * - CMSG_GUILD_BANK: Guild bank operations
  */
 
 #include "Common/ServerDefines.h"

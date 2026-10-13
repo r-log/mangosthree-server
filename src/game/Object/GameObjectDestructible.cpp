@@ -57,7 +57,8 @@
 
 /**
  * @file GameObjectDestructible.cpp
- * @brief Cohesion split of GameObject.cpp -- capture-point slider/tick and destructible-building damage, rebuild and forced-health state. Same GameObject class; no behaviour change. CMake file(GLOB) picks this file up automatically; GameObject.h is unchanged.
+ * @brief GameObject's capture-point slider and tick, destructible-building damage, rebuild and forced health, and
+ * SetInUse.
  */
 
 /**

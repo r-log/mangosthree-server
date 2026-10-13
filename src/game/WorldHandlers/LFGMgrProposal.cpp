@@ -49,7 +49,8 @@
 
 /**
  * @file LFGMgrProposal.cpp
- * @brief Cohesion split of LFGMgr.cpp -- role check, dungeon proposal and in-dungeon flow: PerformRoleCheck, proposal send/update/decline, dungeon group create, teleport, boss-kill, kick/vote and LFG packet senders. Same LFGMgr class; no behaviour change. CMake file(GLOB) picks this file up automatically; LFGMgr.h is unchanged.
+ * @brief LFGMgr's role check, dungeon proposal and in-dungeon flow: proposal send, update and decline, dungeon group
+ * creation, teleport, boss kill, the kick vote and the LFG packet senders.
  */
 
 void LFGMgr::BuildRoleCheckPacket(LFGRoleCheck const& roleCheck, bool isBeginning,

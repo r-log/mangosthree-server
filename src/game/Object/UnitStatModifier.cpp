@@ -25,11 +25,7 @@
 
 /**
  * @file UnitStatModifier.cpp
- * @brief Unit stat-modifier system and aura-group/stat value accessors split
- *        out of Unit.cpp.
- *
- * Pure file move (cohesion split): method bodies are byte-identical and the
- * declarations remain in Unit.h. No behaviour change.
+ * @brief Unit's stat-modifier system and its aura-group and stat value accessors.
  */
 
 #include "Unit.h"

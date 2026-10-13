@@ -41,7 +41,8 @@
 
 /**
  * @file GroupMemberState.cpp
- * @brief Cohesion split of Group.cpp -- private member-state internals: _addMember/_removeMember, leader/assistant/main-tank flags, subgroup assignment and ChangeMembersGroup. Same Group class; no behaviour change. CMake file(GLOB) picks this file up automatically; Group.h is unchanged.
+ * @brief Group's member-state internals: member add and remove, the leader, assistant and main-tank flags, subgroup
+ * assignment and ChangeMembersGroup.
  */
 
 /**
