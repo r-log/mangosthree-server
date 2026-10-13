@@ -842,7 +842,8 @@ def check_dispatch_shape(site, key, name):
     none), with `if (OUT.IsReturn())` the next line; the site's return, `return;` where it names no value and
     `return OUT.GetValue();` where it does; `{`, `}` or a blank line. A line holding a comment is none of them.
     Blank lines aside, the lines stand in this order, each once: the construction, the call (or the call assigned),
-    `{`, the return and `}`, the five inside one outer `{` and `}` or in none."""
+    `{`, the return and `}`, the five inside one outer `{` and `}` or in none. A line out of its place is named, a
+    two-line element by its first line."""
     text = '\n'.join(site['dispatch'])
     noted = [text.count('\n', 0, m.start()) for m in re.finditer(r'/[/*]', text) if not in_literal(text, m.start())]
     read = [squeezed(line) for line in blank(text).split('\n')]
@@ -2323,12 +2324,18 @@ def self_test():
         """GEN_SPEC with its site naming `table`."""
         return dict(GEN_SPEC, sites=[dict(GEN_SPEC['sites'][0], table=table)])
 
-    def raises(label, needle, call):
+    def caught(call):
+        """What `call` raises: a failure's text, any other exception's type and text, or 'no failure'."""
         try:
             call()
-            text = 'no failure'
         except Failure as e:
-            text = str(e)
+            return str(e)
+        except Exception as e:
+            return '%s: %s' % (type(e).__name__, e)
+        return 'no failure'
+
+    def raises(label, needle, call):
+        text = caught(call)
         ok = needle in text
         print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
         if not ok:
@@ -3360,6 +3367,11 @@ def self_test():
     run('dispatch sequence: the valued form inside an outer block: passes', 0,
         'with 2/2 bodies pasted back at their 2 labels in 1 sites',
         **reshaped(valued, ['    {'] + ['    ' + line for line in worth] + ['    }']))
+    run('dispatch sequence: an opening brace in the return\'s place: fails by name', 1, astray % ('tied', '{'),
+        **reshaped(tied, passing[:3] + ['    {'] + passing[4:]))
+    split_call = ['    if (Dispatch<RemoveSite>(GetId(),', '            ctx).IsReturn())']
+    run('dispatch sequence: the call split over two lines before the construction: its first line is named', 1,
+        astray % ('tied', split_call[0].strip()), **reshaped(tied, split_call + passing[:1] + passing[2:]))
 
     def paired(*pairs):
         """A site whose substitutions are `pairs`, then the void outcome pairs."""
@@ -3411,24 +3423,15 @@ def self_test():
             ('a right side holding its own left side', [('caster', 'm_caster->caster')], [])):
         raises('pair sequence: %s: passes' % label, 'no failure',
                lambda pairs=pairs, listed=listed: check_pairs(paired(*pairs), listed))
-    patterned = 'pair sequence: the tool\'s own pattern pairs are not read: passes'
-    try:
-        raises(patterned, 'no failure', lambda: check_pairs(dict(name='paired', substitutions=[('ctx.target', 'target')]
-                                                                 + valued_substitutions('bool')), []))
-    except Exception as e:
-        print('self-test: %-66s %s' % (patterned, 'FAIL'))
-        failures.append('%s: %s: %s' % (patterned, type(e).__name__, e))
+    raises('pair sequence: the tool\'s own pattern pairs are not read: passes', 'no failure',
+           lambda: check_pairs(dict(name='paired', substitutions=[('ctx.target', 'target')]
+                                    + valued_substitutions('bool')), []))
     wrong = []
     for entry in ('ctx.aura', list(aura), (aura[0],), aura + ('more',), (list(aura[0]), aura[1]),
                   (('ctx.aura',), aura[1]), (('ctx.aura', 1), aura[1]), (aura[0], ' '), (aura[0], None)):
-        try:
-            exception_pairs([aura, entry])
-            wrong.append(entry)
-        except Failure as e:
-            if str(e) != 'the exception %r is not a pair and its reason' % (entry,):
-                wrong.append(entry)
-        except Exception as e:
-            wrong.append('%r, %s: %s' % (entry, type(e).__name__, e))
+        text = caught(lambda entry=entry: exception_pairs([aura, entry]))
+        if text != 'the exception %r is not a pair and its reason' % (entry,):
+            wrong.append('%r: %s' % (entry, text))
     print('self-test: %-66s %s' % ('context exceptions: an entry that is not a pair and its reason: fails by name',
                                    'FAIL' if wrong else 'PASS'))
     if wrong:
