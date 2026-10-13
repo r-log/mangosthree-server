@@ -3365,9 +3365,13 @@ def self_test():
             ('a right side holding its own left side', [('caster', 'm_caster->caster')], [])):
         raises('pair sequence: %s: passes' % label, 'no failure',
                lambda pairs=pairs, listed=listed: check_pairs(paired(*pairs), listed))
-    raises('pair sequence: the tool\'s own pattern pairs are not read: passes', 'no failure',
-           lambda: check_pairs(dict(name='paired', substitutions=[('ctx.target', 'target')]
-                                    + valued_substitutions('bool')), []))
+    patterned = 'pair sequence: the tool\'s own pattern pairs are not read: passes'
+    try:
+        raises(patterned, 'no failure', lambda: check_pairs(dict(name='paired', substitutions=[('ctx.target', 'target')]
+                                                                 + valued_substitutions('bool')), []))
+    except Exception as e:
+        print('self-test: %-66s %s' % (patterned, 'FAIL'))
+        failures.append('%s: %s: %s' % (patterned, type(e).__name__, e))
     wrong = []
     for entry in ('ctx.aura', list(aura), (aura[0],), aura + ('more',), (list(aura[0]), aura[1]),
                   (('ctx.aura',), aura[1]), (('ctx.aura', 1), aura[1]), (aura[0], ' '), (aura[0], None)):
@@ -3377,6 +3381,8 @@ def self_test():
         except Failure as e:
             if str(e) != 'the exception %r is not a pair and its reason' % (entry,):
                 wrong.append(entry)
+        except Exception as e:
+            wrong.append('%r, %s: %s' % (entry, type(e).__name__, e))
     print('self-test: %-66s %s' % ('context exceptions: an entry that is not a pair and its reason: fails by name',
                                    'FAIL' if wrong else 'PASS'))
     if wrong:
