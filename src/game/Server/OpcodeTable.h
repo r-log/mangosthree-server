@@ -84,8 +84,8 @@ struct OpcodeHandler
     ///The status for this handler, it tells whether or not we will handle the packet at all and
     ///when we will handle it.
     SessionStatus status;
-    ///This tells where the packet should be processed, ie: is it thread un/safe, which in turn
-    ///determines where it will be processed
+    ///Where the packet's handler runs: in place, on the world thread or on the map's thread
+    ///(see \ref PacketProcessing)
     PacketProcessing packetProcessing;
     ///The callback called for this opcode which will work some magic
     void (*handler)(WorldSession& session, WorldPacket& recvPacket);

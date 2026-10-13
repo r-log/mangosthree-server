@@ -205,8 +205,7 @@ void WorldSession::CountAck(uint32 AckCounters::*field, std::atomic<uint32> AckT
  * @param opHandle Opcode handler
  * @return True if packet can be processed in Map::Update
  *
- * Determines if an opcode can be safely processed in the Map::Update
- * thread context based on thread safety requirements.
+ * Refuses a thread-unsafe packet, a session with no player and a player not in the world.
  */
 static bool MapSessionFilterHelper(WorldSession* session, OpcodeHandler const& opHandle)
 {
@@ -395,17 +394,14 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 
 #endif                                                  // !MANGOS_DEBUG
 
-    // The dump is NOT taken here any more. The account id this used to key it on was a
-    // different numbering scheme from the SessionId the incoming side used, so the two
-    // halves of one log could not be told apart. ClientConnection traces both directions
-    // now, which also catches what never reaches this function: the auth handshake.
+    // The packet dump is ClientConnection's: it traces both directions, and also what never
+    // reaches this function, the auth handshake.
 
-    // SendPacket is void and safe to call on a dead link -- unlike the old
-    // WorldSocket::SendPacket, there is no failure to react to here.
+    // SendPacket is void and safe to call on a dead link: there is no failure to react to here.
 
     // The other direction of the same capture: what this server puts on the wire
     // for the opcodes the wire layer knows -- a registry layout or a hand-written
-    // family (P1-C) -- so a replay can judge the legacy writers by the same
+    // family -- so a replay can judge the legacy writers by the same
     // codecs the client reads with.
     if (Wire::MovementCapture::IsOpen() && Wire::IsKnown(packet->GetOpcode()))
     {
@@ -796,7 +792,7 @@ void WorldSession::LogoutPlayer(bool Save)
         sSocialMgr.SendFriendStatus(_player, FRIEND_OFFLINE, _player->GetObjectGuid(), true);
         sSocialMgr.RemovePlayerSocial(_player->GetGUIDLow());
 
-        ///- Every unit this client moved is the server's again (spec §4); no packet,
+        ///- Every unit this client moved is the server's again; no packet,
         ///  the session is ending.
         RevokeAllMovers(GameTime::GetGameTimeMS());
 
@@ -850,15 +846,11 @@ void WorldSession::KickPlayer()
     }
 }
 
-/// Ping and keep-alive are ordinary opcodes handled on the world thread. They
-/// used to be answered inside the protocol layer, which meant the transport had
-/// to know about latency, the overspeed policy and the security level of an
-/// account -- all game knowledge on the wrong side of the seam.
+/// Ping and keep-alive are ordinary opcodes handled on the world thread, so latency, the
+/// overspeed policy and an account's security level stay on the game side of the seam.
 void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
 {
-    // 4.3.4 sends the latency FIRST and the sequence second. 3.3.5 sent them
-    // the other way round, and this handler was carried across unchanged, so
-    // every reply echoed the wrong dword.
+    // 4.3.4 sends the latency FIRST and the sequence second.
     //
     // On the wire, one client sitting still (world-packets.log, two sessions):
     //
@@ -867,11 +859,9 @@ void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
     //     CMSG_PING  00 00 00 00 | 03 00 00 00
     //
     // The second dword counts; the first never moves. The counter is the
-    // sequence the client waits to see echoed, and the dead field is the
-    // latency it reports -- nought because it had never completed a
-    // measurement, because the pong it needed to complete one always carried
-    // zero. Reading them the WotLK way round put the sequence into the latency
-    // (a nonsense figure in .pinfo) and echoed the latency as the sequence.
+    // sequence the client waits to see echoed, and the other field is the
+    // latency it reports. Read the other way round, the sequence lands in the
+    // latency and the latency is echoed as the sequence.
     //
     // Nothing in the packet distinguishes the two fields by shape: both are
     // uint32, and a wrong guess is only visible as a number that never rises.
@@ -1672,7 +1662,7 @@ void WorldSession::ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* pac
     // Passive capture of every packet the wire layer can decode -- a registry
     // layout or a hand-written family -- at the one place every handler is
     // reached from; the handler-local hook in HandleMovementOpcodes covers what
-    // is still unknown to both (P1-C's remaining worklist).
+    // is still unknown to both.
     if (Wire::MovementCapture::IsOpen() && Wire::IsKnown(packet->GetOpcode()))
     {
         Wire::MovementCapture::Record('C', packet->GetOpcode(), packet->contents(), packet->size());

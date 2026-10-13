@@ -333,9 +333,8 @@ ArenaTeam* ObjectMgr::GetArenaTeamByCaptain(ObjectGuid guid) const
 
 
 /**
- * Decoupling D7c: the five lookups below answered from `characters` with a blocking
- * PQuery whenever the character was not logged in. They read CharacterCache now, which
- * holds those rows in memory. The online path is unchanged and still comes first.
+ * The five lookups below answer a character that is not logged in from CharacterCache, which
+ * holds the `characters` rows in memory; the three keyed by guid read the logged-in player first.
  */
 
 // name must be checked to correctness (if received) before call this function
@@ -689,8 +688,8 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
         CharacterDatabase.PExecute("DELETE FROM `mail` WHERE `expire_time` < '" UI64FMTD "' AND `has_items` = '0' AND `body` = ''", (uint64)basetime);
     }
 
-    // Runs at start-up and on the daily mail timer inside World::Update, so both reads are staged here and the
-    // returns and deletes happen in the callback. Slot 1 reads the expired mails' items in one join ordered by
+    // Runs at start-up and on the daily mail timer inside World::Update, so both reads are staged here and the expired
+    // mails' returns and deletes happen in the callback. Slot 1 reads the expired mails' items in one join ordered by
     // `mail_id`; the callback walks it as a cursor beside the mail rows, since both results ascend in that key.
     SqlQueryHolder* holder = new SqlQueryHolder;
     holder->SetSize(EXPIRED_MAIL_COUNT);
@@ -715,8 +714,8 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
 /**
  * @brief Returns or deletes the expired mails, once both reads have answered.
  *
- * Walks slot 1 as a cursor beside the mail rows. Every write it makes is queued (PExecute), so nothing here
- * runs a synchronous database call.
+ * Walks slot 1 as a cursor beside the mail rows. Every write it makes goes through PExecute, so nothing here runs a
+ * synchronous database call.
  *
  * @param holder   The two staged reads.
  * @param basetime The expiry cut-off the reads were staged with, which the returned mails'

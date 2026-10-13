@@ -36,7 +36,7 @@
  * Session status requirements: see \ref SessionStatus in OpcodeTable.h.
  *
  * @see Opcodes.h for opcode definitions
- * @see WorldSession for packet handler implementations
+ * @see WorldSession and the handler classes under session/handlers for the handlers
  */
 
 #include "OpcodeTable.h"

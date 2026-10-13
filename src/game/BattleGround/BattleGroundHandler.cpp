@@ -25,14 +25,8 @@
 
 /**
  * @file BattleGroundHandler.cpp
- * @brief Handles battle ground related packet opcodes and world session operations.
- *
- * This file contains the implementation of packet handlers for battleground interactions,
- * including:
- * - Battlemaster interactions
- * - Queue management operations
- * - Battleground status requests
- * - Join/Leave battleground operations
+ * @brief Defines one WorldSession member: SendBattlegGroundList, which sends a battlemaster's battleground
+ * list to the player.
  */
 
 #include "SharedDefines.h"
