@@ -55,13 +55,15 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
   rename  ('session', <name>): the base function names `session` in code, a local or a parameter of its own,
       and the moved function calls it <name>, a name base_file holds nowhere at base, not even inside a longer
       name, a comment or a literal. <name> is no C++ keyword or literal, and the base declares `session` in the
-      function's head or body: `WorldSession`, then `*` or `&` signs, then the name, in code, read as text
-      (which declaration a use binds to, a nested block's or a lambda's, is not read). The new file holds
-      <name> only in the functions whose entries rename `session` to it, and there only as a whole word in code
-      that follows no `.`, `->` or `::` (blanks and line breaks between aside) and no lone `>` or `:`. The
-      definition's parameters are compared with <name> read as `session`. No edit or substitution names <name>,
-      and none reads back `session`. No line of the moved function ends in a line splice (the compiler would
-      join a name the reading reads as two);
+      function's head or body, in code, read as text (which declaration a use binds to, a nested block's or a
+      lambda's, is not read): text that reads `WorldSession`, with no name character before it, then one or
+      more `*` or `&` signs with no blank between them, then `session`, and not under `extern` (a body line
+      beginning, blanks aside, with `extern` names the file's variable, and a body holding one is refused even
+      beside a declaration of its own). The new file holds <name> only in the functions whose entries rename
+      `session` to it, and there only as a whole word in code that follows no `.`, `->` or `::` (blanks and
+      line breaks between aside) and no lone `>` or `:`. The definition's parameters are compared with <name>
+      read as `session`. No edit or substitution names <name>, and none reads back `session`. No line of the
+      moved function ends in a line splice (the compiler would join a name the reading reads as two);
   accessors  (header, class, name) entries: a member function of <class> that the entry's edits call on a
       receiver where the base read or wrote one of its data members. The proof reads <header> as git holds it
       at the entry's base (the entry names the header and the class; nothing in the data stands in for the
@@ -170,7 +172,8 @@ ending the line above, `session.` or a substitution's text after a `.`, `->` or 
 definition taking no session over a body, moved or at its base, that reads the session (naming the body
 line), an entry with such a definition listing an edit, an accessor or a substitution other than a static
 called through its class, a rename of another shape, a rename to a C++ keyword or literal, a rename whose base
-function declares no `session` in its head or body, a rename whose name the base file holds, or the new file
+function declares no `session` in its head or body (a name running into `WorldSession` declares none) or
+declares one under `extern`, a rename whose name the base file holds, or the new file
 holds outside the functions renamed to it or other than as a whole word in code, a `session` left in a moved
 line under a rename, a line splice in a function under a rename, an edit or substitution naming the rename's
 name or reading back `session`, and an entry holding a key no entry admits or lacking one it needs.
@@ -264,7 +267,8 @@ KEYWORDS = frozenset((
     'sizeof', 'static', 'static_assert', 'static_cast', 'struct', 'switch', 'template', 'this', 'thread_local',
     'throw', 'true', 'try', 'typedef', 'typeid', 'typename', 'union', 'unsigned', 'using', 'virtual', 'void',
     'volatile', 'wchar_t', 'while', 'xor', 'xor_eq'))
-SESSION_DECLARED = re.compile(r'WorldSession\s*[*&]+\s*session(?!\w)')
+SESSION_DECLARED = re.compile(r'(?<!\w)WorldSession\s*[*&]+\s*session(?!\w)')
+EXTERN_LINE = re.compile(r'\s*extern\b')
 ACCESSOR_GET = re.compile(r'return\s+(\w+)\s*;')
 ACCESSOR_SET = re.compile(r'(\w+)\s*=\s*(\w+)\s*;')
 ACCESSOR_PARAM = re.compile(r'[^,=()]*[\s*&](\w+)')
@@ -811,10 +815,14 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         if new_name is not None:
             b_head = blank(BASE_HEADER.match(joined(entry['base_header'])).group('params'))
             b_own = blank('\n'.join(base_lines[b_at + head_lines(entry['base_header']):b_end]))
-            if not SESSION_DECLARED.search(b_head) and not SESSION_DECLARED.search(b_own):
+            function = re.match(r'.*?WorldSession::(\w+)\(', joined(entry['base_header'])).group(1)
+            declared = list(SESSION_DECLARED.finditer(b_own))
+            if any(EXTERN_LINE.match(b_own, b_own.rfind('\n', 0, m.start()) + 1, m.start()) for m in declared):
+                raise Failure('the base\'s `session` is declared extern in WorldSession::%s: the rename reads a name '
+                              'the function does not own' % function)
+            if not SESSION_DECLARED.search(b_head) and not declared:
                 raise Failure('the base\'s `session` is declared in neither the head nor the body of WorldSession::%s: '
-                              'the rename reads a name the function does not own'
-                              % re.match(r'.*?WorldSession::(\w+)\(', joined(entry['base_header'])).group(1))
+                              'the rename reads a name the function does not own' % function)
         n_code = blank('\n'.join(span))
         if b_code.count('{') != b_code.count('}') or n_code.count('{') != n_code.count('}'):
             raise Failure('a `}` at column 0 closes the function before its braces balance')
@@ -1793,6 +1801,7 @@ def self_test():
     accessed('a setter called inside an expression is not read: fails', 1, more,
              '    Ping(trader->SetTradeData(NULL));', '    Ping(trader->m_trade = NULL);', name='SetTradeData')
     pet = '\n\nstruct Pet\n{\n    TradeData* GetTradeData() const;\n};\n'
+    final = '\n\nclass Pet final : public Unit\n{\n    TradeData* GetTradeData() const;\n};\n'
     trader = '\n\nclass Trader : public Unit\n{\n    public:\n        TradeData* m_trade;\n};\n'
     caller = '\n\nclass Trader\n{\n    void Clear() { GetTradeData(); m_trade; }\n};\n'
     for label, texts, needle in (
@@ -1804,6 +1813,9 @@ def self_test():
             ('an accessor whose getter a class in another header declares fails',
              {'Player.h': SELF_PLAYER, 'Pet.h': pet[2:]}, '2 classes under src/game declare GetTradeData at fixture: '
              'Pet, Player'),
+            ('an accessor whose getter a final class in its header declares fails', {'Player.h': SELF_PLAYER + final},
+             'the accessor Player::GetTradeData: 2 classes under src/game declare GetTradeData at fixture: '
+             'Player, Pet'),
             ('an accessor another class only calls in its bodies passes', {'Player.h': SELF_PLAYER + caller},
              'IDENTICAL')):
         accessed(label, 0 if needle == 'IDENTICAL' else 1, needle, '    trader->GetTradeData()->Clear();',
@@ -2059,6 +2071,8 @@ def self_test():
     local = ('    WorldSession* session = NULL;\n', '    WorldSession* requestSession = NULL;\n')
     unowned = ("the base's `session` is declared in neither the head nor the body of "
                "WorldSession::HandleReadCallback: the rename reads a name the function does not own")
+    extern = ("the base's `session` is declared extern in WorldSession::HandleReadCallback: the rename reads a name "
+              "the function does not own")
     run('a rename over a base reading a file-scope session fails', 1, unowned, 0,
         base=SELF_RENAME_BASE.replace(local[0], '').replace(tick, 'static WorldSession* session = NULL;\n' + tick),
         new=SELF_RENAME_NEW.replace(local[1], ''), moves=SELF_RENAME_MOVES, beside=renamed_heads[1:])
@@ -2083,6 +2097,26 @@ def self_test():
     run('a rename over a reference local named session passes', 0,
         "(0 edits, 'requestSession' read back as session 3 times)", 0, base=by_reference[0], new=by_reference[1],
         moves=SELF_RENAME_MOVES, beside=renamed_heads[1:])
+    for label, want_rc, needle, base_local, new_local in (
+            ('a rename over a base declaring session only after a longer type name fails', 1, unowned,
+             '    MyWorldSession* session = NULL;\n', '    MyWorldSession* requestSession = NULL;\n'),
+            ('a rename over a pointer to a pointer named session passes', 0, 'IDENTICAL',
+             '    WorldSession** session = NULL;\n', '    WorldSession** requestSession = NULL;\n'),
+            ('a rename over a session declared through a namespace passes', 0, 'IDENTICAL',
+             '    external::WorldSession* session = NULL;\n', '    external::WorldSession* requestSession = NULL;\n'),
+            ('a rename over a base declaring session extern fails', 1, extern,
+             '    extern WorldSession* session;\n', '    extern WorldSession* requestSession;\n'),
+            ('a rename over an extern session beside its own fails', 1, extern,
+             '    extern WorldSession* session;\n' + local[0],
+             '    extern WorldSession* requestSession;\n' + local[1])):
+        run(label, want_rc, needle, 0, base=SELF_RENAME_BASE.replace(local[0], base_local),
+            new=SELF_RENAME_NEW.replace(local[1], new_local), moves=SELF_RENAME_MOVES, beside=renamed_heads[1:])
+    longer = [h.replace('WorldSession*&', 'MyWorldSession*&')
+              for h in (SELF_RENAME_PARAM_HEAD, SELF_RENAME_PARAM_NEW_HEAD)]
+    renamed('a rename over a head declaring session only after a longer type name fails', 1,
+            unowned.replace('HandleReadCallback', 'FindRequesterPlayer'), 1,
+            base_swap=(SELF_RENAME_PARAM_HEAD, longer[0]), swap=(SELF_RENAME_PARAM_NEW_HEAD, longer[1]),
+            base_header=longer[0], new_header=longer[1])
     renamed('a rename\'s name standing in the base file fails', 1, held,
             base_swap=(tick, '// the requestSession answers on a later tick'))
     renamed('a rename\'s name inside a longer name in the base file fails', 1, held,
