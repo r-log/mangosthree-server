@@ -98,6 +98,7 @@ _PET_BASE = 'f896bda39'
 _PET_FILE = 'src/game/session/handlers/entities/PetHandlers.cpp'
 _PET_ORIGIN = 'src/game/WorldHandlers/PetHandler.cpp'
 _PET_PLAYER = [('GetPlayer()', '_player')]
+_PET2_BASE = '7e59ebdbb'
 
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
@@ -491,6 +492,31 @@ MOVES = [
                  '        sLog.outError("HandlePetCastSpellOpcode: %s isn\'t pet of %s .", guid.GetString().c_str(), GetPlayer()->GetGuidStr().c_str());'),
                 ('            session.GetPlayer()->SendClearCooldown(spellid, pet);',
                  '            GetPlayer()->SendClearCooldown(spellid, pet);')]),
+    dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetNameQueryOpcode(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandlePetNameQuery(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetRename(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandlePetRename(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PET_PLAYER),
+    dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetAbandon(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandlePetAbandon(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PET_PLAYER),
+    dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandlePetLearnTalent(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandlePetLearnTalent(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PET_PLAYER),
+    dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandleLearnPreviewTalentsPet(WorldPacket& recv_data)',
+         new_header='void PetHandlers::HandleLearnPreviewTalentsPet(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PET_PLAYER),
+    dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
+         base_header='void WorldSession::HandleDismissCritter(WorldPacket& recvData)',
+         new_header='void PetHandlers::HandleDismissCritter(WorldSession& session, WorldPacket& recvData)',
+         substitutions=_PET_PLAYER,
+         edits=[('        guid.GetString().c_str(), session.GetPlayer()->GetName(), session.GetPlayer()->GetGUIDLow(), session.GetAccountId());',
+                 '        guid.GetString().c_str(), GetPlayer()->GetName(), GetPlayer()->GetGUIDLow(), GetAccountId());')]),
 ]
 
 RESIDUES = [
@@ -643,4 +669,6 @@ RESIDUES = [
     dict(base=_PET_BASE, base_file=_PET_ORIGIN,
          removed=['#include "SpellMgr.h"', '#include "Spell.h"', '#include "CreatureAI.h"', '#include "SpellAuras.h"',
                   '#include "MotionMaster.h"']),
+    dict(base=_PET2_BASE, base_file=_PET_ORIGIN,
+         removed=['#include <ctime>', '#include "Log.h"', '#include "Util.h"', '#include "TemporarySummon.h"']),
 ]

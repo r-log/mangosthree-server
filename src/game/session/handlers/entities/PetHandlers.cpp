@@ -26,8 +26,11 @@
 #include "session/handlers/entities/PetHandlers.h"
 
 #include "Platform/Define.h"
+#include <string>
+#include <ctime>
 #include "WorldPacket.h"
 #include "Server/WorldSession.h"
+#include "Object/ObjectMgr.h"
 #include "Object/SpellMgr.h"
 #include "Log/Log.h"
 #include "WorldHandlers/Spell.h"
@@ -35,6 +38,7 @@
 #include "Utilities/Util.h"
 #include "Object/Pet.h"
 #include "WorldHandlers/SpellAuras.h"
+#include "Object/TemporarySummon.h"
 #include "MotionGenerators/MotionMaster.h"
 
 /**
@@ -647,5 +651,229 @@ void PetHandlers::HandlePetCastSpell(WorldSession& session, WorldPacket& recvPac
 
         spell->finish(false);
         delete spell;
+    }
+}
+
+/**
+ * @brief Handles a client request for a pet name query.
+ *
+ * @param recv_data The incoming pet name query packet.
+ */
+void PetHandlers::HandlePetNameQuery(WorldSession& session, WorldPacket& recv_data)
+{
+    DETAIL_LOG("HandlePetNameQuery. CMSG_PET_NAME_QUERY");
+
+    uint32 petnumber;
+    ObjectGuid petguid;
+
+    recv_data >> petnumber;
+    recv_data >> petguid;
+
+    session.SendPetNameQuery(petguid, petnumber);
+}
+
+/**
+ * @brief Handles hunter pet renaming and persists the new name.
+ *
+ * @param recv_data The incoming pet rename packet.
+ */
+void PetHandlers::HandlePetRename(WorldSession& session, WorldPacket& recv_data)
+{
+    DETAIL_LOG("HandlePetRename. CMSG_PET_RENAME");
+
+    ObjectGuid petGuid;
+    uint8 isdeclined;
+
+    std::string name;
+    DeclinedName declinedname;
+
+    recv_data >> petGuid;
+    recv_data >> name;
+    recv_data >> isdeclined;
+
+    Pet* pet = session.GetPlayer()->GetMap()->GetPet(petGuid);
+    // check it!
+    if (!pet || pet->getPetType() != HUNTER_PET ||
+            !pet->HasByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED) ||
+            pet->GetOwnerGuid() != session.GetPlayer()->GetObjectGuid() || !pet->GetCharmInfo())
+        return;
+
+    PetNameInvalidReason res = ObjectMgr::CheckPetName(name);
+    if (res != PET_NAME_SUCCESS)
+    {
+        session.SendPetNameInvalid(res, name, NULL);
+        return;
+    }
+
+    if (sObjectMgr.IsReservedName(name))
+    {
+        session.SendPetNameInvalid(PET_NAME_RESERVED, name, NULL);
+        return;
+    }
+
+    pet->SetName(name);
+
+    if (session.GetPlayer()->GetGroup())
+    {
+        session.GetPlayer()->SetGroupUpdateFlag(GROUP_UPDATE_FLAG_PET_NAME);
+    }
+
+    pet->RemoveByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED);
+
+    if (isdeclined)
+    {
+        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        {
+            recv_data >> declinedname.name[i];
+        }
+
+        std::wstring wname;
+        Utf8toWStr(name, wname);
+        if (!ObjectMgr::CheckDeclinedNames(GetMainPartOfName(wname, 0), declinedname))
+        {
+            session.SendPetNameInvalid(PET_NAME_DECLENSION_DOESNT_MATCH_BASE_NAME, name, &declinedname);
+            return;
+        }
+    }
+
+    // Decoupling D7e: the two tables this handler writes are both in the character's pet
+    // cache, so each statement gets its mirror beside it.
+    //
+    // Decoupling D7i: the six escapes are gone -- five declined-name cases and the name --
+    // and every string is a bound parameter (C5). That is also why the cache no longer
+    // needs its own copies of them: nothing mutates `name` or `declinedname` any more, so
+    // the value the statement binds and the value the cache takes are the same object.
+    PlayerPetCache& petCache = session.GetPlayer()->GetPetCache();
+    const uint32 renamedPetNumber = pet->GetCharmInfo()->GetPetNumber();
+
+    CharacterDatabase.BeginTransaction();
+    if (isdeclined)
+    {
+        static SqlStatementID delDeclinedName;
+        SqlStatement remove = CharacterDatabase.CreateStatement(delDeclinedName,
+                              "DELETE FROM `character_pet_declinedname` WHERE `owner` = ? AND `id` = ?");
+        remove.addUInt32(session.GetPlayer()->GetGUIDLow());
+        remove.addUInt32(renamedPetNumber);
+        remove.Execute();
+
+        static SqlStatementID insDeclinedName;
+        SqlStatement insert = CharacterDatabase.CreateStatement(insDeclinedName,
+                              "INSERT INTO `character_pet_declinedname` (`id`, `owner`, `genitive`, `dative`, `accusative`, `instrumental`, `prepositional`) "
+                              "VALUES (?, ?, ?, ?, ?, ?, ?)");
+        insert.addUInt32(renamedPetNumber);
+        insert.addUInt32(session.GetPlayer()->GetGUIDLow());
+        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        {
+            insert.addString(declinedname.name[i]);
+        }
+        insert.Execute();
+
+        PetCacheDeclinedName cachedDeclined;
+        for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        {
+            cachedDeclined.name[i] = declinedname.name[i];
+        }
+        petCache.SetDeclinedName(renamedPetNumber, cachedDeclined);
+    }
+
+    static SqlStatementID updPetName;
+    SqlStatement update = CharacterDatabase.CreateStatement(updPetName,
+                          "UPDATE `character_pet` SET `name` = ?, `renamed` = '1' WHERE `owner` = ? AND `id` = ?");
+    update.addString(name);
+    update.addUInt32(session.GetPlayer()->GetGUIDLow());
+    update.addUInt32(renamedPetNumber);
+    update.Execute();
+
+    petCache.SetNameRenamed(renamedPetNumber, name, 1);
+    CharacterDatabase.CommitTransaction();
+
+    pet->SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, uint32(time(NULL)));
+}
+
+/**
+ * @brief Handles abandoning or dismissing a pet or charm.
+ *
+ * @param recv_data The incoming pet abandon packet.
+ */
+void PetHandlers::HandlePetAbandon(WorldSession& session, WorldPacket& recv_data)
+{
+    ObjectGuid guid;
+    recv_data >> guid;                                      // pet guid
+
+    DETAIL_LOG("HandlePetAbandon. CMSG_PET_ABANDON pet guid is %s", guid.GetString().c_str());
+
+    if (!session.GetPlayer()->IsInWorld())
+    {
+        return;
+    }
+
+    // pet/charmed
+    if (Creature* pet = session.GetPlayer()->GetMap()->GetAnyTypeCreature(guid))
+    {
+        if (pet->IsPet())
+        {
+            ((Pet*)pet)->Unsummon(PET_SAVE_AS_DELETED, session.GetPlayer());
+        }
+        else if (pet->GetObjectGuid() == session.GetPlayer()->GetCharmGuid())
+        {
+            session.GetPlayer()->Uncharm();
+        }
+    }
+}
+
+void PetHandlers::HandlePetLearnTalent(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: CMSG_PET_LEARN_TALENT");
+
+    ObjectGuid guid;
+    uint32 talent_id, requested_rank;
+    recv_data >> guid >> talent_id >> requested_rank;
+
+    session.GetPlayer()->LearnPetTalent(guid, talent_id, requested_rank);
+    session.GetPlayer()->SendTalentsInfoData(true);
+}
+
+void PetHandlers::HandleLearnPreviewTalentsPet(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS_PET");
+
+    ObjectGuid guid;
+    recv_data >> guid;
+
+    uint32 talentsCount;
+    recv_data >> talentsCount;
+
+    uint32 talentId, talentRank;
+
+    for (uint32 i = 0; i < talentsCount; ++i)
+    {
+        recv_data >> talentId >> talentRank;
+
+        session.GetPlayer()->LearnPetTalent(guid, talentId, talentRank);
+    }
+
+    session.GetPlayer()->SendTalentsInfoData(true);
+}
+
+void PetHandlers::HandleDismissCritter(WorldSession& session, WorldPacket& recvData)
+{
+    ObjectGuid guid;
+    recvData >> guid;
+
+    DEBUG_LOG("WORLD: Received CMSG_DISMISS_CRITTER for %s", guid.GetString().c_str());
+    Unit* pet = session.GetPlayer()->GetMap()->GetAnyTypeCreature(guid);
+    if (!pet)
+    {
+        DEBUG_LOG("Vanitypet %s does not exist - Player %s (guid %u, account: %u) attempted to dismiss it (possibly lagged out)",
+        guid.GetString().c_str(), session.GetPlayer()->GetName(), session.GetPlayer()->GetGUIDLow(), session.GetAccountId());
+        return;
+    }
+
+    if (session.GetPlayer()->GetCritterGuid() == guid)
+    {
+        if (pet->GetTypeId() == TYPEID_UNIT && ((Creature*)pet)->IsTemporarySummon())
+        {
+            ((TemporarySummon*)pet)->UnSummon();
+        }
     }
 }

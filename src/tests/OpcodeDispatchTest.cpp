@@ -682,7 +682,26 @@ TEST(OpcodeDispatch_PetCommandRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_PET_ACTION].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
 
-TEST(OpcodeDispatch_PetCommandRowsKeepTheirStatusAndProcessing)
+TEST(OpcodeDispatch_PetNameTalentAndCritterRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_PET_NAME_QUERY].handler == &OpcodeThunk<&PetHandlers::HandlePetNameQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetNameQuery>), 1);
+    CHECK(opcodeTable[CMSG_PET_RENAME].handler == &OpcodeThunk<&PetHandlers::HandlePetRename>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetRename>), 1);
+    CHECK(opcodeTable[CMSG_PET_ABANDON].handler == &OpcodeThunk<&PetHandlers::HandlePetAbandon>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetAbandon>), 1);
+    CHECK(opcodeTable[CMSG_PET_LEARN_TALENT].handler == &OpcodeThunk<&PetHandlers::HandlePetLearnTalent>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandlePetLearnTalent>), 1);
+    CHECK(opcodeTable[CMSG_PET_LEARN_TALENT_GROUP].handler == &OpcodeThunk<&PetHandlers::HandleLearnPreviewTalentsPet>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandleLearnPreviewTalentsPet>), 1);
+    CHECK(opcodeTable[CMSG_DISMISS_CRITTER].handler == &OpcodeThunk<&PetHandlers::HandleDismissCritter>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetHandlers::HandleDismissCritter>), 1);
+    CHECK(opcodeTable[CMSG_PET_RENAME].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_PetRowsKeepTheirStatusAndProcessing)
 {
     InitializeOpcodes();
 
@@ -696,4 +715,16 @@ TEST(OpcodeDispatch_PetCommandRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_PET_SPELL_AUTOCAST].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_PET_CAST_SPELL].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_PET_CAST_SPELL].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_NAME_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_NAME_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_RENAME].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_RENAME].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_ABANDON].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_ABANDON].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_LEARN_TALENT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_LEARN_TALENT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PET_LEARN_TALENT_GROUP].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PET_LEARN_TALENT_GROUP].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_DISMISS_CRITTER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_DISMISS_CRITTER].packetProcessing, PROCESS_THREADUNSAFE);
 }

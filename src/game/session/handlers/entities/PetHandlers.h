@@ -29,10 +29,12 @@
 class WorldPacket;
 class WorldSession;
 
-/// The client's pet command opcodes: the pet bar's command, reaction and spell buttons, the stop
-/// of a pet's attack, the arrangement of the pet bar and its autocast marks, a spell's autocast
-/// toggle and a spell the pet casts at a chosen target: static entry points the opcode table binds,
-/// each borrowing the session for one call and storing nothing.
+/// The client's pet opcodes: the pet bar's command, reaction and spell buttons, the stop of a
+/// pet's attack, the arrangement of the pet bar and its autocast marks, a spell's autocast toggle,
+/// a spell the pet casts at a chosen target, the pet's name query and rename, the abandon of a pet
+/// or a charm, the pet's talents learned one rank at a time or from the preview, and the dismissal
+/// of a critter: static entry points the opcode table binds, each borrowing the session for one
+/// call and storing nothing.
 struct PetHandlers
 {
     public:
@@ -41,6 +43,12 @@ struct PetHandlers
         static void HandlePetSetAction(WorldSession& session, WorldPacket& recv_data);
         static void HandlePetSpellAutocast(WorldSession& session, WorldPacket& recv_data);
         static void HandlePetCastSpell(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetNameQuery(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetRename(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetAbandon(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetLearnTalent(WorldSession& session, WorldPacket& recv_data);
+        static void HandleLearnPreviewTalentsPet(WorldSession& session, WorldPacket& recv_data);
+        static void HandleDismissCritter(WorldSession& session, WorldPacket& recv_data);
 };
 
 #endif
