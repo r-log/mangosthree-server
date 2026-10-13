@@ -258,18 +258,19 @@ through `World::AddSession` (`WorldSessionMgr.cpp:104-109`), never as a packet, 
 the console reader queues commands for the world thread, the log's console writer, and the anti-freeze watchdog,
 which aborts the process when the tick counter stops moving.
 
-**Locks between map threads are leaves.** A lock that guards game state reached from more than one map thread is
-taken under nothing on a map thread, and nothing is called while it is held but its own container, so no lock order
-through it can cycle. There are four: a script's outdoor PvP zone player set (`ZonePlayerSet`), each map's team-buff
-queue (`TeamBuffQueue`), the capture-point slider store (`CapturePointSliderStore`) and the world's after-phase queue
-(`AfterMapPhaseQueue`); each has a test that holds it and shows its operations pending. Three locks are held across
-game code. Two are the queue locks, both held on the world thread outside the map phase: the console command queue's,
-across each console command in `World::ProcessCliCommands`, and the session-add queue's, across `World::AddSession_`
-in `World::UpdateSessions`. A leaf reached from code the world thread runs can be taken under either (the zone player
-set, the slider store); a leaf taken only inside a map's update or in `World::Update` itself never is (the team-buff
-queue, the after-phase queue). The third is the map manager's lock, held while `MapManager::CreateMap` builds an
-instance and loads its active objects and while `MapManager::DeleteInstance` unloads one; it sits above a leaf only
-through a capture point on an instance map, of which the shipped data has none.
+**Four locks between map threads are leaves.** A script's outdoor PvP zone player set (`ZonePlayerSet`), each map's
+team-buff queue (`TeamBuffQueue`), the capture-point slider store (`CapturePointSliderStore`) and the world's
+after-phase queue (`AfterMapPhaseQueue`) each guard game state reached from more than one map thread. Each is taken
+under nothing on a map thread, and nothing is called while it is held but its own container, so no lock order through
+it can cycle; each has a test that holds it and shows its operations pending. Three locks held across game code can
+be held when one of the four is taken. Two are the queue locks, both held on the world thread outside the map phase:
+the console command queue's, across each console command in `World::ProcessCliCommands`, and the session-add queue's,
+across `World::AddSession_` in `World::UpdateSessions`. A leaf reached from code the world thread runs can be taken
+under either (the zone player set, the slider store); a leaf taken only inside a map's update or in `World::Update`
+itself never is (the team-buff queue, the after-phase queue). The third is the map manager's lock, held while
+`MapManager::CreateMap` builds an instance and loads its active objects and while `MapManager::DeleteInstance`
+unloads one; it sits above a leaf only through a capture point on an instance map, of which the shipped data has
+none.
 
 | Rule | Enforced by |
 |---|---|
@@ -278,7 +279,7 @@ through a capture point on an instance map, of which the shipped data has none.
 | No synchronous database acquisition under the tick | `TickGuard` (strict mode asserts; the CI job proves the four strict cases stand) and `CheckSyncDb` |
 | Packets cross from the network only through `SessionMailbox` | the `proto` boundary: `IClientLink` / `IWorldGateway` |
 | A map never writes into another map during the phase | transport crossings run after the barrier; a team buff for a player on a map the calling thread does not own is posted to that map's `TeamBuffQueue` and applied by that map's own update, the first statement after its `MapPhase::Scope` (`Map::ApplyTeamBuffs`, pinned by `CheckTeamBuffDrain`); a defense or zone-under-attack message and a missing graveyard link raised during the phase are posted to the world's `AfterMapPhaseQueue` and applied by the world thread after the barrier, the statement after `sMapMgr.Update` (`World::ApplyAfterMapPhasePosts`, pinned by `CheckAfterMapPhaseDrain`) |
-| State every map thread can reach (outdoor PvP's scripts) is touched under a leaf lock, as an atomic, or after the barrier | the zone player set and the capture-point slider store are leaf locks; Eastern Plaguelands' tower counts are atomics, each read once per zone entry; the team buffs and the after-phase posts are the routes of the row above. A caller that bypasses a route or reads a count twice passes every test: review holds them |
+| State every map thread can reach (outdoor PvP's scripts) is touched under a leaf lock, as an atomic, or after the barrier | the zone player set and the capture-point slider store are leaf locks; Eastern Plaguelands' tower counts are atomics, each read once by the script's zone-entry override; the team buffs and the after-phase posts are the routes of the row above. A caller that bypasses a route or reads a count twice passes every test: review holds them |
 | A harness run is deterministic | the stepped clock runs every map inline, in order, on one thread |
 
 **Today:**
