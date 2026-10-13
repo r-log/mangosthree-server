@@ -57,9 +57,13 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       name, a comment or a literal. <name> is no C++ keyword or literal, and the base declares `session` in the
       function's head or body, in code, read as text (which declaration a use binds to, a nested block's or a
       lambda's, is not read): text that reads `WorldSession`, with no name character before it, then one or
-      more `*` or `&` signs with no blank between them, then `session`, and not under `extern` (a body line
-      beginning, blanks aside, with `extern` names the file's variable, and a body holding one is refused even
-      beside a declaration of its own). The new file holds <name> only in the functions whose entries rename
+      more `*` or `&` signs with no blank between them, then `session`, and not under `extern`: the words of
+      the declaration's own statement, from after the last `;`, `{` or `}` before it to it (blanks and line
+      breaks aside, comments and literals blanked), hold no `extern` anywhere among them (such a declaration
+      names a variable outside the function, and a body holding one is refused even beside a declaration of
+      its own; a declaration of its own after another name's `extern` statement on its line, `extern int x;
+      WorldSession* session = ...;`, is read as its own). The new file holds <name> only in the functions whose
+      entries rename
       `session` to it, and there only as a whole word in code that follows no `.`, `->` or `::` (blanks and
       line breaks between aside) and no lone `>` or `:`. The definition's parameters are compared with <name>
       read as `session`. No edit or substitution names <name>, and none reads back `session`. No line of the
@@ -288,7 +292,7 @@ KEYWORDS = frozenset((
     'throw', 'true', 'try', 'typedef', 'typeid', 'typename', 'union', 'unsigned', 'using', 'virtual', 'void',
     'volatile', 'wchar_t', 'while', 'xor', 'xor_eq'))
 SESSION_DECLARED = re.compile(r'(?<!\w)WorldSession\s*[*&]+\s*session(?!\w)')
-EXTERN_LINE = re.compile(r'\s*extern\b')
+EXTERN_WORD = re.compile(r'\bextern\b')
 ACCESSOR_GET = re.compile(r'return\s+(\w+)\s*;')
 ACCESSOR_SET = re.compile(r'(\w+)\s*=\s*(\w+)\s*;')
 ACCESSOR_PARAM = re.compile(r'[^,=()]*[\s*&](\w+)')
@@ -442,6 +446,12 @@ def check_reads_session(body, where):
         if m:
             raise Failure('%s, body line %d: "%s": the body reads the session but the head takes none: %r' % (
                 where, n, m.group(0), body[n - 1]))
+
+
+def statement_start(code, at):
+    """Where the statement holding code[at] starts: after the last `;`, `{` or `}` before it (code with comments
+    and literals blanked)."""
+    return max(code.rfind(';', 0, at), code.rfind('{', 0, at), code.rfind('}', 0, at)) + 1
 
 
 def check_shape(new_header, base_header, rename=None):
@@ -995,7 +1005,7 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             b_own = blank('\n'.join(base_lines[b_at + head_lines(entry['base_header']):b_end]))
             function = re.match(r'.*?WorldSession::(\w+)\(', joined(entry['base_header'])).group(1)
             declared = list(SESSION_DECLARED.finditer(b_own))
-            if any(EXTERN_LINE.match(b_own, b_own.rfind('\n', 0, m.start()) + 1, m.start()) for m in declared):
+            if any(EXTERN_WORD.search(b_own, statement_start(b_own, m.start()), m.start()) for m in declared):
                 raise Failure('the base\'s `session` is declared extern in WorldSession::%s: the rename reads a name '
                               'the function does not own' % function)
             if not SESSION_DECLARED.search(b_head) and not declared:
@@ -2288,7 +2298,30 @@ def self_test():
              '    extern WorldSession* session;\n', '    extern WorldSession* requestSession;\n'),
             ('a rename over an extern session beside its own fails', 1, extern,
              '    extern WorldSession* session;\n' + local[0],
-             '    extern WorldSession* requestSession;\n' + local[1])):
+             '    extern WorldSession* requestSession;\n' + local[1]),
+            ('a rename over an extern session after a statement on its line fails', 1, extern,
+             '    Ping(); extern WorldSession* session;\n', '    Ping(); extern WorldSession* requestSession;\n'),
+            ('a rename over an extern session in a one-line block fails', 1, extern,
+             '    { extern WorldSession* session; }\n', '    { extern WorldSession* requestSession; }\n'),
+            ('a rename over an extern alone on the line above the session fails', 1, extern,
+             '    extern\n    WorldSession* session;\n', '    extern\n    WorldSession* requestSession;\n'),
+            ('a rename over an extern session after an attribute fails', 1, extern,
+             '    [[maybe_unused]] extern WorldSession* session;\n',
+             '    [[maybe_unused]] extern WorldSession* requestSession;\n'),
+            ('a rename over a thread_local extern session fails', 1, extern,
+             '    thread_local extern WorldSession* session;\n',
+             '    thread_local extern WorldSession* requestSession;\n'),
+            ('a rename over its own session after another name\'s extern passes', 0, 'IDENTICAL',
+             '    extern int x; WorldSession* session = NULL;\n',
+             '    extern int x; WorldSession* requestSession = NULL;\n'),
+            ('a rename over its own session after a comment holding extern passes', 0, 'IDENTICAL',
+             '    /* extern */ WorldSession* session = NULL;\n',
+             '    /* extern */ WorldSession* requestSession = NULL;\n'),
+            ('a rename over its own session below a comment holding extern passes', 0, 'IDENTICAL',
+             '    // extern\n' + local[0], '    // extern\n' + local[1]),
+            ('a rename over a session declared through a name ending in extern passes', 0, 'IDENTICAL',
+             '    myextern::WorldSession* session = NULL;\n',
+             '    myextern::WorldSession* requestSession = NULL;\n')):
         run(label, want_rc, needle, 0, base=SELF_RENAME_BASE.replace(local[0], base_local),
             new=SELF_RENAME_NEW.replace(local[1], new_local), moves=SELF_RENAME_MOVES, beside=renamed_heads[1:])
     longer = [h.replace('WorldSession*&', 'MyWorldSession*&')
