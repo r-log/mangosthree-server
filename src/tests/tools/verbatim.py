@@ -181,11 +181,11 @@ the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and
 or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`) needs `this` among
 them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are compared with their
 blanks dropped, but one between two name characters. The dispatch lines hold, blank lines aside, in this
-order and each once, the context's construction (whole or split over two lines), the dispatch call (whole
-or split over two lines, or assigned to `outcome` and tested on the next line), `{`, its return and `}`,
-the five inside one outer `{` and `}` or in none, and nothing else: each line, comments and literals
-blanked and blanks aside, is `CONTEXT NAME(ARGUMENTS);`, whole or split over two lines after an
-argument's comma that no inner parenthesis holds;
+order and each once, the context's construction (whole or split over two or more lines), the dispatch call
+(whole or split over two lines, or assigned to `outcome` and tested on the next line), `{`, its return and
+`}`, the five inside one outer `{` and `}` or in none, and nothing else: each line, comments and literals
+blanked and blanks aside, is `CONTEXT NAME(ARGUMENTS);`, whole or split over two or more lines, each break
+after an argument's comma that no inner parenthesis holds;
 `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())`, whole or split after its `(` or after KEY's comma;
 `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with `if (OUT.IsReturn())` the next line
 (VALUE the site's `value`, void where it names none; OUT any name); `return;` at a site with no `value`,
@@ -835,14 +835,15 @@ DISPATCH_REGISTRY = r'(?:SpellHandlerRegistry::Game\(\)\.)?'
 def check_dispatch_shape(site, key, name):
     """The dispatch lines in their fixed shape, read with comments and literals blanked and blanks aside as the
     ties read them: each line is the context's construction `CONTEXT NAME(ARGUMENTS);`, whole or split over two
-    lines after an argument's comma that no inner parenthesis holds; the dispatch call
+    or more lines, each break after an argument's comma that no inner parenthesis holds; the dispatch call
     `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())` (`SpellHandlerRegistry::Game().` before `Dispatch` or not),
     whole or split over two lines after its `(` or after KEY's comma; the call assigned,
     `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` (VALUE the site's value, void where it names
     none), with `if (OUT.IsReturn())` the next line; the site's return, `return;` where it names no value and
     `return OUT.GetValue();` where it does; `{`, `}` or a blank line. A line holding a comment is none of them.
     Blank lines aside, the lines stand in this order, each once: the construction, the call (or the call assigned),
-    `{`, the return and `}`, the five inside one outer `{` and `}` or in none."""
+    `{`, the return and `}`, the five inside one outer `{` and `}` or in none. A line out of its place is named, an
+    element over more than one line by its first line."""
     text = '\n'.join(site['dispatch'])
     noted = [text.count('\n', 0, m.start()) for m in re.finditer(r'/[/*]', text) if not in_literal(text, m.start())]
     read = [squeezed(line) for line in blank(text).split('\n')]
@@ -857,7 +858,12 @@ def check_dispatch_shape(site, key, name):
         given = held(line, built.end() - 1) if built else None
         split = (built and given is None and line.endswith(',')
                  and line.count('(', built.end()) == line.count(')', built.end()))
-        joined = held(line + after, built.end() - 1) if split else None
+        last, front = i + 1, line
+        while (split and last < len(read) and held(front + read[last], built.end() - 1) is None
+               and read[last].endswith(',') and read[last].count('(') == read[last].count(')')):
+            front, last = front + read[last], last + 1
+        closing = read[last] if last < len(read) else ''
+        joined = held(front + closing, built.end() - 1) if split else None
         valued = re.fullmatch(assigned, line)
         returned = 'return;' if 'value' not in site else out and 'return %s.GetValue();' % out
         kind, step = None, 1
@@ -865,10 +871,10 @@ def check_dispatch_shape(site, key, name):
             out, kind, step = valued.group(1), 'dispatch call', 2
         elif re.fullmatch(whole, line + after) and re.fullmatch(r'if\(%s(?:%s,)?' % (call, re.escape(key)), line):
             kind, step = 'dispatch call', 2
-        elif joined is not None and (line + after)[built.end() + len(joined):] == ');':
-            kind, step = 'construction', 2
-        elif split and i + 1 < len(read):
-            i += 1
+        elif joined is not None and (front + closing)[built.end() + len(joined):] == ');':
+            kind, step = 'construction', last + 1 - i
+        elif split and last < len(read):
+            i = last
             break
         elif re.fullmatch(whole, line):
             kind = 'dispatch call'
@@ -2323,12 +2329,18 @@ def self_test():
         """GEN_SPEC with its site naming `table`."""
         return dict(GEN_SPEC, sites=[dict(GEN_SPEC['sites'][0], table=table)])
 
-    def raises(label, needle, call):
+    def caught(call):
+        """What `call` raises: a failure's text, any other exception's type and text, or 'no failure'."""
         try:
             call()
-            text = 'no failure'
         except Failure as e:
-            text = str(e)
+            return str(e)
+        except Exception as e:
+            return '%s: %s' % (type(e).__name__, e)
+        return 'no failure'
+
+    def raises(label, needle, call):
+        text = caught(call)
         ok = needle in text
         print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
         if not ok:
@@ -3325,7 +3337,6 @@ def self_test():
             ('after its parenthesis', [begun, under + 'this, m_caster, target);'], 0),
             ('at a comma after its close',
              [begun + 'this, m_caster, target), Foo(m_spellInfo,', under + 'effect);'], 0),
-            ('over three lines', [begun + 'this, m_caster,', under + 'target,', under + 'effect);'], 1),
             ('with a statement after it on its second line',
              [begun + 'this, m_caster,', under + 'target); target = m_caster;'], 1),
             ('with a comment on its second line', [begun + 'this, m_caster,', under + 'target);    // built'], 1)):
@@ -3360,6 +3371,47 @@ def self_test():
     run('dispatch sequence: the valued form inside an outer block: passes', 0,
         'with 2/2 bodies pasted back at their 2 labels in 1 sites',
         **reshaped(valued, ['    {'] + ['    ' + line for line in worth] + ['    }']))
+    run('dispatch sequence: an opening brace in the return\'s place: fails by name', 1, astray % ('tied', '{'),
+        **reshaped(tied, passing[:3] + ['    {'] + passing[4:]))
+    split_call = ['    if (Dispatch<RemoveSite>(GetId(),', '            ctx).IsReturn())']
+    run('dispatch sequence: the call split over two lines before the construction: its first line is named', 1,
+        astray % ('tied', split_call[0].strip()), **reshaped(tied, split_call + passing[:1] + passing[2:]))
+    opening = '    SpellEffectDummyGenericContext ctx('
+    beneath = ' ' * len(opening)
+    fourteen = ['this, m_caster, unitTarget, m_originalCaster, m_originalCasterGUID,',
+                'm_spellInfo, m_triggeredByAuraSpell, m_currentBasePoints, m_CastItem,',
+                'itemTarget, damage, m_duration, m_UniqueTargetInfo, effect);']
+    three = [opening + fourteen[0], beneath + fourteen[1], beneath + fourteen[2]]
+    four = [opening + 'this, m_caster, unitTarget, m_originalCaster,',
+            beneath + 'm_originalCasterGUID, m_spellInfo, m_triggeredByAuraSpell,',
+            beneath + 'm_currentBasePoints, m_CastItem, itemTarget, damage,',
+            beneath + 'm_duration, m_UniqueTargetInfo, effect);']
+    generic = form('generic', lab1, [lab[1], '            unitTarget->Drop(m_caster);', '            finish();',
+                                     '            break;'],
+                   [('One', 'void', ['    ctx.unitTarget->Drop(ctx.m_caster);', '    ctx.spell->finish();', cont])],
+                   [(1, 'One')], context='SpellEffectDummyGenericContext', dispatch=three + passing[1:],
+                   substitutions=[('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget'),
+                                  ('ctx.spell->finish', 'finish')] + VOID_SUBSTITUTIONS)
+    run('dispatch shape: the fourteen-argument construction over three lines: passes', 0, shaped, **generic)
+    for what, lines in (('four', four), ('two', [opening + fourteen[0] + ' ' + fourteen[1], beneath + fourteen[2]])):
+        run('dispatch shape: the fourteen-argument construction over %s lines: passes' % what, 0, shaped,
+            **reshaped(generic, lines + passing[1:]))
+    for what, lines, line in (
+            ('its third line of four ending without its comma', four[:2] + [four[2][:-1]] + four[3:], 2),
+            ('a nested parenthesis left open on its middle line',
+             [three[0], beneath + 'm_spellInfo, Foo(m_triggeredByAuraSpell, m_currentBasePoints, m_CastItem,',
+              beneath + 'itemTarget), damage, m_duration, m_UniqueTargetInfo, effect);'], 1),
+            ('its parenthesis closed and another opened on its middle line',
+             [three[0], beneath + 'm_spellInfo), Foo(m_triggeredByAuraSpell, m_currentBasePoints, m_CastItem,',
+              three[2]], 1),
+            ('a statement on its middle line',
+             [three[0], beneath + 'm_spellInfo, m_triggeredByAuraSpell); target = m_caster;', three[2]], 1),
+            ('a comment on its middle line', [three[0], three[1] + '    // spell', three[2]], 1)):
+        run('dispatch shape: the fourteen-argument construction, %s: fails by name' % what, 1,
+            unshaped % ('generic', lines[line].strip()), **reshaped(generic, lines + passing[1:]))
+    again = dict(generic['spec']['sites'][0], dispatch=[opening + 'this);'] + passing[1:2] + three + passing[2:])
+    raises('dispatch sequence: the three-line construction after the call: its first line is named',
+           astray % ('generic', three[0].strip()), lambda: check_dispatch_shape(again, 'GetId()', 'ctx'))
 
     def paired(*pairs):
         """A site whose substitutions are `pairs`, then the void outcome pairs."""
@@ -3411,24 +3463,15 @@ def self_test():
             ('a right side holding its own left side', [('caster', 'm_caster->caster')], [])):
         raises('pair sequence: %s: passes' % label, 'no failure',
                lambda pairs=pairs, listed=listed: check_pairs(paired(*pairs), listed))
-    patterned = 'pair sequence: the tool\'s own pattern pairs are not read: passes'
-    try:
-        raises(patterned, 'no failure', lambda: check_pairs(dict(name='paired', substitutions=[('ctx.target', 'target')]
-                                                                 + valued_substitutions('bool')), []))
-    except Exception as e:
-        print('self-test: %-66s %s' % (patterned, 'FAIL'))
-        failures.append('%s: %s: %s' % (patterned, type(e).__name__, e))
+    raises('pair sequence: the tool\'s own pattern pairs are not read: passes', 'no failure',
+           lambda: check_pairs(dict(name='paired', substitutions=[('ctx.target', 'target')]
+                                    + valued_substitutions('bool')), []))
     wrong = []
     for entry in ('ctx.aura', list(aura), (aura[0],), aura + ('more',), (list(aura[0]), aura[1]),
                   (('ctx.aura',), aura[1]), (('ctx.aura', 1), aura[1]), (aura[0], ' '), (aura[0], None)):
-        try:
-            exception_pairs([aura, entry])
-            wrong.append(entry)
-        except Failure as e:
-            if str(e) != 'the exception %r is not a pair and its reason' % (entry,):
-                wrong.append(entry)
-        except Exception as e:
-            wrong.append('%r, %s: %s' % (entry, type(e).__name__, e))
+        text = caught(lambda entry=entry: exception_pairs([aura, entry]))
+        if text != 'the exception %r is not a pair and its reason' % (entry,):
+            wrong.append('%r: %s' % (entry, text))
     print('self-test: %-66s %s' % ('context exceptions: an entry that is not a pair and its reason: fails by name',
                                    'FAIL' if wrong else 'PASS'))
     if wrong:
