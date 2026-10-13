@@ -1265,7 +1265,7 @@ void WorldSession::HandleSetActionBarTogglesOpcode(WorldPacket& recv_data)
     {
         if (ActionBar != 0)
         {
-            sLog.outError("WorldSession::HandleSetActionBarToggles in not logged state with value: %u, ignored", uint32(ActionBar));
+            sLog.outError("WorldSession::HandleSetActionBarTogglesOpcode in not logged state with value: %u, ignored", uint32(ActionBar));
         }
         return;
     }

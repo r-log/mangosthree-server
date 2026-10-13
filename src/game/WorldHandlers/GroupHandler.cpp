@@ -1563,7 +1563,7 @@ void WorldSession::HandleOptOutOfLootOpcode(WorldPacket& recv_data)
     {
         if (unkn != 0)
         {
-            sLog.outError("CMSG_GROUP_PASS_ON_LOOT value<>0 for not-loaded character!");
+            sLog.outError("CMSG_OPT_OUT_OF_LOOT value<>0 for not-loaded character!");
         }
         return;
     }
@@ -1574,7 +1574,7 @@ void WorldSession::HandleOptOutOfLootOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleSetAllowLowLevelRaidOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Received opcode CMSG_SET_ALLOW_LOW_LEVEL_RAID: %4X", recv_data.GetOpcode());
+    DEBUG_LOG("WORLD: Received opcode CMSG_LOW_LEVEL_RAID or CMSG_LOW_LEVEL_RAID_USER: %4X", recv_data.GetOpcode());
 
     uint8 allow;
     recv_data >> allow;

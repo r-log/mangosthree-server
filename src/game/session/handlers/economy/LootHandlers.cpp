@@ -424,7 +424,7 @@ void LootHandlers::HandleLootMasterGive(WorldSession& session, WorldPacket& recv
         return;
     }
 
-    DEBUG_LOG("WorldSession::HandleLootMasterGiveOpcode (CMSG_LOOT_MASTER_GIVE, 0x02A3) Target = %s [%s].", target_playerguid.GetString().c_str(), target->GetName());
+    DEBUG_LOG("LootHandlers::HandleLootMasterGive (CMSG_LOOT_MASTER_GIVE) Target = %s [%s].", target_playerguid.GetString().c_str(), target->GetName());
 
     if (session.GetPlayer()->GetLootGuid() != lootguid)
     {
@@ -475,7 +475,7 @@ void LootHandlers::HandleLootMasterGive(WorldSession& session, WorldPacket& recv
     LootItem& item = pLoot->items[slotid];
     if (item.currency)
     {
-        sLog.outError("WorldSession::HandleLootMasterGiveOpcode: player %s tried to give currency via master loot! Hack alert! Slot %u, currency id %u",
+        sLog.outError("LootHandlers::HandleLootMasterGive: player %s tried to give currency via master loot! Hack alert! Slot %u, currency id %u",
             session.GetPlayer()->GetName(), slotid, item.itemid);
         return;
     }

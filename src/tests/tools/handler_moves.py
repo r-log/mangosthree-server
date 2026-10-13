@@ -193,7 +193,11 @@ MOVES = [
     dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
          base_header='void WorldSession::HandleArenaTeamCreateOpcode(WorldPacket& recv_data)',
          new_header='void PvpHandlers::HandleArenaTeamCreate(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=_ARENA_PLAYER),
+         substitutions=_ARENA_PLAYER,
+         texts=[('        sLog.outError("PvpHandlers::HandleArenaTeamCreate: arena team create failed.");',
+                 '        sLog.outError("WorldSession::HandleArenaTeamCreateOpcode: arena team create failed.");'),
+                ('    DEBUG_LOG("PvpHandlers::HandleArenaTeamCreate: arena team added to objmrg");',
+                 '    DEBUG_LOG("WorldSession::HandleArenaTeamCreateOpcode: arena team added to objmrg");')]),
     dict(base=_ARENA_BASE, base_file=_ARENA_ORIGIN, new_file=_ARENA_FILE,
          base_header='void WorldSession::HandleArenaTeamInviteOpcode(WorldPacket& recv_data)',
          new_header='void PvpHandlers::HandleArenaTeamInvite(WorldSession& session, WorldPacket& recv_data)',
@@ -272,7 +276,13 @@ MOVES = [
     dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
          base_header='void WorldSession::HandleReportPvPAFK(WorldPacket& recv_data)',
          new_header='void PvpHandlers::HandleReportPvPAFK(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=_BG_PLAYER),
+         substitutions=_BG_PLAYER,
+         texts=[('        DEBUG_LOG("PvpHandlers::HandleReportPvPAFK: player not found");',
+                 '        DEBUG_LOG("WorldSession::HandleReportPvPAFK: player not found");'),
+                ('    DEBUG_LOG("PvpHandlers::HandleReportPvPAFK: %s reported %s", session.GetPlayer()->GetName(),'
+                 ' reportedPlayer->GetName());',
+                 '    DEBUG_LOG("WorldSession::HandleReportPvPAFK: %s reported %s", session.GetPlayer()->GetName(),'
+                 ' reportedPlayer->GetName());')]),
     dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
          base_header='void WorldSession::HandleRequestRatedBGStatsOpcode(WorldPacket& recv_data)',
          new_header='void PvpHandlers::HandleRequestRatedBGStats(WorldSession& session, WorldPacket& recv_data)'),
@@ -284,7 +294,9 @@ MOVES = [
          new_header='void PvpHandlers::HandleRequestPvPRewards(WorldSession& session, WorldPacket& recv_data)'),
     dict(base=_BG_BASE, base_file=_BG_ORIGIN, new_file=_BG_FILE,
          base_header='void WorldSession::HandleRequestRatedBgInfo(WorldPacket & recvData)',
-         new_header='void PvpHandlers::HandleRequestRatedBgInfo(WorldSession& session, WorldPacket & recvData)'),
+         new_header='void PvpHandlers::HandleRequestRatedBgInfo(WorldSession& session, WorldPacket & recvData)',
+         texts=[('    DEBUG_LOG("PvpHandlers::HandleRequestRatedBgInfo: unk = %u", unk);',
+                 '    DEBUG_LOG("WorldSession::HandleRequestRatedBgInfo: unk = %u", unk);')]),
     dict(base=_LOOT_BASE, base_file=_LOOT_ORIGIN, new_file=_LOOT_FILE,
          base_header='void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)',
          new_header='void LootHandlers::HandleAutostoreLootItem(WorldSession& session, WorldPacket& recv_data)',
@@ -326,10 +338,22 @@ MOVES = [
                  '    if (!_player->IsInSameRaidWith(target->ToPlayer()) || '
                  '!_player->Where().ShareFrame(target->Where()))'),
                 ('        session.GetPlayer()->SendEquipError(msg, NULL, NULL, item.itemid);',
-                 '        _player->SendEquipError(msg, NULL, NULL, item.itemid);')]),
+                 '        _player->SendEquipError(msg, NULL, NULL, item.itemid);')],
+         texts=[('    DEBUG_LOG("LootHandlers::HandleLootMasterGive (CMSG_LOOT_MASTER_GIVE) Target = %s [%s].",'
+                 ' target_playerguid.GetString().c_str(), target->GetName());',
+                 '    DEBUG_LOG("WorldSession::HandleLootMasterGiveOpcode (CMSG_LOOT_MASTER_GIVE, 0x02A3) Target = %s'
+                 ' [%s].", target_playerguid.GetString().c_str(), target->GetName());'),
+                ('        sLog.outError("LootHandlers::HandleLootMasterGive: player %s tried to give currency via'
+                 ' master loot! Hack alert! Slot %u, currency id %u",',
+                 '        sLog.outError("WorldSession::HandleLootMasterGiveOpcode: player %s tried to give currency'
+                 ' via master loot! Hack alert! Slot %u, currency id %u",')]),
     dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
          base_header='void WorldSession::HandleAuctionHelloOpcode(WorldPacket& recv_data)',
-         new_header='void AuctionHandlers::HandleAuctionHello(WorldSession& session, WorldPacket& recv_data)'),
+         new_header='void AuctionHandlers::HandleAuctionHello(WorldSession& session, WorldPacket& recv_data)',
+         texts=[('        DEBUG_LOG("WORLD: HandleAuctionHello - %s not found or you can\'t interact with him.",'
+                 ' auctioneerGuid.GetString().c_str());',
+                 '        DEBUG_LOG("WORLD: HandleAuctionHelloOpcode - %s not found or you can\'t interact with him.",'
+                 ' auctioneerGuid.GetString().c_str());')]),
     dict(base=_AUCTION_BASE, base_file=_AUCTION_ORIGIN, new_file=_AUCTION_FILE,
          base_header='void WorldSession::SendAuctionCancelledToBidderMail(AuctionEntry* auction)',
          new_header='void AuctionHandlers::SendAuctionCancelledToBidderMail(AuctionEntry* auction)'),
@@ -436,17 +460,39 @@ MOVES = [
     dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
          base_header='void WorldSession::HandleLearnTalentOpcode(WorldPacket& recv_data)',
          new_header='void SkillHandlers::HandleLearnTalent(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=_SKILL_PLAYER),
+         substitutions=_SKILL_PLAYER,
+         texts=[('    DEBUG_LOG("CMSG_LEARN_TALENT");',
+                 '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");'),
+                ('        sLog.outError("SkillHandlers::HandleLearnTalent: learn talent %u rank %u failed for %s'
+                 ' (account %u)", talent_id, requested_rank, session.GetPlayerName(), session.GetAccountId());',
+                 '        sLog.outError("WorldSession::HandleLearnTalentOpcode: learn talent %u rank %u failed for %s'
+                 ' (account %u)", talent_id, requested_rank, session.GetPlayerName(), session.GetAccountId());')]),
     dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
          base_header='void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)',
          new_header='void SkillHandlers::HandleLearnPreviewTalents(WorldSession& session, WorldPacket& recvPacket)',
-         substitutions=_SKILL_PLAYER),
+         substitutions=_SKILL_PLAYER,
+         texts=[('    DEBUG_LOG("CMSG_LEARN_TALENT_GROUP");',
+                 '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS");'),
+                ('                sLog.outError("SkillHandlers::HandleLearnPreviewTalents: tabPage != talent tabPage'
+                 ' for %s (account %u)", session.GetPlayerName(), session.GetAccountId());',
+                 '                sLog.outError("WorldSession::HandleLearnPreviewTalents: tabPage != talent tabPage'
+                 ' for %s (account %u)", session.GetPlayerName(), session.GetAccountId());'),
+                ('            sLog.outError("SkillHandlers::HandleLearnPreviewTalents: learn talent %u rank %u tab %u'
+                 ' failed for %s (account %u)", talentId, talentRank, tabPage, session.GetPlayerName(),'
+                 ' session.GetAccountId());',
+                 '            sLog.outError("WorldSession::HandleLearnPreviewTalents: learn talent %u rank %u tab %u'
+                 ' failed for %s (account %u)", talentId, talentRank, tabPage, session.GetPlayerName(),'
+                 ' session.GetAccountId());')]),
     dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
          base_header='void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recv_data)',
          new_header='void SkillHandlers::HandleTalentWipeConfirm(WorldSession& session, WorldPacket& recv_data)',
          substitutions=_SKILL_PLAYER,
          edits=[('    Creature* unit = session.GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);',
-                 '    Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);')]),
+                 '    Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);')],
+         texts=[('        DEBUG_LOG("WORLD: HandleTalentWipeConfirm - %s not found or you can\'t interact with him.",'
+                 ' guid.GetString().c_str());',
+                 '        DEBUG_LOG("WORLD: HandleTalentWipeConfirmOpcode - %s not found or you can\'t interact with'
+                 ' him.", guid.GetString().c_str());')]),
     dict(base=_SKILL_BASE, base_file=_SKILL_ORIGIN, new_file=_SKILL_FILE,
          base_header='void WorldSession::HandleUnlearnSkillOpcode(WorldPacket& recv_data)',
          new_header='void SkillHandlers::HandleUnlearnSkill(WorldSession& session, WorldPacket& recv_data)'),
@@ -470,20 +516,36 @@ MOVES = [
                 ('                    Spell::SendCastResult(session.GetPlayer(), spellInfo, 0, result);',
                  '                    Spell::SendCastResult(GetPlayer(), spellInfo, 0, result);'),
                 ('                    session.GetPlayer()->SendClearCooldown(spellid, pet);',
-                 '                    GetPlayer()->SendClearCooldown(spellid, pet);')]),
+                 '                    GetPlayer()->SendClearCooldown(spellid, pet);')],
+         texts=[('        sLog.outError("PetHandlers::HandlePetAction: object (GUID: %u TypeId: %u) is considered'
+                 ' pet-like but doesn\'t have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());',
+                 '        sLog.outError("WorldSession::HandlePetAction: object (GUID: %u TypeId: %u) is considered'
+                 ' pet-like but doesn\'t have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());')]),
     dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandlePetStopAttack(WorldPacket& recv_data)',
          new_header='void PetHandlers::HandlePetStopAttack(WorldSession& session, WorldPacket& recv_data)'),
     dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandlePetSetAction(WorldPacket& recv_data)',
          new_header='void PetHandlers::HandlePetSetAction(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=_PET_PLAYER),
+         substitutions=_PET_PLAYER,
+         texts=[('        sLog.outError("PetHandlers::HandlePetSetAction: object (GUID: %u TypeId: %u) is considered'
+                 ' pet-like but doesn\'t have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());',
+                 '        sLog.outError("WorldSession::HandlePetSetAction: object (GUID: %u TypeId: %u) is considered'
+                 ' pet-like but doesn\'t have a charminfo!", pet->GetGUIDLow(), pet->GetTypeId());')]),
     dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandlePetSpellAutocastOpcode(WorldPacket& recvPacket)',
          new_header='void PetHandlers::HandlePetSpellAutocast(WorldSession& session, WorldPacket& recvPacket)',
          substitutions=_PET_PLAYER,
          edits=[('        sLog.outError("HandlePetSpellAutocastOpcode. %s isn\'t pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());',
-                 '        sLog.outError("HandlePetSpellAutocastOpcode. %s isn\'t pet of %s .", guid.GetString().c_str(), GetPlayer()->GetGuidStr().c_str());')]),
+                 '        sLog.outError("HandlePetSpellAutocastOpcode. %s isn\'t pet of %s .", guid.GetString().c_str(), GetPlayer()->GetGuidStr().c_str());')],
+         texts=[('        sLog.outError("HandlePetSpellAutocast. %s isn\'t pet of %s .", guid.GetString().c_str(),'
+                 ' session.GetPlayer()->GetGuidStr().c_str());',
+                 '        sLog.outError("HandlePetSpellAutocastOpcode. %s isn\'t pet of %s .",'
+                 ' guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());'),
+                ('        sLog.outError("PetHandlers::HandlePetSpellAutocast: %s is considered pet-like but doesn\'t'
+                 ' have a charminfo!", guid.GetString().c_str());',
+                 '        sLog.outError("WorldSession::HandlePetSpellAutocastOpcod: %s is considered pet-like but'
+                 ' doesn\'t have a charminfo!", guid.GetString().c_str());')]),
     dict(base=_PET_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandlePetCastSpellOpcode(WorldPacket& recvPacket)',
          new_header='void PetHandlers::HandlePetCastSpell(WorldSession& session, WorldPacket& recvPacket)',
@@ -491,7 +553,11 @@ MOVES = [
          edits=[('        sLog.outError("HandlePetCastSpellOpcode: %s isn\'t pet of %s .", guid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());',
                  '        sLog.outError("HandlePetCastSpellOpcode: %s isn\'t pet of %s .", guid.GetString().c_str(), GetPlayer()->GetGuidStr().c_str());'),
                 ('            session.GetPlayer()->SendClearCooldown(spellid, pet);',
-                 '            GetPlayer()->SendClearCooldown(spellid, pet);')]),
+                 '            GetPlayer()->SendClearCooldown(spellid, pet);')],
+         texts=[('        sLog.outError("HandlePetCastSpell: %s isn\'t pet of %s .", guid.GetString().c_str(),'
+                 ' session.GetPlayer()->GetGuidStr().c_str());',
+                 '        sLog.outError("HandlePetCastSpellOpcode: %s isn\'t pet of %s .", guid.GetString().c_str(),'
+                 ' session.GetPlayer()->GetGuidStr().c_str());')]),
     dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandlePetNameQueryOpcode(WorldPacket& recv_data)',
          new_header='void PetHandlers::HandlePetNameQuery(WorldSession& session, WorldPacket& recv_data)'),
@@ -510,7 +576,9 @@ MOVES = [
     dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandleLearnPreviewTalentsPet(WorldPacket& recv_data)',
          new_header='void PetHandlers::HandleLearnPreviewTalentsPet(WorldSession& session, WorldPacket& recv_data)',
-         substitutions=_PET_PLAYER),
+         substitutions=_PET_PLAYER,
+         texts=[('    DEBUG_LOG("CMSG_PET_LEARN_TALENT_GROUP");',
+                 '    DEBUG_LOG("CMSG_LEARN_PREVIEW_TALENTS_PET");')]),
     dict(base=_PET2_BASE, base_file=_PET_ORIGIN, new_file=_PET_FILE,
          base_header='void WorldSession::HandleDismissCritter(WorldPacket& recvData)',
          new_header='void PetHandlers::HandleDismissCritter(WorldSession& session, WorldPacket& recvData)',

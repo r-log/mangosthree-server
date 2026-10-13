@@ -155,7 +155,7 @@ void PvpHandlers::HandleArenaTeamCreate(WorldSession& session, WorldPacket& recv
     ArenaTeam* at = new ArenaTeam;
     if (!at->Create(session.GetPlayer()->GetObjectGuid(), ArenaType(type), name))
     {
-        sLog.outError("WorldSession::HandleArenaTeamCreateOpcode: arena team create failed.");
+        sLog.outError("PvpHandlers::HandleArenaTeamCreate: arena team create failed.");
         delete at;
         return;
     }
@@ -164,7 +164,7 @@ void PvpHandlers::HandleArenaTeamCreate(WorldSession& session, WorldPacket& recv
 
     // register team and add captain
     sObjectMgr.AddArenaTeam(at);
-    DEBUG_LOG("WorldSession::HandleArenaTeamCreateOpcode: arena team added to objmrg");
+    DEBUG_LOG("PvpHandlers::HandleArenaTeamCreate: arena team added to objmrg");
 }
 
 void PvpHandlers::HandleArenaTeamInvite(WorldSession& session, WorldPacket& recv_data)
@@ -1314,11 +1314,11 @@ void PvpHandlers::HandleReportPvPAFK(WorldSession& session, WorldPacket& recv_da
 
     if (!reportedPlayer)
     {
-        DEBUG_LOG("WorldSession::HandleReportPvPAFK: player not found");
+        DEBUG_LOG("PvpHandlers::HandleReportPvPAFK: player not found");
         return;
     }
 
-    DEBUG_LOG("WorldSession::HandleReportPvPAFK: %s reported %s", session.GetPlayer()->GetName(), reportedPlayer->GetName());
+    DEBUG_LOG("PvpHandlers::HandleReportPvPAFK: %s reported %s", session.GetPlayer()->GetName(), reportedPlayer->GetName());
 
     reportedPlayer->ReportedAfkBy(session.GetPlayer());
 }
@@ -1357,7 +1357,7 @@ void PvpHandlers::HandleRequestRatedBgInfo(WorldSession& session, WorldPacket & 
     uint8 unk;
     recvData >> unk;
 
-    DEBUG_LOG("WorldSession::HandleRequestRatedBgInfo: unk = %u", unk);
+    DEBUG_LOG("PvpHandlers::HandleRequestRatedBgInfo: unk = %u", unk);
 
     WorldPacket data(SMSG_RATED_BG_STATS, 72);
     data << uint32(0);      // BgWeeklyWins20vs20
