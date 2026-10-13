@@ -43,10 +43,12 @@
 /// player, sending nothing. The CMSG_CANCEL_TRADE row, given an empty packet on a session with no
 /// player, finds no player to cancel the trade of and returns, reading nothing and sending nothing.
 /// The CMSG_SOCKET_GEMS row reads an empty item guid to its end and, the guid naming no item,
-/// returns before it reads the player, sending nothing. Every row bound to the combat, vendor,
-/// pvp, loot, auction, trade, skill, enchant or pet handler class holds the status STATUS_LOGGEDIN
-/// and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
-/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
+/// returns before it reads the player, sending nothing. The CMSG_LFG_JOIN row reads a join with no
+/// slot and no comment to its end and, the Dungeon Finder being off, returns before it reads the
+/// player, sending nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade,
+/// skill, enchant, pet or LFG handler class holds the status STATUS_LOGGEDIN and the processing
+/// PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows,
+/// processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
 
 #include "TestHarness.h"
@@ -65,6 +67,7 @@
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
+#include "session/handlers/social/LfgHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -727,4 +730,76 @@ TEST(OpcodeDispatch_PetRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_PET_LEARN_TALENT_GROUP].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_DISMISS_CRITTER].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_DISMISS_CRITTER].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_LfgJoinRowReachesItsHandlerWithThePacket)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket join(CMSG_LFG_JOIN, 21);
+    join << uint32(0);
+    join << uint32(0) << uint32(0) << uint32(0);
+    join.WriteBits(0, 9);
+    join.WriteBits(0, 24);
+    join.FlushBits();
+
+    opcodeTable[CMSG_LFG_JOIN].handler(session, join);
+
+    CHECK_EQ(join.rpos(), size_t(21));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_LfgRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_LFG_JOIN].handler == &OpcodeThunk<&LfgHandlers::HandleLfgJoin>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgJoin>), 1);
+    CHECK(opcodeTable[CMSG_LFG_LEAVE].handler == &OpcodeThunk<&LfgHandlers::HandleLfgLeave>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgLeave>), 1);
+    CHECK(opcodeTable[CMSG_LFG_SET_ROLES].handler == &OpcodeThunk<&LfgHandlers::HandleLfgSetRoles>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgSetRoles>), 1);
+    CHECK(opcodeTable[CMSG_LFG_GET_STATUS].handler == &OpcodeThunk<&LfgHandlers::HandleLfgGetStatus>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgGetStatus>), 1);
+    CHECK(opcodeTable[CMSG_LFG_PROPOSAL_RESULT].handler == &OpcodeThunk<&LfgHandlers::HandleLfgProposalResult>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgProposalResult>), 1);
+    CHECK(opcodeTable[CMSG_LFG_TELEPORT].handler == &OpcodeThunk<&LfgHandlers::HandleLfgTeleport>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgTeleport>), 1);
+    CHECK(opcodeTable[CMSG_SET_LFG_COMMENT].handler == &OpcodeThunk<&LfgHandlers::HandleSetLfgComment>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleSetLfgComment>), 1);
+    CHECK(opcodeTable[CMSG_LFG_LOCK_INFO_REQUEST].handler == &OpcodeThunk<&LfgHandlers::HandleLfgLockInfoRequest>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgLockInfoRequest>), 1);
+    CHECK(opcodeTable[CMSG_LFG_SET_BOOT_VOTE].handler == &OpcodeThunk<&LfgHandlers::HandleLfgSetBootVote>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&LfgHandlers::HandleLfgSetBootVote>), 1);
+    CHECK(opcodeTable[CMSG_LFG_JOIN].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_LfgRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_LFG_JOIN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_JOIN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LFG_LEAVE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_LEAVE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LFG_SET_ROLES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_SET_ROLES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LFG_GET_STATUS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_GET_STATUS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LFG_PROPOSAL_RESULT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_PROPOSAL_RESULT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LFG_TELEPORT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_TELEPORT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_LFG_COMMENT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_LFG_COMMENT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LFG_LOCK_INFO_REQUEST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_LOCK_INFO_REQUEST].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LFG_SET_BOOT_VOTE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LFG_SET_BOOT_VOTE].packetProcessing, PROCESS_THREADUNSAFE);
 }

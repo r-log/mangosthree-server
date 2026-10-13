@@ -100,6 +100,10 @@ _PET_ORIGIN = 'src/game/WorldHandlers/PetHandler.cpp'
 _PET_PLAYER = [('GetPlayer()', '_player')]
 _PET2_BASE = '7e59ebdbb'
 
+_LFG_BASE = 'd015bb4a8'
+_LFG_FILE = 'src/game/session/handlers/social/LfgHandlers.cpp'
+_LFG_ORIGIN = 'src/game/WorldHandlers/LFGHandler.cpp'
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -517,6 +521,33 @@ MOVES = [
          substitutions=_PET_PLAYER,
          edits=[('        guid.GetString().c_str(), session.GetPlayer()->GetName(), session.GetPlayer()->GetGUIDLow(), session.GetAccountId());',
                  '        guid.GetString().c_str(), GetPlayer()->GetName(), GetPlayer()->GetGUIDLow(), GetAccountId());')]),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgJoinOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleLfgJoin(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgLeaveOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleLfgLeave(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgSetRolesOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleLfgSetRoles(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgGetStatusOpcode(WorldPacket& /*recv_data*/)',
+         new_header='void LfgHandlers::HandleLfgGetStatus(WorldSession& session, WorldPacket& /*recv_data*/)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgProposalResultOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleLfgProposalResult(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgTeleportOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleLfgTeleport(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleSetLfgCommentOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleSetLfgComment(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgLockInfoRequestOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleLfgLockInfoRequest(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN, new_file=_LFG_FILE,
+         base_header='void WorldSession::HandleLfgSetBootVoteOpcode(WorldPacket& recv_data)',
+         new_header='void LfgHandlers::HandleLfgSetBootVote(WorldSession& session, WorldPacket& recv_data)'),
 ]
 
 RESIDUES = [
@@ -671,4 +702,6 @@ RESIDUES = [
                   '#include "MotionMaster.h"']),
     dict(base=_PET2_BASE, base_file=_PET_ORIGIN,
          removed=['#include <ctime>', '#include "Log.h"', '#include "Util.h"', '#include "TemporarySummon.h"']),
+    dict(base=_LFG_BASE, base_file=_LFG_ORIGIN,
+         removed=['#include <set>', '#include "DBCStores.h"', '#include "World.h"']),
 ]
