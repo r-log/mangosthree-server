@@ -34,9 +34,52 @@
  * @brief The `Spell::EffectDummy` sites of the spell handler registry.
  *
  * The handlers are file-static functions in SpellEffectDummyHandlers.cpp; this header holds what the
- * registry and tests see. The paladin context holds the spell's target list by its own type, so this
- * header includes the spell's.
+ * registry and tests see. The generic and paladin contexts hold the spell's target list by its own type,
+ * so this header includes the spell's.
  */
+
+/// What the bodies of `Spell::EffectDummy`'s SPELLFAMILY_GENERIC switch read: the spell, its entry, its base points,
+/// its cast item, its caster, its original caster and that caster's guid, its duration, its unit and item targets, the
+/// damage, its targets, the aura that triggered it and the dummy effect.
+struct SpellEffectDummyGenericContext
+{
+    SpellEffectDummyGenericContext(Spell* thisSpell, SpellEntry const*& spellInfoMember,
+                                   int32 (&basePointsMember)[MAX_EFFECT_INDEX], Item*& castItemMember,
+                                   Unit*& casterMember, ObjectGuid& originalCasterGuidMember,
+                                   Unit*& originalCasterMember, int32& durationMember, Unit*& targetMember,
+                                   Item*& itemTargetMember, int32& damageMember, Spell::TargetList& targetsMember,
+                                   SpellEntry const*& triggeredByAuraMember,
+                                   SpellEffectEntry const* const& effectParameter)
+        : spell(thisSpell), m_spellInfo(spellInfoMember), m_currentBasePoints(basePointsMember),
+          m_CastItem(castItemMember), m_caster(casterMember), m_originalCasterGUID(originalCasterGuidMember),
+          m_originalCaster(originalCasterMember), m_duration(durationMember), unitTarget(targetMember),
+          itemTarget(itemTargetMember), damage(damageMember), m_UniqueTargetInfo(targetsMember),
+          m_triggeredByAuraSpell(triggeredByAuraMember), effect(effectParameter) {}
+
+    Spell* const spell;                              ///< the spell itself
+    SpellEntry const*& m_spellInfo;                  ///< the spell's member `SpellEntry const* m_spellInfo;`
+    int32 (&m_currentBasePoints)[MAX_EFFECT_INDEX];  ///< the spell's member array `m_currentBasePoints`
+    Item*& m_CastItem;                               ///< the spell's member `Item* m_CastItem;`
+    Unit*& m_caster;                                 ///< the spell's member `Unit* m_caster;`
+    ObjectGuid& m_originalCasterGUID;                ///< the spell's member `ObjectGuid m_originalCasterGUID;`
+    Unit*& m_originalCaster;                         ///< the spell's member `Unit* m_originalCaster;`
+    int32& m_duration;                               ///< the spell's member `int32 m_duration;`
+    Unit*& unitTarget;                               ///< the spell's member `Unit* unitTarget;`
+    Item*& itemTarget;                               ///< the spell's member `Item* itemTarget;`
+    int32& damage;                                   ///< the spell's member `int32 damage;`
+    Spell::TargetList& m_UniqueTargetInfo;           ///< the spell's member `TargetList m_UniqueTargetInfo;`
+    SpellEntry const*& m_triggeredByAuraSpell;       ///< the spell's member `SpellEntry const* m_triggeredByAuraSpell;`
+    SpellEffectEntry const* const& effect;           ///< the function's parameter `SpellEffectEntry const* effect`
+};
+
+/// `Spell::EffectDummy`, SPELLFAMILY_GENERIC: its `switch (m_spellInfo->ID)`, partly moved. Every moved label ends the
+/// effect; a miss goes on to the labels that stand in the switch.
+struct SpellEffectDummyGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_GENERIC;
+    typedef void Value;
+    typedef SpellEffectDummyGenericContext Context;
+};
 
 /// What the bodies of `Spell::EffectDummy`'s SPELLFAMILY_MAGE switch read and write: the spell, its caster, its unit
 /// target, the damage (which the spell's item creation reads as the stack size) and the dummy effect.
