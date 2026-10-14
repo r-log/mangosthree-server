@@ -1804,6 +1804,594 @@ static SpellHandlerOutcome<void> EffectDummyGenericDiggingForTreasurePing(SpellE
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// 58601: Remove Flight Auras: the caster loses the spells that give it the fly and the mounted flight speed auras; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericRemoveFlightAuras(SpellEffectDummyGenericContext& ctx)
+{
+    ctx.m_caster->RemoveSpellsCausingAura(SPELL_AURA_FLY);
+    ctx.m_caster->RemoveSpellsCausingAura(SPELL_AURA_MOD_FLIGHT_SPEED_MOUNTED);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 59640: Underbelly Elixir: a player caster casts on itself one of the three Underbelly Elixir spells (59645, 59831 or
+/// 59843) at random; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericUnderbellyElixir(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+    switch (urand(1, 3))
+    {
+        case 1: spell_id = 59645; break;
+        case 2: spell_id = 59831; break;
+        case 3: spell_id = 59843; break;
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 60932: Disengage, the creature version: the caster casts Disengage (60934) on the unit target, if any; the effect
+/// ends
+static SpellHandlerOutcome<void> EffectDummyGenericDisengageCreature(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 60934, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62105: To'kini's Blowgun: a creature target casts Sleeping Sleep (62248) on itself, takes the caster as its loot
+/// recipient, joins faction 190 (ambient, neutral) and is not attackable out of combat; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTokinisBlowgun(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Sleeping Sleep
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 62248, true);
+
+    // Although not really correct, it's needed to have access to m_caster later,
+    // to properly process spell 62110 (cast from gossip).
+    // Can possibly be replaced with a similar function that doesn't set any dynamic flags.
+    ((Creature*)ctx.unitTarget)->SetLootRecipient(ctx.m_caster);
+
+    ctx.unitTarget->setFaction(190);            // Ambient (neutral)
+    ctx.unitTarget->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62278: Lightning Orb Charger: the unit target, if any, casts Lightning Charge (62466) on the caster and Lightning
+/// Charge (62279) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericLightningOrbCharger(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, 62466, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 62279, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62652: Tidal Wave: the caster casts on a player target Tidal Wave (62653) on a regular-difficulty map, otherwise
+/// Tidal Wave (62935); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTidalWave(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.m_caster->GetMap()->IsRegularDifficulty() ? 62653 : 62935, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62797: Storm Cloud: the caster casts on a player target Storm Cloud (65123) on a regular-difficulty map, otherwise
+/// Storm Cloud (65133); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericStormCloud(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.m_caster->GetMap()->IsRegularDifficulty() ? 65123 : 65133, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62907: Freya's Ward: the caster casts on the unit target, if any, the spell the effect's value names, five times;
+/// the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericFreyasWard(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    for (uint8 i = 0; i < 5; ++i)
+    {
+        ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63030: Boil Ominously: the caster casts Summon Guardian (63031) on a player target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericBoilOminously(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 63031, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63499: Dispel Magic: the unit target, if any, loses the spell the effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDispelMagic(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63545: Icicle: the caster casts on a player target the spell the effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericIcicle(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63744: Sara's Anger; 63745: Sara's Blessing; 63747: Sara's Fervor: the caster casts on the unit target, if any, the
+/// spell the effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSarasAngerBlessingFervor(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63984: Hate to Zero: the threat the unit target, if any, holds on the caster's list, when it is not zero, is cut by
+/// a hundred percent; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericHateToZero(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (ctx.m_caster->GetThreatManager().getThreat(ctx.unitTarget))
+    {
+        ctx.m_caster->GetThreatManager().modifyThreatPercent(ctx.unitTarget, -100);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64172: Titanic Storm: a unit target with the aura the effect's value names takes direct damage from the caster equal
+/// to its health; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTitanicStorm(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || !ctx.unitTarget->HasAura(ctx.effect->CalculateSimpleValue()))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // There is no known spell to kill the target
+    ctx.m_caster->DealDamage(ctx.unitTarget, ctx.unitTarget->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64385: Spinning: the caster turns to a random facing; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSpinning(SpellEffectDummyGenericContext& ctx)
+{
+    ctx.m_caster->SetFacingTo(frand(0, M_PI_F * 2));
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64402: Rocket Strike: the unit target, if any, casts Rocket Strike (63681) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericRocketStrike(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 63681, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64489: Feral Rush: the caster casts Feral Rush (64496) on a player target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericFeralRush(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 64496, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64543: Melt Ice: the caster casts on the unit target, if any, the spell the effect's value names, and Melt Ice
+/// (64540) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericMeltIce(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    ctx.m_caster->CastSpell(ctx.m_caster, 64540, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64555: Insane Periodic: on a player target that has neither Sanity (63050) nor the spell the effect's value names,
+/// the caster casts Insane (64464) and that spell; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericInsanePeriodic(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || ctx.unitTarget->HasAura(63050) || ctx.unitTarget->HasAura(ctx.effect->CalculateSimpleValue()))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 64464, true);
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64673: Feral Rush (h), the label's name for an id the client does not hold: the caster casts Feral Rush (64674) on a
+/// player target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericFeralRushHeroic(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 64674, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64981: Summon Random Vanquished Tentacle: the caster casts on itself one of Summon Vanquished Crusher Tentacle
+/// (64982), Summon Vanquished Constrictor Tentacle (64983) and Summon Vanquished Corruptor Tentacle (64984) at random;
+/// the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSummonRandomVanquishedTentacle(SpellEffectDummyGenericContext& ctx)
+{
+    uint32 spell_id = 0;
+
+    switch (urand(0, 2))
+    {
+        case 0: spell_id = 64982; break;    // Summon Vanquished Crusher Tentacle
+        case 1: spell_id = 64983; break;    // Summon Vanquished Constrictor Tentacle
+        case 2: spell_id = 64984; break;    // Summon Vanquished Corruptor Tentacle
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 65206: Destabilization Matrix: the caster casts on the unit target, if any, the spell the effect's value names; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDestabilizationMatrix(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 65346: Proximity Mine: with a player target, the caster casts on itself Explosion (66351) on a regular-difficulty
+/// map, otherwise Explosion (63009), loses Proximity Mine (65345) and is not selectable; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericProximityMine(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, ctx.m_caster->GetMap()->IsRegularDifficulty() ? 66351 : 63009, true);
+    ctx.m_caster->RemoveAurasDueToSpell(65345);
+    ctx.m_caster->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 65869: Disengage: the unit target, if any, casts Disengage (65870) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDisengage(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 65870, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 66312: Light Ball Passive: for a creature caster and a player target, the target casts Powering Up (67590) on itself
+/// when it has Light Essence (65686) in the map's difficulty, otherwise the caster casts Unleashed Light (65795) on
+/// itself, and the caster despawns; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericLightBallPassive(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (ctx.unitTarget->GetTypeId() == TYPEID_PLAYER)
+    {
+        if (ctx.unitTarget->HasAuraOfDifficulty(65686))
+        {
+            ctx.unitTarget->CastSpell(ctx.unitTarget, 67590, true);
+        }
+        else
+        {
+            ctx.m_caster->CastSpell(ctx.m_caster, 65795, true);
+        }
+
+        ((Creature*)ctx.m_caster)->ForcedDespawn();
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 66314: Dark Ball Passive: for a creature caster and a player target, the target casts Powering Up (67590) on itself
+/// when it has Dark Essence (65684) in the map's difficulty, otherwise the caster casts Unleashed Dark (65808) on
+/// itself, and the caster despawns; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDarkBallPassive(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (ctx.unitTarget->GetTypeId() == TYPEID_PLAYER)
+    {
+        if (ctx.unitTarget->HasAuraOfDifficulty(65684))
+        {
+            ctx.unitTarget->CastSpell(ctx.unitTarget, 67590, true);
+        }
+        else
+        {
+            ctx.m_caster->CastSpell(ctx.m_caster, 65808, true);
+        }
+
+        ((Creature*)ctx.m_caster)->ForcedDespawn();
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 66390: Read Last Rites: for a player caster and a creature target, the target casts Summon Tualiq Proxy (66411) and
+/// Summon Tualiq Spirit (66412) on itself, the caster gets the target's kill credit, and the target despawns after a
+/// second; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericReadLastRites(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Summon Tualiq Proxy
+    // Not known what purpose this has
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 66411, true);
+
+    // Summon Tualiq Spirit
+    // Offtopic note: the summoned has aura from spell 37119 and 66419. One of them should
+    // most likely make summoned "rise", hover up/sideways in the air (MOVEFLAG_LEVITATING + MOVEFLAG_HOVER)
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 66412, true);
+
+    ((Player*)ctx.m_caster)->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+
+    // Must have a delay for proper spell animation
+    ((Creature*)ctx.unitTarget)->ForcedDespawn(1000);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 67019: Flask of the North: a player caster casts on itself the Flask of the North of its class: 67018 for warriors
+/// and death knights, 67017 for rogues and hunters, 67016 for priests, mages and warlocks, 67016 or 67017 at even odds
+/// for shamans, and 67016 or 67018 at even odds for paladins, druids and any other class; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericFlaskOfTheNorth(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+    switch (ctx.m_caster->getClass())
+    {
+        case CLASS_WARRIOR:
+        case CLASS_DEATH_KNIGHT:
+            spell_id = 67018;               // STR for Warriors, Death Knights
+            break;
+        case CLASS_ROGUE:
+        case CLASS_HUNTER:
+            spell_id = 67017;               // AP for Rogues, Hunters
+            break;
+        case CLASS_PRIEST:
+        case CLASS_MAGE:
+        case CLASS_WARLOCK:
+            spell_id = 67016;               // SPD for Priests, Mages, Warlocks
+            break;
+        case CLASS_SHAMAN:
+            // random (SPD, AP)
+            spell_id = roll_chance_i(50) ? 67016 : 67017;
+            break;
+        case CLASS_PALADIN:
+        case CLASS_DRUID:
+        default:
+            // random (SPD, STR)
+            spell_id = roll_chance_i(50) ? 67016 : 67018;
+            break;
+    }
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69922: Temper Quel'Delar: the unit target, if any, casts Return Tempered Quel'Delar (69956) on the caster; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTemperQuelDelar(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Return Tempered Quel'Delar
+    ctx.unitTarget->CastSpell(ctx.m_caster, 69956, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 71307: Vile Gas: the caster casts on a player target the spell the effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericVileGas(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 71445, 71471: Twilight Bloodbolt: the caster casts Twilight Bloodbolt (71818) on a player target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTwilightBloodbolt(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 71818, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 71718: Conjure Flame; 72040: Conjure Empowered Flame: the caster casts on the unit target, if any, the spell the
+/// effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericConjureFlame(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 71837: Vampiric Bite: the caster casts Vampiric Bite (71726) on a player target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericVampiricBite(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 71726, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 71861: Swarming Shadows: the caster casts Swarming Shadows (71264) on a player target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSwarmingShadows(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 71264, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72202: Blood Link: the unit target, if any, casts Blood Link (72195) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericBloodLink(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 72195, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72254: Mark of the Fallen Champion: the caster casts on a player target that does not have the spell the effect's
+/// value names that spell; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericMarkOfTheFallenChampion(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || ctx.unitTarget->HasAura(ctx.effect->CalculateSimpleValue()))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72261: Delirious Slash: the caster casts on the unit target, if any, Delirious Slash (71623) when the target is in
+/// its melee reach, otherwise Delirious Slash (72264); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDeliriousSlash(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, InMeleeReach(*ctx.m_caster, *ctx.unitTarget) ? 71623 : 72264, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72285: Vile Gas Trigger: the caster casts on a player target the spell the effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericVileGasTrigger(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 74452: Conflagration: the caster casts Flame Beacon (74453) on a player target, and Conflagration (74454) on it as
+/// from itself and triggered by this spell; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericConflagration(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 74453, true);
+    ctx.m_caster->CastSpell(ctx.unitTarget, 74454, true, NULL, NULL, ctx.m_caster->GetObjectGuid(), ctx.m_spellInfo);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// 11958: Cold Snap: for a player caster, every frost mage spell on cooldown with a recovery time, but Cold Snap
 /// itself, is made ready; the effect ends
 static SpellHandlerOutcome<void> EffectDummyMageColdSnap(SpellEffectDummyMageContext& ctx)
@@ -2411,6 +2999,49 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
         { 51333, &EffectDummyGenericDigForTreasure },
         { 51336, &EffectDummyGenericMagicPull },
         { 51420, &EffectDummyGenericDiggingForTreasurePing },
+        { 58601, &EffectDummyGenericRemoveFlightAuras },
+        { 59640, &EffectDummyGenericUnderbellyElixir },
+        { 60932, &EffectDummyGenericDisengageCreature },
+        { 62105, &EffectDummyGenericTokinisBlowgun },
+        { 62278, &EffectDummyGenericLightningOrbCharger },
+        { 62652, &EffectDummyGenericTidalWave },
+        { 62797, &EffectDummyGenericStormCloud },
+        { 62907, &EffectDummyGenericFreyasWard },
+        { 63030, &EffectDummyGenericBoilOminously },
+        { 63499, &EffectDummyGenericDispelMagic },
+        { 63545, &EffectDummyGenericIcicle },
+        { 63744, &EffectDummyGenericSarasAngerBlessingFervor },
+        { 63745, &EffectDummyGenericSarasAngerBlessingFervor },
+        { 63747, &EffectDummyGenericSarasAngerBlessingFervor },
+        { 63984, &EffectDummyGenericHateToZero },
+        { 64172, &EffectDummyGenericTitanicStorm },
+        { 64385, &EffectDummyGenericSpinning },
+        { 64402, &EffectDummyGenericRocketStrike },
+        { 64489, &EffectDummyGenericFeralRush },
+        { 64543, &EffectDummyGenericMeltIce },
+        { 64555, &EffectDummyGenericInsanePeriodic },
+        { 64673, &EffectDummyGenericFeralRushHeroic },
+        { 64981, &EffectDummyGenericSummonRandomVanquishedTentacle },
+        { 65206, &EffectDummyGenericDestabilizationMatrix },
+        { 65346, &EffectDummyGenericProximityMine },
+        { 65869, &EffectDummyGenericDisengage },
+        { 66312, &EffectDummyGenericLightBallPassive },
+        { 66314, &EffectDummyGenericDarkBallPassive },
+        { 66390, &EffectDummyGenericReadLastRites },
+        { 67019, &EffectDummyGenericFlaskOfTheNorth },
+        { 69922, &EffectDummyGenericTemperQuelDelar },
+        { 71307, &EffectDummyGenericVileGas },
+        { 71445, &EffectDummyGenericTwilightBloodbolt },
+        { 71471, &EffectDummyGenericTwilightBloodbolt },
+        { 71718, &EffectDummyGenericConjureFlame },
+        { 72040, &EffectDummyGenericConjureFlame },
+        { 71837, &EffectDummyGenericVampiricBite },
+        { 71861, &EffectDummyGenericSwarmingShadows },
+        { 72202, &EffectDummyGenericBloodLink },
+        { 72254, &EffectDummyGenericMarkOfTheFallenChampion },
+        { 72261, &EffectDummyGenericDeliriousSlash },
+        { 72285, &EffectDummyGenericVileGasTrigger },
+        { 74452, &EffectDummyGenericConflagration },
     };
 
     static SpellEffectDummyRow<SpellEffectDummyMageSite> const mage[] =
