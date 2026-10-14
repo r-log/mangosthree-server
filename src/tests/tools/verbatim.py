@@ -147,8 +147,8 @@ The run shapes beyond one label per line and a body that ends in its own termina
      anything else there fails. A labelled run in that place fails: only a default may fall off
      the end. A last statement that terminates only under a control header (`if (x)` over
      `return;`) is not this shape and differs.
-Every handler's last statement (comments aside) is a `return` at the function's own level, so no
-body falls off its end.
+Every handler's last statement (comment lines, and a comment at the end of its line, aside) is a
+`return` at the function's own level, so no body falls off its end.
 
 Each handler body is also checked for what the paste-back cannot see: a live-out local used
 bare (a case body's name the move did not route through the context), and so any other name in
@@ -401,7 +401,9 @@ def default_function(lines, traits):
 
 def handler_body(lines, function, context, value='void'):
     """The lines between the braces of `static SpellHandlerOutcome<value> function(context& ctx)` (or
-    `/*ctx*/`, a body that reads no context)."""
+    `/*ctx*/`, a body that reads no context). Its last statement (comment lines, and a comment at the end
+    of its line, aside) is a whole `return ...;` at the function's own level, the code line above it ending
+    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails."""
     head = re.compile(r'static SpellHandlerOutcome<([\w:]+)> %s\(%s& (ctx|/\*ctx\*/)\)' % (re.escape(function),
                                                                                           re.escape(context)))
     starts = [(i, m.group(1)) for i, m in enumerate(head.fullmatch(l) for l in lines) if m]
@@ -417,7 +419,7 @@ def handler_body(lines, function, context, value='void'):
     if j is None:
         raise Failure('handler %s: no closing "}" in column 0' % function)
     code = [l for l in lines[i + 2:j] if l.strip() and not comment_only(l)]
-    if not code or not re.fullmatch(r'    return\b.*;', code[-1]) or (
+    if not code or not re.fullmatch(r'    return\b.*;', blank(code[-1]).rstrip()) or (
             len(code) > 1 and not blank(code[-2]).rstrip().endswith((';', '{', '}', ':'))):
         raise Failure('handler %s: its last statement is not a return at its own level (it could fall off its end)'
                       % function)
@@ -2709,6 +2711,36 @@ def self_test():
         **mutated(trailing, 'old_text', '        // case 91:', '\n        // case 91:'))
     run('T: the comment lines kept at the body\'s indent in the handler: fails', 1, 'DIFFERS',
         **mutated(trailing, 'handlers', '// case 92:\n// break;', '    // case 92:\n    // break;'))
+
+    remark = '                                 // done elsewhere'
+    remarked = form('trailing comment', {i: lab[i] for i in (1, 2)}, [
+        lab[1], '            target->Drop(1);', '            return;' + remark,
+        lab[2], '        {', '            target->Drop(2);', '            return;   /* done */', '        }'], [
+        ('One', 'void', ['    ctx.target->Drop(1);', ret + remark]),
+        ('Two', 'void', ['    ctx.target->Drop(2);', ret + '   /* done */'])],
+        [(1, 'One'), (2, 'Two')])
+    run('a comment at the end of the last return line, unbraced and braced: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites', **remarked)
+    run('a comment at the end of a last line that is not a return: fails by name', 1,
+        'handler Two: its last statement is not a return at its own level',
+        **mutated(remarked, 'handlers', ret + '   /* done */', '    ctx.target->Log();   // done'))
+    run('the comment at the end of the last return dropped from the handler: fails', 1, 'DIFFERS',
+        **mutated(remarked, 'handlers', ret + remark, ret))
+    run('the comment at the end of the last return moved to its own line: fails', 1, 'DIFFERS',
+        **mutated(remarked, 'handlers', ret + remark, ret + '\n    // done elsewhere'))
+    run('a comment line after the last return, unbraced: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **mutated(mutated(remarked, 'old_text', '            return;' + remark,
+                          '            return;\n            // done elsewhere'),
+                  'handlers', ret + remark, ret + '\n    // done elsewhere'))
+    raises('handler body: a "//" inside a literal on the last return line, a comment after it: passes', 'no failure',
+           lambda: handler_body(['static SpellHandlerOutcome<bool> One(RemoveContext& ctx)', '{',
+                                 '    return SpellHandlerOutcome<bool>::Return(ctx.target->Has("//"));   // both',
+                                 '}'], 'One', 'RemoveContext', 'bool'))
+    raises('handler body: the last return without its semicolon: fails by name',
+           'its last statement is not a return at its own level',
+           lambda: handler_body(['static SpellHandlerOutcome<void> One(RemoveContext& ctx)', '{',
+                                 '    return SpellHandlerOutcome<void>::Return()', '}'], 'One', 'RemoveContext'))
 
     other_switch = ['    switch (GetId())', '    {', '        case 90:                                // Ninety',
                     '            target->Drop(90);', '            break;', '        default:', '        {',
