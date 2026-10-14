@@ -2108,12 +2108,33 @@ def self_test():
         return (aura,) if any(aura[0] in site['substitutions'] for spec in sites.values()
                               for site in spec.get('sites', ())) else ()
 
-    got = sorted(class_members(SELF_HEADERS['Thing.h'], 'Thing'))
+    def caught(call):
+        """What `call` raises: a failure's text, any other exception's type and text, or 'no failure'."""
+        try:
+            call()
+        except Failure as e:
+            return str(e)
+        except Exception as e:
+            return '%s: %s' % (type(e).__name__, e)
+        return 'no failure'
+
+    def raises(label, needle, call):
+        text = caught(call)
+        ok = needle in text
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: %s' % (label, text))
+
+    raises('a crash inside a row is read as that row\'s failure, with its type',
+           'IndexError: list index out of range', lambda: [][0])
     want = ['GetCaster', 'GetId', 'Handle', 'IsPositive', 'm_casterGuid', 'm_link', 'm_modifier', 'm_positive',
             'm_table']
-    print('self-test: %-66s %s' % ('the class-scope member names are read', 'PASS' if got == want else 'FAIL'))
-    if got != want:
-        failures.append('class_members: got %r, expected %r' % (got, want))
+
+    def members_read():
+        got = sorted(class_members(SELF_HEADERS['Thing.h'], 'Thing'))
+        if got != want:
+            raise Failure('class_members: got %r, expected %r' % (got, want))
+    raises('the class-scope member names are read', 'no failure', members_read)
 
     def run(label, want_rc, needle='', swap=None, old_text=SELF_OLD, spec=SELF_SPEC, sites=SELF_SITES,
             handlers=SELF_HANDLERS, old_handlers=None, bound=None):
@@ -2331,23 +2352,6 @@ def self_test():
         """GEN_SPEC with its site naming `table`."""
         return dict(GEN_SPEC, sites=[dict(GEN_SPEC['sites'][0], table=table)])
 
-    def caught(call):
-        """What `call` raises: a failure's text, any other exception's type and text, or 'no failure'."""
-        try:
-            call()
-        except Failure as e:
-            return str(e)
-        except Exception as e:
-            return '%s: %s' % (type(e).__name__, e)
-        return 'no failure'
-
-    def raises(label, needle, call):
-        text = caught(call)
-        ok = needle in text
-        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
-        if not ok:
-            failures.append('%s: %s' % (label, text))
-
     renamed = gen_version([1, 2, 4, 5, 6, 9, 10, 13, 14, 15, 17, 18], table='removal')
     run('a table renamed between base and tree is found by its row type: passes', 0,
         'with 11/11 bodies pasted back at their 12 labels in 1 sites (the base had 1 of the sites moved: '
@@ -2386,11 +2390,12 @@ def self_test():
         body = ['    ctx.target->Drop(%d);' % ids[0], '    return SpellHandlerOutcome<void>::Return();']
         at = origin.index(lines[0])
         stood = origin[at:at + len(lines) + n]
-        shape = braced([origin], site, lines)
-        ok = paste(site, 'Drop', body, lines, shape) == stood and paste(site, 'Drop', body, lines, not shape) != stood
-        print('self-test: %-66s %s' % (label + ' differs from its origin', 'PASS' if ok else 'FAIL'))
-        if not ok:
-            failures.append('%s: the shape read, %s, does not reproduce the origin alone' % (label, shape))
+
+        def reproduced(label=label, lines=lines, body=body, stood=stood):
+            shape = braced([origin], site, lines)
+            if paste(site, 'Drop', body, lines, shape) != stood or paste(site, 'Drop', body, lines, not shape) == stood:
+                raise Failure('%s: the shape read, %s, does not reproduce the origin alone' % (label, shape))
+        raises(label + ' differs from its origin', 'no failure', reproduced)
     tail = gen_version([], unbraced=mixed)[0].replace(
         '        {\n            target->Drop(5);\n            return;\n        }',
         '        {\n            target->Drop(5);\n        }\n        return;')
@@ -3080,16 +3085,18 @@ def self_test():
              ('target ', 'target', 'Drop(target );', True), ('target ', 'target', 'Drop(target or);', False),
              ('->Get()', '.value', 'a->Get()->b', True), ('->', '.', 'a->b', True),
              ('ctx.spellId', '::GetId()', 'xctx.spellId', False), ('ctx.aura', 'this->', 'ctx.auraX', False)]
-    misread = [(a, b, text) for a, b, text, applies in reads if bool(token_pattern(a, b).search(text)) != applies]
-    print('self-test: %-66s %s' % ('whole tokens: where a text pair applies, read at both ends of both sides',
-                                   'FAIL' if misread else 'PASS'))
-    if misread:
-        failures.append('token_pattern misreads %r' % misread)
-    pasted = substituted(dict(substitutions=[('ctx.separator', "'\\n'")]), ['    Log(ctx.separator);'], 'One')
-    print('self-test: %-66s %s' % ('whole tokens: a right side pastes back as written, a backslash included',
-                                   'PASS' if pasted == ["    Log('\\n');"] else 'FAIL'))
-    if pasted != ["    Log('\\n');"]:
-        failures.append('a right side holding a backslash pasted back as %r' % pasted)
+
+    def both_ends():
+        misread = [(a, b, text) for a, b, text, applies in reads if bool(token_pattern(a, b).search(text)) != applies]
+        if misread:
+            raise Failure('token_pattern misreads %r' % misread)
+    raises('whole tokens: where a text pair applies, read at both ends of both sides', 'no failure', both_ends)
+
+    def as_written():
+        pasted = substituted(dict(substitutions=[('ctx.separator', "'\\n'")]), ['    Log(ctx.separator);'], 'One')
+        if pasted != ["    Log('\\n');"]:
+            raise Failure('a right side holding a backslash pasted back as %r' % pasted)
+    raises('whole tokens: a right side pastes back as written, a backslash included', 'no failure', as_written)
     for label, cases in (
             ('whole tokens: a digit or an underscore before a left side is a name character',
              [('my_ctx.target->Drop(1);', False), ('2ctx.target->Drop(1);', False), ('(ctx.target->Drop(1);', True)]),
@@ -3098,10 +3105,12 @@ def self_test():
             ('whole tokens: an underscore after a left side is a name character',
              [('Drop(ctx.m_caster_old);', False), ('Drop(ctx.m_caster);', True)])):
         pair = ('ctx.target', 'target') if 'target' in cases[0][0] else ('ctx.m_caster', 'm_caster')
-        wrong = [text for text, applies in cases if bool(token_pattern(*pair).search(text)) != applies]
-        print('self-test: %-66s %s' % (label, 'FAIL' if wrong else 'PASS'))
-        if wrong:
-            failures.append('%s: token_pattern%r misreads %r' % (label, pair, wrong))
+
+        def bordering(label=label, cases=cases, pair=pair):
+            wrong = [text for text, applies in cases if bool(token_pattern(*pair).search(text)) != applies]
+            if wrong:
+                raise Failure('%s: token_pattern%r misreads %r' % (label, pair, wrong))
+        raises(label, 'no failure', bordering)
     spelled = [('ctx.target', 'target'), ('ctx.aura', 'this'), ('Spell::TargetList', 'TargetList')]
     listed = form('tokens', lab1, [
         lab[1], '            for (TargetList::const_iterator i = list.begin(); i != list.end(); ++i)',
@@ -3508,11 +3517,12 @@ def self_test():
                                    'FAIL' if wrong else 'PASS'))
     if wrong:
         failures.append('exception_pairs lets through or misnames %r' % (wrong,))
-    read_pairs = exception_pairs([aura, spell])
-    print('self-test: %-66s %s' % ('context exceptions: the pairs each entry lists are read',
-                                   'PASS' if read_pairs == [aura[0], spell[0]] else 'FAIL'))
-    if read_pairs != [aura[0], spell[0]]:
-        failures.append('exception_pairs read %r' % (read_pairs,))
+
+    def listed_pairs():
+        read_pairs = exception_pairs([aura, spell])
+        if read_pairs != [aura[0], spell[0]]:
+            raise Failure('exception_pairs read %r' % (read_pairs,))
+    raises('context exceptions: the pairs each entry lists are read', 'no failure', listed_pairs)
 
     # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
     # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
