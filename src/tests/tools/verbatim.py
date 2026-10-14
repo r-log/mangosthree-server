@@ -791,10 +791,10 @@ def arguments(text):
 
 def check_ties(site):
     """The dispatch tied to its site: its lines call `Dispatch<TRAITS>(KEY, NAME)` once and construct the
-    context they pass, `CONTEXT NAME(ARGUMENTS);`, once; every context pair `(ctx.X, b)` has b among the
-    ARGUMENTS, and every route through the aura or spell the context holds (`ctx.aura->`, `ctx.spell->`)
-    has `this` among them; KEY is the key of the open lines' `switch (KEY)`. Blanks aside throughout. Returns
-    KEY and NAME, squeezed."""
+    context they pass, `CONTEXT NAME(ARGUMENTS);`, once, no argument empty; every context pair `(ctx.X, b)` has
+    b among the ARGUMENTS, and every route through the aura or spell the context holds (`ctx.aura->`,
+    `ctx.spell->`) has `this` among them; KEY is the key of the open lines' `switch (KEY)`. Blanks aside
+    throughout. Returns KEY and NAME, squeezed."""
     text = '\n'.join(site['dispatch'])
     calls = list(re.finditer(r'Dispatch<%s>\s*\(' % re.escape(site['traits']), text))
     passed = held(text, calls[0].end() - 1) if len(calls) == 1 else None
@@ -810,6 +810,9 @@ def check_ties(site):
                       % (site['name'], site['context'], name))
     given = arguments(given)
     at = '%s %s(%s)' % (site['context'], name, ', '.join(given))
+    if not all(given):
+        raise Failure('%s: the context is constructed with an empty argument (a comma with nothing before or after '
+                      'it): %s' % (site['name'], at))
     for a, b in site['substitutions']:
         if not isinstance(a, str) or not a.startswith('ctx.'):
             continue
@@ -2746,6 +2749,22 @@ def self_test():
            'its last statement is not a return at its own level',
            lambda: handler_body(['static SpellHandlerOutcome<void> One(RemoveContext& ctx)', '{',
                                  '    return SpellHandlerOutcome<void>::Return()', '}'], 'One', 'RemoveContext'))
+    tied_site = dict(name='tied', traits='RemoveSite', context='CheckTargetContext', substitutions=[],
+                     open=['    switch (GetId())'])
+    for what, construction in (('an empty argument', 'CheckTargetContext ctx(this,, target);'),
+                               ('a trailing comma', 'CheckTargetContext ctx(this, target,);'),
+                               ('no argument at all', 'CheckTargetContext ctx();')):
+        raises('context ties: %s among the construction\'s arguments: fails by name' % what,
+               'the context is constructed with an empty argument',
+               lambda construction=construction: check_ties(dict(tied_site, dispatch=[
+                   '    ' + construction, '    if (Dispatch<RemoveSite>(GetId(), ctx).IsReturn())', '    {',
+                   '        return;', '    }'])))
+    raises('context ties: an empty argument on a middle line of the construction: fails by name',
+           'the context is constructed with an empty argument',
+           lambda: check_ties(dict(tied_site, dispatch=[
+               '    CheckTargetContext ctx(this,', '                           ,',
+               '                           target);', '    if (Dispatch<RemoveSite>(GetId(), ctx).IsReturn())',
+               '    {', '        return;', '    }'])))
 
     other_switch = ['    switch (GetId())', '    {', '        case 90:                                // Ninety',
                     '            target->Drop(90);', '            break;', '        default:', '        {',
