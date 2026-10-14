@@ -2996,13 +2996,11 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     CHECK_EQ(registry.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(163));
 
-    // A hundred and sixty-three labels, a hundred and thirty-five functions, a hundred and thirty-one bodies: the five
-    // Cleansing Flames cities share one function, as do Move 1 and Move 2, the two Sonic Booms, the two Throw Glaives,
-    // the two Open Portals, the ten cover spells, the two Exodar and Silvermoon Cleansing Flames, the five Reagent
-    // Checks, the three Ley Line Focus Controls, Sara's Anger, Blessing and Fervor, the two Twilight Bloodbolts, and
-    // Conjure Flame with Conjure Empowered Flame. Icicle, Vile Gas and Vile Gas Trigger are one body, as are the Sara
-    // function, Destabilization Matrix and Conjure Flame: proven by verbatim, not here: this binary links with COMDAT
-    // folding, so an identical second function folds to the same address.
+    // A hundred and sixty-three labels, a hundred and thirty-five functions: the five Cleansing Flames cities share
+    // one, as do Move 1 and Move 2, the two Sonic Booms, the two Throw Glaives, the two Open Portals, the ten cover
+    // spells, the two Exodar and Silvermoon Cleansing Flames, the five Reagent Checks, the three Ley Line Focus
+    // Controls, Sara's Anger, Blessing and Fervor, the two Twilight Bloodbolts, and Conjure Flame with Conjure
+    // Empowered Flame.
     typedef SpellHandler<SpellEffectDummyGenericSite>::Function GenericBody;
     GenericBody cleansingFlames = registry.Find<SpellEffectDummyGenericSite>(29135);
     for (uint32 spellId : { 29136u, 29137u, 29138u, 29139u })
@@ -3038,14 +3036,30 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     CHECK(registry.Find<SpellEffectDummyGenericSite>(72040) == registry.Find<SpellEffectDummyGenericSite>(71718));
     CHECK(registry.Find<SpellEffectDummyGenericSite>(65869) != registry.Find<SpellEffectDummyGenericSite>(60932));
     CHECK(registry.Find<SpellEffectDummyGenericSite>(64673) != registry.Find<SpellEffectDummyGenericSite>(64489));
-    CHECK(registry.Find<SpellEffectDummyGenericSite>(71307) == registry.Find<SpellEffectDummyGenericSite>(63545));
-    CHECK(registry.Find<SpellEffectDummyGenericSite>(72285) == registry.Find<SpellEffectDummyGenericSite>(63545));
-    CHECK(registry.Find<SpellEffectDummyGenericSite>(65206) == sara);
-    CHECK(registry.Find<SpellEffectDummyGenericSite>(71718) == sara);
+
+    // A hundred and thirty-one bodies up to the two byte-identical triples: Icicle, Vile Gas and Vile Gas Trigger
+    // count as one body, as do the Sara function, Destabilization Matrix and Conjure Flame, whether the linker gives
+    // a triple one address or three (the three fold together or not at all); every other function is its own body.
+    GenericBody icicle = registry.Find<SpellEffectDummyGenericSite>(63545);
+    GenericBody vileGas = registry.Find<SpellEffectDummyGenericSite>(71307);
+    GenericBody vileGasTrigger = registry.Find<SpellEffectDummyGenericSite>(72285);
+    GenericBody destabilizationMatrix = registry.Find<SpellEffectDummyGenericSite>(65206);
+    GenericBody conjureFlame = registry.Find<SpellEffectDummyGenericSite>(71718);
+    CHECK((vileGas == icicle) == (vileGasTrigger == icicle));
+    CHECK((destabilizationMatrix == sara) == (conjureFlame == sara));
     std::set<GenericBody> bodies;
     for (uint32 spellId : DUMMY_GENERIC_IDS)
     {
-        bodies.insert(registry.Find<SpellEffectDummyGenericSite>(spellId));
+        GenericBody body = registry.Find<SpellEffectDummyGenericSite>(spellId);
+        if (body == vileGas || body == vileGasTrigger)
+        {
+            body = icicle;
+        }
+        else if (body == destabilizationMatrix || body == conjureFlame)
+        {
+            body = sara;
+        }
+        bodies.insert(body);
     }
     CHECK(bodies.count(NULL) == 0);
     CHECK_EQ(bodies.size(), std::size_t(131));
