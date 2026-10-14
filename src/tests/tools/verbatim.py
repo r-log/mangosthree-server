@@ -147,8 +147,8 @@ The run shapes beyond one label per line and a body that ends in its own termina
      anything else there fails. A labelled run in that place fails: only a default may fall off
      the end. A last statement that terminates only under a control header (`if (x)` over
      `return;`) is not this shape and differs.
-Every handler's last statement (comments aside) is a `return` at the function's own level, so no
-body falls off its end.
+Every handler's last statement (comment lines, and a comment at the end of its line, aside) is a
+`return` at the function's own level, so no body falls off its end.
 
 Each handler body is also checked for what the paste-back cannot see: a live-out local used
 bare (a case body's name the move did not route through the context), and so any other name in
@@ -401,7 +401,9 @@ def default_function(lines, traits):
 
 def handler_body(lines, function, context, value='void'):
     """The lines between the braces of `static SpellHandlerOutcome<value> function(context& ctx)` (or
-    `/*ctx*/`, a body that reads no context)."""
+    `/*ctx*/`, a body that reads no context). Its last statement (comment lines, and a comment at the end
+    of its line, aside) is a whole `return ...;` at the function's own level, the code line above it ending
+    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails."""
     head = re.compile(r'static SpellHandlerOutcome<([\w:]+)> %s\(%s& (ctx|/\*ctx\*/)\)' % (re.escape(function),
                                                                                           re.escape(context)))
     starts = [(i, m.group(1)) for i, m in enumerate(head.fullmatch(l) for l in lines) if m]
@@ -417,7 +419,7 @@ def handler_body(lines, function, context, value='void'):
     if j is None:
         raise Failure('handler %s: no closing "}" in column 0' % function)
     code = [l for l in lines[i + 2:j] if l.strip() and not comment_only(l)]
-    if not code or not re.fullmatch(r'    return\b.*;', code[-1]) or (
+    if not code or not re.fullmatch(r'    return\b.*;', blank(code[-1]).rstrip()) or (
             len(code) > 1 and not blank(code[-2]).rstrip().endswith((';', '{', '}', ':'))):
         raise Failure('handler %s: its last statement is not a return at its own level (it could fall off its end)'
                       % function)
@@ -789,10 +791,10 @@ def arguments(text):
 
 def check_ties(site):
     """The dispatch tied to its site: its lines call `Dispatch<TRAITS>(KEY, NAME)` once and construct the
-    context they pass, `CONTEXT NAME(ARGUMENTS);`, once; every context pair `(ctx.X, b)` has b among the
-    ARGUMENTS, and every route through the aura or spell the context holds (`ctx.aura->`, `ctx.spell->`)
-    has `this` among them; KEY is the key of the open lines' `switch (KEY)`. Blanks aside throughout. Returns
-    KEY and NAME, squeezed."""
+    context they pass, `CONTEXT NAME(ARGUMENTS);`, once, no argument empty; every context pair `(ctx.X, b)` has
+    b among the ARGUMENTS, and every route through the aura or spell the context holds (`ctx.aura->`,
+    `ctx.spell->`) has `this` among them; KEY is the key of the open lines' `switch (KEY)`. Blanks aside
+    throughout. Returns KEY and NAME, squeezed."""
     text = '\n'.join(site['dispatch'])
     calls = list(re.finditer(r'Dispatch<%s>\s*\(' % re.escape(site['traits']), text))
     passed = held(text, calls[0].end() - 1) if len(calls) == 1 else None
@@ -808,6 +810,9 @@ def check_ties(site):
                       % (site['name'], site['context'], name))
     given = arguments(given)
     at = '%s %s(%s)' % (site['context'], name, ', '.join(given))
+    if not all(given):
+        raise Failure('%s: the context is constructed with an empty argument (a comma with nothing before or after '
+                      'it): %s' % (site['name'], at))
     for a, b in site['substitutions']:
         if not isinstance(a, str) or not a.startswith('ctx.'):
             continue
@@ -2106,12 +2111,33 @@ def self_test():
         return (aura,) if any(aura[0] in site['substitutions'] for spec in sites.values()
                               for site in spec.get('sites', ())) else ()
 
-    got = sorted(class_members(SELF_HEADERS['Thing.h'], 'Thing'))
+    def caught(call):
+        """What `call` raises: a failure's text, any other exception's type and text, or 'no failure'."""
+        try:
+            call()
+        except Failure as e:
+            return str(e)
+        except Exception as e:
+            return '%s: %s' % (type(e).__name__, e)
+        return 'no failure'
+
+    def raises(label, needle, call):
+        text = caught(call)
+        ok = needle in text
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: %s' % (label, text))
+
+    raises('a crash inside a row is read as that row\'s failure, with its type',
+           'IndexError: list index out of range', lambda: [][0])
     want = ['GetCaster', 'GetId', 'Handle', 'IsPositive', 'm_casterGuid', 'm_link', 'm_modifier', 'm_positive',
             'm_table']
-    print('self-test: %-66s %s' % ('the class-scope member names are read', 'PASS' if got == want else 'FAIL'))
-    if got != want:
-        failures.append('class_members: got %r, expected %r' % (got, want))
+
+    def members_read():
+        got = sorted(class_members(SELF_HEADERS['Thing.h'], 'Thing'))
+        if got != want:
+            raise Failure('class_members: got %r, expected %r' % (got, want))
+    raises('the class-scope member names are read', 'no failure', members_read)
 
     def run(label, want_rc, needle='', swap=None, old_text=SELF_OLD, spec=SELF_SPEC, sites=SELF_SITES,
             handlers=SELF_HANDLERS, old_handlers=None, bound=None):
@@ -2329,23 +2355,6 @@ def self_test():
         """GEN_SPEC with its site naming `table`."""
         return dict(GEN_SPEC, sites=[dict(GEN_SPEC['sites'][0], table=table)])
 
-    def caught(call):
-        """What `call` raises: a failure's text, any other exception's type and text, or 'no failure'."""
-        try:
-            call()
-        except Failure as e:
-            return str(e)
-        except Exception as e:
-            return '%s: %s' % (type(e).__name__, e)
-        return 'no failure'
-
-    def raises(label, needle, call):
-        text = caught(call)
-        ok = needle in text
-        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
-        if not ok:
-            failures.append('%s: %s' % (label, text))
-
     renamed = gen_version([1, 2, 4, 5, 6, 9, 10, 13, 14, 15, 17, 18], table='removal')
     run('a table renamed between base and tree is found by its row type: passes', 0,
         'with 11/11 bodies pasted back at their 12 labels in 1 sites (the base had 1 of the sites moved: '
@@ -2384,11 +2393,12 @@ def self_test():
         body = ['    ctx.target->Drop(%d);' % ids[0], '    return SpellHandlerOutcome<void>::Return();']
         at = origin.index(lines[0])
         stood = origin[at:at + len(lines) + n]
-        shape = braced([origin], site, lines)
-        ok = paste(site, 'Drop', body, lines, shape) == stood and paste(site, 'Drop', body, lines, not shape) != stood
-        print('self-test: %-66s %s' % (label + ' differs from its origin', 'PASS' if ok else 'FAIL'))
-        if not ok:
-            failures.append('%s: the shape read, %s, does not reproduce the origin alone' % (label, shape))
+
+        def reproduced(label=label, lines=lines, body=body, stood=stood):
+            shape = braced([origin], site, lines)
+            if paste(site, 'Drop', body, lines, shape) != stood or paste(site, 'Drop', body, lines, not shape) == stood:
+                raise Failure('%s: the shape read, %s, does not reproduce the origin alone' % (label, shape))
+        raises(label + ' differs from its origin', 'no failure', reproduced)
     tail = gen_version([], unbraced=mixed)[0].replace(
         '        {\n            target->Drop(5);\n            return;\n        }',
         '        {\n            target->Drop(5);\n        }\n        return;')
@@ -2709,6 +2719,52 @@ def self_test():
         **mutated(trailing, 'old_text', '        // case 91:', '\n        // case 91:'))
     run('T: the comment lines kept at the body\'s indent in the handler: fails', 1, 'DIFFERS',
         **mutated(trailing, 'handlers', '// case 92:\n// break;', '    // case 92:\n    // break;'))
+
+    remark = '                                 // done elsewhere'
+    remarked = form('trailing comment', {i: lab[i] for i in (1, 2)}, [
+        lab[1], '            target->Drop(1);', '            return;' + remark,
+        lab[2], '        {', '            target->Drop(2);', '            return;   /* done */', '        }'], [
+        ('One', 'void', ['    ctx.target->Drop(1);', ret + remark]),
+        ('Two', 'void', ['    ctx.target->Drop(2);', ret + '   /* done */'])],
+        [(1, 'One'), (2, 'Two')])
+    run('a comment at the end of the last return line, unbraced and braced: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites', **remarked)
+    run('a comment at the end of a last line that is not a return: fails by name', 1,
+        'handler Two: its last statement is not a return at its own level',
+        **mutated(remarked, 'handlers', ret + '   /* done */', '    ctx.target->Log();   // done'))
+    run('the comment at the end of the last return dropped from the handler: fails', 1, 'DIFFERS',
+        **mutated(remarked, 'handlers', ret + remark, ret))
+    run('the comment at the end of the last return moved to its own line: fails', 1, 'DIFFERS',
+        **mutated(remarked, 'handlers', ret + remark, ret + '\n    // done elsewhere'))
+    run('a comment line after the last return, unbraced: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **mutated(mutated(remarked, 'old_text', '            return;' + remark,
+                          '            return;\n            // done elsewhere'),
+                  'handlers', ret + remark, ret + '\n    // done elsewhere'))
+    raises('handler body: a "//" inside a literal on the last return line, a comment after it: passes', 'no failure',
+           lambda: handler_body(['static SpellHandlerOutcome<bool> One(RemoveContext& ctx)', '{',
+                                 '    return SpellHandlerOutcome<bool>::Return(ctx.target->Has("//"));   // both',
+                                 '}'], 'One', 'RemoveContext', 'bool'))
+    raises('handler body: the last return without its semicolon: fails by name',
+           'its last statement is not a return at its own level',
+           lambda: handler_body(['static SpellHandlerOutcome<void> One(RemoveContext& ctx)', '{',
+                                 '    return SpellHandlerOutcome<void>::Return()', '}'], 'One', 'RemoveContext'))
+    tied_site = dict(name='tied', traits='RemoveSite', context='CheckTargetContext', substitutions=[],
+                     open=['    switch (GetId())'])
+    for what, construction in (('an empty argument', 'CheckTargetContext ctx(this,, target);'),
+                               ('a trailing comma', 'CheckTargetContext ctx(this, target,);'),
+                               ('no argument at all', 'CheckTargetContext ctx();')):
+        raises('context ties: %s among the construction\'s arguments: fails by name' % what,
+               'the context is constructed with an empty argument',
+               lambda construction=construction: check_ties(dict(tied_site, dispatch=[
+                   '    ' + construction, '    if (Dispatch<RemoveSite>(GetId(), ctx).IsReturn())', '    {',
+                   '        return;', '    }'])))
+    raises('context ties: an empty argument on a middle line of the construction: fails by name',
+           'the context is constructed with an empty argument',
+           lambda: check_ties(dict(tied_site, dispatch=[
+               '    CheckTargetContext ctx(this,', '                           ,',
+               '                           target);', '    if (Dispatch<RemoveSite>(GetId(), ctx).IsReturn())',
+               '    {', '        return;', '    }'])))
 
     other_switch = ['    switch (GetId())', '    {', '        case 90:                                // Ninety',
                     '            target->Drop(90);', '            break;', '        default:', '        {',
@@ -3048,16 +3104,18 @@ def self_test():
              ('target ', 'target', 'Drop(target );', True), ('target ', 'target', 'Drop(target or);', False),
              ('->Get()', '.value', 'a->Get()->b', True), ('->', '.', 'a->b', True),
              ('ctx.spellId', '::GetId()', 'xctx.spellId', False), ('ctx.aura', 'this->', 'ctx.auraX', False)]
-    misread = [(a, b, text) for a, b, text, applies in reads if bool(token_pattern(a, b).search(text)) != applies]
-    print('self-test: %-66s %s' % ('whole tokens: where a text pair applies, read at both ends of both sides',
-                                   'FAIL' if misread else 'PASS'))
-    if misread:
-        failures.append('token_pattern misreads %r' % misread)
-    pasted = substituted(dict(substitutions=[('ctx.separator', "'\\n'")]), ['    Log(ctx.separator);'], 'One')
-    print('self-test: %-66s %s' % ('whole tokens: a right side pastes back as written, a backslash included',
-                                   'PASS' if pasted == ["    Log('\\n');"] else 'FAIL'))
-    if pasted != ["    Log('\\n');"]:
-        failures.append('a right side holding a backslash pasted back as %r' % pasted)
+
+    def both_ends():
+        misread = [(a, b, text) for a, b, text, applies in reads if bool(token_pattern(a, b).search(text)) != applies]
+        if misread:
+            raise Failure('token_pattern misreads %r' % misread)
+    raises('whole tokens: where a text pair applies, read at both ends of both sides', 'no failure', both_ends)
+
+    def as_written():
+        pasted = substituted(dict(substitutions=[('ctx.separator', "'\\n'")]), ['    Log(ctx.separator);'], 'One')
+        if pasted != ["    Log('\\n');"]:
+            raise Failure('a right side holding a backslash pasted back as %r' % pasted)
+    raises('whole tokens: a right side pastes back as written, a backslash included', 'no failure', as_written)
     for label, cases in (
             ('whole tokens: a digit or an underscore before a left side is a name character',
              [('my_ctx.target->Drop(1);', False), ('2ctx.target->Drop(1);', False), ('(ctx.target->Drop(1);', True)]),
@@ -3066,10 +3124,12 @@ def self_test():
             ('whole tokens: an underscore after a left side is a name character',
              [('Drop(ctx.m_caster_old);', False), ('Drop(ctx.m_caster);', True)])):
         pair = ('ctx.target', 'target') if 'target' in cases[0][0] else ('ctx.m_caster', 'm_caster')
-        wrong = [text for text, applies in cases if bool(token_pattern(*pair).search(text)) != applies]
-        print('self-test: %-66s %s' % (label, 'FAIL' if wrong else 'PASS'))
-        if wrong:
-            failures.append('%s: token_pattern%r misreads %r' % (label, pair, wrong))
+
+        def bordering(label=label, cases=cases, pair=pair):
+            wrong = [text for text, applies in cases if bool(token_pattern(*pair).search(text)) != applies]
+            if wrong:
+                raise Failure('%s: token_pattern%r misreads %r' % (label, pair, wrong))
+        raises(label, 'no failure', bordering)
     spelled = [('ctx.target', 'target'), ('ctx.aura', 'this'), ('Spell::TargetList', 'TargetList')]
     listed = form('tokens', lab1, [
         lab[1], '            for (TargetList::const_iterator i = list.begin(); i != list.end(); ++i)',
@@ -3476,11 +3536,12 @@ def self_test():
                                    'FAIL' if wrong else 'PASS'))
     if wrong:
         failures.append('exception_pairs lets through or misnames %r' % (wrong,))
-    read_pairs = exception_pairs([aura, spell])
-    print('self-test: %-66s %s' % ('context exceptions: the pairs each entry lists are read',
-                                   'PASS' if read_pairs == [aura[0], spell[0]] else 'FAIL'))
-    if read_pairs != [aura[0], spell[0]]:
-        failures.append('exception_pairs read %r' % (read_pairs,))
+
+    def listed_pairs():
+        read_pairs = exception_pairs([aura, spell])
+        if read_pairs != [aura[0], spell[0]]:
+            raise Failure('exception_pairs read %r' % (read_pairs,))
+    raises('context exceptions: the pairs each entry lists are read', 'no failure', listed_pairs)
 
     # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
     # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
