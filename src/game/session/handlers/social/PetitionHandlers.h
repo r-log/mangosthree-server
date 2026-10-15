@@ -42,7 +42,8 @@ class WorldSession;
 /// turned in: static entry points the opcode table binds, each borrowing the session for one call
 /// and storing nothing. Every database read a handler needs is queued on the character database
 /// and answered a tick later by a continuation, which re-finds the session and the player by their
-/// identities; the decline's continuation answers the charter's owner, found by guid.
+/// identities; the query's re-finds the session alone and the decline's answers the charter's owner,
+/// found by guid.
 /// QueuePetitionBuyRead stages the purchase's read, QueuePetitionSignHolder stages the sign itself
 /// and PetitionSignOutcome names its result.
 struct PetitionHandlers
