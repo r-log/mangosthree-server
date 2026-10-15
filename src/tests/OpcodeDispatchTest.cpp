@@ -49,11 +49,13 @@
 /// and an empty note to its end and, the name being empty, returns before it reads the player,
 /// sending nothing. The CMSG_GMTICKET_SYSTEMSTATUS row, given an empty packet on a session with no
 /// player, answers with one SMSG_GMTICKET_SYSTEMSTATUS carrying whether the ticket system accepts
-/// tickets. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet,
-/// LFG, contact list or GM ticket handler class holds the status STATUS_LOGGEDIN and the
-/// processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
-/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
-/// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
+/// tickets. The CMSG_OFFER_PETITION row reads an offer of an empty petition guid to an empty player
+/// guid to its end and, the guid naming no player online, returns before it reads the player,
+/// sending nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill,
+/// enchant, pet, LFG, contact list, GM ticket or petition handler class holds the status
+/// STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING,
+/// CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE
+/// row, of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -74,6 +76,7 @@
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
+#include "session/handlers/social/PetitionHandlers.h"
 #include "session/handlers/social/TicketHandlers.h"
 
 #include <cstring>
@@ -929,4 +932,54 @@ TEST(OpcodeDispatch_TicketRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_GMSURVEY_SUBMIT].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_GMTICKET_RESOLVE_RESPONSE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_GMTICKET_RESOLVE_RESPONSE].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_OfferPetitionRowReturnsBeforeAnyPlayerRead)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket offer(CMSG_OFFER_PETITION, 20);
+    offer << uint32(0);
+    offer << uint64(0);
+    offer << uint64(0);
+
+    opcodeTable[CMSG_OFFER_PETITION].handler(session, offer);
+
+    CHECK_EQ(offer.rpos(), size_t(20));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_PetitionRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionShowSign>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionShowSign>), 1);
+    CHECK(opcodeTable[CMSG_PETITION_SIGN].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionSign>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionSign>), 1);
+    CHECK(opcodeTable[CMSG_OFFER_PETITION].handler == &OpcodeThunk<&PetitionHandlers::HandleOfferPetition>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandleOfferPetition>), 1);
+    CHECK(opcodeTable[CMSG_TURN_IN_PETITION].handler == &OpcodeThunk<&PetitionHandlers::HandleTurnInPetition>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandleTurnInPetition>), 1);
+    CHECK(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_PetitionRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_SIGN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_SIGN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_OFFER_PETITION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_OFFER_PETITION].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_TURN_IN_PETITION].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_TURN_IN_PETITION].packetProcessing, PROCESS_THREADUNSAFE);
 }

@@ -1853,6 +1853,8 @@ src/game/session/handlers/pvp/PvpHandlers.cpp -> src/game/WorldHandlers/World.h
 src/game/session/handlers/social/ContactHandlers.cpp -> src/game/WorldHandlers/World.h
 # The Dungeon Finder join and status handlers read the world config CONFIG_BOOL_LFG_ENABLE; dies with row 3.
 src/game/session/handlers/social/LfgHandlers.cpp -> src/game/WorldHandlers/World.h
+# The sign and offer checks and the turn-in read the world config CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD and CONFIG_UINT32_MIN_PETITION_SIGNS; dies with row 3.
+src/game/session/handlers/social/PetitionHandlers.cpp -> src/game/WorldHandlers/World.h
 # The ticket create and text update handlers tell every online GM who accepts tickets through ChatHandler(player).PSendSysMessage.
 src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The Rocket Boots Engaged body reads the player's battleground and reports the dropped flag to it; the origin's own edge carried into the handler directory, same layer pair and header; dies when the flag drop becomes a fact the battleground takes from the player (pvp's own seam).

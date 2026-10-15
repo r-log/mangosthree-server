@@ -114,6 +114,11 @@ _TICKET_FILE = 'src/game/session/handlers/social/TicketHandlers.cpp'
 _TICKET_ORIGIN = 'src/game/WorldHandlers/GMTicketHandler.cpp'
 _TICKET_PLAYER = [('GetPlayer()', '_player')]
 _TICKET_THIS = [('&session', 'this')]
+_PETITION_BASE = 'aef5150b2'
+_PETITION_FILE = 'src/game/session/handlers/social/PetitionHandlers.cpp'
+_PETITION_ORIGIN = 'src/game/WorldHandlers/PetitionsHandler.cpp'
+_PETITION_PLAYER = [('GetPlayer()', '_player')]
+_PETITION_RENAME = ('session', 'requestSession')
 
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
@@ -770,6 +775,148 @@ MOVES = [
     dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
          base_header='void WorldSession::HandleGMResponseResolveOpcode(WorldPacket& recv_data)',
          new_header='void TicketHandlers::HandleGMResponseResolve(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionShowSignOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandlePetitionShowSign(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PETITION_PLAYER + [('PetitionHandlers::HandlePetitionShowSignCallback(',
+                                            'WorldSession::HandlePetitionShowSignCallback(')]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                  proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                  ObjectGuid petitionGuid)',
+         new_header='void PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                      proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                      ObjectGuid petitionGuid)',
+         rename=_PETITION_RENAME),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionSignOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandlePetitionSign(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PETITION_PLAYER + [('PetitionHandlers::HandlePetitionSignCallback(',
+                                            'WorldSession::HandlePetitionSignCallback(')],
+         texts=[('    // The one check that needs nothing but memory stays on the tick thread.',
+                 '    // The one check that needs nothing but memory stays on the tick thread (C4).')]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                              proto::SessionId sessionId, ObjectGuid playerGuid,\n                                              ObjectGuid petitionGuid)',
+         new_header='void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                  proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                  ObjectGuid petitionGuid)',
+         rename=_PETITION_RENAME),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::QueuePetitionSignHolder(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,\n                                           ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 maxSigns)',
+         new_header='void PetitionHandlers::QueuePetitionSignHolder(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,\n                                               ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 maxSigns)',
+         substitutions=[('PetitionHandlers::HandlePetitionSignedCallback(',
+                         'WorldSession::HandlePetitionSignedCallback(')],
+         texts=[(['/**',
+                  ' * @brief Stages the atomic sign: one holder, three statements.',
+                  ' *',
+                  ' * The old handler counted the signatures, decided, and inserted in three separate steps',
+                  ' * with the world thread waiting between them -- two clients signing in the same tick both',
+                  ' * saw room and both were inserted, and a signature that was already there could not be told',
+                  ' * apart from one this request had just added. Here the three statements run back to back on',
+                  " * the delay thread, under the connection's lock, and the insert itself carries the rules:",
+                  ' * the petition must exist, the count must be under the limit, and this player must not',
+                  ' * already be on it. Comparing the row before with the row after is what names the outcome.',
+                  ' *',
+                  ' * Split out of the continuation so it can be driven on its own, with no Player and no',
+                  ' * configuration: the sign limit is a parameter, not a lookup.',
+                  ' *',
+                  ' * @param accountId The signing account.',
+                  ' * @param sessionId The session the request arrived on.',
+                  ' * @param playerGuid The signer.',
+                  ' * @param petitionGuid The petition guid.',
+                  ' * @param ownerGuid The petition owner, for the copy of the reply.',
+                  ' * @param maxSigns The number of signatures a petition may hold.',
+                  ' */'],
+                 ['/**',
+                  ' * @brief Stages the atomic sign: one holder, three statements (D7b, C4).',
+                  ' *',
+                  ' * The old handler counted the signatures, decided, and inserted in three separate steps',
+                  ' * with the world thread waiting between them -- two clients signing in the same tick both',
+                  ' * saw room and both were inserted, and a signature that was already there could not be told',
+                  ' * apart from one this request had just added. Here the three statements run back to back on',
+                  " * the delay thread, under the connection's lock, and the insert itself carries the rules:",
+                  ' * the petition must exist, the count must be under the limit, and this player must not',
+                  ' * already be on it. Comparing the row before with the row after is what names the outcome.',
+                  ' *',
+                  ' * Split out of the continuation so it can be driven on its own, with no Player and no',
+                  ' * configuration: the sign limit is a parameter, not a lookup.',
+                  ' *',
+                  ' * @param accountId The signing account.',
+                  ' * @param sessionId The session the request arrived on.',
+                  ' * @param playerGuid The signer.',
+                  ' * @param petitionGuid The petition guid.',
+                  ' * @param ownerGuid The petition owner, for the copy of the reply.',
+                  ' * @param maxSigns The number of signatures a petition may hold.',
+                  ' */'])]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='uint32 WorldSession::PetitionSignOutcome(bool signedBefore, bool signedAfter)',
+         new_header='uint32 PetitionHandlers::PetitionSignOutcome(bool signedBefore, bool signedAfter)',
+         texts=[(['/**',
+                  ' * @brief What the two snapshots around the conditional insert mean.',
+                  ' *',
+                  ' * @param signedBefore Was this player on the petition before the insert ran?',
+                  ' * @param signedAfter  Is this player on the petition now?',
+                  ' * @return PETITION_SIGN_ALREADY_SIGNED when the signature was already there,',
+                  ' *         PETITION_SIGN_OK when this request is what put it there,',
+                  ' *         PETITION_SIGN_PETITION_FULL when the insert found no room.',
+                  ' */'],
+                 ['/**',
+                  ' * @brief What the two snapshots around the conditional insert mean (D7b, C4).',
+                  ' *',
+                  ' * @param signedBefore Was this player on the petition before the insert ran?',
+                  ' * @param signedAfter  Is this player on the petition now?',
+                  ' * @return PETITION_SIGN_ALREADY_SIGNED when the signature was already there,',
+                  ' *         PETITION_SIGN_OK when this request is what put it there,',
+                  ' *         PETITION_SIGN_PETITION_FULL when the insert found no room.',
+                  ' */'])]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                ObjectGuid petitionGuid, ObjectGuid ownerGuid)',
+         new_header='void PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                    proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                    ObjectGuid petitionGuid, ObjectGuid ownerGuid)',
+         rename=_PETITION_RENAME,
+         texts=[('    // is one short until he re-opens it. So the re-find is not a gate -- it',
+                 '    // is one short until he re-opens it. So the re-find is not a gate any more (D7f) -- it')]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandleOfferPetitionOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandleOfferPetition(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PETITION_PLAYER + [('PetitionHandlers::HandleOfferPetitionCallback(',
+                                            'WorldSession::HandleOfferPetitionCallback(')]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                               proto::SessionId sessionId, ObjectGuid ownGuid,\n                                               ObjectGuid petitionGuid, ObjectGuid playerGuid)',
+         new_header='void PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                   proto::SessionId sessionId, ObjectGuid ownGuid,\n                                                   ObjectGuid petitionGuid, ObjectGuid playerGuid)',
+         rename=_PETITION_RENAME),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandleTurnInPetition(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PETITION_PLAYER + [('PetitionHandlers::HandleTurnInPetitionCallback(',
+                                            'WorldSession::HandleTurnInPetitionCallback(')]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                ObjectGuid petitionGuid)',
+         new_header='void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,\n                                                    proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                    ObjectGuid petitionGuid)',
+         rename=_PETITION_RENAME,
+         texts=[(['/**',
+                  ' * @brief Creates the guild once the petition and its signatures are known.',
+                  ' *',
+                  ' * The guild creation chain (Guild::Create and Guild::AddMember, and what they reach) runs',
+                  " * here, inside the continuation, and it acquires nothing: the guild's own INSERTs",
+                  " * and the five default ranks are prepared statements, an offline signer's row comes from",
+                  " * the character cache, and each new member's petition signatures are read by a continuation",
+                  ' * of their own (Player::QueueRemovePetitionsAndSigns).',
+                  ' *',
+                  ' * @param holder The staged reads.',
+                  ' * @param accountId The requesting account.',
+                  ' * @param sessionId The session the request arrived on.',
+                  ' * @param playerGuid The petition owner turning it in.',
+                  ' * @param petitionGuid The petition guid.',
+                  ' */'],
+                 ['/**',
+                  ' * @brief Creates the guild once the petition and its signatures are known.',
+                  ' *',
+                  ' * The guild creation chain (Guild::Create and Guild::AddMember, and what they reach) runs',
+                  " * here, inside the continuation, and since D7f it acquires nothing: the guild's own INSERTs",
+                  " * and the five default ranks are prepared statements, an offline signer's row comes from",
+                  " * the character cache, and each new member's petition signatures are read by a continuation",
+                  ' * of their own (Player::QueueRemovePetitionsAndSigns).',
+                  ' *',
+                  ' * @param holder The staged reads.',
+                  ' * @param accountId The requesting account.',
+                  ' * @param sessionId The session the request arrived on.',
+                  ' * @param playerGuid The petition owner turning it in.',
+                  ' * @param petitionGuid The petition guid.',
+                  ' */'])]),
 ]
 
 RESIDUES = [
@@ -1003,4 +1150,62 @@ RESIDUES = [
                  " * @brief Defines two WorldSession members: SendGMTicketGetTicket, which sends the client its GM ticket's\n"
                  " * status and text, and SendGMTicketStatusUpdate, which tells the client its ticket's status changed.\n"
                  ' */')]),
+    dict(base=_PETITION_BASE, base_file=_PETITION_ORIGIN,
+         removed=['#include <functional>', '#include "Database/SqlOperations.h"'],
+         edits=[('namespace\n'
+                 '{\n'
+                 "    /// The slots of the show-signatures / offer holder: two reads that need each other's\n"
+                 '    /// answer not at all, so they run back to back in one round trip.\n'
+                 '    enum PetitionShowSlot\n'
+                 '    {\n'
+                 '        PETITION_SHOW_PETITION      = 0,                    // the petition exists at all\n'
+                 '        PETITION_SHOW_SIGNATURES    = 1,                    // who has signed it\n'
+                 '        PETITION_SHOW_SLOT_COUNT    = 2\n'
+                 '    };\n'
+                 '\n'
+                 "    /// The slots of the sign handler's FIRST holder: the petition row (owner and the current\n"
+                 "    /// count) and the account's existing signatures. Independent, so one round trip.\n"
+                 '    enum PetitionSignReadSlot\n'
+                 '    {\n'
+                 '        PETITION_SIGN_READ_PETITION = 0,\n'
+                 '        PETITION_SIGN_READ_ACCOUNT  = 1,\n'
+                 '        PETITION_SIGN_READ_COUNT    = 2\n'
+                 '    };\n'
+                 '\n'
+                 "    /// The slots of the sign handler's SECOND holder -- the atomic sign itself (D7b, C4).\n"
+                 '    /// The three statements run back to back on the delay thread under one connection lock:\n'
+                 '    /// what the row looked like before, the conditional insert, what it looks like after.\n'
+                 '    /// Nothing else can interleave, so the answer says which of the two happened.\n'
+                 '    enum PetitionSignedSlot\n'
+                 '    {\n'
+                 '        PETITION_SIGNED_BEFORE      = 0,\n'
+                 '        PETITION_SIGNED_INSERT      = 1,\n'
+                 '        PETITION_SIGNED_AFTER       = 2,\n'
+                 '        PETITION_SIGNED_COUNT       = 3\n'
+                 '    };\n'
+                 '\n'
+                 '    /// The slots of the turn-in holder: the petition row and its signatures.\n'
+                 '    enum PetitionTurnInSlot\n'
+                 '    {\n'
+                 '        PETITION_TURN_IN_PETITION   = 0,\n'
+                 '        PETITION_TURN_IN_SIGNATURES = 1,\n'
+                 '        PETITION_TURN_IN_COUNT      = 2\n'
+                 '    };\n'
+                 '\n'
+                 '    /**\n'
+                 '     * @brief Queue a staged holder, freeing it if the database refuses it.\n'
+                 '     *\n'
+                 '     * DelayQueryHolder() answers false without queueing once the database is shutting down\n'
+                 "     * (decoupling D7a); the holder is the callback's to free, so a refusal is the caller's\n"
+                 '     * to clean up or it leaks both the holder and its staged statements.\n'
+                 '     */\n'
+                 '    void QueuePetitionHolder(SqlQueryHolder* holder,\n'
+                 '                             std::function<void(QueryResult*, SqlQueryHolder*)> callback)\n'
+                 '    {\n'
+                 '        if (!CharacterDatabase.DelayQueryHolder(std::move(callback), holder))\n'
+                 '        {\n'
+                 '            delete holder;                                  // delete all unprocessed queries\n'
+                 '        }\n'
+                 '    }\n'
+                 '}\n',)]),
 ]

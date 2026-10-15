@@ -37,6 +37,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `handlers/pvp/` | `PvpHandlers` | the client's arena team inspect, query, roster, create, invite, accept, decline, leave, disband, remove and leader opcodes; the battlemaster's hello and join, the arena join, the battlefield list, port, leave and status, the flag carriers' positions, the PvP log, the spirit healer's query and queue, the AFK report, and the rated battleground stats, rated battleground info, PvP options and PvP rewards requests |
 | `handlers/social/` | `ContactHandlers` | the client's contact list request, a friend added by name with a note or removed, a player ignored by name or no longer ignored, and a contact's note |
 | `handlers/social/` | `LfgHandlers` | the client's Dungeon Finder queue join and leave, a group member's role choice, the status request, the answer to a dungeon proposal, the teleport into and out of the dungeon, the queue comment, the lock information request and the vote to remove a member |
+| `handlers/social/` | `PetitionHandlers` | the client's guild charter signatures shown, the petition signed, offered to another player and turned in, each answered a tick later by a continuation that re-finds the session and the player by their identities |
 | `handlers/social/` | `TicketHandlers` | the client's GM ticket status request, a ticket's text updated, the ticket deleted, a ticket created, the ticket system status request, the survey after a closed ticket and the answer to a resolved ticket |
 
 ## The layer and the threads
