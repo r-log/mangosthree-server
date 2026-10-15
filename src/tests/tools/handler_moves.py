@@ -109,6 +109,12 @@ _CONTACT_FILE = 'src/game/session/handlers/social/ContactHandlers.cpp'
 _CONTACT_ORIGIN = 'src/game/WorldHandlers/MiscHandlerSocial.cpp'
 _CONTACT_PLAYER = [('GetPlayer()', '_player')]
 
+_TICKET_BASE = '80f3fc58a'
+_TICKET_FILE = 'src/game/session/handlers/social/TicketHandlers.cpp'
+_TICKET_ORIGIN = 'src/game/WorldHandlers/GMTicketHandler.cpp'
+_TICKET_PLAYER = [('GetPlayer()', '_player')]
+_TICKET_THIS = [('&session', 'this')]
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -716,6 +722,54 @@ MOVES = [
          base_header='void WorldSession::HandleSetContactNotesOpcode(WorldPacket& recv_data)',
          new_header='void ContactHandlers::HandleSetContactNotes(WorldSession& session, WorldPacket& recv_data)',
          substitutions=_CONTACT_PLAYER),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
+         base_header='void WorldSession::HandleGMTicketGetTicketOpcode(WorldPacket& /*recv_data*/)',
+         new_header='void TicketHandlers::HandleGMTicketGetTicket(WorldSession& session, WorldPacket& /*recv_data*/)'),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
+         base_header='void WorldSession::HandleGMTicketUpdateTextOpcode(WorldPacket& recv_data)',
+         new_header='void TicketHandlers::HandleGMTicketUpdateText(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_TICKET_THIS),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
+         base_header='void WorldSession::HandleGMTicketDeleteTicketOpcode(WorldPacket& /*recv_data*/)',
+         new_header='void TicketHandlers::HandleGMTicketDeleteTicket(WorldSession& session, WorldPacket& /*recv_data*/)',
+         substitutions=_TICKET_PLAYER,
+         edits=[('    sTicketMgr.Delete(session.GetPlayer()->GetObjectGuid());',
+                 '    sTicketMgr.Delete(GetPlayer()->GetObjectGuid());')]),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
+         base_header='void WorldSession::HandleGMTicketCreateOpcode(WorldPacket& recv_data)',
+         new_header='void TicketHandlers::HandleGMTicketCreate(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_TICKET_PLAYER + _TICKET_THIS,
+         edits=[('    if (sTicketMgr.GetGMTicket(session.GetPlayer()->GetObjectGuid()) && !isFollowup)',
+                 '    if (sTicketMgr.GetGMTicket(GetPlayer()->GetObjectGuid()) && !isFollowup)'),
+                ('                ChatHandler(player).PSendSysMessage(LANG_COMMAND_TICKETNEW, session.GetPlayer()->GetName(), ticket->GetId());',
+                 '                ChatHandler(player).PSendSysMessage(LANG_COMMAND_TICKETNEW, GetPlayer()->GetName(), ticket->GetId());')]),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
+         base_header='void WorldSession::HandleGMTicketSystemStatusOpcode(WorldPacket& /*recv_data*/)',
+         new_header='void TicketHandlers::HandleGMTicketSystemStatus(WorldSession& session, WorldPacket& /*recv_data*/)'),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
+         base_header='void WorldSession::HandleGMTicketSurveySubmitOpcode(WorldPacket& recv_data)',
+         new_header='void TicketHandlers::HandleGMTicketSurveySubmit(WorldSession& session, WorldPacket& recv_data)',
+         texts=[(['/**',
+                  ' * @brief Handle ticket survey submission (CMSG_GMSURVEY_SUBMIT)',
+                  ' * @param recv_data World packet containing survey responses',
+                  ' *',
+                  ' * Player submits satisfaction survey after ticket resolution.',
+                  ' * Sent in response to SMSG_GM_TICKET_STATUS_UPDATE with status = 3.',
+                  ' *',
+                  ' * Survey data is saved to the ticket for GM/admin review.',
+                  ' */'],
+                 ['/**',
+                  ' * @brief Handle ticket survey submission (CMSG_GMTICKET_SURVEY)',
+                  ' * @param recv_data World packet containing survey responses',
+                  ' *',
+                  ' * Player submits satisfaction survey after ticket resolution.',
+                  ' * Sent in response to SMSG_GM_TICKET_STATUS_UPDATE with status = 3.',
+                  ' *',
+                  ' * Survey data is saved to the ticket for GM/admin review.',
+                  ' */'])]),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN, new_file=_TICKET_FILE,
+         base_header='void WorldSession::HandleGMResponseResolveOpcode(WorldPacket& recv_data)',
+         new_header='void TicketHandlers::HandleGMResponseResolve(WorldSession& session, WorldPacket& recv_data)'),
 ]
 
 RESIDUES = [
@@ -924,4 +978,29 @@ RESIDUES = [
                  ' */')]),
     dict(base=_LFG_BASE, base_file=_LFG_ORIGIN,
          removed=['#include <set>', '#include "DBCStores.h"', '#include "World.h"']),
+    dict(base=_TICKET_BASE, base_file=_TICKET_ORIGIN,
+         removed=['#include "Common/ServerDefines.h"', '#include "Language.h"',
+                  '#include "OpcodeTable.h"                                        // for LookupOpcodeName',
+                  '#include "Log.h"', '#include "PlayerRegistry.h"', '#include "Player.h"', '#include "Chat.h"'],
+         edits=[('/**\n'
+                 ' * @file GMTicketHandler.cpp\n'
+                 ' * @brief GM ticket system handlers\n'
+                 ' *\n'
+                 ' * This file implements player-side GM ticket management:\n'
+                 ' * - Get current ticket status\n'
+                 ' * - Create new tickets\n'
+                 ' * - Update existing ticket text\n'
+                 ' * - Delete/close tickets\n'
+                 ' * - System status toggle\n'
+                 ' *\n'
+                 ' * Tickets are stored in GMTicketMgr and notify online GMs of changes.\n'
+                 ' *\n'
+                 ' * @see GMTicketMgr for ticket storage and management\n'
+                 ' * @see GMTicket for ticket data structure\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file GMTicketHandler.cpp\n'
+                 " * @brief Defines two WorldSession members: SendGMTicketGetTicket, which sends the client its GM ticket's\n"
+                 " * status and text, and SendGMTicketStatusUpdate, which tells the client its ticket's status changed.\n"
+                 ' */')]),
 ]

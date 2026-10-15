@@ -25,32 +25,14 @@
 
 /**
  * @file GMTicketHandler.cpp
- * @brief GM ticket system handlers
- *
- * This file implements player-side GM ticket management:
- * - Get current ticket status
- * - Create new tickets
- * - Update existing ticket text
- * - Delete/close tickets
- * - System status toggle
- *
- * Tickets are stored in GMTicketMgr and notify online GMs of changes.
- *
- * @see GMTicketMgr for ticket storage and management
- * @see GMTicket for ticket data structure
+ * @brief Defines two WorldSession members: SendGMTicketGetTicket, which sends the client its GM ticket's
+ * status and text, and SendGMTicketStatusUpdate, which tells the client its ticket's status changed.
  */
 
-#include "Common/ServerDefines.h"
 #include "Platform/Define.h"
 #include <string>
-#include "Language.h"
 #include "WorldPacket.h"
-#include "OpcodeTable.h"                                        // for LookupOpcodeName
-#include "Log.h"
 #include "GMTicketMgr.h"
-#include "PlayerRegistry.h"
-#include "Player.h"
-#include "Chat.h"
 
 /**
  * @brief Send ticket status to client
@@ -86,81 +68,6 @@ void WorldSession::SendGMTicketGetTicket(uint32 status, GMTicket* ticket /*= NUL
 }
 
 /**
- * @brief Handle ticket status request (CMSG_GMTICKET_GETTICKET)
- * @param recv_data World packet (empty)
- *
- * Player requests current ticket status. Responds with either:
- * - Status 0x06 + ticket data if player has active ticket
- * - Status 0x0A if no ticket exists
- *
- * Also sends server time via SendQueryTimeResponse().
- */
-void WorldSession::HandleGMTicketGetTicketOpcode(WorldPacket& /*recv_data*/)
-{
-    SendQueryTimeResponse();
-
-    GMTicket* ticket = sTicketMgr.GetGMTicket(GetPlayer()->GetObjectGuid());
-    if (ticket)
-    {
-        SendGMTicketGetTicket(0x06, ticket);
-    }
-    else
-    {
-        SendGMTicketGetTicket(0x0A);
-    }
-}
-
-/**
- * @brief Handle ticket text update (CMSG_GMTICKET_UPDATETEXT)
- * @param recv_data World packet containing new ticket text
- *
- * Updates the text of an existing ticket. Performs text cleanup:
- * - Removes invisible characters (e.g., '\a' added by client)
- * - Trims leading whitespace
- *
- * Notifies all online GMs of the update.
- */
-void WorldSession::HandleGMTicketUpdateTextOpcode(WorldPacket& recv_data)
-{
-    std::string ticketText;
-    recv_data >> ticketText;
-
-    // When updating the ticket, the client adds a leading '\a' char - remove it
-    stripLineInvisibleChars(ticketText);
-
-    // Trim leading spaces that may result from invisible char removal
-    ltrim(ticketText);
-
-    GMTicketResponse responce = GMTICKET_RESPONSE_UPDATE_SUCCESS;
-    if (GMTicket* ticket = sTicketMgr.GetGMTicket(GetPlayer()->GetObjectGuid()))
-    {
-        ticket->SetText(ticketText.c_str());
-    }
-    else
-    {
-        sLog.outError("Ticket update: Player %s (GUID: %u) doesn't have active ticket", GetPlayer()->GetName(), GetPlayer()->GetGUIDLow());
-        responce = GMTICKET_RESPONSE_UPDATE_ERROR;
-    }
-
-    WorldPacket data(SMSG_GMTICKET_UPDATETEXT, 4);
-    data << uint32(responce);
-    SendPacket(&data);
-
-    GMTicket * ticket = sTicketMgr.GetGMTicket(GetPlayer()->GetObjectGuid());
-
-    // Notify all GM that the ticket has been changed
-    sPlayerRegistry.ForEach([ticket, this](Player* player)
-        {
-            if (player->GetSession()->GetSecurity() >= SEC_GAMEMASTER && player->isAcceptTickets())
-            {
-                ChatHandler(player).PSendSysMessage(LANG_COMMAND_TICKETUPDATED, GetPlayer()->GetName(), ticket->GetId());
-
-            }
-        }
-    );
-}
-
-/**
  * @brief Send ticket status update to client
  * @param statusCode Status code to send
  *
@@ -175,147 +82,5 @@ void WorldSession::SendGMTicketStatusUpdate(GMTicketStatus statusCode)
 {
     WorldPacket data(SMSG_GM_TICKET_STATUS_UPDATE, 4);
     data << uint32(statusCode);
-    SendPacket(&data);
-}
-
-/**
- * @brief Handle ticket deletion by player (CMSG_GMTICKET_DELETETICKET)
- * @param recv_data World packet (empty)
- *
- * Player requests to close/delete their ticket. If ticket exists:
- * 1. Marks it as closed by client
- * 2. Removes from ticket manager
- * 3. Sends confirmation to client
- * 4. Updates status to show no ticket
- */
-void WorldSession::HandleGMTicketDeleteTicketOpcode(WorldPacket& /*recv_data*/)
-{
-    // Mark ticket as closed if it exists
-    GMTicket *ticket = sTicketMgr.GetGMTicket(_player->GetObjectGuid());
-    if (ticket)
-    {
-        ticket->CloseByClient();
-    }
-    sTicketMgr.Delete(GetPlayer()->GetObjectGuid());
-
-    WorldPacket data(SMSG_GMTICKET_DELETETICKET, 4);
-    data << uint32(GMTICKET_RESPONSE_TICKET_DELETED);
-    SendPacket(&data);
-
-    SendGMTicketGetTicket(0x0A);
-}
-
-/**
- * @brief Handle new ticket creation (CMSG_GMTICKET_CREATE)
- * @param recv_data World packet containing ticket details
- *
- * Creates a new GM ticket with:
- * - Category (harassment, bug report, etc.)
- * - Player location (map, coordinates)
- * - Ticket message text
- * - Optional chat log data (for harassment reports)
- *
- * Fails if player already has an open ticket.
- * Notifies all online GMs of the new ticket.
- */
-void WorldSession::HandleGMTicketCreateOpcode(WorldPacket& recv_data)
-{
-    uint32 mapId;
-    float x, y, z;
-    std::string ticketText = "";
-    uint8 isFollowup;
-    recv_data >> mapId >> x >> y >> z;                        // last check 2.4.3
-    recv_data >> ticketText;
-
-    recv_data.read_skip<uint32>();                          // unk1, 11 - talk to gm, 1 - report problem
-    recv_data >> isFollowup;                                // unk2, 1 - followup ticket
-    recv_data.read_skip<uint32>();                          // unk3, 0
-    recv_data.read_skip<uint32>();                          // unk4, 0
-
-    DEBUG_LOG("TicketCreate: map %u, x %f, y %f, z %f, text %s", mapId, x, y, z, ticketText.c_str());
-
-    if (sTicketMgr.GetGMTicket(GetPlayer()->GetObjectGuid()) && !isFollowup)
-    {
-        WorldPacket data(SMSG_GMTICKET_CREATE, 4);
-        data << uint32(GMTICKET_RESPONSE_ALREADY_EXIST);    // 1 - You already have GM ticket
-        SendPacket(&data);
-        return;
-    }
-
-    sTicketMgr.Create(_player->GetObjectGuid(), ticketText.c_str());
-
-    SendQueryTimeResponse();
-
-    WorldPacket data(SMSG_GMTICKET_CREATE, 4);
-    data << uint32(GMTICKET_RESPONSE_CREATE_SUCCESS);       // 2 - nothing appears (3-error creating, 5-error updating)
-    SendPacket(&data);
-
-    GMTicket * ticket = sTicketMgr.GetGMTicket(_player->GetObjectGuid());
-
-    sPlayerRegistry.ForEach([ticket, this](Player* player)
-        {
-            if (player->GetSession()->GetSecurity() >= SEC_GAMEMASTER && player->isAcceptTickets())
-            {
-                ChatHandler(player).PSendSysMessage(LANG_COMMAND_TICKETNEW, GetPlayer()->GetName(), ticket->GetId());
-            }
-        }
-    );
-}
-
-/**
- * @brief Handle ticket system status request (CMSG_GMTICKET_SYSTEMSTATUS)
- * @param recv_data World packet (empty)
- *
- * Player queries whether the GM ticket system is currently enabled.
- * Controlled by GM command .ticket system_on/off via sTicketMgr.
- *
- * Response: 1 = System enabled, 0 = System disabled
- */
-void WorldSession::HandleGMTicketSystemStatusOpcode(WorldPacket& /*recv_data*/)
-{
-    WorldPacket data(SMSG_GMTICKET_SYSTEMSTATUS, 4);
-    // Controlled by GM command .ticket system_on/off
-    data << uint32(sTicketMgr.WillAcceptTickets() ? 1 : 0);
-    SendPacket(&data);
-}
-
-/**
- * @brief Handle ticket survey submission (CMSG_GMTICKET_SURVEY)
- * @param recv_data World packet containing survey responses
- *
- * Player submits satisfaction survey after ticket resolution.
- * Sent in response to SMSG_GM_TICKET_STATUS_UPDATE with status = 3.
- *
- * Survey data is saved to the ticket for GM/admin review.
- */
-void WorldSession::HandleGMTicketSurveySubmitOpcode(WorldPacket& recv_data)
-{
-    // Sent after SMSG_GM_TICKET_STATUS_UPDATE with status = 3 (survey available)
-    GMTicket* ticket = sTicketMgr.GetGMTicket(GetPlayer()->GetObjectGuid());
-    if (!ticket)
-    {
-        SendGMTicketStatusUpdate(GM_TICKET_STATUS_CLOSE);
-        //Should we send GM_TICKET_STATUS_CLOSE here aswell?
-        return;
-    }
-
-    ticket->SaveSurveyData(recv_data);
-
-    // Delete the ticket now that the survey is done
-    sTicketMgr.Delete(GetPlayer()->GetObjectGuid());
-
-    // Inform the client the ticket is closed
-    SendGMTicketStatusUpdate(GM_TICKET_STATUS_CLOSE);
-}
-
-void WorldSession::HandleGMResponseResolveOpcode(WorldPacket& recv_data)
-{
-    // empty opcode
-    DEBUG_LOG("WORLD: %s", LookupOpcodeName(recv_data.GetOpcode()));
-
-    sTicketMgr.Delete(GetPlayer()->GetObjectGuid());
-
-    WorldPacket data(SMSG_GMTICKET_RESOLVE_RESPONSE, 1);
-    data << uint8(0);                                       // ask to fill out gm survey = 1
     SendPacket(&data);
 }

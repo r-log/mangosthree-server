@@ -47,8 +47,10 @@
 /// slot and no comment to its end and, the Dungeon Finder being off, returns before it reads the
 /// player, sending nothing. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name
 /// and an empty note to its end and, the name being empty, returns before it reads the player,
-/// sending nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill,
-/// enchant, pet, LFG or contact list handler class holds the status STATUS_LOGGEDIN and the
+/// sending nothing. The CMSG_GMTICKET_SYSTEMSTATUS row, given an empty packet on a session with no
+/// player, answers with one SMSG_GMTICKET_SYSTEMSTATUS carrying whether the ticket system accepts
+/// tickets. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet,
+/// LFG, contact list or GM ticket handler class holds the status STATUS_LOGGEDIN and the
 /// processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
 /// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE row, of status
 /// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
@@ -59,6 +61,7 @@
 #include "WorldPacket.h"
 #include "SharedDefines.h"
 #include "ArenaTeam.h"
+#include "GMTicketMgr.h"
 #include "Auth/BigNumber.h"
 #include "session/handlers/combat/CombatHandlers.h"
 #include "session/handlers/economy/AuctionHandlers.h"
@@ -71,6 +74,7 @@
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
+#include "session/handlers/social/TicketHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -861,4 +865,68 @@ TEST(OpcodeDispatch_ContactRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_DEL_IGNORE].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_SET_CONTACT_NOTES].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_SET_CONTACT_NOTES].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_GMTicketSystemStatusRowAnswersWithTheTicketSystemsState)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket status(CMSG_GMTICKET_SYSTEMSTATUS, 0);
+
+    opcodeTable[CMSG_GMTICKET_SYSTEMSTATUS].handler(session, status);
+
+    CHECK_EQ(status.rpos(), size_t(0));
+    REQUIRE(sent.size() == 1);
+    CHECK_EQ(sent[0].GetOpcode(), uint16(SMSG_GMTICKET_SYSTEMSTATUS));
+    REQUIRE(sent[0].size() == 4);
+    uint32 accepting = 0;
+    sent[0] >> accepting;
+    CHECK_EQ(accepting, sTicketMgr.WillAcceptTickets() ? uint32(1) : uint32(0));
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_TicketRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_GMTICKET_GETTICKET].handler == &OpcodeThunk<&TicketHandlers::HandleGMTicketGetTicket>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleGMTicketGetTicket>), 1);
+    CHECK(opcodeTable[CMSG_GMTICKET_UPDATETEXT].handler == &OpcodeThunk<&TicketHandlers::HandleGMTicketUpdateText>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleGMTicketUpdateText>), 1);
+    CHECK(opcodeTable[CMSG_GMTICKET_DELETETICKET].handler == &OpcodeThunk<&TicketHandlers::HandleGMTicketDeleteTicket>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleGMTicketDeleteTicket>), 1);
+    CHECK(opcodeTable[CMSG_GMTICKET_CREATE].handler == &OpcodeThunk<&TicketHandlers::HandleGMTicketCreate>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleGMTicketCreate>), 1);
+    CHECK(opcodeTable[CMSG_GMTICKET_SYSTEMSTATUS].handler == &OpcodeThunk<&TicketHandlers::HandleGMTicketSystemStatus>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleGMTicketSystemStatus>), 1);
+    CHECK(opcodeTable[CMSG_GMSURVEY_SUBMIT].handler == &OpcodeThunk<&TicketHandlers::HandleGMTicketSurveySubmit>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleGMTicketSurveySubmit>), 1);
+    CHECK(opcodeTable[CMSG_GMTICKET_RESOLVE_RESPONSE].handler == &OpcodeThunk<&TicketHandlers::HandleGMResponseResolve>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&TicketHandlers::HandleGMResponseResolve>), 1);
+    CHECK(opcodeTable[CMSG_GMTICKET_GETTICKET].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_TicketRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_GETTICKET].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_GETTICKET].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_UPDATETEXT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_UPDATETEXT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_DELETETICKET].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_DELETETICKET].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_CREATE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_CREATE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_SYSTEMSTATUS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_SYSTEMSTATUS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GMSURVEY_SUBMIT].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GMSURVEY_SUBMIT].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_RESOLVE_RESPONSE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_GMTICKET_RESOLVE_RESPONSE].packetProcessing, PROCESS_THREADUNSAFE);
 }
