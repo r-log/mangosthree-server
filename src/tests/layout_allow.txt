@@ -1877,8 +1877,10 @@ src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
 # The map bodies read the map's difficulty and players; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/Map.h
-# The handlers read the aura: 61336 GetModifier()->m_amount; the removal bodies GetRemoveMode() and GetCaster(), 61900 GetSpellProto(); the feign-death body GetCasterGuid() and GetId().
+# The handlers read the aura: 61336 GetModifier()->m_amount; the removal bodies GetRemoveMode() and GetCaster(), 61900 GetSpellProto(); the feign-death body GetCasterGuid() and GetId(); the generic apply bodies GetCaster(), GetSpellProto(), GetStackAmount(), GetId() and GetEffIndex(); Soul Charge sets the holder's duration and Haunting Spirits the aura's period and periodic flag.
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
+# The Requires No Ammo and talent specialization bodies cast the target to a player for player-only methods; retires with the Unit page's row 13 successor.
+src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/entities/player/Player.h
 # The handlers pass the aura to CastSpell (66, 29166, 51912) and read it: GetRemoveMode(), GetSpellEffect(), GetModifier()->m_amount, GetCaster(), GetHolder(), GetEffIndex(), GetSpellProto(), GetBasePoints(), GetAuraMaxTicks().
 src/game/spells/handlers/AuraPeriodicHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The Survival Instincts body downcasts the caster to a player for a method the unit already has; retired by the cast tidy that drops the downcast, or by row 13's successor.

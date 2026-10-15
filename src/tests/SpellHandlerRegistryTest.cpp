@@ -658,12 +658,13 @@ namespace
 
 TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 6 warrior stances, 18 quest-tame labels, 30 removal labels, 16 feign-death labels, 2 druid labels: 72 rows
-    // and 72 keys, none twice, and no default.
+    // 39 generic apply labels, 6 warrior stances, 18 quest-tame labels, 30 removal labels, 16 feign-death labels,
+    // 2 druid labels: 111 rows and 111 keys, none twice, and no default.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(72));
-    CHECK_EQ(registry.Count(), std::size_t(72));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(111));
+    CHECK_EQ(registry.Count(), std::size_t(111));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(AuraDummyApplyGenericSite::Key), std::size_t(39));
     CHECK_EQ(registry.CountAt(AuraDummyApplyWarriorSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
     CHECK_EQ(registry.CountAt(AuraDummyQuestTameSite::Key), std::size_t(18));
@@ -671,8 +672,8 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraDummyDruidSite::Key), std::size_t(2));
 
     // Registering again on the same table changes nothing: every key is taken.
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(72));
-    CHECK_EQ(registry.Count(), std::size_t(72));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(111));
+    CHECK_EQ(registry.Count(), std::size_t(111));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
@@ -683,7 +684,7 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows and the five dummy-effect
     // family sites' 5, 11, 4, 4 and 4 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(505));
+    CHECK_EQ(game.Count(), std::size_t(544));
     CHECK_EQ(game.CountDefaults(), std::size_t(12));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -1069,6 +1070,122 @@ TEST(AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels)
     }
 }
 
+TEST(AuraDummyHandlers_TheGenericApplySiteHoldsItsThirtyNineLabelsAndNoDefault)
+{
+    static uint32 const labels[] = { 1515, 7057, 13139, 28832, 28833, 28834, 28835, 31606, 32045, 32051, 32052, 33326,
+                                     36587, 38224, 37096, 46354, 39850, 43873, 45963, 46637, 46699, 47190, 47563, 47593,
+                                     48143, 61187, 61190, 62061, 62109, 63122, 63624, 63651, 64132, 65684, 65686, 68912,
+                                     70623, 70638, 71563 };
+    static uint32 const alsoRemoved[] = { 32045, 32051, 32052, 45963, 46637 };
+
+    SpellHandlerRegistry registry;
+    RegisterAuraDummyHandlers(registry);
+    CHECK_EQ(registry.CountAt(AuraDummyApplyGenericSite::Key), std::size_t(39));
+    std::set<SpellHandler<AuraDummyApplyGenericSite>::Function> distinct;
+    for (uint32 spellId : labels)
+    {
+        SpellHandler<AuraDummyApplyGenericSite>::Function function = registry.Find<AuraDummyApplyGenericSite>(spellId);
+        CHECK(function != NULL);
+        distinct.insert(function);
+    }
+    CHECK_EQ(distinct.size(), std::size_t(31));                 // 31 bodies: four of them shared by their labels
+
+    // The shared bodies: the four Marks, the three Soul Charges, the three gender illusions, the two Twilight Shifts.
+    SpellHandler<AuraDummyApplyGenericSite>::Function mark = registry.Find<AuraDummyApplyGenericSite>(28832);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(28833) == mark);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(28834) == mark);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(28835) == mark);
+    SpellHandler<AuraDummyApplyGenericSite>::Function soulCharge = registry.Find<AuraDummyApplyGenericSite>(32045);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(32051) == soulCharge);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(32052) == soulCharge);
+    SpellHandler<AuraDummyApplyGenericSite>::Function illusion = registry.Find<AuraDummyApplyGenericSite>(38224);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(37096) == illusion);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(46354) == illusion);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(61190) == registry.Find<AuraDummyApplyGenericSite>(61187));
+
+    // No default: an id the switch still holds (Stoned 10255, Digging for Treasure 51405) or none misses, and that
+    // switch runs.
+    CHECK(registry.FindDefault<AuraDummyApplyGenericSite>() == NULL);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(10255) == NULL);
+    CHECK(registry.Find<AuraDummyApplyGenericSite>(51405) == NULL);
+    Unit* target = NULL;
+    int32 periodicTimer = 0;
+    AuraDummyApplyGenericContext ctx(NULL, target, periodicTimer);
+    CHECK(registry.Dispatch<AuraDummyApplyGenericSite>(10255, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyApplyGenericSite>(51405, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyApplyGenericSite>(12345, ctx).IsMiss());
+
+    // The five ids the removal switch holds too are another key there with another body, as the stances are at the
+    // warrior apply and removal sites; the other 34 are no removal key, and no label is another aura dummy site's.
+    for (uint32 spellId : alsoRemoved)
+    {
+        CHECK(registry.Find<AuraDummyRemoveSite>(spellId) != NULL);
+        CHECK(reinterpret_cast<void (*)()>(registry.Find<AuraDummyRemoveSite>(spellId))
+              != reinterpret_cast<void (*)()>(registry.Find<AuraDummyApplyGenericSite>(spellId)));
+    }
+    std::size_t removalKeys = 0;
+    for (uint32 spellId : labels)
+    {
+        if (registry.Find<AuraDummyRemoveSite>(spellId) != NULL)
+        {
+            ++removalKeys;
+        }
+        CHECK(registry.Find<AuraDummyApplyWarriorSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyQuestTameSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyDruidSite>(spellId) == NULL);
+    }
+    CHECK_EQ(removalKeys, std::size_t(5));
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.CountAt(AuraDummyApplyGenericSite::Key), std::size_t(39));
+    CHECK(game.FindDefault<AuraDummyApplyGenericSite>() == NULL);
+    for (uint32 spellId : labels)
+    {
+        CHECK(game.Find<AuraDummyApplyGenericSite>(spellId) == registry.Find<AuraDummyApplyGenericSite>(spellId));
+    }
+    for (uint32 spellId : alsoRemoved)
+    {
+        CHECK(game.Find<AuraDummyRemoveSite>(spellId) == registry.Find<AuraDummyRemoveSite>(spellId));
+    }
+}
+
+TEST(AuraDummyHandlers_TheGenericApplyContextAliasesTheTargetAndTheTimer)
+{
+    alignas(16) static unsigned char units[2][16];
+    Unit* target = reinterpret_cast<Unit*>(units[0]);
+    Aura* aura = FakeAura(0);
+    int32 periodicTimer = 0;
+    AuraDummyApplyGenericContext ctx(aura, target, periodicTimer);
+    CHECK(ctx.aura == aura);
+    CHECK(ctx.target == target);
+    ctx.target = reinterpret_cast<Unit*>(units[1]);             // a body's write to `target`...
+    CHECK(target == reinterpret_cast<Unit*>(units[1]));         // ...is the function's local
+    ctx.m_periodicTimer = 30000;                                // a body's write to the timer...
+    CHECK_EQ(periodicTimer, int32(30000));                      // ...is the member the site bound
+    periodicTimer = 5;
+    CHECK_EQ(ctx.m_periodicTimer, int32(5));
+}
+
+TEST(AuraDummyHandlers_TheHauntingSpiritsBodyMakesTheAuraPeriodic)
+{
+    // The body sets the periodic flag, a 30 second period and the bound timer from it, reads no target, and returns.
+    AuraStorage storage = {};
+    Aura* aura = reinterpret_cast<Aura*>(storage.bytes);
+    AuraStorage expected = storage;
+    reinterpret_cast<Aura*>(expected.bytes)->SetPeriodic(true);
+    reinterpret_cast<Aura*>(expected.bytes)->GetModifier()->periodictime = 30000;
+    Unit* target = NULL;
+    int32 periodicTimer = 0;
+    AuraDummyApplyGenericContext ctx(aura, target, periodicTimer);
+    CHECK(SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyGenericSite>(7057, ctx).IsReturn());
+    CHECK(aura->IsPeriodic());
+    CHECK_EQ(aura->GetModifier()->periodictime, uint32(30000));
+    CHECK_EQ(periodicTimer, int32(30000));
+    CHECK_EQ(BitsThatDiffer(storage, expected), 0);             // nothing else of the aura changed
+    CHECK(target == NULL);
+}
+
 TEST(AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault)
 {
     static uint32 const labels[] = { 16739, 42365, 50517, 51926, 65386, 65495, 65528, 65529, 71450 };
@@ -1280,64 +1397,82 @@ namespace
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
     // six dummy-effect sites and the earlier files' ids.
-    bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
+    // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
+    bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
-        return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
-               (site != AuraPeriodicTriggerSite::Key && registry.Find<AuraPeriodicTriggerSite>(spellId) != NULL) ||
-               (site != AuraPeriodicEnergizeSite::Key && registry.Find<AuraPeriodicEnergizeSite>(spellId) != NULL) ||
-               (site != AuraPeriodicDummyRogueSite::Key &&
+        auto skips = [site, also](uint32 key) { return key != site && key != also; };
+        return (skips(AuraProcTriggerSite::Key) && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicTriggerSite::Key) && registry.Find<AuraPeriodicTriggerSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicEnergizeSite::Key) && registry.Find<AuraPeriodicEnergizeSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicDummyRogueSite::Key) &&
                 registry.Find<AuraPeriodicDummyRogueSite>(spellId) != NULL) ||
-               (site != AuraIncreaseHealthSite::Key && registry.Find<AuraIncreaseHealthSite>(spellId) != NULL) ||
-               (site != SpellEffectEnergizeSite::Key && registry.Find<SpellEffectEnergizeSite>(spellId) != NULL) ||
-               (site != SpellEffectActivateObjectSite::Key &&
+               (skips(AuraIncreaseHealthSite::Key) && registry.Find<AuraIncreaseHealthSite>(spellId) != NULL) ||
+               (skips(SpellEffectEnergizeSite::Key) && registry.Find<SpellEffectEnergizeSite>(spellId) != NULL) ||
+               (skips(SpellEffectActivateObjectSite::Key) &&
                 registry.Find<SpellEffectActivateObjectSite>(spellId) != NULL) ||
-               (site != SpellEffectResurrectSite::Key && registry.Find<SpellEffectResurrectSite>(spellId) != NULL) ||
-               (site != SpellTargetAllEnemyInAreaSite::Key &&
+               (skips(SpellEffectResurrectSite::Key) && registry.Find<SpellEffectResurrectSite>(spellId) != NULL) ||
+               (skips(SpellTargetAllEnemyInAreaSite::Key) &&
                 registry.Find<SpellTargetAllEnemyInAreaSite>(spellId) != NULL) ||
-               (site != SpellTargetEffectDummySite::Key &&
+               (skips(SpellTargetEffectDummySite::Key) &&
                 registry.Find<SpellTargetEffectDummySite>(spellId) != NULL) ||
-               (site != SpellCheckCastAuraDummySite::Key &&
+               (skips(SpellCheckCastAuraDummySite::Key) &&
                 registry.Find<SpellCheckCastAuraDummySite>(spellId) != NULL) ||
-               (site != SpellCheckTargetSite::Key && registry.Find<SpellCheckTargetSite>(spellId) != NULL) ||
-               (site != SpellEffectWeaponDmgSite::Key && registry.Find<SpellEffectWeaponDmgSite>(spellId) != NULL) ||
-               (site != SpellEffectSchoolDmgSite::Key && registry.Find<SpellEffectSchoolDmgSite>(spellId) != NULL) ||
-               (site != SpellEffectTriggerSpellSite::Key &&
+               (skips(SpellCheckTargetSite::Key) && registry.Find<SpellCheckTargetSite>(spellId) != NULL) ||
+               (skips(SpellEffectWeaponDmgSite::Key) && registry.Find<SpellEffectWeaponDmgSite>(spellId) != NULL) ||
+               (skips(SpellEffectSchoolDmgSite::Key) && registry.Find<SpellEffectSchoolDmgSite>(spellId) != NULL) ||
+               (skips(SpellEffectTriggerSpellSite::Key) &&
                 registry.Find<SpellEffectTriggerSpellSite>(spellId) != NULL) ||
-               (site != SpellEffectTeleportRecallSite::Key &&
+               (skips(SpellEffectTeleportRecallSite::Key) &&
                 registry.Find<SpellEffectTeleportRecallSite>(spellId) != NULL) ||
-               (site != SpellEffectTeleportPostSite::Key &&
+               (skips(SpellEffectTeleportPostSite::Key) &&
                 registry.Find<SpellEffectTeleportPostSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyGenericSite::Key &&
+               (skips(SpellEffectDummyGenericSite::Key) &&
                 registry.Find<SpellEffectDummyGenericSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyMageSite::Key && registry.Find<SpellEffectDummyMageSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyWarriorSite::Key &&
+               (skips(SpellEffectDummyMageSite::Key) && registry.Find<SpellEffectDummyMageSite>(spellId) != NULL) ||
+               (skips(SpellEffectDummyWarriorSite::Key) &&
                 registry.Find<SpellEffectDummyWarriorSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyRogueSite::Key && registry.Find<SpellEffectDummyRogueSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyHunterSite::Key &&
+               (skips(SpellEffectDummyRogueSite::Key) && registry.Find<SpellEffectDummyRogueSite>(spellId) != NULL) ||
+               (skips(SpellEffectDummyHunterSite::Key) &&
                 registry.Find<SpellEffectDummyHunterSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyPaladinSite::Key &&
+               (skips(SpellEffectDummyPaladinSite::Key) &&
                 registry.Find<SpellEffectDummyPaladinSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
+               registry.Find<AuraDummyApplyGenericSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
                registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) != NULL;
     }
 
-    // The ids a pair of listed sites both register, each site's switch holding the label: Cannibalize, at the
-    // dummy-effect targeting site and the generic dummy-effect site. Any other id a second listed site holds fails
-    // HeldByAnotherSite.
-    uint32 const SHARED_SITE_IDS[] = { 20577 };
-
-    bool SharedBySites(uint32 spellId)
+    // The ids a pair of listed sites both register, each site's switch holding the label, with the two sites:
+    // Cannibalize, at the dummy-effect targeting site and the generic dummy-effect site. A listed id held at any
+    // other site, a third listed site among them, fails HeldByAnotherSite.
+    struct SharedSiteId
     {
-        for (uint32 shared : SHARED_SITE_IDS)
+        uint32 spellId;
+        uint32 first;
+        uint32 second;
+    };
+
+    SharedSiteId const SHARED_SITE_IDS[] =
+    {
+        { 20577, SpellTargetEffectDummySite::Key, SpellEffectDummyGenericSite::Key },
+    };
+
+    // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
+    uint32 SharedWith(uint32 spellId, uint32 site)
+    {
+        for (SharedSiteId const& shared : SHARED_SITE_IDS)
         {
-            if (shared == spellId)
+            if (shared.spellId == spellId && shared.first == site)
             {
-                return true;
+                return shared.second;
+            }
+            if (shared.spellId == spellId && shared.second == site)
+            {
+                return shared.first;
             }
         }
-        return false;
+        return site;
     }
 
     // 2 proc-trigger labels, 4 periodic-trigger labels, 5 energize labels, 1 rogue label and 14 health labels: 26
@@ -2178,11 +2313,12 @@ TEST(SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault)
     CHECK(registry.Find<SpellTargetEffectDummySite>(20577) == cannibalize);
     CHECK(registry.FindDefault<SpellTargetEffectDummySite>() == onMiss);
 
-    // Keyed on the dummy-effect site, and Cannibalize is a shared id: the generic dummy-effect site holds it too;
-    // the game's table holds the same row and the same default.
+    // Keyed on the dummy-effect site, and Cannibalize is a shared id: the generic dummy-effect site holds it too and
+    // no third site does; the game's table holds the same row and the same default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK(SharedBySites(20577));
+    CHECK(SharedWith(20577, SpellTargetEffectDummySite::Key) == SpellEffectDummyGenericSite::Key);
     CHECK(game.Find<SpellEffectDummyGenericSite>(20577) != NULL);
+    CHECK(!HeldByAnotherSite(game, SpellTargetEffectDummySite::Key, 20577, SpellEffectDummyGenericSite::Key));
     CHECK(game.Find<SpellTargetEffectDummySite>(20577) == cannibalize);
     for (uint32 spellId : { 30769u, 42005u, 24734u, 8342u, 9512u, 29886u, 41099u })
     {
@@ -3260,13 +3396,12 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 spellId : DUMMY_GENERIC_IDS)
     {
-        if (SharedBySites(spellId))
+        uint32 other = SharedWith(spellId, SpellEffectDummyGenericSite::Key);
+        CHECK(!HeldByAnotherSite(game, SpellEffectDummyGenericSite::Key, spellId, other));
+        if (other != SpellEffectDummyGenericSite::Key)
         {
+            CHECK(other == SpellTargetEffectDummySite::Key);
             CHECK(game.Find<SpellTargetEffectDummySite>(spellId) != NULL);
-        }
-        else
-        {
-            CHECK(!HeldByAnotherSite(game, SpellEffectDummyGenericSite::Key, spellId));
         }
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) ==
               registry.Find<SpellEffectDummyGenericSite>(spellId));

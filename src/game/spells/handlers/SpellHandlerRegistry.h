@@ -131,7 +131,9 @@ enum SpellHandlerSite
     /// `Spell::EffectDummy`, SPELLFAMILY_PALADIN: its `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_PALADIN = 32,
     /// `Spell::EffectDummy`, SPELLFAMILY_GENERIC: its `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_GENERIC = 33
+    SPELL_HANDLER_SITE_SPELL_EFFECT_DUMMY_GENERIC = 33,
+    /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_GENERIC's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_GENERIC = 34
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

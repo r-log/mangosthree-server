@@ -26,7 +26,318 @@
 #include "spells/handlers/AuraDummyHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Object/Creature.h"
+#include "Object/ObjectMgr.h"
+#include "Object/SpellMgr.h"
 #include "WorldHandlers/SpellAuras.h"
+#include "entities/player/Player.h"
+
+/// SPELLFAMILY_GENERIC, AT APPLY 1515: Tame Beast
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric1515(AuraDummyApplyGenericContext& ctx)
+{
+    // FIX_ME: this is 2.0.12 threat effect replaced in 2.1.x by dummy aura, must be checked for correctness
+    if (ctx.target->CanHaveThreatList())
+        if (Unit* caster = ctx.aura->GetCaster())
+        {
+            ctx.target->AddThreat(caster, 10.0f, false, GetSpellSchoolMask(ctx.aura->GetSpellProto()), ctx.aura->GetSpellProto());
+        }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 7057: Haunting Spirits
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric7057(AuraDummyApplyGenericContext& ctx)
+{
+    // expected to tick with 30 sec period (tick part see in Aura::PeriodicTick)
+    ctx.aura->SetPeriodic(true);
+    ctx.aura->GetModifier()->periodictime = 30 * IN_MILLISECONDS;
+    ctx.m_periodicTimer = ctx.aura->GetModifier()->periodictime;
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 13139: Net-o-Matic
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric13139(AuraDummyApplyGenericContext& ctx)
+{
+    // root to self part of (root_target->charge->root_self sequence
+    if (Unit* caster = ctx.aura->GetCaster())
+    {
+        caster->CastSpell(caster, 13138, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY, one body for 4 labels: 28832: Mark of Korth'azz, 28833: Mark of Blaumeux,
+/// 28834: Mark of Rivendare, 28835: Mark of Zeliek
+static SpellHandlerOutcome<void> AuraDummyApplyGenericMarkOfTheHorsemen(AuraDummyApplyGenericContext& ctx)
+{
+    int32 damage = 0;
+
+    switch (ctx.aura->GetStackAmount())
+    {
+        case 1:
+            return SpellHandlerOutcome<void>::Return();
+        case 2: damage =   500; break;
+        case 3: damage =  1500; break;
+        case 4: damage =  4000; break;
+        case 5: damage = 12500; break;
+        default:
+            damage = 14000 + 1000 * ctx.aura->GetStackAmount();
+            break;
+    }
+
+    if (Unit* caster = ctx.aura->GetCaster())
+    {
+        caster->CastCustomSpell(ctx.target, 28836, &damage, NULL, NULL, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 31606: Stormcrow Amulet
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric31606(AuraDummyApplyGenericContext& ctx)
+{
+    CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(17970);
+
+    // we must assume db or script set display id to native at ending flight (if not, target is stuck with this model)
+    if (cInfo)
+    {
+        ctx.target->SetDisplayId(Creature::ChooseDisplayId(cInfo));
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY, one body for 3 labels: 32045: Soul Charge, 32051: Soul Charge, 32052: Soul Charge
+static SpellHandlerOutcome<void> AuraDummyApplyGenericSoulCharge(AuraDummyApplyGenericContext& ctx)
+{
+    // max duration is 2 minutes, but expected to be random duration
+    // real time randomness is unclear, using max 30 seconds here
+    // see further down for expire of this aura
+    ctx.aura->GetHolder()->SetAuraDuration(urand(1, 30)*IN_MILLISECONDS);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 33326: Stolen Soul Dispel
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric33326(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->RemoveAurasDueToSpell(32346);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 36587: Vision Guide
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric36587(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 36573, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+// Gender spells
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY, one body for 3 labels: 38224: Illidari Agent Illusion, 37096: Blood Elf Illusion,
+/// 46354: Blood Elf Illusion
+static SpellHandlerOutcome<void> AuraDummyApplyGenericGenderIllusion(AuraDummyApplyGenericContext& ctx)
+{
+    uint8 gender = ctx.target->getGender();
+    uint32 spellId;
+    switch (ctx.aura->GetId())
+    {
+        case 38224: spellId = (gender == GENDER_MALE ? 38225 : 38227); break;
+        case 37096: spellId = (gender == GENDER_MALE ? 37093 : 37095); break;
+        case 46354: spellId = (gender == GENDER_MALE ? 46355 : 46356); break;
+        default: return SpellHandlerOutcome<void>::Return();
+    }
+    ctx.target->CastSpell(ctx.target, spellId, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 39850: Rocket Blast
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric39850(AuraDummyApplyGenericContext& ctx)
+{
+    if (roll_chance_i(20))              // backfire stun
+    {
+        ctx.target->CastSpell(ctx.target, 51581, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 43873: Headless Horseman Laugh
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric43873(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->PlayDistanceSound(11965);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 45963: Call Alliance Deserter
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric45963(AuraDummyApplyGenericContext& ctx)
+{
+    // Escorting Alliance Deserter
+    if (ctx.target->GetMiniPet())
+    {
+        ctx.target->CastSpell(ctx.target, 45957, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 46637: Break Ice
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric46637(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 46638, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 46699: Requires No Ammo
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric46699(AuraDummyApplyGenericContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+        // not use ammo and not allow use
+        ((Player*)ctx.target)->RemoveAmmo();
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 47190: Toalu'u's Spiritual Incense
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric47190(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 47189, true, NULL, ctx.aura);
+    // allow script to process further (text)
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 47563: Freezing Cloud
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric47563(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 47574, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 47593: Freezing Cloud
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric47593(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 47594, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 48143: Forgotten Aura
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric48143(AuraDummyApplyGenericContext& ctx)
+{
+    // See Death's Door
+    ctx.target->CastSpell(ctx.target, 48814, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY, one body for 2 labels: 61187: Twilight Shift, 61190: Twilight Shift
+static SpellHandlerOutcome<void> AuraDummyApplyGenericTwilightShift(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->RemoveAurasDueToSpell(57620);
+    ctx.target->CastSpell(ctx.target, 61885, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 62061: Festive Holiday Mount
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric62061(AuraDummyApplyGenericContext& ctx)
+{
+    if (ctx.target->HasAuraType(SPELL_AURA_MOUNTED))
+        // Reindeer Transformation
+        ctx.target->CastSpell(ctx.target, 25860, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 62109: Tails Up: Aura
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric62109(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->setFaction(1990);           // Ambient (hostile)
+    ctx.target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 63122: Clear Insane
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric63122(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->RemoveAurasDueToSpell(ctx.aura->GetSpellProto()->CalculateSimpleValue(ctx.aura->GetEffIndex()));
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 63624: Learn a Second Talent Specialization
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric63624(AuraDummyApplyGenericContext& ctx)
+{
+    // Teach Learn Talent Specialization Switches, required for client triggered casts, allow after 30 sec delay
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        ((Player*)ctx.target)->learnSpell(63680, false);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 63651: Revert to One Talent Specialization
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric63651(AuraDummyApplyGenericContext& ctx)
+{
+    // Teach Learn Talent Specialization Switches, remove
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        ((Player*)ctx.target)->removeSpell(63680);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 64132: Constrictor Tentacle
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric64132(AuraDummyApplyGenericContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        ctx.target->CastSpell(ctx.target, 64133, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 65684: Dark Essence
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric65684(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->RemoveAurasDueToSpell(65686);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 65686: Light Essence
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric65686(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->RemoveAurasDueToSpell(65684);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 68912: Wailing Souls
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric68912(AuraDummyApplyGenericContext& ctx)
+{
+    if (Unit* caster = ctx.aura->GetCaster())
+    {
+        caster->SetTargetGuid(ctx.target->GetObjectGuid());
+
+        // TODO - this is confusing, it seems the boss should channel this aura, and start casting the next spell
+        caster->CastSpell(caster, 68899, false);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 70623: Jaina's Call
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric70623(AuraDummyApplyGenericContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        ctx.target->CastSpell(ctx.target, 70525, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 70638: Call of Sylvanas
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric70638(AuraDummyApplyGenericContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        ctx.target->CastSpell(ctx.target, 70639, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY 71563: Deadly Precision
+static SpellHandlerOutcome<void> AuraDummyApplyGeneric71563(AuraDummyApplyGenericContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 71564, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
 
 /// SPELLFAMILY_WARRIOR 41099: Battle Stance
 static SpellHandlerOutcome<void> AuraDummyApplyWarrior41099(AuraDummyApplyContext& ctx)
@@ -672,6 +983,49 @@ static uint32 RegisterAuraDummyRows(SpellHandlerRegistry& registry, AuraDummyRow
 
 uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
 {
+    static AuraDummyRow<AuraDummyApplyGenericSite> const genericApply[] =
+    {
+        { 1515, &AuraDummyApplyGeneric1515 },
+        { 7057, &AuraDummyApplyGeneric7057 },
+        { 13139, &AuraDummyApplyGeneric13139 },
+        { 28832, &AuraDummyApplyGenericMarkOfTheHorsemen },
+        { 28833, &AuraDummyApplyGenericMarkOfTheHorsemen },
+        { 28834, &AuraDummyApplyGenericMarkOfTheHorsemen },
+        { 28835, &AuraDummyApplyGenericMarkOfTheHorsemen },
+        { 31606, &AuraDummyApplyGeneric31606 },
+        { 32045, &AuraDummyApplyGenericSoulCharge },
+        { 32051, &AuraDummyApplyGenericSoulCharge },
+        { 32052, &AuraDummyApplyGenericSoulCharge },
+        { 33326, &AuraDummyApplyGeneric33326 },
+        { 36587, &AuraDummyApplyGeneric36587 },
+        { 38224, &AuraDummyApplyGenericGenderIllusion },
+        { 37096, &AuraDummyApplyGenericGenderIllusion },
+        { 46354, &AuraDummyApplyGenericGenderIllusion },
+        { 39850, &AuraDummyApplyGeneric39850 },
+        { 43873, &AuraDummyApplyGeneric43873 },
+        { 45963, &AuraDummyApplyGeneric45963 },
+        { 46637, &AuraDummyApplyGeneric46637 },
+        { 46699, &AuraDummyApplyGeneric46699 },
+        { 47190, &AuraDummyApplyGeneric47190 },
+        { 47563, &AuraDummyApplyGeneric47563 },
+        { 47593, &AuraDummyApplyGeneric47593 },
+        { 48143, &AuraDummyApplyGeneric48143 },
+        { 61187, &AuraDummyApplyGenericTwilightShift },
+        { 61190, &AuraDummyApplyGenericTwilightShift },
+        { 62061, &AuraDummyApplyGeneric62061 },
+        { 62109, &AuraDummyApplyGeneric62109 },
+        { 63122, &AuraDummyApplyGeneric63122 },
+        { 63624, &AuraDummyApplyGeneric63624 },
+        { 63651, &AuraDummyApplyGeneric63651 },
+        { 64132, &AuraDummyApplyGeneric64132 },
+        { 65684, &AuraDummyApplyGeneric65684 },
+        { 65686, &AuraDummyApplyGeneric65686 },
+        { 68912, &AuraDummyApplyGeneric68912 },
+        { 70623, &AuraDummyApplyGeneric70623 },
+        { 70638, &AuraDummyApplyGeneric70638 },
+        { 71563, &AuraDummyApplyGeneric71563 },
+    };
+
     static AuraDummyRow<AuraDummyApplyWarriorSite> const warriorApply[] =
     {
         { 41099, &AuraDummyApplyWarrior41099 },
@@ -764,7 +1118,8 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 61336, &AuraDummyDruid61336 },
     };
 
-    uint32 rows = RegisterAuraDummyRows(registry, warriorApply);
+    uint32 rows = RegisterAuraDummyRows(registry, genericApply);
+    rows += RegisterAuraDummyRows(registry, warriorApply);
     rows += RegisterAuraDummyRows(registry, questTame);
     rows += RegisterAuraDummyRows(registry, removal);
     rows += RegisterAuraDummyRows(registry, feignDeath);

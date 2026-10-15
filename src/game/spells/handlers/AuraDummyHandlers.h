@@ -49,6 +49,26 @@ struct AuraDummyApplyContext
     Unit*& target;      ///< the function's local `Unit* target = GetTarget();`
 };
 
+/// The live-out locals of `Aura::HandleAuraDummy` at the AT APPLY generic switch: the aura, `target` and the timer.
+struct AuraDummyApplyGenericContext
+{
+    AuraDummyApplyGenericContext(Aura* thisAura, Unit*& targetLocal, int32& periodicTimerMember)
+        : aura(thisAura), target(targetLocal), m_periodicTimer(periodicTimerMember) {}
+
+    Aura* const aura;          ///< `this` in the case bodies
+    Unit*& target;             ///< the function's local `Unit* target = GetTarget();`
+    int32& m_periodicTimer;    ///< the aura's own `m_periodicTimer`
+};
+
+/// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_GENERIC's `switch (GetId())`: no `default:`; a miss runs the
+/// switch that still holds the other labels.
+struct AuraDummyApplyGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_APPLY_GENERIC;
+    typedef void Value;
+    typedef AuraDummyApplyGenericContext Context;
+};
+
 /// `Aura::HandleAuraDummy`, AT APPLY, SPELLFAMILY_WARRIOR's `switch (GetId())`: no `default:`,
 /// so a miss continues at the Overpower block after it.
 struct AuraDummyApplyWarriorSite
