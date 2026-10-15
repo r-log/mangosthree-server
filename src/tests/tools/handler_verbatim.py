@@ -2347,6 +2347,16 @@ def self_test():
            "the substitution 'Fixture::QueueRead(' matches no code in the function",
            '    ::Fixture::QueueRead(accountId);', '    ::WorldSession::QueueRead(accountId);', [moved],
            others=SELF_MULTI_MOVES)
+    for label, pair, new_line, base_line in (
+            ('a moved-static pair whose new side runs on past the call fails',
+             ('Fixture::QueueRead(Evil(), ', 'WorldSession::QueueRead('),
+             '    Fixture::QueueRead(Evil(), accountId);', '    WorldSession::QueueRead(accountId);'),
+            ('a moved-static pair whose base side names another class fails',
+             ('Fixture::QueueRead(', 'Other::QueueRead('),
+             '    Fixture::QueueRead(accountId);', '    Other::QueueRead(accountId);')):
+        run(label, 1, 'nor a static called through the class it moved to', 1,
+            swap=(lead[0], new_line + '\n' + lead[0]), base=SELF_BASE.replace(lead[1], base_line + '\n' + lead[1]),
+            substitutions=[pair], others=SELF_MULTI_MOVES)
     called('a moved-static pair whose session header git does not hold fails', 1,
            "the substitution 'Fixture::QueueRead(' -> 'WorldSession::QueueRead(': cannot read "
            "src/game/Server/WorldSession.h at fixture", *queued, [moved], others=SELF_MULTI_MOVES,
