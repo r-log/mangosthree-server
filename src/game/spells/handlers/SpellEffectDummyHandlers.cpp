@@ -31,20 +31,510 @@
 #include "WorldHandlers/GridNotifiers.h"
 #include "WorldHandlers/GridNotifiersImpl.h"
 #include "WorldHandlers/Map.h"
+#include "WorldHandlers/SpellAuras.h"
+#include "BattleGround/BattleGround.h"
 #include "Object/Creature.h"
 #include "Object/CreatureAI.h"
 #include "Object/GameObject.h"
 #include "Object/Pet.h"
 #include "Object/SpellMgr.h"
 #include "Server/DBCStores.h"
+#include "Server/WorldSession.h"
 #include "Utilities/Util.h"
 #include "entities/player/Player.h"
+#include "Opcodes.h"
+#include "WorldPacket.h"
 #include <algorithm>
 #include <ctime>
 #include <iterator>
 #include <list>
 #include <random>
 #include <vector>
+
+/// 3360: Curse of the Eye: the caster casts on the unit target, if any, Curse of the Eye (10651) for a male target,
+/// otherwise Curse of the Eye (10653); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCurseOfTheEye(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = (ctx.unitTarget->getGender() == GENDER_MALE) ? 10651 : 10653;
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, spell_id, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 7671: Transformation (the label says human to worgen): the unit target, if any, casts Transform Visual (24085) on
+/// itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTransformation(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Transform Visual
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 24085, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 8063: Deviate Fish: a player caster casts on itself one of Sleepy (8064), Invigorate (8065), Shrink (8066), Party
+/// Time! (8067) and Healthy Spirit (8068) at random; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDeviateFish(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+    switch (urand(1, 5))
+    {
+        case 1: spell_id = 8064; break;     // Sleepy
+        case 2: spell_id = 8065; break;     // Invigorate
+        case 3: spell_id = 8066; break;     // Shrink
+        case 4: spell_id = 8067; break;     // Party Time!
+        case 5: spell_id = 8068; break;     // Healthy Spirit
+    }
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 8213: Cooked Deviate Fish (the label says Savory Deviate Delight): a player caster casts on itself, at even odds,
+/// Flip Out (8219 for a male caster, 8220 otherwise) or Yaaarrrr (8221 for a male caster, 8222 otherwise); the effect
+/// ends
+static SpellHandlerOutcome<void> EffectDummyGenericCookedDeviateFish(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+    switch (urand(1, 2))
+    {
+        // Flip Out - ninja
+        case 1: spell_id = (ctx.m_caster->getGender() == GENDER_MALE ? 8219 : 8220); break;
+        // Yaaarrrr - pirate
+        case 2: spell_id = (ctx.m_caster->getGender() == GENDER_MALE ? 8221 : 8222); break;
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 9976: Polly Eats the E.C.A.C.: a creature target casts Summon Polly Jr. (9998) on itself and despawns after a tenth
+/// of a second; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericPollyEatsTheECAC(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Summon Polly Jr.
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 9998, true);
+
+    ((Creature*)ctx.unitTarget)->ForcedDespawn(100);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 13120: Net-o-Matic: the caster casts on the unit target, if any, one of the three Net-o-Matic spells by a roll of a
+/// hundred: 16566 (a self root) under 2, 13119 (a root and a charge) under 4, otherwise 13099; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericNetOMatic(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+
+    uint32 roll = urand(0, 99);
+
+    if (roll < 2)                           // 2% for 30 sec self root (off-like chance unknown)
+    {
+        spell_id = 16566;
+    }
+    else if (roll < 4)                      // 2% for 20 sec root, charge to target (off-like chance unknown)
+    {
+        spell_id = 13119;
+    }
+    else                                    // normal root
+    {
+        spell_id = 13099;
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, spell_id, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 13489: Burning Spirit (the label has no name): the unit target, if any, casts Burning Spirit (14744) on itself; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericBurningSpirit(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 14744, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 13567: Dummy Trigger: with a triggering aura and a unit target, the caster casts on the target the spell the
+/// triggering aura chooses, Persistent Shield (26470) with the effect's damage as its first value for Persistent Shield
+/// (26467), and logs an error for any other aura; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDummyTrigger(SpellEffectDummyGenericContext& ctx)
+{
+    // can be used for different aura triggering, so select by aura
+    if (!ctx.m_triggeredByAuraSpell || !ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    switch (ctx.m_triggeredByAuraSpell->ID)
+    {
+        case 26467:                         // Persistent Shield
+            ctx.m_caster->CastCustomSpell(ctx.unitTarget, 26470, &ctx.damage, NULL, NULL, true);
+            break;
+        default:
+            sLog.outError("EffectDummy: Non-handled case for spell 13567 for triggered aura %u", ctx.m_triggeredByAuraSpell->ID);
+            break;
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 14537: Six Demon Bag: the caster casts through the cast item, by a roll of a hundred, Fireball (15662) under 25,
+/// Frostbolt (11538) under 50, Chain Lightning (21179) under 70 or Polymorph (14621) under 77 on the unit target, if
+/// any, Polymorph (14621) on itself under 80, Enveloping Winds (25189) on the target under 95, otherwise Summon
+/// Felhound Minion (14642) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSixDemonBag(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Unit* newTarget = ctx.unitTarget;
+    uint32 spell_id = 0;
+    uint32 roll = urand(0, 99);
+    if (roll < 25)                          // Fireball (25% chance)
+    {
+        spell_id = 15662;
+    }
+    else if (roll < 50)                     // Frostbolt (25% chance)
+    {
+        spell_id = 11538;
+    }
+    else if (roll < 70)                     // Chain Lighting (20% chance)
+    {
+        spell_id = 21179;
+    }
+    else if (roll < 77)                     // Polymorph (10% chance, 7% to target)
+    {
+        spell_id = 14621;
+    }
+    else if (roll < 80)                     // Polymorph (10% chance, 3% to self, backfire)
+    {
+        spell_id = 14621;
+        newTarget = ctx.m_caster;
+    }
+    else if (roll < 95)                     // Enveloping Winds (15% chance)
+    {
+        spell_id = 25189;
+    }
+    else                                    // Summon Felhund minion (5% chance)
+    {
+        spell_id = 14642;
+        newTarget = ctx.m_caster;
+    }
+
+    ctx.m_caster->CastSpell(newTarget, spell_id, true, ctx.m_CastItem);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 15998: Capture Worg Pup; 29435: Capture Female Kaliri Hatchling: a creature target despawns; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCaptureWorgPupKaliriHatchling(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Creature* creatureTarget = (Creature*)ctx.unitTarget;
+
+    creatureTarget->ForcedDespawn();
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 16589: Noggenfogger Elixir: a player caster casts on itself one of the three Noggenfogger Elixir spells (16595,
+/// 16593 or 16591) at random; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericNoggenfoggerElixir(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+    switch (urand(1, 3))
+    {
+        case 1: spell_id = 16595; break;
+        case 2: spell_id = 16593; break;
+        default: spell_id = 16591; break;
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 17009: Voodoo: the caster casts on a player target one of Hex (16707, 16708 or 16709), Grow (16711), Special Brew
+/// (16712), Ghostly (16713) and Launch (16716) at random, as from the original caster and triggered by this spell; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericVoodoo(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+    switch (urand(0, 6))
+    {
+        case 0: spell_id = 16707; break;    // Hex
+        case 1: spell_id = 16708; break;    // Hex
+        case 2: spell_id = 16709; break;    // Hex
+        case 3: spell_id = 16711; break;    // Grow
+        case 4: spell_id = 16712; break;    // Special Brew
+        case 5: spell_id = 16713; break;    // Ghostly
+        case 6: spell_id = 16716; break;    // Launch
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, spell_id, true, NULL, NULL, ctx.m_originalCasterGUID, ctx.m_spellInfo);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 17251: Spirit Healer Res: with a unit target and a player as the affective caster, that player's session is sent
+/// SMSG_SPIRIT_HEALER_CONFIRM naming the target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSpiritHealerRes(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Unit* caster = ctx.spell->GetAffectiveCaster();
+
+    if (caster && caster->GetTypeId() == TYPEID_PLAYER)
+    {
+        WorldPacket data(SMSG_SPIRIT_HEALER_CONFIRM, 8);
+        data << ctx.unitTarget->GetObjectGuid();
+        ((Player*)caster)->GetSession()->SendPacket(&data);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 17271: Test Fetid Skull: with an item target or a player caster, the caster casts on itself Create Resonating Skull
+/// (17269) or Create Bone Dust (17270) at even odds; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTestFetidSkull(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.itemTarget && ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = urand(0, 1)
+                      ? 17269               // Create Resonating Skull
+                      : 17270;              // Create Bone Dust
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 17770: Wolfshead Helm Energy: the caster casts Wolfshead Helm Energy (29940) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericWolfsheadHelmEnergy(SpellEffectDummyGenericContext& ctx)
+{
+    ctx.m_caster->CastSpell(ctx.m_caster, 29940, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 17950: Shadow Portal: the caster casts on the unit target, if any, one of the six Shadow Portal spells (17863,
+/// 17939, 17943, 17944, 17946 or 17948) at random; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericShadowPortal(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Shadow Portal
+    const uint32 spell_list[6] = {17863, 17939, 17943, 17944, 17946, 17948};
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, spell_list[urand(0, 5)], true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 19395: Gordunni Trap: a player target casts on itself 19394 or 11756 at even odds, two ids the client does not hold;
+/// the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericGordunniTrap(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, urand(0, 1) ? 19394 : 11756, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 19411, 20474: Lava Bomb: with a unit target, a game object of entry 177704 is created in the target's map at the
+/// target's position and facing and in the caster's phase, with half a minute's respawn time, its template's trap level
+/// and this spell's id, and added to the map; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericLavaBomb(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Hack alert!
+    // This dummy are expected to cast spell 20494 to summon GO entry 177704
+    // Spell does not exist client side, so we have to make a hack, creating the GO (SPELL_EFFECT_SUMMON_OBJECT_WILD)
+    // Spell should appear in both SMSG_SPELL_START/GO and SMSG_SPELLLOGEXECUTE
+
+    // For later, creating custom spell
+    // _START: packguid: target, cast flags: 0xB, TARGET_FLAG_SELF
+    // _GO: packGuid: target, cast flags: 0x4309, TARGET_FLAG_DEST_LOCATION
+    // LOG: spell: 20494, effect, pguid: goguid
+
+    GameObject* pGameObj = new GameObject;
+
+    Map* map = ctx.unitTarget->GetMap();
+
+    if (!pGameObj->Create(map->GenerateLocalLowGuid(HIGHGUID_GAMEOBJECT), 177704,
+                          map, ctx.m_caster->GetPhaseMask(),
+                          ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z(),
+                          ctx.unitTarget->Where().Facing()))
+    {
+        delete pGameObj;
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    DEBUG_LOG("Gameobject, create custom in SpellEffects.cpp EffectDummy");
+
+    // Expect created without owner, but with level from _template
+    pGameObj->SetRespawnTime(MINUTE / 2);
+    pGameObj->SetUInt32Value(GAMEOBJECT_LEVEL, pGameObj->GetGOInfo()->trap.level);
+    pGameObj->SetSpellId(ctx.m_spellInfo->ID);
+
+    map->Add(pGameObj);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 19869: Dragon Orb: a player target without Mind Exhaustion (23958) casts Possess (19832) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDragonOrb(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || ctx.unitTarget->HasAura(23958))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 19832, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 20037: Explode Orb Effect: the unit target, if any, casts Explosion (20038) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericExplodeOrbEffect(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 20038, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 20577: Cannibalize: with a unit target, the caster casts Cannibalize (20578) on itself, not triggered; the effect
+/// ends
+static SpellHandlerOutcome<void> EffectDummyGenericCannibalize(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.unitTarget)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 20578, false, NULL);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 21147: Arcane Vacuum: the threat the unit target, if any, holds on the caster's list, when it is not zero, is cut by
+/// a hundred percent, and the caster casts Summon Player (21150) on the target; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericArcaneVacuum(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Spell used by Azuregos to teleport all the players to him
+    // This also resets the target threat
+    if (ctx.m_caster->GetThreatManager().getThreat(ctx.unitTarget))
+    {
+        ctx.m_caster->GetThreatManager().modifyThreatPercent(ctx.unitTarget, -100);
+    }
+
+    // cast summon player
+    ctx.m_caster->CastSpell(ctx.unitTarget, 21150, true);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 23019: Crystal Prison Dummy DND: for a living creature target that is no pet, a game object of entry 179644 is
+/// created in the target's map at the target's position and facing and in the caster's phase, with the time to the
+/// target's respawn as its respawn time, the caster as its owner, the caster's level and this spell's id; the target
+/// despawns and the object is added to the map; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericCrystalPrisonDummyDND(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || !ctx.unitTarget->IsAlive() || ctx.unitTarget->GetTypeId() != TYPEID_UNIT || ctx.unitTarget->IsPet())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Creature* creatureTarget = (Creature*)ctx.unitTarget;
+    if (creatureTarget->IsPet())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    GameObject* pGameObj = new GameObject;
+
+    Map* map = creatureTarget->GetMap();
+
+    // create before death for get proper coordinates
+    if (!pGameObj->Create(map->GenerateLocalLowGuid(HIGHGUID_GAMEOBJECT), 179644, map, ctx.m_caster->GetPhaseMask(),
+                          creatureTarget->Where().X(), creatureTarget->Where().Y(), creatureTarget->Where().Z(),
+                          creatureTarget->Where().Facing()))
+    {
+        delete pGameObj;
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    pGameObj->SetRespawnTime(creatureTarget->GetRespawnTime() - time(NULL));
+    pGameObj->SetOwnerGuid(ctx.m_caster->GetObjectGuid());
+    pGameObj->SetUInt32Value(GAMEOBJECT_LEVEL, ctx.m_caster->getLevel());
+    pGameObj->SetSpellId(ctx.m_spellInfo->ID);
+
+    creatureTarget->ForcedDespawn();
+
+    DEBUG_LOG("AddObject at SpellEfects.cpp EffectDummy");
+    map->Add(pGameObj);
+
+    return SpellHandlerOutcome<void>::Return();
+}
 
 /// 23074: Arcanite Dragonling: with a cast item, the caster casts Arcanite Dragonling (19804) on itself through the
 /// item; the effect ends
@@ -1804,6 +2294,401 @@ static SpellHandlerOutcome<void> EffectDummyGenericDiggingForTreasurePing(SpellE
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// 51582: Rocket Boots Engaged (the label adds Rocket Boots Xtreme and Rocket Boots Xtreme Lite): a player caster in a
+/// battleground reports its dropped flag to it, and casts Rocket Boots Engaged (30452) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericRocketBootsEngaged(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (BattleGround* bg = ((Player*)ctx.m_caster)->GetBattleGround())
+    {
+        bg->EventPlayerDroppedFlag((Player*)ctx.m_caster);
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, 30452, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51840: Despawn Fruit Tosser: a creature target casts on the caster Summon Adventurous Dwarf (52070) one time in
+/// five, otherwise one of Bananas Fall to Ground (51836), Orange Falls to Ground (51837) and Papaya Falls to Ground
+/// (51839) at random, and despawns after five seconds; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDespawnFruitTosser(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (roll_chance_i(20))
+    {
+        // summon NPC, or...
+        ctx.unitTarget->CastSpell(ctx.m_caster, 52070, true);
+    }
+    else
+    {
+        // ...drop banana, orange or papaya
+        switch (urand(0, 2))
+        {
+            case 0: ctx.unitTarget->CastSpell(ctx.m_caster, 51836, true); break;
+            case 1: ctx.unitTarget->CastSpell(ctx.m_caster, 51837, true); break;
+            case 2: ctx.unitTarget->CastSpell(ctx.m_caster, 51839, true); break;
+        }
+    }
+
+    ((Creature*)ctx.unitTarget)->ForcedDespawn(5000);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51964: Tormentor's Incense: a creature target with an AI attacks the caster; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTormentorsIncense(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // This might not be the best way, and effect may need some adjustment. Removal of any aura from surrounding dummy creatures?
+    if (((Creature*)ctx.unitTarget)->AI())
+    {
+        ((Creature*)ctx.unitTarget)->AI()->AttackStart(ctx.m_caster);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 51858: Siphon of Acherus: with an original caster and a creature target, the player the original caster is, is owned
+/// by or is charmed by gets the target's kill credit; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSiphonOfAcherus(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.m_originalCaster || !ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (Player* pPlayer = ctx.m_originalCaster->GetCharmerOrOwnerPlayerOrPlayerItself())
+    {
+        pPlayer->KilledMonsterCredit(ctx.unitTarget->GetEntry(), ctx.unitTarget->GetObjectGuid());
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 52308: Take Sputum Sample: on the first effect, a caster with the aura the second effect's value names casts on
+/// itself the spell the first effect's value names; the second and third effects do nothing; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericTakeSputumSample(SpellEffectDummyGenericContext& ctx)
+{
+    switch(ctx.effect->EffectIndex)
+    {
+        case EFFECT_INDEX_0:
+        {
+            uint32 spellID = ctx.m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_0);
+            uint32 reqAuraID = ctx.m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_1);
+
+            if (ctx.m_caster->HasAura(reqAuraID, EFFECT_INDEX_0))
+            {
+                ctx.m_caster->CastSpell(ctx.m_caster, spellID, true, NULL);
+            }
+            return SpellHandlerOutcome<void>::Return();
+        }
+        case EFFECT_INDEX_1:                // additional data for dummy[0]
+        case EFFECT_INDEX_2:
+            return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 52369, 52371: Detonate Explosives: the unit target, if any, casts Cosmetic - Explosion (46419) on itself, and every
+/// game object 182071 within the spell's range of the target that is not spawned is spawned for half a minute; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericDetonateExplosives(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Cosmetic - Explosion
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 46419, true);
+
+    // look for gameobjects within max spell range of unitTarget, and respawn if found
+    std::list<GameObject*> lList;
+
+    float fMaxDist = GetSpellMaxRange(sSpellRangeStore.LookupEntry(ctx.m_spellInfo->RangeIndex));
+
+    MaNGOS::GameObjectEntryInPosRangeCheck go_check(*ctx.unitTarget, 182071, ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z(), fMaxDist);
+    MaNGOS::GameObjectListSearcher<MaNGOS::GameObjectEntryInPosRangeCheck> checker(lList, go_check);
+
+    Cell::VisitGridObjects(ctx.unitTarget, checker, fMaxDist);
+
+    for (std::list<GameObject*>::iterator iter = lList.begin(); iter != lList.end(); ++iter)
+    {
+        if (!(*iter)->isSpawned())
+        {
+            (*iter)->SetRespawnTime(MINUTE / 2);
+            (*iter)->Refresh();
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 52759: Ancestral Awakening: the caster casts on the unit target, if any, Ancestral Awakening (52752) with the
+/// effect's damage as its first value; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericAncestralAwakening(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastCustomSpell(ctx.unitTarget, 52752, &ctx.damage, NULL, NULL, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 52845: Brewfest Mount Transformation (Faction Swap): a mounted player caster loses its mount auras and casts on
+/// itself, for the Horde, Swift Brewfest Ram (43900) at a run speed rate of two or more and Brewfest Ram (43899) below
+/// it, otherwise Great Brewfest Kodo (49379) or Brewfest Riding Kodo (49378) by the same rate; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericBrewfestMountFactionSwap(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (!ctx.m_caster->HasAuraType(SPELL_AURA_MOUNTED))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+
+    // Ram for Horde, Kodo for Alliance
+    if (((Player*)ctx.m_caster)->GetTeam() == HORDE)
+    {
+        if (ctx.m_caster->GetSpeedRate(MOVE_RUN) >= 2.0f)
+            // Swift Brewfest Ram, 100% Ram
+            ctx.m_caster->CastSpell(ctx.m_caster, 43900, true);
+        else
+            // Brewfest Ram, 60% Ram
+            ctx.m_caster->CastSpell(ctx.m_caster, 43899, true);
+    }
+    else
+    {
+        if (((Player*)ctx.m_caster)->GetSpeedRate(MOVE_RUN) >= 2.0f)
+            // Great Brewfest Kodo, 100% Kodo
+            ctx.m_caster->CastSpell(ctx.m_caster, 49379, true);
+        else
+            // Brewfest Riding Kodo, 60% Kodo
+            ctx.m_caster->CastSpell(ctx.m_caster, 49378, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 53341: Rune of Cinderglacier; 53343: Rune of Razorice: the caster casts Runeforging Credit (54586) on itself; the
+/// effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericRuneOfCinderglacierRazorice(SpellEffectDummyGenericContext& ctx)
+{
+    // Runeforging Credit
+    ctx.m_caster->CastSpell(ctx.m_caster, 54586, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 53475: Set Oracle Faction Friendly; 53487: Set Wolvar Faction Honored; 54015: Set Oracle Faction Honored: on the
+/// first effect, a player caster whose base reputation with the faction the first effect's base points name is below
+/// the second effect's base points has that reputation set to them; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericSetOracleWolvarFaction(SpellEffectDummyGenericContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (ctx.effect->EffectIndex == EFFECT_INDEX_0)
+    {
+        Player* pPlayer = (Player*)ctx.m_caster;
+
+        uint32 faction_id = ctx.m_currentBasePoints[ctx.effect->EffectIndex];
+        int32  rep_change = ctx.m_currentBasePoints[EFFECT_INDEX_1];
+
+        FactionEntry const* factionEntry = sFactionStore.LookupEntry(faction_id);
+
+        if (!factionEntry)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        // Set rep to baserep + basepoints (expecting spillover for oposite faction -> become hated)
+        // Not when player already has equal or higher rep with this faction
+        if (pPlayer->GetReputationMgr().GetBaseReputation(factionEntry) < rep_change)
+        {
+            pPlayer->SetReputation(factionEntry, rep_change);
+        }
+
+        // EFFECT_INDEX_2 most likely update at war state, we already handle this in SetReputation
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 53808: Pygmy Oil: a caster holding Pygmy Oil (53805) loses it and casts Pygmy Oil (53806) on itself with a chance of
+/// five percent per stack; otherwise a caster without Pygmy Oil (53806) casts Pygmy Oil (53805) on itself; the effect
+/// ends
+static SpellHandlerOutcome<void> EffectDummyGenericPygmyOil(SpellEffectDummyGenericContext& ctx)
+{
+    const uint32 spellShrink = 53805;
+    const uint32 spellTransf = 53806;
+
+    if (SpellAuraHolder* holder = ctx.m_caster->GetSpellAuraHolder(spellShrink))
+    {
+        // chance to become pygmified (5, 10, 15 etc)
+        if (roll_chance_i(holder->GetStackAmount() * 5))
+        {
+            ctx.m_caster->RemoveAurasDueToSpell(spellShrink);
+            ctx.m_caster->CastSpell(ctx.m_caster, spellTransf, true);
+            return SpellHandlerOutcome<void>::Return();
+        }
+    }
+
+    if (ctx.m_caster->HasAura(spellTransf))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spellShrink, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 54577: Throw U.D.E.D.: a creature target casts Permanent Feign Death (29266) on itself, despawns after two seconds,
+/// and casts Mammoth Explosion Spell Spawner (54581) on itself through the cast item; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericThrowUDED(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Sometimes issues with explosion animation. Unclear why
+    // but possibly caused by the order of spells.
+
+    // Permanent Feign Death
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 29266, true);
+
+    // need to despawn later
+    ((Creature*)ctx.unitTarget)->ForcedDespawn(2000);
+
+    // Mammoth Explosion Spell Spawner
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 54581, true, ctx.m_CastItem);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 54850: Emerge: the caster casts Emerge Summon (54851) on itself; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericEmerge(SpellEffectDummyGenericContext& ctx)
+{
+    // Cast Emerge summon
+    ctx.m_caster->CastSpell(ctx.m_caster, 54851, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 54092: Monster Slayer's Kit: the caster casts on the unit target, if any, one of Monster Slayer's Axe (51853),
+/// Monster Slayer's Symbol (54063), Monster Slayer's Dagger (54071) and Monster Slayer's Holy Water (54086) at random;
+/// the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericMonsterSlayersKit(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellIds[] = {51853, 54063, 54071, 54086};
+    ctx.m_caster->CastSpell(ctx.unitTarget, spellIds[urand(0, 3)], true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 55004: Nitro Boosts: with a cast item, the caster casts on itself through the item Nitro Boosts (54861) ninety-five
+/// times in a hundred, otherwise Knocked Up (46014); the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericNitroBoosts(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.m_CastItem)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (roll_chance_i(95))                  // Nitro Boosts - success
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 54861, true, ctx.m_CastItem);
+    }
+    else                                    // Knocked Up   - backfire 5%
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 46014, true, ctx.m_CastItem);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 55818: Hurl Boulder: the caster casts Summon Earthen (55528) on itself three to five times; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericHurlBoulder(SpellEffectDummyGenericContext& ctx)
+{
+    // unclear how many summon min/max random, best guess below
+    uint32 random = urand(3, 5);
+
+    for (uint32 i = 0; i < random; ++i)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 55528, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 56430: Arcane Bomb: the unit target, if any, casts Arcane Bomb (56431) and Arcane Overload (56432) on itself as from
+/// the caster; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericArcaneBomb(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 56431, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 56432, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 57578: Lava Strike: the caster casts on the unit target, if any, the spell the effect's value names; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericLavaStrike(SpellEffectDummyGenericContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 57908: Stain Cloth: the spell finishes, the caster casts Create Cloth (57915) on itself through the cast item, not
+/// triggered, and the cast item is cleared; the effect goes on to the script library
+static SpellHandlerOutcome<void> EffectDummyGenericStainCloth(SpellEffectDummyGenericContext& ctx)
+{
+    // nothing do more
+    ctx.spell->finish();
+
+    ctx.m_caster->CastSpell(ctx.m_caster, 57915, false, ctx.m_CastItem);
+
+    // cast item deleted
+    ctx.spell->ClearCastItem();
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 58418: Portal to Orgrimmar; 58420: Portal to Stormwind: the script library implements them, and the server does
+/// nothing here; the effect ends
+static SpellHandlerOutcome<void> EffectDummyGenericPortalToOrgrimmarStormwind(SpellEffectDummyGenericContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Return();                                 // implemented in EffectScript[0]
+}
+
 /// 58601: Remove Flight Auras: the caster loses the spells that give it the fly and the mounted flight speed auras; the
 /// effect ends
 static SpellHandlerOutcome<void> EffectDummyGenericRemoveFlightAuras(SpellEffectDummyGenericContext& ctx)
@@ -2879,6 +3764,31 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
 {
     static SpellEffectDummyRow<SpellEffectDummyGenericSite> const generic[] =
     {
+        { 3360, &EffectDummyGenericCurseOfTheEye },
+        { 7671, &EffectDummyGenericTransformation },
+        { 8063, &EffectDummyGenericDeviateFish },
+        { 8213, &EffectDummyGenericCookedDeviateFish },
+        { 9976, &EffectDummyGenericPollyEatsTheECAC },
+        { 13120, &EffectDummyGenericNetOMatic },
+        { 13489, &EffectDummyGenericBurningSpirit },
+        { 13567, &EffectDummyGenericDummyTrigger },
+        { 14537, &EffectDummyGenericSixDemonBag },
+        { 15998, &EffectDummyGenericCaptureWorgPupKaliriHatchling },
+        { 29435, &EffectDummyGenericCaptureWorgPupKaliriHatchling },
+        { 16589, &EffectDummyGenericNoggenfoggerElixir },
+        { 17009, &EffectDummyGenericVoodoo },
+        { 17251, &EffectDummyGenericSpiritHealerRes },
+        { 17271, &EffectDummyGenericTestFetidSkull },
+        { 17770, &EffectDummyGenericWolfsheadHelmEnergy },
+        { 17950, &EffectDummyGenericShadowPortal },
+        { 19395, &EffectDummyGenericGordunniTrap },
+        { 19411, &EffectDummyGenericLavaBomb },
+        { 20474, &EffectDummyGenericLavaBomb },
+        { 19869, &EffectDummyGenericDragonOrb },
+        { 20037, &EffectDummyGenericExplodeOrbEffect },
+        { 20577, &EffectDummyGenericCannibalize },
+        { 21147, &EffectDummyGenericArcaneVacuum },
+        { 23019, &EffectDummyGenericCrystalPrisonDummyDND },
         { 23074, &EffectDummyGenericArcaniteDragonling },
         { 23075, &EffectDummyGenericMithrilMechanicalDragonling },
         { 23076, &EffectDummyGenericMechanicalDragonling },
@@ -2999,6 +3909,31 @@ uint32 RegisterSpellEffectDummyHandlers(SpellHandlerRegistry& registry)
         { 51333, &EffectDummyGenericDigForTreasure },
         { 51336, &EffectDummyGenericMagicPull },
         { 51420, &EffectDummyGenericDiggingForTreasurePing },
+        { 51582, &EffectDummyGenericRocketBootsEngaged },
+        { 51840, &EffectDummyGenericDespawnFruitTosser },
+        { 51964, &EffectDummyGenericTormentorsIncense },
+        { 51858, &EffectDummyGenericSiphonOfAcherus },
+        { 52308, &EffectDummyGenericTakeSputumSample },
+        { 52369, &EffectDummyGenericDetonateExplosives },
+        { 52371, &EffectDummyGenericDetonateExplosives },
+        { 52759, &EffectDummyGenericAncestralAwakening },
+        { 52845, &EffectDummyGenericBrewfestMountFactionSwap },
+        { 53341, &EffectDummyGenericRuneOfCinderglacierRazorice },
+        { 53343, &EffectDummyGenericRuneOfCinderglacierRazorice },
+        { 53475, &EffectDummyGenericSetOracleWolvarFaction },
+        { 53487, &EffectDummyGenericSetOracleWolvarFaction },
+        { 54015, &EffectDummyGenericSetOracleWolvarFaction },
+        { 53808, &EffectDummyGenericPygmyOil },
+        { 54577, &EffectDummyGenericThrowUDED },
+        { 54850, &EffectDummyGenericEmerge },
+        { 54092, &EffectDummyGenericMonsterSlayersKit },
+        { 55004, &EffectDummyGenericNitroBoosts },
+        { 55818, &EffectDummyGenericHurlBoulder },
+        { 56430, &EffectDummyGenericArcaneBomb },
+        { 57578, &EffectDummyGenericLavaStrike },
+        { 57908, &EffectDummyGenericStainCloth },
+        { 58418, &EffectDummyGenericPortalToOrgrimmarStormwind },
+        { 58420, &EffectDummyGenericPortalToOrgrimmarStormwind },
         { 58601, &EffectDummyGenericRemoveFlightAuras },
         { 59640, &EffectDummyGenericUnderbellyElixir },
         { 60932, &EffectDummyGenericDisengageCreature },
