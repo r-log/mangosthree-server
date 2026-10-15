@@ -60,12 +60,12 @@ enum GMTicketResponse
  * in can be found in:
  * - \ref WorldSession::SendGMTicketStatusUpdate
  * - \ref WorldSession::SendGMTicketGetTicket
- * - \ref WorldSession::HandleGMTicketGetTicketOpcode
- * - \ref WorldSession::HandleGMTicketUpdateTextOpcode
- * - \ref WorldSession::HandleGMTicketDeleteTicketOpcode
- * - \ref WorldSession::HandleGMTicketCreateOpcode
- * - \ref WorldSession::HandleGMTicketSystemStatusOpcode
- * - \ref WorldSession::HandleGMTicketSurveySubmitOpcode
+ * - \ref TicketHandlers::HandleGMTicketGetTicket
+ * - \ref TicketHandlers::HandleGMTicketUpdateText
+ * - \ref TicketHandlers::HandleGMTicketDeleteTicket
+ * - \ref TicketHandlers::HandleGMTicketCreate
+ * - \ref TicketHandlers::HandleGMTicketSystemStatus
+ * - \ref TicketHandlers::HandleGMTicketSurveySubmit
  * These in their turn will make calls to the \ref GMTicketMgr which will take
  * care of what needs to be done by giving back a \ref GMTicket. The database table interesting
  * in this case is character_ticket in the characaters database.

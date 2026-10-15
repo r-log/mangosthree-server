@@ -30,6 +30,7 @@
 
 #include "Auth/BigNumber.h"
 #include "Platform/Define.h"
+#include "SessionId.h"
 #include "WorldPacket.h"
 
 #include <memory>
@@ -38,16 +39,6 @@
 
 namespace proto
 {
-    /**
-     * @brief Opaque handle the world hands back for an attached session.
-     *
-     * The protocol layer never dereferences it; it only quotes it back on
-     * Deliver()/Detach(). Zero means "no session".
-     */
-    typedef uint32 SessionId;
-
-    static const SessionId INVALID_SESSION_ID = 0;
-
     /**
      * @brief Verdict codes as they go out in SMSG_AUTH_RESPONSE.
      *

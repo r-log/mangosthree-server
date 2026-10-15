@@ -52,6 +52,7 @@
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
+#include "session/handlers/social/TicketHandlers.h"
 
 /**
  * @brief Define opcode handler
@@ -655,9 +656,9 @@ void InitializeOpcodes()
     OPCODE(CMSG_UNLEARN_SKILL,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &SkillHandlers::HandleUnlearnSkill             );
     OPCODE(SMSG_REMOVED_SPELL,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_DECHARGE,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_GMTICKET_CREATE,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketCreateOpcode      );
+    OPCODE(CMSG_GMTICKET_CREATE,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketCreate          );
     OPCODE(SMSG_GMTICKET_CREATE,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GMTICKET_UPDATETEXT,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketUpdateTextOpcode  );
+    OPCODE(CMSG_GMTICKET_UPDATETEXT,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketUpdateText      );
     OPCODE(SMSG_GMTICKET_UPDATETEXT,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_ACCOUNT_DATA_TIMES,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_REQUEST_ACCOUNT_DATA,                    STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleRequestAccountData        );
@@ -676,16 +677,16 @@ void InitializeOpcodes()
     OPCODE(SMSG_CHANGEPLAYER_DIFFICULTY_RESULT,          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_GM_TEACH,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_CREATE_ITEM_TARGET,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_GMTICKET_GETTICKET,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketGetTicketOpcode   );
+    OPCODE(CMSG_GMTICKET_GETTICKET,                      STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketGetTicket       );
     OPCODE(SMSG_GMTICKET_GETTICKET,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_UNLEARN_TALENTS,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_INSTANCE_ENCOUNTER,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_GAMEOBJECT_DESPAWN_ANIM,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(MSG_CORPSE_QUERY,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleCorpseQueryOpcode         );
-    OPCODE(CMSG_GMTICKET_DELETETICKET,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketDeleteTicketOpcode);
+    OPCODE(CMSG_GMTICKET_DELETETICKET,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketDeleteTicket    );
     OPCODE(SMSG_GMTICKET_DELETETICKET,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_CHAT_WRONG_FACTION,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GMTICKET_SYSTEMSTATUS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketSystemStatusOpcode);
+    OPCODE(CMSG_GMTICKET_SYSTEMSTATUS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketSystemStatus    );
     OPCODE(SMSG_GMTICKET_SYSTEMSTATUS,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_SPIRIT_HEALER_ACTIVATE,                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSpiritHealerActivateOpcode);
     //OPCODE(CMSG_SET_STAT_CHEAT,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
@@ -963,7 +964,7 @@ void InitializeOpcodes()
     //OPCODE(CMSG_GM_UPDATE_TICKET_STATUS,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_GM_TICKET_STATUS_UPDATE,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(MSG_SET_DUNGEON_DIFFICULTY,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSetDungeonDifficultyOpcode);
-    OPCODE(CMSG_GMSURVEY_SUBMIT,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketSurveySubmitOpcode);
+    OPCODE(CMSG_GMSURVEY_SUBMIT,                         STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMTicketSurveySubmit    );
     OPCODE(SMSG_UPDATE_INSTANCE_OWNERSHIP,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_IGNORE_KNOCKBACK_CHEAT,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(SMSG_CHAT_PLAYER_AMBIGUOUS,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
@@ -1416,7 +1417,7 @@ void InitializeOpcodes()
     //OPCODE(SMSG_XPGAIN,                                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_GMTICKET_RESPONSE_ERROR,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_GMTICKET_GET_RESPONSE,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_GMTICKET_RESOLVE_RESPONSE,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMResponseResolveOpcode   );
+    OPCODE(CMSG_GMTICKET_RESOLVE_RESPONSE,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &TicketHandlers::HandleGMResponseResolve       );
     OPCODE(SMSG_GMTICKET_RESOLVE_RESPONSE,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(SMSG_GMTICKET_CREATE_RESPONSE_TICKET,         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_GM_CREATE_TICKET_RESPONSE,               STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
