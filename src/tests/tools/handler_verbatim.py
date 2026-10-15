@@ -210,8 +210,8 @@ rename's name or reading back `session`, a text pair of another shape, holding a
 changing code (a line pair) or holding a line that is not a comment line or a blank line (a block), changing a
 literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block inside a
 comment, standing other than once (its new side in the moved function, its base side read back in the base
-function) or not alone, overlapping another, or holding an edit's new line, and an entry holding a key no entry
-admits or lacking one it needs.
+function) or not alone, overlapping another, or holding an edit's new line, texts that are not a list of pairs,
+and an entry holding a key no entry admits or lacking one it needs.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a text pair, a residue edit's block), fails: a compiler
 ends a line there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a
@@ -625,12 +625,15 @@ def conversions(literal):
 
 
 def read_texts(entry):
-    """[(new lines, base lines)] of an entry's texts: each (new line, base line), or (new block, base block),
-    a block one or more lines; no line holds a line break or ends in a line splice. A line pair reads the
-    same with each comment's text and each string literal's contents read as one mark, and each string literal
-    keeps its conversions; a block is comment lines and blank lines only, and ends outside any comment."""
+    """[(new lines, base lines)] of an entry's texts, a list of pairs: each (new line, base line), or (new block,
+    base block), a block one or more lines; no line holds a line break or ends in a line splice. A line pair
+    reads the same with each comment's text and each string literal's contents read as one mark, and each string
+    literal keeps its conversions; a block is comment lines and blank lines only, and ends outside any comment."""
     found = []
-    for t in entry.get('texts', []):
+    listed = entry.get('texts', [])
+    if not isinstance(listed, (tuple, list)):
+        raise Failure('the texts %r are not a list of text pairs' % (listed,))
+    for t in listed:
         pair = isinstance(t, (tuple, list)) and len(t) == 2
         if pair and all(isinstance(x, str) for x in t):
             new, base, block = [t[0]], [t[1]], False
@@ -2633,6 +2636,17 @@ def self_test():
             ('a text pair changing a comment beside an escaped literal passes',
              '    DEBUG_LOG("\\x25u", unk); // the value', '    DEBUG_LOG("\\x25u", unk); // the unk')):
         texted(label, 0, '(0 edits, 1 texts applied)', new_line, base_line, [(new_line, base_line)])
+    for label, new_line, base_line in (
+            ('a text pair whose base literal spells a conversion by a \\x escape fails',
+             '    DEBUG_LOG("x %s", unk, name);', '    DEBUG_LOG("x \\x25d %s", unk, name);'),
+            ('a text pair over a raw string holding \\x25 is refused as unread: fails',
+             '    DEBUG_LOG(R"(new \\x25s %s)", name);', '    DEBUG_LOG(R"(old \\x25s %s)", name);'),
+            ('a text pair over a harmless \\x41 escape is refused as unread: fails',
+             '    DEBUG_LOG("\\x41 val = %u", unk);', '    DEBUG_LOG("\\x41 unk = %u", unk);'),
+            ('a text pair over a "%" PRIu64 literal is refused as unread: fails',
+             '    DEBUG_LOG("val = %" PRIu64, big);', '    DEBUG_LOG("unk = %" PRIu64, big);')):
+        texted(label, 1, "the text pair %r %s" % (new_line, spelt[1]), new_line, base_line, [(new_line, base_line)])
+    run('an entry whose texts are None fails', 1, 'the texts None are not a list of text pairs', 1, texts=None)
     noted = ('    // the stop, read anew', '    // the stop')
     texted('a text pair changing a comment line passes', 0, '(0 edits, 1 texts applied)', *noted, [noted])
     texted('a text pair changing a trailing comment passes', 0, '(0 edits, 1 texts applied)',
