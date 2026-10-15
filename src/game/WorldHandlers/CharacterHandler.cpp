@@ -158,9 +158,7 @@ WorldSession* WorldSession::FindRequesterSession(uint32 accountId, proto::Sessio
  * The session check above plus the guid: the player reached through the session is compared
  * against the one the registry has under that guid, so a character swap on the same session
  * (a logout and a login of a different character between the request and the answer) is
- * caught as well as a reconnect. This was a file-local helper in PetitionsHandler.cpp from
- * D7b until D7g needed exactly the same four lines in the calendar, mail and item handlers;
- * PetitionsHandler's FindRequester() now forwards to it.
+ * caught as well as a reconnect.
  *
  * @param accountId The requesting account.
  * @param sessionId The session the request arrived on.
