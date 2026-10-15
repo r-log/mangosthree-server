@@ -23,22 +23,20 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-/**
- * @file ChannelHandler.cpp
- * @brief Channel-related opcode handlers
- */
+#include "session/handlers/social/ChannelHandlers.h"
 
 #include <string>
-#include "ObjectMgr.h"                                      // for normalizePlayerName
-#include "ChannelMgr.h"
-#include "OpcodeTable.h"                                        // for LookupOpcodeName
+#include "Object/ObjectMgr.h"
+#include "WorldHandlers/ChannelMgr.h"
+#include "Server/WorldSession.h"
+#include "Server/OpcodeTable.h"
 
 /**
  * @brief Handles a client's request to join a chat channel.
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleJoinChannelOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleJoinChannel(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
 
@@ -59,10 +57,10 @@ void WorldSession::HandleJoinChannelOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
         if (Channel* chn = cMgr->GetJoinChannel(channelname, channel_id))
         {
-            chn->Join(_player, pass.c_str());
+            chn->Join(session.GetPlayer(), pass.c_str());
         }
 }
 
@@ -71,7 +69,7 @@ void WorldSession::HandleJoinChannelOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleLeaveChannelOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleLeaveChannel(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -86,11 +84,11 @@ void WorldSession::HandleLeaveChannelOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
     {
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->Leave(_player, true);
+            chn->Leave(session.GetPlayer(), true);
         }
         cMgr->LeftChannel(channelname);
     }
@@ -101,16 +99,16 @@ void WorldSession::HandleLeaveChannelOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelListOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelList(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
     std::string channelname = recvPacket.ReadString(recvPacket.ReadBits(8));
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->List(_player);
+            chn->List(session.GetPlayer());
         }
 }
 
@@ -119,7 +117,7 @@ void WorldSession::HandleChannelListOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelPasswordOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelPassword(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -131,10 +129,10 @@ void WorldSession::HandleChannelPasswordOpcode(WorldPacket& recvPacket)
     channelname = recvPacket.ReadString(nameLen);
     pass = recvPacket.ReadString(passLen);
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->Password(_player, pass.c_str());
+            chn->Password(session.GetPlayer(), pass.c_str());
         }
 }
 
@@ -143,7 +141,7 @@ void WorldSession::HandleChannelPasswordOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelSetOwnerOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelSetOwner(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -161,10 +159,10 @@ void WorldSession::HandleChannelSetOwnerOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->SetOwner(_player->GetObjectGuid(), newp.c_str());
+            chn->SetOwner(session.GetPlayer()->GetObjectGuid(), newp.c_str());
         }
 }
 
@@ -173,16 +171,16 @@ void WorldSession::HandleChannelSetOwnerOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelOwnerOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelOwner(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
     std::string channelname = recvPacket.ReadString(recvPacket.ReadBits(8));
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->SendWhoOwner(_player);
+            chn->SendWhoOwner(session.GetPlayer());
         }
 }
 
@@ -191,7 +189,7 @@ void WorldSession::HandleChannelOwnerOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelModeratorOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelModerator(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -208,10 +206,10 @@ void WorldSession::HandleChannelModeratorOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->SetModerator(_player, otp.c_str());
+            chn->SetModerator(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -220,7 +218,7 @@ void WorldSession::HandleChannelModeratorOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelUnmoderatorOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelUnmoderator(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -237,10 +235,10 @@ void WorldSession::HandleChannelUnmoderatorOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->UnsetMute(_player, otp.c_str());
+            chn->UnsetMute(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -249,7 +247,7 @@ void WorldSession::HandleChannelUnmoderatorOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelMuteOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelMute(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -266,10 +264,10 @@ void WorldSession::HandleChannelMuteOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->SetMute(_player, otp.c_str());
+            chn->SetMute(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -278,7 +276,7 @@ void WorldSession::HandleChannelMuteOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelUnmuteOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelUnmute(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -295,10 +293,10 @@ void WorldSession::HandleChannelUnmuteOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->UnsetMute(_player, otp.c_str());
+            chn->UnsetMute(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -307,7 +305,7 @@ void WorldSession::HandleChannelUnmuteOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelInviteOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelInvite(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -324,10 +322,10 @@ void WorldSession::HandleChannelInviteOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->Invite(_player, otp.c_str());
+            chn->Invite(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -336,7 +334,7 @@ void WorldSession::HandleChannelInviteOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelKickOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelKick(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -353,10 +351,10 @@ void WorldSession::HandleChannelKickOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->Kick(_player, otp.c_str());
+            chn->Kick(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -365,7 +363,7 @@ void WorldSession::HandleChannelKickOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelBanOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelBan(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -382,10 +380,10 @@ void WorldSession::HandleChannelBanOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->Ban(_player, otp.c_str());
+            chn->Ban(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -394,7 +392,7 @@ void WorldSession::HandleChannelBanOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelUnbanOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelUnban(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
@@ -411,10 +409,10 @@ void WorldSession::HandleChannelUnbanOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->UnBan(_player, otp.c_str());
+            chn->UnBan(session.GetPlayer(), otp.c_str());
         }
 }
 
@@ -423,15 +421,15 @@ void WorldSession::HandleChannelUnbanOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelAnnouncementsOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelAnnouncements(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     //recvPacket.hexlike();
     std::string channelname = recvPacket.ReadString(recvPacket.ReadBits(8));
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->Announce(_player);
+            chn->Announce(session.GetPlayer());
         }
 }
 
@@ -440,15 +438,15 @@ void WorldSession::HandleChannelAnnouncementsOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleChannelDisplayListQueryOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleChannelDisplayListQuery(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();
     std::string channelname = recvPacket.ReadString(recvPacket.ReadBits(8));
-    if (ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
-        if (Channel* chn = cMgr->GetChannel(channelname, _player))
+    if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
+        if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->List(_player);
+            chn->List(session.GetPlayer());
         }
 }
 
@@ -457,7 +455,7 @@ void WorldSession::HandleChannelDisplayListQueryOpcode(WorldPacket& recvPacket)
  *
  * @param recvPacket The received opcode packet.
  */
-void WorldSession::HandleSetChannelWatchOpcode(WorldPacket& recvPacket)
+void ChannelHandlers::HandleSetChannelWatch(WorldSession& session, WorldPacket& recvPacket)
 {
     DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(recvPacket.GetOpcode()), recvPacket.GetOpcode(), recvPacket.GetOpcode());
     // recvPacket.hexlike();

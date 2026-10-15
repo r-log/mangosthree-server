@@ -45,14 +45,16 @@
 /// The CMSG_SOCKET_GEMS row reads an empty item guid to its end and, the guid naming no item,
 /// returns before it reads the player, sending nothing. The CMSG_LFG_JOIN row reads a join with no
 /// slot and no comment to its end and, the Dungeon Finder being off, returns before it reads the
-/// player, sending nothing. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name
-/// and an empty note to its end and, the name being empty, returns before it reads the player,
-/// sending nothing. The CMSG_GMTICKET_SYSTEMSTATUS row, given an empty packet on a session with no
-/// player, answers with one SMSG_GMTICKET_SYSTEMSTATUS carrying whether the ticket system accepts
-/// tickets. The CMSG_OFFER_PETITION row reads an offer of an empty petition guid to an empty player
-/// guid to its end and, the guid naming no player online, returns before it reads the player,
-/// sending nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill,
-/// enchant, pet, LFG, contact list, GM ticket or petition handler class holds the status
+/// player, sending nothing. The CMSG_JOIN_CHANNEL row reads a join of channel 0 with an empty name
+/// and an empty password to its end and, the name being empty, returns before it reads the player,
+/// sending nothing. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name and an
+/// empty note to its end and, the name being empty, returns before it reads the player, sending
+/// nothing. The CMSG_GMTICKET_SYSTEMSTATUS row, given an empty packet on a session with no player,
+/// answers with one SMSG_GMTICKET_SYSTEMSTATUS carrying whether the ticket system accepts tickets.
+/// The CMSG_OFFER_PETITION row reads an offer of an empty petition guid to an empty player guid to
+/// its end and, the guid naming no player online, returns before it reads the player, sending
+/// nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet,
+/// LFG, contact list, GM ticket, petition or chat channel handler class holds the status
 /// STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING,
 /// CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE
 /// row, of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
@@ -74,6 +76,7 @@
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
+#include "session/handlers/social/ChannelHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
@@ -99,6 +102,19 @@ namespace
         for (uint32 i = 0; i < NUM_MSG_TYPES; ++i)
         {
             if (opcodeTable[i].handler == handler)
+            {
+                ++slots;
+            }
+        }
+        return slots;
+    }
+
+    int CountSlotsBoundToEither(void (*first)(WorldSession&, WorldPacket&), void (*second)(WorldSession&, WorldPacket&))
+    {
+        int slots = 0;
+        for (uint32 i = 0; i < NUM_MSG_TYPES; ++i)
+        {
+            if (opcodeTable[i].handler == first || opcodeTable[i].handler == second)
             {
                 ++slots;
             }
@@ -812,6 +828,111 @@ TEST(OpcodeDispatch_LfgRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_LFG_LOCK_INFO_REQUEST].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_LFG_SET_BOOT_VOTE].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_LFG_SET_BOOT_VOTE].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_JoinChannelRowReturnsBeforeAnyPlayerRead)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket join(CMSG_JOIN_CHANNEL, 7);
+    join << uint32(0);
+    join << uint8(0);
+    join << uint8(0);
+    join << uint8(0);
+
+    opcodeTable[CMSG_JOIN_CHANNEL].handler(session, join);
+
+    CHECK_EQ(join.rpos(), size_t(7));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    // Two pairs of handlers have identical code (list and display list, unmoderator and unmute),
+    // and the Release linker may merge each pair into one function, so each pair is counted together.
+    CHECK(opcodeTable[CMSG_JOIN_CHANNEL].handler == &OpcodeThunk<&ChannelHandlers::HandleJoinChannel>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleJoinChannel>), 1);
+    CHECK(opcodeTable[CMSG_LEAVE_CHANNEL].handler == &OpcodeThunk<&ChannelHandlers::HandleLeaveChannel>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleLeaveChannel>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_LIST].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelList>);
+    CHECK(opcodeTable[CMSG_CHANNEL_PASSWORD].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelPassword>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelPassword>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_SET_OWNER].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelSetOwner>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelSetOwner>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_OWNER].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelOwner>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelOwner>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_MODERATOR].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelModerator>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelModerator>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_UNMODERATOR].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelUnmoderator>);
+    CHECK(opcodeTable[CMSG_CHANNEL_MUTE].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelMute>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelMute>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_UNMUTE].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelUnmute>);
+    CHECK_EQ(CountSlotsBoundToEither(&OpcodeThunk<&ChannelHandlers::HandleChannelUnmoderator>,
+                                     &OpcodeThunk<&ChannelHandlers::HandleChannelUnmute>), 2);
+    CHECK(opcodeTable[CMSG_CHANNEL_INVITE].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelInvite>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelInvite>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_KICK].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelKick>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelKick>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_BAN].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelBan>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelBan>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_UNBAN].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelUnban>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelUnban>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_ANNOUNCEMENTS].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelAnnouncements>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelAnnouncements>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_DISPLAY_LIST].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelDisplayListQuery>);
+    CHECK_EQ(CountSlotsBoundToEither(&OpcodeThunk<&ChannelHandlers::HandleChannelList>,
+                                     &OpcodeThunk<&ChannelHandlers::HandleChannelDisplayListQuery>), 2);
+    CHECK(opcodeTable[CMSG_SET_CHANNEL_WATCH].handler == &OpcodeThunk<&ChannelHandlers::HandleSetChannelWatch>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleSetChannelWatch>), 1);
+    CHECK(opcodeTable[CMSG_JOIN_CHANNEL].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_ChannelRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_JOIN_CHANNEL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_JOIN_CHANNEL].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_LEAVE_CHANNEL].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_LEAVE_CHANNEL].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_LIST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_LIST].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_PASSWORD].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_PASSWORD].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_SET_OWNER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_SET_OWNER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_OWNER].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_OWNER].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_MODERATOR].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_MODERATOR].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_UNMODERATOR].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_UNMODERATOR].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_MUTE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_MUTE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_UNMUTE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_UNMUTE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_INVITE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_INVITE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_KICK].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_KICK].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_BAN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_BAN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_UNBAN].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_UNBAN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_ANNOUNCEMENTS].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_ANNOUNCEMENTS].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_DISPLAY_LIST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_DISPLAY_LIST].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_CHANNEL_WATCH].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_SET_CHANNEL_WATCH].packetProcessing, PROCESS_THREADUNSAFE);
 }
 
 TEST(OpcodeDispatch_AddFriendRowReachesItsHandlerWithThePacket)
