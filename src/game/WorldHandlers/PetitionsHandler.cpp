@@ -39,7 +39,7 @@
  * A continuation cannot hold a pointer across that tick: the session may have gone and the
  * account logged in again, and the player may have been swapped for another character. So
  * every one of them captures identities (account id, session id, player guid, the request's
- * values) and re-finds both through FindRequester() below, doing nothing at all if either
+ * values) and re-finds both through WorldSession::FindRequesterPlayer, doing nothing at all if either
  * has changed.
  */
 
@@ -113,27 +113,6 @@ namespace
         PETITION_TURN_IN_SIGNATURES = 1,
         PETITION_TURN_IN_COUNT      = 2
     };
-
-    /**
-     * @brief Re-find the session and player a queued petition request came from (D7b, C1).
-     *
-     * Identities, never pointers: the account id and the session id pin the session the
-     * request arrived on (a reconnected account is a different session id), and the guid
-     * pins the character. A player found through the session is compared against the one
-     * the registry has under that guid, so a character swap on the same session is caught
-     * as well.
-     *
-     * @return false when either is gone or has been replaced -- the continuation then does
-     *         nothing, which is the same thing that happens today when a player logs out
-     *         with a request in flight.
-     */
-    bool FindRequester(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
-                       WorldSession*& session, Player*& player)
-    {
-        // The body moved to WorldSession::FindRequesterPlayer in D7g, unchanged, when the
-        // calendar, mail and item continuations needed the same four lines.
-        return WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player);
-    }
 
     /**
      * @brief Queue a staged holder, freeing it if the database refuses it.
@@ -296,7 +275,7 @@ void WorldSession::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result
 {
     WorldSession* session = NULL;
     Player* player = NULL;
-    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player))
     {
         return;
     }
@@ -448,7 +427,7 @@ void WorldSession::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder
 {
     WorldSession* session = NULL;
     Player* player = NULL;
-    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player))
     {
         return;
     }
@@ -657,7 +636,7 @@ void WorldSession::HandlePetitionRenameCallback(std::unique_ptr<QueryResult> res
 {
     WorldSession* session = NULL;
     Player* player = NULL;
-    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player))
     {
         return;
     }
@@ -768,7 +747,7 @@ void WorldSession::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder> ho
 {
     WorldSession* session = NULL;
     Player* player = NULL;
-    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player))
     {
         return;
     }
@@ -936,7 +915,7 @@ void WorldSession::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> 
     // captured guid, which SMSG_PETITION_SIGN_RESULTS is all that carries.
     WorldSession* session = NULL;
     Player* player = NULL;
-    bool signerHere = FindRequester(accountId, sessionId, playerGuid, session, player);
+    bool signerHere = WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player);
 
     std::unique_ptr<QueryResult> before(holder->GetResult(PETITION_SIGNED_BEFORE));
     std::unique_ptr<QueryResult> after(holder->GetResult(PETITION_SIGNED_AFTER));
@@ -1090,7 +1069,7 @@ void WorldSession::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder> h
 {
     WorldSession* session = NULL;
     Player* owner = NULL;
-    if (!FindRequester(accountId, sessionId, ownGuid, session, owner))
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, ownGuid, session, owner))
     {
         return;
     }
@@ -1216,7 +1195,7 @@ void WorldSession::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHolder> 
 {
     WorldSession* session = NULL;
     Player* player = NULL;
-    if (!FindRequester(accountId, sessionId, playerGuid, session, player))
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, session, player))
     {
         return;
     }
