@@ -29,6 +29,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <sstream>
 #include "Database/DatabaseEnv.h"
 #include "Database/SqlOperations.h"
 #include "WorldPacket.h"
@@ -40,6 +41,9 @@
 #include "Object/Guild.h"
 #include "WorldHandlers/GuildMgr.h"
 #include "entities/player/PlayerRegistry.h"
+
+// Charters ID in item_template
+constexpr uint32 GUILD_CHARTER = 5863;
 
 namespace
 {
@@ -96,6 +100,249 @@ namespace
             delete holder;                                  // delete all unprocessed queries
         }
     }
+}
+
+/**
+ * @brief Handles charter purchase and petition creation.
+ *
+ * @param recv_data The incoming petition-buy packet.
+ */
+void PetitionHandlers::HandlePetitionBuy(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("Received opcode CMSG_PETITION_BUY");
+    recv_data.hexlike();
+
+    ObjectGuid guidNPC;
+    std::string name;
+
+    recv_data >> guidNPC;                                   // NPC GUID
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint64>();                          // 0
+    recv_data >> name;                                      // name
+    recv_data.read_skip<std::string>();                     // some string
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint16>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+    recv_data.read_skip<uint32>();                          // 0
+
+    for (int i = 0; i < 10; ++i)
+    {
+        recv_data.read_skip<std::string>();
+    }
+
+    recv_data.read_skip<uint32>();                          // client index
+    recv_data.read_skip<uint32>();                          // 0
+
+    DEBUG_LOG("Petitioner %s tried sell petition: name %s", guidNPC.GetString().c_str(), name.c_str());
+
+    // prevent cheating
+    Creature* pCreature = session.GetPlayer()->GetNPCIfCanInteractWith(guidNPC, UNIT_NPC_FLAG_PETITIONER);
+    if (!pCreature)
+    {
+        DEBUG_LOG("WORLD: HandlePetitionBuy - %s not found or you can't interact with him.", guidNPC.GetString().c_str());
+        return;
+    }
+
+    // remove fake death
+    if (session.GetPlayer()->IsFeigningDeath())
+    {
+        session.GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
+    }
+
+    if (!pCreature->IsTabardDesigner())
+    {
+        sLog.outError("WORLD: HandlePetitionBuy - unsupported npc type, npc: %s", guidNPC.GetString().c_str());
+        return;
+    }
+
+    // Every check below reads memory only, so it stays here: a request that cannot succeed
+    // never reaches the database at all. Each of them runs again in the continuation,
+    // because a tick passes before the charter is paid for.
+    if (sGuildMgr.GetGuildByName(name))
+    {
+        session.SendGuildCommandResult(GUILD_CREATE_S, name, ERR_GUILD_NAME_EXISTS_S);
+        return;
+    }
+    if (sObjectMgr.IsReservedName(name) || !ObjectMgr::IsValidCharterName(name))
+    {
+        session.SendGuildCommandResult(GUILD_CREATE_S, name, ERR_GUILD_NAME_INVALID);
+        return;
+    }
+
+    ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(GUILD_CHARTER);
+    if (!pProto)
+    {
+        session.GetPlayer()->SendBuyError(BUY_ERR_CANT_FIND_ITEM, NULL, GUILD_CHARTER, 0);
+        return;
+    }
+
+    if (session.GetPlayer()->GetMoney() < sWorld.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST))
+    {
+        // player hasn't got enough money
+        session.GetPlayer()->SendBuyError(BUY_ERR_NOT_ENOUGHT_MONEY, pCreature, GUILD_CHARTER, 0);
+        return;
+    }
+
+    ItemPosCountVec dest;
+    InventoryResult msg = session.GetPlayer()->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, GUILD_CHARTER, pProto->BuyCount);
+    if (msg != EQUIP_ERR_OK)
+    {
+        session.GetPlayer()->SendEquipError(msg, NULL, NULL, GUILD_CHARTER);
+        return;
+    }
+
+    // The read is queued BEFORE anything is charged or created. The old order paid for
+    // the charter and put it in the bag first, so a continuation that never arrives -- a
+    // logout in the same tick -- could leave a paid charter with no petition row behind it.
+    QueuePetitionBuyRead(session.GetAccountId(), session.GetSessionId(), session.GetPlayer()->GetObjectGuid(), guidNPC, name);
+}
+
+/**
+ * @brief Stages the buy handler's only read.
+ *
+ * Split out of the handler so it can be driven on its own: everything it needs is in its
+ * arguments, so a test can queue exactly what a real request queues without a Player.
+ *
+ * @param accountId The requesting account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The buyer.
+ * @param npcGuid The petitioner NPC the buyer is talking to.
+ * @param name The requested charter name.
+ */
+void PetitionHandlers::QueuePetitionBuyRead(uint32 accountId, proto::SessionId sessionId,
+                                            ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name)
+{
+    // a petition is invalid, if both the owner and the type matches
+    // we checked above, if this player is in an arenateam, so this must be data corruption
+    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, npcGuid, name](QueryResult* result)
+                                  {
+                                      PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult>(result),
+                                                                              accountId, sessionId, playerGuid,
+                                                                              npcGuid, name);
+                                  },
+                                  "SELECT `petitionguid` FROM `petition` WHERE `ownerguid` = '%u'", playerGuid.GetCounter());
+}
+
+/**
+ * @brief Charges for the charter and writes the petition, once the owner's rows are known.
+ *
+ * @param result The owner's existing petitions.
+ * @param accountId The requesting account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The buyer.
+ * @param npcGuid The petitioner NPC.
+ * @param name The requested charter name.
+ */
+void PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                 ObjectGuid npcGuid, std::string name)
+{
+    WorldSession* requestSession = NULL;
+    Player* player = NULL;
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, requestSession, player))
+    {
+        return;
+    }
+
+    // Everything the handler checked before it queued, checked again: a tick has passed, so
+    // the NPC may be out of range, the name may have been taken, the bag may have filled and
+    // the money may have been spent. Only then is anything charged or created.
+    Creature* pCreature = player->GetNPCIfCanInteractWith(npcGuid, UNIT_NPC_FLAG_PETITIONER);
+    if (!pCreature)
+    {
+        DEBUG_LOG("WORLD: HandlePetitionBuy - %s not found or you can't interact with him.", npcGuid.GetString().c_str());
+        return;
+    }
+
+    if (!pCreature->IsTabardDesigner())
+    {
+        sLog.outError("WORLD: HandlePetitionBuy - unsupported npc type, npc: %s", npcGuid.GetString().c_str());
+        return;
+    }
+
+    if (sGuildMgr.GetGuildByName(name))
+    {
+        requestSession->SendGuildCommandResult(GUILD_CREATE_S, name, ERR_GUILD_NAME_EXISTS_S);
+        return;
+    }
+    if (sObjectMgr.IsReservedName(name) || !ObjectMgr::IsValidCharterName(name))
+    {
+        requestSession->SendGuildCommandResult(GUILD_CREATE_S, name, ERR_GUILD_NAME_INVALID);
+        return;
+    }
+
+    ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(GUILD_CHARTER);
+    if (!pProto)
+    {
+        player->SendBuyError(BUY_ERR_CANT_FIND_ITEM, NULL, GUILD_CHARTER, 0);
+        return;
+    }
+
+    if (player->GetMoney() < sWorld.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST))
+    {
+        // player hasn't got enough money
+        player->SendBuyError(BUY_ERR_NOT_ENOUGHT_MONEY, pCreature, GUILD_CHARTER, 0);
+        return;
+    }
+
+    ItemPosCountVec dest;
+    InventoryResult msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, GUILD_CHARTER, pProto->BuyCount);
+    if (msg != EQUIP_ERR_OK)
+    {
+        player->SendEquipError(msg, NULL, NULL, GUILD_CHARTER);
+        return;
+    }
+
+    player->ModifyMoney(-int64(sWorld.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST)));
+    Item* charter = player->StoreNewItem(dest, GUILD_CHARTER, true);
+    if (!charter)
+    {
+        return;
+    }
+
+    charter->SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1, charter->GetGUIDLow());
+    // ITEM_FIELD_ENCHANTMENT_1_1 is guild/arenateam id
+    // ITEM_FIELD_ENCHANTMENT_1_1+1 is current signatures count (showed on item)
+    charter->SetState(ITEM_CHANGED, player);
+    player->SendNewItem(charter, 1, true, false);
+
+    std::ostringstream ssInvalidPetitionGUIDs;
+
+    if (result)
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            ssInvalidPetitionGUIDs << "'" << fields[0].GetUInt32() << "' , ";
+        }
+        while (result->NextRow());
+    }
+
+    // delete petitions with the same guid as this one
+    ssInvalidPetitionGUIDs << "'" << charter->GetGUIDLow() << "'";
+
+    DEBUG_LOG("Invalid petition GUIDs: %s", ssInvalidPetitionGUIDs.str().c_str());
+
+    // The name is never escaped on the world thread. It is bound as a parameter, and
+    // whatever the connection has to do with it -- a real bind, or the escaping the plain
+    // fallback does -- happens inside the delay thread's own operation. The two deletes
+    // carry nothing but numbers, so they stay printf statements.
+    static SqlStatementID insertPetition;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(insertPetition,
+                        "INSERT INTO `petition` (`ownerguid`, `petitionguid`, `name`) VALUES (?, ?, ?)");
+
+    CharacterDatabase.BeginTransaction();
+    CharacterDatabase.PExecute("DELETE FROM `petition` WHERE `petitionguid` IN ( %s )",  ssInvalidPetitionGUIDs.str().c_str());
+    CharacterDatabase.PExecute("DELETE FROM `petition_sign` WHERE `petitionguid` IN ( %s )", ssInvalidPetitionGUIDs.str().c_str());
+    stmt.PExecute(player->GetGUIDLow(), charter->GetGUIDLow(), name.c_str());
+    CharacterDatabase.CommitTransaction();
 }
 
 /**
@@ -198,6 +445,119 @@ void PetitionHandlers::HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHo
         signatures->NextRow();
     }
 
+    requestSession->SendPacket(&data);
+}
+
+/**
+ * @brief Handles a petition query request.
+ *
+ * @param recv_data The incoming petition query packet.
+ */
+void PetitionHandlers::HandlePetitionQuery(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("Received opcode CMSG_PETITION_QUERY");
+    // recv_data.hexlike();
+
+    uint32 guildguid;
+    ObjectGuid petitionguid;
+    recv_data >> guildguid;                                 // in mangos always same as GUID_LOPART(petitionguid)
+    recv_data >> petitionguid;                              // petition guid
+    DEBUG_LOG("CMSG_PETITION_QUERY Petition %s Guild GUID %u", petitionguid.GetString().c_str(), guildguid);
+
+    session.SendPetitionQueryOpcode(petitionguid);
+}
+
+/**
+ * @brief Handles petition renaming and updates persistent storage.
+ *
+ * @param recv_data The incoming petition rename packet.
+ */
+void PetitionHandlers::HandlePetitionRename(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("Received opcode MSG_PETITION_RENAME");   // ok
+    // recv_data.hexlike();
+
+    ObjectGuid petitionGuid;
+    std::string newname;
+
+    recv_data >> petitionGuid;                              // guid
+    recv_data >> newname;                                   // new name
+
+    Item* item = session.GetPlayer()->GetInventoryMgr().GetItemByGuid(petitionGuid);
+    if (!item)
+    {
+        return;
+    }
+
+    // Read first, then escape and write in the continuation.
+    uint32 accountId = session.GetAccountId();
+    proto::SessionId sessionId = session.GetSessionId();
+    ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
+
+    CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, petitionGuid, newname](QueryResult* result)
+                                  {
+                                      PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult>(result),
+                                                                                 accountId, sessionId, playerGuid,
+                                                                                 petitionGuid, newname);
+                                  },
+                                  "SELECT 1 FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
+}
+
+/**
+ * @brief Renames the petition once it is known to exist.
+ *
+ * @param result The petition existence row.
+ * @param accountId The requesting account.
+ * @param sessionId The session the request arrived on.
+ * @param playerGuid The requesting player.
+ * @param petitionGuid The petition guid.
+ * @param newname The requested name.
+ */
+void PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                    proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                    ObjectGuid petitionGuid, std::string newname)
+{
+    WorldSession* requestSession = NULL;
+    Player* player = NULL;
+    if (!WorldSession::FindRequesterPlayer(accountId, sessionId, playerGuid, requestSession, player))
+    {
+        return;
+    }
+
+    if (!result)
+    {
+        DEBUG_LOG("CMSG_PETITION_QUERY failed for petition: %s", petitionGuid.GetString().c_str());
+        return;
+    }
+
+    // The charter has to still be the player's: a tick has passed since the handler looked.
+    if (!player->GetInventoryMgr().GetItemByGuid(petitionGuid))
+    {
+        return;
+    }
+
+    if (sGuildMgr.GetGuildByName(newname))
+    {
+        requestSession->SendGuildCommandResult(GUILD_CREATE_S, newname, ERR_GUILD_NAME_EXISTS_S);
+        return;
+    }
+    if (sObjectMgr.IsReservedName(newname) || !ObjectMgr::IsValidCharterName(newname))
+    {
+        requestSession->SendGuildCommandResult(GUILD_CREATE_S, newname, ERR_GUILD_NAME_INVALID);
+        return;
+    }
+
+    // Bound, not escaped here -- see HandlePetitionBuyCallback.
+    static SqlStatementID renamePetition;
+    SqlStatement stmt = CharacterDatabase.CreateStatement(renamePetition,
+                        "UPDATE `petition` SET `name` = ? WHERE `petitionguid` = ?");
+    stmt.PExecute(newname.c_str(), petitionGuid.GetCounter());
+
+    DEBUG_LOG("Petition %s renamed to '%s'", petitionGuid.GetString().c_str(), newname.c_str());
+
+    WorldPacket data(MSG_PETITION_RENAME, 8 + newname.size() + 1);
+    data << petitionGuid;
+    data << newname;
     requestSession->SendPacket(&data);
 }
 
@@ -475,6 +835,61 @@ void PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHold
     if (Player* owner = sPlayerRegistry.Find(ownerGuid))
     {
         owner->SendPetitionSignResult(petitionGuid, playerGuid, outcome);
+    }
+}
+
+/**
+ * @brief Handles declining a petition offer and notifies the owner.
+ *
+ * @param recv_data The incoming petition decline packet.
+ */
+void PetitionHandlers::HandlePetitionDecline(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("Received opcode MSG_PETITION_DECLINE");  // ok
+    // recv_data.hexlike();
+
+    ObjectGuid petitionGuid;
+    recv_data >> petitionGuid;                              // petition guid
+
+    DEBUG_LOG("Petition %s declined by %s", petitionGuid.GetString().c_str(), session.GetPlayer()->GetGuidStr().c_str());
+
+    ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
+
+    CharacterDatabase.AsyncPQuery([playerGuid](QueryResult* result)
+                                  {
+                                      PetitionHandlers::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult>(result),
+                                                                                  playerGuid);
+                                  },
+                                  "SELECT `ownerguid` FROM `petition` WHERE `petitionguid` = '%u'", petitionGuid.GetCounter());
+}
+
+/**
+ * @brief Tells the petition owner that the offer was declined.
+ *
+ * The one packet this continuation sends goes to the OWNER, not to the requester, and it
+ * names the decliner by GUID -- so it is built from the captured guid and the requester is
+ * neither re-found nor needed. Dropping it because the decliner logged out in the
+ * intervening tick would leave the owner's charter UI waiting for an answer that has
+ * already been given; before the read was queued at all, the owner always got it.
+ *
+ * @param result The petition's owner row.
+ * @param playerGuid The declining player.
+ */
+void PetitionHandlers::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid)
+{
+    if (!result)
+    {
+        return;
+    }
+
+    Field* fields = result->Fetch();
+    ObjectGuid ownerguid = ObjectGuid(HIGHGUID_PLAYER, fields[0].GetUInt32());
+
+    if (Player* owner = sPlayerRegistry.Find(ownerguid))    // petition owner online
+    {
+        WorldPacket data(MSG_PETITION_DECLINE, 8);
+        data << playerGuid;
+        owner->GetSession()->SendPacket(&data);
     }
 }
 
@@ -761,4 +1176,20 @@ void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHold
     DEBUG_LOG("TURN IN PETITION %s", petitionGuid.GetString().c_str());
 
     player->SendPetitionTurnInResult(PETITION_TURN_OK);
+}
+
+/**
+ * @brief Handles a request to show the petitioner vendor list.
+ *
+ * @param recv_data The incoming show-list packet.
+ */
+void PetitionHandlers::HandlePetitionShowList(WorldSession& session, WorldPacket& recv_data)
+{
+    DEBUG_LOG("Received CMSG_PETITION_SHOWLIST");
+    // recv_data.hexlike();
+
+    ObjectGuid guid;
+    recv_data >> guid;
+
+    session.SendPetitionShowList(guid);
 }

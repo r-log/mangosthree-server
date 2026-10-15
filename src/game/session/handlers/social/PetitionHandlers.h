@@ -27,41 +27,59 @@
 #define MANGOS_H_PETITIONHANDLERS
 
 #include <memory>
+#include <string>
 #include "Platform/Define.h"
 #include "SessionId.h"
 
 class ObjectGuid;
+class QueryResult;
 class SqlQueryHolder;
 class WorldPacket;
 class WorldSession;
 
-/// The client's guild charter signing, offer and turn-in opcodes: a petition's signatures shown,
-/// the petition signed, offered to another player and turned in: static entry points the opcode
-/// table binds, each borrowing the session for one call and storing nothing. Every read a handler
-/// needs is queued on the character database and answered a tick later by one of the private
-/// continuations, which re-finds the session and the player by their identities.
-/// QueuePetitionSignHolder stages the sign itself and PetitionSignOutcome names its result.
+/// The client's guild charter opcodes: the petitioner's charter list, a charter bought, its
+/// signatures shown, a petition queried, renamed, signed, declined, offered to another player and
+/// turned in: static entry points the opcode table binds, each borrowing the session for one call
+/// and storing nothing. Every database read a handler needs is queued on the character database
+/// and answered a tick later by a continuation, which re-finds the session and the player by their
+/// identities; the decline's continuation answers the charter's owner, found by guid.
+/// QueuePetitionBuyRead stages the purchase's read, QueuePetitionSignHolder stages the sign itself
+/// and PetitionSignOutcome names its result.
 struct PetitionHandlers
 {
     public:
+        static void HandlePetitionBuy(WorldSession& session, WorldPacket& recv_data);
         static void HandlePetitionShowSign(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetitionQuery(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetitionRename(WorldSession& session, WorldPacket& recv_data);
         static void HandlePetitionSign(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetitionDecline(WorldSession& session, WorldPacket& recv_data);
         static void HandleOfferPetition(WorldSession& session, WorldPacket& recv_data);
         static void HandleTurnInPetition(WorldSession& session, WorldPacket& recv_data);
+        static void HandlePetitionShowList(WorldSession& session, WorldPacket& recv_data);
+        static void QueuePetitionBuyRead(uint32 accountId, proto::SessionId sessionId,
+                                         ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name);
         static void QueuePetitionSignHolder(uint32 accountId, proto::SessionId sessionId, ObjectGuid playerGuid,
                                             ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 maxSigns);
         static uint32 PetitionSignOutcome(bool signedBefore, bool signedAfter);
 
     private:
+        static void HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                              proto::SessionId sessionId, ObjectGuid playerGuid,
+                                              ObjectGuid npcGuid, std::string name);
         static void HandlePetitionShowSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                    proto::SessionId sessionId, ObjectGuid playerGuid,
                                                    ObjectGuid petitionGuid);
+        static void HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
+                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
+                                                 ObjectGuid petitionGuid, std::string newname);
         static void HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                proto::SessionId sessionId, ObjectGuid playerGuid,
                                                ObjectGuid petitionGuid);
         static void HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                  proto::SessionId sessionId, ObjectGuid playerGuid,
                                                  ObjectGuid petitionGuid, ObjectGuid ownerGuid);
+        static void HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid);
         static void HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolder> holder, uint32 accountId,
                                                 proto::SessionId sessionId, ObjectGuid ownGuid,
                                                 ObjectGuid petitionGuid, ObjectGuid playerGuid);
