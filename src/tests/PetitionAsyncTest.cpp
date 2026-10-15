@@ -45,6 +45,7 @@
 #include "Guild.h"
 #include "ObjectGuid.h"
 #include "WorldSession.h"
+#include "session/handlers/social/PetitionHandlers.h"
 
 #include <string>
 
@@ -86,8 +87,8 @@ TEST(PetitionAsync_SignStagesOneHolderOfThreeStatementsAndWaitsForNone)
 
     {
         TickGuard::Scope scope;
-        WorldSession::QueuePetitionSignHolder(kAccountId, kSessionId, PlayerGuid(),
-                                              PetitionGuid(), OwnerGuid(), kMaxSigns);
+        PetitionHandlers::QueuePetitionSignHolder(kAccountId, kSessionId, PlayerGuid(),
+                                                  PetitionGuid(), OwnerGuid(), kMaxSigns);
 
         // Queued, not run: the tick waited on nothing and no connection has been touched.
         CHECK_EQ(TickGuard::Violations(), 0u);
@@ -123,12 +124,12 @@ TEST(PetitionAsync_SignOutcomeNamesWhichOfTheTwoHappened)
 {
     // The holder's two snapshots around the conditional insert, and what each pair means.
     // A row before the insert is a signature that was already there ...
-    CHECK_EQ(WorldSession::PetitionSignOutcome(true, true), uint32(PETITION_SIGN_ALREADY_SIGNED));
-    CHECK_EQ(WorldSession::PetitionSignOutcome(true, false), uint32(PETITION_SIGN_ALREADY_SIGNED));
+    CHECK_EQ(PetitionHandlers::PetitionSignOutcome(true, true), uint32(PETITION_SIGN_ALREADY_SIGNED));
+    CHECK_EQ(PetitionHandlers::PetitionSignOutcome(true, false), uint32(PETITION_SIGN_ALREADY_SIGNED));
     // ... a row only afterwards is this request's own ...
-    CHECK_EQ(WorldSession::PetitionSignOutcome(false, true), uint32(PETITION_SIGN_OK));
+    CHECK_EQ(PetitionHandlers::PetitionSignOutcome(false, true), uint32(PETITION_SIGN_OK));
     // ... and no row at all means the insert found no room.
-    CHECK_EQ(WorldSession::PetitionSignOutcome(false, false), uint32(PETITION_SIGN_PETITION_FULL));
+    CHECK_EQ(PetitionHandlers::PetitionSignOutcome(false, false), uint32(PETITION_SIGN_PETITION_FULL));
 }
 
 TEST(PetitionAsync_BuyReadsBeforeItChargesAndAFailedRevalidationWritesNothing)
