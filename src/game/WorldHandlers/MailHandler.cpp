@@ -186,8 +186,8 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
     // The receiver is resolved here, from memory alone (normalizePlayerName and the character
     // cache), because the guards below and the decision to defer both need the guid.
     //
-    // The name is written back only when normalisation succeeds: WStrToUtf8 clears a name that
-    // is not valid UTF-8, and the `receiver.empty()` test below would then return silently
+    // The name is written back only when normalisation succeeds: WStrToUtf8 empties it when
+    // its conversion fails, and the `receiver.empty()` test below would then return silently
     // instead of answering MAIL_ERR_RECIPIENT_NOT_FOUND.
     std::string normalized = request.receiver;
     if (normalizePlayerName(normalized))
@@ -248,8 +248,7 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
     if (!sObjectMgr.GetPlayer(request.receiverGuid))
     {
         // An offline receiver's mailbox count is not cached, so it is read from the database
-        // and ProcessSendMail runs a tick later, from the continuation. No money or item moves
-        // before the count is tested, so the continuation only re-validates.
+        // and ProcessSendMail runs a tick later, from the continuation.
         QueueSendMailboxCountRead(GetAccountId(), GetSessionId(), pl->GetObjectGuid(), std::move(request));
         return;
     }
@@ -321,13 +320,13 @@ void WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult> result, u
 }
 
 /**
- * @brief The whole of CMSG_SEND_MAIL below its packet read.
+ * @brief Checks and sends the mail, once the receiver is resolved.
  *
  * Shared by the two paths: an online receiver runs it in the arriving tick, an offline one
  * from the continuation a tick later. The first six guards below are the memory-only ones the
  * handler has already run and refused on -- they are repeated here because on the deferred path
- * a tick has passed, so the mailbox may be out of range, the money may be spent and the items
- * may be gone. On the same-tick path they simply pass a second time.
+ * a tick has passed, so the mailbox may be out of range and the money may be spent. On the
+ * same-tick path they simply pass a second time.
  *
  * @param request The parsed mail, with the receiver already resolved.
  * @param offlineMailsCount The offline receiver's mailbox count; unread when he is online.

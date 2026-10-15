@@ -611,8 +611,8 @@ void PetitionHandlers::HandlePetitionSign(WorldSession& session, WorldPacket& re
 /**
  * @brief Decides whether a sign request may go ahead, once the petition is known.
  *
- * Every check that needs the petition row or the account's signatures runs here. Only when
- * none of them stops the request does it reach the atomic sign itself.
+ * Checks the request against the petition row and the account's signatures; only a request
+ * that passes every check reaches the atomic sign.
  *
  * @param holder The staged reads.
  * @param accountId The signing account.
