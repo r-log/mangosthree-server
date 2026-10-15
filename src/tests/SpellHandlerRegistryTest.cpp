@@ -1280,42 +1280,44 @@ namespace
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
     // six dummy-effect sites and the earlier files' ids.
-    bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId)
+    // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
+    bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
-        return (site != AuraProcTriggerSite::Key && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
-               (site != AuraPeriodicTriggerSite::Key && registry.Find<AuraPeriodicTriggerSite>(spellId) != NULL) ||
-               (site != AuraPeriodicEnergizeSite::Key && registry.Find<AuraPeriodicEnergizeSite>(spellId) != NULL) ||
-               (site != AuraPeriodicDummyRogueSite::Key &&
+        auto skips = [site, also](uint32 key) { return key != site && key != also; };
+        return (skips(AuraProcTriggerSite::Key) && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicTriggerSite::Key) && registry.Find<AuraPeriodicTriggerSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicEnergizeSite::Key) && registry.Find<AuraPeriodicEnergizeSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicDummyRogueSite::Key) &&
                 registry.Find<AuraPeriodicDummyRogueSite>(spellId) != NULL) ||
-               (site != AuraIncreaseHealthSite::Key && registry.Find<AuraIncreaseHealthSite>(spellId) != NULL) ||
-               (site != SpellEffectEnergizeSite::Key && registry.Find<SpellEffectEnergizeSite>(spellId) != NULL) ||
-               (site != SpellEffectActivateObjectSite::Key &&
+               (skips(AuraIncreaseHealthSite::Key) && registry.Find<AuraIncreaseHealthSite>(spellId) != NULL) ||
+               (skips(SpellEffectEnergizeSite::Key) && registry.Find<SpellEffectEnergizeSite>(spellId) != NULL) ||
+               (skips(SpellEffectActivateObjectSite::Key) &&
                 registry.Find<SpellEffectActivateObjectSite>(spellId) != NULL) ||
-               (site != SpellEffectResurrectSite::Key && registry.Find<SpellEffectResurrectSite>(spellId) != NULL) ||
-               (site != SpellTargetAllEnemyInAreaSite::Key &&
+               (skips(SpellEffectResurrectSite::Key) && registry.Find<SpellEffectResurrectSite>(spellId) != NULL) ||
+               (skips(SpellTargetAllEnemyInAreaSite::Key) &&
                 registry.Find<SpellTargetAllEnemyInAreaSite>(spellId) != NULL) ||
-               (site != SpellTargetEffectDummySite::Key &&
+               (skips(SpellTargetEffectDummySite::Key) &&
                 registry.Find<SpellTargetEffectDummySite>(spellId) != NULL) ||
-               (site != SpellCheckCastAuraDummySite::Key &&
+               (skips(SpellCheckCastAuraDummySite::Key) &&
                 registry.Find<SpellCheckCastAuraDummySite>(spellId) != NULL) ||
-               (site != SpellCheckTargetSite::Key && registry.Find<SpellCheckTargetSite>(spellId) != NULL) ||
-               (site != SpellEffectWeaponDmgSite::Key && registry.Find<SpellEffectWeaponDmgSite>(spellId) != NULL) ||
-               (site != SpellEffectSchoolDmgSite::Key && registry.Find<SpellEffectSchoolDmgSite>(spellId) != NULL) ||
-               (site != SpellEffectTriggerSpellSite::Key &&
+               (skips(SpellCheckTargetSite::Key) && registry.Find<SpellCheckTargetSite>(spellId) != NULL) ||
+               (skips(SpellEffectWeaponDmgSite::Key) && registry.Find<SpellEffectWeaponDmgSite>(spellId) != NULL) ||
+               (skips(SpellEffectSchoolDmgSite::Key) && registry.Find<SpellEffectSchoolDmgSite>(spellId) != NULL) ||
+               (skips(SpellEffectTriggerSpellSite::Key) &&
                 registry.Find<SpellEffectTriggerSpellSite>(spellId) != NULL) ||
-               (site != SpellEffectTeleportRecallSite::Key &&
+               (skips(SpellEffectTeleportRecallSite::Key) &&
                 registry.Find<SpellEffectTeleportRecallSite>(spellId) != NULL) ||
-               (site != SpellEffectTeleportPostSite::Key &&
+               (skips(SpellEffectTeleportPostSite::Key) &&
                 registry.Find<SpellEffectTeleportPostSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyGenericSite::Key &&
+               (skips(SpellEffectDummyGenericSite::Key) &&
                 registry.Find<SpellEffectDummyGenericSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyMageSite::Key && registry.Find<SpellEffectDummyMageSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyWarriorSite::Key &&
+               (skips(SpellEffectDummyMageSite::Key) && registry.Find<SpellEffectDummyMageSite>(spellId) != NULL) ||
+               (skips(SpellEffectDummyWarriorSite::Key) &&
                 registry.Find<SpellEffectDummyWarriorSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyRogueSite::Key && registry.Find<SpellEffectDummyRogueSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyHunterSite::Key &&
+               (skips(SpellEffectDummyRogueSite::Key) && registry.Find<SpellEffectDummyRogueSite>(spellId) != NULL) ||
+               (skips(SpellEffectDummyHunterSite::Key) &&
                 registry.Find<SpellEffectDummyHunterSite>(spellId) != NULL) ||
-               (site != SpellEffectDummyPaladinSite::Key &&
+               (skips(SpellEffectDummyPaladinSite::Key) &&
                 registry.Find<SpellEffectDummyPaladinSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
@@ -1323,21 +1325,36 @@ namespace
                registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) != NULL;
     }
 
-    // The ids a pair of listed sites both register, each site's switch holding the label: Cannibalize, at the
-    // dummy-effect targeting site and the generic dummy-effect site. Any other id a second listed site holds fails
-    // HeldByAnotherSite.
-    uint32 const SHARED_SITE_IDS[] = { 20577 };
-
-    bool SharedBySites(uint32 spellId)
+    // The ids a pair of listed sites both register, each site's switch holding the label, with the two sites:
+    // Cannibalize, at the dummy-effect targeting site and the generic dummy-effect site. A listed id held at any
+    // other site, a third listed site among them, fails HeldByAnotherSite.
+    struct SharedSiteId
     {
-        for (uint32 shared : SHARED_SITE_IDS)
+        uint32 spellId;
+        uint32 first;
+        uint32 second;
+    };
+
+    SharedSiteId const SHARED_SITE_IDS[] =
+    {
+        { 20577, SpellTargetEffectDummySite::Key, SpellEffectDummyGenericSite::Key },
+    };
+
+    // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
+    uint32 SharedWith(uint32 spellId, uint32 site)
+    {
+        for (SharedSiteId const& shared : SHARED_SITE_IDS)
         {
-            if (shared == spellId)
+            if (shared.spellId == spellId && shared.first == site)
             {
-                return true;
+                return shared.second;
+            }
+            if (shared.spellId == spellId && shared.second == site)
+            {
+                return shared.first;
             }
         }
-        return false;
+        return site;
     }
 
     // 2 proc-trigger labels, 4 periodic-trigger labels, 5 energize labels, 1 rogue label and 14 health labels: 26
@@ -2178,11 +2195,12 @@ TEST(SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault)
     CHECK(registry.Find<SpellTargetEffectDummySite>(20577) == cannibalize);
     CHECK(registry.FindDefault<SpellTargetEffectDummySite>() == onMiss);
 
-    // Keyed on the dummy-effect site, and Cannibalize is a shared id: the generic dummy-effect site holds it too;
-    // the game's table holds the same row and the same default.
+    // Keyed on the dummy-effect site, and Cannibalize is a shared id: the generic dummy-effect site holds it too and
+    // no third site does; the game's table holds the same row and the same default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK(SharedBySites(20577));
+    CHECK(SharedWith(20577, SpellTargetEffectDummySite::Key) == SpellEffectDummyGenericSite::Key);
     CHECK(game.Find<SpellEffectDummyGenericSite>(20577) != NULL);
+    CHECK(!HeldByAnotherSite(game, SpellTargetEffectDummySite::Key, 20577, SpellEffectDummyGenericSite::Key));
     CHECK(game.Find<SpellTargetEffectDummySite>(20577) == cannibalize);
     for (uint32 spellId : { 30769u, 42005u, 24734u, 8342u, 9512u, 29886u, 41099u })
     {
@@ -3260,13 +3278,12 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 spellId : DUMMY_GENERIC_IDS)
     {
-        if (SharedBySites(spellId))
+        uint32 other = SharedWith(spellId, SpellEffectDummyGenericSite::Key);
+        CHECK(!HeldByAnotherSite(game, SpellEffectDummyGenericSite::Key, spellId, other));
+        if (other != SpellEffectDummyGenericSite::Key)
         {
+            CHECK(other == SpellTargetEffectDummySite::Key);
             CHECK(game.Find<SpellTargetEffectDummySite>(spellId) != NULL);
-        }
-        else
-        {
-            CHECK(!HeldByAnotherSite(game, SpellEffectDummyGenericSite::Key, spellId));
         }
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) ==
               registry.Find<SpellEffectDummyGenericSite>(spellId));
