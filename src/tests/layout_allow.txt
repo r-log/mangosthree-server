@@ -1855,23 +1855,25 @@ src/game/session/handlers/social/ContactHandlers.cpp -> src/game/WorldHandlers/W
 src/game/session/handlers/social/LfgHandlers.cpp -> src/game/WorldHandlers/World.h
 # The ticket create and text update handlers tell every online GM who accepts tickets through ChatHandler(player).PSendSysMessage.
 src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Chat.h
+# The Rocket Boots Engaged body reads the player's battleground and reports the dropped flag to it; the origin's own edge carried into the handler directory, same layer pair and header; dies when the flag drop becomes a fact the battleground takes from the player (pvp's own seam).
+src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
 # The warrior stance handlers (41099-41101, 53790-53792) call SetVirtualItem with VIRTUAL_ITEM_SLOT_*.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 # The origin's own edge carried into the handler directory, same layer pair and header; an unlisted pair under the peer table, so debt, retiring with the script-hook interface that takes the AI calls.
 src/game/spells/handlers [spells] -> src/game/Object/CreatureAI.h
-# The bodies read the game object they target; dies with D9's map surface, or earlier if the game object's targeting facts move to entities/.
+# The bodies read the game object they target or find, the grenade, scuttle and detonate bodies respawn it, and the Lava Bomb and Crystal Prison bodies create one; dies with D9's map surface, or earlier if the game object's targeting facts move to entities/.
 src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
 # The Shadowfiend body needs the pet complete; retires with a pet query on the unit that answers a unit.
 src/game/spells/handlers [spells] -> src/game/Object/Pet.h
-# The grenade and scuttle bodies visit the grid cells around the target for game objects; read-only on the grid; dies with D9's map surface.
+# The grenade, scuttle and detonate bodies visit the grid cells around the target for game objects; read-only on the grid; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/CellImpl.h
 # The Animal Blood body (46221) reads the water level from the target's TerrainInfo: read-only on the grid map, dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
 # Read-only, a search over the grid: a reader is not a reach; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
-# The grenade and scuttle bodies search the grid with the game-object searchers' visits; read-only on the grid; dies with D9's map surface.
+# The grenade, scuttle and detonate bodies search the grid with the game-object searchers' visits; read-only on the grid; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
-# Read-only on the map; dies with D9's surface.
+# The map bodies read the map's difficulty and players; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/Map.h
 # The handlers read the aura: 61336 GetModifier()->m_amount; the removal bodies GetRemoveMode() and GetCaster(), 61900 GetSpellProto(); the feign-death body GetCasterGuid() and GetId().
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
@@ -1883,8 +1885,16 @@ src/game/spells/handlers/SpellChecksHandlers.cpp -> src/game/entities/player/Pla
 src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # Six casts for player-only methods; retires with the Unit page's row 13 successor.
 src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp -> src/game/entities/player/Player.h
+# The Spirit Healer Res body sends through the caster's session; dies with the same fix, which hands the session a fact instead.
+src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/Server/WorldSession.h
+# The Pygmy Oil body reads the shrink aura holder's stack amount, the origin's own edge; retires when the stack count becomes a query on the unit that answers a number without the aura header.
+src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # Casts for player-only methods; retires with the Unit page's row 13 successor.
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/game/entities/player/Player.h
+# The Spirit Healer Res body builds SMSG_SPIRIT_HEALER_CONFIRM for the caster's client; the origin's own edge; dies with the packets-out fix for spells (page row 9), whose builder in session/packets/spells/ takes the statement.
+src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/Opcodes.h
+# The Spirit Healer Res body builds SMSG_SPIRIT_HEALER_CONFIRM for the caster's client; the origin's own edge; dies with the packets-out fix for spells (page row 9), whose builder in session/packets/spells/ takes the statement.
+src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/WorldPacket.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 # The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.

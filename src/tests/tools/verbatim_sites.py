@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '80f3fc58a'
+BASE = '43622fa7a'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -1052,12 +1052,17 @@ SITES = {
             'live_outs': ['effect'],
             'in_scope': [],
             'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
-            'substitutions': [('ctx.spell->DoCreateItem', 'DoCreateItem'), ('ctx.m_caster', 'm_caster'),
-                              ('ctx.unitTarget', 'unitTarget'), ('ctx.m_spellInfo', 'm_spellInfo'),
-                              ('ctx.m_CastItem', 'm_CastItem'), ('ctx.m_duration', 'm_duration'),
-                              ('ctx.effect', 'effect'), ('ctx.m_originalCasterGUID', 'm_originalCasterGUID'),
+            'substitutions': [('ctx.spell->DoCreateItem', 'DoCreateItem'),
+                              ('ctx.spell->GetAffectiveCaster', 'GetAffectiveCaster'),
+                              ('ctx.spell->finish', 'finish'), ('ctx.spell->ClearCastItem', 'ClearCastItem'),
+                              ('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget'),
+                              ('ctx.m_spellInfo', 'm_spellInfo'), ('ctx.m_CastItem', 'm_CastItem'),
+                              ('ctx.m_duration', 'm_duration'), ('ctx.effect', 'effect'),
+                              ('ctx.m_originalCasterGUID', 'm_originalCasterGUID'),
                               ('ctx.m_originalCaster', 'm_originalCaster'),
                               ('ctx.m_UniqueTargetInfo', 'm_UniqueTargetInfo'),
+                              ('ctx.m_currentBasePoints', 'm_currentBasePoints'), ('ctx.itemTarget', 'itemTarget'),
+                              ('ctx.damage', 'damage'), ('ctx.m_triggeredByAuraSpell', 'm_triggeredByAuraSpell'),
                               ('Spell::TargetList', 'TargetList')] + VOID_SUBSTITUTIONS,
             'labels': {
                 3360: '                case 3360:                                  // Curse of the Eye',
