@@ -46,10 +46,9 @@ For each file in SITES, --check:
      the labels it still holds, so a moved label's place is proven against a base it stands in (or
      one from before the site's first move). Such a site registers no default (its `default:`, if
      any, stays in the switch). A residual site naming CLOSED reads a version whose dispatch is not
-     directly followed by its open lines as a whole site (every label a row of its table but a DELETED
-     one that version does not register, none standing, and the switch pasted back in the dispatch's
-     place, its P lines read as a whole site's) and any other version as partly moved; the working tree
-     must be such a version, and CLOSED on a site that is not residual fails.
+     directly followed by its open lines as a whole site, less the DELETED labels that version does not
+     register, and any other version as partly moved. The working tree must be read whole, and CLOSED
+     on a site that is not residual fails.
      TABLE: a site's registration table is the one table whose rows are typed by the site's
      TRAITS (`static <Row><TRAITS> const <any name>[] =`), so a table renamed between versions is
      still found; each version holds exactly one such table per site (two fail, none fails). Only
@@ -2567,6 +2566,9 @@ def self_test():
     run('closed: both versions closed, a deleted label in neither: passes', 0,
         'with 16/16 bodies pasted back at their 17 labels in 1 sites (the base had 1 of the sites moved: 16 bodies '
         'pasted back there), the base less 0 cuts', **dict(versions(no7, no7), spec=closing(deleted=[7])))
+    run('closed: both versions closed, the base registering a label the tree deletes: passes', 0,
+        'with 16/16 bodies pasted back at their 17 labels in 1 sites (the base had 1 of the sites moved: 17 bodies '
+        'pasted back there), the base less 1 cuts', **dict(versions(shut, no7), spec=closing(deleted=[7])))
 
     other = ['void Thing::Other()', '{', '    switch (GetId())', '    {',
              '        case 50:                                // Fifty', '            Drop(50);', '            return;',
