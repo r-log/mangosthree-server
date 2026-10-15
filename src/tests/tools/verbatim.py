@@ -45,7 +45,11 @@ For each file in SITES, --check:
      base with fewer labels moved than the working tree; each version proves the original order of
      the labels it still holds, so a moved label's place is proven against a base it stands in (or
      one from before the site's first move). Such a site registers no default (its `default:`, if
-     any, stays in the switch).
+     any, stays in the switch). A residual site naming CLOSED reads a version whose dispatch is not
+     directly followed by its open lines as a whole site (every label a row of its table but a DELETED
+     one that version does not register, none standing, and the switch pasted back in the dispatch's
+     place, its P lines read as a whole site's) and any other version as partly moved; the working tree
+     must be such a version, and CLOSED on a site that is not residual fails.
      TABLE: a site's registration table is the one table whose rows are typed by the site's
      TRAITS (`static <Row><TRAITS> const <any name>[] =`), so a table renamed between versions is
      still found; each version holds exactly one such table per site (two fail, none fails). Only
@@ -1066,6 +1070,8 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             raise Failure('%s: deleted %s, not labels of its switch' % (site['name'], unknown))
         if site.get('deleted') and 'residual' not in site:
             raise Failure('%s: deletes labels and keeps its dispatch, which only a residual site does' % site['name'])
+        if site.get('closed') and 'residual' not in site:
+            raise Failure('%s: closed, and it is no partly moved site (only a residual site closes)' % site['name'])
         if strict and 'gone' in site:
             gone(site, at, rest, handlers)
             continue
@@ -1083,7 +1089,14 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
         key, name = check_ties(site)
         rows = site_table(handlers, site)
         ids = [r[0] for r in rows]
-        if 'residual' in site:
+        closed = bool(site.get('closed')) and rest[at[0] + n:at[0] + n + len(site['open'])] != site['open']
+        if strict and site.get('closed') and not closed:
+            raise Failure('%s: closed, and its dispatch is still followed by its switch' % site['name'])
+        if closed:
+            site = dict(site, labels={i: l for i, l in site['labels'].items()
+                                      if i in ids or i not in site.get('deleted', [])})
+        partly = 'residual' in site and not closed
+        if partly:
             end, standing = standing_labels(rest, at[0], n, site)
             absent = [i for i in site.get('deleted', []) if i not in ids and i not in standing]
             if absent:
@@ -1120,7 +1133,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             if not one_line(label_lines) and falls_off(origins, site, label_lines):
                 raise Failure('%s: the run under %s falls off the switch\'s end, which only a `default:` may'
                               % (site['name'], [l.split('//')[0].strip() for l in label_lines]))
-            lead = preamble(origins, site, label_lines[0]) if 'residual' not in site else 0
+            lead = preamble(origins, site, label_lines[0]) if not partly else 0
             pieces.append(([r[0] for r in rows[i:j]], paste(site, function, body, label_lines, wrapped,
                                                              label_gaps(origins, site, label_lines), lead)))
             pasted += 1
@@ -1155,7 +1168,7 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             raise Failure('%s: its value is %s, and no handler it registers returns one (no `Return(x)` to paste back '
                           'as `return x;`)' % (site['name'], site['value']))
         check_dispatch_shape(site, key, name)
-        if 'residual' in site:
+        if partly:
             put_back(rest, at[0], n, site, pieces, end, standing)
         else:
             switch += site['close']
@@ -2501,6 +2514,59 @@ def self_test():
     run('a label gone from the tree but not deleted fails', 1, '[7] neither registered nor standing in the switch',
         **versions(none, without([7])))
 
+    spaced_site = dict(GEN_SPEC['sites'][0], dispatch=GEN_SPEC['sites'][0]['dispatch'] + [''])
+    gen_dispatch = '\n'.join(GEN_SPEC['sites'][0]['dispatch']) + '\n'
+    emptied = '    switch (GetId())\n    {\n    }\n'
+
+    def closing(**changes):
+        """GEN_SPEC with its dispatch ending in a blank line, naming `closed`, and `changes`."""
+        return dict(GEN_SPEC, sites=[dict(spaced_site, closed=True, **changes)])
+
+    def spaced(version, shut=False):
+        """`version` with a blank line after its dispatch, and, when `shut`, its emptied switch deleted."""
+        text = version[0].replace(gen_dispatch, gen_dispatch + '\n')
+        return (text.replace(emptied, '') if shut else text, version[1])
+
+    every = gen_version(GEN_ORDER)
+    shut, base6 = spaced(every, shut=True), spaced(six)
+    run('closed: the base partly moved, the tree\'s switch closed: passes', 0,
+        'with 17/17 bodies pasted back at their 18 labels in 1 sites (the base had 1 of the sites moved: 6 bodies',
+        **dict(versions(base6, shut), spec=closing()))
+    run('closed: the base closed too (a base from after the close): passes', 0,
+        'with 17/17 bodies pasted back at their 18 labels in 1 sites (the base had 1 of the sites moved: 17 bodies',
+        **dict(versions(shut, shut), spec=closing()))
+    for state, still in [('empty', every), ('with a label', gen_version(GEN_ORDER[:-1]))]:
+        run('closed: the tree still holding its switch, %s: fails' % state, 1,
+            'closed, and its dispatch is still followed by its switch',
+            **dict(versions(base6, spaced(still)), spec=closing()))
+    run('closed: a label neither registered nor standing: fails', 1,
+        'generated part: table rows [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], labels [1,',
+        **dict(versions(base6, spaced(gen_version([i for i in GEN_ORDER if i != 7], standing=[]), shut=True)),
+               spec=closing()))
+    run('closed: the dispatch\'s blank line dropped: fails', 1, 'generated part: the dispatch found 0 times',
+        **dict(versions(base6, (every[0].replace(emptied, ''), every[1])), spec=closing()))
+    run('closed: named on a site that is not residual: fails', 1,
+        'closed, and it is no partly moved site (only a residual site closes)',
+        **dict(versions(none, shut), spec=dict(GEN_SPEC, sites=[dict(
+            {k: v for k, v in spaced_site.items() if k != 'residual'}, closed=True)])))
+    run('closed: residual, not named, the tree\'s switch gone: fails', 1,
+        'the dispatch is not directly followed by the switch that still stands',
+        **dict(versions(base6, shut), spec=dict(GEN_SPEC, sites=[spaced_site])))
+    run('closed: the tree\'s rows out of the original order: fails', 1, 'DIFFERS',
+        **dict(versions(base6, spaced(gen_version([2, 1] + GEN_ORDER[2:]), shut=True)), spec=closing()))
+    run('closed: a statement left where the switch stood: fails', 1, 'DIFFERS',
+        **dict(versions(base6, (shut[0].replace('    target->Tail();', '    Log();\n    target->Tail();'),
+                                shut[1])), spec=closing()))
+    p_base = (base6[0].replace('    {\n' + gen_labels[1], '    {\n        // Lead\n' + gen_labels[1]), base6[1])
+    p_tree = (shut[0], shut[1].replace('{\n    ctx.target->Drop(1);', '{\n    // Lead\n    ctx.target->Drop(1);'))
+    run('closed: P lines the base keeps, read as a whole site\'s in the tree: passes', 0,
+        'with 17/17 bodies pasted back at their 18 labels in 1 sites (the base had 1 of the sites moved: 6 bodies',
+        **dict(versions(p_base, p_tree), spec=closing()))
+    no7 = spaced(gen_version([i for i in GEN_ORDER if i != 7], standing=[]), shut=True)
+    run('closed: both versions closed, a deleted label in neither: passes', 0,
+        'with 16/16 bodies pasted back at their 17 labels in 1 sites (the base had 1 of the sites moved: 16 bodies '
+        'pasted back there), the base less 0 cuts', **dict(versions(no7, no7), spec=closing(deleted=[7])))
+
     other = ['void Thing::Other()', '{', '    switch (GetId())', '    {',
              '        case 50:                                // Fifty', '            Drop(50);', '            return;',
              '        case 51:                                // Fifty-one', '        {', '            Drop(51);',
@@ -2749,6 +2815,15 @@ def self_test():
            'its last statement is not a return at its own level',
            lambda: handler_body(['static SpellHandlerOutcome<void> One(RemoveContext& ctx)', '{',
                                  '    return SpellHandlerOutcome<void>::Return()', '}'], 'One', 'RemoveContext'))
+    raises('handler body: a block comment opened on the last return, closed on a star-led line: passes', 'no failure',
+           lambda: handler_body(['static SpellHandlerOutcome<void> One(RemoveContext& ctx)', '{',
+                                 '    return SpellHandlerOutcome<void>::Return();   /* done', '     * here */', '}'],
+                                'One', 'RemoveContext'))
+    raises('handler body: the last return without its semicolon, `// x;` after it: fails by name',
+           'its last statement is not a return at its own level',
+           lambda: handler_body(['static SpellHandlerOutcome<void> One(RemoveContext& ctx)', '{',
+                                 '    return SpellHandlerOutcome<void>::Return()   // x;', '}'],
+                                'One', 'RemoveContext'))
     tied_site = dict(name='tied', traits='RemoveSite', context='CheckTargetContext', substitutions=[],
                      open=['    switch (GetId())'])
     for what, construction in (('an empty argument', 'CheckTargetContext ctx(this,, target);'),
