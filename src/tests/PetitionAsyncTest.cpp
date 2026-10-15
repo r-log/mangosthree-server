@@ -148,8 +148,8 @@ TEST(PetitionAsync_BuyReadsBeforeItChargesAndAFailedRevalidationWritesNothing)
 
     {
         TickGuard::Scope scope;
-        WorldSession::QueuePetitionBuyRead(kAccountId, kSessionId, PlayerGuid(), NpcGuid(),
-                                           std::string("Test Guild"));
+        PetitionHandlers::QueuePetitionBuyRead(kAccountId, kSessionId, PlayerGuid(), NpcGuid(),
+                                               std::string("Test Guild"));
 
         // One read queued, nothing waited on, and -- the point of C3 -- nothing charged or
         // created: the money and the charter item only move in the continuation.

@@ -119,6 +119,7 @@ _PETITION_FILE = 'src/game/session/handlers/social/PetitionHandlers.cpp'
 _PETITION_ORIGIN = 'src/game/WorldHandlers/PetitionsHandler.cpp'
 _PETITION_PLAYER = [('GetPlayer()', '_player')]
 _PETITION_RENAME = ('session', 'requestSession')
+_PETITION2_BASE = '3fb0cb9c1'
 
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
@@ -917,6 +918,114 @@ MOVES = [
                   ' * @param playerGuid The petition owner turning it in.',
                   ' * @param petitionGuid The petition guid.',
                   ' */'])]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandlePetitionBuy(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PETITION_PLAYER,
+         edits=[('    Creature* pCreature = session.GetPlayer()->GetNPCIfCanInteractWith(guidNPC, UNIT_NPC_FLAG_PETITIONER);',
+                 '    Creature* pCreature = GetPlayer()->GetNPCIfCanInteractWith(guidNPC, UNIT_NPC_FLAG_PETITIONER);'),
+                ('    if (session.GetPlayer()->IsFeigningDeath())',
+                 '    if (GetPlayer()->IsFeigningDeath())'),
+                ('        session.GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);',
+                 '        GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);')],
+         texts=[('        DEBUG_LOG("WORLD: HandlePetitionBuy - %s not found or you can\'t interact with him.", guidNPC.GetString().c_str());',
+                 '        DEBUG_LOG("WORLD: HandlePetitionBuyOpcode - %s not found or you can\'t interact with him.", guidNPC.GetString().c_str());'),
+                ('        sLog.outError("WORLD: HandlePetitionBuy - unsupported npc type, npc: %s", guidNPC.GetString().c_str());',
+                 '        sLog.outError("WORLD: HandlePetitionBuyOpcode - unsupported npc type, npc: %s", guidNPC.GetString().c_str());'),
+                ('    // never reaches the database at all. Each of them runs again in the continuation,',
+                 '    // never reaches the database at all. Each of them runs again in the continuation (C3),'),
+                ('    // The read is queued BEFORE anything is charged or created. The old order paid for',
+                 '    // C3: the read is queued BEFORE anything is charged or created. The old order paid for')]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::QueuePetitionBuyRead(uint32 accountId, proto::SessionId sessionId,\n                                        ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name)',
+         new_header='void PetitionHandlers::QueuePetitionBuyRead(uint32 accountId, proto::SessionId sessionId,\n                                            ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name)',
+         substitutions=[('PetitionHandlers::HandlePetitionBuyCallback(',
+                         'WorldSession::HandlePetitionBuyCallback(')],
+         texts=[(['/**',
+                  " * @brief Stages the buy handler's only read.",
+                  ' *',
+                  ' * Split out of the handler so it can be driven on its own: everything it needs is in its',
+                  ' * arguments, so a test can queue exactly what a real request queues without a Player.',
+                  ' *',
+                  ' * @param accountId The requesting account.',
+                  ' * @param sessionId The session the request arrived on.',
+                  ' * @param playerGuid The buyer.',
+                  ' * @param npcGuid The petitioner NPC the buyer is talking to.',
+                  ' * @param name The requested charter name.',
+                  ' */'],
+                 ['/**',
+                  " * @brief Stages the buy handler's only read (D7b, C3).",
+                  ' *',
+                  ' * Split out of the handler so it can be driven on its own: everything it needs is in its',
+                  ' * arguments, so a test can queue exactly what a real request queues without a Player.',
+                  ' *',
+                  ' * @param accountId The requesting account.',
+                  ' * @param sessionId The session the request arrived on.',
+                  ' * @param playerGuid The buyer.',
+                  ' * @param npcGuid The petitioner NPC the buyer is talking to.',
+                  ' * @param name The requested charter name.',
+                  ' */'])]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n                                             proto::SessionId sessionId, ObjectGuid playerGuid,\n                                             ObjectGuid npcGuid, std::string name)',
+         new_header='void PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n                                                 proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                 ObjectGuid npcGuid, std::string name)',
+         rename=_PETITION_RENAME,
+         texts=[('        DEBUG_LOG("WORLD: HandlePetitionBuy - %s not found or you can\'t interact with him.", npcGuid.GetString().c_str());',
+                 '        DEBUG_LOG("WORLD: HandlePetitionBuyOpcode - %s not found or you can\'t interact with him.", npcGuid.GetString().c_str());'),
+                ('        sLog.outError("WORLD: HandlePetitionBuy - unsupported npc type, npc: %s", npcGuid.GetString().c_str());',
+                 '        sLog.outError("WORLD: HandlePetitionBuyOpcode - unsupported npc type, npc: %s", npcGuid.GetString().c_str());'),
+                ('    // The name is never escaped on the world thread. It is bound as a parameter, and',
+                 '    // C5: the name is never escaped on the world thread. It is bound as a parameter, and')]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionQueryOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandlePetitionQuery(WorldSession& session, WorldPacket& recv_data)'),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionRenameOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandlePetitionRename(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PETITION_PLAYER + [('PetitionHandlers::HandlePetitionRenameCallback(',
+                                            'WorldSession::HandlePetitionRenameCallback(')],
+         texts=[('    // Read first, then escape and write in the continuation.',
+                 '    // C3: read first, then escape and write in the continuation.')]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n                                                proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                ObjectGuid petitionGuid, std::string newname)',
+         new_header='void PetitionHandlers::HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n                                                    proto::SessionId sessionId, ObjectGuid playerGuid,\n                                                    ObjectGuid petitionGuid, std::string newname)',
+         rename=_PETITION_RENAME,
+         texts=[('    // Bound, not escaped here -- see HandlePetitionBuyCallback.',
+                 '    // C5: bound, not escaped here -- see HandlePetitionBuyCallback.')]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionDeclineOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandlePetitionDecline(WorldSession& session, WorldPacket& recv_data)',
+         substitutions=_PETITION_PLAYER + [('PetitionHandlers::HandlePetitionDeclineCallback(',
+                                            'WorldSession::HandlePetitionDeclineCallback(')]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid)',
+         new_header='void PetitionHandlers::HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid)',
+         texts=[(['/**',
+                  ' * @brief Tells the petition owner that the offer was declined.',
+                  ' *',
+                  ' * The one packet this continuation sends goes to the OWNER, not to the requester, and it',
+                  ' * names the decliner by GUID -- so it is built from the captured guid and the requester is',
+                  ' * neither re-found nor needed. Dropping it because the decliner logged out in the',
+                  " * intervening tick would leave the owner's charter UI waiting for an answer that has",
+                  ' * already been given; before the read was queued at all, the owner always got it.',
+                  ' *',
+                  " * @param result The petition's owner row.",
+                  ' * @param playerGuid The declining player.',
+                  ' */'],
+                 ['/**',
+                  ' * @brief Tells the petition owner that the offer was declined.',
+                  ' *',
+                  ' * The one packet this continuation sends goes to the OWNER, not to the requester, and it',
+                  ' * names the decliner by GUID -- so it is built from the captured guid and the requester is',
+                  ' * neither re-found nor needed (D7f). Dropping it because the decliner logged out in the',
+                  " * intervening tick would leave the owner's charter UI waiting for an answer that has",
+                  ' * already been given; before the read was queued at all, the owner always got it.',
+                  ' *',
+                  " * @param result The petition's owner row.",
+                  ' * @param playerGuid The declining player.',
+                  ' */'])]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN, new_file=_PETITION_FILE,
+         base_header='void WorldSession::HandlePetitionShowListOpcode(WorldPacket& recv_data)',
+         new_header='void PetitionHandlers::HandlePetitionShowList(WorldSession& session, WorldPacket& recv_data)'),
 ]
 
 RESIDUES = [
@@ -1208,4 +1317,36 @@ RESIDUES = [
                  '        }\n'
                  '    }\n'
                  '}\n',)]),
+    dict(base=_PETITION2_BASE, base_file=_PETITION_ORIGIN,
+         removed=['#include <sstream>', '#include "Language.h"', '#include "Guild.h"',
+                  '#include "GuildMgr.h"', '#include "ArenaTeam.h"', '#include "GossipDef.h"',
+                  '#include "SocialMgr.h"', '#include "PlayerRegistry.h"'],
+         edits=[('/**\n'
+                 ' * @file PetitionsHandler.cpp\n'
+                 ' * @brief Guild and arena charter opcode handlers\n'
+                 ' *\n'
+                 ' * Charters require a certain number of signatures before they can be\n'
+                 ' * turned in to create a guild or arena team.\n'
+                 ' *\n'
+                 ' * None of these handlers waits on the database. Each one does\n'
+                 ' * whatever it can decide from memory, queues its reads (AsyncPQuery, or one SqlQueryHolder\n'
+                 ' * where a handler needs several independent rows), and answers from a continuation that\n'
+                 ' * runs on the world thread out of UpdateResultQueue() a tick later. The petition UI waits\n'
+                 ' * for the reply packet, so a tick of delay is invisible to it.\n'
+                 ' *\n'
+                 ' * A continuation cannot hold a pointer across that tick: the session may have gone and the\n'
+                 ' * account logged in again, and the player may have been swapped for another character. So\n'
+                 " * every one of them captures identities (account id, session id, player guid, the request's\n"
+                 ' * values) and re-finds both through WorldSession::FindRequesterPlayer, doing nothing at all if either\n'
+                 ' * has changed.\n'
+                 ' */',
+                 '/**\n'
+                 ' * @file PetitionsHandler.cpp\n'
+                 ' * @brief Defines three WorldSession members: SendPetitionQueryOpcode, which queues the read a petition\n'
+                 ' * query answers, SendPetitionQueryCallback, which builds that answer from the row a tick later on the\n'
+                 ' * world thread and sends it to the session the query came from, and SendPetitionShowList, which sends\n'
+                 " * the client a petitioner's charter list.\n"
+                 ' */'),
+                ('        DEBUG_LOG("WORLD: HandlePetitionShowListOpcode - %s not found or you can\'t interact with him.", guid.GetString().c_str());',
+                 '        DEBUG_LOG("WORLD: HandlePetitionShowList - %s not found or you can\'t interact with him.", guid.GetString().c_str());')]),
 ]

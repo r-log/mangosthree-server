@@ -867,32 +867,8 @@ class WorldSession
         void HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data);
         void HandlePartyAssignmentOpcode(WorldPacket& recv_data);
 
-        // The petition handlers and their continuations. None of these
-        // handlers waits on the database: each queues its reads and is answered a tick
-        // later by the matching callback, which runs on the world thread out of
-        // UpdateResultQueue(). The callbacks are static and take identities rather than
-        // pointers -- the session they belong to is re-found and compared, because the one
-        // that sent the request may be gone by the time the answer arrives.
-        void HandlePetitionBuyOpcode(WorldPacket& recv_data);
-        static void QueuePetitionBuyRead(uint32 accountId, proto::SessionId sessionId,
-                                         ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name);
-        static void HandlePetitionBuyCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
-                                              proto::SessionId sessionId, ObjectGuid playerGuid,
-                                              ObjectGuid npcGuid, std::string name);
-
-        void HandlePetitionQueryOpcode(WorldPacket& recv_data);
         static void SendPetitionQueryCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
                                               proto::SessionId sessionId, ObjectGuid petitionguid);
-
-        void HandlePetitionRenameOpcode(WorldPacket& recv_data);
-        static void HandlePetitionRenameCallback(std::unique_ptr<QueryResult> result, uint32 accountId,
-                                                 proto::SessionId sessionId, ObjectGuid playerGuid,
-                                                 ObjectGuid petitionGuid, std::string newname);
-
-        void HandlePetitionDeclineOpcode(WorldPacket& recv_data);
-        // No identity: the only packet it sends goes to the petition's OWNER and names the
-        // decliner by guid, so it must survive a decliner who logged out.
-        static void HandlePetitionDeclineCallback(std::unique_ptr<QueryResult> result, ObjectGuid playerGuid);
 
         void HandleGuildQueryOpcode(WorldPacket& recvPacket);
         void HandleGuildInviteOpcode(WorldPacket& recvPacket);
@@ -929,7 +905,6 @@ class WorldSession
         void HandleTrainerListOpcode(WorldPacket& recvPacket);
         void HandleTrainerBuySpellOpcode(WorldPacket& recvPacket);
 
-        void HandlePetitionShowListOpcode(WorldPacket& recvPacket);
         void HandleGossipHelloOpcode(WorldPacket& recvPacket);
         void HandleGossipSelectOptionOpcode(WorldPacket& recvPacket);
         void HandleSpiritHealerActivateOpcode(WorldPacket& recvPacket);

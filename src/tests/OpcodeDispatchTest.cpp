@@ -959,14 +959,24 @@ TEST(OpcodeDispatch_PetitionRowsHoldTheirHandlersThunks)
 {
     InitializeOpcodes();
 
+    CHECK(opcodeTable[CMSG_PETITION_BUY].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionBuy>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionBuy>), 1);
     CHECK(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionShowSign>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionShowSign>), 1);
+    CHECK(opcodeTable[CMSG_PETITION_QUERY].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionQuery>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionQuery>), 1);
+    CHECK(opcodeTable[MSG_PETITION_RENAME].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionRename>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionRename>), 1);
     CHECK(opcodeTable[CMSG_PETITION_SIGN].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionSign>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionSign>), 1);
+    CHECK(opcodeTable[MSG_PETITION_DECLINE].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionDecline>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionDecline>), 1);
     CHECK(opcodeTable[CMSG_OFFER_PETITION].handler == &OpcodeThunk<&PetitionHandlers::HandleOfferPetition>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandleOfferPetition>), 1);
     CHECK(opcodeTable[CMSG_TURN_IN_PETITION].handler == &OpcodeThunk<&PetitionHandlers::HandleTurnInPetition>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandleTurnInPetition>), 1);
+    CHECK(opcodeTable[CMSG_PETITION_SHOWLIST].handler == &OpcodeThunk<&PetitionHandlers::HandlePetitionShowList>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&PetitionHandlers::HandlePetitionShowList>), 1);
     CHECK(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
 }
 
@@ -974,12 +984,22 @@ TEST(OpcodeDispatch_PetitionRowsKeepTheirStatusAndProcessing)
 {
     InitializeOpcodes();
 
+    CHECK_EQ(opcodeTable[CMSG_PETITION_BUY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_BUY].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_PETITION_SHOW_SIGNATURES].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_QUERY].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_QUERY].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_PETITION_RENAME].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_PETITION_RENAME].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_PETITION_SIGN].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_PETITION_SIGN].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[MSG_PETITION_DECLINE].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[MSG_PETITION_DECLINE].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_OFFER_PETITION].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_OFFER_PETITION].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_TURN_IN_PETITION].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_TURN_IN_PETITION].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_SHOWLIST].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_PETITION_SHOWLIST].packetProcessing, PROCESS_THREADUNSAFE);
 }

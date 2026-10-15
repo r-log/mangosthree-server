@@ -203,7 +203,7 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
     Player* pl = _player;
 
     // Every check below reads memory only, so it stays here: a request that cannot succeed
-    // never reaches the database at all (D7b's contract, HandlePetitionBuyOpcode). They are
+    // never reaches the database at all (D7b's contract, PetitionHandlers::HandlePetitionBuy). They are
     // the old handler's guards, in the old order, sending the old replies -- and each of them
     // runs AGAIN in ProcessSendMail (C3), because on the deferred path a tick passes before
     // anything is charged. Running them twice in one tick costs nothing and sends nothing: the
