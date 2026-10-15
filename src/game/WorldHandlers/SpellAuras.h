@@ -493,6 +493,7 @@ class  Aura
         bool IsPersistent() const { return m_isPersistent; }
         bool IsAreaAura() const { return m_isAreaAura; }
         bool IsPeriodic() const { return m_isPeriodic; }
+        void SetPeriodic(bool periodic) { m_isPeriodic = periodic; }
         bool IsInUse() const { return m_in_use; }
 
         void SetInUse(bool state)
