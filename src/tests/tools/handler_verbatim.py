@@ -26,9 +26,9 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       the base's `session` read as <name>), names no `session`, `_player` or `this` in code and names
       `GetPlayer` and `SendPacket` only on another object or class (`sObjectMgr.GetPlayer(guid)`,
       `ObjectAccessor::GetPlayer(guid)`, `bidder->GetSession()->SendPacket(...)`), never bare or through
-      `WorldSession::`, and its entry lists no edit or accessor and no substitution but a static called
-      through its class, so the reversal pastes base_header back over the definition and the body comes
-      back as it stands;
+      `WorldSession::`, and its entry lists no edit or accessor and no substitution but a static called through
+      its class or through the class it moved to, so the reversal pastes base_header back over the definition
+      and the body comes back as it stands;
   substitutions  (new text, base text) pairs, each side one line, each matching code at least once and
       only where no name, `.`, `->` or `::` runs into it and, when its new text ends in a name character,
       where no name runs on from it (`&session` does not match in `&sessionTarget`); a pair is a player
@@ -39,13 +39,19 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       through its class, `WorldSession::<Name>(` read back as `<Name>(`, <Name> a member function
       WorldSession.h declares `static` at the entry's base, named once, and no parameter of the base
       definition (a bare call there reads the parameter), and no line of the base function ends in a line
-      splice (the compiler would join a local's name the member check reads as two); a call read back
-      without the session names a member function the header declares there, named once. The header is read as git
-      holds it at the entry's base, its class body read as an accessor's is (nested bodies blanked); nothing
-      in the data stands in for the read. The read is a text read: a `friend` declaration and a name called in
-      a default argument read as declared, and a declaration after a directive holding the word `static` reads
-      as static. A pair applies only where its left side runs on from no name,
-      `.`, `->` or `::`: a whole token, so `WorldSession::X(` is not read inside `MyWorldSession::X(`;
+      splice (the compiler would join a local's name the member check reads as two), or a static called through
+      the class it moved to, `<Class>::<Name>(` read back as `WorldSession::<Name>(`: the base side is the
+      static's call through the session's class and the new side the same call through the class it moved to,
+      <Name> a member function WorldSession.h declares `static` at the entry's base, named once, and <Class> the
+      class another MOVES entry at the same base moves <Name> into (that entry's base definition line defines
+      `WorldSession::<Name>(`, its new_file is this entry's, and its new definition line defines
+      `<Class>::<Name>(`), the pair read back whole; a call read back without the session names a member
+      function the header declares there, named once. The header is read as git holds it at the entry's base,
+      its class body read as an accessor's is (nested bodies blanked); nothing in the data stands in for the
+      read. The read is a text read: a `friend` declaration and a name called in a default argument read as
+      declared, and a declaration after a directive holding the word `static` reads as static. A pair applies
+      only where its left side runs on from no name, `.`, `->` or `::`: a whole token, so `WorldSession::X(` is
+      not read inside `MyWorldSession::X(`, nor `<Class>::X(` inside `My<Class>::X(`;
   edits  (new line, base line) or (new line, base line, count) entries: a line changed beyond the
       substitutions, read back whole; each side is one line, the two read the same under the player
       reading (the new line read after its listed accessors' calls, below), and the new line reads in place
@@ -63,11 +69,11 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       names a variable outside the function, and a body holding one is refused even beside a declaration of
       its own; a declaration of its own after another name's `extern` statement on its line, `extern int x;
       WorldSession* session = ...;`, is read as its own). The new file holds <name> only in the functions whose
-      entries rename
-      `session` to it, and there only as a whole word in code that follows no `.`, `->` or `::` (blanks and
-      line breaks between aside) and no lone `>` or `:`. The definition's parameters are compared with <name>
-      read as `session`. No edit or substitution names <name>, and none reads back `session`. No line of the
-      moved function ends in a line splice (the compiler would join a name the reading reads as two);
+      entries rename `session` to it, and there only as a whole word in code that follows no `.`, `->` or `::`
+      (blanks and line breaks between aside) and no lone `>` or `:`. The definition's parameters are compared
+      with <name> read as `session`. No edit or substitution names <name>, and none reads back `session`. No
+      line of the moved function ends in a line splice (the compiler would join a name the reading reads as
+      two);
   accessors  (header, class, name) entries: a member function of <class> that the entry's edits call on a
       receiver where the base read or wrote one of its data members. The proof reads <header> as git holds it
       at the entry's base (the entry names the header and the class; nothing in the data stands in for the
@@ -189,21 +195,23 @@ its base line reads no such member, an accessor whose name or member another cla
 declares at the base, a substitution of another shape, a sender's call naming no member function the
 session's header declares once at the base, a static called through its class naming no static it
 declares once there or naming a parameter of the base definition, a line splice in a base function whose
-entry lists such a static, a line beginning with `session.` or a substitution's text after a `.`, `->` or `::`
-ending the line above, `session.` or a substitution's text after a `.`, `->` or `::` and blanks on its line, a
-definition taking no session over a body, moved or at its base, that reads the session (naming the body
-line), an entry with such a definition listing an edit, an accessor or a substitution other than a static
-called through its class, a rename of another shape, a rename to a C++ keyword or literal, a rename whose base
-function declares no `session` in its head or body (a name running into `WorldSession` declares none) or
-declares one under `extern`, a rename whose name the base file holds, or the new file
-holds outside the functions renamed to it or other than as a whole word in code, a `session` left in a moved
-line under a rename, a line splice in a function under a rename, an edit or substitution naming the rename's
-name or reading back `session`, a text pair of another shape, holding a line break or a line splice,
-changing code (a line pair) or holding a line that is not a comment line or a blank line (a block),
-changing a literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block
-inside a comment, standing other than once (its new side in the moved function, its base side read back in
-the base function) or not alone, overlapping another, or holding an edit's new line, and an entry holding a
-key no entry admits or lacking one it needs.
+entry lists such a static, a static called through the class it moved to naming no static the header declares
+once at the base, or one no entry at the base moves, that the moving entry puts in another file, or that it
+defines under another class or name, a line beginning with `session.` or a substitution's text after a `.`, `->`
+or `::` ending the line above, `session.` or a substitution's text after a `.`, `->` or `::` and blanks on its
+line, a definition taking no session over a body, moved or at its base, that reads the session (naming the body
+line), an entry with such a definition listing an edit, an accessor or a substitution other than a static called
+through its class or through the class it moved to, a rename of another shape, a rename to a C++ keyword or
+literal, a rename whose base function declares no `session` in its head or body (a name running into
+`WorldSession` declares none) or declares one under `extern`, a rename whose name the base file holds, or the
+new file holds outside the functions renamed to it or other than as a whole word in code, a `session` left in a
+moved line under a rename, a line splice in a function under a rename, an edit or substitution naming the
+rename's name or reading back `session`, a text pair of another shape, holding a line break or a line splice,
+changing code (a line pair) or holding a line that is not a comment line or a blank line (a block), changing a
+literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block inside a
+comment, standing other than once (its new side in the moved function, its base side read back in the base
+function) or not alone, overlapping another, or holding an edit's new line, and an entry holding a key no entry
+admits or lacking one it needs.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a text pair, a residue edit's block), fails: a compiler
 ends a line there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a
@@ -278,6 +286,8 @@ PLAYER_FORM = re.compile(r'session\.GetPlayer\(\)|_player\b|GetPlayer\(\)|sessio
 PLAYER_READ = {'session.': '', '&session': 'this'}
 SENDER = re.compile(r'(\w+)\(session(, |\))$')
 STATIC_CALL = re.compile(r'WorldSession::([A-Za-z_][A-Za-z0-9_]*)\(')
+MOVED_CALL = re.compile(r'([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*)\(')
+DEFINED = re.compile(r'\S.*? (\w+)::(\w+)\(')
 SPLICE = re.compile(r'\\[ \t]*\r?\Z')
 CLASS_HEAD = re.compile(r'\b(?:class|struct)\s+(\w+)(?:\s+final)?\s*(?::(?!:)[^;{}]*)?\{')
 MOVE_KEYS = ('base', 'base_file', 'base_header', 'new_file', 'new_header', 'substitutions', 'edits', 'rename',
@@ -523,6 +533,24 @@ def static_call(pair):
     return m.group(1) if m and pair[1] == m.group(1) + '(' else None
 
 
+def moved_static(pair):
+    """(<Class>, <Name>) when the substitution is a static called through the class it moved to, `<Class>::<Name>(`
+    read back as `WorldSession::<Name>(`, <Class> another class than WorldSession; None otherwise."""
+    if not (isinstance(pair, (tuple, list)) and len(pair) == 2 and isinstance(pair[0], str)):
+        return None
+    m = MOVED_CALL.fullmatch(pair[0])
+    if not m or m.group(1) == 'WorldSession' or pair[1] != 'WorldSession::' + m.group(2) + '(':
+        return None
+    return m.group(1), m.group(2)
+
+
+def defined_as(header):
+    """(<Class>, <Name>) of the function a definition line defines, `<type> <Class>::<Name>(` read on its first
+    line; None when it reads otherwise."""
+    m = DEFINED.match(header.split('\n')[0]) if isinstance(header, str) else None
+    return (m.group(1), m.group(2)) if m else None
+
+
 def check_lines(entry):
     """Each side of each edit and substitution is one line."""
     for e in entry.get('edits', []) + entry.get('substitutions', []):
@@ -748,6 +776,25 @@ def check_session_function(entry, headers, pair, name, static):
             what, 'static ' if static else '', name, entry['base']))
 
 
+def check_moved_into(entry, others, pair, cls, name):
+    """Another entry (`others`) at the entry's base moves `WorldSession::<name>` into <cls> in the entry's new file:
+    its base definition line defines `WorldSession::<name>(`, its new_file is the entry's, and its new definition
+    line defines `<cls>::<name>(`."""
+    what = 'the substitution %r -> %r' % pair
+    movers = [m for m in others if m.get('base') == entry['base']
+              and defined_as(m.get('base_header')) == ('WorldSession', name)]
+    if not movers:
+        raise Failure('%s: no entry at %s moves WorldSession::%s' % (what, entry['base'], name))
+    placed = [m for m in movers if m.get('new_file') == entry['new_file']]
+    if not placed:
+        raise Failure('%s: the entry moving WorldSession::%s puts it in %s, not in %s' % (
+            what, name, movers[0].get('new_file'), entry['new_file']))
+    if not any(defined_as(m.get('new_header')) == (cls, name) for m in placed):
+        into = defined_as(placed[0].get('new_header'))
+        raise Failure('%s: the entry moving WorldSession::%s defines it as %s, not %s::%s' % (
+            what, name, '%s::%s' % into if into else repr(placed[0].get('new_header')), cls, name))
+
+
 def read_accessors(entry, headers, declaring=None):
     """[(name, member, kind)] of the entry's accessors, each read from its header as git holds it at the entry's
     base (`headers`: {path: text, or None when git has none}): a getter taking nothing whose body is `return
@@ -833,13 +880,14 @@ def accessor_form(line, accessors):
     return line
 
 
-def check_forms(entry, accessors=(), headers=None):
+def check_forms(entry, accessors=(), headers=None, others=()):
     """An edit's two lines read the same under the player reading, each read alone, after the listed accessors'
     calls on the new line are read as the members they read or write; so do a substitution's two texts, or it is
     a call read back without the session (`<Name>(session, ` as `<Name>(`, `<Name>(session)` as `<Name>()`),
     <Name> a member function of the session, or a static of the session called through its class
-    (`WorldSession::<Name>(` as `<Name>(`), each read from WorldSession.h in `headers`. Each listed accessor is
-    called by an edit."""
+    (`WorldSession::<Name>(` as `<Name>(`), each read from WorldSession.h in `headers`, or a static called through
+    the class it moved to (`<Class>::<Name>(` as `WorldSession::<Name>(`), read from the header and from the entry
+    among `others` that moves it. Each listed accessor is called by an edit."""
     called = set()
     for e in entry.get('edits', []):
         calls = [a for a in accessors if accessor_form(e[0], [a]) != e[0]]
@@ -858,22 +906,28 @@ def check_forms(entry, accessors=(), headers=None):
     if unused:
         raise Failure('the accessor %s is called by no edit' % unused[0])
     for a, b in entry.get('substitutions', []):
-        m, name = SENDER.match(a), static_call((a, b))
+        m, name, moved = SENDER.match(a), static_call((a, b)), moved_static((a, b))
         if player_form(a) == player_form(b):
             continue
         if m and b == m.group(1) + ('(' if m.group(2) == ', ' else '()'):
             check_session_function(entry, headers, (a, b), m.group(1), False)
         elif name:
             check_session_function(entry, headers, (a, b), name, True)
+        elif moved:
+            check_session_function(entry, headers, (a, b), moved[1], True)
+            check_moved_into(entry, others, (a, b), *moved)
         else:
             raise Failure('the substitution %r -> %r is neither a player form nor a call read back without the '
-                          'session, nor a static of the session called through its class' % (a, b))
+                          'session, nor a static of the session called through its class, nor a static called '
+                          'through the class it moved to' % (a, b))
 
 
-def verify(entry, base_text, tree_base_text, new_text, members, out=print, headers=None, beside=(), declaring=None):
+def verify(entry, base_text, tree_base_text, new_text, members, out=print, headers=None, beside=(), declaring=None,
+           others=()):
     """0 when the entry's function pastes back byte for byte; 1 with the reason printed. `beside` holds the
     new definition lines of the other entries whose rename puts the same name in the same new file;
-    `declaring` is read_accessors()'s."""
+    `declaring` is read_accessors()'s; `others` holds the other entries, among which a static called through the
+    class it moved to is read for the entry that moves it."""
     name = '%s %s' % (entry.get('new_file'), re.sub(r'\n[ \t]*', ' ', str(entry.get('new_header'))))
     try:
         check_keys(entry, MOVE_KEYS, 5)
@@ -882,7 +936,7 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
         for key, what in (('substitutions', 'a substitution'), ('edits', 'an edit'), ('accessors', 'an accessor')):
             listed = entry.get(key)
             if key == 'substitutions' and isinstance(listed, (tuple, list)):
-                listed = [x for x in listed if not static_call(x)]
+                listed = [x for x in listed if not static_call(x) and not moved_static(x)]
             if not takes and listed:
                 raise Failure('the definition line takes no session, but the entry lists %s' % what)
         texts = read_texts(entry)
@@ -932,7 +986,7 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             if hits != counts[line]:
                 raise Failure('the edit %r matches %d lines of the function, not the %d it covers: too %s found' % (
                     line, hits, counts[line], 'few' if hits < counts[line] else 'many'))
-        check_forms(entry, read_accessors(entry, headers, declaring), headers)
+        check_forms(entry, read_accessors(entry, headers, declaring), headers, others)
         rules = [(SESSION_DOT, '')] + [(re.compile(r'(?<![\w.>:])' + re.escape(a) + name_edge(a)), b)
                                        for a, b in entry.get('substitutions', [])]
         used = [0] * len(rules)
@@ -1262,8 +1316,9 @@ def check(root, base=None, out=print, moves=None, residues=None):
                 headers[SESSION_HEADER] = None
         beside = [e['new_header'] for j, e in enumerate(moves) if j != i and e['new_file'] == entry['new_file']
                   and renames_to(e) is not None and renames_to(e) == renames_to(entry)]
+        others = [dict(e, base=base or e['base']) for j, e in enumerate(moves) if j != i]
         rc |= verify(entry, base_text, read(root, entry['base_file']), new_text, members, out, headers, beside,
-                     declaring)
+                     declaring, others)
     for rel in sorted({e['base_file'] for e in moves} | {r['base_file'] for r in residues_all}):
         entries = [e for e in moves if e['base_file'] == rel]
         residues = [dict(r, base=base or r['base']) for r in residues_all if r['base_file'] == rel]
@@ -1615,17 +1670,20 @@ def self_test():
     members = class_members(SELF_SESSION, 'WorldSession')
 
     def run(label, want_rc, needle, entry=0, swap=None, tree_base='#include "WorldSession.h"\n', base=SELF_BASE,
-            new=SELF_NEW, moves=SELF_MOVES, headers=None, beside=(), **change):
+            new=SELF_NEW, moves=SELF_MOVES, headers=None, beside=(), others=None, **change):
         if swap:
             if swap[0] not in new:
                 failures.append('%s: the mutation %r matches nothing' % (label, swap[0]))
                 print('self-test: %-62s FAIL' % label)
                 return
             new = new.replace(*swap)
+        if others is None:
+            others = [m for k, m in enumerate(moves) if k != entry]
         got = []
         headers = dict({SESSION_HEADER: SELF_SESSION_BASE}, **(headers or {}))
         try:
-            rc = verify(dict(moves[entry], **change), base, tree_base, new, members, got.append, headers, beside)
+            rc = verify(dict(moves[entry], **change), base, tree_base, new, members, got.append, headers, beside,
+                        others=others)
         except Exception as e:                                  # a crash fails the row
             rc = 2
             got.append('crashed: %r' % e)
@@ -2224,6 +2282,72 @@ def self_test():
     called('a line splice in a function listing a static pair fails', 1,
            "Fixture.cpp at fixture: '    auto QueuePetition\\\\' ends in a line splice: with a static called through "
            "its class", spliced_local + holder[0], spliced_local + holder[1], [holder_pair])
+    moved = ('Fixture::QueueRead(', 'WorldSession::QueueRead(')
+    queued = ('    Queue([=]() { Fixture::QueueRead(accountId, sessionId); });',
+              '    Queue([=]() { WorldSession::QueueRead(accountId, sessionId); });')
+    run('a handler calling a static through the class it moved to pastes back', 0,
+        'IDENTICAL to Fixture.cpp at fixture, byte for byte, with 5 lines pasted back (0 edits)', 1,
+        swap=(lead[0], queued[0] + '\n' + lead[0]), base=SELF_BASE.replace(lead[1], queued[1] + '\n' + lead[1]),
+        substitutions=[moved], others=SELF_MULTI_MOVES)
+    called('a helper taking no session calling a static through the class it moved to pastes back', 0,
+           'IDENTICAL to Fixture.cpp at fixture, byte for byte, with 11 lines pasted back (0 edits)', *queued,
+           [moved], others=SELF_MULTI_MOVES)
+    packet = '    WorldPacket data(SMSG_PETITION_QUERY_RESPONSE, 4);'
+    run('a callback under a rename calling a static through the class it moved to pastes back', 0,
+        "(0 edits, 'requestSession' read back as session 4 times)", 0,
+        base=SELF_RENAME_BASE.replace(packet, queued[1] + '\n' + packet),
+        new=SELF_RENAME_NEW.replace(packet, queued[0] + '\n' + packet), moves=SELF_RENAME_MOVES,
+        beside=[m['new_header'] for m in SELF_RENAME_MOVES[1:]], substitutions=[moved], others=SELF_MULTI_MOVES)
+    unmoved = 'the substitution %r -> %r: ' % moved
+    for label, pair, others, needle in (
+            ('a moved-static pair on a name no entry moves fails',
+             ('Fixture::QueuePetitionSignHolder(', 'WorldSession::QueuePetitionSignHolder('), SELF_MULTI_MOVES,
+             "the substitution 'Fixture::QueuePetitionSignHolder(' -> 'WorldSession::QueuePetitionSignHolder(': no "
+             "entry at fixture moves WorldSession::QueuePetitionSignHolder"),
+            ('a moved-static pair on a name an entry moves at another base fails', moved,
+             [dict(SELF_MULTI_MOVES[0], base='other')], unmoved + 'no entry at fixture moves WorldSession::QueueRead'),
+            ('a moved-static pair whose moving entry puts the static in another file fails', moved,
+             [dict(SELF_MULTI_MOVES[0], new_file=HANDLERS_DIR + '/social/Other.cpp')],
+             unmoved + 'the entry moving WorldSession::QueueRead puts it in '
+             'src/game/session/handlers/social/Other.cpp, not in src/game/session/handlers/combat/Fixture.cpp'),
+            ('a moved-static pair naming a class other than the moving entry\'s fails',
+             ('Other::QueueRead(', 'WorldSession::QueueRead('), SELF_MULTI_MOVES,
+             "the substitution 'Other::QueueRead(' -> 'WorldSession::QueueRead(': the entry moving "
+             "WorldSession::QueueRead defines it as Fixture::QueueRead, not Other::QueueRead"),
+            ('a moved-static pair whose moving entry defines another name fails', moved,
+             [dict(SELF_MULTI_MOVES[0], new_header=SELF_QUEUE_NEW.replace('QueueRead(', 'QueueReadLater('))],
+             unmoved + 'the entry moving WorldSession::QueueRead defines it as Fixture::QueueReadLater, not '
+             'Fixture::QueueRead'),
+            ('a moved-static pair on a member an entry moves that is not static fails',
+             ('Fixture::Ping(', 'WorldSession::Ping('),
+             [dict(SELF_MULTI_MOVES[0], base_header='void WorldSession::Ping()',
+                   new_header='void Fixture::Ping(WorldSession& session)')],
+             "the substitution 'Fixture::Ping(' -> 'WorldSession::Ping(': WorldSession declares no static member "
+             "function Ping at fixture"),
+            ('a moved-static pair naming no member of the session fails', ('Fixture::Absent(', 'WorldSession::Absent('),
+             SELF_MULTI_MOVES, "the substitution 'Fixture::Absent(' -> 'WorldSession::Absent(': WorldSession declares "
+             "no static member function Absent at fixture"),
+            ('a moved-static pair naming an overloaded static fails', ('Fixture::Notify(', 'WorldSession::Notify('),
+             SELF_MULTI_MOVES, "the substitution 'Fixture::Notify(' -> 'WorldSession::Notify(': WorldSession in "
+             "src/game/Server/WorldSession.h at fixture names it 2 times, not once")):
+        called(label, 1, needle, '    %saccountId);' % pair[0], '    %saccountId);' % pair[1], [pair], others=others)
+    run('a moved-static pair with its sides swapped fails', 1,
+        "the substitution 'WorldSession::QueueRead(' -> 'Fixture::QueueRead(' is neither a player form nor a call "
+        "read back without the session, nor a static of the session called through its class, nor a static called "
+        "through the class it moved to", 1, swap=(lead[0], '    WorldSession::QueueRead(accountId);\n' + lead[0]),
+        base=SELF_BASE.replace(lead[1], '    Fixture::QueueRead(accountId);\n' + lead[1]),
+        substitutions=[moved[::-1]], others=SELF_MULTI_MOVES)
+    called('a moved-static pair inside a longer name is not read back: DIFFERS', 1,
+           'DIFFERS from Fixture.cpp at fixture', queued[0] + '\n    MyFixture::QueueRead(accountId);',
+           queued[1] + '\n    MyWorldSession::QueueRead(accountId);', [moved], others=SELF_MULTI_MOVES)
+    called('a moved-static pair after :: is not read back: fails', 1,
+           "the substitution 'Fixture::QueueRead(' matches no code in the function",
+           '    ::Fixture::QueueRead(accountId);', '    ::WorldSession::QueueRead(accountId);', [moved],
+           others=SELF_MULTI_MOVES)
+    called('a moved-static pair whose session header git does not hold fails', 1,
+           "the substitution 'Fixture::QueueRead(' -> 'WorldSession::QueueRead(': cannot read "
+           "src/game/Server/WorldSession.h at fixture", *queued, [moved], others=SELF_MULTI_MOVES,
+           headers={SESSION_HEADER: None})
 
     renamed_heads = [m['new_header'] for m in SELF_RENAME_MOVES]
 
