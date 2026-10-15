@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '43622fa7a'
+BASE = '89f1d31d1'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -65,6 +65,76 @@ SITES = {
             (['                    case 75614:                             // Celestial Steed'], 3),
             (['                    case 75973:                             // X-53 Touring Rocket'], 3)],
         'sites': [{
+            'name': 'HandleAuraDummy AT APPLY, SPELLFAMILY_GENERIC (switch (GetId()))',
+            'dispatch': [
+                '                AuraDummyApplyGenericContext ctx(this, target, m_periodicTimer);',
+                '                if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraDummyApplyGenericSite>(GetId(), ctx).IsReturn())',
+                '                {',
+                '                    return;',
+                '                }',
+                ''],
+            'open': ['                switch (GetId())', '                {'],
+            'close': ['                }'],
+            'residual': True,
+            'label_indent': 20,
+            'traits': 'AuraDummyApplyGenericSite',
+            'context': 'AuraDummyApplyGenericContext',
+            'live_outs': ['target'],
+            'in_scope': ['apply', 'Real', 'classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.m_periodicTimer', 'm_periodicTimer'),
+                              ('ctx.aura->SetPeriodic(true)', 'm_isPeriodic = true'),
+                              ('ctx.aura->GetModifier()->', 'm_modifier.'), ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetEffIndex()', 'm_effIndex'), ('ctx.aura->GetHolder()', 'GetHolder()'),
+                              ('ctx.aura->GetId()', 'GetId()'), ('ctx.aura->GetSpellProto()', 'GetSpellProto()'),
+                              ('ctx.aura->GetStackAmount()', 'GetStackAmount()'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                1515: '                    case 1515:                              // Tame beast',
+                7057: '                    case 7057:                              // Haunting Spirits',
+                10255: '                    case 10255:                             // Stoned',
+                13139: '                    case 13139:                             // net-o-matic',
+                28832: '                    case 28832:                             // Mark of Korth\'azz',
+                28833: '                    case 28833:                             // Mark of Blaumeux',
+                28834: '                    case 28834:                             // Mark of Rivendare',
+                28835: '                    case 28835:                             // Mark of Zeliek',
+                31606: '                    case 31606:                             // Stormcrow Amulet',
+                32045: '                    case 32045:                             // Soul Charge',
+                32051: '                    case 32051:',
+                32052: '                    case 32052:',
+                33326: '                    case 33326:                             // Stolen Soul Dispel',
+                36587: '                    case 36587:                             // Vision Guide',
+                38224: '                    case 38224:                             // Illidari Agent Illusion',
+                37096: '                    case 37096:                             // Blood Elf Illusion',
+                46354: '                    case 46354:                             // Blood Elf Illusion',
+                39850: '                    case 39850:                             // Rocket Blast',
+                43873: '                    case 43873:                             // Headless Horseman Laugh',
+                45963: '                    case 45963:                             // Call Alliance Deserter',
+                46637: '                    case 46637:                             // Break Ice',
+                46699: '                    case 46699:                             // Requires No Ammo',
+                47190: '                    case 47190:                             // Toalu\'u\'s Spiritual Incense',
+                47563: '                    case 47563:                             // Freezing Cloud',
+                47593: '                    case 47593:                             // Freezing Cloud',
+                48143: '                    case 48143:                             // Forgotten Aura',
+                51405: '                    case 51405:                             // Digging for Treasure',
+                61187: '                    case 61187:                             // Twilight Shift (single target)',
+                61190: '                    case 61190:                             // Twilight Shift (many targets)',
+                62061: '                    case 62061:                             // Festive Holiday Mount',
+                62109: '                    case 62109:                             // Tails Up: Aura',
+                63122: '                    case 63122:                             // Clear Insane',
+                63624: '                    case 63624:                             '
+                       '// Learn a Second Talent Specialization',
+                63651: '                    case 63651:                             '
+                       '// Revert to One Talent Specialization',
+                64132: '                    case 64132:                             // Constrictor Tentacle',
+                65684: '                    case 65684:                             // Dark Essence',
+                65686: '                    case 65686:                             // Light Essence',
+                68912: '                    case 68912:                             // Wailing Souls',
+                70623: '                    case 70623:                             // Jaina\'s Call',
+                70638: '                    case 70638:                             // Call of Sylvanas',
+                71563: '                    case 71563:                             // Deadly Precision'},
+        }, {
             'name': 'HandleAuraDummy AT APPLY, SPELLFAMILY_WARRIOR (switch (GetId()))',
             'dispatch': [
                 '                AuraDummyApplyContext ctx(this, target);',

@@ -99,22 +99,14 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         {
             case SPELLFAMILY_GENERIC:
             {
+                AuraDummyApplyGenericContext ctx(this, target, m_periodicTimer);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraDummyApplyGenericSite>(GetId(), ctx).IsReturn())
+                {
+                    return;
+                }
+
                 switch (GetId())
                 {
-                    case 1515:                              // Tame beast
-                        // FIX_ME: this is 2.0.12 threat effect replaced in 2.1.x by dummy aura, must be checked for correctness
-                        if (target->CanHaveThreatList())
-                            if (Unit* caster = GetCaster())
-                            {
-                                target->AddThreat(caster, 10.0f, false, GetSpellSchoolMask(GetSpellProto()), GetSpellProto());
-                            }
-                        return;
-                    case 7057:                              // Haunting Spirits
-                        // expected to tick with 30 sec period (tick part see in Aura::PeriodicTick)
-                        m_isPeriodic = true;
-                        m_modifier.periodictime = 30 * IN_MILLISECONDS;
-                        m_periodicTimer = m_modifier.periodictime;
-                        return;
                     case 10255:                             // Stoned
                     {
                         if (Unit* caster = GetCaster())
@@ -129,200 +121,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                         }
                         return;
                     }
-                    case 13139:                             // net-o-matic
-                        // root to self part of (root_target->charge->root_self sequence
-                        if (Unit* caster = GetCaster())
-                        {
-                            caster->CastSpell(caster, 13138, true, NULL, this);
-                        }
-                        return;
-                    case 28832:                             // Mark of Korth'azz
-                    case 28833:                             // Mark of Blaumeux
-                    case 28834:                             // Mark of Rivendare
-                    case 28835:                             // Mark of Zeliek
-                    {
-                        int32 damage = 0;
-
-                        switch (GetStackAmount())
-                        {
-                            case 1:
-                                return;
-                            case 2: damage =   500; break;
-                            case 3: damage =  1500; break;
-                            case 4: damage =  4000; break;
-                            case 5: damage = 12500; break;
-                            default:
-                                damage = 14000 + 1000 * GetStackAmount();
-                                break;
-                        }
-
-                        if (Unit* caster = GetCaster())
-                        {
-                            caster->CastCustomSpell(target, 28836, &damage, NULL, NULL, true, NULL, this);
-                        }
-                        return;
-                    }
-                    case 31606:                             // Stormcrow Amulet
-                    {
-                        CreatureInfo const* cInfo = ObjectMgr::GetCreatureTemplate(17970);
-
-                        // we must assume db or script set display id to native at ending flight (if not, target is stuck with this model)
-                        if (cInfo)
-                        {
-                            target->SetDisplayId(Creature::ChooseDisplayId(cInfo));
-                        }
-
-                        return;
-                    }
-                    case 32045:                             // Soul Charge
-                    case 32051:
-                    case 32052:
-                    {
-                        // max duration is 2 minutes, but expected to be random duration
-                        // real time randomness is unclear, using max 30 seconds here
-                        // see further down for expire of this aura
-                        GetHolder()->SetAuraDuration(urand(1, 30)*IN_MILLISECONDS);
-                        return;
-                    }
-                    case 33326:                             // Stolen Soul Dispel
-                    {
-                        target->RemoveAurasDueToSpell(32346);
-                        return;
-                    }
-                    case 36587:                             // Vision Guide
-                    {
-                        target->CastSpell(target, 36573, true, NULL, this);
-                        return;
-                    }
-                    // Gender spells
-                    case 38224:                             // Illidari Agent Illusion
-                    case 37096:                             // Blood Elf Illusion
-                    case 46354:                             // Blood Elf Illusion
-                    {
-                        uint8 gender = target->getGender();
-                        uint32 spellId;
-                        switch (GetId())
-                        {
-                            case 38224: spellId = (gender == GENDER_MALE ? 38225 : 38227); break;
-                            case 37096: spellId = (gender == GENDER_MALE ? 37093 : 37095); break;
-                            case 46354: spellId = (gender == GENDER_MALE ? 46355 : 46356); break;
-                            default: return;
-                        }
-                        target->CastSpell(target, spellId, true, NULL, this);
-                        return;
-                    }
-                    case 39850:                             // Rocket Blast
-                        if (roll_chance_i(20))              // backfire stun
-                        {
-                            target->CastSpell(target, 51581, true, NULL, this);
-                        }
-                        return;
-                    case 43873:                             // Headless Horseman Laugh
-                        target->PlayDistanceSound(11965);
-                        return;
-                    case 45963:                             // Call Alliance Deserter
-                    {
-                        // Escorting Alliance Deserter
-                        if (target->GetMiniPet())
-                        {
-                            target->CastSpell(target, 45957, true);
-                        }
-
-                        return;
-                    }
-                    case 46637:                             // Break Ice
-                        target->CastSpell(target, 46638, true, NULL, this);
-                        return;
-                    case 46699:                             // Requires No Ammo
-                        if (target->GetTypeId() == TYPEID_PLAYER)
-                            // not use ammo and not allow use
-                            ((Player*)target)->RemoveAmmo();
-                        return;
-                    case 47190:                             // Toalu'u's Spiritual Incense
-                        target->CastSpell(target, 47189, true, NULL, this);
-                        // allow script to process further (text)
-                        break;
-                    case 47563:                             // Freezing Cloud
-                        target->CastSpell(target, 47574, true, NULL, this);
-                        return;
-                    case 47593:                             // Freezing Cloud
-                        target->CastSpell(target, 47594, true, NULL, this);
-                        return;
-                    case 48143:                             // Forgotten Aura
-                        // See Death's Door
-                        target->CastSpell(target, 48814, true, NULL, this);
-                        return;
                     case 51405:                             // Digging for Treasure
                         target->HandleEmote(EMOTE_STATE_WORK);
                         // Pet will be following owner, this makes him stop
                         target->GetMotionMaster()->Inhibit(Motion::Inhibition::Stunned, Motion::ControlClaim(51405, 0, GetCasterGuid().GetCounter()));
-                        return;
-                    case 61187:                             // Twilight Shift (single target)
-                    case 61190:                             // Twilight Shift (many targets)
-                        target->RemoveAurasDueToSpell(57620);
-                        target->CastSpell(target, 61885, true, NULL, this);
-                        return;
-                    case 62061:                             // Festive Holiday Mount
-                        if (target->HasAuraType(SPELL_AURA_MOUNTED))
-                            // Reindeer Transformation
-                            target->CastSpell(target, 25860, true, NULL, this);
-                        return;
-                    case 62109:                             // Tails Up: Aura
-                        target->setFaction(1990);           // Ambient (hostile)
-                        target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE);
-                        return;
-                    case 63122:                             // Clear Insane
-                        target->RemoveAurasDueToSpell(GetSpellProto()->CalculateSimpleValue(m_effIndex));
-                        return;
-                    case 63624:                             // Learn a Second Talent Specialization
-                        // Teach Learn Talent Specialization Switches, required for client triggered casts, allow after 30 sec delay
-                        if (target->GetTypeId() == TYPEID_PLAYER)
-                        {
-                            ((Player*)target)->learnSpell(63680, false);
-                        }
-                        return;
-                    case 63651:                             // Revert to One Talent Specialization
-                        // Teach Learn Talent Specialization Switches, remove
-                        if (target->GetTypeId() == TYPEID_PLAYER)
-                        {
-                            ((Player*)target)->removeSpell(63680);
-                        }
-                        return;
-                    case 64132:                             // Constrictor Tentacle
-                        if (target->GetTypeId() == TYPEID_PLAYER)
-                        {
-                            target->CastSpell(target, 64133, true, NULL, this);
-                        }
-                        return;
-                    case 65684:                             // Dark Essence
-                        target->RemoveAurasDueToSpell(65686);
-                        return;
-                    case 65686:                             // Light Essence
-                        target->RemoveAurasDueToSpell(65684);
-                        return;
-                    case 68912:                             // Wailing Souls
-                        if (Unit* caster = GetCaster())
-                        {
-                            caster->SetTargetGuid(target->GetObjectGuid());
-
-                            // TODO - this is confusing, it seems the boss should channel this aura, and start casting the next spell
-                            caster->CastSpell(caster, 68899, false);
-                        }
-                        return;
-                    case 70623:                             // Jaina's Call
-                        if (target->GetTypeId() == TYPEID_PLAYER)
-                        {
-                            target->CastSpell(target, 70525, true, NULL, this);
-                        }
-                        return;
-                    case 70638:                             // Call of Sylvanas
-                        if (target->GetTypeId() == TYPEID_PLAYER)
-                        {
-                            target->CastSpell(target, 70639, true, NULL, this);
-                        }
-                        return;
-                    case 71563:                             // Deadly Precision
-                        target->CastSpell(target, 71564, true, NULL, this);
                         return;
                 }
                 break;
