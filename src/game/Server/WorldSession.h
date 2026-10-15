@@ -1002,24 +1002,6 @@ class WorldSession
         void HandleReturnToGraveyard(WorldPacket& recvPacket);
         void HandleSummonResponseOpcode(WorldPacket& recv_data);
 
-        void HandleJoinChannelOpcode(WorldPacket& recvPacket);
-        void HandleLeaveChannelOpcode(WorldPacket& recvPacket);
-        void HandleChannelListOpcode(WorldPacket& recvPacket);
-        void HandleChannelPasswordOpcode(WorldPacket& recvPacket);
-        void HandleChannelSetOwnerOpcode(WorldPacket& recvPacket);
-        void HandleChannelOwnerOpcode(WorldPacket& recvPacket);
-        void HandleChannelModeratorOpcode(WorldPacket& recvPacket);
-        void HandleChannelUnmoderatorOpcode(WorldPacket& recvPacket);
-        void HandleChannelMuteOpcode(WorldPacket& recvPacket);
-        void HandleChannelUnmuteOpcode(WorldPacket& recvPacket);
-        void HandleChannelInviteOpcode(WorldPacket& recvPacket);
-        void HandleChannelKickOpcode(WorldPacket& recvPacket);
-        void HandleChannelBanOpcode(WorldPacket& recvPacket);
-        void HandleChannelUnbanOpcode(WorldPacket& recvPacket);
-        void HandleChannelAnnouncementsOpcode(WorldPacket& recvPacket);
-        void HandleChannelDisplayListQueryOpcode(WorldPacket& recvPacket);
-        void HandleSetChannelWatchOpcode(WorldPacket& recvPacket);
-
         void HandleCompleteCinematic(WorldPacket& recvPacket);
         void HandleNextCinematicCamera(WorldPacket& recvPacket);
 

@@ -50,6 +50,7 @@
 #include "session/handlers/entities/PetHandlers.h"
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
+#include "session/handlers/social/ChannelHandlers.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
@@ -275,23 +276,23 @@ void InitializeOpcodes()
     OPCODE(CMSG_MESSAGECHAT_WHISPER,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMessagechatOpcode         );
     OPCODE(CMSG_MESSAGECHAT_YELL,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMessagechatOpcode         );
     OPCODE(SMSG_MESSAGECHAT,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_JOIN_CHANNEL,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleJoinChannelOpcode         );
-    OPCODE(CMSG_LEAVE_CHANNEL,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleLeaveChannelOpcode        );
+    OPCODE(CMSG_JOIN_CHANNEL,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleJoinChannel            );
+    OPCODE(CMSG_LEAVE_CHANNEL,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleLeaveChannel           );
     OPCODE(SMSG_CHANNEL_NOTIFY,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CHANNEL_LIST,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelListOpcode         );
+    OPCODE(CMSG_CHANNEL_LIST,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelList            );
     OPCODE(SMSG_CHANNEL_LIST,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CHANNEL_PASSWORD,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelPasswordOpcode     );
-    OPCODE(CMSG_CHANNEL_SET_OWNER,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelSetOwnerOpcode     );
-    OPCODE(CMSG_CHANNEL_OWNER,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelOwnerOpcode        );
-    OPCODE(CMSG_CHANNEL_MODERATOR,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelModeratorOpcode    );
-    OPCODE(CMSG_CHANNEL_UNMODERATOR,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelUnmoderatorOpcode  );
-    OPCODE(CMSG_CHANNEL_MUTE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelMuteOpcode         );
-    OPCODE(CMSG_CHANNEL_UNMUTE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelUnmuteOpcode       );
-    OPCODE(CMSG_CHANNEL_INVITE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelInviteOpcode       );
-    OPCODE(CMSG_CHANNEL_KICK,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelKickOpcode         );
-    OPCODE(CMSG_CHANNEL_BAN,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelBanOpcode          );
-    OPCODE(CMSG_CHANNEL_UNBAN,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelUnbanOpcode        );
-    OPCODE(CMSG_CHANNEL_ANNOUNCEMENTS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelAnnouncementsOpcode);
+    OPCODE(CMSG_CHANNEL_PASSWORD,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelPassword        );
+    OPCODE(CMSG_CHANNEL_SET_OWNER,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelSetOwner        );
+    OPCODE(CMSG_CHANNEL_OWNER,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelOwner           );
+    OPCODE(CMSG_CHANNEL_MODERATOR,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelModerator       );
+    OPCODE(CMSG_CHANNEL_UNMODERATOR,                     STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelUnmoderator     );
+    OPCODE(CMSG_CHANNEL_MUTE,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelMute            );
+    OPCODE(CMSG_CHANNEL_UNMUTE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelUnmute          );
+    OPCODE(CMSG_CHANNEL_INVITE,                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelInvite          );
+    OPCODE(CMSG_CHANNEL_KICK,                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelKick            );
+    OPCODE(CMSG_CHANNEL_BAN,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelBan             );
+    OPCODE(CMSG_CHANNEL_UNBAN,                           STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelUnban           );
+    OPCODE(CMSG_CHANNEL_ANNOUNCEMENTS,                   STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelAnnouncements   );
     OPCODE(SMSG_UPDATE_OBJECT,                           STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_DESTROY_OBJECT,                          STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_USE_ITEM,                                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleUseItemOpcode             );
@@ -1130,7 +1131,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_CHANNEL_UNSILENCE_ALL,                   STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_TARGET_CAST,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_TARGET_SCRIPT_CAST,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_CHANNEL_DISPLAY_LIST,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelDisplayListQueryOpcode);
+    OPCODE(CMSG_CHANNEL_DISPLAY_LIST,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelDisplayListQuery);
     OPCODE(CMSG_SET_ACTIVE_VOICE_CHANNEL,                STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleSetActiveVoiceChannel     );
     OPCODE(SMSG_CHANNEL_MEMBER_COUNT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(CMSG_CHANNEL_VOICE_ON,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelVoiceOnOpcode      );
@@ -1159,7 +1160,7 @@ void InitializeOpcodes()
     OPCODE(CMSG_GUILD_BANK_WITHDRAW_MONEY,               STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankWithdrawMoney    );
     OPCODE(CMSG_GUILD_BANK_LOG_QUERY,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildBankLogQuery         );
     OPCODE(SMSG_GUILD_BANK_LOG_QUERY_RESULT,             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_SET_CHANNEL_WATCH,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleSetChannelWatchOpcode     );
+    OPCODE(CMSG_SET_CHANNEL_WATCH,                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleSetChannelWatch        );
     OPCODE(SMSG_USERLIST_ADD,                            STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_USERLIST_REMOVE,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_USERLIST_UPDATE,                         STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
