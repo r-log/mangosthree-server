@@ -180,16 +180,16 @@ sequence, none rewrites another's right side, nor the left side of a pair after 
 would apply (as a whole token).
 
 Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH lines call
-`Dispatch<TRAITS>(KEY, NAME)` once and construct the context they pass, `CONTEXT NAME(ARGUMENTS);`, once;
-the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a route through the aura
-or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`) needs `this` among
-them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are compared with their
-blanks dropped, but one between two name characters. The dispatch lines hold, blank lines aside, in this
-order and each once, the context's construction (whole or split over two or more lines), the dispatch call
-(whole or split over two lines, or assigned to `outcome` and tested on the next line), `{`, its return and
-`}`, the five inside one outer `{` and `}` or in none, and nothing else: each line, comments and literals
-blanked and blanks aside, is `CONTEXT NAME(ARGUMENTS);`, whole or split over two or more lines, each break
-after an argument's comma that no inner parenthesis holds;
+`Dispatch<TRAITS>(KEY, NAME)` once and construct the context they pass, `CONTEXT NAME(ARGUMENTS);`, once,
+no argument empty; the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a
+route through the aura or spell the context holds (a left side beginning `ctx.aura->` or `ctx.spell->`)
+needs `this` among them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are
+compared with their blanks dropped, but one between two name characters. The dispatch lines hold, blank
+lines aside, in this order and each once, the context's construction (whole or split over two or more
+lines), the dispatch call (whole or split over two lines, or assigned to `outcome` and tested on the next
+line), `{`, its return and `}`, the five inside one outer `{` and `}` or in none, and nothing else: each
+line, comments and literals blanked and blanks aside, is `CONTEXT NAME(ARGUMENTS);`, whole or split over
+two or more lines, each break after an argument's comma that no inner parenthesis holds;
 `if (Dispatch<TRAITS>(KEY, NAME).IsReturn())`, whole or split after its `(` or after KEY's comma;
 `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with `if (OUT.IsReturn())` the next line
 (VALUE the site's `value`, void where it names none; OUT any name); `return;` at a site with no `value`,
@@ -200,8 +200,9 @@ entry's own dispatch stands, so a binding or a key changed in the sites' file an
 or a statement or another return added to the dispatch lines of both, would come back byte for byte.
 Refused, each by name: a context pair reading two names that is not listed; a listed exception no site
 uses, or an entry that is not a pair and its reason; a pair rewriting another's right side or a later
-pair's left side; a dispatch line of none of the shapes (a statement, a comment, a return of the other
-kind or one changed), or one out of that order or repeated, and dispatch lines that end short of it.
+pair's left side; a construction with an empty argument; a dispatch line of none of the shapes (a
+statement, a comment, a return of the other kind or one changed), or one out of that order or repeated,
+and dispatch lines that end short of it.
 
 python src/tests/tools/verbatim.py --check        # against BASE (this PR's parent), reading git
 python src/tests/tools/verbatim.py --check --original   # each file against its original
