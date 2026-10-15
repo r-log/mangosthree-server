@@ -25,8 +25,8 @@
 
 /**
  * @file LFGHandler.cpp
- * @brief 4.3.4 Dungeon Finder opcode handlers and SMSG senders. Packet
- *        layouts live in LFGPackets.h; queue logic lives in LFGMgr.
+ * @brief Defines the WorldSession members that send the Dungeon Finder packets, called by
+ *        LFGMgr and LfgHandlers. Packet layouts live in LFGPackets.h; queue logic in LFGMgr.
  */
 
 #include <string>
@@ -125,11 +125,7 @@ void WorldSession::SendLfgPlayerReward(LFGPackets::PlayerReward const& reward)
 
 /// Sends SMSG_LFG_BOOT_PROPOSAL_UPDATE for one recipient.
 ///
-/// timeLeft is computed inline here rather than through
-/// LFGBootLogic::RemainingSeconds (LFGBootLogic.h, added in a later commit
-/// of this same series) so this commit stays independently buildable; the
-/// clamp formula is identical -- no `/1000`, no `uint8` truncation, floored
-/// at 0 (C-8).
+/// timeLeft is the seconds until the boot vote's deadline, floored at 0.
 void WorldSession::SendLfgBootProposalUpdate(LFGBoot const& boot, uint32 votesNeeded)
 {
     DEBUG_LOG("SMSG_LFG_BOOT_PROPOSAL_UPDATE");
@@ -212,7 +208,7 @@ void WorldSession::SendLfgPlayerLockInfo()
 }
 
 /// Builds and sends SMSG_LFG_PARTY_INFO for the requesting player's group.
-/// Self is skipped (section 3.11); with no group this sends a valid,
+/// Self is skipped; with no group this sends a valid,
 /// empty member list.
 void WorldSession::SendLfgPartyLockInfo()
 {

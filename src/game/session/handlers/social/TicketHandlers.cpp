@@ -230,7 +230,7 @@ void TicketHandlers::HandleGMTicketSurveySubmit(WorldSession& session, WorldPack
     if (!ticket)
     {
         session.SendGMTicketStatusUpdate(GM_TICKET_STATUS_CLOSE);
-        //Should we send GM_TICKET_STATUS_CLOSE here aswell?
+        // with no ticket to survey, the close above is the whole answer
         return;
     }
 

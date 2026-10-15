@@ -54,7 +54,7 @@ void ContactHandlers::HandleContactList(WorldSession& session, WorldPacket& recv
 }
 
 /**
- * @brief Starts an asynchronous add-friend lookup.
+ * @brief Resolves the friend's name through CharacterCache and completes the add.
  *
  * @param recv_data The received opcode packet.
  */
@@ -170,7 +170,7 @@ void ContactHandlers::HandleDelFriend(WorldSession& session, WorldPacket& recv_d
 }
 
 /**
- * @brief Starts an asynchronous add-ignore lookup.
+ * @brief Resolves the ignored player's name through CharacterCache and completes the add.
  *
  * @param recv_data The received opcode packet.
  */

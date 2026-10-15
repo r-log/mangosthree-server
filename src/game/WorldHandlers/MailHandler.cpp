@@ -183,16 +183,12 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
         request.money, request.COD, request.unk1, request.unk2);
     // packet read complete, now do check
 
-    // Decoupling D7g: the receiver is resolved HERE, out of memory alone -- normalizePlayerName
-    // is a string operation and ObjectMgr::GetPlayerGuidByName has read the character cache
-    // since D7c -- because the guards below and the decision to defer both need the guid.
+    // The receiver is resolved here, from memory alone (normalizePlayerName and the character
+    // cache), because the guards below and the decision to defer both need the guid.
     //
-    // The normalisation writes back only when it SUCCEEDS, which the in-place call it replaces
-    // could not do: WStrToUtf8 clears the string it was given when the name is not valid UTF-8.
-    // In the old order that clearing happened after the `receiver.empty()` test and before the
-    // "recipient not found" log, so it could only ever blank a log line; here the test comes
-    // after, so the raw name has to survive a failed normalisation or a garbage name would
-    // return silently instead of answering MAIL_ERR_RECIPIENT_NOT_FOUND.
+    // The name is written back only when normalisation succeeds: WStrToUtf8 empties it when
+    // its conversion fails, and the `receiver.empty()` test below would then return silently
+    // instead of answering MAIL_ERR_RECIPIENT_NOT_FOUND.
     std::string normalized = request.receiver;
     if (normalizePlayerName(normalized))
     {
@@ -203,9 +199,8 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
     Player* pl = _player;
 
     // Every check below reads memory only, so it stays here: a request that cannot succeed
-    // never reaches the database at all (D7b's contract, PetitionHandlers::HandlePetitionBuy). They are
-    // the old handler's guards, in the old order, sending the old replies -- and each of them
-    // runs AGAIN in ProcessSendMail (C3), because on the deferred path a tick passes before
+    // never reaches the database at all, as in PetitionHandlers::HandlePetitionBuy. Each of them
+    // runs again in ProcessSendMail, because on the deferred path a tick passes before
     // anything is charged. Running them twice in one tick costs nothing and sends nothing: the
     // first copy returns on failure, so only one reply ever leaves.
     if (!CheckMailBox(request.mailboxGuid))
@@ -252,12 +247,8 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
 
     if (!sObjectMgr.GetPlayer(request.receiverGuid))
     {
-        // An OFFLINE receiver is the one case that used to block the tick: his mailbox count
-        // is a `SELECT COUNT(*) FROM mail`, and it is not a cached fact (it changes with every
-        // mail anyone sends him and he is not here to keep it). It becomes a continuation
-        // (C1-C5): the read is queued and everything below runs a tick later. Nothing is
-        // mutated in front of it -- the money and the items only move after the count is
-        // tested -- so there is no C3 reorder, only a re-validation.
+        // An offline receiver's mailbox count is not cached, so it is read from the database
+        // and ProcessSendMail runs a tick later, from the continuation.
         QueueSendMailboxCountRead(GetAccountId(), GetSessionId(), pl->GetObjectGuid(), std::move(request));
         return;
     }
@@ -268,7 +259,7 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
 }
 
 /**
- * @brief Stages the send-mail handler's only read (decoupling D7g).
+ * @brief Stages the send-mail handler's only read.
  *
  * Split out of the handler so it can be driven on its own: everything it needs is in its
  * arguments, so a test can queue exactly what a real request queues without a Player.
@@ -329,13 +320,13 @@ void WorldSession::HandleSendMailCallback(std::unique_ptr<QueryResult> result, u
 }
 
 /**
- * @brief The whole of CMSG_SEND_MAIL below its packet read, verbatim (decoupling D7g).
+ * @brief Checks and sends the mail, once the receiver is resolved.
  *
  * Shared by the two paths: an online receiver runs it in the arriving tick, an offline one
  * from the continuation a tick later. The first six guards below are the memory-only ones the
- * handler has ALREADY run and refused on -- they are repeated here because C3 asks a deferred
- * handler to re-validate: a tick has passed, so the mailbox may be out of range, the money may
- * be spent and the items may be gone. On the same-tick path they simply pass a second time.
+ * handler has already run and refused on -- they are repeated here because on the deferred path
+ * a tick has passed, so the mailbox may be out of range and the money may be spent. On the
+ * same-tick path they simply pass a second time.
  *
  * @param request The parsed mail, with the receiver already resolved.
  * @param offlineMailsCount The offline receiver's mailbox count; unread when he is online.
@@ -413,9 +404,8 @@ void WorldSession::ProcessSendMail(MailSendRequest const& request, uint8 offline
     else
     {
         rc_team = sObjectMgr.GetPlayerTeamByGUID(rc);
-        // Decoupling D7g: the `SELECT COUNT(*) FROM mail WHERE receiver` that stood here was
-        // staged by the handler and its answer is this argument. A receiver who logged IN
-        // during that tick takes the branch above instead, with his live mailbox.
+        // offlineMailsCount is the answer to the count read the handler queued. A receiver who
+        // has logged in since takes the branch above, with his live mailbox.
         mails_count = offlineMailsCount;
     }
 
@@ -437,9 +427,8 @@ void WorldSession::ProcessSendMail(MailSendRequest const& request, uint8 offline
                         ? receive->GetSession()->GetAccountId()
                         : sObjectMgr.GetPlayerAccountIdByGUID(rc);
 
-    // Decoupling D7g (C3): the receiver was resolved from the character cache in the handler's
-    // tick; a delete continuation can have removed the character since. Refuse before anything
-    // is charged -- the same refusal the handler gives an unknown name.
+    // The character may have been deleted since the handler resolved it from the cache: refuse
+    // as for an unknown name, before anything is charged.
     if (!receive && !sCharacterCache.GetByGuid(rc))
     {
         pl->SendMailResult(0, MAIL_SEND, MAIL_ERR_RECIPIENT_NOT_FOUND);
@@ -456,9 +445,8 @@ void WorldSession::ProcessSendMail(MailSendRequest const& request, uint8 offline
             return;
         }
 
-        // Re-found by guid, never carried across a tick as a pointer (C1): on the deferred
-        // path an item may have been sold, destroyed or moved since the request arrived, and
-        // this is the same lookup the handler always made.
+        // Re-found by guid, never carried across a tick as a pointer: on the deferred path an
+        // item may have been sold, destroyed or moved since the request arrived.
         Item* item = pl->GetInventoryMgr().GetItemByGuid(request.itemGuids[i]);
 
         // prevent sending bag with items (cheat: can be placed in bag after adding equipped empty bag to mail)

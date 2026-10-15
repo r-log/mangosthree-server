@@ -65,7 +65,7 @@ namespace
         PETITION_SIGN_READ_COUNT    = 2
     };
 
-    /// The slots of the sign handler's SECOND holder -- the atomic sign itself (D7b, C4).
+    /// The slots of the sign handler's SECOND holder -- the atomic sign itself.
     /// The three statements run back to back on the delay thread under one connection lock:
     /// what the row looked like before, the conditional insert, what it looks like after.
     /// Nothing else can interleave, so the answer says which of the two happened.
@@ -88,9 +88,8 @@ namespace
     /**
      * @brief Queue a staged holder, freeing it if the database refuses it.
      *
-     * DelayQueryHolder() answers false without queueing once the database is shutting down
-     * (decoupling D7a); the holder is the callback's to free, so a refusal is the caller's
-     * to clean up or it leaks both the holder and its staged statements.
+     * DelayQueryHolder() answers false without queueing once the database is shutting down;
+     * the callback that frees the holder then never runs, so the holder is deleted here.
      */
     void QueuePetitionHolder(SqlQueryHolder* holder,
                              std::function<void(QueryResult*, SqlQueryHolder*)> callback)
@@ -198,9 +197,8 @@ void PetitionHandlers::HandlePetitionBuy(WorldSession& session, WorldPacket& rec
         return;
     }
 
-    // The read is queued BEFORE anything is charged or created. The old order paid for
-    // the charter and put it in the bag first, so a continuation that never arrives -- a
-    // logout in the same tick -- could leave a paid charter with no petition row behind it.
+    // The read is queued before anything is charged or created, so a buyer who logs out
+    // before it answers pays nothing.
     QueuePetitionBuyRead(session.GetAccountId(), session.GetSessionId(), session.GetPlayer()->GetObjectGuid(), guidNPC, name);
 }
 
@@ -219,8 +217,7 @@ void PetitionHandlers::HandlePetitionBuy(WorldSession& session, WorldPacket& rec
 void PetitionHandlers::QueuePetitionBuyRead(uint32 accountId, proto::SessionId sessionId,
                                             ObjectGuid playerGuid, ObjectGuid npcGuid, std::string name)
 {
-    // a petition is invalid, if both the owner and the type matches
-    // we checked above, if this player is in an arenateam, so this must be data corruption
+    // the buyer's petitions are read here; the continuation deletes them and their signatures
     CharacterDatabase.AsyncPQuery([accountId, sessionId, playerGuid, npcGuid, name](QueryResult* result)
                                   {
                                       PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult>(result),
@@ -489,7 +486,7 @@ void PetitionHandlers::HandlePetitionRename(WorldSession& session, WorldPacket& 
         return;
     }
 
-    // Read first, then escape and write in the continuation.
+    // Read first, then write in the continuation, the name bound as a parameter.
     uint32 accountId = session.GetAccountId();
     proto::SessionId sessionId = session.GetSessionId();
     ObjectGuid playerGuid = session.GetPlayer()->GetObjectGuid();
@@ -614,9 +611,8 @@ void PetitionHandlers::HandlePetitionSign(WorldSession& session, WorldPacket& re
 /**
  * @brief Decides whether a sign request may go ahead, once the petition is known.
  *
- * Everything the old handler did between its two reads happens here, in the same order and
- * with the same replies. Only when none of them answers does the request reach the atomic
- * sign itself.
+ * Checks the request against the petition row and the account's signatures; only a request
+ * that passes every check reaches the atomic sign.
  *
  * @param holder The staged reads.
  * @param accountId The signing account.
@@ -707,13 +703,9 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
 /**
  * @brief Stages the atomic sign: one holder, three statements.
  *
- * The old handler counted the signatures, decided, and inserted in three separate steps
- * with the world thread waiting between them -- two clients signing in the same tick both
- * saw room and both were inserted, and a signature that was already there could not be told
- * apart from one this request had just added. Here the three statements run back to back on
- * the delay thread, under the connection's lock, and the insert itself carries the rules:
- * the petition must exist, the count must be under the limit, and this player must not
- * already be on it. Comparing the row before with the row after is what names the outcome.
+ * The three statements run back to back on the delay thread under the connection's lock. The
+ * insert adds the signature only if the petition exists, is under the limit and does not hold
+ * this player yet; the rows read before and after it name the outcome.
  *
  * Split out of the continuation so it can be driven on its own, with no Player and no
  * configuration: the sign limit is a parameter, not a lookup.
@@ -807,7 +799,7 @@ void PetitionHandlers::HandlePetitionSignedCallback(std::unique_ptr<SqlQueryHold
 
     if (outcome == PETITION_SIGN_PETITION_FULL)
     {
-        // close at signer side (no owner copy for a full petition, as before)
+        // close at signer side (no owner copy for a full petition)
         if (signerHere)
         {
             player->SendPetitionSignResult(petitionGuid, playerGuid, PETITION_SIGN_PETITION_FULL);
@@ -870,7 +862,7 @@ void PetitionHandlers::HandlePetitionDecline(WorldSession& session, WorldPacket&
  * names the decliner by GUID -- so it is built from the captured guid and the requester is
  * neither re-found nor needed. Dropping it because the decliner logged out in the
  * intervening tick would leave the owner's charter UI waiting for an answer that has
- * already been given; before the read was queued at all, the owner always got it.
+ * already been given.
  *
  * @param result The petition's owner row.
  * @param playerGuid The declining player.
@@ -916,7 +908,7 @@ void PetitionHandlers::HandleOfferPetition(WorldSession& session, WorldPacket& r
         return;
     }
 
-    /// Get petition type and check, and the signs count: independent, so one holder.
+    /// The petition's existence and its signatures: independent, so one holder.
     SqlQueryHolder* holder = new SqlQueryHolder;
     holder->SetSize(PETITION_SHOW_SLOT_COUNT);
     holder->SetPQuery(PETITION_SHOW_PETITION,
@@ -957,7 +949,7 @@ void PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolde
         return;
     }
 
-    // The other player is re-found the same way, and the offer is dropped if they have gone.
+    // The other player is re-found by guid, and the offer is dropped if they have gone.
     Player* player = sPlayerRegistry.Find(playerGuid);
     if (!player)
     {
