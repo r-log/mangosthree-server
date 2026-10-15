@@ -864,17 +864,18 @@ namespace
 
 TEST(AuraDummyHandlers_SetPeriodicChangesTheFlagAndNothingElse)
 {
-    // SetPeriodic changes one bit of zeroed or patterned storage, and setting the flag back restores every byte.
+    // SetPeriodic changes one bit, and setting the flag back or to the value it holds restores every byte.
     AuraStorage storage = {};
     Aura* aura = reinterpret_cast<Aura*>(storage.bytes);
+    aura->GetModifier()->periodictime = 30000;
     CHECK(!aura->IsPeriodic());
-    AuraStorage const zeroed = storage;
+    AuraStorage const withPeriod = storage;
     aura->SetPeriodic(true);
     CHECK(aura->IsPeriodic());
-    CHECK_EQ(BitsThatDiffer(storage, zeroed), 1);
+    CHECK_EQ(BitsThatDiffer(storage, withPeriod), 1);
     aura->SetPeriodic(false);
     CHECK(!aura->IsPeriodic());
-    CHECK_EQ(BitsThatDiffer(storage, zeroed), 0);
+    CHECK_EQ(BitsThatDiffer(storage, withPeriod), 0);
 
     for (std::size_t i = 0; i < sizeof(storage.bytes); ++i)
     {
@@ -887,6 +888,8 @@ TEST(AuraDummyHandlers_SetPeriodicChangesTheFlagAndNothingElse)
     CHECK_EQ(BitsThatDiffer(storage, patterned), 1);
     aura->SetPeriodic(was);
     CHECK(aura->IsPeriodic() == was);
+    CHECK_EQ(BitsThatDiffer(storage, patterned), 0);
+    aura->SetPeriodic(was);
     CHECK_EQ(BitsThatDiffer(storage, patterned), 0);
 }
 
