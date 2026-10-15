@@ -140,7 +140,7 @@ void LfgHandlers::HandleLfgProposalResult(WorldSession& session, WorldPacket& re
         "CMSG_LFG_PROPOSAL_RESULT proposal %u accepted %u",
         request.proposalId, uint32(request.accepted));
 
-    // The echoed ticket/instance guid are informational (spec V4); the
+    // The echoed ticket/instance guid are informational; the
     // session's own player is the identity that answers.
     sLFGMgr.ProposalUpdate(request.proposalId, session.GetPlayer()->GetObjectGuid(),
                            request.accepted);
@@ -171,7 +171,7 @@ void LfgHandlers::HandleSetLfgComment(WorldSession& session, WorldPacket& recv_d
 
 /// Fires on Dungeon Finder panel open (LFDFrame.xml's OnShow calls both
 /// RequestLFDPlayerLockInfo and RequestLFDPartyLockInfo, each a separate
-/// CMSG_LFG_LOCK_INFO_REQUEST distinguished by this one bit -- section 3.22).
+/// CMSG_LFG_LOCK_INFO_REQUEST distinguished by this one bit).
 void LfgHandlers::HandleLfgLockInfoRequest(WorldSession& session, WorldPacket& recv_data)
 {
     DEBUG_LOG("CMSG_LFG_LOCK_INFO_REQUEST");
