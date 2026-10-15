@@ -846,6 +846,53 @@ TEST(AuraDummyHandlers_GetRemoveModeAnswersTheModeSetRemoveModeWrote)
     aura->SetRemoveMode(AURA_REMOVE_BY_DEFAULT);
 }
 
+namespace
+{
+    int BitsThatDiffer(AuraStorage const& left, AuraStorage const& right)
+    {
+        int bits = 0;
+        for (std::size_t i = 0; i < sizeof(left.bytes); ++i)
+        {
+            for (unsigned int diff = left.bytes[i] ^ right.bytes[i]; diff != 0; diff &= diff - 1)
+            {
+                ++bits;
+            }
+        }
+        return bits;
+    }
+}
+
+TEST(AuraDummyHandlers_SetPeriodicChangesTheFlagAndNothingElse)
+{
+    // SetPeriodic changes one bit, and setting the flag back or to the value it holds restores every byte.
+    AuraStorage storage = {};
+    Aura* aura = reinterpret_cast<Aura*>(storage.bytes);
+    aura->GetModifier()->periodictime = 30000;
+    CHECK(!aura->IsPeriodic());
+    AuraStorage const withPeriod = storage;
+    aura->SetPeriodic(true);
+    CHECK(aura->IsPeriodic());
+    CHECK_EQ(BitsThatDiffer(storage, withPeriod), 1);
+    aura->SetPeriodic(false);
+    CHECK(!aura->IsPeriodic());
+    CHECK_EQ(BitsThatDiffer(storage, withPeriod), 0);
+
+    for (std::size_t i = 0; i < sizeof(storage.bytes); ++i)
+    {
+        storage.bytes[i] = static_cast<unsigned char>(i * 37 + 11);
+    }
+    AuraStorage const patterned = storage;
+    bool const was = aura->IsPeriodic();
+    aura->SetPeriodic(!was);
+    CHECK(aura->IsPeriodic() == !was);
+    CHECK_EQ(BitsThatDiffer(storage, patterned), 1);
+    aura->SetPeriodic(was);
+    CHECK(aura->IsPeriodic() == was);
+    CHECK_EQ(BitsThatDiffer(storage, patterned), 0);
+    aura->SetPeriodic(was);
+    CHECK_EQ(BitsThatDiffer(storage, patterned), 0);
+}
+
 TEST(AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns)
 {
     // A double at the site: the context carries the aura, and the body reads the mode set after the context was
