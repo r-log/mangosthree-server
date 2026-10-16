@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '89f1d31d1'
+BASE = '112784a1f'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -304,7 +304,10 @@ SITES = {
             'in_scope': ['Real', 'classOptions'],
             'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
             'substitutions': [('ctx.target', 'target'), ('ctx.apply', 'apply'),
+                              ('ctx.aura->GetCaster()', 'GetCaster()'),
                               ('ctx.aura->GetCasterGuid()', 'GetCasterGuid()'), ('ctx.aura->GetId()', 'GetId()'),
+                              ('ctx.aura->GetEffIndex()', 'GetEffIndex()'),
+                              ('ctx.aura->GetMiscValue()', 'GetMiscValue()'),
                               ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
             'labels': {
                 6606: '                case 6606:                                  '
@@ -399,6 +402,49 @@ SITES = {
                 48395: '                    case 48395: {body}    // Rank 2',
                 48396: '                    case 48396: {body}    // Rank 3'},
             'gone': (5, 16),
+        }, {
+            'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_ROGUE (switch (GetId()))',
+            'dispatch': [
+                '            AuraDummyApplyRemoveContext ctx(this, target, apply);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyRogueSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraDummyRogueSite',
+            'context': 'AuraDummyApplyRemoveContext',
+            'live_outs': ['target', 'apply'],
+            'in_scope': ['Real', 'classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.apply', 'apply'),
+                              ('ctx.aura->GetHolder()', 'GetHolder()'),
+                              ('ctx.aura->GetRemoveMode()', 'm_removeMode')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                57934: '                case 57934:                                 '
+                       '// Tricks of the Trade, main spell'},
+        }, {
+            'name': 'HandleAuraDummy AT APPLY & REMOVE, SPELLFAMILY_HUNTER (switch (GetId()))',
+            'dispatch': [
+                '            AuraDummyApplyRemoveContext ctx(this, target, apply);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyHunterSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraDummyHunterSite',
+            'context': 'AuraDummyApplyRemoveContext',
+            'live_outs': ['target', 'apply'],
+            'in_scope': ['Real', 'classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.apply', 'apply'),
+                              ('ctx.aura->GetHolder()', 'GetHolder()'),
+                              ('ctx.aura->GetRemoveMode()', 'm_removeMode')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                34477: '                case 34477:                                 // Misdirection, main spell'},
         }],
     },
     'src/game/WorldHandlers/SpellAuraShapeshift.cpp': {

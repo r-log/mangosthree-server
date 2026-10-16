@@ -902,6 +902,53 @@ static SpellHandlerOutcome<void> AuraDummyRemove68839(AuraDummyRemoveContext& ct
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 11196: Recently Bandaged
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric11196(AuraDummyApplyRemoveContext& ctx)
+{
+    ctx.target->ApplySpellImmune(ctx.aura->GetId(), IMMUNITY_MECHANIC, ctx.aura->GetMiscValue(), ctx.apply);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 24658: Unstable Power
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric24658(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        Unit* caster = ctx.aura->GetCaster();
+        if (!caster)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        caster->CastSpell(ctx.target, 24659, true, NULL, NULL, ctx.aura->GetCasterGuid());
+    }
+    else
+    {
+        ctx.target->RemoveAurasDueToSpell(24659);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 24661: Restless Strength
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric24661(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        Unit* caster = ctx.aura->GetCaster();
+        if (!caster)
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        caster->CastSpell(ctx.target, 24662, true, NULL, NULL, ctx.aura->GetCasterGuid());
+    }
+    else
+    {
+        ctx.target->RemoveAurasDueToSpell(24662);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, one body for 16 labels: 29266: Permanent Feign Death,
 /// 31261: Permanent Feign Death (Root), 37493: Feign Death, 52593: Bloated Abomination Feign Death,
 /// 55795: Falling Dragon Feign Death, 57626: Feign Death, 57685: Permanent Feign Death,
@@ -921,6 +968,190 @@ static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericFeignDeath(AuraDummy
         ctx.target->SetFeignDeath(ctx.apply, ctx.aura->GetCasterGuid(), ctx.aura->GetId());
     }
 
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 40133: Summon Fire Elemental
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric40133(AuraDummyApplyRemoveContext& ctx)
+{
+    Unit* caster = ctx.aura->GetCaster();
+    if (!caster)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Unit* owner = caster->GetOwner();
+    if (owner && owner->GetTypeId() == TYPEID_PLAYER)
+    {
+        if (ctx.apply)
+        {
+            owner->CastSpell(owner, 8985, true);
+        }
+        else
+        {
+            ((Player*)owner)->RemovePet(PET_SAVE_REAGENTS);
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 40132: Summon Earth Elemental
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric40132(AuraDummyApplyRemoveContext& ctx)
+{
+    Unit* caster = ctx.aura->GetCaster();
+    if (!caster)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Unit* owner = caster->GetOwner();
+    if (owner && owner->GetTypeId() == TYPEID_PLAYER)
+    {
+        if (ctx.apply)
+        {
+            owner->CastSpell(owner, 19704, true);
+        }
+        else
+        {
+            ((Player*)owner)->RemovePet(PET_SAVE_REAGENTS);
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 40214: Dragonmaw Illusion
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric40214(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        ctx.target->CastSpell(ctx.target, 40216, true);
+        ctx.target->CastSpell(ctx.target, 42016, true);
+    }
+    else
+    {
+        ctx.target->RemoveAurasDueToSpell(40216);
+        ctx.target->RemoveAurasDueToSpell(42016);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 42515: Jarl Beam
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric42515(AuraDummyApplyRemoveContext& ctx)
+{
+    // aura animate dead (fainted) state for the duration, but we need to animate the death itself (correct way below?)
+    if (Unit* pCaster = ctx.aura->GetCaster())
+    {
+        pCaster->ApplyModFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH, ctx.apply);
+    }
+
+    // Beam to Zelfrax at remove
+    if (!ctx.apply)
+    {
+        ctx.target->CastSpell(ctx.target, 42517, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, one body for 2 labels: 42583: Claw Rage, 68987: Pursuit
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericFixateTarget(AuraDummyApplyRemoveContext& ctx)
+{
+    Unit* caster = ctx.aura->GetCaster();
+    if (!caster || ctx.target->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (ctx.apply)
+    {
+        caster->FixateTarget(ctx.target);
+    }
+    else if (ctx.target->GetObjectGuid() == caster->GetFixateTargetGuid())
+    {
+        caster->FixateTarget(NULL);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 47178: Plague Effect Self
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric47178(AuraDummyApplyRemoveContext& ctx)
+{
+    ctx.target->SetFeared(ctx.apply, ctx.aura->GetCasterGuid(), ctx.aura->GetId(), 0, uint8(ctx.aura->GetEffIndex()));
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, one body for 2 labels: 56422: Nerubian Submerge, 70733: Stoneform
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericNotSelectable(AuraDummyApplyRemoveContext& ctx)
+{
+    // not known if there are other things todo, only flag are confirmed valid
+    ctx.target->ApplyModFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE, ctx.apply);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 58204: LK Intro VO
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric58204(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        // Play part 1
+        if (ctx.apply)
+        {
+            ctx.target->PlayDirectSound(14970, (Player*)ctx.target);
+        }
+        // continue in 58205
+        else
+        {
+            ctx.target->CastSpell(ctx.target, 58205, true);
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE 58205: LK Intro VO
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGeneric58205(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER)
+    {
+        // Play part 2
+        if (ctx.apply)
+        {
+            ctx.target->PlayDirectSound(14971, (Player*)ctx.target);
+        }
+        // Play part 3
+        else
+        {
+            ctx.target->PlayDirectSound(14972, (Player*)ctx.target);
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, one body for 2 labels: 27978: Shroud of Death,
+/// 40131: Copy of Shroud of Death
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericShroudOfDeath(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        ctx.target->m_AuraFlags |= UNIT_AURAFLAG_ALIVE_INVISIBLE;
+    }
+    else
+    {
+        ctx.target->m_AuraFlags &= ~UNIT_AURAFLAG_ALIVE_INVISIBLE;
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_GENERIC, AT APPLY & REMOVE, one body for 2 labels: 66936: Submerge, 66948: Submerge
+static SpellHandlerOutcome<void> AuraDummyApplyRemoveGenericSubmerge(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        ctx.target->CastSpell(ctx.target, 66969, true);
+    }
+    else
+    {
+        ctx.target->RemoveAurasDueToSpell(66969);
+    }
     return SpellHandlerOutcome<void>::Return();
 }
 
@@ -959,6 +1190,42 @@ static SpellHandlerOutcome<void> AuraDummyDruid61336(AuraDummyApplyRemoveContext
     else
     {
         ctx.target->RemoveAurasDueToSpell(50322);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_ROGUE 57934: Tricks of the Trade
+static SpellHandlerOutcome<void> AuraDummyRogue57934(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        ctx.aura->GetHolder()->SetAuraCharges(1);     // not have proper charges set in spell data
+    }
+    else
+    {
+        // used for direct in code aura removes and spell proc event charges expire
+        if (ctx.aura->GetRemoveMode() != AURA_REMOVE_BY_DEFAULT)
+        {
+            ctx.target->GetHostileRefManager().ResetThreatRedirection();
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// SPELLFAMILY_HUNTER 34477: Misdirection
+static SpellHandlerOutcome<void> AuraDummyHunter34477(AuraDummyApplyRemoveContext& ctx)
+{
+    if (ctx.apply)
+    {
+        ctx.aura->GetHolder()->SetAuraCharges(1);     // not have proper charges set in spell data
+    }
+    else
+    {
+        // used for direct in code aura removes and spell proc event charges expire
+        if (ctx.aura->GetRemoveMode() != AURA_REMOVE_BY_DEFAULT)
+        {
+            ctx.target->GetHostileRefManager().ResetThreatRedirection();
+        }
     }
     return SpellHandlerOutcome<void>::Return();
 }
@@ -1092,8 +1359,11 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 68839, &AuraDummyRemove68839 },
     };
 
-    static AuraDummyRow<AuraDummyApplyRemoveGenericSite> const feignDeath[] =
+    static AuraDummyRow<AuraDummyApplyRemoveGenericSite> const genericApplyRemove[] =
     {
+        { 11196, &AuraDummyApplyRemoveGeneric11196 },
+        { 24658, &AuraDummyApplyRemoveGeneric24658 },
+        { 24661, &AuraDummyApplyRemoveGeneric24661 },
         { 29266, &AuraDummyApplyRemoveGenericFeignDeath },
         { 31261, &AuraDummyApplyRemoveGenericFeignDeath },
         { 37493, &AuraDummyApplyRemoveGenericFeignDeath },
@@ -1110,6 +1380,21 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 70628, &AuraDummyApplyRemoveGenericFeignDeath },
         { 70630, &AuraDummyApplyRemoveGenericFeignDeath },
         { 71598, &AuraDummyApplyRemoveGenericFeignDeath },
+        { 40133, &AuraDummyApplyRemoveGeneric40133 },
+        { 40132, &AuraDummyApplyRemoveGeneric40132 },
+        { 40214, &AuraDummyApplyRemoveGeneric40214 },
+        { 42515, &AuraDummyApplyRemoveGeneric42515 },
+        { 42583, &AuraDummyApplyRemoveGenericFixateTarget },
+        { 68987, &AuraDummyApplyRemoveGenericFixateTarget },
+        { 47178, &AuraDummyApplyRemoveGeneric47178 },
+        { 56422, &AuraDummyApplyRemoveGenericNotSelectable },
+        { 70733, &AuraDummyApplyRemoveGenericNotSelectable },
+        { 58204, &AuraDummyApplyRemoveGeneric58204 },
+        { 58205, &AuraDummyApplyRemoveGeneric58205 },
+        { 27978, &AuraDummyApplyRemoveGenericShroudOfDeath },
+        { 40131, &AuraDummyApplyRemoveGenericShroudOfDeath },
+        { 66936, &AuraDummyApplyRemoveGenericSubmerge },
+        { 66948, &AuraDummyApplyRemoveGenericSubmerge },
     };
 
     static AuraDummyRow<AuraDummyDruidSite> const druid[] =
@@ -1118,11 +1403,23 @@ uint32 RegisterAuraDummyHandlers(SpellHandlerRegistry& registry)
         { 61336, &AuraDummyDruid61336 },
     };
 
+    static AuraDummyRow<AuraDummyRogueSite> const rogue[] =
+    {
+        { 57934, &AuraDummyRogue57934 },
+    };
+
+    static AuraDummyRow<AuraDummyHunterSite> const hunter[] =
+    {
+        { 34477, &AuraDummyHunter34477 },
+    };
+
     uint32 rows = RegisterAuraDummyRows(registry, genericApply);
     rows += RegisterAuraDummyRows(registry, warriorApply);
     rows += RegisterAuraDummyRows(registry, questTame);
     rows += RegisterAuraDummyRows(registry, removal);
-    rows += RegisterAuraDummyRows(registry, feignDeath);
+    rows += RegisterAuraDummyRows(registry, genericApplyRemove);
     rows += RegisterAuraDummyRows(registry, druid);
+    rows += RegisterAuraDummyRows(registry, rogue);
+    rows += RegisterAuraDummyRows(registry, hunter);
     return rows;
 }

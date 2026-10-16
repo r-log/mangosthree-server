@@ -658,22 +658,24 @@ namespace
 
 TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 39 generic apply labels, 6 warrior stances, 18 quest-tame labels, 30 removal labels, 16 feign-death labels,
-    // 2 druid labels: 111 rows and 111 keys, none twice, and no default.
+    // 39 generic apply labels, 6 warrior stances, 18 quest-tame labels, 30 removal labels, 34 generic apply and remove
+    // labels, 2 druid labels, 1 rogue and 1 hunter label: 131 rows and 131 keys, none twice, and no default.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(111));
-    CHECK_EQ(registry.Count(), std::size_t(111));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(131));
+    CHECK_EQ(registry.Count(), std::size_t(131));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
     CHECK_EQ(registry.CountAt(AuraDummyApplyGenericSite::Key), std::size_t(39));
     CHECK_EQ(registry.CountAt(AuraDummyApplyWarriorSite::Key), std::size_t(6));
     CHECK_EQ(registry.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
     CHECK_EQ(registry.CountAt(AuraDummyQuestTameSite::Key), std::size_t(18));
-    CHECK_EQ(registry.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(16));
+    CHECK_EQ(registry.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(34));
     CHECK_EQ(registry.CountAt(AuraDummyDruidSite::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AuraDummyRogueSite::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AuraDummyHunterSite::Key), std::size_t(1));
 
     // Registering again on the same table changes nothing: every key is taken.
-    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(111));
-    CHECK_EQ(registry.Count(), std::size_t(111));
+    CHECK_EQ(RegisterAuraDummyHandlers(registry), uint32(131));
+    CHECK_EQ(registry.Count(), std::size_t(131));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
     // The game's table holds these, the transform site's 9 rows and default, the threat site's 2 rows, the
@@ -684,7 +686,7 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows and the five dummy-effect
     // family sites' 5, 11, 4, 4 and 4 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(544));
+    CHECK_EQ(game.Count(), std::size_t(564));
     CHECK_EQ(game.CountDefaults(), std::size_t(12));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -1045,7 +1047,7 @@ TEST(AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels)
     }
     CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(31261)
           == registry.Find<AuraDummyApplyRemoveGenericSite>(71598));
-    CHECK_EQ(registry.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(16));
+    CHECK_EQ(registry.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(34));
 
     // No default: a label the switch still holds (the spawn feign deaths 35356 and 51329, 6606) or none is a Miss,
     // and that switch runs.
@@ -1063,11 +1065,129 @@ TEST(AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels)
     CHECK(registry.Find<AuraDummyRemoveSite>(29266) == NULL);
 
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(16));
+    CHECK_EQ(game.CountAt(AuraDummyApplyRemoveGenericSite::Key), std::size_t(34));
     for (uint32 spellId : feigns)
     {
         CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(spellId) == feignDeath);
     }
+}
+
+TEST(AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsItsEighteenOtherLabels)
+{
+    static uint32 const labels[] = { 11196, 24658, 24661, 40133, 40132, 40214, 42515, 42583, 68987, 47178, 56422, 70733,
+                                     58204, 58205, 27978, 40131, 66936, 66948 };
+    static uint32 const motion[] = { 6606, 35356, 35357, 42557, 51329, 43874 };
+
+    SpellHandlerRegistry registry;
+    RegisterAuraDummyHandlers(registry);
+    SpellHandler<AuraDummyApplyRemoveGenericSite>::Function feignDeath =
+        registry.Find<AuraDummyApplyRemoveGenericSite>(29266);
+    std::set<SpellHandler<AuraDummyApplyRemoveGenericSite>::Function> distinct;
+    for (uint32 spellId : labels)
+    {
+        SpellHandler<AuraDummyApplyRemoveGenericSite>::Function function =
+            registry.Find<AuraDummyApplyRemoveGenericSite>(spellId);
+        CHECK(function != NULL);
+        CHECK(function != feignDeath);
+        distinct.insert(function);
+    }
+    CHECK_EQ(distinct.size(), std::size_t(14));                 // 14 bodies: four of them shared by two labels
+
+    // The four shared bodies, each under two keys.
+    CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(68987)
+          == registry.Find<AuraDummyApplyRemoveGenericSite>(42583));
+    CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(70733)
+          == registry.Find<AuraDummyApplyRemoveGenericSite>(56422));
+    CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(40131)
+          == registry.Find<AuraDummyApplyRemoveGenericSite>(27978));
+    CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(66948)
+          == registry.Find<AuraDummyApplyRemoveGenericSite>(66936));
+
+    // No default: the six motion ids the switch still holds, and an id it never held, miss.
+    CHECK(registry.FindDefault<AuraDummyApplyRemoveGenericSite>() == NULL);
+    Unit* target = NULL;
+    AuraDummyApplyRemoveContext ctx(NULL, target, true);
+    for (uint32 spellId : motion)
+    {
+        CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) == NULL);
+        CHECK(registry.Dispatch<AuraDummyApplyRemoveGenericSite>(spellId, ctx).IsMiss());
+    }
+    CHECK(registry.Dispatch<AuraDummyApplyRemoveGenericSite>(12345, ctx).IsMiss());
+
+    // No label is another aura dummy site's key.
+    for (uint32 spellId : labels)
+    {
+        CHECK(registry.Find<AuraDummyApplyGenericSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyApplyWarriorSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyQuestTameSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyRemoveSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyDruidSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyRogueSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyHunterSite>(spellId) == NULL);
+    }
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : labels)
+    {
+        CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(spellId)
+              == registry.Find<AuraDummyApplyRemoveGenericSite>(spellId));
+    }
+}
+
+TEST(AuraDummyHandlers_TheFamilyApplyRemoveSitesHoldTheirLabelsAndNoDefault)
+{
+    // The rogue and hunter bodies are the same code; this test compares no address between them.
+    SpellHandlerRegistry registry;
+    RegisterAuraDummyHandlers(registry);
+    CHECK(registry.Find<AuraDummyRogueSite>(57934) != NULL);
+    CHECK(registry.Find<AuraDummyHunterSite>(34477) != NULL);
+    CHECK_EQ(registry.CountAt(AuraDummyRogueSite::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AuraDummyHunterSite::Key), std::size_t(1));
+
+    // No default: an id the family switch never held misses, and the code after the family switch runs.
+    CHECK(registry.FindDefault<AuraDummyRogueSite>() == NULL);
+    CHECK(registry.FindDefault<AuraDummyHunterSite>() == NULL);
+    Unit* target = NULL;
+    AuraDummyApplyRemoveContext ctx(NULL, target, true);
+    CHECK(registry.Dispatch<AuraDummyRogueSite>(12345, ctx).IsMiss());
+    CHECK(registry.Dispatch<AuraDummyHunterSite>(12345, ctx).IsMiss());
+
+    // Neither id is a key at the other aura dummy sites.
+    static uint32 const ids[] = { 57934, 34477 };
+    for (uint32 spellId : ids)
+    {
+        CHECK(registry.Find<AuraDummyApplyGenericSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyApplyWarriorSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyQuestTameSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyRemoveSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) == NULL);
+        CHECK(registry.Find<AuraDummyDruidSite>(spellId) == NULL);
+    }
+
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.CountAt(AuraDummyRogueSite::Key), std::size_t(1));
+    CHECK_EQ(game.CountAt(AuraDummyHunterSite::Key), std::size_t(1));
+    CHECK(game.FindDefault<AuraDummyRogueSite>() == NULL);
+    CHECK(game.FindDefault<AuraDummyHunterSite>() == NULL);
+    CHECK(game.Find<AuraDummyRogueSite>(57934) == registry.Find<AuraDummyRogueSite>(57934));
+    CHECK(game.Find<AuraDummyHunterSite>(34477) == registry.Find<AuraDummyHunterSite>(34477));
+}
+
+TEST(AuraDummyHandlers_TheThreatRedirectionBodiesReturnOnTheDefaultRemovalMode)
+{
+    // At the default removal mode the Tricks of the Trade and Misdirection bodies touch neither aura nor target.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    AuraStorage storage = {};
+    Aura* aura = reinterpret_cast<Aura*>(storage.bytes);
+    aura->SetRemoveMode(AURA_REMOVE_BY_DEFAULT);
+    AuraStorage const before = storage;
+    Unit* target = NULL;
+    AuraDummyApplyRemoveContext ctx(aura, target, false);
+    CHECK(game.Dispatch<AuraDummyRogueSite>(57934, ctx).IsReturn());
+    CHECK_EQ(BitsThatDiffer(storage, before), 0);
+    CHECK(game.Dispatch<AuraDummyHunterSite>(34477, ctx).IsReturn());
+    CHECK_EQ(BitsThatDiffer(storage, before), 0);
+    CHECK(target == NULL);
 }
 
 TEST(AuraDummyHandlers_TheGenericApplySiteHoldsItsThirtyNineLabelsAndNoDefault)
@@ -1103,8 +1223,7 @@ TEST(AuraDummyHandlers_TheGenericApplySiteHoldsItsThirtyNineLabelsAndNoDefault)
     CHECK(registry.Find<AuraDummyApplyGenericSite>(46354) == illusion);
     CHECK(registry.Find<AuraDummyApplyGenericSite>(61190) == registry.Find<AuraDummyApplyGenericSite>(61187));
 
-    // No default: an id the switch still holds (Stoned 10255, Digging for Treasure 51405) or none misses, and that
-    // switch runs.
+    // No default: an id the switch still holds (10255, 51405) or none misses, and that switch runs.
     CHECK(registry.FindDefault<AuraDummyApplyGenericSite>() == NULL);
     CHECK(registry.Find<AuraDummyApplyGenericSite>(10255) == NULL);
     CHECK(registry.Find<AuraDummyApplyGenericSite>(51405) == NULL);
@@ -1115,8 +1234,7 @@ TEST(AuraDummyHandlers_TheGenericApplySiteHoldsItsThirtyNineLabelsAndNoDefault)
     CHECK(registry.Dispatch<AuraDummyApplyGenericSite>(51405, ctx).IsMiss());
     CHECK(registry.Dispatch<AuraDummyApplyGenericSite>(12345, ctx).IsMiss());
 
-    // The five ids the removal switch holds too are another key there with another body, as the stances are at the
-    // warrior apply and removal sites; the other 34 are no removal key, and no label is another aura dummy site's.
+    // The five ids the removal site also holds have another body there; the rest are no other aura dummy site's key.
     for (uint32 spellId : alsoRemoved)
     {
         CHECK(registry.Find<AuraDummyRemoveSite>(spellId) != NULL);
@@ -1396,7 +1514,7 @@ namespace
 {
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
-    // six dummy-effect sites and the earlier files' ids.
+    // six dummy-effect sites, the rogue and hunter aura dummy sites and the earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1436,6 +1554,8 @@ namespace
                 registry.Find<SpellEffectDummyHunterSite>(spellId) != NULL) ||
                (skips(SpellEffectDummyPaladinSite::Key) &&
                 registry.Find<SpellEffectDummyPaladinSite>(spellId) != NULL) ||
+               (skips(AuraDummyRogueSite::Key) && registry.Find<AuraDummyRogueSite>(spellId) != NULL) ||
+               (skips(AuraDummyHunterSite::Key) && registry.Find<AuraDummyHunterSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyApplyGenericSite>(spellId) != NULL ||

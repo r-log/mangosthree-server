@@ -307,45 +307,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
                     return;
                 }
-                case 11196:                                 // Recently Bandaged
-                    target->ApplySpellImmune(GetId(), IMMUNITY_MECHANIC, GetMiscValue(), apply);
-                    return;
-                case 24658:                                 // Unstable Power
-                {
-                    if (apply)
-                    {
-                        Unit* caster = GetCaster();
-                        if (!caster)
-                        {
-                            return;
-                        }
-
-                        caster->CastSpell(target, 24659, true, NULL, NULL, GetCasterGuid());
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(24659);
-                    }
-                    return;
-                }
-                case 24661:                                 // Restless Strength
-                {
-                    if (apply)
-                    {
-                        Unit* caster = GetCaster();
-                        if (!caster)
-                        {
-                            return;
-                        }
-
-                        caster->CastSpell(target, 24662, true, NULL, NULL, GetCasterGuid());
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(24662);
-                    }
-                    return;
-                }
                 case 35356:                                 // Spawn Feign Death
                 case 35357:                                 // Spawn Feign Death
                 case 42557:                                 // Feign Death
@@ -373,99 +334,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     }
                     return;
                 }
-                case 40133:                                 // Summon Fire Elemental
-                {
-                    Unit* caster = GetCaster();
-                    if (!caster)
-                    {
-                        return;
-                    }
-
-                    Unit* owner = caster->GetOwner();
-                    if (owner && owner->GetTypeId() == TYPEID_PLAYER)
-                    {
-                        if (apply)
-                        {
-                            owner->CastSpell(owner, 8985, true);
-                        }
-                        else
-                        {
-                            ((Player*)owner)->RemovePet(PET_SAVE_REAGENTS);
-                        }
-                    }
-                    return;
-                }
-                case 40132:                                 // Summon Earth Elemental
-                {
-                    Unit* caster = GetCaster();
-                    if (!caster)
-                    {
-                        return;
-                    }
-
-                    Unit* owner = caster->GetOwner();
-                    if (owner && owner->GetTypeId() == TYPEID_PLAYER)
-                    {
-                        if (apply)
-                        {
-                            owner->CastSpell(owner, 19704, true);
-                        }
-                        else
-                        {
-                            ((Player*)owner)->RemovePet(PET_SAVE_REAGENTS);
-                        }
-                    }
-                    return;
-                }
-                case 40214:                                 // Dragonmaw Illusion
-                {
-                    if (apply)
-                    {
-                        target->CastSpell(target, 40216, true);
-                        target->CastSpell(target, 42016, true);
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(40216);
-                        target->RemoveAurasDueToSpell(42016);
-                    }
-                    return;
-                }
-                case 42515:                                 // Jarl Beam
-                {
-                    // aura animate dead (fainted) state for the duration, but we need to animate the death itself (correct way below?)
-                    if (Unit* pCaster = GetCaster())
-                    {
-                        pCaster->ApplyModFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH, apply);
-                    }
-
-                    // Beam to Zelfrax at remove
-                    if (!apply)
-                    {
-                        target->CastSpell(target, 42517, true);
-                    }
-                    return;
-                }
-                case 42583:                                 // Claw Rage
-                case 68987:                                 // Pursuit
-                {
-                    Unit* caster = GetCaster();
-                    if (!caster || target->GetTypeId() != TYPEID_PLAYER)
-                    {
-                        return;
-                    }
-
-                    if (apply)
-                    {
-                        caster->FixateTarget(target);
-                    }
-                    else if (target->GetObjectGuid() == caster->GetFixateTargetGuid())
-                    {
-                        caster->FixateTarget(NULL);
-                    }
-
-                    return;
-                }
                 case 43874:                                 // Scourge Mur'gul Camp: Force Shield Arcane Purple x3
                     target->ApplyModFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_OOC_NOT_ATTACKABLE, apply);
                     if (apply)
@@ -475,66 +343,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     else
                     {
                         target->GetMotionMaster()->Uninhibit(Motion::Inhibition::Rooted, Motion::ControlClaim(43874, 0, GetCasterGuid().GetCounter()));
-                    }
-                    return;
-                case 47178:                                 // Plague Effect Self
-                    target->SetFeared(apply, GetCasterGuid(), GetId(), 0, uint8(GetEffIndex()));
-                    return;
-                case 56422:                                 // Nerubian Submerge
-                case 70733:                                 // Stoneform
-                    // not known if there are other things todo, only flag are confirmed valid
-                    target->ApplyModFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE, apply);
-                    return;
-                case 58204:                                 // LK Intro VO (1)
-                    if (target->GetTypeId() == TYPEID_PLAYER)
-                    {
-                        // Play part 1
-                        if (apply)
-                        {
-                            target->PlayDirectSound(14970, (Player*)target);
-                        }
-                        // continue in 58205
-                        else
-                        {
-                            target->CastSpell(target, 58205, true);
-                        }
-                    }
-                    return;
-                case 58205:                                 // LK Intro VO (2)
-                    if (target->GetTypeId() == TYPEID_PLAYER)
-                    {
-                        // Play part 2
-                        if (apply)
-                        {
-                            target->PlayDirectSound(14971, (Player*)target);
-                        }
-                        // Play part 3
-                        else
-                        {
-                            target->PlayDirectSound(14972, (Player*)target);
-                        }
-                    }
-                    return;
-                case 27978:
-                case 40131:
-                    if (apply)
-                    {
-                        target->m_AuraFlags |= UNIT_AURAFLAG_ALIVE_INVISIBLE;
-                    }
-                    else
-                    {
-                        target->m_AuraFlags &= ~UNIT_AURAFLAG_ALIVE_INVISIBLE;
-                    }
-                    return;
-                case 66936:                                     // Submerge
-                case 66948:                                     // Submerge
-                    if (apply)
-                    {
-                        target->CastSpell(target, 66969, true);
-                    }
-                    else
-                    {
-                        target->RemoveAurasDueToSpell(66969);
                     }
                     return;
             }
@@ -621,47 +429,19 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         }
         case SPELLFAMILY_ROGUE:
         {
-            switch (GetId())
+            AuraDummyApplyRemoveContext ctx(this, target, apply);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyRogueSite>(GetId(), ctx).IsReturn())
             {
-                case 57934:                                 // Tricks of the Trade, main spell
-                {
-                    if (apply)
-                    {
-                        GetHolder()->SetAuraCharges(1);     // not have proper charges set in spell data
-                    }
-                    else
-                    {
-                        // used for direct in code aura removes and spell proc event charges expire
-                        if (m_removeMode != AURA_REMOVE_BY_DEFAULT)
-                        {
-                            target->GetHostileRefManager().ResetThreatRedirection();
-                        }
-                    }
-                    return;
-                }
+                return;
             }
             break;
         }
         case SPELLFAMILY_HUNTER:
         {
-            switch (GetId())
+            AuraDummyApplyRemoveContext ctx(this, target, apply);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraDummyHunterSite>(GetId(), ctx).IsReturn())
             {
-                case 34477:                                 // Misdirection, main spell
-                {
-                    if (apply)
-                    {
-                        GetHolder()->SetAuraCharges(1);     // not have proper charges set in spell data
-                    }
-                    else
-                    {
-                        // used for direct in code aura removes and spell proc event charges expire
-                        if (m_removeMode != AURA_REMOVE_BY_DEFAULT)
-                        {
-                            target->GetHostileRefManager().ResetThreatRedirection();
-                        }
-                    }
-                    return;
-                }
+                return;
             }
             break;
         }
