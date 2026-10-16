@@ -141,6 +141,24 @@ struct AuraDummyDruidSite
     typedef AuraDummyApplyRemoveContext Context;
 };
 
+/// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_ROGUE's `switch (GetId())`: no `default:`, so a
+/// miss goes on to the pet aura, area and script code after the family switch.
+struct AuraDummyRogueSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_ROGUE;
+    typedef void Value;
+    typedef AuraDummyApplyRemoveContext Context;
+};
+
+/// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_HUNTER's `switch (GetId())`: no `default:`, so a
+/// miss goes on to the pet aura, area and script code after the family switch.
+struct AuraDummyHunterSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_DUMMY_HUNTER;
+    typedef void Value;
+    typedef AuraDummyApplyRemoveContext Context;
+};
+
 /// Registers every `Aura::HandleAuraDummy` handler on `registry` (defined in AuraDummyHandlers.cpp).
 /// Returns the number of rows it registered, a site's `default:` counting as one; a row whose key
 /// was taken, or a second default at a site, does not change the table, so a caller that registers
