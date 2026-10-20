@@ -29,10 +29,12 @@
 /// sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's, EffectEnergize's,
 /// EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's, EffectWeaponDmg's,
 /// EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits, the generic and five family switches of
-/// EffectDummy and the five of SpellAuraPeriodic.cpp) are checked for their keys, their defaults and their contexts,
+/// EffectDummy, the five of SpellAuraPeriodic.cpp and TriggerSpell's generic switch) are checked for their keys, their
+/// defaults and their contexts,
 /// and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the
 /// Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the
 /// periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default, the
+/// trigger-spell labels that only set the trigger spell id, the
 /// energize injector labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the
 /// area-target labels on bare Creatures, the cast-check labels on a creature caster, the target-check labels on
 /// creature targets, the weapon-damage and divided school-damage labels on a target list built by hand, the other
@@ -77,7 +79,9 @@
 ///                            SpellEffectDummyHandlers_TheWarriorSiteHoldsItsElevenLabelsAndNoDefault,
 ///                            SpellEffectDummyHandlers_TheRogueSiteHoldsItsFourLabelsAndNoDefault,
 ///                            SpellEffectDummyHandlers_TheHunterSiteHoldsItsFourLabelsAndNoDefault,
-///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault
+///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault,
+///                            AurasHandlers_TheTableRegistersEveryRowOnce,
+///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -103,7 +107,8 @@
 ///                            SpellEffectDummyHandlers_TheWarriorSiteHoldsItsElevenLabelsAndNoDefault,
 ///                            SpellEffectDummyHandlers_TheRogueSiteHoldsItsFourLabelsAndNoDefault,
 ///                            SpellEffectDummyHandlers_TheHunterSiteHoldsItsFourLabelsAndNoDefault,
-///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault
+///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault,
+///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -113,7 +118,8 @@
 ///                            SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault,
 ///                            SpellTargetingHandlers_TheEffectDummySiteHoldsCannibalizeAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
-///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
+///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault
 ///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
@@ -141,7 +147,9 @@
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits,
 ///                            SpellEffectDamageTeleportHandlers_TheTriggerSpellSiteHoldsItsSevenLabelsAndNoDefault,
-///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault
+///                            SpellEffectDamageTeleportHandlers_TheTeleportRecallSiteHoldsItsThreeLabelsAndNoDefault,
+///                            AurasHandlers_FeedCapturedAnimalSetsTheTriggerSpell,
+///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault
 ///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
@@ -187,7 +195,9 @@
 ///                            SpellEffectDummyHandlers_TheWarriorContextAliasesTheSpell,
 ///                            SpellEffectDummyHandlers_TheRogueContextAliasesTheSpell,
 ///                            SpellEffectDummyHandlers_TheHunterContextAliasesTheSpell,
-///                            SpellEffectDummyHandlers_ThePaladinContextAliasesTheSpell
+///                            SpellEffectDummyHandlers_ThePaladinContextAliasesTheSpell,
+///                            AurasHandlers_TheTriggerSpellContextAliasesItsLocals,
+///                            AurasHandlers_FeedCapturedAnimalSetsTheTriggerSpell
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
@@ -210,6 +220,7 @@
 #include "spells/handlers/SpellEffectSkillEnchantPetHandlers.h"
 #include "spells/handlers/SpellEffectDamageTeleportHandlers.h"
 #include "spells/handlers/SpellEffectDummyHandlers.h"
+#include "spells/handlers/AurasHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
@@ -683,11 +694,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // 9 rows and default, the activate-object site's 33 rows, the resurrect site's 3 rows and default, the two
     // targeting sites' 10 and 1 rows and their two defaults, the cast-check site's 2 rows and default, the
     // target-check site's 3 rows and default, the weapon-damage site's 6 rows, the school-damage, trigger-spell
-    // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows and the five dummy-effect
-    // family sites' 5, 11, 4, 4 and 4 rows.
+    // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows, the five dummy-effect
+    // family sites' 5, 11, 4, 4 and 4 rows, and the generic trigger-spell aura site's 45 rows and default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(564));
-    CHECK_EQ(game.CountDefaults(), std::size_t(12));
+    CHECK_EQ(game.Count(), std::size_t(609));
+    CHECK_EQ(game.CountDefaults(), std::size_t(13));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -1591,7 +1602,8 @@ namespace
 {
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
-    // six dummy-effect sites, the rogue and hunter aura dummy sites and the earlier files' ids.
+    // six dummy-effect sites, the rogue and hunter aura dummy sites, the generic trigger-spell aura site and the
+    // earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1633,6 +1645,8 @@ namespace
                 registry.Find<SpellEffectDummyPaladinSite>(spellId) != NULL) ||
                (skips(AuraDummyRogueSite::Key) && registry.Find<AuraDummyRogueSite>(spellId) != NULL) ||
                (skips(AuraDummyHunterSite::Key) && registry.Find<AuraDummyHunterSite>(spellId) != NULL) ||
+               (skips(AuraTriggerSpellGenericSite::Key) &&
+                registry.Find<AuraTriggerSpellGenericSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyApplyGenericSite>(spellId) != NULL ||
@@ -1641,8 +1655,9 @@ namespace
     }
 
     // The ids a pair of listed sites both register, each site's switch holding the label, with the two sites:
-    // Cannibalize, at the dummy-effect targeting site and the generic dummy-effect site. A listed id held at any
-    // other site, a third listed site among them, fails HeldByAnotherSite.
+    // Cannibalize, at the dummy-effect targeting site and the generic dummy-effect site; Doom, at the all-enemy-in-area
+    // targeting site and the generic trigger-spell aura site. A listed id held at any other site, a third listed site
+    // among them, fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -1653,6 +1668,7 @@ namespace
     SharedSiteId const SHARED_SITE_IDS[] =
     {
         { 20577, SpellTargetEffectDummySite::Key, SpellEffectDummyGenericSite::Key },
+        { 31347, SpellTargetAllEnemyInAreaSite::Key, AuraTriggerSpellGenericSite::Key },
     };
 
     // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
@@ -2424,12 +2440,15 @@ TEST(SpellTargetingHandlers_TheAllEnemyInAreaSiteHoldsItsTenLabelsAndTheDefault)
     CHECK(registry.Find<SpellTargetAllEnemyInAreaSite>(30769) == skipVictim);
     CHECK(registry.FindDefault<SpellTargetAllEnemyInAreaSite>() == onMiss);
 
-    // Keyed on the area site only: its labels are no other site's, and the other sites' are not its; the game's table
-    // holds the same rows and the same default.
+    // Keyed on the area site: its labels are no other site's but Doom (31347), which the generic trigger-spell aura
+    // site holds too and no third site does; the other sites' are not its; the game's table holds the same rows and
+    // the same default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 spellId : ALL_ENEMY_IN_AREA_IDS)
     {
-        CHECK(!HeldByAnotherSite(game, SpellTargetAllEnemyInAreaSite::Key, spellId));
+        uint32 other = SharedWith(spellId, SpellTargetAllEnemyInAreaSite::Key);
+        CHECK(!HeldByAnotherSite(game, SpellTargetAllEnemyInAreaSite::Key, spellId, other));
+        CHECK((other != SpellTargetAllEnemyInAreaSite::Key) == (spellId == 31347));
         AreaBody body = registry.Find<SpellTargetAllEnemyInAreaSite>(spellId);
         CHECK(game.Find<SpellTargetAllEnemyInAreaSite>(spellId) == body);
     }
@@ -4200,4 +4219,191 @@ TEST(SpellEffectDummyHandlers_ThePaladinContextAliasesTheSpell)
     effect = WeaponDamageEffect(1, 1);                          // the effect is the member's parameter, read
     CHECK(ctx.effect == effect);
     CHECK_EQ(ctx.effect->EffectIndex, uint32(1));
+}
+
+namespace
+{
+    // The 45 labels of the generic trigger-spell site, in the switch's order.
+    uint32 const TRIGGER_SPELL_GENERIC_IDS[] = { 812, 9712, 19695, 23170, 23184, 25041, 37125, 23493, 24210, 24780,
+                                                 24834, 25371, 26009, 26136, 27808, 27819, 28096, 28111, 28097, 28109,
+                                                 29528, 29917, 30427, 30576, 31347, 31373, 31944, 34229, 36573, 37027,
+                                                 37429, 37430, 38495, 38554, 39105, 39857, 40398, 40511, 42581, 42582,
+                                                 46736, 58886, 62679, 64345, 69012 };
+
+    // The site's locals, NULL and zero, for a dispatch whose body reads none of them.
+    struct TriggerSpellLocals
+    {
+        ObjectGuid casterGuid;
+        Unit* triggerTarget;
+        uint32 triggerSpellId;
+        SpellEntry const* triggeredSpellInfo;
+        SpellEntry const* auraSpellInfo;
+        uint32 auraId;
+        Unit* target;
+        Unit* triggerCaster;
+
+        explicit TriggerSpellLocals(uint32 id)
+            : triggerTarget(NULL), triggerSpellId(0), triggeredSpellInfo(NULL), auraSpellInfo(NULL), auraId(id),
+              target(NULL), triggerCaster(NULL) {}
+
+        AuraTriggerSpellContext Context(Aura* aura)
+        {
+            return AuraTriggerSpellContext(aura, casterGuid, triggerTarget, triggerSpellId, triggeredSpellInfo,
+                                           auraSpellInfo, auraId, target, triggerCaster);
+        }
+    };
+}
+
+TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
+{
+    // 45 generic trigger-spell labels and the site's default: 46 rows, 45 keys and one default, none twice.
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(46));
+    CHECK_EQ(registry.Count(), std::size_t(45));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
+
+    // Registering again on the same table changes nothing: every key and the default are taken.
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(46));
+    CHECK_EQ(registry.Count(), std::size_t(45));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(1));
+
+    // The game's table holds these with the other files' 564 rows and 12 defaults.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.Count(), std::size_t(609));
+    CHECK_EQ(game.CountDefaults(), std::size_t(13));
+    CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
+}
+
+TEST(AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterAurasHandlers(registry);
+    typedef SpellHandler<AuraTriggerSpellGenericSite>::Function Body;
+    std::set<Body> distinct;
+    for (uint32 spellId : TRIGGER_SPELL_GENERIC_IDS)
+    {
+        Body body = registry.Find<AuraTriggerSpellGenericSite>(spellId);
+        CHECK(body != NULL);
+        distinct.insert(body);
+    }
+    CHECK_EQ(distinct.size(), std::size_t(38));                 // 38 bodies: six of them shared by two or three labels
+
+    // The six shared bodies: the three marks, the two rotations, the two chains, the two passives, the two spouts
+    // that cast a fixed spell and the two that cast the base points' value.
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(25041) == registry.Find<AuraTriggerSpellGenericSite>(23184));
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(37125) == registry.Find<AuraTriggerSpellGenericSite>(23184));
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(26136) == registry.Find<AuraTriggerSpellGenericSite>(26009));
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(28111) == registry.Find<AuraTriggerSpellGenericSite>(28096));
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(28109) == registry.Find<AuraTriggerSpellGenericSite>(28097));
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(37430) == registry.Find<AuraTriggerSpellGenericSite>(37429));
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(42582) == registry.Find<AuraTriggerSpellGenericSite>(42581));
+    CHECK(registry.Find<AuraTriggerSpellGenericSite>(42581) != registry.Find<AuraTriggerSpellGenericSite>(37429));
+
+    // The default is none of the bodies and answers Continue, as `default: break;` did: the re-read of the trigger
+    // spell runs for the mage lookup's id and for an id the switch never held.
+    Body onMiss = registry.FindDefault<AuraTriggerSpellGenericSite>();
+    CHECK(onMiss != NULL);
+    CHECK(distinct.count(onMiss) == 0);
+    for (uint32 spellId : { 66u, 12345u })
+    {
+        CHECK(registry.Find<AuraTriggerSpellGenericSite>(spellId) == NULL);
+        TriggerSpellLocals locals(spellId);
+        AuraTriggerSpellContext ctx = locals.Context(NULL);
+        SpellHandlerOutcome<void> missed = registry.Dispatch<AuraTriggerSpellGenericSite>(spellId, ctx);
+        CHECK(missed.IsContinue());
+        CHECK(!missed.IsReturn());
+        CHECK(!missed.IsMiss());
+        CHECK_EQ(locals.triggerSpellId, uint32(0));
+    }
+
+    // Keyed on this site: no label is another site's key but Doom (31347), which the all-enemy-in-area targeting site
+    // holds too and no third site does; the game's table holds the same rows and the same default.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : TRIGGER_SPELL_GENERIC_IDS)
+    {
+        uint32 other = SharedWith(spellId, AuraTriggerSpellGenericSite::Key);
+        CHECK(!HeldByAnotherSite(game, AuraTriggerSpellGenericSite::Key, spellId, other));
+        CHECK((other != AuraTriggerSpellGenericSite::Key) == (spellId == 31347));
+        CHECK(game.Find<AuraDummyApplyWarriorSite>(spellId) == NULL);
+        CHECK(game.Find<AuraDummyQuestTameSite>(spellId) == NULL);
+        CHECK(game.Find<AuraDummyDruidSite>(spellId) == NULL);
+        CHECK(game.Find<AuraTriggerSpellGenericSite>(spellId) ==
+              registry.Find<AuraTriggerSpellGenericSite>(spellId));
+    }
+    CHECK(SharedWith(31347, AuraTriggerSpellGenericSite::Key) == SpellTargetAllEnemyInAreaSite::Key);
+    CHECK(game.Find<SpellTargetAllEnemyInAreaSite>(31347) != NULL);
+    CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
+    CHECK(game.FindDefault<AuraTriggerSpellGenericSite>() == onMiss);
+}
+
+TEST(AurasHandlers_TheTriggerSpellContextAliasesItsLocals)
+{
+    alignas(16) static unsigned char objects[4][16];
+    Aura* aura = reinterpret_cast<Aura*>(objects[0]);
+    ObjectGuid casterGuid(HIGHGUID_PLAYER, uint32(7));
+    Unit* triggerTarget = reinterpret_cast<Unit*>(objects[1]);
+    uint32 triggerSpellId = 25779;
+    SpellEntry const* triggeredSpellInfo = NULL;
+    SpellEntry const* auraSpellInfo = ObjectCombatSpell(0, 812);
+    uint32 auraId = 812;
+    Unit* target = reinterpret_cast<Unit*>(objects[2]);
+    Unit* triggerCaster = triggerTarget;
+    AuraTriggerSpellContext ctx(aura, casterGuid, triggerTarget, triggerSpellId, triggeredSpellInfo, auraSpellInfo,
+                                auraId, target, triggerCaster);
+    CHECK(ctx.aura == aura);
+    CHECK(&ctx.casterGUID == &casterGuid);
+    CHECK(&ctx.triggerTarget == &triggerTarget);
+    CHECK(&ctx.trigger_spell_id == &triggerSpellId);
+    CHECK(&ctx.triggeredSpellInfo == &triggeredSpellInfo);
+    CHECK(&ctx.auraSpellInfo == &auraSpellInfo);
+    CHECK(&ctx.auraId == &auraId);
+    CHECK(&ctx.target == &target);
+    CHECK(&ctx.triggerCaster == &triggerCaster);
+
+    ctx.triggerTarget = reinterpret_cast<Unit*>(objects[3]);    // a body's write to the trigger target...
+    CHECK(triggerTarget == reinterpret_cast<Unit*>(objects[3])); // ...is the function's local
+    ctx.trigger_spell_id = 29916;                               // so is one to the trigger spell id
+    CHECK_EQ(triggerSpellId, uint32(29916));
+    ctx.triggerCaster = reinterpret_cast<Unit*>(objects[2]);    // and one to the trigger caster
+    CHECK(triggerCaster == reinterpret_cast<Unit*>(objects[2]));
+    ctx.target = reinterpret_cast<Unit*>(objects[1]);           // and one to the target
+    CHECK(target == reinterpret_cast<Unit*>(objects[1]));
+    auraId = 23184;                                             // the site's locals are read where they stand
+    CHECK_EQ(ctx.auraId, uint32(23184));
+    auraSpellInfo = ObjectCombatSpell(1, 23184);
+    CHECK_EQ(ctx.auraSpellInfo->ID, uint32(23184));
+    triggeredSpellInfo = auraSpellInfo;
+    CHECK(ctx.triggeredSpellInfo == auraSpellInfo);
+    CHECK(ctx.casterGUID == casterGuid);
+}
+
+TEST(AurasHandlers_FeedCapturedAnimalSetsTheTriggerSpell)
+{
+    // Feed Captured Animal, Remote Toy, Tear of Azzinoth Summon Channel, Demon Transform 1 and Personalized Weather
+    // set the trigger spell id and go on to its cast; they touch neither the aura nor the locals they do not set.
+    struct Row
+    {
+        uint32 auraId;
+        uint32 triggerSpellId;
+    };
+    static Row const rows[] = { { 29917, 29916 }, { 37027, 37029 }, { 39857, 39856 }, { 40511, 40398 },
+                                { 46736, 46737 } };
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    AuraStorage storage = {};
+    Aura* aura = reinterpret_cast<Aura*>(storage.bytes);
+    AuraStorage const before = storage;
+    for (Row const& row : rows)
+    {
+        TriggerSpellLocals locals(row.auraId);
+        AuraTriggerSpellContext ctx = locals.Context(aura);
+        SpellHandlerOutcome<void> outcome = game.Dispatch<AuraTriggerSpellGenericSite>(row.auraId, ctx);
+        CHECK(outcome.IsContinue());
+        CHECK(!outcome.IsReturn());
+        CHECK_EQ(locals.triggerSpellId, row.triggerSpellId);
+        CHECK_EQ(BitsThatDiffer(storage, before), 0);
+        CHECK(locals.triggerTarget == NULL);
+        CHECK(locals.target == NULL);
+        CHECK(locals.triggerCaster == NULL);
+    }
 }

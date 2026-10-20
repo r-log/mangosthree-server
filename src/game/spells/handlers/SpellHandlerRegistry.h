@@ -137,7 +137,9 @@ enum SpellHandlerSite
     /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_ROGUE's `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_DUMMY_ROGUE = 35,
     /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_HUNTER's `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_DUMMY_HUNTER = 36
+    SPELL_HANDLER_SITE_AURA_DUMMY_HUNTER = 36,
+    /// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_GENERIC's `switch (auraId)`.
+    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_GENERIC = 37
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.
