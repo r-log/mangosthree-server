@@ -193,12 +193,14 @@ class LoginQueryHolder : public SqlQueryHolder
 {
     private:
         uint32 m_accountId;
+        proto::SessionId m_sessionId;
         ObjectGuid m_guid;
     public:
-        LoginQueryHolder(uint32 accountId, ObjectGuid guid)
-            : m_accountId(accountId), m_guid(guid) { }
+        LoginQueryHolder(uint32 accountId, proto::SessionId sessionId, ObjectGuid guid)
+            : m_accountId(accountId), m_sessionId(sessionId), m_guid(guid) { }
         ObjectGuid GetGuid() const { return m_guid; }
         uint32 GetAccountId() const { return m_accountId; }
+        proto::SessionId GetSessionId() const { return m_sessionId; }
         bool Initialize();
 };
 
@@ -275,15 +277,14 @@ bool LoginQueryHolder::Initialize()
     return res;
 }
 
-// don't call WorldSession directly
-// it may get deleted before the query callbacks get executed
-// instead pass an account id to this handler
+// The callbacks find their session again by account id and session id: a session can be gone,
+// or replaced by a reconnect, before a query answers.
 class CharacterHandler
 {
     public:
-        void HandleCharEnumCallback(QueryResult* result, uint32 account)
+        void HandleCharEnumCallback(QueryResult* result, uint32 account, proto::SessionId sessionId)
         {
-            WorldSession* session = sWorld.FindSession(account);
+            WorldSession* session = WorldSession::FindRequesterSession(account, sessionId);
             if (!session)
             {
                 delete result;
@@ -291,14 +292,14 @@ class CharacterHandler
             }
             session->HandleCharEnum(result);
         }
-        void HandlePlayerLoginCallback(QueryResult * /*dummy*/, SqlQueryHolder* holder)
+        void HandlePlayerLoginCallback(QueryResult * /*dummy*/, SqlQueryHolder* holder, uint32 accountId, proto::SessionId sessionId)
         {
             if (!holder)
             {
                 return;
             }
 
-            WorldSession* session = sWorld.FindSession(((LoginQueryHolder*)holder)->GetAccountId());
+            WorldSession* session = WorldSession::FindRequesterSession(accountId, sessionId);
             if (!session)
             {
                 delete holder;
@@ -353,9 +354,10 @@ void WorldSession::HandleCharEnumOpcode(WorldPacket & /*recv_data*/)
 {
     /// get all the data necessary for loading all characters (along with their pets) on the account
     uint32 accountId = GetAccountId();
-    CharacterDatabase.AsyncPQuery([accountId](QueryResult* result)
+    proto::SessionId sessionId = GetSessionId();
+    CharacterDatabase.AsyncPQuery([accountId, sessionId](QueryResult* result)
                                   {
-                                      chrHandler.HandleCharEnumCallback(result, accountId);
+                                      chrHandler.HandleCharEnumCallback(result, accountId, sessionId);
                                   },
                                   !sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) ?
                                   //   ------- Query Without Declined Names --------
@@ -1086,7 +1088,9 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recv_data)
 
     DEBUG_LOG("WORLD: Received opcode Player Logon Message from %s", playerGuid.GetString().c_str());
 
-    LoginQueryHolder* holder = new LoginQueryHolder(GetAccountId(), playerGuid);
+    uint32 accountId = GetAccountId();
+    proto::SessionId sessionId = GetSessionId();
+    LoginQueryHolder* holder = new LoginQueryHolder(accountId, sessionId, playerGuid);
     if (!holder->Initialize())
     {
         delete holder;                                      // delete all unprocessed queries
@@ -1099,9 +1103,9 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recv_data)
     // would ever run its queries or its callback. Same unwind as the Initialize() failure
     // above -- free it and let the login fail rather than leak it and leave the session stuck
     // in the loading state.
-    if (!CharacterDatabase.DelayQueryHolder([](QueryResult* result, SqlQueryHolder* h)
+    if (!CharacterDatabase.DelayQueryHolder([accountId, sessionId](QueryResult* result, SqlQueryHolder* h)
                                             {
-                                                chrHandler.HandlePlayerLoginCallback(result, h);
+                                                chrHandler.HandlePlayerLoginCallback(result, h, accountId, sessionId);
                                             }, holder))
     {
         delete holder;                                      // delete all unprocessed queries

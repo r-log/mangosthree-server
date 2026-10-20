@@ -96,9 +96,10 @@ void WorldSession::SendNameQueryOpcode(Player* p)
 void WorldSession::SendNameQueryOpcodeFromDB(ObjectGuid guid)
 {
     uint32 accountId = GetAccountId();
-    CharacterDatabase.AsyncPQuery([accountId](QueryResult* result)
+    proto::SessionId sessionId = GetSessionId();
+    CharacterDatabase.AsyncPQuery([accountId, sessionId](QueryResult* result)
                                   {
-                                      WorldSession::SendNameQueryOpcodeFromDBCallBack(result, accountId);
+                                      WorldSession::SendNameQueryOpcodeFromDBCallBack(result, accountId, sessionId);
                                   },
                                   !sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) ?
                                   //   ------- Query Without Declined Names --------
@@ -120,15 +121,16 @@ void WorldSession::SendNameQueryOpcodeFromDB(ObjectGuid guid)
  *
  * @param result The database result.
  * @param accountId The requesting account id.
+ * @param sessionId The session the request arrived on.
  */
-void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32 accountId)
+void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32 accountId, proto::SessionId sessionId)
 {
     if (!result)
     {
         return;
     }
 
-    WorldSession* session = sWorld.FindSession(accountId);
+    WorldSession* session = WorldSession::FindRequesterSession(accountId, sessionId);
     if (!session)
     {
         delete result;
