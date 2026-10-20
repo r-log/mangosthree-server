@@ -1203,6 +1203,670 @@ static SpellHandlerOutcome<void> AuraPeriodicManaLeechTick32960(AuraPeriodicMana
     return AuraPeriodicManaLeechTickMarkOfKazzak(ctx);
 }
 
+/// 7054: Forsaken Ability
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric7054(AuraPeriodicDummyTickContext& /*ctx*/)
+{
+    // Forsaken Skills
+    // Possibly need cast one of them (but
+    // 7038 Forsaken Skill: Swords
+    // 7039 Forsaken Skill: Axes
+    // 7040 Forsaken Skill: Daggers
+    // 7041 Forsaken Skill: Maces
+    // 7042 Forsaken Skill: Staves
+    // 7043 Forsaken Skill: Bows
+    // 7044 Forsaken Skill: Guns
+    // 7045 Forsaken Skill: 2H Axes
+    // 7046 Forsaken Skill: 2H Maces
+    // 7047 Forsaken Skill: 2H Swords
+    // 7048 Forsaken Skill: Defense
+    // 7049 Forsaken Skill: Fire
+    // 7050 Forsaken Skill: Frost
+    // 7051 Forsaken Skill: Holy
+    // 7053 Forsaken Skill: Shadow
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 7057: Haunting Spirits
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric7057(AuraPeriodicDummyTickContext& ctx)
+{
+    if (roll_chance_i(33))
+    {
+        ctx.target->CastSpell(ctx.target, ctx.aura->GetModifier()->m_amount, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+//              // Panda
+//              case 19230: break;
+}
+
+/// 30019: Control Piece
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric30019(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Unit* chessPiece = ctx.target->GetCharm();
+    if (!chessPiece)
+    {
+        ctx.target->CastSpell(ctx.target, 30529, true);
+        ctx.target->RemoveAurasDueToSpell(30019);
+        ctx.target->RemoveAurasDueToSpell(30532);
+    }
+    return SpellHandlerOutcome<void>::Return();
+//              // Gossip NPC Periodic - Talk
+//              case 33208: break;
+//              // Gossip NPC Periodic - Despawn
+//              case 33209: break;
+//              // Steal Weapon
+//              case 36207: break;
+//              // Simon Game START timer, (DND)
+//              case 39993: break;
+//              // Knockdown Fel Cannon: break; The Aggro Burst
+//              case 40119: break;
+//              // Old Mount Spell
+//              case 40154: break;
+//              // Magnetic Pull
+//              case 40581: break;
+//              // Ethereal Ring: break; The Bolt Burst
+//              case 40801: break;
+//              // Crystal Prison
+//              case 40846: break;
+//              // Copy Weapon
+//              case 41054: break;
+//              // Dementia
+//              case 41404: break;
+//              // Ethereal Ring Visual, Lightning Aura
+//              case 41477: break;
+//              // Ethereal Ring Visual, Lightning Aura (Fork)
+//              case 41525: break;
+//              // Ethereal Ring Visual, Lightning Jumper Aura
+//              case 41567: break;
+//              // No Man's Land
+//              case 41955: break;
+//              // Headless Horseman - Fire
+//              case 42074: break;
+//              // Headless Horseman - Visual - Large Fire
+//              case 42075: break;
+//              // Headless Horseman - Start Fire, Periodic Aura
+//              case 42140: break;
+//              // Ram Speed Boost
+//              case 42152: break;
+//              // Headless Horseman - Fires Out Victory Aura
+//              case 42235: break;
+//              // Pumpkin Life Cycle
+//              case 42280: break;
+//              // Brewfest Request Chick Chuck Mug Aura
+//              case 42537: break;
+//              // Squashling
+//              case 42596: break;
+//              // Headless Horseman Climax, Head: Periodic
+//              case 42603: break;
+}
+
+/// 42621: Fire Bomb
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric42621(AuraPeriodicDummyTickContext& ctx)
+{
+    // Cast the summon spells (42622 to 42627) with increasing chance
+    uint32 rand = urand(0, 99);
+    for (uint32 i = 1; i <= 6; ++i)
+    {
+        if (rand < i * (i + 1) / 2 * 5)
+        {
+            ctx.target->CastSpell(ctx.target, ctx.spell->ID + i, true);
+            break;
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+//              // Headless Horseman - Conflagrate, Periodic Aura
+//              case 42637: break;
+//              // Headless Horseman - Create Pumpkin Treats Aura
+//              case 42774: break;
+//              // Headless Horseman Climax - Summoning Rhyme Aura
+//              case 42879: break;
+}
+
+/// 42919: Tricky Treat
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric42919(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 42966, true);
+    return SpellHandlerOutcome<void>::Return();
+//              // Giddyup!
+//              case 42924: break;
+//              // Ram - Trot
+//              case 42992: break;
+//              // Ram - Canter
+//              case 42993: break;
+//              // Ram - Gallop
+//              case 42994: break;
+//              // Ram Level - Neutral
+//              case 43310: break;
+//              // Headless Horseman - Maniacal Laugh, Maniacal, Delayed 17
+//              case 43884: break;
+//              // Wretched!
+//              case 43963: break;
+//              // Headless Horseman - Maniacal Laugh, Maniacal, other, Delayed 17
+//              case 44000: break;
+//              // Energy Feedback
+//              case 44328: break;
+//              // Romantic Picnic
+//              case 45102: break;
+//              // Romantic Picnic
+//              case 45123: break;
+//              // Looking for Love
+//              case 45124: break;
+//              // Kite - Lightning Strike Kite Aura
+//              case 45197: break;
+//              // Rocket Chicken
+//              case 45202: break;
+//              // Copy Offhand Weapon
+//              case 45205: break;
+//              // Upper Deck - Kite - Lightning Periodic Aura
+//              case 45207: break;
+//              // Kite -Sky  Lightning Strike Kite Aura
+//              case 45251: break;
+//              // Ribbon Pole Dancer Check Aura
+//              case 45390: break;
+//              // Holiday - Midsummer, Ribbon Pole Periodic Visual
+//              case 45406: break;
+//              // Parachute
+//              case 45472: break;
+//              // Alliance Flag, Extra Damage Debuff
+//              case 45898: break;
+//              // Horde Flag, Extra Damage Debuff
+//              case 45899: break;
+//              // Ahune - Summoning Rhyme Aura
+//              case 45926: break;
+//              // Ahune - Slippery Floor
+//              case 45945: break;
+//              // Ahune's Shield
+//              case 45954: break;
+//              // Nether Vapor Lightning
+//              case 45960: break;
+//              // Darkness
+//              case 45996: break;
+}
+
+/// 46041: Summon Blood Elves Periodic
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric46041(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 46037, true, NULL, ctx.aura);
+    ctx.target->CastSpell(ctx.target, roll_chance_i(50) ? 46038 : 46039, true, NULL, ctx.aura);
+    ctx.target->CastSpell(ctx.target, 46040, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+//              // Transform Visual Missile Periodic
+//              case 46205: break;
+//              // Find Opening Beam End
+//              case 46333: break;
+}
+
+/// 46371: Ice Spear Control Aura
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric46371(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 46372, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+//              // Hailstone Chill
+//              case 46458: break;
+//              // Hailstone Chill, Internal
+//              case 46465: break;
+//              // Chill, Internal Shifter
+//              case 46549: break;
+//              // Summon Ice Spear Knockback Delayer
+//              case 46878: break;
+//              // Burninate Effect
+//              case 47214: break;
+//              // Fizzcrank Practice Parachute
+//              case 47228: break;
+//              // Send Mug Control Aura
+//              case 47369: break;
+//              // Direbrew's Disarm (precast)
+//              case 47407: break;
+//              // Mole Machine Port Schedule
+//              case 47489: break;
+//              case 47941: break; // Crystal Spike
+//              case 48200: break; // Healer Aura
+}
+
+/// one body for 2 labels: 48630: Summon Gauntlet Mobs Periodic, 59275: Summon Gauntlet Mobs Periodic
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericSummonGauntletMobs(AuraPeriodicDummyTickContext& ctx)
+{
+    bool chance = roll_chance_i(50);
+
+    ctx.target->CastSpell(ctx.target, chance ? 48631 : 48632, true, NULL, ctx.aura);
+
+    if (ctx.aura->GetAuraTicks() % 2)                 // which doctor at odd tick
+    {
+        ctx.target->CastSpell(ctx.target, chance ? 48636 : 48635, true, NULL, ctx.aura);
+    }
+    else                                    // or harponeer, at even tick
+    {
+        ctx.target->CastSpell(ctx.target, chance ? 48634 : 48633, true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+//              case 49313: break; // Proximity Mine Area Aura
+//              // Mole Machine Portal Schedule
+//              case 49466: break;
+}
+
+/// one body for 2 labels: 49555: Corpse Explode, 59807: Corpse Explode
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericCorpseExplode(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.aura->GetAuraTicks() == 3 && ctx.target->GetTypeId() == TYPEID_UNIT)
+    {
+        ((Creature*)ctx.target)->ForcedDespawn();
+    }
+    if (ctx.aura->GetAuraTicks() != 2)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (Unit* pCaster = ctx.aura->GetCaster())
+    {
+        pCaster->CastSpell(ctx.target, ctx.spell->ID == 49555 ? 49618 : 59809, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+//              case 49592: break; // Temporal Rift
+//              case 49957: break; // Cutting Laser
+//              case 50085: break; // Slow Fall
+//              // Listening to Music
+//              case 50493: break;
+//              // Love Rocket Barrage
+//              case 50530: break;
+}
+
+/// one body for 2 labels: 50789: Summon Iron Dwarf, 59860: Summon Iron Dwarf
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericSummonIronDwarf(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, roll_chance_i(50) ? 50790 : 50791, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 50792: Summon Iron Trogg, 59859: Summon Iron Trogg
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericSummonIronTrogg(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, roll_chance_i(50) ? 50793 : 50794, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 50801: Summon Malformed Ooze, 59858: Summon Malformed Ooze
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericSummonMalformedOoze(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, roll_chance_i(50) ? 50802 : 50803, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50824: Summon Earthen Dwarf
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric50824(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, roll_chance_i(50) ? 50825 : 50826, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 52441: Cool Down
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric52441(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 52443, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 3 labels: 53035: Summon Anub'ar Champion Periodic, 53036: Summon Anub'ar Necromancer Periodic,
+/// 53037: Summon Anub'ar Crypt Fiend Periodic
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericSummonAnubar(AuraPeriodicDummyTickContext& ctx)
+{
+    uint32 summonSpells[3][3] =
+    {
+        {53090, 53014, 53064},              // Summon Anub'ar Champion
+        {53092, 53015, 53066},              // Summon Anub'ar Necromancer
+        {53091, 53016, 53065}               // Summon Anub'ar Crypt Fiend
+    };
+
+    // Cast different spell depending on trigger position
+    // This will summon a different npc entry on each location - each of those has individual movement patern
+    if (ctx.target->Where().Z() < 750.0f)
+    {
+        ctx.target->CastSpell(ctx.target, summonSpells[ctx.spell->ID - 53035][0], true, NULL, ctx.aura);
+    }
+    else if (ctx.target->Where().X() > 500.0f)
+    {
+        ctx.target->CastSpell(ctx.target, summonSpells[ctx.spell->ID - 53035][1], true, NULL, ctx.aura);
+    }
+    else
+    {
+        ctx.target->CastSpell(ctx.target, summonSpells[ctx.spell->ID - 53035][2], true, NULL, ctx.aura);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 53520: Carrion Beetles
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric53520(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 53521, true, NULL, ctx.aura);
+    ctx.target->CastSpell(ctx.target, 53521, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 55592: Clean
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric55592(AuraPeriodicDummyTickContext& ctx)
+{
+    switch (urand(0, 2))
+    {
+        case 0: ctx.target->CastSpell(ctx.target, 55731, true); break;
+        case 1: ctx.target->CastSpell(ctx.target, 55738, true); break;
+        case 2: ctx.target->CastSpell(ctx.target, 55739, true); break;
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 61968: Flash Freeze
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric61968(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.aura->GetAuraTicks() == 1 && !ctx.target->HasAura(62464))
+    {
+        ctx.target->CastSpell(ctx.target, 61970, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62018: Collapse
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62018(AuraPeriodicDummyTickContext& ctx)
+{
+    // lose 1% of health every second
+    ctx.target->DealDamage(ctx.target, ctx.target->GetMaxHealth() * .01, NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NONE, NULL, false);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62019: Rune of Summoning
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62019(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 62020, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62038: Biting Cold
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62038(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // if player is moving remove one aura stack
+    if (((Player*)ctx.target)->isMoving())
+    {
+        ctx.target->RemoveAuraHolderFromStack(62039);
+    }
+    // otherwise add one aura stack each 3 seconds
+    else if (ctx.aura->GetAuraTicks() % 3 && !ctx.target->HasAura(62821))
+    {
+        ctx.target->CastSpell(ctx.target, 62039, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62039: Biting Cold
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62039(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 62188, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62566: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62566(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 62582, true);
+    ctx.target->CastSpell(ctx.target, 62591, true);
+    ctx.target->CastSpell(ctx.target, 62592, true);
+    ctx.target->CastSpell(ctx.target, 62593, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62717: Slag Pot
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric62717(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, ctx.target->GetMap()->IsRegularDifficulty() ? 65722 : 65723, true, NULL, ctx.aura);
+
+    // cast Slag Imbued if the target survives up to the last tick
+    if (ctx.aura->GetAuraTicks() == 10)
+    {
+        ctx.target->CastSpell(ctx.target, 63536, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63050: Sanity
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric63050(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.aura->GetHolder()->GetStackAmount() <= 25 && !ctx.target->HasAura(63752))
+    {
+        ctx.target->CastSpell(ctx.target, 63752, true);
+    }
+    else if (ctx.aura->GetHolder()->GetStackAmount() > 25 && ctx.target->HasAura(63752))
+    {
+        ctx.target->RemoveAurasDueToSpell(63752);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63382: Rapid Burst
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric63382(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.aura->GetAuraTicks() % 2)
+    {
+        ctx.target->CastSpell(ctx.target, ctx.target->GetMap()->IsRegularDifficulty() ? 64019 : 64532, true);
+    }
+    else
+    {
+        ctx.target->CastSpell(ctx.target, ctx.target->GetMap()->IsRegularDifficulty() ? 63387 : 64531, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64101: Defend
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric64101(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 62719, true);
+    ctx.target->CastSpell(ctx.target, 64192, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64217: Overcharged
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric64217(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.aura->GetHolder()->GetStackAmount() >= 10)
+    {
+        ctx.target->CastSpell(ctx.target, 64219, true);
+        ctx.target->DealDamage(ctx.target, ctx.target->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64412: Phase Punch
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric64412(AuraPeriodicDummyTickContext& ctx)
+{
+    if (SpellAuraHolder* phaseAura = ctx.target->GetSpellAuraHolder(64412))
+    {
+        uint32 uiAuraId = 0;
+        switch (phaseAura->GetStackAmount())
+        {
+            case 1: uiAuraId = 64435; break;
+            case 2: uiAuraId = 64434; break;
+            case 3: uiAuraId = 64428; break;
+            case 4: uiAuraId = 64421; break;
+            case 5: uiAuraId = 64417; break;
+        }
+
+        if (uiAuraId && !ctx.target->HasAura(uiAuraId))
+        {
+            ctx.target->CastSpell(ctx.target, uiAuraId, true, NULL, ctx.aura);
+
+            // remove original aura if phased
+            if (uiAuraId == 64417)
+            {
+                ctx.target->RemoveAurasDueToSpell(64412);
+                ctx.target->CastSpell(ctx.target, 62169, true, NULL, ctx.aura);
+            }
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 65272: Shatter Chest
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric65272(AuraPeriodicDummyTickContext& ctx)
+{
+    ctx.target->CastSpell(ctx.target, 62501, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 4 labels: 66118: Leeching Swarm, 67630: Leeching Swarm, 68646: Leeching Swarm, 68647: Leeching Swarm
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericLeechingSwarm(AuraPeriodicDummyTickContext& ctx)
+{
+    Unit* caster = ctx.aura->GetCaster();
+    if (!caster)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    int32 lifeLeeched = int32(ctx.target->GetHealth() * ctx.aura->GetModifier()->m_amount * 0.01f);
+
+    if (lifeLeeched < 250)
+    {
+        lifeLeeched = 250;
+    }
+
+    // Leeching swarm damage
+    caster->CastCustomSpell(ctx.target, 66240, &lifeLeeched, NULL, NULL, true, NULL, ctx.aura);
+
+    // Leeching swarm heal
+    ctx.target->CastCustomSpell(caster, 66125, &lifeLeeched, NULL, NULL, true, NULL, ctx.aura);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 66798: Death's Respite
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGeneric66798(AuraPeriodicDummyTickContext& ctx)
+{
+    Unit* caster = ctx.aura->GetCaster();
+    if (!caster)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    caster->CastSpell(ctx.target, 66797, true, NULL, ctx.aura);
+    ctx.target->RemoveAurasDueToSpell(ctx.aura->GetId());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 68875: Wailing Souls, 68876: Wailing Souls
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericWailingSouls(AuraPeriodicDummyTickContext& ctx)
+{
+    // Sweep around
+    float newAngle = ctx.target->Where().Facing();
+    if (ctx.spell->ID == 68875)
+    {
+        newAngle += 0.09f;
+    }
+    else
+    {
+        newAngle -= 0.09f;
+    }
+
+    newAngle = Geometry::Placement::NormalizeOrientation(newAngle);
+
+    ctx.target->SetFacingTo(newAngle);
+
+    // Should actually be SMSG_SPELL_START, too
+    ctx.target->CastSpell(ctx.target, 68873, true);
+    return SpellHandlerOutcome<void>::Return();
+// Exist more after, need add later
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickGenericDefault(AuraPeriodicDummyTickContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 55342: Mirror Image
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickMage55342(AuraPeriodicDummyTickContext& ctx)
+{
+    if (ctx.aura->GetAuraTicks() != 1)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    if (Unit* pCaster = ctx.aura->GetCaster())
+    {
+        pCaster->CastSpell(pCaster, ctx.aura->GetSpellProto()->CalculateSimpleValue(ctx.aura->GetEffIndex()), true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickMageDefault(AuraPeriodicDummyTickContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 22842: Frenzied Regeneration
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickDruid22842(AuraPeriodicDummyTickContext& ctx)
+{
+    // Frenzied Regeneration
+    // Converts up to 10 rage per second into health for $d.  Each point of rage is converted into ${$m2/10}.1% of max health.
+    // Should be manauser
+    if (ctx.target->GetPowerType() != POWER_RAGE)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    uint32 rage = ctx.target->GetPower(POWER_RAGE);
+    // Nothing todo
+    if (rage == 0)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    int32 mod = (rage < 100) ? rage : 100;
+    int32 points = ctx.target->CalculateSpellDamage(ctx.target, ctx.spell, EFFECT_INDEX_1);
+    int32 regen = ctx.target->GetMaxHealth() * (mod * points / 10) / 1000;
+    ctx.target->CastCustomSpell(ctx.target, 22845, &regen, NULL, NULL, true, NULL, ctx.aura);
+    ctx.target->SetPower(POWER_RAGE, rage - mod);
+    return SpellHandlerOutcome<void>::Return();
+// Force of Nature
+}
+
+/// 33831: Force of Nature
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickDruid33831(AuraPeriodicDummyTickContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickDruidDefault(AuraPeriodicDummyTickContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 2 labels: 53511: Feeding Frenzy, 53512: Feeding Frenzy
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickHunterFeedingFrenzy(AuraPeriodicDummyTickContext& ctx)
+{
+    // Harpooner's Mark
+    // case 40084:
+    //    return;
+    // Feeding Frenzy Rank 1 & 2
+    Unit* victim = ctx.target->getVictim();
+    if (victim && victim->GetHealth() * 100 < victim->GetMaxHealth() * 35)
+    {
+        ctx.target->CastSpell(ctx.target, ctx.spell->ID == 53511 ? 60096 : 60097, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraPeriodicDummyTickHunterDefault(AuraPeriodicDummyTickContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
 template <class Site>
 struct AurasRow
 {
@@ -1333,6 +1997,71 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
         { 31447, &AuraPeriodicManaLeechTickMarkOfKazzak },
     };
 
+    static AurasRow<AuraPeriodicDummyTickGenericSite> const periodicDummyTickGeneric[] =
+    {
+        { 7054, &AuraPeriodicDummyTickGeneric7054 },
+        { 7057, &AuraPeriodicDummyTickGeneric7057 },
+        { 30019, &AuraPeriodicDummyTickGeneric30019 },
+        { 42621, &AuraPeriodicDummyTickGeneric42621 },
+        { 42919, &AuraPeriodicDummyTickGeneric42919 },
+        { 46041, &AuraPeriodicDummyTickGeneric46041 },
+        { 46371, &AuraPeriodicDummyTickGeneric46371 },
+        { 48630, &AuraPeriodicDummyTickGenericSummonGauntletMobs },
+        { 59275, &AuraPeriodicDummyTickGenericSummonGauntletMobs },
+        { 49555, &AuraPeriodicDummyTickGenericCorpseExplode },
+        { 59807, &AuraPeriodicDummyTickGenericCorpseExplode },
+        { 50789, &AuraPeriodicDummyTickGenericSummonIronDwarf },
+        { 59860, &AuraPeriodicDummyTickGenericSummonIronDwarf },
+        { 50792, &AuraPeriodicDummyTickGenericSummonIronTrogg },
+        { 59859, &AuraPeriodicDummyTickGenericSummonIronTrogg },
+        { 50801, &AuraPeriodicDummyTickGenericSummonMalformedOoze },
+        { 59858, &AuraPeriodicDummyTickGenericSummonMalformedOoze },
+        { 50824, &AuraPeriodicDummyTickGeneric50824 },
+        { 52441, &AuraPeriodicDummyTickGeneric52441 },
+        { 53035, &AuraPeriodicDummyTickGenericSummonAnubar },
+        { 53036, &AuraPeriodicDummyTickGenericSummonAnubar },
+        { 53037, &AuraPeriodicDummyTickGenericSummonAnubar },
+        { 53520, &AuraPeriodicDummyTickGeneric53520 },
+        { 55592, &AuraPeriodicDummyTickGeneric55592 },
+        { 61968, &AuraPeriodicDummyTickGeneric61968 },
+        { 62018, &AuraPeriodicDummyTickGeneric62018 },
+        { 62019, &AuraPeriodicDummyTickGeneric62019 },
+        { 62038, &AuraPeriodicDummyTickGeneric62038 },
+        { 62039, &AuraPeriodicDummyTickGeneric62039 },
+        { 62566, &AuraPeriodicDummyTickGeneric62566 },
+        { 62717, &AuraPeriodicDummyTickGeneric62717 },
+        { 63050, &AuraPeriodicDummyTickGeneric63050 },
+        { 63382, &AuraPeriodicDummyTickGeneric63382 },
+        { 64101, &AuraPeriodicDummyTickGeneric64101 },
+        { 64217, &AuraPeriodicDummyTickGeneric64217 },
+        { 64412, &AuraPeriodicDummyTickGeneric64412 },
+        { 65272, &AuraPeriodicDummyTickGeneric65272 },
+        { 66118, &AuraPeriodicDummyTickGenericLeechingSwarm },
+        { 67630, &AuraPeriodicDummyTickGenericLeechingSwarm },
+        { 68646, &AuraPeriodicDummyTickGenericLeechingSwarm },
+        { 68647, &AuraPeriodicDummyTickGenericLeechingSwarm },
+        { 66798, &AuraPeriodicDummyTickGeneric66798 },
+        { 68875, &AuraPeriodicDummyTickGenericWailingSouls },
+        { 68876, &AuraPeriodicDummyTickGenericWailingSouls },
+    };
+
+    static AurasRow<AuraPeriodicDummyTickMageSite> const periodicDummyTickMage[] =
+    {
+        { 55342, &AuraPeriodicDummyTickMage55342 },
+    };
+
+    static AurasRow<AuraPeriodicDummyTickDruidSite> const periodicDummyTickDruid[] =
+    {
+        { 22842, &AuraPeriodicDummyTickDruid22842 },
+        { 33831, &AuraPeriodicDummyTickDruid33831 },
+    };
+
+    static AurasRow<AuraPeriodicDummyTickHunterSite> const periodicDummyTickHunter[] =
+    {
+        { 53511, &AuraPeriodicDummyTickHunterFeedingFrenzy },
+        { 53512, &AuraPeriodicDummyTickHunterFeedingFrenzy },
+    };
+
     uint32 rows = RegisterAurasRows(registry, triggerSpellGeneric);
     rows += RegisterAurasRows(registry, triggerSpellMage);
     rows += RegisterAurasRows(registry, triggerSpellHunter);
@@ -1341,11 +2070,19 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     rows += RegisterAurasRows(registry, triggerSpellCustom);
     rows += RegisterAurasRows(registry, periodicDamageTick);
     rows += RegisterAurasRows(registry, periodicManaLeechTick);
+    rows += RegisterAurasRows(registry, periodicDummyTickGeneric);
+    rows += RegisterAurasRows(registry, periodicDummyTickMage);
+    rows += RegisterAurasRows(registry, periodicDummyTickDruid);
+    rows += RegisterAurasRows(registry, periodicDummyTickHunter);
     registry.RegisterDefault<AuraTriggerSpellGenericSite>(&AuraTriggerSpellGenericDefault);
     registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraTriggerSpellHunterSite>(&AuraTriggerSpellHunterDefault);
     registry.RegisterDefault<AuraTriggerSpellDruidSite>(&AuraTriggerSpellDruidDefault);
     registry.RegisterDefault<AuraTriggerSpellShamanSite>(&AuraTriggerSpellShamanDefault);
     registry.RegisterDefault<AuraPeriodicDamageTickSite>(&AuraPeriodicDamageTickDefault);
-    return rows + 6;
+    registry.RegisterDefault<AuraPeriodicDummyTickGenericSite>(&AuraPeriodicDummyTickGenericDefault);
+    registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
+    registry.RegisterDefault<AuraPeriodicDummyTickDruidSite>(&AuraPeriodicDummyTickDruidDefault);
+    registry.RegisterDefault<AuraPeriodicDummyTickHunterSite>(&AuraPeriodicDummyTickHunterDefault);
+    return rows + 10;
 }
