@@ -47,7 +47,13 @@
 /// slot and no comment to its end and, the Dungeon Finder being off, returns before it reads the
 /// player, sending nothing. The CMSG_JOIN_CHANNEL row reads a join of channel 0 with an empty name
 /// and an empty password to its end and, the name being empty, returns before it reads the player,
-/// sending nothing. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name and an
+/// sending nothing. The CMSG_CHANNEL_SET_OWNER and CMSG_CHANNEL_UNMODERATOR rows read the bytes the
+/// 4.3.4 client writes for them (UserClientChatChannelSetOwner::Put and
+/// UserClientChatChannelUnmoderator::Put) to their end and, the name being empty, return before they
+/// read the player, sending nothing. With members on their sessions, the set-owner row refuses a
+/// member who is not the owner and a player who never joined, each told so and neither changing the
+/// owner or the member list, and hands the channel over for the owner; the unmoderator row removes
+/// the moderator flag of the member the client names. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name and an
 /// empty note to its end and, the name being empty, returns before it reads the player, sending
 /// nothing. The CMSG_GMTICKET_SYSTEMSTATUS row, given an empty packet on a session with no player,
 /// answers with one SMSG_GMTICKET_SYSTEMSTATUS carrying whether the ticket system accepts tickets.
@@ -77,6 +83,10 @@
 #include "session/handlers/entities/SkillHandlers.h"
 #include "session/handlers/pvp/PvpHandlers.h"
 #include "session/handlers/social/ChannelHandlers.h"
+#include "Channel.h"
+#include "ChannelMgr.h"
+#include "Player.h"
+#include "PlayerRegistry.h"
 #include "session/handlers/social/ContactHandlers.h"
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
@@ -121,6 +131,82 @@ namespace
         }
         return slots;
     }
+
+    /// A player the channel code reaches: its update fields allocated, named, Alliance, flagged in world
+    /// and registered, so the registry answers for it, and held by its session for the handler's reads.
+    /// It enters no map; it leaves its channels the way a logout does.
+    class ChannelMember : public Player
+    {
+        public:
+            ChannelMember(WorldSession& session, uint32 low, const char* name) : Player(&session)
+            {
+                m_team = ALLIANCE;
+                Object::_Create(low, 0, HIGHGUID_PLAYER);
+                SetName(name);
+                Object::AddToWorld();
+                sPlayerRegistry.Add(this);
+                session.SetPlayer(this);
+            }
+
+            ~ChannelMember()
+            {
+                CleanupChannels();
+                GetSession()->SetPlayer(nullptr);
+                sPlayerRegistry.Remove(this);
+                Object::RemoveFromWorld();
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+
+    // The bytes UserClientChatChannelSetOwner::Put writes: channel length (8 bits), name length (7 bits), the name, the channel.
+    WorldPacket SetOwnerRequest(const char* channel, const char* name)
+    {
+        WorldPacket request(CMSG_CHANNEL_SET_OWNER);
+        request.WriteBits(std::strlen(channel), 8);
+        request.WriteBits(std::strlen(name), 7);
+        request.WriteStringData(name);
+        request.WriteStringData(channel);
+        return request;
+    }
+
+    // The bytes UserClientChatChannelUnmoderator::Put writes: name length (7 bits), channel length (8 bits), the channel, the name.
+    WorldPacket UnmoderatorRequest(const char* channel, const char* name)
+    {
+        WorldPacket request(CMSG_CHANNEL_UNMODERATOR);
+        request.WriteBits(std::strlen(name), 7);
+        request.WriteBits(std::strlen(channel), 8);
+        request.WriteStringData(channel);
+        request.WriteStringData(name);
+        return request;
+    }
+
+    // A channel notice's type, channel name and the guid after them (empty when the notice carries none).
+    struct Notice
+    {
+        explicit Notice(WorldPacket const& packet) : opcode(packet.GetOpcode()), type(0), oldFlags(0), newFlags(0)
+        {
+            WorldPacket copy(packet);
+            copy >> type;
+            copy >> channel;
+            if (copy.rpos() + 8 <= copy.size())
+            {
+                copy >> guid;
+            }
+            if (copy.rpos() + 2 <= copy.size())
+            {
+                copy >> oldFlags;
+                copy >> newFlags;
+            }
+        }
+
+        uint16 opcode;
+        uint8 type;
+        std::string channel;
+        ObjectGuid guid;
+        uint8 oldFlags;
+        uint8 newFlags;
+    };
 }
 
 TEST(OpcodeDispatch_PingRowAnswersWithThePongOfItsSequence)
@@ -852,12 +938,152 @@ TEST(OpcodeDispatch_JoinChannelRowReturnsBeforeAnyPlayerRead)
     session.SetSocketlessSink(nullptr, nullptr);
 }
 
+TEST(OpcodeDispatch_ChannelSetOwnerRowReadsTheClientLayoutAndReturnsBeforeAnyPlayerRead)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket request = SetOwnerRequest("wave12", "");
+    CHECK_HEX(request.contents(), request.size(), "0600776176653132");
+
+    opcodeTable[CMSG_CHANNEL_SET_OWNER].handler(session, request);
+
+    CHECK_EQ(request.rpos(), size_t(8));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelUnmoderatorRowReadsTheClientLayoutAndReturnsBeforeAnyPlayerRead)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket request = UnmoderatorRequest("wave12", "");
+    CHECK_HEX(request.contents(), request.size(), "000c776176653132");
+
+    opcodeTable[CMSG_CHANNEL_UNMODERATOR].handler(session, request);
+
+    CHECK_EQ(request.rpos(), size_t(8));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelSetOwnerRowRefusesANonOwnerAndANonMemberAndObeysTheOwner)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> toAlpha, toBravo, toCharlie;
+    WorldSession alphaSession(1, "alpha", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession bravoSession(2, "bravo", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession charlieSession(3, "charlie", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    alphaSession.SetSocketlessSink(&CapturePacket, &toAlpha);
+    bravoSession.SetSocketlessSink(&CapturePacket, &toBravo);
+    charlieSession.SetSocketlessSink(&CapturePacket, &toCharlie);
+    {
+        ChannelMember alpha(alphaSession, 7101, "Alpha");
+        ChannelMember bravo(bravoSession, 7102, "Bravo");
+        ChannelMember charlie(charlieSession, 7103, "Charlie");
+        Channel* channel = channelMgr(ALLIANCE)->GetJoinChannel("owner12", 0);
+        channel->Join(&alpha, "");
+        channel->Join(&bravo, "");
+        REQUIRE(channel->GetNumPlayers() == 2);
+        size_t const alphaHeard = toAlpha.size();
+        size_t const bravoHeard = toBravo.size();
+
+        // A member who is not the owner is told so; nobody else hears of it.
+        WorldPacket fromBravo = SetOwnerRequest("owner12", "Alpha");
+        opcodeTable[CMSG_CHANNEL_SET_OWNER].handler(bravoSession, fromBravo);
+        CHECK_EQ(fromBravo.rpos(), fromBravo.size());
+        REQUIRE(toBravo.size() == bravoHeard + 1);
+        CHECK_EQ(Notice(toBravo.back()).opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(Notice(toBravo.back()).type, uint8(CHAT_NOT_OWNER_NOTICE));
+        CHECK_STR(Notice(toBravo.back()).channel, "owner12");
+        CHECK_EQ(toAlpha.size(), alphaHeard);
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+
+        // A player who never joined is told so and is not added.
+        WorldPacket fromCharlie = SetOwnerRequest("owner12", "Charlie");
+        opcodeTable[CMSG_CHANNEL_SET_OWNER].handler(charlieSession, fromCharlie);
+        CHECK_EQ(fromCharlie.rpos(), fromCharlie.size());
+        REQUIRE(toCharlie.size() == 1);
+        CHECK_EQ(Notice(toCharlie.back()).type, uint8(CHAT_NOT_MEMBER_NOTICE));
+        CHECK_EQ(toAlpha.size(), alphaHeard);
+        CHECK_EQ(toBravo.size(), bravoHeard + 1);
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+
+        // The first joiner is still the owner: its request hands the channel over, and every member hears it.
+        WorldPacket fromAlpha = SetOwnerRequest("owner12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_SET_OWNER].handler(alphaSession, fromAlpha);
+        CHECK_EQ(fromAlpha.rpos(), fromAlpha.size());
+        REQUIRE(toAlpha.size() == alphaHeard + 2);
+        REQUIRE(toBravo.size() == bravoHeard + 3);
+        CHECK_EQ(Notice(toAlpha[alphaHeard]).type, uint8(CHAT_MODE_CHANGE_NOTICE));
+        CHECK(Notice(toAlpha[alphaHeard]).guid == bravo.GetObjectGuid());
+        CHECK_EQ(Notice(toAlpha.back()).type, uint8(CHAT_OWNER_CHANGED_NOTICE));
+        CHECK(Notice(toAlpha.back()).guid == bravo.GetObjectGuid());
+        CHECK_EQ(Notice(toBravo.back()).type, uint8(CHAT_OWNER_CHANGED_NOTICE));
+        CHECK(Notice(toBravo.back()).guid == bravo.GetObjectGuid());
+        CHECK_EQ(toCharlie.size(), size_t(1));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+    }
+    alphaSession.SetSocketlessSink(nullptr, nullptr);
+    bravoSession.SetSocketlessSink(nullptr, nullptr);
+    charlieSession.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelUnmoderatorRowRemovesTheModeratorTheClientNames)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> toAlpha, toBravo;
+    WorldSession alphaSession(1, "alpha", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession bravoSession(2, "bravo", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    alphaSession.SetSocketlessSink(&CapturePacket, &toAlpha);
+    bravoSession.SetSocketlessSink(&CapturePacket, &toBravo);
+    {
+        ChannelMember alpha(alphaSession, 7111, "Alpha");
+        ChannelMember bravo(bravoSession, 7112, "Bravo");
+        Channel* channel = channelMgr(ALLIANCE)->GetJoinChannel("unmod12", 0);
+        channel->Join(&alpha, "");
+        channel->Join(&bravo, "");
+        channel->SetModerator(&alpha, "Bravo");
+        REQUIRE(channel->GetNumPlayers() == 2);
+        size_t const alphaHeard = toAlpha.size();
+        size_t const bravoHeard = toBravo.size();
+
+        WorldPacket fromAlpha = UnmoderatorRequest("unmod12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_UNMODERATOR].handler(alphaSession, fromAlpha);
+        CHECK_EQ(fromAlpha.rpos(), fromAlpha.size());
+        REQUIRE(toAlpha.size() == alphaHeard + 1);
+        REQUIRE(toBravo.size() == bravoHeard + 1);
+        Notice const heard(toBravo.back());
+        CHECK_EQ(heard.opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(heard.type, uint8(CHAT_MODE_CHANGE_NOTICE));
+        CHECK_STR(heard.channel, "unmod12");
+        CHECK(heard.guid == bravo.GetObjectGuid());
+        CHECK_EQ(heard.oldFlags & 0x02, 0x02);
+        CHECK_EQ(heard.newFlags & 0x02, 0);
+        CHECK_EQ(Notice(toAlpha.back()).type, uint8(CHAT_MODE_CHANGE_NOTICE));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+    }
+    alphaSession.SetSocketlessSink(nullptr, nullptr);
+    bravoSession.SetSocketlessSink(nullptr, nullptr);
+}
+
 TEST(OpcodeDispatch_ChannelRowsHoldTheirHandlersThunks)
 {
     InitializeOpcodes();
 
-    // Two pairs of handlers have identical code (list and display list, unmoderator and unmute),
-    // and the Release linker may merge each pair into one function, so each pair is counted together.
+    // The list and display-list handlers have identical code, and the Release linker may merge
+    // them into one function, so that pair is counted together.
     CHECK(opcodeTable[CMSG_JOIN_CHANNEL].handler == &OpcodeThunk<&ChannelHandlers::HandleJoinChannel>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleJoinChannel>), 1);
     CHECK(opcodeTable[CMSG_LEAVE_CHANNEL].handler == &OpcodeThunk<&ChannelHandlers::HandleLeaveChannel>);
@@ -872,11 +1098,11 @@ TEST(OpcodeDispatch_ChannelRowsHoldTheirHandlersThunks)
     CHECK(opcodeTable[CMSG_CHANNEL_MODERATOR].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelModerator>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelModerator>), 1);
     CHECK(opcodeTable[CMSG_CHANNEL_UNMODERATOR].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelUnmoderator>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelUnmoderator>), 1);
     CHECK(opcodeTable[CMSG_CHANNEL_MUTE].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelMute>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelMute>), 1);
     CHECK(opcodeTable[CMSG_CHANNEL_UNMUTE].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelUnmute>);
-    CHECK_EQ(CountSlotsBoundToEither(&OpcodeThunk<&ChannelHandlers::HandleChannelUnmoderator>,
-                                     &OpcodeThunk<&ChannelHandlers::HandleChannelUnmute>), 2);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelUnmute>), 1);
     CHECK(opcodeTable[CMSG_CHANNEL_INVITE].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelInvite>);
     CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&ChannelHandlers::HandleChannelInvite>), 1);
     CHECK(opcodeTable[CMSG_CHANNEL_KICK].handler == &OpcodeThunk<&ChannelHandlers::HandleChannelKick>);

@@ -162,7 +162,7 @@ void ChannelHandlers::HandleChannelSetOwner(WorldSession& session, WorldPacket& 
     if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
         if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->SetOwner(session.GetPlayer()->GetObjectGuid(), newp.c_str());
+            chn->SetOwner(session.GetPlayer(), newp.c_str());
         }
 }
 
@@ -225,10 +225,10 @@ void ChannelHandlers::HandleChannelUnmoderator(WorldSession& session, WorldPacke
     uint32 channelLen, nameLen;
     std::string channelname, otp;
 
-    channelLen = recvPacket.ReadBits(8);
     nameLen = recvPacket.ReadBits(7);
-    otp = recvPacket.ReadString(nameLen);
+    channelLen = recvPacket.ReadBits(8);
     channelname = recvPacket.ReadString(channelLen);
+    otp = recvPacket.ReadString(nameLen);
 
     if (!normalizePlayerName(otp))
     {
@@ -238,7 +238,7 @@ void ChannelHandlers::HandleChannelUnmoderator(WorldSession& session, WorldPacke
     if (ChannelMgr* cMgr = channelMgr(session.GetPlayer()->GetTeam()))
         if (Channel* chn = cMgr->GetChannel(channelname, session.GetPlayer()))
         {
-            chn->UnsetMute(session.GetPlayer(), otp.c_str());
+            chn->UnsetModerator(session.GetPlayer(), otp.c_str());
         }
 }
 

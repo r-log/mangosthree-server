@@ -109,7 +109,16 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       and reading in place as it does alone (stands alone, as a residue edit does); no two overlap, and no line
       a new side holds is an edit's new line. The form admits comment lines and literals whose conversions are
       equal in number and type: a literal's words are not read, only its conversions. RESIDUES take no texts
-      (a residue's changes are its edits).
+      (a residue's changes are its edits);
+  changes  (new line, base line) pairs: a code line changed in the moved function after the move, listed with
+      the line it replaced, the base line written as the move left it (`session.GetPlayer()`, read back by
+      the entry's substitutions and the player reading like any other line). The two sides differ in code
+      (a pair reading the same with each comment's text and each literal's contents read as one mark changes
+      no code: that is a text pair). A change is read back as a text pair is, before anything else: each new
+      side stands exactly once in the moved function and each base side, read back, exactly once in the base
+      function, outside the definition and alone; no two pairs, changes or texts, overlap, and no change's
+      new line is an edit's new line. No side holds a line break or ends in a line splice. The passing line
+      counts the changes read back. RESIDUES take no changes.
 The player reading reads a line alone and in its code only, comments and literals staying as they are but
 for the entry's listed texts, each a comment line or a literal with its conversions kept (so an edit's
 comments and literals are byte-equal on both sides): `session.GetPlayer()`, `_player` and
@@ -118,8 +127,8 @@ comments and literals are byte-equal on both sides): `session.GetPlayer()`, `_pl
 `_player` only as a whole word. A new line reads in place as it does alone when no comment or literal is
 open across it, no line splice (a backslash, blanks after it or not, ending a line) joins it to the line
 before or after, and the reading of it after the lines above it is its reading alone (no `.`, `->` or `::`
-ending the line above runs into it). These are the only shapes of an edit, a substitution and a text pair; no
-key of an entry admits another.
+ending the line above runs into it). These are the only shapes of an edit, a substitution, a text pair and a
+change; no key of an entry admits another.
 A definition holds no comment but a commented-out parameter, and no literal. It may span lines: its
 parameter list continues on the following lines up to the line that closes it. The entry quotes such a
 definition with its lines joined by line breaks, each line exactly as the file holds it, and the definition
@@ -146,8 +155,8 @@ For each entry, --check:
      member function and data member at class scope in the working tree's `WorldSession.h`, read by
      verbatim.py's MEMBERS_OF reader (class_members). A name followed by `::` is a namespace or class
      qualifier (`std::string`, `Motion::Reason`), not a member use, and passes; the same name alone fails;
-  3. reverses the move: each text pair's new side becomes its base side first; then an edit's line
-     becomes its base line; on every other line, in code only
+  3. reverses the move: each text pair's and each change's new side becomes its base side first; then an
+     edit's line becomes its base line; on every other line, in code only
      (comments and literals stay), `session.` not after a name, `.`, `->` or `::` is dropped and the
      substitutions are read back, and a line beginning, blanks aside, with `session.` or a substitution's
      text where the code of the nearest line above that holds code ends, blanks aside, in `.`, `->` or `::`,
@@ -211,7 +220,10 @@ changing code (a line pair) or holding a line that is not a comment line or a bl
 literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block inside a
 comment, standing other than once (its new side in the moved function, its base side read back in the base
 function) or not alone, overlapping another, or holding an edit's new line, texts that are not a list of pairs,
-and an entry holding a key no entry admits or lacking one it needs.
+a change of another shape, holding a line break or a line splice, changing no code (a comment or literal change
+is a text pair), standing other than once (its new side in the moved function, its base side read back in the
+base function) or not alone, overlapping another pair, or listed as an edit too, changes that are not a list of
+pairs, and an entry holding a key no entry admits or lacking one it needs.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a text pair, a residue edit's block), fails: a compiler
 ends a line there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a
@@ -291,7 +303,7 @@ DEFINED = re.compile(r'\S.*? (\w+)::(\w+)\(')
 SPLICE = re.compile(r'\\[ \t]*\r?\Z')
 CLASS_HEAD = re.compile(r'\b(?:class|struct)\s+(\w+)(?:\s+final)?\s*(?::(?!:)[^;{}]*)?\{')
 MOVE_KEYS = ('base', 'base_file', 'base_header', 'new_file', 'new_header', 'substitutions', 'edits', 'rename',
-             'accessors', 'texts')
+             'accessors', 'texts', 'changes')
 RESIDUE_KEYS = ('base', 'base_file', 'removed', 'edits')
 RENAME_NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 KEYWORDS = frozenset((
@@ -676,6 +688,32 @@ def read_texts(entry):
     return found
 
 
+def read_changes(entry):
+    """[(new lines, base lines, 'change')] of an entry's changes, a list of (new line, base line) pairs: the two
+    sides differ in code, and no side holds a line break or ends in a line splice."""
+    found = []
+    listed = entry.get('changes', [])
+    if not isinstance(listed, (tuple, list)):
+        raise Failure('the changes %r are not a list of (new line, base line) pairs' % (listed,))
+    for c in listed:
+        if not (isinstance(c, (tuple, list)) and len(c) == 2 and all(isinstance(x, str) for x in c)):
+            raise Failure('the change %r is not (new line, base line)' % (c,))
+        what = 'the change %r' % c[0]
+        if any('\n' in x for x in c):
+            raise Failure('%s holds a line break: a change is one line read back as one line' % what)
+        if any(SPLICE.search(x) for x in c):
+            raise Failure('%s ends a line in a line splice: each side of a change is read alone' % what)
+        if text_read(c[0])[0] == text_read(c[1])[0]:
+            raise Failure('%s changes no code: a comment or literal change is a text pair' % what)
+        found.append(([c[0]], [c[1]], 'change'))
+    return found
+
+
+def pair_name(pair):
+    """How a message names a pair: a change by its new line, a text pair by its first new line."""
+    return ('the change %r' if len(pair) > 2 else 'the text pair %r') % pair[0][0]
+
+
 def texts_at(lines, head, wanted, where, side):
     """[(first, end, pair)] of `wanted`, [(lines, pair)], in `lines`, a function's lines with its definition at
     `head`, in order: each stands once outside the definition and alone (stands_alone), and no two overlap."""
@@ -684,16 +722,15 @@ def texts_at(lines, head, wanted, where, side):
         hits = [k for k in range(len(lines) - len(want) + 1)
                 if lines[k:k + len(want)] == want and not any(k <= h < k + len(want) for h in head)]
         if len(hits) != 1:
-            raise Failure('the text pair %r: its %s stands %d times in %s, not once' % (pair[0][0], side, len(hits),
-                                                                                        where))
+            raise Failure('%s: its %s stands %d times in %s, not once' % (pair_name(pair), side, len(hits), where))
         if not stands_alone(lines, hits[0], hits[0] + len(want)):
-            raise Failure('the text pair %r does not stand alone in %s: a line splice or a comment or literal open '
-                          'across its edges' % (pair[0][0], where))
+            raise Failure('%s does not stand alone in %s: a line splice or a comment or literal open across its '
+                          'edges' % (pair_name(pair), where))
         found.append((hits[0], hits[0] + len(want), pair))
     found.sort(key=lambda x: x[:2])
     for (_, b, p), (c, _, q) in zip(found, found[1:]):
         if c < b:
-            raise Failure('the text pairs %r and %r overlap in %s' % (p[0][0], q[0][0], where))
+            raise Failure('%s and %s overlap in %s' % (pair_name(p), pair_name(q), where))
     return found
 
 
@@ -943,9 +980,10 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             if not takes and listed:
                 raise Failure('the definition line takes no session, but the entry lists %s' % what)
         texts = read_texts(entry)
+        changes = read_changes(entry)
         inputs = [new_text, base_text, tree_base_text or '', entry['new_header'], entry['base_header']] + [
             x for e in entry.get('edits', []) + entry.get('substitutions', []) for x in e[:2]] + [
-            x for t in texts for side in t for x in side]
+            x for t in texts + changes for side in t[:2] for x in side]
         if any(isinstance(x, str) and CARRIAGE_RETURN.search(x) for x in inputs):
             raise Failure('a carriage return inside a line (a compiler ends the line there)')
         if new_name is not None:
@@ -979,11 +1017,11 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
             raise Failure('the new file is not under %s, where handler_classes.py reads it' % HANDLERS_DIR)
         check_lines(entry)
         edits, counts = read_edits(entry)
-        twice = [t[0][0] for t in texts if any(x in edits for x in t[0])]
+        twice = [t for t in texts + changes if any(x in edits for x in t[0])]
         if twice:
-            raise Failure('the text pair %r is also listed as an edit: a line is read back by one of them' % twice[0])
+            raise Failure('%s is also listed as an edit: a line is read back by one of them' % pair_name(twice[0]))
         moved = span
-        span, head, places = apply_texts(span, head, texts)
+        span, head, places = apply_texts(span, head, texts + changes)
         for line in edits:
             hits = sum(1 for k, x in enumerate(span) if x == line and k not in head)
             if hits != counts[line]:
@@ -1094,6 +1132,8 @@ def verify(entry, base_text, tree_base_text, new_text, members, out=print, heade
     done = '%d edits' % sum(counts.values())
     if texts:
         done += ', %d texts applied' % len(texts)
+    if changes:
+        done += ', %d changes read back' % len(changes)
     if new_name is not None:
         done += ', %r read back as session %d times' % (new_name, renamed)
     out('%s: IDENTICAL to %s at %s, byte for byte, with %d lines pasted back (%s)' % (
@@ -2727,6 +2767,59 @@ def self_test():
         "the text pair %r is also listed as an edit: a line is read back by one of them" % read[0], 0,
         swap=(attack[0], read[0] + '\n' + attack[0]), base=SELF_BASE.replace(attack[1], read[2] + '\n' + attack[1]),
         texts=[read[:2]], edits=[enemy, (read[0], read[2] + ' anew')])
+    def changed(label, want_rc, needle, new_lines, base_lines, pairs, entry=1, **change):
+        """`new_lines` above the stop line in the moved function and `base_lines` above it at the base, the
+        entry listing `pairs` as its changes."""
+        run(label, want_rc, needle, entry, swap=(lead[0], new_lines + '\n' + lead[0]),
+            base=SELF_BASE.replace(lead[1], base_lines + '\n' + lead[1]), changes=pairs, **change)
+
+    ping = ('    Ping(2);', '    Ping(1);')
+    halt = ('    session.GetPlayer()->Halt(true);', '    session.GetPlayer()->Halt();')
+    changed('a change read back as its base line passes', 0,
+            'with 5 lines pasted back (0 edits, 1 changes read back)', ping[0], ping[1], [ping])
+    changed('a change whose base side the player reading reads back passes', 0, '(0 edits, 1 changes read back)',
+            halt[0], '    GetPlayer()->Halt();', [halt])
+    changed('a code line changed and not listed differs', 1, 'DIFFERS', ping[0], ping[1], [])
+    changed('two changes read back in order pass', 0, '(0 edits, 2 changes read back)',
+            ping[0] + '\n' + halt[0], ping[1] + '\n    GetPlayer()->Halt();', [ping, halt])
+    changed('a change standing twice in the moved function fails', 1,
+            "the change %r: its new side stands 2 times in the moved function, not once" % ping[0],
+            ping[0] + '\n' + ping[0], ping[1] + '\n' + ping[1], [ping])
+    changed('a change standing nowhere in the moved function fails', 1,
+            "the change %r: its new side stands 0 times in the moved function, not once" % ping[0],
+            '    Ping(3);', ping[1], [ping])
+    changed('a change whose base side stands twice in the base fails', 1,
+            "the change %r: its base side, read back, stands 2 times in the base function, not once" % ping[0],
+            ping[0] + '\n' + ping[1], ping[1] + '\n' + ping[1], [ping])
+    changed('a change whose base side stands nowhere in the base fails', 1,
+            "the change %r: its base side, read back, stands 0 times in the base function, not once" % ping[0],
+            ping[0], '    Ping(3);', [ping])
+    changed('a change and a text pair on one line overlap: fails', 1,
+            "the text pair '    Ping(2); // two' and the change '    Ping(2); // two' overlap in the moved function",
+            '    Ping(2); // two', '    Ping(1); // one', [('    Ping(2); // two', '    Ping(1); // two')],
+            texts=[('    Ping(2); // two', '    Ping(2); // one')])
+    changed('a change on a comment line fails', 1,
+            "the change '    // halt' changes no code: a comment or literal change is a text pair",
+            '    // halt', '    // stop', [('    // halt', '    // stop')])
+    changed('a change of a literal\'s words alone fails', 1,
+            'changes no code: a comment or literal change is a text pair',
+            '    Ping("halt");', '    Ping("stop");', [('    Ping("halt");', '    Ping("stop");')])
+    changed('a change also listed as an edit fails', 1,
+            "the change %r is also listed as an edit: a line is read back by one of them" % ping[0],
+            ping[0], ping[1], [ping], edits=[ping])
+    changed('a change of another shape fails', 1, "is not (new line, base line)", ping[0], ping[1],
+            [ping + ('x',)])
+    changed('a change of two blocks fails', 1, "is not (new line, base line)", ping[0], ping[1],
+            [([ping[0]], [ping[1]])])
+    changed('a change holding a line break fails', 1, 'holds a line break', ping[0], ping[1],
+            [(ping[0] + '\n    Ping();', ping[1])])
+    changed('a change ending in a line splice fails', 1, 'ends a line in a line splice', ping[0] + ' \\',
+            ping[1] + ' \\', [(ping[0] + ' \\', ping[1] + ' \\')])
+    run('an entry whose changes are None fails', 1, 'the changes None are not a list of (new line, base line) pairs',
+        1, changes=None)
+    stop = [x for x in SELF_NEW.split('\n') if 'SendStop(session, NULL);' in x][0]
+    run('a change on a line carrying a substitution reads back right', 0, '(1 edits, 1 changes read back)', 0,
+        swap=(stop, stop.replace('NULL', 'enemy')), changes=[(stop.replace('NULL', 'enemy'), stop)])
     bidder = [x for x in SELF_MAIL_NEW.split('\n') if 'in a comment stay' in x][0]
     bidder = (bidder.replace('// "session." and _player in a comment stay', '// a comment read anew'), bidder)
     run('a text pair on a no-session head passes', 0, '(0 edits, 1 texts applied)', swap=bidder[::-1],
@@ -3089,7 +3182,7 @@ def self_test():
     stop_head = "'void Fixture::HandleStop(WorldSession& session, WorldPacket& /*recv_data*/)'"
     run('an entry with a key no entry admits fails', 1,
         "the entry for %s has the key 'substitution', which no entry admits (the keys are base, base_file, "
-        "base_header, new_file, new_header, substitutions, edits, rename, accessors, texts)" % stop_head, 1,
+        "base_header, new_file, new_header, substitutions, edits, rename, accessors, texts, changes)" % stop_head, 1,
         substitution=[('SendStop(session, ', 'SendStop(')])
     for label, key, needle in (('an entry lacking its base header fails', 'base_header', stop_head),
                                ('an entry lacking its new header fails', 'new_header', "'Fixture.cpp'")):
@@ -3105,6 +3198,9 @@ def self_test():
     checked('--check: a residue entry listing texts fails', 1,
             "O.cpp: FAILED: the entry for 'O.cpp' has the key 'texts', which no entry admits (the keys are base, "
             "base_file, removed, edits)", [dict(base='b1', base_file='O.cpp', texts=[(dead[0], dead[0])])])
+    checked('--check: a residue entry listing changes fails', 1,
+            "O.cpp: FAILED: the entry for 'O.cpp' has the key 'changes', which no entry admits (the keys are base, "
+            "base_file, removed, edits)", [dict(base='b1', base_file='O.cpp', changes=[(dead[0], dead[0])])])
     checked('--check: a residue entry lacking its base fails', 1, "the entry for 'O.cpp' lacks the key 'base'",
             [dict(base_file='O.cpp', removed=['#include "Log.h"'])])
     checked('--check: a refused move entry fails the run alone', 1, '3 moved functions; FAILED', log,
