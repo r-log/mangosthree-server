@@ -447,7 +447,7 @@ void Spell::EffectTransmitted(SpellEffectEntry const* effect)
     pGameObj->SetUInt32Value(GAMEOBJECT_LEVEL, m_caster->getLevel());
     pGameObj->SetSpellId(m_spellInfo->ID);
 
-    DEBUG_LOG("AddObject at SpellEfects.cpp EffectTransmitted");
+    DEBUG_LOG("AddObject at SpellEffectTail.cpp EffectTransmitted");
     // m_caster->AddGameObject(pGameObj);
     // m_ObjToDel.push_back(pGameObj);
 

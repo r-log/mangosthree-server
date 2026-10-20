@@ -201,7 +201,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericDummyTrigger(SpellEffectDummy
             ctx.m_caster->CastCustomSpell(ctx.unitTarget, 26470, &ctx.damage, NULL, NULL, true);
             break;
         default:
-            sLog.outError("EffectDummy: Non-handled case for spell 13567 for triggered aura %u", ctx.m_triggeredByAuraSpell->ID);
+            sLog.outError("EffectDummyGenericDummyTrigger: Non-handled case for spell 13567 for triggered aura %u", ctx.m_triggeredByAuraSpell->ID);
             break;
     }
     return SpellHandlerOutcome<void>::Return();
@@ -423,7 +423,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericLavaBomb(SpellEffectDummyGene
         return SpellHandlerOutcome<void>::Return();
     }
 
-    DEBUG_LOG("Gameobject, create custom in SpellEffects.cpp EffectDummy");
+    DEBUG_LOG("Gameobject, create custom in SpellEffectDummyHandlers.cpp EffectDummyGenericLavaBomb");
 
     // Expect created without owner, but with level from _template
     pGameObj->SetRespawnTime(MINUTE / 2);
@@ -530,7 +530,7 @@ static SpellHandlerOutcome<void> EffectDummyGenericCrystalPrisonDummyDND(SpellEf
 
     creatureTarget->ForcedDespawn();
 
-    DEBUG_LOG("AddObject at SpellEfects.cpp EffectDummy");
+    DEBUG_LOG("AddObject at SpellEffectDummyHandlers.cpp EffectDummyGenericCrystalPrisonDummyDND");
     map->Add(pGameObj);
 
     return SpellHandlerOutcome<void>::Return();

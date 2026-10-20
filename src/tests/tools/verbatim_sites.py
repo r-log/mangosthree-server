@@ -48,7 +48,8 @@ VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;')
                       ('return SpellHandlerOutcome<void>::Continue();', 'break;')]
 
 # One entry per file; each file lists its sites in the order they stand in it, and may name its
-# `original` (ORIGINALS in verbatim.py).
+# `original` (ORIGINALS in verbatim.py); a site or the file may list `texts`, its log texts and comments
+# changed in place, as (new line, base line) pairs (TEXTS in verbatim.py).
 SITES = {
     'src/game/WorldHandlers/SpellAuraDummy.cpp': {
         'handlers': 'src/game/spells/handlers/AuraDummyHandlers.cpp',
@@ -453,6 +454,12 @@ SITES = {
         'added': ['#include "spells/handlers/AuraShapeshiftHandlers.h"'],
         'sites': [{
             'name': 'HandleAuraTransform AT APPLY, no creature entry (switch (GetId()))',
+            'texts': [
+                ('    sLog.outError("AuraTransformDefault, spell %u does not have creature entry defined, need '
+                 'custom defined model.", ctx.spellId);',
+                 '    sLog.outError("Aura::HandleAuraTransform, spell %u does not have creature entry defined, '
+                 'need custom defined model.", ctx.spellId);'),
+            ],
             'dispatch': [
                 '            AuraTransformContext ctx(GetId(), target);',
                 '            if (SpellHandlerRegistry::Game().Dispatch<AuraTransformSite>(GetId(), ctx).IsReturn())',
@@ -512,6 +519,10 @@ SITES = {
     },
     'src/game/WorldHandlers/SpellEffectTail.cpp': {
         'handlers': 'src/game/spells/handlers/SpellEffectTailHandlers.cpp',
+        'texts': [
+            ('    DEBUG_LOG("AddObject at SpellEffectTail.cpp EffectTransmitted");',
+             '    DEBUG_LOG("AddObject at SpellEfects.cpp EffectTransmitted");'),
+        ],
         'rows_function': 'RegisterSpellEffectTailRows',
         'added': ['#include "spells/handlers/SpellEffectTailHandlers.h"'],
         'sites': [{
@@ -1146,6 +1157,17 @@ SITES = {
         'added': ['#include "spells/handlers/SpellEffectDummyHandlers.h"'],
         'sites': [{
             'name': 'EffectDummy, case SPELLFAMILY_GENERIC (switch (m_spellInfo->ID))',
+            'texts': [
+                ('            sLog.outError("EffectDummyGenericDummyTrigger: Non-handled case for spell 13567 for '
+                 'triggered aura %u", ctx.m_triggeredByAuraSpell->ID);',
+                 '            sLog.outError("EffectDummy: Non-handled case for spell 13567 for triggered aura %u", '
+                 'ctx.m_triggeredByAuraSpell->ID);'),
+                ('    DEBUG_LOG("Gameobject, create custom in SpellEffectDummyHandlers.cpp '
+                 'EffectDummyGenericLavaBomb");',
+                 '    DEBUG_LOG("Gameobject, create custom in SpellEffects.cpp EffectDummy");'),
+                ('    DEBUG_LOG("AddObject at SpellEffectDummyHandlers.cpp EffectDummyGenericCrystalPrisonDummyDND");',
+                 '    DEBUG_LOG("AddObject at SpellEfects.cpp EffectDummy");'),
+            ],
             'dispatch': [
                 '            SpellEffectDummyGenericContext ctx('
                 'this, m_spellInfo, m_currentBasePoints, m_CastItem, m_caster,',
