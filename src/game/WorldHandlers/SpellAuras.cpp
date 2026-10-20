@@ -1345,13 +1345,11 @@ void Aura::TriggerSpell()
             }
             case SPELLFAMILY_MAGE:
             {
-                switch (auraId)
+                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, triggeredSpellInfo,
+                                            auraSpellInfo, auraId, target, triggerCaster);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraTriggerSpellMageSite>(auraId, ctx).IsReturn())
                 {
-                    case 66:                                // Invisibility
-                        // Here need periodic trigger reducing threat spell (or do it manually)
-                        return;
-                    default:
-                        break;
+                    return;
                 }
                 break;
             }
@@ -1383,76 +1381,21 @@ void Aura::TriggerSpell()
 //            }
             case SPELLFAMILY_HUNTER:
             {
-                switch (auraId)
+                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, triggeredSpellInfo,
+                                            auraSpellInfo, auraId, target, triggerCaster);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraTriggerSpellHunterSite>(auraId, ctx).IsReturn())
                 {
-                    case 53302:                             // Sniper training
-                    case 53303:
-                    case 53304:
-                        if (triggerTarget->GetTypeId() != TYPEID_PLAYER)
-                        {
-                            return;
-                        }
-
-                        // Reset reapply counter at move
-                        if (((Player*)triggerTarget)->isMoving())
-                        {
-                            m_modifier.m_amount = 6;
-                            return;
-                        }
-
-                        // We are standing at the moment
-                        if (m_modifier.m_amount > 0)
-                        {
-                            --m_modifier.m_amount;
-                            return;
-                        }
-
-                        // select rank of buff
-                        switch (auraId)
-                        {
-                            case 53302: trigger_spell_id = 64418; break;
-                            case 53303: trigger_spell_id = 64419; break;
-                            case 53304: trigger_spell_id = 64420; break;
-                        }
-
-                        // If aura is active - no need to continue
-                        if (triggerTarget->HasAura(trigger_spell_id))
-                        {
-                            return;
-                        }
-
-                        break;
-                    default:
-                        break;
+                    return;
                 }
                 break;
             }
             case SPELLFAMILY_DRUID:
             {
-                switch (auraId)
+                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, triggeredSpellInfo,
+                                            auraSpellInfo, auraId, target, triggerCaster);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraTriggerSpellDruidSite>(auraId, ctx).IsReturn())
                 {
-                    case 768:                               // Cat Form
-                        // trigger_spell_id not set and unknown effect triggered in this case, ignoring for while
-                        return;
-                    case 22842:                             // Frenzied Regeneration
-                    case 22895:
-                    case 22896:
-                    case 26999:
-                    {
-                        int32 LifePerRage = GetModifier()->m_amount;
-
-                        int32 lRage = target->GetPower(POWER_RAGE);
-                        if (lRage > 100)                    // rage stored as rage*10
-                        {
-                            lRage = 100;
-                        }
-                        target->ModifyPower(POWER_RAGE, -lRage);
-                        int32 FRTriggerBasePoints = int32(lRage * LifePerRage / 10);
-                        target->CastCustomSpell(target, 22845, &FRTriggerBasePoints, NULL, NULL, true, NULL, this);
-                        return;
-                    }
-                    default:
-                        break;
+                    return;
                 }
                 break;
             }
@@ -1494,37 +1437,11 @@ void Aura::TriggerSpell()
 //            }
             case SPELLFAMILY_SHAMAN:
             {
-                switch (auraId)
+                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, triggeredSpellInfo,
+                                            auraSpellInfo, auraId, target, triggerCaster);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraTriggerSpellShamanSite>(auraId, ctx).IsReturn())
                 {
-                    case 28820:                             // Lightning Shield (The Earthshatterer set trigger after cast Lighting Shield)
-                    {
-                        // Need remove self if Lightning Shield not active
-                        Unit::SpellAuraHolderMap const& auras = triggerTarget->GetSpellAuraHolderMap();
-                        for (Unit::SpellAuraHolderMap::const_iterator itr = auras.begin(); itr != auras.end(); ++itr)
-                        {
-                            SpellEntry const* spell = itr->second->GetSpellProto();
-                            if (spell->IsFitToFamily(SPELLFAMILY_SHAMAN, UI64LIT(0x0000000000000400)))
-                            {
-                                return;
-                            }
-                        }
-                        triggerTarget->RemoveAurasDueToSpell(28820);
-                        return;
-                    }
-                    case 38443:                             // Totemic Mastery (Skyshatter Regalia (Shaman Tier 6) - bonus)
-                    {
-                        if (triggerTarget->IsAllTotemSlotsUsed())
-                        {
-                            triggerTarget->CastSpell(triggerTarget, 38437, true, NULL, this);
-                        }
-                        else
-                        {
-                            triggerTarget->RemoveAurasDueToSpell(38437);
-                        }
-                        return;
-                    }
-                    default:
-                        break;
+                    return;
                 }
                 break;
             }
@@ -1572,102 +1489,11 @@ void Aura::TriggerSpell()
         }
 
         // Spell exist but require custom code
-        switch (auraId)
+        AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, triggeredSpellInfo,
+                                    auraSpellInfo, auraId, target, triggerCaster);
+        if (SpellHandlerRegistry::Game().Dispatch<AuraTriggerSpellCustomSite>(auraId, ctx).IsReturn())
         {
-            case 9347:                                      // Mortal Strike
-            {
-                if (target->GetTypeId() != TYPEID_UNIT)
-                {
-                    return;
-                }
-                // expected selection current fight target
-                triggerTarget = ((Creature*)target)->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0, triggeredSpellInfo);
-                if (!triggerTarget)
-                {
-                    return;
-                }
-
-                break;
-            }
-            case 1010:                                      // Curse of Idiocy
-            {
-                // TODO: spell casted by result in correct way mostly
-                // BUT:
-                // 1) target show casting at each triggered cast: target don't must show casting animation for any triggered spell
-                //      but must show affect apply like item casting
-                // 2) maybe aura must be replace by new with accumulative stat mods instead stacking
-
-                // prevent cast by triggered auras
-                if (casterGUID == triggerTarget->GetObjectGuid())
-                {
-                    return;
-                }
-
-                // stop triggering after each affected stats lost > 90
-                int32 intelectLoss = 0;
-                int32 spiritLoss = 0;
-
-                Unit::AuraList const& mModStat = triggerTarget->GetAurasByType(SPELL_AURA_MOD_STAT);
-                for (Unit::AuraList::const_iterator i = mModStat.begin(); i != mModStat.end(); ++i)
-                {
-                    if ((*i)->GetId() == 1010)
-                    {
-                        switch ((*i)->GetModifier()->m_miscvalue)
-                        {
-                            case STAT_INTELLECT: intelectLoss += (*i)->GetModifier()->m_amount; break;
-                            case STAT_SPIRIT:    spiritLoss   += (*i)->GetModifier()->m_amount; break;
-                            default: break;
-                        }
-                    }
-                }
-
-                if (intelectLoss <= -90 && spiritLoss <= -90)
-                {
-                    return;
-                }
-
-                break;
-            }
-            case 16191:                                     // Mana Tide
-            {
-                triggerTarget->CastCustomSpell(triggerTarget, trigger_spell_id, &m_modifier.m_amount, NULL, NULL, true, NULL, this);
-                return;
-            }
-            case 33525:                                     // Ground Slam
-                triggerTarget->CastSpell(triggerTarget, trigger_spell_id, true, NULL, this, casterGUID);
-                return;
-            case 38736:                                     // Rod of Purification - for quest 10839 (Veil Skith: Darkstone of Terokk)
-            {
-                if (Unit* caster = GetCaster())
-                {
-                    caster->CastSpell(triggerTarget, trigger_spell_id, true, NULL, this);
-                }
-                return;
-            }
-            case 43149:                                     // Claw Rage
-            {
-                // Need to provide explicit target for trigger spell target combination
-                target->CastSpell(target->getVictim(), trigger_spell_id, true, NULL, this);
-                return;
-            }
-            case 44883:                                     // Encapsulate
-            case 56505:                                     // Surge of Power
-            {
-                // Self cast spell, hence overwrite caster (only channeled spell where the triggered spell deals dmg to SELF)
-                triggerCaster = triggerTarget;
-                break;
-            }
-            case 53563:                                     // Beacon of Light
-                // original caster must be target (beacon)
-                target->CastSpell(target, trigger_spell_id, true, NULL, this, target->GetObjectGuid());
-                return;
-            case 56654:                                     // Rapid Recuperation (triggered energize have baspioints == 0)
-            case 58882:
-            {
-                int32 mana = target->GetMaxPower(POWER_MANA) * m_modifier.m_amount / 100;
-                triggerTarget->CastCustomSpell(triggerTarget, trigger_spell_id, &mana, NULL, NULL, true, NULL, this);
-                return;
-            }
+            return;
         }
     }
 
@@ -1794,34 +1620,10 @@ void Aura::PeriodicTick()
             // some auras remove at specific health level or more
             if (m_modifier.m_auraname == SPELL_AURA_PERIODIC_DAMAGE)
             {
-                switch (GetId())
+                AuraPeriodicDamageTickContext ctx(this, target, spellProto, pCaster);
+                if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicDamageTickSite>(GetId(), ctx).IsReturn())
                 {
-                    case 43093: case 31956: case 38801:
-                    case 35321: case 38363: case 39215:
-                    case 48920:
-                    {
-                        if (target->GetHealth() == target->GetMaxHealth())
-                        {
-                            target->RemoveAurasDueToSpell(GetId());
-                            return;
-                        }
-                        break;
-                    }
-                    case 38772:
-                    {
-                        uint32 percent =
-                            GetEffIndex() < EFFECT_INDEX_2 && spellProto->GetSpellEffectIdByIndex(GetEffIndex()) == SPELL_EFFECT_DUMMY ?
-                            pCaster->CalculateSpellDamage(target, spellProto, SpellEffectIndex(GetEffIndex() + 1)) :
-                            100;
-                        if (target->GetHealth() * 100 >= target->GetMaxHealth() * percent)
-                        {
-                            target->RemoveAurasDueToSpell(GetId());
-                            return;
-                        }
-                        break;
-                    }
-                    default:
-                        break;
+                    return;
                 }
             }
 
@@ -2272,39 +2074,10 @@ void Aura::PeriodicTick()
             }
 
             // Some special cases
-            switch (GetId())
+            AuraPeriodicManaLeechTickContext ctx(this, target, power, pdamage, drain_amount);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraPeriodicManaLeechTickSite>(GetId(), ctx).IsReturn())
             {
-                case 32960:                                 // Mark of Kazzak
-                {
-                    if (target->GetTypeId() == TYPEID_PLAYER && target->GetPowerType() == POWER_MANA)
-                    {
-                        // Drain 5% of target's mana
-                        pdamage = target->GetMaxPower(POWER_MANA) * 5 / 100;
-                        drain_amount = target->GetPower(POWER_MANA) > pdamage ? pdamage : target->GetPower(POWER_MANA);
-                        target->ModifyPower(POWER_MANA, -drain_amount);
-
-                        SpellPeriodicAuraLogInfo info(this, drain_amount, 0, 0, 0, 0.0f);
-                        target->SendPeriodicAuraLog(&info);
-                    }
-                    // no break here
-                }
-                case 21056:                                 // Mark of Kazzak
-                case 31447:                                 // Mark of Kaz'rogal
-                {
-                    uint32 triggerSpell = 0;
-                    switch (GetId())
-                    {
-                        case 21056: triggerSpell = 21058; break;
-                        case 31447: triggerSpell = 31463; break;
-                        case 32960: triggerSpell = 32961; break;
-                    }
-                    if (target->GetTypeId() == TYPEID_PLAYER && target->GetPower(power) == 0)
-                    {
-                        target->CastSpell(target, triggerSpell, true, NULL, this);
-                        target->RemoveAurasDueToSpell(GetId());
-                    }
-                    break;
-                }
+                return;
             }
             break;
         }

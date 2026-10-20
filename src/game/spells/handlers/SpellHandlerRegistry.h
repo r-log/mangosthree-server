@@ -139,7 +139,21 @@ enum SpellHandlerSite
     /// `Aura::HandleAuraDummy`, AT APPLY & REMOVE, SPELLFAMILY_HUNTER's `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_DUMMY_HUNTER = 36,
     /// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_GENERIC's `switch (auraId)`.
-    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_GENERIC = 37
+    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_GENERIC = 37,
+    /// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_MAGE's `switch (auraId)`.
+    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_MAGE = 38,
+    /// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_HUNTER's `switch (auraId)`.
+    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_HUNTER = 39,
+    /// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_DRUID's `switch (auraId)`.
+    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_DRUID = 40,
+    /// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_SHAMAN's `switch (auraId)`.
+    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_SHAMAN = 41,
+    /// `Aura::TriggerSpell`, a trigger spell that needs custom code: its `switch (auraId)`.
+    SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_CUSTOM = 42,
+    /// `Aura::PeriodicTick`, a periodic damage tick, the health-level removals: its `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DAMAGE_TICK = 43,
+    /// `Aura::PeriodicTick`, a mana-leech tick, its special cases: its `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_MANA_LEECH_TICK = 44
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

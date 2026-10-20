@@ -897,6 +897,312 @@ static SpellHandlerOutcome<void> AuraTriggerSpellGenericDefault(AuraTriggerSpell
     return SpellHandlerOutcome<void>::Continue();
 }
 
+/// 66: Invisibility
+static SpellHandlerOutcome<void> AuraTriggerSpellMage66(AuraTriggerSpellContext& /*ctx*/)
+{
+    // Here need periodic trigger reducing threat spell (or do it manually)
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraTriggerSpellMageDefault(AuraTriggerSpellContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 3 labels: 53302: Sniper Training, 53303: Sniper Training, 53304: Sniper Training
+static SpellHandlerOutcome<void> AuraTriggerSpellHunterSniperTraining(AuraTriggerSpellContext& ctx)
+{
+    if (ctx.triggerTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Reset reapply counter at move
+    if (((Player*)ctx.triggerTarget)->isMoving())
+    {
+        ctx.aura->GetModifier()->m_amount = 6;
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // We are standing at the moment
+    if (ctx.aura->GetModifier()->m_amount > 0)
+    {
+        --ctx.aura->GetModifier()->m_amount;
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // select rank of buff
+    switch (ctx.auraId)
+    {
+        case 53302: ctx.trigger_spell_id = 64418; break;
+        case 53303: ctx.trigger_spell_id = 64419; break;
+        case 53304: ctx.trigger_spell_id = 64420; break;
+    }
+
+    // If aura is active - no need to continue
+    if (ctx.triggerTarget->HasAura(ctx.trigger_spell_id))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraTriggerSpellHunterDefault(AuraTriggerSpellContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 768: Cat Form
+static SpellHandlerOutcome<void> AuraTriggerSpellDruid768(AuraTriggerSpellContext& /*ctx*/)
+{
+    // trigger_spell_id not set and unknown effect triggered in this case, ignoring for while
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 4 labels: 22842: Frenzied Regeneration; 22895, 22896, 26999: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraTriggerSpellDruidFrenziedRegeneration(AuraTriggerSpellContext& ctx)
+{
+    int32 LifePerRage = ctx.aura->GetModifier()->m_amount;
+
+    int32 lRage = ctx.target->GetPower(POWER_RAGE);
+    if (lRage > 100)                    // rage stored as rage*10
+    {
+        lRage = 100;
+    }
+    ctx.target->ModifyPower(POWER_RAGE, -lRage);
+    int32 FRTriggerBasePoints = int32(lRage * LifePerRage / 10);
+    ctx.target->CastCustomSpell(ctx.target, 22845, &FRTriggerBasePoints, NULL, NULL, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraTriggerSpellDruidDefault(AuraTriggerSpellContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 28820: Lightning Shield
+static SpellHandlerOutcome<void> AuraTriggerSpellShaman28820(AuraTriggerSpellContext& ctx)
+{
+    // Need remove self if Lightning Shield not active
+    Unit::SpellAuraHolderMap const& auras = ctx.triggerTarget->GetSpellAuraHolderMap();
+    for (Unit::SpellAuraHolderMap::const_iterator itr = auras.begin(); itr != auras.end(); ++itr)
+    {
+        SpellEntry const* spell = itr->second->GetSpellProto();
+        if (spell->IsFitToFamily(SPELLFAMILY_SHAMAN, UI64LIT(0x0000000000000400)))
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+    }
+    ctx.triggerTarget->RemoveAurasDueToSpell(28820);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 38443: Totemic Mastery
+static SpellHandlerOutcome<void> AuraTriggerSpellShaman38443(AuraTriggerSpellContext& ctx)
+{
+    if (ctx.triggerTarget->IsAllTotemSlotsUsed())
+    {
+        ctx.triggerTarget->CastSpell(ctx.triggerTarget, 38437, true, NULL, ctx.aura);
+    }
+    else
+    {
+        ctx.triggerTarget->RemoveAurasDueToSpell(38437);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraTriggerSpellShamanDefault(AuraTriggerSpellContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 9347: Mortal Strike
+static SpellHandlerOutcome<void> AuraTriggerSpellCustom9347(AuraTriggerSpellContext& ctx)
+{
+    if (ctx.target->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    // expected selection current fight target
+    ctx.triggerTarget = ((Creature*)ctx.target)->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0, ctx.triggeredSpellInfo);
+    if (!ctx.triggerTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 1010: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraTriggerSpellCustom1010(AuraTriggerSpellContext& ctx)
+{
+    // TODO: spell casted by result in correct way mostly
+    // BUT:
+    // 1) target show casting at each triggered cast: target don't must show casting animation for any triggered spell
+    //      but must show affect apply like item casting
+    // 2) maybe aura must be replace by new with accumulative stat mods instead stacking
+
+    // prevent cast by triggered auras
+    if (ctx.casterGUID == ctx.triggerTarget->GetObjectGuid())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // stop triggering after each affected stats lost > 90
+    int32 intelectLoss = 0;
+    int32 spiritLoss = 0;
+
+    Unit::AuraList const& mModStat = ctx.triggerTarget->GetAurasByType(SPELL_AURA_MOD_STAT);
+    for (Unit::AuraList::const_iterator i = mModStat.begin(); i != mModStat.end(); ++i)
+    {
+        if ((*i)->GetId() == 1010)
+        {
+            switch ((*i)->GetModifier()->m_miscvalue)
+            {
+                case STAT_INTELLECT: intelectLoss += (*i)->GetModifier()->m_amount; break;
+                case STAT_SPIRIT:    spiritLoss   += (*i)->GetModifier()->m_amount; break;
+                default: break;
+            }
+        }
+    }
+
+    if (intelectLoss <= -90 && spiritLoss <= -90)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 16191: Mana Tide
+static SpellHandlerOutcome<void> AuraTriggerSpellCustom16191(AuraTriggerSpellContext& ctx)
+{
+    ctx.triggerTarget->CastCustomSpell(ctx.triggerTarget, ctx.trigger_spell_id, &ctx.aura->GetModifier()->m_amount, NULL, NULL, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 33525: Ground Slam
+static SpellHandlerOutcome<void> AuraTriggerSpellCustom33525(AuraTriggerSpellContext& ctx)
+{
+    ctx.triggerTarget->CastSpell(ctx.triggerTarget, ctx.trigger_spell_id, true, NULL, ctx.aura, ctx.casterGUID);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 38736: Rod of Purification
+static SpellHandlerOutcome<void> AuraTriggerSpellCustom38736(AuraTriggerSpellContext& ctx)
+{
+    if (Unit* caster = ctx.aura->GetCaster())
+    {
+        caster->CastSpell(ctx.triggerTarget, ctx.trigger_spell_id, true, NULL, ctx.aura);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 43149: Claw Rage
+static SpellHandlerOutcome<void> AuraTriggerSpellCustom43149(AuraTriggerSpellContext& ctx)
+{
+    // Need to provide explicit target for trigger spell target combination
+    ctx.target->CastSpell(ctx.target->getVictim(), ctx.trigger_spell_id, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 44883: Encapsulate, 56505: Surge of Power
+static SpellHandlerOutcome<void> AuraTriggerSpellCustomSelfCast(AuraTriggerSpellContext& ctx)
+{
+    // Self cast spell, hence overwrite caster (only channeled spell where the triggered spell deals dmg to SELF)
+    ctx.triggerCaster = ctx.triggerTarget;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 53563: Beacon of Light
+static SpellHandlerOutcome<void> AuraTriggerSpellCustom53563(AuraTriggerSpellContext& ctx)
+{
+    // original caster must be target (beacon)
+    ctx.target->CastSpell(ctx.target, ctx.trigger_spell_id, true, NULL, ctx.aura, ctx.target->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 56654: Rapid Recuperation, 58882: Rapid Recuperation
+static SpellHandlerOutcome<void> AuraTriggerSpellCustomRapidRecuperation(AuraTriggerSpellContext& ctx)
+{
+    int32 mana = ctx.target->GetMaxPower(POWER_MANA) * ctx.aura->GetModifier()->m_amount / 100;
+    ctx.triggerTarget->CastCustomSpell(ctx.triggerTarget, ctx.trigger_spell_id, &mana, NULL, NULL, true, NULL, ctx.aura);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 7 labels: 43093: Grievous Throw, 31956 and 38801: Grievous Wound, 35321, 38363 and 39215:
+/// Gushing Wound, 48920: Grievous Bite
+static SpellHandlerOutcome<void> AuraPeriodicDamageTickRemoveAtFullHealth(AuraPeriodicDamageTickContext& ctx)
+{
+    if (ctx.target->GetHealth() == ctx.target->GetMaxHealth())
+    {
+        ctx.target->RemoveAurasDueToSpell(ctx.aura->GetId());
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 38772: Grievous Wound
+static SpellHandlerOutcome<void> AuraPeriodicDamageTick38772(AuraPeriodicDamageTickContext& ctx)
+{
+    uint32 percent =
+        ctx.aura->GetEffIndex() < EFFECT_INDEX_2 && ctx.spellProto->GetSpellEffectIdByIndex(ctx.aura->GetEffIndex()) == SPELL_EFFECT_DUMMY ?
+        ctx.pCaster->CalculateSpellDamage(ctx.target, ctx.spellProto, SpellEffectIndex(ctx.aura->GetEffIndex() + 1)) :
+        100;
+    if (ctx.target->GetHealth() * 100 >= ctx.target->GetMaxHealth() * percent)
+    {
+        ctx.target->RemoveAurasDueToSpell(ctx.aura->GetId());
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraPeriodicDamageTickDefault(AuraPeriodicDamageTickContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 2 labels: 21056: Mark of Kazzak, 31447: Mark of Kaz'rogal
+static SpellHandlerOutcome<void> AuraPeriodicManaLeechTickMarkOfKazzak(AuraPeriodicManaLeechTickContext& ctx)
+{
+    uint32 triggerSpell = 0;
+    switch (ctx.aura->GetId())
+    {
+        case 21056: triggerSpell = 21058; break;
+        case 31447: triggerSpell = 31463; break;
+        case 32960: triggerSpell = 32961; break;
+    }
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER && ctx.target->GetPower(ctx.power) == 0)
+    {
+        ctx.target->CastSpell(ctx.target, triggerSpell, true, NULL, ctx.aura);
+        ctx.target->RemoveAurasDueToSpell(ctx.aura->GetId());
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 32960: Mark of Kazzak
+static SpellHandlerOutcome<void> AuraPeriodicManaLeechTick32960(AuraPeriodicManaLeechTickContext& ctx)
+{
+    if (ctx.target->GetTypeId() == TYPEID_PLAYER && ctx.target->GetPowerType() == POWER_MANA)
+    {
+        // Drain 5% of target's mana
+        ctx.pdamage = ctx.target->GetMaxPower(POWER_MANA) * 5 / 100;
+        ctx.drain_amount = ctx.target->GetPower(POWER_MANA) > ctx.pdamage ? ctx.pdamage : ctx.target->GetPower(POWER_MANA);
+        ctx.target->ModifyPower(POWER_MANA, -ctx.drain_amount);
+
+        SpellPeriodicAuraLogInfo info(ctx.aura, ctx.drain_amount, 0, 0, 0, 0.0f);
+        ctx.target->SendPeriodicAuraLog(&info);
+    }
+    // no break here
+    return AuraPeriodicManaLeechTickMarkOfKazzak(ctx);
+}
+
 template <class Site>
 struct AurasRow
 {
@@ -966,7 +1272,80 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
         { 69012, &AuraTriggerSpellGeneric69012 },
     };
 
+    static AurasRow<AuraTriggerSpellMageSite> const triggerSpellMage[] =
+    {
+        { 66, &AuraTriggerSpellMage66 },
+    };
+
+    static AurasRow<AuraTriggerSpellHunterSite> const triggerSpellHunter[] =
+    {
+        { 53302, &AuraTriggerSpellHunterSniperTraining },
+        { 53303, &AuraTriggerSpellHunterSniperTraining },
+        { 53304, &AuraTriggerSpellHunterSniperTraining },
+    };
+
+    static AurasRow<AuraTriggerSpellDruidSite> const triggerSpellDruid[] =
+    {
+        { 768, &AuraTriggerSpellDruid768 },
+        { 22842, &AuraTriggerSpellDruidFrenziedRegeneration },
+        { 22895, &AuraTriggerSpellDruidFrenziedRegeneration },
+        { 22896, &AuraTriggerSpellDruidFrenziedRegeneration },
+        { 26999, &AuraTriggerSpellDruidFrenziedRegeneration },
+    };
+
+    static AurasRow<AuraTriggerSpellShamanSite> const triggerSpellShaman[] =
+    {
+        { 28820, &AuraTriggerSpellShaman28820 },
+        { 38443, &AuraTriggerSpellShaman38443 },
+    };
+
+    static AurasRow<AuraTriggerSpellCustomSite> const triggerSpellCustom[] =
+    {
+        { 9347, &AuraTriggerSpellCustom9347 },
+        { 1010, &AuraTriggerSpellCustom1010 },
+        { 16191, &AuraTriggerSpellCustom16191 },
+        { 33525, &AuraTriggerSpellCustom33525 },
+        { 38736, &AuraTriggerSpellCustom38736 },
+        { 43149, &AuraTriggerSpellCustom43149 },
+        { 44883, &AuraTriggerSpellCustomSelfCast },
+        { 56505, &AuraTriggerSpellCustomSelfCast },
+        { 53563, &AuraTriggerSpellCustom53563 },
+        { 56654, &AuraTriggerSpellCustomRapidRecuperation },
+        { 58882, &AuraTriggerSpellCustomRapidRecuperation },
+    };
+
+    static AurasRow<AuraPeriodicDamageTickSite> const periodicDamageTick[] =
+    {
+        { 43093, &AuraPeriodicDamageTickRemoveAtFullHealth },
+        { 31956, &AuraPeriodicDamageTickRemoveAtFullHealth },
+        { 38801, &AuraPeriodicDamageTickRemoveAtFullHealth },
+        { 35321, &AuraPeriodicDamageTickRemoveAtFullHealth },
+        { 38363, &AuraPeriodicDamageTickRemoveAtFullHealth },
+        { 39215, &AuraPeriodicDamageTickRemoveAtFullHealth },
+        { 48920, &AuraPeriodicDamageTickRemoveAtFullHealth },
+        { 38772, &AuraPeriodicDamageTick38772 },
+    };
+
+    static AurasRow<AuraPeriodicManaLeechTickSite> const periodicManaLeechTick[] =
+    {
+        { 32960, &AuraPeriodicManaLeechTick32960 },
+        { 21056, &AuraPeriodicManaLeechTickMarkOfKazzak },
+        { 31447, &AuraPeriodicManaLeechTickMarkOfKazzak },
+    };
+
     uint32 rows = RegisterAurasRows(registry, triggerSpellGeneric);
+    rows += RegisterAurasRows(registry, triggerSpellMage);
+    rows += RegisterAurasRows(registry, triggerSpellHunter);
+    rows += RegisterAurasRows(registry, triggerSpellDruid);
+    rows += RegisterAurasRows(registry, triggerSpellShaman);
+    rows += RegisterAurasRows(registry, triggerSpellCustom);
+    rows += RegisterAurasRows(registry, periodicDamageTick);
+    rows += RegisterAurasRows(registry, periodicManaLeechTick);
     registry.RegisterDefault<AuraTriggerSpellGenericSite>(&AuraTriggerSpellGenericDefault);
-    return rows + 1;
+    registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
+    registry.RegisterDefault<AuraTriggerSpellHunterSite>(&AuraTriggerSpellHunterDefault);
+    registry.RegisterDefault<AuraTriggerSpellDruidSite>(&AuraTriggerSpellDruidDefault);
+    registry.RegisterDefault<AuraTriggerSpellShamanSite>(&AuraTriggerSpellShamanDefault);
+    registry.RegisterDefault<AuraPeriodicDamageTickSite>(&AuraPeriodicDamageTickDefault);
+    return rows + 6;
 }
