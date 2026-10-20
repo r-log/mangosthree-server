@@ -255,7 +255,7 @@ static SpellHandlerOutcome<void> AuraTransformCrownParcelUniform(AuraTransformCo
 /// Any other id with no creature entry: logs that the spell needs a custom model
 static SpellHandlerOutcome<void> AuraTransformDefault(AuraTransformContext& ctx)
 {
-    sLog.outError("Aura::HandleAuraTransform, spell %u does not have creature entry defined, need custom defined model.", ctx.spellId);
+    sLog.outError("AuraTransformDefault, spell %u does not have creature entry defined, need custom defined model.", ctx.spellId);
     return SpellHandlerOutcome<void>::Continue();
 }
 
