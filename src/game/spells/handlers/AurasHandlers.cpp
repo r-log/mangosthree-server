@@ -34,6 +34,7 @@
 #include "Object/Creature.h"
 #include "Object/CreatureAI.h"
 #include "Object/LootMgr.h"
+#include "Object/Pet.h"
 #include "Utilities/Util.h"
 #include "entities/player/Player.h"
 #include "Geometry/Placement.h"
@@ -1867,6 +1868,473 @@ static SpellHandlerOutcome<void> AuraPeriodicDummyTickHunterDefault(AuraPeriodic
     return SpellHandlerOutcome<void>::Continue();
 }
 
+/// 29865: Deathbloom
+static SpellHandlerOutcome<void> AuraBoostGeneric29865(AuraBoostContext& ctx)
+{
+    if (!ctx.apply && ctx.holder->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.cast_at_remove = true;
+        ctx.spellId1 = 55594;
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 55053: Deathbloom
+static SpellHandlerOutcome<void> AuraBoostGeneric55053(AuraBoostContext& ctx)
+{
+    if (!ctx.apply && ctx.holder->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+    {
+        ctx.cast_at_remove = true;
+        ctx.spellId1 = 55601;
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 50720: Vigilance
+static SpellHandlerOutcome<void> AuraBoostGeneric50720(AuraBoostContext& ctx)
+{
+    ctx.spellId1 = 68066;                       // Damage Reduction
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 57350: Illusionary Barrier
+static SpellHandlerOutcome<void> AuraBoostGeneric57350(AuraBoostContext& ctx)
+{
+    if (!ctx.apply && ctx.holder->GetTarget()->GetPowerType() == POWER_MANA)
+    {
+        ctx.cast_at_remove = true;
+        ctx.spellId1 = 60242;                   // Darkmoon Card: Illusion
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 58914: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraBoostGeneric58914(AuraBoostContext& ctx)
+{
+    // Removal is needed here because the dummy aura handler is applied / removed at stacks change
+    if (!ctx.apply)
+        if (Unit* caster = ctx.holder->GetCaster())
+        {
+            caster->RemoveAurasDueToSpell(34027);
+        }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 62692: Aura of Despair
+static SpellHandlerOutcome<void> AuraBoostGeneric62692(AuraBoostContext& ctx)
+{
+    ctx.spellId1 = 64848;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 71905: Soul Fragment
+static SpellHandlerOutcome<void> AuraBoostGeneric71905(AuraBoostContext& ctx)
+{
+    if (!ctx.apply)
+    {
+        ctx.spellId1 = 72521;                   // Shadowmourne Visual Low
+        ctx.spellId2 = 72523;                   // Shadowmourne Visual High
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraBoostGenericDefault(AuraBoostContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 11129: Combustion
+static SpellHandlerOutcome<void> AuraBoostMage11129(AuraBoostContext& ctx)
+{
+    if (!ctx.apply)
+    {
+        ctx.spellId1 = 28682;
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 28682: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraBoostMage28682(AuraBoostContext& ctx)
+{
+    if (!ctx.apply)
+    {
+        ctx.spellId1 = 11129;
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 3 labels: 44401: absent from the client's spell data, 48108: Hot Streak, 57761: Brain Freeze
+static SpellHandlerOutcome<void> AuraBoostMagePushingTheLimit(AuraBoostContext& ctx)
+{
+    // consumed aura (at proc charges 0)
+    if (!ctx.apply && ctx.holder->GetRemoveMode() == AURA_REMOVE_BY_DEFAULT)
+    {
+        Unit* caster = ctx.holder->GetCaster();
+        // Item - Mage T10 2P Bonus
+        if (!caster || !caster->HasAura(70752))
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+        ctx.cast_at_remove = true;
+        ctx.spellId1 = 70753;                   // Pushing the Limit
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 74396: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraBoostMage74396(AuraBoostContext& ctx)
+{
+    if (!ctx.apply)
+    {
+        ctx.spellId1 = 44544;
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraBoostMageDefault(AuraBoostContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 552: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraBoostPriest552(AuraBoostContext& ctx)
+{
+        // Abolish Disease (remove 1 more poison effect with Body and Soul)
+    if (ctx.apply)
+    {
+        int chance = 0;
+        Unit::AuraList const& dummyAuras = ctx.holder->GetTarget()->GetAurasByType(SPELL_AURA_DUMMY);
+        for (Unit::AuraList::const_iterator itr = dummyAuras.begin(); itr != dummyAuras.end(); ++itr)
+        {
+            SpellEntry const* dummyEntry = (*itr)->GetSpellProto();
+            // Body and Soul (talent ranks)
+            if (dummyEntry->GetSpellFamilyName() == SPELLFAMILY_PRIEST && dummyEntry->SpellIconID == 2218 &&
+                dummyEntry->SpellVisualID[0]==0)
+            {
+                chance = (*itr)->GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_1);
+                break;
+            }
+        }
+
+        if (roll_chance_i(chance))
+        {
+            ctx.spellId1 = 64134;               // Body and Soul (periodic dispel effect)
+        }
+    }
+    else
+    {
+        ctx.spellId1 = 64134;                   // Body and Soul (periodic dispel effect)
+    }
+    return SpellHandlerOutcome<void>::Continue();
+// Dispersion mana reg and immunity
+}
+
+/// 47585: Dispersion
+static SpellHandlerOutcome<void> AuraBoostPriest47585(AuraBoostContext& ctx)
+{
+    ctx.spellId1 = 60069;                       // Dispersion
+    ctx.spellId2 = 63230;                       // Dispersion
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// every other id: nothing
+static SpellHandlerOutcome<void> AuraBoostPriestDefault(AuraBoostContext& /*ctx*/)
+{
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 34074: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraBoostHunter34074(AuraBoostContext& ctx)
+{
+    if (!ctx.apply || ctx.holder->GetTarget()->HasAura(60144)) // Viper Attack Speed
+    {
+        ctx.spellId1 = 61609;                   // Vicious Viper
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 2 labels: 19574: Bestial Wrath, 34471: The Beast Within
+static SpellHandlerOutcome<void> AuraBoostHunterBestialWrathImmunity(AuraBoostContext& ctx)
+{
+    ctx.spellId1 = 24395;
+    ctx.spellId2 = 24396;
+    ctx.spellId3 = 24397;
+    ctx.spellId4 = 26592;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 34027: absent from the client's spell data
+static SpellHandlerOutcome<void> AuraBoostHunter34027(AuraBoostContext& ctx)
+{
+    if (ctx.apply)
+    {
+        if (ctx.holder->GetTarget()->HasAura(35029))       // Focused Fire, rank 1
+        {
+            ctx.spellId1 = 60110;               // Kill Command, Focused Fire rank 1 bonus
+        }
+        else if (ctx.holder->GetTarget()->HasAura(35030))  // Focused Fire, rank 2
+        {
+            ctx.spellId1 = 60113;               // Kill Command, Focused Fire rank 2 bonus
+        }
+        else
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+    }
+    else
+    {
+        ctx.spellId1 = 34026;                   // Kill Command, owner casting aura
+        ctx.spellId2 = 60110;                   // Kill Command, Focused Fire rank 1 bonus
+        ctx.spellId3 = 60113;                   // Kill Command, Focused Fire rank 2 bonus
+        if (Unit* pet = ctx.holder->GetTarget()->GetPet())
+        {
+            pet->RemoveAurasDueToSpell(58914); // Kill Command, pet aura
+        }
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 35029: Improved Kill Command
+static SpellHandlerOutcome<void> AuraBoostHunter35029(AuraBoostContext& ctx)
+{
+    if (ctx.apply && !ctx.holder->GetTarget()->HasAura(34027)) // Kill Command, owner casting aura
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.spellId1 = 60110;                       // Kill Command, Focused Fire rank 1 bonus
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 35030: Improved Kill Command
+static SpellHandlerOutcome<void> AuraBoostHunter35030(AuraBoostContext& ctx)
+{
+    if (ctx.apply && !ctx.holder->GetTarget()->HasAura(34027)) // Kill Command, owner casting aura
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.spellId1 = 60113;                       // Kill Command, Focused Fire rank 2 bonus
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// every other id: as the switch had it
+static SpellHandlerOutcome<void> AuraBoostHunterDefault(AuraBoostContext& ctx)
+{
+    // Freezing Trap Effect
+    if (ctx.holder->GetSpellProto()->IsFitToFamilyMask(UI64LIT(0x0000000000000008)))
+    {
+        if (!ctx.apply)
+        {
+            Unit* caster = ctx.holder->GetCaster();
+            // Glyph of Freezing Trap
+            if (caster && caster->HasAura(56845))
+            {
+                ctx.cast_at_remove = true;
+                ctx.spellId1 = 61394;
+            }
+            else
+            {
+                return SpellHandlerOutcome<void>::Return();
+            }
+        }
+        else
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+    }
+    // Aspect of the Dragonhawk dodge
+    else if (ctx.holder->GetSpellProto()->IsFitToFamilyMask(UI64LIT(0x0000000000000000), 0x00001000))
+    {
+        ctx.spellId1 = 61848;
+
+        // triggered spell have same category as main spell and cooldown
+        if (ctx.apply && ctx.holder->GetTarget()->GetTypeId() == TYPEID_PLAYER)
+        {
+            ((Player*)ctx.holder->GetTarget())->RemoveSpellCooldown(61848);
+        }
+    }
+    else
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 49039: Lichborne
+static SpellHandlerOutcome<void> AuraBoostDeathKnight49039(AuraBoostContext& ctx)
+{
+    ctx.spellId1 = 50397;
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 3 labels: 48263: Blood Presence, 48265: Unholy Presence, 48266: Frost Presence
+static SpellHandlerOutcome<void> AuraBoostDeathKnightPresence(AuraBoostContext& ctx)
+{
+    // else part one per 3 pair
+    if (ctx.holder->GetId() == 48263 || ctx.holder->GetId() == 48265) // Frost Presence or Unholy Presence
+    {
+        // Improved Blood Presence
+        int32 heal_pct = 0;
+        if (ctx.apply)
+        {
+            Unit::AuraList const& bloodAuras = ctx.holder->GetTarget()->GetAurasByType(SPELL_AURA_DUMMY);
+            for (Unit::AuraList::const_iterator itr = bloodAuras.begin(); itr != bloodAuras.end(); ++itr)
+            {
+                // skip same icon
+                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
+                    (*itr)->GetSpellProto()->SpellIconID == 2636)
+                {
+                    heal_pct = (*itr)->GetModifier()->m_amount;
+                    break;
+                }
+            }
+        }
+
+        if (heal_pct)
+        {
+            ctx.holder->GetTarget()->CastCustomSpell(ctx.holder->GetTarget(), 63611, &heal_pct, NULL, NULL, true, NULL, NULL, ctx.holder->GetCasterGuid());
+        }
+        else
+        {
+            ctx.holder->GetTarget()->RemoveAurasDueToSpell(63611);
+        }
+    }
+    else
+        ctx.spellId1 = 63611;                   // Improved Blood Presence, trigger for heal
+
+    if (ctx.holder->GetId() == 48263 || ctx.holder->GetId() == 48266) // Frost Presence or Blood Presence
+    {
+        // Improved Unholy Presence
+        int32 power_pct = 0;
+        if (ctx.apply)
+        {
+            Unit::AuraList const& unholyAuras = ctx.holder->GetTarget()->GetAurasByType(SPELL_AURA_DUMMY);
+            for (Unit::AuraList::const_iterator itr = unholyAuras.begin(); itr != unholyAuras.end(); ++itr)
+            {
+                // skip same icon
+                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
+                    (*itr)->GetSpellProto()->SpellIconID == 2633)
+                {
+                    power_pct = (*itr)->GetModifier()->m_amount;
+                    break;
+                }
+            }
+        }
+        if (power_pct || !ctx.apply)
+            ctx.spellId2 = 49772;               // Unholy Presence, speed part, spell1 used for Improvement presence fit to own presence
+    }
+    else
+    {
+        ctx.spellId1 = 49772;                   // Unholy Presence move speed
+    }
+
+    if (ctx.holder->GetId() == 48265 || ctx.holder->GetId() == 48266)   // Unholy Presence or Blood Presence
+    {
+        // Improved Frost Presence
+        int32 stamina_pct = 0;
+        if (ctx.apply)
+        {
+            Unit::AuraList const& frostAuras = ctx.holder->GetTarget()->GetAurasByType(SPELL_AURA_DUMMY);
+            for (Unit::AuraList::const_iterator itr = frostAuras.begin(); itr != frostAuras.end(); ++itr)
+            {
+                // skip same icon
+                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
+                    (*itr)->GetSpellProto()->SpellIconID == 2632)
+                {
+                    stamina_pct = (*itr)->GetModifier()->m_amount;
+                    break;
+                }
+            }
+        }
+
+        if (stamina_pct)
+        {
+            ctx.holder->GetTarget()->CastCustomSpell(ctx.holder->GetTarget(), 61261, &stamina_pct, NULL, NULL, true, NULL, NULL, ctx.holder->GetCasterGuid());
+        }
+        else
+        {
+            ctx.holder->GetTarget()->RemoveAurasDueToSpell(61261);
+        }
+    }
+    else
+    {
+        ctx.spellId1 = 61261;                   // Frost Presence, stamina
+    }
+
+    if (ctx.holder->GetId() == 48265)                   // Unholy Presence
+    {
+        // Improved Unholy Presence, special case for own presence
+        int32 power_pct = 0;
+        if (ctx.apply)
+        {
+            Unit::AuraList const& unholyAuras = ctx.holder->GetTarget()->GetAurasByType(SPELL_AURA_DUMMY);
+            for (Unit::AuraList::const_iterator itr = unholyAuras.begin(); itr != unholyAuras.end(); ++itr)
+            {
+                // skip same icon
+                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
+                    (*itr)->GetSpellProto()->SpellIconID == 2633)
+                {
+                    power_pct = (*itr)->GetModifier()->m_amount;
+                    break;
+                }
+            }
+        }
+
+        if (power_pct)
+        {
+            int32 bp = 5;
+            ctx.holder->GetTarget()->CastCustomSpell(ctx.holder->GetTarget(), 63622, &bp, &bp, &bp, true, NULL, NULL, ctx.holder->GetCasterGuid());
+            ctx.holder->GetTarget()->CastCustomSpell(ctx.holder->GetTarget(), 65095, &bp, NULL, NULL, true, NULL, NULL, ctx.holder->GetCasterGuid());
+        }
+        else
+        {
+            ctx.holder->GetTarget()->RemoveAurasDueToSpell(63622);
+            ctx.holder->GetTarget()->RemoveAurasDueToSpell(65095);
+        }
+    }
+    return SpellHandlerOutcome<void>::Continue();
+}
+
 template <class Site>
 struct AurasRow
 {
@@ -2062,6 +2530,51 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
         { 53512, &AuraPeriodicDummyTickHunterFeedingFrenzy },
     };
 
+    static AurasRow<AuraBoostGenericSite> const boostGeneric[] =
+    {
+        { 29865, &AuraBoostGeneric29865 },
+        { 55053, &AuraBoostGeneric55053 },
+        { 50720, &AuraBoostGeneric50720 },
+        { 57350, &AuraBoostGeneric57350 },
+        { 58914, &AuraBoostGeneric58914 },
+        { 62692, &AuraBoostGeneric62692 },
+        { 71905, &AuraBoostGeneric71905 },
+    };
+
+    static AurasRow<AuraBoostMageSite> const boostMage[] =
+    {
+        { 11129, &AuraBoostMage11129 },
+        { 28682, &AuraBoostMage28682 },
+        { 44401, &AuraBoostMagePushingTheLimit },
+        { 48108, &AuraBoostMagePushingTheLimit },
+        { 57761, &AuraBoostMagePushingTheLimit },
+        { 74396, &AuraBoostMage74396 },
+    };
+
+    static AurasRow<AuraBoostPriestSite> const boostPriest[] =
+    {
+        { 552, &AuraBoostPriest552 },
+        { 47585, &AuraBoostPriest47585 },
+    };
+
+    static AurasRow<AuraBoostHunterSite> const boostHunter[] =
+    {
+        { 34074, &AuraBoostHunter34074 },
+        { 19574, &AuraBoostHunterBestialWrathImmunity },
+        { 34471, &AuraBoostHunterBestialWrathImmunity },
+        { 34027, &AuraBoostHunter34027 },
+        { 35029, &AuraBoostHunter35029 },
+        { 35030, &AuraBoostHunter35030 },
+    };
+
+    static AurasRow<AuraBoostDeathKnightSite> const boostDeathKnight[] =
+    {
+        { 49039, &AuraBoostDeathKnight49039 },
+        { 48263, &AuraBoostDeathKnightPresence },
+        { 48265, &AuraBoostDeathKnightPresence },
+        { 48266, &AuraBoostDeathKnightPresence },
+    };
+
     uint32 rows = RegisterAurasRows(registry, triggerSpellGeneric);
     rows += RegisterAurasRows(registry, triggerSpellMage);
     rows += RegisterAurasRows(registry, triggerSpellHunter);
@@ -2074,6 +2587,11 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     rows += RegisterAurasRows(registry, periodicDummyTickMage);
     rows += RegisterAurasRows(registry, periodicDummyTickDruid);
     rows += RegisterAurasRows(registry, periodicDummyTickHunter);
+    rows += RegisterAurasRows(registry, boostGeneric);
+    rows += RegisterAurasRows(registry, boostMage);
+    rows += RegisterAurasRows(registry, boostPriest);
+    rows += RegisterAurasRows(registry, boostHunter);
+    rows += RegisterAurasRows(registry, boostDeathKnight);
     registry.RegisterDefault<AuraTriggerSpellGenericSite>(&AuraTriggerSpellGenericDefault);
     registry.RegisterDefault<AuraTriggerSpellMageSite>(&AuraTriggerSpellMageDefault);
     registry.RegisterDefault<AuraTriggerSpellHunterSite>(&AuraTriggerSpellHunterDefault);
@@ -2084,5 +2602,9 @@ uint32 RegisterAurasHandlers(SpellHandlerRegistry& registry)
     registry.RegisterDefault<AuraPeriodicDummyTickMageSite>(&AuraPeriodicDummyTickMageDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickDruidSite>(&AuraPeriodicDummyTickDruidDefault);
     registry.RegisterDefault<AuraPeriodicDummyTickHunterSite>(&AuraPeriodicDummyTickHunterDefault);
-    return rows + 10;
+    registry.RegisterDefault<AuraBoostGenericSite>(&AuraBoostGenericDefault);
+    registry.RegisterDefault<AuraBoostMageSite>(&AuraBoostMageDefault);
+    registry.RegisterDefault<AuraBoostPriestSite>(&AuraBoostPriestDefault);
+    registry.RegisterDefault<AuraBoostHunterSite>(&AuraBoostHunterDefault);
+    return rows + 14;
 }

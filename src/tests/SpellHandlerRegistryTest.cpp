@@ -29,15 +29,16 @@
 /// sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's, EffectEnergize's,
 /// EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's, EffectWeaponDmg's,
 /// EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits, the generic and five family switches of
-/// EffectDummy, the five of SpellAuraPeriodic.cpp and the twelve of SpellAuras.cpp) are checked for their keys, their
-/// defaults and their contexts,
+/// EffectDummy, the five of SpellAuraPeriodic.cpp and the seventeen of SpellAuras.cpp) are checked for their keys,
+/// their defaults and their contexts,
 /// and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the
 /// Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the
 /// periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default, the
 /// trigger-spell labels that only set the trigger spell id, the Sniper Training ranks on a standing player shape, the
 /// self-cast trigger labels, the health-level removal labels on a creature below full health, the periodic dummy
 /// tick labels that return before they act (Forsaken Skills, Force of Nature, Mirror Image off its first tick,
-/// Frenzied Regeneration on a creature with no rage), the
+/// Frenzied Regeneration on a creature with no rage), the boost labels that only set the boost spell ids, the
+/// Deathbloom and Pushing the Limit labels on a holder whose remove mode the test sets, the
 /// energize injector labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the
 /// area-target labels on bare Creatures, the cast-check labels on a creature caster, the target-check labels on
 /// creature targets, the weapon-damage and divided school-damage labels on a target list built by hand, the other
@@ -48,8 +49,8 @@
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the
 /// coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid,
 /// quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting, cast-check,
-/// target-check, weapon-damage, school-damage, trigger-spell, teleport, dummy-effect or periodic-aura label, nor
-/// another removal one).
+/// target-check, weapon-damage, school-damage, trigger-spell, teleport, dummy-effect, periodic-aura or boost label,
+/// nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -87,7 +88,8 @@
 ///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
-///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -117,7 +119,8 @@
 ///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
-///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -131,7 +134,8 @@
 ///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
-///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
 ///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
@@ -145,7 +149,8 @@
 ///                            SpellEffectDummyHandlers_TheHunterSiteHoldsItsFourLabelsAndNoDefault,
 ///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault
+///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
@@ -167,7 +172,9 @@
 ///                            AurasHandlers_SniperTrainingCountsDownTheModifierThroughTheAura,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
-///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
 ///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
@@ -180,7 +187,9 @@
 ///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault,
 ///                            AurasHandlers_SniperTrainingCountsDownTheModifierThroughTheAura,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_ThePeriodicDummyTickBodiesReturnWhenThereIsNothingToDo
+///                            AurasHandlers_ThePeriodicDummyTickBodiesReturnWhenThereIsNothingToDo,
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -222,13 +231,16 @@
 ///                            AurasHandlers_TheTickContextsAliasTheirLocals,
 ///                            AurasHandlers_SniperTrainingCountsDownTheModifierThroughTheAura,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_ThePeriodicDummyTickContextAliasesItsLocals
+///                            AurasHandlers_ThePeriodicDummyTickContextAliasesItsLocals,
+///                            AurasHandlers_TheBoostContextAliasesItsLocals,
+///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
 ///   a damage value changed   SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits
-///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns
+///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns,
+///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
 
 #include "TestHarness.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
@@ -721,11 +733,12 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // target-check site's 3 rows and default, the weapon-damage site's 6 rows, the school-damage, trigger-spell
     // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows, the five dummy-effect
     // family sites' 5, 11, 4, 4 and 4 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and five
-    // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, and the four periodic
-    // dummy tick sites' 44, 1, 2 and 2 rows and four defaults.
+    // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the four periodic dummy
+    // tick sites' 44, 1, 2 and 2 rows and four defaults, and the five boost sites' 7, 6, 2, 6 and 4 rows and four
+    // defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(691));
-    CHECK_EQ(game.CountDefaults(), std::size_t(22));
+    CHECK_EQ(game.Count(), std::size_t(716));
+    CHECK_EQ(game.CountDefaults(), std::size_t(26));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -1630,7 +1643,8 @@ namespace
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
     // six dummy-effect sites, the rogue and hunter aura dummy sites, the generic aura dummy apply site, the six
-    // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites and the earlier files' ids.
+    // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites and the
+    // earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1696,6 +1710,12 @@ namespace
                 registry.Find<AuraPeriodicDummyTickHunterSite>(spellId) != NULL) ||
                (skips(AuraDummyApplyGenericSite::Key) &&
                 registry.Find<AuraDummyApplyGenericSite>(spellId) != NULL) ||
+               (skips(AuraBoostGenericSite::Key) && registry.Find<AuraBoostGenericSite>(spellId) != NULL) ||
+               (skips(AuraBoostMageSite::Key) && registry.Find<AuraBoostMageSite>(spellId) != NULL) ||
+               (skips(AuraBoostPriestSite::Key) && registry.Find<AuraBoostPriestSite>(spellId) != NULL) ||
+               (skips(AuraBoostHunterSite::Key) && registry.Find<AuraBoostHunterSite>(spellId) != NULL) ||
+               (skips(AuraBoostDeathKnightSite::Key) &&
+                registry.Find<AuraBoostDeathKnightSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -1707,7 +1727,8 @@ namespace
     // targeting site and the generic trigger-spell aura site; Invisibility, at the periodic-trigger site and the mage
     // trigger-spell aura site; Frenzied Regeneration, at the druid trigger-spell aura site and the druid periodic
     // dummy tick site; Haunting Spirits, at the generic aura dummy apply site and the generic periodic dummy tick
-    // site. A listed id held at any other site, a third listed site among them, fails HeldByAnotherSite.
+    // site; Vigilance, at the proc-trigger site and the generic boost site. A listed id held at any other site, a
+    // third listed site among them, fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -1722,6 +1743,7 @@ namespace
         { 66, AuraPeriodicTriggerSite::Key, AuraTriggerSpellMageSite::Key },
         { 22842, AuraTriggerSpellDruidSite::Key, AuraPeriodicDummyTickDruidSite::Key },
         { 7057, AuraDummyApplyGenericSite::Key, AuraPeriodicDummyTickGenericSite::Key },
+        { 50720, AuraProcTriggerSite::Key, AuraBoostGenericSite::Key },
     };
 
     // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
@@ -1787,11 +1809,15 @@ TEST(AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault)
     CHECK(registry.Dispatch<AuraProcTriggerSite>(28200, ctx).IsContinue());
     CHECK(target == NULL);
 
+    // Vigilance is a key at the generic boost site too, the other site the shared list names for it.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 spellId : { 28200u, 50720u })
     {
-        CHECK(!HeldByAnotherSite(game, AuraProcTriggerSite::Key, spellId));
+        uint32 other = SharedWith(spellId, AuraProcTriggerSite::Key);
+        CHECK(!HeldByAnotherSite(game, AuraProcTriggerSite::Key, spellId, other));
     }
+    CHECK(SharedWith(28200, AuraProcTriggerSite::Key) == AuraProcTriggerSite::Key);
+    CHECK(SharedWith(50720, AuraProcTriggerSite::Key) == AuraBoostGenericSite::Key);
     CHECK_EQ(game.CountAt(AuraProcTriggerSite::Key), std::size_t(2));
     CHECK(game.Find<AuraProcTriggerSite>(28200) == ascendance);
     CHECK(game.Find<AuraProcTriggerSite>(50720) == vigilance);
@@ -4313,14 +4339,15 @@ namespace
 
 TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 127 labels at twelve sites and ten defaults: 137 rows, 127 keys and ten defaults, none twice. The generic,
-    // mage, hunter, druid, shaman and custom trigger-spell switches hold 45, 1, 3, 5, 2 and 11; the damage tick's 8
-    // and the mana leech's 3; the generic, mage, druid and hunter periodic dummy tick switches 44, 1, 2 and 2; the
-    // custom and mana-leech switches have no default.
+    // 152 labels at seventeen sites and fourteen defaults: 166 rows, 152 keys and fourteen defaults, none twice. The
+    // generic, mage, hunter, druid, shaman and custom trigger-spell switches hold 45, 1, 3, 5, 2 and 11; the damage
+    // tick's 8 and the mana leech's 3; the generic, mage, druid and hunter periodic dummy tick switches 44, 1, 2 and
+    // 2; the generic, mage, priest, hunter and death knight boost switches 7, 6, 2, 6 and 4; the custom, mana-leech
+    // and death knight boost switches have no default.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAurasHandlers(registry), uint32(137));
-    CHECK_EQ(registry.Count(), std::size_t(127));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(10));
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(166));
+    CHECK_EQ(registry.Count(), std::size_t(152));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(14));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellHunterSite::Key), std::size_t(3));
@@ -4333,20 +4360,26 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickDruidSite::Key), std::size_t(2));
     CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickHunterSite::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AuraBoostGenericSite::Key), std::size_t(7));
+    CHECK_EQ(registry.CountAt(AuraBoostMageSite::Key), std::size_t(6));
+    CHECK_EQ(registry.CountAt(AuraBoostPriestSite::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AuraBoostHunterSite::Key), std::size_t(6));
+    CHECK_EQ(registry.CountAt(AuraBoostDeathKnightSite::Key), std::size_t(4));
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterAurasHandlers(registry), uint32(137));
-    CHECK_EQ(registry.Count(), std::size_t(127));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(10));
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(166));
+    CHECK_EQ(registry.Count(), std::size_t(152));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(14));
 
     // The game's table holds these with the other files' 564 rows and 12 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(691));
-    CHECK_EQ(game.CountDefaults(), std::size_t(22));
+    CHECK_EQ(game.Count(), std::size_t(716));
+    CHECK_EQ(game.CountDefaults(), std::size_t(26));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
     CHECK_EQ(game.CountAt(AuraPeriodicDamageTickSite::Key), std::size_t(8));
     CHECK_EQ(game.CountAt(AuraPeriodicDummyTickGenericSite::Key), std::size_t(44));
+    CHECK_EQ(game.CountAt(AuraBoostGenericSite::Key), std::size_t(7));
 }
 
 TEST(AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault)
@@ -4858,4 +4891,197 @@ TEST(AurasHandlers_ThePeriodicDummyTickBodiesReturnWhenThereIsNothingToDo)
     CHECK(creature.GetPowerType() == POWER_MANA);
     CHECK_EQ(BitsThatDiffer(storage, expected), 0);
     CHECK(target == &creature);
+}
+
+namespace
+{
+    // The labels of the five boost sites, each in its switch's order.
+    uint32 const BOOST_GENERIC_IDS[] = { 29865, 55053, 50720, 57350, 58914, 62692, 71905 };
+    uint32 const BOOST_MAGE_IDS[] = { 11129, 28682, 44401, 48108, 57761, 74396 };
+    uint32 const BOOST_PRIEST_IDS[] = { 552, 47585 };
+    uint32 const BOOST_HUNTER_IDS[] = { 34074, 19574, 34471, 34027, 35029, 35030 };
+    uint32 const BOOST_DEATH_KNIGHT_IDS[] = { 49039, 48263, 48265, 48266 };
+
+    // HandleSpellSpecificBoosts' parameter and locals as the function starts them.
+    struct BoostLocals
+    {
+        bool apply;
+        bool castAtRemove;
+        uint32 spellId1;
+        uint32 spellId2;
+        uint32 spellId3;
+        uint32 spellId4;
+
+        BoostLocals() : apply(false), castAtRemove(false), spellId1(0), spellId2(0), spellId3(0), spellId4(0) {}
+
+        AuraBoostContext Context(SpellAuraHolder* holder)
+        {
+            return AuraBoostContext(holder, apply, castAtRemove, spellId1, spellId2, spellId3, spellId4);
+        }
+
+        bool Untouched() const
+        {
+            return !castAtRemove && spellId1 == 0 && spellId2 == 0 && spellId3 == 0 && spellId4 == 0;
+        }
+    };
+}
+
+TEST(AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults)
+{
+    SpellHandlerRegistry registry;
+    RegisterAurasHandlers(registry);
+
+    // The generic, mage, priest, hunter and death knight switches: 7, 6, 2, 6 and 4 labels in 7, 4, 2, 5 and 2 bodies.
+    CheckSiteLabels<AuraBoostGenericSite>(registry, BOOST_GENERIC_IDS, 7);
+    CheckSiteLabels<AuraBoostMageSite>(registry, BOOST_MAGE_IDS, 4);
+    CheckSiteLabels<AuraBoostPriestSite>(registry, BOOST_PRIEST_IDS, 2);
+    CheckSiteLabels<AuraBoostHunterSite>(registry, BOOST_HUNTER_IDS, 5);
+    CheckSiteLabels<AuraBoostDeathKnightSite>(registry, BOOST_DEATH_KNIGHT_IDS, 2);
+
+    // The shared bodies: the three Pushing the Limit triggers, Bestial Wrath with The Beast Within, and the three
+    // presences; Lichborne has its own.
+    CHECK(registry.Find<AuraBoostMageSite>(48108) == registry.Find<AuraBoostMageSite>(44401));
+    CHECK(registry.Find<AuraBoostMageSite>(57761) == registry.Find<AuraBoostMageSite>(44401));
+    CHECK(registry.Find<AuraBoostHunterSite>(34471) == registry.Find<AuraBoostHunterSite>(19574));
+    CHECK(registry.Find<AuraBoostDeathKnightSite>(48265) == registry.Find<AuraBoostDeathKnightSite>(48263));
+    CHECK(registry.Find<AuraBoostDeathKnightSite>(48266) == registry.Find<AuraBoostDeathKnightSite>(48263));
+    CHECK(registry.Find<AuraBoostDeathKnightSite>(49039) != registry.Find<AuraBoostDeathKnightSite>(48263));
+
+    // Vigilance is a key here and at the proc-trigger site, and at no third site.
+    CHECK(SharedWith(50720, AuraBoostGenericSite::Key) == AuraProcTriggerSite::Key);
+    CHECK(SpellHandlerRegistry::Game().Find<AuraProcTriggerSite>(50720) != NULL);
+
+    // The generic, mage and priest switches' `default: return;` answers Return for an id they never held and leaves
+    // the locals as they were; the death knight switch has none, so there a miss is a miss. The hunter default reads
+    // the holder's spell entry, so it is checked as a body none of its site's labels holds.
+    BoostLocals locals;
+    AuraBoostContext ctx = locals.Context(NULL);
+    CHECK(registry.Dispatch<AuraBoostGenericSite>(12345, ctx).IsReturn());
+    CHECK(registry.Dispatch<AuraBoostMageSite>(12345, ctx).IsReturn());
+    CHECK(registry.Dispatch<AuraBoostPriestSite>(12345, ctx).IsReturn());
+    CHECK(registry.Dispatch<AuraBoostDeathKnightSite>(12345, ctx).IsMiss());
+    CHECK(registry.FindDefault<AuraBoostDeathKnightSite>() == NULL);
+    CHECK(locals.Untouched());
+    for (uint32 spellId : BOOST_GENERIC_IDS)
+    {
+        CHECK(registry.FindDefault<AuraBoostGenericSite>() != registry.Find<AuraBoostGenericSite>(spellId));
+    }
+    for (uint32 spellId : BOOST_MAGE_IDS)
+    {
+        CHECK(registry.FindDefault<AuraBoostMageSite>() != registry.Find<AuraBoostMageSite>(spellId));
+    }
+    for (uint32 spellId : BOOST_PRIEST_IDS)
+    {
+        CHECK(registry.FindDefault<AuraBoostPriestSite>() != registry.Find<AuraBoostPriestSite>(spellId));
+    }
+    for (uint32 spellId : BOOST_HUNTER_IDS)
+    {
+        CHECK(registry.FindDefault<AuraBoostHunterSite>() != NULL);
+        CHECK(registry.FindDefault<AuraBoostHunterSite>() != registry.Find<AuraBoostHunterSite>(spellId));
+    }
+
+    // The bodies that only set boost spell ids read nothing of the holder and go on to the casts with them set.
+    BoostLocals vigilance;
+    AuraBoostContext vigilanceCtx = vigilance.Context(NULL);
+    CHECK(registry.Dispatch<AuraBoostGenericSite>(50720, vigilanceCtx).IsContinue());
+    CHECK_EQ(vigilance.spellId1, uint32(68066));
+    CHECK(!vigilance.castAtRemove);
+
+    BoostLocals despair;
+    AuraBoostContext despairCtx = despair.Context(NULL);
+    CHECK(registry.Dispatch<AuraBoostGenericSite>(62692, despairCtx).IsContinue());
+    CHECK_EQ(despair.spellId1, uint32(64848));
+
+    BoostLocals dispersion;
+    AuraBoostContext dispersionCtx = dispersion.Context(NULL);
+    CHECK(registry.Dispatch<AuraBoostPriestSite>(47585, dispersionCtx).IsContinue());
+    CHECK_EQ(dispersion.spellId1, uint32(60069));
+    CHECK_EQ(dispersion.spellId2, uint32(63230));
+
+    for (uint32 spellId : { 19574u, 34471u })
+    {
+        BoostLocals wrath;
+        AuraBoostContext wrathCtx = wrath.Context(NULL);
+        CHECK(registry.Dispatch<AuraBoostHunterSite>(spellId, wrathCtx).IsContinue());
+        CHECK_EQ(wrath.spellId1, uint32(24395));
+        CHECK_EQ(wrath.spellId2, uint32(24396));
+        CHECK_EQ(wrath.spellId3, uint32(24397));
+        CHECK_EQ(wrath.spellId4, uint32(26592));
+    }
+
+    BoostLocals lichborne;
+    AuraBoostContext lichborneCtx = lichborne.Context(NULL);
+    CHECK(registry.Dispatch<AuraBoostDeathKnightSite>(49039, lichborneCtx).IsContinue());
+    CHECK_EQ(lichborne.spellId1, uint32(50397));
+    CHECK_EQ(lichborne.spellId2, uint32(0));
+}
+
+TEST(AurasHandlers_TheBoostContextAliasesItsLocals)
+{
+    alignas(16) static unsigned char object[16];
+    SpellAuraHolder* holder = reinterpret_cast<SpellAuraHolder*>(object);
+    bool apply = false;
+    bool cast_at_remove = false;
+    uint32 spellId1 = 0;
+    uint32 spellId2 = 0;
+    uint32 spellId3 = 0;
+    uint32 spellId4 = 0;
+    AuraBoostContext ctx(holder, apply, cast_at_remove, spellId1, spellId2, spellId3, spellId4);
+    CHECK(ctx.holder == holder);
+    CHECK(&ctx.apply == &apply);
+    CHECK(&ctx.cast_at_remove == &cast_at_remove);
+    CHECK(&ctx.spellId1 == &spellId1);
+    CHECK(&ctx.spellId2 == &spellId2);
+    CHECK(&ctx.spellId3 == &spellId3);
+    CHECK(&ctx.spellId4 == &spellId4);
+    apply = true;                                               // the parameter is read where it stands
+    CHECK(ctx.apply);
+    ctx.cast_at_remove = true;                                  // a body's writes are the function's locals
+    CHECK(cast_at_remove);
+    ctx.spellId1 = 55594;
+    ctx.spellId4 = 26592;
+    CHECK_EQ(spellId1, uint32(55594));
+    CHECK_EQ(spellId4, uint32(26592));
+}
+
+TEST(AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder)
+{
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    HolderStorage storage;
+    SpellAuraHolder* holder = HolderFilledWith(storage, 0x00);
+
+    // Deathbloom casts at remove only when the holder expired, and reads the mode the holder has when the body
+    // runs, not when the context was made.
+    for (uint32 spellId : { 29865u, 55053u })
+    {
+        BoostLocals locals;
+        AuraBoostContext ctx = locals.Context(holder);
+        holder->SetRemoveMode(AURA_REMOVE_BY_DISPEL);
+        CHECK(game.Dispatch<AuraBoostGenericSite>(spellId, ctx).IsReturn());
+        CHECK(locals.Untouched());
+        holder->SetRemoveMode(AURA_REMOVE_BY_EXPIRE);
+        CHECK(game.Dispatch<AuraBoostGenericSite>(spellId, ctx).IsContinue());
+        CHECK(locals.castAtRemove);
+        CHECK_EQ(locals.spellId1, spellId == 29865 ? uint32(55594) : uint32(55601));
+        CHECK_EQ(locals.spellId2, uint32(0));
+    }
+
+    // At apply Deathbloom returns whatever the mode reads.
+    BoostLocals applying;
+    applying.apply = true;
+    AuraBoostContext applyingCtx = applying.Context(holder);
+    CHECK(game.Dispatch<AuraBoostGenericSite>(29865, applyingCtx).IsReturn());
+    CHECK(applying.Untouched());
+
+    // Pushing the Limit acts only on a holder its charges consumed, the default mode; on an expired one it returns
+    // before it reads the caster.
+    for (uint32 spellId : { 44401u, 48108u, 57761u })
+    {
+        BoostLocals locals;
+        AuraBoostContext ctx = locals.Context(holder);
+        CHECK(game.Dispatch<AuraBoostMageSite>(spellId, ctx).IsReturn());
+        CHECK(locals.Untouched());
+    }
+    holder->SetRemoveMode(AURA_REMOVE_BY_DEFAULT);
+    CHECK_EQ(int(holder->GetRemoveMode()), int(AURA_REMOVE_BY_DEFAULT));
 }

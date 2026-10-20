@@ -32,6 +32,7 @@
 
 class Aura;
 class ObjectGuid;
+class SpellAuraHolder;
 class Unit;
 struct SpellEntry;
 
@@ -212,6 +213,70 @@ struct AuraPeriodicDummyTickHunterSite
     static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_HUNTER;
     typedef void Value;
     typedef AuraPeriodicDummyTickContext Context;
+};
+
+/// What the bodies of `SpellAuraHolder::HandleSpellSpecificBoosts`'s switches read and write: the holder, the
+/// function's parameter and its locals, which bodies set.
+struct AuraBoostContext
+{
+    AuraBoostContext(SpellAuraHolder* thisHolder, bool const& applyParameter, bool& castAtRemoveLocal,
+                     uint32& spellId1Local, uint32& spellId2Local, uint32& spellId3Local, uint32& spellId4Local)
+        : holder(thisHolder), apply(applyParameter), cast_at_remove(castAtRemoveLocal), spellId1(spellId1Local),
+          spellId2(spellId2Local), spellId3(spellId3Local), spellId4(spellId4Local) {}
+
+    SpellAuraHolder* const holder; ///< `this` in the case bodies
+    bool const& apply;             ///< the function's parameter `bool apply`
+    bool& cast_at_remove;          ///< the function's local `bool cast_at_remove`, which bodies set
+    uint32& spellId1;              ///< the function's local `uint32 spellId1`, which bodies set
+    uint32& spellId2;              ///< the function's local `uint32 spellId2`, which bodies set
+    uint32& spellId3;              ///< the function's local `uint32 spellId3`, which bodies set
+    uint32& spellId4;              ///< the function's local `uint32 spellId4`, which bodies set
+};
+
+/// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_GENERIC's `switch (GetId())`: a label that continues goes
+/// on to the boost casts; the `default:` returns from the member.
+struct AuraBoostGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_BOOST_GENERIC;
+    typedef void Value;
+    typedef AuraBoostContext Context;
+};
+
+/// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_MAGE's `switch (GetId())` after the Ice Barrier test: a
+/// label that continues goes on to the boost casts; the `default:` returns from the member.
+struct AuraBoostMageSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_BOOST_MAGE;
+    typedef void Value;
+    typedef AuraBoostContext Context;
+};
+
+/// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_PRIEST's `switch (GetId())` after the Shadow Word: Pain
+/// and Power Word: Shield tests: a label that continues goes on to the boost casts; the `default:` returns from the
+/// member.
+struct AuraBoostPriestSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_BOOST_PRIEST;
+    typedef void Value;
+    typedef AuraBoostContext Context;
+};
+
+/// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_HUNTER's `switch (GetId())`: a label that continues goes
+/// on to the boost casts; the `default:` handles the Freezing Trap and Aspect of the Dragonhawk auras, else returns.
+struct AuraBoostHunterSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_BOOST_HUNTER;
+    typedef void Value;
+    typedef AuraBoostContext Context;
+};
+
+/// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_DEATHKNIGHT's `switch (GetId())`: no `default:`; every
+/// label continues to the improved presence code and then the boost casts.
+struct AuraBoostDeathKnightSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_BOOST_DEATH_KNIGHT;
+    typedef void Value;
+    typedef AuraBoostContext Context;
 };
 
 /// Registers every `SpellAuras.cpp` handler on `registry` (defined in AurasHandlers.cpp).

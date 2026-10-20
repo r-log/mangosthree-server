@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = 'a7de2b04e'
+BASE = '26c0186db'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -2012,6 +2012,149 @@ SITES = {
             'labels': {
                 53511: '                case 53511:',
                 53512: '                case 53512:'},
+        }, {
+            'name': 'HandleSpellSpecificBoosts, SPELLFAMILY_GENERIC (switch (GetId()))',
+            'dispatch': [
+                '            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, '
+                'spellId4);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostGenericSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraBoostGenericSite',
+            'context': 'AuraBoostContext',
+            'live_outs': ['apply', 'cast_at_remove', 'spellId1', 'spellId2', 'spellId3', 'spellId4'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'SpellAuraHolder'),
+            'substitutions': [('ctx.apply', 'apply'), ('ctx.cast_at_remove', 'cast_at_remove'),
+                              ('ctx.spellId1', 'spellId1'), ('ctx.spellId2', 'spellId2'),
+                              ('ctx.holder->GetRemoveMode()', 'm_removeMode'), ('ctx.holder->GetTarget()', 'm_target'),
+                              ('ctx.holder->GetCaster()', 'GetCaster()')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                29865: '                case 29865:                                 // Deathbloom (10 man)',
+                55053: '                case 55053:                                 // Deathbloom (25 man)',
+                50720: '                case 50720:                                 '
+                       '// Vigilance (warrior spell but not have warrior family)',
+                57350: '                case 57350:                                 // Illusionary Barrier',
+                58914: '                case 58914:                                 // Kill Command, pet aura',
+                62692: '                case 62692:                                 // Aura of Despair',
+                71905: '                case 71905:                                 // Soul Fragment'},
+        }, {
+            'name': 'HandleSpellSpecificBoosts, SPELLFAMILY_MAGE (switch (GetId()))',
+            'dispatch': [
+                '            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, '
+                'spellId4);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostMageSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraBoostMageSite',
+            'context': 'AuraBoostContext',
+            'live_outs': ['apply', 'cast_at_remove', 'spellId1', 'spellId2', 'spellId3', 'spellId4'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'SpellAuraHolder'),
+            'substitutions': [('ctx.apply', 'apply'), ('ctx.cast_at_remove', 'cast_at_remove'),
+                              ('ctx.spellId1', 'spellId1'), ('ctx.holder->GetRemoveMode()', 'm_removeMode'),
+                              ('ctx.holder->GetCaster()', 'GetCaster()')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                11129: '                case 11129:                                 '
+                       '// Combustion (remove triggered aura stack)',
+                28682: '                case 28682:                                 // Combustion (remove main aura)',
+                44401: '                case 44401:                                 // Missile Barrage (triggered)',
+                48108: '                case 48108:                                 // Hot Streak (triggered)',
+                57761: '                case 57761:                                 '
+                       '// Fireball! (Brain Freeze triggered)',
+                74396: '                case 74396:                                 '
+                       '// Fingers of Frost (remove main aura)'},
+        }, {
+            'name': 'HandleSpellSpecificBoosts, SPELLFAMILY_PRIEST (switch (GetId()))',
+            'dispatch': [
+                '            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, '
+                'spellId4);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostPriestSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraBoostPriestSite',
+            'context': 'AuraBoostContext',
+            'live_outs': ['apply', 'cast_at_remove', 'spellId1', 'spellId2', 'spellId3', 'spellId4'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'SpellAuraHolder'),
+            'substitutions': [('ctx.apply', 'apply'), ('ctx.spellId1', 'spellId1'), ('ctx.spellId2', 'spellId2'),
+                              ('ctx.holder->GetTarget()', 'm_target')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                552: '                case 552:',
+                47585: '                case 47585:'},
+        }, {
+            'name': 'HandleSpellSpecificBoosts, SPELLFAMILY_HUNTER (switch (GetId()))',
+            'dispatch': [
+                '            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, '
+                'spellId4);',
+                '            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostHunterSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraBoostHunterSite',
+            'context': 'AuraBoostContext',
+            'live_outs': ['apply', 'cast_at_remove', 'spellId1', 'spellId2', 'spellId3', 'spellId4'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'SpellAuraHolder'),
+            'substitutions': [('ctx.apply', 'apply'), ('ctx.cast_at_remove', 'cast_at_remove'),
+                              ('ctx.spellId1', 'spellId1'), ('ctx.spellId2', 'spellId2'), ('ctx.spellId3', 'spellId3'),
+                              ('ctx.spellId4', 'spellId4'), ('ctx.holder->GetTarget()', 'm_target'),
+                              ('ctx.holder->GetCaster()', 'GetCaster()'),
+                              ('ctx.holder->GetSpellProto()', 'GetSpellProto()')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                34074: '                case 34074:                                 // Aspect of the Viper',
+                19574: '                case 19574:                                 // Bestial Wrath - immunity',
+                34471: '                case 34471:                                 // The Beast Within - immunity',
+                34027: '                case 34027:                                 '
+                       '// Kill Command, owner aura (spellmods)',
+                35029: '                case 35029:                                 // Focused Fire, rank 1',
+                35030: '                case 35030:                                 // Focused Fire, rank 2'},
+        }, {
+            'name': 'HandleSpellSpecificBoosts, SPELLFAMILY_DEATHKNIGHT (switch (GetId()))',
+            'dispatch': [
+                '            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, '
+                'spellId4);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraBoostDeathKnightSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraBoostDeathKnightSite',
+            'context': 'AuraBoostContext',
+            'live_outs': ['apply', 'cast_at_remove', 'spellId1', 'spellId2', 'spellId3', 'spellId4'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'SpellAuraHolder'),
+            'substitutions': [('ctx.apply', 'apply'), ('ctx.spellId1', 'spellId1'), ('ctx.spellId2', 'spellId2'),
+                              ('ctx.holder->GetTarget()', 'm_target'),
+                              ('ctx.holder->GetCasterGuid()', 'GetCasterGuid()'),
+                              ('ctx.holder->GetId()', 'GetId()')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                49039: '                case 49039: {body}        // Lichborne',
+                48263: '                case 48263:                                 // Frost Presence',
+                48265: '                case 48265:                                 // Unholy Presence',
+                48266: '                case 48266:                                 // Blood Presence'},
         }],
     },
 }
