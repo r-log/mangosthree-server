@@ -221,6 +221,18 @@ of it (an original is never ahead of the base), and an original that does not ho
 --anchor <sha> takes the base's place in that ancestry check and nowhere else; CI passes master's head
 there (the first parent of the checkout it tests), so no original is ahead of master whatever BASE a PR sets.
 
+TEXTS: comments and string literals changed after a move. A site's `texts` and a file's `texts` (its SITES
+entry's) list (new line, base line) pairs, or (new block, base block) pairs of comment and blank lines. In every
+version read, each new side is read back as its base side before anything else reads that version: a site's
+pairs in the bodies the site registers (its default's included), a file's pairs on the file's own lines (above a
+handler block appended to it, off its sites' dispatch lines). A new side stands there once in the working tree
+and at most once in a base, so a base from before the change holds the base side. A pair changes no code (read
+as text_read() reads it), keeps each literal's `%` conversions equal in number and type, and holds no numeric or
+universal-character escape or stray `%` in a literal it changes. Refused, each by name: a pair that changes code
+or a conversion, stands other than once in the working tree or more than once in a base, does not stand alone,
+or overlaps another; a line holding a line break, a line splice or a carriage return, or a directive line; texts
+that are not a list of pairs.
+
 BLOCKS: a block of type definitions moved from a source file into a header. Each entry names the commit
 before the move (`base`, spelled and resolved as an original is), the file the block stood in (`origin`),
 the header that holds it now (`header`), the block's first line (`first`, exact text), its number of
@@ -289,7 +301,7 @@ import tempfile
 import threading
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
+from case_labels import blank, digit_separator, raw_prefix_start  # noqa: E402  (the ratchet's reading)
 import split_gate  # noqa: E402
 
 # The names verbatim_sites.py assigns; split_gate.py holds the split.
@@ -403,11 +415,212 @@ def default_function(lines, traits):
     return found[0]
 
 
-def handler_body(lines, function, context, value='void'):
-    """The lines between the braces of `static SpellHandlerOutcome<value> function(context& ctx)` (or
-    `/*ctx*/`, a body that reads no context). Its last statement (comment lines, and a comment at the end
-    of its line, aside) is a whole `return ...;` at the function's own level, the code line above it ending
-    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails."""
+SPLICE = re.compile(r'\\[ \t]*\r?\Z')
+CONVERSION = re.compile(r"%(?:(%)|[-+ #0']*(\*|\d+)?(?:\.(\*|\d*))?(hh|h|ll|l|j|z|t|L|q|I64|I32|I)?"
+                        r"([diouxXeEfFgGaAcspn])|(.?))", re.S)
+NUMERIC_ESCAPE = re.compile(r'(?<!\\)(?:\\\\)*\\[0-7xuU]')
+CARRIAGE_RETURN = re.compile(r'\r(?!\Z)')
+DIRECTIVE_LINE = re.compile(r'\s*(?:#|%:)')
+
+
+def tokens(text):
+    """[(kind, opening, inside, closing)] of `text`, read as blank() reads it: 'code' (its text the opening),
+    'char' (a character literal, whole, the opening), 'comment' and 'string' (a string literal, a prefix before
+    its quote read as code), each with its delimiters apart from the text inside them."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        c = text[i]
+        raw = re.match(r'R"([^()\\\s]{0,16})\(', text[i:]) if c == 'R' else None
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            j = n if j < 0 else j
+            out.append(('comment', '//', text[i + 2:j], ''))
+            i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            out.append(('comment', '/*', text[i + 2:n if j < 0 else j], '' if j < 0 else '*/'))
+            i = n if j < 0 else j + 2
+        elif raw and raw_prefix_start(text, i) is not None:
+            end = ')' + raw.group(1) + '"'
+            j = text.find(end, i + raw.end())
+            out.append(('string', raw.group(0), text[i + raw.end():n if j < 0 else j], '' if j < 0 else end))
+            i = n if j < 0 else j + len(end)
+        elif c == '"' or (c == "'" and not digit_separator(text, i)):
+            j = i + 1
+            while j < n and text[j] != c and text[j] != '\n':
+                j += 2 if text[j] == '\\' else 1
+            end = min(j + 1, n)
+            if c == "'":
+                out.append(('char', text[i:end], '', ''))
+            else:
+                out.append(('string', c, text[i + 1:min(j, n)], text[j] if j < n else ''))
+            i = end
+        else:
+            if out and out[-1][0] == 'code':
+                out[-1] = ('code', out[-1][1] + c, '', '')
+            else:
+                out.append(('code', c, '', ''))
+            i += 1
+    if ''.join(t[1] if t[0] == 'code' else re.sub(r'[^\n]', ' ', ''.join(t[1:])) for t in out) != blank(text):
+        raise Failure('the text %r is not read as the comment reader reads it' % text)
+    return out
+
+
+def text_read(text):
+    """`text` with each comment's text and each string literal's contents read as one mark between its
+    delimiters, code and character literals as they are; and the string literals' contents, in order."""
+    found = tokens(text)
+    return (''.join(t[1] + '\0' + t[3] if t[0] in ('comment', 'string') else t[1] for t in found),
+            [t[2] for t in found if t[0] == 'string'])
+
+
+def conversions(literal):
+    """The `%` conversions of a literal's text, in order, each read as its width and precision stars, its length
+    modifier and its conversion character (`%%` is none; a `%` starting no conversion is read as its text)."""
+    found = []
+    for m in CONVERSION.finditer(literal):
+        if m.group(1):
+            continue
+        if m.group(5):
+            found.append('%' + ('*' if m.group(2) == '*' else '') + ('.*' if m.group(3) == '*' else '')
+                         + (m.group(4) or '') + m.group(5))
+        else:
+            found.append('%' + m.group(6))
+    return found
+
+
+def read_texts(entry):
+    """[(new lines, base lines)] of an entry's texts, a list of pairs: each (new line, base line), or (new block,
+    base block), a block one or more lines; no line holds a line break, ends in a line splice or is a directive
+    line. A line pair reads the same with each comment's text and each string literal's contents read as one mark,
+    and each string literal keeps its conversions; a block is comment lines and blank lines only, and ends outside
+    any comment."""
+    found = []
+    listed = entry.get('texts', [])
+    if not isinstance(listed, (tuple, list)):
+        raise Failure('the texts %r are not a list of text pairs' % (listed,))
+    for t in listed:
+        pair = isinstance(t, (tuple, list)) and len(t) == 2
+        if pair and all(isinstance(x, str) for x in t):
+            new, base, block = [t[0]], [t[1]], False
+        elif pair and all(isinstance(x, (tuple, list)) and x and all(isinstance(y, str) for y in x) for x in t):
+            new, base, block = list(t[0]), list(t[1]), True
+        else:
+            raise Failure('the text pair %r is not (new line, base line) nor (new block, base block), a block one '
+                          'or more lines' % (t,))
+        what = 'the text pair %r' % new[0]
+        if any('\n' in x for x in new + base):
+            raise Failure('%s holds a line break inside a line: a block is a list of lines' % what)
+        if any(SPLICE.search(x) for x in new + base):
+            raise Failure('%s ends a line in a line splice: every line of a text pair is read alone' % what)
+        if any(DIRECTIVE_LINE.match(x) for x in new + base):
+            raise Failure('%s is a directive line' % what)
+        if block:
+            for side in (new, base):
+                text = '\n'.join(side)
+                kept = ''.join(re.sub(r'[^\n]', ' ', ''.join(x[1:])) if x[0] == 'comment' else ''.join(x[1:])
+                               for x in tokens(text))
+                code = [x for x, k in zip(side, kept.split('\n')) if k.strip()]
+                if code:
+                    raise Failure('%s is a block holding a line that is not a comment line or a blank line: %r' % (
+                        what, code[0]))
+                if not blank(text + '\nx').endswith('x'):
+                    raise Failure('%s is a block ending inside a comment' % what)
+        else:
+            (new_code, new_literals), (base_code, base_literals) = text_read(new[0]), text_read(base[0])
+            if new_code != base_code:
+                raise Failure('%s changes code, not a comment or a literal: base %r' % (what, base[0]))
+            unread = [x for x in base_literals + new_literals if NUMERIC_ESCAPE.search(x)
+                      or any(m.group(6) is not None for m in CONVERSION.finditer(x))]
+            if new_literals != base_literals and unread:
+                raise Failure('%s holds a literal whose conversions its spelling does not show (a numeric or '
+                              'universal-character escape, or a %% that starts no conversion): base %r' % (
+                                  what, base[0]))
+            for a, b in zip(base_literals, new_literals):
+                if conversions(a) != conversions(b):
+                    raise Failure("%s changes the literal's conversions (%s -> %s): base %r" % (
+                        what, ', '.join(conversions(a)) or 'none', ', '.join(conversions(b)) or 'none', base[0]))
+        found.append((new, base))
+    return found
+
+
+def stands_alone(lines, a, b):
+    """No comment or literal opens or closes across an edge of lines[a:b]: the lines from a on read the same
+    alone as in place, the block read alone ends outside any comment or literal, and no line splice joins
+    it to the line before or the line after."""
+    if (a and SPLICE.search(lines[a - 1])) or (b > a and SPLICE.search(lines[b - 1])):
+        return False
+    if lines[a:] and blank('\n'.join(lines[a:])).split('\n') != blank('\n'.join(lines)).split('\n')[a:]:
+        return False
+    return blank('\n'.join(lines[a:b] + ['x'])).endswith('x')
+
+
+def text_pairs(entry, where):
+    """read_texts() of a site or a SITES file; no line of a pair holds a carriage return before its end."""
+    try:
+        texts = read_texts(entry)
+    except Failure as e:
+        raise Failure('%s: %s' % (where, e))
+    for new, base in texts:
+        if any(CARRIAGE_RETURN.search(x) for x in new + base):
+            raise Failure('%s: the text pair %r holds a carriage return inside a line' % (where, new[0]))
+    return texts
+
+
+def read_back(lines, regions, texts, strict, where, skip=frozenset()):
+    """`lines` with each text pair's new side read back as its base side. A new side stands inside one of
+    `regions` [(first, end)], on no line of `skip`, alone in its region (stands_alone), once in the working tree
+    (`strict`) and at most once in a base; no two overlap."""
+    found = []
+    for new, base in texts:
+        hits = [(k, a, b) for a, b in regions for k in range(a, b - len(new) + 1)
+                if lines[k:k + len(new)] == new and not skip.intersection(range(k, k + len(new)))]
+        if len(hits) > 1 or (strict and not hits):
+            raise Failure('%s: the text pair %r stands %d times%s' % (
+                where, new[0], len(hits), ', not once' if strict else ' in the base, not at most once'))
+        for k, a, b in hits:
+            if not stands_alone(lines[a:b], k - a, k - a + len(new)):
+                raise Failure('%s: the text pair %r does not stand alone: a line splice, or a comment or literal '
+                              'open across its edges' % (where, new[0]))
+            found.append((k, k + len(new), new, base))
+    found.sort(key=lambda x: x[:2])
+    for x, y in zip(found, found[1:]):
+        if y[0] < x[1]:
+            raise Failure('%s: the text pairs %r and %r overlap' % (where, x[2][0], y[2][0]))
+    lines = list(lines)
+    for a, b, _, base in reversed(found):
+        lines[a:b] = base
+    return lines
+
+
+def site_texts(handlers, site, rows, strict):
+    """The handler lines with the site's text pairs read back in the bodies it registers (TEXTS)."""
+    texts = text_pairs(site, site['name'])
+    functions = list(dict.fromkeys(f for _, f in rows))
+    if 'default' in site:
+        functions.append(default_function(handlers, site['traits'])[0])
+    regions = [body_at(handlers, f, site['context'], site.get('value', 'void')) for f in functions]
+    return read_back(handlers, regions, texts, strict, '%s, in the bodies it registers' % site['name'])
+
+
+def file_texts(text, spec, strict):
+    """`text`, a version of a SITES file, with the file's text pairs read back on its own lines: above a handler
+    block appended to it, off its sites' dispatch lines (TEXTS)."""
+    if 'texts' not in spec:
+        return text
+    texts = text_pairs(spec, 'the file')
+    lines = text.split('\n')
+    marker = [i for i, l in enumerate(lines) if l == spec.get('tail_marker')]
+    end = marker[0] if marker else len(lines)
+    skip = {k + d for site in spec['sites'] for k in range(end) for d in range(len(site['dispatch']))
+            if lines[k:k + len(site['dispatch'])] == site['dispatch']}
+    return '\n'.join(read_back(lines, [(0, end)], texts, strict, 'the file, off its sites\' dispatch lines',
+                               frozenset(skip)))
+
+
+def body_at(lines, function, context, value='void'):
+    """(first, end) of the lines between the braces of `static SpellHandlerOutcome<value> function(context& ctx)`
+    (or `/*ctx*/`, a body that reads no context)."""
     head = re.compile(r'static SpellHandlerOutcome<([\w:]+)> %s\(%s& (ctx|/\*ctx\*/)\)' % (re.escape(function),
                                                                                           re.escape(context)))
     starts = [(i, m.group(1)) for i, m in enumerate(head.fullmatch(l) for l in lines) if m]
@@ -422,12 +635,20 @@ def handler_body(lines, function, context, value='void'):
     j = next((k for k in range(i + 2, len(lines)) if lines[k] == '}'), None)
     if j is None:
         raise Failure('handler %s: no closing "}" in column 0' % function)
-    code = [l for l in lines[i + 2:j] if l.strip() and not comment_only(l)]
+    return i + 2, j
+
+
+def handler_body(lines, function, context, value='void'):
+    """The lines of the handler's body (body_at). Its last statement (comment lines, and a comment at the end
+    of its line, aside) is a whole `return ...;` at the function's own level, the code line above it ending
+    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails."""
+    first, end = body_at(lines, function, context, value)
+    code = [l for l in lines[first:end] if l.strip() and not comment_only(l)]
     if not code or not re.fullmatch(r'    return\b.*;', blank(code[-1]).rstrip()) or (
             len(code) > 1 and not blank(code[-2]).rstrip().endswith((';', '{', '}', ':'))):
         raise Failure('handler %s: its last statement is not a return at its own level (it could fall off its end)'
                       % function)
-    return lines[i + 2:j]
+    return lines[first:end]
 
 
 def class_members(header, cls):
@@ -1088,6 +1309,8 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
                           % (site['name'], site['traits'], site['traits']))
         key, name = check_ties(site)
         rows = site_table(handlers, site)
+        if 'texts' in site:
+            handlers = site_texts(handlers, site, rows, strict)
         ids = [r[0] for r in rows]
         closed = bool(site.get('closed')) and rest[at[0] + n:at[0] + n + len(site['open'])] != site['open']
         if strict and site.get('closed') and not closed:
@@ -1321,6 +1544,7 @@ def first_difference(a, b, other='rebuilt'):
 def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None, new_handlers=None):
     """`old_handlers` and `new_handlers`: the handler file's text in that version, None where it has none."""
     try:
+        new_text, old_text = file_texts(new_text, spec, True), file_texts(old_text, spec, False)
         origins = [old_text.split('\n'), new_text.split('\n')]
         rebuilt, pasted, labels, sites, handlers = rebuild(new_text, spec, headers, new_handlers, origins=origins)
         base, base_pasted, _, base_sites, _ = rebuild(old_text, spec, headers, old_handlers, strict=False,
@@ -1334,13 +1558,15 @@ def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None,
     if len(defined) != pasted:
         out('%s: FAILED: %d handlers defined, %d registered and pasted back' % (rel, len(defined), pasted))
         return 1, pasted
+    texts = len(spec.get('texts', [])) + sum(len(s.get('texts', [])) for s in spec['sites'] if 'gone' not in s)
     if rebuilt != base:
         out('%s: DIFFERS from the base after pasting back %d bodies at %d sites: %s' % (
             rel, pasted, len(sites), first_difference(base, rebuilt)))
         return 1, pasted
     out('%s: IDENTICAL to the base, byte for byte, with %d/%d bodies pasted back at their %d labels in %d sites '
-        '(the base had %d of the sites moved: %d bodies pasted back there), the base less %d cuts (%d lines)' % (
-            rel, pasted, len(defined), labels, len(sites), len(base_sites), base_pasted, cuts, cut_lines))
+        '(the base had %d of the sites moved: %d bodies pasted back there), the base less %d cuts (%d lines)%s' % (
+            rel, pasted, len(defined), labels, len(sites), len(base_sites), base_pasted, cuts, cut_lines,
+            ', %d text pairs read back' % texts if texts else ''))
     return 0, pasted
 
 
@@ -3620,6 +3846,108 @@ def self_test():
         if read_pairs != [aura[0], spell[0]]:
             raise Failure('exception_pairs read %r' % (read_pairs,))
     raises('context exceptions: the pairs each entry lists are read', 'no failure', listed_pairs)
+
+    # TEXTS: the ranks site's default logs a literal changed after its move; the file's tail line carries a comment
+    # changed on it.
+    told = ('    Log("RankDefault: id %u", ctx.aura->GetId());', '    Log("Thing::Handle: id %u", ctx.aura->GetId());')
+    told_old = SELF_OLD.replace('            Log(GetId());', '            Log("Thing::Handle: id %u", GetId());')
+    told_handlers = SELF_HANDLERS.replace('    Log(ctx.aura->GetId());', told[0])
+
+    def texted(pairs, at=1, **change):
+        """run() arguments: RankDefault logging told's new side, the site `at` (None: the file) listing `pairs`
+        as its texts."""
+        sites = [dict(site) for site in SELF_SPEC['sites']]
+        spec = dict(SELF_SPEC, sites=sites)
+        if at is None:
+            spec['texts'] = pairs
+        else:
+            sites[at]['texts'] = pairs
+        return dict(dict(old_text=told_old, handlers=told_handlers, spec=spec), **change)
+
+    run('TEXTS: a literal changed in a default\'s body, its pair at the site: passes', 0,
+        '(0 lines), 1 text pairs read back', **texted([told]))
+    run('TEXTS: the literal changed, no pair: fails', 1, 'DIFFERS', old_text=told_old, handlers=told_handlers)
+    run('TEXTS: the pair against a base whose handlers hold its new side: passes', 0,
+        '(the base had 2 of the sites moved: 5 bodies pasted back there), the base less 0 cuts (0 lines), 1 text',
+        **texted([told], old_text=SELF_SITES, old_handlers=told_handlers))
+    run('TEXTS: a pair listed at a site that registers no body holding it: fails by name', 1,
+        'fixture, in the bodies it registers: the text pair %r stands 0 times, not once' % told[0],
+        **texted([told], at=0))
+    twice = told_handlers.replace('    ctx.rank = 2;', '    ctx.rank = 2;\n' + told[0])
+    run('TEXTS: a pair whose new side stands twice in its site\'s bodies: fails by name', 1,
+        'fixture ranks, in the bodies it registers: the text pair %r stands 2 times, not once' % told[0],
+        **texted([told], handlers=twice))
+    run('TEXTS: a pair whose new side stands twice in a base: fails by name', 1,
+        'stands 2 times in the base, not at most once', **texted([told], old_text=SELF_SITES, old_handlers=twice))
+    above = ('// Handlers, read anew', '// Handlers')
+    run('TEXTS: a pair whose new side stands outside its site\'s bodies: fails by name', 1,
+        'the text pair %r stands 0 times, not once' % above[0],
+        **texted([told, above], handlers=told_handlers.replace('#include "Handlers.h"\n', '#include "Handlers.h"\n'
+                                                               + above[0] + '\n')))
+    for label, new_line, needle in (
+            ('a pair changing code', told[0].replace('GetId())', 'GetId() + 1)'),
+             'changes code, not a comment or a literal'),
+            ('a pair changing an identifier', told[0].replace('GetId()', 'GetID()'),
+             'changes code, not a comment or a literal'),
+            ('a pair making a literal\'s %u a %s', told[0].replace('%u', '%s'),
+             "changes the literal's conversions (%u -> %s)"),
+            ('a pair adding a conversion to a literal', told[0].replace('%u"', '%u of %s"'),
+             "changes the literal's conversions (%u -> %u, %s)"),
+            ('a pair dropping a conversion from a literal', told[0].replace(' %u"', '"'),
+             "changes the literal's conversions (%u -> none)"),
+            ('a pair spelling a conversion by a \\x escape', told[0].replace('id %u', 'id \\x25u'),
+             'holds a literal whose conversions its spelling does not show')):
+        run('TEXTS: %s: fails by name' % label, 1, needle,
+            **texted([(new_line, told[1])], handlers=SELF_HANDLERS.replace('    Log(ctx.aura->GetId());', new_line)))
+    run('TEXTS: a pair changing a number outside a literal: fails by name', 1,
+        "the text pair '    ctx.rank = 3;' changes code, not a comment or a literal: base '    ctx.rank = 2;'",
+        **texted([told, ('    ctx.rank = 3;', '    ctx.rank = 2;')],
+                 handlers=told_handlers.replace('    ctx.rank = 2;', '    ctx.rank = 3;')))
+    note = ('    // the default, read anew', '    // the default')
+    run('TEXTS: two pairs overlapping: fails by name', 1, 'overlap',
+        **texted([told, note, ([note[0], '    // logs its id'], [note[1], '    // logs its id'])],
+                 handlers=told_handlers.replace(told[0], note[0] + '\n    // logs its id\n' + told[0])))
+    run('TEXTS: a comment block read back from fewer lines, a pair below it: passes', 0,
+        '(0 lines), 2 text pairs read back',
+        **texted([(['    // the default logs its id'], ['    // the default', '    // logs its id']), told],
+                 handlers=told_handlers.replace(told[0], '    // the default logs its id\n' + told[0]),
+                 old_text=told_old.replace('            Log("Thing', '            // the default\n'
+                                           '            // logs its id\n            Log("Thing')))
+    run('TEXTS: a comment changed beside a listed pair in the same body, itself unlisted: fails', 1, 'DIFFERS',
+        **texted([told], handlers=told_handlers.replace(told[0], note[0] + '\n' + told[0]),
+                 old_text=told_old.replace('            Log("Thing', '            // the default\n'
+                                           '            Log("Thing')))
+    run('TEXTS: a pair inside a raw string literal: fails by name', 1, 'does not stand alone',
+        **texted([told, note], handlers=told_handlers.replace(told[0], told[0] + '\n    Log(R"(\n' + note[0]
+                                                              + '\n)");')))
+    run('TEXTS: a pair holding a carriage return inside its line: fails by name', 1,
+        'holds a carriage return inside a line', **texted([told, ('    // a\r    Log(1);', '    // a\r    Log(2);')]))
+    run('TEXTS: a file pair on an include line: fails by name', 1, 'is a directive line',
+        **texted([('#include "B.h"', '#include "A.h"')], at=None, handlers=SELF_HANDLERS, old_text=SELF_OLD,
+                 sites=SELF_SITES.replace('#include "A.h"', '#include "B.h"')))
+    tail = ('    target->Tail(rank); // the tail, read anew', '    target->Tail(rank); // the tail')
+    tail_old = SELF_OLD.replace('    target->Tail(rank);', tail[1])
+    tail_sites = SELF_SITES.replace('    target->Tail(rank);', tail[0])
+    run('TEXTS: a comment changed on an unmoved line, its pair at the file: passes', 0,
+        '(0 lines), 1 text pairs read back',
+        **texted([tail], at=None, handlers=SELF_HANDLERS, old_text=tail_old, sites=tail_sites))
+    run('TEXTS: the comment changed on an unmoved line, no pair: fails', 1, 'DIFFERS', old_text=tail_old,
+        sites=tail_sites)
+    run('TEXTS: the file pair against a base holding its new side: passes', 0, '(0 lines), 1 text pairs read back',
+        **texted([tail], at=None, handlers=SELF_HANDLERS, old_text=tail_sites, old_handlers=SELF_HANDLERS,
+                 sites=tail_sites))
+    run('TEXTS: a file pair whose new side stands twice: fails by name', 1,
+        "the file, off its sites' dispatch lines: the text pair %r stands 2 times, not once" % tail[0],
+        **texted([tail], at=None, handlers=SELF_HANDLERS, old_text=tail_old,
+                 sites=tail_sites.replace(tail[0], tail[0] + '\n' + tail[0])))
+    called = '    if (Dispatch<SelfSite>(GetId(), handlerContext).IsReturn())'
+    run('TEXTS: a file pair on a site\'s dispatch line: fails by name', 1, 'stands 0 times, not once',
+        **texted([(called, called)], at=None, handlers=SELF_HANDLERS, old_text=SELF_OLD))
+    run('TEXTS: a file pair on a line of the handler block appended to the file: fails by name', 1,
+        'stands 0 times, not once',
+        **texted([told], at=None, handlers=None, sites=SELF_BESIDE.replace('    Log(ctx.aura->GetId());', told[0])))
+    run('TEXTS: texts that are not a list of pairs: fails by name', 1, 'the texts None are not a list of text pairs',
+        **texted(None))
 
     # ORIGINALS: a repository of five commits in this order, ORIGINAL first, each named by its spelling
     # padded to a full SHA; the fixture file holds an unrelated line at ORIGINAL that it no longer holds at
