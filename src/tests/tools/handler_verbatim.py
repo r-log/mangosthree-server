@@ -22,7 +22,10 @@ MOVES holds one entry per moved function, with these keys, no other key, and non
       parameter may be spelt `/*name*/` or `/* name */` on either side (a named parameter is not a
       commented-out one). A handler, a sender and a helper returning a value are all this shape. A function
       whose body reads nothing of the session may take none: `<type> <Class>::<Name2>(<p>)`, the base's
-      parameters alone, text for text, none named `session`; its body, moved and at its base (with a rename,
+      parameters alone, text for text, none named `session`; or may name its session commented out,
+      `<type> <Class>::<Name2>(WorldSession& /*session*/)` or `(WorldSession& /*session*/, <p>)` (`/* session */`
+      too; another name in the comment, an unnamed `WorldSession&` and `[[maybe_unused]]` are not this shape),
+      which is read as taking none; either way its body, moved and at its base (with a rename,
       the base's `session` read as <name>), names no `session`, `_player` or `this` in code and names
       `GetPlayer` and `SendPacket` only on another object or class (`sObjectMgr.GetPlayer(guid)`,
       `ObjectAccessor::GetPlayer(guid)`, `bidder->GetSession()->SendPacket(...)`), never bare or through
@@ -208,22 +211,21 @@ entry lists such a static, a static called through the class it moved to naming 
 once at the base, or one no entry at the base moves, that the moving entry puts in another file, or that it
 defines under another class or name, a line beginning with `session.` or a substitution's text after a `.`, `->`
 or `::` ending the line above, `session.` or a substitution's text after a `.`, `->` or `::` and blanks on its
-line, a definition taking no session over a body, moved or at its base, that reads the session (naming the body
-line), an entry with such a definition listing an edit, an accessor or a substitution other than a static called
-through its class or through the class it moved to, a rename of another shape, a rename to a C++ keyword or
-literal, a rename whose base function declares no `session` in its head or body (a name running into
-`WorldSession` declares none) or declares one under `extern`, a rename whose name the base file holds, or the
-new file holds outside the functions renamed to it or other than as a whole word in code, a `session` left in a
-moved line under a rename, a line splice in a function under a rename, an edit or substitution naming the
-rename's name or reading back `session`, a text pair of another shape, holding a line break, a line splice or a
-directive line, changing code (a line pair) or holding a line that is not a comment line or a blank line (a block),
-changing a literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block inside a
-comment, standing other than once (its new side in the moved function, its base side read back in the base
-function) or not alone, overlapping another, or holding an edit's new line, texts that are not a list of pairs,
-a change of another shape, holding a line break or a line splice, changing no code (a comment or literal change
-is a text pair), standing other than once (its new side in the moved function, its base side read back in the
-base function) or not alone, overlapping another pair, or listed as an edit too, changes that are not a list of
-pairs, and an entry holding a key no entry admits or lacking one it needs.
+line, a definition taking no session, or naming it commented out, over a body, moved or at its base, that reads the
+session (naming the body line), an entry with such a definition listing an edit, an accessor or a substitution other
+than a static called through its class or through the class it moved to, a rename of another shape, a rename to a C++
+keyword or literal, a rename whose base function declares no `session` in its head or body (a name running into
+`WorldSession` declares none) or declares one under `extern`, a rename whose name the base file holds, or the new file
+holds outside the functions renamed to it or other than as a whole word in code, a `session` left in a moved line under
+a rename, a line splice in a function under a rename, an edit or substitution naming the rename's name or reading back
+`session`, a text pair of another shape, holding a line break, a line splice or a directive line, changing code (a line
+pair) or holding a line that is not a comment line or a blank line (a block), changing a literal's conversions or a line
+whose literals hold such an escape or such a `%`, ending a block inside a comment, standing other than once (its new
+side in the moved function, its base side read back in the base function) or not alone, overlapping another, or holding
+an edit's new line, texts that are not a list of pairs, a change of another shape, holding a line break or a line
+splice, changing no code (a comment or literal change is a text pair), standing other than once (its new side in the
+moved function, its base side read back in the base function) or not alone, overlapping another pair, or listed as an
+edit too, changes that are not a list of pairs, and an entry holding a key no entry admits or lacking one it needs.
 A carriage return anywhere but before a line break, in any text the proof reads (a file at a base or in the
 working tree, a definition, an edit, a substitution, a text pair, a residue edit's block), fails: a compiler
 ends a line there, and the comment reader does not. The header's `static` is handler_classes.py's to check (a
@@ -283,7 +285,8 @@ except Exception as e:
 SESSION_HEADER = 'src/game/Server/WorldSession.h'
 HANDLERS_DIR = 'src/game/session/handlers'
 
-NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& session(?:, (?P<params>.+))?\)$')
+NEW_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\(WorldSession& (?P<session>session|/\*\s*session\s*\*/)'
+                        r'(?:, (?P<params>.+))?\)$')
 NO_SESSION_HEADER = re.compile(r'(?P<type>\S.*?) (?P<cls>\w+)::\w+\((?P<params>.*)\)$')
 SESSION_READ = re.compile(r'\b(?:session|_player|this)\b|'
                           r'(?<![\w.])(?<!->)(?<!::)(?:WorldSession::)?(?:GetPlayer|SendPacket)\b')
@@ -462,7 +465,8 @@ def check_members(body, members):
 
 def check_reads_session(body, where):
     """A body line (comments and literals blanked) naming `session`, `_player` or `this`, or naming `GetPlayer` or
-    `SendPacket` bare or through `WorldSession::`: the body of a function whose head takes no session."""
+    `SendPacket` bare or through `WorldSession::`: the body of a function whose head takes no session or names it
+    commented out."""
     for n, line in enumerate(blank('\n'.join(body)).split('\n'), 1):
         m = SESSION_READ.search(line)
         if m:
@@ -478,14 +482,16 @@ def statement_start(code, at):
 
 def check_shape(new_header, base_header, rename=None):
     """The new definition line is the base's, `WorldSession::` replaced by a class and the session put first,
-    or put nowhere, its parameters read with `rename` read as `session`; True when it takes the session."""
+    named or commented out, or put nowhere, its parameters read with `rename` read as `session`; True when it
+    takes the session (a session commented out is one not taken)."""
     new, base = NEW_HEADER.match(joined(new_header)), BASE_HEADER.match(joined(base_header))
-    takes = bool(new)
+    first = new.group('session') if new else None
+    takes = first == 'session'
     if not new:
         new = NO_SESSION_HEADER.match(joined(new_header))
-    if not new or (not takes and re.search(r'\bsession\b', new.group('params'))):
-        raise Failure('the definition line is not `<type> <Class>::<Name>(WorldSession& session[, ...])` nor '
-                      '`<type> <Class>::<Name>(...)` taking no session')
+    if not new or (not takes and re.search(r'\bsession\b', new.group('params') or '')):
+        raise Failure('the definition line is not `<type> <Class>::<Name>(WorldSession& session[, ...])`, its '
+                      '`session` named or commented out, nor `<type> <Class>::<Name>(...)` taking no session')
     if new.group('cls') == 'WorldSession':
         raise Failure('the definition line names WorldSession as its class: a handler class is another class')
     if not base:
@@ -498,7 +504,8 @@ def check_shape(new_header, base_header, rename=None):
     params = [PARAM_COMMENT.sub(r'/*\1*/', x or '') for x in (new_params, base.group('params'))]
     if params[0] != params[1]:
         raise Failure('the definition line takes (%s)%s, the base (%s)' % (
-            PARAM_COMMENT.sub(r'/*\1*/', new.group('params') or ''), ' after the session' if takes else '',
+            PARAM_COMMENT.sub(r'/*\1*/', new.group('params') or ''),
+            '' if first is None else ' after the session' if takes else ' after the commented-out session',
             params[1]))
     return takes
 
@@ -1491,6 +1498,25 @@ SELF_MAIL_MOVES = [
          base_header=SELF_MAIL_HEAD, new_header=SELF_MAIL_NEW_HEAD),
 ]
 
+SELF_VOICE_HEAD = 'void WorldSession::HandleVoiceOnOpcode(WorldPacket& recv_data)'
+SELF_VOICE_NEW_HEAD = 'void Fixture::HandleVoiceOn(WorldSession& /*session*/, WorldPacket& recv_data)'
+SELF_VOICE_BASE = '#include "WorldSession.h"\n\n' + SELF_VOICE_HEAD + '''
+{
+    DEBUG_LOG("WORLD: CMSG_CHANNEL_VOICE_ON");
+    recv_data.hexlike();
+    uint32 length = recv_data.ReadBits(8);
+    std::string channelName = recv_data.ReadString(length);
+}
+'''
+
+SELF_VOICE_NEW = (SELF_VOICE_BASE.replace('WorldSession.h', 'session/handlers/combat/Fixture.h')
+                  .replace(SELF_VOICE_HEAD, SELF_VOICE_NEW_HEAD))
+
+SELF_VOICE_MOVES = [
+    dict(base='fixture', base_file='Fixture.cpp', new_file=SELF_NEW_FILE,
+         base_header=SELF_VOICE_HEAD, new_header=SELF_VOICE_NEW_HEAD),
+]
+
 SELF_RENAME_CB_HEAD = ('void WorldSession::HandleReadCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n'
                        '                                      proto::SessionId sessionId, ObjectGuid playerGuid)')
 SELF_RENAME_CB_NEW_HEAD = ('void Fixture::HandleReadCallback(std::unique_ptr<QueryResult> result, uint32 accountId,\n'
@@ -2122,6 +2148,68 @@ def self_test():
           '    bool b = bidder>GetPlayer();')
     reads('a no-session head over GetPlayer after a lone : fails', 'combat/Fixture.cpp, ' + reading % 'GetPlayer',
           '    Player* p = bidder ? 0 :GetPlayer();')
+
+    voice = dict(base=SELF_VOICE_BASE, new=SELF_VOICE_NEW, moves=SELF_VOICE_MOVES)
+    run('a head naming its session commented out over a body reading none pastes back', 0,
+        'IDENTICAL to Fixture.cpp at fixture, byte for byte, with 7 lines pasted back (0 edits)', **voice)
+    spaced = SELF_VOICE_NEW_HEAD.replace('/*session*/', '/* session */')
+    run('a head naming its session commented out with blanks pastes back', 0, 'IDENTICAL to Fixture.cpp at fixture',
+        swap=(SELF_VOICE_NEW_HEAD, spaced), new_header=spaced, **voice)
+    queue_commented = SELF_QUEUE_NEW.replace('WorldSession& session, ', 'WorldSession& /*session*/, ')
+    run('a two-line head naming its session commented out pastes back', 0, 'IDENTICAL to Fixture.cpp at fixture', 0,
+        swap=(SELF_QUEUE_NEW, queue_commented), new_header=queue_commented, **multi)
+    alone = [h.replace('WorldPacket& recv_data', '') for h in (SELF_VOICE_HEAD, SELF_VOICE_NEW_HEAD)]
+    alone[1] = alone[1].replace('/*session*/, ', '/*session*/')
+    run('a head naming its session commented out and nothing else pastes back', 0,
+        'IDENTICAL to Fixture.cpp at fixture', base=SELF_VOICE_BASE.replace(SELF_VOICE_HEAD, alone[0]),
+        new=SELF_VOICE_NEW.replace(SELF_VOICE_NEW_HEAD, alone[1]),
+        moves=[dict(SELF_VOICE_MOVES[0], base_header=alone[0], new_header=alone[1])])
+    logged = '    recv_data.hexlike();\n'
+
+    def commented(label, needle, line, base_line=None):
+        run(label, 1, needle, base=SELF_VOICE_BASE.replace(logged, (base_line or line) + '\n' + logged),
+            new=SELF_VOICE_NEW.replace(logged, line + '\n' + logged), moves=SELF_VOICE_MOVES)
+
+    unread = 'body line 3: "%s": the body reads the session but the head takes none'
+    commented('a head naming its session commented out over a body naming session. fails',
+              'combat/Fixture.cpp, ' + unread % 'session', '    session.Ping();', '    Ping();')
+    commented('a head naming its session commented out over a body naming _player fails',
+              'combat/Fixture.cpp, ' + unread % '_player', '    _player->Ping();')
+    commented('a head naming its session commented out over a body calling GetPlayer() fails',
+              'combat/Fixture.cpp, ' + unread % 'GetPlayer', '    GetPlayer()->Ping();')
+    commented('a head naming its session commented out over a body naming this fails',
+              'combat/Fixture.cpp, ' + unread % 'this', '    Ping(this);')
+    commented('a head naming its session commented out over a base body reading the session fails',
+              'Fixture.cpp at fixture, ' + unread % 'GetPlayer', '    Ping();', '    GetPlayer()->Ping();')
+    run('a head naming its session commented out with a substitution listed fails', 1,
+        'the definition line takes no session, but the entry lists a substitution',
+        substitutions=[('SendStop(session, ', 'SendStop(')], **voice)
+    run('a head naming its session commented out with an edit listed fails', 1,
+        'the definition line takes no session, but the entry lists an edit',
+        edits=[('    recv_data.hexlike();', '    recv_data.hexlike();')], **voice)
+    run('a head naming its session commented out with a rename listed fails', 1,
+        'the entry renames `session`, but the base function names no `session` in code',
+        rename=('session', 'requestSession'), **voice)
+    for label, head, needle in (
+            ('a head taking [[maybe_unused]] WorldSession& session fails',
+             'void Fixture::HandleVoiceOn([[maybe_unused]] WorldSession& session, WorldPacket& recv_data)',
+             'the definition line is not `<type> <Class>::<Name>(WorldSession& session[, ...])`, its `session` '
+             'named or commented out, nor'),
+            ('a head taking an unnamed WorldSession& fails',
+             'void Fixture::HandleVoiceOn(WorldSession&, WorldPacket& recv_data)',
+             'the definition line takes (WorldSession&, WorldPacket& recv_data), the base (WorldPacket& recv_data)'),
+            ('a head commenting out another name than session fails',
+             'void Fixture::HandleVoiceOn(WorldSession& /*s*/, WorldPacket& recv_data)',
+             'the definition line takes (WorldSession& /*s*/, WorldPacket& recv_data), the base (WorldPacket& '
+             'recv_data)'),
+            ('a head naming its session commented out and a session among its parameters fails',
+             'void Fixture::HandleVoiceOn(WorldSession& /*session*/, WorldSession* session)',
+             'named or commented out, nor `<type> <Class>::<Name>(...)` taking no session'),
+            ('a head naming its session commented out over other parameters than its base fails',
+             'void Fixture::HandleVoiceOn(WorldSession& /*session*/, WorldPacket& recvPacket)',
+             'the definition line takes (WorldPacket& recvPacket) after the commented-out session, the base '
+             '(WorldPacket& recv_data)')):
+        run(label, 1, needle, swap=(SELF_VOICE_NEW_HEAD, head), new_header=head, **voice)
     mail_open = [h.replace('auction)', 'auction /*)') for h in (SELF_MAIL_HEAD, SELF_MAIL_NEW_HEAD)]
     run('a no-session head ending inside a comment fails', 1, 'the definition holds a comment or a literal',
         base=SELF_MAIL_BASE.replace(SELF_MAIL_HEAD + '\n{', mail_open[0] + '\n// */ ) { _player->Ping();'),
