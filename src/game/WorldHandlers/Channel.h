@@ -192,7 +192,6 @@ public:
     void UnBan(Player* player, const char* targetName);
     void Password(Player* player, const char* password);
     void SetMode(Player* player, const char* targetName, bool moderator, bool set);
-    void SetOwner(ObjectGuid guid, bool exclaim = true);
     void SetOwner(Player* player, const char* targetName);
     void SendWhoOwner(Player* player);
     void SetModerator(Player* player, const char* targetName) { SetMode(player, targetName, true, true); }
@@ -252,6 +251,7 @@ private:
 
     void SendToAll(WorldPacket* data, ObjectGuid guid = ObjectGuid());
     void SendToOne(WorldPacket* data, ObjectGuid who);
+    void SetOwner(ObjectGuid guid, bool exclaim = true);
 
     bool IsOn(ObjectGuid who) const { return m_players.find(who) != m_players.end(); }
     bool IsBanned(ObjectGuid guid) const { return m_banned.find(guid) != m_banned.end(); }
