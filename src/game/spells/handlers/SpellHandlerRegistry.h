@@ -153,7 +153,15 @@ enum SpellHandlerSite
     /// `Aura::PeriodicTick`, a periodic damage tick, the health-level removals: its `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_PERIODIC_DAMAGE_TICK = 43,
     /// `Aura::PeriodicTick`, a mana-leech tick, its special cases: its `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_PERIODIC_MANA_LEECH_TICK = 44
+    SPELL_HANDLER_SITE_AURA_PERIODIC_MANA_LEECH_TICK = 44,
+    /// `Aura::PeriodicDummyTick`, SPELLFAMILY_GENERIC's `switch (spell->ID)`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_GENERIC = 45,
+    /// `Aura::PeriodicDummyTick`, SPELLFAMILY_MAGE's `switch (spell->ID)`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_MAGE = 46,
+    /// `Aura::PeriodicDummyTick`, SPELLFAMILY_DRUID's `switch (spell->ID)`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_DRUID = 47,
+    /// `Aura::PeriodicDummyTick`, SPELLFAMILY_HUNTER's `switch (spell->ID)`.
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_HUNTER = 48
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

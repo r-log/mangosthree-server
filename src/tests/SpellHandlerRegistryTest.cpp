@@ -29,13 +29,15 @@
 /// sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's, EffectEnergize's,
 /// EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's, EffectWeaponDmg's,
 /// EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits, the generic and five family switches of
-/// EffectDummy, the five of SpellAuraPeriodic.cpp and the eight of SpellAuras.cpp) are checked for their keys, their
+/// EffectDummy, the five of SpellAuraPeriodic.cpp and the twelve of SpellAuras.cpp) are checked for their keys, their
 /// defaults and their contexts,
 /// and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the
 /// Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the
 /// periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default, the
 /// trigger-spell labels that only set the trigger spell id, the Sniper Training ranks on a standing player shape, the
-/// self-cast trigger labels, the health-level removal labels on a creature below full health, the
+/// self-cast trigger labels, the health-level removal labels on a creature below full health, the periodic dummy
+/// tick labels that return before they act (Forsaken Skills, Force of Nature, Mirror Image off its first tick,
+/// Frenzied Regeneration on a creature with no rage), the
 /// energize injector labels on a bare Creature, the 54732 defibrillate roll, which has no failure spell, the
 /// area-target labels on bare Creatures, the cast-check labels on a creature caster, the target-check labels on
 /// creature targets, the weapon-damage and divided school-damage labels on a target list built by hand, the other
@@ -84,7 +86,8 @@
 ///                            AurasHandlers_TheTableRegistersEveryRowOnce,
 ///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault
+///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -113,7 +116,8 @@
 ///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault,
 ///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault
+///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -126,7 +130,8 @@
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault
+///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
 ///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
@@ -161,7 +166,8 @@
 ///                            AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault,
 ///                            AurasHandlers_SniperTrainingCountsDownTheModifierThroughTheAura,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault
+///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
+///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults
 ///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
@@ -173,7 +179,8 @@
 ///                            SpellEffectDummyHandlers_TheHunterSiteHoldsItsFourLabelsAndNoDefault,
 ///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault,
 ///                            AurasHandlers_SniperTrainingCountsDownTheModifierThroughTheAura,
-///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_ThePeriodicDummyTickBodiesReturnWhenThereIsNothingToDo
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -214,7 +221,8 @@
 ///                            AurasHandlers_FeedCapturedAnimalSetsTheTriggerSpell,
 ///                            AurasHandlers_TheTickContextsAliasTheirLocals,
 ///                            AurasHandlers_SniperTrainingCountsDownTheModifierThroughTheAura,
-///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
+///                            AurasHandlers_ThePeriodicDummyTickContextAliasesItsLocals
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
@@ -713,10 +721,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // target-check site's 3 rows and default, the weapon-damage site's 6 rows, the school-damage, trigger-spell
     // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows, the five dummy-effect
     // family sites' 5, 11, 4, 4 and 4 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and five
-    // defaults, and the damage-tick and mana-leech tick sites' 8 and 3 rows and one default.
+    // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, and the four periodic
+    // dummy tick sites' 44, 1, 2 and 2 rows and four defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(642));
-    CHECK_EQ(game.CountDefaults(), std::size_t(18));
+    CHECK_EQ(game.Count(), std::size_t(691));
+    CHECK_EQ(game.CountDefaults(), std::size_t(22));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -1620,8 +1629,8 @@ namespace
 {
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
-    // six dummy-effect sites, the rogue and hunter aura dummy sites, the six trigger-spell aura sites, the two tick
-    // sites and the earlier files' ids.
+    // six dummy-effect sites, the rogue and hunter aura dummy sites, the generic aura dummy apply site, the six
+    // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites and the earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1677,9 +1686,18 @@ namespace
                 registry.Find<AuraPeriodicDamageTickSite>(spellId) != NULL) ||
                (skips(AuraPeriodicManaLeechTickSite::Key) &&
                 registry.Find<AuraPeriodicManaLeechTickSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicDummyTickGenericSite::Key) &&
+                registry.Find<AuraPeriodicDummyTickGenericSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicDummyTickMageSite::Key) &&
+                registry.Find<AuraPeriodicDummyTickMageSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicDummyTickDruidSite::Key) &&
+                registry.Find<AuraPeriodicDummyTickDruidSite>(spellId) != NULL) ||
+               (skips(AuraPeriodicDummyTickHunterSite::Key) &&
+                registry.Find<AuraPeriodicDummyTickHunterSite>(spellId) != NULL) ||
+               (skips(AuraDummyApplyGenericSite::Key) &&
+                registry.Find<AuraDummyApplyGenericSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
-               registry.Find<AuraDummyApplyGenericSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
                registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) != NULL;
     }
@@ -1687,8 +1705,9 @@ namespace
     // The ids a pair of listed sites both register, each site's switch holding the label, with the two sites:
     // Cannibalize, at the dummy-effect targeting site and the generic dummy-effect site; Doom, at the all-enemy-in-area
     // targeting site and the generic trigger-spell aura site; Invisibility, at the periodic-trigger site and the mage
-    // trigger-spell aura site. A listed id held at any other site, a third listed site among them, fails
-    // HeldByAnotherSite.
+    // trigger-spell aura site; Frenzied Regeneration, at the druid trigger-spell aura site and the druid periodic
+    // dummy tick site; Haunting Spirits, at the generic aura dummy apply site and the generic periodic dummy tick
+    // site. A listed id held at any other site, a third listed site among them, fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -1701,6 +1720,8 @@ namespace
         { 20577, SpellTargetEffectDummySite::Key, SpellEffectDummyGenericSite::Key },
         { 31347, SpellTargetAllEnemyInAreaSite::Key, AuraTriggerSpellGenericSite::Key },
         { 66, AuraPeriodicTriggerSite::Key, AuraTriggerSpellMageSite::Key },
+        { 22842, AuraTriggerSpellDruidSite::Key, AuraPeriodicDummyTickDruidSite::Key },
+        { 7057, AuraDummyApplyGenericSite::Key, AuraPeriodicDummyTickGenericSite::Key },
     };
 
     // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
@@ -4292,13 +4313,14 @@ namespace
 
 TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 78 labels at eight sites and six defaults: 84 rows, 78 keys and six defaults, none twice. The generic, mage,
-    // hunter, druid, shaman and custom trigger-spell switches hold 45, 1, 3, 5, 2 and 11; the damage tick's 8 and
-    // the mana leech's 3; the custom and mana-leech switches have no default.
+    // 127 labels at twelve sites and ten defaults: 137 rows, 127 keys and ten defaults, none twice. The generic,
+    // mage, hunter, druid, shaman and custom trigger-spell switches hold 45, 1, 3, 5, 2 and 11; the damage tick's 8
+    // and the mana leech's 3; the generic, mage, druid and hunter periodic dummy tick switches 44, 1, 2 and 2; the
+    // custom and mana-leech switches have no default.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterAurasHandlers(registry), uint32(84));
-    CHECK_EQ(registry.Count(), std::size_t(78));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(6));
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(137));
+    CHECK_EQ(registry.Count(), std::size_t(127));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(10));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellMageSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(AuraTriggerSpellHunterSite::Key), std::size_t(3));
@@ -4307,19 +4329,24 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
     CHECK_EQ(registry.CountAt(AuraPeriodicDamageTickSite::Key), std::size_t(8));
     CHECK_EQ(registry.CountAt(AuraPeriodicManaLeechTickSite::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickGenericSite::Key), std::size_t(44));
+    CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickMageSite::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickDruidSite::Key), std::size_t(2));
+    CHECK_EQ(registry.CountAt(AuraPeriodicDummyTickHunterSite::Key), std::size_t(2));
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterAurasHandlers(registry), uint32(84));
-    CHECK_EQ(registry.Count(), std::size_t(78));
-    CHECK_EQ(registry.CountDefaults(), std::size_t(6));
+    CHECK_EQ(RegisterAurasHandlers(registry), uint32(137));
+    CHECK_EQ(registry.Count(), std::size_t(127));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(10));
 
     // The game's table holds these with the other files' 564 rows and 12 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(642));
-    CHECK_EQ(game.CountDefaults(), std::size_t(18));
+    CHECK_EQ(game.Count(), std::size_t(691));
+    CHECK_EQ(game.CountDefaults(), std::size_t(22));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
     CHECK_EQ(game.CountAt(AuraPeriodicDamageTickSite::Key), std::size_t(8));
+    CHECK_EQ(game.CountAt(AuraPeriodicDummyTickGenericSite::Key), std::size_t(44));
 }
 
 TEST(AurasHandlers_TheTriggerSpellGenericSiteHoldsItsLabelsAndTheDefault)
@@ -4702,4 +4729,133 @@ TEST(AurasHandlers_SniperTrainingCountsDownTheModifierThroughTheAura)
     CHECK(game.Dispatch<AuraTriggerSpellHunterSite>(53302, ctx).IsReturn());
     CHECK_EQ(BitsThatDiffer(storage, expected), 0);
     CHECK_EQ(locals.triggerSpellId, uint32(0));
+}
+
+namespace
+{
+    // The labels of the four periodic dummy tick sites, each in its switch's order.
+    uint32 const PERIODIC_DUMMY_TICK_GENERIC_IDS[] =
+    {
+        7054, 7057, 30019, 42621, 42919, 46041, 46371, 48630, 59275, 49555, 59807, 50789, 59860, 50792, 59859, 50801,
+        59858, 50824, 52441, 53035, 53036, 53037, 53520, 55592, 61968, 62018, 62019, 62038, 62039, 62566, 62717, 63050,
+        63382, 64101, 64217, 64412, 65272, 66118, 67630, 68646, 68647, 66798, 68875, 68876
+    };
+    uint32 const PERIODIC_DUMMY_TICK_MAGE_IDS[] = { 55342 };
+    uint32 const PERIODIC_DUMMY_TICK_DRUID_IDS[] = { 22842, 33831 };
+    uint32 const PERIODIC_DUMMY_TICK_HUNTER_IDS[] = { 53511, 53512 };
+}
+
+TEST(AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults)
+{
+    SpellHandlerRegistry registry;
+    RegisterAurasHandlers(registry);
+
+    // The generic, mage, druid and hunter switches: 44, 1, 2 and 2 labels in 33, 1, 2 and 1 bodies.
+    CheckSiteLabels<AuraPeriodicDummyTickGenericSite>(registry, PERIODIC_DUMMY_TICK_GENERIC_IDS, 33);
+    CheckSiteLabels<AuraPeriodicDummyTickMageSite>(registry, PERIODIC_DUMMY_TICK_MAGE_IDS, 1);
+    CheckSiteLabels<AuraPeriodicDummyTickDruidSite>(registry, PERIODIC_DUMMY_TICK_DRUID_IDS, 2);
+    CheckSiteLabels<AuraPeriodicDummyTickHunterSite>(registry, PERIODIC_DUMMY_TICK_HUNTER_IDS, 1);
+
+    // The shared bodies: each normal and heroic pair, the three Anub'ar summons, the four Leeching Swarms, the two
+    // Wailing Souls and the two Feeding Frenzy ranks; the iron dwarf, iron trogg and ooze summons each have their own.
+    typedef SpellHandler<AuraPeriodicDummyTickGenericSite>::Function Body;
+    static uint32 const pairs[][2] =
+    {
+        { 48630, 59275 }, { 49555, 59807 }, { 50789, 59860 }, { 50792, 59859 }, { 50801, 59858 }, { 53035, 53036 },
+        { 53035, 53037 }, { 66118, 67630 }, { 66118, 68646 }, { 66118, 68647 }, { 68875, 68876 }
+    };
+    for (auto const& pair : pairs)
+    {
+        CHECK(registry.Find<AuraPeriodicDummyTickGenericSite>(pair[1])
+              == registry.Find<AuraPeriodicDummyTickGenericSite>(pair[0]));
+    }
+    Body dwarf = registry.Find<AuraPeriodicDummyTickGenericSite>(50789);
+    CHECK(registry.Find<AuraPeriodicDummyTickGenericSite>(50792) != dwarf);
+    CHECK(registry.Find<AuraPeriodicDummyTickGenericSite>(50801) != dwarf);
+    CHECK(registry.Find<AuraPeriodicDummyTickGenericSite>(50801)
+          != registry.Find<AuraPeriodicDummyTickGenericSite>(50792));
+    CHECK(registry.Find<AuraPeriodicDummyTickHunterSite>(53512)
+          == registry.Find<AuraPeriodicDummyTickHunterSite>(53511));
+
+    // Frenzied Regeneration is a key here and at the druid trigger-spell aura site; Haunting Spirits here and at the
+    // generic aura dummy apply site; neither at a third site.
+    CHECK(SharedWith(22842, AuraPeriodicDummyTickDruidSite::Key) == AuraTriggerSpellDruidSite::Key);
+    CHECK(SpellHandlerRegistry::Game().Find<AuraTriggerSpellDruidSite>(22842) != NULL);
+    CHECK(SharedWith(7057, AuraPeriodicDummyTickGenericSite::Key) == AuraDummyApplyGenericSite::Key);
+    CHECK(SpellHandlerRegistry::Game().Find<AuraDummyApplyGenericSite>(7057) != NULL);
+
+    // Each switch's `default: break;` is none of its bodies and answers Continue for an id it never held, leaving the
+    // locals as they were.
+    SpellEntry const* spell = NULL;
+    Unit* target = NULL;
+    AuraPeriodicDummyTickContext ctx(NULL, spell, target);
+    CHECK(registry.Dispatch<AuraPeriodicDummyTickGenericSite>(12345, ctx).IsContinue());
+    CHECK(registry.Dispatch<AuraPeriodicDummyTickMageSite>(12345, ctx).IsContinue());
+    CHECK(registry.Dispatch<AuraPeriodicDummyTickDruidSite>(12345, ctx).IsContinue());
+    CHECK(registry.Dispatch<AuraPeriodicDummyTickHunterSite>(12345, ctx).IsContinue());
+    CHECK(spell == NULL);
+    CHECK(target == NULL);
+    std::set<Body> generic;
+    for (uint32 spellId : PERIODIC_DUMMY_TICK_GENERIC_IDS)
+    {
+        generic.insert(registry.Find<AuraPeriodicDummyTickGenericSite>(spellId));
+    }
+    CHECK_EQ(generic.count(registry.FindDefault<AuraPeriodicDummyTickGenericSite>()), std::size_t(0));
+    CHECK(registry.FindDefault<AuraPeriodicDummyTickMageSite>() != registry.Find<AuraPeriodicDummyTickMageSite>(55342));
+    for (uint32 spellId : PERIODIC_DUMMY_TICK_DRUID_IDS)
+    {
+        CHECK(registry.FindDefault<AuraPeriodicDummyTickDruidSite>()
+              != registry.Find<AuraPeriodicDummyTickDruidSite>(spellId));
+    }
+    CHECK(registry.FindDefault<AuraPeriodicDummyTickHunterSite>()
+          != registry.Find<AuraPeriodicDummyTickHunterSite>(53511));
+}
+
+TEST(AurasHandlers_ThePeriodicDummyTickContextAliasesItsLocals)
+{
+    alignas(16) static unsigned char objects[3][16];
+    Aura* aura = reinterpret_cast<Aura*>(objects[0]);
+    SpellEntry const* spell = ObjectCombatSpell(0, 7054);
+    Unit* target = reinterpret_cast<Unit*>(objects[1]);
+    AuraPeriodicDummyTickContext ctx(aura, spell, target);
+    CHECK(ctx.aura == aura);
+    CHECK(&ctx.spell == &spell);
+    CHECK(&ctx.target == &target);
+    spell = ObjectCombatSpell(1, 55342);                        // the function's locals are read where they stand
+    CHECK_EQ(ctx.spell->ID, uint32(55342));
+    target = reinterpret_cast<Unit*>(objects[2]);
+    CHECK(ctx.target == reinterpret_cast<Unit*>(objects[2]));
+}
+
+TEST(AurasHandlers_ThePeriodicDummyTickBodiesReturnWhenThereIsNothingToDo)
+{
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+
+    // Forsaken Skills and Force of Nature only return; they read neither the aura nor the target.
+    SpellEntry const* spell = NULL;
+    Unit* target = NULL;
+    AuraPeriodicDummyTickContext bare(NULL, spell, target);
+    CHECK(game.Dispatch<AuraPeriodicDummyTickGenericSite>(7054, bare).IsReturn());
+    CHECK(game.Dispatch<AuraPeriodicDummyTickDruidSite>(33831, bare).IsReturn());
+
+    // Mirror Image acts on the aura's first tick only: off it the body returns and leaves the aura as it is.
+    AuraStorage storage = {};
+    Aura* aura = reinterpret_cast<Aura*>(storage.bytes);
+    AuraStorage const expected = storage;
+    AuraPeriodicDummyTickContext mirror(aura, spell, target);
+    CHECK(game.Dispatch<AuraPeriodicDummyTickMageSite>(55342, mirror).IsReturn());
+    CHECK_EQ(BitsThatDiffer(storage, expected), 0);
+
+    // Frenzied Regeneration converts rage only: on a creature whose power is mana it returns and leaves it as it is.
+    ValuedCreature creature;
+    creature.SetUInt32Value(UNIT_FIELD_HEALTH, 500);
+    creature.SetUInt32Value(UNIT_FIELD_MAXHEALTH, 1000);
+    CHECK(creature.GetPowerType() == POWER_MANA);
+    target = &creature;
+    AuraPeriodicDummyTickContext rage(aura, spell, target);
+    CHECK(game.Dispatch<AuraPeriodicDummyTickDruidSite>(22842, rage).IsReturn());
+    CHECK_EQ(creature.GetHealth(), uint32(500));
+    CHECK(creature.GetPowerType() == POWER_MANA);
+    CHECK_EQ(BitsThatDiffer(storage, expected), 0);
+    CHECK(target == &creature);
 }

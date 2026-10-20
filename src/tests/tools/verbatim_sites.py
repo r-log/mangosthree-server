@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '5c8a3dccb'
+BASE = 'a7de2b04e'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -1867,6 +1867,151 @@ SITES = {
                 32960: '                case 32960:                                 // Mark of Kazzak',
                 21056: '                case 21056:                                 // Mark of Kazzak',
                 31447: '                case 31447:                                 // Mark of Kaz\'rogal'},
+        }, {
+            'name': 'PeriodicDummyTick, SPELLFAMILY_GENERIC (switch (spell->ID))',
+            'dispatch': [
+                '            AuraPeriodicDummyTickContext ctx(this, spell, target);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicDummyTickGenericSite>(spell->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (spell->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraPeriodicDummyTickGenericSite',
+            'context': 'AuraPeriodicDummyTickContext',
+            'live_outs': ['spell', 'target'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.spell', 'spell'), ('ctx.target', 'target'),
+                              ('ctx.aura->GetAuraTicks()', 'GetAuraTicks()'), ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetHolder()', 'GetHolder()'), ('ctx.aura->GetId()', 'GetId()'),
+                              ('ctx.aura->GetModifier()->', 'm_modifier.'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                7054: '                case 7054:',
+                7057: '                case 7057:                                  // Haunting Spirits',
+                30019: '                case 30019:                                 // Control Piece',
+                42621: '                case 42621:                                 // Fire Bomb',
+                42919: '                case 42919:                                 // Tricky Treat',
+                46041: '                case 46041:                                 // Summon Blood Elves Periodic',
+                46371: '                case 46371:                                 // Ice Spear Control Aura',
+                48630: '                case 48630:                                 // Summon Gauntlet Mobs Periodic',
+                59275: '                case 59275:                                 '
+                       '// Below may need some adjustment, pattern for amount of summon and where is not verified 100% '
+                       '(except for odd/even tick)',
+                49555: '                case 49555:                                 '
+                       '// Corpse Explode (Drak\'tharon Keep - Trollgore)',
+                59807: '                case 59807:                                 // Corpse Explode (heroic)',
+                50789: '                case 50789:                                 '
+                       '// Summon iron dwarf (left or right)',
+                59860: '                case 59860:',
+                50792: '                case 50792:                                 '
+                       '// Summon iron trogg (left or right)',
+                59859: '                case 59859:',
+                50801: '                case 50801:                                 '
+                       '// Summon malformed ooze (left or right)',
+                59858: '                case 59858:',
+                50824: '                case 50824:                                 // Summon earthen dwarf',
+                52441: '                case 52441:                                 // Cool Down',
+                53035: '                case 53035:                                 '
+                       '// Summon Anub\'ar Champion Periodic (Azjol Nerub)',
+                53036: '                case 53036:                                 '
+                       '// Summon Anub\'ar Necromancer Periodic (Azjol Nerub)',
+                53037: '                case 53037:                                 '
+                       '// Summon Anub\'ar Crypt Fiend Periodic (Azjol Nerub)',
+                53520: '                case 53520:                                 // Carrion Beetles',
+                55592: '                case 55592:                                 // Clean',
+                61968: '                case 61968:                                 // Flash Freeze',
+                62018: '                case 62018:                                 // Collapse',
+                62019: '                case 62019:                                 // Rune of Summoning',
+                62038: '                case 62038:                                 // Biting Cold',
+                62039: '                case 62039:                                 // Biting Cold',
+                62566: '                case 62566:                                 // Healthy Spore Summon Periodic',
+                62717: '                case 62717:                                 // Slag Pot',
+                63050: '                case 63050:                                 // Sanity',
+                63382: '                case 63382:                                 // Rapid Burst',
+                64101: '                case 64101:                                 // Defend',
+                64217: '                case 64217:                                 // Overcharged',
+                64412: '                case 64412:                                 // Phase Punch',
+                65272: '                case 65272:                                 // Shatter Chest',
+                66118: '                case 66118:                                 // Leeching Swarm',
+                67630: '                case 67630:                                 // Leeching Swarm',
+                68646: '                case 68646:                                 // Leeching Swarm',
+                68647: '                case 68647:                                 // Leeching Swarm',
+                66798: '                case 66798:                                 // Death\'s Respite',
+                68875: '                case 68875:                                 // Wailing Souls',
+                68876: '                case 68876:                                 // Wailing Souls'},
+        }, {
+            'name': 'PeriodicDummyTick, SPELLFAMILY_MAGE (switch (spell->ID))',
+            'dispatch': [
+                '            AuraPeriodicDummyTickContext ctx(this, spell, target);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicDummyTickMageSite>(spell->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (spell->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraPeriodicDummyTickMageSite',
+            'context': 'AuraPeriodicDummyTickContext',
+            'live_outs': ['spell', 'target'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.aura->GetAuraTicks()', 'GetAuraTicks()'), ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetSpellProto()', 'GetSpellProto()'),
+                              ('ctx.aura->GetEffIndex()', 'm_effIndex'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                55342: '                case 55342:                                 // Mirror Image'},
+        }, {
+            'name': 'PeriodicDummyTick, SPELLFAMILY_DRUID (switch (spell->ID))',
+            'dispatch': [
+                '            AuraPeriodicDummyTickContext ctx(this, spell, target);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicDummyTickDruidSite>(spell->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (spell->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraPeriodicDummyTickDruidSite',
+            'context': 'AuraPeriodicDummyTickContext',
+            'live_outs': ['spell', 'target'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.spell', 'spell'), ('ctx.target', 'target'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                22842: '                case 22842:',
+                33831: '                case 33831:'},
+        }, {
+            'name': 'PeriodicDummyTick, SPELLFAMILY_HUNTER (switch (spell->ID))',
+            'dispatch': [
+                '            AuraPeriodicDummyTickContext ctx(this, spell, target);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicDummyTickHunterSite>(spell->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (spell->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraPeriodicDummyTickHunterSite',
+            'context': 'AuraPeriodicDummyTickContext',
+            'live_outs': ['spell', 'target'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.spell', 'spell'), ('ctx.target', 'target'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                53511: '                case 53511:',
+                53512: '                case 53512:'},
         }],
     },
 }

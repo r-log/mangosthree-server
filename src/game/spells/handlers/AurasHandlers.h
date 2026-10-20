@@ -167,6 +167,53 @@ struct AuraPeriodicManaLeechTickSite
     typedef AuraPeriodicManaLeechTickContext Context;
 };
 
+/// What the bodies of `Aura::PeriodicDummyTick`'s switches read: the aura and the function's locals.
+struct AuraPeriodicDummyTickContext
+{
+    AuraPeriodicDummyTickContext(Aura* thisAura, SpellEntry const* const& spellLocal, Unit*& targetLocal)
+        : aura(thisAura), spell(spellLocal), target(targetLocal) {}
+
+    Aura* const aura;               ///< `this` in the case bodies
+    SpellEntry const* const& spell; ///< the function's local `SpellEntry const* spell`, the aura's spell entry
+    Unit*& target;                  ///< the function's local `Unit* target`, the aura's target
+};
+
+/// `Aura::PeriodicDummyTick`, SPELLFAMILY_GENERIC's `switch (spell->ID)`: each label returns from the member; the
+/// `default:` goes on to the drink and Prey on the Weak code.
+struct AuraPeriodicDummyTickGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_GENERIC;
+    typedef void Value;
+    typedef AuraPeriodicDummyTickContext Context;
+};
+
+/// `Aura::PeriodicDummyTick`, SPELLFAMILY_MAGE's `switch (spell->ID)`: the label returns from the member; the
+/// `default:` does nothing.
+struct AuraPeriodicDummyTickMageSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_MAGE;
+    typedef void Value;
+    typedef AuraPeriodicDummyTickContext Context;
+};
+
+/// `Aura::PeriodicDummyTick`, SPELLFAMILY_DRUID's `switch (spell->ID)`: each label returns from the member; the
+/// `default:` does nothing.
+struct AuraPeriodicDummyTickDruidSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_DRUID;
+    typedef void Value;
+    typedef AuraPeriodicDummyTickContext Context;
+};
+
+/// `Aura::PeriodicDummyTick`, SPELLFAMILY_HUNTER's `switch (spell->ID)` after the Explosive Shot test: each label
+/// returns from the member; the `default:` does nothing.
+struct AuraPeriodicDummyTickHunterSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_HUNTER;
+    typedef void Value;
+    typedef AuraPeriodicDummyTickContext Context;
+};
+
 /// Registers every `SpellAuras.cpp` handler on `registry` (defined in AurasHandlers.cpp).
 /// Returns the number of rows it registered, a site's `default:` counting as one; a row whose key was taken,
 /// or a second default at a site, does not change the table, so a caller that registers on an empty table
