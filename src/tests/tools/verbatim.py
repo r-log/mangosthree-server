@@ -289,7 +289,7 @@ import tempfile
 import threading
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from case_labels import blank  # noqa: E402  (the same comment/literal blanking as the ratchet)
+from case_labels import blank, digit_separator, raw_prefix_start  # noqa: E402  (the ratchet's reading)
 import split_gate  # noqa: E402
 
 # The names verbatim_sites.py assigns; split_gate.py holds the split.
@@ -401,6 +401,141 @@ def default_function(lines, traits):
     if len(found) != 1:
         raise Failure('the default of %s registered %d times' % (traits, len(found)))
     return found[0]
+
+
+SPLICE = re.compile(r'\\[ \t]*\r?\Z')
+CONVERSION = re.compile(r"%(?:(%)|[-+ #0']*(\*|\d+)?(?:\.(\*|\d*))?(hh|h|ll|l|j|z|t|L|q|I64|I32|I)?"
+                        r"([diouxXeEfFgGaAcspn])|(.?))", re.S)
+NUMERIC_ESCAPE = re.compile(r'(?<!\\)(?:\\\\)*\\[0-7xuU]')
+
+
+def tokens(text):
+    """[(kind, opening, inside, closing)] of `text`, read as blank() reads it: 'code' (its text the opening),
+    'char' (a character literal, whole, the opening), 'comment' and 'string' (a string literal, a prefix before
+    its quote read as code), each with its delimiters apart from the text inside them."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        c = text[i]
+        raw = re.match(r'R"([^()\\\s]{0,16})\(', text[i:]) if c == 'R' else None
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            j = n if j < 0 else j
+            out.append(('comment', '//', text[i + 2:j], ''))
+            i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            out.append(('comment', '/*', text[i + 2:n if j < 0 else j], '' if j < 0 else '*/'))
+            i = n if j < 0 else j + 2
+        elif raw and raw_prefix_start(text, i) is not None:
+            end = ')' + raw.group(1) + '"'
+            j = text.find(end, i + raw.end())
+            out.append(('string', raw.group(0), text[i + raw.end():n if j < 0 else j], '' if j < 0 else end))
+            i = n if j < 0 else j + len(end)
+        elif c == '"' or (c == "'" and not digit_separator(text, i)):
+            j = i + 1
+            while j < n and text[j] != c and text[j] != '\n':
+                j += 2 if text[j] == '\\' else 1
+            end = min(j + 1, n)
+            if c == "'":
+                out.append(('char', text[i:end], '', ''))
+            else:
+                out.append(('string', c, text[i + 1:min(j, n)], text[j] if j < n else ''))
+            i = end
+        else:
+            if out and out[-1][0] == 'code':
+                out[-1] = ('code', out[-1][1] + c, '', '')
+            else:
+                out.append(('code', c, '', ''))
+            i += 1
+    if ''.join(t[1] if t[0] == 'code' else re.sub(r'[^\n]', ' ', ''.join(t[1:])) for t in out) != blank(text):
+        raise Failure('the text %r is not read as the comment reader reads it' % text)
+    return out
+
+
+def text_read(text):
+    """`text` with each comment's text and each string literal's contents read as one mark between its
+    delimiters, code and character literals as they are; and the string literals' contents, in order."""
+    found = tokens(text)
+    return (''.join(t[1] + '\0' + t[3] if t[0] in ('comment', 'string') else t[1] for t in found),
+            [t[2] for t in found if t[0] == 'string'])
+
+
+def conversions(literal):
+    """The `%` conversions of a literal's text, in order, each read as its width and precision stars, its length
+    modifier and its conversion character (`%%` is none; a `%` starting no conversion is read as its text)."""
+    found = []
+    for m in CONVERSION.finditer(literal):
+        if m.group(1):
+            continue
+        if m.group(5):
+            found.append('%' + ('*' if m.group(2) == '*' else '') + ('.*' if m.group(3) == '*' else '')
+                         + (m.group(4) or '') + m.group(5))
+        else:
+            found.append('%' + m.group(6))
+    return found
+
+
+def read_texts(entry):
+    """[(new lines, base lines)] of an entry's texts, a list of pairs: each (new line, base line), or (new block,
+    base block), a block one or more lines; no line holds a line break or ends in a line splice. A line pair
+    reads the same with each comment's text and each string literal's contents read as one mark, and each string
+    literal keeps its conversions; a block is comment lines and blank lines only, and ends outside any comment."""
+    found = []
+    listed = entry.get('texts', [])
+    if not isinstance(listed, (tuple, list)):
+        raise Failure('the texts %r are not a list of text pairs' % (listed,))
+    for t in listed:
+        pair = isinstance(t, (tuple, list)) and len(t) == 2
+        if pair and all(isinstance(x, str) for x in t):
+            new, base, block = [t[0]], [t[1]], False
+        elif pair and all(isinstance(x, (tuple, list)) and x and all(isinstance(y, str) for y in x) for x in t):
+            new, base, block = list(t[0]), list(t[1]), True
+        else:
+            raise Failure('the text pair %r is not (new line, base line) nor (new block, base block), a block one '
+                          'or more lines' % (t,))
+        what = 'the text pair %r' % new[0]
+        if any('\n' in x for x in new + base):
+            raise Failure('%s holds a line break inside a line: a block is a list of lines' % what)
+        if any(SPLICE.search(x) for x in new + base):
+            raise Failure('%s ends a line in a line splice: every line of a text pair is read alone' % what)
+        if block:
+            for side in (new, base):
+                text = '\n'.join(side)
+                kept = ''.join(re.sub(r'[^\n]', ' ', ''.join(x[1:])) if x[0] == 'comment' else ''.join(x[1:])
+                               for x in tokens(text))
+                code = [x for x, k in zip(side, kept.split('\n')) if k.strip()]
+                if code:
+                    raise Failure('%s is a block holding a line that is not a comment line or a blank line: %r' % (
+                        what, code[0]))
+                if not blank(text + '\nx').endswith('x'):
+                    raise Failure('%s is a block ending inside a comment' % what)
+        else:
+            (new_code, new_literals), (base_code, base_literals) = text_read(new[0]), text_read(base[0])
+            if new_code != base_code:
+                raise Failure('%s changes code, not a comment or a literal: base %r' % (what, base[0]))
+            unread = [x for x in base_literals + new_literals if NUMERIC_ESCAPE.search(x)
+                      or any(m.group(6) is not None for m in CONVERSION.finditer(x))]
+            if new_literals != base_literals and unread:
+                raise Failure('%s holds a literal whose conversions its spelling does not show (a numeric or '
+                              'universal-character escape, or a %% that starts no conversion): base %r' % (
+                                  what, base[0]))
+            for a, b in zip(base_literals, new_literals):
+                if conversions(a) != conversions(b):
+                    raise Failure("%s changes the literal's conversions (%s -> %s): base %r" % (
+                        what, ', '.join(conversions(a)) or 'none', ', '.join(conversions(b)) or 'none', base[0]))
+        found.append((new, base))
+    return found
+
+
+def stands_alone(lines, a, b):
+    """No comment or literal opens or closes across an edge of lines[a:b]: the lines from a on read the same
+    alone as in place, the block read alone ends outside any comment or literal, and no line splice joins
+    it to the line before or the line after."""
+    if (a and SPLICE.search(lines[a - 1])) or (b > a and SPLICE.search(lines[b - 1])):
+        return False
+    if lines[a:] and blank('\n'.join(lines[a:])).split('\n') != blank('\n'.join(lines)).split('\n')[a:]:
+        return False
+    return blank('\n'.join(lines[a:b] + ['x'])).endswith('x')
 
 
 def handler_body(lines, function, context, value='void'):
