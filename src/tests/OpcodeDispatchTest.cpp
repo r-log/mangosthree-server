@@ -53,7 +53,13 @@
 /// read the player, sending nothing. With members on their sessions, the set-owner row refuses a
 /// member who is not the owner and a player who never joined, each told so and neither changing the
 /// owner or the member list, and hands the channel over for the owner; the unmoderator row removes
-/// the moderator flag of the member the client names. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name and an
+/// the moderator flag of the member the client names. The CMSG_CHANNEL_MUTE, CMSG_CHANNEL_UNMUTE and
+/// CMSG_CHANNEL_UNBAN rows read the bytes the client writes for them (UserClientChatChannelMute::Put,
+/// UserClientChatChannelUnmute::Put and UserClientChatChannelUnban::Put) to their end and, the name being
+/// empty, return before they read the player, sending nothing; with members on their sessions, the mute
+/// row sets and the unmute row clears the mute flag of the member the client names, the unban row lifts
+/// the ban of the player the client names, and a member who is not a moderator is told so by each of
+/// the three and changes nothing. The CMSG_ADD_FRIEND row reads an add-friend request of an empty name and an
 /// empty note to its end and, the name being empty, returns before it reads the player, sending
 /// nothing. The CMSG_GMTICKET_SYSTEMSTATUS row, given an empty packet on a session with no player,
 /// answers with one SMSG_GMTICKET_SYSTEMSTATUS carrying whether the ticket system accepts tickets.
@@ -174,6 +180,39 @@ namespace
     WorldPacket UnmoderatorRequest(const char* channel, const char* name)
     {
         WorldPacket request(CMSG_CHANNEL_UNMODERATOR);
+        request.WriteBits(std::strlen(name), 7);
+        request.WriteBits(std::strlen(channel), 8);
+        request.WriteStringData(channel);
+        request.WriteStringData(name);
+        return request;
+    }
+
+    // The bytes UserClientChatChannelMute::Put writes: channel length (8 bits), name length (7 bits), the channel, the name.
+    WorldPacket MuteRequest(const char* channel, const char* name)
+    {
+        WorldPacket request(CMSG_CHANNEL_MUTE);
+        request.WriteBits(std::strlen(channel), 8);
+        request.WriteBits(std::strlen(name), 7);
+        request.WriteStringData(channel);
+        request.WriteStringData(name);
+        return request;
+    }
+
+    // The bytes UserClientChatChannelUnmute::Put writes: channel length (8 bits), name length (7 bits), the channel, the name.
+    WorldPacket UnmuteRequest(const char* channel, const char* name)
+    {
+        WorldPacket request(CMSG_CHANNEL_UNMUTE);
+        request.WriteBits(std::strlen(channel), 8);
+        request.WriteBits(std::strlen(name), 7);
+        request.WriteStringData(channel);
+        request.WriteStringData(name);
+        return request;
+    }
+
+    // The bytes UserClientChatChannelUnban::Put writes: name length (7 bits), channel length (8 bits), the channel, the name.
+    WorldPacket UnbanRequest(const char* channel, const char* name)
+    {
+        WorldPacket request(CMSG_CHANNEL_UNBAN);
         request.WriteBits(std::strlen(name), 7);
         request.WriteBits(std::strlen(channel), 8);
         request.WriteStringData(channel);
@@ -976,6 +1015,63 @@ TEST(OpcodeDispatch_ChannelUnmoderatorRowReadsTheClientLayoutAndReturnsBeforeAny
     session.SetSocketlessSink(nullptr, nullptr);
 }
 
+TEST(OpcodeDispatch_ChannelMuteRowReadsTheClientLayoutAndReturnsBeforeAnyPlayerRead)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket request = MuteRequest("wave12", "");
+    CHECK_HEX(request.contents(), request.size(), "0600776176653132");
+
+    opcodeTable[CMSG_CHANNEL_MUTE].handler(session, request);
+
+    CHECK_EQ(request.rpos(), size_t(8));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelUnmuteRowReadsTheClientLayoutAndReturnsBeforeAnyPlayerRead)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket request = UnmuteRequest("wave12", "");
+    CHECK_HEX(request.contents(), request.size(), "0600776176653132");
+
+    opcodeTable[CMSG_CHANNEL_UNMUTE].handler(session, request);
+
+    CHECK_EQ(request.rpos(), size_t(8));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelUnbanRowReadsTheClientLayoutAndReturnsBeforeAnyPlayerRead)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket request = UnbanRequest("wave12", "");
+    CHECK_HEX(request.contents(), request.size(), "000c776176653132");
+
+    opcodeTable[CMSG_CHANNEL_UNBAN].handler(session, request);
+
+    CHECK_EQ(request.rpos(), size_t(8));
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
 TEST(OpcodeDispatch_ChannelSetOwnerRowRefusesANonOwnerAndANonMemberAndObeysTheOwner)
 {
     InitializeOpcodes();
@@ -1076,6 +1172,179 @@ TEST(OpcodeDispatch_ChannelUnmoderatorRowRemovesTheModeratorTheClientNames)
     }
     alphaSession.SetSocketlessSink(nullptr, nullptr);
     bravoSession.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelMuteRowMutesTheMemberTheClientNamesForAModeratorOnly)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> toAlpha, toBravo;
+    WorldSession alphaSession(1, "alpha", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession bravoSession(2, "bravo", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    alphaSession.SetSocketlessSink(&CapturePacket, &toAlpha);
+    bravoSession.SetSocketlessSink(&CapturePacket, &toBravo);
+    {
+        ChannelMember alpha(alphaSession, 7121, "Alpha");
+        ChannelMember bravo(bravoSession, 7122, "Bravo");
+        Channel* channel = channelMgr(ALLIANCE)->GetJoinChannel("mute12", 0);
+        channel->Join(&alpha, "");
+        channel->Join(&bravo, "");
+        REQUIRE(channel->GetNumPlayers() == 2);
+        size_t const alphaHeard = toAlpha.size();
+        size_t const bravoHeard = toBravo.size();
+
+        // A member who is not a moderator is told so; no flag changes and nobody else hears of it.
+        WorldPacket fromBravo = MuteRequest("mute12", "Alpha");
+        opcodeTable[CMSG_CHANNEL_MUTE].handler(bravoSession, fromBravo);
+        CHECK_EQ(fromBravo.rpos(), fromBravo.size());
+        REQUIRE(toBravo.size() == bravoHeard + 1);
+        CHECK_EQ(Notice(toBravo.back()).opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(Notice(toBravo.back()).type, uint8(CHAT_NOT_MODERATOR_NOTICE));
+        CHECK_STR(Notice(toBravo.back()).channel, "mute12");
+        CHECK_EQ(toAlpha.size(), alphaHeard);
+
+        // The owner's request sets the named member's mute flag, and every member hears the mode change.
+        WorldPacket fromAlpha = MuteRequest("mute12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_MUTE].handler(alphaSession, fromAlpha);
+        CHECK_EQ(fromAlpha.rpos(), fromAlpha.size());
+        REQUIRE(toAlpha.size() == alphaHeard + 1);
+        REQUIRE(toBravo.size() == bravoHeard + 2);
+        Notice const heard(toBravo.back());
+        CHECK_EQ(heard.opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(heard.type, uint8(CHAT_MODE_CHANGE_NOTICE));
+        CHECK_STR(heard.channel, "mute12");
+        CHECK(heard.guid == bravo.GetObjectGuid());
+        CHECK_EQ(heard.oldFlags & 0x08, 0);
+        CHECK_EQ(heard.newFlags & 0x08, 0x08);
+        CHECK_EQ(Notice(toAlpha.back()).type, uint8(CHAT_MODE_CHANGE_NOTICE));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+    }
+    alphaSession.SetSocketlessSink(nullptr, nullptr);
+    bravoSession.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelUnmuteRowUnmutesTheMemberTheClientNamesForAModeratorOnly)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> toAlpha, toBravo;
+    WorldSession alphaSession(1, "alpha", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession bravoSession(2, "bravo", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    alphaSession.SetSocketlessSink(&CapturePacket, &toAlpha);
+    bravoSession.SetSocketlessSink(&CapturePacket, &toBravo);
+    {
+        ChannelMember alpha(alphaSession, 7131, "Alpha");
+        ChannelMember bravo(bravoSession, 7132, "Bravo");
+        Channel* channel = channelMgr(ALLIANCE)->GetJoinChannel("unmute12", 0);
+        channel->Join(&alpha, "");
+        channel->Join(&bravo, "");
+        channel->SetMute(&alpha, "Bravo");
+        REQUIRE(channel->GetNumPlayers() == 2);
+        size_t const alphaHeard = toAlpha.size();
+        size_t const bravoHeard = toBravo.size();
+
+        // A muted member who is not a moderator cannot unmute himself; he is told so and the flag stays.
+        WorldPacket fromBravo = UnmuteRequest("unmute12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_UNMUTE].handler(bravoSession, fromBravo);
+        CHECK_EQ(fromBravo.rpos(), fromBravo.size());
+        REQUIRE(toBravo.size() == bravoHeard + 1);
+        CHECK_EQ(Notice(toBravo.back()).opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(Notice(toBravo.back()).type, uint8(CHAT_NOT_MODERATOR_NOTICE));
+        CHECK_STR(Notice(toBravo.back()).channel, "unmute12");
+        CHECK_EQ(toAlpha.size(), alphaHeard);
+
+        // The owner's request clears the named member's mute flag, and every member hears the mode change.
+        WorldPacket fromAlpha = UnmuteRequest("unmute12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_UNMUTE].handler(alphaSession, fromAlpha);
+        CHECK_EQ(fromAlpha.rpos(), fromAlpha.size());
+        REQUIRE(toAlpha.size() == alphaHeard + 1);
+        REQUIRE(toBravo.size() == bravoHeard + 2);
+        Notice const heard(toBravo.back());
+        CHECK_EQ(heard.opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(heard.type, uint8(CHAT_MODE_CHANGE_NOTICE));
+        CHECK_STR(heard.channel, "unmute12");
+        CHECK(heard.guid == bravo.GetObjectGuid());
+        CHECK_EQ(heard.oldFlags & 0x08, 0x08);
+        CHECK_EQ(heard.newFlags & 0x08, 0);
+        CHECK_EQ(Notice(toAlpha.back()).type, uint8(CHAT_MODE_CHANGE_NOTICE));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+    }
+    alphaSession.SetSocketlessSink(nullptr, nullptr);
+    bravoSession.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_ChannelUnbanRowLiftsTheBanOfThePlayerTheClientNamesForAModeratorOnly)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> toAlpha, toBravo, toCharlie;
+    WorldSession alphaSession(1, "alpha", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession bravoSession(2, "bravo", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    WorldSession charlieSession(3, "charlie", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    alphaSession.SetSocketlessSink(&CapturePacket, &toAlpha);
+    bravoSession.SetSocketlessSink(&CapturePacket, &toBravo);
+    charlieSession.SetSocketlessSink(&CapturePacket, &toCharlie);
+    {
+        ChannelMember alpha(alphaSession, 7141, "Alpha");
+        ChannelMember bravo(bravoSession, 7142, "Bravo");
+        ChannelMember charlie(charlieSession, 7143, "Charlie");
+        Channel* channel = channelMgr(ALLIANCE)->GetJoinChannel("unban12", 0);
+        channel->Join(&alpha, "");
+        channel->Join(&bravo, "");
+        channel->Join(&charlie, "");
+        channel->Ban(&alpha, "Bravo");
+        REQUIRE(channel->GetNumPlayers() == 2);
+
+        // The banned player cannot rejoin.
+        channel->Join(&bravo, "");
+        REQUIRE(!toBravo.empty());
+        CHECK_EQ(Notice(toBravo.back()).type, uint8(CHAT_BANNED_NOTICE));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+        size_t const alphaHeard = toAlpha.size();
+        size_t const bravoHeard = toBravo.size();
+        size_t const charlieHeard = toCharlie.size();
+
+        // A member who is not a moderator is told so, and the ban stays.
+        WorldPacket fromCharlie = UnbanRequest("unban12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_UNBAN].handler(charlieSession, fromCharlie);
+        CHECK_EQ(fromCharlie.rpos(), fromCharlie.size());
+        REQUIRE(toCharlie.size() == charlieHeard + 1);
+        CHECK_EQ(Notice(toCharlie.back()).opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(Notice(toCharlie.back()).type, uint8(CHAT_NOT_MODERATOR_NOTICE));
+        CHECK_STR(Notice(toCharlie.back()).channel, "unban12");
+        CHECK_EQ(toAlpha.size(), alphaHeard);
+        channel->Join(&bravo, "");
+        REQUIRE(toBravo.size() == bravoHeard + 1);
+        CHECK_EQ(Notice(toBravo.back()).type, uint8(CHAT_BANNED_NOTICE));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(2));
+
+        // The owner's request lifts the ban: every member hears it, and the player can join again.
+        WorldPacket fromAlpha = UnbanRequest("unban12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_UNBAN].handler(alphaSession, fromAlpha);
+        CHECK_EQ(fromAlpha.rpos(), fromAlpha.size());
+        REQUIRE(toAlpha.size() == alphaHeard + 1);
+        REQUIRE(toCharlie.size() == charlieHeard + 2);
+        Notice const heard(toAlpha.back());
+        CHECK_EQ(heard.opcode, uint16(SMSG_CHANNEL_NOTIFY));
+        CHECK_EQ(heard.type, uint8(CHAT_PLAYER_UNBANNED_NOTICE));
+        CHECK_STR(heard.channel, "unban12");
+        CHECK(heard.guid == bravo.GetObjectGuid());
+        CHECK_EQ(Notice(toCharlie.back()).type, uint8(CHAT_PLAYER_UNBANNED_NOTICE));
+        CHECK_EQ(toBravo.size(), bravoHeard + 1);
+        channel->Join(&bravo, "");
+        REQUIRE(toBravo.size() > bravoHeard + 1);
+        CHECK_EQ(Notice(toBravo[bravoHeard + 1]).type, uint8(CHAT_YOU_JOINED_NOTICE));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(3));
+
+        // Unbanning a player who is not banned says so.
+        WorldPacket again = UnbanRequest("unban12", "Bravo");
+        opcodeTable[CMSG_CHANNEL_UNBAN].handler(alphaSession, again);
+        CHECK_EQ(Notice(toAlpha.back()).type, uint8(CHAT_PLAYER_NOT_BANNED_NOTICE));
+        CHECK_EQ(channel->GetNumPlayers(), uint32(3));
+    }
+    alphaSession.SetSocketlessSink(nullptr, nullptr);
+    bravoSession.SetSocketlessSink(nullptr, nullptr);
+    charlieSession.SetSocketlessSink(nullptr, nullptr);
 }
 
 TEST(OpcodeDispatch_ChannelRowsHoldTheirHandlersThunks)
