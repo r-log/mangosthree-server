@@ -17,10 +17,12 @@ The lexer:
 A label counts when that key IS a spell id:
   - the key ends in an `ID` or `Id` member read (`m_spellInfo->ID`, `(*itr)->GetSpellProto()->ID`);
   - or it is a `GetId()` call (`GetId()`, `(*i)->GetId()`);
-  - or it is one of SPELL_ID_LOCALS, the locals the tree switches on that hold a spell id; under
-    such a key only a label that is an integer literal or a SPELL_* name counts (a local's name
-    does not prove what it holds: HandlePetAction's `spellid` is the action button's action, and
-    its labels are COMMAND_* and REACT_*).
+  - or it is one of SPELL_ID_LOCALS, the locals the tree switches on that hold a spell id, or
+    `ctx.<local>` naming one of them, the context member a moved handler body reads the local
+    through (`ctx.auraId`; any other member, `ctx.other`, is no spell id); under such a key only
+    a label that is an integer literal or a SPELL_* name counts (a local's name does not prove
+    what it holds: HandlePetAction's `spellid` is the action button's action, and its labels are
+    COMMAND_* and REACT_*).
 Keys naming another kind of ID are EXCLUDED_KEYS (the note's `achievement->ID` and
 `seTalent->ID`, plus `house->ID` and `currency->ID`). A key that only passes an id to a function
 (`GetSpellSpecific(spellInfo->ID)`) is not a spell id. `enchant_spell_id` is a stat type (its
@@ -82,6 +84,7 @@ EXTENSIONS = ('.h', '.hpp', '.cpp', '.inl', '.inc')
 BASELINE_REL = 'src/tests/case_labels.txt'
 
 SPELL_ID_LOCALS = {'auraId', 'spellid', 'spellId', 'trigger_spell_id', 'triggered_spell_id'}
+CONTEXT_LOCAL = re.compile(r'ctx\.(\w+)')
 LOCAL_LABEL = re.compile(r'\d+|SPELL_\w+')
 EXCLUDED_KEYS = {'achievement->ID', 'seTalent->ID', 'house->ID', 'currency->ID'}
 ID_MEMBER = re.compile(r'.*(->|\.)\s*(ID|Id)')
@@ -206,17 +209,26 @@ def labels(text):
     return found
 
 
+def spell_id_local(key):
+    """The SPELL_ID_LOCALS name a key switches on: the local itself, or `ctx.<local>`, the context member a
+    moved handler body reads it through; None for any other key."""
+    m = CONTEXT_LOCAL.fullmatch(key)
+    name = m.group(1) if m else key
+    return name if name in SPELL_ID_LOCALS else None
+
+
 def is_spell_id_key(key):
     if key is None or key in EXCLUDED_KEYS:
         return False
-    return bool(ID_MEMBER.fullmatch(key) or GET_ID.fullmatch(key) or key in SPELL_ID_LOCALS)
+    return bool(ID_MEMBER.fullmatch(key) or GET_ID.fullmatch(key) or spell_id_local(key))
 
 
 def counts(key, value):
-    """Whether a label with this value, under this key, is a spell-ID label."""
+    """Whether a label with this value, under this key, is a spell-ID label: under a local's key, or a context
+    member's naming one, only an integer literal or a SPELL_* name."""
     if not is_spell_id_key(key):
         return False
-    return key not in SPELL_ID_LOCALS or bool(LOCAL_LABEL.fullmatch(value))
+    return not spell_id_local(key) or bool(LOCAL_LABEL.fullmatch(value))
 
 
 def scan(root):
@@ -349,6 +361,15 @@ def self_test():
          'switch (spellid)\n{\n case COMMAND_STAY: break;\n case REACT_PASSIVE: case 5: break;\n'
          ' case SPELL_FOO: break;\n case Foo::BAR: break;\n}\nswitch (GetId()) { case SPELL_X: case NPC_Y: break; }\n',
          [4, 5, 8, 8]),
+        ('a context member naming a spell-id local counts',
+         'switch (ctx.auraId)\n{\n case 23184: break;\n case 25041: break;\n}\n',
+         [3, 4]),
+        ('ctx.other and c.auraId count nothing',
+         'switch (ctx.other) { case 1: break; }\nswitch (c.auraId) { case 2: break; }\n',
+         []),
+        ('a context member key counts only numbers and SPELL_* names',
+         'switch (ctx.spellid)\n{\n case COMMAND_STAY: break;\n case 5: break;\n case SPELL_FOO: break;\n}\n',
+         [4, 5]),
         ('a raw string is blanked',
          'switch (GetId())\n{\n case 1: s = R"x(case 9: })x"; break;\n case 2: break;\n}\n',
          [3, 4]),
