@@ -1057,9 +1057,6 @@ class WorldSession
 
         void HandleItemRefundInfoRequest(WorldPacket& recv_data);
 
-        void HandleChannelVoiceOnOpcode(WorldPacket& recv_data);
-        void HandleVoiceSessionEnableOpcode(WorldPacket& recv_data);
-        void HandleSetActiveVoiceChannel(WorldPacket& recv_data);
         void HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data);
 
         // Guild Bank

@@ -40,6 +40,7 @@ One stateless class per origin file, in its domain's directory (combat's, made f
 | `handlers/social/` | `LfgHandlers` | the client's Dungeon Finder queue join and leave, a group member's role choice, the status request, the answer to a dungeon proposal, the teleport into and out of the dungeon, the queue comment, the lock information request and the vote to remove a member |
 | `handlers/social/` | `PetitionHandlers` | the client's guild charter list, purchase, signatures, query, rename, sign, decline, offer and turn-in; the list is answered at once and every database read a tick later by a continuation: the query's re-finds the session by its identities, the decline's answers the charter's owner, found by guid, and the others re-find the session and the player by theirs |
 | `handlers/social/` | `TicketHandlers` | the client's GM ticket status request, a ticket's text updated, the ticket deleted, a ticket created, the ticket system status request, the survey after a closed ticket and the answer to a resolved ticket |
+| `handlers/social/` | `VoiceChatHandlers` | the client's voice and microphone switches, active voice channel and a chat channel's voice button, each read and ignored |
 
 ## The layer and the threads
 

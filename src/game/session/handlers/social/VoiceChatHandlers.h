@@ -1,4 +1,6 @@
-/*
+/**
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * MaNGOS is a full featured server for World of Warcraft, supporting
  * the following clients: 1.12.x, 2.4.3, 3.3.5a, 4.3.4a and 5.4.8
  *
@@ -21,34 +23,20 @@
  * and lore are copyrighted by Blizzard Entertainment, Inc.
  */
 
-#include "Platform/Define.h"
-#include <string>
-#include "WorldPacket.h"
-#include "WorldSession.h"
-#include "Opcodes.h"
-#include "Log.h"
+#ifndef MANGOS_H_VOICECHATHANDLERS
+#define MANGOS_H_VOICECHATHANDLERS
 
-void WorldSession::HandleVoiceSessionEnableOpcode(WorldPacket& recv_data)
-{
-    DEBUG_LOG("WORLD: CMSG_VOICE_SESSION_ENABLE");
-    // uint8 isVoiceEnabled, uint8 isMicrophoneEnabled
-    recv_data.read_skip<uint8>();
-    recv_data.read_skip<uint8>();
-    recv_data.hexlike();
-}
+class WorldPacket;
+class WorldSession;
 
-void WorldSession::HandleChannelVoiceOnOpcode(WorldPacket& recv_data)
+/// Handles the client's voice chat requests: the voice and microphone switches, the active voice
+/// channel and a chat channel's voice button. Each reads and logs its packet and does nothing else.
+struct VoiceChatHandlers
 {
-    DEBUG_LOG("WORLD: CMSG_CHANNEL_VOICE_ON");
-    // Enable Voice button in channel context menu
-    std::string channelName = recv_data.ReadString(recv_data.ReadBits(8));
-    recv_data.hexlike();
-}
+    public:
+        static void HandleVoiceSessionEnable(WorldSession& session, WorldPacket& recv_data);
+        static void HandleChannelVoiceOn(WorldSession& session, WorldPacket& recv_data);
+        static void HandleSetActiveVoiceChannel(WorldSession& session, WorldPacket& recv_data);
+};
 
-void WorldSession::HandleSetActiveVoiceChannel(WorldPacket& recv_data)
-{
-    DEBUG_LOG("WORLD: CMSG_SET_ACTIVE_VOICE_CHANNEL");
-    recv_data.read_skip<uint32>();
-    recv_data.read_skip<char*>();
-    recv_data.hexlike();
-}
+#endif

@@ -126,6 +126,10 @@ _CHANNEL_FILE = 'src/game/session/handlers/social/ChannelHandlers.cpp'
 _CHANNEL_ORIGIN = 'src/game/WorldHandlers/ChannelHandler.cpp'
 _CHANNEL_PLAYER = [('GetPlayer()', '_player')]
 
+_VOICE_BASE = '4ea15d14a'
+_VOICE_FILE = 'src/game/session/handlers/social/VoiceChatHandlers.cpp'
+_VOICE_ORIGIN = 'src/game/WorldHandlers/VoiceChatHandler.cpp'
+
 MOVES = [
     dict(base=_COMBAT_BASE, base_file=_COMBAT_SWING, new_file=_COMBAT_FILE,
          base_header='void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)',
@@ -1173,6 +1177,15 @@ MOVES = [
     dict(base=_CHANNEL_BASE, base_file=_CHANNEL_ORIGIN, new_file=_CHANNEL_FILE,
          base_header='void WorldSession::HandleSetChannelWatchOpcode(WorldPacket& recvPacket)',
          new_header='void ChannelHandlers::HandleSetChannelWatch(WorldSession& session, WorldPacket& recvPacket)'),
+    dict(base=_VOICE_BASE, base_file=_VOICE_ORIGIN, new_file=_VOICE_FILE,
+         base_header='void WorldSession::HandleVoiceSessionEnableOpcode(WorldPacket& recv_data)',
+         new_header='void VoiceChatHandlers::HandleVoiceSessionEnable(WorldSession& /*session*/, WorldPacket& recv_data)'),
+    dict(base=_VOICE_BASE, base_file=_VOICE_ORIGIN, new_file=_VOICE_FILE,
+         base_header='void WorldSession::HandleChannelVoiceOnOpcode(WorldPacket& recv_data)',
+         new_header='void VoiceChatHandlers::HandleChannelVoiceOn(WorldSession& /*session*/, WorldPacket& recv_data)'),
+    dict(base=_VOICE_BASE, base_file=_VOICE_ORIGIN, new_file=_VOICE_FILE,
+         base_header='void WorldSession::HandleSetActiveVoiceChannel(WorldPacket& recv_data)',
+         new_header='void VoiceChatHandlers::HandleSetActiveVoiceChannel(WorldSession& /*session*/, WorldPacket& recv_data)'),
 ]
 
 RESIDUES = [
