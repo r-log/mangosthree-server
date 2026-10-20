@@ -1372,7 +1372,7 @@ void Aura::TriggerSpell()
                     {
                         int32 damageForTick[8] = { 500, 500, 1000, 1000, 2000, 2000, 3000, 5000 };
                         triggerTarget->CastCustomSpell(triggerTarget, 19698, &damageForTick[GetAuraTicks() - 1], NULL, NULL, true, NULL);
-                        return;;
+                        return;
                     }
                     //                    // Frostwolf Muzzle DND
                     //                    case 21794: break;
@@ -5353,7 +5353,7 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
                 }
                 default:
                     // Freezing Trap Effect
-                    if (m_spellProto->IsFitToFamilyMask(UI64LIT(0x0000000000000008)))
+                    if (GetSpellProto()->IsFitToFamilyMask(UI64LIT(0x0000000000000008)))
                     {
                         if (!apply)
                         {
