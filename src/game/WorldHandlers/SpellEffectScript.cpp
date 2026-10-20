@@ -2152,7 +2152,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                     }
 
                     return;
-                }                                           // random spell learn instead placeholder
+                }
                 case 59789:                                 // Oracle Ablutions
                 {
                     if (!unitTarget)

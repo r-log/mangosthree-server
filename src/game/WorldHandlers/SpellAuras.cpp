@@ -1353,20 +1353,20 @@ void Aura::TriggerSpell()
 
                         break;
                     }
-//                    // Polymorphic Ray
-//                    case 6965: break;
+                    //                    // Polymorphic Ray
+                    //                    case 6965: break;
                     case 9712:                              // Thaumaturgy Channel
                         if (Unit* caster = GetCaster())
                         {
                             caster->CastSpell(caster, 21029, true);
                         }
                         return;
-//                    // Egan's Blaster
-//                    case 17368: break;
-//                    // Haunted
-//                    case 18347: break;
-//                    // Ranshalla Waiting
-//                    case 18953: break;
+                    //                    // Egan's Blaster
+                    //                    case 17368: break;
+                    //                    // Haunted
+                    //                    case 18347: break;
+                    //                    // Ranshalla Waiting
+                    //                    case 18953: break;
 
                     case 19695:                             // Inferno
                     {
@@ -1374,13 +1374,12 @@ void Aura::TriggerSpell()
                         triggerTarget->CastCustomSpell(triggerTarget, 19698, &damageForTick[GetAuraTicks() - 1], NULL, NULL, true, NULL);
                         return;;
                     }
-
-//                    // Frostwolf Muzzle DND
-//                    case 21794: break;
-//                    // Alterac Ram Collar DND
-//                    case 21866: break;
-//                    // Celebras Waiting
-//                    case 21916: break;
+                    //                    // Frostwolf Muzzle DND
+                    //                    case 21794: break;
+                    //                    // Alterac Ram Collar DND
+                    //                    case 21866: break;
+                    //                    // Celebras Waiting
+                    //                    case 21916: break;
                     case 23170:                             // Brood Affliction: Bronze
                     {
                         target->CastSpell(target, 23171, true, NULL, this);
@@ -1441,10 +1440,10 @@ void Aura::TriggerSpell()
                         }
                         return;
                     }
-//                    // Stoneclaw Totem Passive TEST
-//                    case 23792: break;
-//                    // Axe Flurry
-//                    case 24018: break;
+                    //                    // Stoneclaw Totem Passive TEST
+                    //                    case 23792: break;
+                    //                    // Axe Flurry
+                    //                    case 24018: break;
                     case 24210:                             // Mark of Arlokk
                     {
                         // Replacement for (classic) spell 24211 (doesn't exist anymore)
@@ -1463,10 +1462,10 @@ void Aura::TriggerSpell()
 
                         return;
                     }
-//                    // Restoration
-//                    case 24379: break;
-//                    // Happy Pet
-//                    case 24716: break;
+                    //                    // Restoration
+                    //                    case 24379: break;
+                    //                    // Happy Pet
+                    //                    case 24716: break;
                     case 24780:                             // Dream Fog
                     {
                         // Note: In 1.12 triggered spell 24781 still exists, need to script dummy effect for this spell then
@@ -1494,8 +1493,8 @@ void Aura::TriggerSpell()
 
                         return;
                     }
-//                    // Cannon Prep
-//                    case 24832: break;
+                    //                    // Cannon Prep
+                    //                    case 24832: break;
                     case 24834:                             // Shadow Bolt Whirl
                     {
                         uint32 spellForTick[8] = { 24820, 24821, 24822, 24823, 24835, 24836, 24837, 24838 };
@@ -1516,18 +1515,18 @@ void Aura::TriggerSpell()
                         target->Place().Face(forward);
                         return;
                     }
-//                    // Stink Trap
-//                    case 24918: break;
-//                    // Agro Drones
-//                    case 25152: break;
+                    //                    // Stink Trap
+                    //                    case 24918: break;
+                    //                    // Agro Drones
+                    //                    case 25152: break;
                     case 25371:                             // Consume
                     {
                         int32 bpDamage = triggerTarget->GetMaxHealth() * 10 / 100;
                         triggerTarget->CastCustomSpell(triggerTarget, 25373, &bpDamage, NULL, NULL, true, NULL, this, casterGUID);
                         return;
                     }
-//                    // Pain Spike
-//                    case 25572: break;
+                    //                    // Pain Spike
+                    //                    case 25572: break;
                     case 26009:                             // Rotate 360
                     case 26136:                             // Rotate -360
                     {
@@ -1549,20 +1548,20 @@ void Aura::TriggerSpell()
                         target->CastSpell(target, 26029, true);
                         return;
                     }
-//                    // Consume
-//                    case 26196: break;
-//                    // Berserk
-//                    case 26615: break;
-//                    // Defile
-//                    case 27177: break;
-//                    // Teleport: IF/UC
-//                    case 27601: break;
-//                    // Five Fat Finger Exploding Heart Technique
-//                    case 27673: break;
-//                    // Nitrous Boost
-//                    case 27746: break;
-//                    // Steam Tank Passive
-//                    case 27747: break;
+                    //                    // Consume
+                    //                    case 26196: break;
+                    //                    // Berserk
+                    //                    case 26615: break;
+                    //                    // Defile
+                    //                    case 27177: break;
+                    //                    // Teleport: IF/UC
+                    //                    case 27601: break;
+                    //                    // Five Fat Finger Exploding Heart Technique
+                    //                    case 27673: break;
+                    //                    // Nitrous Boost
+                    //                    case 27746: break;
+                    //                    // Steam Tank Passive
+                    //                    case 27747: break;
                     case 27808:                             // Frost Blast
                     {
                         int32 bpDamage = triggerTarget->GetMaxHealth() * 26 / 100;
@@ -1578,8 +1577,8 @@ void Aura::TriggerSpell()
                         triggerTarget->CastCustomSpell(triggerTarget, 27820, &bpDamage, NULL, NULL, true, NULL, this, triggerTarget->GetObjectGuid());
                         return;
                     }
-//                    // Controller Timer
-//                    case 28095: break;
+                    //                    // Controller Timer
+                    //                    case 28095: break;
                     // Stalagg Chain and Feugen Chain
                     case 28096:
                     case 28111:
@@ -1622,14 +1621,14 @@ void Aura::TriggerSpell()
                         }
                         return;
                     }
-//                    // Mark of Didier
-//                    case 28114: break;
-//                    // Communique Timer, camp
-//                    case 28346: break;
-//                    // Icebolt
-//                    case 28522: break;
-//                    // Silithyst
-//                    case 29519: break;
+                    //                    // Mark of Didier
+                    //                    case 28114: break;
+                    //                    // Communique Timer, camp
+                    //                    case 28346: break;
+                    //                    // Icebolt
+                    //                    case 28522: break;
+                    //                    // Silithyst
+                    //                    case 29519: break;
                     case 29528:                             // Inoculate Nestlewood Owlkin
                         // prevent error reports in case ignored player target
                         if (triggerTarget->GetTypeId() != TYPEID_UNIT)
@@ -1637,27 +1636,27 @@ void Aura::TriggerSpell()
                             return;
                         }
                         break;
-//                    // Overload
-//                    case 29768: break;
-//                    // Return Fire
-//                    case 29788: break;
-//                    // Return Fire
-//                    case 29793: break;
-//                    // Return Fire
-//                    case 29794: break;
-//                    // Guardian of Icecrown Passive
-//                    case 29897: break;
+                    //                    // Overload
+                    //                    case 29768: break;
+                    //                    // Return Fire
+                    //                    case 29788: break;
+                    //                    // Return Fire
+                    //                    case 29793: break;
+                    //                    // Return Fire
+                    //                    case 29794: break;
+                    //                    // Guardian of Icecrown Passive
+                    //                    case 29897: break;
                     case 29917:                             // Feed Captured Animal
                         trigger_spell_id = 29916;
                         break;
-//                    // Flame Wreath
-//                    case 29946: break;
-//                    // Flame Wreath
-//                    case 29947: break;
-//                    // Mind Exhaustion Passive
-//                    case 30025: break;
-//                    // Nether Beam - Serenity
-//                    case 30401: break;
+                    //                    // Flame Wreath
+                    //                    case 29946: break;
+                    //                    // Flame Wreath
+                    //                    case 29947: break;
+                    //                    // Mind Exhaustion Passive
+                    //                    case 30025: break;
+                    //                    // Nether Beam - Serenity
+                    //                    case 30401: break;
                     case 30427:                             // Extract Gas
                     {
                         Unit* caster = GetCaster();
@@ -1687,19 +1686,19 @@ void Aura::TriggerSpell()
                     case 30576:                             // Quake
                         trigger_spell_id = 30571;
                         break;
-//                    // Burning Maul
-//                    case 30598: break;
-//                    // Regeneration
-//                    case 30799:
-//                    case 30800:
-//                    case 30801:
-//                        break;
-//                    // Despawn Self - Smoke cloud
-//                    case 31269: break;
-//                    // Time Rift Periodic
-//                    case 31320: break;
-//                    // Corrupt Medivh
-//                    case 31326: break;
+                    //                    // Burning Maul
+                    //                    case 30598: break;
+                    //                    // Regeneration
+                    //                    case 30799:
+                    //                    case 30800:
+                    //                    case 30801:
+                    //                        break;
+                    //                    // Despawn Self - Smoke cloud
+                    //                    case 31269: break;
+                    //                    // Time Rift Periodic
+                    //                    case 31320: break;
+                    //                    // Corrupt Medivh
+                    //                    case 31326: break;
                     case 31347:                             // Doom
                     {
                         target->CastSpell(target, 31350, true);
@@ -1712,24 +1711,24 @@ void Aura::TriggerSpell()
                         triggerTarget->SummonCreature(17870, 0.0f, 0.0f, 0.0f, triggerTarget->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0);
                         return;
                     }
-//                    // Bloodmyst Tesla
-//                    case 31611: break;
+                    //                    // Bloodmyst Tesla
+                    //                    case 31611: break;
                     case 31944:                             // Doomfire
                     {
                         int32 damage = m_modifier.m_amount * ((GetAuraDuration() + m_modifier.periodictime) / GetAuraMaxDuration());
                         triggerTarget->CastCustomSpell(triggerTarget, 31969, &damage, NULL, NULL, true, NULL, this, casterGUID);
                         return;
                     }
-//                    // Teleport Test
-//                    case 32236: break;
-//                    // Earthquake
-//                    case 32686: break;
-//                    // Possess
-//                    case 33401: break;
-//                    // Draw Shadows
-//                    case 33563: break;
-//                    // Murmur's Touch
-//                    case 33711: break;
+                    //                    // Teleport Test
+                    //                    case 32236: break;
+                    //                    // Earthquake
+                    //                    case 32686: break;
+                    //                    // Possess
+                    //                    case 33401: break;
+                    //                    // Draw Shadows
+                    //                    case 33563: break;
+                    //                    // Murmur's Touch
+                    //                    case 33711: break;
                     case 34229:                             // Flame Quills
                     {
                         // cast 24 spells 34269-34289, 34314-34316
@@ -1743,52 +1742,52 @@ void Aura::TriggerSpell()
                         }
                         return;
                     }
-//                    // Gravity Lapse
-//                    case 34480: break;
-//                    // Tornado
-//                    case 34683: break;
-//                    // Frostbite Rotate
-//                    case 34748: break;
-//                    // Arcane Flurry
-//                    case 34821: break;
-//                    // Interrupt Shutdown
-//                    case 35016: break;
-//                    // Interrupt Shutdown
-//                    case 35176: break;
-//                    // Inferno
-//                    case 35268: break;
-//                    // Salaadin's Tesla
-//                    case 35515: break;
-//                    // Ethereal Channel (Red)
-//                    case 35518: break;
-//                    // Nether Vapor
-//                    case 35879: break;
-//                    // Dark Portal Storm
-//                    case 36018: break;
-//                    // Burning Maul
-//                    case 36056: break;
-//                    // Living Grove Defender Lifespan
-//                    case 36061: break;
-//                    // Professor Dabiri Talks
-//                    case 36064: break;
-//                    // Kael Gaining Power
-//                    case 36091: break;
-//                    // They Must Burn Bomb Aura
-//                    case 36344: break;
-//                    // They Must Burn Bomb Aura (self)
-//                    case 36350: break;
-//                    // Stolen Ravenous Ravager Egg
-//                    case 36401: break;
-//                    // Activated Cannon
-//                    case 36410: break;
-//                    // Stolen Ravenous Ravager Egg
-//                    case 36418: break;
-//                    // Enchanted Weapons
-//                    case 36510: break;
-//                    // Cursed Scarab Periodic
-//                    case 36556: break;
-//                    // Cursed Scarab Despawn Periodic
-//                    case 36561: break;
+                    //                    // Gravity Lapse
+                    //                    case 34480: break;
+                    //                    // Tornado
+                    //                    case 34683: break;
+                    //                    // Frostbite Rotate
+                    //                    case 34748: break;
+                    //                    // Arcane Flurry
+                    //                    case 34821: break;
+                    //                    // Interrupt Shutdown
+                    //                    case 35016: break;
+                    //                    // Interrupt Shutdown
+                    //                    case 35176: break;
+                    //                    // Inferno
+                    //                    case 35268: break;
+                    //                    // Salaadin's Tesla
+                    //                    case 35515: break;
+                    //                    // Ethereal Channel (Red)
+                    //                    case 35518: break;
+                    //                    // Nether Vapor
+                    //                    case 35879: break;
+                    //                    // Dark Portal Storm
+                    //                    case 36018: break;
+                    //                    // Burning Maul
+                    //                    case 36056: break;
+                    //                    // Living Grove Defender Lifespan
+                    //                    case 36061: break;
+                    //                    // Professor Dabiri Talks
+                    //                    case 36064: break;
+                    //                    // Kael Gaining Power
+                    //                    case 36091: break;
+                    //                    // They Must Burn Bomb Aura
+                    //                    case 36344: break;
+                    //                    // They Must Burn Bomb Aura (self)
+                    //                    case 36350: break;
+                    //                    // Stolen Ravenous Ravager Egg
+                    //                    case 36401: break;
+                    //                    // Activated Cannon
+                    //                    case 36410: break;
+                    //                    // Stolen Ravenous Ravager Egg
+                    //                    case 36418: break;
+                    //                    // Enchanted Weapons
+                    //                    case 36510: break;
+                    //                    // Cursed Scarab Periodic
+                    //                    case 36556: break;
+                    //                    // Cursed Scarab Despawn Periodic
+                    //                    case 36561: break;
                     case 36573:                             // Vision Guide
                     {
                         if (GetAuraTicks() == 10 && target->GetTypeId() == TYPEID_PLAYER)
@@ -1799,17 +1798,17 @@ void Aura::TriggerSpell()
 
                         return;
                     }
-//                    // Cannon Charging (platform)
-//                    case 36785: break;
-//                    // Cannon Charging (self)
-//                    case 36860: break;
+                    //                    // Cannon Charging (platform)
+                    //                    case 36785: break;
+                    //                    // Cannon Charging (self)
+                    //                    case 36860: break;
                     case 37027:                             // Remote Toy
                         trigger_spell_id = 37029;
                         break;
-//                    // Mark of Death
-//                    case 37125: break;
-//                    // Arcane Flurry
-//                    case 37268: break;
+                    //                    // Mark of Death
+                    //                    case 37125: break;
+                    //                    // Arcane Flurry
+                    //                    case 37268: break;
                     case 37429:                             // Spout (left)
                     case 37430:                             // Spout (right)
                     {
@@ -1831,20 +1830,20 @@ void Aura::TriggerSpell()
                         target->CastSpell(target, 37433, true);
                         return;
                     }
-//                    // Karazhan - Chess NPC AI, Snapshot timer
-//                    case 37440: break;
-//                    // Karazhan - Chess NPC AI, action timer
-//                    case 37504: break;
-//                    // Karazhan - Chess: Is Square OCCUPIED aura (DND)
-//                    case 39400: break;
-//                    // Banish
-//                    case 37546: break;
-//                    // Shriveling Gaze
-//                    case 37589: break;
-//                    // Fake Aggro Radius (2 yd)
-//                    case 37815: break;
-//                    // Corrupt Medivh
-//                    case 37853: break;
+                    //                    // Karazhan - Chess NPC AI, Snapshot timer
+                    //                    case 37440: break;
+                    //                    // Karazhan - Chess NPC AI, action timer
+                    //                    case 37504: break;
+                    //                    // Karazhan - Chess: Is Square OCCUPIED aura (DND)
+                    //                    case 39400: break;
+                    //                    // Banish
+                    //                    case 37546: break;
+                    //                    // Shriveling Gaze
+                    //                    case 37589: break;
+                    //                    // Fake Aggro Radius (2 yd)
+                    //                    case 37815: break;
+                    //                    // Corrupt Medivh
+                    //                    case 37853: break;
                     case 38495:                             // Eye of Grillok
                     {
                         target->CastSpell(target, 38530, true);
@@ -1871,12 +1870,12 @@ void Aura::TriggerSpell()
                         creatureTarget->ForcedDespawn();
                         return;
                     }
-//                    // Magic Sucker Device timer
-//                    case 38672: break;
-//                    // Tomb Guarding Charging
-//                    case 38751: break;
-//                    // Murmur's Touch
-//                    case 38794: break;
+                    //                    // Magic Sucker Device timer
+                    //                    case 38672: break;
+                    //                    // Tomb Guarding Charging
+                    //                    case 38751: break;
+                    //                    // Murmur's Touch
+                    //                    case 38794: break;
                     case 39105:                             // Activate Nether-wraith Beacon (31742 Nether-wraith Beacon item)
                     {
                         float fX, fY, fZ;
@@ -1884,33 +1883,33 @@ void Aura::TriggerSpell()
                         triggerTarget->SummonCreature(22408, fX, fY, fZ, triggerTarget->Where().Facing(), TEMPSPAWN_DEAD_DESPAWN, 0);
                         return;
                     }
-//                    // Drain World Tree Visual
-//                    case 39140: break;
-//                    // Quest - Dustin's Undead Dragon Visual aura
-//                    case 39259: break;
-//                    // Hellfire - The Exorcism, Jules releases darkness, aura
-//                    case 39306: break;
-//                    // Inferno
-//                    case 39346: break;
-//                    // Enchanted Weapons
-//                    case 39489: break;
-//                    // Shadow Bolt Whirl
-//                    case 39630: break;
-//                    // Shadow Bolt Whirl
-//                    case 39634: break;
-//                    // Shadow Inferno
-//                    case 39645: break;
+                    //                    // Drain World Tree Visual
+                    //                    case 39140: break;
+                    //                    // Quest - Dustin's Undead Dragon Visual aura
+                    //                    case 39259: break;
+                    //                    // Hellfire - The Exorcism, Jules releases darkness, aura
+                    //                    case 39306: break;
+                    //                    // Inferno
+                    //                    case 39346: break;
+                    //                    // Enchanted Weapons
+                    //                    case 39489: break;
+                    //                    // Shadow Bolt Whirl
+                    //                    case 39630: break;
+                    //                    // Shadow Bolt Whirl
+                    //                    case 39634: break;
+                    //                    // Shadow Inferno
+                    //                    case 39645: break;
                     case 39857:                             // Tear of Azzinoth Summon Channel - it's not really supposed to do anything,and this only prevents the console spam
                         trigger_spell_id = 39856;
                         break;
-//                    // Soulgrinder Ritual Visual (Smashed)
-//                    case 39974: break;
-//                    // Simon Game Pre-game timer
-//                    case 40041: break;
-//                    // Knockdown Fel Cannon: The Aggro Check Aura
-//                    case 40113: break;
-//                    // Spirit Lance
-//                    case 40157: break;
+                    //                    // Soulgrinder Ritual Visual (Smashed)
+                    //                    case 39974: break;
+                    //                    // Simon Game Pre-game timer
+                    //                    case 40041: break;
+                    //                    // Knockdown Fel Cannon: The Aggro Check Aura
+                    //                    case 40113: break;
+                    //                    // Spirit Lance
+                    //                    case 40157: break;
                     case 40398:                             // Demon Transform 2
                         switch (GetAuraTicks())
                         {
@@ -1932,24 +1931,24 @@ void Aura::TriggerSpell()
                     case 40511:                             // Demon Transform 1
                         trigger_spell_id = 40398;
                         break;
-//                    // Ancient Flames
-//                    case 40657: break;
-//                    // Ethereal Ring Cannon: Cannon Aura
-//                    case 40734: break;
-//                    // Cage Trap
-//                    case 40760: break;
-//                    // Random Periodic
-//                    case 40867: break;
-//                    // Prismatic Shield
-//                    case 40879: break;
-//                    // Aura of Desire
-//                    case 41350: break;
-//                    // Dementia
-//                    case 41404: break;
-//                    // Chaos Form
-//                    case 41629: break;
-//                    // Alert Drums
-//                    case 42177: break;
+                    //                    // Ancient Flames
+                    //                    case 40657: break;
+                    //                    // Ethereal Ring Cannon: Cannon Aura
+                    //                    case 40734: break;
+                    //                    // Cage Trap
+                    //                    case 40760: break;
+                    //                    // Random Periodic
+                    //                    case 40867: break;
+                    //                    // Prismatic Shield
+                    //                    case 40879: break;
+                    //                    // Aura of Desire
+                    //                    case 41350: break;
+                    //                    // Dementia
+                    //                    case 41404: break;
+                    //                    // Chaos Form
+                    //                    case 41629: break;
+                    //                    // Alert Drums
+                    //                    case 42177: break;
                     case 42581:                             // Spout (left)
                     case 42582:                             // Spout (right)
                     {
@@ -1971,43 +1970,43 @@ void Aura::TriggerSpell()
                         target->CastSpell(target, auraSpellInfo->CalculateSimpleValue(m_effIndex), true);
                         return;
                     }
-//                    // Return to the Spirit Realm
-//                    case 44035: break;
-//                    // Curse of Boundless Agony
-//                    case 45050: break;
-//                    // Earthquake
-//                    case 46240: break;
+                    //                    // Return to the Spirit Realm
+                    //                    case 44035: break;
+                    //                    // Curse of Boundless Agony
+                    //                    case 45050: break;
+                    //                    // Earthquake
+                    //                    case 46240: break;
                     case 46736:                             // Personalized Weather
                         trigger_spell_id = 46737;
                         break;
-//                    // Stay Submerged
-//                    case 46981: break;
-//                    // Dragonblight Ram
-//                    case 47015: break;
-//                    // Party G.R.E.N.A.D.E.
-//                    case 51510: break;
-//                    // Horseman Abilities
-//                    case 52347: break;
-//                    // GPS (Greater drake Positioning System)
-//                    case 53389: break;
-//                    // WotLK Prologue Frozen Shade Summon Aura
-//                    case 53459: break;
-//                    // WotLK Prologue Frozen Shade Speech
-//                    case 53460: break;
-//                    // WotLK Prologue Dual-plagued Brain Summon Aura
-//                    case 54295: break;
-//                    // WotLK Prologue Dual-plagued Brain Speech
-//                    case 54299: break;
-//                    // Rotate 360 (Fast)
-//                    case 55861: break;
-//                    // Shadow Sickle
-//                    case 56702: break;
-//                    // Portal Periodic
-//                    case 58008: break;
-//                    // Destroy Door Seal
-//                    case 58040: break;
-//                    // Draw Magic
-//                    case 58185: break;
+                    //                    // Stay Submerged
+                    //                    case 46981: break;
+                    //                    // Dragonblight Ram
+                    //                    case 47015: break;
+                    //                    // Party G.R.E.N.A.D.E.
+                    //                    case 51510: break;
+                    //                    // Horseman Abilities
+                    //                    case 52347: break;
+                    //                    // GPS (Greater drake Positioning System)
+                    //                    case 53389: break;
+                    //                    // WotLK Prologue Frozen Shade Summon Aura
+                    //                    case 53459: break;
+                    //                    // WotLK Prologue Frozen Shade Speech
+                    //                    case 53460: break;
+                    //                    // WotLK Prologue Dual-plagued Brain Summon Aura
+                    //                    case 54295: break;
+                    //                    // WotLK Prologue Dual-plagued Brain Speech
+                    //                    case 54299: break;
+                    //                    // Rotate 360 (Fast)
+                    //                    case 55861: break;
+                    //                    // Shadow Sickle
+                    //                    case 56702: break;
+                    //                    // Portal Periodic
+                    //                    case 58008: break;
+                    //                    // Destroy Door Seal
+                    //                    case 58040: break;
+                    //                    // Draw Magic
+                    //                    case 58185: break;
                     case 58886:                             // Food
                     {
                         if (GetAuraTicks() != 1)
@@ -2021,52 +2020,52 @@ void Aura::TriggerSpell()
 
                         break;
                     }
-//                    // Shadow Sickle
-//                    case 59103: break;
-//                    // Time Bomb
-//                    case 59376: break;
-//                    // Whirlwind Visual
-//                    case 59551: break;
-//                    // Hearstrike
-//                    case 59783: break;
-//                    // Z Check
-//                    case 61678: break;
-//                    // isDead Check
-//                    case 61976: break;
-//                    // Start the Engine
-//                    case 62432: break;
-//                    // Enchanted Broom
-//                    case 62571: break;
-//                    // Mulgore Hatchling
-//                    case 62586: break;
+                    //                    // Shadow Sickle
+                    //                    case 59103: break;
+                    //                    // Time Bomb
+                    //                    case 59376: break;
+                    //                    // Whirlwind Visual
+                    //                    case 59551: break;
+                    //                    // Hearstrike
+                    //                    case 59783: break;
+                    //                    // Z Check
+                    //                    case 61678: break;
+                    //                    // isDead Check
+                    //                    case 61976: break;
+                    //                    // Start the Engine
+                    //                    case 62432: break;
+                    //                    // Enchanted Broom
+                    //                    case 62571: break;
+                    //                    // Mulgore Hatchling
+                    //                    case 62586: break;
                     case 62679:                             // Durotar Scorpion
                         trigger_spell_id = auraSpellInfo->CalculateSimpleValue(m_effIndex);
                         break;
-//                    // Fighting Fish
-//                    case 62833: break;
-//                    // Shield Level 1
-//                    case 63130: break;
-//                    // Shield Level 2
-//                    case 63131: break;
-//                    // Shield Level 3
-//                    case 63132: break;
-//                    // Food
+                    //                    // Fighting Fish
+                    //                    case 62833: break;
+                    //                    // Shield Level 1
+                    //                    case 63130: break;
+                    //                    // Shield Level 2
+                    //                    case 63131: break;
+                    //                    // Shield Level 3
+                    //                    case 63132: break;
+                    //                    // Food
                     case 64345:                             // Remove Player from Phase
                         target->RemoveSpellsCausingAura(SPELL_AURA_PHASE);
                         return;
-//                    case 64445: break;
-//                    // Food
-//                    case 65418: break;
-//                    // Food
-//                    case 65419: break;
-//                    // Food
-//                    case 65420: break;
-//                    // Food
-//                    case 65421: break;
-//                    // Food
-//                    case 65422: break;
-//                    // Rolling Throw
-//                    case 67546: break;
+                    //                    case 64445: break;
+                    //                    // Food
+                    //                    case 65418: break;
+                    //                    // Food
+                    //                    case 65419: break;
+                    //                    // Food
+                    //                    case 65420: break;
+                    //                    // Food
+                    //                    case 65421: break;
+                    //                    // Food
+                    //                    case 65422: break;
+                    //                    // Rolling Throw
+                    //                    case 67546: break;
                     case 69012:                             // Explosive Barrage
                     {
                         // Summon an Exploding Orb for each player in combat with the caster
@@ -2083,22 +2082,22 @@ void Aura::TriggerSpell()
                         }
                         return;
                     }
-//                    // Gunship Cannon Fire
-//                    case 70017: break;
-//                    // Ice Tomb
-//                    case 70157: break;
-//                    // Mana Barrier                       // HANDLED IN SD2!
-//                    case 70842: break;
-//                    // Summon Timer: Suppresser
-//                    case 70912: break;
-//                    // Aura of Darkness
-//                    case 71110: break;
-//                    // Aura of Darkness
-//                    case 71111: break;
-//                    // Ball of Flames Visual
-//                    case 71706: break;
-//                    // Summon Broken Frostmourne
-//                    case 74081: break;
+                    //                    // Gunship Cannon Fire
+                    //                    case 70017: break;
+                    //                    // Ice Tomb
+                    //                    case 70157: break;
+                    //                    // Mana Barrier                       // HANDLED IN SD2!
+                    //                    case 70842: break;
+                    //                    // Summon Timer: Suppresser
+                    //                    case 70912: break;
+                    //                    // Aura of Darkness
+                    //                    case 71110: break;
+                    //                    // Aura of Darkness
+                    //                    case 71111: break;
+                    //                    // Ball of Flames Visual
+                    //                    case 71706: break;
+                    //                    // Summon Broken Frostmourne
+                    //                    case 74081: break;
                     default:
                         break;
                 }
@@ -3318,8 +3317,8 @@ void Aura::PeriodicDummyTick()
                         target->CastSpell(target, m_modifier.m_amount, true, NULL, this);
                     }
                     return;
-//              // Panda
-//              case 19230: break;
+                //              // Panda
+                //              case 19230: break;
                 case 30019:                                 // Control Piece
                 {
                     if (target->GetTypeId() != TYPEID_PLAYER)
@@ -3336,54 +3335,54 @@ void Aura::PeriodicDummyTick()
                     }
                     return;
                 }
-//              // Gossip NPC Periodic - Talk
-//              case 33208: break;
-//              // Gossip NPC Periodic - Despawn
-//              case 33209: break;
-//              // Steal Weapon
-//              case 36207: break;
-//              // Simon Game START timer, (DND)
-//              case 39993: break;
-//              // Knockdown Fel Cannon: break; The Aggro Burst
-//              case 40119: break;
-//              // Old Mount Spell
-//              case 40154: break;
-//              // Magnetic Pull
-//              case 40581: break;
-//              // Ethereal Ring: break; The Bolt Burst
-//              case 40801: break;
-//              // Crystal Prison
-//              case 40846: break;
-//              // Copy Weapon
-//              case 41054: break;
-//              // Dementia
-//              case 41404: break;
-//              // Ethereal Ring Visual, Lightning Aura
-//              case 41477: break;
-//              // Ethereal Ring Visual, Lightning Aura (Fork)
-//              case 41525: break;
-//              // Ethereal Ring Visual, Lightning Jumper Aura
-//              case 41567: break;
-//              // No Man's Land
-//              case 41955: break;
-//              // Headless Horseman - Fire
-//              case 42074: break;
-//              // Headless Horseman - Visual - Large Fire
-//              case 42075: break;
-//              // Headless Horseman - Start Fire, Periodic Aura
-//              case 42140: break;
-//              // Ram Speed Boost
-//              case 42152: break;
-//              // Headless Horseman - Fires Out Victory Aura
-//              case 42235: break;
-//              // Pumpkin Life Cycle
-//              case 42280: break;
-//              // Brewfest Request Chick Chuck Mug Aura
-//              case 42537: break;
-//              // Squashling
-//              case 42596: break;
-//              // Headless Horseman Climax, Head: Periodic
-//              case 42603: break;
+                //              // Gossip NPC Periodic - Talk
+                //              case 33208: break;
+                //              // Gossip NPC Periodic - Despawn
+                //              case 33209: break;
+                //              // Steal Weapon
+                //              case 36207: break;
+                //              // Simon Game START timer, (DND)
+                //              case 39993: break;
+                //              // Knockdown Fel Cannon: break; The Aggro Burst
+                //              case 40119: break;
+                //              // Old Mount Spell
+                //              case 40154: break;
+                //              // Magnetic Pull
+                //              case 40581: break;
+                //              // Ethereal Ring: break; The Bolt Burst
+                //              case 40801: break;
+                //              // Crystal Prison
+                //              case 40846: break;
+                //              // Copy Weapon
+                //              case 41054: break;
+                //              // Dementia
+                //              case 41404: break;
+                //              // Ethereal Ring Visual, Lightning Aura
+                //              case 41477: break;
+                //              // Ethereal Ring Visual, Lightning Aura (Fork)
+                //              case 41525: break;
+                //              // Ethereal Ring Visual, Lightning Jumper Aura
+                //              case 41567: break;
+                //              // No Man's Land
+                //              case 41955: break;
+                //              // Headless Horseman - Fire
+                //              case 42074: break;
+                //              // Headless Horseman - Visual - Large Fire
+                //              case 42075: break;
+                //              // Headless Horseman - Start Fire, Periodic Aura
+                //              case 42140: break;
+                //              // Ram Speed Boost
+                //              case 42152: break;
+                //              // Headless Horseman - Fires Out Victory Aura
+                //              case 42235: break;
+                //              // Pumpkin Life Cycle
+                //              case 42280: break;
+                //              // Brewfest Request Chick Chuck Mug Aura
+                //              case 42537: break;
+                //              // Squashling
+                //              case 42596: break;
+                //              // Headless Horseman Climax, Head: Periodic
+                //              case 42603: break;
                 case 42621:                                 // Fire Bomb
                 {
                     // Cast the summon spells (42622 to 42627) with increasing chance
@@ -3398,101 +3397,101 @@ void Aura::PeriodicDummyTick()
                     }
                     return;
                 }
-//              // Headless Horseman - Conflagrate, Periodic Aura
-//              case 42637: break;
-//              // Headless Horseman - Create Pumpkin Treats Aura
-//              case 42774: break;
-//              // Headless Horseman Climax - Summoning Rhyme Aura
-//              case 42879: break;
+                //              // Headless Horseman - Conflagrate, Periodic Aura
+                //              case 42637: break;
+                //              // Headless Horseman - Create Pumpkin Treats Aura
+                //              case 42774: break;
+                //              // Headless Horseman Climax - Summoning Rhyme Aura
+                //              case 42879: break;
                 case 42919:                                 // Tricky Treat
                     target->CastSpell(target, 42966, true);
                     return;
-//              // Giddyup!
-//              case 42924: break;
-//              // Ram - Trot
-//              case 42992: break;
-//              // Ram - Canter
-//              case 42993: break;
-//              // Ram - Gallop
-//              case 42994: break;
-//              // Ram Level - Neutral
-//              case 43310: break;
-//              // Headless Horseman - Maniacal Laugh, Maniacal, Delayed 17
-//              case 43884: break;
-//              // Wretched!
-//              case 43963: break;
-//              // Headless Horseman - Maniacal Laugh, Maniacal, other, Delayed 17
-//              case 44000: break;
-//              // Energy Feedback
-//              case 44328: break;
-//              // Romantic Picnic
-//              case 45102: break;
-//              // Romantic Picnic
-//              case 45123: break;
-//              // Looking for Love
-//              case 45124: break;
-//              // Kite - Lightning Strike Kite Aura
-//              case 45197: break;
-//              // Rocket Chicken
-//              case 45202: break;
-//              // Copy Offhand Weapon
-//              case 45205: break;
-//              // Upper Deck - Kite - Lightning Periodic Aura
-//              case 45207: break;
-//              // Kite -Sky  Lightning Strike Kite Aura
-//              case 45251: break;
-//              // Ribbon Pole Dancer Check Aura
-//              case 45390: break;
-//              // Holiday - Midsummer, Ribbon Pole Periodic Visual
-//              case 45406: break;
-//              // Parachute
-//              case 45472: break;
-//              // Alliance Flag, Extra Damage Debuff
-//              case 45898: break;
-//              // Horde Flag, Extra Damage Debuff
-//              case 45899: break;
-//              // Ahune - Summoning Rhyme Aura
-//              case 45926: break;
-//              // Ahune - Slippery Floor
-//              case 45945: break;
-//              // Ahune's Shield
-//              case 45954: break;
-//              // Nether Vapor Lightning
-//              case 45960: break;
-//              // Darkness
-//              case 45996: break;
+                //              // Giddyup!
+                //              case 42924: break;
+                //              // Ram - Trot
+                //              case 42992: break;
+                //              // Ram - Canter
+                //              case 42993: break;
+                //              // Ram - Gallop
+                //              case 42994: break;
+                //              // Ram Level - Neutral
+                //              case 43310: break;
+                //              // Headless Horseman - Maniacal Laugh, Maniacal, Delayed 17
+                //              case 43884: break;
+                //              // Wretched!
+                //              case 43963: break;
+                //              // Headless Horseman - Maniacal Laugh, Maniacal, other, Delayed 17
+                //              case 44000: break;
+                //              // Energy Feedback
+                //              case 44328: break;
+                //              // Romantic Picnic
+                //              case 45102: break;
+                //              // Romantic Picnic
+                //              case 45123: break;
+                //              // Looking for Love
+                //              case 45124: break;
+                //              // Kite - Lightning Strike Kite Aura
+                //              case 45197: break;
+                //              // Rocket Chicken
+                //              case 45202: break;
+                //              // Copy Offhand Weapon
+                //              case 45205: break;
+                //              // Upper Deck - Kite - Lightning Periodic Aura
+                //              case 45207: break;
+                //              // Kite -Sky  Lightning Strike Kite Aura
+                //              case 45251: break;
+                //              // Ribbon Pole Dancer Check Aura
+                //              case 45390: break;
+                //              // Holiday - Midsummer, Ribbon Pole Periodic Visual
+                //              case 45406: break;
+                //              // Parachute
+                //              case 45472: break;
+                //              // Alliance Flag, Extra Damage Debuff
+                //              case 45898: break;
+                //              // Horde Flag, Extra Damage Debuff
+                //              case 45899: break;
+                //              // Ahune - Summoning Rhyme Aura
+                //              case 45926: break;
+                //              // Ahune - Slippery Floor
+                //              case 45945: break;
+                //              // Ahune's Shield
+                //              case 45954: break;
+                //              // Nether Vapor Lightning
+                //              case 45960: break;
+                //              // Darkness
+                //              case 45996: break;
                 case 46041:                                 // Summon Blood Elves Periodic
                     target->CastSpell(target, 46037, true, NULL, this);
                     target->CastSpell(target, roll_chance_i(50) ? 46038 : 46039, true, NULL, this);
                     target->CastSpell(target, 46040, true, NULL, this);
                     return;
-//              // Transform Visual Missile Periodic
-//              case 46205: break;
-//              // Find Opening Beam End
-//              case 46333: break;
+                //              // Transform Visual Missile Periodic
+                //              case 46205: break;
+                //              // Find Opening Beam End
+                //              case 46333: break;
                 case 46371:                                 // Ice Spear Control Aura
                     target->CastSpell(target, 46372, true, NULL, this);
                     return;
-//              // Hailstone Chill
-//              case 46458: break;
-//              // Hailstone Chill, Internal
-//              case 46465: break;
-//              // Chill, Internal Shifter
-//              case 46549: break;
-//              // Summon Ice Spear Knockback Delayer
-//              case 46878: break;
-//              // Burninate Effect
-//              case 47214: break;
-//              // Fizzcrank Practice Parachute
-//              case 47228: break;
-//              // Send Mug Control Aura
-//              case 47369: break;
-//              // Direbrew's Disarm (precast)
-//              case 47407: break;
-//              // Mole Machine Port Schedule
-//              case 47489: break;
-//              case 47941: break; // Crystal Spike
-//              case 48200: break; // Healer Aura
+                //              // Hailstone Chill
+                //              case 46458: break;
+                //              // Hailstone Chill, Internal
+                //              case 46465: break;
+                //              // Chill, Internal Shifter
+                //              case 46549: break;
+                //              // Summon Ice Spear Knockback Delayer
+                //              case 46878: break;
+                //              // Burninate Effect
+                //              case 47214: break;
+                //              // Fizzcrank Practice Parachute
+                //              case 47228: break;
+                //              // Send Mug Control Aura
+                //              case 47369: break;
+                //              // Direbrew's Disarm (precast)
+                //              case 47407: break;
+                //              // Mole Machine Port Schedule
+                //              case 47489: break;
+                //              case 47941: break; // Crystal Spike
+                //              case 48200: break; // Healer Aura
                 case 48630:                                 // Summon Gauntlet Mobs Periodic
                 case 59275:                                 // Below may need some adjustment, pattern for amount of summon and where is not verified 100% (except for odd/even tick)
                 {
@@ -3511,9 +3510,9 @@ void Aura::PeriodicDummyTick()
 
                     return;
                 }
-//              case 49313: break; // Proximity Mine Area Aura
-//              // Mole Machine Portal Schedule
-//              case 49466: break;
+                //              case 49313: break; // Proximity Mine Area Aura
+                //              // Mole Machine Portal Schedule
+                //              case 49466: break;
                 case 49555:                                 // Corpse Explode (Drak'tharon Keep - Trollgore)
                 case 59807:                                 // Corpse Explode (heroic)
                 {
@@ -3533,13 +3532,13 @@ void Aura::PeriodicDummyTick()
 
                     return;
                 }
-//              case 49592: break; // Temporal Rift
-//              case 49957: break; // Cutting Laser
-//              case 50085: break; // Slow Fall
-//              // Listening to Music
-//              case 50493: break;
-//              // Love Rocket Barrage
-//              case 50530: break;
+                //              case 49592: break; // Temporal Rift
+                //              case 49957: break; // Cutting Laser
+                //              case 50085: break; // Slow Fall
+                //              // Listening to Music
+                //              case 50493: break;
+                //              // Love Rocket Barrage
+                //              case 50530: break;
                 case 50789:                                 // Summon iron dwarf (left or right)
                 case 59860:
                     target->CastSpell(target, roll_chance_i(50) ? 50790 : 50791, true, NULL, this);
@@ -3792,7 +3791,7 @@ void Aura::PeriodicDummyTick()
                     target->CastSpell(target, 68873, true);
                     return;
                 }
-// Exist more after, need add later
+                // Exist more after, need add later
                 default:
                     break;
             }
@@ -5456,7 +5455,6 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
             switch (GetId())
             {
                 case 49039: spellId1 = 50397; break;        // Lichborne
-
                 case 48263:                                 // Frost Presence
                 case 48265:                                 // Unholy Presence
                 case 48266:                                 // Blood Presence
