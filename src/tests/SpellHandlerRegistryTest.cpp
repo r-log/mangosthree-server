@@ -851,6 +851,83 @@ TEST(AuraDummyHandlers_GetRemoveModeAnswersTheModeSetRemoveModeWrote)
 
 namespace
 {
+    struct HolderStorage
+    {
+        alignas(SpellAuraHolder) unsigned char bytes[sizeof(SpellAuraHolder)];
+    };
+
+    // A holder's storage without its constructor, every byte set to one value.
+    SpellAuraHolder* HolderFilledWith(HolderStorage& storage, unsigned char value)
+    {
+        for (unsigned char& byte : storage.bytes)
+        {
+            byte = value;
+        }
+        return reinterpret_cast<SpellAuraHolder*>(storage.bytes);
+    }
+
+    const uint32 kHolderSpell = 92001;
+    alignas(SpellEntry) unsigned char s_holderSpellBytes[sizeof(SpellEntry)] = {};
+
+    // A Spell.dbc row put into the spell store, which a holder's constructor checks it against.
+    SpellEntry const* HolderSpell()
+    {
+        static bool seeded = false;
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(s_holderSpellBytes);
+        if (!seeded)
+        {
+            seeded = true;
+            row->ID = kHolderSpell;
+            sSpellStore.SetEntry(kHolderSpell, row);
+        }
+        return row;
+    }
+
+    // A creature with its update fields allocated and no world, map, template or AI.
+    class HolderTarget : public Creature
+    {
+        public:
+            HolderTarget()
+            {
+                _InitValues();
+            }
+
+            // Unit::CleanupsBeforeDelete tears down an in-world unit only while the update fields exist.
+            ~HolderTarget()
+            {
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+}
+
+TEST(SpellAuraHolder_GetRemoveModeAnswersTheModeSetRemoveModeWrote)
+{
+    static AuraRemoveMode const modes[] =
+    {
+        AURA_REMOVE_BY_DEFAULT, AURA_REMOVE_BY_STACK, AURA_REMOVE_BY_CANCEL, AURA_REMOVE_BY_DISPEL,
+        AURA_REMOVE_BY_DEATH, AURA_REMOVE_BY_DELETE, AURA_REMOVE_BY_SHIELD_BREAK, AURA_REMOVE_BY_EXPIRE,
+        AURA_REMOVE_BY_TRACKING,
+    };
+    static unsigned char const fills[] = { 0x00, 0xA5 };
+    for (unsigned char fill : fills)
+    {
+        HolderStorage storage;
+        SpellAuraHolder* holder = HolderFilledWith(storage, fill);
+        for (AuraRemoveMode mode : modes)
+        {
+            holder->SetRemoveMode(mode);                        // Unit::RemoveSpellAuraHolder's write
+            CHECK_EQ(int(holder->GetRemoveMode()), int(mode));
+        }
+    }
+
+    HolderTarget target;
+    SpellAuraHolder fresh(HolderSpell(), &target, NULL, NULL, NULL);
+    CHECK_EQ(int(fresh.GetRemoveMode()), int(AURA_REMOVE_BY_DEFAULT));
+}
+
+namespace
+{
     int BitsThatDiffer(AuraStorage const& left, AuraStorage const& right)
     {
         int bits = 0;
