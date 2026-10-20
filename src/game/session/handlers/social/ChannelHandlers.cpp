@@ -254,10 +254,10 @@ void ChannelHandlers::HandleChannelMute(WorldSession& session, WorldPacket& recv
     uint32 channelLen, nameLen;
     std::string channelname, otp;
 
-    nameLen = recvPacket.ReadBits(7);
     channelLen = recvPacket.ReadBits(8);
-    otp = recvPacket.ReadString(nameLen);
+    nameLen = recvPacket.ReadBits(7);
     channelname = recvPacket.ReadString(channelLen);
+    otp = recvPacket.ReadString(nameLen);
 
     if (!normalizePlayerName(otp))
     {
@@ -285,8 +285,8 @@ void ChannelHandlers::HandleChannelUnmute(WorldSession& session, WorldPacket& re
 
     channelLen = recvPacket.ReadBits(8);
     nameLen = recvPacket.ReadBits(7);
-    otp = recvPacket.ReadString(nameLen);
     channelname = recvPacket.ReadString(channelLen);
+    otp = recvPacket.ReadString(nameLen);
 
     if (!normalizePlayerName(otp))
     {
@@ -401,8 +401,8 @@ void ChannelHandlers::HandleChannelUnban(WorldSession& session, WorldPacket& rec
 
     nameLen = recvPacket.ReadBits(7);
     channelLen = recvPacket.ReadBits(8);
-    otp = recvPacket.ReadString(nameLen);
     channelname = recvPacket.ReadString(channelLen);
+    otp = recvPacket.ReadString(nameLen);
 
     if (!normalizePlayerName(otp))
     {
