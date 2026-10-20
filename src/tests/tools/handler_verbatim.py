@@ -215,9 +215,9 @@ literal, a rename whose base function declares no `session` in its head or body 
 `WorldSession` declares none) or declares one under `extern`, a rename whose name the base file holds, or the
 new file holds outside the functions renamed to it or other than as a whole word in code, a `session` left in a
 moved line under a rename, a line splice in a function under a rename, an edit or substitution naming the
-rename's name or reading back `session`, a text pair of another shape, holding a line break or a line splice,
-changing code (a line pair) or holding a line that is not a comment line or a blank line (a block), changing a
-literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block inside a
+rename's name or reading back `session`, a text pair of another shape, holding a line break, a line splice or a
+directive line, changing code (a line pair) or holding a line that is not a comment line or a blank line (a block),
+changing a literal's conversions or a line whose literals hold such an escape or such a `%`, ending a block inside a
 comment, standing other than once (its new side in the moved function, its base side read back in the base
 function) or not alone, overlapping another, or holding an edit's new line, texts that are not a list of pairs,
 a change of another shape, holding a line break or a line splice, changing no code (a comment or literal change
