@@ -161,7 +161,17 @@ enum SpellHandlerSite
     /// `Aura::PeriodicDummyTick`, SPELLFAMILY_DRUID's `switch (spell->ID)`.
     SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_DRUID = 47,
     /// `Aura::PeriodicDummyTick`, SPELLFAMILY_HUNTER's `switch (spell->ID)`.
-    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_HUNTER = 48
+    SPELL_HANDLER_SITE_AURA_PERIODIC_DUMMY_TICK_HUNTER = 48,
+    /// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_GENERIC's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_BOOST_GENERIC = 49,
+    /// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_MAGE's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_BOOST_MAGE = 50,
+    /// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_PRIEST's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_BOOST_PRIEST = 51,
+    /// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_HUNTER's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_BOOST_HUNTER = 52,
+    /// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_DEATHKNIGHT's `switch (GetId())`.
+    SPELL_HANDLER_SITE_AURA_BOOST_DEATH_KNIGHT = 53
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

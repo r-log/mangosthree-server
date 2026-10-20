@@ -3345,82 +3345,10 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
     {
         case SPELLFAMILY_GENERIC:
         {
-            switch (GetId())
+            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, spellId4);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostGenericSite>(GetId(), ctx).IsReturn())
             {
-                case 29865:                                 // Deathbloom (10 man)
-                {
-                    if (!apply && m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                    {
-                        cast_at_remove = true;
-                        spellId1 = 55594;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                case 55053:                                 // Deathbloom (25 man)
-                {
-                    if (!apply && m_removeMode == AURA_REMOVE_BY_EXPIRE)
-                    {
-                        cast_at_remove = true;
-                        spellId1 = 55601;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                case 50720:                                 // Vigilance (warrior spell but not have warrior family)
-                {
-                    spellId1 = 68066;                       // Damage Reduction
-                    break;
-                }
-                case 57350:                                 // Illusionary Barrier
-                {
-                    if (!apply && m_target->GetPowerType() == POWER_MANA)
-                    {
-                        cast_at_remove = true;
-                        spellId1 = 60242;                   // Darkmoon Card: Illusion
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                case 58914:                                 // Kill Command, pet aura
-                {
-                    // Removal is needed here because the dummy aura handler is applied / removed at stacks change
-                    if (!apply)
-                        if (Unit* caster = GetCaster())
-                        {
-                            caster->RemoveAurasDueToSpell(34027);
-                        }
-                    return;
-                }
-                case 62692:                                 // Aura of Despair
-                {
-                    spellId1 = 64848;
-                    break;
-                }
-                case 71905:                                 // Soul Fragment
-                {
-                    if (!apply)
-                    {
-                        spellId1 = 72521;                   // Shadowmourne Visual Low
-                        spellId2 = 72523;                   // Shadowmourne Visual High
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                default:
-                    return;
+                return;
             }
             break;
         }
@@ -3454,69 +3382,10 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
                 break;
             }
 
-            switch (GetId())
+            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, spellId4);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostMageSite>(GetId(), ctx).IsReturn())
             {
-                case 11129:                                 // Combustion (remove triggered aura stack)
-                {
-                    if (!apply)
-                    {
-                        spellId1 = 28682;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                case 28682:                                 // Combustion (remove main aura)
-                {
-                    if (!apply)
-                    {
-                        spellId1 = 11129;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                case 44401:                                 // Missile Barrage (triggered)
-                case 48108:                                 // Hot Streak (triggered)
-                case 57761:                                 // Fireball! (Brain Freeze triggered)
-                {
-                    // consumed aura (at proc charges 0)
-                    if (!apply && m_removeMode == AURA_REMOVE_BY_DEFAULT)
-                    {
-                        Unit* caster = GetCaster();
-                        // Item - Mage T10 2P Bonus
-                        if (!caster || !caster->HasAura(70752))
-                        {
-                            return;
-                        }
-
-                        cast_at_remove = true;
-                        spellId1 = 70753;                   // Pushing the Limit
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                case 74396:                                 // Fingers of Frost (remove main aura)
-                {
-                    if (!apply)
-                    {
-                        spellId1 = 44544;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                default:
-                    return;
+                return;
             }
             break;
         }
@@ -3660,45 +3529,10 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
                 return;
             }
 
-            switch (GetId())
+            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, spellId4);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostPriestSite>(GetId(), ctx).IsReturn())
             {
-                    // Abolish Disease (remove 1 more poison effect with Body and Soul)
-                case 552:
-                {
-                    if (apply)
-                    {
-                        int chance = 0;
-                        Unit::AuraList const& dummyAuras = m_target->GetAurasByType(SPELL_AURA_DUMMY);
-                        for (Unit::AuraList::const_iterator itr = dummyAuras.begin(); itr != dummyAuras.end(); ++itr)
-                        {
-                            SpellEntry const* dummyEntry = (*itr)->GetSpellProto();
-                            // Body and Soul (talent ranks)
-                            if (dummyEntry->GetSpellFamilyName() == SPELLFAMILY_PRIEST && dummyEntry->SpellIconID == 2218 &&
-                                dummyEntry->SpellVisualID[0]==0)
-                            {
-                                chance = (*itr)->GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_1);
-                                break;
-                            }
-                        }
-
-                        if (roll_chance_i(chance))
-                        {
-                            spellId1 = 64134;               // Body and Soul (periodic dispel effect)
-                        }
-                    }
-                    else
-                    {
-                        spellId1 = 64134;                   // Body and Soul (periodic dispel effect)
-                    }
-                    break;
-                }
-                // Dispersion mana reg and immunity
-                case 47585:
-                    spellId1 = 60069;                       // Dispersion
-                    spellId2 = 63230;                       // Dispersion
-                    break;
-                default:
-                    return;
+                return;
             }
             break;
         }
@@ -3739,117 +3573,10 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
             break;
         case SPELLFAMILY_HUNTER:
         {
-            switch (GetId())
+            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, spellId4);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostHunterSite>(GetId(), ctx).IsReturn())
             {
-                case 34074:                                 // Aspect of the Viper
-                {
-                    if (!apply || m_target->HasAura(60144)) // Viper Attack Speed
-                    {
-                        spellId1 = 61609;                   // Vicious Viper
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
-                }
-                case 19574:                                 // Bestial Wrath - immunity
-                case 34471:                                 // The Beast Within - immunity
-                {
-                    spellId1 = 24395;
-                    spellId2 = 24396;
-                    spellId3 = 24397;
-                    spellId4 = 26592;
-                    break;
-                }
-                case 34027:                                 // Kill Command, owner aura (spellmods)
-                {
-                    if (apply)
-                    {
-                        if (m_target->HasAura(35029))       // Focused Fire, rank 1
-                        {
-                            spellId1 = 60110;               // Kill Command, Focused Fire rank 1 bonus
-                        }
-                        else if (m_target->HasAura(35030))  // Focused Fire, rank 2
-                        {
-                            spellId1 = 60113;               // Kill Command, Focused Fire rank 2 bonus
-                        }
-                        else
-                        {
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        spellId1 = 34026;                   // Kill Command, owner casting aura
-                        spellId2 = 60110;                   // Kill Command, Focused Fire rank 1 bonus
-                        spellId3 = 60113;                   // Kill Command, Focused Fire rank 2 bonus
-                        if (Unit* pet = m_target->GetPet())
-                        {
-                            pet->RemoveAurasDueToSpell(58914); // Kill Command, pet aura
-                        }
-                    }
-                    break;
-                }
-                case 35029:                                 // Focused Fire, rank 1
-                {
-                    if (apply && !m_target->HasAura(34027)) // Kill Command, owner casting aura
-                    {
-                        return;
-                    }
-
-                    spellId1 = 60110;                       // Kill Command, Focused Fire rank 1 bonus
-                    break;
-                }
-                case 35030:                                 // Focused Fire, rank 2
-                {
-                    if (apply && !m_target->HasAura(34027)) // Kill Command, owner casting aura
-                    {
-                        return;
-                    }
-
-                    spellId1 = 60113;                       // Kill Command, Focused Fire rank 2 bonus
-                    break;
-                }
-                default:
-                    // Freezing Trap Effect
-                    if (GetSpellProto()->IsFitToFamilyMask(UI64LIT(0x0000000000000008)))
-                    {
-                        if (!apply)
-                        {
-                            Unit* caster = GetCaster();
-                            // Glyph of Freezing Trap
-                            if (caster && caster->HasAura(56845))
-                            {
-                                cast_at_remove = true;
-                                spellId1 = 61394;
-                            }
-                            else
-                            {
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            return;
-                        }
-                    }
-                    // Aspect of the Dragonhawk dodge
-                    else if (GetSpellProto()->IsFitToFamilyMask(UI64LIT(0x0000000000000000), 0x00001000))
-                    {
-                        spellId1 = 61848;
-
-                        // triggered spell have same category as main spell and cooldown
-                        if (apply && m_target->GetTypeId() == TYPEID_PLAYER)
-                        {
-                            ((Player*)m_target)->RemoveSpellCooldown(61848);
-                        }
-                    }
-                    else
-                    {
-                        return;
-                    }
-                    break;
+                return;
             }
             break;
         }
@@ -3912,137 +3639,10 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
         case SPELLFAMILY_DEATHKNIGHT:
         {
             // second part of spell apply
-            switch (GetId())
+            AuraBoostContext ctx(this, apply, cast_at_remove, spellId1, spellId2, spellId3, spellId4);
+            if (SpellHandlerRegistry::Game().Dispatch<AuraBoostDeathKnightSite>(GetId(), ctx).IsReturn())
             {
-                case 49039: spellId1 = 50397; break;        // Lichborne
-                case 48263:                                 // Frost Presence
-                case 48265:                                 // Unholy Presence
-                case 48266:                                 // Blood Presence
-                {
-                    // else part one per 3 pair
-                    if (GetId() == 48263 || GetId() == 48265) // Frost Presence or Unholy Presence
-                    {
-                        // Improved Blood Presence
-                        int32 heal_pct = 0;
-                        if (apply)
-                        {
-                            Unit::AuraList const& bloodAuras = m_target->GetAurasByType(SPELL_AURA_DUMMY);
-                            for (Unit::AuraList::const_iterator itr = bloodAuras.begin(); itr != bloodAuras.end(); ++itr)
-                            {
-                                // skip same icon
-                                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
-                                    (*itr)->GetSpellProto()->SpellIconID == 2636)
-                                {
-                                    heal_pct = (*itr)->GetModifier()->m_amount;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (heal_pct)
-                        {
-                            m_target->CastCustomSpell(m_target, 63611, &heal_pct, NULL, NULL, true, NULL, NULL, GetCasterGuid());
-                        }
-                        else
-                        {
-                            m_target->RemoveAurasDueToSpell(63611);
-                        }
-                    }
-                    else
-                        spellId1 = 63611;                   // Improved Blood Presence, trigger for heal
-
-                    if (GetId() == 48263 || GetId() == 48266) // Frost Presence or Blood Presence
-                    {
-                        // Improved Unholy Presence
-                        int32 power_pct = 0;
-                        if (apply)
-                        {
-                            Unit::AuraList const& unholyAuras = m_target->GetAurasByType(SPELL_AURA_DUMMY);
-                            for (Unit::AuraList::const_iterator itr = unholyAuras.begin(); itr != unholyAuras.end(); ++itr)
-                            {
-                                // skip same icon
-                                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
-                                    (*itr)->GetSpellProto()->SpellIconID == 2633)
-                                {
-                                    power_pct = (*itr)->GetModifier()->m_amount;
-                                    break;
-                                }
-                            }
-                        }
-                        if (power_pct || !apply)
-                            spellId2 = 49772;               // Unholy Presence, speed part, spell1 used for Improvement presence fit to own presence
-                    }
-                    else
-                    {
-                        spellId1 = 49772;                   // Unholy Presence move speed
-                    }
-
-                    if (GetId() == 48265 || GetId() == 48266)   // Unholy Presence or Blood Presence
-                    {
-                        // Improved Frost Presence
-                        int32 stamina_pct = 0;
-                        if (apply)
-                        {
-                            Unit::AuraList const& frostAuras = m_target->GetAurasByType(SPELL_AURA_DUMMY);
-                            for (Unit::AuraList::const_iterator itr = frostAuras.begin(); itr != frostAuras.end(); ++itr)
-                            {
-                                // skip same icon
-                                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
-                                    (*itr)->GetSpellProto()->SpellIconID == 2632)
-                                {
-                                    stamina_pct = (*itr)->GetModifier()->m_amount;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (stamina_pct)
-                        {
-                            m_target->CastCustomSpell(m_target, 61261, &stamina_pct, NULL, NULL, true, NULL, NULL, GetCasterGuid());
-                        }
-                        else
-                        {
-                            m_target->RemoveAurasDueToSpell(61261);
-                        }
-                    }
-                    else
-                    {
-                        spellId1 = 61261;                   // Frost Presence, stamina
-                    }
-
-                    if (GetId() == 48265)                   // Unholy Presence
-                    {
-                        // Improved Unholy Presence, special case for own presence
-                        int32 power_pct = 0;
-                        if (apply)
-                        {
-                            Unit::AuraList const& unholyAuras = m_target->GetAurasByType(SPELL_AURA_DUMMY);
-                            for (Unit::AuraList::const_iterator itr = unholyAuras.begin(); itr != unholyAuras.end(); ++itr)
-                            {
-                                // skip same icon
-                                if ((*itr)->GetSpellProto()->GetSpellFamilyName() == SPELLFAMILY_DEATHKNIGHT &&
-                                    (*itr)->GetSpellProto()->SpellIconID == 2633)
-                                {
-                                    power_pct = (*itr)->GetModifier()->m_amount;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (power_pct)
-                        {
-                            int32 bp = 5;
-                            m_target->CastCustomSpell(m_target, 63622, &bp, &bp, &bp, true, NULL, NULL, GetCasterGuid());
-                            m_target->CastCustomSpell(m_target, 65095, &bp, NULL, NULL, true, NULL, NULL, GetCasterGuid());
-                        }
-                        else
-                        {
-                            m_target->RemoveAurasDueToSpell(63622);
-                            m_target->RemoveAurasDueToSpell(65095);
-                        }
-                    }
-                    break;
-                }
+                return;
             }
 
             // Improved Blood Presence
