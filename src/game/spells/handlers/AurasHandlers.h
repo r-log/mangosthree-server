@@ -28,6 +28,7 @@
 #define MANGOSSERVER_SPELLS_HANDLERS_AURASHANDLERS_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
+#include "Server/SharedDefines.h"
 
 class Aura;
 class ObjectGuid;
@@ -62,7 +63,7 @@ struct AuraTriggerSpellContext
     SpellEntry const* const& auraSpellInfo;      ///< the function's local `SpellEntry const* auraSpellInfo`
     uint32 const& auraId;                        ///< the function's local `uint32 auraId`, the aura's spell id
     Unit*& target;                               ///< the function's local `Unit* target`, the aura's target
-    Unit*& triggerCaster;                        ///< the function's local `Unit* triggerCaster`, which a body may set
+    Unit*& triggerCaster;                        ///< the function's local `Unit* triggerCaster`, which bodies set
 };
 
 /// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_GENERIC's `switch (auraId)`: a label
@@ -72,6 +73,98 @@ struct AuraTriggerSpellGenericSite
     static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_GENERIC;
     typedef void Value;
     typedef AuraTriggerSpellContext Context;
+};
+
+/// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_MAGE's `switch (auraId)`: the label
+/// returns from the member; the `default:` does nothing.
+struct AuraTriggerSpellMageSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_MAGE;
+    typedef void Value;
+    typedef AuraTriggerSpellContext Context;
+};
+
+/// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_HUNTER's `switch (auraId)`: the label
+/// breaks to the re-read of the trigger spell; the `default:` does nothing.
+struct AuraTriggerSpellHunterSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_HUNTER;
+    typedef void Value;
+    typedef AuraTriggerSpellContext Context;
+};
+
+/// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_DRUID's `switch (auraId)`: each label
+/// returns from the member; the `default:` does nothing.
+struct AuraTriggerSpellDruidSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_DRUID;
+    typedef void Value;
+    typedef AuraTriggerSpellContext Context;
+};
+
+/// `Aura::TriggerSpell`, no trigger spell in the effect, SPELLFAMILY_SHAMAN's `switch (auraId)`: each label
+/// returns from the member; the `default:` does nothing.
+struct AuraTriggerSpellShamanSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_SHAMAN;
+    typedef void Value;
+    typedef AuraTriggerSpellContext Context;
+};
+
+/// `Aura::TriggerSpell`, a trigger spell that needs custom code, its `switch (auraId)`: no `default:`; a label that
+/// breaks goes on to the default cast.
+struct AuraTriggerSpellCustomSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_TRIGGER_SPELL_CUSTOM;
+    typedef void Value;
+    typedef AuraTriggerSpellContext Context;
+};
+
+/// What the bodies of `Aura::PeriodicTick`'s periodic-damage switch read: the aura and the function's locals.
+struct AuraPeriodicDamageTickContext
+{
+    AuraPeriodicDamageTickContext(Aura* thisAura, Unit*& targetLocal, SpellEntry const* const& spellProtoLocal,
+                                  Unit*& casterLocal)
+        : aura(thisAura), target(targetLocal), spellProto(spellProtoLocal), pCaster(casterLocal) {}
+
+    Aura* const aura;                    ///< `this` in the case bodies
+    Unit*& target;                       ///< the function's local `Unit* target`, the aura's target
+    SpellEntry const* const& spellProto; ///< the function's local `SpellEntry const* spellProto`, the aura's spell
+    Unit*& pCaster;                      ///< the damage block's local `Unit* pCaster`, the aura's caster
+};
+
+/// `Aura::PeriodicTick`, a periodic damage tick, its `switch (GetId())` before the damage: a label that breaks goes
+/// on to the damage; the `default:` does nothing.
+struct AuraPeriodicDamageTickSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_DAMAGE_TICK;
+    typedef void Value;
+    typedef AuraPeriodicDamageTickContext Context;
+};
+
+/// What the bodies of `Aura::PeriodicTick`'s mana-leech switch read and write: the aura and the block's locals, by
+/// reference where a body sets one.
+struct AuraPeriodicManaLeechTickContext
+{
+    AuraPeriodicManaLeechTickContext(Aura* thisAura, Unit*& targetLocal, Powers const& powerLocal,
+                                     uint32& damageLocal, int32& drainAmountLocal)
+        : aura(thisAura), target(targetLocal), power(powerLocal), pdamage(damageLocal),
+          drain_amount(drainAmountLocal) {}
+
+    Aura* const aura;    ///< `this` in the case bodies
+    Unit*& target;       ///< the function's local `Unit* target`, the aura's target
+    Powers const& power; ///< the leech block's local `Powers power`, the power drained
+    uint32& pdamage;     ///< the leech block's local `uint32 pdamage`, the amount to drain, which a body sets
+    int32& drain_amount; ///< the leech block's local `int32 drain_amount`, the amount drained, which a body sets
+};
+
+/// `Aura::PeriodicTick`, a mana-leech tick, its `switch (GetId())` after the drain: no `default:`; every label
+/// continues after the switch.
+struct AuraPeriodicManaLeechTickSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_AURA_PERIODIC_MANA_LEECH_TICK;
+    typedef void Value;
+    typedef AuraPeriodicManaLeechTickContext Context;
 };
 
 /// Registers every `SpellAuras.cpp` handler on `registry` (defined in AurasHandlers.cpp).

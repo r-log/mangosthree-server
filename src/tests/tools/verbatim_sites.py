@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '199bf0b50'
+BASE = '5c8a3dccb'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -1666,6 +1666,207 @@ SITES = {
                 62679: '                    case 62679:                             // Durotar Scorpion',
                 64345: '                    case 64345:                             // Remove Player from Phase',
                 69012: '                    case 69012:                             // Explosive Barrage'},
+        }, {
+            'name': 'TriggerSpell, no trigger spell, SPELLFAMILY_MAGE (switch (auraId))',
+            'dispatch': [
+                '                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, '
+                'triggeredSpellInfo,',
+                '                                            auraSpellInfo, auraId, target, triggerCaster);',
+                '                if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraTriggerSpellMageSite>(auraId, ctx).IsReturn())',
+                '                {',
+                '                    return;',
+                '                }'],
+            'open': ['                switch (auraId)', '                {'],
+            'close': ['                }'],
+            'label_indent': 20,
+            'traits': 'AuraTriggerSpellMageSite',
+            'context': 'AuraTriggerSpellContext',
+            'live_outs': ['casterGUID', 'triggerTarget', 'trigger_spell_id', 'triggeredSpellInfo', 'auraSpellInfo',
+                          'auraId', 'target', 'triggerCaster'],
+            'in_scope': ['triggerTargetObject'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [] + VOID_SUBSTITUTIONS,
+            'default': '                    default:',
+            'labels': {
+                66: '                    case 66:                                // Invisibility'},
+        }, {
+            'name': 'TriggerSpell, no trigger spell, SPELLFAMILY_HUNTER (switch (auraId))',
+            'dispatch': [
+                '                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, '
+                'triggeredSpellInfo,',
+                '                                            auraSpellInfo, auraId, target, triggerCaster);',
+                '                if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraTriggerSpellHunterSite>(auraId, ctx).IsReturn())',
+                '                {',
+                '                    return;',
+                '                }'],
+            'open': ['                switch (auraId)', '                {'],
+            'close': ['                }'],
+            'label_indent': 20,
+            'traits': 'AuraTriggerSpellHunterSite',
+            'context': 'AuraTriggerSpellContext',
+            'live_outs': ['casterGUID', 'triggerTarget', 'trigger_spell_id', 'triggeredSpellInfo', 'auraSpellInfo',
+                          'auraId', 'target', 'triggerCaster'],
+            'in_scope': ['triggerTargetObject'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.triggerTarget', 'triggerTarget'), ('ctx.trigger_spell_id', 'trigger_spell_id'),
+                              ('ctx.auraId', 'auraId'),
+                              ('ctx.aura->GetModifier()->', 'm_modifier.')] + VOID_SUBSTITUTIONS,
+            'default': '                    default:',
+            'labels': {
+                53302: '                    case 53302:                             // Sniper training',
+                53303: '                    case 53303:',
+                53304: '                    case 53304:'},
+        }, {
+            'name': 'TriggerSpell, no trigger spell, SPELLFAMILY_DRUID (switch (auraId))',
+            'dispatch': [
+                '                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, '
+                'triggeredSpellInfo,',
+                '                                            auraSpellInfo, auraId, target, triggerCaster);',
+                '                if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraTriggerSpellDruidSite>(auraId, ctx).IsReturn())',
+                '                {',
+                '                    return;',
+                '                }'],
+            'open': ['                switch (auraId)', '                {'],
+            'close': ['                }'],
+            'label_indent': 20,
+            'traits': 'AuraTriggerSpellDruidSite',
+            'context': 'AuraTriggerSpellContext',
+            'live_outs': ['casterGUID', 'triggerTarget', 'trigger_spell_id', 'triggeredSpellInfo', 'auraSpellInfo',
+                          'auraId', 'target', 'triggerCaster'],
+            'in_scope': ['triggerTargetObject'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.aura->GetModifier()', 'GetModifier()'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'default': '                    default:',
+            'labels': {
+                768: '                    case 768:                               // Cat Form',
+                22842: '                    case 22842:                             // Frenzied Regeneration',
+                22895: '                    case 22895:',
+                22896: '                    case 22896:',
+                26999: '                    case 26999:'},
+        }, {
+            'name': 'TriggerSpell, no trigger spell, SPELLFAMILY_SHAMAN (switch (auraId))',
+            'dispatch': [
+                '                AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, '
+                'triggeredSpellInfo,',
+                '                                            auraSpellInfo, auraId, target, triggerCaster);',
+                '                if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraTriggerSpellShamanSite>(auraId, ctx).IsReturn())',
+                '                {',
+                '                    return;',
+                '                }'],
+            'open': ['                switch (auraId)', '                {'],
+            'close': ['                }'],
+            'label_indent': 20,
+            'traits': 'AuraTriggerSpellShamanSite',
+            'context': 'AuraTriggerSpellContext',
+            'live_outs': ['casterGUID', 'triggerTarget', 'trigger_spell_id', 'triggeredSpellInfo', 'auraSpellInfo',
+                          'auraId', 'target', 'triggerCaster'],
+            'in_scope': ['triggerTargetObject'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.triggerTarget', 'triggerTarget'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'default': '                    default:',
+            'labels': {
+                28820: '                    case 28820:                             '
+                       '// Lightning Shield (The Earthshatterer set trigger after cast Lighting Shield)',
+                38443: '                    case 38443:                             '
+                       '// Totemic Mastery (Skyshatter Regalia (Shaman Tier 6) - bonus)'},
+        }, {
+            'name': 'TriggerSpell, a trigger spell needing custom code (switch (auraId))',
+            'dispatch': [
+                '        AuraTriggerSpellContext ctx(this, casterGUID, triggerTarget, trigger_spell_id, '
+                'triggeredSpellInfo,',
+                '                                    auraSpellInfo, auraId, target, triggerCaster);',
+                '        if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraTriggerSpellCustomSite>(auraId, ctx).IsReturn())',
+                '        {',
+                '            return;',
+                '        }'],
+            'open': ['        switch (auraId)', '        {'],
+            'close': ['        }'],
+            'label_indent': 12,
+            'traits': 'AuraTriggerSpellCustomSite',
+            'context': 'AuraTriggerSpellContext',
+            'live_outs': ['casterGUID', 'triggerTarget', 'trigger_spell_id', 'triggeredSpellInfo', 'auraSpellInfo',
+                          'auraId', 'target', 'triggerCaster'],
+            'in_scope': ['triggerTargetObject'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.casterGUID', 'casterGUID'), ('ctx.triggerTarget', 'triggerTarget'),
+                              ('ctx.trigger_spell_id', 'trigger_spell_id'),
+                              ('ctx.triggeredSpellInfo', 'triggeredSpellInfo'), ('ctx.target', 'target'),
+                              ('ctx.triggerCaster', 'triggerCaster'), ('ctx.aura->GetCaster()', 'GetCaster()'),
+                              ('ctx.aura->GetModifier()->', 'm_modifier.'), ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                9347: '            case 9347:                                      // Mortal Strike',
+                1010: '            case 1010:                                      // Curse of Idiocy',
+                16191: '            case 16191:                                     // Mana Tide',
+                33525: '            case 33525:                                     // Ground Slam',
+                38736: '            case 38736:                                     '
+                       '// Rod of Purification - for quest 10839 (Veil Skith: Darkstone of Terokk)',
+                43149: '            case 43149:                                     // Claw Rage',
+                44883: '            case 44883:                                     // Encapsulate',
+                56505: '            case 56505:                                     // Surge of Power',
+                53563: '            case 53563:                                     // Beacon of Light',
+                56654: '            case 56654:                                     '
+                       '// Rapid Recuperation (triggered energize have baspioints == 0)',
+                58882: '            case 58882:'},
+        }, {
+            'name': 'PeriodicTick, SPELL_AURA_PERIODIC_DAMAGE, the health-level removals (switch (GetId()))',
+            'dispatch': [
+                '                AuraPeriodicDamageTickContext ctx(this, target, spellProto, pCaster);',
+                '                if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicDamageTickSite>(GetId(), ctx).IsReturn())',
+                '                {',
+                '                    return;',
+                '                }'],
+            'open': ['                switch (GetId())', '                {'],
+            'close': ['                }'],
+            'label_indent': 20,
+            'traits': 'AuraPeriodicDamageTickSite',
+            'context': 'AuraPeriodicDamageTickContext',
+            'live_outs': ['target', 'spellProto', 'pCaster'],
+            'in_scope': ['classOptions'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.spellProto', 'spellProto'), ('ctx.pCaster', 'pCaster'),
+                              ('ctx.aura->GetId()', 'GetId()'),
+                              ('ctx.aura->GetEffIndex()', 'GetEffIndex()')] + VOID_SUBSTITUTIONS,
+            'default': '                    default:',
+            'labels': {
+                43093: '                    case 43093: case 31956: case 38801:',
+                31956: '                    case 43093: case 31956: case 38801:',
+                38801: '                    case 43093: case 31956: case 38801:',
+                35321: '                    case 35321: case 38363: case 39215:',
+                38363: '                    case 35321: case 38363: case 39215:',
+                39215: '                    case 35321: case 38363: case 39215:',
+                48920: '                    case 48920:',
+                38772: '                    case 38772:'},
+        }, {
+            'name': 'PeriodicTick, SPELL_AURA_PERIODIC_MANA_LEECH, the special cases (switch (GetId()))',
+            'dispatch': [
+                '            AuraPeriodicManaLeechTickContext ctx(this, target, power, pdamage, drain_amount);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<AuraPeriodicManaLeechTickSite>(GetId(), ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (GetId())', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'AuraPeriodicManaLeechTickSite',
+            'context': 'AuraPeriodicManaLeechTickContext',
+            'live_outs': ['target', 'power', 'pdamage', 'drain_amount'],
+            'in_scope': ['classOptions', 'spellProto', 'pCaster', 'gain_multiplier', 'pInfo'],
+            'members_of': ('src/game/WorldHandlers/SpellAuras.h', 'Aura'),
+            'substitutions': [('ctx.target', 'target'), ('ctx.power', 'power'), ('ctx.pdamage', 'pdamage'),
+                              ('ctx.drain_amount', 'drain_amount'), ('ctx.aura->GetId()', 'GetId()'),
+                              ('ctx.aura', 'this')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                32960: '                case 32960:                                 // Mark of Kazzak',
+                21056: '                case 21056:                                 // Mark of Kazzak',
+                31447: '                case 31447:                                 // Mark of Kaz\'rogal'},
         }],
     },
 }

@@ -1885,7 +1885,7 @@ src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAu
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/entities/player/Player.h
 # The handlers pass the aura to CastSpell (66, 29166, 51912) and read it: GetRemoveMode(), GetSpellEffect(), GetModifier()->m_amount, GetCaster(), GetHolder(), GetEffIndex(), GetSpellProto(), GetBasePoints(), GetAuraMaxTicks().
 src/game/spells/handlers/AuraPeriodicHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
-# The bodies read the aura through its public getters (the target, the caster, the ticks, the duration, the modifier, the effect index) and pass it to CastSpell as the triggering aura; retires when the context carries what the getters answer, since passing the aura needs only its forward declaration.
+# The bodies read the aura through its public getters (the target, the caster, the ticks, the duration, the effect index, the spell id, the modifier, whose amount Sniper Training writes) and pass it to CastSpell as the triggering aura; retires when the context carries what the getters answer, since passing the aura needs only its forward declaration.
 src/game/spells/handlers/AurasHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The Extract Gas and Vision Guide bodies cast a unit to a player for AutoStoreLoot and AreaExploredOrEventHappens; retires with the Unit page's row 13 successor.
 src/game/spells/handlers/AurasHandlers.cpp -> src/game/entities/player/Player.h
