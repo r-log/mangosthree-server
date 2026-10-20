@@ -65,11 +65,14 @@
 /// answers with one SMSG_GMTICKET_SYSTEMSTATUS carrying whether the ticket system accepts tickets.
 /// The CMSG_OFFER_PETITION row reads an offer of an empty petition guid to an empty player guid to
 /// its end and, the guid naming no player online, returns before it reads the player, sending
-/// nothing. Every row bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet,
-/// LFG, contact list, GM ticket, petition or chat channel handler class holds the status
-/// STATUS_LOGGEDIN and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING,
-/// CMSG_ATTACKSTOP and CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, and the CMSG_CANCEL_TRADE
-/// row, of status STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT.
+/// nothing. The CMSG_VOICE_SESSION_ENABLE, CMSG_CHANNEL_VOICE_ON and CMSG_SET_ACTIVE_VOICE_CHANNEL
+/// rows, on a session with no player, each read their packet to its end and send nothing. Every row
+/// bound to the combat, vendor, pvp, loot, auction, trade, skill, enchant, pet, LFG, contact list,
+/// GM ticket, petition, chat channel or voice chat handler class holds the status STATUS_LOGGEDIN
+/// and the processing PROCESS_THREADUNSAFE, except the CMSG_ATTACKSWING, CMSG_ATTACKSTOP and
+/// CMSG_SETSHEATHED rows, processed PROCESS_INPLACE, the CMSG_CANCEL_TRADE row, of status
+/// STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT, and the CMSG_VOICE_SESSION_ENABLE and
+/// CMSG_SET_ACTIVE_VOICE_CHANNEL rows, of status STATUS_AUTHED.
 
 #include "TestHarness.h"
 #include "OpcodeTable.h"
@@ -97,6 +100,7 @@
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
 #include "session/handlers/social/TicketHandlers.h"
+#include "session/handlers/social/VoiceChatHandlers.h"
 
 #include <cstring>
 #include <type_traits>
@@ -1618,4 +1622,60 @@ TEST(OpcodeDispatch_PetitionRowsKeepTheirStatusAndProcessing)
     CHECK_EQ(opcodeTable[CMSG_TURN_IN_PETITION].packetProcessing, PROCESS_THREADUNSAFE);
     CHECK_EQ(opcodeTable[CMSG_PETITION_SHOWLIST].status, STATUS_LOGGEDIN);
     CHECK_EQ(opcodeTable[CMSG_PETITION_SHOWLIST].packetProcessing, PROCESS_THREADUNSAFE);
+}
+
+TEST(OpcodeDispatch_VoiceChatRowsReadTheirPacketsAndSendNothing)
+{
+    InitializeOpcodes();
+
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "dispatch", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&CapturePacket, &sent);
+
+    WorldPacket enable(CMSG_VOICE_SESSION_ENABLE, 2);
+    enable << uint8(1);
+    enable << uint8(0);
+    opcodeTable[CMSG_VOICE_SESSION_ENABLE].handler(session, enable);
+    CHECK_EQ(enable.rpos(), size_t(2));
+
+    WorldPacket voiceOn(CMSG_CHANNEL_VOICE_ON, 1);
+    voiceOn << uint8(0);
+    opcodeTable[CMSG_CHANNEL_VOICE_ON].handler(session, voiceOn);
+    CHECK_EQ(voiceOn.rpos(), size_t(1));
+
+    WorldPacket active(CMSG_SET_ACTIVE_VOICE_CHANNEL, 5);
+    active << uint32(0);
+    active << uint8(0);
+    opcodeTable[CMSG_SET_ACTIVE_VOICE_CHANNEL].handler(session, active);
+    CHECK_EQ(active.rpos(), size_t(5));
+
+    CHECK(sent.empty());
+
+    session.SetSocketlessSink(nullptr, nullptr);
+}
+
+TEST(OpcodeDispatch_VoiceChatRowsHoldTheirHandlersThunks)
+{
+    InitializeOpcodes();
+
+    CHECK(opcodeTable[CMSG_VOICE_SESSION_ENABLE].handler == &OpcodeThunk<&VoiceChatHandlers::HandleVoiceSessionEnable>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VoiceChatHandlers::HandleVoiceSessionEnable>), 1);
+    CHECK(opcodeTable[CMSG_CHANNEL_VOICE_ON].handler == &OpcodeThunk<&VoiceChatHandlers::HandleChannelVoiceOn>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VoiceChatHandlers::HandleChannelVoiceOn>), 1);
+    CHECK(opcodeTable[CMSG_SET_ACTIVE_VOICE_CHANNEL].handler ==
+          &OpcodeThunk<&VoiceChatHandlers::HandleSetActiveVoiceChannel>);
+    CHECK_EQ(CountSlotsBoundTo(&OpcodeThunk<&VoiceChatHandlers::HandleSetActiveVoiceChannel>), 1);
+    CHECK(opcodeTable[CMSG_VOICE_SESSION_ENABLE].handler != &OpcodeThunk<&WorldSession::Handle_NULL>);
+}
+
+TEST(OpcodeDispatch_VoiceChatRowsKeepTheirStatusAndProcessing)
+{
+    InitializeOpcodes();
+
+    CHECK_EQ(opcodeTable[CMSG_VOICE_SESSION_ENABLE].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_VOICE_SESSION_ENABLE].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_VOICE_ON].status, STATUS_LOGGEDIN);
+    CHECK_EQ(opcodeTable[CMSG_CHANNEL_VOICE_ON].packetProcessing, PROCESS_THREADUNSAFE);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTIVE_VOICE_CHANNEL].status, STATUS_AUTHED);
+    CHECK_EQ(opcodeTable[CMSG_SET_ACTIVE_VOICE_CHANNEL].packetProcessing, PROCESS_THREADUNSAFE);
 }

@@ -55,6 +55,7 @@
 #include "session/handlers/social/LfgHandlers.h"
 #include "session/handlers/social/PetitionHandlers.h"
 #include "session/handlers/social/TicketHandlers.h"
+#include "session/handlers/social/VoiceChatHandlers.h"
 
 /**
  * @brief Define opcode handler
@@ -1096,7 +1097,7 @@ void InitializeOpcodes()
     OPCODE(SMSG_DISMOUNT,                                STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     OPCODE(SMSG_MOVE_UPDATE_CAN_FLY,                     STATUS_NEVER,    PROCESS_INPLACE,  &WorldSession::Handle_NULL                     );
     OPCODE(MSG_RAID_READY_CHECK_CONFIRM,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    OPCODE(CMSG_VOICE_SESSION_ENABLE,                    STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleVoiceSessionEnableOpcode  );
+    OPCODE(CMSG_VOICE_SESSION_ENABLE,                    STATUS_AUTHED,   PROCESS_THREADUNSAFE, &VoiceChatHandlers::HandleVoiceSessionEnable   );
     //OPCODE(SMSG_VOICE_SESSION_ENABLE,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_VOICE_PARENTAL_CONTROLS,                 STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
     //OPCODE(CMSG_GM_WHISPER,                              STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
@@ -1132,9 +1133,9 @@ void InitializeOpcodes()
     //OPCODE(CMSG_TARGET_CAST,                             STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_TARGET_SCRIPT_CAST,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     OPCODE(CMSG_CHANNEL_DISPLAY_LIST,                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &ChannelHandlers::HandleChannelDisplayListQuery);
-    OPCODE(CMSG_SET_ACTIVE_VOICE_CHANNEL,                STATUS_AUTHED,   PROCESS_THREADUNSAFE, &WorldSession::HandleSetActiveVoiceChannel     );
+    OPCODE(CMSG_SET_ACTIVE_VOICE_CHANNEL,                STATUS_AUTHED,   PROCESS_THREADUNSAFE, &VoiceChatHandlers::HandleSetActiveVoiceChannel);
     OPCODE(SMSG_CHANNEL_MEMBER_COUNT,                    STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
-    OPCODE(CMSG_CHANNEL_VOICE_ON,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelVoiceOnOpcode      );
+    OPCODE(CMSG_CHANNEL_VOICE_ON,                        STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &VoiceChatHandlers::HandleChannelVoiceOn       );
     //OPCODE(CMSG_CHANNEL_VOICE_OFF,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(CMSG_DEBUG_LIST_TARGETS,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     //OPCODE(SMSG_DEBUG_LIST_TARGETS,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_ServerSide               );
