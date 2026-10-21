@@ -159,6 +159,13 @@ The run shapes beyond one label per line and a body that ends in its own termina
      anything else there fails. A labelled run in that place fails: only a default may fall off
      the end. A last statement that terminates only under a control header (`if (x)` over
      `return;`) is not this shape and differs.
+  L, a loop's continue: a site whose switch stands in a loop names `loop` True. The tool then builds the
+     pair `return SpellHandlerOutcome<void>::LoopContinue();` -> `continue;` after the site's own, and
+     the dispatch tests `IsLoopContinue()` and continues (the dispatch shape below). Each fails by name:
+     a LoopContinue inside a loop in the body (the old `continue;` took that loop's next iteration; inside
+     a nested switch it passed through, and is allowed); a LoopContinue at a site that names no loop; a
+     Return at a loop site, whose dispatch only continues; a loop site that names a value; a site whose
+     own substitutions list the LoopContinue pair.
 Every handler's last statement (comment lines, and a comment at the end of its line, aside) is a
 `return` at the function's own level, so no body falls off its end.
 
@@ -170,9 +177,10 @@ compile if a free function or global of that name exists, and then means somethi
 names are read from the class's own declaration (MEMBERS_OF), every member function and data
 member at class scope; a substitution's left side inside a string literal, plain or raw (the
 paste-back rewrites it there too, so a literal changed by the move would come back as the base's;
-comments are rewritten and read as they stand); and a `return ...::Continue();` inside a loop or a
-nested switch (the moved `break;` would have left that loop, not the case). A site whose substitutions
-hold no pair pasting back as `break;` fails by name before any Continue is read.
+comments are rewritten and read as they stand); a `return ...::Continue();` inside a loop or a
+nested switch (the moved `break;` would have left that loop, not the case); and a LoopContinue or a
+Return where L refuses it. A site whose substitutions hold no pair pasting back as `break;` fails by
+name before any Continue is read.
 
 SUBSTITUTIONS apply at whole tokens: a text pair (a, b) rewrites a only where no name character (a
 letter, a digit or `_`) stands beside an end of a that is one, nor beside an end of b that is one, so
@@ -202,7 +210,8 @@ two or more lines, each break after an argument's comma that no inner parenthesi
 `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with `if (OUT.IsReturn())` the next line
 (VALUE the site's `value`, void where it names none; OUT any name); `return;` at a site with no `value`,
 `return OUT.GetValue();` at a site with one; `{`, `}`; or blank (`SpellHandlerRegistry::Game().` may
-stand before `Dispatch`). A line holding a comment is none of these.
+stand before `Dispatch`). A line holding a comment is none of these. At a loop site (L) the call and the
+assigned test read `IsLoopContinue()` in place of `IsReturn()`, and the return is `continue;`.
 The paste-back cannot see what the ties and the shape read: it puts the entry's own switch where the
 entry's own dispatch stands, so a binding or a key changed in the sites' file and in the entry together,
 or a statement or another return added to the dispatch lines of both, would come back byte for byte.
@@ -379,11 +388,22 @@ class Failure(Exception):
     pass
 
 
+LOOP_CONTINUE = 'return SpellHandlerOutcome<void>::LoopContinue();'
+
+
 def outcome_pairs(site):
-    """The site with its substitutions followed by the outcome pairs built from its `value` (V); a site
-    with no `value` as it is. A `value` that is not a plain type spelling fails, and so does a site with a
-    `value` whose own substitutions list an outcome pair, and a site whose pairs hold none pasting back as
-    `break;` (its Continue could not be read)."""
+    """The site with its substitutions followed by the outcome pairs built from its `value` (V), or at a loop
+    site by the LoopContinue pair (L); any other site as it is. A `value` that is not a plain type spelling
+    fails, and so does a site with a `value` whose own substitutions list an outcome pair, a loop site naming
+    a value, a site whose own substitutions list the LoopContinue pair, and a site whose pairs hold none
+    pasting back as `break;` (its Continue could not be read)."""
+    if site.get('loop') and 'value' in site:
+        raise Failure('%s: a loop site names a value, and its dispatch only continues the loop' % site['name'])
+    if any(a == LOOP_CONTINUE for a, _ in site['substitutions']):
+        raise Failure('%s: its substitutions list the LoopContinue pair, which the tool builds for a loop site'
+                      % site['name'])
+    if site.get('loop'):
+        site = dict(site, substitutions=list(site['substitutions']) + [(LOOP_CONTINUE, 'continue;')])
     if 'value' in site:
         value = site['value']
         if not isinstance(value, str) or not re.fullmatch(r'[\w:]+', value):
@@ -770,7 +790,8 @@ def check_returns(site, function, body):
 
 def check_body(function, body, site, members=()):
     """What the paste-back cannot see: a bare live-out, a bare member of the site's class, a substitution's
-    left side inside a string literal, and a Continue inside a loop or switch."""
+    left side inside a string literal, a Continue inside a loop or switch, a LoopContinue inside a loop or at
+    a site with no LoopContinue pair, and a Return at a loop site (L)."""
     raw = '\n'.join(body)
     text = blank(raw)
     for n, line in enumerate(text.split('\n'), 1):
@@ -797,8 +818,18 @@ def check_body(function, body, site, members=()):
                               'literal, which the paste-back would rewrite: %r'
                               % (function, n + 1, a.pattern if isinstance(a, re.Pattern) else a, body[n]))
     continues = [a for a, b in site['substitutions'] if b == 'break;']
-    stack, pending, header_parens = [], False, None
-    tokens = re.compile(r'\b(for|while|do|switch)\b|[{}();]|' + '|'.join(re.escape(c) for c in continues))
+    if LOOP_CONTINUE in text and (LOOP_CONTINUE, 'continue;') not in site['substitutions']:
+        line = text.count('\n', 0, text.index(LOOP_CONTINUE))
+        raise Failure('handler %s, body line %d: a LoopContinue at a site that names no loop around its switch: %r'
+                      % (function, line + 1, body[line]))
+    returned = re.search(r'\bSpellHandlerOutcome<void>::Return\(\s*\)', text)
+    if site.get('loop') and returned:
+        line = text.count('\n', 0, returned.start())
+        raise Failure('handler %s, body line %d: a Return at a loop site, whose dispatch only continues the loop: %r'
+                      % (function, line + 1, body[line]))
+    stack, pending, header_parens, kind = [], False, None, None
+    tokens = re.compile(r'\b(for|while|do|switch)\b|[{}();]|'
+                        + '|'.join(re.escape(c) for c in continues + [LOOP_CONTINUE]))
     pos = 0
     while True:
         m = tokens.search(text, pos)
@@ -806,22 +837,27 @@ def check_body(function, body, site, members=()):
             break
         tok = m.group(0)
         pos = m.end()
-        if tok in continues:
+        if tok == LOOP_CONTINUE:
+            if pending == 'loop' or 'loop' in stack:
+                line = text.count('\n', 0, m.start())
+                raise Failure('handler %s, body line %d: a LoopContinue inside a loop (the old `continue;` took that '
+                              'loop\'s next iteration, not the site\'s): %r' % (function, line + 1, body[line]))
+        elif tok in continues:
             if pending or any(stack):
                 line = text.count('\n', 0, m.start())
                 raise Failure('handler %s, body line %d: a Continue inside a loop or switch (the old `break;` left '
                               'that, not the case): %r' % (function, line + 1, body[line]))
         elif tok in ('for', 'while', 'switch'):
-            header_parens = 0
+            header_parens, kind = 0, 'switch' if tok == 'switch' else 'loop'
         elif tok == 'do':
-            pending = True
+            pending = 'loop'
         elif tok == '(' and header_parens is not None:
             header_parens += 1
         elif tok == ')' and header_parens is not None:
             header_parens -= 1
             if header_parens == 0:
                 header_parens = None
-                pending = True
+                pending = kind
         elif tok == '{':
             stack.append(pending)
             pending = False
@@ -1143,6 +1179,7 @@ def check_dispatch_shape(site, key, name):
     `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` (VALUE the site's value, void where it names
     none), with `if (OUT.IsReturn())` the next line; the site's return, `return;` where it names no value and
     `return OUT.GetValue();` where it does; `{`, `}` or a blank line. A line holding a comment is none of them.
+    At a loop site the call and the assigned test read `IsLoopContinue()`, and the return is `continue;`.
     Blank lines aside, the lines stand in this order, each once: the construction, the call (or the call assigned),
     `{`, the return and `}`, the five inside one outer `{` and `}` or in none. A line out of its place is named, an
     element over more than one line by its first line."""
@@ -1151,7 +1188,8 @@ def check_dispatch_shape(site, key, name):
     read = [squeezed(line) for line in blank(text).split('\n')]
     call = r'%sDispatch<%s>\(' % (DISPATCH_REGISTRY, re.escape(site['traits']))
     passed = r'%s,%s\)' % (re.escape(key), re.escape(name))
-    whole = r'if\(%s%s\.IsReturn\(\)\)' % (call, passed)
+    test = 'IsLoopContinue' if site.get('loop') else 'IsReturn'
+    whole = r'if\(%s%s\.%s\(\)\)' % (call, passed, test)
     assigned = r'SpellHandlerOutcome<%s>(\w+)=%s%s;' % (re.escape(site.get('value', 'void')), call, passed)
     out, i, items = None, 0, []
     while i < len(read):
@@ -1168,8 +1206,10 @@ def check_dispatch_shape(site, key, name):
         joined = held(front + closing, built.end() - 1) if split else None
         valued = re.fullmatch(assigned, line)
         returned = 'return;' if 'value' not in site else out and 'return %s.GetValue();' % out
+        if site.get('loop'):
+            returned = 'continue;'
         kind, step = None, 1
-        if valued and after == 'if(%s.IsReturn())' % valued.group(1):
+        if valued and after == 'if(%s.%s())' % (valued.group(1), test):
             out, kind, step = valued.group(1), 'dispatch call', 2
         elif re.fullmatch(whole, line + after) and re.fullmatch(r'if\(%s(?:%s,)?' % (call, re.escape(key)), line):
             kind, step = 'dispatch call', 2
@@ -3913,6 +3953,60 @@ def self_test():
     run('dispatch sequence: the valued form inside an outer block: passes', 0,
         'with 2/2 bodies pasted back at their 2 labels in 1 sites',
         **reshaped(valued, ['    {'] + ['    ' + line for line in worth] + ['    }']))
+
+    loop_labels = {i: '            case %d:%s// Label %d' % (i, ' ' * (29 - len(str(i))), i) for i in (1, 2)}
+    looping = ['        RemoveContext removeContext(this, target);',
+               '        if (Dispatch<RemoveSite>(GetId(), removeContext).IsLoopContinue())', '        {',
+               '            continue;', '        }']
+    loop_continue = '    ' + LOOP_CONTINUE
+    looped = form('looped', loop_labels, [
+        loop_labels[1], '                if (target->IsDead())', '                    continue;',
+        '                target->Drop(1);', '                break;',
+        loop_labels[2], '                target->Drop(2);', '                continue;'], [
+        ('One', 'void', ['    if (ctx.target->IsDead())', '    ' + loop_continue, '    ctx.target->Drop(1);', cont]),
+        ('Two', 'void', ['    ctx.target->Drop(2);', loop_continue])],
+        [(1, 'One'), (2, 'Two')], before=('    for (int i = 0; i < 3; ++i)', '    {'),
+        tail=('        target->Drop(0);', '    }', '    target->Tail();'),
+        open=['        switch (GetId())', '        {'], close=['        }'],
+        label_indent=12, dispatch=looping, loop=True)
+    looped_pass = 'with 2/2 bodies pasted back at their 2 labels in 1 sites'
+    run('L: a LoopContinue at the run\'s level: passes', 0, looped_pass, **looped)
+    run('L: a LoopContinue inside a nested switch: passes', 0, looped_pass,
+        **mutated(mutated(looped, 'old_text', '                if (target->IsDead())\n                    continue;',
+                          '                switch (target->GetState())\n                {\n'
+                          '                    case 0:\n                        continue;\n                }'),
+                  'handlers', '    if (ctx.target->IsDead())\n' + '    ' + loop_continue,
+                  '    switch (ctx.target->GetState())\n    {\n        case 0:\n'
+                  '            ' + LOOP_CONTINUE + '\n    }'))
+    run('L: the dispatch assigned and tested on the next line: passes', 0, looped_pass,
+        **reshaped(looped, looping[:1] + [
+            '        SpellHandlerOutcome<void> outcome = Dispatch<RemoveSite>(GetId(), removeContext);',
+            '        if (outcome.IsLoopContinue())'] + looping[2:]))
+    run('L: a LoopContinue inside a loop in the body: fails by name', 1,
+        "handler One, body line 2: a LoopContinue inside a loop (the old `continue;` took that loop's next iteration, "
+        "not the site's)",
+        **mutated(looped, 'handlers', '    if (ctx.target->IsDead())', '    while (ctx.target->IsDead())'))
+    run('L: a LoopContinue at a site naming no loop: fails by name', 1,
+        'handler One, body line 2: a LoopContinue at a site that names no loop around its switch',
+        **dict(looped, spec=dict(looped['spec'], sites=[
+            {k: v for k, v in looped['spec']['sites'][0].items() if k != 'loop'}])))
+    run('L: a Return at a loop site: fails by name', 1,
+        'handler Two, body line 2: a Return at a loop site, whose dispatch only continues the loop',
+        **mutated(looped, 'handlers', '    ctx.target->Drop(2);\n' + loop_continue, '    ctx.target->Drop(2);\n' + ret))
+    run('L: a loop site naming a value: fails by name', 1,
+        'looped: a loop site names a value, and its dispatch only continues the loop',
+        **respec(looped, value='SpellCastResult'))
+    run('L: a site listing the LoopContinue pair itself: fails by name', 1,
+        'looped: its substitutions list the LoopContinue pair, which the tool builds for a loop site',
+        **respec(looped, substitutions=form_site['substitutions'] + [(LOOP_CONTINUE, 'continue;')]))
+    for statement in ('return;', 'break;'):
+        run('L: `%s` in a loop site\'s dispatch: fails by name' % statement, 1, unshaped % ('looped', statement),
+            **reshaped(looped, looping[:3] + ['            ' + statement] + looping[4:]))
+    run('L: a LoopContinue where `break;` stood: DIFFERS', 1,
+        "DIFFERS from the base after pasting back 2 bodies at 1 sites: line 14: base '                break;', "
+        "rebuilt '                continue;'",
+        **mutated(looped, 'handlers', '    ctx.target->Drop(1);\n' + cont,
+                  '    ctx.target->Drop(1);\n' + loop_continue))
     run('dispatch sequence: an opening brace in the return\'s place: fails by name', 1, astray % ('tied', '{'),
         **reshaped(tied, passing[:3] + ['    {'] + passing[4:]))
     split_call = ['    if (Dispatch<RemoveSite>(GetId(),', '            ctx).IsReturn())']
