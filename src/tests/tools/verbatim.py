@@ -91,6 +91,8 @@ A file renamed since a commit it is read at (the base or its original) keeps its
 tree's path, and names its old path in `renamed_from`: the working tree must hold the key and not the
 old path, and the commit exactly one of the two, the one read; a commit holding neither or both
 fails, naming the paths. A key or a members_of header the working tree does not hold fails by name.
+An entry, or a site of it, holding a key this tool does not read (ENTRY_KEYS, SITE_KEYS) fails by name
+before anything of the entry is read, so a misspelt key is never read as one left out.
 Because the bodies are pasted from the functions the table registers, a row pointing at the wrong
 function, a lost row or default, a changed line, or a body moved in the wrong order all fail; a
 body a PR before this one moved is proven again, against its own base's copy. Every
@@ -110,6 +112,11 @@ The run shapes beyond one label per line and a body that ends in its own termina
      only inside the switches the site's open lines start (each closed by the first close line after
      them) that hold one of the site's label lines, so a `default:` line standing in another switch of
      the file is never read; found twice there fails.
+     By function: a site may name `function`, its function's head line exactly. The switches are then
+     looked up only between that head and the next `}` in column 0, and the site's dispatch must stand
+     there too, so two functions whose switches share their open lines and a label line are each read
+     in their own. A head found other than once in a version, or a dispatch outside its function, fails
+     by name.
   V, a valued return: a site in a function returning T names `value` T, and its outcome pairs are built
      from it (valued_substitutions(T), after the site's own substitutions), so the data names only T:
      `return SpellHandlerOutcome<T>::Return(x);` pastes back as `return x;` (x on that line),
@@ -121,6 +128,10 @@ The run shapes beyond one label per line and a body that ends in its own termina
      `SpellHandlerOutcome<`); a site with `value` none of whose handlers in the working tree returns a
      value (a `Return(x)`, comments aside; a default's counts), whatever the runs still standing in a
      partly moved switch return; a handler returning a value at a site with no `value`.
+     Over lines: a `return SpellHandlerOutcome<T>::Return(` whose parenthesis closes on a later line pastes
+     back as `return `, and that closing `)` is dropped, the lines between kept as they stand. The `)` must
+     stand directly before the `;` that ends its line (a comment after it aside), or the body fails by name.
+     The last-statement rule below reads such a return as one statement.
   M, several labels on one line: LABELS maps each id of a line `case 1: case 2: case 3:` to that same
      line, and every label line must hold exactly the ids mapped to it and nothing else. The ids of one line are rows
      of one run, so they share its function (an id of the line registered by another function
@@ -150,6 +161,13 @@ The run shapes beyond one label per line and a body that ends in its own termina
      anything else there fails. A labelled run in that place fails: only a default may fall off
      the end. A last statement that terminates only under a control header (`if (x)` over
      `return;`) is not this shape and differs.
+  L, a loop's continue: a site whose switch stands in a loop names `loop` True. The tool then builds the
+     pair `return SpellHandlerOutcome<void>::LoopContinue();` -> `continue;` after the site's own, and
+     the dispatch tests `IsLoopContinue()` and continues (the dispatch shape below). Each fails by name:
+     a LoopContinue inside a loop in the body (the old `continue;` took that loop's next iteration; inside
+     a nested switch it passed through, and is allowed); a LoopContinue at a site that names no loop; a
+     Return at a loop site, whose dispatch only continues; a loop site that names a value; a site whose
+     own substitutions list the LoopContinue pair.
 Every handler's last statement (comment lines, and a comment at the end of its line, aside) is a
 `return` at the function's own level, so no body falls off its end.
 
@@ -161,9 +179,10 @@ compile if a free function or global of that name exists, and then means somethi
 names are read from the class's own declaration (MEMBERS_OF), every member function and data
 member at class scope; a substitution's left side inside a string literal, plain or raw (the
 paste-back rewrites it there too, so a literal changed by the move would come back as the base's;
-comments are rewritten and read as they stand); and a `return ...::Continue();` inside a loop or a
-nested switch (the moved `break;` would have left that loop, not the case). A site whose substitutions
-hold no pair pasting back as `break;` fails by name before any Continue is read.
+comments are rewritten and read as they stand); a `return ...::Continue();` inside a loop or a
+nested switch (the moved `break;` would have left that loop, not the case); and a LoopContinue or a
+Return where L refuses it. A site whose substitutions hold no pair pasting back as `break;` fails by
+name before any Continue is read.
 
 SUBSTITUTIONS apply at whole tokens: a text pair (a, b) rewrites a only where no name character (a
 letter, a digit or `_`) stands beside an end of a that is one, nor beside an end of b that is one, so
@@ -172,16 +191,16 @@ is. A text pair that applies nowhere in a body still holding its left side once 
 applied (it stood there only inside a longer name, or where its right side would join one) fails by
 name. A context pair reads the same name on both sides or is a listed exception in the sites' data, each
 with its reason; no pair's right side holds another pair's left side, and no pair's left side holds an
-earlier pair's. So a context pair (`ctx.X`, b) that is no route through the aura, spell or holder the
-context holds (a left side beginning `ctx.aura->`, `ctx.spell->` or `ctx.holder->`) has b == X, or is
-one of the pairs CONTEXT_EXCEPTIONS lists, each entry the pair and its reason; and of a site's text
-pairs, which apply in sequence, none rewrites another's right side, nor the left side of a pair after
-it, read where that pair would apply (as a whole token).
+earlier pair's. So a context pair (`ctx.X`, b) that is no route through the aura, spell, holder or unit
+the context holds (a left side beginning `ctx.aura->`, `ctx.spell->`, `ctx.holder->` or `ctx.unit->`)
+has b == X, or is one of the pairs CONTEXT_EXCEPTIONS lists, each entry the pair and its reason; and of a
+site's text pairs, which apply in sequence, none rewrites another's right side, nor the left side of a
+pair after it, read where that pair would apply (as a whole token).
 
 Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH lines call
 `Dispatch<TRAITS>(KEY, NAME)` once and construct the context they pass, `CONTEXT NAME(ARGUMENTS);`, once,
 no argument empty; the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a
-route through the aura, spell or holder the context holds (`ctx.aura->`, `ctx.spell->`, `ctx.holder->`)
+route through what the context holds (`ctx.aura->`, `ctx.spell->`, `ctx.holder->`, `ctx.unit->`)
 needs `this` among them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are
 compared with their blanks dropped, but one between two name characters. The dispatch lines hold, blank
 lines aside, in this order and each once, the context's construction (whole or split over two or more
@@ -193,7 +212,8 @@ two or more lines, each break after an argument's comma that no inner parenthesi
 `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` with `if (OUT.IsReturn())` the next line
 (VALUE the site's `value`, void where it names none; OUT any name); `return;` at a site with no `value`,
 `return OUT.GetValue();` at a site with one; `{`, `}`; or blank (`SpellHandlerRegistry::Game().` may
-stand before `Dispatch`). A line holding a comment is none of these.
+stand before `Dispatch`). A line holding a comment is none of these. At a loop site (L) the call and the
+assigned test read `IsLoopContinue()` in place of `IsReturn()`, and the return is `continue;`.
 The paste-back cannot see what the ties and the shape read: it puts the entry's own switch where the
 entry's own dispatch stands, so a binding or a key changed in the sites' file and in the entry together,
 or a statement or another return added to the dispatch lines of both, would come back byte for byte.
@@ -321,15 +341,90 @@ def valued_substitutions(value):
             ('return SpellHandlerOutcome<%s>::Continue();' % value, 'break;')]
 
 
+def spanning_returns(body, value, function):
+    """V over lines: `body` with each `return SpellHandlerOutcome<value>::Return(` whose parenthesis closes on a
+    later line written as `return `, and that closing `)` dropped. A `)` that is not directly before the `;`
+    ending its line, or none at all, fails by name."""
+    opener = 'return SpellHandlerOutcome<%s>::Return(' % value
+    out, code, k = list(body), blank('\n'.join(body)).split('\n'), 0
+    while k < len(out):
+        at = code[k].find(opener)
+        start = at + len(opener) - 1
+        if at < 0 or held(code[k], start) is not None:
+            k += 1
+            continue
+        depth, j, close = 0, k, None
+        while close is None and j < len(code):
+            for c in range(start if j == k else 0, len(code[j])):
+                depth += (code[j][c] == '(') - (code[j][c] == ')')
+                if depth == 0:
+                    close = c
+                    break
+            else:
+                j += 1
+        if close is None or code[j][close + 1:].rstrip() != ';':
+            raise Failure('handler %s, body line %d: a valued Return( spanning lines that does not close directly '
+                          'before the `;` ending its last line: %r' % (function, k + 1, body[k]))
+        out[k] = out[k][:at] + 'return ' + out[k][at + len(opener):]
+        out[j] = out[j][:close] + out[j][close + 1:]
+        k = j + 1
+    return out
+
+
+def joined_returns(code, value):
+    """`code` (a handler's code lines) blanked, each valued Return( spanning lines joined into one line (V)."""
+    opener = 'return SpellHandlerOutcome<%s>::Return(' % value
+    out, k = [], 0
+    while k < len(code):
+        line = blank(code[k])
+        at = line.find(opener)
+        while at >= 0 and k + 1 < len(code) and held(line, at + len(opener) - 1) is None:
+            k += 1
+            line += ' ' + blank(code[k]).strip()
+        out.append(line)
+        k += 1
+    return out
+
+
 class Failure(Exception):
     pass
 
 
+ENTRY_KEYS = ('handlers', 'rows_function', 'added', 'tail_marker', 'sites', 'original', 'renamed_from', 'cuts', 'texts')
+SITE_KEYS = ('name', 'dispatch', 'open', 'close', 'label_indent', 'table', 'traits', 'context', 'live_outs', 'in_scope',
+             'members_of', 'substitutions', 'labels', 'default', 'residual', 'closed', 'deleted', 'gone', 'texts',
+             'value', 'function', 'loop')
+
+
+def known_keys(spec):
+    """A SITES entry and each of its sites hold only keys this tool reads (ENTRY_KEYS, SITE_KEYS); any other
+    key fails by name."""
+    unknown = sorted(k for k in spec if k not in ENTRY_KEYS)
+    if unknown:
+        raise Failure('the entry holds the key(s) %s, which this tool does not read' % unknown)
+    for site in spec['sites']:
+        unknown = sorted(k for k in site if k not in SITE_KEYS)
+        if unknown:
+            raise Failure('%s: the site holds the key(s) %s, which this tool does not read'
+                          % (site.get('name'), unknown))
+
+
+LOOP_CONTINUE = 'return SpellHandlerOutcome<void>::LoopContinue();'
+
+
 def outcome_pairs(site):
-    """The site with its substitutions followed by the outcome pairs built from its `value` (V); a site
-    with no `value` as it is. A `value` that is not a plain type spelling fails, and so does a site with a
-    `value` whose own substitutions list an outcome pair, and a site whose pairs hold none pasting back as
-    `break;` (its Continue could not be read)."""
+    """The site with its substitutions followed by the outcome pairs built from its `value` (V), or at a loop
+    site by the LoopContinue pair (L); any other site as it is. A `value` that is not a plain type spelling
+    fails, and so does a site with a `value` whose own substitutions list an outcome pair, a loop site naming
+    a value, a site whose own substitutions list the LoopContinue pair, and a site whose pairs hold none
+    pasting back as `break;` (its Continue could not be read)."""
+    if site.get('loop') and 'value' in site:
+        raise Failure('%s: a loop site names a value, and its dispatch only continues the loop' % site['name'])
+    if any(a == LOOP_CONTINUE for a, _ in site['substitutions']):
+        raise Failure('%s: its substitutions list the LoopContinue pair, which the tool builds for a loop site'
+                      % site['name'])
+    if site.get('loop'):
+        site = dict(site, substitutions=list(site['substitutions']) + [(LOOP_CONTINUE, 'continue;')])
     if 'value' in site:
         value = site['value']
         if not isinstance(value, str) or not re.fullmatch(r'[\w:]+', value):
@@ -641,9 +736,10 @@ def body_at(lines, function, context, value='void'):
 def handler_body(lines, function, context, value='void'):
     """The lines of the handler's body (body_at). Its last statement (comment lines, and a comment at the end
     of its line, aside) is a whole `return ...;` at the function's own level, the code line above it ending
-    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails."""
+    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails. A valued Return( spanning
+    lines is read as one statement (V)."""
     first, end = body_at(lines, function, context, value)
-    code = [l for l in lines[first:end] if l.strip() and not comment_only(l)]
+    code = joined_returns([l for l in lines[first:end] if l.strip() and not comment_only(l)], value)
     if not code or not re.fullmatch(r'    return\b.*;', blank(code[-1]).rstrip()) or (
             len(code) > 1 and not blank(code[-2]).rstrip().endswith((';', '{', '}', ':'))):
         raise Failure('handler %s: its last statement is not a return at its own level (it could fall off its end)'
@@ -715,7 +811,8 @@ def check_returns(site, function, body):
 
 def check_body(function, body, site, members=()):
     """What the paste-back cannot see: a bare live-out, a bare member of the site's class, a substitution's
-    left side inside a string literal, and a Continue inside a loop or switch."""
+    left side inside a string literal, a Continue inside a loop or switch, a LoopContinue inside a loop or at
+    a site with no LoopContinue pair, and a Return at a loop site (L)."""
     raw = '\n'.join(body)
     text = blank(raw)
     for n, line in enumerate(text.split('\n'), 1):
@@ -742,8 +839,18 @@ def check_body(function, body, site, members=()):
                               'literal, which the paste-back would rewrite: %r'
                               % (function, n + 1, a.pattern if isinstance(a, re.Pattern) else a, body[n]))
     continues = [a for a, b in site['substitutions'] if b == 'break;']
-    stack, pending, header_parens = [], False, None
-    tokens = re.compile(r'\b(for|while|do|switch)\b|[{}();]|' + '|'.join(re.escape(c) for c in continues))
+    if LOOP_CONTINUE in text and (LOOP_CONTINUE, 'continue;') not in site['substitutions']:
+        line = text.count('\n', 0, text.index(LOOP_CONTINUE))
+        raise Failure('handler %s, body line %d: a LoopContinue at a site that names no loop around its switch: %r'
+                      % (function, line + 1, body[line]))
+    returned = re.search(r'\bSpellHandlerOutcome<void>::Return\(\s*\)', text)
+    if site.get('loop') and returned:
+        line = text.count('\n', 0, returned.start())
+        raise Failure('handler %s, body line %d: a Return at a loop site, whose dispatch only continues the loop: %r'
+                      % (function, line + 1, body[line]))
+    stack, pending, header_parens, kind = [], False, None, None
+    tokens = re.compile(r'\b(for|while|do|switch)\b|[{}();]|'
+                        + '|'.join(re.escape(c) for c in continues + [LOOP_CONTINUE]))
     pos = 0
     while True:
         m = tokens.search(text, pos)
@@ -751,22 +858,27 @@ def check_body(function, body, site, members=()):
             break
         tok = m.group(0)
         pos = m.end()
-        if tok in continues:
+        if tok == LOOP_CONTINUE:
+            if pending == 'loop' or 'loop' in stack:
+                line = text.count('\n', 0, m.start())
+                raise Failure('handler %s, body line %d: a LoopContinue inside a loop (the old `continue;` took that '
+                              'loop\'s next iteration, not the site\'s): %r' % (function, line + 1, body[line]))
+        elif tok in continues:
             if pending or any(stack):
                 line = text.count('\n', 0, m.start())
                 raise Failure('handler %s, body line %d: a Continue inside a loop or switch (the old `break;` left '
                               'that, not the case): %r' % (function, line + 1, body[line]))
         elif tok in ('for', 'while', 'switch'):
-            header_parens = 0
+            header_parens, kind = 0, 'switch' if tok == 'switch' else 'loop'
         elif tok == 'do':
-            pending = True
+            pending = 'loop'
         elif tok == '(' and header_parens is not None:
             header_parens += 1
         elif tok == ')' and header_parens is not None:
             header_parens -= 1
             if header_parens == 0:
                 header_parens = None
-                pending = True
+                pending = kind
         elif tok == '{':
             stack.append(pending)
             pending = False
@@ -781,16 +893,30 @@ def one_line(label_lines):
     return len(label_lines) == 1 and '{body}' in label_lines[0]
 
 
+def function_span(lines, site):
+    """S by function: (first, end) of the site's function in `lines`, from its head line (`function`, exactly, found
+    once) to the next `}` in column 0; all of `lines` at a site naming no function."""
+    if 'function' not in site:
+        return 0, len(lines)
+    found = [i for i, l in enumerate(lines) if l == site['function']]
+    if len(found) != 1:
+        raise Failure('%s: its function head %r found %d times in one version'
+                      % (site['name'], site['function'], len(found)))
+    return found[0], next((k for k in range(found[0], len(lines)) if lines[k] == '}'), len(lines))
+
+
 def site_spans(lines, site):
     """(first, close) of each switch in `lines` opened by the site's open lines (closed by the first
-    close line after them) that holds one of the site's label lines."""
+    close line after them) that holds one of the site's label lines, inside the site's function when it
+    names one (function_span)."""
     n = len(site['open'])
     heads = tuple(l.split('{body}')[0] for l in site['labels'].values())
     spans = []
-    for i in range(len(lines) - n + 1):
+    lo, hi = function_span(lines, site)
+    for i in range(lo, hi - n + 1):
         if lines[i:i + n] != site['open']:
             continue
-        end = next((k for k in range(i + n, len(lines)) if lines[k] == site['close'][0]), None)
+        end = next((k for k in range(i + n, hi) if lines[k] == site['close'][0]), None)
         if end is not None and any(lines[k].startswith(heads) for k in range(i + n, end)):
             spans.append((i + n, end))
     return spans
@@ -918,9 +1044,12 @@ def token_pattern(a, b):
 
 def substituted(site, body, function):
     """`body` reverse-substituted, each line pair after pair: a pattern the tool builds as it is, a text pair
-    at whole tokens only (token_pattern). A text pair that applies nowhere in the body, whose left side the
-    body still holds once every pair has been applied, fails."""
+    at whole tokens only (token_pattern), after a valued site's Returns spanning lines (spanning_returns). A text
+    pair that applies nowhere in the body, whose left side the body still holds once every pair has been applied,
+    fails."""
     restored, applied = [], set()
+    if 'value' in site:
+        body = spanning_returns(body, site['value'], function)
     for line in body:
         for k, (a, b) in enumerate(site['substitutions']):
             if isinstance(a, re.Pattern):
@@ -1017,9 +1146,9 @@ def arguments(text):
 def check_ties(site):
     """The dispatch tied to its site: its lines call `Dispatch<TRAITS>(KEY, NAME)` once and construct the
     context they pass, `CONTEXT NAME(ARGUMENTS);`, once, no argument empty; every context pair `(ctx.X, b)` has
-    b among the ARGUMENTS, and every route through the aura, spell or holder the context holds (`ctx.aura->`,
-    `ctx.spell->`, `ctx.holder->`) has `this` among them; KEY is the key of the open lines' `switch (KEY)`.
-    Blanks aside throughout. Returns KEY and NAME, squeezed."""
+    b among the ARGUMENTS, and every route through the aura, spell, holder or unit the context holds
+    (`ctx.aura->`, `ctx.spell->`, `ctx.holder->`, `ctx.unit->`) has `this` among them; KEY is the key of the open
+    lines' `switch (KEY)`. Blanks aside throughout. Returns KEY and NAME, squeezed."""
     text = '\n'.join(site['dispatch'])
     calls = list(re.finditer(r'Dispatch<%s>\s*\(' % re.escape(site['traits']), text))
     passed = held(text, calls[0].end() - 1) if len(calls) == 1 else None
@@ -1041,7 +1170,7 @@ def check_ties(site):
     for a, b in site['substitutions']:
         if not isinstance(a, str) or not a.startswith('ctx.'):
             continue
-        route = re.match(r'ctx\.(aura|spell|holder)->', a)
+        route = re.match(r'ctx\.(aura|spell|holder|unit)->', a)
         if route and 'this' not in given:
             raise Failure('%s: the pair (%r, %r) reads the %s the context holds, and the dispatch passes the context '
                           'no `this`: %s' % (site['name'], a, b, route.group(1), at))
@@ -1071,6 +1200,7 @@ def check_dispatch_shape(site, key, name):
     `SpellHandlerOutcome<VALUE> OUT = Dispatch<TRAITS>(KEY, NAME);` (VALUE the site's value, void where it names
     none), with `if (OUT.IsReturn())` the next line; the site's return, `return;` where it names no value and
     `return OUT.GetValue();` where it does; `{`, `}` or a blank line. A line holding a comment is none of them.
+    At a loop site the call and the assigned test read `IsLoopContinue()`, and the return is `continue;`.
     Blank lines aside, the lines stand in this order, each once: the construction, the call (or the call assigned),
     `{`, the return and `}`, the five inside one outer `{` and `}` or in none. A line out of its place is named, an
     element over more than one line by its first line."""
@@ -1079,7 +1209,8 @@ def check_dispatch_shape(site, key, name):
     read = [squeezed(line) for line in blank(text).split('\n')]
     call = r'%sDispatch<%s>\(' % (DISPATCH_REGISTRY, re.escape(site['traits']))
     passed = r'%s,%s\)' % (re.escape(key), re.escape(name))
-    whole = r'if\(%s%s\.IsReturn\(\)\)' % (call, passed)
+    test = 'IsLoopContinue' if site.get('loop') else 'IsReturn'
+    whole = r'if\(%s%s\.%s\(\)\)' % (call, passed, test)
     assigned = r'SpellHandlerOutcome<%s>(\w+)=%s%s;' % (re.escape(site.get('value', 'void')), call, passed)
     out, i, items = None, 0, []
     while i < len(read):
@@ -1096,8 +1227,10 @@ def check_dispatch_shape(site, key, name):
         joined = held(front + closing, built.end() - 1) if split else None
         valued = re.fullmatch(assigned, line)
         returned = 'return;' if 'value' not in site else out and 'return %s.GetValue();' % out
+        if site.get('loop'):
+            returned = 'continue;'
         kind, step = None, 1
-        if valued and after == 'if(%s.IsReturn())' % valued.group(1):
+        if valued and after == 'if(%s.%s())' % (valued.group(1), test):
             out, kind, step = valued.group(1), 'dispatch call', 2
         elif re.fullmatch(whole, line + after) and re.fullmatch(r'if\(%s(?:%s,)?' % (call, re.escape(key)), line):
             kind, step = 'dispatch call', 2
@@ -1136,13 +1269,13 @@ def check_dispatch_shape(site, key, name):
 
 def check_pairs(site, listed):
     """The site's text pairs read as they apply: each context pair (`ctx.X`, b) that is no route through the
-    aura, spell or holder the context holds (a left side beginning `ctx.aura->`, `ctx.spell->` or
-    `ctx.holder->`) has b == X or is one of the `listed` pairs; no pair's right side holds another pair's left
-    side, and no pair's left side holds an earlier pair's, each where that other pair would apply
+    aura, spell, holder or unit the context holds (a left side beginning `ctx.aura->`, `ctx.spell->`,
+    `ctx.holder->` or `ctx.unit->`) has b == X or is one of the `listed` pairs; no pair's right side holds another
+    pair's left side, and no pair's left side holds an earlier pair's, each where that other pair would apply
     (token_pattern)."""
     pairs = [(a, b) for a, b in site['substitutions'] if isinstance(a, str)]
     for a, b in pairs:
-        if (a.startswith('ctx.') and not re.match(r'ctx\.(aura|spell|holder)->', a) and b != a[len('ctx.'):]
+        if (a.startswith('ctx.') and not re.match(r'ctx\.(aura|spell|holder|unit)->', a) and b != a[len('ctx.'):]
                 and (a, b) not in listed):
             raise Failure('%s: the pair %r does not read the same name on both sides and is no listed exception'
                           % (site['name'], (a, b)))
@@ -1303,6 +1436,9 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             site = dict(site, labels={i: l for i, l in site['labels'].items() if i not in site['deleted']})
         if len(at) != 1:
             raise Failure('%s: the dispatch found %d times' % (site['name'], len(at)))
+        first, end = function_span(rest, site)
+        if not first <= at[0] < end:
+            raise Failure('%s: its dispatch does not stand in its function %r' % (site['name'], site['function']))
         if not site.get('traits'):
             raise Failure('%s: no traits named, so a default registered for it could not be seen' % site['name'])
         if 'Dispatch<%s>' % site['traits'] not in ''.join(site['dispatch']):
@@ -1797,6 +1933,7 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
             rc = 1
     for rel, spec in sites.items():
         try:
+            known_keys(spec)
             for site in spec['sites']:
                 check_pairs(site, excepted)
             ref, at = read_at(rel, spec, base, original, git, read, anchor)
@@ -3085,6 +3222,47 @@ def self_test():
         **mutated(mutated(scoped, 'old_text', other_switch[2], lab[1]), 'sites', other_switch[2], lab[1]))
     run('S: a default the site\'s switch lacks, standing in another: fails', 1, 'DIFFERS',
         **mutated(scoped, 'old_text', '        default:\n            target->Drop(0);\n            return;\n', ''))
+
+    twin_heads = {'Drop': 'void Thing::Remove(bool apply)', 'Lift': 'void Thing::Apply(bool apply)'}
+    twin_dispatch = {'Drop': form_site['dispatch'], 'Lift': [
+        '    ApplyContext applyContext(this, target);',
+        '    if (Dispatch<ApplySite>(GetId(), applyContext).IsReturn())', '    {', '        return;', '    }']}
+
+    def twin(verb, moved):
+        """Remove (`Drop`) or Apply (`Lift`), its switch holding label 1 in both, or its dispatch when `moved`."""
+        switch = form_site['open'] + [gen_labels[1], '            target->%s(1);' % verb, '            return;',
+                                      '    }']
+        return [twin_heads[verb], '{', '    Unit* target = GetTarget();'] + (
+            twin_dispatch[verb] if moved else switch) + ['    target->Tail();', '}', '']
+
+    def twins(drop=twin_heads['Drop'], lift=twin_heads['Lift']):
+        """run() arguments of the two sites, Remove's naming the function head `drop` and Apply's `lift` (None: no
+        function named)."""
+        named = [{'function': head} if head else {} for head in (drop, lift)]
+        sites = [dict(form_site, name='remove', labels={1: gen_labels[1]}, **named[0]),
+                 dict(form_site, name='apply', labels={1: gen_labels[1]}, traits='ApplySite', context='ApplyContext',
+                      dispatch=twin_dispatch['Lift'], **named[1])]
+        handlers = ['#include "Handlers.h"', '']
+        for verb, context in (('Drop', 'RemoveContext'), ('Lift', 'ApplyContext')):
+            handlers += ['static SpellHandlerOutcome<void> %s1(%s& ctx)' % (verb, context), '{',
+                         '    ctx.target->%s(1);' % verb, ret, '}', '']
+        handlers += ['void Register(Registry& registry)', '{', '    static Row<RemoveSite> const removed[] =', '    {',
+                     '        { 1, &Drop1 },', '    };', '    static Row<ApplySite> const applied[] =', '    {',
+                     '        { 1, &Lift1 },', '    };', '}', '']
+        return dict(old_text='\n'.join(['#include "A.h"', ''] + twin('Drop', False) + twin('Lift', False)),
+                    sites='\n'.join(['#include "A.h"', '#include "Handlers.h"', ''] + twin('Drop', True)
+                                    + twin('Lift', True)),
+                    handlers='\n'.join(handlers), spec=dict(GEN_SPEC, sites=sites))
+    run('S by function: two switches alike, each naming its function: pass', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 2 sites', **twins())
+    run('S by function: the same, no site naming its function: fails', 1,
+        "remove: the labels ['%s'] stand 2 times in one version" % gen_labels[1], **twins(None, None))
+    run('S by function: a head the file does not hold: fails by name', 1,
+        "remove: its function head 'void Thing::Removed(bool apply)' found 0 times in one version",
+        **twins('void Thing::Removed(bool apply)'))
+    run('S by function: a site naming the other function: fails by name', 1,
+        "remove: its dispatch does not stand in its function 'void Thing::Apply(bool apply)'",
+        **twins(twin_heads['Lift']))
     run('F: a default ending in a call (no run follows it): fails', 1, 'the default Default ends in a call',
         **mutated(scoped, 'handlers', '    ctx.target->Drop(0);\n' + ret, '    return One(ctx);'))
 
@@ -3189,6 +3367,47 @@ def self_test():
     run('V: a base returning no value at a valued site is read, not refused: DIFFERS', 1,
         'DIFFERS from the base after pasting back 2 bodies at 1 sites',
         **dict(valued, old_text=nothing_returned['sites'], old_handlers=nothing_returned['handlers']))
+
+    def spanning(switch, body):
+        """A valued site whose first run, `switch` under its label, moved into One (`body`); its second returns a
+        value on one line."""
+        return form('spanning', {1: lab[1], 2: lab[2]}, [lab[1]] + switch + [lab[2], bad], [
+            ('One', 'SpellCastResult', body), ('Two', 'SpellCastResult', [
+                '    return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_BAD_TARGETS);'])],
+            [(1, 'One'), (2, 'Two')], **checking)
+    within = ['        {', '            if (target->IsDead())', '            {',
+              '                return target->IsPlayer()',
+              '                    ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS;', '            }',
+              '            break;', '        }']
+    over_two = spanning(within, [
+        '    if (ctx.target->IsDead())', '    {',
+        '        return SpellHandlerOutcome<SpellCastResult>::Return(ctx.target->IsPlayer()',
+        '            ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS);', '    }',
+        '    return SpellHandlerOutcome<SpellCastResult>::Continue();'])
+    run('V over lines: a valued return over two lines: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites', **over_two)
+    run('V over lines: three lines, a parenthesis closing inside: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **mutated(mutated(over_two, 'old_text', '                    ? SPELL_FAILED_TARGETS_DEAD : ',
+                          '                    ? GetError(SPELL_FAILED_TARGETS_DEAD)\n                    : '),
+                  'handlers', '            ? SPELL_FAILED_TARGETS_DEAD : ',
+                  '            ? GetError(SPELL_FAILED_TARGETS_DEAD)\n            : '))
+    run('V over lines: two lines as the handler\'s last statement: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **spanning(['            return target->IsDead() // dead',
+                    '                ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS;'],
+                   ['    return SpellHandlerOutcome<SpellCastResult>::Return(ctx.target->IsDead() // dead',
+                    '        ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS);']))
+    run('V over lines: more after the closing parenthesis: fails by name', 1,
+        "handler One, body line 3: a valued Return( spanning lines that does not close directly before the `;` "
+        "ending its last line: '        return SpellHandlerOutcome<SpellCastResult>::Return(ctx.target->IsPlayer()'",
+        **mutated(over_two, 'handlers', 'SPELL_FAILED_BAD_TARGETS);\n    }', 'SPELL_FAILED_BAD_TARGETS) + 0;\n    }'))
+    run('V over lines: a continuation line changed: DIFFERS', 1,
+        "DIFFERS from the base after pasting back 2 bodies at 1 sites: line 13: base '                    ? "
+        "SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS;', rebuilt '                    ? "
+        "SPELL_FAILED_BAD_TARGETS : SPELL_FAILED_TARGETS_DEAD;'",
+        **mutated(over_two, 'handlers', '? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS);',
+                  '? SPELL_FAILED_BAD_TARGETS : SPELL_FAILED_TARGETS_DEAD);'))
 
     no_continue = 'trailing comments: its substitutions hold no Continue pair (none pastes back as `break;`)'
     raises('a site whose substitutions hold no Continue pair: its pairs refused by name', no_continue,
@@ -3540,6 +3759,22 @@ def self_test():
         "boosted: the pair ('ctx.holder->GetTarget()', 'm_target') reads the holder the context holds, and the "
         "dispatch passes the context no `this`: BoostContext ctx(m_caster)",
         **boosted('    BoostContext ctx(m_caster);'))
+
+    def united(line):
+        """A unit site: its one body routes `GetTypeId` through the unit the context holds; `line` constructs the
+        context."""
+        return form('united', lab1, [lab[1], '            if (GetTypeId() == TYPEID_PLAYER)',
+                                     '                m_caster->Drop(1);', '            break;'],
+                    [('One', 'void', ['    if (ctx.unit->GetTypeId() == TYPEID_PLAYER)',
+                                      '        ctx.m_caster->Drop(1);', cont])],
+                    [(1, 'One')], context='UnitContext', dispatch=[line] + passing[1:],
+                    substitutions=[('ctx.m_caster', 'm_caster'), ('ctx.unit->GetTypeId', 'GetTypeId')]
+                    + VOID_SUBSTITUTIONS)
+    run('context tie: a route through the unit, the dispatch passing this: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites', **united('    UnitContext ctx(this, m_caster);'))
+    run('context tie: a route through the unit, the dispatch passing no this: fails', 1,
+        "united: the pair ('ctx.unit->GetTypeId', 'GetTypeId') reads the unit the context holds, and the dispatch "
+        "passes the context no `this`: UnitContext ctx(m_caster)", **united('    UnitContext ctx(m_caster);'))
     raises('context tie: a pair through another member, its right side passed nowhere: fails by name',
            "tied: the pair ('ctx.target->GetOwner()', 'owner'): its right side 'owner' is passed to no context "
            "argument at the dispatch: CheckTargetContext ctx(this, m_caster, target)",
@@ -3756,6 +3991,60 @@ def self_test():
     run('dispatch sequence: the valued form inside an outer block: passes', 0,
         'with 2/2 bodies pasted back at their 2 labels in 1 sites',
         **reshaped(valued, ['    {'] + ['    ' + line for line in worth] + ['    }']))
+
+    loop_labels = {i: '            case %d:%s// Label %d' % (i, ' ' * (29 - len(str(i))), i) for i in (1, 2)}
+    looping = ['        RemoveContext removeContext(this, target);',
+               '        if (Dispatch<RemoveSite>(GetId(), removeContext).IsLoopContinue())', '        {',
+               '            continue;', '        }']
+    loop_continue = '    ' + LOOP_CONTINUE
+    looped = form('looped', loop_labels, [
+        loop_labels[1], '                if (target->IsDead())', '                    continue;',
+        '                target->Drop(1);', '                break;',
+        loop_labels[2], '                target->Drop(2);', '                continue;'], [
+        ('One', 'void', ['    if (ctx.target->IsDead())', '    ' + loop_continue, '    ctx.target->Drop(1);', cont]),
+        ('Two', 'void', ['    ctx.target->Drop(2);', loop_continue])],
+        [(1, 'One'), (2, 'Two')], before=('    for (int i = 0; i < 3; ++i)', '    {'),
+        tail=('        target->Drop(0);', '    }', '    target->Tail();'),
+        open=['        switch (GetId())', '        {'], close=['        }'],
+        label_indent=12, dispatch=looping, loop=True)
+    looped_pass = 'with 2/2 bodies pasted back at their 2 labels in 1 sites'
+    run('L: a LoopContinue at the run\'s level: passes', 0, looped_pass, **looped)
+    run('L: a LoopContinue inside a nested switch: passes', 0, looped_pass,
+        **mutated(mutated(looped, 'old_text', '                if (target->IsDead())\n                    continue;',
+                          '                switch (target->GetState())\n                {\n'
+                          '                    case 0:\n                        continue;\n                }'),
+                  'handlers', '    if (ctx.target->IsDead())\n' + '    ' + loop_continue,
+                  '    switch (ctx.target->GetState())\n    {\n        case 0:\n'
+                  '            ' + LOOP_CONTINUE + '\n    }'))
+    run('L: the dispatch assigned and tested on the next line: passes', 0, looped_pass,
+        **reshaped(looped, looping[:1] + [
+            '        SpellHandlerOutcome<void> outcome = Dispatch<RemoveSite>(GetId(), removeContext);',
+            '        if (outcome.IsLoopContinue())'] + looping[2:]))
+    run('L: a LoopContinue inside a loop in the body: fails by name', 1,
+        "handler One, body line 2: a LoopContinue inside a loop (the old `continue;` took that loop's next iteration, "
+        "not the site's)",
+        **mutated(looped, 'handlers', '    if (ctx.target->IsDead())', '    while (ctx.target->IsDead())'))
+    run('L: a LoopContinue at a site naming no loop: fails by name', 1,
+        'handler One, body line 2: a LoopContinue at a site that names no loop around its switch',
+        **dict(looped, spec=dict(looped['spec'], sites=[
+            {k: v for k, v in looped['spec']['sites'][0].items() if k != 'loop'}])))
+    run('L: a Return at a loop site: fails by name', 1,
+        'handler Two, body line 2: a Return at a loop site, whose dispatch only continues the loop',
+        **mutated(looped, 'handlers', '    ctx.target->Drop(2);\n' + loop_continue, '    ctx.target->Drop(2);\n' + ret))
+    run('L: a loop site naming a value: fails by name', 1,
+        'looped: a loop site names a value, and its dispatch only continues the loop',
+        **respec(looped, value='SpellCastResult'))
+    run('L: a site listing the LoopContinue pair itself: fails by name', 1,
+        'looped: its substitutions list the LoopContinue pair, which the tool builds for a loop site',
+        **respec(looped, substitutions=form_site['substitutions'] + [(LOOP_CONTINUE, 'continue;')]))
+    for statement in ('return;', 'break;'):
+        run('L: `%s` in a loop site\'s dispatch: fails by name' % statement, 1, unshaped % ('looped', statement),
+            **reshaped(looped, looping[:3] + ['            ' + statement] + looping[4:]))
+    run('L: a LoopContinue where `break;` stood: DIFFERS', 1,
+        "DIFFERS from the base after pasting back 2 bodies at 1 sites: line 14: base '                break;', "
+        "rebuilt '                continue;'",
+        **mutated(looped, 'handlers', '    ctx.target->Drop(1);\n' + cont,
+                  '    ctx.target->Drop(1);\n' + loop_continue))
     run('dispatch sequence: an opening brace in the return\'s place: fails by name', 1, astray % ('tied', '{'),
         **reshaped(tied, passing[:3] + ['    {'] + passing[4:]))
     split_call = ['    if (Dispatch<RemoveSite>(GetId(),', '            ctx).IsReturn())']
@@ -3825,6 +4114,11 @@ def self_test():
     raises('context pairs: a two-name pair naming the holder, no route: fails by name',
            misnamed % (('ctx.holder', 'GetHolder()'),),
            lambda: check_pairs(paired(('ctx.holder', 'GetHolder()')), []))
+    raises('context pairs: a route through the unit reading another name: passes', 'no failure',
+           lambda: check_pairs(paired(('ctx.unit->GetTypeId', 'GetTypeId')), []))
+    raises('context pairs: a two-name pair on another root: fails by name',
+           misnamed % (('ctx.owner->GetTypeId', 'GetTypeId'),),
+           lambda: check_pairs(paired(('ctx.owner->GetTypeId', 'GetTypeId')), []))
     raises('context pairs: a pair through another member reading another name: fails by name',
            misnamed % (('ctx.target->GetOwner()', 'target'),),
            lambda: check_pairs(paired(('ctx.target->GetOwner()', 'target')), []))
@@ -4164,6 +4458,20 @@ def self_test():
     excepting('context exceptions: an entry that is not a pair and its reason, through check(): fails by name', 1,
               ["verbatim: FAILED: the exception (('ctx.aura', 'this'), '') is not a pair and its reason"], own,
               ((aura[0], ''),))
+
+    misspelt = dict(SELF_SPEC, sites=[dict(SELF_SPEC['sites'][0], fuction='void Thing::Handle(bool apply)')]
+                    + SELF_SPEC['sites'][1:])
+    got = []
+    rc = check('.', '4000000', got.append, False, fake_git, tree.__getitem__, {'fixture': misspelt}, None, [],
+               fixture_exceptions({'fixture': misspelt}))
+    needle = "fixture: FAILED: fixture: the site holds the key(s) ['fuction'], which this tool does not read"
+    print('self-test: %-66s %s' % ('keys: a misspelt site key, through check(): fails by name',
+                                   'PASS' if rc == 1 and needle in got else 'FAIL'))
+    if not (rc == 1 and needle in got):
+        failures.append('keys: a misspelt site key: rc %d\n%s' % (rc, '\n'.join(got)))
+    raises('keys: a misspelt entry key: fails by name',
+           "the entry holds the key(s) ['renamed_form'], which this tool does not read",
+           lambda: known_keys(dict(SELF_SPEC, renamed_form='src/game/Old.cpp')))
 
     # renamed_from: a file renamed from old_p to new_p between 3000000 and 4000000.
     old_p, new_p = 'src/game/WorldHandlers/Sites.cpp', 'src/game/spells/auras/Sites.cpp'
