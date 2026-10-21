@@ -69,6 +69,15 @@ struct SpellEffectScriptContext
     SpellEffectEntry const* const& effect; ///< the function's parameter `SpellEffectEntry const* effect`
 };
 
+/// `Spell::EffectScriptEffect`, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`: every registered label ends the
+/// effect; there is no `default:`, so a miss runs the switch, which holds the other labels.
+struct SpellEffectScriptGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_GENERIC;
+    typedef void Value;
+    typedef SpellEffectScriptContext Context;
+};
+
 /// `Spell::EffectScriptEffect`, SPELLFAMILY_WARLOCK's `switch (m_spellInfo->ID)`: every label ends the effect; there
 /// is no `default:`, so a miss goes on to the database script.
 struct SpellEffectScriptWarlockSite
