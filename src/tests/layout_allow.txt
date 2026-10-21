@@ -1861,7 +1861,7 @@ src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Ch
 src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
 # The bodies call creature-only methods on a unit cast to a creature, such as its virtual items, a despawn or the temporary-summon check.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
-# The origin's own edge carried into the handler directory, same layer pair and header; an unlisted pair under the peer table, so debt, retiring with the script-hook interface that takes the AI calls.
+# The bodies call a creature's AI to start an attack or to evade and go home (AttackStart, EnterEvadeMode); the origin's own edge carried into the handler directory, same layer pair and header; an unlisted pair under the peer table, so debt, retiring with the script-hook interface that takes the AI calls.
 src/game/spells/handlers [spells] -> src/game/Object/CreatureAI.h
 # The bodies read the game object they target or find, the grenade, scuttle and detonate bodies respawn it, and the Lava Bomb and Crystal Prison bodies create one; dies with D9's map surface, or earlier if the game object's targeting facts move to entities/.
 src/game/spells/handlers [spells] -> src/game/Object/GameObject.h

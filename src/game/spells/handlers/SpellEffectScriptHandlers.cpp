@@ -2567,6 +2567,768 @@ static SpellHandlerOutcome<void> EffectScriptGenericMountedChargeShieldBreaker(S
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// 63027: Proximity Mines
+static SpellHandlerOutcome<void> EffectScriptGeneric63027(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    for (uint8 i = 0; i < 15; ++i)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 65347, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 63119 and 64192: Block!
+static SpellHandlerOutcome<void> EffectScriptGenericBlock(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (ctx.unitTarget->HasAura(63132))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    else if (ctx.unitTarget->HasAura(63131))
+    {
+        ctx.unitTarget->RemoveAurasDueToSpell(63131);
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 63132, true);         // Shield Level 3
+    }
+    else if (ctx.unitTarget->HasAura(63130))
+    {
+        ctx.unitTarget->RemoveAurasDueToSpell(63130);
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 63131, true);         // Shield Level 2
+    }
+    else
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 63130, true);         // Shield Level 1
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63122: Clear Insane
+static SpellHandlerOutcome<void> EffectScriptGeneric63122(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63633: Summon Rubble
+static SpellHandlerOutcome<void> EffectScriptGeneric63633(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    for (uint8 i = 0; i < 5; ++i)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63667: Napalm Shell
+static SpellHandlerOutcome<void> EffectScriptGeneric63667(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.m_caster->GetMap()->IsRegularDifficulty() ? 63666 : 65026, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63681: Rocket Strike
+static SpellHandlerOutcome<void> EffectScriptGeneric63681(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 63036, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 63795 and 65301: Psychosis
+static SpellHandlerOutcome<void> EffectScriptGenericPsychosis(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || ctx.unitTarget->HasAura(ctx.effect->CalculateSimpleValue()))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAuraHolderFromStack(63050, 12);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 3 labels: 63803: Brain Link, 64164: Lunatic Gaze, 64168: Lunatic Gaze
+static SpellHandlerOutcome<void> EffectScriptGenericBrainLinkLunaticGaze(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint8 removedAmount = 0;
+    switch (ctx.m_spellInfo->ID)
+    {
+        case 63803: removedAmount = 2; break;
+        case 64164: removedAmount = 4; break;
+        case 64168: removedAmount = 2; break;
+    }
+
+    ctx.unitTarget->RemoveAuraHolderFromStack(63050, removedAmount);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 63993: Cancel Illusion Room Aura
+static SpellHandlerOutcome<void> EffectScriptGeneric63993(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 63992, true);
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64059: Induce Madness
+static SpellHandlerOutcome<void> EffectScriptGeneric64059(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || !ctx.unitTarget->HasAura(ctx.effect->CalculateSimpleValue()))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(63050);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64069: Match Health
+static SpellHandlerOutcome<void> EffectScriptGeneric64069(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->SetHealthPercent(ctx.m_caster->GetHealthPercent());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64123: Lunge
+static SpellHandlerOutcome<void> EffectScriptGeneric64123(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.unitTarget->GetMap()->IsRegularDifficulty() ? 64125 : 64126, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64131: Lunge
+static SpellHandlerOutcome<void> EffectScriptGeneric64131(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64456: Feral Essence Application Removal
+static SpellHandlerOutcome<void> EffectScriptGeneric64456(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellId = ctx.effect->CalculateSimpleValue();
+    ctx.unitTarget->RemoveAuraHolderFromStack(spellId);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64466: Empowering Shadows
+static SpellHandlerOutcome<void> EffectScriptGeneric64466(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64467: Empowering Shadows
+static SpellHandlerOutcome<void> EffectScriptGeneric64467(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.m_caster->GetMap()->IsRegularDifficulty() ? 64468 : 64486, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64475: Strength of the Creator
+static SpellHandlerOutcome<void> EffectScriptGeneric64475(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAuraHolderFromStack(64473);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64623: Frost Bomb
+static SpellHandlerOutcome<void> EffectScriptGeneric64623(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 64627, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64767: Stormhammer
+static SpellHandlerOutcome<void> EffectScriptGeneric64767(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (Creature* target = (Creature*)ctx.unitTarget)
+    {
+        target->AI()->EnterEvadeMode();
+        target->CastSpell(target, 62470, true);
+        target->CastSpell(ctx.m_caster, 64909, true);
+        target->CastSpell(target, 64778, true);
+        target->ForcedDespawn(10000);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 64841: Rapid Burst
+static SpellHandlerOutcome<void> EffectScriptGeneric64841(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, 63382, false);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 65238: Shattered Illusion
+static SpellHandlerOutcome<void> EffectScriptGeneric65238(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 66477: Bountiful Feast
+static SpellHandlerOutcome<void> EffectScriptGeneric66477(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 65422, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 66622, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 66545: Summon Memory
+static SpellHandlerOutcome<void> EffectScriptGeneric66545(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 memorySpells[25] = {66543, 66691, 66692, 66694, 66695, 66696, 66697, 66698, 66699, 66700, 66701,
+                               66702, 66703, 66704, 66705, 66706, 66707, 66708, 66709, 66710, 66711, 66712, 66713, 66714, 66715
+                              };
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, memorySpells[urand(0, 24)], true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 66741: Chum the Water
+static SpellHandlerOutcome<void> EffectScriptGeneric66741(SpellEffectScriptContext& ctx)
+{
+    // maybe this check should be done sooner?
+    if (!ctx.m_caster->IsInWater())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellId = 0;
+
+    // too low/high?
+    if (roll_chance_i(33))
+    {
+        spellId = 66737;                    // angry
+    }
+    else
+    {
+        switch (urand(0, 2))
+        {
+            case 0: spellId = 66740; break; // blue
+            case 1: spellId = 66739; break; // tresher
+            case 2: spellId = 66738; break; // mako
+        }
+    }
+
+    if (spellId)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, spellId, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 66744: Make Player Destroy Totems
+static SpellHandlerOutcome<void> EffectScriptGeneric66744(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Totem of the Earthen Ring does not really require or take reagents.
+    // Expecting RewardQuest() to already destroy them or we need additional code here to destroy.
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 66747, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 67009: Nether Power
+static SpellHandlerOutcome<void> EffectScriptGeneric67009(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    for (uint8 i = 0; i < 11; ++i)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 67547: Clear Val'kyr Essence
+static SpellHandlerOutcome<void> EffectScriptGeneric67547(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(67590);
+    ctx.unitTarget->RemoveAurasDueToSpell(65684);
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 67590: Powering Up
+static SpellHandlerOutcome<void> EffectScriptGeneric67590(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (SpellAuraHolder* playerAura = ctx.unitTarget->GetSpellAuraHolder(ctx.m_spellInfo->ID))
+    {
+        if (playerAura && playerAura->GetStackAmount() == 100)
+        {
+            if (ctx.unitTarget->HasAuraOfDifficulty(65684))
+            {
+                ctx.unitTarget->CastSpell(ctx.unitTarget, 65724, true);
+            }
+            else if (ctx.unitTarget->HasAuraOfDifficulty(65686))
+            {
+                ctx.unitTarget->CastSpell(ctx.unitTarget, 65748, true);
+            }
+
+            ctx.unitTarget->RemoveAurasDueToSpell(ctx.m_spellInfo->ID);
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 67751: Ghoul Explode
+static SpellHandlerOutcome<void> EffectScriptGeneric67751(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->InterruptNonMeleeSpells(false);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 67729, false);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 68084: Clear Val'kyr Touch of Light/Dark
+static SpellHandlerOutcome<void> EffectScriptGeneric68084(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(66001);
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 68861: Consume Soul
+static SpellHandlerOutcome<void> EffectScriptGeneric68861(SpellEffectScriptContext& ctx)
+{
+    if (ctx.unitTarget)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 68871: Wailing Souls
+static SpellHandlerOutcome<void> EffectScriptGeneric68871(SpellEffectScriptContext& ctx)
+{
+    // Left or Right direction?
+    ctx.m_caster->CastSpell(ctx.m_caster, urand(0, 1) ? 68875 : 68876, false);
+    // Clear TargetGuid for sweeping
+    ctx.m_caster->SetTargetGuid(ObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69048: Mirrored Soul
+static SpellHandlerOutcome<void> EffectScriptGeneric69048(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // This is extremely strange!
+    // The spell should send SMSG_CHANNEL_START, SMSG_SPELL_START
+    // However it has cast time 2s, but should send SMSG_SPELL_GO instantly.
+    ctx.m_caster->CastSpell(ctx.unitTarget, 69051, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69051: Mirrored Soul
+static SpellHandlerOutcome<void> EffectScriptGeneric69051(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Actually this spell should be sent with SMSG_SPELL_START
+    ctx.unitTarget->CastSpell(ctx.m_caster, 69023, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69057: Bone Spike Graveyard
+static SpellHandlerOutcome<void> EffectScriptGeneric69057(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || ctx.unitTarget->HasAura(ctx.m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_1)))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 69062, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69140: Coldflame
+static SpellHandlerOutcome<void> EffectScriptGeneric69140(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69147: Coldflame
+static SpellHandlerOutcome<void> EffectScriptGeneric69147(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69195: Pungent Blight
+static SpellHandlerOutcome<void> EffectScriptGeneric69195(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69298: Cancel Resistant to Blight
+static SpellHandlerOutcome<void> EffectScriptGeneric69298(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69377: Fortitude
+static SpellHandlerOutcome<void> EffectScriptGeneric69377(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 72590, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69378: Blessing of Forgotten Kings
+static SpellHandlerOutcome<void> EffectScriptGeneric69378(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 72586, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69381: absent from the client's spell data
+static SpellHandlerOutcome<void> EffectScriptGeneric69381(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 72588, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 69828: Halls of Reflection Clone
+static SpellHandlerOutcome<void> EffectScriptGeneric69828(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 71806: Glittering Sparks
+static SpellHandlerOutcome<void> EffectScriptGeneric71806(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 72034 and 72096: Whiteout
+static SpellHandlerOutcome<void> EffectScriptGenericWhiteout(SpellEffectScriptContext& ctx)
+{
+    // cast Whiteout visual
+    ctx.m_caster->CastSpell(ctx.unitTarget, 72036, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72195: Blood Link
+static SpellHandlerOutcome<void> EffectScriptGeneric72195(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 auraStacks = 0;
+    if (SpellAuraHolder* playerAura = ctx.unitTarget->GetSpellAuraHolder(72371))
+    {
+        auraStacks = playerAura->GetStackAmount();
+    }
+
+    int32 missingStacks = ctx.unitTarget->GetPower(ctx.unitTarget->GetPowerType()) - auraStacks;
+    if (missingStacks <= 0)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastCustomSpell(ctx.unitTarget, 72371, &missingStacks, &missingStacks, NULL, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72219: Gastric Bloat
+static SpellHandlerOutcome<void> EffectScriptGeneric72219(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 auraStacks = 0;
+    if (SpellAuraHolder* playerAura = ctx.unitTarget->GetSpellAuraHolder(ctx.m_spellInfo->ID))
+    {
+        auraStacks = playerAura->GetStackAmount();
+    }
+
+    // cast Gastric Explosion on 10 stacks
+    if (auraStacks >= 10)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 72227, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72257: Remove Marks of the Fallen Champion
+static SpellHandlerOutcome<void> EffectScriptGeneric72257(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(ctx.effect->CalculateSimpleValue());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72409: Rune of Blood
+static SpellHandlerOutcome<void> EffectScriptGeneric72409(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72705: Coldflame
+static SpellHandlerOutcome<void> EffectScriptGeneric72705(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Cast summon spells 72701, 72702, 72703, 72704
+    for (uint32 triggeredSpell = ctx.effect->CalculateSimpleValue(); triggeredSpell < ctx.m_spellInfo->ID; ++triggeredSpell)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, triggeredSpell, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 72900: Start Halls of Reflection Quest AE
+static SpellHandlerOutcome<void> EffectScriptGeneric72900(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (Player* target = (Player*)ctx.unitTarget)
+    {
+        target->CastSpell(target, target->GetTeam() == ALLIANCE ? 71351 : 71542, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 73142: Bone Spike Graveyard
+static SpellHandlerOutcome<void> EffectScriptGeneric73142(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || ctx.unitTarget->HasAura(69065))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellId = 0;
+    switch (urand(0, 2))
+    {
+        case 0: spellId = 69062; break;
+        case 1: spellId = 72669; break;
+        case 2: spellId = 72670; break;
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, spellId, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 74455: Conflagration
+static SpellHandlerOutcome<void> EffectScriptGeneric74455(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// one body for 8 labels: 6201: Create Healthstone; 6202, 5699, 11729, 11730, 27230, 47871, 47878: absent from the
 /// client's spell data
 static SpellHandlerOutcome<void> EffectScriptWarlockCreateHealthstone(SpellEffectScriptContext& ctx)
@@ -3191,6 +3953,64 @@ uint32 RegisterSpellEffectScriptHandlers(SpellHandlerRegistry& registry)
         { 63010, &EffectScriptGenericMountedChargeShieldBreaker },
         { 68307, &EffectScriptGenericMountedChargeShieldBreaker },
         { 68504, &EffectScriptGenericMountedChargeShieldBreaker },
+        { 63027, &EffectScriptGeneric63027 },
+        { 63119, &EffectScriptGenericBlock },
+        { 64192, &EffectScriptGenericBlock },
+        { 63122, &EffectScriptGeneric63122 },
+        { 63633, &EffectScriptGeneric63633 },
+        { 63667, &EffectScriptGeneric63667 },
+        { 63681, &EffectScriptGeneric63681 },
+        { 63795, &EffectScriptGenericPsychosis },
+        { 65301, &EffectScriptGenericPsychosis },
+        { 63803, &EffectScriptGenericBrainLinkLunaticGaze },
+        { 64164, &EffectScriptGenericBrainLinkLunaticGaze },
+        { 64168, &EffectScriptGenericBrainLinkLunaticGaze },
+        { 63993, &EffectScriptGeneric63993 },
+        { 64059, &EffectScriptGeneric64059 },
+        { 64069, &EffectScriptGeneric64069 },
+        { 64123, &EffectScriptGeneric64123 },
+        { 64131, &EffectScriptGeneric64131 },
+        { 64456, &EffectScriptGeneric64456 },
+        { 64466, &EffectScriptGeneric64466 },
+        { 64467, &EffectScriptGeneric64467 },
+        { 64475, &EffectScriptGeneric64475 },
+        { 64623, &EffectScriptGeneric64623 },
+        { 64767, &EffectScriptGeneric64767 },
+        { 64841, &EffectScriptGeneric64841 },
+        { 65238, &EffectScriptGeneric65238 },
+        { 66477, &EffectScriptGeneric66477 },
+        { 66545, &EffectScriptGeneric66545 },
+        { 66741, &EffectScriptGeneric66741 },
+        { 66744, &EffectScriptGeneric66744 },
+        { 67009, &EffectScriptGeneric67009 },
+        { 67547, &EffectScriptGeneric67547 },
+        { 67590, &EffectScriptGeneric67590 },
+        { 67751, &EffectScriptGeneric67751 },
+        { 68084, &EffectScriptGeneric68084 },
+        { 68861, &EffectScriptGeneric68861 },
+        { 68871, &EffectScriptGeneric68871 },
+        { 69048, &EffectScriptGeneric69048 },
+        { 69051, &EffectScriptGeneric69051 },
+        { 69057, &EffectScriptGeneric69057 },
+        { 69140, &EffectScriptGeneric69140 },
+        { 69147, &EffectScriptGeneric69147 },
+        { 69195, &EffectScriptGeneric69195 },
+        { 69298, &EffectScriptGeneric69298 },
+        { 69377, &EffectScriptGeneric69377 },
+        { 69378, &EffectScriptGeneric69378 },
+        { 69381, &EffectScriptGeneric69381 },
+        { 69828, &EffectScriptGeneric69828 },
+        { 71806, &EffectScriptGeneric71806 },
+        { 72034, &EffectScriptGenericWhiteout },
+        { 72096, &EffectScriptGenericWhiteout },
+        { 72195, &EffectScriptGeneric72195 },
+        { 72219, &EffectScriptGeneric72219 },
+        { 72257, &EffectScriptGeneric72257 },
+        { 72409, &EffectScriptGeneric72409 },
+        { 72705, &EffectScriptGeneric72705 },
+        { 72900, &EffectScriptGeneric72900 },
+        { 73142, &EffectScriptGeneric73142 },
+        { 74455, &EffectScriptGeneric74455 },
     };
 
     static SpellEffectScriptRow<SpellEffectScriptWarlockSite> const warlock[] =
