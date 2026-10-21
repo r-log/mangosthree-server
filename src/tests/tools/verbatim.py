@@ -91,6 +91,8 @@ A file renamed since a commit it is read at (the base or its original) keeps its
 tree's path, and names its old path in `renamed_from`: the working tree must hold the key and not the
 old path, and the commit exactly one of the two, the one read; a commit holding neither or both
 fails, naming the paths. A key or a members_of header the working tree does not hold fails by name.
+An entry, or a site of it, holding a key this tool does not read (ENTRY_KEYS, SITE_KEYS) fails by name
+before anything of the entry is read, so a misspelt key is never read as one left out.
 Because the bodies are pasted from the functions the table registers, a row pointing at the wrong
 function, a lost row or default, a changed line, or a body moved in the wrong order all fail; a
 body a PR before this one moved is proven again, against its own base's copy. Every
@@ -386,6 +388,25 @@ def joined_returns(code, value):
 
 class Failure(Exception):
     pass
+
+
+ENTRY_KEYS = ('handlers', 'rows_function', 'added', 'tail_marker', 'sites', 'original', 'renamed_from', 'cuts', 'texts')
+SITE_KEYS = ('name', 'dispatch', 'open', 'close', 'label_indent', 'table', 'traits', 'context', 'live_outs', 'in_scope',
+             'members_of', 'substitutions', 'labels', 'default', 'residual', 'closed', 'deleted', 'gone', 'texts',
+             'value', 'function', 'loop')
+
+
+def known_keys(spec):
+    """A SITES entry and each of its sites hold only keys this tool reads (ENTRY_KEYS, SITE_KEYS); any other
+    key fails by name."""
+    unknown = sorted(k for k in spec if k not in ENTRY_KEYS)
+    if unknown:
+        raise Failure('the entry holds the key(s) %s, which this tool does not read' % unknown)
+    for site in spec['sites']:
+        unknown = sorted(k for k in site if k not in SITE_KEYS)
+        if unknown:
+            raise Failure('%s: the site holds the key(s) %s, which this tool does not read'
+                          % (site.get('name'), unknown))
 
 
 LOOP_CONTINUE = 'return SpellHandlerOutcome<void>::LoopContinue();'
@@ -1912,6 +1933,7 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
             rc = 1
     for rel, spec in sites.items():
         try:
+            known_keys(spec)
             for site in spec['sites']:
                 check_pairs(site, excepted)
             ref, at = read_at(rel, spec, base, original, git, read, anchor)
@@ -4436,6 +4458,20 @@ def self_test():
     excepting('context exceptions: an entry that is not a pair and its reason, through check(): fails by name', 1,
               ["verbatim: FAILED: the exception (('ctx.aura', 'this'), '') is not a pair and its reason"], own,
               ((aura[0], ''),))
+
+    misspelt = dict(SELF_SPEC, sites=[dict(SELF_SPEC['sites'][0], fuction='void Thing::Handle(bool apply)')]
+                    + SELF_SPEC['sites'][1:])
+    got = []
+    rc = check('.', '4000000', got.append, False, fake_git, tree.__getitem__, {'fixture': misspelt}, None, [],
+               fixture_exceptions({'fixture': misspelt}))
+    needle = "fixture: FAILED: fixture: the site holds the key(s) ['fuction'], which this tool does not read"
+    print('self-test: %-66s %s' % ('keys: a misspelt site key, through check(): fails by name',
+                                   'PASS' if rc == 1 and needle in got else 'FAIL'))
+    if not (rc == 1 and needle in got):
+        failures.append('keys: a misspelt site key: rc %d\n%s' % (rc, '\n'.join(got)))
+    raises('keys: a misspelt entry key: fails by name',
+           "the entry holds the key(s) ['renamed_form'], which this tool does not read",
+           lambda: known_keys(dict(SELF_SPEC, renamed_form='src/game/Old.cpp')))
 
     # renamed_from: a file renamed from old_p to new_p between 3000000 and 4000000.
     old_p, new_p = 'src/game/WorldHandlers/Sites.cpp', 'src/game/spells/auras/Sites.cpp'
