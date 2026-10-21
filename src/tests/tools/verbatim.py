@@ -121,6 +121,10 @@ The run shapes beyond one label per line and a body that ends in its own termina
      `SpellHandlerOutcome<`); a site with `value` none of whose handlers in the working tree returns a
      value (a `Return(x)`, comments aside; a default's counts), whatever the runs still standing in a
      partly moved switch return; a handler returning a value at a site with no `value`.
+     Over lines: a `return SpellHandlerOutcome<T>::Return(` whose parenthesis closes on a later line pastes
+     back as `return `, and that closing `)` is dropped, the lines between kept as they stand. The `)` must
+     stand directly before the `;` that ends its line (a comment after it aside), or the body fails by name.
+     The last-statement rule below reads such a return as one statement.
   M, several labels on one line: LABELS maps each id of a line `case 1: case 2: case 3:` to that same
      line, and every label line must hold exactly the ids mapped to it and nothing else. The ids of one line are rows
      of one run, so they share its function (an id of the line registered by another function
@@ -319,6 +323,51 @@ def valued_substitutions(value):
     """The outcome pairs of a site in a function returning `value`: `return x;` and `break;`."""
     return [(re.compile(r'return SpellHandlerOutcome<%s>::Return\((.*)\);' % re.escape(value)), r'return \1;'),
             ('return SpellHandlerOutcome<%s>::Continue();' % value, 'break;')]
+
+
+def spanning_returns(body, value, function):
+    """V over lines: `body` with each `return SpellHandlerOutcome<value>::Return(` whose parenthesis closes on a
+    later line written as `return `, and that closing `)` dropped. A `)` that is not directly before the `;`
+    ending its line, or none at all, fails by name."""
+    opener = 'return SpellHandlerOutcome<%s>::Return(' % value
+    out, code, k = list(body), blank('\n'.join(body)).split('\n'), 0
+    while k < len(out):
+        at = code[k].find(opener)
+        start = at + len(opener) - 1
+        if at < 0 or held(code[k], start) is not None:
+            k += 1
+            continue
+        depth, j, close = 0, k, None
+        while close is None and j < len(code):
+            for c in range(start if j == k else 0, len(code[j])):
+                depth += (code[j][c] == '(') - (code[j][c] == ')')
+                if depth == 0:
+                    close = c
+                    break
+            else:
+                j += 1
+        if close is None or code[j][close + 1:].rstrip() != ';':
+            raise Failure('handler %s, body line %d: a valued Return( spanning lines that does not close directly '
+                          'before the `;` ending its last line: %r' % (function, k + 1, body[k]))
+        out[k] = out[k][:at] + 'return ' + out[k][at + len(opener):]
+        out[j] = out[j][:close] + out[j][close + 1:]
+        k = j + 1
+    return out
+
+
+def joined_returns(code, value):
+    """`code` (a handler's code lines) blanked, each valued Return( spanning lines joined into one line (V)."""
+    opener = 'return SpellHandlerOutcome<%s>::Return(' % value
+    out, k = [], 0
+    while k < len(code):
+        line = blank(code[k])
+        at = line.find(opener)
+        while at >= 0 and k + 1 < len(code) and held(line, at + len(opener) - 1) is None:
+            k += 1
+            line += ' ' + blank(code[k]).strip()
+        out.append(line)
+        k += 1
+    return out
 
 
 class Failure(Exception):
@@ -641,9 +690,10 @@ def body_at(lines, function, context, value='void'):
 def handler_body(lines, function, context, value='void'):
     """The lines of the handler's body (body_at). Its last statement (comment lines, and a comment at the end
     of its line, aside) is a whole `return ...;` at the function's own level, the code line above it ending
-    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails."""
+    in `;`, `{`, `}` or `:`; any other last line could fall off the body's end and fails. A valued Return( spanning
+    lines is read as one statement (V)."""
     first, end = body_at(lines, function, context, value)
-    code = [l for l in lines[first:end] if l.strip() and not comment_only(l)]
+    code = joined_returns([l for l in lines[first:end] if l.strip() and not comment_only(l)], value)
     if not code or not re.fullmatch(r'    return\b.*;', blank(code[-1]).rstrip()) or (
             len(code) > 1 and not blank(code[-2]).rstrip().endswith((';', '{', '}', ':'))):
         raise Failure('handler %s: its last statement is not a return at its own level (it could fall off its end)'
@@ -918,9 +968,12 @@ def token_pattern(a, b):
 
 def substituted(site, body, function):
     """`body` reverse-substituted, each line pair after pair: a pattern the tool builds as it is, a text pair
-    at whole tokens only (token_pattern). A text pair that applies nowhere in the body, whose left side the
-    body still holds once every pair has been applied, fails."""
+    at whole tokens only (token_pattern), after a valued site's Returns spanning lines (spanning_returns). A text
+    pair that applies nowhere in the body, whose left side the body still holds once every pair has been applied,
+    fails."""
     restored, applied = [], set()
+    if 'value' in site:
+        body = spanning_returns(body, site['value'], function)
     for line in body:
         for k, (a, b) in enumerate(site['substitutions']):
             if isinstance(a, re.Pattern):
@@ -3189,6 +3242,47 @@ def self_test():
     run('V: a base returning no value at a valued site is read, not refused: DIFFERS', 1,
         'DIFFERS from the base after pasting back 2 bodies at 1 sites',
         **dict(valued, old_text=nothing_returned['sites'], old_handlers=nothing_returned['handlers']))
+
+    def spanning(switch, body):
+        """A valued site whose first run, `switch` under its label, moved into One (`body`); its second returns a
+        value on one line."""
+        return form('spanning', {1: lab[1], 2: lab[2]}, [lab[1]] + switch + [lab[2], bad], [
+            ('One', 'SpellCastResult', body), ('Two', 'SpellCastResult', [
+                '    return SpellHandlerOutcome<SpellCastResult>::Return(SPELL_FAILED_BAD_TARGETS);'])],
+            [(1, 'One'), (2, 'Two')], **checking)
+    within = ['        {', '            if (target->IsDead())', '            {',
+              '                return target->IsPlayer()',
+              '                    ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS;', '            }',
+              '            break;', '        }']
+    over_two = spanning(within, [
+        '    if (ctx.target->IsDead())', '    {',
+        '        return SpellHandlerOutcome<SpellCastResult>::Return(ctx.target->IsPlayer()',
+        '            ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS);', '    }',
+        '    return SpellHandlerOutcome<SpellCastResult>::Continue();'])
+    run('V over lines: a valued return over two lines: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites', **over_two)
+    run('V over lines: three lines, a parenthesis closing inside: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **mutated(mutated(over_two, 'old_text', '                    ? SPELL_FAILED_TARGETS_DEAD : ',
+                          '                    ? GetError(SPELL_FAILED_TARGETS_DEAD)\n                    : '),
+                  'handlers', '            ? SPELL_FAILED_TARGETS_DEAD : ',
+                  '            ? GetError(SPELL_FAILED_TARGETS_DEAD)\n            : '))
+    run('V over lines: two lines as the handler\'s last statement: passes', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **spanning(['            return target->IsDead() // dead',
+                    '                ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS;'],
+                   ['    return SpellHandlerOutcome<SpellCastResult>::Return(ctx.target->IsDead() // dead',
+                    '        ? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS);']))
+    run('V over lines: more after the closing parenthesis: fails by name', 1,
+        "handler One, body line 3: a valued Return( spanning lines that does not close directly before the `;` "
+        "ending its last line: '        return SpellHandlerOutcome<SpellCastResult>::Return(ctx.target->IsPlayer()'",
+        **mutated(over_two, 'handlers', 'SPELL_FAILED_BAD_TARGETS);\n    }', 'SPELL_FAILED_BAD_TARGETS) + 0;\n    }'))
+    run('V over lines: a continuation line changed: DIFFERS', 1,
+        "DIFFERS from the base after pasting back 2 bodies at 1 sites: line 13: base '                    ? "
+        "SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS;', rebuilt '                    ? "
+        "SPELL_FAILED_BAD_TARGETS : SPELL_FAILED_TARGETS_DEAD;'",
+        **mutated(over_two, 'handlers', '? SPELL_FAILED_TARGETS_DEAD : SPELL_FAILED_BAD_TARGETS);',
+                  '? SPELL_FAILED_BAD_TARGETS : SPELL_FAILED_TARGETS_DEAD);'))
 
     no_continue = 'trailing comments: its substitutions hold no Continue pair (none pastes back as `break;`)'
     raises('a site whose substitutions hold no Continue pair: its pairs refused by name', no_continue,
