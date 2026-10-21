@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = 'a3f004aef'
+BASE = 'a9604403c'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -2673,6 +2673,73 @@ SITES = {
             'labels': {
                 50842: '                case 50842:                                 // Pestilence'},
         }],
+    },
+    'src/game/Object/SpellMgr.cpp': {
+        'original': 'a9604403cf926c8129f7dd4695b261da2ccb33f0',
+        'handlers': 'src/game/spells/handlers/SpellMgrHandlers.cpp',
+        'rows_function': 'RegisterSpellMgrRows',
+        'added': [
+            '#include "spells/handlers/SpellMgrHandlers.h"',
+        ],
+        'sites': [
+            {
+                'name': 'GetSpellAllowedInLocationError (switch (spellInfo->ID))',
+                'dispatch': [
+                    '    SpellAllowedInLocationContext ctx(map_id, player);',
+                    '    SpellHandlerOutcome<SpellCastResult> outcome = SpellHandlerRegistry::Game().Dispatch<SpellAllowedInLocationSite>(spellInfo->ID, ctx);',
+                    '    if (outcome.IsReturn())',
+                    '    {',
+                    '        return outcome.GetValue();',
+                    '    }',
+                ],
+                'open': [
+                    '    switch (spellInfo->ID)',
+                    '    {',
+                ],
+                'close': [
+                    '    }',
+                ],
+                'label_indent': 8,
+                'traits': 'SpellAllowedInLocationSite',
+                'value': 'SpellCastResult',
+                'context': 'SpellAllowedInLocationContext',
+                'live_outs': [],
+                'in_scope': [
+                    'spellInfo',
+                    'zone_id',
+                    'area_id',
+                    'areaGroupId',
+                    'saBounds',
+                ],
+                'members_of': ('src/game/Object/SpellMgr.h', 'SpellMgr'),
+                'substitutions': [
+                    ('ctx.map_id', 'map_id'),
+                    ('ctx.player', 'player'),
+                ],
+                'labels': {
+                    22564: '        case 22564:                                         // recall',
+                    22563: '        case 22563:                                         // recall',
+                    23333: '        case 23333:                                         // Warsong Flag',
+                    23335: '        case 23335:                                         // Silverwing Flag',
+                    34976: '        case 34976:                                         // Netherstorm Flag',
+                    2584: '        case 2584:                                          // Waiting to Resurrect',
+                    42792: '        case 42792:                                         // Recently Dropped Flag',
+                    43681: '        case 43681:                                         // Inactive',
+                    22011: '        case 22011:                                         // Spirit Heal Channel',
+                    22012: '        case 22012:                                         // Spirit Heal',
+                    24171: '        case 24171:                                         // Resurrection Impact Visual',
+                    44535: '        case 44535:                                         // Spirit Heal (mana)',
+                    44521: '        case 44521:                                         // Preparation',
+                    32724: '        case 32724:                                         // Gold Team (Alliance)',
+                    32725: '        case 32725:                                         // Green Team (Alliance)',
+                    35774: '        case 35774:                                         // Gold Team (Horde)',
+                    35775: '        case 35775:                                         // Green Team (Horde)',
+                    32727: '        case 32727:                                         // Arena Preparation',
+                    74410: '        case 74410:                                         // Arena - Dampening',
+                    74411: '        case 74411:                                         // Battleground - Dampening',
+                },
+            },
+        ],
     },
 }
 
