@@ -69,8 +69,9 @@ struct SpellEffectScriptContext
     SpellEffectEntry const* const& effect; ///< the function's parameter `SpellEffectEntry const* effect`
 };
 
-/// `Spell::EffectScriptEffect`, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`: every registered label ends the
-/// effect; there is no `default:`, so a miss runs the switch, which holds the other labels.
+/// `Spell::EffectScriptEffect`, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`: a registered label that returns
+/// ends the effect; one that breaks runs the switch, which does not hold it, and goes on to the database script; there
+/// is no `default:`, so a miss runs the switch, which holds the other labels.
 struct SpellEffectScriptGenericSite
 {
     static constexpr uint32 Key = SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_GENERIC;

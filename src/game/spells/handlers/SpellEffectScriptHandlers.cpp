@@ -28,10 +28,21 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "WorldHandlers/Spell.h"
 #include "Common/TimeConstants.h"
+#include "Object/Creature.h"
+#include "Object/ObjectMgr.h"
+#include "Object/TemporarySummon.h"
+#include "Server/DBCStores.h"
+#include "Server/WorldSession.h"
+#include "Tools/Language.h"
 #include "Utilities/MathDefines.h"
 #include "Utilities/Util.h"
+#include "WorldHandlers/CellImpl.h"
 #include "WorldHandlers/GridMap.h"
+#include "WorldHandlers/GridNotifiers.h"
+#include "WorldHandlers/GridNotifiersImpl.h"
+#include "WorldHandlers/Map.h"
 #include "WorldHandlers/SpellAuras.h"
+#include "entities/player/Player.h"
 
 /// 8856: Bending Shinbone
 static SpellHandlerOutcome<void> EffectScriptGeneric8856(SpellEffectScriptContext& ctx)
@@ -500,6 +511,586 @@ static SpellHandlerOutcome<void> EffectScriptGenericCleansingFlames(SpellEffectS
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// 29395: Break Kaliri Egg
+static SpellHandlerOutcome<void> EffectScriptGeneric29395(SpellEffectScriptContext& ctx)
+{
+    uint32 creature_id = 0;
+    uint32 rand = urand(0, 99);
+
+    if (rand < 10)
+    {
+        creature_id = 17034;
+    }
+    else if (rand < 60)
+    {
+        creature_id = 17035;
+    }
+    else
+    {
+        creature_id = 17039;
+    }
+
+    if (WorldObject* pSource = ctx.spell->GetAffectiveCasterObject())
+    {
+        pSource->SummonCreature(creature_id, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSPAWN_TIMED_OOC_OR_DEAD_DESPAWN, 120 * IN_MILLISECONDS);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 29830: Use Mirren's Drinking Hat
+static SpellHandlerOutcome<void> EffectScriptGeneric29830(SpellEffectScriptContext& ctx)
+{
+    uint32 item = 0;
+    switch (urand(1, 6))
+    {
+        case 1:
+        case 2:
+        case 3:
+            item = 23584; break;            // Loch Modan Lager
+        case 4:
+        case 5:
+            item = 23585; break;            // Stouthammer Lite
+        case 6:
+            item = 23586; break;            // Aerie Peak Pale Ale
+    }
+
+    if (item)
+    {
+        ctx.spell->DoCreateItem(ctx.effect,item);
+    }
+
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 30541: Blaze
+static SpellHandlerOutcome<void> EffectScriptGeneric30541(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 30542, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 30469: Nether Beam
+static SpellHandlerOutcome<void> EffectScriptGeneric30469(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // The player and boss spells are different
+    if (ctx.unitTarget->GetTypeId() == TYPEID_PLAYER)
+    {
+        switch (ctx.m_caster->GetEntry())
+        {
+            case 17367:
+                if (ctx.unitTarget->HasAura(38638))
+                {
+                    return SpellHandlerOutcome<void>::Return();
+                }
+
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30401, true);
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30422, true);
+                break;
+            case 17368:
+                if (ctx.unitTarget->HasAura(38639))
+                {
+                    return SpellHandlerOutcome<void>::Return();
+                }
+
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30402, true);
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30423, true);
+                break;
+            case 17369:
+                if (ctx.unitTarget->HasAura(38637))
+                {
+                    return SpellHandlerOutcome<void>::Return();
+                }
+
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30400, true);
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30421, true);
+                break;
+        }
+    }
+    // target boss
+    else if (ctx.unitTarget->GetEntry() == 15689)
+    {
+        switch (ctx.m_caster->GetEntry())
+        {
+            case 17367:
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30464, true);
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30467, true);
+                break;
+            case 17368:
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30463, true);
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30468, true);
+                break;
+            case 17369:
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30465, true);
+                ctx.m_caster->CastSpell(ctx.unitTarget, 30466, true);
+                break;
+        }
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 30769: Pick Red Riding Hood
+static SpellHandlerOutcome<void> EffectScriptGeneric30769(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // cast Little Red Riding Hood
+    ctx.m_caster->CastSpell(ctx.unitTarget, 30768, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 30835: Infernal Relay
+static SpellHandlerOutcome<void> EffectScriptGeneric30835(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 30836, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 30918: Improved Sprint
+static SpellHandlerOutcome<void> EffectScriptGeneric30918(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Removes snares and roots.
+    ctx.unitTarget->RemoveAurasAtMechanicImmunity(IMMUNE_TO_ROOT_AND_SNARE_MASK, 30918, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 12 labels: 37142 and 37143: Karazhan - Chess NPC Action: Melee Attack: Conjured Water Elemental, 37147:
+/// Karazhan - Chess NPC Action: Melee Attack: Human Cleric, 37149: Karazhan - Chess NPC Action: Melee Attack: Human
+/// Conjurer, 37150: Karazhan - Chess NPC Action: Melee Attack: King Llane, 37220: Karazhan - Chess NPC Action: Melee
+/// Attack: Summoned Daemon, 32227: Karazhan - Chess NPC Action: Melee Attack: Footman, 32228: Karazhan - Chess NPC
+/// Action: Melee Attack: Grunt, 37337: Karazhan - Chess NPC Action: Melee Attack: Orc Necrolyte, 37339: Karazhan -
+/// Chess NPC Action: Melee Attack: Orc Wolf, 37345: Karazhan - Chess NPC Action: Melee Attack: Orc Warlock, 37348:
+/// Karazhan - Chess NPC Action: Melee Attack: Warchief Blackhand
+static SpellHandlerOutcome<void> EffectScriptGenericChessMeleeAttack(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 32247, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 32301: Ping Shirrak
+static SpellHandlerOutcome<void> EffectScriptGeneric32301(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Cast Focus fire on caster
+    ctx.unitTarget->CastSpell(ctx.m_caster, 32300, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 33676: Incite Chaos
+static SpellHandlerOutcome<void> EffectScriptGeneric33676(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 33684, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 34653 and 36920: Fireball
+static SpellHandlerOutcome<void> EffectScriptGenericFireball(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.unitTarget->GetMap()->IsRegularDifficulty() ? 23971 : 30928, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 35865: Summon Nether Vapor
+static SpellHandlerOutcome<void> EffectScriptGeneric35865(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    float x, y, z;
+    for (uint8 i = 0; i < 4; ++i)
+    {
+        FindFreeSpotNear(*ctx.m_caster, ctx.m_caster, x, y, z, 0.0f, INTERACTION_DISTANCE, M_PI_F * .5f * i + M_PI_F * .25f);
+        ctx.m_caster->SummonCreature(21002, x, y, z, 0, TEMPSPAWN_TIMED_OOC_OR_DEAD_DESPAWN, 30000);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 37431: Spout
+static SpellHandlerOutcome<void> EffectScriptGeneric37431(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, urand(0, 1) ? 37429 : 37430, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 37775: Karazhan - Chess NPC Action - Poison Cloud
+static SpellHandlerOutcome<void> EffectScriptGeneric37775(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 37469, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 37824: Karazhan - Chess NPC Action - Shadow Mend
+static SpellHandlerOutcome<void> EffectScriptGeneric37824(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 37456, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 38358: Tidal Surge
+static SpellHandlerOutcome<void> EffectScriptGeneric38358(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 38353, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 39338: Karazhan - Chess, Medivh CHEAT: Hand of Medivh, Target Horde; 39342: Karazhan - Chess,
+/// Medivh CHEAT: Hand of Medivh, Target Alliance
+static SpellHandlerOutcome<void> EffectScriptGenericHandOfMedivh(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 39339, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 39341: Karazhan - Chess, Medivh CHEAT: Fury of Medivh, Target Horde; 39344: Karazhan - Chess,
+/// Medivh CHEAT: Fury of Medivh, Target Alliance
+static SpellHandlerOutcome<void> EffectScriptGenericFuryOfMedivh(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 3 labels: 41055 and 63416: Copy Weapon, 69891: Copy Weapon (No Threat)
+static SpellHandlerOutcome<void> EffectScriptGenericCopyWeapon(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT || !ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (Item* pItem = ((Player*)ctx.unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+    {
+        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, pItem->GetEntry());
+
+        // Unclear what this spell should do
+        ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 41072: Bloodbolt
+static SpellHandlerOutcome<void> EffectScriptGeneric41072(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 41126: Flame Burst
+static SpellHandlerOutcome<void> EffectScriptGeneric41126(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 41131, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// one body for 4 labels: 41213, 43416, 69222 and 73076: Throw Shield
+static SpellHandlerOutcome<void> EffectScriptGenericThrowShield(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 42281: Sprouting
+static SpellHandlerOutcome<void> EffectScriptGeneric42281(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasDueToSpell(42280);
+    ctx.unitTarget->RemoveAurasDueToSpell(42294);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 42285, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 42291, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 42492: Cast Energized
+static SpellHandlerOutcome<void> EffectScriptGeneric42492(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 questId = ctx.m_spellInfo->CalculateSimpleValue(EFFECT_INDEX_1);
+    if (!questId || !GetQuestTemplateStore(questId) || !((Player*)ctx.unitTarget)->GetQuestStatusMgr().IsCurrentQuest(questId))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 42578: Cannon Blast
+static SpellHandlerOutcome<void> EffectScriptGeneric42578(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    int32 basePoints = ctx.effect->CalculateSimpleValue();
+    ctx.unitTarget->CastCustomSpell(ctx.unitTarget, 42576, &basePoints, NULL, NULL, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 43365: The Cleansing: Shrine Cast
+static SpellHandlerOutcome<void> EffectScriptGeneric43365(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Script Effect Player Cast Mirror Image
+    ctx.m_caster->CastSpell(ctx.m_caster, 50217, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 43375: Mixing Vrykul Blood
+static SpellHandlerOutcome<void> EffectScriptGeneric43375(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 triggeredSpell[] = {43376, 43378, 43970, 43377};
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, triggeredSpell[urand(0, 3)], true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 44323 and 44407: Hawk Hunting
+static SpellHandlerOutcome<void> EffectScriptGenericHawkHunting(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // check target entry specific to each spell
+    if (ctx.m_spellInfo->ID == 44323 && ctx.unitTarget->GetEntry() != 24746)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    if (ctx.m_spellInfo->ID == 44407 && ctx.unitTarget->GetEntry() != 24747)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    // despawn delay depends on the distance between caster and target
+    ((Creature*)ctx.unitTarget)->ForcedDespawn(100 * ctx.unitTarget->Where().DistanceTo(ctx.m_caster->Where(), false));
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44364: Rock Falcon Primer
+static SpellHandlerOutcome<void> EffectScriptGeneric44364(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Are there anything special with this, a random chance or condition?
+    // Feeding Rock Falcon
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true, NULL, NULL, ctx.unitTarget->GetObjectGuid(), ctx.m_spellInfo);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44462: The Way to His Heart...: Cast Quest Complete on Master
+static SpellHandlerOutcome<void> EffectScriptGeneric44462(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Creature* pQuestCow = NULL;
+
+    float range = 20.0f;
+
+    // search for a reef cow nearby
+    MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck u_check(*ctx.m_caster, 24797, true, false, range);
+    MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(pQuestCow, u_check);
+
+    Cell::VisitGridObjects(ctx.m_caster, searcher, range);
+
+    // no cows found, so return
+    if (!pQuestCow)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (!((Creature*)ctx.m_caster)->IsTemporarySummon())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (const SpellEntry *pSpell = sSpellStore.LookupEntry(ctx.effect->CalculateSimpleValue()))
+    {
+        TemporarySummon* pSummon = (TemporarySummon*)ctx.m_caster;
+
+        // all ok, so make summoner cast the quest complete
+        if (Unit* pSummoner = pSummon->GetSummoner())
+        {
+            pSummoner->CastSpell(pSummoner, pSpell, true);
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 44876: Force Cast - Portal Effect: Sunwell Isle
+static SpellHandlerOutcome<void> EffectScriptGeneric44876(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 44870, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 44811: Spectral Realm
+static SpellHandlerOutcome<void> EffectScriptGeneric44811(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // If the player can't be teleported, send him a notification
+    if (ctx.unitTarget->HasAura(44867))
+    {
+        ((Player*)ctx.unitTarget)->GetSession()->SendNotification(LANG_FAIL_ENTER_SPECTRAL_REALM);
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Teleport target to the spectral realm, add debuff and force faction
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 46019, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 46021, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 44845, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 44852, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45141: Burn
+static SpellHandlerOutcome<void> EffectScriptGeneric45141(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 46394, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45151: Burn
+static SpellHandlerOutcome<void> EffectScriptGeneric45151(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->HasAura(46394))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Make the burn effect jump to another friendly target
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 46394, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// one body for 8 labels: 6201: Create Healthstone; 6202, 5699, 11729, 11730, 27230, 47871, 47878: absent from the
 /// client's spell data
 static SpellHandlerOutcome<void> EffectScriptWarlockCreateHealthstone(SpellEffectScriptContext& ctx)
@@ -958,6 +1549,60 @@ uint32 RegisterSpellEffectScriptHandlers(SpellHandlerRegistry& registry)
         { 29139, &EffectScriptGenericCleansingFlames },
         { 46671, &EffectScriptGenericCleansingFlames },
         { 46672, &EffectScriptGenericCleansingFlames },
+        { 29395, &EffectScriptGeneric29395 },
+        { 29830, &EffectScriptGeneric29830 },
+        { 30541, &EffectScriptGeneric30541 },
+        { 30469, &EffectScriptGeneric30469 },
+        { 30769, &EffectScriptGeneric30769 },
+        { 30835, &EffectScriptGeneric30835 },
+        { 30918, &EffectScriptGeneric30918 },
+        { 37142, &EffectScriptGenericChessMeleeAttack },
+        { 37143, &EffectScriptGenericChessMeleeAttack },
+        { 37147, &EffectScriptGenericChessMeleeAttack },
+        { 37149, &EffectScriptGenericChessMeleeAttack },
+        { 37150, &EffectScriptGenericChessMeleeAttack },
+        { 37220, &EffectScriptGenericChessMeleeAttack },
+        { 32227, &EffectScriptGenericChessMeleeAttack },
+        { 32228, &EffectScriptGenericChessMeleeAttack },
+        { 37337, &EffectScriptGenericChessMeleeAttack },
+        { 37339, &EffectScriptGenericChessMeleeAttack },
+        { 37345, &EffectScriptGenericChessMeleeAttack },
+        { 37348, &EffectScriptGenericChessMeleeAttack },
+        { 32301, &EffectScriptGeneric32301 },
+        { 33676, &EffectScriptGeneric33676 },
+        { 34653, &EffectScriptGenericFireball },
+        { 36920, &EffectScriptGenericFireball },
+        { 35865, &EffectScriptGeneric35865 },
+        { 37431, &EffectScriptGeneric37431 },
+        { 37775, &EffectScriptGeneric37775 },
+        { 37824, &EffectScriptGeneric37824 },
+        { 38358, &EffectScriptGeneric38358 },
+        { 39338, &EffectScriptGenericHandOfMedivh },
+        { 39342, &EffectScriptGenericHandOfMedivh },
+        { 39341, &EffectScriptGenericFuryOfMedivh },
+        { 39344, &EffectScriptGenericFuryOfMedivh },
+        { 41055, &EffectScriptGenericCopyWeapon },
+        { 63416, &EffectScriptGenericCopyWeapon },
+        { 69891, &EffectScriptGenericCopyWeapon },
+        { 41072, &EffectScriptGeneric41072 },
+        { 41126, &EffectScriptGeneric41126 },
+        { 41213, &EffectScriptGenericThrowShield },
+        { 43416, &EffectScriptGenericThrowShield },
+        { 69222, &EffectScriptGenericThrowShield },
+        { 73076, &EffectScriptGenericThrowShield },
+        { 42281, &EffectScriptGeneric42281 },
+        { 42492, &EffectScriptGeneric42492 },
+        { 42578, &EffectScriptGeneric42578 },
+        { 43365, &EffectScriptGeneric43365 },
+        { 43375, &EffectScriptGeneric43375 },
+        { 44323, &EffectScriptGenericHawkHunting },
+        { 44407, &EffectScriptGenericHawkHunting },
+        { 44364, &EffectScriptGeneric44364 },
+        { 44462, &EffectScriptGeneric44462 },
+        { 44876, &EffectScriptGeneric44876 },
+        { 44811, &EffectScriptGeneric44811 },
+        { 45141, &EffectScriptGeneric45141 },
+        { 45151, &EffectScriptGeneric45151 },
     };
 
     static SpellEffectScriptRow<SpellEffectScriptWarlockSite> const warlock[] =
