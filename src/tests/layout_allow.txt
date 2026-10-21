@@ -1869,7 +1869,7 @@ src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
 src/game/spells/handlers [spells] -> src/game/Object/LootMgr.h
 # The Shadowfiend body needs the pet complete; retires with a pet query on the unit that answers a unit.
 src/game/spells/handlers [spells] -> src/game/Object/Pet.h
-# The bodies cast a creature to its temporary-summon class to read its summoner; the origin's own edge, same layer pair and header; it stays until D12 makes the summoner a question the creature answers itself.
+# The bodies cast a creature to its temporary-summon class to read its summoner and unsummon it; the origin's own edge, same layer pair and header; it stays until D12 makes the summoner a question the creature answers itself.
 src/game/spells/handlers [spells] -> src/game/Object/TemporarySummon.h
 # The bodies visit the grid or world cells around a unit for the game objects, creatures or players near it; read-only on the grid; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/CellImpl.h
@@ -1911,7 +1911,7 @@ src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/WorldPacket.h
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 # The one notification sent to a player who can't enter the spectral realm goes through the player's session; it goes with the fix that moves spell packets out to the session (page row 9).
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/Server/WorldSession.h
-# The bodies read the target's aura holders and auras through their public getters (the spell id, the spell entry, the caster guid, the aura at an effect index, its modifier and ticks) and refresh a holder; it goes when those reads become queries on the unit.
+# The bodies read the target's aura holders and auras through their public getters (the spell id, the spell entry, the caster or its guid, the aura at an effect index, its modifier and ticks) and refresh a holder; it goes when those reads become queries on the unit.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The bodies cast a unit to a player for player-only methods; it goes with the Unit page's row 13 casts.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/entities/player/Player.h
