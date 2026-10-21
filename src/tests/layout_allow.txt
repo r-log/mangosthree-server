@@ -1859,7 +1859,7 @@ src/game/session/handlers/social/PetitionHandlers.cpp -> src/game/WorldHandlers/
 src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Chat.h
 # The Rocket Boots Engaged body reads the player's battleground and reports the dropped flag to it; the origin's own edge carried into the handler directory, same layer pair and header; dies when the flag drop becomes a fact the battleground takes from the player (pvp's own seam).
 src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
-# The warrior stance handlers (41099-41101, 53790-53792) call SetVirtualItem with VIRTUAL_ITEM_SLOT_*.
+# The bodies call creature-only methods on a unit cast to a creature, such as its virtual items, a despawn or the temporary-summon check.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
 # The origin's own edge carried into the handler directory, same layer pair and header; an unlisted pair under the peer table, so debt, retiring with the script-hook interface that takes the AI calls.
 src/game/spells/handlers [spells] -> src/game/Object/CreatureAI.h
@@ -1869,15 +1869,17 @@ src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
 src/game/spells/handlers [spells] -> src/game/Object/LootMgr.h
 # The Shadowfiend body needs the pet complete; retires with a pet query on the unit that answers a unit.
 src/game/spells/handlers [spells] -> src/game/Object/Pet.h
-# The grenade, scuttle and detonate bodies visit the grid cells around the target for game objects; read-only on the grid; dies with D9's map surface.
+# The bodies cast a creature to its temporary-summon class to read its summoner; the origin's own edge, same layer pair and header; it stays until D12 makes the summoner a question the creature answers itself.
+src/game/spells/handlers [spells] -> src/game/Object/TemporarySummon.h
+# The bodies visit the grid or world cells around a unit for the game objects, creatures or players near it; read-only on the grid; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/CellImpl.h
 # The bodies read the water level or the area id at a unit's position from its TerrainInfo: read-only on the grid map, dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridMap.h
 # Read-only, a search over the grid: a reader is not a reach; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
-# The grenade, scuttle and detonate bodies search the grid with the game-object searchers' visits; read-only on the grid; dies with D9's map surface.
+# The bodies search the grid with the searchers' visits for game objects, creatures or players; read-only on the grid; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
-# The map bodies read the map's difficulty and players; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; dies with D9's surface.
+# The bodies read the map's difficulty and find units and players on it by guid; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/Map.h
 # The handlers read the aura and its holder through their public methods; some set the holder's duration or charges, or the aura's period and periodic flag.
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
@@ -1907,8 +1909,12 @@ src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/Opcodes.h
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/WorldPacket.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
+# The one notification sent to a player who can't enter the spectral realm goes through the player's session; it goes with the fix that moves spell packets out to the session (page row 9).
+src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/Server/WorldSession.h
 # The bodies read the target's aura holders and auras through their public getters (the spell id, the spell entry, the caster guid, the aura at an effect index, its modifier and ticks) and refresh a holder; it goes when those reads become queries on the unit.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
+# The bodies cast a unit to a player for player-only methods; it goes with the Unit page's row 13 casts.
+src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/entities/player/Player.h
 # The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.
 src/game/spells/handlers/SpellTargetingHandlers.cpp -> src/game/entities/player/Player.h
 # The Cannibalize body finds the corpse's owner through the player registry, the origin's own edge carried; the registry accessor is a macro, so the line retires when the registry becomes a query on the player's owning store, or with row 13's successor.
