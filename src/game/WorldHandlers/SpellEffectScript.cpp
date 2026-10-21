@@ -71,6 +71,7 @@
 #include "LootMgr.h"
 #include "MotionMaster.h"
 #include <random>
+#include "spells/handlers/SpellEffectScriptHandlers.h"
 
 /**
  * @brief Executes script-driven spell effect behavior for special cases.
@@ -3068,287 +3069,31 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
         }
         case SPELLFAMILY_WARLOCK:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, m_originalCasterGUID, m_originalCaster,
+                                         unitTarget, itemTarget, damage, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectScriptWarlockSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case  6201:                                 // Healthstone creating spells
-                case  6202:
-                case  5699:
-                case 11729:
-                case 11730:
-                case 27230:
-                case 47871:
-                case 47878:
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    uint32 itemtype;
-                    uint32 rank = 0;
-                    Unit::AuraList const& mDummyAuras = unitTarget->GetAurasByType(SPELL_AURA_DUMMY);
-                    for (Unit::AuraList::const_iterator i = mDummyAuras.begin(); i != mDummyAuras.end(); ++i)
-                    {
-                        if ((*i)->GetId() == 18692)
-                        {
-                            rank = 1;
-                            break;
-                        }
-                        else if ((*i)->GetId() == 18693)
-                        {
-                            rank = 2;
-                            break;
-                        }
-                    }
-
-                    static uint32 const itypes[8][3] =
-                    {
-                        { 5512, 19004, 19005},              // Minor Healthstone
-                        { 5511, 19006, 19007},              // Lesser Healthstone
-                        { 5509, 19008, 19009},              // Healthstone
-                        { 5510, 19010, 19011},              // Greater Healthstone
-                        { 9421, 19012, 19013},              // Major Healthstone
-                        {22103, 22104, 22105},              // Master Healthstone
-                        {36889, 36890, 36891},              // Demonic Healthstone
-                        {36892, 36893, 36894}               // Fel Healthstone
-                    };
-
-                    switch (m_spellInfo->ID)
-                    {
-                        case  6201:
-                            itemtype = itypes[0][rank]; break; // Minor Healthstone
-                        case  6202:
-                            itemtype = itypes[1][rank]; break; // Lesser Healthstone
-                        case  5699:
-                            itemtype = itypes[2][rank]; break; // Healthstone
-                        case 11729:
-                            itemtype = itypes[3][rank]; break; // Greater Healthstone
-                        case 11730:
-                            itemtype = itypes[4][rank]; break; // Major Healthstone
-                        case 27230:
-                            itemtype = itypes[5][rank]; break; // Master Healthstone
-                        case 47871:
-                            itemtype = itypes[6][rank]; break; // Demonic Healthstone
-                        case 47878:
-                            itemtype = itypes[7][rank]; break; // Fel Healthstone
-                        default:
-                            return;
-                    }
-                    DoCreateItem( effect, itemtype );
-                    return;
-                }
-                case 47193:                                 // Demonic Empowerment
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    uint32 entry = unitTarget->GetEntry();
-                    uint32 spellID;
-                    switch (entry)
-                    {
-                        case   416: spellID = 54444; break; // imp
-                        case   417: spellID = 54509; break; // fellhunter
-                        case  1860: spellID = 54443; break; // void
-                        case  1863: spellID = 54435; break; // succubus
-                        case 17252: spellID = 54508; break; // fellguard
-                        default:
-                            return;
-                    }
-                    unitTarget->CastSpell(unitTarget, spellID, true);
-                    return;
-                }
-                case 47422:                                 // Everlasting Affliction
-                {
-                    // Need refresh caster corruption auras on target
-                    Unit::SpellAuraHolderMap& suAuras = unitTarget->GetSpellAuraHolderMap();
-                    for (Unit::SpellAuraHolderMap::iterator itr = suAuras.begin(); itr != suAuras.end(); ++itr)
-                    {
-                        SpellEntry const *spellInfo = (*itr).second->GetSpellProto();
-                        SpellClassOptionsEntry const* eaClassOptions = spellInfo->GetSpellClassOptions();
-                        if (eaClassOptions && eaClassOptions->SpellClassSet == SPELLFAMILY_WARLOCK &&
-                            (eaClassOptions->SpellClassMask & UI64LIT(0x0000000000000002)) &&
-                           (*itr).second->GetCasterGuid() == m_caster->GetObjectGuid())
-                           (*itr).second->RefreshHolder();
-                    }
-                    return;
-                }
-                case 63521:                                 // Guarded by The Light (Paladin spell with SPELLFAMILY_WARLOCK)
-                {
-                    // Divine Plea, refresh on target (3 aura slots)
-                    if (SpellAuraHolder* holder = unitTarget->GetSpellAuraHolder(54428))
-                    {
-                        holder->RefreshHolder();
-                    }
-
-                    return;
-                }
+                return;
             }
             break;
         }
         case SPELLFAMILY_PRIEST:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, m_originalCasterGUID, m_originalCaster,
+                                         unitTarget, itemTarget, damage, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectScriptPriestSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 47948:                                 // Pain and Suffering
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    // Refresh Shadow Word: Pain on target
-                    Unit::SpellAuraHolderMap& auras = unitTarget->GetSpellAuraHolderMap();
-                    for (Unit::SpellAuraHolderMap::iterator itr = auras.begin(); itr != auras.end(); ++itr)
-                    {
-                        SpellEntry const *spellInfo = (*itr).second->GetSpellProto();
-                        SpellClassOptionsEntry const* swpClassOptions = spellInfo->GetSpellClassOptions();
-                        if (swpClassOptions && swpClassOptions->SpellClassSet == SPELLFAMILY_PRIEST &&
-                            (swpClassOptions->SpellClassMask & UI64LIT(0x0000000000008000)) &&
-                            (*itr).second->GetCasterGuid() == m_caster->GetObjectGuid())
-                        {
-                            (*itr).second->RefreshHolder();
-                            return;
-                        }
-                    }
-                    return;
-                }
-                default:
-                    break;
+                return;
             }
             break;
         }
         case SPELLFAMILY_HUNTER:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, m_originalCasterGUID, m_originalCaster,
+                                         unitTarget, itemTarget, damage, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectScriptHunterSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 53209:                                 // Chimera Shot
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    uint32 spellId = 0;
-                    int32 basePoint = 0;
-                    Unit* target = unitTarget;
-                    Unit::SpellAuraHolderMap& Auras = unitTarget->GetSpellAuraHolderMap();
-                    for (Unit::SpellAuraHolderMap::iterator i = Auras.begin(); i != Auras.end(); ++i)
-                    {
-                        SpellAuraHolder* holder = i->second;
-                        if (holder->GetCasterGuid() != m_caster->GetObjectGuid())
-                        {
-                            continue;
-                        }
-
-                        // Search only Serpent Sting, Viper Sting, Scorpid Sting auras
-                        SpellClassOptionsEntry const* stingClassOptions = holder->GetSpellProto()->GetSpellClassOptions();
-                        if (!stingClassOptions || !stingClassOptions->SpellClassMask.IsFitToFamilyMask(UI64LIT(0x000000800000C000)))
-                        {
-                            continue;
-                        }
-
-                        // Refresh aura duration
-                        holder->RefreshHolder();
-
-                        Aura* aura = holder->GetAuraByEffectIndex(EFFECT_INDEX_0);
-
-                        if (!aura)
-                        {
-                            continue;
-                        }
-
-                        // Serpent Sting - Instantly deals 40% of the damage done by your Serpent Sting.
-                        if (stingClassOptions->IsFitToFamilyMask(UI64LIT(0x0000000000004000)))
-                        {
-                            // m_amount already include RAP bonus
-                            basePoint = aura->GetModifier()->m_amount * aura->GetAuraMaxTicks() * 40 / 100;
-                            spellId = 53353;                // Chimera Shot - Serpent
-                        }
-
-                        // Viper Sting - Instantly restores mana to you equal to 60% of the total amount drained by your Viper Sting.
-                        if (stingClassOptions->IsFitToFamilyMask(UI64LIT(0x0000008000000000)))
-                        {
-                            uint32 target_max_mana = unitTarget->GetMaxPower(POWER_MANA);
-                            if (!target_max_mana)
-                            {
-                                continue;
-                            }
-
-                            // ignore non positive values (can be result apply spellmods to aura damage
-                            uint32 pdamage = aura->GetModifier()->m_amount > 0 ? aura->GetModifier()->m_amount : 0;
-
-                            // Special case: draining x% of mana (up to a maximum of 2*x% of the caster's maximum mana)
-                            uint32 maxmana = m_caster->GetMaxPower(POWER_MANA)  * pdamage * 2 / 100;
-
-                            pdamage = target_max_mana * pdamage / 100;
-                            if (pdamage > maxmana)
-                            {
-                                pdamage = maxmana;
-                            }
-
-                            pdamage *= 4;                   // total aura damage
-                            basePoint = pdamage * 60 / 100;
-                            spellId = 53358;                // Chimera Shot - Viper
-                            target = m_caster;
-                        }
-
-                        // Scorpid Sting - Attempts to Disarm the target for 10 sec. This effect cannot occur more than once per 1 minute.
-                        if (stingClassOptions->IsFitToFamilyMask(UI64LIT(0x0000000000008000)))
-                        {
-                            spellId = 53359;                // Chimera Shot - Scorpid
-                        }
-                        // ?? nothing say in spell desc (possibly need addition check)
-                        // if ((familyFlag & UI64LIT(0x0000010000000000)) || // dot
-                        //    (familyFlag & UI64LIT(0x0000100000000000)))   // stun
-                        //{
-                        //    spellId = 53366; // 53366 Chimera Shot - Wyvern
-                        //}
-                    }
-
-                    if (spellId)
-                    {
-                        m_caster->CastCustomSpell(target, spellId, &basePoint, 0, 0, false);
-                    }
-
-                    return;
-                }
-                case 53412:                                 // Invigoration (pet triggered script, master targeted)
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    Unit::AuraList const& auras = unitTarget->GetAurasByType(SPELL_AURA_DUMMY);
-                    for (Unit::AuraList::const_iterator i = auras.begin(); i != auras.end(); ++i)
-                    {
-                        // Invigoration (master talent)
-                        if ((*i)->GetModifier()->m_miscvalue == 8 && (*i)->GetSpellProto()->SpellIconID == 3487)
-                        {
-                            if (roll_chance_i((*i)->GetModifier()->m_amount))
-                            {
-                                unitTarget->CastSpell(unitTarget, 53398, true, NULL, (*i), m_caster->GetObjectGuid());
-                                break;
-                            }
-                        }
-                    }
-                    return;
-                }
-                case 53271:                                 // Master's Call
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    // script effect have in value, but this outdated removed part
-                    unitTarget->CastSpell(unitTarget, 62305, true);
-                    return;
-                }
-                default:
-                    break;
+                return;
             }
             break;
         }
@@ -3426,102 +3171,21 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
         }
         case SPELLFAMILY_POTION:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, m_originalCasterGUID, m_originalCaster,
+                                         unitTarget, itemTarget, damage, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectScriptPotionSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 28698:                                 // Dreaming Glory
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    unitTarget->CastSpell(unitTarget, 28694, true);
-                    break;
-                }
-                case 28702:                                 // Netherbloom
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    // 25% chance of casting a random buff
-                    if (roll_chance_i(75))
-                    {
-                        return;
-                    }
-
-                    // triggered spells are 28703 to 28707
-                    // Note: some sources say, that there was the possibility of
-                    //       receiving a debuff. However, this seems to be removed by a patch.
-                    const uint32 spellid = 28703;
-
-                    // don't overwrite an existing aura
-                    for (uint8 i = 0; i < 5; ++i)
-                        if (unitTarget->HasAura(spellid + i, EFFECT_INDEX_0))
-                        {
-                            return;
-                        }
-
-                    unitTarget->CastSpell(unitTarget, spellid + urand(0, 4), true);
-                    break;
-                }
-                case 28720:                                 // Nightmare Vine
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    // 25% chance of casting Nightmare Pollen
-                    if (roll_chance_i(75))
-                    {
-                        return;
-                    }
-
-                    unitTarget->CastSpell(unitTarget, 28721, true);
-                    break;
-                }
+                return;
             }
             break;
         }
         case SPELLFAMILY_DEATHKNIGHT:
         {
-            switch (m_spellInfo->ID)
+            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, m_originalCasterGUID, m_originalCaster,
+                                         unitTarget, itemTarget, damage, effect);
+            if (SpellHandlerRegistry::Game().Dispatch<SpellEffectScriptDeathKnightSite>(m_spellInfo->ID, ctx).IsReturn())
             {
-                case 50842:                                 // Pestilence
-                {
-                    if (!unitTarget)
-                    {
-                        return;
-                    }
-
-                    Unit* mainTarget = m_targets.getUnitTarget();
-                    if (!mainTarget)
-                    {
-                        return;
-                    }
-
-                    // do only refresh diseases on main target if caster has Glyph of Disease
-                    if (mainTarget == unitTarget && !m_caster->HasAura(63334))
-                    {
-                        return;
-                    }
-
-                    // Blood Plague
-                    if (mainTarget->HasAura(55078))
-                    {
-                        m_caster->CastSpell(unitTarget, 55078, true);
-                    }
-
-                    // Frost Fever
-                    if (mainTarget->HasAura(55095))
-                    {
-                        m_caster->CastSpell(unitTarget, 55095, true);
-                    }
-
-                    break;
-                }
+                return;
             }
             break;
         }

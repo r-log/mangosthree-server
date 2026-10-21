@@ -29,8 +29,8 @@
 /// sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's, EffectEnergize's,
 /// EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's, EffectWeaponDmg's,
 /// EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits, the generic and five family switches of
-/// EffectDummy, the five of SpellAuraPeriodic.cpp and the seventeen of SpellAuras.cpp) are checked for their keys,
-/// their defaults and their contexts,
+/// EffectDummy, the five of SpellAuraPeriodic.cpp, the seventeen of SpellAuras.cpp and the five family switches of
+/// EffectScriptEffect) are checked for their keys, their defaults and their contexts,
 /// and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the
 /// Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the
 /// periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default, the
@@ -44,13 +44,14 @@
 /// creature targets, the weapon-damage and divided school-damage labels on a target list built by hand, the other
 /// school-damage labels on creatures with their update fields, the Vanish, Cloak of Shadows, Shadowfiend and Mirror
 /// Image labels on creatures with no aura and no pet, the recall label on creature targets, and the dummy-effect labels
-/// that end the effect with no unit target, with no cast item, for a creature caster or for a caster with no pet);
+/// that end the effect with no unit target, with no cast item, for a creature caster or for a caster with no pet, and
+/// the script-effect labels that end the effect with no unit target);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the
 /// coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid,
 /// quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting, cast-check,
-/// target-check, weapon-damage, school-damage, trigger-spell, teleport, dummy-effect, periodic-aura or boost label,
-/// nor another removal one).
+/// target-check, weapon-damage, school-damage, trigger-spell, teleport, dummy-effect, periodic-aura, boost or
+/// script-effect label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -89,7 +90,9 @@
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
 ///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
+///                            SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce,
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -120,7 +123,8 @@
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
 ///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -135,7 +139,8 @@
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
 ///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
 ///   a default added          SpellEffectObjectCombatHandlers_TheActivateObjectSiteHoldsItsThirtyThreeLabelsAndNoDefault,
 ///                            SpellEffectSkillEnchantPetHandlers_TheWeaponDamageSiteHoldsItsSixLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
@@ -150,7 +155,8 @@
 ///                            SpellEffectDummyHandlers_ThePaladinSiteHoldsItsFourLabelsAndNoDefault,
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
-///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults
+///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
@@ -174,7 +180,8 @@
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
 ///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
+///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder,
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
 ///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
@@ -189,7 +196,8 @@
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_ThePeriodicDummyTickBodiesReturnWhenThereIsNothingToDo,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
-///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
+///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder,
+///                            SpellEffectScriptHandlers_ANullTargetEndsTheEffect
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -233,7 +241,8 @@
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_ThePeriodicDummyTickContextAliasesItsLocals,
 ///                            AurasHandlers_TheBoostContextAliasesItsLocals,
-///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
+///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder,
+///                            SpellEffectScriptHandlers_TheContextAliasesTheSpellsMembers
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
@@ -258,6 +267,7 @@
 #include "spells/handlers/SpellEffectDamageTeleportHandlers.h"
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/AurasHandlers.h"
+#include "spells/handlers/SpellEffectScriptHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
@@ -734,11 +744,11 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // and two teleport sites' 74, 7, 3 and 3 rows, the generic dummy-effect site's 213 rows, the five dummy-effect
     // family sites' 5, 11, 4, 4 and 4 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and five
     // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the four periodic dummy
-    // tick sites' 44, 1, 2 and 2 rows and four defaults, and the five boost sites' 7, 6, 2, 6 and 4 rows and four
-    // defaults.
+    // tick sites' 44, 1, 2 and 2 rows and four defaults, the five boost sites' 7, 6, 2, 6 and 4 rows and four
+    // defaults, and the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(716));
-    CHECK_EQ(game.CountDefaults(), std::size_t(26));
+    CHECK_EQ(game.Count(), std::size_t(735));
+    CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
 
@@ -1643,8 +1653,8 @@ namespace
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
     // six dummy-effect sites, the rogue and hunter aura dummy sites, the generic aura dummy apply site, the six
-    // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites and the
-    // earlier files' ids.
+    // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites, the five
+    // script-effect family sites and the earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1716,6 +1726,16 @@ namespace
                (skips(AuraBoostHunterSite::Key) && registry.Find<AuraBoostHunterSite>(spellId) != NULL) ||
                (skips(AuraBoostDeathKnightSite::Key) &&
                 registry.Find<AuraBoostDeathKnightSite>(spellId) != NULL) ||
+               (skips(SpellEffectScriptWarlockSite::Key) &&
+                registry.Find<SpellEffectScriptWarlockSite>(spellId) != NULL) ||
+               (skips(SpellEffectScriptPriestSite::Key) &&
+                registry.Find<SpellEffectScriptPriestSite>(spellId) != NULL) ||
+               (skips(SpellEffectScriptHunterSite::Key) &&
+                registry.Find<SpellEffectScriptHunterSite>(spellId) != NULL) ||
+               (skips(SpellEffectScriptPotionSite::Key) &&
+                registry.Find<SpellEffectScriptPotionSite>(spellId) != NULL) ||
+               (skips(SpellEffectScriptDeathKnightSite::Key) &&
+                registry.Find<SpellEffectScriptDeathKnightSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -1727,8 +1747,9 @@ namespace
     // targeting site and the generic trigger-spell aura site; Invisibility, at the periodic-trigger site and the mage
     // trigger-spell aura site; Frenzied Regeneration, at the druid trigger-spell aura site and the druid periodic
     // dummy tick site; Haunting Spirits, at the generic aura dummy apply site and the generic periodic dummy tick
-    // site; Vigilance, at the proc-trigger site and the generic boost site. A listed id held at any other site, a
-    // third listed site among them, fails HeldByAnotherSite.
+    // site; Vigilance, at the proc-trigger site and the generic boost site; Master's Call, at the hunter dummy-effect
+    // site and the hunter script-effect site. A listed id held at any other site, a third listed site among them,
+    // fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -1744,6 +1765,7 @@ namespace
         { 22842, AuraTriggerSpellDruidSite::Key, AuraPeriodicDummyTickDruidSite::Key },
         { 7057, AuraDummyApplyGenericSite::Key, AuraPeriodicDummyTickGenericSite::Key },
         { 50720, AuraProcTriggerSite::Key, AuraBoostGenericSite::Key },
+        { 53271, SpellEffectDummyHunterSite::Key, SpellEffectScriptHunterSite::Key },
     };
 
     // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
@@ -4143,13 +4165,17 @@ TEST(SpellEffectDummyHandlers_TheHunterSiteHoldsItsFourLabelsAndNoDefault)
     CHECK_EQ(registry.Count(), std::size_t(DUMMY_ROWS));
     CHECK_EQ(registry.CountAt(SpellEffectDummyHunterSite::Key), std::size_t(4));
 
-    // Keyed on the hunter site only; the game's table holds the same rows and no default.
+    // Keyed on the hunter site only, but Master's Call, which the shared list names with the hunter script-effect
+    // site; the game's table holds the same rows and no default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 spellId : DUMMY_HUNTER_IDS)
     {
-        CHECK(!HeldByAnotherSite(game, SpellEffectDummyHunterSite::Key, spellId));
+        uint32 other = SharedWith(spellId, SpellEffectDummyHunterSite::Key);
+        CHECK(!HeldByAnotherSite(game, SpellEffectDummyHunterSite::Key, spellId, other));
         CHECK(game.Find<SpellEffectDummyHunterSite>(spellId) == registry.Find<SpellEffectDummyHunterSite>(spellId));
     }
+    CHECK(SharedWith(23989, SpellEffectDummyHunterSite::Key) == SpellEffectDummyHunterSite::Key);
+    CHECK(SharedWith(53271, SpellEffectDummyHunterSite::Key) == SpellEffectScriptHunterSite::Key);
     for (uint32 spellId : { 11958u, 12975u, 5938u, 19740u, 57635u, 61507u, 24340u, 66765u })
     {
         CHECK(game.Find<SpellEffectDummyHunterSite>(spellId) == NULL);
@@ -4371,10 +4397,10 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(152));
     CHECK_EQ(registry.CountDefaults(), std::size_t(14));
 
-    // The game's table holds these with the other files' 564 rows and 12 defaults.
+    // The game's table holds these with the other files' 583 rows and 14 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(716));
-    CHECK_EQ(game.CountDefaults(), std::size_t(26));
+    CHECK_EQ(game.Count(), std::size_t(735));
+    CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
     CHECK_EQ(game.CountAt(AuraPeriodicDamageTickSite::Key), std::size_t(8));
@@ -5084,4 +5110,216 @@ TEST(AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder)
     }
     holder->SetRemoveMode(AURA_REMOVE_BY_DEFAULT);
     CHECK_EQ(int(holder->GetRemoveMode()), int(AURA_REMOVE_BY_DEFAULT));
+}
+
+namespace
+{
+    // The labels of the five script-effect family sites, each in its switch's order.
+    uint32 const SCRIPT_WARLOCK_IDS[] = { 6201, 6202, 5699, 11729, 11730, 27230, 47871, 47878, 47193, 47422, 63521 };
+    uint32 const SCRIPT_PRIEST_IDS[] = { 47948 };
+    uint32 const SCRIPT_HUNTER_IDS[] = { 53209, 53412, 53271 };
+    uint32 const SCRIPT_POTION_IDS[] = { 28698, 28702, 28720 };
+    uint32 const SCRIPT_DEATH_KNIGHT_IDS[] = { 50842 };
+
+    // The healthstone ranks share the Create Healthstone body.
+    uint32 const SCRIPT_HEALTHSTONE_IDS[] = { 6202, 5699, 11729, 11730, 27230, 47871, 47878 };
+
+    // The spell's members and the effect, all empty: no spell, no entry, no caster and no targets.
+    struct ScriptMembers
+    {
+        SpellEntry const* spellInfo;
+        SpellCastTargets targets;
+        Unit* caster;
+        ObjectGuid originalCasterGuid;
+        Unit* originalCaster;
+        Unit* unitTarget;
+        Item* itemTarget;
+        int32 damage;
+        SpellEffectEntry const* effect;
+
+        ScriptMembers() : spellInfo(NULL), caster(NULL), originalCaster(NULL), unitTarget(NULL), itemTarget(NULL),
+                          damage(0), effect(NULL) {}
+
+        SpellEffectScriptContext Context()
+        {
+            return SpellEffectScriptContext(NULL, spellInfo, targets, caster, originalCasterGuid, originalCaster,
+                                            unitTarget, itemTarget, damage, effect);
+        }
+
+        bool Untouched() const
+        {
+            return spellInfo == NULL && caster == NULL && originalCasterGuid.IsEmpty() && originalCaster == NULL &&
+                   unitTarget == NULL && itemTarget == NULL && damage == 0 && effect == NULL;
+        }
+    };
+}
+
+TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
+{
+    // 19 labels at five sites and two defaults: 21 rows, 19 keys and two defaults, none twice. The warlock, priest,
+    // hunter, potion and death knight switches hold 11, 1, 3, 3 and 1; the priest and hunter switches have a default.
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellEffectScriptHandlers(registry), uint32(21));
+    CHECK_EQ(registry.Count(), std::size_t(19));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(2));
+    CHECK_EQ(registry.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
+    CHECK_EQ(registry.CountAt(SpellEffectScriptPriestSite::Key), std::size_t(1));
+    CHECK_EQ(registry.CountAt(SpellEffectScriptHunterSite::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(SpellEffectScriptPotionSite::Key), std::size_t(3));
+    CHECK_EQ(registry.CountAt(SpellEffectScriptDeathKnightSite::Key), std::size_t(1));
+
+    // Registering again on the same table changes nothing: every key and default is taken.
+    CHECK_EQ(RegisterSpellEffectScriptHandlers(registry), uint32(21));
+    CHECK_EQ(registry.Count(), std::size_t(19));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(2));
+
+    // The game's table holds these with the other files' 716 rows and 26 defaults.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.Count(), std::size_t(735));
+    CHECK_EQ(game.CountDefaults(), std::size_t(28));
+    CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
+    CHECK_EQ(game.CountAt(SpellEffectScriptHunterSite::Key), std::size_t(3));
+}
+
+TEST(SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults)
+{
+    SpellHandlerRegistry registry;
+    RegisterSpellEffectScriptHandlers(registry);
+
+    // The warlock, priest, hunter, potion and death knight switches: 11, 1, 3, 3 and 1 labels in 4, 1, 3, 3 and 1
+    // bodies.
+    CheckSiteLabels<SpellEffectScriptWarlockSite>(registry, SCRIPT_WARLOCK_IDS, 4);
+    CheckSiteLabels<SpellEffectScriptPriestSite>(registry, SCRIPT_PRIEST_IDS, 1);
+    CheckSiteLabels<SpellEffectScriptHunterSite>(registry, SCRIPT_HUNTER_IDS, 3);
+    CheckSiteLabels<SpellEffectScriptPotionSite>(registry, SCRIPT_POTION_IDS, 3);
+    CheckSiteLabels<SpellEffectScriptDeathKnightSite>(registry, SCRIPT_DEATH_KNIGHT_IDS, 1);
+
+    // The seven healthstone ranks share the Create Healthstone body; the other warlock labels have their own.
+    typedef SpellHandler<SpellEffectScriptWarlockSite>::Function WarlockBody;
+    WarlockBody healthstone = registry.Find<SpellEffectScriptWarlockSite>(6201);
+    for (uint32 spellId : SCRIPT_HEALTHSTONE_IDS)
+    {
+        CHECK(registry.Find<SpellEffectScriptWarlockSite>(spellId) == healthstone);
+    }
+    for (uint32 spellId : { 47193u, 47422u, 63521u })
+    {
+        CHECK(registry.Find<SpellEffectScriptWarlockSite>(spellId) != healthstone);
+    }
+
+    // Master's Call is a key here and at the hunter dummy-effect site, and at no third site.
+    CHECK(SharedWith(53271, SpellEffectScriptHunterSite::Key) == SpellEffectDummyHunterSite::Key);
+    CHECK(SpellHandlerRegistry::Game().Find<SpellEffectDummyHunterSite>(53271) != NULL);
+    for (uint32 spellId : { 53209u, 53412u })
+    {
+        CHECK(SharedWith(spellId, SpellEffectScriptHunterSite::Key) == SpellEffectScriptHunterSite::Key);
+    }
+
+    // The priest and hunter switches' `default: break;` answers Continue for an id they never held and leaves the
+    // members as they were; the warlock, potion and death knight switches have none, so there a miss is a miss.
+    ScriptMembers members;
+    SpellEffectScriptContext ctx = members.Context();
+    CHECK(registry.FindDefault<SpellEffectScriptPriestSite>() != NULL);
+    CHECK(registry.FindDefault<SpellEffectScriptHunterSite>() != NULL);
+    CHECK(registry.FindDefault<SpellEffectScriptWarlockSite>() == NULL);
+    CHECK(registry.FindDefault<SpellEffectScriptPotionSite>() == NULL);
+    CHECK(registry.FindDefault<SpellEffectScriptDeathKnightSite>() == NULL);
+    CHECK(registry.Dispatch<SpellEffectScriptPriestSite>(12345, ctx).IsContinue());
+    CHECK(registry.Dispatch<SpellEffectScriptHunterSite>(12345, ctx).IsContinue());
+    CHECK(registry.Dispatch<SpellEffectScriptWarlockSite>(12345, ctx).IsMiss());
+    CHECK(registry.Dispatch<SpellEffectScriptPotionSite>(12345, ctx).IsMiss());
+    CHECK(registry.Dispatch<SpellEffectScriptDeathKnightSite>(12345, ctx).IsMiss());
+    CHECK(members.Untouched());
+    for (uint32 spellId : SCRIPT_PRIEST_IDS)
+    {
+        CHECK(registry.FindDefault<SpellEffectScriptPriestSite>() !=
+              registry.Find<SpellEffectScriptPriestSite>(spellId));
+    }
+    for (uint32 spellId : SCRIPT_HUNTER_IDS)
+    {
+        CHECK(registry.FindDefault<SpellEffectScriptHunterSite>() !=
+              registry.Find<SpellEffectScriptHunterSite>(spellId));
+    }
+}
+
+TEST(SpellEffectScriptHandlers_TheContextAliasesTheSpellsMembers)
+{
+    alignas(16) static unsigned char objects[9][16];
+    Spell* spell = reinterpret_cast<Spell*>(objects[0]);
+    SpellEntry const* spellInfo = ObjectCombatSpell(0, 6201);
+    SpellCastTargets targets;
+    Unit* caster = reinterpret_cast<Unit*>(objects[1]);
+    ObjectGuid originalCasterGuid(HIGHGUID_PLAYER, uint32(7));
+    Unit* originalCaster = reinterpret_cast<Unit*>(objects[2]);
+    Unit* target = reinterpret_cast<Unit*>(objects[3]);
+    Item* itemTarget = reinterpret_cast<Item*>(objects[4]);
+    int32 damage = 10;
+    SpellEffectEntry const* effect = WeaponDamageEffect(0, 0);
+    SpellEffectScriptContext ctx(spell, spellInfo, targets, caster, originalCasterGuid, originalCaster, target,
+                                 itemTarget, damage, effect);
+    CHECK(ctx.spell == spell);                                  // the spell itself, whose methods the bodies call
+    CHECK(&ctx.m_spellInfo == &spellInfo);
+    CHECK(&ctx.m_targets == &targets);
+    CHECK(&ctx.m_caster == &caster);
+    CHECK(&ctx.m_originalCasterGUID == &originalCasterGuid);
+    CHECK(&ctx.m_originalCaster == &originalCaster);
+    CHECK(&ctx.unitTarget == &target);
+    CHECK(&ctx.itemTarget == &itemTarget);
+    CHECK(&ctx.damage == &damage);
+    CHECK(&ctx.effect == &effect);
+
+    SpellEntry const* otherEntry = ObjectCombatSpell(1, 47193);
+    ctx.m_spellInfo = otherEntry;                               // the spell's entry is the spell's member, not a copy
+    CHECK(spellInfo == otherEntry);
+    spellInfo = ObjectCombatSpell(0, 6201);
+    CHECK(ctx.m_spellInfo == ObjectCombatSpell(0, 6201));
+    ctx.m_caster = reinterpret_cast<Unit*>(objects[5]);         // and the caster
+    CHECK(caster == reinterpret_cast<Unit*>(objects[5]));
+    caster = reinterpret_cast<Unit*>(objects[1]);
+    CHECK(ctx.m_caster == reinterpret_cast<Unit*>(objects[1]));
+    ctx.m_originalCasterGUID = ObjectGuid(HIGHGUID_PLAYER, uint32(9)); // and the original caster's guid
+    CHECK(originalCasterGuid == ObjectGuid(HIGHGUID_PLAYER, uint32(9)));
+    originalCasterGuid = ObjectGuid();
+    CHECK(ctx.m_originalCasterGUID == ObjectGuid());
+    ctx.m_originalCaster = reinterpret_cast<Unit*>(objects[6]); // and the original caster
+    CHECK(originalCaster == reinterpret_cast<Unit*>(objects[6]));
+    originalCaster = reinterpret_cast<Unit*>(objects[2]);
+    CHECK(ctx.m_originalCaster == reinterpret_cast<Unit*>(objects[2]));
+    ctx.unitTarget = reinterpret_cast<Unit*>(objects[7]);       // and the unit target
+    CHECK(target == reinterpret_cast<Unit*>(objects[7]));
+    target = reinterpret_cast<Unit*>(objects[3]);
+    CHECK(ctx.unitTarget == reinterpret_cast<Unit*>(objects[3]));
+    ctx.itemTarget = reinterpret_cast<Item*>(objects[8]);       // and the item target
+    CHECK(itemTarget == reinterpret_cast<Item*>(objects[8]));
+    itemTarget = reinterpret_cast<Item*>(objects[4]);
+    CHECK(ctx.itemTarget == reinterpret_cast<Item*>(objects[4]));
+    ctx.damage = 20;                                            // and the damage
+    CHECK_EQ(damage, int32(20));
+    damage = 40;
+    CHECK_EQ(ctx.damage, int32(40));
+    effect = WeaponDamageEffect(1, 1);                          // the effect is the member's parameter, read
+    CHECK(ctx.effect == effect);
+    CHECK_EQ(ctx.effect->EffectIndex, uint32(1));
+}
+
+TEST(SpellEffectScriptHandlers_ANullTargetEndsTheEffect)
+{
+    // Every body that checks the unit target first ends the effect when there is none, before it reads the spell,
+    // its entry or its caster, and leaves the members as they were. Everlasting Affliction and 63521 read the target
+    // without a check, so they are not run here.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    ScriptMembers members;
+    SpellEffectScriptContext ctx = members.Context();
+    CHECK(game.Dispatch<SpellEffectScriptWarlockSite>(6201, ctx).IsReturn());
+    CHECK(game.Dispatch<SpellEffectScriptWarlockSite>(47193, ctx).IsReturn());
+    CHECK(game.Dispatch<SpellEffectScriptPriestSite>(47948, ctx).IsReturn());
+    for (uint32 spellId : SCRIPT_HUNTER_IDS)
+    {
+        CHECK(game.Dispatch<SpellEffectScriptHunterSite>(spellId, ctx).IsReturn());
+    }
+    for (uint32 spellId : SCRIPT_POTION_IDS)
+    {
+        CHECK(game.Dispatch<SpellEffectScriptPotionSite>(spellId, ctx).IsReturn());
+    }
+    CHECK(game.Dispatch<SpellEffectScriptDeathKnightSite>(50842, ctx).IsReturn());
+    CHECK(members.Untouched());
 }
