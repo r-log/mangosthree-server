@@ -38,6 +38,7 @@
 #include "BattleGround/BattleGroundMgr.h"
 #include "MapManager.h"
 #include "Unit.h"
+#include "spells/handlers/SpellMgrHandlers.h"
 
 /**
  * @brief Checks whether a skill line is a primary profession.
@@ -3156,86 +3157,11 @@ SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spell
             return SPELL_FAILED_ONLY_BATTLEGROUNDS;
         }
 
-    switch (spellInfo->ID)
+    SpellAllowedInLocationContext ctx(map_id, player);
+    SpellHandlerOutcome<SpellCastResult> outcome = SpellHandlerRegistry::Game().Dispatch<SpellAllowedInLocationSite>(spellInfo->ID, ctx);
+    if (outcome.IsReturn())
     {
-            // a trinket in alterac valley allows to teleport to the boss
-        case 22564:                                         // recall
-        case 22563:                                         // recall
-        {
-            if (!player)
-            {
-                return SPELL_FAILED_REQUIRES_AREA;
-            }
-            BattleGround* bg = player->GetBattleGround();
-            return map_id == 30 && bg
-                   && bg->GetStatus() != STATUS_WAIT_JOIN ? SPELL_CAST_OK : SPELL_FAILED_REQUIRES_AREA;
-        }
-        case 23333:                                         // Warsong Flag
-        case 23335:                                         // Silverwing Flag
-            return map_id == 489 && player && player->InBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_REQUIRES_AREA;
-        case 34976:                                         // Netherstorm Flag
-            return map_id == 566 && player && player->InBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_REQUIRES_AREA;
-        case 2584:                                          // Waiting to Resurrect
-        case 42792:                                         // Recently Dropped Flag
-        case 43681:                                         // Inactive
-        {
-            return player && player->InBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_BATTLEGROUNDS;
-        }
-        case 22011:                                         // Spirit Heal Channel
-        case 22012:                                         // Spirit Heal
-        case 24171:                                         // Resurrection Impact Visual
-        case 44535:                                         // Spirit Heal (mana)
-        {
-            MapEntry const* mapEntry = sMapStore.LookupEntry(map_id);
-            if (!mapEntry)
-            {
-                return SPELL_FAILED_INCORRECT_AREA;
-            }
-            return mapEntry->IsBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_BATTLEGROUNDS;
-        }
-        case 44521:                                         // Preparation
-        {
-            if (!player)
-            {
-                return SPELL_FAILED_REQUIRES_AREA;
-            }
-
-            BattleGround* bg = player->GetBattleGround();
-            return bg && bg->GetStatus() == STATUS_WAIT_JOIN ? SPELL_CAST_OK : SPELL_FAILED_ONLY_BATTLEGROUNDS;
-        }
-        case 32724:                                         // Gold Team (Alliance)
-        case 32725:                                         // Green Team (Alliance)
-        case 35774:                                         // Gold Team (Horde)
-        case 35775:                                         // Green Team (Horde)
-        {
-            return player && player->InArena() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_IN_ARENA;
-        }
-        case 32727:                                         // Arena Preparation
-        {
-            if (!player)
-            {
-                return SPELL_FAILED_REQUIRES_AREA;
-            }
-            if (!player->InArena())
-            {
-                return SPELL_FAILED_REQUIRES_AREA;
-            }
-
-            BattleGround* bg = player->GetBattleGround();
-            return bg && bg->GetStatus() == STATUS_WAIT_JOIN ? SPELL_CAST_OK : SPELL_FAILED_ONLY_IN_ARENA;
-        }
-        case 74410:                                         // Arena - Dampening
-            return player && player->InArena() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_IN_ARENA;
-        case 74411:                                         // Battleground - Dampening
-        {
-            if (!player)
-            {
-                return SPELL_FAILED_ONLY_BATTLEGROUNDS;
-            }
-
-            BattleGround* bg = player->GetBattleGround();
-            return bg && !bg->isArena() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_BATTLEGROUNDS;
-        }
+        return outcome.GetValue();
     }
 
     return SPELL_CAST_OK;

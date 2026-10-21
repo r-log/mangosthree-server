@@ -30,7 +30,8 @@
 /// EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's, EffectWeaponDmg's,
 /// EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits, the generic and five family switches of
 /// EffectDummy, the five of SpellAuraPeriodic.cpp, the seventeen of SpellAuras.cpp and the generic and five family
-/// switches of EffectScriptEffect) are checked for their keys, their defaults and their contexts,
+/// switches of EffectScriptEffect, and GetSpellAllowedInLocationError's) are checked for their keys, their defaults
+/// and their contexts,
 /// and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the
 /// Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the
 /// periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default, the
@@ -48,13 +49,15 @@
 /// the script-effect labels that end the effect with no unit target, Bending Shinbone for a creature caster, Break
 /// Kaliri Egg for a spell with no affective caster object, the Mirror Image Aura for an original caster that is
 /// none or no player, and for a player on a session with no socket, whose cast of a spell on cooldown fails to its
-/// session, and Death Gate and Emblazon Runeblade for a damage that names no spell in the test's spell store);
+/// session, Death Gate and Emblazon Runeblade for a damage that names no spell in the test's spell store, and the
+/// location-check labels for no player, a player in no battleground and one in a battleground the manager does not
+/// hold);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the
 /// coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid,
 /// quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting, cast-check,
-/// target-check, weapon-damage, school-damage, trigger-spell, teleport, dummy-effect, periodic-aura, boost or
-/// script-effect label, nor another removal one).
+/// target-check, weapon-damage, school-damage, trigger-spell, teleport, dummy-effect, periodic-aura, boost,
+/// script-effect or location-check label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -96,7 +99,9 @@
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
 ///                            SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce,
 ///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
-///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault
+///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault,
+///                            SpellMgrHandlers_TheTableRegistersEveryRowOnce,
+///                            SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -129,7 +134,8 @@
 ///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
 ///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
-///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault
+///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault,
+///                            SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -162,7 +168,8 @@
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
 ///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
-///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault
+///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault,
+///                            SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
@@ -203,7 +210,9 @@
 ///                            AurasHandlers_ThePeriodicDummyTickBodiesReturnWhenThereIsNothingToDo,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder,
-///                            SpellEffectScriptHandlers_ANullTargetEndsTheEffect
+///                            SpellEffectScriptHandlers_ANullTargetEndsTheEffect,
+///                            SpellMgrHandlers_TheLocationBodiesAnswerForAPlayerOutsideABattleground,
+///                            SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody
@@ -252,10 +261,13 @@
 ///                            SpellEffectScriptHandlers_BendingShinboneReadsTheItemTargetThroughTheContext,
 ///                            SpellEffectScriptHandlers_BreakKaliriEggSummonsFromTheSpellsAffectiveCasterObject,
 ///                            SpellEffectScriptHandlers_TheMirrorImageAuraReadsTheOriginalCasterThroughTheContext,
-///                            SpellEffectScriptHandlers_DeathGateAndEmblazonRunebladeCastTheDamagesSpell
+///                            SpellEffectScriptHandlers_DeathGateAndEmblazonRunebladeCastTheDamagesSpell,
+///                            SpellMgrHandlers_TheLocationContextAliasesTheMapAndThePlayer
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
-///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
+///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
+///                            SpellMgrHandlers_TheLocationBodiesAnswerForAPlayerOutsideABattleground,
+///                            SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer
 ///   a damage value changed   SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns,
@@ -278,6 +290,7 @@
 #include "spells/handlers/SpellEffectDummyHandlers.h"
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/handlers/SpellEffectScriptHandlers.h"
+#include "spells/handlers/SpellMgrHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "SpellAuras.h"
@@ -761,10 +774,10 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // family sites' 5, 11, 4, 4 and 4 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and five
     // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the four periodic dummy
     // tick sites' 44, 1, 2 and 2 rows and four defaults, the five boost sites' 7, 6, 2, 6 and 4 rows and four
-    // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, and the generic
-    // script-effect site's 282 rows.
+    // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
+    // script-effect site's 282 rows and the location-check site's 20 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1017));
+    CHECK_EQ(game.Count(), std::size_t(1037));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -1671,7 +1684,7 @@ namespace
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
     // six dummy-effect sites, the rogue and hunter aura dummy sites, the generic aura dummy apply site, the six
     // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites, the six
-    // script-effect sites and the earlier files' ids.
+    // script-effect sites, the location-check site and the earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1755,6 +1768,7 @@ namespace
                 registry.Find<SpellEffectScriptPotionSite>(spellId) != NULL) ||
                (skips(SpellEffectScriptDeathKnightSite::Key) &&
                 registry.Find<SpellEffectScriptDeathKnightSite>(spellId) != NULL) ||
+               (skips(SpellAllowedInLocationSite::Key) && registry.Find<SpellAllowedInLocationSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
                registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
@@ -4446,9 +4460,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(152));
     CHECK_EQ(registry.CountDefaults(), std::size_t(14));
 
-    // The game's table holds these with the other files' 865 rows and 14 defaults.
+    // The game's table holds these with the other files' 885 rows and 14 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1017));
+    CHECK_EQ(game.Count(), std::size_t(1037));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5315,9 +5329,9 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(301));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 716 rows and 26 defaults.
+    // The game's table holds these with the other files' 736 rows and 26 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1017));
+    CHECK_EQ(game.Count(), std::size_t(1037));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(282));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
@@ -5924,4 +5938,208 @@ TEST(SpellEffectScriptHandlers_DeathGateAndEmblazonRunebladeCastTheDamagesSpell)
     CHECK_EQ(members.damage, int32(52752));
     CHECK(members.unitTarget == &target);
     CHECK(members.itemTarget == NULL);
+}
+
+namespace
+{
+    uint32 const LOCATION_IDS[] = { 22564, 22563, 23333, 23335, 34976, 2584, 42792, 43681, 22011, 22012, 24171, 44535,
+                                    44521, 32724, 32725, 35774, 35775, 32727, 74410, 74411 };
+
+    // The shape the location site takes where its switch stood: Return(value) is the check's result, and a miss goes
+    // on to the check's `return SPELL_CAST_OK;`.
+    SpellCastResult RunLocationSite(uint32 spellId, uint32 mapId, Player const* player)
+    {
+        SpellAllowedInLocationContext ctx(mapId, player);
+        SpellHandlerOutcome<SpellCastResult> outcome =
+            SpellHandlerRegistry::Game().Dispatch<SpellAllowedInLocationSite>(spellId, ctx);
+        if (outcome.IsReturn())
+        {
+            return outcome.GetValue();
+        }
+        return SPELL_CAST_OK;
+    }
+
+    // One label run on one map: the result its body answers.
+    struct LocationCase
+    {
+        uint32 spellId;
+        uint32 mapId;
+        SpellCastResult result;
+    };
+
+    // Each case answers Return with its result, the site answers the same, and the members stay as they were.
+    template <std::size_t N>
+    void CheckLocationCases(LocationCase const (&cases)[N], Player const* player)
+    {
+        SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+        for (LocationCase const& one : cases)
+        {
+            uint32 mapId = one.mapId;
+            Player const* member = player;
+            SpellAllowedInLocationContext ctx(mapId, member);
+            SpellHandlerOutcome<SpellCastResult> outcome = game.Dispatch<SpellAllowedInLocationSite>(one.spellId, ctx);
+            CHECK(outcome.IsReturn());
+            CHECK_EQ(int(outcome.IsReturn() ? outcome.GetValue() : SPELL_CAST_OK), int(one.result));
+            CHECK_EQ(int(RunLocationSite(one.spellId, one.mapId, player)), int(one.result));
+            CHECK_EQ(mapId, one.mapId);
+            CHECK(member == player);
+        }
+    }
+}
+
+TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
+{
+    // 20 labels at one site and no default: 20 rows and 20 keys, none twice.
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterSpellMgrHandlers(registry), uint32(20));
+    CHECK_EQ(registry.Count(), std::size_t(20));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
+
+    // Registering again on the same table changes nothing: every key is taken.
+    CHECK_EQ(RegisterSpellMgrHandlers(registry), uint32(20));
+    CHECK_EQ(registry.Count(), std::size_t(20));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+
+    // The game's table holds these with the other files' 1017 rows and 28 defaults.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.Count(), std::size_t(1037));
+    CHECK_EQ(game.CountDefaults(), std::size_t(28));
+    CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
+}
+
+TEST(SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterSpellMgrHandlers(registry);
+
+    // The 20 labels of the switch, in 10 bodies. Arena - Dampening is one code with the arena team auras' body, so
+    // the two count as one body whether the linker gives them one address or two.
+    typedef SpellHandler<SpellAllowedInLocationSite>::Function LocationBody;
+    std::size_t folds = registry.Find<SpellAllowedInLocationSite>(74410) ==
+                        registry.Find<SpellAllowedInLocationSite>(32724) ? 1 : 0;
+    CheckSiteLabels<SpellAllowedInLocationSite>(registry, LOCATION_IDS, 10 - folds);
+    CHECK(registry.FindDefault<SpellAllowedInLocationSite>() == NULL);
+
+    // Each run's labels have one body, and no two runs share one but the fold above.
+    LocationBody recall = registry.Find<SpellAllowedInLocationSite>(22564);
+    LocationBody flag = registry.Find<SpellAllowedInLocationSite>(23333);
+    LocationBody inBattleground = registry.Find<SpellAllowedInLocationSite>(2584);
+    LocationBody spiritHeal = registry.Find<SpellAllowedInLocationSite>(22011);
+    LocationBody arenaTeam = registry.Find<SpellAllowedInLocationSite>(32724);
+    CHECK(registry.Find<SpellAllowedInLocationSite>(22563) == recall);
+    CHECK(registry.Find<SpellAllowedInLocationSite>(23335) == flag);
+    CHECK(registry.Find<SpellAllowedInLocationSite>(42792) == inBattleground);
+    CHECK(registry.Find<SpellAllowedInLocationSite>(43681) == inBattleground);
+    for (uint32 spellId : { 22012u, 24171u, 44535u })
+    {
+        CHECK(registry.Find<SpellAllowedInLocationSite>(spellId) == spiritHeal);
+    }
+    for (uint32 spellId : { 32725u, 35774u, 35775u })
+    {
+        CHECK(registry.Find<SpellAllowedInLocationSite>(spellId) == arenaTeam);
+    }
+    std::set<LocationBody> runBodies = { recall, flag, registry.Find<SpellAllowedInLocationSite>(34976), inBattleground,
+                                         spiritHeal, registry.Find<SpellAllowedInLocationSite>(44521), arenaTeam,
+                                         registry.Find<SpellAllowedInLocationSite>(32727),
+                                         registry.Find<SpellAllowedInLocationSite>(74411) };
+    CHECK_EQ(runBodies.size(), std::size_t(9));
+
+    // An id the switch never held is no key: 12345, and Transporter Malfunction, which the file's IsPositiveEffect
+    // switches hold.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 12345u, 36893u })
+    {
+        CHECK(registry.Find<SpellAllowedInLocationSite>(spellId) == NULL);
+        CHECK(game.Find<SpellAllowedInLocationSite>(spellId) == NULL);
+        CHECK_EQ(int(RunLocationSite(spellId, 489, NULL)), int(SPELL_CAST_OK));
+    }
+}
+
+TEST(SpellMgrHandlers_TheLocationContextAliasesTheMapAndThePlayer)
+{
+    alignas(16) static unsigned char players[2][16];
+    uint32 map_id = 489;
+    Player const* player = reinterpret_cast<Player const*>(players[0]);
+    SpellAllowedInLocationContext ctx(map_id, player);
+    CHECK(&ctx.map_id == &map_id);
+    CHECK(&ctx.player == &player);
+    CHECK_EQ(ctx.map_id, uint32(489));
+    CHECK(ctx.player == player);
+
+    map_id = 566;                                               // both are the function's parameters, read
+    player = reinterpret_cast<Player const*>(players[1]);
+    CHECK_EQ(ctx.map_id, uint32(566));
+    CHECK(ctx.player == reinterpret_cast<Player const*>(players[1]));
+}
+
+TEST(SpellMgrHandlers_TheLocationBodiesAnswerForAPlayerOutsideABattleground)
+{
+    // A player in no battleground fails every label's check. Marked in a battleground the manager does not hold, it
+    // passes the flags on their maps and the battleground-only auras, and still fails the checks that read the
+    // battleground itself or an arena. No map is in the test's map store, so the spirit healer's spells fail as an
+    // incorrect area.
+    WorldSession session(1, "location", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    SessionPlayer player(session);
+    CHECK(!player.InBattleGround());
+
+    LocationCase const outside[] =
+    {
+        { 22564, 30, SPELL_FAILED_REQUIRES_AREA }, { 22563, 30, SPELL_FAILED_REQUIRES_AREA },
+        { 23333, 489, SPELL_FAILED_REQUIRES_AREA }, { 23335, 489, SPELL_FAILED_REQUIRES_AREA },
+        { 34976, 566, SPELL_FAILED_REQUIRES_AREA },
+        { 2584, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS }, { 42792, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+        { 43681, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+        { 22011, 489, SPELL_FAILED_INCORRECT_AREA }, { 22012, 30, SPELL_FAILED_INCORRECT_AREA },
+        { 24171, 566, SPELL_FAILED_INCORRECT_AREA }, { 44535, 0, SPELL_FAILED_INCORRECT_AREA },
+        { 44521, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+        { 32724, 559, SPELL_FAILED_ONLY_IN_ARENA }, { 32725, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 35774, 559, SPELL_FAILED_ONLY_IN_ARENA }, { 35775, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 32727, 559, SPELL_FAILED_REQUIRES_AREA },
+        { 74410, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 74411, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+    };
+    CheckLocationCases(outside, &player);
+
+    player.SetBattleGroundId(1, BATTLEGROUND_WS);
+    CHECK(player.InBattleGround());
+    CHECK(player.GetBattleGround() == NULL);
+    LocationCase const marked[] =
+    {
+        { 22564, 30, SPELL_FAILED_REQUIRES_AREA }, { 22563, 30, SPELL_FAILED_REQUIRES_AREA },
+        { 23333, 489, SPELL_CAST_OK }, { 23335, 489, SPELL_CAST_OK },
+        { 23333, 566, SPELL_FAILED_REQUIRES_AREA }, { 23335, 30, SPELL_FAILED_REQUIRES_AREA },
+        { 34976, 566, SPELL_CAST_OK }, { 34976, 489, SPELL_FAILED_REQUIRES_AREA },
+        { 2584, 489, SPELL_CAST_OK }, { 42792, 566, SPELL_CAST_OK }, { 43681, 30, SPELL_CAST_OK },
+        { 22011, 489, SPELL_FAILED_INCORRECT_AREA }, { 44535, 489, SPELL_FAILED_INCORRECT_AREA },
+        { 44521, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+        { 32724, 559, SPELL_FAILED_ONLY_IN_ARENA }, { 35775, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 32727, 559, SPELL_FAILED_REQUIRES_AREA },
+        { 74410, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 74411, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+    };
+    CheckLocationCases(marked, &player);
+    player.SetBattleGroundId(0, BATTLEGROUND_TYPE_NONE);
+}
+
+TEST(SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer)
+{
+    // With no player, each label's check fails with its own result; the spirit healer's spells read only the map.
+    LocationCase const none[] =
+    {
+        { 22564, 30, SPELL_FAILED_REQUIRES_AREA }, { 22563, 30, SPELL_FAILED_REQUIRES_AREA },
+        { 23333, 489, SPELL_FAILED_REQUIRES_AREA }, { 23335, 489, SPELL_FAILED_REQUIRES_AREA },
+        { 34976, 566, SPELL_FAILED_REQUIRES_AREA },
+        { 2584, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS }, { 42792, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+        { 43681, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+        { 22011, 489, SPELL_FAILED_INCORRECT_AREA }, { 22012, 489, SPELL_FAILED_INCORRECT_AREA },
+        { 24171, 489, SPELL_FAILED_INCORRECT_AREA }, { 44535, 489, SPELL_FAILED_INCORRECT_AREA },
+        { 44521, 489, SPELL_FAILED_REQUIRES_AREA },
+        { 32724, 559, SPELL_FAILED_ONLY_IN_ARENA }, { 32725, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 35774, 559, SPELL_FAILED_ONLY_IN_ARENA }, { 35775, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 32727, 559, SPELL_FAILED_REQUIRES_AREA },
+        { 74410, 559, SPELL_FAILED_ONLY_IN_ARENA },
+        { 74411, 489, SPELL_FAILED_ONLY_BATTLEGROUNDS },
+    };
+    CheckLocationCases(none, NULL);
 }

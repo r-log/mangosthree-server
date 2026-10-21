@@ -1857,7 +1857,7 @@ src/game/session/handlers/social/LfgHandlers.cpp -> src/game/WorldHandlers/World
 src/game/session/handlers/social/PetitionHandlers.cpp -> src/game/WorldHandlers/World.h
 # The ticket create and text update handlers tell every online GM who accepts tickets through ChatHandler(player).PSendSysMessage.
 src/game/session/handlers/social/TicketHandlers.cpp -> src/game/WorldHandlers/Chat.h
-# The Rocket Boots Engaged body reads the player's battleground and reports the dropped flag to it; the origin's own edge carried into the handler directory, same layer pair and header; dies when the flag drop becomes a fact the battleground takes from the player (pvp's own seam).
+# The bodies read the player's battleground: Rocket Boots Engaged reports the dropped flag to it, and the location bodies read its status and whether it is an arena; the origin's own edge, same layer pair and header; dies when the flag drop and the battleground's state become facts the player answers (pvp's own seam).
 src/game/spells/handlers [spells] -> src/game/BattleGround/BattleGround.h
 # The bodies call creature-only methods on a unit cast to a creature, such as its virtual items, a despawn or the temporary-summon check.
 src/game/spells/handlers [spells] -> src/game/Object/Creature.h
@@ -1917,6 +1917,8 @@ src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/Server/WorldS
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The bodies cast a unit to a player for player-only methods; it goes with the Unit page's row 13 casts.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/entities/player/Player.h
+# The location bodies ask the player for its battleground and whether it is in a battleground or an arena; retires with the Unit page's row 13 successor.
+src/game/spells/handlers/SpellMgrHandlers.cpp -> src/game/entities/player/Player.h
 # The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.
 src/game/spells/handlers/SpellTargetingHandlers.cpp -> src/game/entities/player/Player.h
 # The Cannibalize body finds the corpse's owner through the player registry, the origin's own edge carried; the registry accessor is a macro, so the line retires when the registry becomes a query on the player's owning store, or with row 13's successor.
