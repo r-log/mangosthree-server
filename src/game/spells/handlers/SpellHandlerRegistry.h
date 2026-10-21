@@ -46,8 +46,8 @@
  * - a handler returns SpellHandlerOutcome::Return(value) -- the case's `return` (no value in a
  *   void function, else the function's return value) -- or SpellHandlerOutcome::Continue() -- the
  *   case's `break`; at a site standing in a loop, SpellHandlerOutcome::LoopContinue() is the case's
- *   `continue`: the dispatch tests IsLoopContinue() and continues, and the site's handlers never answer
- *   Return;
+ *   `continue`, and a site whose handlers answer it tests IsLoopContinue() after the dispatch and
+ *   continues;
  * - a miss runs the site's own `default:` body, registered with RegisterDefault(), if it has
  *   one; otherwise Dispatch() answers Miss() and the site continues after where its switch stood;
  * - labels that share a body register one function under each of their ids.

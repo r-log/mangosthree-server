@@ -28,7 +28,7 @@
 #include "Object/Unit.h"
 #include "WorldHandlers/SpellAuras.h"
 
-/// 45182: Cheating Death: on a player, physical spell damage taken scales by the aura's amount
+/// 45182: Cheating Death: on a player, spell damage taken scales by the aura's amount if its school mask has physical
 static SpellHandlerOutcome<void> SpellDamageTakenCheatingDeath(SpellDamageTakenContext& ctx)
 {
     if ((*ctx.i)->GetModifier()->m_miscvalue & SPELL_SCHOOL_MASK_NORMAL)
@@ -69,7 +69,7 @@ static SpellHandlerOutcome<void> SpellHealingDoneLifebloomIdols(SpellHealingDone
     return SpellHandlerOutcome<void>::Continue();
 }
 
-/// 45182: Cheating Death: on a player, physical melee damage taken scales by the aura's amount
+/// 45182: Cheating Death: on a player, melee damage taken scales by the aura's amount if its school mask has physical
 static SpellHandlerOutcome<void> MeleeDamageTakenCheatingDeath(MeleeDamageTakenContext& ctx)
 {
     if ((*ctx.i)->GetModifier()->m_miscvalue & SPELL_SCHOOL_MASK_NORMAL)
