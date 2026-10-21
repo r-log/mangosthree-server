@@ -29,8 +29,8 @@
 /// sites (HandleAuraDummy's, HandleAuraTransform's, HandleModThreat's, EffectTransmitted's, EffectEnergize's,
 /// EffectActivateObject's, EffectResurrect's, the two of SetTargetMap, CheckCast's, CheckTarget's, EffectWeaponDmg's,
 /// EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits, the generic and five family switches of
-/// EffectDummy, the five of SpellAuraPeriodic.cpp, the seventeen of SpellAuras.cpp and the five family switches of
-/// EffectScriptEffect) are checked for their keys, their defaults and their contexts,
+/// EffectDummy, the five of SpellAuraPeriodic.cpp, the seventeen of SpellAuras.cpp and the generic and five family
+/// switches of EffectScriptEffect) are checked for their keys, their defaults and their contexts,
 /// and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the
 /// Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the
 /// periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default, the
@@ -45,7 +45,7 @@
 /// school-damage labels on creatures with their update fields, the Vanish, Cloak of Shadows, Shadowfiend and Mirror
 /// Image labels on creatures with no aura and no pet, the recall label on creature targets, and the dummy-effect labels
 /// that end the effect with no unit target, with no cast item, for a creature caster or for a caster with no pet, and
-/// the script-effect labels that end the effect with no unit target);
+/// the script-effect labels that end the effect with no unit target, and Bending Shinbone for a creature caster);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the
 /// coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid,
@@ -92,7 +92,8 @@
 ///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
 ///                            SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce,
-///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
+///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -124,7 +125,8 @@
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
 ///                            AurasHandlers_ThePeriodicDummyTickSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
-///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
+///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -156,7 +158,8 @@
 ///                            AurasHandlers_TheTriggerSpellBranchSitesHoldTheirLabelsAndDefaults,
 ///                            AurasHandlers_TheTickSitesHoldTheirLabelsAndTheDamageDefault,
 ///                            AurasHandlers_TheBoostSitesHoldTheirLabelsAndDefaults,
-///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults
+///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
+///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
@@ -242,7 +245,8 @@
 ///                            AurasHandlers_ThePeriodicDummyTickContextAliasesItsLocals,
 ///                            AurasHandlers_TheBoostContextAliasesItsLocals,
 ///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder,
-///                            SpellEffectScriptHandlers_TheContextAliasesTheSpellsMembers
+///                            SpellEffectScriptHandlers_TheContextAliasesTheSpellsMembers,
+///                            SpellEffectScriptHandlers_BendingShinboneReadsTheItemTargetThroughTheContext
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault
@@ -745,9 +749,10 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // family sites' 5, 11, 4, 4 and 4 rows, the six trigger-spell aura sites' 45, 1, 3, 5, 2 and 11 rows and five
     // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the four periodic dummy
     // tick sites' 44, 1, 2 and 2 rows and four defaults, the five boost sites' 7, 6, 2, 6 and 4 rows and four
-    // defaults, and the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults.
+    // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, and the generic
+    // script-effect site's 58 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(735));
+    CHECK_EQ(game.Count(), std::size_t(793));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -1653,8 +1658,8 @@ namespace
     // Whether `spellId` is a key at a site other than `site`: the periodic auras' five, the energize, activate-object,
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
     // six dummy-effect sites, the rogue and hunter aura dummy sites, the generic aura dummy apply site, the six
-    // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites, the five
-    // script-effect family sites and the earlier files' ids.
+    // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites, the six
+    // script-effect sites and the earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1726,6 +1731,8 @@ namespace
                (skips(AuraBoostHunterSite::Key) && registry.Find<AuraBoostHunterSite>(spellId) != NULL) ||
                (skips(AuraBoostDeathKnightSite::Key) &&
                 registry.Find<AuraBoostDeathKnightSite>(spellId) != NULL) ||
+               (skips(SpellEffectScriptGenericSite::Key) &&
+                registry.Find<SpellEffectScriptGenericSite>(spellId) != NULL) ||
                (skips(SpellEffectScriptWarlockSite::Key) &&
                 registry.Find<SpellEffectScriptWarlockSite>(spellId) != NULL) ||
                (skips(SpellEffectScriptPriestSite::Key) &&
@@ -1748,8 +1755,9 @@ namespace
     // trigger-spell aura site; Frenzied Regeneration, at the druid trigger-spell aura site and the druid periodic
     // dummy tick site; Haunting Spirits, at the generic aura dummy apply site and the generic periodic dummy tick
     // site; Vigilance, at the proc-trigger site and the generic boost site; Master's Call, at the hunter dummy-effect
-    // site and the hunter script-effect site. A listed id held at any other site, a third listed site among them,
-    // fails HeldByAnotherSite.
+    // site and the hunter script-effect site; eight Cleansing Flames ids, at the generic dummy-effect site and the
+    // generic script-effect site. A listed id held at any other site, a third listed site among them, fails
+    // HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -1766,6 +1774,14 @@ namespace
         { 7057, AuraDummyApplyGenericSite::Key, AuraPeriodicDummyTickGenericSite::Key },
         { 50720, AuraProcTriggerSite::Key, AuraBoostGenericSite::Key },
         { 53271, SpellEffectDummyHunterSite::Key, SpellEffectScriptHunterSite::Key },
+        { 29126, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
+        { 29135, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
+        { 29136, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
+        { 29137, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
+        { 29138, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
+        { 29139, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
+        { 46671, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
+        { 46672, SpellEffectDummyGenericSite::Key, SpellEffectScriptGenericSite::Key },
     };
 
     // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
@@ -3711,18 +3727,22 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     CHECK_EQ(registry.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(213));
     CHECK(registry.Find<SpellEffectDummyGenericSite>(29139) == cleansingFlames);
 
-    // Keyed on the generic site: its labels are no other site's but the shared ids, which the targeting site holds
-    // too, and the other sites' and the standing labels are not its; the game's table holds the same rows and no
-    // default.
+    // Keyed on the generic site: its labels are no other site's but the shared ids, which the targeting site or the
+    // generic script-effect site holds too, and the other sites' and the standing labels are not its; the game's
+    // table holds the same rows and no default.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     for (uint32 spellId : DUMMY_GENERIC_IDS)
     {
         uint32 other = SharedWith(spellId, SpellEffectDummyGenericSite::Key);
         CHECK(!HeldByAnotherSite(game, SpellEffectDummyGenericSite::Key, spellId, other));
-        if (other != SpellEffectDummyGenericSite::Key)
+        if (other == SpellTargetEffectDummySite::Key)
         {
-            CHECK(other == SpellTargetEffectDummySite::Key);
             CHECK(game.Find<SpellTargetEffectDummySite>(spellId) != NULL);
+        }
+        else if (other != SpellEffectDummyGenericSite::Key)
+        {
+            CHECK(other == SpellEffectScriptGenericSite::Key);
+            CHECK(game.Find<SpellEffectScriptGenericSite>(spellId) != NULL);
         }
         CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) ==
               registry.Find<SpellEffectDummyGenericSite>(spellId));
@@ -3733,6 +3753,9 @@ TEST(SpellEffectDummyHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
     }
     CHECK_EQ(game.CountAt(SpellEffectDummyGenericSite::Key), std::size_t(213));
     CHECK(game.FindDefault<SpellEffectDummyGenericSite>() == NULL);
+    CHECK(SharedWith(20577, SpellEffectDummyGenericSite::Key) == SpellTargetEffectDummySite::Key);
+    CHECK(SharedWith(29126, SpellEffectDummyGenericSite::Key) == SpellEffectScriptGenericSite::Key);
+    CHECK(SharedWith(46672, SpellEffectDummyGenericSite::Key) == SpellEffectScriptGenericSite::Key);
 }
 
 TEST(SpellEffectDummyHandlers_TheGenericContextAliasesTheSpell)
@@ -4397,9 +4420,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(152));
     CHECK_EQ(registry.CountDefaults(), std::size_t(14));
 
-    // The game's table holds these with the other files' 583 rows and 14 defaults.
+    // The game's table holds these with the other files' 641 rows and 14 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(735));
+    CHECK_EQ(game.Count(), std::size_t(793));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5114,6 +5137,30 @@ TEST(AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder)
 
 namespace
 {
+    // The labels of the generic script-effect site this file holds, in the switch's order.
+    uint32 const SCRIPT_GENERIC_IDS[] = { 8856, 17512, 20589, 22539, 22972, 22975, 22976, 22977, 22978, 22979, 22980,
+                                          22981, 22982, 22983, 22984, 22985, 24194, 24195, 24320, 24324, 24590, 24714,
+                                          24717, 24718, 24719, 24720, 24737, 24751, 25140, 25143, 25650, 25652, 29128,
+                                          29129, 35376, 35727, 26004, 26137, 26218, 26275, 26465, 26656, 27687, 27695,
+                                          28352, 28374, 54426, 71123, 28560, 28859, 29126, 29135, 29136, 29137, 29138,
+                                          29139, 46671, 46672 };
+
+    // The generic labels that share a body, each run in the switch's order.
+    uint32 const SCRIPT_SHADOW_FLAME_IDS[] = { 22539, 22972, 22975, 22976, 22977, 22978, 22979, 22980, 22981, 22982,
+                                               22983, 22984, 22985 };
+    uint32 const SCRIPT_TRIBUTE_IDS[] = { 24194, 24195 };
+    uint32 const SCRIPT_ORB_TELEPORT_IDS[] = { 25140, 25143, 25650, 25652, 29128, 29129, 35376, 35727 };
+    uint32 const SCRIPT_DECIMATE_IDS[] = { 28374, 54426, 71123 };
+    uint32 const SCRIPT_CLEANSING_FLAMES_IDS[] = { 28859, 29126, 29135, 29136, 29137, 29138, 29139, 46671, 46672 };
+
+    // The generic labels whose body checks the unit target before anything else.
+    uint32 const SCRIPT_GENERIC_TARGET_CHECKED_IDS[] = { 17512, 20589, 22539, 22972, 22975, 22976, 22977, 22978, 22979,
+                                                         22980, 22981, 22982, 22983, 22984, 22985, 24324, 24717, 24718,
+                                                         24719, 24720, 24737, 24751, 25140, 25143, 25650, 25652, 29128,
+                                                         29129, 35376, 35727, 26004, 26137, 26218, 26656, 27687, 27695,
+                                                         28352, 28374, 54426, 71123, 28560, 28859, 29126, 29135, 29136,
+                                                         29137, 29138, 29139, 46671, 46672 };
+
     // The labels of the five script-effect family sites, each in its switch's order.
     uint32 const SCRIPT_WARLOCK_IDS[] = { 6201, 6202, 5699, 11729, 11730, 27230, 47871, 47878, 47193, 47422, 63521 };
     uint32 const SCRIPT_PRIEST_IDS[] = { 47948 };
@@ -5156,12 +5203,14 @@ namespace
 
 TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
 {
-    // 19 labels at five sites and two defaults: 21 rows, 19 keys and two defaults, none twice. The warlock, priest,
-    // hunter, potion and death knight switches hold 11, 1, 3, 3 and 1; the priest and hunter switches have a default.
+    // 77 labels at six sites and two defaults: 79 rows, 77 keys and two defaults, none twice. The generic, warlock,
+    // priest, hunter, potion and death knight switches hold 58, 11, 1, 3, 3 and 1; the priest and hunter switches
+    // have a default.
     SpellHandlerRegistry registry;
-    CHECK_EQ(RegisterSpellEffectScriptHandlers(registry), uint32(21));
-    CHECK_EQ(registry.Count(), std::size_t(19));
+    CHECK_EQ(RegisterSpellEffectScriptHandlers(registry), uint32(79));
+    CHECK_EQ(registry.Count(), std::size_t(77));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
+    CHECK_EQ(registry.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(58));
     CHECK_EQ(registry.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
     CHECK_EQ(registry.CountAt(SpellEffectScriptPriestSite::Key), std::size_t(1));
     CHECK_EQ(registry.CountAt(SpellEffectScriptHunterSite::Key), std::size_t(3));
@@ -5169,14 +5218,15 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.CountAt(SpellEffectScriptDeathKnightSite::Key), std::size_t(1));
 
     // Registering again on the same table changes nothing: every key and default is taken.
-    CHECK_EQ(RegisterSpellEffectScriptHandlers(registry), uint32(21));
-    CHECK_EQ(registry.Count(), std::size_t(19));
+    CHECK_EQ(RegisterSpellEffectScriptHandlers(registry), uint32(79));
+    CHECK_EQ(registry.Count(), std::size_t(77));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
     // The game's table holds these with the other files' 716 rows and 26 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(735));
+    CHECK_EQ(game.Count(), std::size_t(793));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
+    CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(58));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
     CHECK_EQ(game.CountAt(SpellEffectScriptHunterSite::Key), std::size_t(3));
 }
@@ -5304,8 +5354,9 @@ TEST(SpellEffectScriptHandlers_TheContextAliasesTheSpellsMembers)
 TEST(SpellEffectScriptHandlers_ANullTargetEndsTheEffect)
 {
     // Every body that checks the unit target first ends the effect when there is none, before it reads the spell,
-    // its entry or its caster, and leaves the members as they were. Everlasting Affliction and 63521 read the target
-    // without a check, so they are not run here.
+    // its entry or its caster, and leaves the members as they were. Everlasting Affliction, 63521, Poisonous Blood,
+    // Brittle Armor, PX-238 Winter Wondervolt TRAP and Mercurial Shield read the target without a check, and
+    // Bending Shinbone, the two tributes and Trick read the caster first, so they are not run here.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
     ScriptMembers members;
     SpellEffectScriptContext ctx = members.Context();
@@ -5321,5 +5372,103 @@ TEST(SpellEffectScriptHandlers_ANullTargetEndsTheEffect)
         CHECK(game.Dispatch<SpellEffectScriptPotionSite>(spellId, ctx).IsReturn());
     }
     CHECK(game.Dispatch<SpellEffectScriptDeathKnightSite>(50842, ctx).IsReturn());
+    for (uint32 spellId : SCRIPT_GENERIC_TARGET_CHECKED_IDS)
+    {
+        CHECK(game.Dispatch<SpellEffectScriptGenericSite>(spellId, ctx).IsReturn());
+    }
     CHECK(members.Untouched());
+}
+
+TEST(SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterSpellEffectScriptHandlers(registry);
+
+    // The 58 labels of the switch this file holds, in 28 bodies.
+    CheckSiteLabels<SpellEffectScriptGenericSite>(registry, SCRIPT_GENERIC_IDS, 28);
+
+    // Each shared run's labels have one body, and no two runs share one.
+    typedef SpellHandler<SpellEffectScriptGenericSite>::Function GenericBody;
+    std::set<GenericBody> runBodies;
+    for (uint32 const* run : { SCRIPT_SHADOW_FLAME_IDS, SCRIPT_TRIBUTE_IDS, SCRIPT_ORB_TELEPORT_IDS,
+                               SCRIPT_DECIMATE_IDS, SCRIPT_CLEANSING_FLAMES_IDS })
+    {
+        runBodies.insert(registry.Find<SpellEffectScriptGenericSite>(run[0]));
+    }
+    CHECK_EQ(runBodies.size(), std::size_t(5));
+    for (uint32 spellId : SCRIPT_SHADOW_FLAME_IDS)
+    {
+        CHECK(registry.Find<SpellEffectScriptGenericSite>(spellId) ==
+              registry.Find<SpellEffectScriptGenericSite>(22539));
+    }
+    CHECK(registry.Find<SpellEffectScriptGenericSite>(24195) == registry.Find<SpellEffectScriptGenericSite>(24194));
+    for (uint32 spellId : SCRIPT_ORB_TELEPORT_IDS)
+    {
+        CHECK(registry.Find<SpellEffectScriptGenericSite>(spellId) ==
+              registry.Find<SpellEffectScriptGenericSite>(25140));
+    }
+    for (uint32 spellId : SCRIPT_DECIMATE_IDS)
+    {
+        CHECK(registry.Find<SpellEffectScriptGenericSite>(spellId) ==
+              registry.Find<SpellEffectScriptGenericSite>(28374));
+    }
+    for (uint32 spellId : SCRIPT_CLEANSING_FLAMES_IDS)
+    {
+        CHECK(registry.Find<SpellEffectScriptGenericSite>(spellId) ==
+              registry.Find<SpellEffectScriptGenericSite>(28859));
+    }
+    for (uint32 spellId : { 8856u, 17512u, 20589u, 24320u, 24324u, 24590u, 24714u, 24717u, 24718u, 24719u, 24720u,
+                            24737u, 24751u, 26004u, 26137u, 26218u, 26275u, 26465u, 26656u, 27687u, 27695u, 28352u,
+                            28560u })
+    {
+        CHECK(runBodies.count(registry.Find<SpellEffectScriptGenericSite>(spellId)) == 0);
+    }
+
+    // Eight Cleansing Flames ids are keys here and at the generic dummy-effect site, and at no third site; 28859 is
+    // this site's only.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    for (uint32 spellId : { 29126u, 29135u, 29136u, 29137u, 29138u, 29139u, 46671u, 46672u })
+    {
+        CHECK(SharedWith(spellId, SpellEffectScriptGenericSite::Key) == SpellEffectDummyGenericSite::Key);
+        CHECK(game.Find<SpellEffectDummyGenericSite>(spellId) != NULL);
+    }
+    CHECK(SharedWith(28859, SpellEffectScriptGenericSite::Key) == SpellEffectScriptGenericSite::Key);
+    CHECK(game.Find<SpellEffectDummyGenericSite>(28859) == NULL);
+
+    // The switch has no `default:`, so an id it never held and a label it still holds are misses, which run the
+    // switch; the members stay as they were.
+    ScriptMembers members;
+    SpellEffectScriptContext ctx = members.Context();
+    CHECK(registry.FindDefault<SpellEffectScriptGenericSite>() == NULL);
+    CHECK(game.FindDefault<SpellEffectScriptGenericSite>() == NULL);
+    for (uint32 spellId : { 12345u, 44455u, 29395u, 74455u })
+    {
+        CHECK(game.Find<SpellEffectScriptGenericSite>(spellId) == NULL);
+        CHECK(game.Dispatch<SpellEffectScriptGenericSite>(spellId, ctx).IsMiss());
+    }
+    CHECK(members.Untouched());
+}
+
+TEST(SpellEffectScriptHandlers_BendingShinboneReadsTheItemTargetThroughTheContext)
+{
+    // Bending Shinbone ends the effect for a caster that is no player with no item target, before it casts; with an
+    // item target it goes on to the cast, which finds no spell in the test's spell store and casts nothing. Both
+    // leave the members as they were.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    ValuedCreature casterUnit;
+    ScriptMembers members;
+    members.caster = &casterUnit;
+    SpellEffectScriptContext ctx = members.Context();
+    CHECK(ctx.itemTarget == NULL);
+    CHECK(game.Dispatch<SpellEffectScriptGenericSite>(8856, ctx).IsReturn());
+    CHECK(members.caster == &casterUnit);
+    CHECK(members.itemTarget == NULL);
+
+    alignas(16) static unsigned char item[16];
+    members.itemTarget = reinterpret_cast<Item*>(item);         // the member, which the context reads
+    CHECK(ctx.itemTarget == reinterpret_cast<Item*>(item));
+    CHECK(game.Dispatch<SpellEffectScriptGenericSite>(8856, ctx).IsReturn());
+    CHECK(members.caster == &casterUnit);
+    CHECK(members.itemTarget == reinterpret_cast<Item*>(item));
+    CHECK(members.unitTarget == NULL);
 }

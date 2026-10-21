@@ -181,7 +181,9 @@ enum SpellHandlerSite
     /// `Spell::EffectScriptEffect`, SPELLFAMILY_POTION's `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_POTION = 57,
     /// `Spell::EffectScriptEffect`, SPELLFAMILY_DEATHKNIGHT's `switch (m_spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_DEATH_KNIGHT = 58
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_DEATH_KNIGHT = 58,
+    /// `Spell::EffectScriptEffect`, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_GENERIC = 59
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

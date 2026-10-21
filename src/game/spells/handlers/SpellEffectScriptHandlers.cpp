@@ -27,8 +27,478 @@
 #include "spells/handlers/SpellEffectScriptHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "WorldHandlers/Spell.h"
+#include "Common/TimeConstants.h"
+#include "Utilities/MathDefines.h"
 #include "Utilities/Util.h"
+#include "WorldHandlers/GridMap.h"
 #include "WorldHandlers/SpellAuras.h"
+
+/// 8856: Bending Shinbone
+static SpellHandlerOutcome<void> EffectScriptGeneric8856(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.itemTarget && ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spell_id = 0;
+    switch (urand(1, 5))
+    {
+        case 1:  spell_id = 8854; break;
+        default: spell_id = 8855; break;
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spell_id, true, NULL);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 17512: Piccolo of the Flaming Fire
+static SpellHandlerOutcome<void> EffectScriptGeneric17512(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->HandleEmoteCommand(EMOTE_STATE_DANCE);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 20589: Escape Artist
+static SpellHandlerOutcome<void> EffectScriptGeneric20589(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_ROOT);
+    ctx.unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 13 labels: 22539, 22972, 22975, 22976, 22977, 22978, 22979, 22980, 22981, 22982, 22983, 22984 and
+/// 22985: Shadow Flame
+static SpellHandlerOutcome<void> EffectScriptGenericShadowFlame(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || !ctx.unitTarget->IsAlive())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Onyxia Scale Cloak
+    if (ctx.unitTarget->GetDummyAura(22683))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Shadow Flame
+    ctx.m_caster->CastSpell(ctx.unitTarget, 22682, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 24194: Uther's Tribute, 24195: Grom's Tribute
+static SpellHandlerOutcome<void> EffectScriptGenericTribute(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint8 race = ctx.m_caster->getRace();
+    uint32 spellId = 0;
+
+    switch (ctx.m_spellInfo->ID)
+    {
+        case 24194:
+            switch (race)
+            {
+                case RACE_HUMAN:            spellId = 24105; break;
+                case RACE_DWARF:            spellId = 24107; break;
+                case RACE_NIGHTELF:         spellId = 24108; break;
+                case RACE_GNOME:            spellId = 24106; break;
+                case RACE_DRAENEI:          spellId = 69533; break;
+            }
+            break;
+        case 24195:
+            switch (race)
+            {
+                case RACE_ORC:              spellId = 24104; break;
+                case RACE_UNDEAD:           spellId = 24103; break;
+                case RACE_TAUREN:           spellId = 24102; break;
+                case RACE_TROLL:            spellId = 24101; break;
+                case RACE_BLOODELF:         spellId = 69530; break;
+            }
+            break;
+    }
+
+    if (spellId)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, spellId, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24320: Poisonous Blood
+static SpellHandlerOutcome<void> EffectScriptGeneric24320(SpellEffectScriptContext& ctx)
+{
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 24321, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24324: Blood Siphon
+static SpellHandlerOutcome<void> EffectScriptGeneric24324(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.unitTarget->HasAura(24321) ? 24323 : 24322, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24590: Brittle Armor
+static SpellHandlerOutcome<void> EffectScriptGeneric24590(SpellEffectScriptContext& ctx)
+{
+    ctx.unitTarget->RemoveAuraHolderFromStack(24575);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24714: Trick
+static SpellHandlerOutcome<void> EffectScriptGeneric24714(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (roll_chance_i(14))                  // Trick (can be different critter models). 14% since below can have 1 of 6
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 24753, true);
+    }
+    else                                    // Random Costume, 6 different (plus add. for gender)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 24720, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24717: Pirate Costume
+static SpellHandlerOutcome<void> EffectScriptGeneric24717(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Pirate Costume (male or female)
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.unitTarget->getGender() == GENDER_MALE ? 24708 : 24709, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24718: Ninja Costume
+static SpellHandlerOutcome<void> EffectScriptGeneric24718(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Ninja Costume (male or female)
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.unitTarget->getGender() == GENDER_MALE ? 24711 : 24710, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24719: Leper Gnome Costume
+static SpellHandlerOutcome<void> EffectScriptGeneric24719(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Leper Gnome Costume (male or female)
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.unitTarget->getGender() == GENDER_MALE ? 24712 : 24713, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24720: Random Costume
+static SpellHandlerOutcome<void> EffectScriptGeneric24720(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellId = 0;
+
+    switch (urand(0, 6))
+    {
+        case 0:
+            spellId = ctx.unitTarget->getGender() == GENDER_MALE ? 24708 : 24709;
+            break;
+        case 1:
+            spellId = ctx.unitTarget->getGender() == GENDER_MALE ? 24711 : 24710;
+            break;
+        case 2:
+            spellId = ctx.unitTarget->getGender() == GENDER_MALE ? 24712 : 24713;
+            break;
+        case 3:
+            spellId = 24723;
+            break;
+        case 4:
+            spellId = 24732;
+            break;
+        case 5:
+            spellId = ctx.unitTarget->getGender() == GENDER_MALE ? 24735 : 24736;
+            break;
+        case 6:
+            spellId = 24740;
+            break;
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, spellId, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24737: Ghost Costume
+static SpellHandlerOutcome<void> EffectScriptGeneric24737(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Ghost Costume (male or female)
+    ctx.m_caster->CastSpell(ctx.unitTarget, ctx.unitTarget->getGender() == GENDER_MALE ? 24735 : 24736, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 24751: Trick or Treat
+static SpellHandlerOutcome<void> EffectScriptGeneric24751(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Tricked or Treated
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 24755, true);
+
+    // Treat / Trick
+    ctx.unitTarget->CastSpell(ctx.unitTarget, roll_chance_i(50) ? 24714 : 24715, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 8 labels: 25140, 25143, 25650, 25652, 29128, 29129, 35376 and 35727: Translocate
+static SpellHandlerOutcome<void> EffectScriptGenericOrbTeleport(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellid;
+    switch (ctx.m_spellInfo->ID)
+    {
+        case 25140: spellid =  32568; break;
+        case 25143: spellid =  32572; break;
+        case 25650: spellid =  30140; break;
+        case 25652: spellid =  30141; break;
+        case 29128: spellid =  32571; break;
+        case 29129: spellid =  32569; break;
+        case 35376: spellid =  25649; break;
+        case 35727: spellid =  35730; break;
+        default:
+            return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, spellid, false);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 26004: Mistletoe
+static SpellHandlerOutcome<void> EffectScriptGeneric26004(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->HandleEmote(EMOTE_ONESHOT_CHEER);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 26137: Rotate Trigger
+static SpellHandlerOutcome<void> EffectScriptGeneric26137(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, urand(0, 1) ? 26009 : 26136, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 26218: Mistletoe
+static SpellHandlerOutcome<void> EffectScriptGeneric26218(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spells[3] = {26206, 26207, 45036};
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, spells[urand(0, 2)], true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 26275: PX-238 Winter Wondervolt TRAP
+static SpellHandlerOutcome<void> EffectScriptGeneric26275(SpellEffectScriptContext& ctx)
+{
+    uint32 spells[4] = {26272, 26157, 26273, 26274};
+
+    // check presence
+    for (int j = 0; j < 4; ++j)
+        if (ctx.unitTarget->HasAura(spells[j], EFFECT_INDEX_0))
+        {
+            return SpellHandlerOutcome<void>::Return();
+        }
+
+    // cast
+    ctx.unitTarget->CastSpell(ctx.unitTarget, spells[urand(0, 3)], true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 26465: Mercurial Shield
+static SpellHandlerOutcome<void> EffectScriptGeneric26465(SpellEffectScriptContext& ctx)
+{
+    ctx.unitTarget->RemoveAuraHolderFromStack(26464);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 26656: Black Qiraji Battle Tank
+static SpellHandlerOutcome<void> EffectScriptGeneric26656(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Prevent stacking of mounts
+    ctx.unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+
+    // Two separate mounts depending on area id (allows use both in and out of specific instance)
+    if (ctx.unitTarget->GetTerrain()->GetAreaId(ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z()) == 3428)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 25863, false);
+    }
+    else
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 26655, false);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 27687: Summon Bone Minions
+static SpellHandlerOutcome<void> EffectScriptGeneric27687(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Spells 27690, 27691, 27692, 27693 are missing from DBC
+    // So we need to summon creature 16119 manually
+    float x, y, z;
+    float angle = ctx.unitTarget->Where().Facing();
+    for (uint8 i = 0; i < 4; ++i)
+    {
+        FindFreeSpotNear(*ctx.unitTarget, ctx.unitTarget, x, y, z, ctx.unitTarget->Where().Extent(), INTERACTION_DISTANCE, angle + i * M_PI_F / 2);
+        ctx.unitTarget->SummonCreature(16119, x, y, z, angle, TEMPSPAWN_TIMED_OOC_OR_DEAD_DESPAWN, 10 * MINUTE * IN_MILLISECONDS);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 27695: Summon Bone Mages
+static SpellHandlerOutcome<void> EffectScriptGeneric27695(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 27696, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 27697, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 27698, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 27699, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 28352: Breath of Sargeras
+static SpellHandlerOutcome<void> EffectScriptGeneric28352(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 28342, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 3 labels: 28374, 54426 and 71123: Decimate
+static SpellHandlerOutcome<void> EffectScriptGenericDecimate(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    float downToHealthPercent = (ctx.m_spellInfo->ID != 71123 ? 5 : ctx.effect->CalculateSimpleValue()) * 0.01f;
+
+    int32 excess = ctx.unitTarget->GetHealth() - ctx.unitTarget->GetMaxHealth() * downToHealthPercent;
+    if (excess > 0)
+    {
+        ctx.m_caster->CastCustomSpell(ctx.unitTarget, 28375, &excess, NULL, NULL, true);
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 28560: Summon Blizzard
+static SpellHandlerOutcome<void> EffectScriptGeneric28560(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->SummonCreature(16474, ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z(), 0.0f, TEMPSPAWN_TIMED_DESPAWN, 30000);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 9 labels: 28859, 29126, 29135, 29136, 29137, 29138, 29139, 46671 and 46672: Cleansing Flames
+static SpellHandlerOutcome<void> EffectScriptGenericCleansingFlames(SpellEffectScriptContext& ctx)
+{
+    // Cleanse all magic, curse, disease and poison
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->RemoveAurasWithDispelType(DISPEL_MAGIC);
+    ctx.unitTarget->RemoveAurasWithDispelType(DISPEL_CURSE);
+    ctx.unitTarget->RemoveAurasWithDispelType(DISPEL_DISEASE);
+    ctx.unitTarget->RemoveAurasWithDispelType(DISPEL_POISON);
+
+    return SpellHandlerOutcome<void>::Return();
+}
 
 /// one body for 8 labels: 6201: Create Healthstone; 6202, 5699, 11729, 11730, 27230, 47871, 47878: absent from the
 /// client's spell data
@@ -428,6 +898,68 @@ static uint32 RegisterSpellEffectScriptRows(SpellHandlerRegistry& registry, Spel
 
 uint32 RegisterSpellEffectScriptHandlers(SpellHandlerRegistry& registry)
 {
+    static SpellEffectScriptRow<SpellEffectScriptGenericSite> const generic[] =
+    {
+        { 8856, &EffectScriptGeneric8856 },
+        { 17512, &EffectScriptGeneric17512 },
+        { 20589, &EffectScriptGeneric20589 },
+        { 22539, &EffectScriptGenericShadowFlame },
+        { 22972, &EffectScriptGenericShadowFlame },
+        { 22975, &EffectScriptGenericShadowFlame },
+        { 22976, &EffectScriptGenericShadowFlame },
+        { 22977, &EffectScriptGenericShadowFlame },
+        { 22978, &EffectScriptGenericShadowFlame },
+        { 22979, &EffectScriptGenericShadowFlame },
+        { 22980, &EffectScriptGenericShadowFlame },
+        { 22981, &EffectScriptGenericShadowFlame },
+        { 22982, &EffectScriptGenericShadowFlame },
+        { 22983, &EffectScriptGenericShadowFlame },
+        { 22984, &EffectScriptGenericShadowFlame },
+        { 22985, &EffectScriptGenericShadowFlame },
+        { 24194, &EffectScriptGenericTribute },
+        { 24195, &EffectScriptGenericTribute },
+        { 24320, &EffectScriptGeneric24320 },
+        { 24324, &EffectScriptGeneric24324 },
+        { 24590, &EffectScriptGeneric24590 },
+        { 24714, &EffectScriptGeneric24714 },
+        { 24717, &EffectScriptGeneric24717 },
+        { 24718, &EffectScriptGeneric24718 },
+        { 24719, &EffectScriptGeneric24719 },
+        { 24720, &EffectScriptGeneric24720 },
+        { 24737, &EffectScriptGeneric24737 },
+        { 24751, &EffectScriptGeneric24751 },
+        { 25140, &EffectScriptGenericOrbTeleport },
+        { 25143, &EffectScriptGenericOrbTeleport },
+        { 25650, &EffectScriptGenericOrbTeleport },
+        { 25652, &EffectScriptGenericOrbTeleport },
+        { 29128, &EffectScriptGenericOrbTeleport },
+        { 29129, &EffectScriptGenericOrbTeleport },
+        { 35376, &EffectScriptGenericOrbTeleport },
+        { 35727, &EffectScriptGenericOrbTeleport },
+        { 26004, &EffectScriptGeneric26004 },
+        { 26137, &EffectScriptGeneric26137 },
+        { 26218, &EffectScriptGeneric26218 },
+        { 26275, &EffectScriptGeneric26275 },
+        { 26465, &EffectScriptGeneric26465 },
+        { 26656, &EffectScriptGeneric26656 },
+        { 27687, &EffectScriptGeneric27687 },
+        { 27695, &EffectScriptGeneric27695 },
+        { 28352, &EffectScriptGeneric28352 },
+        { 28374, &EffectScriptGenericDecimate },
+        { 54426, &EffectScriptGenericDecimate },
+        { 71123, &EffectScriptGenericDecimate },
+        { 28560, &EffectScriptGeneric28560 },
+        { 28859, &EffectScriptGenericCleansingFlames },
+        { 29126, &EffectScriptGenericCleansingFlames },
+        { 29135, &EffectScriptGenericCleansingFlames },
+        { 29136, &EffectScriptGenericCleansingFlames },
+        { 29137, &EffectScriptGenericCleansingFlames },
+        { 29138, &EffectScriptGenericCleansingFlames },
+        { 29139, &EffectScriptGenericCleansingFlames },
+        { 46671, &EffectScriptGenericCleansingFlames },
+        { 46672, &EffectScriptGenericCleansingFlames },
+    };
+
     static SpellEffectScriptRow<SpellEffectScriptWarlockSite> const warlock[] =
     {
         { 6201, &EffectScriptWarlockCreateHealthstone },
@@ -467,7 +999,8 @@ uint32 RegisterSpellEffectScriptHandlers(SpellHandlerRegistry& registry)
         { 50842, &EffectScriptDeathKnight50842 },
     };
 
-    uint32 rows = RegisterSpellEffectScriptRows(registry, warlock);
+    uint32 rows = RegisterSpellEffectScriptRows(registry, generic);
+    rows += RegisterSpellEffectScriptRows(registry, warlock);
     rows += RegisterSpellEffectScriptRows(registry, priest);
     rows += RegisterSpellEffectScriptRows(registry, hunter);
     rows += RegisterSpellEffectScriptRows(registry, potion);

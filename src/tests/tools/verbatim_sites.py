@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '826ab9625'
+BASE = '018f20632'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -2163,6 +2163,379 @@ SITES = {
         'added': ['#include "spells/handlers/SpellEffectScriptHandlers.h"'],
         'original': 'e08370ff4bc4cce840f5fb8d8f8277930e544bc4',
         'sites': [{
+            'name': 'EffectScriptEffect, case SPELLFAMILY_GENERIC (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, '
+                'm_originalCasterGUID, m_originalCaster,',
+                '                                         unitTarget, itemTarget, damage, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectScriptGenericSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }',
+                ''],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'residual': True,
+            'label_indent': 16,
+            'traits': 'SpellEffectScriptGenericSite',
+            'context': 'SpellEffectScriptContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_spellInfo', 'm_spellInfo'), ('ctx.m_caster', 'm_caster'),
+                              ('ctx.unitTarget', 'unitTarget'), ('ctx.itemTarget', 'itemTarget'),
+                              ('ctx.effect', 'effect')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                8856: '                case 8856:                                  // Bending Shinbone',
+                17512: '                case 17512:                                 // Piccolo of the Flaming Fire',
+                20589: '                case 20589:                                 // Escape artist',
+                22539: '                case 22539:                                 '
+                       '// Shadow Flame (All script effects, not just end ones to',
+                22972: '                case 22972:                                 '
+                       '// prevent player from dodging the last triggered spell)',
+                22975: '                case 22975:',
+                22976: '                case 22976:',
+                22977: '                case 22977:',
+                22978: '                case 22978:',
+                22979: '                case 22979:',
+                22980: '                case 22980:',
+                22981: '                case 22981:',
+                22982: '                case 22982:',
+                22983: '                case 22983:',
+                22984: '                case 22984:',
+                22985: '                case 22985:',
+                24194: '                case 24194:                                 // Uther\'s Tribute',
+                24195: '                case 24195:                                 // Grom\'s Tribute',
+                24320: '                case 24320:                                 // Poisonous Blood',
+                24324: '                case 24324:                                 // Blood Siphon',
+                24590: '                case 24590:                                 '
+                       '// Brittle Armor - need remove one 24575 Brittle Armor aura',
+                24714: '                case 24714:                                 // Trick',
+                24717: '                case 24717:                                 // Pirate Costume',
+                24718: '                case 24718:                                 // Ninja Costume',
+                24719: '                case 24719:                                 // Leper Gnome Costume',
+                24720: '                case 24720:                                 // Random Costume',
+                24737: '                case 24737:                                 // Ghost Costume',
+                24751: '                case 24751:                                 // Trick or Treat',
+                25140: '                case 25140:                                 // Orb teleport spells',
+                25143: '                case 25143:',
+                25650: '                case 25650:',
+                25652: '                case 25652:',
+                29128: '                case 29128:',
+                29129: '                case 29129:',
+                35376: '                case 35376:',
+                35727: '                case 35727:',
+                26004: '                case 26004:                                 // Mistletoe',
+                26137: '                case 26137:                                 // Rotate Trigger',
+                26218: '                case 26218:                                 // Mistletoe',
+                26275: '                case 26275:                                 // PX-238 Winter Wondervolt TRAP',
+                26465: '                case 26465:                                 '
+                       '// Mercurial Shield - need remove one 26464 Mercurial Shield aura',
+                26656: '                case 26656:                                 // Summon Black Qiraji Battle Tank',
+                27687: '                case 27687:                                 // Summon Bone Minions',
+                27695: '                case 27695:                                 // Summon Bone Mages',
+                28352: '                case 28352:                                 // Breath of Sargeras',
+                28374: '                case 28374:                                 // Decimate (Naxxramas: Gluth)',
+                54426: '                case 54426:                                 '
+                       '// Decimate (Naxxramas: Gluth (spells are identical))',
+                71123: '                case 71123:                                 '
+                       '// Decimate (ICC: Precious / Stinky)',
+                28560: '                case 28560:                                 // Summon Blizzard',
+                28859: '                case 28859:                                 // Cleansing Flames',
+                29126: '                case 29126:                                 // Cleansing Flames (Darnassus)',
+                29135: '                case 29135:                                 // Cleansing Flames (Ironforge)',
+                29136: '                case 29136:                                 // Cleansing Flames (Orgrimmar)',
+                29137: '                case 29137:                                 // Cleansing Flames (Stormwind)',
+                29138: '                case 29138:                                 '
+                       '// Cleansing Flames (Thunder Bluff)',
+                29139: '                case 29139:                                 // Cleansing Flames (Undercity)',
+                46671: '                case 46671:                                 // Cleansing Flames (Exodar)',
+                46672: '                case 46672:                                 // Cleansing Flames (Silvermoon)',
+                29395: '                case 29395:                                 // Break Kaliri Egg',
+                29830: '                case 29830:                                 // Mirren\'s Drinking Hat',
+                30541: '                case 30541:                                 // Blaze',
+                30469: '                case 30469:                                 // Nether Beam',
+                30769: '                case 30769:                                 // Pick Red Riding Hood',
+                30835: '                case 30835:                                 // Infernal Relay',
+                30918: '                case 30918:                                 // Improved Sprint',
+                37142: '                case 37142:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Conjured Water Elemental',
+                37143: '                case 37143:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Charger',
+                37147: '                case 37147:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Human Cleric',
+                37149: '                case 37149:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Human Conjurer',
+                37150: '                case 37150:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: King Llane',
+                37220: '                case 37220:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Summoned Daemon',
+                32227: '                case 32227:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Footman',
+                32228: '                case 32228:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Grunt',
+                37337: '                case 37337:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Orc Necrolyte',
+                37339: '                case 37339:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Orc Wolf',
+                37345: '                case 37345:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Orc Warlock',
+                37348: '                case 37348:                                 '
+                       '// Karazhan - Chess NPC Action: Melee Attack: Warchief Blackhand',
+                32301: '                case 32301:                                 // Ping Shirrak',
+                33676: '                case 33676:                                 // Incite Chaos',
+                34653: '                case 34653:                                 // Fireball',
+                36920: '                case 36920:                                 // Fireball (h)',
+                35865: '                case 35865:                                 // Summon Nether Vapor',
+                37431: '                case 37431:                                 // Spout',
+                37775: '                case 37775:                                 '
+                       '// Karazhan - Chess NPC Action - Poison Cloud',
+                37824: '                case 37824:                                 '
+                       '// Karazhan - Chess NPC Action - Shadow Mend',
+                38358: '                case 38358:                                 // Tidal Surge',
+                39338: '                case 39338:                                 '
+                       '// Karazhan - Chess, Medivh CHEAT: Hand of Medivh, Target Horde',
+                39342: '                case 39342:                                 '
+                       '// Karazhan - Chess, Medivh CHEAT: Hand of Medivh, Target Alliance',
+                39341: '                case 39341:                                 '
+                       '// Karazhan - Chess, Medivh CHEAT: Fury of Medivh, Target Horde',
+                39344: '                case 39344:                                 '
+                       '// Karazhan - Chess, Medivh CHEAT: Fury of Medivh, Target Alliance',
+                41055: '                case 41055:                                 // Copy Weapon',
+                63416: '                case 63416:                                 // Copy Weapon',
+                69891: '                case 69891:                                 // Copy Weapon (No Threat)',
+                41072: '                case 41072:                                 // Bloodbolt',
+                41126: '                case 41126:                                 // Flame Crash',
+                41213: '                case 41213:                                 // Throw Shield',
+                43416: '                case 43416:                                 // Throw Shield',
+                69222: '                case 69222:                                 // Throw Shield',
+                73076: '                case 73076:                                 // Throw Shield',
+                42281: '                case 42281:                                 // Sprouting',
+                42492: '                case 42492:                                 // Cast Energized',
+                42578: '                case 42578:                                 // Cannon Blast',
+                43365: '                case 43365:                                 // The Cleansing: Shrine Cast',
+                43375: '                case 43375:                                 // Mixing Vrykul Blood',
+                44323: '                case 44323:                                 // Hawk Hunting',
+                44407: '                case 44407:                                 // Hawk Hunting',
+                44364: '                case 44364:                                 // Rock Falcon Primer',
+                44455: '                case 44455:                                 '
+                       '// Character Script Effect Reverse Cast',
+                44462: '                case 44462:                                 // Cast Quest Complete on Master',
+                44876: '                case 44876:                                 '
+                       '// Force Cast - Portal Effect: Sunwell Isle',
+                44811: '                case 44811:                                 // Spectral Realm',
+                45141: '                case 45141:                                 // Burn',
+                45151: '                case 45151:                                 // Burn',
+                45185: '                case 45185:                                 // Stomp',
+                45204: '                case 45204:                                 // Clone Me!',
+                45206: '                case 45206:                                 // Copy Off-hand Weapon',
+                69892: '                case 69892:                                 '
+                       '// Copy Off-hand Weapon (No Threat)',
+                45235: '                case 45235:                                 // Blaze',
+                45260: '                case 45260:                                 '
+                       '// Karazhan - Chess - Force Player to Kill Bunny',
+                45313: '                case 45313:                                 // Anchor Here',
+                45625: '                case 45625:                                 '
+                       '// Arcane Chains: Character Force Cast',
+                45668: '                case 45668:                                 '
+                       '// Ultra-Advanced Proto-Typical Shortening Blaster',
+                45691: '                case 45691:                                 // Magnataur On Death 1',
+                45713: '                case 45713:                                 '
+                       '// Naked Caravan Guard - Master Transform',
+                45714: '                case 45714:                                 '
+                       '// Fog of Corruption (caster inform)',
+                45717: '                case 45717:                                 // Fog of Corruption (player buff)',
+                45785: '                case 45785:                                 // Sinister Reflection Clone',
+                45833: '                case 45833:                                 // Power of the Blue Flight',
+                45892: '                case 45892:                                 // Sinister Reflection',
+                45918: '                case 45918:                                 // Soul Sever',
+                45958: '                case 45958:                                 // Signal Alliance',
+                46203: '                case 46203:                                 // Goblin Weather Machine',
+                46289: '                case 46289:                                 // Negative Energy',
+                46430: '                case 46430:                                 // Synch Health',
+                46642: '                case 46642:                                 // 5,000 Gold',
+                47097: '                case 47097:                                 // Surge Needle Teleporter',
+                47311: '                case 47311:                                 '
+                       '// Quest - Jormungar Explosion Spell Spawner',
+                47393: '                case 47393:                                 '
+                       '// The Focus on the Beach: Quest Completion Script',
+                47615: '                case 47615:                                 '
+                       '// Atop the Woodlands: Quest Completion Script',
+                47638: '                case 47638:                                 '
+                       '// The End of the Line: Quest Completion Script',
+                47703: '                case 47703:                                 // Unholy Union',
+                47724: '                case 47724:                                 // Frost Draw',
+                47958: '                case 47958:                                 // Crystal Spikes',
+                57083: '                case 57083:                                 // Crystal Spikes (h2)',
+                48590: '                case 48590:                                 // Avenging Spirits',
+                48603: '                case 48603:                                 // High Executor\'s Branding Iron',
+                48724: '                case 48724:                                 '
+                       '// The Denouncement: Commander Jordan On Death',
+                48726: '                case 48726:                                 '
+                       '// The Denouncement: Lead Cannoneer Zierhut On Death',
+                48728: '                case 48728:                                 '
+                       '// The Denouncement: Blacksmith Goodman On Death',
+                48730: '                case 48730:                                 '
+                       '// The Denouncement: Stable Master Mercer On Death',
+                48762: '                case 48762:                                 '
+                       '// A Fall from Grace: Scarlet Raven Priest Image - Master',
+                45759: '                case 45759:                                 // Warsong Orc Disguise',
+                69672: '                case 69672:                                 // Sunreaver Disguise',
+                69673: '                case 69673:                                 // Silver Covenant Disguise',
+                48810: '                case 48810:                                 // Death\'s Door',
+                48811: '                case 48811:                                 // Despawn Forgotten Soul',
+                48917: '                case 48917:                                 '
+                       '// Who Are They: Cast from Questgiver',
+                49380: '                case 49380:                                 // Consume',
+                59803: '                case 59803:                                 // Consume (heroic)',
+                49405: '                case 49405:                                 // Invader Taunt Trigger',
+                50217: '                case 50217:                                 '
+                       '// The Cleansing: Script Effect Player Cast Mirror Image',
+                50218: '                case 50218:                                 '
+                       '// The Cleansing: Your Inner Turmoil\'s Mirror Image Aura',
+                50238: '                case 50238:                                 '
+                       '// The Cleansing: Your Inner Turmoil\'s On Death Cast on Master',
+                50252: '                case 50252:                                 // Blood Draw',
+                50255: '                case 50255:                                 // Poisoned Spear',
+                59331: '                case 59331:                                 // Poisoned Spear (heroic)',
+                50439: '                case 50439:                                 '
+                       '// Script Cast Summon Image of Drakuru 05',
+                50630: '                case 50630:                                 // Eject All Passengers',
+                50725: '                case 50725:                                 '
+                       '// Vigilance - remove cooldown on Taunt',
+                50742: '                case 50742:                                 // Ooze Combine',
+                50810: '                case 50810:                                 // Shatter',
+                61546: '                case 61546:                                 // Shatter (h)',
+                50894: '                case 50894:                                 // Zul\'Drak Rat',
+                51519: '                case 51519:                                 // Death Knight Initiate Visual',
+                51770: '                case 51770:                                 // Emblazon Runeblade',
+                51864: '                case 51864:                                 // Player Summon Nass',
+                51889: '                case 51889:                                 // Quest Accept Summon Nass',
+                51904: '                case 51904:                                 '
+                       '// Summon Ghouls On Scarlet Crusade',
+                51910: '                case 51910:                                 // Kickin\' Nass: Quest Completion',
+                52479: '                case 52479:                                 // Gift of the Harvester',
+                52555: '                case 52555:                                 '
+                       '// Dispel Scarlet Ghoul Credit Counter',
+                52694: '                case 52694:                                 // Recall Eye of Acherus',
+                52751: '                case 52751:                                 // Death Gate',
+                52941: '                case 52941:                                 // Song of Cleansing',
+                53110: '                case 53110:                                 // Devour Humanoid',
+                54182: '                case 54182:                                 '
+                       '// An End to the Suffering: Quest Completion Script',
+                54581: '                case 54581:                                 // Mammoth Explosion Spell Spawner',
+                54436: '                case 54436:                                 '
+                       '// Demonic Empowerment (succubus Vanish effect)',
+                55693: '                case 55693:                                 // Remove Collapsing Cave Aura',
+                56072: '                case 56072:                                 // Ride Red Dragon Buddy',
+                57082: '                case 57082:                                 // Crystal Spikes (h1)',
+                57337: '                case 57337:                                 // Great Feast',
+                57397: '                case 57397:                                 // Fish Feast',
+                58466: '                case 58466:                                 // Gigantic Feast',
+                58475: '                case 58475:                                 // Small Feast',
+                58418: '                case 58418:                                 // Portal to Orgrimmar',
+                58420: '                case 58420:                                 // Portal to Stormwind',
+                59317: '                case 59317:                                 // Teleporting',
+                59789: '                case 59789:                                 // Oracle Ablutions',
+                60893: '                case 60893:                                 // Northrend Alchemy Research',
+                61177: '                case 61177:                                 // Northrend Inscription Research',
+                61288: '                case 61288:                                 // Minor Inscription Research',
+                61756: '                case 61756:                                 '
+                       '// Northrend Inscription Research (FAST QA VERSION)',
+                64323: '                case 64323:                                 // Book of Glyph Mastery',
+                62042: '                case 62042:                                 // Stormhammer',
+                62217: '                case 62217:                                 // Unstable Energy',
+                62922: '                case 62922:                                 // Unstable Energy (h)',
+                62262: '                case 62262:                                 // Brightleaf Flux',
+                62282: '                case 62282:                                 // Iron Roots',
+                62440: '                case 62440:                                 // Strengthened Iron Roots',
+                63598: '                case 63598:                                 // Iron Roots (h)',
+                63601: '                case 63601:                                 // Strengthened Iron Roots (h)',
+                62381: '                case 62381:                                 // Chill',
+                62488: '                case 62488:                                 // Activate Construct',
+                62524: '                case 62524:                                 '
+                       '// Attuned to Nature 2 Dose Reduction',
+                62525: '                case 62525:                                 '
+                       '// Attuned to Nature 10 Dose Reduction',
+                62521: '                case 62521:                                 '
+                       '// Attuned to Nature 25 Dose Reduction',
+                62552: '                case 62552:                                 // Defend',
+                62575: '                case 62575:                                 // Shield-Breaker (player)',
+                68282: '                case 68282:                                 // Charge (player)',
+                62688: '                case 62688:                                 // Summon Wave - 10 Mob',
+                62707: '                case 62707:                                 // Grab',
+                63010: '                case 63010:                                 // Charge',
+                68307: '                case 68307:                                 // Charge',
+                68504: '                case 68504:                                 // Shield-Breaker',
+                63027: '                case 63027:                                 // Proximity Mines',
+                63119: '                case 63119:                                 // Block!',
+                64192: '                case 64192:                                 // Block!',
+                63122: '                case 63122:                                 // Clear Insane',
+                63633: '                case 63633:                                 // Summon Rubble',
+                63667: '                case 63667:                                 // Napalm Shell',
+                63681: '                case 63681:                                 // Rocket Strike',
+                63795: '                case 63795:                                 // Psychosis',
+                65301: '                case 65301:                                 // Psychosis (h)',
+                63803: '                case 63803:                                 // Brain Link',
+                64164: '                case 64164:                                 // Lunatic Gaze (Yogg)',
+                64168: '                case 64168:                                 // Lunatic Gaze (Skull)',
+                63993: '                case 63993:                                 // Cancel Illusion Room Aura',
+                64059: '                case 64059:                                 // Induce Madness',
+                64069: '                case 64069:                                 // Match Health (Rank 1)',
+                64123: '                case 64123:                                 // Lunge',
+                64131: '                case 64131:                                 // Lunge',
+                64456: '                case 64456:                                 '
+                       '// Feral Essence Application Removal',
+                64466: '                case 64466:                                 // Empowering Shadows',
+                64467: '                case 64467:                                 // Empowering Shadows',
+                64475: '                case 64475:                                 // Strength of the Creator',
+                64623: '                case 64623:                                 // Frost Bomb',
+                64767: '                case 64767:                                 // Stormhammer',
+                64841: '                case 64841:                                 // Rapid Burst',
+                65238: '                case 65238:                                 // Shattered Illusion',
+                66477: '                case 66477:                                 // Bountiful Feast',
+                66545: '                case 66545:                                 // Summon Memory',
+                66741: '                case 66741:                                 // Chum the Water',
+                66744: '                case 66744:                                 // Make Player Destroy Totems',
+                67009: '                case 67009:                                 '
+                       '// Nether Power (ToC25: Lord Jaraxxus)',
+                67547: '                case 67547:                                 // Clear Val\'kyr Essence',
+                67590: '                case 67590:                                 // Powering Up',
+                67751: '                case 67751:                                 // Ghoul Explode',
+                68084: '                case 68084:                                 '
+                       '// Clear Val\'kyr Touch of Light/Dark',
+                68861: '                case 68861:                                 '
+                       '// Consume Soul (ICC FoS: Bronjahm)',
+                68871: '                case 68871:                                 // Wailing Souls',
+                69048: '                case 69048:                                 // Mirrored Soul',
+                69051: '                case 69051:                                 // Mirrored Soul',
+                69057: '                case 69057:                                 // Bone Spike Graveyard',
+                69140: '                case 69140:                                 '
+                       '// Coldflame (random target selection)',
+                69147: '                case 69147:                                 // Coldflame',
+                69195: '                case 69195:                                 // Pungent Blight',
+                69298: '                case 69298:                                 // Cancel Resistant to Blight',
+                69377: '                case 69377:                                 // Fortitude',
+                69378: '                case 69378:                                 // Blessing of Forgotten Kings',
+                69381: '                case 69381:                                 // Gift of the Wild',
+                69828: '                case 69828:                                 // Halls of Reflection Clone',
+                71806: '                case 71806:                                 // Glittering Sparks',
+                72034: '                case 72034:                                 // Whiteout',
+                72096: '                case 72096:                                 // Whiteout (heroic)',
+                72195: '                case 72195:                                 // Blood Link',
+                72219: '                case 72219:                                 // Gastric Bloat',
+                72257: '                case 72257:                                 '
+                       '// Remove Marks of the Fallen Champion',
+                72409: '                case 72409:                                 // Rune of Blood',
+                72705: '                case 72705:                                 '
+                       '// Coldflame (summon around the caster)',
+                72900: '                case 72900:                                 '
+                       '// Start Halls of Reflection Quest AE',
+                73142: '                case 73142:                                 '
+                       '// Bone Spike Graveyard (during storm)',
+                74455: '                case 74455:                                 // Conflagration'},
+        }, {
             'name': 'EffectScriptEffect, case SPELLFAMILY_WARLOCK (switch (m_spellInfo->ID))',
             'dispatch': [
                 '            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, '
