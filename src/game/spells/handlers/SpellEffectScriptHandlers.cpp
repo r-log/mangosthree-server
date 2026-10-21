@@ -28,6 +28,7 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "WorldHandlers/Spell.h"
 #include "Common/TimeConstants.h"
+#include "Geometry/Vector3.h"
 #include "Object/Creature.h"
 #include "Object/ObjectMgr.h"
 #include "Object/TemporarySummon.h"
@@ -1091,6 +1092,766 @@ static SpellHandlerOutcome<void> EffectScriptGeneric45151(SpellEffectScriptConte
     return SpellHandlerOutcome<void>::Return();
 }
 
+/// 45185: Stomp
+static SpellHandlerOutcome<void> EffectScriptGeneric45185(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Remove the burn effect
+    ctx.unitTarget->RemoveAurasDueToSpell(46394);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45204: Clone Me!
+static SpellHandlerOutcome<void> EffectScriptGeneric45204(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 45206: Copy Off-hand Weapon, 69892: Copy Off-hand Weapon (No Threat)
+static SpellHandlerOutcome<void> EffectScriptGenericCopyOffHandWeapon(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT || !ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (Item* pItem = ((Player*)ctx.unitTarget)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
+    {
+        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, pItem->GetEntry());
+
+        // Unclear what this spell should do
+        ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45235: Blaze
+static SpellHandlerOutcome<void> EffectScriptGeneric45235(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 45236, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45260: Karazhan - Chess - Force Player to Kill Bunny
+static SpellHandlerOutcome<void> EffectScriptGeneric45260(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 45259, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45313: Anchor Here
+static SpellHandlerOutcome<void> EffectScriptGeneric45313(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ((Creature*)ctx.unitTarget)->SetSpawn(
+        Geometry::Vector3(ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(),
+                          ctx.unitTarget->Where().Z()),
+        ctx.unitTarget->Where().Facing());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45625: Arcane Chains: Character Force Cast
+static SpellHandlerOutcome<void> EffectScriptGeneric45625(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45668: Crafty's Ultra-Advanced Proto-Typical Shortening Blaster
+static SpellHandlerOutcome<void> EffectScriptGeneric45668(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (roll_chance_i(25))                  // chance unknown, using 25
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    static uint32 const spellPlayer[5] =
+    {
+        45674,                              // Bigger!
+        45675,                              // Shrunk
+        45678,                              // Yellow
+        45682,                              // Ghost
+        45684                               // Polymorph
+    };
+
+    static uint32 const spellTarget[5] =
+    {
+        45673,                              // Bigger!
+        45672,                              // Shrunk
+        45677,                              // Yellow
+        45681,                              // Ghost
+        45683                               // Polymorph
+    };
+
+    ctx.m_caster->CastSpell(ctx.m_caster, spellPlayer[urand(0, 4)], true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, spellTarget[urand(0, 4)], true);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45691: Hah... : Magnataur On Death 1
+static SpellHandlerOutcome<void> EffectScriptGeneric45691(SpellEffectScriptContext& ctx)
+{
+    // assuming caster is creature, if not, then return
+    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Player* pPlayer = ((Creature*)ctx.m_caster)->GetOriginalLootRecipient();
+
+    if (!pPlayer)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (pPlayer->HasAura(45674) || pPlayer->HasAura(45675) || pPlayer->HasAura(45678) || pPlayer->HasAura(45682) || pPlayer->HasAura(45684))
+    {
+        pPlayer->CastSpell(pPlayer, 45686, true);
+    }
+
+    ctx.m_caster->CastSpell(ctx.m_caster, 45685, true);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45713: Naked Caravan Guard - Master Transform
+static SpellHandlerOutcome<void> EffectScriptGeneric45713(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    const CreatureInfo* cTemplate = NULL;
+
+    switch (ctx.m_caster->GetEntry())
+    {
+        case 25342: cTemplate = ObjectMgr::GetCreatureTemplate(25340); break;
+        case 25343: cTemplate = ObjectMgr::GetCreatureTemplate(25341); break;
+    }
+
+    if (!cTemplate)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 display_id = 0;
+
+    // Spell is designed to be used in creature addon.
+    // This makes it possible to set proper model before adding to map.
+    // For later, spell is used in gossip (with following despawn,
+    // so addon can reload the default model and data again).
+
+    // It should be noted that additional spell id's have been seen in relation to this spell, but
+    // those does not exist in client (45701 (regular spell), 45705-45712 (auras), 45459-45460 (auras)).
+    // We can assume 45705-45712 are transform auras, used instead of hard coded models in the below code.
+
+    // not in map yet OR no npc flags yet (restored after LoadCreatureAddon for respawn cases)
+    if (!ctx.m_caster->Where().ShareFrame(ctx.m_caster->Where()) || ctx.m_caster->GetUInt32Value(UNIT_NPC_FLAGS) == UNIT_NPC_FLAG_NONE)
+    {
+        display_id = Creature::ChooseDisplayId(cTemplate);
+        ((Creature*)ctx.m_caster)->LoadEquipment(((Creature*)ctx.m_caster)->GetEquipmentId());
+    }
+    else
+    {
+        ctx.m_caster->SetUInt32Value(UNIT_NPC_FLAGS, cTemplate->NpcFlags);
+        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 0);
+        ((Creature*)ctx.m_caster)->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
+
+        switch (ctx.m_caster->GetDisplayId())
+        {
+            case 23246: display_id = 23245; break;
+            case 23247: display_id = 23250; break;
+            case 23248: display_id = 23251; break;
+            case 23249: display_id = 23252; break;
+            case 23124: display_id = 23253; break;
+            case 23125: display_id = 23254; break;
+            case 23126: display_id = 23255; break;
+            case 23127: display_id = 23256; break;
+        }
+    }
+
+    ctx.m_caster->SetDisplayId(display_id);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45714: Fog of Corruption
+static SpellHandlerOutcome<void> EffectScriptGeneric45714(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45717: Fog of Corruption
+static SpellHandlerOutcome<void> EffectScriptGeneric45717(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 45726, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45785: Sinister Reflection Clone
+static SpellHandlerOutcome<void> EffectScriptGeneric45785(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45833: Power of the Blue Flight
+static SpellHandlerOutcome<void> EffectScriptGeneric45833(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 45836, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45892: Sinister Reflection
+static SpellHandlerOutcome<void> EffectScriptGeneric45892(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Summon 4 clones of the same player
+    for (uint8 i = 0; i < 4; ++i)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 45891, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45918: Soul Sever
+static SpellHandlerOutcome<void> EffectScriptGeneric45918(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER || !ctx.unitTarget->HasAura(45717))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // kill all charmed targets
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 45917, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 45958: Signal Alliance
+static SpellHandlerOutcome<void> EffectScriptGeneric45958(SpellEffectScriptContext& ctx)
+{
+    // "escort" aura not present, so let nothing happen
+    if (!ctx.m_caster->HasAura(ctx.effect->CalculateSimpleValue()))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+    // "escort" aura is present so break; and let DB table dbscripts_on_spell be used and process further.
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 46203: Goblin Weather Machine
+static SpellHandlerOutcome<void> EffectScriptGeneric46203(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint32 spellId = 0;
+    switch (urand(0, 3))
+    {
+        case 0: spellId = 46740; break;
+        case 1: spellId = 46739; break;
+        case 2: spellId = 46738; break;
+        case 3: spellId = 46736; break;
+    }
+    ctx.unitTarget->CastSpell(ctx.unitTarget, spellId, true);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 46289: Negative Energy
+static SpellHandlerOutcome<void> EffectScriptGeneric46289(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.m_caster->CastSpell(ctx.unitTarget, 46285, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46430: Synch Health
+static SpellHandlerOutcome<void> EffectScriptGeneric46430(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->SetHealth(ctx.m_caster->GetHealth());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 46642: 5,000 Gold
+static SpellHandlerOutcome<void> EffectScriptGeneric46642(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ((Player*)ctx.unitTarget)->ModifyMoney(5000 * GOLD);
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 47097: Surge Needle Teleporter
+static SpellHandlerOutcome<void> EffectScriptGeneric47097(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (ctx.unitTarget->GetTerrain()->GetAreaId(ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z()) == 4157)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 47324, true);
+    }
+    else if (ctx.unitTarget->GetTerrain()->GetAreaId(ctx.unitTarget->Where().X(), ctx.unitTarget->Where().Y(), ctx.unitTarget->Where().Z()) == 4156)
+    {
+        ctx.unitTarget->CastSpell(ctx.unitTarget, 47325, true);
+    }
+
+    return SpellHandlerOutcome<void>::Continue();
+}
+
+/// 47311: Quest - Jormungar Explosion Spell Spawner
+static SpellHandlerOutcome<void> EffectScriptGeneric47311(SpellEffectScriptContext& ctx)
+{
+    // Summons npc's. They are expected to summon GO from 47315
+    // but there is no way to get the summoned, to trigger a spell
+    // cast (workaround can be done with ai script).
+
+    // Quest - Jormungar Explosion Summon Object
+    for (int i = 0; i < 2; ++i)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 47309, true);
+    }
+
+    for (int i = 0; i < 2; ++i)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 47924, true);
+    }
+
+    for (int i = 0; i < 2; ++i)
+    {
+        ctx.m_caster->CastSpell(ctx.m_caster, 47925, true);
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47393: The Focus on the Beach: Quest Completion Script
+static SpellHandlerOutcome<void> EffectScriptGeneric47393(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Ley Line Information
+    ctx.unitTarget->RemoveAurasDueToSpell(47391);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47615: Atop the Woodlands: Quest Completion Script
+static SpellHandlerOutcome<void> EffectScriptGeneric47615(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Ley Line Information
+    ctx.unitTarget->RemoveAurasDueToSpell(47473);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47638: The End of the Line: Quest Completion Script
+static SpellHandlerOutcome<void> EffectScriptGeneric47638(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Ley Line Information
+    ctx.unitTarget->RemoveAurasDueToSpell(47636);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47703: Unholy Union
+static SpellHandlerOutcome<void> EffectScriptGeneric47703(SpellEffectScriptContext& ctx)
+{
+    ctx.m_caster->CastSpell(ctx.m_caster, 50254, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 47724: Frost Draw
+static SpellHandlerOutcome<void> EffectScriptGeneric47724(SpellEffectScriptContext& ctx)
+{
+    ctx.m_caster->CastSpell(ctx.m_caster, 50239, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 47958 and 57083: Crystal Spikes
+static SpellHandlerOutcome<void> EffectScriptGenericCrystalSpikes(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47954, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47955, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47956, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 47957, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 48590: Avenging Spirits
+static SpellHandlerOutcome<void> EffectScriptGeneric48590(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Summon 4 spirits summoners
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 48586, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 48587, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 48588, true);
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 48589, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 48603: High Executor's Branding Iron
+static SpellHandlerOutcome<void> EffectScriptGeneric48603(SpellEffectScriptContext& ctx)
+{
+    // Torture the Torturer: High Executor's Branding Iron Impact
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 48614, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 4 labels: 48724: The Denouncement: Commander Jordan On Death, 48726: The Denouncement: Lead Cannoneer
+/// Zierhut On Death, 48728: The Denouncement: Blacksmith Goodman On Death, 48730: The Denouncement: Stable Master
+/// Mercer On Death
+static SpellHandlerOutcome<void> EffectScriptGenericDenouncementOnDeath(SpellEffectScriptContext& ctx)
+{
+    // Compelled
+    if (!ctx.unitTarget || !ctx.m_caster->HasAura(48714))
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+// Gender spells
+}
+
+/// one body for 4 labels: 48762: A Fall from Grace: Scarlet Raven Priest Image - Master, 45759: Warsong Orc Disguise,
+/// 69672: Sunreaver Disguise, 69673: Silver Covenant Disguise
+static SpellHandlerOutcome<void> EffectScriptGenericGenderDisguise(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    uint8 gender = ctx.unitTarget->getGender();
+    uint32 spellId;
+    switch (ctx.m_spellInfo->ID)
+    {
+        case 48762: spellId = (gender == GENDER_MALE ? 48763 : 48761); break;
+        case 45759: spellId = (gender == GENDER_MALE ? 45760 : 45762); break;
+        case 69672: spellId = (gender == GENDER_MALE ? 70974 : 70973); break;
+        case 69673: spellId = (gender == GENDER_MALE ? 70972 : 70971); break;
+        default: return SpellHandlerOutcome<void>::Return();
+    }
+    ctx.unitTarget->CastSpell(ctx.unitTarget, spellId, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 48810: Death's Door
+static SpellHandlerOutcome<void> EffectScriptGeneric48810(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Spell effect order will summon creature first and then apply invisibility to caster.
+    // This result in that summoner/summoned can not see each other and that is not expected.
+    // Aura from 48814 can be used as a hack from creature_addon, but we can not get the
+    // summoned to cast this from this spell effect since we have no way to get pointer to creature.
+    // Most proper would be to summon to same visibility mask as summoner, and not use spell at all.
+
+    // Binding Life
+    ctx.m_caster->CastSpell(ctx.m_caster, 48809, true);
+
+    // After (after: meaning creature does not have auras at creation)
+    // creature is summoned and visible for player in map, it is expected to
+    // gain two auras. First from 29266(aura slot0) and then from 48808(aura slot1).
+    // We have no pointer to summoned, so only 48808 is possible from this spell effect.
+
+    // Binding Death
+    ctx.m_caster->CastSpell(ctx.m_caster, 48808, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 48811: Despawn Forgotten Soul
+static SpellHandlerOutcome<void> EffectScriptGeneric48811(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (!((Creature*)ctx.unitTarget)->IsTemporarySummon())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    TemporarySummon* pSummon = (TemporarySummon*)ctx.unitTarget;
+
+    Unit::AuraList const& images = ctx.unitTarget->GetAurasByType(SPELL_AURA_MIRROR_IMAGE);
+
+    if (images.empty())
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    Unit* pCaster = images.front()->GetCaster();
+    Unit* pSummoner = ctx.unitTarget->GetMap()->GetUnit(pSummon->GetSummonerGuid());
+
+    if (pSummoner && pSummoner == pCaster)
+    {
+        pSummon->UnSummon();
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 48917: Who Are They: Cast from Questgiver
+static SpellHandlerOutcome<void> EffectScriptGeneric48917(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget || ctx.unitTarget->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Male Shadowy Disguise / Female Shadowy Disguise
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.unitTarget->getGender() == GENDER_MALE ? 38080 : 38081, true);
+    // Shadowy Disguise
+    ctx.unitTarget->CastSpell(ctx.unitTarget, 32756, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 49380 and 59803: Consume
+static SpellHandlerOutcome<void> EffectScriptGenericConsume(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // Each target hit buffs the caster
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.m_spellInfo->ID == 49380 ? 49381 : 59805, true, NULL, NULL, ctx.m_caster->GetObjectGuid());
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 49405: Invader Taunt Trigger
+static SpellHandlerOutcome<void> EffectScriptGeneric49405(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.m_caster, ctx.effect->CalculateSimpleValue(), true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50217: The Cleansing: Script Effect Player Cast Mirror Image
+static SpellHandlerOutcome<void> EffectScriptGeneric50217(SpellEffectScriptContext& ctx)
+{
+    // Summon Your Inner Turmoil
+    ctx.m_caster->CastSpell(ctx.m_caster, 50167, true);
+
+    // Spell 50218 has TARGET_SCRIPT, but other wild summons near may exist, and then target can become wrong
+    // Only way to make this safe is to get the actual summoned by m_caster
+
+    // Your Inner Turmoil's Mirror Image Aura
+    ctx.m_caster->CastSpell(ctx.m_caster, 50218, true);
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50218: The Cleansing: Your Inner Turmoil's Mirror Image Aura
+static SpellHandlerOutcome<void> EffectScriptGeneric50218(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.m_originalCaster || ctx.m_originalCaster->GetTypeId() != TYPEID_PLAYER || !ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    // determine if and what weapons can be copied
+    switch(ctx.effect->EffectIndex)
+    {
+        case EFFECT_INDEX_1:
+            if (((Player*)ctx.m_originalCaster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
+            {
+                ctx.unitTarget->CastSpell(ctx.m_originalCaster, ctx.effect->CalculateSimpleValue(), true);
+            }
+
+            return SpellHandlerOutcome<void>::Return();
+        case EFFECT_INDEX_2:
+            if (((Player*)ctx.m_originalCaster)->GetInventoryMgr().GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND))
+            {
+                ctx.unitTarget->CastSpell(ctx.m_originalCaster, ctx.effect->CalculateSimpleValue(), true);
+            }
+
+            return SpellHandlerOutcome<void>::Return();
+        default:
+            return SpellHandlerOutcome<void>::Return();
+    }
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50238: The Cleansing: Your Inner Turmoil's On Death Cast on Master
+static SpellHandlerOutcome<void> EffectScriptGeneric50238(SpellEffectScriptContext& ctx)
+{
+    if (ctx.m_caster->GetTypeId() != TYPEID_UNIT)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    if (((Creature*)ctx.m_caster)->IsTemporarySummon())
+    {
+        TemporarySummon* pSummon = (TemporarySummon*)ctx.m_caster;
+
+        if (pSummon->GetSummonerGuid().IsPlayer())
+        {
+            if (Player* pSummoner = sObjectMgr.GetPlayer(pSummon->GetSummonerGuid()))
+            {
+                pSummoner->CastSpell(pSummoner, ctx.effect->CalculateSimpleValue(), true);
+            }
+        }
+    }
+
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50252: Blood Draw
+static SpellHandlerOutcome<void> EffectScriptGeneric50252(SpellEffectScriptContext& ctx)
+{
+    ctx.m_caster->CastSpell(ctx.m_caster, 50250, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// one body for 2 labels: 50255 and 59331: Poisoned Spear
+static SpellHandlerOutcome<void> EffectScriptGenericPoisonedSpear(SpellEffectScriptContext& ctx)
+{
+    if (!ctx.unitTarget)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ctx.unitTarget->CastSpell(ctx.unitTarget, ctx.effect->CalculateSimpleValue(), true, NULL, NULL, ctx.m_originalCasterGUID);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50439: Script Cast Summon Image of Drakuru 05
+static SpellHandlerOutcome<void> EffectScriptGeneric50439(SpellEffectScriptContext& ctx)
+{
+    // TODO: check if summon already exist, if it does in this instance, return.
+
+    // Summon Drakuru
+    ctx.m_caster->CastSpell(ctx.m_caster, 50446, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50630: Eject All Passengers
+static SpellHandlerOutcome<void> EffectScriptGeneric50630(SpellEffectScriptContext& ctx)
+{
+    ctx.m_caster->RemoveSpellsCausingAura(SPELL_AURA_CONTROL_VEHICLE);
+    return SpellHandlerOutcome<void>::Return();
+}
+
+/// 50725: Vigilance
+static SpellHandlerOutcome<void> EffectScriptGeneric50725(SpellEffectScriptContext& ctx)
+{
+    Unit* caster = ctx.spell->GetAffectiveCaster();
+    if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<void>::Return();
+    }
+
+    ((Player*)caster)->RemoveSpellCategoryCooldown(82, true);
+    return SpellHandlerOutcome<void>::Return();
+}
+
 /// one body for 8 labels: 6201: Create Healthstone; 6202, 5699, 11729, 11730, 27230, 47871, 47878: absent from the
 /// client's spell data
 static SpellHandlerOutcome<void> EffectScriptWarlockCreateHealthstone(SpellEffectScriptContext& ctx)
@@ -1603,6 +2364,62 @@ uint32 RegisterSpellEffectScriptHandlers(SpellHandlerRegistry& registry)
         { 44811, &EffectScriptGeneric44811 },
         { 45141, &EffectScriptGeneric45141 },
         { 45151, &EffectScriptGeneric45151 },
+        { 45185, &EffectScriptGeneric45185 },
+        { 45204, &EffectScriptGeneric45204 },
+        { 45206, &EffectScriptGenericCopyOffHandWeapon },
+        { 69892, &EffectScriptGenericCopyOffHandWeapon },
+        { 45235, &EffectScriptGeneric45235 },
+        { 45260, &EffectScriptGeneric45260 },
+        { 45313, &EffectScriptGeneric45313 },
+        { 45625, &EffectScriptGeneric45625 },
+        { 45668, &EffectScriptGeneric45668 },
+        { 45691, &EffectScriptGeneric45691 },
+        { 45713, &EffectScriptGeneric45713 },
+        { 45714, &EffectScriptGeneric45714 },
+        { 45717, &EffectScriptGeneric45717 },
+        { 45785, &EffectScriptGeneric45785 },
+        { 45833, &EffectScriptGeneric45833 },
+        { 45892, &EffectScriptGeneric45892 },
+        { 45918, &EffectScriptGeneric45918 },
+        { 45958, &EffectScriptGeneric45958 },
+        { 46203, &EffectScriptGeneric46203 },
+        { 46289, &EffectScriptGeneric46289 },
+        { 46430, &EffectScriptGeneric46430 },
+        { 46642, &EffectScriptGeneric46642 },
+        { 47097, &EffectScriptGeneric47097 },
+        { 47311, &EffectScriptGeneric47311 },
+        { 47393, &EffectScriptGeneric47393 },
+        { 47615, &EffectScriptGeneric47615 },
+        { 47638, &EffectScriptGeneric47638 },
+        { 47703, &EffectScriptGeneric47703 },
+        { 47724, &EffectScriptGeneric47724 },
+        { 47958, &EffectScriptGenericCrystalSpikes },
+        { 57083, &EffectScriptGenericCrystalSpikes },
+        { 48590, &EffectScriptGeneric48590 },
+        { 48603, &EffectScriptGeneric48603 },
+        { 48724, &EffectScriptGenericDenouncementOnDeath },
+        { 48726, &EffectScriptGenericDenouncementOnDeath },
+        { 48728, &EffectScriptGenericDenouncementOnDeath },
+        { 48730, &EffectScriptGenericDenouncementOnDeath },
+        { 48762, &EffectScriptGenericGenderDisguise },
+        { 45759, &EffectScriptGenericGenderDisguise },
+        { 69672, &EffectScriptGenericGenderDisguise },
+        { 69673, &EffectScriptGenericGenderDisguise },
+        { 48810, &EffectScriptGeneric48810 },
+        { 48811, &EffectScriptGeneric48811 },
+        { 48917, &EffectScriptGeneric48917 },
+        { 49380, &EffectScriptGenericConsume },
+        { 59803, &EffectScriptGenericConsume },
+        { 49405, &EffectScriptGeneric49405 },
+        { 50217, &EffectScriptGeneric50217 },
+        { 50218, &EffectScriptGeneric50218 },
+        { 50238, &EffectScriptGeneric50238 },
+        { 50252, &EffectScriptGeneric50252 },
+        { 50255, &EffectScriptGenericPoisonedSpear },
+        { 59331, &EffectScriptGenericPoisonedSpear },
+        { 50439, &EffectScriptGeneric50439 },
+        { 50630, &EffectScriptGeneric50630 },
+        { 50725, &EffectScriptGeneric50725 },
     };
 
     static SpellEffectScriptRow<SpellEffectScriptWarlockSite> const warlock[] =
