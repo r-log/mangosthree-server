@@ -110,6 +110,11 @@ The run shapes beyond one label per line and a body that ends in its own termina
      only inside the switches the site's open lines start (each closed by the first close line after
      them) that hold one of the site's label lines, so a `default:` line standing in another switch of
      the file is never read; found twice there fails.
+     By function: a site may name `function`, its function's head line exactly. The switches are then
+     looked up only between that head and the next `}` in column 0, and the site's dispatch must stand
+     there too, so two functions whose switches share their open lines and a label line are each read
+     in their own. A head found other than once in a version, or a dispatch outside its function, fails
+     by name.
   V, a valued return: a site in a function returning T names `value` T, and its outcome pairs are built
      from it (valued_substitutions(T), after the site's own substitutions), so the data names only T:
      `return SpellHandlerOutcome<T>::Return(x);` pastes back as `return x;` (x on that line),
@@ -831,16 +836,30 @@ def one_line(label_lines):
     return len(label_lines) == 1 and '{body}' in label_lines[0]
 
 
+def function_span(lines, site):
+    """S by function: (first, end) of the site's function in `lines`, from its head line (`function`, exactly, found
+    once) to the next `}` in column 0; all of `lines` at a site naming no function."""
+    if 'function' not in site:
+        return 0, len(lines)
+    found = [i for i, l in enumerate(lines) if l == site['function']]
+    if len(found) != 1:
+        raise Failure('%s: its function head %r found %d times in one version'
+                      % (site['name'], site['function'], len(found)))
+    return found[0], next((k for k in range(found[0], len(lines)) if lines[k] == '}'), len(lines))
+
+
 def site_spans(lines, site):
     """(first, close) of each switch in `lines` opened by the site's open lines (closed by the first
-    close line after them) that holds one of the site's label lines."""
+    close line after them) that holds one of the site's label lines, inside the site's function when it
+    names one (function_span)."""
     n = len(site['open'])
     heads = tuple(l.split('{body}')[0] for l in site['labels'].values())
     spans = []
-    for i in range(len(lines) - n + 1):
+    lo, hi = function_span(lines, site)
+    for i in range(lo, hi - n + 1):
         if lines[i:i + n] != site['open']:
             continue
-        end = next((k for k in range(i + n, len(lines)) if lines[k] == site['close'][0]), None)
+        end = next((k for k in range(i + n, hi) if lines[k] == site['close'][0]), None)
         if end is not None and any(lines[k].startswith(heads) for k in range(i + n, end)):
             spans.append((i + n, end))
     return spans
@@ -1356,6 +1375,9 @@ def rebuild(text, spec, headers, handler_text=None, strict=True, origins=()):
             site = dict(site, labels={i: l for i, l in site['labels'].items() if i not in site['deleted']})
         if len(at) != 1:
             raise Failure('%s: the dispatch found %d times' % (site['name'], len(at)))
+        first, end = function_span(rest, site)
+        if not first <= at[0] < end:
+            raise Failure('%s: its dispatch does not stand in its function %r' % (site['name'], site['function']))
         if not site.get('traits'):
             raise Failure('%s: no traits named, so a default registered for it could not be seen' % site['name'])
         if 'Dispatch<%s>' % site['traits'] not in ''.join(site['dispatch']):
@@ -3138,6 +3160,47 @@ def self_test():
         **mutated(mutated(scoped, 'old_text', other_switch[2], lab[1]), 'sites', other_switch[2], lab[1]))
     run('S: a default the site\'s switch lacks, standing in another: fails', 1, 'DIFFERS',
         **mutated(scoped, 'old_text', '        default:\n            target->Drop(0);\n            return;\n', ''))
+
+    twin_heads = {'Drop': 'void Thing::Remove(bool apply)', 'Lift': 'void Thing::Apply(bool apply)'}
+    twin_dispatch = {'Drop': form_site['dispatch'], 'Lift': [
+        '    ApplyContext applyContext(this, target);',
+        '    if (Dispatch<ApplySite>(GetId(), applyContext).IsReturn())', '    {', '        return;', '    }']}
+
+    def twin(verb, moved):
+        """Remove (`Drop`) or Apply (`Lift`), its switch holding label 1 in both, or its dispatch when `moved`."""
+        switch = form_site['open'] + [gen_labels[1], '            target->%s(1);' % verb, '            return;',
+                                      '    }']
+        return [twin_heads[verb], '{', '    Unit* target = GetTarget();'] + (
+            twin_dispatch[verb] if moved else switch) + ['    target->Tail();', '}', '']
+
+    def twins(drop=twin_heads['Drop'], lift=twin_heads['Lift']):
+        """run() arguments of the two sites, Remove's naming the function head `drop` and Apply's `lift` (None: no
+        function named)."""
+        named = [{'function': head} if head else {} for head in (drop, lift)]
+        sites = [dict(form_site, name='remove', labels={1: gen_labels[1]}, **named[0]),
+                 dict(form_site, name='apply', labels={1: gen_labels[1]}, traits='ApplySite', context='ApplyContext',
+                      dispatch=twin_dispatch['Lift'], **named[1])]
+        handlers = ['#include "Handlers.h"', '']
+        for verb, context in (('Drop', 'RemoveContext'), ('Lift', 'ApplyContext')):
+            handlers += ['static SpellHandlerOutcome<void> %s1(%s& ctx)' % (verb, context), '{',
+                         '    ctx.target->%s(1);' % verb, ret, '}', '']
+        handlers += ['void Register(Registry& registry)', '{', '    static Row<RemoveSite> const removed[] =', '    {',
+                     '        { 1, &Drop1 },', '    };', '    static Row<ApplySite> const applied[] =', '    {',
+                     '        { 1, &Lift1 },', '    };', '}', '']
+        return dict(old_text='\n'.join(['#include "A.h"', ''] + twin('Drop', False) + twin('Lift', False)),
+                    sites='\n'.join(['#include "A.h"', '#include "Handlers.h"', ''] + twin('Drop', True)
+                                    + twin('Lift', True)),
+                    handlers='\n'.join(handlers), spec=dict(GEN_SPEC, sites=sites))
+    run('S by function: two switches alike, each naming its function: pass', 0,
+        'with 2/2 bodies pasted back at their 2 labels in 2 sites', **twins())
+    run('S by function: the same, no site naming its function: fails', 1,
+        "remove: the labels ['%s'] stand 2 times in one version" % gen_labels[1], **twins(None, None))
+    run('S by function: a head the file does not hold: fails by name', 1,
+        "remove: its function head 'void Thing::Removed(bool apply)' found 0 times in one version",
+        **twins('void Thing::Removed(bool apply)'))
+    run('S by function: a site naming the other function: fails by name', 1,
+        "remove: its dispatch does not stand in its function 'void Thing::Apply(bool apply)'",
+        **twins(twin_heads['Lift']))
     run('F: a default ending in a call (no run follows it): fails', 1, 'the default Default ends in a call',
         **mutated(scoped, 'handlers', '    ctx.target->Drop(0);\n' + ret, '    return One(ctx);'))
 
