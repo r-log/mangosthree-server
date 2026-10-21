@@ -1871,6 +1871,8 @@ src/game/spells/handlers [spells] -> src/game/Object/LootMgr.h
 src/game/spells/handlers [spells] -> src/game/Object/Pet.h
 # The bodies cast a creature to its temporary-summon class to read its summoner and unsummon it; the origin's own edge, same layer pair and header; it stays until D12 makes the summoner a question the creature answers itself.
 src/game/spells/handlers [spells] -> src/game/Object/TemporarySummon.h
+# The damage-taken bodies ask the unit whether it is a player; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while the Unit-site handlers read the unit itself.
+src/game/spells/handlers [spells] -> src/game/Object/Unit.h
 # The bodies visit the grid or world cells around a unit for the game objects, creatures or players near it; read-only on the grid; dies with D9's map surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/CellImpl.h
 # The bodies read the water level or the area id at a unit's position from its TerrainInfo: read-only on the grid map, dies with D9's surface.
@@ -1923,5 +1925,7 @@ src/game/spells/handlers/SpellMgrHandlers.cpp -> src/game/entities/player/Player
 src/game/spells/handlers/SpellTargetingHandlers.cpp -> src/game/entities/player/Player.h
 # The Cannibalize body finds the corpse's owner through the player registry, the origin's own edge carried; the registry accessor is a macro, so the line retires when the registry becomes a query on the player's owning store, or with row 13's successor.
 src/game/spells/handlers/SpellTargetingHandlers.cpp -> src/game/entities/player/PlayerRegistry.h
+# The bonus bodies read the dummy aura's modifier (its misc value and amount) through the aura's public getter; the origin's own edge; retires when those reads become queries on the unit that answer a number without the aura header.
+src/game/spells/handlers/UnitSpellBonusHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 src/modules/SD3/include/precompiled.h -> src/game/WorldHandlers/World.h
 src/modules/SD3/include/sc_grid_searchers.cpp -> src/game/WorldHandlers/World.h

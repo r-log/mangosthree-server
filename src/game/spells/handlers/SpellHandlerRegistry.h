@@ -46,8 +46,8 @@
  * - a handler returns SpellHandlerOutcome::Return(value) -- the case's `return` (no value in a
  *   void function, else the function's return value) -- or SpellHandlerOutcome::Continue() -- the
  *   case's `break`; at a site standing in a loop, SpellHandlerOutcome::LoopContinue() is the case's
- *   `continue`, and the site writes `if (r.IsReturn()) { return; } if (r.IsLoopContinue()) { continue; }`
- *   after the dispatch;
+ *   `continue`, and a site whose handlers answer it tests IsLoopContinue() after the dispatch and
+ *   continues;
  * - a miss runs the site's own `default:` body, registered with RegisterDefault(), if it has
  *   one; otherwise Dispatch() answers Miss() and the site continues after where its switch stood;
  * - labels that share a body register one function under each of their ids.
@@ -185,7 +185,14 @@ enum SpellHandlerSite
     /// `Spell::EffectScriptEffect`, SPELLFAMILY_GENERIC's `switch (m_spellInfo->ID)`.
     SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_GENERIC = 59,
     /// `SpellMgr::GetSpellAllowedInLocationError`, after the battleground checks: its `switch (spellInfo->ID)`.
-    SPELL_HANDLER_SITE_SPELL_ALLOWED_IN_LOCATION = 60
+    SPELL_HANDLER_SITE_SPELL_ALLOWED_IN_LOCATION = 60,
+    /// `Unit::SpellDamageBonusTaken`, the loop over the dummy auras: its `switch ((*i)->GetId())`.
+    SPELL_HANDLER_SITE_UNIT_SPELL_DAMAGE_TAKEN = 61,
+    /// `Unit::SpellHealingBonusDone`, Lifebloom, the loop over the owner's dummy auras: its
+    /// `switch ((*i)->GetId())`.
+    SPELL_HANDLER_SITE_UNIT_SPELL_HEALING_DONE = 62,
+    /// `Unit::MeleeDamageBonusTaken`, the loop over the dummy auras: its `switch ((*i)->GetId())`.
+    SPELL_HANDLER_SITE_UNIT_MELEE_DAMAGE_TAKEN = 63
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

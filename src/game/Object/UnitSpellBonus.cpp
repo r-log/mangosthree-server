@@ -59,6 +59,7 @@
 #include "movement/MoveSpline.h"
 #include "CreatureLinkingMgr.h"
 #include "GameTime.h"
+#include "spells/handlers/UnitSpellBonusHandlers.h"
 // NOTE: no legacy movement-layout header to avoid here anymore -- the registry
 // in src/proto/wire is the only layout source (P2-B retired MovementStructures.h).
 
@@ -592,32 +593,10 @@ uint32 Unit::SpellDamageBonusTaken(Unit* pCaster, SpellEntry const* spellProto, 
     AuraList const& mDummyAuras = GetAurasByType(SPELL_AURA_DUMMY);
     for (AuraList::const_iterator i = mDummyAuras.begin(); i != mDummyAuras.end(); ++i)
     {
-        switch ((*i)->GetId())
+        SpellDamageTakenContext ctx(this, spellProto, TakenTotalMod, i);
+        if (SpellHandlerRegistry::Game().Dispatch<SpellDamageTakenSite>((*i)->GetId(), ctx).IsLoopContinue())
         {
-            case 45182:                                     // Cheating Death
-                if ((*i)->GetModifier()->m_miscvalue & SPELL_SCHOOL_MASK_NORMAL)
-                {
-                    if (GetTypeId() != TYPEID_PLAYER)
-                    {
-                        continue;
-                    }
-
-                    TakenTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-                }
-                break;
-            case 20911:                                     // Blessing of Sanctuary
-            case 25899:                                     // Greater Blessing of Sanctuary
-                TakenTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-                break;
-            case 47580:                                     // Pain and Suffering (Rank 1)      TODO: can be pct modifier aura
-            case 47581:                                     // Pain and Suffering (Rank 2)
-            case 47582:                                     // Pain and Suffering (Rank 3)
-                // Shadow Word: Death
-                if (spellProto->IsFitToFamilyMask(UI64LIT(0x0000000200000000)))
-                {
-                    TakenTotalMod *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-                }
-                break;
+            continue;
         }
     }
 
@@ -1203,12 +1182,10 @@ uint32 Unit::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, 
             AuraList const& dummyList = owner->GetAurasByType(SPELL_AURA_DUMMY);
             for (AuraList::const_iterator i = dummyList.begin(); i != dummyList.end(); ++i)
             {
-                switch ((*i)->GetId())
+                SpellHealingDoneContext ctx(DoneTotal, i);
+                if (SpellHandlerRegistry::Game().Dispatch<SpellHealingDoneSite>((*i)->GetId(), ctx).IsLoopContinue())
                 {
-                    case 34246:                             // Idol of the Emerald Queen        TODO: can be flat modifier aura
-                    case 60779:                             // Idol of Lush Moss
-                        DoneTotal += (*i)->GetModifier()->m_amount / 7;
-                        break;
+                    continue;
                 }
             }
         }
@@ -1913,23 +1890,10 @@ uint32 Unit::MeleeDamageBonusTaken(Unit* pCaster, uint32 pdamage, WeaponAttackTy
     AuraList const& mDummyAuras = GetAurasByType(SPELL_AURA_DUMMY);
     for (AuraList::const_iterator i = mDummyAuras.begin(); i != mDummyAuras.end(); ++i)
     {
-        switch ((*i)->GetId())
+        MeleeDamageTakenContext ctx(this, TakenPercent, i);
+        if (SpellHandlerRegistry::Game().Dispatch<MeleeDamageTakenSite>((*i)->GetId(), ctx).IsLoopContinue())
         {
-            case 45182:                                     // Cheating Death
-                if ((*i)->GetModifier()->m_miscvalue & SPELL_SCHOOL_MASK_NORMAL)
-                {
-                    if (GetTypeId() != TYPEID_PLAYER)
-                    {
-                        continue;
-                    }
-
-                    TakenPercent *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-                }
-                break;
-            case 20911:                                     // Blessing of Sanctuary
-            case 25899:                                     // Greater Blessing of Sanctuary
-                TakenPercent *= ((*i)->GetModifier()->m_amount + 100.0f) / 100.0f;
-                break;
+            continue;
         }
     }
 
