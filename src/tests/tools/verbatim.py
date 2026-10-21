@@ -189,16 +189,16 @@ is. A text pair that applies nowhere in a body still holding its left side once 
 applied (it stood there only inside a longer name, or where its right side would join one) fails by
 name. A context pair reads the same name on both sides or is a listed exception in the sites' data, each
 with its reason; no pair's right side holds another pair's left side, and no pair's left side holds an
-earlier pair's. So a context pair (`ctx.X`, b) that is no route through the aura, spell or holder the
-context holds (a left side beginning `ctx.aura->`, `ctx.spell->` or `ctx.holder->`) has b == X, or is
-one of the pairs CONTEXT_EXCEPTIONS lists, each entry the pair and its reason; and of a site's text
-pairs, which apply in sequence, none rewrites another's right side, nor the left side of a pair after
-it, read where that pair would apply (as a whole token).
+earlier pair's. So a context pair (`ctx.X`, b) that is no route through the aura, spell, holder or unit
+the context holds (a left side beginning `ctx.aura->`, `ctx.spell->`, `ctx.holder->` or `ctx.unit->`)
+has b == X, or is one of the pairs CONTEXT_EXCEPTIONS lists, each entry the pair and its reason; and of a
+site's text pairs, which apply in sequence, none rewrites another's right side, nor the left side of a
+pair after it, read where that pair would apply (as a whole token).
 
 Each site's dispatch is tied to the site, each tie failing by name: its DISPATCH lines call
 `Dispatch<TRAITS>(KEY, NAME)` once and construct the context they pass, `CONTEXT NAME(ARGUMENTS);`, once,
 no argument empty; the right side b of every context pair (`ctx.X`, b) is one of the ARGUMENTS, and a
-route through the aura, spell or holder the context holds (`ctx.aura->`, `ctx.spell->`, `ctx.holder->`)
+route through what the context holds (`ctx.aura->`, `ctx.spell->`, `ctx.holder->`, `ctx.unit->`)
 needs `this` among them; and KEY is the key of its OPEN lines' `switch (KEY)`. Arguments and keys are
 compared with their blanks dropped, but one between two name characters. The dispatch lines hold, blank
 lines aside, in this order and each once, the context's construction (whole or split over two or more
@@ -1125,9 +1125,9 @@ def arguments(text):
 def check_ties(site):
     """The dispatch tied to its site: its lines call `Dispatch<TRAITS>(KEY, NAME)` once and construct the
     context they pass, `CONTEXT NAME(ARGUMENTS);`, once, no argument empty; every context pair `(ctx.X, b)` has
-    b among the ARGUMENTS, and every route through the aura, spell or holder the context holds (`ctx.aura->`,
-    `ctx.spell->`, `ctx.holder->`) has `this` among them; KEY is the key of the open lines' `switch (KEY)`.
-    Blanks aside throughout. Returns KEY and NAME, squeezed."""
+    b among the ARGUMENTS, and every route through the aura, spell, holder or unit the context holds
+    (`ctx.aura->`, `ctx.spell->`, `ctx.holder->`, `ctx.unit->`) has `this` among them; KEY is the key of the open
+    lines' `switch (KEY)`. Blanks aside throughout. Returns KEY and NAME, squeezed."""
     text = '\n'.join(site['dispatch'])
     calls = list(re.finditer(r'Dispatch<%s>\s*\(' % re.escape(site['traits']), text))
     passed = held(text, calls[0].end() - 1) if len(calls) == 1 else None
@@ -1149,7 +1149,7 @@ def check_ties(site):
     for a, b in site['substitutions']:
         if not isinstance(a, str) or not a.startswith('ctx.'):
             continue
-        route = re.match(r'ctx\.(aura|spell|holder)->', a)
+        route = re.match(r'ctx\.(aura|spell|holder|unit)->', a)
         if route and 'this' not in given:
             raise Failure('%s: the pair (%r, %r) reads the %s the context holds, and the dispatch passes the context '
                           'no `this`: %s' % (site['name'], a, b, route.group(1), at))
@@ -1248,13 +1248,13 @@ def check_dispatch_shape(site, key, name):
 
 def check_pairs(site, listed):
     """The site's text pairs read as they apply: each context pair (`ctx.X`, b) that is no route through the
-    aura, spell or holder the context holds (a left side beginning `ctx.aura->`, `ctx.spell->` or
-    `ctx.holder->`) has b == X or is one of the `listed` pairs; no pair's right side holds another pair's left
-    side, and no pair's left side holds an earlier pair's, each where that other pair would apply
+    aura, spell, holder or unit the context holds (a left side beginning `ctx.aura->`, `ctx.spell->`,
+    `ctx.holder->` or `ctx.unit->`) has b == X or is one of the `listed` pairs; no pair's right side holds another
+    pair's left side, and no pair's left side holds an earlier pair's, each where that other pair would apply
     (token_pattern)."""
     pairs = [(a, b) for a, b in site['substitutions'] if isinstance(a, str)]
     for a, b in pairs:
-        if (a.startswith('ctx.') and not re.match(r'ctx\.(aura|spell|holder)->', a) and b != a[len('ctx.'):]
+        if (a.startswith('ctx.') and not re.match(r'ctx\.(aura|spell|holder|unit)->', a) and b != a[len('ctx.'):]
                 and (a, b) not in listed):
             raise Failure('%s: the pair %r does not read the same name on both sides and is no listed exception'
                           % (site['name'], (a, b)))
@@ -3737,6 +3737,22 @@ def self_test():
         "boosted: the pair ('ctx.holder->GetTarget()', 'm_target') reads the holder the context holds, and the "
         "dispatch passes the context no `this`: BoostContext ctx(m_caster)",
         **boosted('    BoostContext ctx(m_caster);'))
+
+    def united(line):
+        """A unit site: its one body routes `GetTypeId` through the unit the context holds; `line` constructs the
+        context."""
+        return form('united', lab1, [lab[1], '            if (GetTypeId() == TYPEID_PLAYER)',
+                                     '                m_caster->Drop(1);', '            break;'],
+                    [('One', 'void', ['    if (ctx.unit->GetTypeId() == TYPEID_PLAYER)',
+                                      '        ctx.m_caster->Drop(1);', cont])],
+                    [(1, 'One')], context='UnitContext', dispatch=[line] + passing[1:],
+                    substitutions=[('ctx.m_caster', 'm_caster'), ('ctx.unit->GetTypeId', 'GetTypeId')]
+                    + VOID_SUBSTITUTIONS)
+    run('context tie: a route through the unit, the dispatch passing this: passes', 0,
+        'with 1/1 bodies pasted back at their 1 labels in 1 sites', **united('    UnitContext ctx(this, m_caster);'))
+    run('context tie: a route through the unit, the dispatch passing no this: fails', 1,
+        "united: the pair ('ctx.unit->GetTypeId', 'GetTypeId') reads the unit the context holds, and the dispatch "
+        "passes the context no `this`: UnitContext ctx(m_caster)", **united('    UnitContext ctx(m_caster);'))
     raises('context tie: a pair through another member, its right side passed nowhere: fails by name',
            "tied: the pair ('ctx.target->GetOwner()', 'owner'): its right side 'owner' is passed to no context "
            "argument at the dispatch: CheckTargetContext ctx(this, m_caster, target)",
@@ -4076,6 +4092,11 @@ def self_test():
     raises('context pairs: a two-name pair naming the holder, no route: fails by name',
            misnamed % (('ctx.holder', 'GetHolder()'),),
            lambda: check_pairs(paired(('ctx.holder', 'GetHolder()')), []))
+    raises('context pairs: a route through the unit reading another name: passes', 'no failure',
+           lambda: check_pairs(paired(('ctx.unit->GetTypeId', 'GetTypeId')), []))
+    raises('context pairs: a two-name pair on another root: fails by name',
+           misnamed % (('ctx.owner->GetTypeId', 'GetTypeId'),),
+           lambda: check_pairs(paired(('ctx.owner->GetTypeId', 'GetTypeId')), []))
     raises('context pairs: a pair through another member reading another name: fails by name',
            misnamed % (('ctx.target->GetOwner()', 'target'),),
            lambda: check_pairs(paired(('ctx.target->GetOwner()', 'target')), []))
