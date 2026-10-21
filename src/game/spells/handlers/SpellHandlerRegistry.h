@@ -171,7 +171,17 @@ enum SpellHandlerSite
     /// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_HUNTER's `switch (GetId())`.
     SPELL_HANDLER_SITE_AURA_BOOST_HUNTER = 52,
     /// `SpellAuraHolder::HandleSpellSpecificBoosts`, SPELLFAMILY_DEATHKNIGHT's `switch (GetId())`.
-    SPELL_HANDLER_SITE_AURA_BOOST_DEATH_KNIGHT = 53
+    SPELL_HANDLER_SITE_AURA_BOOST_DEATH_KNIGHT = 53,
+    /// `Spell::EffectScriptEffect`, SPELLFAMILY_WARLOCK's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_WARLOCK = 54,
+    /// `Spell::EffectScriptEffect`, SPELLFAMILY_PRIEST's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_PRIEST = 55,
+    /// `Spell::EffectScriptEffect`, SPELLFAMILY_HUNTER's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_HUNTER = 56,
+    /// `Spell::EffectScriptEffect`, SPELLFAMILY_POTION's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_POTION = 57,
+    /// `Spell::EffectScriptEffect`, SPELLFAMILY_DEATHKNIGHT's `switch (m_spellInfo->ID)`.
+    SPELL_HANDLER_SITE_SPELL_EFFECT_SCRIPT_DEATH_KNIGHT = 58
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.

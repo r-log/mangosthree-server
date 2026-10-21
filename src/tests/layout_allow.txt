@@ -1907,6 +1907,8 @@ src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/Opcodes.h
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/WorldPacket.h
 # The injector bodies read the target's skill as a player.
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
+# The bodies read the target's aura holders and auras through their public getters (the spell id, the spell entry, the caster guid, the aura at an effect index, its modifier and ticks) and refresh a holder; it goes when those reads become queries on the unit.
+src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The targeting bodies read the caster as a player; dies when the player's targeting-relevant facts become a view on Unit, row 13's successor.
 src/game/spells/handlers/SpellTargetingHandlers.cpp -> src/game/entities/player/Player.h
 # The Cannibalize body finds the corpse's owner through the player registry, the origin's own edge carried; the registry accessor is a macro, so the line retires when the registry becomes a query on the player's owning store, or with row 13's successor.

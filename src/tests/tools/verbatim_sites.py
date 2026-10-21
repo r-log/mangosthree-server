@@ -41,7 +41,7 @@ statement, name or value, and on a tool that binds or changes one of the six its
 
 # The tree the moved bodies are checked against: the parent of the latest move. ORIGINAL (master
 # before the first move) is the original of every file whose entry names none (ORIGINALS in verbatim.py).
-BASE = '26c0186db'
+BASE = '826ab9625'
 ORIGINAL = 'afdabc428'
 
 VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;'),
@@ -2155,6 +2155,144 @@ SITES = {
                 48263: '                case 48263:                                 // Frost Presence',
                 48265: '                case 48265:                                 // Unholy Presence',
                 48266: '                case 48266:                                 // Blood Presence'},
+        }],
+    },
+    'src/game/WorldHandlers/SpellEffectScript.cpp': {
+        'handlers': 'src/game/spells/handlers/SpellEffectScriptHandlers.cpp',
+        'rows_function': 'RegisterSpellEffectScriptRows',
+        'added': ['#include "spells/handlers/SpellEffectScriptHandlers.h"'],
+        'original': 'e08370ff4bc4cce840f5fb8d8f8277930e544bc4',
+        'sites': [{
+            'name': 'EffectScriptEffect, case SPELLFAMILY_WARLOCK (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, '
+                'm_originalCasterGUID, m_originalCaster,',
+                '                                         unitTarget, itemTarget, damage, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectScriptWarlockSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectScriptWarlockSite',
+            'context': 'SpellEffectScriptContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.spell->DoCreateItem', 'DoCreateItem'), ('ctx.m_spellInfo', 'm_spellInfo'),
+                              ('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget'),
+                              ('ctx.effect', 'effect')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                6201: '                case  6201:                                 // Healthstone creating spells',
+                6202: '                case  6202:',
+                5699: '                case  5699:',
+                11729: '                case 11729:',
+                11730: '                case 11730:',
+                27230: '                case 27230:',
+                47871: '                case 47871:',
+                47878: '                case 47878:',
+                47193: '                case 47193:                                 // Demonic Empowerment',
+                47422: '                case 47422:                                 // Everlasting Affliction',
+                63521: '                case 63521:                                 '
+                       '// Guarded by The Light (Paladin spell with SPELLFAMILY_WARLOCK)'},
+        }, {
+            'name': 'EffectScriptEffect, case SPELLFAMILY_PRIEST (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, '
+                'm_originalCasterGUID, m_originalCaster,',
+                '                                         unitTarget, itemTarget, damage, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectScriptPriestSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectScriptPriestSite',
+            'context': 'SpellEffectScriptContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                47948: '                case 47948:                                 // Pain and Suffering'},
+        }, {
+            'name': 'EffectScriptEffect, case SPELLFAMILY_HUNTER (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, '
+                'm_originalCasterGUID, m_originalCaster,',
+                '                                         unitTarget, itemTarget, damage, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectScriptHunterSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectScriptHunterSite',
+            'context': 'SpellEffectScriptContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.unitTarget', 'unitTarget')] + VOID_SUBSTITUTIONS,
+            'default': '                default:',
+            'labels': {
+                53209: '                case 53209:                                 // Chimera Shot',
+                53412: '                case 53412:                                 '
+                       '// Invigoration (pet triggered script, master targeted)',
+                53271: '                case 53271:                                 // Master\'s Call'},
+        }, {
+            'name': 'EffectScriptEffect, case SPELLFAMILY_POTION (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, '
+                'm_originalCasterGUID, m_originalCaster,',
+                '                                         unitTarget, itemTarget, damage, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectScriptPotionSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectScriptPotionSite',
+            'context': 'SpellEffectScriptContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.unitTarget', 'unitTarget')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                28698: '                case 28698:                                 // Dreaming Glory',
+                28702: '                case 28702:                                 // Netherbloom',
+                28720: '                case 28720:                                 // Nightmare Vine'},
+        }, {
+            'name': 'EffectScriptEffect, case SPELLFAMILY_DEATHKNIGHT (switch (m_spellInfo->ID))',
+            'dispatch': [
+                '            SpellEffectScriptContext ctx(this, m_spellInfo, m_targets, m_caster, '
+                'm_originalCasterGUID, m_originalCaster,',
+                '                                         unitTarget, itemTarget, damage, effect);',
+                '            if (SpellHandlerRegistry::Game()'
+                '.Dispatch<SpellEffectScriptDeathKnightSite>(m_spellInfo->ID, ctx).IsReturn())',
+                '            {',
+                '                return;',
+                '            }'],
+            'open': ['            switch (m_spellInfo->ID)', '            {'],
+            'close': ['            }'],
+            'label_indent': 16,
+            'traits': 'SpellEffectScriptDeathKnightSite',
+            'context': 'SpellEffectScriptContext',
+            'live_outs': ['effect'],
+            'in_scope': [],
+            'members_of': ('src/game/WorldHandlers/Spell.h', 'Spell'),
+            'substitutions': [('ctx.m_caster', 'm_caster'), ('ctx.m_targets', 'm_targets'),
+                              ('ctx.unitTarget', 'unitTarget')] + VOID_SUBSTITUTIONS,
+            'labels': {
+                50842: '                case 50842:                                 // Pestilence'},
         }],
     },
 }
