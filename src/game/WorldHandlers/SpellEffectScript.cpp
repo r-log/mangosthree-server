@@ -482,10 +482,10 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
 
                     float downToHealthPercent = (m_spellInfo->ID != 71123 ? 5 : effect->CalculateSimpleValue()) * 0.01f;
 
-                    int32 damage = unitTarget->GetHealth() - unitTarget->GetMaxHealth() * downToHealthPercent;
-                    if (damage > 0)
+                    int32 excess = unitTarget->GetHealth() - unitTarget->GetMaxHealth() * downToHealthPercent;
+                    if (excess > 0)
                     {
-                        m_caster->CastCustomSpell(unitTarget, 28375, &damage, NULL, NULL, true);
+                        m_caster->CastCustomSpell(unitTarget, 28375, &excess, NULL, NULL, true);
                     }
                     return;
                 }
@@ -977,7 +977,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                                     pTarget->GetMotionMaster()->MovementExpired();
                                 }
 
-                                // trigger cast of quest complete script (see code for this spell below)
+                                // trigger cast of quest complete script (44462, Cast Quest Complete on Master)
                                 pTarget->CastSpell(pTarget, 44462, true);
 
                                 pTarget->GetMotionMaster()->MovePoint(0, m_caster->Where().X(), m_caster->Where().Y(), m_caster->Where().Z());
@@ -1362,10 +1362,7 @@ void Spell::EffectScriptEffect(SpellEffectEntry const* effect)
                         return;
                     }
                     // "escort" aura is present so break; and let DB table dbscripts_on_spell be used and process further.
-                    else
-                    {
-                        break;
-                    }
+                    break;
                 }
                 case 46203:                                 // Goblin Weather Machine
                 {
