@@ -1867,7 +1867,7 @@ src/game/spells/handlers [spells] -> src/game/Object/CreatureAI.h
 src/game/spells/handlers [spells] -> src/game/Object/GameObject.h
 # Extract Gas hands the skinning loot templates (LootTemplates_Skinning) to Player::AutoStoreLoot; retires when the loot template stores move to data/ with the other SQL stores, which turns the line into a down edge.
 src/game/spells/handlers [spells] -> src/game/Object/LootMgr.h
-# The Shadowfiend body needs the pet complete; retires with a pet query on the unit that answers a unit.
+# The bodies need the pet complete to use a unit's pet, protector pet or guardian: they cast from it, remove its auras, turn it or unsummon it; retires when the unit answers these as queries and requests that need no pet header.
 src/game/spells/handlers [spells] -> src/game/Object/Pet.h
 # The bodies cast a creature to its temporary-summon class to read its summoner and unsummon it; the origin's own edge, same layer pair and header; it stays until D12 makes the summoner a question the creature answers itself.
 src/game/spells/handlers [spells] -> src/game/Object/TemporarySummon.h
@@ -1881,6 +1881,8 @@ src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiers.h
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/GridNotifiersImpl.h
 # The bodies read the map's difficulty and find units and players on it by guid; the Lava Bomb and Crystal Prison bodies add a game object to the target's map; dies with D9's surface.
 src/game/spells/handlers [spells] -> src/game/WorldHandlers/Map.h
+# The research bodies ask for an explicit discovery recipe and teach it; the origin's own edge, same layer pair and header; retires when the discovery tables move to data/ with the other SQL stores, which turns the line into a down edge.
+src/game/spells/handlers [spells] -> src/game/WorldHandlers/SkillDiscovery.h
 # The handlers read the aura and its holder through their public methods; some set the holder's duration or charges, or the aura's period and periodic flag.
 src/game/spells/handlers/AuraDummyHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The bodies cast a unit to a player for player methods and to name the player a sound plays to; retires with the Unit page's row 13 successor.
@@ -1911,7 +1913,7 @@ src/game/spells/handlers/SpellEffectDummyHandlers.cpp -> src/proto/WorldPacket.h
 src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp -> src/game/entities/player/Player.h
 # The one notification sent to a player who can't enter the spectral realm goes through the player's session; it goes with the fix that moves spell packets out to the session (page row 9).
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/Server/WorldSession.h
-# The bodies read the target's aura holders and auras through their public getters (the spell id, the spell entry, the caster or its guid, the aura at an effect index, its modifier and ticks) and refresh a holder; it goes when those reads become queries on the unit.
+# The bodies read the target's aura holders and auras through their public getters (the spell id, the spell entry, the caster or its guid, the stack amount, the aura at an effect index, its modifier and ticks) and refresh a holder; it goes when those reads become queries on the unit.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/WorldHandlers/SpellAuras.h
 # The bodies cast a unit to a player for player-only methods; it goes with the Unit page's row 13 casts.
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp -> src/game/entities/player/Player.h
