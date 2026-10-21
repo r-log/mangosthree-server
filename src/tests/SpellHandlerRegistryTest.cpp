@@ -47,8 +47,8 @@
 /// that end the effect with no unit target, with no cast item, for a creature caster or for a caster with no pet, and
 /// the script-effect labels that end the effect with no unit target, Bending Shinbone for a creature caster, Break
 /// Kaliri Egg for a spell with no affective caster object, the Mirror Image Aura for an original caster that is
-/// none, no player, or a player shape at effect index 0, and Death Gate and Emblazon Runeblade for a damage that
-/// names no spell in the test's spell store);
+/// none or no player, and for a player on a session with no socket, whose cast of a spell on cooldown fails to its
+/// session, and Death Gate and Emblazon Runeblade for a damage that names no spell in the test's spell store);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the
 /// coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid,
@@ -283,8 +283,14 @@
 #include "SpellAuras.h"
 #include "Spell.h"                                              // SpellCastTargets
 #include "Creature.h"
+#include "Player.h"
+#include "WorldSession.h"
+#include "WorldPacket.h"
+#include "Auth/BigNumber.h"
 
+#include <ctime>
 #include <set>
+#include <vector>
 
 namespace
 {
@@ -5788,18 +5794,61 @@ TEST(SpellEffectScriptHandlers_BreakKaliriEggSummonsFromTheSpellsAffectiveCaster
     CHECK(route.GetAffectiveCasterObject() == NULL);
 }
 
+namespace
+{
+    // A SpellEffect.dbc row in raw storage, zeroed, with the effect index set; its value names the test's seeded
+    // spell row.
+    alignas(SpellEffectEntry) unsigned char s_mirrorImageEffectBytes[sizeof(SpellEffectEntry)] = {};
+
+    SpellEffectEntry const* MirrorImageEffect(uint32 effectIndex)
+    {
+        SpellEffectEntry* row = reinterpret_cast<SpellEffectEntry*>(s_mirrorImageEffectBytes);
+        row->EffectIndex = effectIndex;
+        row->EffectBasePoints = int32(HolderSpell()->ID);
+        return row;
+    }
+
+    void KeepSentPacket(void* context, WorldPacket const& packet)
+    {
+        static_cast<std::vector<WorldPacket>*>(context)->push_back(packet);
+    }
+
+    /// A player with its update fields allocated, on a session with no socket, in no world, so what it is sent goes
+    /// to the session's sink. Its main-hand slot is emptied before it goes.
+    class SessionPlayer : public Player
+    {
+        public:
+            explicit SessionPlayer(WorldSession& session) : Player(&session)
+            {
+                Object::_Create(1, 0, HIGHGUID_PLAYER);
+            }
+
+            ~SessionPlayer()
+            {
+                GetInventoryMgr().SlotRef(EQUIPMENT_SLOT_MAINHAND) = NULL;
+                delete[] m_uint32Values;
+                m_uint32Values = NULL;
+            }
+    };
+}
+
 TEST(SpellEffectScriptHandlers_TheMirrorImageAuraReadsTheOriginalCasterThroughTheContext)
 {
-    // The Cleansing: Your Inner Turmoil's Mirror Image Aura reads the spell's original caster, never its caster.
-    // With no original caster it ends the effect; with one that is no player it ends the effect; with a player shape
-    // it goes on to the effect index, where index 0 copies no weapon and ends the effect. A player shape as the
-    // caster with no original caster ends the effect too, at index 1, before any inventory is read. Each leaves the
-    // members as they were.
+    // The Cleansing: Your Inner Turmoil's Mirror Image Aura reads the spell's original caster, never its caster, which
+    // is a creature here. With no original caster, or one that is no player, it ends the effect. With a player it
+    // ends the effect at index 0, and at index 1 with an empty main hand, sending the player nothing. With a main-hand
+    // weapon at index 1, the target, the same player, casts the effect's spell on it; the spell is on cooldown, so the
+    // player's session is sent one cast failure for that spell. Each step leaves the members as they were.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    ValuedCreature target;
+    std::vector<WorldPacket> sent;
+    WorldSession session(1, "mirror", nullptr, nullptr, SEC_PLAYER, EXPANSION_CATA, 0, LOCALE_enUS, BigNumber());
+    session.SetSocketlessSink(&KeepSentPacket, &sent);
+    SessionPlayer player(session);
+    ValuedCreature casterUnit;
     ScriptMembers members;
-    members.unitTarget = &target;
-    members.effect = WeaponDamageEffect(0, 0);
+    members.caster = &casterUnit;
+    members.unitTarget = &player;
+    members.effect = MirrorImageEffect(0);
     SpellEffectScriptContext ctx = members.Context();
     CHECK(game.Dispatch<SpellEffectScriptGenericSite>(50218, ctx).IsReturn());
     CHECK(members.originalCaster == NULL);
@@ -5809,22 +5858,34 @@ TEST(SpellEffectScriptHandlers_TheMirrorImageAuraReadsTheOriginalCasterThroughTh
     CHECK(ctx.m_originalCaster == &creature);
     CHECK(game.Dispatch<SpellEffectScriptGenericSite>(50218, ctx).IsReturn());
 
-    StandingPlayerShape player;
     members.originalCaster = &player;
     CHECK(ctx.m_originalCaster == &player);
     CHECK(game.Dispatch<SpellEffectScriptGenericSite>(50218, ctx).IsReturn());
-    CHECK(members.caster == NULL);
-    CHECK(members.originalCaster == &player);
-
-    StandingPlayerShape casterPlayer;
-    members.caster = &casterPlayer;
-    members.originalCaster = NULL;
-    members.effect = WeaponDamageEffect(0, 1);
+    members.effect = MirrorImageEffect(1);
     CHECK(game.Dispatch<SpellEffectScriptGenericSite>(50218, ctx).IsReturn());
-    CHECK(members.caster == &casterPlayer);
-    CHECK(members.originalCaster == NULL);
-    CHECK(members.unitTarget == &target);
+    CHECK(sent.empty());
+
+    Item weapon;
+    player.GetInventoryMgr().SlotRef(EQUIPMENT_SLOT_MAINHAND) = &weapon;
+    player.GetSpellCooldownMgr().AddSpellCooldown(HolderSpell()->ID, 0, time(NULL) + 3600);
+    CHECK(game.Dispatch<SpellEffectScriptGenericSite>(50218, ctx).IsReturn());
+    player.GetInventoryMgr().SlotRef(EQUIPMENT_SLOT_MAINHAND) = NULL;
+    CHECK_EQ(sent.size(), std::size_t(1));
+    if (sent.size() == 1)
+    {
+        uint8 castCount = 0;
+        uint32 spellId = 0;
+        uint8 result = 0;
+        sent[0] >> castCount >> spellId >> result;
+        CHECK_EQ(sent[0].GetOpcode(), uint16(SMSG_CAST_FAILED));
+        CHECK_EQ(spellId, HolderSpell()->ID);
+        CHECK_EQ(int(result), int(SPELL_FAILED_NOT_READY));
+    }
+    CHECK(members.caster == &casterUnit);
+    CHECK(members.originalCaster == &player);
+    CHECK(members.unitTarget == &player);
     CHECK(members.itemTarget == NULL);
+    session.SetSocketlessSink(nullptr, nullptr);
 }
 
 TEST(SpellEffectScriptHandlers_DeathGateAndEmblazonRunebladeCastTheDamagesSpell)
