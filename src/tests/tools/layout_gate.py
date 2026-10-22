@@ -116,7 +116,7 @@ RULES = [
     (r'^game/session/', 'session'),
     (r'^game/data/', 'data'),
     (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
-    (r'^game/WorldHandlers/(Spell|UnitAuraProcHandler)|^game/Object/(SpellMgr|UnitAura|UnitSpellBonus)|^game/spells/', 'spells'),
+    (r'^game/spells/', 'spells'),
     (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|WorldSessionMgr|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
     (r'^game/combat/|^game/References/(Hostile|Threat)|^game/Object/(Unit(Combat|Damage|MeleeDamage|Threat|Hostility|Diminishing)|Formulas|StatSystem|CreatureThreat)', 'combat'),
     (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|Path\.|BareMap|Weather)', 'maps'),
@@ -134,7 +134,7 @@ MAY['realmd'] = {'foundation', 'persistence'}
 
 SEAMS = [
     ('entities/player', r'^game/entities/player/'),
-    ('spells/aura', r'^game/spells/(auras/|Aura)|^game/WorldHandlers/(SpellAura|UnitAuraProcHandler)|^game/Object/UnitAura\.'),
+    ('spells/aura', r'^game/spells/(auras/|AuraContainer\.)'),
 ]
 # True: an include into a seam from the seam's own peer, outside the seam, is a seam edge too.
 SEAM_SAME_PEER = True

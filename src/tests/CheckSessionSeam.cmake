@@ -18,9 +18,9 @@ set(GAME_DIR "${SOURCE_ROOT}/src/game")
 
 # file name -> path, in the order the brief lists them
 set(SEAM_FILES
-    "${GAME_DIR}/WorldHandlers/SpellAuraPeriodic.cpp"
-    "${GAME_DIR}/WorldHandlers/SpellPackets.cpp"
-    "${GAME_DIR}/Object/UnitAura.cpp"
+    "${GAME_DIR}/spells/auras/SpellAuraPeriodic.cpp"
+    "${GAME_DIR}/spells/pipeline/SpellPackets.cpp"
+    "${GAME_DIR}/spells/auras/UnitAura.cpp"
     "${GAME_DIR}/Object/UnitVisibility.cpp")
 
 set(SESSION_CALL_RE "GetSession[ \t]*\\(")

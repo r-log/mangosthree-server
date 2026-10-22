@@ -193,7 +193,7 @@ FORMS = {
                  'suffix': None},
     'GetItemByGuid': {'direct': 'GetItemByGuid(',
                       'cast': '((Player*)this)->GetInventoryMgr().GetItemByGuid(',
-                      'suffix': None, 'elsewhere': ['src/game/WorldHandlers/Spell.cpp']},
+                      'suffix': None, 'elsewhere': ['src/game/spells/pipeline/Spell.cpp']},
     'UnsummonPetTemporaryIfAny': {'direct': 'UnsummonPetTemporaryIfAny(',
                                   'cast': '((Player*)this)->UnsummonPetTemporaryIfAny(',
                                   'suffix': None},
@@ -1093,7 +1093,8 @@ FILES = {
         'folded': {'ReportOwnerGroupStat': [0, 1, 2]},
         'window': {272: 6},
         'deleted': ['void Unit::ApplyMaxPowerMod(Powers power, uint32 val, bool apply)']},
-    'src/game/Object/UnitSpellBonus.cpp': {
+    'src/game/spells/pipeline/UnitSpellBonus.cpp': {
+        'renamed_from': 'src/game/Object/UnitSpellBonus.cpp',
         'forms': {'GetBaseSpellPowerBonus': 2, 'GetKnownTalentRankById': 1},
         'added': []},
     'src/game/Object/UnitVisibility.cpp': {
@@ -1102,14 +1103,16 @@ FILES = {
         'changed': [('            return GetAccountSecurityLevel() <= u->GetAccountSecurityLevel();',
                      '            return ((Player*)this)->GetSession()->GetSecurity() <= '
                      '((Player*)u)->GetSession()->GetSecurity();')]},
-    'src/game/Object/UnitAura.cpp': {
+    'src/game/spells/auras/UnitAura.cpp': {
+        'renamed_from': 'src/game/Object/UnitAura.cpp',
         'forms': {'IsLoading': 1},
         'added': []},
     'src/game/Object/UnitSpeed.cpp': {
         'forms': {'InBattleGround': 1, 'm_movementInfo.SetMovementFlags': 1, 'SetClientControl': 4},
         'added': [],
         'window': {240: 12}},
-    'src/game/WorldHandlers/UnitAuraProcHandler.cpp': {
+    'src/game/spells/auras/UnitAuraProcHandler.cpp': {
+        'renamed_from': 'src/game/WorldHandlers/UnitAuraProcHandler.cpp',
         'forms': {'HasSpellCooldown': 10, 'AddSpellCooldown': 8, 'GetItemByGuid': 8, 'GetReputationRank': 8,
                   'RemoveSpellCooldown': 1, 'RemoveSpellCategoryCooldown': 3, 'isHonorOrXPTarget': 2,
                   'Say': 1, 'GetSelectionGuid': 1, 'GetNextRandomRaidMember': 1, 'IsBaseRuneSlotsOnCooldown': 1,
@@ -1119,7 +1122,8 @@ FILES = {
                      '            caster->ApplySpellMod(spellProto->ID, SPELLMOD_RADIUS, radius, NULL);')],
         'window': {980: 44, 1002: 13, 1010: 21, 1045: 13, 1070: 13, 1096: 13, 1921: 16, 2881: 70, 3242: 47,
                    4840: 17}},
-    'src/game/WorldHandlers/Spell.cpp': {
+    'src/game/spells/pipeline/Spell.cpp': {
+        'renamed_from': 'src/game/WorldHandlers/Spell.cpp',
         'forms': {'CasterApplySpellMod': 2},
         'added': [],
         'changed': [('    ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_NOT_LOSE_CASTING_TIME, '
@@ -1132,13 +1136,15 @@ FILES = {
                      '            modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_JUMP_TARGETS, EffectChainTarget, '
                      'this);')],
         'window': {653: 24, 699: 13}},
-    'src/game/WorldHandlers/SpellCooldown.cpp': {
+    'src/game/spells/pipeline/SpellCooldown.cpp': {
+        'renamed_from': 'src/game/WorldHandlers/SpellCooldown.cpp',
         'forms': {'CasterApplySpellMod': 1},
         'added': [],
         'changed': [('            ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd);',
                      '            ((Player*)m_caster)->ApplySpellMod(m_spellInfo->ID, SPELLMOD_GLOBAL_COOLDOWN, gcd, '
                      'this);')]},
-    'src/game/WorldHandlers/SpellPower.cpp': {
+    'src/game/spells/pipeline/SpellPower.cpp': {
+        'renamed_from': 'src/game/WorldHandlers/SpellPower.cpp',
         'forms': {},
         'added': [],
         'changed': [('                            if (SpellModMgr* modOwner = m_caster->GetSpellMods())',

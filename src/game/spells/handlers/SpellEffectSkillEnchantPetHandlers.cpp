@@ -25,7 +25,7 @@
 
 #include "spells/handlers/SpellEffectSkillEnchantPetHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "WorldHandlers/Spell.h"
+#include "spells/pipeline/Spell.h"
 
 /// 66765, 66809, 67331, 67333: Meteor Fists; 69055: Bone Slice; 71021: Saber Lash: the final damage is
 /// divided among the targets the effect hits

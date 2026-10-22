@@ -26,7 +26,7 @@
 
 #include "spells/handlers/AurasHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "WorldHandlers/SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "WorldHandlers/CellImpl.h"
 #include "WorldHandlers/GridNotifiers.h"
 #include "WorldHandlers/GridNotifiersImpl.h"

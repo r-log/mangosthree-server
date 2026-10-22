@@ -15,7 +15,7 @@ set(CONVERTED_FILES
     src/game/Object/PetDatabase.cpp
     src/game/Object/PetSpells.cpp
     src/game/WorldHandlers/NPCHandler.cpp
-    src/game/WorldHandlers/SpellChecks.cpp
+    src/game/spells/pipeline/SpellChecks.cpp
     src/game/Object/Guild.cpp
     src/game/Object/GuildRank.cpp
     src/game/entities/player/pvp/PlayerBattleGround.cpp

@@ -26,7 +26,7 @@
 
 #include "spells/handlers/SpellEffectScriptHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "WorldHandlers/Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "Common/TimeConstants.h"
 #include "Geometry/Vector3.h"
 #include "Object/Creature.h"
@@ -45,7 +45,7 @@
 #include "WorldHandlers/GridNotifiersImpl.h"
 #include "WorldHandlers/Map.h"
 #include "WorldHandlers/SkillDiscovery.h"
-#include "WorldHandlers/SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "entities/player/Player.h"
 #include <iterator>
 

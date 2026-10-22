@@ -27,7 +27,7 @@
 #define MANGOSSERVER_SPELLS_HANDLERS_SPELLEFFECTSKILLENCHANTPETHANDLERS_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "WorldHandlers/Spell.h"
+#include "spells/pipeline/Spell.h"
 
 /**
  * @file SpellEffectSkillEnchantPetHandlers.h
