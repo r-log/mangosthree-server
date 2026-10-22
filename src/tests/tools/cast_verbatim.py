@@ -152,7 +152,19 @@ WINDOW is 11 lines, the farthest guard or statement a site relies on, measured o
 site that relies on a line farther away sets its own window in its file's spec. The measurement,
 site by site, is cast_sites.py's docstring.
 
-A `branch` site writes 8 lines for its one; every line number printed is the working tree's.
+A FILES key that is also a key of the verbatim proof's SITES (verbatim_sites.py) is followed: before any
+window is compared, its working-tree text is replaced by that proof's paste-back of it (verbatim.rebuild),
+every body moved out of it into a handler written back at its label, with the brace shapes read in the
+file at its verbatim original (verbatim.read_at, which honours the entry's `original` and
+`renamed_from`). The windows are compared on that text, so a call that moved into a handler is a site at
+its old place, and a window over a moved switch reads the switch. Each site is printed with its line in
+the working tree, or `pasted back` for a call that now stands in a handler; a difference names its line
+in the pasted-back text. A file whose bodies do not paste back fails by name before any window, and the
+run goes on. The coupling is one way: this proof imports verbatim.py and its data, so an error in
+verbatim_sites.py fails this proof too.
+
+A `branch` site writes 8 lines for its one; outside a followed file, every line number printed is the
+working tree's.
 
 What fails: a changed, swapped or dropped argument; a flag line that does not read as its pointer
 line's test, or a use of the flag that is not a test; a changed, moved or dropped guard, or any other
@@ -194,6 +206,7 @@ python src/tests/tools/cast_verbatim.py --self-test      # fixtures only, no git
 #
 
 import argparse
+import difflib
 import os
 import re
 import subprocess
@@ -202,6 +215,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import split_gate  # noqa: E402
+import verbatim  # noqa: E402
 
 # The names cast_sites.py assigns; split_gate.py holds the split.
 DATA_NAMES = ('BASE', 'FORMS', 'FILES')
@@ -1075,9 +1089,41 @@ def ref_path(root, rel, was, ref, git=run_git):
     return have[0]
 
 
-def check(root, base, out=print, files=None, forms=None, git=run_git):
+def followed(rel, text, spec, git, read):
+    """(text, back): `text`, the working tree's text of a FILES key that is a key of the verbatim proof's SITES,
+    with every body that proof moved out of it pasted back at its label (verbatim.rebuild), the brace shapes read
+    in the file at its original there (verbatim.read_at); back[i] is the index in `text` of line i, None for a
+    line pasted back. `git` and `read` are the verbatim proof's (verbatim.check)."""
+    ref, at = verbatim.read_at(rel, spec, verbatim.BASE, True, git, read)
+    code, shapes, err = git('show', '%s:%s' % (ref, at))
+    if code != 0:
+        raise verbatim.Failure('cannot read it at %s from git: %s' % (ref, err))
+    headers = {}
+    for site in spec['sites']:
+        header = site['members_of'][0]
+        try:
+            headers[header] = read(header)
+        except OSError:
+            raise verbatim.Failure('the working tree has no %s, its members_of' % header) from None
+    try:
+        handlers = read(spec['handlers'])
+    except OSError:
+        handlers = None
+    rebuilt = verbatim.rebuild(text, spec, headers, handlers, origins=[shapes.split('\n'), text.split('\n')])[0]
+    lines = rebuilt.split('\n')
+    back = [None] * len(lines)
+    for i, j, n in difflib.SequenceMatcher(None, lines, text.split('\n'), autojunk=False).get_matching_blocks():
+        back[i:i + n] = range(j, j + n)
+    return rebuilt, back
+
+
+def check(root, base, out=print, files=None, forms=None, git=run_git, sites=None, sites_git=None):
+    """`sites` and `sites_git` (the verbatim proof's git) default to verbatim.SITES and the repository at
+    `root`."""
     files = FILES if files is None else files
     forms = FORMS if forms is None else forms
+    sites = verbatim.SITES if sites is None else sites
+    sites_git = sites_git or verbatim.git_runner(root)
     rc = 0
     total = 0
 
@@ -1095,10 +1141,16 @@ def check(root, base, out=print, files=None, forms=None, git=run_git):
     for rel, spec in files.items():
         try:
             at = ref_path(root, rel, spec.get('renamed_from'), base, git)
-            new_text = read(rel)
+            new_text, back = read(rel), None
+            if rel in sites:
+                new_text, back = followed(rel, new_text, sites[rel], sites_git, read)
             old_text = git(root, 'show', '%s:%s' % (base, at))
         except Refused as e:
             out('%s: FAILED: %s' % (rel, e))
+            rc = 1
+            continue
+        except verbatim.Failure as e:
+            out('%s: FAILED: the bodies the verbatim proof moved out of it do not paste back: %s' % (rel, e))
             rc = 1
             continue
         except (OSError, subprocess.CalledProcessError) as e:
@@ -1106,14 +1158,16 @@ def check(root, base, out=print, files=None, forms=None, git=run_git):
             rc = 1
             continue
         try:
-            got, sites = prove(rel, old_text, new_text, spec, out, read=read, forms=forms)
+            got, found = prove(rel, old_text, new_text, spec, out, read=read, forms=forms)
         except (OSError, subprocess.CalledProcessError) as e:
             out('%s: FAILED: cannot read a file its FORMs name: %s' % (rel, e))
             rc = 1
             continue
         rc |= got
-        for name, old_line, new_line, k in sorted(sites, key=lambda s: s[2]):
-            out('  %s:%d -> :%d  %s  (window %d)' % (rel, old_line, new_line, name, k))
+        for name, old_line, new_line, k in sorted(found, key=lambda s: s[2]):
+            at = ':%d' % new_line if back is None else \
+                'pasted back' if back[new_line - 1] is None else ':%d' % (back[new_line - 1] + 1)
+            out('  %s:%d -> %s  %s  (window %d)' % (rel, old_line, at, name, k))
             total += 1
     out('cast_verbatim: %s (%d call site(s) in %d file(s), %d line(s) each side of a site)'
         % ('OK' if rc == 0 else 'FAILED', total, len(files), WINDOW))
@@ -2433,8 +2487,9 @@ def self_test():
             return refs[ref][path]
         return git
 
-    def checked(label, want_rc, needles, tree, refs, files, forms=None):
-        """check() on a working tree `tree` ({path: text}) and the refs, with `files` for FILES."""
+    def checked(label, want_rc, needles, tree, refs, files, forms=None, sites=None, sites_git=None):
+        """check() on a working tree `tree` ({path: text}) and the refs, with `files` for FILES and `sites`
+        (none by default) for the verbatim proof's SITES, read through `sites_git`."""
         needles = [needles] if isinstance(needles, str) else needles
         got = []
         with tempfile.TemporaryDirectory() as root:
@@ -2444,7 +2499,8 @@ def self_test():
                 with open(p, 'w', encoding='utf-8', newline='') as fh:
                     fh.write(text)
             try:
-                rc = check(root, 'base', got.append, files, own if forms is None else forms, git_of(refs))
+                rc = check(root, 'base', got.append, files, own if forms is None else forms, git_of(refs),
+                           {} if sites is None else sites, sites_git)
             except Exception as e:                              # a crash fails the row
                 rc = 2
                 got.append('crashed: %r' % e)
@@ -2485,6 +2541,51 @@ def self_test():
             old_p + ': FAILED: FORM AddSpellCooldown is elsewhere there, and FILES holds no such key', work,
             {'base': {old_p: SELF_OLD}}, moved,
             dict(own, AddSpellCooldown=dict(own['AddSpellCooldown'], elsewhere=[old_p])))
+
+    # The following: the verbatim proof's fixture file, both of its switches moved; at the cast base its
+    # first switch's call and the call below the second switch are cast.
+    key, shapes_at = 'src/game/Thing.cpp', '3000000'.ljust(40, '0')
+    follow_forms = {'Cast': {'direct': 'target->Cast(', 'cast': '((Player*)target)->Cast(', 'suffix': None},
+                    'Tail': {'direct': 'target->Tail(', 'cast': '((Player*)target)->Tail(', 'suffix': None}}
+    follow_base = verbatim.SELF_OLD.replace('target->Cast(', follow_forms['Cast']['cast']).replace(
+        'target->Tail(', follow_forms['Tail']['cast'])
+    follow_tree = {key: verbatim.SELF_SITES, 'Handlers.cpp': verbatim.SELF_HANDLERS,
+                   'Thing.h': verbatim.SELF_HEADERS['Thing.h']}
+    follow_sites = {key: dict(verbatim.SELF_SPEC, original='3000000')}
+
+    def shapes_git(*args):
+        """The verbatim proof's git: every hex spelling a commit, the fixture file at 3000000 as it stood."""
+        if args[:3] == ('rev-parse', '--verify', '--quiet'):
+            return 0, args[3][:-len('^{commit}')].ljust(40, '0') + '\n', ''
+        if args[:2] == ('merge-base', '--is-ancestor'):
+            return 0, '', ''
+        if args[:2] == ('cat-file', '-e'):
+            return (0 if args[2] == '%s:%s' % (shapes_at, key) else 128), '', ''
+        if args[:2] == ('show', '%s:%s' % (shapes_at, key)):
+            return 0, verbatim.SELF_OLD, ''
+        return 128, '', 'fatal: no such path'
+
+    def follow(label, want_rc, needles, form='Cast', tree=None):
+        checked(label, want_rc, needles, follow_tree if tree is None else tree, {'base': {key: follow_base}},
+                {key: {'forms': {form: 1}, 'added': []}}, {form: follow_forms[form]}, follow_sites, shapes_git)
+    follow('the following: a call moved into a handler: IDENTICAL', 0,
+           [key + ': IDENTICAL to the base, byte for byte, in the windows around 1/1 call(s)',
+            '  %s:11 -> pasted back  Cast  (window 11)' % key, 'cast_verbatim: OK (1 call site(s)'])
+    follow('the following: its argument changed in the handler: DIFFERS', 1,
+           [key + ':11: DIFFERS from the base at line 11',
+            'pasted back: ' + ' ' * 12 + '((Player*)target)->Cast(target);'],
+           tree=dict(follow_tree, **{'Handlers.cpp': verbatim.SELF_HANDLERS.replace('Cast(ctx.aura)',
+                                                                                     'Cast(ctx.target)')}))
+    follow('the following: a cast spelling in the handler: FAILED', 1,
+           key + ": FAILED: 1 call(s) still spelled '((Player*)target)->Cast(': a site the rewrite missed",
+           tree=dict(follow_tree, **{'Handlers.cpp': verbatim.SELF_HANDLERS.replace('ctx.target->Cast(',
+                                                                                     '((Player*)ctx.target)->Cast(')}))
+    follow('the following: bodies that do not paste back: FAILED before any window', 1,
+           [key + ': FAILED: the bodies the verbatim proof moved out of it do not paste back: ',
+            'cast_verbatim: FAILED (0 call site(s)'],
+           tree=dict(follow_tree, **{key: verbatim.SELF_SITES.replace('Dispatch<SelfSite>', 'Dispatch<OtherSite>')}))
+    follow('the following: a window over a moved switch head: IDENTICAL', 0,
+           [key + ': IDENTICAL to the base', '  %s:33 -> :18  Tail  (window 11)' % key], form='Tail')
 
     for label, bad in split_gate.self_test(__file__, 'cast_sites', DATA_NAMES, 'FILES', checked_first=True):
         print('self-test: %-72s %s' % (label, 'PASS' if not bad else 'FAIL'))
