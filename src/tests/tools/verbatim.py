@@ -169,7 +169,9 @@ The run shapes beyond one label per line and a body that ends in its own termina
      a LoopContinue inside a loop in the body (the old `continue;` took that loop's next iteration; inside
      a nested switch it passed through, and is allowed); a LoopContinue at a site that names no loop; a
      Return at a loop site, whose dispatch only continues; a loop site that names a value; a site whose
-     own substitutions list the LoopContinue pair.
+     own substitutions list the LoopContinue pair; a site with no `value`, loop or not, whose own
+     substitutions list a pair whose left side holds `SpellHandlerOutcome<` and that is none of
+     VOID_SUBSTITUTIONS.
 Every handler's last statement (comment lines, and a comment at the end of its line, aside) is a
 `return` at the function's own level, so no body falls off its end.
 
@@ -440,13 +442,21 @@ def outcome_pairs(site):
     """The site with its substitutions followed by the outcome pairs built from its `value` (V), or at a loop
     site by the LoopContinue pair (L); any other site as it is. A `value` that is not a plain type spelling
     fails, and so does a site with a `value` whose own substitutions list an outcome pair, a loop site naming
-    a value, a site whose own substitutions list the LoopContinue pair, and a site whose pairs hold none
+    a value, a site whose own substitutions list the LoopContinue pair, a site with no `value` whose own
+    substitutions list an outcome pair that is none of VOID_SUBSTITUTIONS, and a site whose pairs hold none
     pasting back as `break;` (its Continue could not be read)."""
     if site.get('loop') and 'value' in site:
         raise Failure('%s: a loop site names a value, and its dispatch only continues the loop' % site['name'])
     if any(a == LOOP_CONTINUE for a, _ in site['substitutions']):
         raise Failure('%s: its substitutions list the LoopContinue pair, which the tool builds for a loop site'
                       % site['name'])
+    if 'value' not in site:
+        void = [tuple(p) for p in VOID_SUBSTITUTIONS]
+        odd = [(a, b) for a, b in site['substitutions']
+               if isinstance(a, str) and 'SpellHandlerOutcome<' in a and (a, b) not in void]
+        if odd:
+            raise Failure('%s: its substitutions list the outcome pair %r, which is none of VOID_SUBSTITUTIONS'
+                          % (site['name'], odd[0]))
     if site.get('loop'):
         site = dict(site, substitutions=list(site['substitutions']) + [(LOOP_CONTINUE, 'continue;')])
     if 'value' in site:
@@ -4208,6 +4218,21 @@ def self_test():
     run('L: a site listing the LoopContinue pair itself: fails by name', 1,
         'looped: its substitutions list the LoopContinue pair, which the tool builds for a loop site',
         **respec(looped, substitutions=form_site['substitutions'] + [(LOOP_CONTINUE, 'continue;')]))
+    odd_pair = "%s: its substitutions list the outcome pair (%r, %r), which is none of VOID_SUBSTITUTIONS"
+    loop_odd, return_odd = ('return SpellHandlerOutcome<void>::LoopContinue()', 'break'), \
+        ('return SpellHandlerOutcome<void>::Return()', 'break')
+    run('L: a loop site listing a LoopContinue pair of its own: fails by name', 1, odd_pair % (('looped',) + loop_odd),
+        **respec(looped, substitutions=form_site['substitutions'] + [loop_odd]))
+    run('L: a void site listing a Return pair of its own: fails by name', 1, odd_pair % (('falls',) + return_odd),
+        **respec(falls, substitutions=[return_odd] + form_site['substitutions']))
+    run('L: a void site pairing a void outcome with another line: fails by name', 1,
+        odd_pair % ('falls', 'return SpellHandlerOutcome<void>::Return();', 'break;'),
+        **respec(falls, substitutions=[('return SpellHandlerOutcome<void>::Return();', 'break;')]
+                 + form_site['substitutions']))
+    run('L: a Return where `break;` stood, read back by a pair of its own: fails by name', 1,
+        odd_pair % (('trailed',) + return_odd),
+        **respec(mutated(trailed, 'handlers', '    ctx.target->Drop(3);\n' + cont, '    ctx.target->Drop(3);\n' + ret),
+                 substitutions=[return_odd] + form_site['substitutions']))
     for statement in ('return;', 'break;'):
         run('L: `%s` in a loop site\'s dispatch: fails by name' % statement, 1, unshaped % ('looped', statement),
             **reshaped(looped, looping[:3] + ['            ' + statement] + looping[4:]))
