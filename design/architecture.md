@@ -167,7 +167,7 @@ in spells/ on Unit (Creature has a different cooldown model today).
 casting 81, lifecycle and update 82, movement 76, stats and power 69, pets/charm/summons 55, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
-**Today (player-only code in `Unit`):** Unit's 15 files hold 11 `(Player*)this` casts and 213 `TYPEID_PLAYER` tests;
+**Today (player-only code in `Unit`):** Unit's 15 files hold 11 `(Player*)this` casts and 211 `TYPEID_PLAYER` tests;
 59 virtuals are overridden only by `Player` (`IsInWater`, `IsUnderWater`, `ProhibitSpellSchool`, `SetSheath`,
 `Uncharm`; the combat stats `Unit` asks a player for: `GetMeleeRollExpertiseReduction`,
 `GetMeleeSpellExpertiseReduction`, `CalculateMinMaxDamage`, `GetArmorPenetrationPct`, `GetBaseSpellPowerBonus`;
@@ -367,7 +367,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 10 | `QuestCompletePacket`, a packet builder, in `entities/player/quests/`; `CheckStateOwnership`'s rows for the managers that still build their packets | the quest builder's own seam (its owner reports a fact) before its move to `session/packets/quests/`; each manager's row with that manager under row 9 |
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
-| 13 | `Unit`: 11 `(Player*)this` casts, 213 player type tests, 59 Player-only virtuals | Unit reopen |
+| 13 | `Unit`: 11 `(Player*)this` casts, 211 player type tests, 59 Player-only virtuals | Unit reopen |
 | 14 | Unit's combat bodies are in `Object/` and `References/` | Unit reopen (combat) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds seven stores, `MailLevelRewardStore`, `ExplorationBaseXpStore`, `FishingBaseSkillStore`, `PointOfInterestStore`, `QuestPOIStore`, `DungeonFinderStore` and `LfgDungeonEntranceStore`, while `ObjectMgr` and its other stores are still in `Object/`; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant and pet handler classes under `session/handlers/entities/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel and voice chat handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
