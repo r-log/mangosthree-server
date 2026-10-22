@@ -104,10 +104,11 @@ registered outside the tables the paste-back reads.
 
 The run shapes beyond one label per line and a body that ends in its own terminator:
   T, comment lines after a block: a braced run's closing `}` may be followed, before the next label
-     or the switch's close, by lines that are comments (`//`) at exactly the label indent. They belong
-     to that run: the handler holds them after its last statement at column 0, and the paste-back puts
-     them after the block's `}` at the label indent. A code line, a comment at another indent or a
-     blank line there is a block followed by more lines, and fails.
+     or the switch's close, by comments at exactly the label indent: `//` lines, or a `/* */` comment
+     that opens there with `/*` and whose last line ends in its `*/`. They belong to that run: the
+     handler holds them after its last statement at column 0, and the paste-back puts them after the
+     block's `}` at the label indent. A code line, code after a `*/` on its line, a comment at another
+     indent or a blank line there is a block followed by more lines, and fails.
   S, the shape read inside the site's switch: a run's label lines, `default:` included, are looked up
      only inside the switches the site's open lines start (each closed by the first close line after
      them) that hold one of the site's label lines, so a `default:` line standing in another switch of
@@ -1108,7 +1109,12 @@ def braced(origins, site, label_lines):
             return False
         close = next((j for j in range(k + 1, len(lines)) if lines[j] == indent + '}'), None)
         after = close + 1 if close is not None else len(lines)
-        while after < len(lines) and lines[after].startswith(indent + '//'):
+        while after < len(lines) and lines[after].startswith((indent + '//', indent + '/*')):
+            if lines[after].startswith(indent + '/*'):
+                end = next((j for j in range(after, len(lines)) if '*/' in lines[j]), None)
+                if end is None or not lines[end].endswith('*/'):
+                    break
+                after = end
             after += 1
         follows = lines[after] if after < len(lines) else None
         if follows is None or not (follows == site['close'][0] or follows.startswith(indent + 'case ')
@@ -1177,8 +1183,9 @@ def paste(site, function, body, label_lines, wrapped=False, gaps=(), lead=0):
     if any('{body}' in l for l in label_lines):
         raise Failure('%s: %s is a one-line case sharing its body with another label' % (site['name'], function))
     indent = ' ' * site['label_indent']
-    trailing = len(restored)
-    while wrapped and trailing > 0 and restored[trailing - 1].startswith('//'):
+    trailing, code = len(restored), blank('\n'.join(restored)).split('\n')
+    while (wrapped and trailing > 0 and restored[trailing - 1][:1] not in ('', ' ')
+           and not code[trailing - 1].strip()):
         trailing -= 1
     restored = [indent + line if line else line for line in restored]
     if wrapped:
@@ -3676,6 +3683,22 @@ def self_test():
     run('F: a call of a run not the next, before a trailing comment: fails', 1,
         'One ends in a call of Three, which is not the function of the run after it',
         **mutated(trailed, 'handlers', '    return Two(ctx);', '    return Three(ctx);'))
+    block_switch = [lab[1], '        {', '            target->Drop(1);', '            return;', '        }',
+                    '        /*', '        // a note on Two', '        // and its end */',
+                    lab[2], '            target->Drop(2);', '            break;']
+    block_functions = [('One', 'void', ['    ctx.target->Drop(1);', ret, '/*', '// a note on Two',
+                                        '// and its end */']),
+                       ('Two', 'void', ['    ctx.target->Drop(2);', cont])]
+    block_rows, blocked_labels = [(1, 'One'), (2, 'Two')], {i: lab[i] for i in (1, 2)}
+    run('T: a block comment after a block: passes', 0, 'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **form('blocked', blocked_labels, block_switch, block_functions, block_rows))
+    run('T: code after the block comment\'s end on its line: fails', 1, 'is a block followed by more lines',
+        **form('blocked', blocked_labels, [l.replace('its end */', 'its end */ x();') for l in block_switch],
+               [(n, v, [l.replace('its end */', 'its end */ x();') for l in b]) for n, v, b in block_functions],
+               block_rows))
+    run('T: a block comment at another indent after a block: fails', 1, 'is a block followed by more lines',
+        **form('blocked', blocked_labels, [l.replace('        /*', '            /*') for l in block_switch],
+               block_functions, block_rows))
 
     lab1, lab12, lab123 = ({i: lab[i] for i in ids} for ids in ((1,), (1, 2), (1, 2, 3)))
     drop1, drop3, drop9 = ('    ctx.target->Drop(%d);' % n for n in (1, 3, 9))
