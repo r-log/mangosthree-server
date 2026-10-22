@@ -141,10 +141,10 @@ The run shapes beyond one label per line and a body that ends in its own termina
   F, a run falling into the next: its handler's last code line is `    return G(ctx);`, G being the
      function of the next row of the table, whose first label is the label after the run's last in
      the original order (no label standing between them). The paste-back drops that line only, so
-     the run falls into the next one as it did; blank and comment lines after the call stay where
-     they are. A call of any other function as the last code line fails, and so does a default
-     ending in one. Moving both runs as one body under all their labels is not this shape:
-     the second run's labels stood between the bodies, and the paste-back differs.
+     the run falls into the next one as it did; blank lines and lines that are all comment after
+     the call stay where they are. A call of any other function as the last code line fails, and
+     so does a default ending in one. Moving both runs as one body under all their labels is not
+     this shape: the second run's labels stood between the bodies, and the paste-back differs.
   P, comment lines before the first label: lines between a whole site's switch `{` and its first
      label, read where the switch stands, must each be a `//` comment at the `{`'s indent or deeper
      (a code line, a blank line or a shallower comment there fails). They belong to the run of that
