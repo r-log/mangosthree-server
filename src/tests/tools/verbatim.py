@@ -137,11 +137,12 @@ The run shapes beyond one label per line and a body that ends in its own termina
      of one run, so they share its function (an id of the line registered by another function
      fails); the line is pasted back once. In a partly moved switch every id on a standing line
      stands; a deleted id sharing its line with others fails.
-  F, a run falling into the next: its handler ends in `    return G(ctx);`, G being the function of
-     the next row of the table, whose first label is the label after the run's last in the original
-     order (no label standing between them). The paste-back drops that line, so the run falls into
-     the next one as it did. A call of any other function as the last line fails, and so does a
-     default ending in one. Moving both runs as one body under all their labels is not this shape:
+  F, a run falling into the next: its handler's last code line is `    return G(ctx);`, G being the
+     function of the next row of the table, whose first label is the label after the run's last in
+     the original order (no label standing between them). The paste-back drops that line only, so
+     the run falls into the next one as it did; blank and comment lines after the call stay where
+     they are. A call of any other function as the last code line fails, and so does a default
+     ending in one. Moving both runs as one body under all their labels is not this shape:
      the second run's labels stood between the bodies, and the paste-back differs.
   P, comment lines before the first label: lines between a whole site's switch `{` and its first
      label, read where the switch stands, must each be a `//` comment at the `{`'s indent or deeper
@@ -1189,9 +1190,11 @@ FALLS = re.compile(r'    return (\w+)\(ctx\);')
 
 
 def falls_into(site, function, body, rows, j):
-    """`body` less its last line when that is `return G(ctx);`, a run falling into the run after it:
-    G must be the function of the next row, and that row's label the next in the switch."""
-    m = FALLS.fullmatch(body[-1]) if body else None
+    """`body` less its last code line when that is `return G(ctx);` (the blank and comment lines after it stay),
+    a run falling into the run after it: G must be the function of the next row, and that row's label the next
+    in the switch."""
+    k = code_above(body, len(body) - 1)
+    m = FALLS.fullmatch(body[k]) if k >= 0 else None
     if not m:
         return body
     order = list(site['labels'])
@@ -1199,7 +1202,7 @@ def falls_into(site, function, body, rows, j):
     if j >= len(rows) or rows[j][1] != m.group(1) or after >= len(order) or order[after] != rows[j][0]:
         raise Failure('%s: %s ends in a call of %s, which is not the function of the run after it in the switch'
                       % (site['name'], function, m.group(1)))
-    return body[:-1]
+    return body[:k] + body[k + 1:]
 
 
 def squeezed(text):
@@ -3657,6 +3660,22 @@ def self_test():
                                                 for n, v, b in fall_functions],
                [(1, 'One')] + fall_rows[2:], residual=True,
                standing=form_site['open'] + fall_switch[4:9] + form_site['close']))
+    trail_switch = [lab[1], '        {', '            target->Drop(1);', '        }', '        // Two, after a comment',
+                    lab[2], '            target->Drop(2);', '', '        // Three, after a blank line',
+                    lab[3], '            target->Drop(3);', '            break;']
+    trail_functions = [('One', 'void', ['    ctx.target->Drop(1);', '    return Two(ctx);', '// Two, after a comment']),
+                       ('Two', 'void', ['    ctx.target->Drop(2);', '    return Three(ctx);', '',
+                                        '// Three, after a blank line']),
+                       ('Three', 'void', ['    ctx.target->Drop(3);', cont])]
+    trailed = form('trailed', {i: lab[i] for i in (1, 2, 3)}, trail_switch, trail_functions,
+                   [(1, 'One'), (2, 'Two'), (3, 'Three')])
+    run('F: calls before a trailing comment and before a blank line: pass', 0,
+        'with 3/3 bodies pasted back at their 3 labels in 1 sites', **trailed)
+    run('F: the trailing comment after a call changed: DIFFERS', 1, 'DIFFERS from the base',
+        **mutated(trailed, 'handlers', '// Two, after a comment', '// Two, after a note'))
+    run('F: a call of a run not the next, before a trailing comment: fails', 1,
+        'One ends in a call of Three, which is not the function of the run after it',
+        **mutated(trailed, 'handlers', '    return Two(ctx);', '    return Three(ctx);'))
 
     lab1, lab12, lab123 = ({i: lab[i] for i in ids} for ids in ((1,), (1, 2), (1, 2, 3)))
     drop1, drop3, drop9 = ('    ctx.target->Drop(%d);' % n for n in (1, 3, 9))
