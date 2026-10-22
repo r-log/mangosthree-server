@@ -101,6 +101,54 @@ struct DummyAuraProcWarlockSite
     typedef DummyAuraProcContext Context;
 };
 
+/// `Unit::HandleDummyAuraProc`, SPELLFAMILY_PRIEST's `switch (dummySpell->ID)`, after the checks by family flag and
+/// spell icon. A label sets what the proc casts or ends the proc with its result; a miss goes on to the cast after the
+/// family switch.
+struct DummyAuraProcPriestSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_PRIEST;
+    typedef SpellAuraProcResult Value;
+    typedef DummyAuraProcContext Context;
+};
+
+/// `Unit::HandleDummyAuraProc`, SPELLFAMILY_DRUID's `switch (dummySpell->ID)`, before the checks by spell icon. A label
+/// sets what the proc casts or ends the proc with its result; a miss goes on to the checks by spell icon.
+struct DummyAuraProcDruidSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_DRUID;
+    typedef SpellAuraProcResult Value;
+    typedef DummyAuraProcContext Context;
+};
+
+/// `Unit::HandleDummyAuraProc`, SPELLFAMILY_ROGUE's `switch (dummySpell->ID)`, before the checks by spell icon. A label
+/// sets what the proc casts or fails the proc; a miss goes on to the checks by spell icon.
+struct DummyAuraProcRogueSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_ROGUE;
+    typedef SpellAuraProcResult Value;
+    typedef DummyAuraProcContext Context;
+};
+
+/// `Unit::HandleDummyAuraProc`, SPELLFAMILY_PALADIN's `switch (dummySpell->ID)`, after the checks by spell id and spell
+/// icon. A label sets what the proc casts or ends the proc with its result; a miss goes on to the cast after the family
+/// switch.
+struct DummyAuraProcPaladinSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_PALADIN;
+    typedef SpellAuraProcResult Value;
+    typedef DummyAuraProcContext Context;
+};
+
+/// `Unit::HandleDummyAuraProc`, SPELLFAMILY_SHAMAN's `switch (dummySpell->ID)`, before the checks by spell icon, family
+/// flag and spell id. A label sets what the proc casts or ends the proc with its result; a miss goes on to those
+/// checks.
+struct DummyAuraProcShamanSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_SHAMAN;
+    typedef SpellAuraProcResult Value;
+    typedef DummyAuraProcContext Context;
+};
+
 /// Registers every handler of the proc sites on `registry` (defined in UnitAuraProcHandlerHandlers.cpp). Returns the
 /// number of rows it registered; a row whose key was taken does not change the table, so a caller that registers on
 /// an empty table and finds fewer keys than rows has a duplicate.
