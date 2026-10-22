@@ -3398,6 +3398,10 @@ def self_test():
     run('S by function: a site naming the other function: fails by name', 1,
         "remove: its dispatch does not stand in its function 'void Thing::Apply(bool apply)'",
         **twins(twin_heads['Lift']))
+    twice = {k: (v.replace(twin_heads['Lift'], twin_heads['Drop']) if isinstance(v, str) else v)
+             for k, v in twins(twin_heads['Drop'], twin_heads['Drop']).items()}
+    run('S by function: a head standing twice: fails by name', 1,
+        "remove: its function head 'void Thing::Remove(bool apply)' found 2 times in one version", **twice)
     run('F: a default ending in a call (no run follows it): fails', 1, 'the default Default ends in a call',
         **mutated(scoped, 'handlers', '    ctx.target->Drop(0);\n' + ret, '    return One(ctx);'))
 
