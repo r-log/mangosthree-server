@@ -38,7 +38,7 @@
 #include "GuildMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "World.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "ArenaTeam.h"
 #include "ProgressBar.h"
 #include "Mail.h"

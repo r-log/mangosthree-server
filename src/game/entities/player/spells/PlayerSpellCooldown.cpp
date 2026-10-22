@@ -39,8 +39,8 @@
 #include "Player.h"
 #include "DBCStores.h"
 #include "ObjectMgr.h"
-#include "Spell.h"
-#include "SpellMgr.h"
+#include "spells/pipeline/Spell.h"
+#include "spells/data/SpellMgr.h"
 
 #include <ctime>
 

@@ -42,7 +42,7 @@
 #include "ObjectMgr.h"
 #include "AchievementMgr.h"
 #include "Player.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "Group.h"
 #include "LFGMgr.h"                                         // LFGRoles: PLAYER_ROLE_*
 #include "SocialMgr.h"

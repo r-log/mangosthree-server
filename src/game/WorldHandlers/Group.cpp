@@ -64,7 +64,7 @@
 #include "Util.h"
 #include "LootMgr.h"
 #include "DynamicObject.h"                                  // raid markers are dynamic objects
-#include "SpellMgr.h"                                       // GetSpellDuration / GetSpellRadius
+#include "spells/data/SpellMgr.h"                                       // GetSpellDuration / GetSpellRadius
 #include "DBCStores.h"
 #include "LFGMgr.h"
 #include <atomic>

@@ -46,8 +46,8 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "RNGen.h"
-#include "SpellAuras.h"
-#include "SpellMgr.h"
+#include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
 #include "Unit.h"
 
 namespace

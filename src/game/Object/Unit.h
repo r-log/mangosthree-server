@@ -68,7 +68,7 @@
 #include <memory>
 #include "Object.h"
 #include "Opcodes.h"
-#include "SpellAuraDefines.h"
+#include "spells/auras/SpellAuraDefines.h"
 #include "spells/AuraContainer.h"
 #include "spells/SpellCooldownMgr.h"
 #include "UpdateFields.h"

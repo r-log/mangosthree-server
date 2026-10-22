@@ -37,8 +37,8 @@
  */
 
 #include "Player.h"
-#include "SpellAuras.h"
-#include "SpellMgr.h"
+#include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
 
 namespace
 {

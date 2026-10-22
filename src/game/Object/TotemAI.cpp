@@ -27,7 +27,7 @@
 #include "Totem.h"
 #include "Creature.h"
 #include "DBCStores.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"

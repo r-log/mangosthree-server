@@ -72,7 +72,7 @@
 #include "ObjectMgr.h"
 #include "CreatureEventAIMgr.h"
 #include "GuildMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Chat.h"
 #include "DBCStores.h"

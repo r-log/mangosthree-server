@@ -50,7 +50,7 @@
 #include "sc_gossip.h"
 #include "sc_grid_searchers.h"
 #include "sc_instance.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "World.h"
 
 // Common.h is being retired across the cores; these are the pieces the scripts

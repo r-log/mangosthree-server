@@ -31,7 +31,7 @@
 #include "World.h"
 #include "Util.h"
 #include "SharedDefines.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "DBCStores.h"
 #include "SQLStorages.h"
 #include "PlayerRegistry.h"

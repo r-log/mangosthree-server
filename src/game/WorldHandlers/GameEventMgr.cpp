@@ -55,7 +55,7 @@
 #include "MapManager.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include "MassMailMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Policies/Singleton.h"
 #include "WorldPacket.h"
 

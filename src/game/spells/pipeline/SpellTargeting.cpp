@@ -49,7 +49,7 @@
 #include <iterator>
 #include <list>
 #include "Utilities/MathDefines.h"
-#include "Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -60,7 +60,7 @@
 #include "UpdateMask.h"
 #include "World.h"
 #include "ObjectMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "Pet.h"
 #include "Unit.h"
@@ -83,7 +83,7 @@
 #include "TemporarySummon.h"
 #include "SQLStorages.h"
 #include "DisableMgr.h"
-#include "SpellTargetDistanceOrder.h"
+#include "spells/pipeline/SpellTargetDistanceOrder.h"
 #include "spells/handlers/SpellTargetingHandlers.h"
 
 template<typename T>

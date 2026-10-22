@@ -27,8 +27,8 @@
 #include "Player.h"
 #include "Creature.h"
 #include "Map.h"
-#include "Spell.h"
-#include "SpellAuras.h"
+#include "spells/pipeline/Spell.h"
+#include "spells/auras/SpellAuras.h"
 
 #include <cstdio>
 

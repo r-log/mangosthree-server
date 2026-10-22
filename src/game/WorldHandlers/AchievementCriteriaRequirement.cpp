@@ -35,7 +35,7 @@
 #include "DBCStores.h"
 #include "ObjectMgr.h"
 #include "Player.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "GameEventMgr.h"
 #include "World.h"
 #include "Map.h"

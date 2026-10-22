@@ -42,7 +42,7 @@
 #include "Language.h"
 #include "PlayerRegistry.h"
 #include "Player.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Util.h"
 #include "Weather.h"
 #include "World.h"

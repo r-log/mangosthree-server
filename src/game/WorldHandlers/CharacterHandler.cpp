@@ -58,7 +58,7 @@
 #include "SocialMgr.h"
 #include "Util.h"
 #include "Language.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Calendar.h"
 #include "LFGPackets.h"
 #include "GameTime.h"

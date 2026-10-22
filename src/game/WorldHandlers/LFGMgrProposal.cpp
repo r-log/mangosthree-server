@@ -42,7 +42,7 @@
 #include "Player.h"
 #include "PlayerRegistry.h"
 #include "ObjectMgr.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "SharedDefines.h"
 #include "Util.h"
 #include "WorldSession.h"

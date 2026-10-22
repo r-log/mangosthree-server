@@ -34,7 +34,7 @@
 #include "ProgressBar.h"
 #include "SQLStorages.h"
 #include "DBCStores.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 
 void ObjectMgr::LoadNPCSpellClickSpells()
 {

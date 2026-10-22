@@ -34,8 +34,8 @@
 #include "Pet.h"
 #include "Creature.h"
 #include "SharedDefines.h"
-#include "SpellAuras.h"
-#include "SpellMgr.h"
+#include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
 
 /*#######################################
 ########                         ########

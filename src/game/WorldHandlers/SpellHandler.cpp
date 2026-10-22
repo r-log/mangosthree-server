@@ -37,13 +37,13 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ObjectMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Log.h"
 #include "Opcodes.h"
-#include "Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "ScriptMgr.h"
 #include "Totem.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 
 /**
  * @brief Handles use-item requests and casts the item's use spell.
