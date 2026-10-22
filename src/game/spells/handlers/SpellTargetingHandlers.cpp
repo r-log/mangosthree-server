@@ -27,8 +27,8 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Object/Creature.h"
 #include "WorldHandlers/GridNotifiers.h"
-#include "WorldHandlers/Spell.h"
-#include "WorldHandlers/SpellTargetDistanceOrder.h"
+#include "spells/pipeline/Spell.h"
+#include "spells/pipeline/SpellTargetDistanceOrder.h"
 #include "entities/player/Player.h"
 #include "entities/player/PlayerRegistry.h"
 

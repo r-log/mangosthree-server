@@ -35,7 +35,7 @@
 #include "Opcodes.h"
 #include "entities/player/Player.h"
 #include "Object/Item.h"
-#include "WorldHandlers/Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "entities/player/social/SocialMgr.h"
 #include "Tools/Language.h"
 #include "Server/DBCStores.h"

@@ -28,7 +28,7 @@
 /// The distances are distinct, because the order holds two equal ones each before the other.
 
 #include "TestHarness.h"
-#include "WorldHandlers/SpellTargetDistanceOrder.h"
+#include "spells/pipeline/SpellTargetDistanceOrder.h"
 #include "Creature.h"
 
 #include <list>

@@ -25,11 +25,11 @@
 
 #include "spells/handlers/SpellEffectDamageTeleportHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "WorldHandlers/Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "Object/Pet.h"
-#include "Object/SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Utilities/Util.h"
-#include "WorldHandlers/SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "entities/player/Player.h"
 #include <algorithm>
 

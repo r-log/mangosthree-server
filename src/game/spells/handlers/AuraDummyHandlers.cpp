@@ -27,8 +27,8 @@
 #include "spells/handlers/SpellHandlerRegistry.h"
 #include "Object/Creature.h"
 #include "Object/ObjectMgr.h"
-#include "Object/SpellMgr.h"
-#include "WorldHandlers/SpellAuras.h"
+#include "spells/data/SpellMgr.h"
+#include "spells/auras/SpellAuras.h"
 #include "entities/player/Player.h"
 
 /// SPELLFAMILY_GENERIC, AT APPLY 1515: Tame Beast

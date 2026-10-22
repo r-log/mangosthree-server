@@ -27,7 +27,7 @@
 /// type and its game object target list type cannot.
 
 #include "TestHarness.h"
-#include "WorldHandlers/Spell.h"
+#include "spells/pipeline/Spell.h"
 
 #include <type_traits>
 
