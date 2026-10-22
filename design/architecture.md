@@ -29,11 +29,11 @@ only `src/shared`; session includes it 116 times, the motion layer 19 times (8 f
 `AuctionHouseBot/` is app: it is kept (the 2026-09-28 decision, section 7), off by default, and reaches the domain only through `World`'s timer and one chat command.
 
 These directories **dissolve**:
-- `Object/` (152 files): 63 to entities, 28 to data, 25 to ai, 10 to social, 9 to spells, 9 to combat, 6 to economy
-  and 2 to foundation (`ObjectGuid`).
-- `WorldHandlers/` (175 files): 39 to session (the 29 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
-  `AccountMgr`, `WorldSessionMgr`, `ChatMessage*`), 40 to maps, 35 to spells, 26 to social, 12 to scripts, 12 to
-  data, 4 to economy, 4 to entities (achievements) and 3 to app.
+- `Object/` (143 files): 63 to entities, 28 to data, 25 to ai, 10 to social, 9 to combat, 6 to economy and 2 to
+  foundation (`ObjectGuid`).
+- `WorldHandlers/` (140 files): 39 to session (the 29 handler files, `GossipDef`, `UpdateData`, `LFGPackets`,
+  `AccountMgr`, `WorldSessionMgr`, `ChatMessage*`), 40 to maps, 26 to social, 12 to scripts, 12 to data, 4 to
+  economy, 4 to entities (achievements) and 3 to app.
 - `Server/`: 11 files to session, 15 to data and `GameGlobals` to persistence. `References/`: threat to combat,
   maps to maps, groups to social. `Tools/`: the dump and the cleaner to persistence, `Language.h` to data.
 - `MotionGenerators/` (the unit's shell over the kernel) goes to entities.
@@ -199,8 +199,8 @@ armor specialization spell fits it, its combo points and its combo target: `FitA
 the possessed unit's view and back, the possess action bar told to its client, its own pet removed when the
 possession ends out of reach, and the pet action bar removed otherwise: `SetCameraView`, `ResetCameraView`,
 `PossessSpellInitialize`, `RemovePet`, `RemovePetActionBar`; each with the non-player answer as `Unit`'s default).
-The aura and combat bodies live in `Object/`, `WorldHandlers/` and `References/`; only the aura storage
-(`spells/AuraContainer.h`) and the leaf math (`combat/`) are already home.
+The aura bodies live in `spells/auras/`, beside the aura storage (`spells/AuraContainer.h`). The combat bodies still
+live in `Object/` and `References/`; only the leaf math (`combat/`) is already home.
 
 ## 4. The finish line per layer: the layout gate matches this page
 
@@ -368,7 +368,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 11 | `Player` forwarders for quests, talents and inventory | D4i caller migration (#78) |
 | 12 | `SpellCooldownMgr` is in `spells/` and held by `Unit`, but only players use it (the type guards at its `Unit` call sites stay), and `Creature` has its own cooldown model (scenario 938); the spell modifiers' manager, `SpellModMgr`, is in `spells/`, owned by `Player`, `Unit` holding a pointer | the Creature fold, only on 4.3.4 evidence |
 | 13 | `Unit`: 11 `(Player*)this` casts, 213 player type tests, 59 Player-only virtuals | Unit reopen |
-| 14 | Unit's aura and combat bodies are in `Object/`, `WorldHandlers/` and `References/` | Unit reopen (combat), D11 (spells) |
+| 14 | Unit's combat bodies are in `Object/` and `References/` | Unit reopen (combat) |
 | 15 | `Object/` and `WorldHandlers/` exist; `data/` exists and holds seven stores, `MailLevelRewardStore`, `ExplorationBaseXpStore`, `FishingBaseSkillStore`, `PointOfInterestStore`, `QuestPOIStore`, `DungeonFinderStore` and `LfgDungeonEntranceStore`, while `ObjectMgr` and its other stores are still in `Object/`; `ai/`, `social/`, `pvp/`, `economy/` do not; `session/` holds the builders under `session/packets/`, the combat handler class under `session/handlers/combat/`, the vendor, loot, auction and trade handler classes under `session/handlers/economy/`, the skill, enchant and pet handler classes under `session/handlers/entities/`, the pvp handler class under `session/handlers/pvp/` and the LFG, contact list, GM ticket, petition, chat channel and voice chat handler classes under `session/handlers/social/`, and the session's other files are in `Server/` and `WorldHandlers/` | a move PR before each domain's first seam (#76); a seam creates the new builder files it needs in their target directory and moves no existing file |
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
 | 17 | 2,356 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
@@ -415,9 +415,10 @@ decision), and `AuctionHouseBot/` is app (kept, section 7).
   Unit (`Object/Unit.h`), WorldSession (`Server/WorldSession.h`) and ObjectMgr (`Object/ObjectMgr.h`).
 - Unit's families:
   `python src/tests/tools/method_count.py --class Unit --header src/game/Object/Unit.h --all --list | python layers.py src unit`.
-- The player-only leaks, with `F="src/game/Object/Unit*.cpp src/game/WorldHandlers/UnitAuraProcHandler.cpp"`:
+- The player-only leaks, with
+  `F="src/game/Object/Unit*.cpp src/game/spells/auras/Unit*.cpp src/game/spells/pipeline/Unit*.cpp"`:
   `grep -ohE '\(\s*Player\s*\*\s*\)\s*this|static_cast<\s*Player\s*\*\s*>\s*\(\s*this' $F | wc -l` (11) and
-  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (213).
+  `grep -ohE 'GetTypeId\(\)\s*[!=]=\s*TYPEID_PLAYER' $F | wc -l` (211).
   The Player-only virtuals are the `virtual` lines of the `--all --list` output whose name is declared again in
   `Player.h` and in none of `Creature.h`, `Pet.h`, `Totem.h`, `TemporarySummon.h` or `Vehicle.h`, where only a
   unit's declaration counts: `Vehicle.h`'s `GetTransport` is `TransportInfo`'s (59 of 88).
@@ -463,7 +464,7 @@ RULES = [
  (r'^game/session/', 'session'),
  (r'^game/data/', 'data'),
  (r'^game/Server/|^game/Tools/Language|^game/Object/(ObjectMgr|ItemPrototype|CharacterCache|Taxi)|^game/WorldHandlers/(QuestDef|DisableMgr|PoolManager|GameEventMgr|WaypointManager|CreatureLinkingMgr)', 'data'),
- (r'^game/WorldHandlers/(Spell|UnitAuraProcHandler)|^game/Object/(SpellMgr|UnitAura|UnitSpellBonus)|^game/spells/', 'spells'),
+ (r'^game/spells/', 'spells'),
  (r'^game/WorldHandlers/(\w*Handler\w*|ChatMessage\w*|WorldSessionMgr|AccountMgr|GossipDef|UpdateData|LFGPackets)\.', 'session'),
  (r'^game/combat/|^game/References/(Hostile|Threat)|^game/Object/(Unit(Combat|Damage|MeleeDamage|Threat|Hostility|Diminishing)|Formulas|StatSystem|CreatureThreat)', 'combat'),
  (r'^game/Maps/|^game/References/Map|^game/WorldHandlers/(Map|Grid|Cell|ObjectGridLoader|MoveMap|Transport|InstanceData|DynamicCollision|GameObjectModel|LineOfSight|Path\.|BareMap|Weather)', 'maps'),
