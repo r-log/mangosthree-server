@@ -31,8 +31,8 @@
 /// EffectSchoolDMG's, EffectTriggerSpell's, the two of EffectTeleportUnits, the generic and five family switches of
 /// EffectDummy, the five of SpellAuraPeriodic.cpp, the seventeen of SpellAuras.cpp and the generic and five family
 /// switches of EffectScriptEffect, GetSpellAllowedInLocationError's, and the dummy-aura switches of
-/// SpellDamageBonusTaken, SpellHealingBonusDone and MeleeDamageBonusTaken) are checked for their keys, their
-/// defaults and their contexts,
+/// SpellDamageBonusTaken, SpellHealingBonusDone and MeleeDamageBonusTaken, and the generic, mage and warlock
+/// switches of HandleDummyAuraProc) are checked for their keys, their defaults and their contexts,
 /// and run where a body needs no live Unit (the quest-tame labels, the removal labels on a mode that keeps them off the
 /// Unit, the transmitted-object, energize, resurrect, targeting, cast-check and target-check defaults, the
 /// periodic-trigger labels on such a mode, the health labels on an apply that is not real, the health default, the
@@ -52,13 +52,15 @@
 /// none or no player, and for a player on a session with no socket, whose cast of a spell on cooldown fails to its
 /// session, Death Gate and Emblazon Runeblade for a damage that names no spell in the test's spell store, and the
 /// location-check labels for no player, a player in no battleground and one in a battleground the manager does not
-/// hold, and the bonus labels on an aura's storage with its modifier set, for a creature and a player shape);
+/// hold, the bonus labels on an aura's storage with its modifier set, for a creature and a player shape, and the
+/// dummy proc labels that set what the proc casts, or fail it, without reading the unit);
 /// a body that casts, sets a display, reads a level or an aura or acts on a game object needs a live Unit or game
 /// object, which the harness record covers where a scenario reaches it (931: 41101 and 53790, applied and removed; the
-/// coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; no scenario reaches a druid,
+/// coverage scenario two-feigns-one-lift: the feign-death body, through 29266 and 31261; 933: the generic dummy proc
+/// label 66063, Earth Shield, whose 66064 heal the record holds; no scenario reaches a druid,
 /// quest-tame, transform, threat, transmitted-object, energize, activate-object, resurrect, targeting, cast-check,
 /// target-check, weapon-damage, school-damage, trigger-spell, teleport, dummy-effect, periodic-aura, boost,
-/// script-effect, location-check or bonus label, nor another removal one).
+/// script-effect, location-check, bonus or other dummy proc label, nor another removal one).
 /// Each dispatch mutant the note names has a test here that kills it:
 ///   lost key                 SpellHandlerRegistry_FindReturnsTheRegisteredFunction,
 ///                            AuraDummyHandlers_TheWarriorApplySiteHoldsTheSixStances,
@@ -104,7 +106,9 @@
 ///                            SpellMgrHandlers_TheTableRegistersEveryRowOnce,
 ///                            SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault,
 ///                            UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce,
-///                            UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault
+///                            UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault,
+///                            UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce,
+///                            UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault
 ///   wrong site               SpellHandlerRegistry_OneIdUnderTwoSitesIsTwoKeys,
 ///                            AuraDummyHandlers_TheGenericApplyRemoveSiteHoldsTheSixteenFeignDeathLabels,
 ///                            AuraDummyHandlers_TheRemoveSiteHoldsItsThirtyLabelsAndNoDefault,
@@ -139,7 +143,8 @@
 ///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
 ///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault,
 ///                            SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault,
-///                            UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault
+///                            UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault,
+///                            UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault
 ///   default first            SpellHandlerRegistry_TheDefaultRunsOnlyOnAMiss,
 ///                            AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost default           AuraShapeshiftHandlers_TheTransformSiteHoldsItsNineLabelsAndTheDefault,
@@ -174,7 +179,8 @@
 ///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
 ///                            SpellEffectScriptHandlers_TheGenericSiteHoldsItsMovedLabelsAndNoDefault,
 ///                            SpellMgrHandlers_TheLocationSiteHoldsItsTwentyLabelsAndNoDefault,
-///                            UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault
+///                            UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault,
+///                            UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault
 ///   Continue taken as Return SpellHandlerRegistry_ContinueAndReturnAreDistinct,
 ///                            AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts,
 ///                            AuraPeriodicHandlers_TheProcTriggerSiteHoldsItsTwoLabelsAndTheDefault,
@@ -201,7 +207,9 @@
 ///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder,
 ///                            SpellEffectScriptHandlers_TheFamilySitesHoldTheirLabelsAndDefaults,
 ///                            UnitSpellBonusHandlers_TheDamageTakenBodiesScaleByTheAurasAmount,
-///                            UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount
+///                            UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount,
+///                            UnitAuraProcHandlerHandlers_TheTriggerLabelsSetWhatTheProcCasts,
+///                            UnitAuraProcHandlerHandlers_IgniteTakesItsRanksShareOfTheDamage
 ///   Return taken as Continue SpellEffectObjectCombatHandlers_TheResurrectSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
@@ -219,7 +227,9 @@
 ///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder,
 ///                            SpellEffectScriptHandlers_ANullTargetEndsTheEffect,
 ///                            SpellMgrHandlers_TheLocationBodiesAnswerForAPlayerOutsideABattleground,
-///                            SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer
+///                            SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer,
+///                            UnitAuraProcHandlerHandlers_IgniteTakesItsRanksShareOfTheDamage,
+///                            UnitAuraProcHandlerHandlers_TheGuardsEndTheProcBeforeTheUnitIsRead
 ///   a lost fall-through      AuraPeriodicHandlers_TheIncreaseHealthOutcomesAreTheSwitchs
 ///   a lost loop continue     SpellHandlerRegistry_LoopContinueIsAFourthOutcome,
 ///                            SpellHandlerRegistry_ALoopContinueSkipsTheRestOfTheLoopBody,
@@ -273,16 +283,22 @@
 ///                            SpellMgrHandlers_TheLocationContextAliasesTheMapAndThePlayer,
 ///                            UnitSpellBonusHandlers_TheContextsAliasTheirLocals,
 ///                            UnitSpellBonusHandlers_TheDamageTakenBodiesScaleByTheAurasAmount,
-///                            UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount
+///                            UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount,
+///                            UnitAuraProcHandlerHandlers_TheContextAliasesTheFunctionsLocals,
+///                            UnitAuraProcHandlerHandlers_TheTriggerLabelsSetWhatTheProcCasts,
+///                            UnitAuraProcHandlerHandlers_IgniteTakesItsRanksShareOfTheDamage
 ///   a rank's value changed   AuraDummyHandlers_TheQuestTameLabelsSetTheSpellTheTailCasts (all 18 id -> value pairs)
 ///   a returned value changed SpellChecksHandlers_TheCastAuraDummySiteHoldsItsTwoLabelsAndTheDefault,
 ///                            SpellCheckTargetHandlers_TheTargetSiteHoldsItsThreeLabelsAndTheDefault,
 ///                            SpellMgrHandlers_TheLocationBodiesAnswerForAPlayerOutsideABattleground,
-///                            SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer
+///                            SpellMgrHandlers_TheLocationBodiesAnswerForNoPlayer,
+///                            UnitAuraProcHandlerHandlers_TheGuardsEndTheProcBeforeTheUnitIsRead
 ///   a damage value changed   SpellEffectDamageTeleportHandlers_TheSchoolDamageSiteHoldsItsSeventyFourLabelsAndNoDefault,
 ///                            SpellEffectDamageTeleportHandlers_TheSchoolDamageBodiesSetTheDamageFromTheUnits,
 ///                            UnitSpellBonusHandlers_TheDamageTakenBodiesScaleByTheAurasAmount,
-///                            UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount
+///                            UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount,
+///                            UnitAuraProcHandlerHandlers_TheTriggerLabelsSetWhatTheProcCasts,
+///                            UnitAuraProcHandlerHandlers_IgniteTakesItsRanksShareOfTheDamage
 ///   a stale removal mode     AuraDummyHandlers_ARemovalBodyReadsTheModeWhenItRuns,
 ///                            AurasHandlers_TheBoostBodiesReadTheRemoveModeThroughTheHolder
 
@@ -305,9 +321,11 @@
 #include "spells/handlers/SpellEffectScriptHandlers.h"
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "spells/handlers/UnitSpellBonusHandlers.h"
+#include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
 #include "spells/auras/SpellAuras.h"
+#include "spells/data/SpellMgr.h"                                       // PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL
 #include "spells/pipeline/Spell.h"                                              // SpellCastTargets
 #include "Creature.h"
 #include "Player.h"
@@ -789,9 +807,10 @@ TEST(AuraDummyHandlers_TheTableRegistersEveryRowOnce)
     // defaults, the damage-tick and mana-leech tick sites' 8 and 3 rows and one default, the four periodic dummy
     // tick sites' 44, 1, 2 and 2 rows and four defaults, the five boost sites' 7, 6, 2, 6 and 4 rows and four
     // defaults, the five script-effect family sites' 11, 1, 3, 3 and 1 rows and two defaults, the generic
-    // script-effect site's 282 rows, the location-check site's 20 rows and the three bonus sites' 6, 2 and 3 rows.
+    // script-effect site's 282 rows, the location-check site's 20 rows, the three bonus sites' 6, 2 and 3 rows and
+    // the three dummy proc sites' 37, 9 and 10 rows.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1048));
+    CHECK_EQ(game.Count(), std::size_t(1104));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraDummyRemoveSite::Key), std::size_t(30));
 }
@@ -1698,7 +1717,8 @@ namespace
     // resurrect, two targeting, cast-check, target-check, weapon-damage, school-damage, trigger-spell, two teleport and
     // six dummy-effect sites, the rogue and hunter aura dummy sites, the generic aura dummy apply site, the six
     // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites, the six
-    // script-effect sites, the location-check site, the three bonus sites and the earlier files' ids.
+    // script-effect sites, the location-check site, the three bonus sites, the three dummy proc sites, the generic
+    // aura dummy apply-and-remove site and the earlier files' ids.
     // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
@@ -1786,10 +1806,16 @@ namespace
                (skips(SpellDamageTakenSite::Key) && registry.Find<SpellDamageTakenSite>(spellId) != NULL) ||
                (skips(SpellHealingDoneSite::Key) && registry.Find<SpellHealingDoneSite>(spellId) != NULL) ||
                (skips(MeleeDamageTakenSite::Key) && registry.Find<MeleeDamageTakenSite>(spellId) != NULL) ||
+               (skips(DummyAuraProcGenericSite::Key) &&
+                registry.Find<DummyAuraProcGenericSite>(spellId) != NULL) ||
+               (skips(DummyAuraProcMageSite::Key) && registry.Find<DummyAuraProcMageSite>(spellId) != NULL) ||
+               (skips(DummyAuraProcWarlockSite::Key) &&
+                registry.Find<DummyAuraProcWarlockSite>(spellId) != NULL) ||
+               (skips(AuraDummyApplyRemoveGenericSite::Key) &&
+                registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) != NULL) ||
                registry.Find<AuraTransformSite>(spellId) != NULL || registry.Find<AuraThreatSite>(spellId) != NULL ||
                registry.Find<SpellEffectTransmittedSite>(spellId) != NULL ||
-               registry.Find<AuraDummyRemoveSite>(spellId) != NULL ||
-               registry.Find<AuraDummyApplyRemoveGenericSite>(spellId) != NULL;
+               registry.Find<AuraDummyRemoveSite>(spellId) != NULL;
     }
 
     // The ids a pair of listed sites both register, each site's switch holding the label, with the two sites:
@@ -1802,8 +1828,10 @@ namespace
     // generic script-effect site; Pick Red Riding Hood, at the all-enemy-in-area targeting site and the generic
     // script-effect site; Signal Alliance and the portals to Orgrimmar and Stormwind, at the generic dummy-effect
     // site and the generic script-effect site; Clear Insane, at the generic aura dummy apply site and the generic
-    // script-effect site; Cheating Death, Sanctuary and 25899, at the spell and melee damage-taken sites. A listed
-    // id held at any other site, a third listed site among them, fails HeldByAnotherSite.
+    // script-effect site; Cheating Death, Sanctuary and 25899, at the spell and melee damage-taken sites; Unstable
+    // Power and Restless Strength, at the generic dummy proc site and the generic aura dummy apply-and-remove site;
+    // 58914, at the generic dummy proc site and the generic boost site; 74396, at the mage dummy proc site and the
+    // mage boost site. A listed id held at any other site, a third listed site among them, fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
@@ -1836,6 +1864,10 @@ namespace
         { 45182, SpellDamageTakenSite::Key, MeleeDamageTakenSite::Key },
         { 20911, SpellDamageTakenSite::Key, MeleeDamageTakenSite::Key },
         { 25899, SpellDamageTakenSite::Key, MeleeDamageTakenSite::Key },
+        { 24658, DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key },
+        { 24661, DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key },
+        { 58914, DummyAuraProcGenericSite::Key, AuraBoostGenericSite::Key },
+        { 74396, DummyAuraProcMageSite::Key, AuraBoostMageSite::Key },
     };
 
     // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
@@ -4480,9 +4512,9 @@ TEST(AurasHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(152));
     CHECK_EQ(registry.CountDefaults(), std::size_t(14));
 
-    // The game's table holds these with the other files' 896 rows and 14 defaults.
+    // The game's table holds these with the other files' 952 rows and 14 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1048));
+    CHECK_EQ(game.Count(), std::size_t(1104));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(AuraTriggerSpellGenericSite::Key), std::size_t(45));
     CHECK_EQ(game.CountAt(AuraTriggerSpellCustomSite::Key), std::size_t(11));
@@ -5349,9 +5381,9 @@ TEST(SpellEffectScriptHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(301));
     CHECK_EQ(registry.CountDefaults(), std::size_t(2));
 
-    // The game's table holds these with the other files' 747 rows and 26 defaults.
+    // The game's table holds these with the other files' 803 rows and 26 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1048));
+    CHECK_EQ(game.Count(), std::size_t(1104));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(SpellEffectScriptGenericSite::Key), std::size_t(282));
     CHECK_EQ(game.CountAt(SpellEffectScriptWarlockSite::Key), std::size_t(11));
@@ -6021,9 +6053,9 @@ TEST(SpellMgrHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(20));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1028 rows and 28 defaults.
+    // The game's table holds these with the other files' 1084 rows and 28 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1048));
+    CHECK_EQ(game.Count(), std::size_t(1104));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(SpellAllowedInLocationSite::Key), std::size_t(20));
 }
@@ -6300,9 +6332,9 @@ TEST(UnitSpellBonusHandlers_TheTableRegistersEveryRowOnce)
     CHECK_EQ(registry.Count(), std::size_t(11));
     CHECK_EQ(registry.CountDefaults(), std::size_t(0));
 
-    // The game's table holds these with the other files' 1037 rows and 28 defaults.
+    // The game's table holds these with the other files' 1093 rows and 28 defaults.
     SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
-    CHECK_EQ(game.Count(), std::size_t(1048));
+    CHECK_EQ(game.Count(), std::size_t(1104));
     CHECK_EQ(game.CountDefaults(), std::size_t(28));
     CHECK_EQ(game.CountAt(SpellDamageTakenSite::Key), std::size_t(6));
     CHECK_EQ(game.CountAt(SpellHealingDoneSite::Key), std::size_t(2));
@@ -6482,4 +6514,383 @@ TEST(UnitSpellBonusHandlers_TheLifebloomIdolsAddASeventhOfTheAmount)
         CHECK_EQ(DoneTotal, one.result);
         CHECK_EQ(BitsThatDiffer(aura.storage, before), 0);
     }
+}
+
+namespace
+{
+    uint32 const DUMMY_PROC_GENERIC_IDS[] = { 9799, 25988, 18765, 35429, 21063, 24658, 24661, 28764, 27539, 28305,
+                                              31871, 31872, 33493, 38196, 39446, 45481, 45482, 45483, 45484, 46569,
+                                              48504, 52723, 60501, 57989, 58914, 63305, 63320, 65932, 66063, 66725,
+                                              68161, 66808, 68160, 69739, 69755, 71903, 72178 };
+    uint32 const DUMMY_PROC_MAGE_IDS[] = { 11119, 11120, 12846, 12847, 12848, 56372, 56375, 64411, 74396 };
+    uint32 const DUMMY_PROC_WARLOCK_IDS[] = { 18094, 18095, 56218, 30293, 30295, 30296, 37377, 37381, 39437, 63108 };
+
+    // Spell rows with only their id and school mask set, for the bodies that read the proc spell or the aura's spell.
+    alignas(SpellEntry) unsigned char s_procSpellBytes[2][sizeof(SpellEntry)] = {};
+
+    SpellEntry const* ProcSpellRow(std::size_t slot, uint32 id, uint32 schoolMask)
+    {
+        SpellEntry* row = reinterpret_cast<SpellEntry*>(s_procSpellBytes[slot]);
+        row->ID = id;
+        row->SchoolMask = schoolMask;
+        return row;
+    }
+
+    alignas(16) unsigned char s_procVictim[16];
+
+    // A victim the bodies under test pass on as the proc's target and never dereference.
+    Unit* ProcVictim()
+    {
+        return reinterpret_cast<Unit*>(s_procVictim);
+    }
+
+    // `Unit::HandleDummyAuraProc`'s parameters and locals as its dispatch binds them, with the context over them for
+    // `unit`: the damage is 1000, the aura's amount 15, the target the victim and nothing triggered yet.
+    struct DummyProcLocals
+    {
+        Unit* pVictim;
+        uint32 damage;
+        Aura* triggeredByAura;
+        SpellEntry const* procSpell;
+        uint32 procFlag;
+        uint32 cooldown;
+        SpellEntry const* dummySpell;
+        SpellEffectIndex effIndex;
+        SpellClassOptionsEntry const* procClassOptions;
+        int32 triggerAmount;
+        Item* castItem;
+        uint32 triggered_spell_id;
+        Unit* target;
+        int32 basepoints[MAX_EFFECT_INDEX];
+        SpellCooldownMgr cooldowns;
+        DummyAuraProcContext ctx;
+
+        explicit DummyProcLocals(Unit* unit)
+            : pVictim(ProcVictim()), damage(1000), triggeredByAura(NULL), procSpell(NULL), procFlag(0), cooldown(0),
+              dummySpell(NULL), effIndex(EFFECT_INDEX_0), procClassOptions(NULL), triggerAmount(15), castItem(NULL),
+              triggered_spell_id(0), target(pVictim), basepoints(), cooldowns(),
+              ctx(unit, cooldowns, pVictim, damage, triggeredByAura, procSpell, procFlag, cooldown, dummySpell,
+                  effIndex, procClassOptions, triggerAmount, castItem, triggered_spell_id, target, basepoints)
+        {
+        }
+
+        DummyProcLocals(DummyProcLocals const&) = delete;
+        DummyProcLocals& operator=(DummyProcLocals const&) = delete;
+
+        bool BasePointsAre(int32 first) const
+        {
+            return basepoints[0] == first && basepoints[1] == 0 && basepoints[2] == 0;
+        }
+    };
+
+    /// A creature that hands out its own spell cooldowns, the member a proc dispatch binds.
+    class CooldownCreature : public ValuedCreature
+    {
+        public:
+            SpellCooldownMgr& Cooldowns()
+            {
+                return m_spellCooldownMgr;
+            }
+    };
+
+    // One label that only sets what the proc triggers: the site, the id, the triggered spell, and whether the body
+    // also makes the unit the target.
+    struct TriggerCase
+    {
+        uint32 site;
+        uint32 spellId;
+        uint32 triggered;
+        bool selfTarget;
+        int32 basepoint;
+    };
+
+    SpellHandlerOutcome<SpellAuraProcResult> DispatchDummyProc(uint32 site, uint32 spellId, DummyAuraProcContext& ctx)
+    {
+        SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+        if (site == DummyAuraProcGenericSite::Key)
+        {
+            return game.Dispatch<DummyAuraProcGenericSite>(spellId, ctx);
+        }
+        if (site == DummyAuraProcMageSite::Key)
+        {
+            return game.Dispatch<DummyAuraProcMageSite>(spellId, ctx);
+        }
+        return game.Dispatch<DummyAuraProcWarlockSite>(spellId, ctx);
+    }
+}
+
+TEST(UnitAuraProcHandlerHandlers_TheTableRegistersEveryRowOnce)
+{
+    // 37, 9 and 10 labels at the three dummy proc sites and no default: 56 rows and 56 keys, none twice.
+    SpellHandlerRegistry registry;
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(56));
+    CHECK_EQ(registry.Count(), std::size_t(56));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+    CHECK_EQ(registry.CountAt(DummyAuraProcGenericSite::Key), std::size_t(37));
+    CHECK_EQ(registry.CountAt(DummyAuraProcMageSite::Key), std::size_t(9));
+    CHECK_EQ(registry.CountAt(DummyAuraProcWarlockSite::Key), std::size_t(10));
+
+    // Registering again on the same table changes nothing: every key is taken.
+    CHECK_EQ(RegisterUnitAuraProcHandlerHandlers(registry), uint32(56));
+    CHECK_EQ(registry.Count(), std::size_t(56));
+    CHECK_EQ(registry.CountDefaults(), std::size_t(0));
+
+    // The game's table holds these with the other files' 1048 rows and 28 defaults.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    CHECK_EQ(game.Count(), std::size_t(1104));
+    CHECK_EQ(game.CountDefaults(), std::size_t(28));
+    CHECK_EQ(game.CountAt(DummyAuraProcGenericSite::Key), std::size_t(37));
+    CHECK_EQ(game.CountAt(DummyAuraProcMageSite::Key), std::size_t(9));
+    CHECK_EQ(game.CountAt(DummyAuraProcWarlockSite::Key), std::size_t(10));
+}
+
+TEST(UnitAuraProcHandlerHandlers_TheThreeDummySitesHoldTheirLabelsAndNoDefault)
+{
+    SpellHandlerRegistry registry;
+    RegisterUnitAuraProcHandlerHandlers(registry);
+
+    // The generic site's 37 labels in 31 bodies, the mage site's 9 in 5, the warlock site's 10 in 6; no default.
+    CheckSiteLabels<DummyAuraProcGenericSite>(registry, DUMMY_PROC_GENERIC_IDS, 31);
+    CheckSiteLabels<DummyAuraProcMageSite>(registry, DUMMY_PROC_MAGE_IDS, 5);
+    CheckSiteLabels<DummyAuraProcWarlockSite>(registry, DUMMY_PROC_WARLOCK_IDS, 6);
+    CHECK(registry.FindDefault<DummyAuraProcGenericSite>() == NULL);
+    CHECK(registry.FindDefault<DummyAuraProcMageSite>() == NULL);
+    CHECK(registry.FindDefault<DummyAuraProcWarlockSite>() == NULL);
+
+    // Each run's labels have one body.
+    CHECK(registry.Find<DummyAuraProcGenericSite>(25988) == registry.Find<DummyAuraProcGenericSite>(9799));
+    CHECK(registry.Find<DummyAuraProcGenericSite>(35429) == registry.Find<DummyAuraProcGenericSite>(18765));
+    CHECK(registry.Find<DummyAuraProcGenericSite>(31872) == registry.Find<DummyAuraProcGenericSite>(31871));
+    CHECK(registry.Find<DummyAuraProcGenericSite>(60501) == registry.Find<DummyAuraProcGenericSite>(52723));
+    CHECK(registry.Find<DummyAuraProcGenericSite>(68161) == registry.Find<DummyAuraProcGenericSite>(66725));
+    CHECK(registry.Find<DummyAuraProcGenericSite>(68160) == registry.Find<DummyAuraProcGenericSite>(66808));
+    CHECK(registry.Find<DummyAuraProcGenericSite>(63305) != registry.Find<DummyAuraProcGenericSite>(58914));
+    for (uint32 spellId : { 11120u, 12846u, 12847u, 12848u })
+    {
+        CHECK(registry.Find<DummyAuraProcMageSite>(spellId) == registry.Find<DummyAuraProcMageSite>(11119));
+    }
+    CHECK(registry.Find<DummyAuraProcWarlockSite>(18095) == registry.Find<DummyAuraProcWarlockSite>(18094));
+    CHECK(registry.Find<DummyAuraProcWarlockSite>(56218) == registry.Find<DummyAuraProcWarlockSite>(18094));
+    CHECK(registry.Find<DummyAuraProcWarlockSite>(30295) == registry.Find<DummyAuraProcWarlockSite>(30293));
+    CHECK(registry.Find<DummyAuraProcWarlockSite>(30296) == registry.Find<DummyAuraProcWarlockSite>(30293));
+
+    // The four ids another registered site holds too are keys at those two and no other: Unstable Power and Restless
+    // Strength at the generic aura dummy apply-and-remove site, 58914 at the generic boost site, 74396 at the mage
+    // boost site.
+    SpellHandlerRegistry const& game = SpellHandlerRegistry::Game();
+    struct Shared { uint32 spellId; uint32 site; uint32 other; };
+    Shared const shared[] =
+    {
+        { 24658, DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key },
+        { 24661, DummyAuraProcGenericSite::Key, AuraDummyApplyRemoveGenericSite::Key },
+        { 58914, DummyAuraProcGenericSite::Key, AuraBoostGenericSite::Key },
+        { 74396, DummyAuraProcMageSite::Key, AuraBoostMageSite::Key },
+    };
+    for (Shared const& id : shared)
+    {
+        CHECK(SharedWith(id.spellId, id.site) == id.other);
+        CHECK(SharedWith(id.spellId, id.other) == id.site);
+        CHECK(HeldByAnotherSite(game, id.site, id.spellId));
+        CHECK(!HeldByAnotherSite(game, id.site, id.spellId, id.other));
+        CHECK(HeldByAnotherSite(game, id.other, id.spellId));
+        CHECK(!HeldByAnotherSite(game, id.other, id.spellId, id.site));
+    }
+    CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(24658) != NULL);
+    CHECK(game.Find<AuraDummyApplyRemoveGenericSite>(24661) != NULL);
+    CHECK(game.Find<AuraBoostGenericSite>(58914) != NULL);
+    CHECK(game.Find<AuraBoostMageSite>(74396) != NULL);
+
+    // An id the switch never held answers Miss and leaves the locals: 12345, the other two sites' labels, and a label
+    // the priest switch still holds (15286, Vampiric Embrace).
+    DummyProcLocals locals(NULL);
+    for (uint32 spellId : { 12345u, 11119u, 18094u, 15286u })
+    {
+        CHECK(game.Dispatch<DummyAuraProcGenericSite>(spellId, locals.ctx).IsMiss());
+    }
+    for (uint32 spellId : { 12345u, 66063u, 18094u, 15286u })
+    {
+        CHECK(game.Dispatch<DummyAuraProcMageSite>(spellId, locals.ctx).IsMiss());
+    }
+    for (uint32 spellId : { 12345u, 66063u, 11119u, 15286u })
+    {
+        CHECK(game.Dispatch<DummyAuraProcWarlockSite>(spellId, locals.ctx).IsMiss());
+    }
+    CHECK_EQ(locals.triggered_spell_id, uint32(0));
+    CHECK(locals.target == ProcVictim());
+    CHECK(locals.BasePointsAre(0));
+    CHECK_EQ(locals.triggerAmount, int32(15));
+}
+
+TEST(UnitAuraProcHandlerHandlers_TheContextAliasesTheFunctionsLocals)
+{
+    CooldownCreature creature;
+    DummyProcLocals locals(&creature);
+    DummyAuraProcContext& ctx = locals.ctx;
+
+    // The dispatch binds the unit's own cooldowns: the context holds the creature's member, and a cooldown set
+    // through it is the creature's.
+    DummyAuraProcContext bound(&creature, creature.Cooldowns(), locals.pVictim, locals.damage, locals.triggeredByAura,
+                               locals.procSpell, locals.procFlag, locals.cooldown, locals.dummySpell, locals.effIndex,
+                               locals.procClassOptions, locals.triggerAmount, locals.castItem,
+                               locals.triggered_spell_id, locals.target, locals.basepoints);
+    CHECK(bound.unit == &creature);
+    CHECK(&bound.m_spellCooldownMgr == &creature.Cooldowns());
+    time_t now = time(NULL);
+    CHECK(!creature.Cooldowns().HasSpellCooldown(66064, now));
+    bound.m_spellCooldownMgr.AddSpellCooldown(66064, 0, now + 60);
+    CHECK(creature.Cooldowns().HasSpellCooldown(66064, now));
+
+    // `unit` is the pointer passed for `this`; every other member is the local's or parameter's address.
+    CHECK(ctx.unit == &creature);
+    CHECK(&ctx.m_spellCooldownMgr == &locals.cooldowns);
+    CHECK(&ctx.pVictim == &locals.pVictim);
+    CHECK(&ctx.damage == &locals.damage);
+    CHECK(&ctx.triggeredByAura == &locals.triggeredByAura);
+    CHECK(&ctx.procSpell == &locals.procSpell);
+    CHECK(&ctx.procFlag == &locals.procFlag);
+    CHECK(&ctx.cooldown == &locals.cooldown);
+    CHECK(&ctx.dummySpell == &locals.dummySpell);
+    CHECK(&ctx.effIndex == &locals.effIndex);
+    CHECK(&ctx.procClassOptions == &locals.procClassOptions);
+    CHECK(&ctx.triggerAmount == &locals.triggerAmount);
+    CHECK(&ctx.castItem == &locals.castItem);
+    CHECK(&ctx.triggered_spell_id == &locals.triggered_spell_id);
+    CHECK(&ctx.target == &locals.target);
+    CHECK(&ctx.basepoints == &locals.basepoints);
+
+    // A body's writes reach the function's locals, and the parameters are read where they stand.
+    ctx.triggered_spell_id = 66064;
+    ctx.target = &creature;
+    ctx.basepoints[EFFECT_INDEX_2] = 7;
+    ctx.triggerAmount += 5;
+    CHECK_EQ(locals.triggered_spell_id, uint32(66064));
+    CHECK(locals.target == &creature);
+    CHECK_EQ(locals.basepoints[EFFECT_INDEX_2], int32(7));
+    CHECK_EQ(locals.triggerAmount, int32(20));
+    locals.damage = 250;
+    locals.procFlag = PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL;
+    CHECK_EQ(ctx.damage, uint32(250));
+    CHECK_EQ(ctx.procFlag, uint32(PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL));
+}
+
+TEST(UnitAuraProcHandlerHandlers_TheTriggerLabelsSetWhatTheProcCasts)
+{
+    // Each body sets the triggered spell and goes on to the cast after the switch; one that makes the unit the target
+    // writes the context's unit, here NULL, over the victim, and one with base points writes the first.
+    TriggerCase const cases[] =
+    {
+        { DummyAuraProcGenericSite::Key, 21063, 21064, false, 0 },
+        { DummyAuraProcGenericSite::Key, 63320, 63321, false, 0 },
+        { DummyAuraProcGenericSite::Key, 65932, 65934, false, 0 },
+        { DummyAuraProcGenericSite::Key, 66063, 66064, false, 0 },
+        { DummyAuraProcGenericSite::Key, 66725, 66765, false, 0 },
+        { DummyAuraProcGenericSite::Key, 68161, 66765, false, 0 },
+        { DummyAuraProcGenericSite::Key, 66808, 66809, false, 0 },
+        { DummyAuraProcGenericSite::Key, 68160, 66809, false, 0 },
+        { DummyAuraProcGenericSite::Key, 72178, 72195, false, 0 },
+        { DummyAuraProcGenericSite::Key, 38196, 31285, true, 3000 },     // three times the damage
+        { DummyAuraProcGenericSite::Key, 48504, 48503, true, 15 },       // the aura's amount
+        { DummyAuraProcGenericSite::Key, 52723, 52724, true, 500 },      // half the damage
+        { DummyAuraProcGenericSite::Key, 60501, 52724, true, 500 },
+        { DummyAuraProcWarlockSite::Key, 18094, 17941, true, 0 },
+        { DummyAuraProcWarlockSite::Key, 18095, 17941, true, 0 },
+        { DummyAuraProcWarlockSite::Key, 56218, 17941, true, 0 },
+        { DummyAuraProcWarlockSite::Key, 30293, 30294, true, 150 },      // the aura's percent of the damage
+        { DummyAuraProcWarlockSite::Key, 30295, 30294, true, 150 },
+        { DummyAuraProcWarlockSite::Key, 30296, 30294, true, 150 },
+        { DummyAuraProcWarlockSite::Key, 37377, 37379, false, 0 },
+        { DummyAuraProcWarlockSite::Key, 39437, 37378, false, 0 },
+    };
+    for (TriggerCase const& c : cases)
+    {
+        DummyProcLocals locals(NULL);
+        CHECK(DispatchDummyProc(c.site, c.spellId, locals.ctx).IsContinue());
+        CHECK_EQ(locals.triggered_spell_id, c.triggered);
+        CHECK(locals.target == (c.selfTarget ? NULL : ProcVictim()));
+        CHECK(locals.BasePointsAre(c.basepoint));
+        CHECK_EQ(locals.triggerAmount, int32(15));
+    }
+
+    // The two shards trigger the heal after a positive spell, else the damage.
+    uint32 const shards[][3] = { { 69739, 69734, 69730 }, { 69755, 69733, 69729 } };
+    for (uint32 const (&shard)[3] : shards)
+    {
+        DummyProcLocals positive(NULL);
+        positive.procFlag = PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL;
+        CHECK(DispatchDummyProc(DummyAuraProcGenericSite::Key, shard[0], positive.ctx).IsContinue());
+        CHECK_EQ(positive.triggered_spell_id, shard[1]);
+        DummyProcLocals other(NULL);
+        other.procFlag = PROC_FLAG_SUCCESSFUL_POSITIVE_SPELL ^ 0xFFFFFFFF;
+        CHECK(DispatchDummyProc(DummyAuraProcGenericSite::Key, shard[0], other.ctx).IsContinue());
+        CHECK_EQ(other.triggered_spell_id, shard[2]);
+        CHECK(other.target == ProcVictim());
+    }
+}
+
+TEST(UnitAuraProcHandlerHandlers_IgniteTakesItsRanksShareOfTheDamage)
+{
+    // The aura's spell picks the share; each rank triggers 12654 on the victim and goes on to the cast.
+    uint32 const ranks[][2] = { { 11119, 40 }, { 11120, 80 }, { 12846, 120 }, { 12847, 160 }, { 12848, 200 } };
+    for (uint32 const (&rank)[2] : ranks)
+    {
+        DummyProcLocals locals(NULL);
+        locals.dummySpell = ProcSpellRow(0, rank[0], SPELL_SCHOOL_MASK_FIRE);
+        CHECK(DispatchDummyProc(DummyAuraProcMageSite::Key, rank[0], locals.ctx).IsContinue());
+        CHECK(locals.BasePointsAre(int32(rank[1])));
+        CHECK_EQ(locals.triggered_spell_id, uint32(12654));
+        CHECK(locals.target == ProcVictim());
+    }
+
+    // An aura's spell that is no rank fails the proc from inside the body's own switch, triggering nothing.
+    DummyProcLocals locals(NULL);
+    locals.dummySpell = ProcSpellRow(0, 99999, SPELL_SCHOOL_MASK_FIRE);
+    SpellHandlerOutcome<SpellAuraProcResult> outcome = DispatchDummyProc(DummyAuraProcMageSite::Key, 11119, locals.ctx);
+    CHECK(outcome.IsReturn());
+    CHECK(outcome.GetValue() == SPELL_AURA_PROC_FAILED);
+    CHECK_EQ(locals.triggered_spell_id, uint32(0));
+    CHECK(locals.BasePointsAre(0));
+}
+
+TEST(UnitAuraProcHandlerHandlers_TheGuardsEndTheProcBeforeTheUnitIsRead)
+{
+    // Each case fails the proc before its body reads the unit, and leaves the trigger, target and base points.
+    struct GuardCase { uint32 site; uint32 spellId; uint32 procSpellId; uint32 procSchool; bool victim; };
+    GuardCase const cases[] =
+    {
+        { DummyAuraProcGenericSite::Key, 46569, 0, 0, true },                          // always fails
+        { DummyAuraProcGenericSite::Key, 18765, 26654, SPELL_SCHOOL_MASK_NORMAL, true },  // its own trigger procs
+        { DummyAuraProcGenericSite::Key, 35429, 26654, SPELL_SCHOOL_MASK_NORMAL, true },
+        { DummyAuraProcGenericSite::Key, 24658, 0, 0, true },                          // no proc spell
+        { DummyAuraProcGenericSite::Key, 24658, 24659, SPELL_SCHOOL_MASK_NORMAL, true },  // its own stack procs
+        { DummyAuraProcGenericSite::Key, 28764, 0, 0, true },                          // no proc spell
+        { DummyAuraProcGenericSite::Key, 27539, 0, 0, true },                          // no proc spell
+        { DummyAuraProcGenericSite::Key, 27539, 78, SPELL_SCHOOL_MASK_NORMAL, true },     // a physical proc spell
+        { DummyAuraProcMageSite::Key, 56375, 0, 0, false },                            // no victim
+    };
+    for (GuardCase const& c : cases)
+    {
+        DummyProcLocals locals(NULL);
+        if (c.procSpellId)
+        {
+            locals.procSpell = ProcSpellRow(1, c.procSpellId, c.procSchool);
+        }
+        if (!c.victim)
+        {
+            locals.pVictim = NULL;
+            locals.target = NULL;
+        }
+        SpellHandlerOutcome<SpellAuraProcResult> outcome = DispatchDummyProc(c.site, c.spellId, locals.ctx);
+        CHECK(outcome.IsReturn());
+        CHECK(outcome.GetValue() == SPELL_AURA_PROC_FAILED);
+        CHECK_EQ(locals.triggered_spell_id, uint32(0));
+        CHECK(locals.target == (c.victim ? ProcVictim() : NULL));
+        CHECK(locals.BasePointsAre(0));
+    }
+
+    // Obsidian Armor triggers the resistance of the proc spell's school on the unit: holy is 27536.
+    DummyProcLocals holy(NULL);
+    holy.procSpell = ProcSpellRow(1, 635, SPELL_SCHOOL_MASK_HOLY);
+    CHECK(DispatchDummyProc(DummyAuraProcGenericSite::Key, 27539, holy.ctx).IsContinue());
+    CHECK_EQ(holy.triggered_spell_id, uint32(27536));
+    CHECK(holy.target == NULL);
 }

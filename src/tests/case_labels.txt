@@ -1,6 +1,6 @@
 # CheckCaseLabels (src/tests/tools/case_labels.py): spell-ID case labels per file under src/game.
 # A PR that moves labels into the spell handler registry lowers its lines (--generate); a new
-# label fails the gate. Total: 749 labels in 27 files.
+# label fails the gate. Total: 693 labels in 28 files.
 src/game/Object/GameObjectUse.cpp 5
 src/game/Object/Unit.cpp 5
 src/game/entities/player/Player.cpp 7
@@ -10,7 +10,7 @@ src/game/spells/auras/SpellAuraDummy.cpp 17
 src/game/spells/auras/SpellAuraPeriodic.cpp 3
 src/game/spells/auras/SpellAuras.cpp 14
 src/game/spells/auras/UnitAura.cpp 3
-src/game/spells/auras/UnitAuraProcHandler.cpp 264
+src/game/spells/auras/UnitAuraProcHandler.cpp 203
 src/game/spells/data/SpellMgr.cpp 60
 src/game/spells/handlers/AuraDummyHandlers.cpp 3
 src/game/spells/handlers/AurasHandlers.cpp 9
@@ -18,6 +18,7 @@ src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp 3
 src/game/spells/handlers/SpellEffectDummyHandlers.cpp 19
 src/game/spells/handlers/SpellEffectObjectCombatHandlers.cpp 18
 src/game/spells/handlers/SpellEffectScriptHandlers.cpp 32
+src/game/spells/handlers/UnitAuraProcHandlerHandlers.cpp 5
 src/game/spells/pipeline/Spell.cpp 210
 src/game/spells/pipeline/SpellCast.cpp 9
 src/game/spells/pipeline/SpellChecks.cpp 3

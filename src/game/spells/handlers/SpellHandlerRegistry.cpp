@@ -41,6 +41,7 @@
 #include "spells/handlers/SpellEffectScriptHandlers.h"
 #include "spells/handlers/SpellMgrHandlers.h"
 #include "spells/handlers/UnitSpellBonusHandlers.h"
+#include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 #include "Utilities/Errors.h"
 
 SpellHandlerRegistry const& SpellHandlerRegistry::Game()
@@ -68,6 +69,7 @@ SpellHandlerRegistry const& SpellHandlerRegistry::Game()
         rows += RegisterSpellEffectScriptHandlers(built);
         rows += RegisterSpellMgrHandlers(built);
         rows += RegisterUnitSpellBonusHandlers(built);
+        rows += RegisterUnitAuraProcHandlerHandlers(built);
         MANGOS_ASSERT(rows == built.Count() + built.CountDefaults()); // no key and no default registered twice
         return built;
     }();
