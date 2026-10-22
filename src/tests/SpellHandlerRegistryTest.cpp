@@ -7096,7 +7096,7 @@ TEST(UnitAuraProcHandlerHandlers_TheFiveFamilySitesHoldTheirLabelsAndNoDefault)
 
 TEST(UnitAuraProcHandlerHandlers_TheFamilyTriggerLabelsSetWhatTheProcCasts)
 {
-    // Each body sets the triggered spell and goes on to the cast after the switch; one that makes the unit the target
+    // Each body but 53601's sets the triggered spell and goes on past the switch; one that makes the unit the target
     // writes the context's unit, here NULL, over the victim, and one with base points writes the first.
     TriggerCase const cases[] =
     {

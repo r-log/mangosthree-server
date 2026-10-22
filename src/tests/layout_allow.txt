@@ -1673,7 +1673,7 @@ src/game/spells/handlers [spells] -> src/game/Object/ObjectLookup.h
 src/game/spells/handlers [spells] -> src/game/Object/Pet.h
 # The bodies cast a creature to its temporary-summon class to read its summoner and unsummon it; the origin's own edge, same layer pair and header; it stays until D12 makes the summoner a question the creature answers itself.
 src/game/spells/handlers [spells] -> src/game/Object/TemporarySummon.h
-# The Glyph of Totem of Wrath body reads the unit's fire totem and its auras; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while a handler reads a totem itself.
+# The Glyph of Shamanistic Rage body (63280) reads the unit's fire totem and its auras; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while a handler reads a totem itself.
 src/game/spells/handlers [spells] -> src/game/Object/Totem.h
 # The bonus and proc bodies read and act on the unit their handler ran for; the origin's own edge carried into the handler directory, same layer pair and header; spells -> entities is allowed, so the key stays while the Unit-site handlers read the unit itself.
 src/game/spells/handlers [spells] -> src/game/Object/Unit.h
