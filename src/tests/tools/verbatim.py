@@ -104,10 +104,11 @@ registered outside the tables the paste-back reads.
 
 The run shapes beyond one label per line and a body that ends in its own terminator:
   T, comment lines after a block: a braced run's closing `}` may be followed, before the next label
-     or the switch's close, by lines that are comments (`//`) at exactly the label indent. They belong
-     to that run: the handler holds them after its last statement at column 0, and the paste-back puts
-     them after the block's `}` at the label indent. A code line, a comment at another indent or a
-     blank line there is a block followed by more lines, and fails.
+     or the switch's close, by comments at exactly the label indent: `//` lines, or a `/* */` comment
+     that opens there with `/*` and whose last line ends in its `*/`. They belong to that run: the
+     handler holds them after its last statement at column 0, and the paste-back puts them after the
+     block's `}` at the label indent. A code line, code after a `*/` on its line, a comment at another
+     indent or a blank line there is a block followed by more lines, and fails.
   S, the shape read inside the site's switch: a run's label lines, `default:` included, are looked up
      only inside the switches the site's open lines start (each closed by the first close line after
      them) that hold one of the site's label lines, so a `default:` line standing in another switch of
@@ -137,12 +138,13 @@ The run shapes beyond one label per line and a body that ends in its own termina
      of one run, so they share its function (an id of the line registered by another function
      fails); the line is pasted back once. In a partly moved switch every id on a standing line
      stands; a deleted id sharing its line with others fails.
-  F, a run falling into the next: its handler ends in `    return G(ctx);`, G being the function of
-     the next row of the table, whose first label is the label after the run's last in the original
-     order (no label standing between them). The paste-back drops that line, so the run falls into
-     the next one as it did. A call of any other function as the last line fails, and so does a
-     default ending in one. Moving both runs as one body under all their labels is not this shape:
-     the second run's labels stood between the bodies, and the paste-back differs.
+  F, a run falling into the next: its handler's last code line is `    return G(ctx);`, G being the
+     function of the next row of the table, whose first label is the label after the run's last in
+     the original order (no label standing between them). The paste-back drops that line only, so
+     the run falls into the next one as it did; blank lines and lines that are all comment after
+     the call stay where they are. A call of any other function as the last code line fails, and
+     so does a default ending in one. Moving both runs as one body under all their labels is not
+     this shape: the second run's labels stood between the bodies, and the paste-back differs.
   P, comment lines before the first label: lines between a whole site's switch `{` and its first
      label, read where the switch stands, must each be a `//` comment at the `{`'s indent or deeper
      (a code line, a blank line or a shallower comment there fails). They belong to the run of that
@@ -167,7 +169,9 @@ The run shapes beyond one label per line and a body that ends in its own termina
      a LoopContinue inside a loop in the body (the old `continue;` took that loop's next iteration; inside
      a nested switch it passed through, and is allowed); a LoopContinue at a site that names no loop; a
      Return at a loop site, whose dispatch only continues; a loop site that names a value; a site whose
-     own substitutions list the LoopContinue pair.
+     own substitutions list the LoopContinue pair; a site with no `value`, loop or not, whose own
+     substitutions list a pair whose left side holds `SpellHandlerOutcome<` and that is none of
+     VOID_SUBSTITUTIONS.
 Every handler's last statement (comment lines, and a comment at the end of its line, aside) is a
 `return` at the function's own level, so no body falls off its end.
 
@@ -252,6 +256,21 @@ universal-character escape or stray `%` in a literal it changes. Refused, each b
 or a conversion, stands other than once in the working tree or more than once in a base, does not stand alone,
 or overlaps another; a line holding a line break, a line splice or a carriage return, or a directive line; texts
 that are not a list of pairs.
+
+INCLUDES: include lines respelled to name their header by its path from src/game. A file's `includes` (its SITES
+entry's) list (new line, base line) pairs, each line exactly `#include "<spelling>"` with nothing after the closing
+quote: the base spelling a file name alone, the new one a path from src/game ending in `/` and that name. In every
+version read, before its texts, each new line is read back as its base line above a handler block appended to the
+file; it stands there once in the working tree and at most once in a base. A pair holds only when the two spellings
+name the same file: `git ls-files -- src dep` holds one file of that name (any letter case), src/game/<new
+spelling>; the commit read (the base, or the original) holds one file of that name under src/ and dep/, at a path
+P; and P is the new path, or `git log -M100% --diff-filter=R` records a commit since then renaming P to it
+unchanged. Every other line is compared as it stands, so no other line changes and no include is added, dropped or
+moved. Refused, each by name: a line that is not such an include, a base spelling that is not a file name alone, a
+new spelling that is not a path ending in it, a name the working tree holds other than once or other than at the
+new path, a name the commit read holds other than once, a file held elsewhere that no commit since renamed to the
+new path unchanged, a new line standing other than once in the working tree or more than once in a base, and
+includes that are not a list of pairs.
 
 BLOCKS: a block of type definitions moved from a source file into a header. Each entry names the commit
 before the move (`base`, spelled and resolved as an original is), the file the block stood in (`origin`),
@@ -396,7 +415,8 @@ class Failure(Exception):
     pass
 
 
-ENTRY_KEYS = ('handlers', 'rows_function', 'added', 'tail_marker', 'sites', 'original', 'renamed_from', 'cuts', 'texts')
+ENTRY_KEYS = ('handlers', 'rows_function', 'added', 'tail_marker', 'sites', 'original', 'renamed_from', 'cuts', 'texts',
+              'includes')
 SITE_KEYS = ('name', 'dispatch', 'open', 'close', 'label_indent', 'table', 'traits', 'context', 'live_outs', 'in_scope',
              'members_of', 'substitutions', 'labels', 'default', 'residual', 'closed', 'deleted', 'gone', 'texts',
              'value', 'function', 'loop')
@@ -422,13 +442,21 @@ def outcome_pairs(site):
     """The site with its substitutions followed by the outcome pairs built from its `value` (V), or at a loop
     site by the LoopContinue pair (L); any other site as it is. A `value` that is not a plain type spelling
     fails, and so does a site with a `value` whose own substitutions list an outcome pair, a loop site naming
-    a value, a site whose own substitutions list the LoopContinue pair, and a site whose pairs hold none
+    a value, a site whose own substitutions list the LoopContinue pair, a site with no `value` whose own
+    substitutions list an outcome pair that is none of VOID_SUBSTITUTIONS, and a site whose pairs hold none
     pasting back as `break;` (its Continue could not be read)."""
     if site.get('loop') and 'value' in site:
         raise Failure('%s: a loop site names a value, and its dispatch only continues the loop' % site['name'])
     if any(a == LOOP_CONTINUE for a, _ in site['substitutions']):
         raise Failure('%s: its substitutions list the LoopContinue pair, which the tool builds for a loop site'
                       % site['name'])
+    if 'value' not in site:
+        void = [tuple(p) for p in VOID_SUBSTITUTIONS]
+        odd = [(a, b) for a, b in site['substitutions']
+               if isinstance(a, str) and 'SpellHandlerOutcome<' in a and (a, b) not in void]
+        if odd:
+            raise Failure('%s: its substitutions list the outcome pair %r, which is none of VOID_SUBSTITUTIONS'
+                          % (site['name'], odd[0]))
     if site.get('loop'):
         site = dict(site, substitutions=list(site['substitutions']) + [(LOOP_CONTINUE, 'continue;')])
     if 'value' in site:
@@ -717,6 +745,69 @@ def file_texts(text, spec, strict):
             if lines[k:k + len(site['dispatch'])] == site['dispatch']}
     return '\n'.join(read_back(lines, [(0, end)], texts, strict, 'the file, off its sites\' dispatch lines',
                                frozenset(skip)))
+
+
+INCLUDE_LINE = re.compile(r'#include "([^"\\\n]+)"')
+
+
+def named(git, ref, name, listings):
+    """The files under src/ and dep/ named `name` (any letter case): in the index when `ref` is None, else at
+    the commit `ref`. `listings` holds each listing read, by `ref`, so each is read once."""
+    if ref not in listings:
+        args = ('ls-files',) if ref is None else ('ls-tree', '-r', '--name-only', ref)
+        code, listed, err = git(*(args + ('--', 'src', 'dep')))
+        if code != 0:
+            raise Failure('cannot list the files %s: %s' % ('of the working tree' if ref is None else 'at ' + ref, err))
+        listings[ref] = listed.split('\n')
+    return sorted(p for p in listings[ref] if p and p.rsplit('/', 1)[-1].lower() == name.lower())
+
+
+def include_pairs(spec, ref, git, listings):
+    """[([new line], [base line])]: the entry's include pairs, each naming the same file in the working tree and
+    at the commit `ref` (INCLUDES)."""
+    listed = spec.get('includes', [])
+    if not isinstance(listed, (tuple, list)):
+        raise Failure('the includes %r are not a list of include pairs' % (listed,))
+    pairs = []
+    for pair in listed:
+        if not (isinstance(pair, (tuple, list)) and len(pair) == 2 and all(isinstance(x, str) for x in pair)):
+            raise Failure('the include pair %r is not (new line, base line)' % (pair,))
+        what = 'the include pair %r' % pair[0]
+        new, base = (INCLUDE_LINE.fullmatch(x) for x in pair)
+        if not new or not base:
+            raise Failure('%s: a line of it is not exactly #include "<spelling>"' % what)
+        name, spelling = base.group(1), new.group(1)
+        if '/' in name or name in ('.', '..'):
+            raise Failure('%s: the base spelling %s is not a file name alone' % (what, name))
+        parts = spelling.split('/')
+        if len(parts) < 2 or parts[-1] != name or any(p in ('', '.', '..') for p in parts):
+            raise Failure('%s: the new spelling %s is not a path from src/game ending in /%s' % (what, spelling, name))
+        path = 'src/game/' + spelling
+        held = named(git, None, name, listings)
+        if held != [path]:
+            raise Failure('%s: the working tree holds %s named %s, not %s alone' % (what, held or 'no file', name, path))
+        was = named(git, ref, name, listings)
+        if len(was) != 1:
+            raise Failure('%s: %d files named %s at %s, not one' % (what, len(was), name, ref))
+        if was[0] != path:
+            code, log, _ = git('log', '-M100%', '--diff-filter=R', '--format=', '--name-status', ref + '..HEAD',
+                               '--', was[0], path)
+            if code != 0 or 'R100\t%s\t%s' % (was[0], path) not in log.split('\n'):
+                raise Failure('%s: %s holds it at %s, and no commit since renamed it to %s unchanged'
+                              % (what, was[0], ref, path))
+        pairs.append(([pair[0]], [pair[1]]))
+    return pairs
+
+
+def file_includes(text, spec, pairs, strict):
+    """`text`, a version of a SITES file, with each include pair's new line read back as its base line, above a
+    handler block appended to it (INCLUDES)."""
+    if not pairs:
+        return text
+    lines = text.split('\n')
+    marker = [i for i, l in enumerate(lines) if l == spec.get('tail_marker')]
+    return '\n'.join(read_back(lines, [(0, marker[0] if marker else len(lines))], pairs, strict,
+                               'the file, its include lines'))
 
 
 def body_at(lines, function, context, value='void'):
@@ -1028,7 +1119,12 @@ def braced(origins, site, label_lines):
             return False
         close = next((j for j in range(k + 1, len(lines)) if lines[j] == indent + '}'), None)
         after = close + 1 if close is not None else len(lines)
-        while after < len(lines) and lines[after].startswith(indent + '//'):
+        while after < len(lines) and lines[after].startswith((indent + '//', indent + '/*')):
+            if lines[after].startswith(indent + '/*'):
+                end = next((j for j in range(after, len(lines)) if '*/' in lines[j]), None)
+                if end is None or not lines[end].endswith('*/'):
+                    break
+                after = end
             after += 1
         follows = lines[after] if after < len(lines) else None
         if follows is None or not (follows == site['close'][0] or follows.startswith(indent + 'case ')
@@ -1097,8 +1193,9 @@ def paste(site, function, body, label_lines, wrapped=False, gaps=(), lead=0):
     if any('{body}' in l for l in label_lines):
         raise Failure('%s: %s is a one-line case sharing its body with another label' % (site['name'], function))
     indent = ' ' * site['label_indent']
-    trailing = len(restored)
-    while wrapped and trailing > 0 and restored[trailing - 1].startswith('//'):
+    trailing, code = len(restored), blank('\n'.join(restored)).split('\n')
+    while (wrapped and trailing > 0 and restored[trailing - 1][:1] not in ('', ' ')
+           and not code[trailing - 1].strip()):
         trailing -= 1
     restored = [indent + line if line else line for line in restored]
     if wrapped:
@@ -1110,9 +1207,12 @@ FALLS = re.compile(r'    return (\w+)\(ctx\);')
 
 
 def falls_into(site, function, body, rows, j):
-    """`body` less its last line when that is `return G(ctx);`, a run falling into the run after it:
-    G must be the function of the next row, and that row's label the next in the switch."""
-    m = FALLS.fullmatch(body[-1]) if body else None
+    """`body` less its last code line when that is `return G(ctx);` (the blank and comment lines after it stay),
+    a run falling into the run after it: G must be the function of the next row, and that row's label the next
+    in the switch."""
+    code = blank('\n'.join(body)).split('\n')
+    k = next((i for i in range(len(body) - 1, -1, -1) if code[i].strip()), -1)
+    m = FALLS.fullmatch(body[k]) if k >= 0 else None
     if not m:
         return body
     order = list(site['labels'])
@@ -1120,7 +1220,7 @@ def falls_into(site, function, body, rows, j):
     if j >= len(rows) or rows[j][1] != m.group(1) or after >= len(order) or order[after] != rows[j][0]:
         raise Failure('%s: %s ends in a call of %s, which is not the function of the run after it in the switch'
                       % (site['name'], function, m.group(1)))
-    return body[:-1]
+    return body[:k] + body[k + 1:]
 
 
 def squeezed(text):
@@ -1684,9 +1784,12 @@ def first_difference(a, b, other='rebuilt'):
     return 'lengths differ: base %d lines, %s %d' % (len(al), other, len(bl))
 
 
-def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None, new_handlers=None):
-    """`old_handlers` and `new_handlers`: the handler file's text in that version, None where it has none."""
+def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None, new_handlers=None, includes=()):
+    """`old_handlers` and `new_handlers`: the handler file's text in that version, None where it has none;
+    `includes`: the file's include pairs (include_pairs)."""
     try:
+        new_text = file_includes(new_text, spec, includes, True)
+        old_text = file_includes(old_text, spec, includes, False)
         new_text, old_text = file_texts(new_text, spec, True), file_texts(old_text, spec, False)
         origins = [old_text.split('\n'), new_text.split('\n')]
         rebuilt, pasted, labels, sites, handlers = rebuild(new_text, spec, headers, new_handlers, origins=origins)
@@ -1709,7 +1812,8 @@ def verify(rel, old_text, new_text, spec, headers, out=print, old_handlers=None,
     out('%s: IDENTICAL to the base, byte for byte, with %d/%d bodies pasted back at their %d labels in %d sites '
         '(the base had %d of the sites moved: %d bodies pasted back there), the base less %d cuts (%d lines)%s' % (
             rel, pasted, len(defined), labels, len(sites), len(base_sites), base_pasted, cuts, cut_lines,
-            ', %d text pairs read back' % texts if texts else ''))
+            ', %d text pairs read back' % texts if texts else '') +
+        (', %d include pairs read back' % len(includes) if includes else ''))
     return 0, pasted
 
 
@@ -1966,6 +2070,7 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
             return 1
         out('verbatim: each original is measured against the anchor %s' % anchor)
     rc = 0
+    listings = {}
     used = {(a, b) for spec in sites.values() for site in spec['sites'] for a, b in site['substitutions']}
     for pair in excepted:
         if pair not in used:
@@ -1977,6 +2082,7 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
             for site in spec['sites']:
                 check_pairs(site, excepted)
             ref, at = read_at(rel, spec, base, original, git, read, anchor)
+            includes = include_pairs(spec, ref, git, listings)
             new_text = read(rel)
         except Failure as e:
             out('%s: FAILED: %s' % (rel, e))
@@ -2009,7 +2115,7 @@ def check(root, base, out=print, original=False, git=None, read=None, sites=None
                 rc = 1
                 break
         else:
-            got, _ = verify(rel, old_text, new_text, spec, headers, out, old_handlers, new_handlers)
+            got, _ = verify(rel, old_text, new_text, spec, headers, out, old_handlers, new_handlers, includes)
             rc |= got
     for entry in BLOCKS if blocks is None else blocks:
         try:
@@ -3303,6 +3409,10 @@ def self_test():
     run('S by function: a site naming the other function: fails by name', 1,
         "remove: its dispatch does not stand in its function 'void Thing::Apply(bool apply)'",
         **twins(twin_heads['Lift']))
+    twice = {k: (v.replace(twin_heads['Lift'], twin_heads['Drop']) if isinstance(v, str) else v)
+             for k, v in twins(twin_heads['Drop'], twin_heads['Drop']).items()}
+    run('S by function: a head standing twice: fails by name', 1,
+        "remove: its function head 'void Thing::Remove(bool apply)' found 2 times in one version", **twice)
     run('F: a default ending in a call (no run follows it): fails', 1, 'the default Default ends in a call',
         **mutated(scoped, 'handlers', '    ctx.target->Drop(0);\n' + ret, '    return One(ctx);'))
 
@@ -3572,6 +3682,48 @@ def self_test():
                                                 for n, v, b in fall_functions],
                [(1, 'One')] + fall_rows[2:], residual=True,
                standing=form_site['open'] + fall_switch[4:9] + form_site['close']))
+    trail_switch = [lab[1], '        {', '            target->Drop(1);', '        }', '        // Two, after a comment',
+                    lab[2], '            target->Drop(2);', '', '        // Three, after a blank line',
+                    lab[3], '            target->Drop(3);', '            break;']
+    trail_functions = [('One', 'void', ['    ctx.target->Drop(1);', '    return Two(ctx);', '// Two, after a comment']),
+                       ('Two', 'void', ['    ctx.target->Drop(2);', '    return Three(ctx);', '',
+                                        '// Three, after a blank line']),
+                       ('Three', 'void', ['    ctx.target->Drop(3);', cont])]
+    trailed = form('trailed', {i: lab[i] for i in (1, 2, 3)}, trail_switch, trail_functions,
+                   [(1, 'One'), (2, 'Two'), (3, 'Three')])
+    run('F: calls before a trailing comment and before a blank line: pass', 0,
+        'with 3/3 bodies pasted back at their 3 labels in 1 sites', **trailed)
+    run('F: the trailing comment after a call changed: DIFFERS', 1, 'DIFFERS from the base',
+        **mutated(trailed, 'handlers', '// Two, after a comment', '// Two, after a note'))
+    run('F: a call of a run not the next, before a trailing comment: fails', 1,
+        'One ends in a call of Three, which is not the function of the run after it',
+        **mutated(trailed, 'handlers', '    return Two(ctx);', '    return Three(ctx);'))
+    block_switch = [lab[1], '        {', '            target->Drop(1);', '            return;', '        }',
+                    '        /*', '        // a note on Two', '        // and its end */',
+                    lab[2], '            target->Drop(2);', '            break;']
+    block_functions = [('One', 'void', ['    ctx.target->Drop(1);', ret, '/*', '// a note on Two',
+                                        '// and its end */']),
+                       ('Two', 'void', ['    ctx.target->Drop(2);', cont])]
+    block_rows, blocked_labels = [(1, 'One'), (2, 'Two')], {i: lab[i] for i in (1, 2)}
+    run('T: a block comment after a block: passes', 0, 'with 2/2 bodies pasted back at their 2 labels in 1 sites',
+        **form('blocked', blocked_labels, block_switch, block_functions, block_rows))
+    run('T: code after the block comment\'s end on its line: fails', 1, 'is a block followed by more lines',
+        **form('blocked', blocked_labels, [l.replace('its end */', 'its end */ x();') for l in block_switch],
+               [(n, v, [l.replace('its end */', 'its end */ x();') for l in b]) for n, v, b in block_functions],
+               block_rows))
+    run('T: a block comment at another indent after a block: fails', 1, 'is a block followed by more lines',
+        **form('blocked', blocked_labels, [l.replace('        /*', '            /*') for l in block_switch],
+               block_functions, block_rows))
+    run('F: a statement after the call, behind a comment on its line: DIFFERS', 1, 'DIFFERS from the base',
+        **mutated(mutated(trailed, 'handlers', '    return Three(ctx);\n',
+                          '    return Three(ctx);\n    /* x */ ctx.target->Drop(7);\n'),
+                  'old_text', '            target->Drop(2);\n\n',
+                  '            target->Drop(2);\n            /* x */ target->Drop(7);\n\n'))
+    run('F: a statement after the call, led by a `*`: DIFFERS', 1, 'DIFFERS from the base',
+        **mutated(mutated(trailed, 'handlers', '    return Three(ctx);\n',
+                          '    return Three(ctx);\n    *ctx.target->Slot(7) = 0;\n'),
+                  'old_text', '            target->Drop(2);\n\n',
+                  '            target->Drop(2);\n            *target->Slot(7) = 0;\n\n'))
 
     lab1, lab12, lab123 = ({i: lab[i] for i in ids} for ids in ((1,), (1, 2), (1, 2, 3)))
     drop1, drop3, drop9 = ('    ctx.target->Drop(%d);' % n for n in (1, 3, 9))
@@ -4077,6 +4229,21 @@ def self_test():
     run('L: a site listing the LoopContinue pair itself: fails by name', 1,
         'looped: its substitutions list the LoopContinue pair, which the tool builds for a loop site',
         **respec(looped, substitutions=form_site['substitutions'] + [(LOOP_CONTINUE, 'continue;')]))
+    odd_pair = "%s: its substitutions list the outcome pair (%r, %r), which is none of VOID_SUBSTITUTIONS"
+    loop_odd, return_odd = ('return SpellHandlerOutcome<void>::LoopContinue()', 'break'), \
+        ('return SpellHandlerOutcome<void>::Return()', 'break')
+    run('L: a loop site listing a LoopContinue pair of its own: fails by name', 1, odd_pair % (('looped',) + loop_odd),
+        **respec(looped, substitutions=form_site['substitutions'] + [loop_odd]))
+    run('L: a void site listing a Return pair of its own: fails by name', 1, odd_pair % (('falls',) + return_odd),
+        **respec(falls, substitutions=[return_odd] + form_site['substitutions']))
+    run('L: a void site pairing a void outcome with another line: fails by name', 1,
+        odd_pair % ('falls', 'return SpellHandlerOutcome<void>::Return();', 'break;'),
+        **respec(falls, substitutions=[('return SpellHandlerOutcome<void>::Return();', 'break;')]
+                 + form_site['substitutions']))
+    run('L: a Return where `break;` stood, read back by a pair of its own: fails by name', 1,
+        odd_pair % (('trailed',) + return_odd),
+        **respec(mutated(trailed, 'handlers', '    ctx.target->Drop(3);\n' + cont, '    ctx.target->Drop(3);\n' + ret),
+                 substitutions=[return_odd] + form_site['substitutions']))
     for statement in ('return;', 'break;'):
         run('L: `%s` in a loop site\'s dispatch: fails by name' % statement, 1, unshaped % ('looped', statement),
             **reshaped(looped, looping[:3] + ['            ' + statement] + looping[4:]))
@@ -4584,6 +4751,93 @@ def self_test():
     renamed('a members_of header the working tree does not hold: FAILED', 1,
             new_p + ': FAILED: the working tree has no Thing.h, its members_of', before, moved, base='3000000',
             work={new_p: SELF_SITES, 'Handlers.cpp': SELF_HANDLERS})
+
+    # INCLUDES: the fixture's first line, `#include "A.h"`, respelled `#include "sub/A.h"`; A.h stood at
+    # src/game/Old/A.h at 3000000, and a later commit renamed it unchanged to src/game/sub/A.h.
+    inc_new, inc_base = '#include "sub/A.h"', '#include "A.h"'
+    inc_old, inc_path, inc_key = 'src/game/Old/A.h', 'src/game/sub/A.h', 'src/game/Sites.cpp'
+
+    def included(label, want_rc, needles, pairs=((inc_new, inc_base),), tree_text=None, base_text=SELF_OLD,
+                 tree_names=(inc_path,), base_names=(inc_old,), renames=((inc_old, inc_path),)):
+        """check() of the fixture with `pairs` as its includes: the working tree holds `tree_text` (the fixture's
+        sites with the first line respelled) and the files `tree_names`, the base 3000000 `base_text` and the files
+        `base_names`; `renames` are the unchanged renames git logs since the base."""
+        needles = [needles] if isinstance(needles, str) else needles
+        tree_text = SELF_SITES.replace(inc_base, inc_new, 1) if tree_text is None else tree_text
+        base = full('3000000')
+
+        def git(*args):
+            if args[:3] == ('rev-parse', '--verify', '--quiet'):
+                found = [c for c in commits if c.startswith(args[3][:-len('^{commit}')])]
+                return (0, found[0] + '\n', '') if len(found) == 1 else (1, '', '')
+            if args[:2] == ('cat-file', '-e'):
+                return (0 if args[2] == '%s:%s' % (base, inc_key) else 128), '', ''
+            if args[0] == 'show':
+                return (0, base_text, '') if args[1] == '%s:%s' % (base, inc_key) else (128, '', 'fatal: no such path')
+            if args[0] == 'ls-files':
+                return 0, ''.join(p + '\n' for p in tree_names), ''
+            if args[:2] == ('ls-tree', '-r'):
+                return 0, ''.join(p + '\n' for p in base_names), ''
+            if args[0] == 'log':
+                return 0, ''.join('R100\t%s\t%s\n' % r for r in renames if set(r) <= set(args[-2:])), ''
+            return 0, '', ''
+        work = {inc_key: tree_text, 'Handlers.cpp': SELF_HANDLERS, 'Thing.h': SELF_HEADERS['Thing.h']}
+
+        def read(path):
+            if path not in work:
+                raise FileNotFoundError(path)
+            return work[path]
+        got = []
+        sites = {inc_key: dict(SELF_SPEC, includes=[list(p) for p in pairs])}
+        try:
+            rc = check('.', '3000000', got.append, False, git, read, sites, blocks=[],
+                       exceptions=fixture_exceptions(sites))
+        except Exception as e:                                  # a crash fails the row
+            rc = 2
+            got.append('crashed: %r' % e)
+        text = '\n'.join(got)
+        ok = rc == want_rc and all(n in text for n in needles)
+        print('self-test: %-66s %s' % (label, 'PASS' if ok else 'FAIL'))
+        if not ok:
+            failures.append('%s: rc %d (want %d)\n%s' % (label, rc, want_rc, text))
+
+    included('includes: a respelled include read back: IDENTICAL', 0,
+             [inc_key + ': IDENTICAL to the base', ', 1 include pairs read back', 'verbatim: OK'])
+    included('includes: a base already holding the new line and path: IDENTICAL', 0,
+             [inc_key + ': IDENTICAL to the base', ', 1 include pairs read back'],
+             base_text=SELF_OLD.replace(inc_base, inc_new, 1), base_names=(inc_path,), renames=())
+    included('includes: a file held elsewhere that no commit renamed: FAILED', 1,
+             "FAILED: the include pair '#include \"sub/A.h\"': src/game/Old/A.h holds it at %s, and no commit since "
+             "renamed it to src/game/sub/A.h unchanged" % full('3000000'), renames=())
+    included('includes: two files of the name in the working tree: FAILED', 1,
+             "the working tree holds ['src/game/Other/a.h', 'src/game/sub/A.h'] named A.h, not src/game/sub/A.h alone",
+             tree_names=(inc_path, 'src/game/Other/a.h'))
+    included('includes: two files of the name at the base: FAILED', 1, '2 files named A.h at %s, not one'
+             % full('3000000'), base_names=(inc_old, 'dep/x/A.h'))
+    included('includes: the new path the working tree does not hold: FAILED', 1,
+             "the working tree holds ['src/game/Old2/A.h'] named A.h, not src/game/sub/A.h alone",
+             tree_names=('src/game/Old2/A.h',))
+    included('includes: two names: FAILED', 1, 'the new spelling sub/B.h is not a path from src/game ending in /A.h',
+             pairs=(('#include "sub/B.h"', inc_base),))
+    included('includes: a base spelling with a path: FAILED', 1, 'the base spelling Old/A.h is not a file name alone',
+             pairs=((inc_new, '#include "Old/A.h"'),))
+    included('includes: x/Old/A.h for the base spelling Old/A.h: FAILED', 1,
+             'the base spelling Old/A.h is not a file name alone', pairs=(('#include "x/Old/A.h"', '#include "Old/A.h"'),))
+    included('includes: a trailing comment on the line: FAILED', 1, 'a line of it is not exactly #include',
+             pairs=((inc_new + ' // A', inc_base),))
+    included('includes: the new line standing twice in the working tree: FAILED', 1,
+             "the file, its include lines: the text pair '#include \"sub/A.h\"' stands 2 times, not once",
+             tree_text=SELF_SITES.replace(inc_base, inc_new + '\n' + inc_new, 1))
+    included('includes: the pair listed and the line not respelled: FAILED', 1, 'stands 0 times, not once',
+             tree_text=SELF_SITES)
+    included('includes: a respelled include with no pair: DIFFERS', 1,
+             [inc_key + ': DIFFERS from the base', "line 1: base '#include \"A.h\"', rebuilt '#include \"sub/A.h\"'"],
+             pairs=())
+    included('includes: a respelled include moved below another line: DIFFERS', 1, inc_key + ': DIFFERS from the base',
+             tree_text=SELF_SITES.replace(inc_base + '\n#include "Handlers.h"\n\n',
+                                          '#include "Handlers.h"\n\n' + inc_new + '\n', 1))
+    included('includes: a list that is not of pairs: FAILED', 1, "the include pair ['#include \"sub/A.h\"'] is not "
+             "(new line, base line)", pairs=((inc_new,),))
 
     # BLOCKS: a repository of five commits in this order, the base second, the move's merge third, HEAD
     # fourth; the origin stands as it was before the move at the first, second and fifth.
