@@ -1210,7 +1210,8 @@ def falls_into(site, function, body, rows, j):
     """`body` less its last code line when that is `return G(ctx);` (the blank and comment lines after it stay),
     a run falling into the run after it: G must be the function of the next row, and that row's label the next
     in the switch."""
-    k = code_above(body, len(body) - 1)
+    code = blank('\n'.join(body)).split('\n')
+    k = next((i for i in range(len(body) - 1, -1, -1) if code[i].strip()), -1)
     m = FALLS.fullmatch(body[k]) if k >= 0 else None
     if not m:
         return body
@@ -3713,6 +3714,16 @@ def self_test():
     run('T: a block comment at another indent after a block: fails', 1, 'is a block followed by more lines',
         **form('blocked', blocked_labels, [l.replace('        /*', '            /*') for l in block_switch],
                block_functions, block_rows))
+    run('F: a statement after the call, behind a comment on its line: DIFFERS', 1, 'DIFFERS from the base',
+        **mutated(mutated(trailed, 'handlers', '    return Three(ctx);\n',
+                          '    return Three(ctx);\n    /* x */ ctx.target->Drop(7);\n'),
+                  'old_text', '            target->Drop(2);\n\n',
+                  '            target->Drop(2);\n            /* x */ target->Drop(7);\n\n'))
+    run('F: a statement after the call, led by a `*`: DIFFERS', 1, 'DIFFERS from the base',
+        **mutated(mutated(trailed, 'handlers', '    return Three(ctx);\n',
+                          '    return Three(ctx);\n    *ctx.target->Slot(7) = 0;\n'),
+                  'old_text', '            target->Drop(2);\n\n',
+                  '            target->Drop(2);\n            *target->Slot(7) = 0;\n\n'))
 
     lab1, lab12, lab123 = ({i: lab[i] for i in ids} for ids in ((1,), (1, 2), (1, 2, 3)))
     drop1, drop3, drop9 = ('    ctx.target->Drop(%d);' % n for n in (1, 3, 9))
