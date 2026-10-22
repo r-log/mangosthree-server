@@ -257,7 +257,13 @@ BLOCKS: a block of type definitions moved from a source file into a header. Each
 before the move (`base`, spelled and resolved as an original is), the file the block stood in (`origin`),
 the header that holds it now (`header`), the block's first line (`first`, exact text), its number of
 lines (`lines`), and the lines the move added to the origin (`added`, each exact text); an entry with
-other keys, or a `lines` that is not a positive count, is refused. --check, with or without --original,
+other keys, or a `lines` that is not a positive count, is refused. A renamed origin or header keeps its
+key at the working tree's path and names its old path in `origin_renamed_from` or `header_renamed_from`.
+The working tree must hold the new path and not the old one. The old path, and not the new one, must be
+at the base for the origin, and for the header at the origin's SITES original, or at the base when SITES
+has no entry for the origin; at that original the header's old path must also hold the block exactly
+once. The original is read at whichever of the origin's two paths it holds, exactly one. Any other case
+fails, naming the paths. --check, with or without --original,
 runs every entry after the sites, each against its own base, and prints one line for it:
   1. the block: the origin at the base holds `first` exactly once, and the block is the `lines` lines
      from there; its braces balance, its last line is `};`, and it defines a type (a column-0
@@ -1784,6 +1790,8 @@ def read_at(rel, spec, base, original, git, read, anchor=None):
 
 
 BLOCK_KEYS = ('base', 'origin', 'header', 'first', 'lines', 'added')
+# The keys a BLOCKS entry may add, each the old path of the key it names (BLOCKS).
+BLOCK_RENAMES = (('origin_renamed_from', 'origin'), ('header_renamed_from', 'header'))
 
 # The files a type is compiled from: a definition in any other file is no twin.
 TYPE_SOURCES = ('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inc', '.inl', '.ipp')
@@ -1812,16 +1820,42 @@ def definitions(text, name):
 def check_block(entry, sites, git, read, scan, anchor=None):
     """The line --check prints for one BLOCKS entry, its checks 1 to 5 passed (BLOCKS); `scan` reads a
     file under src/ for the twin search, `anchor` (a full SHA) takes HEAD's place in the base's ancestry."""
-    if sorted(entry) != sorted(BLOCK_KEYS):
+    if sorted(k for k in entry if k not in dict(BLOCK_RENAMES)) != sorted(BLOCK_KEYS):
         raise Failure('the entry\'s keys are %s, and a block entry has exactly %s' % (sorted(entry), list(BLOCK_KEYS)))
     origin, header, n = entry['origin'], entry['header'], entry['lines']
+
+    def in_tree(p):
+        try:
+            read(p)
+        except OSError:
+            return False
+        return True
+    for key, what in BLOCK_RENAMES:
+        if entry.get(key) and not in_tree(entry[what]):
+            raise Failure('the working tree has no %s %s' % (what, entry[what]))
+        if entry.get(key) and in_tree(entry[key]):
+            raise Failure('its %s %s is still in the working tree' % (key, entry[key]))
+
+    def path_at(ref, what, old_only):
+        """The path `ref` holds the origin or the header (`what`) at: the entry's own one without a rename
+        key, else the old path, or (not `old_only`) the entry's; the commit must hold exactly one."""
+        key, path = what + '_renamed_from', entry[what]
+        was = entry.get(key)
+        if not was:
+            return path
+        have = [p for p in (path, was) if git('cat-file', '-e', '%s:%s' % (ref, p))[0] == 0]
+        if have == [was] or (have == [path] and not old_only):
+            return have[0]
+        raise Failure('%s at %s' % ('both %s and its %s %s are there' % (path, key, was) if len(have) == 2 else
+                                    '%s is there and its %s %s is not' % (path, key, was) if have else
+                                    'neither %s nor its %s %s is there' % (path, key, was), ref))
     if not isinstance(n, int) or n < 1:
         raise Failure('its lines %r is not a positive count' % (n,))
     base = resolve('base', entry['base'], git)
     if git('merge-base', '--is-ancestor', base, anchor or 'HEAD')[0] != 0:
         raise Failure('the base %s is not an ancestor of %s' % (entry['base'], 'the anchor ' + anchor if anchor
                                                                 else 'HEAD'))
-    code, old, err = git('show', '%s:%s' % (base, origin))
+    code, old, err = git('show', '%s:%s' % (base, path_at(base, 'origin', True)))
     if code != 0:
         raise Failure('cannot read the origin at the base %s from git: %s' % (base, err))
     old = old.split('\n')
@@ -1853,11 +1887,17 @@ def check_block(entry, sites, git, read, scan, anchor=None):
         if git('merge-base', '--is-ancestor', base, ref)[0] != 0:
             raise Failure('the original %s of the origin\'s SITES entry does not descend from the base %s'
                           % (spec['original'], entry['base']))
-        code, new, err = git('show', '%s:%s' % (ref, origin))
+        read_as = path_at(ref, 'origin', False)
+        code, new, err = git('show', '%s:%s' % (ref, read_as))
         if code != 0:
             raise Failure('cannot read the origin at its original %s from git: %s' % (ref, err))
         where = 'at ' + ref
-        others.append(('%s at %s' % (origin, ref), new))
+        others.append(('%s at %s' % (read_as, ref), new))
+    was_header = path_at(base if spec is None else ref, 'header', True)
+    if spec is not None and entry.get('header_renamed_from'):
+        was_lines = git('show', '%s:%s' % (ref, was_header))[1].split('\n')
+        if sum(was_lines[k:k + n] == block for k in range(len(was_lines) - n + 1)) != 1:
+            raise Failure('its header_renamed_from %s does not hold the block once at %s' % (was_header, ref))
     try:
         held = read(header)
     except OSError:
@@ -4778,6 +4818,70 @@ def self_test():
     blocked('BLOCKS: main() with --original and --anchor: the anchor reaches them', 1,
             'FAILED: the base 2b00000 is not an ancestor of the anchor %s' % block_commits[0],
             argv=['verbatim.py', '--check', '--original', '--anchor', '1b00000'])
+    # Renames: the origin stood at old_o and the header at old_h up to the original, 3b00000.
+    old_o, old_h, wrong = 'src/game/Before/Far.cpp', 'src/game/Before/FarOrder.h', 'src/game/Elsewhere/Far.cpp'
+    moved_files = {('1b00000', origin): None, ('2b00000', origin): None, ('3b00000', origin): None,
+                   ('2b00000', old_o): BLOCK_ORIGIN, ('3b00000', old_o): BLOCK_MOVED, ('3b00000', old_h): BLOCK_HEADER}
+    renamed_o, renamed_h = {'origin_renamed_from': old_o}, {'header_renamed_from': old_h}
+    blocked('BLOCKS: the origin renamed, read at its old path at the base and original: IDENTICAL', 0,
+            moved_line % ('at ' + block_commits[2]), entry=renamed_o, files=moved_files, tree=later, sites=at_original)
+    blocked('BLOCKS: the origin renamed, its original holding the new path: IDENTICAL', 0,
+            moved_line % ('at ' + block_commits[2]), entry=renamed_o, tree=later, sites=at_original,
+            files={('2b00000', origin): None, ('2b00000', old_o): BLOCK_ORIGIN})
+    blocked('BLOCKS: the header renamed, its original holding the old path: IDENTICAL', 0,
+            moved_line % ('at ' + block_commits[2]), entry=renamed_h, tree=later, sites=at_original,
+            files={('3b00000', old_h): BLOCK_HEADER})
+    blocked('BLOCKS: the header renamed, no SITES entry: its old path at the base: IDENTICAL', 0,
+            moved_line % 'in the working tree', entry=renamed_h, files={('2b00000', old_h): '#pragma once\n'})
+    blocked('BLOCKS: the origin and the header both renamed: IDENTICAL', 0, moved_line % ('at ' + block_commits[2]),
+            entry=dict(renamed_o, **renamed_h), files=moved_files, tree=later, sites=at_original)
+    blocked('BLOCKS: a renamed origin\'s old path still in the working tree: fails', 1,
+            'FAILED: its origin_renamed_from %s is still in the working tree' % old_o, entry=renamed_o,
+            files=moved_files, tree=dict(later, **{old_o: BLOCK_MOVED}), sites=at_original)
+    blocked('BLOCKS: a renamed header\'s old path still in the working tree: fails', 1,
+            'FAILED: its header_renamed_from %s is still in the working tree' % old_h, entry=renamed_h,
+            tree={old_h: BLOCK_HEADER})
+    blocked('BLOCKS: a renamed origin missing from the working tree: fails', 1,
+            'FAILED: the working tree has no origin %s' % origin, entry=renamed_o, files=moved_files,
+            tree={origin: None}, sites=at_original)
+    blocked('BLOCKS: neither origin path at the base: fails by name', 1,
+            'FAILED: neither %s nor its origin_renamed_from %s is there at %s' % (origin, wrong, block_commits[1]),
+            entry={'origin_renamed_from': wrong}, files=moved_files, tree=later, sites=at_original)
+    blocked('BLOCKS: neither header path at the original: fails by name', 1,
+            'FAILED: neither %s nor its header_renamed_from %s is there at %s' % (header, wrong, block_commits[2]),
+            entry={'header_renamed_from': wrong}, tree=later, sites=at_original)
+    blocked('BLOCKS: both origin paths at the base: fails', 1,
+            'FAILED: both %s and its origin_renamed_from %s are there at %s' % (origin, old_o, block_commits[1]),
+            entry=renamed_o, files={('2b00000', old_o): BLOCK_ORIGIN}, tree=later, sites=at_original)
+    blocked('BLOCKS: the base holding the renamed origin\'s new path only: fails', 1,
+            'FAILED: %s is there and its origin_renamed_from %s is not at %s' % (origin, old_o, block_commits[1]),
+            entry=renamed_o)
+    blocked('BLOCKS: the original holding the renamed header\'s new path only: fails', 1,
+            'FAILED: %s is there and its header_renamed_from %s is not at %s' % (header, old_h, block_commits[2]),
+            entry=renamed_h, tree=later, sites=at_original, files={('3b00000', header): BLOCK_HEADER})
+    blocked('BLOCKS: a renamed header\'s old path at the original without the block: fails by name', 1,
+            'FAILED: its header_renamed_from %s does not hold the block once at %s' % (old_h, block_commits[2]),
+            entry=renamed_h, tree=later, sites=at_original, files={('3b00000', old_h): '#pragma once\n'})
+    blocked('BLOCKS: a renamed header\'s old path at the original, its block one byte off: fails', 1,
+            'FAILED: its header_renamed_from %s does not hold the block once at %s' % (old_h, block_commits[2]),
+            entry=renamed_h, tree=later, sites=at_original,
+            files={('3b00000', old_h): BLOCK_HEADER.replace('a > b', 'a >= b')})
+    blocked('BLOCKS: a renamed header\'s old path at the original holding the block twice: fails', 1,
+            'FAILED: its header_renamed_from %s does not hold the block once at %s' % (old_h, block_commits[2]),
+            entry=renamed_h, tree=later, sites=at_original,
+            files={('3b00000', old_h): BLOCK_HEADER + '\n'.join(BLOCK_LINES) + '\n'})
+    blocked('BLOCKS: a twin in a renamed origin read at its original: fails, naming the old path', 1,
+            "FAILED: type FarOrder is defined again in %s at %s, a twin of the block's" % (old_o, block_commits[2]),
+            entry=dict(renamed_o, added=BLOCK_ENTRY['added'] + ['class FarOrder {};']), tree=later,
+            sites=at_original, files={**moved_files, ('3b00000', old_o): BLOCK_MOVED + 'class FarOrder {};\n'})
+    blocked('BLOCKS: a renamed origin changed at its old path at the base: fails', 1,
+            "FAILED: the origin as read, less its added lines, is not the base's less the block: line 14: base "
+            "'    list.sort(FarOrder(1));', read '    list.sort(FarOrder());'", entry=renamed_o,
+            files={('2b00000', origin): None, ('2b00000', old_o): BLOCK_ORIGIN.replace('FarOrder()', 'FarOrder(1)')})
+    blocked('BLOCKS: a rename key beside an unknown key: fails', 1,
+            "FAILED: the entry's keys are ['added', 'base', 'first', 'header', 'lines', 'origin', "
+            "'origin_renamed_from', 'renamed_from'], and a block entry has exactly",
+            entry=dict(renamed_o, renamed_from=old_o))
 
     here = os.path.dirname(os.path.abspath(__file__))
 
