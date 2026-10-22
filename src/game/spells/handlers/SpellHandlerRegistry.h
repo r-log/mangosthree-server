@@ -198,7 +198,17 @@ enum SpellHandlerSite
     /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_MAGE's `switch (dummySpell->ID)`.
     SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_MAGE = 65,
     /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_WARLOCK's `switch (dummySpell->ID)`.
-    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_WARLOCK = 66
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_WARLOCK = 66,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_PRIEST's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_PRIEST = 67,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_DRUID's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_DRUID = 68,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_ROGUE's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_ROGUE = 69,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_PALADIN's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_PALADIN = 70,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_SHAMAN's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_SHAMAN = 71
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.
