@@ -192,7 +192,13 @@ enum SpellHandlerSite
     /// `switch ((*i)->GetId())`.
     SPELL_HANDLER_SITE_UNIT_SPELL_HEALING_DONE = 62,
     /// `Unit::MeleeDamageBonusTaken`, the loop over the dummy auras: its `switch ((*i)->GetId())`.
-    SPELL_HANDLER_SITE_UNIT_MELEE_DAMAGE_TAKEN = 63
+    SPELL_HANDLER_SITE_UNIT_MELEE_DAMAGE_TAKEN = 63,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_GENERIC's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_GENERIC = 64,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_MAGE's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_MAGE = 65,
+    /// `Unit::HandleDummyAuraProc`, SPELLFAMILY_WARLOCK's `switch (dummySpell->ID)`.
+    SPELL_HANDLER_SITE_UNIT_DUMMY_AURA_PROC_WARLOCK = 66
 };
 
 /// What a handler (or a dispatch) answers. `V` is the site's value type.
