@@ -149,6 +149,108 @@ struct DummyAuraProcShamanSite
     typedef DummyAuraProcContext Context;
 };
 
+/// What the body of `Unit::HandleHasteAuraProc`'s per-spell switch reads and sets: the unit, the function's
+/// parameters and locals. The body sets the triggered spell, its target and its base points.
+struct HasteAuraProcContext
+{
+    HasteAuraProcContext(Unit* thisUnit, Unit* const& victimParameter, uint32 const& damageParameter,
+                         uint32& triggeredSpellIdLocal, Unit*& targetLocal, int32& basepoints0Local)
+        : unit(thisUnit), pVictim(victimParameter), damage(damageParameter), triggered_spell_id(triggeredSpellIdLocal),
+          target(targetLocal), basepoints0(basepoints0Local) {}
+
+    Unit* const unit;                               ///< `this` in the case bodies
+    Unit* const& pVictim;                           ///< the function's parameter `Unit* pVictim`
+    uint32 const& damage;                           ///< the function's parameter `uint32 damage`
+    uint32& triggered_spell_id;                     ///< the function's local `triggered_spell_id`, which the body sets
+    Unit*& target;                                  ///< the function's local `target`, which the body sets
+    int32& basepoints0;                             ///< the function's local `basepoints0`, which the body sets
+};
+
+/// `Unit::HandleHasteAuraProc`, SPELLFAMILY_ROGUE's `switch (hasteSpell->ID)`. A label sets what the proc casts or
+/// fails the proc; a miss goes on after the family switch.
+struct HasteAuraProcRogueSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_HASTE_AURA_PROC_ROGUE;
+    typedef SpellAuraProcResult Value;
+    typedef HasteAuraProcContext Context;
+};
+
+/// What the body of `Unit::HandleSpellCritChanceAuraProc`'s per-spell switch reads and sets: the function's parameter
+/// `triggeredByAura` and two locals. The body sets the triggered spell and its target, and reads nothing of the unit.
+struct SpellCritChanceAuraProcContext
+{
+    SpellCritChanceAuraProcContext(Aura* const& triggeredByAuraParameter, uint32& triggeredSpellIdLocal,
+                                   Unit*& targetLocal)
+        : triggeredByAura(triggeredByAuraParameter), triggered_spell_id(triggeredSpellIdLocal), target(targetLocal) {}
+
+    Aura* const& triggeredByAura;                   ///< the function's parameter `Aura* triggeredByAura`
+    uint32& triggered_spell_id;                     ///< the function's local `triggered_spell_id`, which the body sets
+    Unit*& target;                                  ///< the function's local `target`, which the body sets
+};
+
+/// `Unit::HandleSpellCritChanceAuraProc`, SPELLFAMILY_MAGE's `switch (triggeredByAuraSpell->ID)`. A label sets what
+/// the proc casts or fails the proc; a miss goes on after the family switch.
+struct SpellCritChanceAuraProcMageSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_SPELL_CRIT_CHANCE_AURA_PROC_MAGE;
+    typedef SpellAuraProcResult Value;
+    typedef SpellCritChanceAuraProcContext Context;
+};
+
+/// What the bodies of `Unit::HandleProcTriggerSpellAuraProc`'s two per-spell switches read and set: the unit, the
+/// function's parameters and locals. The bodies set the spell to trigger, its target and its base points; the second
+/// switch is keyed by that spell, and its bodies read it without setting it.
+struct ProcTriggerSpellAuraProcContext
+{
+    ProcTriggerSpellAuraProcContext(Unit* thisUnit, Unit* const& victimParameter, uint32 const& damageParameter,
+                                    Aura* const& triggeredByAuraParameter, SpellEntry const* const& procSpellParameter,
+                                    uint32 const& procFlagsParameter, uint32 const& procExParameter,
+                                    SpellEntry const* const& auraSpellInfoLocal,
+                                    SpellClassOptionsEntry const* const& procClassOptionsLocal,
+                                    int32 const& triggerAmountLocal, uint32& triggerSpellIdLocal, Unit*& targetLocal,
+                                    int32 (&basepointsLocal)[MAX_EFFECT_INDEX], Item* const& castItemLocal)
+        : unit(thisUnit), pVictim(victimParameter), damage(damageParameter), triggeredByAura(triggeredByAuraParameter),
+          procSpell(procSpellParameter), procFlags(procFlagsParameter), procEx(procExParameter),
+          auraSpellInfo(auraSpellInfoLocal), procClassOptions(procClassOptionsLocal), triggerAmount(triggerAmountLocal),
+          trigger_spell_id(triggerSpellIdLocal), target(targetLocal), basepoints(basepointsLocal),
+          castItem(castItemLocal) {}
+
+    Unit* const unit;                               ///< `this` in the case bodies
+    Unit* const& pVictim;                           ///< the function's parameter `Unit* pVictim`
+    uint32 const& damage;                           ///< the function's parameter `uint32 damage`
+    Aura* const& triggeredByAura;                   ///< the function's parameter `Aura* triggeredByAura`
+    SpellEntry const* const& procSpell;             ///< the function's parameter `SpellEntry const* procSpell`
+    uint32 const& procFlags;                        ///< the function's parameter `uint32 procFlags`
+    uint32 const& procEx;                           ///< the function's parameter `uint32 procEx`
+    SpellEntry const* const& auraSpellInfo;         ///< the function's local `auraSpellInfo`, the aura's spell
+    SpellClassOptionsEntry const* const& procClassOptions; ///< the function's local `procClassOptions`
+    int32 const& triggerAmount;                     ///< the function's local `triggerAmount`, the aura's amount
+    uint32& trigger_spell_id;                       ///< the function's local `trigger_spell_id`, which bodies set
+    Unit*& target;                                  ///< the function's local `target`, which bodies set
+    int32 (&basepoints)[MAX_EFFECT_INDEX];          ///< the function's local `basepoints`, which bodies set
+    Item* const& castItem;                          ///< the function's local `castItem`
+};
+
+/// `Unit::HandleProcTriggerSpellAuraProc`, SPELLFAMILY_GENERIC's `switch (auraSpellInfo->ID)`. A label sets what the
+/// proc casts or ends the proc with its result; a miss goes on after the family switch to the checks of the spell to
+/// trigger.
+struct ProcTriggerSpellAuraProcGenericSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_PROC_TRIGGER_SPELL_AURA_PROC_GENERIC;
+    typedef SpellAuraProcResult Value;
+    typedef ProcTriggerSpellAuraProcContext Context;
+};
+
+/// `Unit::HandleProcTriggerSpellAuraProc`'s `switch (trigger_spell_id)`, after the checks of the spell to trigger. A
+/// label checks the proc, sets the cast's target or base points, ends a category cooldown or ends the proc with its
+/// result; a miss goes on to the cooldown check and the cast.
+struct ProcTriggerSpellAuraProcTriggeredSite
+{
+    static constexpr uint32 Key = SPELL_HANDLER_SITE_UNIT_PROC_TRIGGER_SPELL_AURA_PROC_TRIGGERED;
+    typedef SpellAuraProcResult Value;
+    typedef ProcTriggerSpellAuraProcContext Context;
+};
+
 /// Registers every handler of the proc sites on `registry` (defined in UnitAuraProcHandlerHandlers.cpp). Returns the
 /// number of rows it registered; a row whose key was taken does not change the table, so a caller that registers on
 /// an empty table and finds fewer keys than rows has a duplicate.
