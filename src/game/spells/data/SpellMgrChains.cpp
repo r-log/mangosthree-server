@@ -30,7 +30,7 @@
 
 #include <unordered_map>
 #include "Utilities/Errors.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "ProgressBar.h"

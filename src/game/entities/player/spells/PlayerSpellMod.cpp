@@ -24,7 +24,7 @@
  */
 
 #include "Player.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 
 /**
  * @brief Applies or removes a spell modifier and notifies the client.

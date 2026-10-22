@@ -1,10 +1,9 @@
 # Decoupling D4l: no two include directories of a target offer a header under the same spelling.
 # The compiler resolves `#include "X.h"` against a target's include directories in order and
 # takes the first hit, so a new header whose name another include directory already has is not
-# an error anywhere -- whichever directory comes first wins, silently. src/game lists 28 include
-# directories, and since decoupling D4j entities/player/combat and entities/player/spells sit
-# beside the src/game/combat and src/game/spells roots: nothing is shadowed today, and this gate
-# keeps it that way.
+# an error anywhere -- whichever directory comes first wins, silently. Since decoupling D4j
+# entities/player/combat sits beside the src/game/combat root: nothing is shadowed today, and this
+# gate keeps it that way.
 #
 # For each target below, the include directories are read from its CMakeLists.txt (every
 # target_include_directories() call for it) plus those of the targets it inherits them from

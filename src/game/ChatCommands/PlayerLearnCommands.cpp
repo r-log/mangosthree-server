@@ -38,7 +38,7 @@
 #include <cstdlib>
 #include "Chat.h"
 #include "Language.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "DBCStores.h"
 #include "Language.h"

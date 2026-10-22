@@ -42,7 +42,7 @@
 #include "Unit.h"
 #include "Player.h"
 #include "CreatureAI.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "InstanceData.h"
 #include "CreatureLinkingMgr.h"
 #include "MotionMaster.h"

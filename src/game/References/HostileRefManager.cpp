@@ -49,7 +49,7 @@
 #include "ThreatManager.h"
 #include "Unit.h"
 #include "DBCStructure.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Map.h"
 
 /**

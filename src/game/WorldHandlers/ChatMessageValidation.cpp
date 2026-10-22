@@ -35,7 +35,7 @@
 #include "Log.h"
 #include "World.h"
 #include "ObjectMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "DBCStores.h"
 
 /**

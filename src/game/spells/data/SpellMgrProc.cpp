@@ -29,8 +29,8 @@
  */
 
 #include <set>
-#include "SpellMgr.h"
-#include "SpellAuraDefines.h"
+#include "spells/data/SpellMgr.h"
+#include "spells/auras/SpellAuraDefines.h"
 #include "Unit.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"

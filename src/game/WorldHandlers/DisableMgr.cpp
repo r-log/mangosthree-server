@@ -42,7 +42,7 @@
 #include "DisableMgr.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "World.h"
 #include "BattleGroundMgr.h"

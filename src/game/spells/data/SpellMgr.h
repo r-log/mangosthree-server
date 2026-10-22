@@ -35,7 +35,7 @@
 #include "Platform/Define.h"
 #include <cstring>
 #include "SharedDefines.h"
-#include "SpellAuraDefines.h"
+#include "spells/auras/SpellAuraDefines.h"
 #include "DBCStructure.h"
 
 #include <map>

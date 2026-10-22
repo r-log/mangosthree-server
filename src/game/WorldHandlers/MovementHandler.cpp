@@ -42,7 +42,7 @@
 #include "Group.h"
 #include "Player.h"
 #include "Vehicle.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "MapManager.h"
 #include "Transports.h"
 #include "TransportMap.h"

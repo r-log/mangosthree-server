@@ -49,7 +49,7 @@
 #include "GuildMgr.h"
 #include "AchievementMgr.h"
 #include "Player.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "Language.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"

@@ -55,7 +55,7 @@
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Pet.h"
 #include "Map.h"
 #include "MapManager.h"

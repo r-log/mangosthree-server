@@ -44,7 +44,7 @@
  * @see SpellMgr for spell management
  */
 
-#include "Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -55,7 +55,7 @@
 #include "UpdateMask.h"
 #include "World.h"
 #include "ObjectMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "Pet.h"
 #include "Unit.h"

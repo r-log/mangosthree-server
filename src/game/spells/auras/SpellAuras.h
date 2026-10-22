@@ -26,8 +26,8 @@
 #ifndef MANGOS_SPELLAURAS_H
 #define MANGOS_SPELLAURAS_H
 
-#include "Spell.h"
-#include "SpellAuraDefines.h"
+#include "spells/pipeline/Spell.h"
+#include "spells/auras/SpellAuraDefines.h"
 #include "DBCEnums.h"
 #include "ObjectGuid.h"
 #include "Object.h"

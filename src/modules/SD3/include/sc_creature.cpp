@@ -26,7 +26,7 @@
 
 #include "precompiled.h"
 #include "Item.h"
-#include "Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "WorldPacket.h"
 #include "ObjectMgr.h"
 #include "Cell.h"

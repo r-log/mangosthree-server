@@ -38,7 +38,7 @@
 #include "Policies/Singleton.h"
 #include "ObjectGuid.h"
 #include "GridDefines.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "World.h"
 
 

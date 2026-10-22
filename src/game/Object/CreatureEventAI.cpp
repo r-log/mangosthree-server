@@ -32,7 +32,7 @@
 #include "CreatureEventAI.h"
 #include "CreatureEventAIMgr.h"
 #include "ObjectMgr.h"
-#include "Spell.h"
+#include "spells/pipeline/Spell.h"
 #include "World.h"
 #include "Cell.h"
 #include "CellImpl.h"

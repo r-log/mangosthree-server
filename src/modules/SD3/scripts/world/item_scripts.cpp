@@ -129,7 +129,7 @@ struct item_gossip_test : public ItemScript
     }
 };
 
-#include "Spell.h" // This include is not needed in Zero, but is in the rest
+#include "spells/pipeline/Spell.h" // This include is not needed in Zero, but is in the rest
 
 /*#####
 # item_ogre_brew

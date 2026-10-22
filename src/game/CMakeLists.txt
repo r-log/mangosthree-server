@@ -201,10 +201,6 @@ target_include_directories(game
         OutdoorPvP
         References
         Server
-        ${CMAKE_CURRENT_SOURCE_DIR}/spells
-        ${CMAKE_CURRENT_SOURCE_DIR}/spells/auras
-        ${CMAKE_CURRENT_SOURCE_DIR}/spells/data
-        ${CMAKE_CURRENT_SOURCE_DIR}/spells/pipeline
         Time
         Tools
         WorldHandlers

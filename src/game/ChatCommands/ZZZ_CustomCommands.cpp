@@ -39,7 +39,7 @@
 #include "ObjectMgr.h"
 #include "AccountMgr.h"
 #include "PlayerDump.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "GameObject.h"
 #include "Chat.h"

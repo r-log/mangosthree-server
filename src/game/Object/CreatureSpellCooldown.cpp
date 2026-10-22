@@ -30,7 +30,7 @@
 
 #include "Creature.h"
 #include "DBCStores.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 
 /**
  * @brief Stores an absolute cooldown end time for a creature spell.

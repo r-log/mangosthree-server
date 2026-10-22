@@ -307,8 +307,8 @@
 #include "spells/handlers/UnitSpellBonusHandlers.h"
 #include "DBCStructure.h"
 #include "Unit.h"                                               // SpellAuraProcResult
-#include "SpellAuras.h"
-#include "Spell.h"                                              // SpellCastTargets
+#include "spells/auras/SpellAuras.h"
+#include "spells/pipeline/Spell.h"                                              // SpellCastTargets
 #include "Creature.h"
 #include "Player.h"
 #include "WorldSession.h"

@@ -36,7 +36,7 @@
 #include "ProgressBar.h"
 #include "DBCStores.h"
 #include "SQLStorages.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 
 /**
  * @brief Loads trainer spell data from a database table.

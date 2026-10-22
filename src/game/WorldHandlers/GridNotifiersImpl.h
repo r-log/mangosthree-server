@@ -33,7 +33,7 @@
 #include "WorldSession.h"
 #include "UpdateData.h"
 #include "CreatureAI.h"
-#include "SpellAuras.h"
+#include "spells/auras/SpellAuras.h"
 #include "DBCEnums.h"
 #include "DBCStores.h"
 

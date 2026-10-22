@@ -39,7 +39,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "ObjectMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "Player.h"
 #include "GossipDef.h"
 #include "UpdateMask.h"

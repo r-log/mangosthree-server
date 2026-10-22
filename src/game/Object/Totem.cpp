@@ -30,7 +30,7 @@
 #include "Group.h"
 #include "Player.h"
 #include "ObjectMgr.h"
-#include "SpellMgr.h"
+#include "spells/data/SpellMgr.h"
 #include "CreatureAI.h"
 #include "InstanceData.h"
 #include "ObjectLookup.h"

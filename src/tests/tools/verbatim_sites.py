@@ -53,6 +53,10 @@ VOID_SUBSTITUTIONS = [('return SpellHandlerOutcome<void>::Return();', 'return;')
 SITES = {
     'src/game/spells/auras/SpellAuraDummy.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellAuraDummy.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/AuraDummyHandlers.cpp',
         'rows_function': 'RegisterAuraDummyRows',
         'added': ['#include "spells/handlers/AuraDummyHandlers.h"'],
@@ -451,6 +455,10 @@ SITES = {
     },
     'src/game/spells/auras/SpellAuraShapeshift.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellAuraShapeshift.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/AuraShapeshiftHandlers.cpp',
         'rows_function': 'RegisterAuraShapeshiftRows',
         'added': ['#include "spells/handlers/AuraShapeshiftHandlers.h"'],
@@ -494,6 +502,10 @@ SITES = {
     },
     'src/game/spells/auras/SpellAuraControl.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellAuraControl.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/AuraControlHandlers.cpp',
         'rows_function': 'RegisterAuraControlRows',
         'added': ['#include "spells/handlers/AuraControlHandlers.h"'],
@@ -522,6 +534,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellEffectTail.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellEffectTail.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/SpellEffectTailHandlers.cpp',
         'texts': [
             ('    DEBUG_LOG("AddObject at SpellEffectTail.cpp EffectTransmitted");',
@@ -553,6 +570,10 @@ SITES = {
     },
     'src/game/spells/auras/SpellAuraPeriodic.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellAuraPeriodic.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/AuraPeriodicHandlers.cpp',
         'rows_function': 'RegisterAuraPeriodicRows',
         'added': ['#include "spells/handlers/AuraPeriodicHandlers.h"'],
@@ -706,6 +727,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellEffectHealPower.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellEffectHealPower.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'original': 'dfb6969ac09ba68864d8d3a32477e512242cb89c',
         'handlers': 'src/game/spells/handlers/SpellEffectHealPowerHandlers.cpp',
         'rows_function': 'RegisterSpellEffectHealPowerRows',
@@ -744,6 +770,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellEffectObjectCombat.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellEffectObjectCombat.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/SpellEffectObjectCombatHandlers.cpp',
         'rows_function': 'RegisterSpellEffectObjectCombatRows',
         'added': ['#include "spells/handlers/SpellEffectObjectCombatHandlers.h"'],
@@ -825,6 +856,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellTargeting.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellTargeting.cpp',
+        'includes': [
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/SpellTargetDistanceOrder.h"', '#include "SpellTargetDistanceOrder.h"'),
+        ],
         'original': 'e463e64156898754a41237e69f06570df14369f4',
         'handlers': 'src/game/spells/handlers/SpellTargetingHandlers.cpp',
         'rows_function': 'RegisterSpellTargetingRows',
@@ -891,6 +927,10 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellChecks.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellChecks.cpp',
+        'includes': [
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+        ],
         'original': 'abee2491bede2c47be0a1b5acee34c128eb19cf7',
         'handlers': 'src/game/spells/handlers/SpellChecksHandlers.cpp',
         'rows_function': 'RegisterSpellChecksRows',
@@ -923,6 +963,10 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellCheckTarget.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellCheckTarget.cpp',
+        'includes': [
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/SpellCheckTargetHandlers.cpp',
         'rows_function': 'RegisterSpellCheckTargetRows',
         'added': ['#include "spells/handlers/SpellCheckTargetHandlers.h"'],
@@ -954,6 +998,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellEffectSkillEnchantPet.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'original': '3c25961835cb31756c8c2849669cf802712ce3bc',
         'handlers': 'src/game/spells/handlers/SpellEffectSkillEnchantPetHandlers.cpp',
         'rows_function': 'RegisterSpellEffectSkillEnchantPetRows',
@@ -989,6 +1038,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellEffectDamageTeleport.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellEffectDamageTeleport.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/SpellEffectDamageTeleportHandlers.cpp',
         'rows_function': 'RegisterSpellEffectDamageTeleportRows',
         'added': ['#include "spells/handlers/SpellEffectDamageTeleportHandlers.h"'],
@@ -1164,6 +1218,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellEffectDummy.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellEffectDummy.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'original': '6b4cd43c10a0416bb31135623095d2bb5a87e77c',
         'handlers': 'src/game/spells/handlers/SpellEffectDummyHandlers.cpp',
         'rows_function': 'RegisterSpellEffectDummyRows',
@@ -1594,6 +1653,10 @@ SITES = {
     },
     'src/game/spells/auras/SpellAuras.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellAuras.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/AurasHandlers.cpp',
         'rows_function': 'RegisterAurasRows',
         'added': ['#include "spells/handlers/AurasHandlers.h"'],
@@ -2173,6 +2236,11 @@ SITES = {
     },
     'src/game/spells/pipeline/SpellEffectScript.cpp': {
         'renamed_from': 'src/game/WorldHandlers/SpellEffectScript.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'handlers': 'src/game/spells/handlers/SpellEffectScriptHandlers.cpp',
         'rows_function': 'RegisterSpellEffectScriptRows',
         'added': ['#include "spells/handlers/SpellEffectScriptHandlers.h"'],
@@ -2691,6 +2759,11 @@ SITES = {
     },
     'src/game/spells/data/SpellMgr.cpp': {
         'renamed_from': 'src/game/Object/SpellMgr.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/auras/SpellAuraDefines.h"', '#include "SpellAuraDefines.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+        ],
         'original': 'a9604403cf926c8129f7dd4695b261da2ccb33f0',
         'handlers': 'src/game/spells/handlers/SpellMgrHandlers.cpp',
         'rows_function': 'RegisterSpellMgrRows',
@@ -2759,6 +2832,11 @@ SITES = {
     },
     'src/game/spells/pipeline/UnitSpellBonus.cpp': {
         'renamed_from': 'src/game/Object/UnitSpellBonus.cpp',
+        'includes': [
+            ('#include "spells/data/SpellMgr.h"', '#include "SpellMgr.h"'),
+            ('#include "spells/pipeline/Spell.h"', '#include "Spell.h"'),
+            ('#include "spells/auras/SpellAuras.h"', '#include "SpellAuras.h"'),
+        ],
         'original': '1fcece65f000729c266d9be62009a64664a4b8e2',
         'handlers': 'src/game/spells/handlers/UnitSpellBonusHandlers.cpp',
         'rows_function': 'RegisterUnitSpellBonusRows',
