@@ -261,8 +261,9 @@ other keys, or a `lines` that is not a positive count, is refused. A renamed ori
 key at the working tree's path and names its old path in `origin_renamed_from` or `header_renamed_from`.
 The working tree must hold the new path and not the old one. The old path, and not the new one, must be
 at the base for the origin, and for the header at the origin's SITES original, or at the base when SITES
-has no entry for the origin. The original is read at whichever of the origin's two paths it holds,
-exactly one. Any other case fails, naming the paths. --check, with or without --original,
+has no entry for the origin; at that original the header's old path must also hold the block exactly
+once. The original is read at whichever of the origin's two paths it holds, exactly one. Any other case
+fails, naming the paths. --check, with or without --original,
 runs every entry after the sites, each against its own base, and prints one line for it:
   1. the block: the origin at the base holds `first` exactly once, and the block is the `lines` lines
      from there; its braces balance, its last line is `};`, and it defines a type (a column-0
@@ -1892,7 +1893,11 @@ def check_block(entry, sites, git, read, scan, anchor=None):
             raise Failure('cannot read the origin at its original %s from git: %s' % (ref, err))
         where = 'at ' + ref
         others.append(('%s at %s' % (read_as, ref), new))
-    path_at(base if spec is None else ref, 'header', True)
+    was_header = path_at(base if spec is None else ref, 'header', True)
+    if spec is not None and entry.get('header_renamed_from'):
+        was_lines = git('show', '%s:%s' % (ref, was_header))[1].split('\n')
+        if sum(was_lines[k:k + n] == block for k in range(len(was_lines) - n + 1)) != 1:
+            raise Failure('its header_renamed_from %s does not hold the block once at %s' % (was_header, ref))
     try:
         held = read(header)
     except OSError:
@@ -4854,6 +4859,21 @@ def self_test():
     blocked('BLOCKS: the original holding the renamed header\'s new path only: fails', 1,
             'FAILED: %s is there and its header_renamed_from %s is not at %s' % (header, old_h, block_commits[2]),
             entry=renamed_h, tree=later, sites=at_original, files={('3b00000', header): BLOCK_HEADER})
+    blocked('BLOCKS: a renamed header\'s old path at the original without the block: fails by name', 1,
+            'FAILED: its header_renamed_from %s does not hold the block once at %s' % (old_h, block_commits[2]),
+            entry=renamed_h, tree=later, sites=at_original, files={('3b00000', old_h): '#pragma once\n'})
+    blocked('BLOCKS: a renamed header\'s old path at the original, its block one byte off: fails', 1,
+            'FAILED: its header_renamed_from %s does not hold the block once at %s' % (old_h, block_commits[2]),
+            entry=renamed_h, tree=later, sites=at_original,
+            files={('3b00000', old_h): BLOCK_HEADER.replace('a > b', 'a >= b')})
+    blocked('BLOCKS: a renamed header\'s old path at the original holding the block twice: fails', 1,
+            'FAILED: its header_renamed_from %s does not hold the block once at %s' % (old_h, block_commits[2]),
+            entry=renamed_h, tree=later, sites=at_original,
+            files={('3b00000', old_h): BLOCK_HEADER + '\n'.join(BLOCK_LINES) + '\n'})
+    blocked('BLOCKS: a twin in a renamed origin read at its original: fails, naming the old path', 1,
+            "FAILED: type FarOrder is defined again in %s at %s, a twin of the block's" % (old_o, block_commits[2]),
+            entry=dict(renamed_o, added=BLOCK_ENTRY['added'] + ['class FarOrder {};']), tree=later,
+            sites=at_original, files={**moved_files, ('3b00000', old_o): BLOCK_MOVED + 'class FarOrder {};\n'})
     blocked('BLOCKS: a renamed origin changed at its old path at the base: fails', 1,
             "FAILED: the origin as read, less its added lines, is not the base's less the block: line 14: base "
             "'    list.sort(FarOrder(1));', read '    list.sort(FarOrder());'", entry=renamed_o,
