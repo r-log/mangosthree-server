@@ -1719,10 +1719,17 @@ namespace
     // trigger-spell aura sites, the two tick sites, the four periodic dummy tick sites, the five boost sites, the six
     // script-effect sites, the location-check site, the three bonus sites, the three dummy proc sites, the generic
     // aura dummy apply-and-remove site and the earlier files' ids.
-    // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key.
+    // Whether the entry of the shared list naming `spellId` at `site` lists `key` too (defined below the list).
+    bool ListedWith(uint32 spellId, uint32 site, uint32 key);
+
+    // `also` is a second site the id may be a key at, the other site of a shared id; 0 is no site's key. Given one,
+    // every site the shared list's entry for the id at `site` lists is skipped too; given none, nothing more is.
     bool HeldByAnotherSite(SpellHandlerRegistry const& registry, uint32 site, uint32 spellId, uint32 also = 0)
     {
-        auto skips = [site, also](uint32 key) { return key != site && key != also; };
+        auto skips = [site, also, spellId](uint32 key)
+        {
+            return key != site && key != also && !(also != 0 && ListedWith(spellId, site, key));
+        };
         return (skips(AuraProcTriggerSite::Key) && registry.Find<AuraProcTriggerSite>(spellId) != NULL) ||
                (skips(AuraPeriodicTriggerSite::Key) && registry.Find<AuraPeriodicTriggerSite>(spellId) != NULL) ||
                (skips(AuraPeriodicEnergizeSite::Key) && registry.Find<AuraPeriodicEnergizeSite>(spellId) != NULL) ||
@@ -1831,12 +1838,12 @@ namespace
     // script-effect site; Cheating Death, Sanctuary and 25899, at the spell and melee damage-taken sites; Unstable
     // Power and Restless Strength, at the generic dummy proc site and the generic aura dummy apply-and-remove site;
     // 58914, at the generic dummy proc site and the generic boost site; 74396, at the mage dummy proc site and the
-    // mage boost site. A listed id held at any other site, a third listed site among them, fails HeldByAnotherSite.
+    // mage boost site. An entry lists an id at two or three sites; a listed id held at a site its entry does not list
+    // fails HeldByAnotherSite.
     struct SharedSiteId
     {
         uint32 spellId;
-        uint32 first;
-        uint32 second;
+        uint32 sites[3];                                        // the sites the id is a key at; 0 past the last
     };
 
     SharedSiteId const SHARED_SITE_IDS[] =
@@ -1870,21 +1877,49 @@ namespace
         { 74396, DummyAuraProcMageSite::Key, AuraBoostMageSite::Key },
     };
 
-    // The other site of the entry naming `spellId` at `site`, or `site` itself when no entry does.
+    // Whether `shared` lists `site` among its sites.
+    bool Lists(SharedSiteId const& shared, uint32 site)
+    {
+        for (uint32 key : shared.sites)
+        {
+            if (key != 0 && key == site)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // The first other site the entry naming `spellId` at `site` lists, or `site` itself when no entry does.
     uint32 SharedWith(uint32 spellId, uint32 site)
     {
         for (SharedSiteId const& shared : SHARED_SITE_IDS)
         {
-            if (shared.spellId == spellId && shared.first == site)
+            if (shared.spellId != spellId || !Lists(shared, site))
             {
-                return shared.second;
+                continue;
             }
-            if (shared.spellId == spellId && shared.second == site)
+            for (uint32 key : shared.sites)
             {
-                return shared.first;
+                if (key != 0 && key != site)
+                {
+                    return key;
+                }
             }
         }
         return site;
+    }
+
+    bool ListedWith(uint32 spellId, uint32 site, uint32 key)
+    {
+        for (SharedSiteId const& shared : SHARED_SITE_IDS)
+        {
+            if (shared.spellId == spellId && Lists(shared, site))
+            {
+                return Lists(shared, key);
+            }
+        }
+        return false;
     }
 
     // 2 proc-trigger labels, 4 periodic-trigger labels, 5 energize labels, 1 rogue label and 14 health labels: 26
@@ -6370,6 +6405,24 @@ TEST(UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault)
         CHECK(HeldByAnotherSite(game, MeleeDamageTakenSite::Key, spellId));
         CHECK(!HeldByAnotherSite(game, MeleeDamageTakenSite::Key, spellId, SpellDamageTakenSite::Key));
     }
+
+    // Given any partner, every site the id's entry lists is skipped; a site the entry does not list still counts.
+    CHECK(!HeldByAnotherSite(game, SpellDamageTakenSite::Key, 20911, SpellHealingDoneSite::Key));
+    SpellHandlerRegistry unlisted;
+    CHECK(unlisted.Register<SpellDamageTakenSite>(20911, [](SpellDamageTakenContext&)
+    {
+        return SpellHandlerOutcome<void>::Continue();
+    }));
+    CHECK(unlisted.Register<MeleeDamageTakenSite>(20911, [](MeleeDamageTakenContext&)
+    {
+        return SpellHandlerOutcome<void>::Continue();
+    }));
+    CHECK(!HeldByAnotherSite(unlisted, SpellDamageTakenSite::Key, 20911, MeleeDamageTakenSite::Key));
+    CHECK(unlisted.Register<SpellHealingDoneSite>(20911, [](SpellHealingDoneContext&)
+    {
+        return SpellHandlerOutcome<void>::Continue();
+    }));
+    CHECK(HeldByAnotherSite(unlisted, SpellDamageTakenSite::Key, 20911, MeleeDamageTakenSite::Key));
 
     // An id the switch never held answers Miss and leaves the multiplier: 12345, Earth Shield's dummy aura, and the
     // labels of the other two sites.
