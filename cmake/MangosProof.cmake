@@ -16,6 +16,7 @@ set(MANGOS_PROOF_OPTIONS
     -fmerge-constants
     -fPIC
     -fno-ipa-stack-alignment
+    -UNDEBUG
 )
 
 set(MANGOS_PROOF_DEFINITIONS
