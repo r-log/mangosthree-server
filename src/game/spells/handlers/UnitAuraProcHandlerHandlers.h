@@ -199,7 +199,7 @@ struct SpellCritChanceAuraProcMageSite
 
 /// What the bodies of `Unit::HandleProcTriggerSpellAuraProc`'s two per-spell switches read and set: the unit, the
 /// function's parameters and locals. The bodies set the spell to trigger, its target and its base points; the second
-/// switch is keyed by that spell, and its bodies read it without setting it.
+/// switch is keyed by that spell, and its bodies never set it.
 struct ProcTriggerSpellAuraProcContext
 {
     ProcTriggerSpellAuraProcContext(Unit* thisUnit, Unit* const& victimParameter, uint32 const& damageParameter,
