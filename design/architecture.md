@@ -284,9 +284,11 @@ none.
 
 **Today:**
 - Ownership is checked at two seams, the movement kernel and the spell seam, where a unit's per-spell handlers enter
-  the registry: every dispatch of a `Unit` site builds one of the five contexts that hold the unit, and building it
-  checks the unit. Every other part of a map's state (its grids, its object stores, the spell and aura code outside
-  the `Unit` sites) relies on the phase structure and on nobody reaching across.
+  the registry: 13 of the 15 dispatches of a `Unit` site build one of the five contexts that hold the unit, and
+  building it checks the unit. The other two, `Unit::HandleSpellCritChanceAuraProc` and Lifebloom in
+  `Unit::SpellHealingBonusDone`, give their handlers no unit and are not checked. Every other part of a map's state
+  (its grids, its object stores, the spell and aura code outside those 13 dispatches) relies on the phase structure
+  and on nobody reaching across.
 - The network pool is sized by `hardware_concurrency()` (`net/reactor/ReactorServer.cpp:110`), not by the
   configuration. `Network.Threads` said otherwise and was read by no source file; it was removed from
   `mangosd.conf.dist.in` on 2026-09-29. `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by
@@ -374,7 +376,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
 | 17 | 2,356 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory, peer and header on 2026-09-29); #144 |
-| 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel and at the spell seam: each of the five registry contexts that hold a unit checks it when built (`Unit::AssertSpellSeamOwner`), so every dispatch of a `Unit` site checks the unit it runs for; the `Aura` and `Spell` sites are not checked | closed for the `Unit` sites by the spell seam's check |
+| 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel and at the spell seam: each of the five registry contexts that hold a unit checks it when built (`Unit::AssertSpellSeamOwner`), so 13 of the 15 dispatches of a `Unit` site check the unit they run for; the other two (`Unit::HandleSpellCritChanceAuraProc` and Lifebloom in `Unit::SpellHealingBonusDone`) give their handlers no unit, and the `Aura`, `SpellAuraHolder`, `Spell` and `SpellMgr` sites are not checked | closed for the `Unit` sites whose handlers are given the unit |
 | 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by no source file (`Network.Threads` was, and is deleted) | delete them or wire them through #143 |
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:242`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
