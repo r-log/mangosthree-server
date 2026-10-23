@@ -41,6 +41,7 @@ option(WITH_CRYPTO_TESTS    "Build the crypto vector and stress tests (CI)" OFF)
 option(DEBUG                "Enable debug build (only on non IDEs)"         OFF)
 option(WITHOUT_GIT          "Disable Git revision detection"                OFF)
 option(MANGOS_STRICT_TICK   "Assert on a synchronous DB acquisition on a tick thread" OFF)
+option(MANGOS_PROOF_BUILD   "Build for the object compare (GCC, -O0, one section per function)" OFF)
 message("")
 message(
   "This script builds the MaNGOS server.
@@ -68,6 +69,11 @@ message(
                             build: CI's Linux jobs turn it on so a change that
                             brings a blocking query back into the tick fails there.
                             Staff chat commands are counted apart and never assert.
+    MANGOS_PROOF_BUILD      Build objects for src/tests/tools/objcmp.py (GCC only, PCH=0):
+                            -O0, no inlining, one section per function and data object,
+                            pooled string literals, __FILE__ and __LINE__ empty. Never
+                            for a server that runs: CI builds two commits this way and
+                            compares their objects.
     DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
    Scripting engines:
     SCRIPT_LIB_SD3          Compile with support for ScriptDev3 scripts
@@ -126,6 +132,9 @@ endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/MangosVersion.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/MangosPlatform.cmake)
+if(MANGOS_PROOF_BUILD)
+    include(${CMAKE_SOURCE_DIR}/cmake/MangosProof.cmake)
+endif()
 add_subdirectory(dep)
 
 if(WITH_TESTS OR WITH_NET_TESTS)
