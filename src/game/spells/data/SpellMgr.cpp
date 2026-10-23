@@ -32,6 +32,7 @@
 #include "ProgressBar.h"
 #include "DBCStores.h"
 #include "SQLStorages.h"
+#include "World.h"
 #include "Chat.h"
 #include "spells/pipeline/Spell.h"
 #include "BattleGround/BattleGroundMgr.h"

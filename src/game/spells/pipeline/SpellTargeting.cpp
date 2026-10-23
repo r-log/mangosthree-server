@@ -58,6 +58,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
+#include "World.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
