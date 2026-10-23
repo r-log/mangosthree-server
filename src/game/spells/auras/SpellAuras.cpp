@@ -67,7 +67,6 @@
 #include "spells/pipeline/Spell.h"
 #include "DynamicObject.h"
 #include "Group.h"
-#include "UpdateData.h"
 #include "ObjectLookup.h"
 #include "Policies/Singleton.h"
 #include "Totem.h"

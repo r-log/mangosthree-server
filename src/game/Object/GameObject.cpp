@@ -35,7 +35,6 @@
 #include "spells/data/SpellMgr.h"
 #include "spells/pipeline/Spell.h"
 #include "UpdateMask.h"
-#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "World.h"
 #include "Database/DatabaseEnv.h"

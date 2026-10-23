@@ -58,7 +58,6 @@
 #include "GameEventMgr.h"
 #include "spells/pipeline/Spell.h"
 #include "Chat.h"
-#include "AccountMgr.h"
 #include "MapPersistentStateMgr.h"
 #include "spells/auras/SpellAuras.h"
 #include "Util.h"

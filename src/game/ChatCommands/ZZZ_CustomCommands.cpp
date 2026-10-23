@@ -35,7 +35,6 @@
 
 #include "Database/DatabaseEnv.h"
 #include "WorldSession.h"
-#include "World.h"
 #include "ObjectMgr.h"
 #include "AccountMgr.h"
 #include "PlayerDump.h"

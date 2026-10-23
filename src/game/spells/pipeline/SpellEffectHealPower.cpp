@@ -27,7 +27,6 @@
 #include <vector>
 #include "Database/DatabaseEnv.h"
 #include "WorldPacket.h"
-#include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
 #include "World.h"
@@ -40,7 +39,6 @@
 #include "DynamicObject.h"
 #include "spells/auras/SpellAuras.h"
 #include "Group.h"
-#include "UpdateData.h"
 #include "MapManager.h"
 #include "SharedDefines.h"
 #include "Pet.h"
@@ -60,7 +58,6 @@
 #include "ScriptMgr.h"
 #include "SkillDiscovery.h"
 #include "Formulas.h"
-#include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 #include "Vehicle.h"

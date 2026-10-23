@@ -45,7 +45,6 @@
 #include "DynamicObject.h"
 #include "spells/auras/SpellAuras.h"
 #include "Group.h"
-#include "UpdateData.h"
 #include "MapManager.h"
 #include "SharedDefines.h"
 #include "Pet.h"

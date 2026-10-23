@@ -31,7 +31,6 @@
 #include "Utilities/Errors.h"
 #include "Unit.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ObjectMgr.h"

@@ -27,7 +27,6 @@
 #include "ObjectGuid.h"
 #include "WorldPacket.h"
 #include "Database/DatabaseEnv.h"
-#include "ItemEnchantmentMgr.h"
 #include "SQLStorages.h"
 #include "WorldSession.h"
 
