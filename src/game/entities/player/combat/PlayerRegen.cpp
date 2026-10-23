@@ -29,7 +29,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -106,7 +106,7 @@ void Player::RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacke
         }
     }
 
-    addRage *= sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_RAGE_INCOME);
+    addRage *= sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_RAGE_INCOME);
 
     ModifyPower(POWER_RAGE, uint32(addRage * 10));
 }
@@ -202,7 +202,7 @@ void Player::Regenerate(Powers power, uint32 diff)
             {
                 break;
             }
-            float ManaIncreaseRate = sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_MANA);
+            float ManaIncreaseRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_MANA);
 
             if (IsInCombat())
             {
@@ -217,7 +217,7 @@ void Player::Regenerate(Powers power, uint32 diff)
         }
         case POWER_RAGE:                                    // Regenerate rage
         {
-            float RageDecreaseRate = sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_RAGE_LOSS);
+            float RageDecreaseRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_RAGE_LOSS);
             addvalue = 20 * RageDecreaseRate;               // 2 rage by tick (= 2 seconds => 1 rage/sec)
             break;
         }
@@ -236,13 +236,13 @@ void Player::Regenerate(Powers power, uint32 diff)
             break;
         case POWER_ENERGY:                                  // Regenerate energy (rogue)
         {
-            float EnergyRate = sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
+            float EnergyRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
             addvalue = 20 * EnergyRate;
             break;
         }
         case POWER_RUNIC_POWER:
         {
-            float RunicPowerDecreaseRate = sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_RUNICPOWER_LOSS);
+            float RunicPowerDecreaseRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_RUNICPOWER_LOSS);
             addvalue = 30 * RunicPowerDecreaseRate;         // 3 RunicPower by tick
             break;
         }
@@ -330,7 +330,7 @@ void Player::RegenerateHealth(uint32 diff)
         return;
     }
 
-    float HealthIncreaseRate = sWorld.getConfig(CONFIG_FLOAT_RATE_HEALTH);
+    float HealthIncreaseRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_HEALTH);
     // This needs fixing
     HealthIncreaseRate = 1.0f; // having to do this as the above constantly results in 0 - mangosd.conf is obviously not being read properly
 

@@ -43,7 +43,7 @@
 #include "CharacterCache.h"
 #include "ObjectMgr.h"
 #include "Language.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "AccountMgr.h"
 #include "SQLStorages.h"
 #include "WorldSession.h"
@@ -641,9 +641,9 @@ bool ChatHandler::HandleCharacterDeletedRestoreCommand(char* args)
  */
 bool ChatHandler::HandleCharacterDeletedOldCommand(char* args)
 {
-    int32 keepDays = sWorld.getConfig(CONFIG_UINT32_CHARDELETE_KEEP_DAYS);
+    int32 keepDays = sGameConfig.getConfig(CONFIG_UINT32_CHARDELETE_KEEP_DAYS);
 
-    if (!ExtractOptInt32(&args, keepDays, sWorld.getConfig(CONFIG_UINT32_CHARDELETE_KEEP_DAYS)))
+    if (!ExtractOptInt32(&args, keepDays, sGameConfig.getConfig(CONFIG_UINT32_CHARDELETE_KEEP_DAYS)))
     {
         return false;
     }

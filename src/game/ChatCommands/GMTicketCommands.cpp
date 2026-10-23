@@ -38,7 +38,7 @@
 #include "Chat.h"
 #include "Language.h"
 #include "ObjectMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "GMTicketMgr.h"
 #include "Mail.h"
 #include "PlayerRegistry.h"
@@ -159,7 +159,7 @@ bool ChatHandler::HandleTicketCloseCommand(char* args)
     sObjectMgr.GetPlayerNameByGUID(target_guid, target_name);
 
 
-    if (!pPlayer && !sWorld.getConfig(CONFIG_BOOL_GM_TICKET_OFFLINE_CLOSING))
+    if (!pPlayer && !sGameConfig.getConfig(CONFIG_BOOL_GM_TICKET_OFFLINE_CLOSING))
     {
         SendSysMessage(LANG_COMMAND_TICKET_CANT_CLOSE);
         return false;
@@ -334,7 +334,7 @@ bool ChatHandler::HandleTicketInfoCommand(char* args)
  */
 bool ChatHandler::HandleTicketListCommand(char* args)
 {
-    uint16 numToShow = std::min(uint16(sTicketMgr.GetTicketCount()), uint16(sWorld.getConfig(CONFIG_UINT32_GM_TICKET_LIST_SIZE)));
+    uint16 numToShow = std::min(uint16(sTicketMgr.GetTicketCount()), uint16(sGameConfig.getConfig(CONFIG_UINT32_GM_TICKET_LIST_SIZE)));
     for (uint16 i = 0; i < numToShow; ++i)
     {
         GMTicket* ticket = sTicketMgr.GetGMTicketByOrderPos(i);
@@ -361,7 +361,7 @@ bool ChatHandler::HandleTicketOnlineListCommand(char* args)
         if (Player* player = sObjectMgr.GetPlayer(ticket->GetPlayerGuid(), true))
         {
             ++count;
-            if (i < sWorld.getConfig(CONFIG_UINT32_GM_TICKET_LIST_SIZE))
+            if (i < sGameConfig.getConfig(CONFIG_UINT32_GM_TICKET_LIST_SIZE))
             {
                 time_t lastChanged = time_t(ticket->GetLastUpdate());
                 PSendSysMessage(LANG_COMMAND_TICKET_BRIEF_INFO, ticket->GetId(), player->GetName(), ticket->HasResponse() ? "+" : "-", ctime(&lastChanged));
@@ -369,7 +369,7 @@ bool ChatHandler::HandleTicketOnlineListCommand(char* args)
         }
     }
 
-    PSendSysMessage(LANG_COMMAND_TICKET_COUNT_ONLINE, std::min(count, uint16(sWorld.getConfig(CONFIG_UINT32_GM_TICKET_LIST_SIZE))), count);
+    PSendSysMessage(LANG_COMMAND_TICKET_COUNT_ONLINE, std::min(count, uint16(sGameConfig.getConfig(CONFIG_UINT32_GM_TICKET_LIST_SIZE))), count);
     return true;
 }
 

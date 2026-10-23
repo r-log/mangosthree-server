@@ -53,7 +53,7 @@
 #include "Policies/Singleton.h"
 #include "Database/DatabaseEnv.h"
 #include "SharedDefines.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 
 
@@ -164,7 +164,7 @@ void MassMailMgr::Update(bool sendall /*= false*/)
         return;
     }
 
-    uint32 maxcount = sWorld.getConfig(CONFIG_UINT32_MASS_MAILER_SEND_PER_TICK);
+    uint32 maxcount = sGameConfig.getConfig(CONFIG_UINT32_MASS_MAILER_SEND_PER_TICK);
 
     do
     {
@@ -239,7 +239,7 @@ void MassMailMgr::GetStatistic(uint32& tasks, uint32& mails, uint32& needTime) c
     mails = mailsCount;
 
     // 50 msecs is tick length
-    needTime = 50 * mailsCount / sWorld.getConfig(CONFIG_UINT32_MASS_MAILER_SEND_PER_TICK) / IN_MILLISECONDS;
+    needTime = 50 * mailsCount / sGameConfig.getConfig(CONFIG_UINT32_MASS_MAILER_SEND_PER_TICK) / IN_MILLISECONDS;
 }
 
 

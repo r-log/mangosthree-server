@@ -33,7 +33,7 @@
 #include <string>
 #include "Chat.h"
 #include "Log.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "DBCStores.h"
@@ -72,7 +72,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
     const char* validSequenceIterator = validSequence;
 
     // more simple checks
-    if (sWorld.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY) < 3)
+    if (sGameConfig.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY) < 3)
     {
         const std::string validCommands = "cHhr|";
 
@@ -95,7 +95,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
 
             ++message;
             // validate sequence
-            if (sWorld.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY) == 2)
+            if (sGameConfig.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY) == 2)
             {
                 if (commandChar == *validSequenceIterator)
                 {

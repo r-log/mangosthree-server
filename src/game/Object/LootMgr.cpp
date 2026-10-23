@@ -28,7 +28,7 @@
 #include "Group.h"
 #include "ObjectMgr.h"
 #include "ProgressBar.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Util.h"
 #include "SharedDefines.h"
 #include "spells/data/SpellMgr.h"
@@ -352,23 +352,23 @@ bool LootStoreItem::Roll(bool rate) const
 
     if (mincountOrRef < 0)                                  // reference case
     {
-        return roll_chance_f(chance * (rate ? sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_ITEM_REFERENCED) : 1.0f));
+        return roll_chance_f(chance * (rate ? sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_ITEM_REFERENCED) : 1.0f));
     }
 
     if (type == LOOTITEM_TYPE_CURRENCY)
     {
-        return roll_chance_f(chance * (rate ? sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_CURRENCY) : 1.0f));
+        return roll_chance_f(chance * (rate ? sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_CURRENCY) : 1.0f));
     }
     else
     {
         if (needs_quest)
         {
-            return roll_chance_f(chance * (rate ? sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_ITEM_QUEST) : 1.0f));
+            return roll_chance_f(chance * (rate ? sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_ITEM_QUEST) : 1.0f));
         }
 
         ItemPrototype const* pProto = ObjectMgr::GetItemPrototype(itemid);
 
-        float qualityModifier = pProto && rate ? sWorld.getConfig(qualityToRate[pProto->Quality]) : 1.0f;
+        float qualityModifier = pProto && rate ? sGameConfig.getConfig(qualityToRate[pProto->Quality]) : 1.0f;
 
         return roll_chance_f(chance * qualityModifier);
     }
@@ -481,7 +481,7 @@ LootItem::LootItem(LootStoreItem const& li)
         needs_quest = false;
         randomSuffix = 0;
         randomPropertyId = 0;
-        count = uint32(count * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_CURRENCY_AMOUNT));
+        count = uint32(count * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_CURRENCY_AMOUNT));
     }
     else
     {
@@ -994,15 +994,15 @@ void Loot::generateMoneyLoot(uint32 minAmount, uint32 maxAmount)
     {
         if (maxAmount <= minAmount)
         {
-            gold = uint32(maxAmount * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
+            gold = uint32(maxAmount * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
         }
         else if ((maxAmount - minAmount) < 32700)
         {
-            gold = uint32(urand(minAmount, maxAmount) * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
+            gold = uint32(urand(minAmount, maxAmount) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
         }
         else
         {
-            gold = uint32(urand(minAmount >> 8, maxAmount >> 8) * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY)) << 8;
+            gold = uint32(urand(minAmount >> 8, maxAmount >> 8) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY)) << 8;
         }
     }
 }

@@ -32,7 +32,7 @@
 #include "Creature.h"
 #include "Language.h"
 #include "ArenaTeam.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
@@ -189,7 +189,7 @@ void BattleGround::EndBattleGround(Team winner)
     }
 
     // store battleground scores
-    if (isBattleGround() && sWorld.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
+    if (isBattleGround() && sGameConfig.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
     {
         static SqlStatementID insPvPstatsBattleground;
 
@@ -304,7 +304,7 @@ void BattleGround::EndBattleGround(Team winner)
                 }
 
                 winner_arena_team->MemberWon(plr, loser_rating);
-                plr->ModifyCurrencyCount(CURRENCY_CONQUEST_ARENA_META, sWorld.getConfig(CONFIG_UINT32_CURRENCY_ARENA_CONQUEST_POINTS_REWARD));
+                plr->ModifyCurrencyCount(CURRENCY_CONQUEST_ARENA_META, sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_ARENA_CONQUEST_POINTS_REWARD));
 
                 if (member)
                 {
@@ -322,7 +322,7 @@ void BattleGround::EndBattleGround(Team winner)
         }
 
         // store battleground score statistics for each player
-        if (isBattleGround() && sWorld.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
+        if (isBattleGround() && sGameConfig.getConfig(CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS))
         {
             static SqlStatementID insPvPstatsPlayer;
             BattleGroundScoreMap::iterator score = m_PlayerScores.find(itr->first);

@@ -31,7 +31,7 @@
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Log.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Creature.h"
 #include "Player.h"
 #include "Vehicle.h"
@@ -439,7 +439,7 @@ void FindFreeSpotNear(WorldObject const& anchor, Geometry::Vector3 const& center
     const float init_z = z = center.z;
 
     // if detection disabled, return first point
-    if (!sWorld.getConfig(CONFIG_BOOL_DETECT_POS_COLLISION))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_DETECT_POS_COLLISION))
     {
         if (searcher)
         {

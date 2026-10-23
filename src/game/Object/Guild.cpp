@@ -37,7 +37,7 @@
 #include "SocialMgr.h"
 #include "Util.h"
 #include "Language.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Calendar.h"
 #include "CharacterCache.h"
 #include "PlayerRegistry.h"
@@ -1278,7 +1278,7 @@ void Guild::LoadGuildEventLogFromDB()
         return;
     }
     bool isNextLogGuidSet = false;
-    // uint32 configCount = sWorld.getConfig(CONFIG_UINT32_GUILD_EVENT_LOG_COUNT);
+    // uint32 configCount = sGameConfig.getConfig(CONFIG_UINT32_GUILD_EVENT_LOG_COUNT);
     // First event in list will be the oldest and the latest event is last event in list
     do
     {
@@ -1325,7 +1325,7 @@ void Guild::LogGuildEvent(uint8 EventType, ObjectGuid playerGuid1, ObjectGuid pl
     NewEvent.NewRank = newRank;
     NewEvent.TimeStamp = uint32(time(NULL));
     // Count new LogGuid
-    m_GuildEventLogNextGuid = (m_GuildEventLogNextGuid + 1) % sWorld.getConfig(CONFIG_UINT32_GUILD_EVENT_LOG_COUNT);
+    m_GuildEventLogNextGuid = (m_GuildEventLogNextGuid + 1) % sGameConfig.getConfig(CONFIG_UINT32_GUILD_EVENT_LOG_COUNT);
     // Check max records limit
     if (m_GuildEventLog.size() >= GUILD_EVENTLOG_MAX_RECORDS)
     {

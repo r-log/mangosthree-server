@@ -34,7 +34,7 @@
 #include "Log/Log.h"
 #include "entities/player/Player.h"
 #include "WorldPacket.h"
-#include "WorldHandlers/World.h"
+#include "data/GameConfig.h"
 
 void LfgHandlers::HandleLfgJoin(WorldSession& session, WorldPacket& recv_data)
 {
@@ -43,7 +43,7 @@ void LfgHandlers::HandleLfgJoin(WorldSession& session, WorldPacket& recv_data)
     LFGPackets::JoinRequest request;
     LFGPackets::ReadJoin(recv_data, request);
 
-    if (!sWorld.getConfig(CONFIG_BOOL_LFG_ENABLE))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
         return;
     }
@@ -123,7 +123,7 @@ void LfgHandlers::HandleLfgGetStatus(WorldSession& session, WorldPacket& /*recv_
 {
     DEBUG_FILTER_LOG(LOG_FILTER_LFG, "CMSG_LFG_GET_STATUS");
 
-    if (!sWorld.getConfig(CONFIG_BOOL_LFG_ENABLE))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_LFG_ENABLE))
     {
         return;
     }

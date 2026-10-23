@@ -42,7 +42,7 @@
 #include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Group.h"
 #include "ArenaTeam.h"
 #include "Transports.h"
@@ -326,10 +326,10 @@ void ObjectMgr::LoadQuests()
 
         if (qinfo->RequiredSkillValue)
         {
-            if (qinfo->RequiredSkillValue > sWorld.GetConfigMaxSkillValue())
+            if (qinfo->RequiredSkillValue > sGameConfig.GetConfigMaxSkillValue())
             {
                 sLog.outErrorDb("Quest %u has `RequiredSkillValue` = %u but max possible skill is %u, quest can't be done.",
-                                qinfo->GetQuestId(), qinfo->RequiredSkillValue, sWorld.GetConfigMaxSkillValue());
+                                qinfo->GetQuestId(), qinfo->RequiredSkillValue, sGameConfig.GetConfigMaxSkillValue());
                 // no changes, quest can't be done for this requirement
             }
         }
@@ -792,10 +792,10 @@ void ObjectMgr::LoadQuests()
 
         if (qinfo->RewSkillValue)
         {
-            if (qinfo->RewSkillValue > sWorld.GetConfigMaxSkillValue())
+            if (qinfo->RewSkillValue > sGameConfig.GetConfigMaxSkillValue())
             {
                 sLog.outErrorDb("Quest %u has `RewSkillValue` = %u which is more than max possible skill value %u.",
-                                qinfo->GetQuestId(), qinfo->RewSkillValue, sWorld.GetConfigMaxSkillValue());
+                                qinfo->GetQuestId(), qinfo->RewSkillValue, sGameConfig.GetConfigMaxSkillValue());
             }
         }
         else

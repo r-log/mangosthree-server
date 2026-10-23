@@ -26,7 +26,7 @@
 #include "MotionDriver.h"
 #include "ObjectLookup.h"
 #include "Unit.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "movement/MoveSpline.h"
 #include "movement/MoveSplineInit.h"
 
@@ -93,7 +93,7 @@ namespace
         return query.Points().size() >= 3 &&
                query.Routed() &&
                !intent.Has(Motion::MOVE_FLY) &&
-               sWorld.getConfig(CONFIG_BOOL_MOVEMENT_SMOOTH_GROUND_PATHS);
+               sGameConfig.getConfig(CONFIG_BOOL_MOVEMENT_SMOOTH_GROUND_PATHS);
     }
 }
 

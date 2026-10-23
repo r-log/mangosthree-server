@@ -36,7 +36,7 @@
 #include "ObjectLookup.h"
 #include "ObjectMgr.h"
 #include "ScriptMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Log/Log.h"
 #include "Utilities/Errors.h"
 #include "Utilities/Util.h"
@@ -628,7 +628,7 @@ void NativeBehaviour::PerformEffects(Unit& owner, std::vector<Motion::Effect> co
             case Motion::Effect::SeekAssistDistract:
                 if (creature.IsAlive())
                 {
-                    creature.GetMotionMaster()->MoveSeekAssistanceDistract(sWorld.getConfig(CONFIG_UINT32_CREATURE_FAMILY_ASSISTANCE_DELAY));
+                    creature.GetMotionMaster()->MoveSeekAssistanceDistract(sGameConfig.getConfig(CONFIG_UINT32_CREATURE_FAMILY_ASSISTANCE_DELAY));
                 }
                 break;
             case Motion::Effect::AttackVictim:

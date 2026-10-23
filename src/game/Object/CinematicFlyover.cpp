@@ -28,7 +28,7 @@
 #include "CellImpl.h"
 #include "Camera.h"
 #include "Log.h"
-#include "World.h"
+#include "data/GameConfig.h"
 
 CinematicFlyover::CinematicFlyover(Player* player, uint32 cinematicSequenceId)
     : m_player(player), m_route(nullptr), m_viewerMap(nullptr),
@@ -38,7 +38,7 @@ CinematicFlyover::CinematicFlyover(Player* player, uint32 cinematicSequenceId)
       m_begun(false), m_active(false)
 {
     // Validate config is enabled
-    if (!sWorld.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_ENABLE))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_ENABLE))
     {
         sLog.outDebug("CinematicFlyover: Feature disabled by config");
         return;
@@ -69,7 +69,7 @@ CinematicFlyover::CinematicFlyover(Player* player, uint32 cinematicSequenceId)
     }
 
     // Validate body entry from config
-    uint32 bodyEntry = sWorld.getConfig(CONFIG_UINT32_CINEMATIC_FLYOVER_BODY_ENTRY);
+    uint32 bodyEntry = sGameConfig.getConfig(CONFIG_UINT32_CINEMATIC_FLYOVER_BODY_ENTRY);
     if (bodyEntry == 0)
     {
         sLog.outError("CinematicFlyover: BodyEntry is 0, cannot create body");
@@ -100,7 +100,7 @@ CinematicFlyover::CinematicFlyover(Player* player, uint32 cinematicSequenceId)
         m_visibilityMap = m_player->GetMap();
         if (m_visibilityMap)
         {
-            float radius = sWorld.getConfig(
+            float radius = sGameConfig.getConfig(
                 CONFIG_FLOAT_CINEMATIC_FLYOVER_VISIBILITY_DISTANCE);
             m_visibilityRadius = radius;
             m_visibilityMap->AddCinematicVisibility(m_visibilityRadius);
@@ -138,7 +138,7 @@ void CinematicFlyover::Begin()
 
     // Spawn temporary invisible creature body.
     // Despawn must outlast the flyover timeout so our Stop() despawns it first.
-    uint32 timeoutMs = sWorld.getConfig(CONFIG_UINT32_CINEMATIC_FLYOVER_TIMEOUT_SEC) * 1000;
+    uint32 timeoutMs = sGameConfig.getConfig(CONFIG_UINT32_CINEMATIC_FLYOVER_TIMEOUT_SEC) * 1000;
     uint32 despawnMs = m_route->durationMs + timeoutMs + 60000; // +60s buffer
     Creature* body = m_player->SummonCreature(m_bodyEntry, startKeyframe.x,
                                               startKeyframe.y, startKeyframe.z,
@@ -160,7 +160,7 @@ void CinematicFlyover::Begin()
     // stream in well before the camera reaches them and persist as it pulls away.
     // The override lives on the body, so it reverts automatically when the camera
     // resets to the player on stop - no global map state is touched.
-    float visDist = sWorld.getConfig(CONFIG_FLOAT_CINEMATIC_FLYOVER_VISIBILITY_DISTANCE);
+    float visDist = sGameConfig.getConfig(CONFIG_FLOAT_CINEMATIC_FLYOVER_VISIBILITY_DISTANCE);
     body->SetVisibilityDistanceOverride(visDist);
 
     // Extend the map's packet broadcast radius to match: creatures revealed by
@@ -228,7 +228,7 @@ void CinematicFlyover::ReleaseEarlyVisibility()
 
     m_visibilityMap->RemoveCinematicVisibility(m_visibilityRadius);
 
-    if (sWorld.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_DEBUG))
+    if (sGameConfig.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_DEBUG))
     {
         sLog.outDebug("CinematicFlyover: Removed early DK visibility "
                       "lease %.1f on map %u for player %s",
@@ -247,7 +247,7 @@ void CinematicFlyover::Update(uint32 updateDiff)
         if (m_visibilityMap)
         {
             m_elapsedMs += updateDiff;
-            uint32 waitTimeoutSec = sWorld.getConfig(
+            uint32 waitTimeoutSec = sGameConfig.getConfig(
                 CONFIG_UINT32_CINEMATIC_FLYOVER_TIMEOUT_SEC);
             uint32 waitTimeoutMs = waitTimeoutSec * 1000;
             if (m_elapsedMs > waitTimeoutMs)
@@ -279,7 +279,7 @@ void CinematicFlyover::Update(uint32 updateDiff)
 
     // Relocate only when the update interval has accumulated
     m_updateTimer += updateDiff;
-    uint32 updateInterval = sWorld.getConfig(CONFIG_UINT32_CINEMATIC_FLYOVER_UPDATE_INTERVAL_MS);
+    uint32 updateInterval = sGameConfig.getConfig(CONFIG_UINT32_CINEMATIC_FLYOVER_UPDATE_INTERVAL_MS);
     if (m_updateTimer < updateInterval)
     {
         return;
@@ -317,7 +317,7 @@ void CinematicFlyover::Update(uint32 updateDiff)
     {
         body->GetMap()->CreatureRelocation(body, x, y, z, o);
 
-        if (sWorld.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_DEBUG))
+        if (sGameConfig.getConfig(CONFIG_BOOL_CINEMATIC_FLYOVER_DEBUG))
         {
             sLog.outDebug("CinematicFlyover: Relocated body to (%.2f, %.2f, %.2f, %.2f)",
                           x, y, z, o);

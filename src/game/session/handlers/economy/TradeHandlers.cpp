@@ -29,7 +29,7 @@
 #include "Platform/Define.h"
 #include "WorldPacket.h"
 #include "Server/WorldSession.h"
-#include "WorldHandlers/World.h"
+#include "data/GameConfig.h"
 #include "entities/player/PlayerRegistry.h"
 #include "Log/Log.h"
 #include "Opcodes.h"
@@ -88,7 +88,7 @@ void TradeHandlers::moveItems(WorldSession& session, Item* myItems[], Item* hisI
             {
                 // logging
                 DEBUG_LOG("partner storing: %s", myItems[i]->GetGuidStr().c_str());
-                if (session.GetPlayer()->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+                if (session.GetPlayer()->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
                 {
                     sLog.outCommand(session.GetPlayer()->GetSession()->GetAccountId(), "GM %s (Account: %u) trade: %s (Entry: %d Count: %u) to player: %s (Account: %u)",
                                     session.GetPlayer()->GetName(), session.GetPlayer()->GetSession()->GetAccountId(),
@@ -104,7 +104,7 @@ void TradeHandlers::moveItems(WorldSession& session, Item* myItems[], Item* hisI
             {
                 // logging
                 DEBUG_LOG("player storing: %s", hisItems[i]->GetGuidStr().c_str());
-                if (trader->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+                if (trader->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
                 {
                     sLog.outCommand(trader->GetSession()->GetAccountId(), "GM %s (Account: %u) trade: %s (Entry: %d Count: %u) to player: %s (Account: %u)",
                                     trader->GetName(), trader->GetSession()->GetAccountId(),
@@ -426,7 +426,7 @@ void TradeHandlers::HandleAcceptTrade(WorldSession& session, WorldPacket& recvPa
         moveItems(session, myItems, hisItems);
 
         // logging money
-        if (sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+        if (sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
         {
             if (session.GetPlayer()->GetSession()->GetSecurity() > SEC_PLAYER && my_trade->GetMoney() > 0)
             {

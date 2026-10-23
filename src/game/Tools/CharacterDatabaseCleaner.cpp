@@ -47,7 +47,7 @@
 #include "Platform/Define.h"
 #include <sstream>
 #include "CharacterDatabaseCleaner.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
 #include "ProgressBar.h"
@@ -68,7 +68,7 @@
 void CharacterDatabaseCleaner::CleanDatabase()
 {
     // Skip if disabled in config
-    if (!sWorld.getConfig(CONFIG_BOOL_CLEAN_CHARACTER_DB))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_CLEAN_CHARACTER_DB))
     {
         return;
     }

@@ -33,7 +33,7 @@
 #include "CreatureEventAIMgr.h"
 #include "ObjectMgr.h"
 #include "spells/pipeline/Spell.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Cell.h"
 #include "CellImpl.h"
 #include "GameEventMgr.h"
@@ -1838,7 +1838,7 @@ void CreatureEventAI::UpdateAI(const uint32 diff)
  */
 bool CreatureEventAI::IsVisible(Unit* pl) const
 {
-    return m_creature->Where().WithinDist(pl->Where(), sWorld.getConfig(CONFIG_FLOAT_SIGHT_MONSTER))
+    return m_creature->Where().WithinDist(pl->Where(), sGameConfig.getConfig(CONFIG_FLOAT_SIGHT_MONSTER))
            && pl->IsVisibleForOrDetect(m_creature, m_creature, true);
 }
 

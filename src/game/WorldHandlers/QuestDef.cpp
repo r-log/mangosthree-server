@@ -46,7 +46,7 @@
 #include "QuestDef.h"
 #include "Database/DatabaseEnv.h"
 #include "Player.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "DBCStores.h"
 
 Quest::Quest(Field* questRecord)
@@ -414,7 +414,7 @@ int32  Quest::GetRewOrReqMoney() const
         return RewOrReqMoney;
     }
 
-    return int32(RewOrReqMoney * sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
+    return int32(RewOrReqMoney * sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
 }
 
 /**
@@ -429,7 +429,7 @@ bool Quest::IsAllowedInRaid() const
         return true;
     }
 
-    return sWorld.getConfig(CONFIG_BOOL_QUEST_IGNORE_RAID);
+    return sGameConfig.getConfig(CONFIG_BOOL_QUEST_IGNORE_RAID);
 }
 
 uint32 Quest::CalculateRewardHonor(uint32 level) const

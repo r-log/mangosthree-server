@@ -54,7 +54,7 @@
 #include "GameObject.h"
 #include "DynamicObject.h"
 #include "Corpse.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "CellImpl.h"
 #include "GridDefines.h"
 
@@ -461,7 +461,7 @@ ObjectGridUnloader::Visit(GridRefManager<T>& m)
     {
         T* obj = m.getFirst()->getSource();
         // if option set then object already saved at this moment
-        if (!sWorld.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
+        if (!sGameConfig.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
         {
             obj->SaveRespawnTime();
         }

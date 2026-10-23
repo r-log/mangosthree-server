@@ -33,7 +33,7 @@
 #include "UpdateMask.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Database/DatabaseEnv.h"
 #include "LootMgr.h"
 #include "GridNotifiers.h"
@@ -354,7 +354,7 @@ void GameObject::Update(uint32 update_diff, uint32 p_time)
             m_respawnTime = m_spawnedByDefault ? time(NULL) + m_respawnDelayTime : 0;
 
             // if option not set then object will be saved at grid unload
-            if (sWorld.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
+            if (sGameConfig.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
             {
                 SaveRespawnTime();
             }

@@ -26,7 +26,7 @@
 #include "OutdoorPvPMgr.h"
 #include "Policies/Singleton.h"
 #include "OutdoorPvP.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Log.h"
 #include "OutdoorPvPEP.h"
 #include "OutdoorPvPGH.h"
@@ -72,7 +72,7 @@ OutdoorPvPMgr::~OutdoorPvPMgr()
 }
 
 #define LOAD_OPVP_ZONE(a)                                           \
-if (sWorld.getConfig(CONFIG_BOOL_OUTDOORPVP_##a##_ENABLED) && !DisableMgr::IsDisabledFor(DISABLE_TYPE_OUTDOORPVP, OPVP_ID_##a))     \
+if (sGameConfig.getConfig(CONFIG_BOOL_OUTDOORPVP_##a##_ENABLED) && !DisableMgr::IsDisabledFor(DISABLE_TYPE_OUTDOORPVP, OPVP_ID_##a))     \
     {                                                               \
         m_scripts[OPVP_ID_##a] = new OutdoorPvP##a();               \
         ++counter;                                                  \

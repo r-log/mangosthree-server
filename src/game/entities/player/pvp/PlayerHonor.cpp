@@ -39,7 +39,7 @@
 
 #include "Player.h"
 #include "Creature.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "GridMap.h"                                        // TerrainInfo: Formulas.h's XP gain reads the terrain
 #include "Formulas.h"                                       // MaNGOS::XP::GetGrayLevel
 #include "BattleGround.h"                                   // SPELL_AURA_PLAYER_INACTIVE (a spell id)
@@ -135,8 +135,8 @@ namespace
             }
         }
 
-        in.ffaRealm = sWorld.IsFFAPvPRealm();
-        in.honorRate = sWorld.getConfig(CONFIG_FLOAT_RATE_HONOR);
+        in.ffaRealm = sGameConfig.IsFFAPvPRealm();
+        in.honorRate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_HONOR);
         in.draw = []()
         {
             return urand(8, 12);

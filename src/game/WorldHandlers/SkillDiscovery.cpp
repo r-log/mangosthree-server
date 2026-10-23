@@ -29,7 +29,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "Policies/Singleton.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Util.h"
 #include "SkillDiscovery.h"
 #include "spells/data/SpellMgr.h"
@@ -238,7 +238,7 @@ uint32 GetSkillDiscoverySpell(uint32 skillId, uint32 spellId, Player* player)
     {
         for (SkillDiscoveryList::const_iterator item_iter = tab->second.begin(); item_iter != tab->second.end(); ++item_iter)
         {
-            if (roll_chance_f(item_iter->chance * sWorld.getConfig(CONFIG_FLOAT_RATE_SKILL_DISCOVERY)) &&
+            if (roll_chance_f(item_iter->chance * sGameConfig.getConfig(CONFIG_FLOAT_RATE_SKILL_DISCOVERY)) &&
                     item_iter->reqSkillValue <= skillvalue &&
                     !player->HasSpell(item_iter->spellId))
                 return item_iter->spellId;
@@ -258,7 +258,7 @@ uint32 GetSkillDiscoverySpell(uint32 skillId, uint32 spellId, Player* player)
     {
         for (SkillDiscoveryList::const_iterator item_iter = tab->second.begin(); item_iter != tab->second.end(); ++item_iter)
         {
-            if (roll_chance_f(item_iter->chance * sWorld.getConfig(CONFIG_FLOAT_RATE_SKILL_DISCOVERY)) &&
+            if (roll_chance_f(item_iter->chance * sGameConfig.getConfig(CONFIG_FLOAT_RATE_SKILL_DISCOVERY)) &&
                     item_iter->reqSkillValue <= skillvalue &&
                     !player->HasSpell(item_iter->spellId))
                 return item_iter->spellId;

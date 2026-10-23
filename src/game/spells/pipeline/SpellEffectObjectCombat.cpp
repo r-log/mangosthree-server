@@ -32,7 +32,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
@@ -381,7 +381,7 @@ void Spell::EffectStuck(SpellEffectEntry const* effect /*effect*/)
         return;
     }
 
-    if (!sWorld.getConfig(CONFIG_BOOL_CAST_UNSTUCK))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_CAST_UNSTUCK))
     {
         return;
     }

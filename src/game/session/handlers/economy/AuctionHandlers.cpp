@@ -34,7 +34,7 @@
 #include "Server/WorldSession.h"
 #include "Opcodes.h"
 #include "Log/Log.h"
-#include "WorldHandlers/World.h"
+#include "data/GameConfig.h"
 #include "Object/ObjectMgr.h"
 #include "Object/ObjectGuid.h"
 #include "WorldHandlers/AchievementMgr.h"
@@ -250,7 +250,7 @@ void AuctionHandlers::HandleAuctionSellItem(WorldSession& session, WorldPacket& 
             continue;
         }
 
-        if (session.GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+        if (session.GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
         {
             sLog.outCommand(session.GetAccountId(), "GM %s (Account: %u) create auction: %s (Entry: %u Count: %u)",
                             session.GetPlayerName(), session.GetAccountId(), it->GetProto()->Name1, it->GetEntry(), it->GetCount());

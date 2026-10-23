@@ -45,7 +45,7 @@
 #include "spells/data/SpellMgr.h"
 #include "Util.h"
 #include "Weather.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "State.h"
 
@@ -338,7 +338,7 @@ bool ChatHandler::HandleGMVisibleCommand(char* args)
     }
 
     Player* player = m_session->GetPlayer();
-    SpellEntry const* invisibleAuraInfo = sSpellStore.LookupEntry(sWorld.getConfig(CONFIG_UINT32_GM_INVISIBLE_AURA));
+    SpellEntry const* invisibleAuraInfo = sSpellStore.LookupEntry(sGameConfig.getConfig(CONFIG_UINT32_GM_INVISIBLE_AURA));
     if (!invisibleAuraInfo || !IsSpellAppliesAura(invisibleAuraInfo))
     {
         invisibleAuraInfo = NULL;
@@ -408,7 +408,7 @@ bool ChatHandler::HandleGMListIngameCommand(char* /*args*/)
     sPlayerRegistry.ForEach([&names, this](Player *player)
     {
         AccountTypes security = player->GetSession()->GetSecurity();
-        if ((player->isGameMaster() || (security > SEC_PLAYER && security <= (AccountTypes)sWorld.getConfig(CONFIG_UINT32_GM_LEVEL_IN_GM_LIST))) &&
+        if ((player->isGameMaster() || (security > SEC_PLAYER && security <= (AccountTypes)sGameConfig.getConfig(CONFIG_UINT32_GM_LEVEL_IN_GM_LIST))) &&
             (!m_session || player->IsVisibleGloballyFor(m_session->GetPlayer())))
         {
             names.push_back(std::make_pair<std::string, bool>(GetNameLink(player), player->isAcceptWhispers()));
@@ -502,7 +502,7 @@ bool ChatHandler::HandleModifyStandStateCommand(char* args)
 bool ChatHandler::HandleChangeWeatherCommand(char* args)
 {
     // Weather is OFF
-    if (!sWorld.getConfig(CONFIG_BOOL_WEATHER))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_WEATHER))
     {
         SendSysMessage(LANG_WEATHER_DISABLED);
         SetSentErrorMessage(true);
