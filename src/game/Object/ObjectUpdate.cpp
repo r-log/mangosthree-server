@@ -30,7 +30,6 @@
 #include "WorldPacket.h"
 #include "Opcodes.h"
 #include "Log.h"
-#include "World.h"
 #include "Creature.h"
 #include "Player.h"
 #include "Vehicle.h"

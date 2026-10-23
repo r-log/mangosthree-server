@@ -31,7 +31,6 @@
 #include "Creature.h"
 #include "Language.h"
 #include "ArenaTeam.h"
-#include "World.h"
 #include "Group.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"

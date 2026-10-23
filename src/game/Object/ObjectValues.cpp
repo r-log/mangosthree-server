@@ -28,7 +28,6 @@
 #include "UpdateData.h"
 #include "UpdateMask.h"
 #include "Player.h"
-#include "World.h"
 #include "Util.h"
 #include "Log.h"
 
