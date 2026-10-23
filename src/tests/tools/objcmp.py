@@ -1283,7 +1283,7 @@ def write_text_check(rows, path):
 
 def read_text_check(path):
     rows = []
-    if path and os.path.exists(path):
+    if path:
         for line in open(path, encoding='utf-8'):
             side, p, n, kind, text = line.rstrip('\n').split('\t', 4)
             rows.append((side, p, int(n), kind, text))
@@ -1575,7 +1575,7 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
         if s == side and code_file(p):
             wanted[p].add(int(n))
     deps = {}
-    if deps_path and os.path.exists(deps_path):
+    if deps_path:
         cur = None
         for line in open(deps_path, encoding='utf-8', errors='replace'):
             line = line.rstrip('\n')
@@ -1587,7 +1587,7 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
             elif cur is not None:
                 deps[cur].add(norm_path(line.strip(), root, build))
     db = {}
-    if db_path and os.path.exists(db_path):
+    if db_path:
         for e in json.load(open(db_path, encoding='utf-8')):
             o = e.get('output')
             if o:
@@ -1715,7 +1715,7 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
 
 def read_line_verdicts(path):
     rows = []
-    if path and os.path.exists(path):
+    if path:
         for line in open(path, encoding='utf-8'):
             p, n, v, detail = line.rstrip('\n').split('\t', 3)
             rows.append((p, int(n), v, detail))
@@ -2533,6 +2533,43 @@ def lines_self_tests(check, cc, build_script):
         check('build: the same tree twice', True, build_script_case(build_script, gate, TOY_BASE, TOY_BASE))
 
 
+def input_case(missing):
+    """main's exit code for a --by-symbol run whose input file MISSING (base-lines, head-lines or
+    text-check) does not exist, or is a directory when prefixed `dir:`."""
+    import contextlib
+    import io
+    tmp = tempfile.mkdtemp(prefix='objcmp-input-')
+    try:
+        objs = synth()
+        for side in ('base', 'head'):
+            for rel, data in objs.items():
+                q = os.path.join(tmp, side, rel)
+                os.makedirs(os.path.dirname(q), exist_ok=True)
+                with open(q, 'wb') as f:
+                    f.write(data)
+        argv = ['--by-symbol', os.path.join(tmp, 'base'), os.path.join(tmp, 'head')]
+        names = ('base-lines', 'head-lines', 'text-check')
+        if missing in ('deps', 'compile-db'):
+            argv = ['--lines-compiled', 'base', '--root', tmp, '--build', tmp, '--out', os.path.join(tmp, 'out.lines')]
+            names = ('changed-lines', 'deps', 'compile-db')
+            if missing != 'compile-db':
+                with open(os.path.join(tmp, 'compile-db.txt'), 'w') as f:
+                    f.write('[]')
+        for name in names:
+            p = os.path.join(tmp, name + '.txt')
+            if missing == 'dir:' + name:
+                os.makedirs(p)
+            elif missing != name and not os.path.exists(p):
+                open(p, 'w').close()
+            argv += ['--' + name, p]
+        sink = io.StringIO()
+        with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+            rc = main(argv)
+        return rc == 0, sink.getvalue().splitlines() + ['exit %d' % rc]
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def text_case(base_files, head_files):
     """run_by_symbol on two equal object sets with the text check of BASE_FILES against HEAD_FILES."""
     rows = []
@@ -2810,6 +2847,13 @@ def self_test(cc, build_script=None):
             shutil.rmtree(tmp, ignore_errors=True)
     lines_self_tests(check, cc, build_script)
     text_self_tests(check)
+    check('input: every named input file present', True, input_case(None), 'exit 0')
+    for name in ('base-lines', 'head-lines', 'text-check'):
+        check('input: --%s names a file that does not exist' % name, False, input_case(name), 'exit 2')
+    check('input: --text-check names a directory', False, input_case('dir:text-check'), 'exit 2')
+    for name in ('deps', 'compile-db'):
+        check('input: --lines-compiled --%s names a file that does not exist' % name, False, input_case(name),
+              'exit 2')
     failures = rows.count(False)
     print('self-test: %s (%d cases, %d failure(s))' % ('PASS' if not failures else 'FAIL', len(rows), failures))
     return not failures
@@ -2833,7 +2877,7 @@ def run_initializers(top, out):
     return found
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--per-object', nargs=2, metavar=('BASE', 'HEAD'))
@@ -2860,7 +2904,7 @@ def main():
     ap.add_argument('--list-init', action='store_true')
     ap.add_argument('--cc')
     ap.add_argument('--report')
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     try:
         if a.self_test:
             return 0 if self_test(a.cc, a.build_script) else 1
