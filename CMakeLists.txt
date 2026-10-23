@@ -71,7 +71,7 @@ message(
                             Staff chat commands are counted apart and never assert.
     MANGOS_PROOF_BUILD      Build objects for src/tests/tools/objcmp.py (GCC only, PCH=0):
                             -O0, no inlining, one section per function and data object,
-                            pooled string literals, __FILE__ and __LINE__ empty. Never
+                            pooled string literals, __FILE__ empty and __LINE__ 0. Never
                             for a server that runs: CI builds two commits this way and
                             compares their objects.
     DEBUG                   Debug build, only for systems without IDE (Linux, *BSD)
