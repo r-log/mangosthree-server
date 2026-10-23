@@ -163,8 +163,8 @@ in spells/ on Unit (Creature has a different cooldown model today).
 | `SpellCooldownMgr` | `spells/`, held by `Unit`. **Today:** `Creature` has a different cooldown model (6 methods, `Object/CreatureSpellCooldown.cpp`). |
 | `SocialMgr` (a realm-wide global that tells every friend lister about a status change; it holds no player's state) | `social/` |
 
-**Today (`Unit`, 639 member functions, grouped roughly by defining file and name):** combat 159, auras 113, spell
-casting 81, lifecycle and update 82, movement 76, stats and power 69, pets/charm/summons 55, visibility 4. The target
+**Today (`Unit`, 640 member functions, grouped roughly by defining file and name):** combat 159, auras 113, spell
+casting 81, lifecycle and update 83, movement 76, stats and power 69, pets/charm/summons 55, visibility 4. The target
 puts combat in `combat/`, auras and casting in `spells/` and movement in the motion shell; the rest stays on `Unit`.
 
 **Today (player-only code in `Unit`):** Unit's 15 files hold 11 `(Player*)this` casts and 211 `TYPEID_PLAYER` tests;
@@ -206,7 +206,7 @@ live in `Object/` and `References/`; only the leaf math (`combat/`) is already h
 
 A layer is done when its gate enforces its rule on a clean clone, and it is finished when it is its own build target
 (section 6): from that day the linker enforces the include direction and the gate only guards what the linker cannot
-see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 925, Unit 639, WorldSession 412, ObjectMgr 249), R1, M1,
+see. The counters are **ratchets against regression only, not finish lines**: `method_count.py --all` (Player 925, Unit 640, WorldSession 412, ObjectMgr 249), R1, M1,
 the downcast counts and the database-call count.
 
 | Layer | Rule | Gate |
@@ -234,14 +234,17 @@ then `MapManager::Update`, then the posts the map phase left for the world threa
 outdoor PvP, then `ProcessResultQueue` for the three databases (every async query's continuation runs here), then the
 console's queued commands. Nothing else touches game state.
 
-**Map workers own one map at a time.** `MapManager::Update` opens the map phase (`MapPhase::Begin`), hands every
-world map to the `MapUpdater` pool (`MapUpdateThreads`, default 2; each worker is a registered MySQL client thread
-through `DbThreadGuard`), blocks at the barrier (`wait`), and closes the phase. `Map::Update` takes a
+**Map workers own one world map at a time.** `MapManager::Update` opens the map phase (`MapPhase::Begin`), hands
+every world map to the `MapUpdater` pool (`MapUpdateThreads`, default 2; each worker is a registered MySQL client
+thread through `DbThreadGuard`), blocks at the barrier (`wait`), and closes the phase. `Map::Update` takes a
 `MapPhase::Scope`, so the thread running it owns that map; a transport deck's update is nested inside the map it
-sails and takes its own scope, handing ownership back on return. With the pool off, or under the harness's stepped
-clock, the world thread updates the maps in turn, one scope at a time, which is what makes a harness run
-deterministic. A vessel that reaches the end of a map decides so on that map's thread and *crosses* only after the
-barrier, on the world thread, because the destination may be updating on another core.
+sails and takes its own scope, which owns the deck and the map whose update it interrupted, and on return the thread
+owns that map alone again. A unit on a deck is also owned by the update of the map its vessel sails
+(`MapPhase::OwnsUnitOn`): a world map and the decks of the vessels sailing it are one world, updated on one thread.
+With the pool off, or under the harness's stepped clock, the world thread updates the maps in turn, one scope at a
+time, which is what makes a harness run deterministic. A vessel that reaches the end of a map decides so on that map's
+thread and *crosses* only after the barrier, on the world thread, because the destination may be updating on another
+core.
 
 **Network threads own sockets, never game state.** `net::Server` (epoll, kqueue, IOCP or io_uring behind one facade)
 runs one poller per worker (on Windows the workers share one completion port), one `ClientConnection` per socket (a
@@ -274,18 +277,22 @@ none.
 
 | Rule | Enforced by |
 |---|---|
-| Game state is touched by the world thread, or by the worker whose scope owns the map | `MapPhase::Owns` (counted process-wide, asserted under `MANGOS_DEBUG`), today at the movement kernel |
+| Game state is touched by the world thread, or by the worker whose scope owns the map. A deck's scope also owns the map whose update it interrupted, and a unit on a deck is also owned by the update of the map its vessel sails: one world, one thread. A unit on any other map is not | `MapPhase::Owns`, and for a unit `Unit::IsOwnedByThisThread` through `MapPhase::OwnsUnitOn` (counted process-wide, asserted under `MANGOS_DEBUG`), today at the movement kernel |
 | Session handlers run on the world thread in `UpdateSessions`, outside the map phase, or on the thread updating the player's map: `Map::Update` drains each in-world player's queue through `MapSessionFilter` under the map phase, on a map worker when the pool runs and, when no worker pool runs, on the world thread, which updates the maps itself, map by map, under the map phase (`MapManager.cpp:318`, `:333-341`), taking the rows marked `PROCESS_THREADSAFE` and `PROCESS_INPLACE`, 73 of the 437 bound rows (attack swing, attack stop and sheathing among them). Each drain stops at the first packet its filter refuses, so a `PROCESS_THREADSAFE` row of an in-world player runs only on the map's thread, and a `PROCESS_INPLACE` row on whichever drain reaches it (`World.cpp:1625`, `Map.cpp:919-928`, `WorldSession.cpp:210-269`, `LockedQueue.h:82-99`) | not yet built: `CheckSessionSeam` checks four named files for session calls and no threading |
 | No synchronous database acquisition under the tick | `TickGuard` (strict mode asserts; the CI job proves the four strict cases stand) and `CheckSyncDb` |
 | Packets cross from the network only through `SessionMailbox` | the `proto` boundary: `IClientLink` / `IWorldGateway` |
-| A map never writes into another map during the phase | transport crossings run after the barrier; a team buff for a player on a map the calling thread does not own is posted to that map's `TeamBuffQueue` and applied by that map's own update, the first statement after its `MapPhase::Scope` (`Map::ApplyTeamBuffs`, pinned by `CheckTeamBuffDrain`); a defense or zone-under-attack message and a missing graveyard link raised during the phase are posted to the world's `AfterMapPhaseQueue` and applied by the world thread after the barrier, the statement after `sMapMgr.Update` (`World::ApplyAfterMapPhasePosts`, pinned by `CheckAfterMapPhaseDrain`) |
+| A map never writes into another map during the phase, but a deck into the map whose update it interrupted, on that map's thread | transport crossings run after the barrier; a team buff for a player on a map the calling thread does not own is posted to that map's `TeamBuffQueue` and applied by that map's own update, the first statement after its `MapPhase::Scope` (`Map::ApplyTeamBuffs`, pinned by `CheckTeamBuffDrain`), and a deck's update owns the map it interrupted, so a buff for a player there is applied at once; a defense or zone-under-attack message and a missing graveyard link raised during the phase are posted to the world's `AfterMapPhaseQueue` and applied by the world thread after the barrier, the statement after `sMapMgr.Update` (`World::ApplyAfterMapPhasePosts`, pinned by `CheckAfterMapPhaseDrain`) |
 | State every map thread can reach (outdoor PvP's scripts) is touched under a leaf lock, as an atomic, or after the barrier | the zone player set and the capture-point slider store are leaf locks; Eastern Plaguelands' tower counts are atomics, each read once by the script's zone-entry override; the team buffs and the after-phase posts are the routes of the row above. A caller that bypasses a route or reads a count twice passes every test: review holds them |
 | A harness run is deterministic | the stepped clock runs every map inline, in order, on one thread |
 
 **Today:**
-- Ownership is checked at one seam only, the movement kernel. Every other part of a map's state (its grids, its
-  object stores, the spell and aura code that D11 opens) relies on the phase structure and on nobody reaching across;
-  the D11 spell seam is the natural place for the second check.
+- Ownership is checked at one seam only, the movement kernel (`Unit::AssertMotionOwner`), by the one-world rule
+  (`Unit::IsOwnedByThisThread`): a world map and the decks of the vessels sailing it are updated on one thread, each
+  deck's update nested inside the world map's, so the update of either owns the units of both. Every other touch is
+  counted: a unit on another world map or an instance and, once a vessel has crossed to another map, a unit on the
+  map it left, touched from its deck's update, or a unit on its deck, touched from that map's update. Every other
+  part of a map's state (its grids, its object stores, the spell and aura code that D11 opens) relies on the phase
+  structure and on nobody reaching across; the D11 spell seam is the natural place for the second check.
 - The network pool is sized by `hardware_concurrency()` (`net/reactor/ReactorServer.cpp:110`), not by the
   configuration. `Network.Threads` said otherwise and was read by no source file; it was removed from
   `mangosd.conf.dist.in` on 2026-09-29. `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by
@@ -373,7 +380,7 @@ where reputation, currency, honor and runes live; and the rule for the domain ti
 | 16 | `AchievementMgr` is in `WorldHandlers/`, and `SocialMgr` is under `entities/player/` | their move PRs, when content touches them |
 | 17 | 2,356 cross lines inside the domain tier have no ratchet yet | built (#179); re-keyed per includer directory, peer and header on 2026-09-29 |
 | 18 | No `CheckLayout`, and no gate for `*Database.` outside persistence | built (#179) (the ratchet; sideways lines re-keyed per includer directory, peer and header on 2026-09-29); #144 |
-| 19 | Thread ownership (`MapPhase::Owns`) is checked at the movement kernel only | the D11 spell seam takes the second check |
+| 19 | Thread ownership is checked at the movement kernel only, by the one-world rule: `MapPhase::Owns` for the unit's map and, for a unit on a deck, for the map its vessel sails too (`Unit::IsOwnedByThisThread`) | the D11 spell seam takes the second check |
 | 20 | `Network.OutKBuff`, `Network.OutUBuff` and `Network.TcpNodelay` are read by no source file (`Network.Threads` was, and is deleted) | delete them or wire them through #143 |
 | 21 | 7 raw `rand()` draws in 5 `src/game` files, seeded by `World.cpp`'s `srand`, share one generator across the map workers | closed on 2026-09-30 by D11's named change: the 7 draws use the seeded `RNG`, and `CheckRawRand` keeps `src/game` at 0 draws. The one generator held on glibc only: the Windows UCRT keeps `rand()` state per thread, so `World.cpp:242`'s `srand` seeded the main thread and the pooled map workers drew from an unseeded stream (seed 1). The `srand` stays for glibc, where SD3's draws share its wall-clock-seeded stream; #83 removes it with SD3's draws and drops the gate's allowance to 0 |
 | 22 | `game` is one target holding data, domain, session, the domain repositories, and app and scripts files; the linker checks only the `motion` / `proto` boundary | one split per layer, in section 6's order, each in the PR that zeroes that layer's upward edges |
