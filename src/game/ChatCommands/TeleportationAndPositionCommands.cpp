@@ -39,7 +39,7 @@
 #include "Chat.h"
 #include "ObjectMgr.h"
 #include "Language.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "MapManager.h"
 #include "CellImpl.h"
 #include "Player.h"
@@ -706,9 +706,9 @@ bool ChatHandler::HandleGPSCommand(char* args)
               (obj->GetTypeId() == TYPEID_PLAYER ? "GUID" : "Entry"), (obj->GetTypeId() == TYPEID_PLAYER ? obj->GetGUIDLow() : obj->GetEntry()));
 
     DEBUG_LOG(GetMangosString(LANG_MAP_POSITION),
-              obj->GetMapId(), (mapEntry ? mapEntry->MapName_lang[sWorld.GetDefaultDbcLocale()] : "<unknown>"),
-              zone_id, (zoneEntry ? zoneEntry->AreaName_lang[sWorld.GetDefaultDbcLocale()] : "<unknown>"),
-              area_id, (areaEntry ? areaEntry->AreaName_lang[sWorld.GetDefaultDbcLocale()] : "<unknown>"),
+              obj->GetMapId(), (mapEntry ? mapEntry->MapName_lang[sGameConfig.GetDefaultDbcLocale()] : "<unknown>"),
+              zone_id, (zoneEntry ? zoneEntry->AreaName_lang[sGameConfig.GetDefaultDbcLocale()] : "<unknown>"),
+              area_id, (areaEntry ? areaEntry->AreaName_lang[sGameConfig.GetDefaultDbcLocale()] : "<unknown>"),
               obj->GetPhaseMask(),
               obj->Where().X(), obj->Where().Y(), obj->Where().Z(), obj->Where().Facing(),
               cell.GridX(), cell.GridY(), cell.CellX(), cell.CellY(), obj->GetInstanceId(),

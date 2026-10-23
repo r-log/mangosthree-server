@@ -35,7 +35,7 @@
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Formulas.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "spells/auras/SpellAuras.h"
 #include "CreatureAI.h"
 #include "Unit.h"
@@ -201,7 +201,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petentry, uint32 petnumber, bool c
             std::string fallback;
             if (CreatureFamilyEntry const* cFamily = sCreatureFamilyStore.LookupEntry(creatureInfo->Family))
             {
-                fallback = cFamily->Name_lang[sWorld.GetDefaultDbcLocale()];
+                fallback = cFamily->Name_lang[sGameConfig.GetDefaultDbcLocale()];
             }
             if (fallback.empty() && creatureInfo->Name)
             {
