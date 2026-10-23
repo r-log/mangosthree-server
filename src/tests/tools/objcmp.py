@@ -70,7 +70,9 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   it is part of); a blank, comment or `#if 0` line needs nothing; the include guard and `#pragma
   once` need the file to be read. A line that is an argument of a macro the build defines without
   using that parameter is not compiled. A changed conditional directive must be the same text moved:
-  the base's and the head's changed directives must pair up.
+  the base's and the head's changed directives must pair up. For each changed file it also lists
+  the lines of the whole file the build did not compile (code outside `#if 0`, other than the
+  include guard and the conditional directives).
 
   --diff-lines also writes TEXT_OUT, the text check: a change that moves code does not alter it,
   so the changed lines of all files together, each keyed by its text and the conditional groups it
@@ -81,6 +83,10 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   two code lines, `#ifndef G` and `#define G`, with the `#endif` that closes them as its last code
   line; a #pragma once counts only outside every conditional group. --by-symbol --text-check
   TEXT_OUT fails each changed line as "code text changed" and lists every exempt line it used.
+  The proof cannot see what code it does not compile (Windows-only code, say) makes of the lines
+  around it. So in a changed file that holds such code, an exempt line fails as "exempt change in
+  a file with uncompiled code", and a line that moves within the file must keep its place among
+  the uncompiled lines, or it fails as "line moved past uncompiled code".
 
 --initializers DIR
   Lists the objects under DIR that carry a dynamic initializer, thread-local ones included.
@@ -95,13 +101,18 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   verdict. Its line cases run --lines-compiled with a stand-in preprocessor: a change inside
   #ifdef _WIN32, uncommented code there, a changed conditional directive, an argument of a macro
   that drops it, a changed .asm or test file no build compiles fail; a compiled line, a comment,
-  #if 0, a renamed include guard and a moved conditional block pass. With --cc it also compiles
-  the same shapes with that GCC in the proof configuration (and _WIN32, MANGOS_STRICT_TICK, an
-  assert, a macro call over two lines, a moved thread_local). With --build-script it builds a
-  small git tree twice with that objcmp_build.sh: a header the head adds ahead of another on the
-  include path, and a changed option default, must differ.
+  #if 0, a renamed include guard and a moved conditional block pass. Namespace lines wrapped
+  around a Windows-only block, an include that only changes a macro Windows code reads, and a
+  compiled line moved past a Windows-only one fail; the same edits next to compiled or #if 0 code
+  pass. The text cases check moves, splits, guards and the exemptions; the input cases check that
+  a named input file that is missing stops the run (exit 2). With --cc it also compiles the same
+  shapes with that GCC in the proof configuration (and _WIN32, MANGOS_STRICT_TICK, an assert, a
+  macro call over two lines, a moved thread_local). With --build-script it builds a small git tree
+  twice with that objcmp_build.sh: a header the head adds ahead of another on the include path, a
+  changed option default, and namespace lines around a Windows-only block, must differ.
 """
 import argparse
+import bisect
 import collections
 import hashlib
 import json
@@ -1103,6 +1114,10 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, lis
                      for side, p, n, kind, text in text_rows if kind == 'changed']
     text_exempt = [(side, p, n, kind[len('exempt: '):], text) for side, p, n, kind, text in text_rows
                    if kind.startswith('exempt: ')]
+    uncompiled = {side: dict((p, detail) for p, n, v, detail in line_rows[side] if v == 'file')
+                  for side in ('base', 'head')}
+    exempt_problems, order_problems = uncompiled_problems(text_rows, text_exempt, uncompiled,
+                                                          read_changes(changes) if changes else [])
     n_items = len(corpus.key)
     nb = sum(len(v) for v in B.values())
     nh = sum(len(v) for v in H.values())
@@ -1146,6 +1161,13 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, lis
             c = collections.Counter(v for _, _, v, _ in line_rows[side])
             out('changed lines (%s): %d compiled, %d blank, comment or #if 0, %d conditional directives, '
                 '%d not compiled' % (side, c['ok'], c['skip'], c['cond'], c['notc']))
+            held = sorted((p, d) for p, d in uncompiled[side].items() if d)
+            out('changed files (%s): %d, %d of them with code the proof build does not compile%s' % (
+                side, len(uncompiled[side]), len(held), ':' if held else ''))
+            for p, d in held[:60]:
+                out('    %s: %s' % (p, d if d == 'unread' else 'lines ' + shorten_ranges(d)))
+            if len(held) > 60:
+                out('    ... %d more' % (len(held) - 60))
     if text_path is not None:
         out('text check: %d changed lines in one side only, %d of them exempt' % (
             len(text_problems) + len(text_exempt), len(text_exempt)))
@@ -1155,15 +1177,66 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, lis
         if len(text_exempt) > 400:
             out('    ... %d more' % (len(text_exempt) - 400))
     hard += ['INIT: initializer function ' + d for d in init_fns]
-    problems = hard + diffs + coverage + gate_problems + text_problems
+    problems = hard + diffs + coverage + gate_problems + text_problems + exempt_problems + order_problems
     for p in problems[:300]:
         out('DIFF ' + p)
     if len(problems) > 300:
         out('DIFF ... %d more' % (len(problems) - 300))
     out('differences: %d (dynamic initializer %d, symbols %d, not compiled by the proof build %d, gate files %d, '
-        'code text changed %d)' % (len(problems), len(hard), len(diffs), len(coverage), len(gate_problems),
-                                   len(text_problems)))
+        'code text changed %d, exempt change in a file with uncompiled code %d, line moved past uncompiled code %d)'
+        % (len(problems), len(hard), len(diffs), len(coverage), len(gate_problems), len(text_problems),
+           len(exempt_problems), len(order_problems)))
     return not problems
+
+
+def shorten_ranges(text, most=12):
+    parts = text.split(',')
+    return ','.join(parts[:most]) + (',...' if len(parts) > most else '')
+
+
+def uncompiled_problems(text_rows, text_exempt, uncompiled, changes):
+    """Code the proof build does not compile can depend on lines it does. In a changed file that
+    holds such code, an exempt line may not differ (an include, a namespace line or a guard could
+    change what that code means), and a line that moves within the file must keep its place among
+    those lines. UNCOMPILED is side -> path -> the file's uncompiled lines as ranges ('' for none,
+    `unread`), from --lines-compiled. A file with no entry counts as holding uncompiled code."""
+    def lines_of(side, p):
+        d = uncompiled[side].get(p)
+        return None if d is None or d == 'unread' else parse_ranges(d)
+
+    def why(side, p):
+        d = uncompiled[side].get(p)
+        if d is None:
+            return 'no line data for the file'
+        if d == 'unread':
+            return 'the file is not in the tree of this build'
+        return 'the proof build does not compile line %s' % shorten_ranges(d, 4)
+    exempt = []
+    for side, p, n, reason, text in text_exempt:
+        u = lines_of(side, p)
+        if u is None or u:
+            exempt.append('exempt change in a file with uncompiled code (%s): %s:%d: %s: %s (%s)' % (
+                side, p, n, reason, text, why(side, p)))
+    renamed = dict((q, p) for st, p, q in changes if st == 'R')
+    groups = collections.defaultdict(lambda: {'base': [], 'head': []})
+    for side, p, n, kind, text in text_rows:
+        if kind == 'moved':
+            f = renamed.get(p, p) if side == 'head' else p
+            groups[(f, text)][side].append((p, n))
+    to_head = dict((p, q) for q, p in renamed.items())
+    order = []
+    for (f, text), g in sorted(groups.items()):
+        ub, uh = lines_of('base', f), lines_of('head', to_head.get(f, f))
+        if not (ub or uh) or not g['base'] or not g['head']:
+            continue
+        rb = sorted(bisect.bisect_left(ub or [], n) for _, n in g['base'])
+        rh = sorted(bisect.bisect_left(uh or [], n) for _, n in g['head'])
+        if rb != rh:
+            for side in ('base', 'head'):
+                for p, n in g[side]:
+                    order.append('line moved past uncompiled code (%s): %s:%d: %s (%s)' % (
+                        side, p, n, text, why(side, p)))
+    return exempt, order
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -1216,10 +1289,6 @@ def code_diff(old_path, old_text, new_path, new_text, status='M'):
     return rows
 
 
-def code_diff_rows(old_path, old_text, new_path, new_text, status='M'):
-    return [r[:3] for r in code_diff(old_path, old_text, new_path, new_text, status)]
-
-
 def show_key(key):
     text, context = key
     if not context:
@@ -1229,20 +1298,20 @@ def show_key(key):
 
 def text_check(rows):
     """A change that moves code: the changed lines of all files together, keyed by their text and
-    conditional context, must be the same multiset in the base and the head. Returns the rows in
-    one side only: (side, path, line, kind, shown text), kind `changed` or `exempt: <why>`, in row
-    order. A key's surplus goes to its exempt rows first."""
+    conditional context, must be the same multiset in the base and the head. Returns every row in
+    row order: (side, path, line, kind, shown text), kind `moved` when the other side holds the same
+    line, else `changed` or `exempt: <why>`. A key's surplus goes to its exempt rows first."""
     count = {'base': collections.Counter(), 'head': collections.Counter()}
     for side, path, line, key, why in rows:
         count[side][key] += 1
     extra = {'base': count['base'] - count['head'], 'head': count['head'] - count['base']}
-    out = []
+    kinds = ['moved'] * len(rows)
     for exempt in (True, False):
         for n, (side, path, line, key, why) in enumerate(rows):
             if bool(why) == exempt and extra[side][key] > 0:
                 extra[side][key] -= 1
-                out.append((n, (side, path, line, 'exempt: ' + why if why else 'changed', show_key(key))))
-    return [r for _, r in sorted(out)]
+                kinds[n] = 'exempt: ' + why if why else 'changed'
+    return [(side, path, line, kinds[n], show_key(key)) for n, (side, path, line, key, why) in enumerate(rows)]
 
 
 def git_text(root, rev, path):
@@ -1478,7 +1547,7 @@ class SourceLines(object):
                                 text == '{' or NAMESPACE_OPEN.match(text))):
                             self.namespace[line] = role
             i += 1
-        self.spans = {}
+        self.logical = logical
 
     def macro_spans(self, fmacros):
         """For each line, the function-like macro calls it is part of: (macro name, line of the name)."""
@@ -1580,7 +1649,9 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
     """Preprocesses TUs of one build that read the changed files of SIDE, and writes for every
     changed line whether that build compiled it: `path<TAB>line<TAB>verdict<TAB>detail`, verdict
     ok, skip (blank, comment or #if 0), cond (a conditional directive; detail is its text) or
-    notc (detail says why)."""
+    notc (detail says why). For every changed file it also writes `path<TAB>0<TAB>file<TAB>lines`:
+    the lines of the whole file that the build did not compile (see whole_file_lines) as ranges,
+    empty when it compiled them all, or `unread` when the file is not in the tree."""
     root = posixpath.normpath(root.replace('\\', '/'))
     build = posixpath.normpath(build.replace('\\', '/'))
     wanted = collections.defaultdict(set)
@@ -1620,6 +1691,8 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
     sources = {}
     verdicts = {}
     need = collections.defaultdict(set)
+    whole = {}
+    compiled = collections.defaultdict(set)
     for p, lines in wanted.items():
         full = os.path.join(root, p)
         try:
@@ -1630,6 +1703,8 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
             continue
         sources[p] = src
         t = target_of(p)
+        whole[p] = whole_file_lines(src)
+        need[p] |= whole[p]
         for n in sorted(lines):
             if n > src.n or not src.has_code[n] or src.dead[n]:
                 verdicts[(p, n)] = ('skip', '')
@@ -1661,15 +1736,21 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
             return ('ok', '')
         return None
 
+    spans_of = {}
     try:
         workers = max(1, min(8, os.cpu_count() or 2))
         while True:
             for p in list(need):
-                spans = sources[p].macro_spans(macros) if macros else {}
+                if spans_of.get(p, (None,))[0] != len(macros):
+                    spans_of[p] = (len(macros), sources[p].macro_spans(macros) if macros else {})
+                spans = spans_of[p][1]
                 for n in list(need[p]):
                     v = covered(p, n, spans)
                     if v:
-                        verdicts[(p, n)] = v
+                        if n in wanted[p] and (p, n) not in verdicts:
+                            verdicts[(p, n)] = v
+                        if v[0] == 'ok':
+                            compiled[p].add(n)
                         need[p].discard(n)
                 if not need[p]:
                     del need[p]
@@ -1717,14 +1798,57 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
         why = ('no object of this build reads the file' if not total else
                'no TU emitted it (%d of the %d TUs that read the file preprocessed)' % (tried[p], total))
         for n in lines:
-            verdicts[(p, n)] = ('notc', why)
+            if n in wanted[p] and (p, n) not in verdicts:
+                verdicts[(p, n)] = ('notc', why)
+    files = {}
+    for p in wanted:
+        files[p] = line_ranges(sorted(whole[p] - compiled[p])) if p in whole else 'unread'
     with open(out_path, 'w', encoding='utf-8') as f:
         for (p, n), (v, detail) in sorted(verdicts.items()):
             f.write('%s\t%d\t%s\t%s\n' % (p, n, v, detail))
+        for p, lines in sorted(files.items()):
+            f.write('%s\t0\tfile\t%s\n' % (p, lines))
     counts = collections.Counter(v for v, _ in verdicts.values())
     log('%s: changed lines %d: compiled %d, blank or comment %d, conditional directives %d, not compiled %d; '
-          '%d TUs preprocessed' % (side, len(verdicts), counts['ok'], counts['skip'], counts['cond'], counts['notc'],
-                                   len(used)))
+        '%d of %d changed files hold code the build did not compile; %d TUs preprocessed' % (
+            side, len(verdicts), counts['ok'], counts['skip'], counts['cond'], counts['notc'],
+            sum(1 for v in files.values() if v), len(files), len(used)))
+
+
+def whole_file_lines(src):
+    """The logical lines of a file that a build must emit for the whole file to count as compiled:
+    every line with code outside `#if 0`, other than the include guard, a file-level #pragma once,
+    a conditional directive and the null directive."""
+    out = set()
+    for k, members in src.logical.items():
+        if src.dead[k] or k in src.guard or not any(src.has_code[m] for m in members):
+            continue
+        d = src.directive.get(k)
+        if d and (d[0] in CONDITIONALS or d[0] == '' or (d[1] == '#pragma once' and not src.context[k])):
+            continue
+        out.add(k)
+    return out
+
+
+def line_ranges(lines):
+    out, start, prev = [], None, None
+    for n in list(lines) + [None]:
+        if n is not None and prev is not None and n == prev + 1:
+            prev = n
+            continue
+        if start is not None:
+            out.append('%d' % start if start == prev else '%d-%d' % (start, prev))
+        start = prev = n
+    return ','.join(out)
+
+
+def parse_ranges(text):
+    out = []
+    for part in text.split(','):
+        if part:
+            a, _, b = part.partition('-')
+            out.extend(range(int(a), int(b or a) + 1))
+    return out
 
 
 def read_line_verdicts(path):
@@ -2161,27 +2285,36 @@ def write_tree(tree, files):
             f.write(text)
 
 
-def changed_lines_of(base_files, head_files, out_path):
+def changed_lines_of(base_files, head_files, out_path, text_path=None):
+    """Writes the changed lines of BASE_FILES against HEAD_FILES as --diff-lines does, and the text
+    check to TEXT_PATH when it is given."""
+    rows = []
+    for rel in sorted(set(base_files) | set(head_files)):
+        if base_files.get(rel) == head_files.get(rel) or not code_file(rel):
+            continue
+        st = 'A' if rel not in base_files else 'D' if rel not in head_files else 'M'
+        rows.extend(code_diff(rel if rel in base_files else None, base_files.get(rel),
+                              rel if rel in head_files else None, head_files.get(rel), st))
     with open(out_path, 'w') as f:
-        for rel in sorted(set(base_files) | set(head_files)):
-            if base_files.get(rel) == head_files.get(rel) or not code_file(rel):
-                continue
-            for side, path, line in code_diff_rows(rel if rel in base_files else None, base_files.get(rel),
-                                                   rel if rel in head_files else None, head_files.get(rel)):
-                f.write('%s\t%s\t%d\n' % (side, path, line))
+        for side, path, line, _, _ in rows:
+            f.write('%s\t%s\t%d\n' % (side, path, line))
+    if text_path:
+        write_text_check(text_check(rows), text_path)
 
 
-def lines_case(sides, compile_cmd, defines=(), readers=None):
+def lines_case(sides, compile_cmd, defines=(), readers=None, text=False):
     """Runs run_lines_compiled on both sides of a small tree and then run_by_symbol on two equal object
     sets. SIDES is {'base': {path: text}, 'head': {path: text}}; every .cpp is its own TU, and READERS
-    names which TUs read which headers. COMPILE_CMD gives a TU's argument list."""
+    names which TUs read which headers. COMPILE_CMD gives a TU's argument list. TEXT adds the text
+    check."""
     tmp = tempfile.mkdtemp(prefix='objcmp-lines-')
     try:
         tree = os.path.join(tmp, 'tree').replace('\\', '/')
         build = os.path.join(tmp, 'build').replace('\\', '/')
         os.makedirs(build)
         changed = os.path.join(tmp, 'changed-lines.txt')
-        changed_lines_of(sides['base'], sides['head'], changed)
+        text_path = os.path.join(tmp, 'text-check.txt') if text else None
+        changed_lines_of(sides['base'], sides['head'], changed, text_path)
         changes = os.path.join(tmp, 'changes.txt')
         with open(changes, 'w') as f:
             for rel in sorted(set(sides['base']) | set(sides['head'])):
@@ -2221,7 +2354,8 @@ def lines_case(sides, compile_cmd, defines=(), readers=None):
                     f.write(data)
         lines = []
         ok = run_by_symbol(os.path.join(objdir, 'base'), os.path.join(objdir, 'head'), None, out['base'][0],
-                           out['head'][0], changes, tree, False, lines.append, out['base'][1], out['head'][1])
+                           out['head'][0], changes, tree, False, lines.append, out['base'][1], out['head'][1],
+                           text_path)
         return ok, lines
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -2344,6 +2478,36 @@ int Traced(int a) { TRACE(a + 1); return a; }
 '''
 
 
+WIN_WRAP_A = 'int Pick();\n#ifdef _WIN32\nint Win() { return 1; }\n#endif\nint Pick() { return 2; }\n'
+WIN_WRAP_B = ('int Pick();\nnamespace Platform {\n#ifdef _WIN32\nint Win() { return 1; }\n#endif\n}\n'
+              'int Pick() { return 2; }\n')
+WIN_MACRO_H = '#pragma once\n#ifdef _WIN32\n#define POLL_DELAY 50\n#endif\n'
+WIN_MACRO_A = '#define POLL_DELAY 10\nint Poll()\n{\n#ifdef _WIN32\n    return POLL_DELAY;\n#else\n    return 0;\n#endif\n}\n'
+WIN_ORDER_A = 'void a();\nvoid w();\nvoid F()\n{\n    a();\n#ifdef _WIN32\n    w();\n#endif\n}\n'
+WIN_ORDER_B = 'void a();\nvoid w();\nvoid F()\n{\n#ifdef _WIN32\n    w();\n#endif\n    a();\n}\n'
+
+
+def uncompiled_variants():
+    """(label, base files, head files, IDENTICAL expected, reason) for code the proof build does not
+    compile next to exempt or moved lines."""
+    plain = 'int Keep() { return 1; }\nint Pick() { return 2; }\n'
+    return (
+        ('two namespace lines wrap a Windows-only definition', {'A.cpp': WIN_WRAP_A}, {'A.cpp': WIN_WRAP_B}, False,
+         'exempt change in a file with uncompiled code (head): A.cpp:2: namespace open'),
+        ('an include that only changes a macro Windows code reads', {'Plat.h': WIN_MACRO_H, 'A.cpp': WIN_MACRO_A},
+         {'Plat.h': WIN_MACRO_H, 'A.cpp': '#include "Plat.h"\n' + WIN_MACRO_A}, False,
+         'exempt change in a file with uncompiled code (head): A.cpp:1: include'),
+        ('a compiled line moved past a Windows-only line', {'A.cpp': WIN_ORDER_A}, {'A.cpp': WIN_ORDER_B}, False,
+         'line moved past uncompiled code (base): A.cpp:5'),
+        ('an include added to a file the build compiles whole', {'A.cpp': plain},
+         {'A.cpp': '#include <cstdint>\n' + plain}, True, 'include (head): A.cpp:1'),
+        ('an include added to a file whose other code is #if 0', {'A.cpp': '#if 0\nint Dead();\n#endif\n' + plain},
+         {'A.cpp': '#include <cstdint>\n#if 0\nint Dead();\n#endif\n' + plain}, True, 'include (head): A.cpp:1'),
+        ('a declaration moved on its side of a Windows-only block', {'A.cpp': WIN_ORDER_A},
+         {'A.cpp': WIN_ORDER_A.replace('void a();\nvoid w();\n', 'void w();\nvoid a();\n')}, True, None),
+    )
+
+
 def compiled_line_variants():
     a = COMPILED_LINES
     return {
@@ -2371,7 +2535,7 @@ def compile_tree(cc, tree, out_dir, files):
             subprocess.check_call([cc] + PROOF_FLAGS + ['-c', os.path.join(tree, rel), '-o', obj], cwd=tree)
 
 
-def compiled_lines_case(cc, base_files, head_files):
+def compiled_lines_case(cc, base_files, head_files, text=False):
     """The compiled shape of lines_case: real objects and real preprocessing with CC."""
     tmp = tempfile.mkdtemp(prefix='objcmp-cclines-')
     try:
@@ -2379,7 +2543,8 @@ def compiled_lines_case(cc, base_files, head_files):
         build = os.path.join(tmp, 'build').replace('\\', '/')
         os.makedirs(build)
         changed = os.path.join(tmp, 'changed-lines.txt')
-        changed_lines_of(base_files, head_files, changed)
+        text_path = os.path.join(tmp, 'text-check.txt') if text else None
+        changed_lines_of(base_files, head_files, changed, text_path)
         changes = os.path.join(tmp, 'changes.txt')
         with open(changes, 'w') as f:
             for rel in sorted(set(base_files) | set(head_files)):
@@ -2411,7 +2576,7 @@ def compiled_lines_case(cc, base_files, head_files):
             res[side] = (objdir, depp, linesp)
         lines = []
         ok = run_by_symbol(res['base'][0], res['head'][0], None, res['base'][1], res['head'][1], changes, tree,
-                           False, lines.append, res['base'][2], res['head'][2])
+                           False, lines.append, res['base'][2], res['head'][2], text_path)
         return ok, lines
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -2441,7 +2606,8 @@ def build_script_case(script, gate, base_files, head_files):
             subprocess.check_call(['git', 'add', '-A'], **q)
             subprocess.check_call(['git', 'commit', '-q', '--allow-empty', '-m', 'side'], **q)
             shas.append(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=tree).decode().strip())
-        run_diff_lines(tree, shas[0], shas[1], os.path.join(proof, 'changed-lines.txt'), log=lambda s: None)
+        run_diff_lines(tree, shas[0], shas[1], os.path.join(proof, 'changed-lines.txt'),
+                       os.path.join(proof, 'text-check.txt'), log=lambda s: None)
         with open(os.path.join(proof, 'changes.txt'), 'wb') as f:
             f.write(subprocess.check_output(['git', '-C', tree, 'diff', '--name-status', '-M', shas[0], shas[1]]))
         build = os.path.join(tmp, 'build')
@@ -2452,7 +2618,8 @@ def build_script_case(script, gate, base_files, head_files):
         ok = run_by_symbol(os.path.join(proof, 'base'), os.path.join(proof, 'head'), None,
                            os.path.join(proof, 'base.deps'), os.path.join(proof, 'head.deps'),
                            os.path.join(proof, 'changes.txt'), tree, False, lines.append,
-                           os.path.join(proof, 'base.lines'), os.path.join(proof, 'head.lines'))
+                           os.path.join(proof, 'base.lines'), os.path.join(proof, 'head.lines'),
+                           os.path.join(proof, 'text-check.txt'))
         return ok, lines
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -2499,6 +2666,9 @@ def lines_self_tests(check, cc, build_script):
                  'lines: code uncommented inside #ifdef _WIN32')):
             check(label, expect, lines_case({'base': {'a.cpp': LINE_A}, 'head': {'a.cpp': v[name]}}, cmd,
                                             defines=('FEATURE', 'OTHER_FEATURE')), reason)
+        for label, base_files, head_files, expect, reason in uncompiled_variants():
+            check('uncompiled: ' + label, expect, lines_case({'base': base_files, 'head': head_files}, cmd,
+                                                            readers={'A.cpp': ['Plat.h']}, text=True), reason)
         check('lines: a changed MASM file (.asm) no build compiles', False,
               lines_case({'base': {'x.asm': 'mov eax, 1\n', 'a.cpp': LINE_A},
                           'head': {'x.asm': 'mov eax, 2\n', 'a.cpp': LINE_A}}, cmd), 'x.asm:1')
@@ -2524,6 +2694,9 @@ def lines_self_tests(check, cc, build_script):
         for name, (text, expect, reason) in sorted(compiled_line_variants().items()):
             check('compiled lines: %s' % name, expect,
                   compiled_lines_case(cc, {'a.cpp': COMPILED_LINES}, {'a.cpp': text}), reason)
+        for label, base_files, head_files, expect, reason in uncompiled_variants():
+            check('compiled uncompiled: ' + label, expect, compiled_lines_case(cc, base_files, head_files, text=True),
+                  reason)
         tls = ('#include <string>\nstatic std::string Make() { return std::string("a") + "b"; }\n'
                'thread_local std::string tls_name = Make();\nstd::string const& Name() { return tls_name; }\n')
         check('compiled lines: a file with a thread_local std::string moves', False,
@@ -2545,6 +2718,12 @@ def lines_self_tests(check, cc, build_script):
         check('build: the head changes an option default', False,
               build_script_case(build_script, gate, TOY_BASE, option), '_Z7Featurev')
         check('build: the same tree twice', True, build_script_case(build_script, gate, TOY_BASE, TOY_BASE))
+        wrap = dict(TOY_BASE)
+        wrap['U.cpp'] = TOY_BASE['U.cpp'] + WIN_WRAP_A.replace('Pick', 'Choose')
+        wrapped = dict(wrap)
+        wrapped['U.cpp'] = TOY_BASE['U.cpp'] + WIN_WRAP_B.replace('Pick', 'Choose')
+        check('build: two namespace lines wrap a Windows-only definition', False,
+              build_script_case(build_script, gate, wrap, wrapped), 'exempt change in a file with uncompiled code')
 
 
 def input_case(missing):
@@ -2584,8 +2763,10 @@ def input_case(missing):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def text_case(base_files, head_files):
-    """run_by_symbol on two equal object sets with the text check of BASE_FILES against HEAD_FILES."""
+def text_case(base_files, head_files, uncompiled=None):
+    """run_by_symbol on two equal object sets with the text check of BASE_FILES against HEAD_FILES.
+    Every changed file counts as compiled whole, except those UNCOMPILED names: (side, path) ->
+    the line ranges the build did not compile."""
     rows = []
     for rel in sorted(set(base_files) | set(head_files)):
         if base_files.get(rel) == head_files.get(rel) or not code_file(rel):
@@ -2604,9 +2785,16 @@ def text_case(base_files, head_files):
                     f.write(data)
         tp = os.path.join(tmp, 'text-check.txt')
         write_text_check(text_check(rows), tp)
+        line_files = []
+        for side, files in (('base', base_files), ('head', head_files)):
+            lp = os.path.join(tmp, side + '.lines')
+            with open(lp, 'w') as f:
+                for rel in sorted(set(r[1] for r in rows if r[0] == side)):
+                    f.write('%s\t0\tfile\t%s\n' % (rel, (uncompiled or {}).get((side, rel), '')))
+            line_files.append(lp)
         lines = []
         ok = run_by_symbol(os.path.join(tmp, 'base'), os.path.join(tmp, 'head'), None, None, None, None, None, False,
-                           lines.append, None, None, tp)
+                           lines.append, line_files[0], line_files[1], tp)
         return ok, lines
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
