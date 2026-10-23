@@ -40,6 +40,7 @@ namespace MapPhase
     void Begin() { s_active.store(true); }
     void End() { s_active.store(false); }
     bool Active() { return s_active.load(); }
+    bool UpdatesAMap() { return t_innermost != NULL; }
     uint32 Violations() { return s_violations.load(); }
 
     bool Owns(Map const* map)
@@ -73,12 +74,12 @@ namespace MapPhase
         t_innermost = m_outer;
     }
 
-    void Violation(char const* unit)
+    void Violation(char const* subject, char const* unit)
     {
         const uint32 n = ++s_violations;
         if (n <= 10)
         {
-            sLog.outError("MapPhase: the movement kernel of %s touched from outside its map's update (violation %u)", unit, n);
+            sLog.outError("MapPhase: %s of %s touched from outside its map's update (violation %u)", subject, unit, n);
         }
     }
 }

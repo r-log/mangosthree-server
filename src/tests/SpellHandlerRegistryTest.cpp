@@ -353,9 +353,16 @@
 #include "WorldSession.h"
 #include "WorldPacket.h"
 #include "Auth/BigNumber.h"
+#include "Log.h"
+#include "MapPhase.h"
 
+#include <chrono>
 #include <ctime>
+#include <filesystem>
+#include <list>
 #include <set>
+#include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -6488,8 +6495,8 @@ TEST(UnitSpellBonusHandlers_TheThreeSitesHoldTheirLabelsAndNoDefault)
 
 TEST(UnitSpellBonusHandlers_TheContextsAliasTheirLocals)
 {
-    alignas(16) static unsigned char units[16];
-    Unit* self = reinterpret_cast<Unit*>(units);
+    ValuedCreature creature;
+    Unit* self = &creature;
     std::list<Aura*> auras;
     auras.push_back(FakeAura(0));
     auras.push_back(FakeAura(1));
@@ -7570,7 +7577,8 @@ TEST(UnitAuraProcHandlerHandlers_TheProcTriggerLabelsSetTheSpellOrTheTarget)
 TEST(UnitAuraProcHandlerHandlers_TheProcTriggerGuardsEndTheProcBeforeTheUnitIsRead)
 {
     // Each case ends the proc with FAILED before any body reads the unit, and leaves the locals as they were. A case
-    // whose unit is the victim passes the victim's address for `this`, which the guard only compares.
+    // whose unit is the victim passes one creature, never in a world, for `this` and the victim, which the guard
+    // only compares.
     struct GuardCase
     {
         uint32 spellId;
@@ -7593,10 +7601,11 @@ TEST(UnitAuraProcHandlerHandlers_TheProcTriggerGuardsEndTheProcBeforeTheUnitIsRe
         { 56453, true, false, 0, 0, 100, false },                                       // no trap
         { 56453, true, false, 0, PROC_FLAG_ON_TRAP_ACTIVATION, 0, false },              // a roll at 0 percent
     };
+    ValuedCreature self;
     for (GuardCase const& c : cases)
     {
-        ProcTriggerLocals locals(c.unitIsVictim ? ProcVictim() : NULL);
-        locals.pVictim = c.victim ? ProcVictim() : NULL;
+        ProcTriggerLocals locals(c.unitIsVictim ? &self : NULL);
+        locals.pVictim = c.victim ? (c.unitIsVictim ? &self : ProcVictim()) : NULL;
         locals.procSpell = c.procSpell ? ProcSpellRow(0, 1, SPELL_SCHOOL_MASK_NORMAL) : NULL;
         locals.procEx = c.procEx;
         locals.procFlags = c.procFlags;
@@ -7623,3 +7632,290 @@ TEST(UnitAuraProcHandlerHandlers_TheProcTriggerGuardsEndTheProcBeforeTheUnitIsRe
     CHECK(trap.target == NULL);
     CHECK(trap.BasePointsAre(0));
 }
+
+namespace
+{
+    /// Hands out a pointer to a private member: an explicit instantiation may name it, and the
+    /// friend the instantiation defines returns it.
+    template<class Tag, typename Tag::type Member>
+    struct SeamMemberAccess
+    {
+        friend typename Tag::type MemberOf(Tag)
+        {
+            return Member;
+        }
+    };
+
+    struct WorldObjectCurrentMap
+    {
+        typedef Map* WorldObject::* type;
+        friend type MemberOf(WorldObjectCurrentMap);
+    };
+
+    struct LogMainFile
+    {
+        typedef FILE* Log::* type;
+        friend type MemberOf(LogMainFile);
+    };
+
+    template struct SeamMemberAccess<WorldObjectCurrentMap, &WorldObject::m_currMap>;
+    template struct SeamMemberAccess<LogMainFile, &Log::logfile>;
+
+    // Two maps the check compares by address. Nothing reads through them: the check looks up the unit's vessel,
+    // which reads the unit's map, only under a scope that does not own that map, and no case checks a unit there.
+    alignas(16) unsigned char s_ownMap[16];
+    alignas(16) unsigned char s_otherMap[16];
+
+    Map* OwnMap()
+    {
+        return reinterpret_cast<Map*>(s_ownMap);
+    }
+
+    Map* OtherMap()
+    {
+        return reinterpret_cast<Map*>(s_otherMap);
+    }
+
+    /// A creature in the world on OwnMap(): flagged in world and given the map, nothing else.
+    class InWorldCreature : public ValuedCreature
+    {
+        public:
+            InWorldCreature()
+            {
+                this->*MemberOf(WorldObjectCurrentMap()) = OwnMap();
+                Object::AddToWorld();
+            }
+
+            ~InWorldCreature()
+            {
+                Object::RemoveFromWorld();
+                ResetMap();
+            }
+    };
+
+    /// Opens the map phase for the scope, as MapManager::Update does around the map updates.
+    class OpenSeamMapPhase
+    {
+        public:
+            OpenSeamMapPhase() { MapPhase::Begin(); }
+            ~OpenSeamMapPhase() { MapPhase::End(); }
+
+        private:
+            OpenSeamMapPhase(OpenSeamMapPhase const&) = delete;
+            OpenSeamMapPhase& operator=(OpenSeamMapPhase const&) = delete;
+    };
+
+    /// The violations one call adds.
+    template <typename Call>
+    uint32 ViolationsOf(Call call)
+    {
+        uint32 const before = MapPhase::Violations();
+        call();
+        return MapPhase::Violations() - before;
+    }
+
+    /// The violations one call adds when it runs on a thread of its own, which updates no map.
+    template <typename Call>
+    uint32 ViolationsOnAnotherThread(Call call)
+    {
+        uint32 const before = MapPhase::Violations();
+        std::thread other(call);
+        other.join();
+        return MapPhase::Violations() - before;
+    }
+
+    /// What the log's main file receives while the call runs, from its first "ERROR:" on (the timestamp before it
+    /// dropped): the file is swapped for a scratch file and put back.
+    template <typename Call>
+    std::string LoggedBy(Call call)
+    {
+        std::filesystem::path const path = std::filesystem::temp_directory_path() /
+            ("mangos_spell_seam_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".log");
+        FILE* scratch = std::fopen(path.string().c_str(), "w+");
+        if (!scratch)
+        {
+            return std::string();
+        }
+        FILE* const saved = sLog.*MemberOf(LogMainFile());
+        sLog.*MemberOf(LogMainFile()) = scratch;
+        call();
+        sLog.*MemberOf(LogMainFile()) = saved;
+
+        std::string text;
+        std::fseek(scratch, 0, SEEK_SET);
+        char buffer[512];
+        for (std::size_t n; (n = std::fread(buffer, 1, sizeof(buffer), scratch)) > 0;)
+        {
+            text.append(buffer, n);
+        }
+        std::fclose(scratch);
+        std::filesystem::remove(path);
+        std::size_t const at = text.find("ERROR:");
+        return at == std::string::npos ? text : text.substr(at);
+    }
+
+    /// Builds one of the five contexts that hold a unit over `unit`: 0 the dummy proc's, 1 the haste proc's, 2 the
+    /// proc trigger's, 3 the spell damage taken's, 4 the melee damage taken's.
+    void BuildContext(int which, Unit* unit)
+    {
+        SpellCooldownMgr cooldowns;
+        Unit* victim = NULL;
+        Unit* target = NULL;
+        uint32 damage = 0;
+        uint32 flags = 0;
+        uint32 cooldown = 0;
+        Aura* aura = NULL;
+        SpellEntry const* spell = NULL;
+        SpellClassOptionsEntry const* options = NULL;
+        SpellEffectIndex effIndex = EFFECT_INDEX_0;
+        int32 amount = 0;
+        Item* castItem = NULL;
+        uint32 triggered = 0;
+        int32 basepoints[MAX_EFFECT_INDEX] = { 0, 0, 0 };
+        float mod = 1.0f;
+        std::list<Aura*> auras;
+        std::list<Aura*>::const_iterator i = auras.begin();
+
+        switch (which)
+        {
+            case 0:
+            {
+                DummyAuraProcContext ctx(unit, cooldowns, victim, damage, aura, spell, flags, cooldown, spell, effIndex,
+                                         options, amount, castItem, triggered, target, basepoints);
+                break;
+            }
+            case 1:
+            {
+                HasteAuraProcContext ctx(unit, victim, damage, triggered, target, amount);
+                break;
+            }
+            case 2:
+            {
+                ProcTriggerSpellAuraProcContext ctx(unit, victim, damage, aura, spell, flags, flags, spell, options,
+                                                    amount, triggered, target, basepoints, castItem);
+                break;
+            }
+            case 3:
+            {
+                SpellDamageTakenContext ctx(unit, spell, mod, i);
+                break;
+            }
+            case 4:
+            {
+                MeleeDamageTakenContext ctx(unit, mod, i);
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    /// Builds the two Unit-site contexts that hold no unit.
+    void BuildTheContextsWithNoUnit()
+    {
+        Aura* aura = NULL;
+        uint32 triggered = 0;
+        Unit* target = NULL;
+        int32 total = 0;
+        std::list<Aura*> auras;
+        std::list<Aura*>::const_iterator i = auras.begin();
+        SpellCritChanceAuraProcContext crit(aura, triggered, target);
+        SpellHealingDoneContext healing(total, i);
+    }
+}
+
+TEST(Unit_TheSpellSeamCheckPassesOutsideTheMapPhaseAndOnTheThreadUpdatingTheUnitsMap)
+{
+    REQUIRE(!MapPhase::Active());
+    InWorldCreature unit;
+    ValuedCreature outside;
+
+    // Outside the map phase the world thread owns every map: no violation, on this thread or another.
+    CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); }), 0u);
+    CHECK_EQ(ViolationsOnAnotherThread([&]() { unit.AssertSpellSeamOwner(); }), 0u);
+
+    OpenSeamMapPhase phase;
+    {
+        // The thread updating the unit's map owns it, a deck's nested update handing it back included. The
+        // scope owns the unit's map, so the check looks up no vessel.
+        MapPhase::Scope own(OwnMap());
+        REQUIRE(MapPhase::Owns(OwnMap()));
+        CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); }), 0u);
+        {
+            MapPhase::Scope deck(OtherMap());
+        }
+        CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); }), 0u);
+        for (int which = 0; which < 5; ++which)
+        {
+            CHECK_EQ(ViolationsOf([&]() { BuildContext(which, &unit); }), 0u);
+        }
+    }
+    {
+        // A unit in no world is never checked, whichever map the thread updates.
+        MapPhase::Scope other(OtherMap());
+        CHECK_EQ(ViolationsOf([&]() { outside.AssertSpellSeamOwner(); }), 0u);
+    }
+    CHECK_EQ(ViolationsOnAnotherThread([&]() { outside.AssertSpellSeamOwner(); }), 0u);
+}
+
+#ifndef MANGOS_DEBUG
+// Under MANGOS_DEBUG a violation asserts, so the cases that count one run in Release only.
+TEST(Unit_TheSpellSeamAndTheMovementKernelEachNameThemselvesInTheViolationLog)
+{
+    // Only the first ten violations are logged, so the case needs two of them left.
+    REQUIRE(MapPhase::Violations() <= 8);
+    InWorldCreature unit;
+    OpenSeamMapPhase phase;
+    // No scope is open on this thread, so the check counts without looking up the unit's vessel.
+    REQUIRE(!MapPhase::UpdatesAMap());
+    std::string const guid = unit.GetGuidStr();
+
+    uint32 const seam = MapPhase::Violations() + 1;
+    std::string const seamLog = LoggedBy([&]() { unit.AssertSpellSeamOwner(); });
+    CHECK_STR(seamLog, "ERROR:MapPhase: the spell seam of " + guid + " touched from outside its map's update (violation " +
+              std::to_string(seam) + ")\n");
+
+    uint32 const kernel = MapPhase::Violations() + 1;
+    std::string const kernelLog = LoggedBy([&]() { unit.AssertMotionOwner(); });
+    CHECK_STR(kernelLog, "ERROR:MapPhase: the movement kernel of " + guid +
+              " touched from outside its map's update (violation " + std::to_string(kernel) + ")\n");
+}
+
+TEST(Unit_TheSpellSeamCheckCountsAThreadThatDoesNotUpdateTheUnitsMap)
+{
+    REQUIRE(!MapPhase::Active());
+    InWorldCreature unit;
+    OpenSeamMapPhase phase;
+    // No scope is open on this thread, so the check counts without looking up the unit's vessel.
+    REQUIRE(!MapPhase::UpdatesAMap());
+
+    // A thread that updates no map, this one or another, counts one violation per check.
+    CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); }), 1u);
+    CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); unit.AssertSpellSeamOwner(); }), 2u);
+    CHECK_EQ(ViolationsOnAnotherThread([&]() { unit.AssertSpellSeamOwner(); }), 1u);
+
+    // The movement kernel's check counts on the same counter.
+    CHECK_EQ(ViolationsOnAnotherThread([&]() { unit.AssertMotionOwner(); }), 1u);
+}
+
+TEST(UnitSiteContexts_EachContextThatHoldsTheUnitChecksItWhenBuilt)
+{
+    REQUIRE(!MapPhase::Active());
+    InWorldCreature unit;
+    OpenSeamMapPhase phase;
+    // No scope is open on this thread, so the check counts without looking up the unit's vessel.
+    REQUIRE(!MapPhase::UpdatesAMap());
+
+    // Built on a thread that updates no map, this one or another, each of the five counts one violation; with no
+    // unit, none.
+    for (int which = 0; which < 5; ++which)
+    {
+        CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildContext(which, &unit); }), 1u);
+        CHECK_EQ(ViolationsOf([&]() { BuildContext(which, &unit); }), 1u);
+        CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildContext(which, NULL); }), 0u);
+    }
+
+    // The two Unit-site contexts that hold no unit check nothing.
+    CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildTheContextsWithNoUnit(); }), 0u);
+}
+#endif

@@ -198,3 +198,26 @@ TEST(MapPhase_AUnitOnAThirdMapStaysUnowned)
         CHECK(!MapPhase::OwnsUnitOn(Deck(), Third()));
     }
 }
+
+TEST(MapPhase_AThreadUpdatesAMapOnlyWhileAScopeIsOpenOnIt)
+{
+    REQUIRE(!MapPhase::Active());
+    CHECK(!MapPhase::UpdatesAMap());
+
+    OpenMapPhase phase;
+    CHECK(!MapPhase::UpdatesAMap());
+    {
+        MapPhase::Scope sailed(Sailed());
+        CHECK(MapPhase::UpdatesAMap());
+        {
+            MapPhase::Scope deck(Deck());
+            CHECK(MapPhase::UpdatesAMap());
+        }
+        CHECK(MapPhase::UpdatesAMap());
+
+        // The scopes open on this thread do not count for another, which updates a map only under its own.
+        CHECK(!AnswerOnAnotherThread(NULL, []() { return MapPhase::UpdatesAMap(); }));
+        CHECK(AnswerOnAnotherThread(Third(), []() { return MapPhase::UpdatesAMap(); }));
+    }
+    CHECK(!MapPhase::UpdatesAMap());
+}
