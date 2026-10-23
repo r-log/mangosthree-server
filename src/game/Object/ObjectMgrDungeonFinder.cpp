@@ -40,7 +40,6 @@
 #include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "UpdateMask.h"
-#include "World.h"
 #include "Group.h"
 #include "ArenaTeam.h"
 #include "Transports.h"

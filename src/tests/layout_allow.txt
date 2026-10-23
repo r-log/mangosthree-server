@@ -48,7 +48,6 @@ src/game/BattleGround/BattleGroundMgrUtil.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundNA.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundObjects.cpp -> src/game/WorldHandlers/Chat.h
-src/game/BattleGround/BattleGroundObjects.cpp -> src/game/WorldHandlers/World.h
 src/game/BattleGround/BattleGroundObjects.cpp -> src/game/entities/player/Player.h
 src/game/BattleGround/BattleGroundObjects.cpp -> src/proto/WorldPacket.h
 src/game/BattleGround/BattleGroundQueue.cpp -> src/game/Server/WorldSession.h
@@ -228,7 +227,6 @@ src/game/Object/GameObject.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/GameObject.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObject.cpp -> src/proto/WorldPacket.h
 src/game/Object/GameObjectDestructible.cpp -> src/game/WorldHandlers/ScriptMgr.h
-src/game/Object/GameObjectDestructible.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/Opcodes.h
 src/game/Object/GameObjectDestructible.cpp -> src/proto/WorldPacket.h
 src/game/Object/GameObjectUpdate.cpp -> src/game/WorldHandlers/ScriptMgr.h
@@ -266,7 +264,6 @@ src/game/Object/LootMgr.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/LootMgr.cpp -> src/game/entities/player/PlayerRegistry.h
 src/game/Object/Object.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/Object.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/Object/Object.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/Object.cpp -> src/game/entities/player/Player.h
 src/game/Object/Object.cpp -> src/proto/Opcodes.h
 src/game/Object/Object.cpp -> src/proto/WorldPacket.h
@@ -347,7 +344,6 @@ src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/WorldHandlers/MapManager.
 src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/WorldHandlers/Transports.h
-src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgrDungeonFinder.cpp -> src/game/spells/pipeline/Spell.h
@@ -393,7 +389,6 @@ src/game/Object/ObjectMgrItems.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/WorldHandlers/Transports.h
-src/game/Object/ObjectMgrItems.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgrItems.cpp -> src/game/spells/pipeline/Spell.h
@@ -452,7 +447,6 @@ src/game/Object/ObjectMgrReputation.cpp -> src/game/WorldHandlers/MapManager.h
 src/game/Object/ObjectMgrReputation.cpp -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/Object/ObjectMgrReputation.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/Object/ObjectMgrReputation.cpp -> src/game/WorldHandlers/Transports.h
-src/game/Object/ObjectMgrReputation.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectMgrReputation.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/ObjectMgrReputation.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectMgrReputation.cpp -> src/game/spells/pipeline/Spell.h
@@ -461,12 +455,10 @@ src/game/Object/ObjectMgrText.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/Object/ObjectMgrTrainerVendor.cpp -> src/game/spells/data/SpellMgr.h
 src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/Object/ObjectUpdate.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectUpdate.cpp -> src/game/entities/player/Player.h
 src/game/Object/ObjectUpdate.cpp -> src/proto/Opcodes.h
 src/game/Object/ObjectUpdate.cpp -> src/proto/WorldPacket.h
 src/game/Object/ObjectValues.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/Object/ObjectValues.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/ObjectValues.cpp -> src/game/entities/player/Player.h
 src/game/Object/Pet.cpp -> src/game/Server/WorldSession.h
 src/game/Object/Pet.cpp -> src/game/spells/auras/SpellAuras.h
@@ -501,37 +493,31 @@ src/game/Object/Unit.h -> src/game/spells/AuraContainer.h
 src/game/Object/Unit.h -> src/game/spells/auras/SpellAuraDefines.h
 src/game/Object/Unit.h -> src/proto/Opcodes.h
 src/game/Object/UnitCombat.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitCombat.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitCombat.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitCombat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitCombat.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitCombat.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitDamage.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitDamage.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitDamage.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitDamage.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitDamage.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitDamage.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitDiminishing.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitDiminishing.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitDiminishing.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitDiminishing.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitDiminishing.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitDiminishing.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitDynObject.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitDynObject.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitDynObject.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitDynObject.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitDynObject.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitDynObject.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitHostility.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitHostility.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitHostility.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitHostility.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitHostility.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitHostility.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitMeleeDamage.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitMeleeDamage.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitMeleeDamage.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitMeleeDamage.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitMeleeDamage.cpp -> src/proto/Opcodes.h
@@ -544,13 +530,11 @@ src/game/Object/UnitSpeed.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitSpeed.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitSpeed.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitStatModifier.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitStatModifier.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitStatModifier.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitStatModifier.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitStatModifier.cpp -> src/proto/Opcodes.h
 src/game/Object/UnitStatModifier.cpp -> src/proto/WorldPacket.h
 src/game/Object/UnitThreat.cpp -> src/game/Server/WorldSession.h
-src/game/Object/UnitThreat.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/UnitThreat.cpp -> src/game/entities/player/Player.h
 src/game/Object/UnitThreat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/UnitThreat.cpp -> src/proto/Opcodes.h
@@ -569,7 +553,6 @@ src/game/Object/WorldObjectChat.cpp -> src/proto/Opcodes.h
 src/game/Object/WorldObjectChat.cpp -> src/proto/WorldPacket.h
 src/game/Object/WorldObjectPosition.cpp -> src/game/WorldHandlers/Chat.h
 src/game/Object/WorldObjectPosition.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/Object/WorldObjectPosition.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/WorldObjectPosition.cpp -> src/game/entities/player/Player.h
 src/game/Object/WorldObjectPosition.cpp -> src/proto/Opcodes.h
 src/game/Object/WorldObjectPosition.cpp -> src/proto/WorldPacket.h
@@ -584,7 +567,6 @@ src/game/OutdoorPvP [pvp] -> src/game/Object/GameObject.h
 src/game/OutdoorPvP [pvp] -> src/game/Object/Object.h
 src/game/OutdoorPvP [pvp] -> src/game/WorldHandlers/Map.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/Server/WorldSession.h
-src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvP.cpp -> src/game/entities/player/Player.h
 src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/game/WorldHandlers/World.h
 src/game/OutdoorPvP/OutdoorPvPEP.cpp -> src/game/entities/player/Player.h
@@ -736,7 +718,6 @@ src/game/WorldHandlers/GroupInstance.cpp -> src/game/entities/player/PlayerRegis
 src/game/WorldHandlers/GroupInstance.cpp -> src/proto/Opcodes.h
 src/game/WorldHandlers/GroupInstance.cpp -> src/proto/WorldPacket.h
 src/game/WorldHandlers/GroupMemberState.cpp -> src/game/Server/WorldSession.h
-src/game/WorldHandlers/GroupMemberState.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/GroupMemberState.cpp -> src/game/entities/player/Player.h
 src/game/WorldHandlers/GroupMemberState.cpp -> src/proto/Opcodes.h
 src/game/WorldHandlers/GroupMemberState.cpp -> src/proto/WorldPacket.h
@@ -777,7 +758,6 @@ src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/WorldHandlers/MiscHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/MiscHandlerInstance.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/MiscHandlerInstance.cpp -> src/game/WorldHandlers/ScriptMgr.h
-src/game/WorldHandlers/MiscHandlerInstance.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/MoveMap.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/NPCHandler.cpp -> src/game/WorldHandlers/ScriptMgr.h
@@ -885,7 +865,6 @@ src/game/entities/player/combat/PlayerCombat.cpp -> src/game/WorldHandlers/Chat.
 src/game/entities/player/combat/PlayerCombat.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/combat/PlayerCombat.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/proto/Opcodes.h
 src/game/entities/player/combat/PlayerCombat.cpp -> src/proto/WorldPacket.h
@@ -894,7 +873,6 @@ src/game/entities/player/combat/PlayerCombo.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/combat/PlayerCombo.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/combat/PlayerCombo.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/combat/PlayerCombo.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/combat/PlayerCombo.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/combat/PlayerCombo.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/combat/PlayerCombo.cpp -> src/proto/Opcodes.h
 src/game/entities/player/combat/PlayerCombo.cpp -> src/proto/WorldPacket.h
@@ -912,7 +890,6 @@ src/game/entities/player/combat/PlayerDuel.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/combat/PlayerDuel.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/proto/Opcodes.h
 src/game/entities/player/combat/PlayerDuel.cpp -> src/proto/WorldPacket.h
@@ -973,7 +950,6 @@ src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/proto/Opcodes.h
 src/game/entities/player/interaction/PlayerGossip.cpp -> src/proto/WorldPacket.h
@@ -991,7 +967,6 @@ src/game/entities/player/interaction/PlayerMail.cpp -> src/game/WorldHandlers/Ch
 src/game/entities/player/interaction/PlayerMail.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/interaction/PlayerMail.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/interaction/PlayerMail.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/interaction/PlayerMail.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/interaction/PlayerMail.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/interaction/PlayerMail.cpp -> src/proto/Opcodes.h
 src/game/entities/player/interaction/PlayerMail.cpp -> src/proto/WorldPacket.h
@@ -1000,7 +975,6 @@ src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/WorldHandlers/
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/proto/Opcodes.h
 src/game/entities/player/interaction/PlayerVendor.cpp -> src/proto/WorldPacket.h
@@ -1038,7 +1012,6 @@ src/game/entities/player/inventory/PlayerDurability.cpp -> src/game/WorldHandler
 src/game/entities/player/inventory/PlayerDurability.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/inventory/PlayerDurability.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/inventory/PlayerDurability.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/inventory/PlayerDurability.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/inventory/PlayerDurability.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/inventory/PlayerDurability.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/PlayerDurability.cpp -> src/proto/WorldPacket.h
@@ -1047,7 +1020,6 @@ src/game/entities/player/inventory/PlayerEnchant.cpp -> src/game/WorldHandlers/C
 src/game/entities/player/inventory/PlayerEnchant.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/inventory/PlayerEnchant.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/inventory/PlayerEnchant.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/inventory/PlayerEnchant.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/inventory/PlayerEnchant.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/inventory/PlayerEnchant.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/PlayerEnchant.cpp -> src/proto/WorldPacket.h
@@ -1059,7 +1031,6 @@ src/game/entities/player/inventory/PlayerGearScore.cpp -> src/game/WorldHandlers
 src/game/entities/player/inventory/PlayerGearScore.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/inventory/PlayerGearScore.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/inventory/PlayerGearScore.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/inventory/PlayerGearScore.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/inventory/PlayerGearScore.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/inventory/PlayerGearScore.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/PlayerGearScore.cpp -> src/proto/WorldPacket.h
@@ -1068,7 +1039,6 @@ src/game/entities/player/inventory/PlayerItem.cpp -> src/game/WorldHandlers/Chat
 src/game/entities/player/inventory/PlayerItem.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/inventory/PlayerItem.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/inventory/PlayerItem.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/inventory/PlayerItem.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/inventory/PlayerItem.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/inventory/PlayerItem.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/PlayerItem.cpp -> src/proto/WorldPacket.h
@@ -1077,7 +1047,6 @@ src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/WorldHandlers
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/proto/Opcodes.h
 src/game/entities/player/inventory/PlayerItemApply.cpp -> src/proto/WorldPacket.h
@@ -1119,7 +1088,6 @@ src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/WorldHandler
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/proto/Opcodes.h
 src/game/entities/player/persistence/PlayerDbLookup.cpp -> src/proto/WorldPacket.h
@@ -1182,7 +1150,6 @@ src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/pets/PlayerPet.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/proto/Opcodes.h
 src/game/entities/player/pets/PlayerPet.cpp -> src/proto/WorldPacket.h
@@ -1229,7 +1196,6 @@ src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/proto/Opcodes.h
 src/game/entities/player/pvp/PlayerPvP.cpp -> src/proto/WorldPacket.h
@@ -1302,7 +1268,6 @@ src/game/entities/player/social/PlayerChannel.cpp -> src/game/WorldHandlers/Chat
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/social/PlayerChannel.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/proto/Opcodes.h
 src/game/entities/player/social/PlayerChannel.cpp -> src/proto/WorldPacket.h
@@ -1370,7 +1335,6 @@ src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/WorldHandlers
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/PlayerActionButton.cpp -> src/proto/WorldPacket.h
@@ -1379,7 +1343,6 @@ src/game/entities/player/spells/PlayerLearn.cpp -> src/game/WorldHandlers/Chat.h
 src/game/entities/player/spells/PlayerLearn.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/spells/PlayerLearn.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/spells/PlayerLearn.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/spells/PlayerLearn.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/spells/PlayerLearn.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/spells/PlayerLearn.cpp -> src/proto/Opcodes.h
 src/game/entities/player/spells/PlayerLearn.cpp -> src/proto/WorldPacket.h
@@ -1426,7 +1389,6 @@ src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/Chat
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/talents/PlayerTalent.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/proto/Opcodes.h
 src/game/entities/player/talents/PlayerTalent.cpp -> src/proto/WorldPacket.h
@@ -1470,7 +1432,6 @@ src/game/entities/player/world/PlayerInstance.cpp -> src/game/WorldHandlers/Chat
 src/game/entities/player/world/PlayerInstance.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/world/PlayerInstance.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/world/PlayerInstance.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/world/PlayerInstance.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/world/PlayerInstance.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/world/PlayerInstance.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerInstance.cpp -> src/proto/WorldPacket.h
@@ -1488,7 +1449,6 @@ src/game/entities/player/world/PlayerMovement.cpp -> src/game/WorldHandlers/Chat
 src/game/entities/player/world/PlayerMovement.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/entities/player/world/PlayerMovement.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/entities/player/world/PlayerMovement.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/entities/player/world/PlayerMovement.cpp -> src/game/WorldHandlers/World.h
 src/game/entities/player/world/PlayerMovement.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/entities/player/world/PlayerMovement.cpp -> src/proto/Opcodes.h
 src/game/entities/player/world/PlayerMovement.cpp -> src/proto/WorldPacket.h
@@ -1582,7 +1542,6 @@ src/game/spells/auras [spells] -> src/game/WorldHandlers/MapPersistentStateMgr.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/Server/WorldSession.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/SpellAuraAddModifier.cpp -> src/proto/WorldPacket.h
@@ -1603,14 +1562,12 @@ src/game/spells/auras/SpellAuraDummy.cpp -> src/proto/WorldPacket.h
 src/game/spells/auras/SpellAuraLate.cpp -> src/game/Server/WorldSession.h
 src/game/spells/auras/SpellAuraLate.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/auras/SpellAuraLate.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/auras/SpellAuraLate.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras/SpellAuraLate.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraLate.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/SpellAuraLate.cpp -> src/proto/WorldPacket.h
 src/game/spells/auras/SpellAuraMisc.cpp -> src/game/Server/WorldSession.h
 src/game/spells/auras/SpellAuraMisc.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/auras/SpellAuraMisc.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/auras/SpellAuraMisc.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras/SpellAuraMisc.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraMisc.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/SpellAuraMisc.cpp -> src/proto/WorldPacket.h
@@ -1630,7 +1587,6 @@ src/game/spells/auras/SpellAuraShapeshift.cpp -> src/proto/WorldPacket.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/Server/WorldSession.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/SpellAuraTrailing.cpp -> src/proto/WorldPacket.h
@@ -1641,7 +1597,6 @@ src/game/spells/auras/SpellAuras.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras/SpellAuras.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/SpellAuras.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/SpellAuras.cpp -> src/proto/WorldPacket.h
-src/game/spells/auras/UnitAura.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/auras/UnitAura.cpp -> src/game/entities/player/Player.h
 src/game/spells/auras/UnitAura.cpp -> src/proto/Opcodes.h
 src/game/spells/auras/UnitAura.cpp -> src/proto/WorldPacket.h
@@ -1771,7 +1726,6 @@ src/game/spells/pipeline [spells] -> src/game/combat/WeaponDamage.h
 src/game/spells/pipeline/Spell.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/Spell.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/Spell.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/Spell.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/Spell.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/Spell.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/Spell.cpp -> src/proto/WorldPacket.h
@@ -1779,14 +1733,12 @@ src/game/spells/pipeline/Spell.h -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellAreaTargets.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellCast.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellCast.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellCast.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellCast.cpp -> src/proto/WorldPacket.h
@@ -1808,7 +1760,6 @@ src/game/spells/pipeline/SpellChecks.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellCooldown.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellCooldown.cpp -> src/proto/WorldPacket.h
@@ -1824,7 +1775,6 @@ src/game/spells/pipeline/SpellEffectDamageTeleport.cpp -> src/proto/WorldPacket.
 src/game/spells/pipeline/SpellEffectDispatch.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellEffectDispatch.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellEffectDispatch.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellEffectDispatch.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellEffectDispatch.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectDispatch.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellEffectDispatch.cpp -> src/proto/WorldPacket.h
@@ -1876,7 +1826,6 @@ src/game/spells/pipeline/SpellEffectSkillEnchantPet.cpp -> src/proto/WorldPacket
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/entities/player/social/SocialMgr.h
 src/game/spells/pipeline/SpellEffectSummonLock.cpp -> src/game/spells/auras/SpellAuras.h
@@ -1894,7 +1843,6 @@ src/game/spells/pipeline/SpellEffectTail.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellEffects.cpp -> src/game/WorldHandlers/GossipDef.h
 src/game/spells/pipeline/SpellEffects.cpp -> src/game/WorldHandlers/ScriptMgr.h
 src/game/spells/pipeline/SpellEffects.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellEffects.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellEffects.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellEffects.cpp -> src/game/entities/player/social/SocialMgr.h
 src/game/spells/pipeline/SpellEffects.cpp -> src/game/spells/auras/SpellAuras.h
@@ -1903,14 +1851,12 @@ src/game/spells/pipeline/SpellEffects.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellHit.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellHit.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellHit.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellHit.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellHit.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellHit.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellHit.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellPackets.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellPackets.cpp -> src/proto/WorldPacket.h
@@ -1924,7 +1870,6 @@ src/game/spells/pipeline/SpellPower.cpp -> src/proto/WorldPacket.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/game/Server/WorldSession.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/game/WorldHandlers/Chat.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/game/WorldHandlers/UpdateData.h
-src/game/spells/pipeline/SpellTargetList.cpp -> src/game/WorldHandlers/World.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/game/entities/player/Player.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/proto/Opcodes.h
 src/game/spells/pipeline/SpellTargetList.cpp -> src/proto/WorldPacket.h

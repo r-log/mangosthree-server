@@ -31,7 +31,6 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "Player.h"
-#include "World.h"
 #include "CinematicFlyover.h"
 #include "GuildMgr.h"
 #include "ObjectMgr.h"

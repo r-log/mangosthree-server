@@ -28,7 +28,6 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
-#include "World.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"

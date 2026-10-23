@@ -30,7 +30,6 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#include "World.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
