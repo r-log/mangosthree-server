@@ -75,6 +75,7 @@ namespace MapPhase
 
     bool Active();
     bool Owns(Map const* map);     ///< !Active(), or `map` is the map of a Scope open on this thread
+    bool UpdatesAMap();            ///< a Scope is open on this thread
     /// Whether this thread owns a unit on `map`: Owns(map), or `sailed` is not NULL and Owns(sailed).
     /// `sailed` is the map the vessel of `map` sails when `map` is a deck, and NULL otherwise.
     bool OwnsUnitOn(Map const* map, Map const* sailed);

@@ -39,7 +39,7 @@
 
 /// What the bodies of `Unit::HandleDummyAuraProc`'s per-spell switches read and set: the unit, its spell cooldowns,
 /// the function's parameters and locals. The bodies set the triggered spell, its target and its base points, and one
-/// raises the function's copy of the aura's amount. Built, it checks that the unit's map is this thread's
+/// raises the function's copy of the aura's amount. Built, it checks that this thread owns the unit
 /// (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct DummyAuraProcContext
 {
@@ -158,7 +158,7 @@ struct DummyAuraProcShamanSite
 
 /// What the body of `Unit::HandleHasteAuraProc`'s per-spell switch reads and sets: the unit, the function's
 /// parameters and locals. The body sets the triggered spell, its target and its base points. Built, it checks
-/// that the unit's map is this thread's (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
+/// that this thread owns the unit (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct HasteAuraProcContext
 {
     HasteAuraProcContext(Unit* thisUnit, Unit* const& victimParameter, uint32 const& damageParameter,
@@ -213,8 +213,8 @@ struct SpellCritChanceAuraProcMageSite
 
 /// What the bodies of `Unit::HandleProcTriggerSpellAuraProc`'s two per-spell switches read and set: the unit, the
 /// function's parameters and locals. The bodies set the spell to trigger, its target and its base points; the second
-/// switch is keyed by that spell, and its bodies never set it. Built, it checks that the unit's map is this
-/// thread's (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
+/// switch is keyed by that spell, and its bodies never set it. Built, it checks that this thread owns the
+/// unit (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct ProcTriggerSpellAuraProcContext
 {
     ProcTriggerSpellAuraProcContext(Unit* thisUnit, Unit* const& victimParameter, uint32 const& damageParameter,

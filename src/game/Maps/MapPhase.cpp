@@ -40,6 +40,7 @@ namespace MapPhase
     void Begin() { s_active.store(true); }
     void End() { s_active.store(false); }
     bool Active() { return s_active.load(); }
+    bool UpdatesAMap() { return t_innermost != NULL; }
     uint32 Violations() { return s_violations.load(); }
 
     bool Owns(Map const* map)

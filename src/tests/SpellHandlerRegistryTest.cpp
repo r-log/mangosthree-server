@@ -7661,7 +7661,8 @@ namespace
     template struct SeamMemberAccess<WorldObjectCurrentMap, &WorldObject::m_currMap>;
     template struct SeamMemberAccess<LogMainFile, &Log::logfile>;
 
-    // Two maps the check compares by address and never dereferences.
+    // Two maps the check compares by address. Nothing reads through them: the check looks up the unit's vessel,
+    // which reads the unit's map, only under a scope that does not own that map, and no case checks a unit there.
     alignas(16) unsigned char s_ownMap[16];
     alignas(16) unsigned char s_otherMap[16];
 
@@ -7835,8 +7836,10 @@ TEST(Unit_TheSpellSeamCheckPassesOutsideTheMapPhaseAndOnTheThreadUpdatingTheUnit
 
     OpenSeamMapPhase phase;
     {
-        // The thread updating the unit's map owns it, a deck's nested update handing it back included.
+        // The thread updating the unit's map owns it, a deck's nested update handing it back included. The
+        // scope owns the unit's map, so the check looks up no vessel.
         MapPhase::Scope own(OwnMap());
+        REQUIRE(MapPhase::Owns(OwnMap()));
         CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); }), 0u);
         {
             MapPhase::Scope deck(OtherMap());
@@ -7863,6 +7866,8 @@ TEST(Unit_TheSpellSeamAndTheMovementKernelEachNameThemselvesInTheViolationLog)
     REQUIRE(MapPhase::Violations() <= 8);
     InWorldCreature unit;
     OpenSeamMapPhase phase;
+    // No scope is open on this thread, so the check counts without looking up the unit's vessel.
+    REQUIRE(!MapPhase::UpdatesAMap());
     std::string const guid = unit.GetGuidStr();
 
     uint32 const seam = MapPhase::Violations() + 1;
@@ -7881,14 +7886,12 @@ TEST(Unit_TheSpellSeamCheckCountsAThreadThatDoesNotUpdateTheUnitsMap)
     REQUIRE(!MapPhase::Active());
     InWorldCreature unit;
     OpenSeamMapPhase phase;
+    // No scope is open on this thread, so the check counts without looking up the unit's vessel.
+    REQUIRE(!MapPhase::UpdatesAMap());
 
-    // A thread that updates another map, and a thread that updates none, each count one violation per check.
-    {
-        MapPhase::Scope other(OtherMap());
-        CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); }), 1u);
-        CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); unit.AssertSpellSeamOwner(); }), 2u);
-    }
+    // A thread that updates no map, this one or another, counts one violation per check.
     CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); }), 1u);
+    CHECK_EQ(ViolationsOf([&]() { unit.AssertSpellSeamOwner(); unit.AssertSpellSeamOwner(); }), 2u);
     CHECK_EQ(ViolationsOnAnotherThread([&]() { unit.AssertSpellSeamOwner(); }), 1u);
 
     // The movement kernel's check counts on the same counter.
@@ -7900,15 +7903,15 @@ TEST(UnitSiteContexts_EachContextThatHoldsTheUnitChecksItWhenBuilt)
     REQUIRE(!MapPhase::Active());
     InWorldCreature unit;
     OpenSeamMapPhase phase;
+    // No scope is open on this thread, so the check counts without looking up the unit's vessel.
+    REQUIRE(!MapPhase::UpdatesAMap());
 
-    // Built off the thread updating the unit's map, each of the five counts one violation; with no unit, none.
+    // Built on a thread that updates no map, this one or another, each of the five counts one violation; with no
+    // unit, none.
     for (int which = 0; which < 5; ++which)
     {
         CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildContext(which, &unit); }), 1u);
-        {
-            MapPhase::Scope other(OtherMap());
-            CHECK_EQ(ViolationsOf([&]() { BuildContext(which, &unit); }), 1u);
-        }
+        CHECK_EQ(ViolationsOf([&]() { BuildContext(which, &unit); }), 1u);
         CHECK_EQ(ViolationsOnAnotherThread([&]() { BuildContext(which, NULL); }), 0u);
     }
 

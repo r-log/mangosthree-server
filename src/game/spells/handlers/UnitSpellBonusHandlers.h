@@ -42,8 +42,8 @@ struct SpellEntry;
  */
 
 /// What the bodies of `Unit::SpellDamageBonusTaken`'s dummy-aura switch read: the unit, the spell, the
-/// multiplier they scale and the aura the loop stands at. Built, it checks that the unit's map is this
-/// thread's (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
+/// multiplier they scale and the aura the loop stands at. Built, it checks that this thread owns the
+/// unit (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct SpellDamageTakenContext
 {
     SpellDamageTakenContext(Unit* thisUnit, SpellEntry const* const& spellProtoParameter, float& takenTotalModLocal,
@@ -92,7 +92,7 @@ struct SpellHealingDoneSite
 };
 
 /// What the bodies of `Unit::MeleeDamageBonusTaken`'s dummy-aura switch read: the unit, the percentage they
-/// scale and the aura the loop stands at. Built, it checks that the unit's map is this thread's
+/// scale and the aura the loop stands at. Built, it checks that this thread owns the unit
 /// (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct MeleeDamageTakenContext
 {

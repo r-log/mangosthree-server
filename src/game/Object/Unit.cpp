@@ -360,6 +360,12 @@ bool Unit::IsOwnedByThisThread() const
         return true;
     }
 
+    // Inside the phase a thread that updates no map owns none: the vessel is not looked up.
+    if (!MapPhase::UpdatesAMap())
+    {
+        return false;
+    }
+
     // The vessel is looked up only when the unit's own map is not owned.
     Transport const* vessel = Transport::VesselOf(*this);
     return MapPhase::OwnsUnitOn(map, vessel ? vessel->FindMap() : NULL);
@@ -379,7 +385,7 @@ void Unit::AssertMotionOwner() const
 
 void Unit::AssertSpellSeamOwner() const
 {
-    if (!IsInWorld() || MapPhase::Owns(GetMap()))
+    if (!IsInWorld() || IsOwnedByThisThread())
     {
         return;
     }
