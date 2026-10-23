@@ -125,7 +125,7 @@ jobs:
             echo "::error::the merge base holds only part of the object proof"
             exit 1
           fi
-          python3 "$gate/src/tests/tools/objcmp.py" --diff-lines . "$base" "$head" "$PROOF/changed-lines.txt"
+          python3 "$gate/src/tests/tools/objcmp.py" --diff-lines . "$base" "$head" "$PROOF/changed-lines.txt" "$PROOF/text-check.txt"
           {
             echo "BASE=$base"
             echo "HEAD=$head"
@@ -169,7 +169,8 @@ jobs:
           if [ "$CONFIG" = proof ]; then
             python3 "$GATE/src/tests/tools/objcmp.py" --by-symbol "$PROOF/base" "$PROOF/head" \
               --base-deps "$PROOF/base.deps" --head-deps "$PROOF/head.deps" --changes "$PROOF/changes.txt" \
-              --base-lines "$PROOF/base.lines" --head-lines "$PROOF/head.lines" --root "$GITHUB_WORKSPACE/tree" \
+              --base-lines "$PROOF/base.lines" --head-lines "$PROOF/head.lines" --text-check "$PROOF/text-check.txt" \
+              --root "$GITHUB_WORKSPACE/tree" \
               --list-init ${MAP:+--map "$PROOF/map.txt"} --report "$PROOF/report.txt" > /dev/null
           else
             python3 "$GATE/src/tests/tools/objcmp.py" --per-object "$PROOF/base" "$PROOF/head" \
@@ -218,6 +219,7 @@ jobs:
             ${{ github.workspace }}/proof/report.txt
             ${{ github.workspace }}/proof/changes.txt
             ${{ github.workspace }}/proof/changed-lines.txt
+            ${{ github.workspace }}/proof/text-check.txt
             ${{ github.workspace }}/proof/*.lines
             ${{ github.workspace }}/proof/*.objects
             ${{ github.workspace }}/proof/*.ccache

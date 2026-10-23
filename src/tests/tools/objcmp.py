@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""objcmp.py --per-object | --by-symbol BASE HEAD [options] | --initializers DIR | --diff-lines TREE BASE HEAD OUT |
-           --lines-compiled SIDE [options] | --self-test [--cc <compiler>] [--build-script <objcmp_build.sh>]
+"""objcmp.py --per-object | --by-symbol BASE HEAD [options] | --initializers DIR |
+           --diff-lines TREE BASE HEAD OUT TEXT_OUT | --lines-compiled SIDE [options] |
+           --self-test [--cc <compiler>] [--build-script <objcmp_build.sh>]
 
 Compares the object files of two builds of the same configuration: BASE built from one commit,
 HEAD from another, each a directory holding the objects at their build-relative paths (*.o, ELF64
@@ -56,7 +57,7 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   files (objcmp.py, objcmp_build.sh, MangosProof.cmake, the workflow) fails: the proof cannot
   vouch for itself.
 
---diff-lines TREE BASE HEAD OUT
+--diff-lines TREE BASE HEAD OUT TEXT_OUT
   Writes the changed lines of every C, C++ or assembler file between two commits of the git tree
   TREE: lines whose code differs once comments are taken out and runs of whitespace made one (a
   raw string keeps its exact text). Each row is `side<TAB>path<TAB>line`, base for a line of the
@@ -70,6 +71,14 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   once` need the file to be read. A line that is an argument of a macro the build defines without
   using that parameter is not compiled. A changed conditional directive must be the same text moved:
   the base's and the head's changed directives must pair up.
+
+  --diff-lines also writes TEXT_OUT, the text check: a change that moves code does not alter it,
+  so the changed lines of all files together, each keyed by its text and the conditional groups it
+  sits in (the include guard left out), must be the same multiset in the base and the head. A line
+  in one side only is `changed`, or `exempt: <why>` when it is an #include, a namespace's opening
+  line (`namespace N {`, or `namespace N` and its `{`) or closing `}`, or the include guard or
+  #pragma once of a file added, deleted, renamed or copied. --by-symbol --text-check TEXT_OUT fails
+  each changed line as "code text changed" and lists every exempt line it used.
 
 --initializers DIR
   Lists the objects under DIR that carry a dynamic initializer, thread-local ones included.
@@ -951,7 +960,7 @@ def describe(corpus, i, j):
 
 
 def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, list_init, out, base_lines=None,
-                  head_lines=None):
+                  head_lines=None, text_path=None):
     rename = {}
     for old, new in read_pairs(map_path):
         rename[new] = old
@@ -1087,6 +1096,11 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, lis
             coverage += line_problems(line_rows['base'], line_rows['head'])
     gate_problems = ['the change edits the object proof itself (%s), so the proof cannot show it mechanical' % f
                      for f in sorted(set(gate))]
+    text_rows = read_text_check(text_path)
+    text_problems = ['code text changed (%s): %s:%d: %s' % (side, p, n, text)
+                     for side, p, n, kind, text in text_rows if kind == 'changed']
+    text_exempt = [(side, p, n, kind[len('exempt: '):], text) for side, p, n, kind, text in text_rows
+                   if kind.startswith('exempt: ')]
     n_items = len(corpus.key)
     nb = sum(len(v) for v in B.values())
     nh = sum(len(v) for v in H.values())
@@ -1130,14 +1144,23 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, lis
             c = collections.Counter(v for _, _, v, _ in line_rows[side])
             out('changed lines (%s): %d compiled, %d blank, comment or #if 0, %d conditional directives, '
                 '%d not compiled' % (side, c['ok'], c['skip'], c['cond'], c['notc']))
+    if text_path is not None:
+        out('text check: %d changed lines in one side only, %d of them exempt' % (
+            len(text_problems) + len(text_exempt), len(text_exempt)))
+        out('exempt lines (the text check lets these differ):')
+        for side, p, n, why, text in text_exempt[:400]:
+            out('    %s (%s): %s:%d: %s' % (why, side, p, n, text))
+        if len(text_exempt) > 400:
+            out('    ... %d more' % (len(text_exempt) - 400))
     hard += ['INIT: initializer function ' + d for d in init_fns]
-    problems = hard + diffs + coverage + gate_problems
+    problems = hard + diffs + coverage + gate_problems + text_problems
     for p in problems[:300]:
         out('DIFF ' + p)
     if len(problems) > 300:
         out('DIFF ... %d more' % (len(problems) - 300))
-    out('differences: %d (dynamic initializer %d, symbols %d, not compiled by the proof build %d, gate files %d)' % (
-        len(problems), len(hard), len(diffs), len(coverage), len(gate_problems)))
+    out('differences: %d (dynamic initializer %d, symbols %d, not compiled by the proof build %d, gate files %d, '
+        'code text changed %d)' % (len(problems), len(hard), len(diffs), len(coverage), len(gate_problems),
+                                   len(text_problems)))
     return not problems
 
 
@@ -1148,30 +1171,74 @@ CONDITIONALS = {'if', 'ifdef', 'ifndef', 'elif', 'elifdef', 'elifndef', 'else', 
 LINES_PER_FILE_TUS = 24
 MARKER = re.compile(r'^# (\d+) "((?:[^"\\]|\\.)*)"')
 FUNCTION_MACRO = re.compile(r'^#define\s+([A-Za-z_]\w*)\(([^)]*)\)\s?(.*)$')
+NAMESPACE_OPEN = re.compile(r'^(?:inline )?namespace(?: [A-Za-z_]\w*(?: ?:: ?[A-Za-z_]\w*)*)?(?: \{)?$')
 TOKEN = re.compile(r'''[A-Za-z_]\w*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\d[\w.]*|\S''')
 IDENT = re.compile(r'[A-Za-z_]\w*')
 
 
-def code_lines(text):
+def code_keys(src):
     """Per physical line, its code with the comments taken out and runs of whitespace made one
-    space; a line a raw string literal touches keeps its exact text."""
-    src = SourceLines(text)
-    return [src.code[k] if k in src.raw else ' '.join(src.code[k].split()) for k in range(1, src.n + 1)]
+    space (a line a raw string literal touches keeps its exact text), with the conditional groups
+    it sits in, the include guard left out."""
+    return [(src.code[k] if k in src.raw else ' '.join(src.code[k].split()), src.context[k])
+            for k in range(1, src.n + 1)]
 
 
-def code_diff_rows(old_path, old_text, new_path, new_text):
-    """The lines whose code differs between two versions of a file: (side, path, line), base for
-    the old version and head for the new. A comment or whitespace edit is no row; uncommenting
-    code is."""
+def exempt_reason(src, k, status):
+    """Why a line may differ in the text check: an #include, a namespace's opening or closing line,
+    or the include guard or #pragma once of a file added, deleted, renamed or copied."""
+    d = src.directive.get(k)
+    if d and d[0] in ('include', 'include_next', 'import'):
+        return 'include'
+    if status in ('A', 'D', 'R', 'C') and (k in src.guard or (d and d[1] == '#pragma once')):
+        return 'include guard' if k in src.guard else 'pragma once'
+    return src.namespace.get(k)
+
+
+def code_diff(old_path, old_text, new_path, new_text, status='M'):
+    """The lines whose code or conditional context differs between two versions of a file:
+    (side, path, line, (text, context), exemption or None), base for the old version and head for
+    the new. A comment or whitespace edit is no row; uncommenting code is."""
     import difflib
-    a = code_lines(old_text) if old_text is not None else []
-    b = code_lines(new_text) if new_text is not None else []
+    sa = SourceLines(old_text) if old_text is not None else None
+    sb = SourceLines(new_text) if new_text is not None else None
+    a = code_keys(sa) if sa else []
+    b = code_keys(sb) if sb else []
     rows = []
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
         if tag != 'equal':
-            rows.extend(('base', old_path, i + 1) for i in range(i1, i2) if a[i])
-            rows.extend(('head', new_path, j + 1) for j in range(j1, j2) if b[j])
+            rows.extend(('base', old_path, i + 1, a[i], exempt_reason(sa, i + 1, status)) for i in range(i1, i2)
+                        if a[i][0])
+            rows.extend(('head', new_path, j + 1, b[j], exempt_reason(sb, j + 1, status)) for j in range(j1, j2)
+                        if b[j][0])
     return rows
+
+
+def code_diff_rows(old_path, old_text, new_path, new_text, status='M'):
+    return [r[:3] for r in code_diff(old_path, old_text, new_path, new_text, status)]
+
+
+def show_key(key):
+    text, context = key
+    if not context:
+        return text
+    return '%s   [in %s]' % (text, ' / '.join(c + (' ' + b if b else '') for c, b in context))
+
+
+def text_check(rows):
+    """A change that moves code: the changed lines of all files together, keyed by their text and
+    conditional context, must be the same multiset in the base and the head. Returns the rows in
+    one side only: (side, path, line, kind, shown text), kind `changed` or `exempt: <why>`."""
+    count = {'base': collections.Counter(), 'head': collections.Counter()}
+    for side, path, line, key, why in rows:
+        count[side][key] += 1
+    extra = {'base': count['base'] - count['head'], 'head': count['head'] - count['base']}
+    out = []
+    for side, path, line, key, why in rows:
+        if extra[side][key] > 0:
+            extra[side][key] -= 1
+            out.append((side, path, line, 'exempt: ' + why if why else 'changed', show_key(key)))
+    return out
 
 
 def git_text(root, rev, path):
@@ -1180,7 +1247,7 @@ def git_text(root, rev, path):
     return r.stdout.decode('utf-8', 'surrogateescape') if r.returncode == 0 else None
 
 
-def run_diff_lines(root, base, head, out_path, log=print):
+def run_diff_lines(root, base, head, out_path, text_path=None, log=print):
     names = subprocess.run(['git', '-C', root, '-c', 'core.quotepath=off', 'diff', '--name-status', '-M', base, head],
                            check=True, stdout=subprocess.PIPE).stdout.decode('utf-8', 'surrogateescape')
     rows = []
@@ -1195,13 +1262,30 @@ def run_diff_lines(root, base, head, out_path, log=print):
             old = None
         if not any(x and code_file(x) for x in (old, new)):
             continue
-        rows.extend(code_diff_rows(old, git_text(root, base, old) if old else None,
-                                   new, git_text(root, head, new) if new else None))
+        rows.extend(code_diff(old, git_text(root, base, old) if old else None,
+                              new, git_text(root, head, new) if new else None, st))
     with open(out_path, 'w', encoding='utf-8') as f:
-        for side, path, line in rows:
+        for side, path, line, _, _ in rows:
             f.write('%s\t%s\t%d\n' % (side, path, line))
+    if text_path:
+        write_text_check(text_check(rows), text_path)
     log('changed code lines: %d in base, %d in head' % (sum(1 for r in rows if r[0] == 'base'),
                                                          sum(1 for r in rows if r[0] == 'head')))
+
+
+def write_text_check(rows, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        for side, p, line, kind, text in rows:
+            f.write('%s\t%s\t%d\t%s\t%s\n' % (side, p, line, kind, text.replace('\t', ' ')))
+
+
+def read_text_check(path):
+    rows = []
+    if path and os.path.exists(path):
+        for line in open(path, encoding='utf-8'):
+            side, p, n, kind, text = line.rstrip('\n').split('\t', 4)
+            rows.append((side, p, int(n), kind, text))
+    return rows
 
 
 def code_file(path):
@@ -1303,32 +1387,9 @@ class SourceLines(object):
                 text_norm = '#' + ' '.join(rest.split())
                 for k in members:
                     self.directive[k] = (name, text_norm, start)
-        self.dead = [False] * (n + 2)
-        stack = []
-        order = []
-        for start in sorted(logical):
-            d = self.directive.get(start)
-            outer = stack[-1][1] if stack else False
-            if d and d[0] in ('if', 'ifdef', 'ifndef'):
-                cond = d[1].split(' ', 1)[1].strip() if ' ' in d[1] else ''
-                stack.append([outer, outer or (d[0] == 'if' and cond == '0')])
-                state_line = outer
-            elif d and d[0] in ('elif', 'elifdef', 'elifndef', 'else'):
-                if stack:
-                    cond = d[1].split(' ', 1)[1].strip() if ' ' in d[1] else ''
-                    stack[-1][1] = stack[-1][0] or (d[0] == 'elif' and cond == '0')
-                    state_line = stack[-1][0]
-                else:
-                    state_line = False
-            elif d and d[0] == 'endif':
-                state_line = stack.pop()[0] if stack else False
-            else:
-                state_line = outer
-            for k in logical[start]:
-                self.dead[k] = state_line
-            if d:
-                order.append((start, d))
         self.guard = set()
+        guard_open = None
+        order = [(k, self.directive[k]) for k in sorted(logical) if k in self.directive]
         order = [(k, d) for k, d in order if d[1] != '#pragma once']
         if len(order) >= 3:
             (l1, d1), (l2, d2), (l3, d3) = order[0], order[1], order[-1]
@@ -1340,6 +1401,67 @@ class SourceLines(object):
                 g = m.group(1) if m else None
             if g and d2[0] == 'define' and d2[1] == '#define ' + g and d3[0] == 'endif':
                 self.guard = set(logical[l1]) | set(logical[l2]) | set(logical[l3])
+                guard_open = l1
+        self.dead = [False] * (n + 2)
+        self.context = [()] * (n + 2)
+        stack = []
+
+        def ctx(frames):
+            return tuple((f[2], f[3]) for f in frames if not f[4])
+        for start in sorted(logical):
+            d = self.directive.get(start)
+            outer = stack[-1][1] if stack else False
+            if d and d[0] in ('if', 'ifdef', 'ifndef'):
+                cond = d[1].split(' ', 1)[1].strip() if ' ' in d[1] else ''
+                here = ctx(stack)
+                stack.append([outer, outer or (d[0] == 'if' and cond == '0'), d[1], '', start == guard_open])
+                state_line = outer
+            elif d and d[0] in ('elif', 'elifdef', 'elifndef', 'else'):
+                if stack:
+                    cond = d[1].split(' ', 1)[1].strip() if ' ' in d[1] else ''
+                    stack[-1][1] = stack[-1][0] or (d[0] == 'elif' and cond == '0')
+                    here = ctx(stack[:-1])
+                    stack[-1][3] = d[1]
+                    state_line = stack[-1][0]
+                else:
+                    here, state_line = (), False
+            elif d and d[0] == 'endif':
+                here = ctx(stack[:-1])
+                state_line = stack.pop()[0] if stack else False
+            else:
+                here = ctx(stack)
+                state_line = outer
+            for k in logical[start]:
+                self.dead[k] = state_line
+                self.context[k] = here
+        self.namespace = {}
+        toks = []
+        for k in range(1, n + 1):
+            if k not in self.directive:
+                toks.extend((m.group(0), k) for m in TOKEN.finditer(self.code[k]))
+        braces = []
+        i = 0
+        while i < len(toks):
+            tok, k = toks[i]
+            if tok == 'namespace':
+                j = i + 1
+                while j < len(toks) and toks[j][0] not in ('{', ';', '='):
+                    j += 1
+                if j < len(toks) and toks[j][0] == '{':
+                    braces.append((k, toks[j][1]))
+                    i = j + 1
+                    continue
+            if tok == '{':
+                braces.append(None)
+            elif tok == '}' and braces:
+                opened = braces.pop()
+                if opened:
+                    for line, role in ((opened[0], 'namespace open'), (opened[1], 'namespace open'), (k, 'namespace close')):
+                        text = ' '.join(self.code[line].split())
+                        if (role == 'namespace close' and text == '}') or (role == 'namespace open' and (
+                                text == '{' or NAMESPACE_OPEN.match(text))):
+                            self.namespace[line] = role
+            i += 1
         self.spans = {}
 
     def macro_spans(self, fmacros):
@@ -2409,6 +2531,129 @@ def lines_self_tests(check, cc, build_script):
         check('build: the same tree twice', True, build_script_case(build_script, gate, TOY_BASE, TOY_BASE))
 
 
+def text_case(base_files, head_files):
+    """run_by_symbol on two equal object sets with the text check of BASE_FILES against HEAD_FILES."""
+    rows = []
+    for rel in sorted(set(base_files) | set(head_files)):
+        if base_files.get(rel) == head_files.get(rel) or not code_file(rel):
+            continue
+        st = 'A' if rel not in base_files else 'D' if rel not in head_files else 'M'
+        rows.extend(code_diff(rel if rel in base_files else None, base_files.get(rel),
+                              rel if rel in head_files else None, head_files.get(rel), st))
+    tmp = tempfile.mkdtemp(prefix='objcmp-text-')
+    try:
+        objs = synth()
+        for side in ('base', 'head'):
+            for rel, data in objs.items():
+                q = os.path.join(tmp, side, rel)
+                os.makedirs(os.path.dirname(q), exist_ok=True)
+                with open(q, 'wb') as f:
+                    f.write(data)
+        tp = os.path.join(tmp, 'text-check.txt')
+        write_text_check(text_check(rows), tp)
+        lines = []
+        ok = run_by_symbol(os.path.join(tmp, 'base'), os.path.join(tmp, 'head'), None, None, None, None, None, False,
+                           lines.append, None, None, tp)
+        return ok, lines
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+TEXT_A = """#include "Spell.h"
+#define POLL_DELAY 10
+#ifdef _WIN32
+int Delay() { return POLL_DELAY; }
+#endif
+inline int Unused() { return 1; }
+#ifdef FEATURE_A
+int A() { return 1; }
+#endif
+#ifdef FEATURE_B
+int B() { return 2; }
+#endif
+#if 0
+int Dead() { return 1; }
+#endif
+int F(int x)
+{
+    return x + 1;   // add one
+}
+int G(int x)
+{
+    return x * 2;
+}
+"""
+TEXT_B = """int K() { return 7; }
+"""
+BIG_H = """#ifndef BIG_H
+#define BIG_H
+namespace MaNGOS
+{
+    struct A
+    {
+        int a;
+    };
+    struct B
+    {
+        int b;
+    };
+}
+#endif
+"""
+BIG_H_SPLIT = """#ifndef BIG_H
+#define BIG_H
+#include "Small.h"
+namespace MaNGOS
+{
+    struct A
+    {
+        int a;
+    };
+}
+#endif
+"""
+SMALL_H = """#ifndef MANGOS_SMALL_H
+#define MANGOS_SMALL_H
+namespace MaNGOS
+{
+    struct B
+    {
+        int b;
+    };
+}
+#endif
+"""
+
+
+def text_self_tests(check):
+    a = TEXT_A
+    g = 'int G(int x)\n{\n    return x * 2;\n}\n'
+    for label, head, expect, reason in (
+            ('text: a changed #define used only under #ifdef _WIN32', {'a.cpp': a.replace('POLL_DELAY 10', 'POLL_DELAY 20')},
+             False, 'code text changed (head): a.cpp:2: #define POLL_DELAY 20'),
+            ('text: a changed body of an inline function nothing calls',
+             {'a.cpp': a.replace('Unused() { return 1; }', 'Unused() { return 2; }')}, False, 'code text changed'),
+            ('text: two #ifdef directives swapped',
+             {'a.cpp': a.replace('#ifdef FEATURE_A', '#ifdef FEATURE_X').replace('#ifdef FEATURE_B', '#ifdef FEATURE_A')
+              .replace('#ifdef FEATURE_X', '#ifdef FEATURE_B')}, False, 'code text changed'),
+            ('text: a changed line inside #if 0', {'a.cpp': a.replace('Dead() { return 1; }', 'Dead() { return 2; }')},
+             False, 'code text changed'),
+            ('text: a line moved out of its #ifdef', {'a.cpp': a.replace('#ifdef FEATURE_A\nint A() { return 1; }\n#endif\n',
+                                                                         'int A() { return 1; }\n')}, False,
+             'code text changed'),
+            ('text: a function moves to another file', {'a.cpp': a.replace(g, ''), 'b.cpp': TEXT_B + g}, True, None),
+            ('text: an include respelled', {'a.cpp': a.replace('"Spell.h"', '"spells/pipeline/Spell.h"')}, True,
+             'include (head): a.cpp:1'),
+            ('text: a comment-only edit', {'a.cpp': a.replace('// add one', '// adds one')}, True, None)):
+        files = {'a.cpp': a, 'b.cpp': TEXT_B}
+        check(label, expect, text_case(files, dict(files, **head)), reason)
+    check('text: a header split with new guards and namespace lines', True,
+          text_case({'Big.h': BIG_H}, {'Big.h': BIG_H_SPLIT, 'Small.h': SMALL_H}), 'namespace open (head): Small.h:3')
+    check('text: a header split whose moved code changed', False,
+          text_case({'Big.h': BIG_H}, {'Big.h': BIG_H_SPLIT, 'Small.h': SMALL_H.replace('int b;', 'long b;')}),
+          'code text changed (head): Small.h:7: long b;')
+
+
 def self_test(cc, build_script=None):
     rows = []
 
@@ -2505,6 +2750,7 @@ def self_test(cc, build_script=None):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     lines_self_tests(check, cc, build_script)
+    text_self_tests(check)
     failures = rows.count(False)
     print('self-test: %s (%d cases, %d failure(s))' % ('PASS' if not failures else 'FAIL', len(rows), failures))
     return not failures
@@ -2535,7 +2781,7 @@ def main():
     g.add_argument('--by-symbol', nargs=2, metavar=('BASE', 'HEAD'))
     g.add_argument('--self-test', action='store_true')
     g.add_argument('--initializers', metavar='DIR')
-    g.add_argument('--diff-lines', nargs=4, metavar=('TREE', 'BASE', 'HEAD', 'OUT'))
+    g.add_argument('--diff-lines', nargs=5, metavar=('TREE', 'BASE', 'HEAD', 'OUT', 'TEXT_OUT'))
     g.add_argument('--lines-compiled', metavar='SIDE', choices=('base', 'head'))
     ap.add_argument('--changed-lines')
     ap.add_argument('--deps')
@@ -2544,6 +2790,7 @@ def main():
     ap.add_argument('--out')
     ap.add_argument('--base-lines')
     ap.add_argument('--head-lines')
+    ap.add_argument('--text-check')
     ap.add_argument('--build-script')
     ap.add_argument('--map')
     ap.add_argument('--literals')
@@ -2581,7 +2828,7 @@ def main():
             ok = run_per_object(a.per_object[0], a.per_object[1], a.map, a.literals, out)
         else:
             ok = run_by_symbol(a.by_symbol[0], a.by_symbol[1], a.map, a.base_deps, a.head_deps, a.changes, a.root,
-                               a.list_init, out, a.base_lines, a.head_lines)
+                               a.list_init, out, a.base_lines, a.head_lines, a.text_check)
     except Exception:
         traceback.print_exc()
         print('objcmp: error: the run did not finish')
