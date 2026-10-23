@@ -1228,17 +1228,19 @@ def show_key(key):
 def text_check(rows):
     """A change that moves code: the changed lines of all files together, keyed by their text and
     conditional context, must be the same multiset in the base and the head. Returns the rows in
-    one side only: (side, path, line, kind, shown text), kind `changed` or `exempt: <why>`."""
+    one side only: (side, path, line, kind, shown text), kind `changed` or `exempt: <why>`, in row
+    order. A key's surplus goes to its exempt rows first."""
     count = {'base': collections.Counter(), 'head': collections.Counter()}
     for side, path, line, key, why in rows:
         count[side][key] += 1
     extra = {'base': count['base'] - count['head'], 'head': count['head'] - count['base']}
     out = []
-    for side, path, line, key, why in rows:
-        if extra[side][key] > 0:
-            extra[side][key] -= 1
-            out.append((side, path, line, 'exempt: ' + why if why else 'changed', show_key(key)))
-    return out
+    for exempt in (True, False):
+        for n, (side, path, line, key, why) in enumerate(rows):
+            if bool(why) == exempt and extra[side][key] > 0:
+                extra[side][key] -= 1
+                out.append((n, (side, path, line, 'exempt: ' + why if why else 'changed', show_key(key))))
+    return [r for _, r in sorted(out)]
 
 
 def git_text(root, rev, path):
@@ -2623,6 +2625,56 @@ namespace MaNGOS
 }
 #endif
 """
+MOTION_A = """namespace Motion
+{
+int Keep(int x)
+{
+    return x + 1;
+}
+
+int Moved(int x)
+{
+    return x * 3;
+}
+}
+"""
+MOTION_A_AFTER = """namespace Motion
+{
+int Keep(int x)
+{
+    return x + 1;
+}
+}
+"""
+MOTION_NEW = """namespace Motion
+{
+int Moved(int x)
+{
+    return x * 3;
+}
+}
+"""
+BLOCK_H = """#ifndef BIG_H
+#define BIG_H
+int Keep();
+#ifdef FEATURE_X
+inline int X() { return 1; }
+#endif
+#endif
+"""
+BLOCK_H_AFTER = """#ifndef BIG_H
+#define BIG_H
+#include "X.h"
+int Keep();
+#endif
+"""
+BLOCK_X_H = """#ifndef MANGOS_X_H
+#define MANGOS_X_H
+#ifdef FEATURE_X
+inline int X() { return 1; }
+#endif
+#endif
+"""
 
 
 def text_self_tests(check):
@@ -2649,6 +2701,13 @@ def text_self_tests(check):
         check(label, expect, text_case(files, dict(files, **head)), reason)
     check('text: a header split with new guards and namespace lines', True,
           text_case({'Big.h': BIG_H}, {'Big.h': BIG_H_SPLIT, 'Small.h': SMALL_H}), 'namespace open (head): Small.h:3')
+    for label, opening in (('text: Allman functions move into a namespace in a new file', 'namespace Motion\n{'),
+                           ('text: the same with a one-line namespace opening', 'namespace Motion {')):
+        check(label, True, text_case({'A.cpp': MOTION_A},
+                                     {'A.cpp': MOTION_A_AFTER, 'Moved.cpp': MOTION_NEW.replace('namespace Motion\n{', opening)}),
+              'namespace close (head): Moved.cpp:')
+    check('text: an #ifdef block moves into a new guarded header', True,
+          text_case({'Big.h': BLOCK_H}, {'Big.h': BLOCK_H_AFTER, 'X.h': BLOCK_X_H}), 'include guard (head): X.h:6')
     check('text: a header split whose moved code changed', False,
           text_case({'Big.h': BIG_H}, {'Big.h': BIG_H_SPLIT, 'Small.h': SMALL_H.replace('int b;', 'long b;')}),
           'code text changed (head): Small.h:7: long b;')
