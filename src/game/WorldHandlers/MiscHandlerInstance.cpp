@@ -40,7 +40,6 @@
 #include "UpdateData.h"
 #include "LootMgr.h"
 #include "Chat.h"
-#include "ScriptMgr.h"
 #include "zlib.h"
 #include "Object.h"
 #include "BattleGround/BattleGround.h"

@@ -44,7 +44,6 @@
 #include "CreatureAI.h"
 #include "TemporarySummon.h"
 #include "Formulas.h"
-#include "Pet.h"
 #include "Util.h"
 #include "Totem.h"
 #include "Vehicle.h"

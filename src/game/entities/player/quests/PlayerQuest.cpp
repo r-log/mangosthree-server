@@ -76,7 +76,6 @@
 #include "SocialMgr.h"
 #include "AchievementMgr.h"
 #include "Mail.h"
-#include "spells/auras/SpellAuras.h"
 #include "DBCStores.h"
 #include "DB2Stores.h"
 #include "SQLStorages.h"

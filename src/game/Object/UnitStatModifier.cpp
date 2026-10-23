@@ -30,7 +30,6 @@
 
 #include "Unit.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "ObjectMgr.h"
@@ -39,8 +38,6 @@
 #include "QuestDef.h"
 #include "Player.h"
 #include "Creature.h"
-#include "spells/pipeline/Spell.h"
-#include "Group.h"
 #include "spells/auras/SpellAuras.h"
 #include "MapManager.h"
 #include "CreatureAI.h"

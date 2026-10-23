@@ -26,7 +26,6 @@
 #include "Utilities/MathDefines.h"
 #include "Unit.h"
 #include "Log.h"
-#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "World.h"
 #include "ObjectMgr.h"

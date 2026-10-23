@@ -37,7 +37,6 @@
 #include "Vehicle.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
-#include "UpdateData.h"
 #include "UpdateMask.h"
 #include "Util.h"
 #include "MapManager.h"
