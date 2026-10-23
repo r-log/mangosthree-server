@@ -36,6 +36,7 @@
 #include "Object/Pet.h"
 #include "Object/Totem.h"
 #include "spells/SpellModMgr.h"
+#include "spells/pipeline/Spell.h"
 #include <ctime>
 
 /// `Unit`'s own list and map types, so the bodies can name them unqualified.
@@ -1976,6 +1977,532 @@ static SpellHandlerOutcome<SpellAuraProcResult> DummyAuraProcShaman70808(DummyAu
     return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
 }
 
+/// 13877, 33735: Blade Flurry: triggers 22482 for the damage on a random hostile unit in melee range other than the
+/// victim; fails without one
+static SpellHandlerOutcome<SpellAuraProcResult> HasteAuraProcRogue13877(HasteAuraProcContext& ctx)
+{
+        // Blade Flurry
+    ctx.target = ctx.unit->SelectRandomUnfriendlyTarget(ctx.pVictim);
+    if (!ctx.target)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    ctx.basepoints0 = ctx.damage;
+    ctx.triggered_spell_id = 22482;
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
+/// 54646: Focus Magic: triggers 54648 on the aura's caster; fails without a caster
+static SpellHandlerOutcome<SpellAuraProcResult> SpellCritChanceAuraProcMage54646(SpellCritChanceAuraProcContext& ctx)
+{
+        // Focus Magic
+    Unit* caster = ctx.triggeredByAura->GetCaster();
+    if (!caster)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+
+    ctx.triggered_spell_id = 54648;
+    ctx.target = caster;
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
+/// 23780: Aegis of Preservation: triggers 23781
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric23780(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // case 191:                            // Elemental Response
+    //    switch (procSpell->School)
+    //    {
+    //        case SPELL_SCHOOL_FIRE:  trigger_spell_id = 34192; break;
+    //        case SPELL_SCHOOL_FROST: trigger_spell_id = 34193; break;
+    //        case SPELL_SCHOOL_ARCANE:trigger_spell_id = 34194; break;
+    //        case SPELL_SCHOOL_NATURE:trigger_spell_id = 34195; break;
+    //        case SPELL_SCHOOL_SHADOW:trigger_spell_id = 34196; break;
+    //        case SPELL_SCHOOL_HOLY:  trigger_spell_id = 34197; break;
+    //        case SPELL_SCHOOL_NORMAL:trigger_spell_id = 34198; break;
+    //    }
+    //    break;
+    // case 5301:  break;                   // Defensive State (DND)
+    // case 7137:  break:                   // Shadow Charge (Rank 1)
+    // case 7377:  break:                   // Take Immune Periodic Damage <Not Working>
+    // case 13358: break;                   // Defensive State (DND)
+    // case 16092: break;                   // Defensive State (DND)
+    // case 18943: break;                   // Double Attack
+    // case 19194: break;                   // Double Attack
+    // case 19817: break;                   // Double Attack
+    // case 19818: break;                   // Double Attack
+    // case 22835: break;                   // Drunken Rage
+    //    trigger_spell_id = 14822; break;
+    ctx.trigger_spell_id = 23781;
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// case 24949: break;                   // Defensive State 2 (DND)
+}
+
+/// one body for 3 labels: 27522, 40336: Mana Drain Trigger; 46939: Black Bow of the Betrayer: a living unit casts 29471
+/// on itself and 27526 on a living victim, and the proc ends
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric27522(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // On successful melee or ranged attack gain 8 mana and if possible drain 8 mana from the target.
+    if (ctx.unit->IsAlive())
+    {
+        ctx.unit->CastSpell(ctx.unit, 29471, true, ctx.castItem, ctx.triggeredByAura);
+    }
+    if (ctx.pVictim && ctx.pVictim->IsAlive())
+    {
+        ctx.unit->CastSpell(ctx.pVictim, 27526, true, ctx.castItem, ctx.triggeredByAura);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
+}
+
+/// 31255: absent from the client's spell data: on a victim at or below a fifth of its maximum health, triggers 22588 on
+/// the unit; fails otherwise
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric31255(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // whenever you deal damage to a target who is below 20% health.
+    if (ctx.pVictim->GetHealth() > ctx.pVictim->GetMaxHealth() / 5)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+
+    ctx.target = ctx.unit;
+    ctx.trigger_spell_id = 22588;
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// case 33207: break;                       // Gossip NPC Periodic - Fidget
+}
+
+/// 33896: Desperate Defense: triggers 33898
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric33896(ProcTriggerSpellAuraProcContext& ctx)
+{
+    ctx.trigger_spell_id = 33898;
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// case 34082: break;                   // Advantaged State (DND)
+// case 34783: break:                   // Spell Reflection
+// case 35205: break:                   // Vanish
+// case 35321: break;                   // Gushing Wound
+// case 36096: break:                   // Spell Reflection
+// case 36207: break:                   // Steal Weapon
+// case 36576: break:                   // Shaleskin (Shaleskin Flayer, Shaleskin Ripper) 30023 trigger
+// case 37030: break;                   // Chaotic Temperament
+// case 38363: break;                   // Gushing Wound
+// case 39215: break;                   // Gushing Wound
+// case 40250: break;                   // Improved Duration
+// case 40329: break;                   // Demo Shout Sensor
+// case 40364: break;                   // Entangling Roots Sensor
+// case 41054: break;                   // Copy Weapon
+//    trigger_spell_id = 41055; break;
+// case 41248: break;                   // Consuming Strikes
+//    trigger_spell_id = 41249; break;
+// case 42730: break:                   // Woe Strike
+// case 43453: break:                   // Rune Ward
+// case 43504: break;                   // Alterac Valley OnKill Proc Aura
+// case 44326: break:                   // Pure Energy Passive
+// case 44526: break;                   // Hate Monster (Spar) (30 sec)
+// case 44527: break;                   // Hate Monster (Spar Buddy) (30 sec)
+// case 44819: break;                   // Hate Monster (Spar Buddy) (>30% Health)
+// case 44820: break;                   // Hate Monster (Spar) (<30%)
+}
+
+/// 45057: Evasive Maneuvers: fails unless the damage leaves the unit below the aura's percent of its maximum health;
+/// the trigger spell is the spell data's
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric45057(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // reduce you below $s1% health (in fact in this specific case can proc from any attack while health in result less $s1%)
+    if (int32(ctx.unit->GetHealth()) - int32(ctx.damage) >= int32(ctx.unit->GetMaxHealth() * ctx.triggerAmount / 100))
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// case 45903: break:                   // Offensive State
+// case 46146: break:                   // [PH] Ahune  Spanky Hands
+}
+
+/// 43820: Charm of the Witch Doctor: makes the victim the target, with base points of the aura's second effect value as
+/// a percent of the victim's base health
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric43820(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // Pct value stored in dummy
+    ctx.basepoints[0] = ctx.pVictim->GetCreateHealth() * ctx.auraSpellInfo->CalculateSimpleValue(EFFECT_INDEX_1) / 100;
+    ctx.target = ctx.pVictim;
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// case 45205: break;                   // Copy Offhand Weapon
+// case 45343: break;                   // Dark Flame Aura
+// case 47300: break;                   // Dark Flame Aura
+// case 48876: break;                   // Beast's Mark
+//    trigger_spell_id = 48877; break;
+// case 49059: break;                   // Horde, Hate Monster (Spar Buddy) (>30% Health)
+// case 50051: break;                   // Ethereal Pet Aura
+// case 50689: break;                   // Blood Presence (Rank 1)
+// case 50844: break;                   // Blood Mirror
+// case 52856: break;                   // Charge
+// case 54072: break;                   // Knockback Ball Passive
+// case 54476: break;                   // Blood Presence
+// case 54775: break;                   // Abandon Vehicle on Poly
+}
+
+/// 57345: Darkmoon Card: Greatness: triggers 60229, 60233, 60234 or 60235 by the highest of the unit's strength,
+/// agility, intellect and spirit
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric57345(ProcTriggerSpellAuraProcContext& ctx)
+{
+    float stat = 0.0f;
+    // strength
+    if (ctx.unit->GetStat(STAT_STRENGTH) > stat)
+    {
+        ctx.trigger_spell_id = 60229; stat = ctx.unit->GetStat(STAT_STRENGTH);
+    }
+    // agility
+    if (ctx.unit->GetStat(STAT_AGILITY)  > stat)
+    {
+        ctx.trigger_spell_id = 60233; stat = ctx.unit->GetStat(STAT_AGILITY);
+    }
+    // intellect
+    if (ctx.unit->GetStat(STAT_INTELLECT) > stat)
+    {
+        ctx.trigger_spell_id = 60234; stat = ctx.unit->GetStat(STAT_INTELLECT);
+    }
+    // spirit
+    if (ctx.unit->GetStat(STAT_SPIRIT)   > stat)
+    {
+        ctx.trigger_spell_id = 60235;
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// case 55580: break:                       // Mana Link
+// case 57587: break:                       // Steal Ranged ()
+// case 57594: break;                       // Copy Ranged Weapon
+// case 59237: break;                       // Beast's Mark
+//    trigger_spell_id = 59233; break;
+// case 59288: break;                       // Infra-Green Shield
+// case 59532: break;                       // Abandon Passengers on Poly
+// case 59735: break:                       // Woe Strike
+}
+
+/// 64148: Diminsh Power: the aura's caster stops its spells other than melee, and the proc ends
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric64148(ProcTriggerSpellAuraProcContext& ctx)
+{
+    if (Unit* caster = ctx.triggeredByAura->GetCaster())
+    {
+        caster->InterruptNonMeleeSpells(false);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
+}
+
+/// 64415: Val'anyr Hammer of Ancient Kings - Equip Effect: fails after a proc spell that is not positive; the trigger
+/// spell is the spell data's
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric64415(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // for DOT procs
+    if (!IsPositiveSpell(ctx.procSpell->ID))
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
+/// 64440: Blade Warding: triggers 64442 with base points of its first effect value times the aura's stack
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric64440(ProcTriggerSpellAuraProcContext& ctx)
+{
+    ctx.trigger_spell_id = 64442;
+
+    // need scale damage base at stack size
+    if (SpellEntry const* trigEntry = sSpellStore.LookupEntry(ctx.trigger_spell_id))
+    {
+        ctx.basepoints[EFFECT_INDEX_0] = trigEntry->CalculateSimpleValue(EFFECT_INDEX_0) * ctx.triggeredByAura->GetStackAmount();
+    }
+
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
+/// 64568: Blood Reserve: when the damage takes the unit from at least 35 percent of its maximum health to below it,
+/// triggers 64569 with base points of its first effect value times the aura's stack; fails otherwise
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric64568(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // When your health drops below 35% ....
+    int32 health35 = int32(ctx.unit->GetMaxHealth() * 35 / 100);
+    if (int32(ctx.unit->GetHealth()) - int32(ctx.damage) >= health35 || int32(ctx.unit->GetHealth()) < health35)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+
+    ctx.trigger_spell_id = 64569;
+
+    // need scale damage base at stack size
+    if (SpellEntry const* trigEntry = sSpellStore.LookupEntry(ctx.trigger_spell_id))
+    {
+        ctx.basepoints[EFFECT_INDEX_0] = trigEntry->CalculateSimpleValue(EFFECT_INDEX_0) * ctx.triggeredByAura->GetStackAmount();
+    }
+
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
+/// 67702: Item - Coliseum 25 Normal Melee Trinket: triggers 67708 or 67703 by the higher of the unit's strength and
+/// agility
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric67702(ProcTriggerSpellAuraProcContext& ctx)
+{
+    float stat = 0.0f;
+    // strength
+    if (ctx.unit->GetStat(STAT_STRENGTH) > stat)
+    {
+        ctx.trigger_spell_id = 67708; stat = ctx.unit->GetStat(STAT_STRENGTH);
+    }
+    // agility
+    if (ctx.unit->GetStat(STAT_AGILITY)  > stat)
+    {
+        ctx.trigger_spell_id = 67703;
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
+/// 67771: Item - Coliseum 25 Heroic Melee Trinket: triggers 67773 or 67772 by the higher of the unit's strength and
+/// agility
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric67771(ProcTriggerSpellAuraProcContext& ctx)
+{
+    float stat = 0.0f;
+    // strength
+    if (ctx.unit->GetStat(STAT_STRENGTH) > stat)
+    {
+        ctx.trigger_spell_id = 67773; stat = ctx.unit->GetStat(STAT_STRENGTH);
+    }
+    // agility
+    if (ctx.unit->GetStat(STAT_AGILITY)  > stat)
+    {
+        ctx.trigger_spell_id = 67772;
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
+/// 69023: Mirrored Soul: the unit casts 69034 on the aura's caster for 45 percent of the damage, and the proc ends
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcGeneric69023(ProcTriggerSpellAuraProcContext& ctx)
+{
+    int32 basepoints2 = (int32)(ctx.damage * 0.45f);
+    if (Unit* caster = ctx.triggeredByAura->GetCaster())
+        // Actually this spell should be sent with SMSG_SPELL_START
+        ctx.unit->CastCustomSpell(caster, 69034, &basepoints2, NULL, NULL, true, NULL, ctx.triggeredByAura, ctx.unit->GetObjectGuid());
+
+    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
+}
+
+/// one body for 4 labels: 7099, 39647: Curse of Mending; 29494: Temptation; 20233: absent from the client's spell data:
+/// makes the victim the target
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered7099(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // Cast positive spell on enemy target
+    ctx.target = ctx.pVictim;
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Combo points add triggers (need add combopoint only for main target, and after possible combopoints reset)
+}
+
+/// 15250: Setup: fails unless the victim is the unit's own victim
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered15250(ProcTriggerSpellAuraProcContext& ctx)
+{
+    if (!ctx.pVictim || ctx.pVictim != ctx.unit->getVictim())  // applied only for main target
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();                                   // continue normal case
+// Finishing moves that add combo points
+}
+
+/// one body for 3 labels: 14189: Seal Fate; 14157: Ruthlessness; 70802: Mayhem: adds the spell to the unit's current
+/// spell as a triggered spell, and the proc ends; fails without a current spell
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered14189(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // Need add combopoint AFTER finishing move (or they get dropped in finish phase)
+    if (Spell* spell = ctx.unit->GetCurrentSpell(CURRENT_GENERIC_SPELL))
+    {
+        spell->AddTriggeredSpell(ctx.trigger_spell_id);
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_OK);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+// Bloodthirst (($m/100)% of max health)
+}
+
+/// 23880: Bloodthirst: base points of the aura's percent of the unit's maximum health
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered23880(ProcTriggerSpellAuraProcContext& ctx)
+{
+    ctx.basepoints[0] = int32(ctx.unit->GetMaxHealth() * ctx.triggerAmount / 100);
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Shamanistic Rage triggered spell
+}
+
+/// 30824: absent from the client's spell data: base points of the aura's percent of the unit's attack power
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered30824(ProcTriggerSpellAuraProcContext& ctx)
+{
+    ctx.basepoints[0] = int32(ctx.unit->GetTotalAttackPowerValue(BASE_ATTACK) * ctx.triggerAmount / 100);
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Enlightenment (trigger only from mana cost spells)
+}
+
+/// 35095: Enlightenment: fails unless the proc spell costs mana
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered35095(ProcTriggerSpellAuraProcContext& ctx)
+{
+    SpellPowerEntry const* spellPower = ctx.procSpell->GetSpellPower();
+    if (!spellPower || !ctx.procSpell || ctx.procSpell->PowerType!=POWER_MANA || spellPower->ManaCost==0 && spellPower->PowerCost==0 && spellPower->ManaCostPerLevel==0)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Demonic Pact
+}
+
+/// 48090: absent from the client's spell data: for a player owner, the first two base points are the percent its talent
+/// dummy aura (icon 3220) holds of the owner's spell power, less the owner's own 48090 bonus; fails without a player
+/// owner or that power
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered48090(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // As the spell is proced from pet's attack - find owner
+    Unit* owner = ctx.unit->GetOwner();
+    if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+
+    // This spell doesn't stack, but refreshes duration. So we receive current bonuses to minus them later.
+    int32 curBonus = 0;
+    if (Aura* aur = owner->GetAura(48090, EFFECT_INDEX_0))
+    {
+        curBonus = aur->GetModifier()->m_amount;
+    }
+    int32 spellDamage  = owner->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC) - curBonus;
+    if (spellDamage <= 0)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+
+    // percent stored in owner talent dummy
+    AuraList const& dummyAuras = owner->GetAurasByType(SPELL_AURA_DUMMY);
+    for (AuraList::const_iterator i = dummyAuras.begin(); i != dummyAuras.end(); ++i)
+    {
+        if ((*i)->GetSpellProto()->SpellIconID == 3220)
+        {
+            ctx.basepoints[0] = ctx.basepoints[1] = int32(spellDamage * (*i)->GetModifier()->m_amount / 100);
+            break;
+        }
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Sword and Board
+}
+
+/// 50227: Sword and Board: ends a player's category 1209 cooldown
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered50227(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // Remove cooldown on Shield Slam
+    if (ctx.unit->GetTypeId() == TYPEID_PLAYER)
+    {
+        ctx.unit->RemoveSpellCategoryCooldown(1209, true);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Maelstrom Weapon
+}
+
+/// 53817: Maelstrom Weapon: fails unless a roll at 20 percent per rank of the aura passes
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered53817(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // have rank dependent proc chance, ignore too often cases
+    // PPM = 2.5 * (rank of talent),
+    uint32 rank = sSpellMgr.GetSpellRank(ctx.auraSpellInfo->ID);
+    // 5 rank -> 100% 4 rank -> 80% and etc from full rate
+    if (!roll_chance_i(20 * rank))
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Brain Freeze
+}
+
+/// 57761: Brain Freeze: fails without a proc spell, or after a mage proc spell of class mask 0x80 when the unit has no
+/// override script aura 836, 988 or 989
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered57761(ProcTriggerSpellAuraProcContext& ctx)
+{
+    if (!ctx.procSpell)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    // For trigger from Blizzard need exist Improved Blizzard
+    if (ctx.procClassOptions && ctx.procClassOptions->SpellClassSet==SPELLFAMILY_MAGE && (ctx.procClassOptions->SpellClassMask & UI64LIT(0x0000000000000080)))
+    {
+        bool found = false;
+        AuraList const& mOverrideClassScript = ctx.unit->GetAurasByType(SPELL_AURA_OVERRIDE_CLASS_SCRIPTS);
+        for (AuraList::const_iterator i = mOverrideClassScript.begin(); i != mOverrideClassScript.end(); ++i)
+        {
+            int32 script = (*i)->GetModifier()->m_miscvalue;
+            if (script == 836 || script == 988 || script == 989)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+        }
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Astral Shift
+}
+
+/// 52179: Astral Shift: fails unless a proc spell with a stun, fear or silence mechanic hit or crit another unit
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered52179(ProcTriggerSpellAuraProcContext& ctx)
+{
+    if (ctx.procSpell == 0 || !(ctx.procEx & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT)) || ctx.unit == ctx.pVictim)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+
+    // Need stun, fear or silence mechanic
+    if (!(GetAllSpellMechanicMask(ctx.procSpell) & IMMUNE_TO_SILENCE_AND_STUN_AND_FEAR_MASK))
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Burning Determination
+}
+
+/// 54748: absent from the client's spell data: fails unless a proc spell has an interrupt or silence mechanic
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered54748(ProcTriggerSpellAuraProcContext& ctx)
+{
+    if (!ctx.procSpell)
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    // Need Interrupt or Silenced mechanic
+    if (!(GetAllSpellMechanicMask(ctx.procSpell) & IMMUNE_TO_INTERRUPT_AND_SILENCE_MASK))
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Lock and Load
+}
+
+/// 56453: Lock and Load: fails unless the proc is a trap's activation and a roll at the aura's chance passes
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered56453(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // Proc only from trap activation (from periodic proc another aura of this spell)
+    if (!(ctx.procFlags & PROC_FLAG_ON_TRAP_ACTIVATION) || !roll_chance_i(ctx.triggerAmount))
+    {
+        return SpellHandlerOutcome<SpellAuraProcResult>::Return(SPELL_AURA_PROC_FAILED);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Freezing Fog (Rime triggered)
+}
+
+/// 59052: Freezing Fog: ends a player's category 1248 cooldown
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered59052(ProcTriggerSpellAuraProcContext& ctx)
+{
+    // Howling Blast cooldown reset
+    if (ctx.unit->GetTypeId() == TYPEID_PLAYER)
+    {
+        ctx.unit->RemoveSpellCategoryCooldown(1248, true);
+    }
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+// Druid - Savage Defense
+}
+
+/// 62606: Savage Defense: base points of the aura's percent of the unit's attack power
+static SpellHandlerOutcome<SpellAuraProcResult> ProcTriggerSpellAuraProcTriggered62606(ProcTriggerSpellAuraProcContext& ctx)
+{
+    ctx.basepoints[0] = int32(ctx.unit->GetTotalAttackPowerValue(BASE_ATTACK) * ctx.triggerAmount / 100);
+    return SpellHandlerOutcome<SpellAuraProcResult>::Continue();
+}
+
 /// One row of a site's table: a spell id and the handler registered for it.
 template <class Site>
 struct ProcRow
@@ -2145,6 +2672,61 @@ uint32 RegisterUnitAuraProcHandlerHandlers(SpellHandlerRegistry& registry)
         { 70808, &DummyAuraProcShaman70808 },
     };
 
+    static ProcRow<HasteAuraProcRogueSite> const hasteAuraProcRogue[] =
+    {
+        { 13877, &HasteAuraProcRogue13877 },
+        { 33735, &HasteAuraProcRogue13877 },
+    };
+
+    static ProcRow<SpellCritChanceAuraProcMageSite> const spellCritChanceAuraProcMage[] =
+    {
+        { 54646, &SpellCritChanceAuraProcMage54646 },
+    };
+
+    static ProcRow<ProcTriggerSpellAuraProcGenericSite> const procTriggerSpellAuraProcGeneric[] =
+    {
+        { 23780, &ProcTriggerSpellAuraProcGeneric23780 },
+        { 27522, &ProcTriggerSpellAuraProcGeneric27522 },
+        { 40336, &ProcTriggerSpellAuraProcGeneric27522 },
+        { 46939, &ProcTriggerSpellAuraProcGeneric27522 },
+        { 31255, &ProcTriggerSpellAuraProcGeneric31255 },
+        { 33896, &ProcTriggerSpellAuraProcGeneric33896 },
+        { 45057, &ProcTriggerSpellAuraProcGeneric45057 },
+        { 43820, &ProcTriggerSpellAuraProcGeneric43820 },
+        { 57345, &ProcTriggerSpellAuraProcGeneric57345 },
+        { 64148, &ProcTriggerSpellAuraProcGeneric64148 },
+        { 64415, &ProcTriggerSpellAuraProcGeneric64415 },
+        { 64440, &ProcTriggerSpellAuraProcGeneric64440 },
+        { 64568, &ProcTriggerSpellAuraProcGeneric64568 },
+        { 67702, &ProcTriggerSpellAuraProcGeneric67702 },
+        { 67771, &ProcTriggerSpellAuraProcGeneric67771 },
+        { 69023, &ProcTriggerSpellAuraProcGeneric69023 },
+    };
+
+    static ProcRow<ProcTriggerSpellAuraProcTriggeredSite> const procTriggerSpellAuraProcTriggered[] =
+    {
+        { 7099, &ProcTriggerSpellAuraProcTriggered7099 },
+        { 39647, &ProcTriggerSpellAuraProcTriggered7099 },
+        { 29494, &ProcTriggerSpellAuraProcTriggered7099 },
+        { 20233, &ProcTriggerSpellAuraProcTriggered7099 },
+        { 15250, &ProcTriggerSpellAuraProcTriggered15250 },
+        { 14189, &ProcTriggerSpellAuraProcTriggered14189 },
+        { 14157, &ProcTriggerSpellAuraProcTriggered14189 },
+        { 70802, &ProcTriggerSpellAuraProcTriggered14189 },
+        { 23880, &ProcTriggerSpellAuraProcTriggered23880 },
+        { 30824, &ProcTriggerSpellAuraProcTriggered30824 },
+        { 35095, &ProcTriggerSpellAuraProcTriggered35095 },
+        { 48090, &ProcTriggerSpellAuraProcTriggered48090 },
+        { 50227, &ProcTriggerSpellAuraProcTriggered50227 },
+        { 53817, &ProcTriggerSpellAuraProcTriggered53817 },
+        { 57761, &ProcTriggerSpellAuraProcTriggered57761 },
+        { 52179, &ProcTriggerSpellAuraProcTriggered52179 },
+        { 54748, &ProcTriggerSpellAuraProcTriggered54748 },
+        { 56453, &ProcTriggerSpellAuraProcTriggered56453 },
+        { 59052, &ProcTriggerSpellAuraProcTriggered59052 },
+        { 62606, &ProcTriggerSpellAuraProcTriggered62606 },
+    };
+
     uint32 rows = RegisterProcRows(registry, dummyAuraProcGeneric);
     rows += RegisterProcRows(registry, dummyAuraProcMage);
     rows += RegisterProcRows(registry, dummyAuraProcWarlock);
@@ -2153,5 +2735,9 @@ uint32 RegisterUnitAuraProcHandlerHandlers(SpellHandlerRegistry& registry)
     rows += RegisterProcRows(registry, dummyAuraProcRogue);
     rows += RegisterProcRows(registry, dummyAuraProcPaladin);
     rows += RegisterProcRows(registry, dummyAuraProcShaman);
+    rows += RegisterProcRows(registry, hasteAuraProcRogue);
+    rows += RegisterProcRows(registry, spellCritChanceAuraProcMage);
+    rows += RegisterProcRows(registry, procTriggerSpellAuraProcGeneric);
+    rows += RegisterProcRows(registry, procTriggerSpellAuraProcTriggered);
     return rows;
 }
