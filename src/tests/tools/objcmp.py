@@ -72,7 +72,7 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   the base's and the head's changed directives must pair up.
 
 --initializers DIR
-  Lists the objects under DIR that carry a dynamic initializer.
+  Lists the objects under DIR that carry a dynamic initializer, thread-local ones included.
 
 --self-test
   Builds synthetic ELF and COFF objects, applies mutants (a changed byte, a changed call target,
@@ -2517,6 +2517,7 @@ def run_initializers(top, out):
         if data[:4] == b'\x7fELF':
             e = Elf(rel, data)
             secs = ['%s (%d bytes)' % (s.name, s.size) for s in e.secs if elf_init(s) and s.size]
+            secs += sorted(set(y.name for y in e.syms if tls_init_name(y.name) and 0 < y.shndx < SHN_LORESERVE))
         else:
             c = coff_parse(rel, data)
             secs = ['%s (%d bytes)' % (s['name'], s['size']) for s in c['secs'] if s['name'].startswith('.CRT$X') and s['size']]
