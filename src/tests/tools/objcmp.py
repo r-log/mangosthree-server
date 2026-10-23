@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""objcmp.py --per-object | --by-symbol BASE HEAD [options] | --initializers DIR | --self-test [--cc <compiler>]
+"""objcmp.py --per-object | --by-symbol BASE HEAD [options] | --initializers DIR | --diff-lines TREE BASE HEAD OUT |
+           --lines-compiled SIDE [options] | --self-test [--cc <compiler>] [--build-script <objcmp_build.sh>]
 
 Compares the object files of two builds of the same configuration: BASE built from one commit,
 HEAD from another, each a directory holding the objects at their build-relative paths (*.o, ELF64
@@ -41,14 +42,34 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   names): the head's new name is then read as the old one.
   An object is moved when its path is in one build only, and changed when a global non-COMDAT
   definition moved into or out of it or its initializer list changed. A moved or changed object
-  with a dynamic initializer in either build fails, whatever the initializer does. The report
-  names the variables each such initializer reaches. A function GCC makes for initializers
-  (_GLOBAL__sub_I_*, __static_initialization_and_destruction_*) that differs counts as an
-  initializer difference.
-  With --base-deps, --head-deps (`ninja -t deps` of the objects) and --changes (`git diff
-  --name-status -M BASE HEAD`), every changed C or C++ file must be read by an object of a build
-  that has it (--root is the source directory the deps name); a file under an --outside prefix is
-  listed instead, and a changed file that is not C or C++ is listed as not code.
+  with a dynamic initializer in either build fails, whatever the initializer does: an .init_array,
+  .ctors or .preinit_array entry, or a thread-local initialization (__tls_init, _ZTH*, _ZTW*). The
+  report names the variables each such initializer reaches. A function GCC makes for initializers
+  (_GLOBAL__sub_I_*, __static_initialization_and_destruction_*, the thread-local ones) that
+  differs counts as an initializer difference.
+  With --changes (`git diff --name-status -M BASE HEAD`) and --base-lines, --head-lines (the
+  --lines-compiled verdicts of each build), every changed line of a C, C++ or assembler file must
+  be one the build that has it compiled; a renamed or copied file must also be read by an object
+  of each build (--base-deps, --head-deps: `ninja -t deps`; --root is the source directory they
+  name). A line that is not compiled fails as its own kind. Without line verdicts the check is per
+  file. A changed file that is not code is listed as not code. A change to the object proof's own
+  files (objcmp.py, objcmp_build.sh, MangosProof.cmake, the workflow) fails: the proof cannot
+  vouch for itself.
+
+--diff-lines TREE BASE HEAD OUT
+  Writes the changed lines of every C, C++ or assembler file between two commits of the git tree
+  TREE: lines whose code differs once comments are taken out and runs of whitespace made one (a
+  raw string keeps its exact text). Each row is `side<TAB>path<TAB>line`, base for a line of the
+  old version, head for one of the new.
+
+--lines-compiled SIDE --changed-lines F --deps F --compile-db F --root DIR --build DIR --out F
+  Run after a build, with SIDE's commit checked out: preprocesses (`-E -dD -dI`) TUs that read the
+  changed files, up to 24 per file, and maps the line markers back. A changed line is compiled
+  when a TU emitted it (or the line of the backslash-continued line or the function-like macro call
+  it is part of); a blank, comment or `#if 0` line needs nothing; the include guard and `#pragma
+  once` need the file to be read. A line that is an argument of a macro the build defines without
+  using that parameter is not compiled. A changed conditional directive must be the same text moved:
+  the base's and the head's changed directives must pair up.
 
 --initializers DIR
   Lists the objects under DIR that carry a dynamic initializer.
@@ -58,20 +79,31 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   a moved function, an added or a moved-into dynamic initializer, a renamed symbol with and
   without a map, a changed string, a moved function that binds another static of the same name,
   a second unwind record inside a function, an unwind record that starts in no function (the
-  same, moved, added, changed), a path string with and without --literals) and checks each
-  verdict. With --cc it also compiles the same shapes with that GCC in the proof configuration
-  and checks those verdicts.
+  same, moved, added, changed), a path string with and without --literals, a thread-local
+  initializer or wrapper in a moved object, a change to the proof's own files) and checks each
+  verdict. Its line cases run --lines-compiled with a stand-in preprocessor: a change inside
+  #ifdef _WIN32, uncommented code there, a changed conditional directive, an argument of a macro
+  that drops it, a changed .asm or test file no build compiles fail; a compiled line, a comment,
+  #if 0, a renamed include guard and a moved conditional block pass. With --cc it also compiles
+  the same shapes with that GCC in the proof configuration (and _WIN32, MANGOS_STRICT_TICK, an
+  assert, a macro call over two lines, a moved thread_local). With --build-script it builds a
+  small git tree twice with that objcmp_build.sh: a header the head adds ahead of another on the
+  include path, and a changed option default, must differ.
 """
 import argparse
 import collections
 import hashlib
+import json
 import os
 import posixpath
+import re
+import shlex
 import shutil
 import struct
 import subprocess
 import sys
 import tempfile
+import traceback
 
 SHT_NULL, SHT_PROGBITS, SHT_SYMTAB, SHT_STRTAB, SHT_RELA = 0, 1, 2, 3, 4
 SHT_NOTE, SHT_NOBITS, SHT_REL = 7, 8, 9
@@ -84,7 +116,10 @@ EM_X86_64, EM_AARCH64 = 62, 183
 X86_PC_RELATIVE = {2, 4, 9, 26, 41, 42}
 STRUCTURAL = {SHT_NULL, SHT_SYMTAB, SHT_STRTAB, SHT_RELA, SHT_REL, SHT_GROUP, SHT_SYMTAB_SHNDX}
 INIT_TYPES = {SHT_INIT_ARRAY, SHT_FINI_ARRAY, SHT_PREINIT_ARRAY}
-CODE_EXTENSIONS = ('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inl', '.ipp', '.tpp', '.inc')
+CODE_EXTENSIONS = ('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inl', '.ipp', '.tpp', '.inc', '.s',
+                   '.asm')
+GATE_FILES = ('src/tests/tools/objcmp.py', 'src/tests/tools/objcmp_build.sh', 'cmake/MangosProof.cmake',
+              '.github/workflows/core_object_proof.yml')
 
 
 def digest(*parts):
@@ -187,8 +222,14 @@ def elf_init(s):
             or n.startswith('.init_array') or n.startswith('.fini_array') or n.startswith('.preinit_array'))
 
 
+def tls_init_name(name):
+    """Whether a symbol is one GCC makes for a thread-local variable's dynamic initialization."""
+    return name == '__tls_init' or name.startswith('_ZTH') or name.startswith('_ZTW')
+
+
 def elf_has_init(e):
-    return any(elf_init(s) and s.size for s in e.secs)
+    return (any(elf_init(s) and s.size for s in e.secs)
+            or any(tls_init_name(y.name) and 0 < y.shndx < SHN_LORESERVE for y in e.syms))
 
 
 def pool_ref(sec, offset, canon=None):
@@ -782,6 +823,10 @@ class Corpus(object):
                 refs = []
                 rels = [(o, t, target(y, a, s, t, refs)) for o, t, y, a in sorted(e.relocs.get(s.index, []))]
                 info['init'].append((s.name, s.size, rels, refs))
+        tls = [i for i in info['items'] if any(tls_init_name(n) for n in self.key[i][1:])]
+        if tls:
+            info['has_init'] = True
+            info['init'].append(('thread-local', len(tls), [], tls))
         return info
 
     def initialized(self, info):
@@ -870,7 +915,7 @@ def init_function(text):
     """Whether a difference line names a function GCC makes for a file's dynamic initializers."""
     name = text.split(' ', 1)[0]
     return (name.startswith('_GLOBAL__sub_I_') or name.startswith('_GLOBAL__sub_D_')
-            or '__static_initialization_and_destruction_' in name)
+            or '__static_initialization_and_destruction_' in name or tls_init_name(name))
 
 
 def short_key(k):
@@ -905,7 +950,8 @@ def describe(corpus, i, j):
     return 'section %s: a local item it reaches differs' % a.name
 
 
-def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, outside, list_init, out):
+def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, list_init, out, base_lines=None,
+                  head_lines=None):
     rename = {}
     for old, new in read_pairs(map_path):
         rename[new] = old
@@ -1008,7 +1054,9 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, out
     for k, w in sorted(local_where.items()):
         if len(w.get('base', ())) == 1 and len(w.get('head', ())) == 1 and w['base'] != w['head']:
             moved_locals.append((k, sorted(w['base']), sorted(w['head'])))
-    coverage, outside_list, not_code = [], [], []
+    coverage, not_code, gate = [], [], []
+    by_line = base_lines is not None or head_lines is not None
+    line_rows = {'base': read_line_verdicts(base_lines), 'head': read_line_verdicts(head_lines)}
     if changes:
         reads = {'base': set(), 'head': set()}
         for side, path in (('base', base_deps), ('head', head_deps)):
@@ -1027,12 +1075,18 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, out
             else:
                 entries = [(p, ('base', 'head'))]
             for f, where in entries:
-                if not f.lower().endswith(CODE_EXTENSIONS):
+                if f in GATE_FILES:
+                    gate.append(f)
+                if not code_file(f):
                     not_code.append(f)
-                elif any(f.startswith(o) for o in outside):
-                    outside_list.append(f)
+                elif by_line and st not in 'RC':
+                    continue
                 elif not any(f in reads[side] for side in where):
                     coverage.append('not compiled by the proof build: %s (%s, %s)' % (f, st, ' or '.join(where)))
+        if by_line:
+            coverage += line_problems(line_rows['base'], line_rows['head'])
+    gate_problems = ['the change edits the object proof itself (%s), so the proof cannot show it mechanical' % f
+                     for f in sorted(set(gate))]
     n_items = len(corpus.key)
     nb = sum(len(v) for v in B.values())
     nh = sum(len(v) for v in H.values())
@@ -1068,21 +1122,514 @@ def run_by_symbol(base, head, map_path, base_deps, head_deps, changes, root, out
     if len(moved_locals) > 60:
         out('    ... %d more' % (len(moved_locals) - 60))
     if changes:
-        out('changed files: %d not code, %d outside the proof build, %d not compiled' % (
-            len(set(not_code)), len(set(outside_list)), len(coverage)))
-        for f in sorted(set(outside_list)):
-            out('    outside: %s' % f)
+        out('changed files: %d not code' % len(set(not_code)))
         for f in sorted(set(not_code))[:40]:
             out('    not code: %s' % f)
+    if by_line:
+        for side in ('base', 'head'):
+            c = collections.Counter(v for _, _, v, _ in line_rows[side])
+            out('changed lines (%s): %d compiled, %d blank, comment or #if 0, %d conditional directives, '
+                '%d not compiled' % (side, c['ok'], c['skip'], c['cond'], c['notc']))
     hard += ['INIT: initializer function ' + d for d in init_fns]
-    problems = hard + diffs + coverage
+    problems = hard + diffs + coverage + gate_problems
     for p in problems[:300]:
         out('DIFF ' + p)
     if len(problems) > 300:
         out('DIFF ... %d more' % (len(problems) - 300))
-    out('differences: %d (dynamic initializer %d, symbols %d, coverage %d)' % (
-        len(problems), len(hard), len(diffs), len(coverage)))
+    out('differences: %d (dynamic initializer %d, symbols %d, not compiled by the proof build %d, gate files %d)' % (
+        len(problems), len(hard), len(diffs), len(coverage), len(gate_problems)))
     return not problems
+
+
+# ---------------------------------------------------------------------------------------------------
+# Changed lines, and which of them the proof build compiled
+
+CONDITIONALS = {'if', 'ifdef', 'ifndef', 'elif', 'elifdef', 'elifndef', 'else', 'endif'}
+LINES_PER_FILE_TUS = 24
+MARKER = re.compile(r'^# (\d+) "((?:[^"\\]|\\.)*)"')
+FUNCTION_MACRO = re.compile(r'^#define\s+([A-Za-z_]\w*)\(([^)]*)\)\s?(.*)$')
+TOKEN = re.compile(r'''[A-Za-z_]\w*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\d[\w.]*|\S''')
+IDENT = re.compile(r'[A-Za-z_]\w*')
+
+
+def code_lines(text):
+    """Per physical line, its code with the comments taken out and runs of whitespace made one
+    space; a line a raw string literal touches keeps its exact text."""
+    src = SourceLines(text)
+    return [src.code[k] if k in src.raw else ' '.join(src.code[k].split()) for k in range(1, src.n + 1)]
+
+
+def code_diff_rows(old_path, old_text, new_path, new_text):
+    """The lines whose code differs between two versions of a file: (side, path, line), base for
+    the old version and head for the new. A comment or whitespace edit is no row; uncommenting
+    code is."""
+    import difflib
+    a = code_lines(old_text) if old_text is not None else []
+    b = code_lines(new_text) if new_text is not None else []
+    rows = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if tag != 'equal':
+            rows.extend(('base', old_path, i + 1) for i in range(i1, i2) if a[i])
+            rows.extend(('head', new_path, j + 1) for j in range(j1, j2) if b[j])
+    return rows
+
+
+def git_text(root, rev, path):
+    r = subprocess.run(['git', '-C', root, 'show', '%s:%s' % (rev, path)], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL)
+    return r.stdout.decode('utf-8', 'surrogateescape') if r.returncode == 0 else None
+
+
+def run_diff_lines(root, base, head, out_path, log=print):
+    names = subprocess.run(['git', '-C', root, '-c', 'core.quotepath=off', 'diff', '--name-status', '-M', base, head],
+                           check=True, stdout=subprocess.PIPE).stdout.decode('utf-8', 'surrogateescape')
+    rows = []
+    for line in names.splitlines():
+        parts = line.split('\t')
+        if len(parts) < 2:
+            continue
+        st = parts[0][:1]
+        old = parts[1] if st != 'A' else None
+        new = parts[-1] if st != 'D' else None
+        if st == 'C':
+            old = None
+        if not any(x and code_file(x) for x in (old, new)):
+            continue
+        rows.extend(code_diff_rows(old, git_text(root, base, old) if old else None,
+                                   new, git_text(root, head, new) if new else None))
+    with open(out_path, 'w', encoding='utf-8') as f:
+        for side, path, line in rows:
+            f.write('%s\t%s\t%d\n' % (side, path, line))
+    log('changed code lines: %d in base, %d in head' % (sum(1 for r in rows if r[0] == 'base'),
+                                                         sum(1 for r in rows if r[0] == 'head')))
+
+
+def code_file(path):
+    p = path.lower()
+    if p.endswith('.in'):
+        p = p[:-3]
+    return p.endswith(CODE_EXTENSIONS)
+
+
+class SourceLines(object):
+    """One C, C++ or assembler source, line by line: its code with the comments taken out, the first
+    line of each logical line (backslash continuations), its directives, the lines an `#if 0` group
+    holds, the include guard, and the lines each function-like macro call spans."""
+
+    def __init__(self, text):
+        phys = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+        n = len(phys)
+        self.n = n
+        code = [[] for _ in range(n + 2)]
+        i, line, size = 0, 1, len(text)
+        t = text.replace('\r\n', '\n').replace('\r', '\n')
+        size = len(t)
+        state = None
+        raw = set()
+        while i < size:
+            c = t[i]
+            if c == '\n':
+                line += 1
+                i += 1
+                if state == 'line':
+                    state = None
+                continue
+            if c == '\\' and i + 1 < size and t[i + 1] == '\n':
+                if state != 'block':
+                    code[line].append('\\')
+                line += 1
+                i += 2
+                continue
+            if state == 'line':
+                i += 1
+                continue
+            if state == 'block':
+                if t.startswith('*/', i):
+                    state = None
+                    i += 2
+                else:
+                    i += 1
+                continue
+            if t.startswith('//', i):
+                state = 'line'
+                i += 2
+                continue
+            if t.startswith('/*', i):
+                state = 'block'
+                code[line].append(' ')
+                i += 2
+                continue
+            if c == 'R' and i + 1 < size and t[i + 1] == '"' and (i == 0 or not (t[i - 1].isalnum() or t[i - 1] == '_')
+                                                                  or t[i - 1] in 'uU8L'):
+                open_paren = t.find('(', i + 2)
+                if open_paren > 0:
+                    delim = ')' + t[i + 2:open_paren] + '"'
+                    end = t.find(delim, open_paren)
+                    end = size if end < 0 else end + len(delim)
+                    raw.add(line)
+                    for ch in t[i:end]:
+                        if ch == '\n':
+                            line += 1
+                            raw.add(line)
+                        else:
+                            code[line].append(ch)
+                    i = end
+                    continue
+            if c in '"\'':
+                j = i + 1
+                while j < size and t[j] != c and t[j] != '\n':
+                    j += 2 if t[j] == '\\' and j + 1 < size and t[j + 1] != '\n' else 1
+                code[line].append(t[i:j + 1])
+                i = j + 1
+                continue
+            code[line].append(c)
+            i += 1
+        self.code = [''.join(parts) for parts in code]
+        self.raw = raw
+        self.first = [0] * (n + 2)
+        for k in range(1, n + 1):
+            self.first[k] = self.first[k - 1] if k > 1 and phys[k - 2].endswith('\\') else k
+        self.has_code = [bool(self.code[k].replace('\\', '').strip()) for k in range(n + 2)]
+        self.directive = {}
+        logical = {}
+        for k in range(1, n + 1):
+            logical.setdefault(self.first[k], []).append(k)
+        for start, members in sorted(logical.items()):
+            joined = ' '.join(self.code[k].replace('\\', ' ') for k in members).strip()
+            if joined.startswith('#'):
+                rest = joined[1:].strip()
+                m = IDENT.match(rest)
+                name = m.group(0) if m else ''
+                text_norm = '#' + ' '.join(rest.split())
+                for k in members:
+                    self.directive[k] = (name, text_norm, start)
+        self.dead = [False] * (n + 2)
+        stack = []
+        order = []
+        for start in sorted(logical):
+            d = self.directive.get(start)
+            outer = stack[-1][1] if stack else False
+            if d and d[0] in ('if', 'ifdef', 'ifndef'):
+                cond = d[1].split(' ', 1)[1].strip() if ' ' in d[1] else ''
+                stack.append([outer, outer or (d[0] == 'if' and cond == '0')])
+                state_line = outer
+            elif d and d[0] in ('elif', 'elifdef', 'elifndef', 'else'):
+                if stack:
+                    cond = d[1].split(' ', 1)[1].strip() if ' ' in d[1] else ''
+                    stack[-1][1] = stack[-1][0] or (d[0] == 'elif' and cond == '0')
+                    state_line = stack[-1][0]
+                else:
+                    state_line = False
+            elif d and d[0] == 'endif':
+                state_line = stack.pop()[0] if stack else False
+            else:
+                state_line = outer
+            for k in logical[start]:
+                self.dead[k] = state_line
+            if d:
+                order.append((start, d))
+        self.guard = set()
+        order = [(k, d) for k, d in order if d[1] != '#pragma once']
+        if len(order) >= 3:
+            (l1, d1), (l2, d2), (l3, d3) = order[0], order[1], order[-1]
+            g = None
+            if d1[0] == 'ifndef':
+                g = d1[1].split(' ', 1)[1].strip() if ' ' in d1[1] else None
+            elif d1[0] == 'if':
+                m = re.match(r'#if !\s*defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?$', d1[1])
+                g = m.group(1) if m else None
+            if g and d2[0] == 'define' and d2[1] == '#define ' + g and d3[0] == 'endif':
+                self.guard = set(logical[l1]) | set(logical[l2]) | set(logical[l3])
+        self.spans = {}
+
+    def macro_spans(self, fmacros):
+        """For each line, the function-like macro calls it is part of: (macro name, line of the name)."""
+        spans = collections.defaultdict(list)
+        toks = []
+        for k in range(1, self.n + 1):
+            if k in self.directive:
+                continue
+            for m in TOKEN.finditer(self.code[k]):
+                toks.append((m.group(0), k))
+        i = 0
+        while i < len(toks):
+            tok, k = toks[i]
+            if tok in fmacros and i + 1 < len(toks) and toks[i + 1][0] == '(':
+                depth, j = 0, i + 1
+                while j < len(toks):
+                    if toks[j][0] == '(':
+                        depth += 1
+                    elif toks[j][0] == ')':
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    j += 1
+                end = toks[min(j, len(toks) - 1)][1]
+                for line in range(k, end + 1):
+                    spans[line].append((tok, k))
+            i += 1
+        return spans
+
+
+def dropping(params, body):
+    """Whether a function-like macro leaves one of its parameters out of its replacement."""
+    names = []
+    for p in params.split(','):
+        p = p.strip()
+        if not p:
+            continue
+        if p == '...':
+            names.append('__VA_ARGS__')
+        elif p.endswith('...'):
+            names.append(p[:-3].strip())
+        else:
+            names.append(p)
+    used = set(IDENT.findall(body))
+    return any(name not in used for name in names)
+
+
+def read_preprocessed(path, root, build):
+    """What one preprocessed TU (`-E -dD -dI`) emitted: file -> lines that hold output, and the
+    function-like macros it defined (name -> whether a definition drops a parameter)."""
+    emitted = collections.defaultdict(set)
+    macros = {}
+    cur, line = None, 0
+    with open(path, encoding='utf-8', errors='replace') as f:
+        for raw in f:
+            raw = raw.rstrip('\n')
+            m = MARKER.match(raw)
+            if m:
+                cur = norm_path(m.group(2).encode('latin-1', 'replace').decode('unicode_escape'), root, build)
+                line = int(m.group(1))
+                continue
+            if raw.strip():
+                if cur is not None:
+                    emitted[cur].add(line)
+                if raw.startswith('#define'):
+                    fm = FUNCTION_MACRO.match(raw)
+                    if fm:
+                        macros[fm.group(1)] = macros.get(fm.group(1), False) or dropping(fm.group(2), fm.group(3))
+            line += 1
+    return emitted, macros
+
+
+def norm_path(p, root, build):
+    p = posixpath.normpath(p.replace('\\', '/'))
+    if root and p.startswith(root + '/'):
+        return p[len(root) + 1:]
+    if build and p.startswith(build + '/'):
+        return '@build/' + p[len(build) + 1:]
+    return p
+
+
+def preprocess_command(entry, out_path):
+    args = list(entry['arguments']) if 'arguments' in entry else shlex.split(entry['command'])
+    keep, skip = [], False
+    for k, a in enumerate(args):
+        if skip:
+            skip = False
+            continue
+        if a in ('-o', '-MF', '-MT', '-MQ'):
+            skip = True
+            continue
+        if a in ('-c', '-MD', '-MMD') or a.startswith('-MF') or a.startswith('-MT') or a.startswith('-o'):
+            continue
+        keep.append(a)
+    return keep + ['-E', '-dD', '-dI', '-o', out_path]
+
+
+def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_path, log=print):
+    """Preprocesses TUs of one build that read the changed files of SIDE, and writes for every
+    changed line whether that build compiled it: `path<TAB>line<TAB>verdict<TAB>detail`, verdict
+    ok, skip (blank, comment or #if 0), cond (a conditional directive; detail is its text) or
+    notc (detail says why)."""
+    root = posixpath.normpath(root.replace('\\', '/'))
+    build = posixpath.normpath(build.replace('\\', '/'))
+    wanted = collections.defaultdict(set)
+    for row in open(changed_path, encoding='utf-8'):
+        s, p, n = row.rstrip('\n').split('\t')
+        if s == side and code_file(p):
+            wanted[p].add(int(n))
+    deps = {}
+    if deps_path and os.path.exists(deps_path):
+        cur = None
+        for line in open(deps_path, encoding='utf-8', errors='replace'):
+            line = line.rstrip('\n')
+            if not line.strip():
+                continue
+            if not line[0].isspace():
+                cur = line.split(': #deps', 1)[0].strip()
+                deps[cur] = set()
+            elif cur is not None:
+                deps[cur].add(norm_path(line.strip(), root, build))
+    db = {}
+    if db_path and os.path.exists(db_path):
+        for e in json.load(open(db_path, encoding='utf-8')):
+            o = e.get('output')
+            if o:
+                db[posixpath.normpath(o.replace('\\', '/'))] = e
+    readers = collections.defaultdict(list)
+    for obj, files in sorted(deps.items()):
+        for f in files:
+            readers[f].append(obj)
+
+    def target_of(p):
+        if p.endswith('.in'):
+            base = posixpath.basename(p[:-3])
+            gen = sorted(f for f in readers if f.startswith('@build/') and posixpath.basename(f) == base)
+            return gen[0] if gen else p
+        return p
+    sources = {}
+    verdicts = {}
+    need = collections.defaultdict(set)
+    for p, lines in wanted.items():
+        full = os.path.join(root, p)
+        try:
+            src = SourceLines(open(full, encoding='utf-8', errors='replace').read())
+        except OSError:
+            for n in lines:
+                verdicts[(p, n)] = ('notc', 'the file is not in the tree of this build')
+            continue
+        sources[p] = src
+        t = target_of(p)
+        for n in sorted(lines):
+            if n > src.n or not src.has_code[n] or src.dead[n]:
+                verdicts[(p, n)] = ('skip', '')
+                continue
+            d = src.directive.get(n)
+            if d and (n in src.guard or d[1] == '#pragma once'):
+                verdicts[(p, n)] = ('ok', '') if readers.get(t) else ('notc', 'no object reads the file')
+            elif d and d[0] in CONDITIONALS:
+                verdicts[(p, n)] = ('cond', d[1])
+            elif d and d[0] == '':
+                verdicts[(p, n)] = ('skip', '')
+            else:
+                need[p].add(n)
+    emitted = collections.defaultdict(set)
+    macros = {}
+    tried = collections.Counter()
+    used = set()
+    tmp = tempfile.mkdtemp(prefix='objcmp-lines-')
+
+    def covered(p, n, spans):
+        src = sources[p]
+        t = target_of(p)
+        first = src.first[n]
+        calls = spans.get(n, [])
+        bad = sorted(set(name for name, _ in calls if macros.get(name)))
+        if bad:
+            return ('notc', 'it is an argument of %s, which the proof build defines without using it' % bad[0])
+        if first in emitted[t] or any(start in emitted[t] for _, start in calls):
+            return ('ok', '')
+        return None
+
+    try:
+        workers = max(1, min(8, os.cpu_count() or 2))
+        while True:
+            for p in list(need):
+                spans = sources[p].macro_spans(macros) if macros else {}
+                for n in list(need[p]):
+                    v = covered(p, n, spans)
+                    if v:
+                        verdicts[(p, n)] = v
+                        need[p].discard(n)
+                if not need[p]:
+                    del need[p]
+            batch = []
+            for p in sorted(need):
+                t = target_of(p)
+                cands = [o for o in readers.get(t, []) if o in db and o not in used and o not in batch]
+                own = [o for o in cands if posixpath.normpath(db[o]['file'].replace('\\', '/')).endswith('/' + p)]
+                if tried[p] >= LINES_PER_FILE_TUS or not cands:
+                    continue
+                groups = collections.OrderedDict()
+                for o in cands:
+                    groups.setdefault(o.split('.dir/')[0], []).append(o)
+                pick = own[0] if own else list(groups.values())[tried[p] % len(groups)][0]
+                batch.append(pick)
+                if len(batch) >= workers:
+                    break
+            if not batch:
+                break
+            procs = []
+            for k, o in enumerate(batch):
+                used.add(o)
+                e = db[o]
+                ii = os.path.join(tmp, '%d.ii' % k)
+                procs.append((o, ii, subprocess.Popen(preprocess_command(e, ii), cwd=e['directory'],
+                                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)))
+            for o, ii, proc in procs:
+                rc = proc.wait()
+                if rc == 0 and os.path.exists(ii):
+                    em, ma = read_preprocessed(ii, root, build)
+                    for f, ls in em.items():
+                        emitted[f] |= ls
+                    for name, drops in ma.items():
+                        macros[name] = macros.get(name, False) or drops
+                if os.path.exists(ii):
+                    os.remove(ii)
+                for p in list(need):
+                    if target_of(p) in deps.get(o, ()):
+                        tried[p] += 1
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    for p, lines in need.items():
+        t = target_of(p)
+        total = len(readers.get(t, []))
+        why = ('no object of this build reads the file' if not total else
+               'no TU emitted it (%d of the %d TUs that read the file preprocessed)' % (tried[p], total))
+        for n in lines:
+            verdicts[(p, n)] = ('notc', why)
+    with open(out_path, 'w', encoding='utf-8') as f:
+        for (p, n), (v, detail) in sorted(verdicts.items()):
+            f.write('%s\t%d\t%s\t%s\n' % (p, n, v, detail))
+    counts = collections.Counter(v for v, _ in verdicts.values())
+    log('%s: changed lines %d: compiled %d, blank or comment %d, conditional directives %d, not compiled %d; '
+          '%d TUs preprocessed' % (side, len(verdicts), counts['ok'], counts['skip'], counts['cond'], counts['notc'],
+                                   len(used)))
+
+
+def read_line_verdicts(path):
+    rows = []
+    if path and os.path.exists(path):
+        for line in open(path, encoding='utf-8'):
+            p, n, v, detail = line.rstrip('\n').split('\t', 3)
+            rows.append((p, int(n), v, detail))
+    return rows
+
+
+def line_problems(base_rows, head_rows):
+    """The changed lines the proof build did not compile, and the changed conditional directives
+    that are not the same text moved."""
+    problems = []
+    for side, rows in (('base', base_rows), ('head', head_rows)):
+        runs = collections.OrderedDict()
+        for p, n, v, detail in rows:
+            if v == 'notc':
+                runs.setdefault((p, detail), []).append(n)
+        for (p, detail), ns in runs.items():
+            ns.sort()
+            ranges, start, prev = [], ns[0], ns[0]
+            for n in ns[1:] + [None]:
+                if n is not None and n == prev + 1:
+                    prev = n
+                    continue
+                ranges.append('%d' % start if start == prev else '%d-%d' % (start, prev))
+                if n is not None:
+                    start = prev = n
+            problems.append('not compiled by the proof build (%s): %s:%s: %s' % (side, p, ','.join(ranges[:12])
+                                                                                + (',...' if len(ranges) > 12 else ''),
+                                                                                detail))
+    cb = collections.Counter(d for _, _, v, d in base_rows if v == 'cond')
+    ch = collections.Counter(d for _, _, v, d in head_rows if v == 'cond')
+    for side, rows, mine, other in (('base', base_rows, cb, ch), ('head', head_rows, ch, cb)):
+        extra = mine - other
+        for p, n, v, d in rows:
+            if v == 'cond' and extra[d] > 0:
+                extra[d] -= 1
+                problems.append('not compiled by the proof build (%s): %s:%d: a conditional directive that '
+                                'changed, not moved: %s' % (side, p, n, d))
+    return problems
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -1346,7 +1893,7 @@ def run_case(mode, base_objs, head_objs, map_lines=(), literal_lines=()):
         if mode == 'per-object':
             ok = run_per_object(os.path.join(tmp, 'base'), os.path.join(tmp, 'head'), mp, lp, lines.append)
         else:
-            ok = run_by_symbol(os.path.join(tmp, 'base'), os.path.join(tmp, 'head'), mp, None, None, None, None, [],
+            ok = run_by_symbol(os.path.join(tmp, 'base'), os.path.join(tmp, 'head'), mp, None, None, None, None,
                                False, lines.append)
         return ok, lines
     finally:
@@ -1354,7 +1901,7 @@ def run_case(mode, base_objs, head_objs, map_lines=(), literal_lines=()):
 
 
 PROOF_FLAGS = ['-O0', '-g0', '-w', '-fno-inline', '-ffunction-sections', '-fdata-sections', '-fmerge-constants',
-               '-fPIC', '-fno-ipa-stack-alignment', '-D__FILE__=""', '-D__LINE__=0']
+               '-fPIC', '-fno-ipa-stack-alignment', '-UNDEBUG', '-D__FILE__=""', '-D__LINE__=0']
 
 COMPILED_A = '''#include <cmath>
 struct B1 { virtual ~B1(); int b1 = 1; };
@@ -1431,7 +1978,438 @@ def compile_variant(cc, variant, tmp):
     return objs
 
 
-def self_test(cc):
+FAKE_CPP = r'''import re
+import sys
+args = sys.argv[1:]
+out = args[args.index('-o') + 1]
+defs = set(a[2:].split('=')[0] for a in args if a.startswith('-D'))
+src = [a for a in args if a.endswith(('.cpp', '.c', '.h', '.S'))][-1]
+res = ['# 1 "%s"' % src]
+stack = []
+for line in open(src).read().split('\n'):
+    s = line.strip()
+    active = all(stack)
+    if s.startswith(('#ifdef', '#ifndef', '#if ')):
+        word = s.split()[1] if len(s.split()) > 1 else ''
+        if s.startswith('#ifdef'):
+            stack.append(word in defs)
+        elif s.startswith('#ifndef'):
+            stack.append(word not in defs)
+        else:
+            stack.append(word != '0')
+        res.append('')
+    elif s.startswith('#else'):
+        stack[-1] = not stack[-1]
+        res.append('')
+    elif s.startswith('#endif'):
+        stack.pop()
+        res.append('')
+    elif not active:
+        res.append('')
+    elif s.startswith('#define'):
+        defs.add(s.split()[1].split('(')[0])
+        res.append(s)
+    else:
+        res.append(re.sub(r'//.*', '', line))
+open(out, 'w').write('\n'.join(res) + '\n')
+'''
+
+
+def write_tree(tree, files):
+    for rel, text in files.items():
+        p = os.path.join(tree, rel)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, 'w', newline='\n') as f:
+            f.write(text)
+
+
+def changed_lines_of(base_files, head_files, out_path):
+    with open(out_path, 'w') as f:
+        for rel in sorted(set(base_files) | set(head_files)):
+            if base_files.get(rel) == head_files.get(rel) or not code_file(rel):
+                continue
+            for side, path, line in code_diff_rows(rel if rel in base_files else None, base_files.get(rel),
+                                                   rel if rel in head_files else None, head_files.get(rel)):
+                f.write('%s\t%s\t%d\n' % (side, path, line))
+
+
+def lines_case(sides, compile_cmd, defines=(), readers=None):
+    """Runs run_lines_compiled on both sides of a small tree and then run_by_symbol on two equal object
+    sets. SIDES is {'base': {path: text}, 'head': {path: text}}; every .cpp is its own TU, and READERS
+    names which TUs read which headers. COMPILE_CMD gives a TU's argument list."""
+    tmp = tempfile.mkdtemp(prefix='objcmp-lines-')
+    try:
+        tree = os.path.join(tmp, 'tree').replace('\\', '/')
+        build = os.path.join(tmp, 'build').replace('\\', '/')
+        os.makedirs(build)
+        changed = os.path.join(tmp, 'changed-lines.txt')
+        changed_lines_of(sides['base'], sides['head'], changed)
+        changes = os.path.join(tmp, 'changes.txt')
+        with open(changes, 'w') as f:
+            for rel in sorted(set(sides['base']) | set(sides['head'])):
+                if sides['base'].get(rel) != sides['head'].get(rel):
+                    st = 'A' if rel not in sides['base'] else 'D' if rel not in sides['head'] else 'M'
+                    f.write('%s\t%s\n' % (st, rel))
+        out = {}
+        for side in ('base', 'head'):
+            if os.path.isdir(tree):
+                shutil.rmtree(tree)
+            write_tree(tree, sides[side])
+            db, deps = [], []
+            for rel in sorted(sides[side]):
+                if not rel.endswith('.cpp'):
+                    continue
+                obj = 'game/CMakeFiles/game.dir/%s.o' % rel
+                src = tree + '/' + rel
+                db.append(dict(directory=build, file=src, output=obj, arguments=compile_cmd(src, obj, defines)))
+                files = [src] + [tree + '/' + h for h in (readers or {}).get(rel, [])]
+                deps.append('%s: #deps %d, deps mtime 1 (VALID)' % (obj, len(files)))
+                deps.extend('    ' + x for x in files)
+            dbp = os.path.join(tmp, side + '.db.json')
+            json.dump(db, open(dbp, 'w'))
+            depp = os.path.join(tmp, side + '.deps')
+            with open(depp, 'w') as f:
+                f.write('\n'.join(deps) + '\n\n')
+            linesp = os.path.join(tmp, side + '.lines')
+            run_lines_compiled(side, changed, depp, dbp, tree, build, linesp, log=lambda s: None)
+            out[side] = (depp, linesp)
+        objs = synth()
+        objdir = os.path.join(tmp, 'objs')
+        for side in ('base', 'head'):
+            for rel, data in objs.items():
+                p = os.path.join(objdir, side, rel)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, 'wb') as f:
+                    f.write(data)
+        lines = []
+        ok = run_by_symbol(os.path.join(objdir, 'base'), os.path.join(objdir, 'head'), None, out['base'][0],
+                           out['head'][0], changes, tree, False, lines.append, out['base'][1], out['head'][1])
+        return ok, lines
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def fake_compile(tmp_script):
+    def cmd(src, obj, defines):
+        return [sys.executable, tmp_script] + ['-D' + d for d in defines] + ['-c', src, '-o', obj]
+    return cmd
+
+
+def changes_case(changes, extra_objs=None):
+    """run_by_symbol on two equal object sets with a change list and no deps or lines."""
+    tmp = tempfile.mkdtemp(prefix='objcmp-changes-')
+    try:
+        objs = synth()
+        for side in ('base', 'head'):
+            for rel, data in objs.items():
+                p = os.path.join(tmp, side, rel)
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, 'wb') as f:
+                    f.write(data)
+        ch = os.path.join(tmp, 'changes.txt')
+        with open(ch, 'w') as f:
+            f.write(''.join('%s\t%s\n' % c for c in changes))
+        empty = os.path.join(tmp, 'empty.lines')
+        open(empty, 'w').close()
+        lines = []
+        ok = run_by_symbol(os.path.join(tmp, 'base'), os.path.join(tmp, 'head'), None, None, None, ch, tmp, False,
+                           lines.append, empty, empty)
+        return ok, lines
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def synth_tls(rename=False, wrapper_only=False):
+    """An object that defines a thread-local variable's initialization (__tls_init, _ZTH) or only
+    a wrapper (_ZTW), at one path or another."""
+    M = b'\xe8\0\0\0\0\xc3'
+    secs = [dict(name='.text.f', data=b'\x31\xc0\xc3')]
+    syms = [dict(name='f', section='.text.f', size=3)]
+    if wrapper_only:
+        secs.append(dict(name='.text._ZTW1x', data=M, relocs=[(1, 4, 'sym:_ZTH1x', -4)], group='_ZTW1x'))
+        syms.append(dict(name='_ZTW1x', bind=STB_WEAK, section='.text._ZTW1x', size=len(M)))
+        syms.append(dict(name='_ZTH1x', bind=STB_WEAK, section=None, type=STT_NOTYPE))
+    else:
+        secs.append(dict(name='.text.__tls_init', data=M, relocs=[(1, 4, 'sym:f', -4)]))
+        syms.append(dict(name='__tls_init', bind=STB_LOCAL, section='.text.__tls_init', size=len(M)))
+        syms.append(dict(name='_ZTH1x', bind=STB_GLOBAL, section='.text.__tls_init', size=len(M)))
+    return {'game/%s.o' % ('moved/t' if rename else 't'): write_elf(secs, syms)}
+
+
+LINE_A = '''#ifndef A_GUARD
+#define A_GUARD
+#define TRACE(x) ((void)0)
+int Pick(int x)
+{
+#ifdef _WIN32
+    return x + 1;   // the Windows path
+#else
+    return x + 2;
+#endif
+}
+#if 0
+int Dead() { return 1; }
+#endif
+#ifdef FEATURE
+int Feature() { return 3; }
+#endif
+int Traced(int a) { TRACE(a + 1); return a; }
+#ifdef _WIN32
+/*
+int windowsThing = 1;
+*/
+#endif
+#endif
+'''
+
+
+def line_variants():
+    a = LINE_A
+    return {
+        'windows': a.replace('return x + 1;', 'return x - 1000;'),
+        'compiled': a.replace('    return x + 2;', '    return x + 3;'),
+        'comment': a.replace('// the Windows path', '// the Windows-only path'),
+        'dead': a.replace('int Dead() { return 1; }', 'int Dead() { return 2; }'),
+        'guard': a.replace('A_GUARD', 'B_GUARD'),
+        'cond-changed': a.replace('#ifdef FEATURE', '#ifdef OTHER_FEATURE'),
+        'cond-moved': a.replace('#ifdef FEATURE\nint Feature() { return 3; }\n#endif\n', '').replace(
+            'int Pick(int x)', '#ifdef FEATURE\nint Feature() { return 3; }\n#endif\nint Pick(int x)'),
+        'dropped': a.replace('TRACE(a + 1)', 'TRACE(a + 2)'),
+        'uncomment': a.replace('/*\nint windowsThing = 1;\n*/\n', 'int windowsThing = 1;\n'),
+    }
+
+
+COMPILED_LINES = '''#include <cassert>
+#include <string>
+#define CHECK(x, y) ((x) + (y))
+int Pick(int x)
+{
+#ifdef _WIN32
+    return x + 1;
+#else
+    return x + 2;
+#endif
+}
+int Tick(int x)
+{
+#ifdef MANGOS_STRICT_TICK
+    return x * 3;
+#endif
+    return x;
+}
+int Checked(int x) { assert(x > 0); return x; }
+int Spread(int a) { return CHECK(a,
+                                 1)
+    ; }
+#define TRACE(x) ((void)0)
+int Traced(int a) { TRACE(a + 1); return a; }
+'''
+
+
+def compiled_line_variants():
+    a = COMPILED_LINES
+    return {
+        'windows': (a.replace('return x + 1;', 'return x - 1000;'), False, 'not compiled by the proof build'),
+        'strict-tick': (a.replace('return x * 3;', 'return x * 4;'), False, 'not compiled by the proof build'),
+        'assert': (a.replace('assert(x > 0)', 'assert(x > 1)'), False, None),
+        'spread': (a.replace('                                 1)\n', '                                 1 )\n'), True,
+                   None),
+        'dropped': (a.replace('TRACE(a + 1)', 'TRACE(a + 2)'), False, 'which the proof build defines without using it'),
+    }
+
+
+def gcc_compile(cc):
+    def cmd(src, obj, defines):
+        return [cc] + PROOF_FLAGS + ['-D' + d for d in defines] + ['-c', src, '-o', obj]
+    return cmd
+
+
+def compile_tree(cc, tree, out_dir, files):
+    """Compiles every .cpp of FILES under TREE into OUT_DIR at game/<path>.o."""
+    for rel in sorted(files):
+        if rel.endswith('.cpp'):
+            obj = os.path.join(out_dir, 'game', rel + '.o')
+            os.makedirs(os.path.dirname(obj), exist_ok=True)
+            subprocess.check_call([cc] + PROOF_FLAGS + ['-c', os.path.join(tree, rel), '-o', obj], cwd=tree)
+
+
+def compiled_lines_case(cc, base_files, head_files):
+    """The compiled shape of lines_case: real objects and real preprocessing with CC."""
+    tmp = tempfile.mkdtemp(prefix='objcmp-cclines-')
+    try:
+        tree = os.path.join(tmp, 'tree').replace('\\', '/')
+        build = os.path.join(tmp, 'build').replace('\\', '/')
+        os.makedirs(build)
+        changed = os.path.join(tmp, 'changed-lines.txt')
+        changed_lines_of(base_files, head_files, changed)
+        changes = os.path.join(tmp, 'changes.txt')
+        with open(changes, 'w') as f:
+            for rel in sorted(set(base_files) | set(head_files)):
+                if base_files.get(rel) != head_files.get(rel):
+                    st = 'A' if rel not in base_files else 'D' if rel not in head_files else 'M'
+                    f.write('%s\t%s\n' % (st, rel))
+        res = {}
+        for side, files in (('base', base_files), ('head', head_files)):
+            if os.path.isdir(tree):
+                shutil.rmtree(tree)
+            write_tree(tree, files)
+            objdir = os.path.join(tmp, side)
+            compile_tree(cc, tree, objdir, files)
+            db, deps = [], []
+            for rel in sorted(files):
+                if rel.endswith('.cpp'):
+                    obj = 'game/%s.o' % rel
+                    src = tree + '/' + rel
+                    db.append(dict(directory=build, file=src, output=obj, arguments=gcc_compile(cc)(src, obj, ())))
+                    deps.append('%s: #deps 1, deps mtime 1 (VALID)' % obj)
+                    deps.append('    ' + src)
+            dbp = os.path.join(tmp, side + '.db.json')
+            json.dump(db, open(dbp, 'w'))
+            depp = os.path.join(tmp, side + '.deps')
+            with open(depp, 'w') as f:
+                f.write('\n'.join(deps) + '\n\n')
+            linesp = os.path.join(tmp, side + '.lines')
+            run_lines_compiled(side, changed, depp, dbp, tree, build, linesp, log=lambda s: None)
+            res[side] = (objdir, depp, linesp)
+        lines = []
+        ok = run_by_symbol(res['base'][0], res['head'][0], None, res['base'][1], res['head'][1], changes, tree,
+                           False, lines.append, res['base'][2], res['head'][2])
+        return ok, lines
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def build_script_case(script, gate, base_files, head_files):
+    """Commits BASE_FILES and HEAD_FILES to a small git tree, builds both with SCRIPT in the proof
+    configuration as the workflow does, and compares them by symbol."""
+    tmp = tempfile.mkdtemp(prefix='objcmp-build-')
+    try:
+        tree = os.path.join(tmp, 'tree')
+        proof = os.path.join(tmp, 'proof')
+        os.makedirs(proof)
+        env = dict(os.environ, CCACHE_DIR=os.path.join(tmp, 'ccache'), GIT_AUTHOR_NAME='objcmp',
+                   GIT_AUTHOR_EMAIL='objcmp@localhost', GIT_COMMITTER_NAME='objcmp',
+                   GIT_COMMITTER_EMAIL='objcmp@localhost')
+        q = dict(cwd=tree, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        os.makedirs(tree)
+        subprocess.check_call(['git', 'init', '-q'], **q)
+        shas = []
+        for files in (base_files, head_files):
+            for rel in os.listdir(tree):
+                if rel != '.git':
+                    p = os.path.join(tree, rel)
+                    shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+            write_tree(tree, files)
+            subprocess.check_call(['git', 'add', '-A'], **q)
+            subprocess.check_call(['git', 'commit', '-q', '--allow-empty', '-m', 'side'], **q)
+            shas.append(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=tree).decode().strip())
+        run_diff_lines(tree, shas[0], shas[1], os.path.join(proof, 'changed-lines.txt'), log=lambda s: None)
+        with open(os.path.join(proof, 'changes.txt'), 'wb') as f:
+            f.write(subprocess.check_output(['git', '-C', tree, 'diff', '--name-status', '-M', shas[0], shas[1]]))
+        build = os.path.join(tmp, 'build')
+        for sha, side in zip(shas, ('base', 'head')):
+            subprocess.check_call(['bash', script, 'proof', sha, side, tree, build, proof, gate], env=env,
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        lines = []
+        ok = run_by_symbol(os.path.join(proof, 'base'), os.path.join(proof, 'head'), None,
+                           os.path.join(proof, 'base.deps'), os.path.join(proof, 'head.deps'),
+                           os.path.join(proof, 'changes.txt'), tree, False, lines.append,
+                           os.path.join(proof, 'base.lines'), os.path.join(proof, 'head.lines'))
+        return ok, lines
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+TOY_CMAKE = '''cmake_minimum_required(VERSION 3.19)
+project(MaNGOS C CXX)
+option(WITH_FEATURE "a feature" %s)
+if(WITH_FEATURE)
+    add_compile_definitions(FEATURE=1)
+endif()
+add_library(game STATIC T.cpp U.cpp)
+target_include_directories(game PRIVATE inc1 inc2)
+'''
+TOY_BASE = {
+    'CMakeLists.txt': TOY_CMAKE % 'OFF',
+    'inc2/Conf.h': '#define LIMIT 10\n',
+    'T.cpp': '#include "Conf.h"\nint Limit() { return LIMIT; }\n',
+    'U.cpp': 'int Feature()\n{\n#ifdef FEATURE\n    return 1;\n#else\n    return 0;\n#endif\n}\n',
+}
+
+
+def lines_self_tests(check, cc, build_script):
+    tmp = tempfile.mkdtemp(prefix='objcmp-fake-')
+    try:
+        fake = os.path.join(tmp, 'fake_cpp.py')
+        with open(fake, 'w') as f:
+            f.write(FAKE_CPP)
+        cmd = fake_compile(fake)
+        v = line_variants()
+        for name, expect, reason, label in (
+                ('windows', False, 'not compiled by the proof build (base): a.cpp:7',
+                 'lines: a change inside #ifdef _WIN32'),
+                ('compiled', True, None, 'lines: a change to a compiled line'),
+                ('comment', True, None, 'lines: a comment changed inside #ifdef _WIN32'),
+                ('dead', True, None, 'lines: a change inside #if 0'),
+                ('guard', True, None, 'lines: the include guard renamed'),
+                ('cond-changed', False, 'a conditional directive that changed, not moved',
+                 'lines: a conditional directive changed'),
+                ('cond-moved', True, None, 'lines: a conditional block moved, its directives unchanged'),
+                ('dropped', False, 'which the proof build defines without using it',
+                 'lines: an argument of a macro the proof build drops'),
+                ('uncomment', False, 'not compiled by the proof build (head)',
+                 'lines: code uncommented inside #ifdef _WIN32')):
+            check(label, expect, lines_case({'base': {'a.cpp': LINE_A}, 'head': {'a.cpp': v[name]}}, cmd,
+                                            defines=('FEATURE', 'OTHER_FEATURE')), reason)
+        check('lines: a changed MASM file (.asm) no build compiles', False,
+              lines_case({'base': {'x.asm': 'mov eax, 1\n', 'a.cpp': LINE_A},
+                          'head': {'x.asm': 'mov eax, 2\n', 'a.cpp': LINE_A}}, cmd), 'x.asm:1')
+        check('lines: a changed test file the build does not compile', False,
+              lines_case({'base': {'src/tests/SpellTest.h': 'int CheckSum(int x) { return x == 3; }\n',
+                                   'a.cpp': LINE_A},
+                          'head': {'src/tests/SpellTest.h': 'int CheckSum(int x) { return 1; }\n', 'a.cpp': LINE_A}},
+                         cmd), 'src/tests/SpellTest.h:1')
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    check('gate: a change to objcmp.py', False, changes_case([('M', 'src/tests/tools/objcmp.py')]),
+          'the change edits the object proof itself')
+    check('gate: a change to the workflow', False, changes_case([('M', '.github/workflows/core_object_proof.yml')]),
+          'the change edits the object proof itself')
+    S = 'by-symbol'
+    check('by-symbol: an object with a thread-local initializer moves to another path', False,
+          run_case(S, synth_tls(), synth_tls(rename=True)), 'DIFF INIT: ')
+    check('by-symbol: an object with a thread-local wrapper moves to another path', False,
+          run_case(S, synth_tls(wrapper_only=True), synth_tls(rename=True, wrapper_only=True)), 'DIFF INIT: ')
+    check('by-symbol: an object with a thread-local initializer, unchanged', True,
+          run_case(S, synth_tls(), synth_tls()))
+    if cc:
+        for name, (text, expect, reason) in sorted(compiled_line_variants().items()):
+            check('compiled lines: %s' % name, expect,
+                  compiled_lines_case(cc, {'a.cpp': COMPILED_LINES}, {'a.cpp': text}), reason)
+        tls = ('#include <string>\nstatic std::string Make() { return std::string("a") + "b"; }\n'
+               'thread_local std::string tls_name = Make();\nstd::string const& Name() { return tls_name; }\n')
+        check('compiled lines: a file with a thread_local std::string moves', False,
+              compiled_lines_case(cc, {'Old/Tls.cpp': tls}, {'New/Tls.cpp': tls}), 'DIFF INIT: ')
+    if build_script:
+        gate = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(build_script)))))
+        if not os.path.exists(os.path.join(gate, 'cmake', 'MangosProof.cmake')):
+            gate = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        tools = all(shutil.which(x) for x in ('cmake', 'ninja', 'git'))
+        if not tools:
+            print('self-test: build script cases skipped: cmake, ninja and git are needed')
+            return
+        shadow = dict(TOY_BASE)
+        shadow['inc1/Conf.h'] = '#define LIMIT 20\n'
+        check('build: the head adds a header that shadows one on the include path', False,
+              build_script_case(build_script, gate, TOY_BASE, shadow), '_Z5Limitv')
+        option = dict(TOY_BASE)
+        option['CMakeLists.txt'] = TOY_CMAKE % 'ON'
+        check('build: the head changes an option default', False,
+              build_script_case(build_script, gate, TOY_BASE, option), '_Z7Featurev')
+        check('build: the same tree twice', True, build_script_case(build_script, gate, TOY_BASE, TOY_BASE))
+
+
+def self_test(cc, build_script=None):
     rows = []
 
     def check(label, expect, case, reason=None):
@@ -1526,6 +2504,7 @@ def self_test(cc):
                   run_case(P, cbase, compile_variant(cc, 'move', tmp)))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+    lines_self_tests(check, cc, build_script)
     failures = rows.count(False)
     print('self-test: %s (%d cases, %d failure(s))' % ('PASS' if not failures else 'FAIL', len(rows), failures))
     return not failures
@@ -1555,22 +2534,42 @@ def main():
     g.add_argument('--by-symbol', nargs=2, metavar=('BASE', 'HEAD'))
     g.add_argument('--self-test', action='store_true')
     g.add_argument('--initializers', metavar='DIR')
+    g.add_argument('--diff-lines', nargs=4, metavar=('TREE', 'BASE', 'HEAD', 'OUT'))
+    g.add_argument('--lines-compiled', metavar='SIDE', choices=('base', 'head'))
+    ap.add_argument('--changed-lines')
+    ap.add_argument('--deps')
+    ap.add_argument('--compile-db')
+    ap.add_argument('--build')
+    ap.add_argument('--out')
+    ap.add_argument('--base-lines')
+    ap.add_argument('--head-lines')
+    ap.add_argument('--build-script')
     ap.add_argument('--map')
     ap.add_argument('--literals')
     ap.add_argument('--base-deps')
     ap.add_argument('--head-deps')
     ap.add_argument('--changes')
     ap.add_argument('--root')
-    ap.add_argument('--outside', action='append', default=[])
     ap.add_argument('--list-init', action='store_true')
     ap.add_argument('--cc')
     ap.add_argument('--report')
     a = ap.parse_args()
-    if a.self_test:
-        return 0 if self_test(a.cc) else 1
-    if a.initializers:
-        run_initializers(a.initializers, print)
-        return 0
+    try:
+        if a.self_test:
+            return 0 if self_test(a.cc, a.build_script) else 1
+        if a.initializers:
+            run_initializers(a.initializers, print)
+            return 0
+        if a.diff_lines:
+            run_diff_lines(*a.diff_lines)
+            return 0
+        if a.lines_compiled:
+            run_lines_compiled(a.lines_compiled, a.changed_lines, a.deps, a.compile_db, a.root, a.build, a.out)
+            return 0
+    except Exception:
+        traceback.print_exc()
+        print('objcmp: error: the run did not finish')
+        return 2
     lines = []
 
     def out(line):
@@ -1581,9 +2580,10 @@ def main():
             ok = run_per_object(a.per_object[0], a.per_object[1], a.map, a.literals, out)
         else:
             ok = run_by_symbol(a.by_symbol[0], a.by_symbol[1], a.map, a.base_deps, a.head_deps, a.changes, a.root,
-                               a.outside, a.list_init, out)
-    except (ValueError, OSError, struct.error) as ex:
-        print('objcmp: error: %s' % ex)
+                               a.list_init, out, a.base_lines, a.head_lines)
+    except Exception:
+        traceback.print_exc()
+        print('objcmp: error: the run did not finish')
         return 2
     verdict = 'objcmp: %s' % ('IDENTICAL' if ok else 'DIFFERENT')
     out(verdict)
