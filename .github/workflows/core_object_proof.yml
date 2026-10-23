@@ -101,13 +101,40 @@ jobs:
             git show "$head:$map" > "$PROOF/map.txt"
           fi
           git diff --name-status -M "$base" "$head" > "$PROOF/changes.txt"
+          gate="$GITHUB_WORKSPACE/gatefiles"
+          files="src/tests/tools/objcmp.py src/tests/tools/objcmp_build.sh cmake/MangosProof.cmake"
+          found=0
+          for f in $files; do
+            if git cat-file -e "$base:$f" 2> /dev/null; then
+              found=$((found + 1))
+            fi
+          done
+          if [ "$found" -eq 3 ]; then
+            source="the merge base"
+            for f in $files; do
+              mkdir -p "$gate/$(dirname "$f")"
+              git show "$base:$f" > "$gate/$f"
+            done
+          elif [ "$found" -eq 0 ]; then
+            source="the workflow's own commit, as the merge base has no object proof"
+            for f in $files; do
+              mkdir -p "$gate/$(dirname "$f")"
+              cp "$GITHUB_WORKSPACE/gate/$f" "$gate/$f"
+            done
+          else
+            echo "::error::the merge base holds only part of the object proof"
+            exit 1
+          fi
+          python3 "$gate/src/tests/tools/objcmp.py" --diff-lines . "$base" "$head" "$PROOF/changed-lines.txt"
           {
             echo "BASE=$base"
             echo "HEAD=$head"
             echo "MECHANICAL=$mechanical"
             echo "MAP=$map"
+            echo "GATE=$gate"
+            echo "GATE_SOURCE=$source"
           } >> "$GITHUB_ENV"
-          echo "base $base, head $head, marked mechanical: $mechanical, map: ${map:-none}"
+          echo "base $base, head $head, marked mechanical: $mechanical, map: ${map:-none}, gate files from $source"
 
       - name: Install build dependencies
         run: |
@@ -115,7 +142,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libbz2-dev default-libmysqlclient-dev g++
 
       - name: Self-test
-        run: python3 gate/src/tests/tools/objcmp.py --self-test --cc g++
+        run: python3 "$GATE/src/tests/tools/objcmp.py" --self-test --cc g++ --build-script "$GATE/src/tests/tools/objcmp_build.sh"
 
       - name: Compiler cache
         uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d
@@ -123,21 +150,16 @@ jobs:
           key: objcmp-${{ env.CONFIG }}
           max-size: 2G
 
-      - name: Configure the compiler cache
-        run: |
-          ccache --set-config=sloppiness=pch_defines,time_macros,include_file_mtime,include_file_ctime
-          ccache --set-config=depend_mode=true
-
       - name: Build the base
         run: |
           ccache -z > /dev/null
-          bash gate/src/tests/tools/objcmp_build.sh "$CONFIG" "$BASE" base "$GITHUB_WORKSPACE/tree" "$GITHUB_WORKSPACE/build" "$PROOF" "$GITHUB_WORKSPACE/gate"
+          bash "$GATE/src/tests/tools/objcmp_build.sh" "$CONFIG" "$BASE" base "$GITHUB_WORKSPACE/tree" "$GITHUB_WORKSPACE/build" "$PROOF" "$GATE"
           ccache -s > "$PROOF/base.ccache"
 
       - name: Build the head
         run: |
           ccache -z > /dev/null
-          bash gate/src/tests/tools/objcmp_build.sh "$CONFIG" "$HEAD" head "$GITHUB_WORKSPACE/tree" "$GITHUB_WORKSPACE/build" "$PROOF" "$GITHUB_WORKSPACE/gate"
+          bash "$GATE/src/tests/tools/objcmp_build.sh" "$CONFIG" "$HEAD" head "$GITHUB_WORKSPACE/tree" "$GITHUB_WORKSPACE/build" "$PROOF" "$GATE"
           ccache -s > "$PROOF/head.ccache"
 
       - name: Compare the objects
@@ -145,17 +167,17 @@ jobs:
           start=$SECONDS
           set +e
           if [ "$CONFIG" = proof ]; then
-            python3 gate/src/tests/tools/objcmp.py --by-symbol "$PROOF/base" "$PROOF/head" \
+            python3 "$GATE/src/tests/tools/objcmp.py" --by-symbol "$PROOF/base" "$PROOF/head" \
               --base-deps "$PROOF/base.deps" --head-deps "$PROOF/head.deps" --changes "$PROOF/changes.txt" \
-              --root "$GITHUB_WORKSPACE/tree" --outside src/tests/ --outside src/tools/ --outside src/realmd/Tests/ \
+              --base-lines "$PROOF/base.lines" --head-lines "$PROOF/head.lines" --root "$GITHUB_WORKSPACE/tree" \
               --list-init ${MAP:+--map "$PROOF/map.txt"} --report "$PROOF/report.txt" > /dev/null
           else
-            python3 gate/src/tests/tools/objcmp.py --per-object "$PROOF/base" "$PROOF/head" \
+            python3 "$GATE/src/tests/tools/objcmp.py" --per-object "$PROOF/base" "$PROOF/head" \
               --report "$PROOF/report.txt" > /dev/null
           fi
           rc=$?
           set -e
-          python3 gate/src/tests/tools/objcmp.py --initializers "$PROOF/head" > "$PROOF/head.initializers"
+          python3 "$GATE/src/tests/tools/objcmp.py" --initializers "$PROOF/head" > "$PROOF/head.initializers"
           echo "RC=$rc" >> "$GITHUB_ENV"
           echo $((SECONDS - start)) > "$PROOF/compare.seconds"
           tail -n 3 "$PROOF/report.txt"
@@ -166,7 +188,7 @@ jobs:
           {
             echo "### Object proof ($CONFIG)"
             echo
-            echo "Base \`${BASE:-?}\`, head \`${HEAD:-?}\`; marked mechanical: ${MECHANICAL:-?}; symbol map: ${MAP:-none}."
+            echo "Base \`${BASE:-?}\`, head \`${HEAD:-?}\`; marked mechanical: ${MECHANICAL:-?}; symbol map: ${MAP:-none}; the gate's files from ${GATE_SOURCE:-?}."
             echo
             for side in base head; do
               if [ -f "$PROOF/$side.seconds" ]; then
@@ -195,6 +217,8 @@ jobs:
           path: |
             ${{ github.workspace }}/proof/report.txt
             ${{ github.workspace }}/proof/changes.txt
+            ${{ github.workspace }}/proof/changed-lines.txt
+            ${{ github.workspace }}/proof/*.lines
             ${{ github.workspace }}/proof/*.objects
             ${{ github.workspace }}/proof/*.ccache
             ${{ github.workspace }}/proof/*.seconds
