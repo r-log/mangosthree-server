@@ -64,6 +64,7 @@ set(SRC_GRP_TESTS
     TeamBuffQueueTest.cpp
     CapturePointSliderStoreTest.cpp
     AfterMapPhaseQueueTest.cpp
+    MapPhaseTest.cpp
     TestSeamTest.cpp
     PetitionAsyncTest.cpp
     CharacterCacheTest.cpp

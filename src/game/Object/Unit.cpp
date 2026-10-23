@@ -352,9 +352,22 @@ bool Unit::IsClientMover() const
     return GetTypeId() == TYPEID_PLAYER || m_moverSession != NULL;
 }
 
+bool Unit::IsOwnedByThisThread() const
+{
+    Map const* map = GetMap();
+    if (MapPhase::Owns(map))
+    {
+        return true;
+    }
+
+    // The vessel is looked up only when the unit's own map is not owned.
+    Transport const* vessel = Transport::VesselOf(*this);
+    return MapPhase::OwnsUnitOn(map, vessel ? vessel->FindMap() : NULL);
+}
+
 void Unit::AssertMotionOwner() const
 {
-    if (!IsInWorld() || MapPhase::Owns(GetMap()))
+    if (!IsInWorld() || IsOwnedByThisThread())
     {
         return;
     }
