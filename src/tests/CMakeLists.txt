@@ -473,6 +473,9 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME player_sinks
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/player_sinks.py
             --root ${CMAKE_SOURCE_DIR} --check)
+
+    add_test(NAME objcmp_selftest
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/objcmp.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
