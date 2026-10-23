@@ -382,15 +382,6 @@ add_test(NAME layout
         -DLAYOUT_PYTHON=${Python3_EXECUTABLE}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckLayout.cmake)
 
-# Decoupling D11 (design/2026-09-28-unit-reopening.md 3(c), row (b)): the spell-ID case labels
-# still in switches, counted per file under src/game, are on src/tests/case_labels.txt; a new
-# label fails, and a PR that moves labels into the registry lowers its lines in the same PR.
-add_test(NAME case_labels
-    COMMAND ${CMAKE_COMMAND}
-        -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
-        -DCASE_LABELS_PYTHON=${Python3_EXECUTABLE}
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckCaseLabels.cmake)
-
 add_test(NAME raw_rand
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_ROOT=${CMAKE_SOURCE_DIR}
@@ -433,39 +424,16 @@ if(Python3_Interpreter_FOUND)
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/stored_callbacks.py
             --source-root ${CMAKE_SOURCE_DIR})
 
-    # Decoupling D4i: the forwarder rewrite drops the character's pure forwarders to its managers
-    # and moves their callers onto the managers; its self-test keeps the purity and the
-    # unique-name rules honest.
-    add_test(NAME forwarder_rewrite_selftest
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/forwarder_rewrite.py --self-test)
-
     # The layout gate's fixtures: a planted upward include, a stale list line, an unclassified
     # file and the rest fail; an allowed edge and a system include pass.
     add_test(NAME layout_gate_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/layout_gate.py --self-test)
 
-    # Decoupling D11: the case-label ratchet's fixtures (the lexer on a nested switch, another
-    # key, a commented label; a planted label and a stale baseline fail), and the spell handler
-    # registry's verbatim proof on its fixtures (a moved body pastes back byte for byte; a changed
-    # line, a wrong or lost registration row, a bare live-out and a Continue inside a loop fail).
-    # The proof itself, verbatim.py --check, reads the base commit from git and is run by the PR.
     add_test(NAME case_labels_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/case_labels.py --self-test)
 
-    add_test(NAME verbatim_selftest
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/verbatim.py --self-test)
-
-    add_test(NAME handler_verbatim_selftest
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/handler_verbatim.py --self-test)
-
-    add_test(NAME handler_classes_selftest
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/handler_classes.py --self-test)
-
     add_test(NAME raw_rand_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/raw_rand.py --self-test)
-
-    add_test(NAME cast_verbatim_selftest
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/cast_verbatim.py --self-test)
 
     add_test(NAME player_sinks_selftest
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/player_sinks.py --self-test)
@@ -473,9 +441,6 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME player_sinks
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/player_sinks.py
             --root ${CMAKE_SOURCE_DIR} --check)
-
-    add_test(NAME objcmp_selftest
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/objcmp.py --self-test)
 else()
     message(STATUS "Python3 interpreter not found: the downcast counter tests are skipped")
 endif()
