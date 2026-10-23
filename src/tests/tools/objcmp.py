@@ -77,8 +77,10 @@ little-endian, or *.obj, MSVC COFF). The verdict is IDENTICAL or DIFFERENT, with
   sits in (the include guard left out), must be the same multiset in the base and the head. A line
   in one side only is `changed`, or `exempt: <why>` when it is an #include, a namespace's opening
   line (`namespace N {`, or `namespace N` and its `{`) or closing `}`, or the include guard or
-  #pragma once of a file added, deleted, renamed or copied. --by-symbol --text-check TEXT_OUT fails
-  each changed line as "code text changed" and lists every exempt line it used.
+  #pragma once of a file added, deleted, renamed or copied. The include guard is the file's first
+  two code lines, `#ifndef G` and `#define G`, with the `#endif` that closes them as its last code
+  line; a #pragma once counts only outside every conditional group. --by-symbol --text-check
+  TEXT_OUT fails each changed line as "code text changed" and lists every exempt line it used.
 
 --initializers DIR
   Lists the objects under DIR that carry a dynamic initializer, thread-local ones included.
@@ -1186,11 +1188,11 @@ def code_keys(src):
 
 def exempt_reason(src, k, status):
     """Why a line may differ in the text check: an #include, a namespace's opening or closing line,
-    or the include guard or #pragma once of a file added, deleted, renamed or copied."""
+    or the include guard or file-level #pragma once of a file added, deleted, renamed or copied."""
     d = src.directive.get(k)
     if d and d[0] in ('include', 'include_next', 'import'):
         return 'include'
-    if status in ('A', 'D', 'R', 'C') and (k in src.guard or (d and d[1] == '#pragma once')):
+    if status in ('A', 'D', 'R', 'C') and (k in src.guard or (d and d[1] == '#pragma once' and not src.context[k])):
         return 'include guard' if k in src.guard else 'pragma once'
     return src.namespace.get(k)
 
@@ -1303,6 +1305,8 @@ class SourceLines(object):
     holds, the include guard, and the lines each function-like macro call spans."""
 
     def __init__(self, text):
+        if text.startswith('﻿'):
+            text = text[1:]
         phys = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
         n = len(phys)
         self.n = n
@@ -1391,17 +1395,27 @@ class SourceLines(object):
                     self.directive[k] = (name, text_norm, start)
         self.guard = set()
         guard_open = None
-        order = [(k, self.directive[k]) for k in sorted(logical) if k in self.directive]
-        order = [(k, d) for k, d in order if d[1] != '#pragma once']
-        if len(order) >= 3:
-            (l1, d1), (l2, d2), (l3, d3) = order[0], order[1], order[-1]
+        heads = [k for k in sorted(logical) if any(self.has_code[m] for m in logical[k])]
+        closes, branched, opened = {}, set(), []
+        for k in sorted(logical):
+            d = self.directive.get(k)
+            if d and d[0] in ('if', 'ifdef', 'ifndef'):
+                opened.append(k)
+            elif d and d[0] in ('elif', 'elifdef', 'elifndef', 'else') and opened:
+                branched.add(opened[-1])
+            elif d and d[0] == 'endif' and opened:
+                closes[opened.pop()] = k
+        if len(heads) >= 3:
+            l1, l2, l3 = heads[0], heads[1], heads[-1]
+            d1, d2 = self.directive.get(l1), self.directive.get(l2)
             g = None
-            if d1[0] == 'ifndef':
+            if d1 and d1[0] == 'ifndef':
                 g = d1[1].split(' ', 1)[1].strip() if ' ' in d1[1] else None
-            elif d1[0] == 'if':
+            elif d1 and d1[0] == 'if':
                 m = re.match(r'#if !\s*defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?$', d1[1])
                 g = m.group(1) if m else None
-            if g and d2[0] == 'define' and d2[1] == '#define ' + g and d3[0] == 'endif':
+            if (g and d2 and d2[0] == 'define' and d2[1] == '#define ' + g and closes.get(l1) == l3
+                    and l1 not in branched):
                 self.guard = set(logical[l1]) | set(logical[l2]) | set(logical[l3])
                 guard_open = l1
         self.dead = [False] * (n + 2)
@@ -1621,7 +1635,7 @@ def run_lines_compiled(side, changed_path, deps_path, db_path, root, build, out_
                 verdicts[(p, n)] = ('skip', '')
                 continue
             d = src.directive.get(n)
-            if d and (n in src.guard or d[1] == '#pragma once'):
+            if d and (n in src.guard or (d[1] == '#pragma once' and not src.context[n])):
                 verdicts[(p, n)] = ('ok', '') if readers.get(t) else ('notc', 'no object reads the file')
             elif d and d[0] in CONDITIONALS:
                 verdicts[(p, n)] = ('cond', d[1])
@@ -2745,6 +2759,25 @@ def text_self_tests(check):
               'namespace close (head): Moved.cpp:')
     check('text: an #ifdef block moves into a new guarded header', True,
           text_case({'Big.h': BLOCK_H}, {'Big.h': BLOCK_H_AFTER, 'X.h': BLOCK_X_H}), 'include guard (head): X.h:6')
+    clamp = 'inline int Clamp(int v) { return v < 0 ? 0 : v; }\n'
+    split_base = {'Big.h': '#ifndef BIG_H\n#define BIG_H\nint Keep();\n' + clamp + '#endif\n'}
+    split_big = '#ifndef BIG_H\n#define BIG_H\n#include "Clamp.h"\nint Keep();\n#endif\n'
+    check('text: a header split into a file with a real guard', True,
+          text_case(split_base, {'Big.h': split_big, 'Clamp.h': '#ifndef CLAMP_H\n#define CLAMP_H\n' + clamp + '#endif\n'}),
+          'include guard (head): Clamp.h:1')
+    check('text: NOMINMAX #ifndef/#define/#endif opens an added file, code after it', False,
+          text_case(split_base, {'Big.h': split_big, 'Clamp.h': '#ifndef NOMINMAX\n#define NOMINMAX\n#endif\n' + clamp}),
+          'code text changed (head): Clamp.h:1: #ifndef NOMINMAX')
+    check('text: an added file whose guard pair is not its first code', False,
+          text_case({'Big.h': split_base['Big.h'].replace('int Keep();\n', 'int Keep();\nint Early();\n')},
+                    {'Big.h': split_big, 'Clamp.h': 'int Early();\n#ifndef CLAMP_H\n#define CLAMP_H\n' + clamp + '#endif\n'}),
+          'code text changed (head): Clamp.h:2: #ifndef CLAMP_H')
+    pragma = SourceLines('#ifdef _WIN32\n#pragma once\n#endif\nint A();\n')
+    check('text: #pragma once inside #ifdef _WIN32 is not exempt', True, (exempt_reason(pragma, 2, 'A') is None, []))
+    check('text: a file-level #pragma once is exempt', True,
+          (exempt_reason(SourceLines('#pragma once\nint A();\n'), 1, 'A') == 'pragma once', []))
+    bom = SourceLines('﻿/* licence */\n#ifndef BOM_H\n#define BOM_H\nint A();\n#endif\n')
+    check('text: the guard of a file that starts with a byte order mark', True, (bool(bom.guard), []))
     check('text: a header split whose moved code changed', False,
           text_case({'Big.h': BIG_H}, {'Big.h': BIG_H_SPLIT, 'Small.h': SMALL_H.replace('int b;', 'long b;')}),
           'code text changed (head): Small.h:7: long b;')
