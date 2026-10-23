@@ -1,0 +1,221 @@
+name: Object Proof
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master, united, devel ]
+    types: [ opened, synchronize, reopened, labeled, unlabeled ]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Base commit
+        required: true
+      head:
+        description: Head commit
+        required: true
+      mechanical:
+        description: Fail when the objects differ
+        type: boolean
+        default: false
+      config:
+        description: proof (by symbol) or normal (per object, the GCC job's build)
+        type: choice
+        options: [ proof, normal ]
+        default: proof
+      map:
+        description: Symbol map, a path in the head commit
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  objcmp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: objcmp-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: true
+    name: Object proof (GCC)
+
+    env:
+      CONFIG: ${{ inputs.config || 'proof' }}
+      PROOF: ${{ github.workspace }}/proof
+
+    steps:
+      - name: Check out the gate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: gate
+          fetch-depth: 1
+
+      - name: Check out the history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: tree
+          fetch-depth: 0
+
+      - name: Resolve the commits
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_MECHANICAL: ${{ contains(github.event.pull_request.labels.*.name, 'mechanical') }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PUSH_SHA: ${{ github.sha }}
+          IN_BASE: ${{ inputs.base }}
+          IN_HEAD: ${{ inputs.head }}
+          IN_MECHANICAL: ${{ inputs.mechanical }}
+          IN_MAP: ${{ inputs.map }}
+        run: |
+          set -euo pipefail
+          cd tree
+          case "$EVENT" in
+            pull_request)
+              head=$(git rev-parse --verify "$PR_HEAD^{commit}")
+              base=$(git merge-base "$PR_BASE" "$head")
+              mechanical=$PR_MECHANICAL
+              map=$(printf '%s\n' "$PR_BODY" | tr -d '\r' | sed -n 's/^Symbol map: *//p' | head -n 1)
+              ;;
+            push)
+              head=$(git rev-parse --verify "$PUSH_SHA^{commit}")
+              base=$(git rev-parse --verify "$head^1")
+              mechanical=false
+              map=
+              ;;
+            *)
+              head=$(git rev-parse --verify "$IN_HEAD^{commit}")
+              base=$(git rev-parse --verify "$IN_BASE^{commit}")
+              mechanical=$IN_MECHANICAL
+              map=$IN_MAP
+              ;;
+          esac
+          mkdir -p "$PROOF"
+          if [ -n "$map" ]; then
+            if ! printf '%s' "$map" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_./-]*$' || printf '%s' "$map" | grep -q '\.\.'; then
+              echo "::error::symbol map path not allowed: $map"
+              exit 1
+            fi
+            git show "$head:$map" > "$PROOF/map.txt"
+          fi
+          git diff --name-status -M "$base" "$head" > "$PROOF/changes.txt"
+          {
+            echo "BASE=$base"
+            echo "HEAD=$head"
+            echo "MECHANICAL=$mechanical"
+            echo "MAP=$map"
+          } >> "$GITHUB_ENV"
+          echo "base $base, head $head, marked mechanical: $mechanical, map: ${map:-none}"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq             cmake ninja-build ccache             libbz2-dev default-libmysqlclient-dev g++
+
+      - name: Self-test
+        run: python3 gate/src/tests/tools/objcmp.py --self-test --cc g++
+
+      - name: Compiler cache
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d
+        with:
+          key: objcmp-${{ env.CONFIG }}
+          max-size: 2G
+
+      - name: Configure the compiler cache
+        run: |
+          ccache --set-config=sloppiness=pch_defines,time_macros,include_file_mtime,include_file_ctime
+          ccache --set-config=depend_mode=true
+
+      - name: Build the base
+        run: |
+          ccache -z > /dev/null
+          bash gate/src/tests/tools/objcmp_build.sh "$CONFIG" "$BASE" base "$GITHUB_WORKSPACE/tree" "$GITHUB_WORKSPACE/build" "$PROOF" "$GITHUB_WORKSPACE/gate"
+          ccache -s > "$PROOF/base.ccache"
+
+      - name: Build the head
+        run: |
+          ccache -z > /dev/null
+          bash gate/src/tests/tools/objcmp_build.sh "$CONFIG" "$HEAD" head "$GITHUB_WORKSPACE/tree" "$GITHUB_WORKSPACE/build" "$PROOF" "$GITHUB_WORKSPACE/gate"
+          ccache -s > "$PROOF/head.ccache"
+
+      - name: Compare the objects
+        run: |
+          start=$SECONDS
+          set +e
+          if [ "$CONFIG" = proof ]; then
+            python3 gate/src/tests/tools/objcmp.py --by-symbol "$PROOF/base" "$PROOF/head" \
+              --base-deps "$PROOF/base.deps" --head-deps "$PROOF/head.deps" --changes "$PROOF/changes.txt" \
+              --root "$GITHUB_WORKSPACE/tree" --outside src/tests/ --outside src/tools/ --outside src/realmd/Tests/ \
+              --list-init ${MAP:+--map "$PROOF/map.txt"} --report "$PROOF/report.txt" > /dev/null
+          else
+            python3 gate/src/tests/tools/objcmp.py --per-object "$PROOF/base" "$PROOF/head" \
+              --report "$PROOF/report.txt" > /dev/null
+          fi
+          rc=$?
+          set -e
+          python3 gate/src/tests/tools/objcmp.py --initializers "$PROOF/head" > "$PROOF/head.initializers"
+          echo "RC=$rc" >> "$GITHUB_ENV"
+          echo $((SECONDS - start)) > "$PROOF/compare.seconds"
+          tail -n 3 "$PROOF/report.txt"
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "### Object proof ($CONFIG)"
+            echo
+            echo "Base \`${BASE:-?}\`, head \`${HEAD:-?}\`; marked mechanical: ${MECHANICAL:-?}; symbol map: ${MAP:-none}."
+            echo
+            for side in base head; do
+              if [ -f "$PROOF/$side.seconds" ]; then
+                hits=$(grep -iE '^ *(hits|misses):' "$PROOF/$side.ccache" | tr -s ' ' | tr '\n' ' ')
+                echo "- $side: $(wc -l < "$PROOF/$side.objects") objects, built in $(cat "$PROOF/$side.seconds") s; ccache $hits"
+              fi
+            done
+            if [ -f "$PROOF/compare.seconds" ]; then
+              echo "- compare: $(cat "$PROOF/compare.seconds") s; $(tail -n 1 "$PROOF/head.initializers")"
+            fi
+            echo
+            if [ -f "$PROOF/report.txt" ]; then
+              echo '```'
+              head -n 500 "$PROOF/report.txt"
+              echo '```'
+            else
+              echo "No report: the run stopped before the compare."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: object-proof-${{ env.CONFIG }}
+          path: |
+            ${{ github.workspace }}/proof/report.txt
+            ${{ github.workspace }}/proof/changes.txt
+            ${{ github.workspace }}/proof/*.objects
+            ${{ github.workspace }}/proof/*.ccache
+            ${{ github.workspace }}/proof/*.seconds
+            ${{ github.workspace }}/proof/head.initializers
+          if-no-files-found: ignore
+
+      - name: Verdict
+        run: |
+          case "${RC:-}" in
+            0)
+              echo "objcmp: IDENTICAL"
+              ;;
+            1)
+              if [ "$MECHANICAL" = true ]; then
+                echo "::error::marked mechanical, and the objects differ (see the report)"
+                exit 1
+              fi
+              echo "::notice::the objects differ; the change is not marked mechanical"
+              ;;
+            *)
+              echo "::error::objcmp did not finish (exit ${RC:-none})"
+              exit 1
+              ;;
+          esac
