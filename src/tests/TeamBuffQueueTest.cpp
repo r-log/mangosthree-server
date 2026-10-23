@@ -232,6 +232,21 @@ TEST(TeamBuffQueue_PostQueuesOnlyWhenTheCallingThreadDoesNotOwnTheMap)
     }
 }
 
+/// A deck's update runs nested inside the update of the map its vessel sails, on that map's thread: a buff for a
+/// player on that map answers false there, and the caller applies it itself.
+TEST(TeamBuffQueue_PostAnswersFalseFromADeckWhoseUpdateInterruptedTheOwnersUpdate)
+{
+    OpenMapPhase phase;
+    TeamBuffQueue queue(OwnerMap());
+
+    MapPhase::Scope owner(OwnerMap());
+    {
+        MapPhase::Scope deck(OtherMap());
+        CHECK(!queue.Post(Buff(1, ALLIANCE, 11413, false)));
+    }
+    CHECK_EQ(queue.Take().size(), size_t(0));
+}
+
 TEST(TeamBuffQueue_EachOperationWaitsWhileTheLockIsHeld)
 {
     OpenMapPhase phase;

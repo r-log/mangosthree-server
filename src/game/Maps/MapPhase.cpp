@@ -32,7 +32,7 @@ namespace
 {
     std::atomic<bool>   s_active(false);
     std::atomic<uint32> s_violations(0);
-    thread_local Map const* t_current = NULL;
+    thread_local MapPhase::Scope const* t_innermost = NULL;
 }
 
 namespace MapPhase
@@ -40,17 +40,37 @@ namespace MapPhase
     void Begin() { s_active.store(true); }
     void End() { s_active.store(false); }
     bool Active() { return s_active.load(); }
-    bool Owns(Map const* map) { return !s_active.load() || t_current == map; }
     uint32 Violations() { return s_violations.load(); }
 
-    Scope::Scope(Map const* map) : m_previous(t_current)
+    bool Owns(Map const* map)
     {
-        t_current = map;
+        if (!s_active.load())
+        {
+            return true;
+        }
+        for (Scope const* scope = t_innermost; scope != NULL; scope = scope->m_outer)
+        {
+            if (scope->m_map == map)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool OwnsUnitOn(Map const* map, Map const* sailed)
+    {
+        return Owns(map) || (sailed != NULL && Owns(sailed));
+    }
+
+    Scope::Scope(Map const* map) : m_map(map), m_outer(t_innermost)
+    {
+        t_innermost = this;
     }
 
     Scope::~Scope()
     {
-        t_current = m_previous;
+        t_innermost = m_outer;
     }
 
     void Violation(char const* unit)

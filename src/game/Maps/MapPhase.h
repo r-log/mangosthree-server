@@ -33,11 +33,14 @@ class Map;
 /**
  * Who may touch a unit's movement kernel right now (design v2 §10.4, F21): the
  * map phase flag is the world's (Begin/End around sMapMgr.Update), but which
- * map currently owns the kernel is set by Map::Update itself, through Scope --
- * so a vessel's deck, whose TransportMap::Update runs Map::Update nested
- * inside the world map's own tick on that same thread, is right by
- * construction: the nested Scope hands the deck the ownership and, on return,
- * hands the world map back. Outside any map's Update (the session phase, the
+ * maps a thread owns is set by the map updates themselves, through Scope: a
+ * thread owns the map of every Scope open on it. A vessel's deck is updated by
+ * TransportMap::Update, nested inside the world map's own tick on that same
+ * thread, so the deck's update owns the deck and the world map it interrupted,
+ * and on return the world map's own Scope is the innermost again. A unit on a
+ * deck is also owned by the thread updating the map its vessel sails
+ * (OwnsUnitOn): a world map and the decks of the vessels sailing it are
+ * updated on one thread. Outside any map's Update (the session phase, the
  * console) the world thread owns everything, because the phases never
  * overlap. The guard witnesses that barrier: a violation is counted
  * process-wide (and asserted under MANGOS_DEBUG), never silently allowed.
@@ -47,11 +50,13 @@ namespace MapPhase
     void Begin();                  ///< World::Update: the maps are about to run
     void End();                    ///< every map is done (after MapUpdater::wait)
 
-    /// RAII: `map` owns the kernel for the scope's lifetime on this thread. The
-    /// constructor saves whatever map (if any) the thread already owned and
-    /// installs `map`; the destructor restores what it saved -- so a transport
-    /// deck's nested Map::Update sets itself as owner and hands the thread back
-    /// to the world map it interrupted when its own Update returns.
+    /// RAII: the thread owns `map` for the scope's lifetime, together with the
+    /// maps of the scopes already open on it. The constructor links the scope to
+    /// the thread's innermost open scope and makes it the innermost; the
+    /// destructor makes the linked scope the innermost again -- so a transport
+    /// deck's nested Map::Update owns the deck and the world map it interrupted,
+    /// and hands the thread back to the world map alone when its own Update
+    /// returns.
     class Scope
     {
     public:
@@ -59,14 +64,20 @@ namespace MapPhase
         ~Scope();
 
     private:
-        Map const* m_previous;
+        friend bool Owns(Map const* map);
+
+        Map const* m_map;
+        Scope const* m_outer;
 
         Scope(Scope const&) = delete;
         Scope& operator=(Scope const&) = delete;
     };
 
     bool Active();
-    bool Owns(Map const* map);     ///< !Active(), or this thread is updating `map`
+    bool Owns(Map const* map);     ///< !Active(), or `map` is the map of a Scope open on this thread
+    /// Whether this thread owns a unit on `map`: Owns(map), or `sailed` is not NULL and Owns(sailed).
+    /// `sailed` is the map the vessel of `map` sails when `map` is a deck, and NULL otherwise.
+    bool OwnsUnitOn(Map const* map, Map const* sailed);
     uint32 Violations();           ///< process-wide, since start
     void Violation(char const* unit);   ///< counts; the first ten are logged
 }
