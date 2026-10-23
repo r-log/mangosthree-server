@@ -176,8 +176,8 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
     m_broadcastList.clear();
     m_broadcastWeight = 0;
 
-    m_defaultDbcLocale = LOCALE_enUS;
-    m_availableDbcLocaleMask = 0;
+    sGameConfig.SetDefaultDbcLocale(LOCALE_enUS);
+    sGameConfig.SetAvailableDbcLocaleMask(0);
 
     sGameConfig.Reset();
 }
@@ -896,9 +896,9 @@ void World::DetectDBCLang()
         exit(1);
     }
 
-    m_defaultDbcLocale = LocaleConstant(uLocale);
+    sGameConfig.SetDefaultDbcLocale(LocaleConstant(uLocale));
 
-    sLog.outString("Using %s DBC Locale as default", localeNames[m_defaultDbcLocale]);
+    sLog.outString("Using %s DBC Locale as default", localeNames[GetDefaultDbcLocale()]);
     sLog.outString();
 
     /* OLD VERSION - delete this code if the above proves to work as intended

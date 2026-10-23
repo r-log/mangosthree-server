@@ -79,7 +79,6 @@ src/game/ChatCommands/PlayerMiscCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/PlayerTitleCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ReloadCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ServerCommands.cpp -> src/game/WorldHandlers/World.h
-src/game/ChatCommands/TeleportationAndPositionCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/TriggerCommands.cpp -> src/game/WorldHandlers/World.h
 src/game/ChatCommands/ZZZ_CustomCommands.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
 src/game/MotionGenerators [entities] -> src/game/Object/CreatureAI.h
@@ -416,7 +415,6 @@ src/game/Object/Pet.cpp -> src/game/Server/WorldSession.h
 src/game/Object/Pet.cpp -> src/game/spells/auras/SpellAuras.h
 src/game/Object/Pet.cpp -> src/proto/WorldPacket.h
 src/game/Object/PetAI.cpp -> src/game/entities/player/Player.h
-src/game/Object/PetDatabase.cpp -> src/game/WorldHandlers/World.h
 src/game/Object/PetDatabase.cpp -> src/game/entities/player/Player.h
 src/game/Object/PetDatabase.cpp -> src/game/entities/player/pets/PlayerPetCache.h
 src/game/Object/PetDatabase.cpp -> src/game/spells/auras/SpellAuras.h
@@ -539,7 +537,6 @@ src/game/Server/DBCStores.cpp -> src/game/spells/auras/SpellAuraDefines.h
 src/game/Server/GameGlobals.cpp -> src/game/WorldHandlers/World.h
 src/game/Server/WorldGateway.cpp -> src/game/WorldHandlers/World.h
 src/game/Server/WorldNetwork.cpp -> src/game/WorldHandlers/World.h
-src/game/Server/WorldSession.cpp -> src/game/WorldHandlers/World.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/Server/DBCStores.h
 src/game/Tools/CharacterDatabaseCleaner.cpp -> src/game/data/GameConfig.h
 src/game/Tools/PlayerDump.cpp -> src/game/Object/CharacterCache.h
@@ -605,7 +602,6 @@ src/game/WorldHandlers/ChannelMgr.cpp -> src/game/Server/WorldSession.h
 src/game/WorldHandlers/CharacterHandler.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/CharacterHandlerCustomize.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/Chat.cpp -> src/game/AuctionHouseBot/AuctionHouseBot.h
-src/game/WorldHandlers/Chat.cpp -> src/game/WorldHandlers/World.h
 src/game/WorldHandlers/ChatHandler.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/ChatMessage.cpp -> src/game/WorldHandlers/Chat.h
 src/game/WorldHandlers/ChatMessage.cpp -> src/game/WorldHandlers/World.h

@@ -53,7 +53,7 @@
 #include "WorldSession.h"
 #include "Opcodes.h"
 #include "Log.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Player.h"
@@ -1091,7 +1091,7 @@ bool ChatHandler::HasLowerSecurityAccount(WorldSession* target, uint32 target_ac
     AccountTypes target_sec;
 
     // ignore only for non-players for non strong checks (when allow apply command at least to same sec level)
-    if (GetAccessLevel() > SEC_PLAYER && !strong && !sWorld.getConfig(CONFIG_BOOL_GM_LOWER_SECURITY))
+    if (GetAccessLevel() > SEC_PLAYER && !strong && !sGameConfig.getConfig(CONFIG_BOOL_GM_LOWER_SECURITY))
     {
         return false;
     }
@@ -1567,7 +1567,7 @@ bool ChatHandler::ParseCommands(const char* text)
     /// chat case (.command or !command format)
     if (m_session)
     {
-        if (m_session->GetSecurity() == SEC_PLAYER && !sWorld.getConfig(CONFIG_BOOL_PLAYER_COMMANDS))
+        if (m_session->GetSecurity() == SEC_PLAYER && !sGameConfig.getConfig(CONFIG_BOOL_PLAYER_COMMANDS))
         {
             return false;
         }
@@ -1792,7 +1792,7 @@ bool CliHandler::needReportToTarget(Player* /*chr*/) const
  */
 LocaleConstant CliHandler::GetSessionDbcLocale() const
 {
-    return sWorld.GetDefaultDbcLocale();
+    return sGameConfig.GetDefaultDbcLocale();
 }
 
 /**

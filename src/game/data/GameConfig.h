@@ -27,6 +27,7 @@
 #define MANGOS_H_GAMECONFIG
 
 #include "Platform/Define.h"
+#include "Common/Locales.h"
 
 /// Configuration elements
 
@@ -398,6 +399,11 @@ class GameConfig
             return lvl > 60 ? 300 + ((lvl - 60) * 75) / 10 : lvl * 5;
         }
 
+        /// The locale DBC strings are read in
+        LocaleConstant GetDefaultDbcLocale() const { return m_defaultDbcLocale; }
+        /// The given locale if its DBC strings are loaded, else the default one
+        LocaleConstant GetAvailableDbcLocale(LocaleConstant locale) const { if (m_availableDbcLocaleMask & (1 << locale)) { return locale; } else { return m_defaultDbcLocale; } }
+
     private:
         friend class World;
 
@@ -407,6 +413,9 @@ class GameConfig
         void setConfig(eConfigUInt32Values index, uint32 value) { m_configUint32Values[index] = value; }
         void setConfig(eConfigInt32Values index, int32 value) { m_configInt32Values[index] = value; }
         void setConfig(eConfigBoolValues index, bool value) { m_configBoolValues[index] = value; }
+
+        void SetDefaultDbcLocale(LocaleConstant locale) { m_defaultDbcLocale = locale; }
+        void SetAvailableDbcLocaleMask(uint32 mask) { m_availableDbcLocaleMask = mask; }
 
         /// Zeroes the uint32, int32, float and bool values.
         void Reset()
@@ -438,6 +447,8 @@ class GameConfig
         int32 m_configInt32Values[CONFIG_INT32_VALUE_COUNT];
         float m_configFloatValues[CONFIG_FLOAT_VALUE_COUNT];
         bool m_configBoolValues[CONFIG_BOOL_VALUE_COUNT];
+        LocaleConstant m_defaultDbcLocale;                  // from config for one from loaded DBC locales
+        uint32 m_availableDbcLocaleMask;                    // by loaded DBC
 };
 
 extern GameConfig sGameConfig;

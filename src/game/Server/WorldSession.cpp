@@ -72,7 +72,7 @@
 #include "CinematicFlyover.h"
 #include "Guild.h"
 #include "GuildMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include "MapManager.h"
 #include "SocialMgr.h"
@@ -281,7 +281,7 @@ WorldSession::WorldSession(uint32 id, const std::string& accountName,
     _security(sec), _accountId(id), m_accountName(accountName),
     m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
-    m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
+    m_sessionDbcLocale(sGameConfig.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
     m_latency(), m_badPackets(0), m_tutorialState(TUTORIALDATA_UNCHANGED)
 {
     if (m_Socket)
@@ -565,7 +565,7 @@ bool WorldSession::Update(PacketFilter& updater)
                 packet->hexlike();
             }
 
-            if (sWorld.getConfig(CONFIG_BOOL_KICK_PLAYER_ON_BAD_PACKET))
+            if (sGameConfig.getConfig(CONFIG_BOOL_KICK_PLAYER_ON_BAD_PACKET))
             {
                 DETAIL_LOG("Disconnecting session [account id %u / address %s] for badly formatted packet.",
                            GetAccountId(), GetRemoteAddress().c_str());
@@ -873,7 +873,7 @@ void WorldSession::HandlePingOpcode(WorldPacket& recvPacket)
     uint32 fastPingRun =
         m_pingTracker.Record(SessionPingTracker::Clock::now());
     uint32 maximum =
-        sWorld.getConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS);
+        sGameConfig.getConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS);
     if (m_pingTracker.ShouldKick(maximum, GetSecurity() == SEC_PLAYER))
     {
         sLog.outError(
