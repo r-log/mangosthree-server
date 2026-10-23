@@ -39,7 +39,8 @@
 
 /// What the bodies of `Unit::HandleDummyAuraProc`'s per-spell switches read and set: the unit, its spell cooldowns,
 /// the function's parameters and locals. The bodies set the triggered spell, its target and its base points, and one
-/// raises the function's copy of the aura's amount.
+/// raises the function's copy of the aura's amount. Built, it checks that the unit's map is this thread's
+/// (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct DummyAuraProcContext
 {
     DummyAuraProcContext(Unit* thisUnit, SpellCooldownMgr& spellCooldownMgr, Unit* const& victimParameter,
@@ -54,7 +55,13 @@ struct DummyAuraProcContext
           triggeredByAura(triggeredByAuraParameter), procSpell(procSpellParameter), procFlag(procFlagParameter),
           cooldown(cooldownParameter), dummySpell(dummySpellLocal), effIndex(effIndexLocal),
           procClassOptions(procClassOptionsLocal), triggerAmount(triggerAmountLocal), castItem(castItemLocal),
-          triggered_spell_id(triggeredSpellIdLocal), target(targetLocal), basepoints(basepointsLocal) {}
+          triggered_spell_id(triggeredSpellIdLocal), target(targetLocal), basepoints(basepointsLocal)
+    {
+        if (unit)
+        {
+            unit->AssertSpellSeamOwner();
+        }
+    }
 
     Unit* const unit;                               ///< `this` in the case bodies
     SpellCooldownMgr& m_spellCooldownMgr;           ///< the unit's spell cooldowns
@@ -150,13 +157,20 @@ struct DummyAuraProcShamanSite
 };
 
 /// What the body of `Unit::HandleHasteAuraProc`'s per-spell switch reads and sets: the unit, the function's
-/// parameters and locals. The body sets the triggered spell, its target and its base points.
+/// parameters and locals. The body sets the triggered spell, its target and its base points. Built, it checks
+/// that the unit's map is this thread's (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct HasteAuraProcContext
 {
     HasteAuraProcContext(Unit* thisUnit, Unit* const& victimParameter, uint32 const& damageParameter,
                          uint32& triggeredSpellIdLocal, Unit*& targetLocal, int32& basepoints0Local)
         : unit(thisUnit), pVictim(victimParameter), damage(damageParameter), triggered_spell_id(triggeredSpellIdLocal),
-          target(targetLocal), basepoints0(basepoints0Local) {}
+          target(targetLocal), basepoints0(basepoints0Local)
+    {
+        if (unit)
+        {
+            unit->AssertSpellSeamOwner();
+        }
+    }
 
     Unit* const unit;                               ///< `this` in the case bodies
     Unit* const& pVictim;                           ///< the function's parameter `Unit* pVictim`
@@ -199,7 +213,8 @@ struct SpellCritChanceAuraProcMageSite
 
 /// What the bodies of `Unit::HandleProcTriggerSpellAuraProc`'s two per-spell switches read and set: the unit, the
 /// function's parameters and locals. The bodies set the spell to trigger, its target and its base points; the second
-/// switch is keyed by that spell, and its bodies never set it.
+/// switch is keyed by that spell, and its bodies never set it. Built, it checks that the unit's map is this
+/// thread's (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct ProcTriggerSpellAuraProcContext
 {
     ProcTriggerSpellAuraProcContext(Unit* thisUnit, Unit* const& victimParameter, uint32 const& damageParameter,
@@ -213,7 +228,13 @@ struct ProcTriggerSpellAuraProcContext
           procSpell(procSpellParameter), procFlags(procFlagsParameter), procEx(procExParameter),
           auraSpellInfo(auraSpellInfoLocal), procClassOptions(procClassOptionsLocal), triggerAmount(triggerAmountLocal),
           trigger_spell_id(triggerSpellIdLocal), target(targetLocal), basepoints(basepointsLocal),
-          castItem(castItemLocal) {}
+          castItem(castItemLocal)
+    {
+        if (unit)
+        {
+            unit->AssertSpellSeamOwner();
+        }
+    }
 
     Unit* const unit;                               ///< `this` in the case bodies
     Unit* const& pVictim;                           ///< the function's parameter `Unit* pVictim`

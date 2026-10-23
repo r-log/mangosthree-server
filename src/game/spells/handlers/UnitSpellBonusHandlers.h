@@ -27,10 +27,10 @@
 #define MANGOSSERVER_SPELLS_HANDLERS_UNITSPELLBONUSHANDLERS_H
 
 #include "spells/handlers/SpellHandlerRegistry.h"
+#include "Object/Unit.h"
 #include <list>
 
 class Aura;
-class Unit;
 struct SpellEntry;
 
 /**
@@ -42,12 +42,19 @@ struct SpellEntry;
  */
 
 /// What the bodies of `Unit::SpellDamageBonusTaken`'s dummy-aura switch read: the unit, the spell, the
-/// multiplier they scale and the aura the loop stands at.
+/// multiplier they scale and the aura the loop stands at. Built, it checks that the unit's map is this
+/// thread's (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct SpellDamageTakenContext
 {
     SpellDamageTakenContext(Unit* thisUnit, SpellEntry const* const& spellProtoParameter, float& takenTotalModLocal,
                             std::list<Aura*>::const_iterator const& auraIterator)
-        : unit(thisUnit), spellProto(spellProtoParameter), TakenTotalMod(takenTotalModLocal), i(auraIterator) {}
+        : unit(thisUnit), spellProto(spellProtoParameter), TakenTotalMod(takenTotalModLocal), i(auraIterator)
+    {
+        if (unit)
+        {
+            unit->AssertSpellSeamOwner();
+        }
+    }
 
     Unit* const unit;                               ///< `this` in the case bodies
     SpellEntry const* const& spellProto;            ///< the function's parameter `SpellEntry const* spellProto`
@@ -85,12 +92,19 @@ struct SpellHealingDoneSite
 };
 
 /// What the bodies of `Unit::MeleeDamageBonusTaken`'s dummy-aura switch read: the unit, the percentage they
-/// scale and the aura the loop stands at.
+/// scale and the aura the loop stands at. Built, it checks that the unit's map is this thread's
+/// (`Unit::AssertSpellSeamOwner`); a context with no unit checks nothing.
 struct MeleeDamageTakenContext
 {
     MeleeDamageTakenContext(Unit* thisUnit, float& takenPercentLocal,
                             std::list<Aura*>::const_iterator const& auraIterator)
-        : unit(thisUnit), TakenPercent(takenPercentLocal), i(auraIterator) {}
+        : unit(thisUnit), TakenPercent(takenPercentLocal), i(auraIterator)
+    {
+        if (unit)
+        {
+            unit->AssertSpellSeamOwner();
+        }
+    }
 
     Unit* const unit;                               ///< `this` in the case bodies
     float& TakenPercent;                            ///< the function's local `float TakenPercent`, which bodies set

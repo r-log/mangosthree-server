@@ -53,12 +53,12 @@ namespace MapPhase
         t_current = m_previous;
     }
 
-    void Violation(char const* unit)
+    void Violation(char const* subject, char const* unit)
     {
         const uint32 n = ++s_violations;
         if (n <= 10)
         {
-            sLog.outError("MapPhase: the movement kernel of %s touched from outside its map's update (violation %u)", unit, n);
+            sLog.outError("MapPhase: %s of %s touched from outside its map's update (violation %u)", subject, unit, n);
         }
     }
 }

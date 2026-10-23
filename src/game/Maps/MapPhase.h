@@ -68,7 +68,8 @@ namespace MapPhase
     bool Active();
     bool Owns(Map const* map);     ///< !Active(), or this thread is updating `map`
     uint32 Violations();           ///< process-wide, since start
-    void Violation(char const* unit);   ///< counts; the first ten are logged
+    /// Counts one violation; the first ten are logged, naming what was touched (`subject`) and whose (`unit`).
+    void Violation(char const* subject, char const* unit);
 }
 
 #endif

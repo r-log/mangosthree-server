@@ -358,9 +358,21 @@ void Unit::AssertMotionOwner() const
     {
         return;
     }
-    MapPhase::Violation(GetGuidStr().c_str());
+    MapPhase::Violation("the movement kernel", GetGuidStr().c_str());
 #ifdef MANGOS_DEBUG
     MANGOS_ASSERT(false && "movement kernel touched from outside its map's update");
+#endif
+}
+
+void Unit::AssertSpellSeamOwner() const
+{
+    if (!IsInWorld() || MapPhase::Owns(GetMap()))
+    {
+        return;
+    }
+    MapPhase::Violation("the spell seam", GetGuidStr().c_str());
+#ifdef MANGOS_DEBUG
+    MANGOS_ASSERT(false && "spell seam touched from outside its map's update");
 #endif
 }
 

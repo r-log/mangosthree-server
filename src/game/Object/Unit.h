@@ -4363,6 +4363,9 @@ class Unit : public WorldObject
         /// Design v2 §10.4: a unit's kernel is touched only outside the map phase or
         /// by the worker updating its map. Counts a violation (asserts under MANGOS_DEBUG).
         void AssertMotionOwner() const;
+        /// A unit's spell handlers run only outside the map phase or on the worker updating its map; every
+        /// registry context that holds the unit checks it when built. Counts a violation (asserts under MANGOS_DEBUG).
+        void AssertSpellSeamOwner() const;
         /// The session whose client moves this unit: a player's own from its login
         /// grant, a possessor's for a possessed creature, NULL for a server-driven unit.
         WorldSession* MoverSession() const { return m_moverSession; }
