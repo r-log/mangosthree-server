@@ -30,7 +30,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -220,7 +220,7 @@ void Player::RewardPlayerAndGroupAtCast(WorldObject* pRewardSource, uint32 spell
  */
 bool Player::IsAtGroupRewardDistance(WorldObject const* pRewardSource) const
 {
-    if (InReach(*pRewardSource, *this, sWorld.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE)))
+    if (InReach(*pRewardSource, *this, sGameConfig.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE)))
     {
         return true;
     }
@@ -236,5 +236,5 @@ bool Player::IsAtGroupRewardDistance(WorldObject const* pRewardSource) const
         return false;
     }
 
-    return InReach(*pRewardSource, *corpse, sWorld.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE));
+    return InReach(*pRewardSource, *corpse, sGameConfig.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE));
 }

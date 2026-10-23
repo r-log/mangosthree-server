@@ -37,7 +37,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Opcodes.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "AchievementMgr.h"
 #include "Player.h"
@@ -440,7 +440,7 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPacket& recv_data)
 
             _player->SetQuestStatus(quest, QUEST_STATUS_NONE);
 
-            if (sWorld.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
+            if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
             {
                 DEBUG_LOG("QUEST TRACKER: Quest Abandoned.");
                 static SqlStatementID CHAR_UPD_QUEST_TRACK_ABANDON_TIME;
@@ -733,7 +733,7 @@ uint32 WorldSession::getDialogStatus(Player* pPlayer, Object* questgiver, uint32
             {
                 if (pPlayer->SatisfyQuestLevel(pQuest, false))
                 {
-                    int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
+                    int32 lowLevelDiff = sGameConfig.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
                     if (pQuest->IsAutoComplete() || (pQuest->IsRepeatable() && pPlayer->GetQuestStatusMgr().Map()[quest_id].m_rewarded))
                     {
                         dialogStatusNew = DIALOG_STATUS_REWARD_REP;

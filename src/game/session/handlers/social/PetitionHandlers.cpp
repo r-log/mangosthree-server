@@ -34,7 +34,7 @@
 #include "Database/SqlOperations.h"
 #include "WorldPacket.h"
 #include "Server/WorldSession.h"
-#include "WorldHandlers/World.h"
+#include "data/GameConfig.h"
 #include "Object/ObjectMgr.h"
 #include "Log/Log.h"
 #include "Opcodes.h"
@@ -182,7 +182,7 @@ void PetitionHandlers::HandlePetitionBuy(WorldSession& session, WorldPacket& rec
         return;
     }
 
-    if (session.GetPlayer()->GetMoney() < sWorld.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST))
+    if (session.GetPlayer()->GetMoney() < sGameConfig.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST))
     {
         // player hasn't got enough money
         session.GetPlayer()->SendBuyError(BUY_ERR_NOT_ENOUGHT_MONEY, pCreature, GUILD_CHARTER, 0);
@@ -282,7 +282,7 @@ void PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> re
         return;
     }
 
-    if (player->GetMoney() < sWorld.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST))
+    if (player->GetMoney() < sGameConfig.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST))
     {
         // player hasn't got enough money
         player->SendBuyError(BUY_ERR_NOT_ENOUGHT_MONEY, pCreature, GUILD_CHARTER, 0);
@@ -297,7 +297,7 @@ void PetitionHandlers::HandlePetitionBuyCallback(std::unique_ptr<QueryResult> re
         return;
     }
 
-    player->ModifyMoney(-int64(sWorld.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST)));
+    player->ModifyMoney(-int64(sGameConfig.getConfig(CONFIG_UNIT32_GUILD_PETITION_COST)));
     Item* charter = player->StoreNewItem(dest, GUILD_CHARTER, true);
     if (!charter)
     {
@@ -650,7 +650,7 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
     }
 
     // not let enemies sign guild charter
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) &&
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) &&
             player->GetTeam() != sObjectMgr.GetPlayerTeamByGUID(ownerGuid))
     {
         requestSession->SendGuildCommandResult(GUILD_CREATE_S, "", ERR_GUILD_NOT_ALLIED);
@@ -658,7 +658,7 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
     }
 
     /* todo: this needs to be handled properly */
-    if (++signs > sWorld.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS))
+    if (++signs > sGameConfig.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS))
     {
         // close at signer side
         player->SendPetitionSignResult(petitionGuid, player, PETITION_SIGN_PETITION_FULL);
@@ -697,7 +697,7 @@ void PetitionHandlers::HandlePetitionSignCallback(std::unique_ptr<SqlQueryHolder
     }
 
     QueuePetitionSignHolder(accountId, sessionId, playerGuid, petitionGuid, ownerGuid,
-                            sWorld.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS));
+                            sGameConfig.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS));
 }
 
 /**
@@ -966,7 +966,7 @@ void PetitionHandlers::HandleOfferPetitionCallback(std::unique_ptr<SqlQueryHolde
 
     DEBUG_LOG("OFFER PETITION: petition %s to %s", petitionGuid.GetString().c_str(), playerGuid.GetString().c_str());
 
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && owner->GetTeam() != player->GetTeam())
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && owner->GetTeam() != player->GetTeam())
     {
         requestSession->SendGuildCommandResult(GUILD_CREATE_S, "", ERR_GUILD_NOT_ALLIED);
         return;
@@ -1109,7 +1109,7 @@ void PetitionHandlers::HandleTurnInPetitionCallback(std::unique_ptr<SqlQueryHold
     // signs
     uint8 signs = signatures ? (uint8)signatures->GetRowCount() : 0;
 
-    uint32 count = sWorld.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS);
+    uint32 count = sGameConfig.getConfig(CONFIG_UINT32_MIN_PETITION_SIGNS);
     if (signs < count)
     {
         player->SendPetitionTurnInResult(PETITION_TURN_NEED_MORE_SIGNATURES);  // need more signatures...

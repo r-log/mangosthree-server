@@ -28,7 +28,7 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "spells/data/SpellMgr.h"
@@ -237,7 +237,7 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio, bool ignore
     {
         if (GetDeathState() == CORPSE)
         {
-            speed *= sWorld.getConfig(InBattleGround() ? CONFIG_FLOAT_GHOST_RUN_SPEED_BG : CONFIG_FLOAT_GHOST_RUN_SPEED_WORLD);
+            speed *= sGameConfig.getConfig(InBattleGround() ? CONFIG_FLOAT_GHOST_RUN_SPEED_BG : CONFIG_FLOAT_GHOST_RUN_SPEED_WORLD);
         }
     }
 

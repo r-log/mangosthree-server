@@ -179,25 +179,7 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
     m_defaultDbcLocale = LOCALE_enUS;
     m_availableDbcLocaleMask = 0;
 
-    for (int i = 0; i < CONFIG_UINT32_VALUE_COUNT; ++i)
-    {
-        m_configUint32Values[i] = 0;
-    }
-
-    for (int i = 0; i < CONFIG_INT32_VALUE_COUNT; ++i)
-    {
-        m_configInt32Values[i] = 0;
-    }
-
-    for (int i = 0; i < CONFIG_FLOAT_VALUE_COUNT; ++i)
-    {
-        m_configFloatValues[i] = 0.0f;
-    }
-
-    for (int i = 0; i < CONFIG_BOOL_VALUE_COUNT; ++i)
-    {
-        m_configBoolValues[i] = false;
-    }
+    sGameConfig.Reset();
 }
 
 /// World destructor
@@ -263,10 +245,10 @@ void World::SetInitialWorldSettings()
         !MapManager::ExistMapAndVMap(0, 1676.35f, 1677.45f) ||                  // Scourge
         !MapManager::ExistMapAndVMap(1, 10311.3f, 832.463f) ||                  // NightElf
         !MapManager::ExistMapAndVMap(1, -2917.58f, -257.98f) ||                 // Tauren
-        (m_configUint32Values[CONFIG_UINT32_EXPANSION] >= EXPANSION_TBC &&
+        (getConfig(CONFIG_UINT32_EXPANSION) >= EXPANSION_TBC &&
           (!MapManager::ExistMapAndVMap(530, 10349.6f, -6357.29f) ||            // BloodElf
               !MapManager::ExistMapAndVMap(530, -3961.64f, -13931.2f))) ||          // Draenei
-            (m_configUint32Values[CONFIG_UINT32_EXPANSION] >= EXPANSION_WOTLK &&
+            (getConfig(CONFIG_UINT32_EXPANSION) >= EXPANSION_WOTLK &&
               !MapManager::ExistMapAndVMap(609, 2355.84f, -5664.77f)))              // Death Knight
     {
         sLog.outError("Baked tiles not found in '%stiles'. Run 'mep bake' against a 4.3.4 client, or correct DataDir in mangosd.conf.", m_dataPath.c_str());

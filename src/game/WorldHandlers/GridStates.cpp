@@ -49,7 +49,7 @@
 #include "GridNotifiers.h"
 #include "GameSystem/Grid.h"
 #include "Log.h"
-#include "World.h"
+#include "data/GameConfig.h"
 
 /**
  * @brief Destroy grid state
@@ -105,12 +105,12 @@ void ActiveState::Update(Map& m, NGridType& grid, GridInfo& info, const uint32& 
     // alone is not enough -- a player standing in a neighbour grid re-loads this one every
     // tick and we thrash load/unload. The timer is reset while a player is near and only
     // accrues real time (every tick) once the area is clear, honouring the configured delay.
-    if (sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
+    if (sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD)
         && grid.isGridObjectDataLoaded())                 // FULL anchor grid
     {
         if (m.HasPlayerInOrAroundGrid(x, y))
         {
-            grid.getDowngradeTimer().Reset(sWorld.getConfig(CONFIG_UINT32_LIVINGWORLD_CELL_ENVELOPE_DOWNGRADE_DELAY));
+            grid.getDowngradeTimer().Reset(sGameConfig.getConfig(CONFIG_UINT32_LIVINGWORLD_CELL_ENVELOPE_DOWNGRADE_DELAY));
         }
         else
         {

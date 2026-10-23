@@ -26,7 +26,7 @@
 #include "AggressorAI.h"
 #include "Errors.h"
 #include "Creature.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "DBCStores.h"
 #include "Map.h"
 
@@ -185,7 +185,7 @@ void AggressorAI::UpdateAI(const uint32 /*diff*/)
  */
 bool AggressorAI::IsVisible(Unit* pl) const
 {
-    return m_creature->Where().WithinDist(pl->Where(), sWorld.getConfig(CONFIG_FLOAT_SIGHT_MONSTER))
+    return m_creature->Where().WithinDist(pl->Where(), sGameConfig.getConfig(CONFIG_FLOAT_SIGHT_MONSTER))
            && pl->IsVisibleForOrDetect(m_creature, m_creature, true);
 }
 

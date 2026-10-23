@@ -52,7 +52,7 @@
 #include "ObjectMgr.h"
 #include "Item.h"
 #include "Player.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Calendar.h"
 #include "AuctionHouseMgr.h"
 
@@ -260,7 +260,7 @@ void MailDraft::SendReturnToSender(uint32 sender_acc, ObjectGuid sender_guid, Ob
     }
 
     // If theres is an item, there is a one hour delivery delay.
-    uint32 deliver_delay = needItemDelay ? sWorld.getConfig(CONFIG_UINT32_MAIL_DELIVERY_DELAY) : 0;
+    uint32 deliver_delay = needItemDelay ? sGameConfig.getConfig(CONFIG_UINT32_MAIL_DELIVERY_DELAY) : 0;
 
     // will delete item or place to receiver mail list
     SendMailTo(MailReceiver(receiver, receiver_guid), MailSender(MAIL_NORMAL, sender_guid.GetCounter()), MAIL_CHECK_MASK_RETURNED, deliver_delay);

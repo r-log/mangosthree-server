@@ -53,7 +53,7 @@
 #include "WorldSession.h"
 #include "AchievementMgr.h"
 #include "Player.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "ObjectGuid.h"
 #include "Group.h"
@@ -1221,7 +1221,7 @@ void Group::MasterLoot(WorldObject* pSource, Loot* loot)
             continue;
         }
 
-        if (looter->Where().WithinDist(pSource->Where(), sWorld.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
+        if (looter->Where().WithinDist(pSource->Where(), sGameConfig.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
         {
             data << looter->GetObjectGuid();
             ++real_count;
@@ -1233,7 +1233,7 @@ void Group::MasterLoot(WorldObject* pSource, Loot* loot)
     for (GroupReference* itr = GetFirstMember(); itr != NULL; itr = itr->next())
     {
         Player* looter = itr->getSource();
-        if (looter->Where().WithinDist(pSource->Where(), sWorld.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
+        if (looter->Where().WithinDist(pSource->Where(), sGameConfig.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
         {
             looter->GetSession()->SendPacket(&data);
         }
@@ -1381,7 +1381,7 @@ void Group::StartLootRoll(WorldObject* lootTarget, LootMethod method, Loot* loot
 
         if (lootItem.AllowedForPlayer(playerToRoll, lootTarget))
         {
-            if (InReach(*playerToRoll, *lootTarget, sWorld.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
+            if (InReach(*playerToRoll, *lootTarget, sGameConfig.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
             {
                 r->playerVote[playerToRoll->GetObjectGuid()] = ROLL_NOT_EMITED_YET;
                 ++r->totalPlayersRolling;

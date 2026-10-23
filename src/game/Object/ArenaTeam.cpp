@@ -31,7 +31,7 @@
 #include "ObjectGuid.h"
 #include "ArenaTeam.h"
 #include "CharacterCache.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Player.h"
 #include "WorldSession.h"
 
@@ -64,10 +64,10 @@ ArenaTeam::ArenaTeam()
     m_stats.games_season  = 0;
     m_stats.rank          = 0;
 
-    int32 conf_value = sWorld.getConfig(CONFIG_INT32_ARENA_STARTRATING);
+    int32 conf_value = sGameConfig.getConfig(CONFIG_INT32_ARENA_STARTRATING);
     if (conf_value < 0)                                     // -1 = select by season id
     {
-        if (sWorld.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
+        if (sGameConfig.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
         {
             m_stats.rating    = 0;
         }
@@ -206,10 +206,10 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
     newmember.wins_season       = 0;
     newmember.wins_week         = 0;
 
-    int32 conf_value = sWorld.getConfig(CONFIG_INT32_ARENA_STARTPERSONALRATING);
+    int32 conf_value = sGameConfig.getConfig(CONFIG_INT32_ARENA_STARTPERSONALRATING);
     if (conf_value < 0)                                     // -1 = select by season id
     {
-        if (sWorld.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
+        if (sGameConfig.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
         {
             if (m_stats.rating < 1000)
             {
@@ -663,7 +663,7 @@ uint32 ArenaTeam::GetPoints(uint32 MemberRating)
     if (rating <= 1500)
     {
         // As of Season 6 and later, all teams below 1500 rating will earn points as if they were a 1500 rated team
-        if (sWorld.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
+        if (sGameConfig.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
         {
             rating = 1500;
         }
@@ -704,7 +704,7 @@ float ArenaTeam::GetChanceAgainst(uint32 own_rating, uint32 enemy_rating)
     // returns the chance to win against a team with the given rating, used in the rating adjustment calculation
     // ELO system
 
-    if (sWorld.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
+    if (sGameConfig.getConfig(CONFIG_UINT32_ARENA_SEASON_ID) >= 6)
         if (enemy_rating < 1000)
         {
             enemy_rating = 1000;

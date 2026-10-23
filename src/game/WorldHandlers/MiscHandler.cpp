@@ -41,7 +41,7 @@
 #include "Log.h"
 #include "AchievementMgr.h"
 #include "Player.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "CinematicFlyover.h"
 #include "GuildMgr.h"
 #include "ObjectMgr.h"
@@ -180,8 +180,8 @@ void WorldSession::HandleWhoOpcode(WorldPacket& recv_data)
 
     Team team = _player->GetTeam();
     uint32 security = GetSecurity();
-    bool allowTwoSideWhoList = sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_WHO_LIST);
-    AccountTypes gmLevelInWhoList = (AccountTypes)sWorld.getConfig(CONFIG_UINT32_GM_LEVEL_IN_WHO_LIST);
+    bool allowTwoSideWhoList = sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_WHO_LIST);
+    AccountTypes gmLevelInWhoList = (AccountTypes)sGameConfig.getConfig(CONFIG_UINT32_GM_LEVEL_IN_WHO_LIST);
 
     uint32 matchcount = 0;
     uint32 displaycount = 0;
@@ -356,7 +356,7 @@ void WorldSession::HandleLogoutRequestOpcode(WorldPacket & /*recv_data*/)
         DoLootRelease(lootGuid);
     }
 
-    bool instantLogout = (GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING) || GetPlayer()->IsTaxiFlying() || GetSecurity() >= (AccountTypes)sWorld.getConfig(CONFIG_UINT32_INSTANT_LOGOUT));
+    bool instantLogout = (GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING) || GetPlayer()->IsTaxiFlying() || GetSecurity() >= (AccountTypes)sGameConfig.getConfig(CONFIG_UINT32_INSTANT_LOGOUT));
 
     bool canLogoutInCombat = GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING);
 
@@ -1320,7 +1320,7 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
     WorldPacket data(SMSG_INSPECT_RESULTS, 50);
     data << plr->GetObjectGuid();
 
-    if (sWorld.getConfig(CONFIG_BOOL_TALENTS_INSPECTING) || _player->isGameMaster())
+    if (sGameConfig.getConfig(CONFIG_BOOL_TALENTS_INSPECTING) || _player->isGameMaster())
     {
         plr->BuildPlayerTalentsInfoData(&data);
     }

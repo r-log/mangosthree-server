@@ -30,7 +30,7 @@
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
-#include "World.h"
+#include "data/GameConfig.h"
 
 /**
  * @brief Returns the closest GameObject with a specific entry within a given range.
@@ -95,7 +95,7 @@ static void CheckPartialGridScanAnomaly(WorldObject* pSource, const char* tag)
     {
         return;
     }
-    if (!sWorld.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_LIVINGWORLD_CELL_ENVELOPE_LOAD))
     {
         return;
     }

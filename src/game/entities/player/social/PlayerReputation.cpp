@@ -29,7 +29,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -236,10 +236,10 @@ int32 Player::CalculateReputationGain(ReputationSource source, int32 rep, int32 
     switch (source)
     {
         case REPUTATION_SOURCE_KILL:
-            rate = sWorld.getConfig(CONFIG_FLOAT_RATE_REPUTATION_LOWLEVEL_KILL);
+            rate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_REPUTATION_LOWLEVEL_KILL);
             break;
         case REPUTATION_SOURCE_QUEST:
-            rate = sWorld.getConfig(CONFIG_FLOAT_RATE_REPUTATION_LOWLEVEL_QUEST);
+            rate = sGameConfig.getConfig(CONFIG_FLOAT_RATE_REPUTATION_LOWLEVEL_QUEST);
             break;
         case REPUTATION_SOURCE_SPELL:
         default:
@@ -283,7 +283,7 @@ int32 Player::CalculateReputationGain(ReputationSource source, int32 rep, int32 
         percent *= repRate;
     }
 
-    return int32(sWorld.getConfig(CONFIG_FLOAT_RATE_REPUTATION_GAIN) * rep * percent / 100.0f);
+    return int32(sGameConfig.getConfig(CONFIG_FLOAT_RATE_REPUTATION_GAIN) * rep * percent / 100.0f);
 }
 
 // Calculates how many reputation points player gains in victim's enemy factions

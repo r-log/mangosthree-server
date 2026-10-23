@@ -55,7 +55,7 @@
 #include "WorldPacket.h"
 #include "Log.h"
 #include "Opcodes.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectGuid.h"
 #include "zlib.h"
 
@@ -116,7 +116,7 @@ void UpdateData::Compress(void* dst, uint32* dst_size, void* src, int src_size)
     c_stream.opaque = (voidpf)0;
 
     // default Z_BEST_SPEED (1)
-    int z_res = deflateInit(&c_stream, sWorld.getConfig(CONFIG_UINT32_COMPRESSION));
+    int z_res = deflateInit(&c_stream, sGameConfig.getConfig(CONFIG_UINT32_COMPRESSION));
     if (z_res != Z_OK)
     {
         sLog.outError("Can't compress update packet (zlib: deflateInit) Error code: %i (%s)", z_res, zError(z_res));

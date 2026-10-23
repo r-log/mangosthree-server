@@ -55,7 +55,7 @@
 #include "Log.h"
 #include "MapPersistentStateMgr.h"
 #include "MapManager.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Policies/Singleton.h"
 
 
@@ -642,7 +642,7 @@ void PoolGroup<Creature>::Spawn1Object(MapPersistentState& mapState, PoolObject*
                     if (!instantly)
                     {
                         pCreature->SetRespawnTime(pCreature->GetRespawnDelay());
-                        if (sWorld.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY) || pCreature->IsWorldBoss())
+                        if (sGameConfig.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY) || pCreature->IsWorldBoss())
                         {
                             pCreature->SaveRespawnTime();
                         }
@@ -698,7 +698,7 @@ void PoolGroup<GameObject>::Spawn1Object(MapPersistentState& mapState, PoolObjec
                         if (!instantly)
                         {
                             pGameobject->SetRespawnTime(pGameobject->GetRespawnDelay());
-                            if (sWorld.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
+                            if (sGameConfig.getConfig(CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY))
                             {
                                 pGameobject->SaveRespawnTime();
                             }

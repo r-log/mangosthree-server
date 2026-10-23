@@ -44,7 +44,7 @@
 #include "OutdoorPvPMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "BattleGroundMgr.h"
 
 namespace DisableMgr
@@ -502,7 +502,7 @@ bool IsVMAPDisabledFor(uint32 entry, uint8 flags)
  */
 bool IsPathfindingEnabled(uint32 mapId)
 {
-    return sWorld.getConfig(CONFIG_BOOL_MMAP_ENABLED)
+    return sGameConfig.getConfig(CONFIG_BOOL_MMAP_ENABLED)
         && !IsDisabledFor(DISABLE_TYPE_MMAP, mapId);
 }
 

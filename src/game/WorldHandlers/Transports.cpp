@@ -50,7 +50,7 @@
 #include "DBCStores.h"
 #include "ProgressBar.h"
 #include "ScriptMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 
 /**
  * @brief Loads and initializes all configured global transports.
@@ -131,7 +131,7 @@ void MapManager::LoadTransports()
         // vessel is one: an active object whose position is the boot's wall clock
         // modulo its period, loading and unloading grids along its route at moments
         // no seed controls. Skipped here, before it is registered anywhere.
-        const uint32 bareMap = sWorld.getConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP);
+        const uint32 bareMap = sGameConfig.getConfig(CONFIG_UINT32_MOVEMENT_HARNESS_BARE_MAP);
         if (BareMapConfigured(bareMap) && mapsUsed.count(bareMap))
         {
             sLog.outString("Transport %u '%s' skipped: map %u is bare", entry, name.c_str(), bareMap);

@@ -59,7 +59,7 @@
 #include "Group.h"
 #include "Transports.h"
 #include "GridDefines.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "CellImpl.h"
 #include "Corpse.h"
 #include "Transports.h"
@@ -69,9 +69,9 @@
 
 
 MapManager::MapManager()
-    : i_GridStateErrorCount(0), i_gridCleanUpDelay(sWorld.getConfig(CONFIG_UINT32_INTERVAL_GRIDCLEAN)), m_lock()
+    : i_GridStateErrorCount(0), i_gridCleanUpDelay(sGameConfig.getConfig(CONFIG_UINT32_INTERVAL_GRIDCLEAN)), m_lock()
 {
-    i_timer.SetInterval(sWorld.getConfig(CONFIG_UINT32_INTERVAL_MAPUPDATE));
+    i_timer.SetInterval(sGameConfig.getConfig(CONFIG_UINT32_INTERVAL_MAPUPDATE));
 }
 
 MapManager::~MapManager()
@@ -100,7 +100,7 @@ MapManager::~MapManager()
 void
 MapManager::Initialize()
 {
-    int num_threads(sWorld.getConfig(CONFIG_UINT32_NUMTHREADS));
+    int num_threads(sGameConfig.getConfig(CONFIG_UINT32_NUMTHREADS));
 
     // Start mtmaps if needed.
     if (num_threads > 0 && m_updater.activate(num_threads) == -1)

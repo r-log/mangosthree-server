@@ -45,7 +45,7 @@
 #include <string>
 #include "Channel.h"
 #include "ObjectMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "SocialMgr.h"
 #include "Chat.h"
 #include "WorldSession.h"
@@ -122,7 +122,7 @@ void Channel::Join(Player* player, const char* password)
         return;
     }
 
-    if (HasFlag(CHANNEL_FLAG_LFG) && sWorld.getConfig(CONFIG_BOOL_RESTRICTED_LFG_CHANNEL) && player->GetSession()->GetSecurity() == SEC_PLAYER)
+    if (HasFlag(CHANNEL_FLAG_LFG) && sGameConfig.getConfig(CONFIG_BOOL_RESTRICTED_LFG_CHANNEL) && player->GetSession()->GetSecurity() == SEC_PLAYER)
     {
         MakeNotInLfg(&data);
         SendToOne(&data, guid);
@@ -137,7 +137,7 @@ void Channel::Join(Player* player, const char* password)
     // join channel
     player->JoinedChannel(this);
 
-    if (m_announce && (player->GetSession()->GetSecurity() < SEC_GAMEMASTER || !sWorld.getConfig(CONFIG_BOOL_SILENTLY_GM_JOIN_TO_CHANNEL)))
+    if (m_announce && (player->GetSession()->GetSecurity() < SEC_GAMEMASTER || !sGameConfig.getConfig(CONFIG_BOOL_SILENTLY_GM_JOIN_TO_CHANNEL)))
     {
         MakeJoined(&data, guid);
         SendToAll(&data);
@@ -196,7 +196,7 @@ void Channel::Leave(Player* player, bool send)
     bool changeowner = m_players[guid].IsOwner();
 
     m_players.erase(guid);
-    if (m_announce && (player->GetSession()->GetSecurity() < SEC_GAMEMASTER || !sWorld.getConfig(CONFIG_BOOL_SILENTLY_GM_JOIN_TO_CHANNEL)))
+    if (m_announce && (player->GetSession()->GetSecurity() < SEC_GAMEMASTER || !sGameConfig.getConfig(CONFIG_BOOL_SILENTLY_GM_JOIN_TO_CHANNEL)))
     {
         WorldPacket data;
         MakeLeft(&data, guid);
@@ -431,7 +431,7 @@ void Channel::SetMode(Player* player, const char* targetName, bool moderator, bo
     // allow make moderator from another team only if both is GMs
     // at this moment this only way to show channel post for GM from another team
     if ((player->GetSession()->GetSecurity() < SEC_GAMEMASTER || target->GetSession()->GetSecurity() < SEC_GAMEMASTER) &&
-            player->GetTeam() != target->GetTeam() && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
+            player->GetTeam() != target->GetTeam() && !sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
     {
         WorldPacket data;
         MakePlayerNotFound(&data, targetName);
@@ -533,7 +533,7 @@ void Channel::SetOwner(Player* player, const char* targetName)
         return;
     }
 
-    if (target->GetTeam() != player->GetTeam() && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
+    if (target->GetTeam() != player->GetTeam() && !sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
     {
         WorldPacket data;
         MakePlayerNotFound(&data, targetName);
@@ -595,7 +595,7 @@ void Channel::List(Player* player)
     size_t pos = data.wpos();
     data << uint32(0);                                      // size of list, placeholder
 
-    AccountTypes gmLevelInWhoList = (AccountTypes)sWorld.getConfig(CONFIG_UINT32_GM_LEVEL_IN_WHO_LIST);
+    AccountTypes gmLevelInWhoList = (AccountTypes)sGameConfig.getConfig(CONFIG_UINT32_GM_LEVEL_IN_WHO_LIST);
 
     uint32 count = 0;
     for (PlayerList::const_iterator i = m_players.begin(); i != m_players.end(); ++i)
@@ -741,7 +741,7 @@ void Channel::Say(Player* player, const char* text, uint32 lang)
     }
 
     // send channel message
-    if (sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
+    if (sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
     {
         lang = LANG_UNIVERSAL;
     }
@@ -794,7 +794,7 @@ void Channel::Invite(Player* player, const char* targetName)
         return;
     }
 
-    if (target->GetTeam() != player->GetTeam() && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
+    if (target->GetTeam() != player->GetTeam() && !sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
     {
         WorldPacket data;
         MakeInviteWrongFaction(&data);

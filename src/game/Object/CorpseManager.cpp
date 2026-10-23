@@ -33,7 +33,7 @@
 #include "Map.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 
 #include <ctime>
 #include <forward_list>
@@ -197,8 +197,8 @@ Corpse* CorpseManager::ConvertCorpseForPlayer(ObjectGuid playerGuid, bool insign
     // overrides the configuration switch.
     const bool bonesAllowed = insignia
         || (map && map->IsBattleGroundOrArena()
-                ? sWorld.getConfig(CONFIG_BOOL_DEATH_BONES_BG_OR_ARENA)
-                : sWorld.getConfig(CONFIG_BOOL_DEATH_BONES_WORLD));
+                ? sGameConfig.getConfig(CONFIG_BOOL_DEATH_BONES_BG_OR_ARENA)
+                : sGameConfig.getConfig(CONFIG_BOOL_DEATH_BONES_WORLD));
 
     if (map && bonesAllowed
         && !map->IsRemovalGrid(corpse->Where().X(), corpse->Where().Y()))

@@ -34,7 +34,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -706,7 +706,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     // GM state
     if (GetSession()->GetSecurity() > SEC_PLAYER)
     {
-        switch (sWorld.getConfig(CONFIG_UINT32_GM_LOGIN_STATE))
+        switch (sGameConfig.getConfig(CONFIG_UINT32_GM_LOGIN_STATE))
         {
             default:
             case 0:                      break;             // disable
@@ -719,7 +719,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                 break;
         }
 
-        switch (sWorld.getConfig(CONFIG_UINT32_GM_VISIBLE_STATE))
+        switch (sGameConfig.getConfig(CONFIG_UINT32_GM_VISIBLE_STATE))
         {
             default:
             case 0: SetGMVisible(false); break;             // invisible
@@ -732,7 +732,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                 break;
         }
 
-        switch (sWorld.getConfig(CONFIG_UINT32_GM_ACCEPT_TICKETS))
+        switch (sGameConfig.getConfig(CONFIG_UINT32_GM_ACCEPT_TICKETS))
         {
             default:
             case 0:                        break;           // disable
@@ -745,7 +745,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                 break;
         }
 
-        switch (sWorld.getConfig(CONFIG_UINT32_GM_CHAT))
+        switch (sGameConfig.getConfig(CONFIG_UINT32_GM_CHAT))
         {
             default:
             case 0:                  break;                 // disable
@@ -758,7 +758,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                 break;
         }
 
-        switch (sWorld.getConfig(CONFIG_UINT32_GM_WISPERING_TO))
+        switch (sGameConfig.getConfig(CONFIG_UINT32_GM_WISPERING_TO))
         {
             default:
             case 0:                          break;         // disable

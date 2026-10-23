@@ -43,7 +43,7 @@
 #include "BattleGround/BattleGroundWS.h"
 #include "Tools/Language.h"
 #include "WorldHandlers/ScriptMgr.h"
-#include "WorldHandlers/World.h"
+#include "data/GameConfig.h"
 #include "WorldHandlers/DisableMgr.h"
 #include "Time/GameTime.h"
 #include "MotionGenerators/MotionMaster.h"
@@ -194,7 +194,7 @@ void PvpHandlers::HandleArenaTeamInvite(WorldSession& session, WorldPacket& recv
         return;
     }
 
-    if (player->getLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (player->getLevel() < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         session.SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, "", player->GetName(), ERR_ARENA_TEAM_TARGET_TOO_LOW_S);
         return;
@@ -219,7 +219,7 @@ void PvpHandlers::HandleArenaTeamInvite(WorldSession& session, WorldPacket& recv
         return;
     }
 
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && player->GetTeam() != session.GetPlayer()->GetTeam())
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && player->GetTeam() != session.GetPlayer()->GetTeam())
     {
         session.SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", "", ERR_ARENA_TEAM_NOT_ALLIED);
         return;
@@ -272,7 +272,7 @@ void PvpHandlers::HandleArenaTeamAccept(WorldSession& session, WorldPacket & /*r
         return;
     }
 
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) &&
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) &&
             session.GetPlayer()->GetTeam() != sObjectMgr.GetPlayerTeamByGUID(at->GetCaptainGuid()))
     {
         // not let enemies sign petition
@@ -608,7 +608,7 @@ void PvpHandlers::HandleBattlemasterJoin(WorldSession& session, WorldPacket& rec
             return;
         }
         err = grp->CanJoinBattleGroundQueue(bg, bgQueueTypeId, 0, bg->GetMaxPlayersPerTeam(), false, 0);
-        isPremade = sWorld.getConfig(CONFIG_UINT32_BATTLEGROUND_PREMADE_GROUP_WAIT_FOR_MATCH) &&
+        isPremade = sGameConfig.getConfig(CONFIG_UINT32_BATTLEGROUND_PREMADE_GROUP_WAIT_FOR_MATCH) &&
                     (grp->GetMembersCount() >= bg->GetMinPlayersPerTeam());
     }
     // if we're here, then the conditions to join a bg are met. We can proceed in joining.

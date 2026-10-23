@@ -44,7 +44,7 @@
 #include <mutex>
 #include "ChannelMgr.h"
 #include "Policies/Singleton.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldSession.h"
 
 
@@ -61,7 +61,7 @@
  */
 ChannelMgr* channelMgr(Team team)
 {
-    if (sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
+    if (sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL))
     {
         return &MaNGOS::Singleton<AllianceChannelMgr>::Instance();         // cross-faction
     }

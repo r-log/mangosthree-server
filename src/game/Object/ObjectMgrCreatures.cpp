@@ -48,7 +48,7 @@
 #include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Group.h"
 #include "ArenaTeam.h"
 #include "Transports.h"
@@ -1134,7 +1134,7 @@ void ObjectMgr::LoadCreatures()
 
     BarGoLink bar(result->GetRowCount());
 
-    const uint32 lwAnchorMask = sWorld.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK);
+    const uint32 lwAnchorMask = sGameConfig.getConfig(CONFIG_UINT32_LIVINGWORLD_ANCHOR_MASK);
     uint32 lwWorldBossLeaderCount = 0;
     uint32 lwFlightMasterCount = 0;
     uint32 lwSettlementDefenderCount = 0;

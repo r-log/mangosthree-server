@@ -35,7 +35,7 @@
 #include "spells/pipeline/Spell.h"
 #include "spells/data/SpellMgr.h"
 #include "Creature.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Util.h"
 #include "MotionMaster.h"
 
@@ -562,7 +562,7 @@ void PetAI::UpdateAI(const uint32 diff)
  */
 bool PetAI::_isVisible(Unit* u) const
 {
-    return m_creature->Where().WithinDist(u->Where(), sWorld.getConfig(CONFIG_FLOAT_SIGHT_GUARDER))
+    return m_creature->Where().WithinDist(u->Where(), sGameConfig.getConfig(CONFIG_FLOAT_SIGHT_GUARDER))
            && u->IsVisibleForOrDetect(m_creature, m_creature, true);
 }
 

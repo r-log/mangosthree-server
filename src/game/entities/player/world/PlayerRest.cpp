@@ -29,7 +29,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -104,7 +104,7 @@ uint32 Player::GetXPRestBonus(uint32 xp)
 void Player::SetRestBonus(float rest_bonus_new)
 {
     // Prevent resting on max level
-    if (getLevel() >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (getLevel() >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         rest_bonus_new = 0;
     }
@@ -154,7 +154,7 @@ void Player::SetRestType(RestType n_r_type, uint32 areaTriggerId /*= 0*/)
         RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING);
 
         // Set player to FFA PVP when not in rested environment.
-        if (sWorld.IsFFAPvPRealm())
+        if (sGameConfig.IsFFAPvPRealm())
         {
             SetFFAPvP(true);
         }
@@ -166,7 +166,7 @@ void Player::SetRestType(RestType n_r_type, uint32 areaTriggerId /*= 0*/)
         inn_trigger_id = areaTriggerId;
         time_inn_enter = time(NULL);
 
-        if (sWorld.IsFFAPvPRealm())
+        if (sGameConfig.IsFFAPvPRealm())
         {
             SetFFAPvP(false);
         }
@@ -192,17 +192,17 @@ float Player::ComputeRest(time_t timePassed, bool offline /*= false*/, bool inRe
     float bonus = timePassed * (GetUInt32Value(PLAYER_NEXT_LEVEL_XP) / 1152000.0f); // Get the gained rest xp for given second
     if (!offline)
     {
-        bonus *= sWorld.getConfig(CONFIG_FLOAT_RATE_REST_INGAME);                   // Apply the custom setting
+        bonus *= sGameConfig.getConfig(CONFIG_FLOAT_RATE_REST_INGAME);                   // Apply the custom setting
     }
     else
     {
         if (inRestPlace)
         {
-            bonus *= sWorld.getConfig(CONFIG_FLOAT_RATE_REST_OFFLINE_IN_TAVERN_OR_CITY);
+            bonus *= sGameConfig.getConfig(CONFIG_FLOAT_RATE_REST_OFFLINE_IN_TAVERN_OR_CITY);
         }
         else
         {
-            bonus *= sWorld.getConfig(CONFIG_FLOAT_RATE_REST_OFFLINE_IN_WILDERNESS) / 4.0f; // bonus is reduced by 4 when not in rest place
+            bonus *= sGameConfig.getConfig(CONFIG_FLOAT_RATE_REST_OFFLINE_IN_WILDERNESS) / 4.0f; // bonus is reduced by 4 when not in rest place
         }
     }
     return bonus;

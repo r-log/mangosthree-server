@@ -36,7 +36,7 @@
 #include "Chat.h"
 #include "ObjectMgr.h"
 #include "Language.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "SQLStorages.h"
 #include "WorldSession.h"
 
@@ -272,7 +272,7 @@ bool ChatHandler::HandleQuestCompleteCommand(char* args)
         player->ModifyMoney(-ReqOrRewMoney);
     }
 
-    if (sWorld.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
+    if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
     {
         DEBUG_LOG("QUEST TRACKER: Quest Completed by GM.");
         static SqlStatementID CHAR_UPD_QUEST_TRACK_GM_COMPLETE;

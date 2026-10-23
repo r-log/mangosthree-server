@@ -32,7 +32,7 @@
 #include "WorldPacket.h"
 #include "Log/Log.h"
 #include "entities/player/Player.h"
-#include "WorldHandlers/World.h"
+#include "data/GameConfig.h"
 #include "Object/ObjectMgr.h"
 #include "Server/WorldSession.h"
 #include "entities/player/PlayerRegistry.h"
@@ -114,7 +114,7 @@ void ContactHandlers::CompleteAddFriend(WorldSession& session, ObjectGuid friend
         {
             friendResult = FRIEND_SELF;
         }
-        else if (requestSession->GetPlayer()->GetTeam() != team && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_ADD_FRIEND) && requestSession->GetSecurity() < SEC_MODERATOR)
+        else if (requestSession->GetPlayer()->GetTeam() != team && !sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_ADD_FRIEND) && requestSession->GetSecurity() < SEC_MODERATOR)
         {
             friendResult = FRIEND_ENEMY;
         }

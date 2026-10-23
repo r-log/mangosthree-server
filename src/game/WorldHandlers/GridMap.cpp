@@ -58,7 +58,7 @@
 #include "GridMap.h"
 #include "terrain/TileSerializer.hpp"
 #include "MoveMap.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Policies/Singleton.h"
 #include "Util.h"
 
@@ -599,7 +599,7 @@ TerrainInfo* TerrainManager::LoadTerrain(const uint32 mapId)
  */
 void TerrainManager::UnloadTerrain(const uint32 mapId)
 {
-    if (sWorld.getConfig(CONFIG_BOOL_GRID_UNLOAD) == 0)
+    if (sGameConfig.getConfig(CONFIG_BOOL_GRID_UNLOAD) == 0)
     {
         return;
     }

@@ -35,7 +35,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
@@ -474,7 +474,7 @@ void Spell::EffectProspecting(SpellEffectEntry const* /*effect*/)
 
     Player* p_caster = (Player*)m_caster;
 
-    if (sWorld.getConfig(CONFIG_BOOL_SKILL_PROSPECTING))
+    if (sGameConfig.getConfig(CONFIG_BOOL_SKILL_PROSPECTING))
     {
         uint32 SkillValue = p_caster->GetPureSkillValue(SKILL_JEWELCRAFTING);
         uint32 reqSkillValue = itemTarget->GetProto()->RequiredSkillRank;
@@ -493,7 +493,7 @@ void Spell::EffectMilling(SpellEffectEntry const* /*effect*/)
 
     Player* p_caster = (Player*)m_caster;
 
-    if (sWorld.getConfig(CONFIG_BOOL_SKILL_MILLING))
+    if (sGameConfig.getConfig(CONFIG_BOOL_SKILL_MILLING))
     {
         uint32 SkillValue = p_caster->GetPureSkillValue(SKILL_INSCRIPTION);
         uint32 reqSkillValue = itemTarget->GetProto()->RequiredSkillRank;

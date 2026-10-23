@@ -30,7 +30,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -188,19 +188,19 @@ AreaLockStatus Player::GetAreaTriggerLockStatus(AreaTrigger const* at, Difficult
     }
 
     // Level Requirements
-    if (getLevel() < at->requiredLevel && !sWorld.getConfig(CONFIG_BOOL_INSTANCE_IGNORE_LEVEL))
+    if (getLevel() < at->requiredLevel && !sGameConfig.getConfig(CONFIG_BOOL_INSTANCE_IGNORE_LEVEL))
     {
         miscRequirement = at->requiredLevel;
         return AREA_LOCKSTATUS_TOO_LOW_LEVEL;
     }
-    if (!isRegularTargetMap && !sWorld.getConfig(CONFIG_BOOL_INSTANCE_IGNORE_LEVEL) && getLevel() < uint32(maxLevelForExpansion[mapEntry->Expansion()]))
+    if (!isRegularTargetMap && !sGameConfig.getConfig(CONFIG_BOOL_INSTANCE_IGNORE_LEVEL) && getLevel() < uint32(maxLevelForExpansion[mapEntry->Expansion()]))
     {
         miscRequirement = maxLevelForExpansion[mapEntry->Expansion()];
         return AREA_LOCKSTATUS_TOO_LOW_LEVEL;
     }
 
     // Raid Requirements
-    if (mapEntry->IsRaid() && !sWorld.getConfig(CONFIG_BOOL_INSTANCE_IGNORE_RAID))
+    if (mapEntry->IsRaid() && !sGameConfig.getConfig(CONFIG_BOOL_INSTANCE_IGNORE_RAID))
         if (!GetGroup() || !GetGroup()->isRaidGroup())
         {
             return AREA_LOCKSTATUS_RAID_LOCKED;

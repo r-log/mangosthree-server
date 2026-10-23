@@ -31,7 +31,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -87,7 +87,7 @@
  */
 bool Player::IsGroupVisibleFor(Player* p) const
 {
-    switch (sWorld.getConfig(CONFIG_UINT32_GROUP_VISIBILITY))
+    switch (sGameConfig.getConfig(CONFIG_UINT32_GROUP_VISIBILITY))
     {
         default:
             return IsInSameGroupWith(p);

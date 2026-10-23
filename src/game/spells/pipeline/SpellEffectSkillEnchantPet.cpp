@@ -37,7 +37,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
@@ -520,7 +520,7 @@ void Spell::EffectEnchantItemPerm(SpellEffectEntry const* effect)
         p_caster->UpdateCraftSkill(m_spellInfo->ID);
     }
 
-    if (item_owner != p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+    if (item_owner != p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
     {
         sLog.outCommand(p_caster->GetSession()->GetAccountId(), "GM %s (Account: %u) enchanting(perm): %s (Entry: %d) for player: %s (Account: %u)",
                         p_caster->GetName(), p_caster->GetSession()->GetAccountId(),
@@ -593,7 +593,7 @@ void Spell::EffectEnchantItemPrismatic(SpellEffectEntry const* effect)
         return;
     }
 
-    if (item_owner != p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+    if (item_owner != p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
     {
         sLog.outCommand(p_caster->GetSession()->GetAccountId(), "GM %s (Account: %u) enchanting(perm): %s (Entry: %d) for player: %s (Account: %u)",
                         p_caster->GetName(), p_caster->GetSession()->GetAccountId(),
@@ -735,7 +735,7 @@ void Spell::EffectEnchantItemTmp(SpellEffectEntry const* effect)
         return;
     }
 
-    if (item_owner != p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+    if (item_owner != p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
     {
         sLog.outCommand(p_caster->GetSession()->GetAccountId(), "GM %s (Account: %u) enchanting(temp): %s (Entry: %d) for player: %s (Account: %u)",
                         p_caster->GetName(), p_caster->GetSession()->GetAccountId(),

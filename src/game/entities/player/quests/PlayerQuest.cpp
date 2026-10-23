@@ -38,7 +38,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -320,7 +320,7 @@ bool Player::CanSeeStartQuest(Quest const* pQuest) const
             SatisfyQuestPrevChain(pQuest, false) && SatisfyQuestDay(pQuest, false) &&
         pQuest->IsActive())
     {
-        int32 highLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_HIGH_LEVEL_HIDE_DIFF);
+        int32 highLevelDiff = sGameConfig.getConfig(CONFIG_INT32_QUEST_HIGH_LEVEL_HIDE_DIFF);
         if (highLevelDiff < 0)
         {
             return true;
@@ -825,7 +825,7 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
 
     UpdateForQuestWorldObjects();
 
-    if (sWorld.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
+    if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
     {
         DEBUG_LOG("QUEST TRACKER: Quest Added.");
 
@@ -869,7 +869,7 @@ void Player::CompleteQuest(uint32 quest_id, QuestStatus status)
         }
     }
 
-    if (sWorld.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
+    if (sGameConfig.getConfig(CONFIG_BOOL_ENABLE_QUEST_TRACKER)) // check if Quest Tracker is enabled
     {
         DEBUG_LOG("QUEST TRACKER: Quest Completed.");
         static SqlStatementID CHAR_UPD_QUEST_TRACK_COMPLETE_TIME;
@@ -974,14 +974,14 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     m_questStatusMgr.Entry(quest_id);
 
     // Used for client inform but rewarded only in case not max level
-    uint32 xp = QuestRewardRules::Xp(pQuest->XPValue(this), sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
+    uint32 xp = QuestRewardRules::Xp(pQuest->XPValue(this), sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_QUEST));
 
     // What the quest-complete packet shows: what was credited here, not recomputed after it.
     // The XP is what GiveXP gave and logged (the quest-XP auras applied, 0 when it gave none).
     uint32 xpShown = 0;
     uint32 moneyShown = 0;
 
-    if (getLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (getLevel() < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         xpShown = GiveXP(xp , NULL);
 
@@ -997,7 +997,7 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     {
         // reward money for max level already included in pQuest->GetRewMoneyMaxLevel().
         // reward money used if > xp replacement money
-        uint32 money = QuestRewardRules::MaxLevelMoney(pQuest->GetRewMoneyMaxLevel(), pQuest->GetRewOrReqMoney(), sWorld.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
+        uint32 money = QuestRewardRules::MaxLevelMoney(pQuest->GetRewMoneyMaxLevel(), pQuest->GetRewOrReqMoney(), sGameConfig.getConfig(CONFIG_FLOAT_RATE_DROP_MONEY));
 
         ModifyMoney(money);
         moneyShown = money;

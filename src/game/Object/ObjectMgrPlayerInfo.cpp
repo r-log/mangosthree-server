@@ -39,7 +39,7 @@
 #include "ScriptMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Group.h"
 #include "ArenaTeam.h"
 #include "Transports.h"
@@ -103,7 +103,7 @@ void ObjectMgr::LoadPetLevelInfo()
             }
 
             uint32 current_level = fields[1].GetUInt32();
-            if (current_level > sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+            if (current_level > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
                 if (current_level > STRONG_MAX_LEVEL)       // hardcoded level maximum
                 {
@@ -126,7 +126,7 @@ void ObjectMgr::LoadPetLevelInfo()
 
             if (pInfoMapEntry == NULL)
             {
-                pInfoMapEntry =  new PetLevelInfo[sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)];
+                pInfoMapEntry =  new PetLevelInfo[sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)];
             }
 
             // data for level 1 stored in [0] array element, ...
@@ -163,7 +163,7 @@ void ObjectMgr::LoadPetLevelInfo()
         }
 
         // fill level gaps
-        for (uint32 level = 1; level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
+        for (uint32 level = 1; level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
         {
             if (pInfo[level].health == 0)
             {
@@ -186,9 +186,9 @@ void ObjectMgr::LoadPetLevelInfo()
  */
 PetLevelInfo const* ObjectMgr::GetPetLevelInfo(uint32 creature_id, uint32 level) const
 {
-    if (level > sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (level > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
-        level = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
+        level = sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
     }
 
     PetLevelInfoMap::const_iterator itr = petInfo.find(creature_id);
@@ -531,7 +531,7 @@ void ObjectMgr::LoadPlayerInfo()
             }
 
             uint32 current_level = fields[2].GetUInt32();
-            if (current_level > sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+            if (current_level > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
                 if (current_level > STRONG_MAX_LEVEL)       // hardcoded level maximum
                 {
@@ -549,7 +549,7 @@ void ObjectMgr::LoadPlayerInfo()
 
             if (!pInfo->levelInfo)
             {
-                pInfo->levelInfo = new PlayerLevelInfo[sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)];
+                pInfo->levelInfo = new PlayerLevelInfo[sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL)];
             }
 
             PlayerLevelInfo* pLevelInfo = &pInfo->levelInfo[current_level - 1];
@@ -596,19 +596,19 @@ void ObjectMgr::LoadPlayerInfo()
             }
 
             // skip expansion races if not playing with expansion
-            if (sWorld.getConfig(CONFIG_UINT32_EXPANSION) < EXPANSION_TBC && (race == RACE_BLOODELF || race == RACE_DRAENEI))
+            if (sGameConfig.getConfig(CONFIG_UINT32_EXPANSION) < EXPANSION_TBC && (race == RACE_BLOODELF || race == RACE_DRAENEI))
             {
                 continue;
             }
 
             // skip expansion classes if not playing with expansion
-            if (sWorld.getConfig(CONFIG_UINT32_EXPANSION) < EXPANSION_WOTLK && class_ == CLASS_DEATH_KNIGHT)
+            if (sGameConfig.getConfig(CONFIG_UINT32_EXPANSION) < EXPANSION_WOTLK && class_ == CLASS_DEATH_KNIGHT)
             {
                 continue;
             }
 
             // skip expansion races if not playing with expansion
-            if (sWorld.getConfig(CONFIG_UINT32_EXPANSION) < EXPANSION_CATA && (race == RACE_WORGEN || race == RACE_GOBLIN))
+            if (sGameConfig.getConfig(CONFIG_UINT32_EXPANSION) < EXPANSION_CATA && (race == RACE_WORGEN || race == RACE_GOBLIN))
             {
                 continue;
             }
@@ -622,7 +622,7 @@ void ObjectMgr::LoadPlayerInfo()
             }
 
             // fill level gaps
-            for (uint32 level = 1; level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
+            for (uint32 level = 1; level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
             {
                 if (pInfo->levelInfo[level].stats[0] == 0)
                 {
@@ -635,8 +635,8 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Loading xp per level data
     {
-        mPlayerXPperLevel.resize(sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
-        for (uint32 level = 0; level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
+        mPlayerXPperLevel.resize(sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
+        for (uint32 level = 0; level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
         {
             mPlayerXPperLevel[level] = 0;
         }
@@ -666,7 +666,7 @@ void ObjectMgr::LoadPlayerInfo()
             uint32 current_level = fields[0].GetUInt32();
             uint32 current_xp    = fields[1].GetUInt32();
 
-            if (current_level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+            if (current_level >= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
             {
                 if (current_level > STRONG_MAX_LEVEL)       // hardcoded level maximum
                 {
@@ -693,7 +693,7 @@ void ObjectMgr::LoadPlayerInfo()
     }
 
     // fill level gaps
-    for (uint32 level = 1; level < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
+    for (uint32 level = 1; level < sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL); ++level)
     {
         if (mPlayerXPperLevel[level] == 0)
         {
@@ -718,9 +718,9 @@ void ObjectMgr::GetPlayerClassLevelInfo(uint32 class_, uint32 level, uint32& bas
         return;
     }
 
-    if (level > sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (level > sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
-        level = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
+        level = sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
     }
 
     GtOCTBaseHPByClassEntry const* hp = sGtOCTBaseHPByClassStore.LookupEntry((class_-1) * GT_MAX_LEVEL + level-1);
@@ -757,7 +757,7 @@ void ObjectMgr::GetPlayerLevelInfo(uint32 race, uint32 class_, uint32 level, Pla
         return;
     }
 
-    if (level <= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+    if (level <= sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
     {
         *info = pInfo->levelInfo[level - 1];
     }
@@ -778,9 +778,9 @@ void ObjectMgr::GetPlayerLevelInfo(uint32 race, uint32 class_, uint32 level, Pla
 void ObjectMgr::BuildPlayerLevelInfo(uint8 race, uint8 _class, uint8 level, PlayerLevelInfo* info) const
 {
     // base data (last known level)
-    *info = playerInfo[race][_class].levelInfo[sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) - 1];
+    *info = playerInfo[race][_class].levelInfo[sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) - 1];
 
-    for (int lvl = sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) - 1; lvl < level; ++lvl)
+    for (int lvl = sGameConfig.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL) - 1; lvl < level; ++lvl)
     {
         switch (_class)
         {

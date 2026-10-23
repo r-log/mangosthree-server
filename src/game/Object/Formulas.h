@@ -29,7 +29,7 @@
 #include <cmath>
 #include "DBCStores.h"
 #include "Log.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Creature.h"
 
 namespace MaNGOS
@@ -195,7 +195,7 @@ namespace MaNGOS
                 xp_gain *= 2;
             }
 
-            return (uint32)(xp_gain * sWorld.getConfig(CONFIG_FLOAT_RATE_XP_KILL));
+            return (uint32)(xp_gain * sGameConfig.getConfig(CONFIG_FLOAT_RATE_XP_KILL));
         }
 
         inline float xp_in_group_rate(uint32 count, bool isRaid)

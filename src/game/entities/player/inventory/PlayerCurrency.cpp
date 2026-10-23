@@ -38,7 +38,7 @@
  */
 
 #include "Player.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "Database/DatabaseEnv.h"                           // QueryResult: the login loop fetches and advances it
 
@@ -60,7 +60,7 @@ namespace
         {
             return player->IsInWorld() && !player->GetSession()->PlayerLoading();
         };
-        inputs.conquestWeekCap = sWorld.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP);
+        inputs.conquestWeekCap = sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP);
         return inputs;
     }
 
@@ -87,12 +87,12 @@ namespace
 
 uint32 Player::GetCurrencyWeekCap(CurrencyTypesEntry const* currency) const
 {
-    return m_currencyMgr.GetWeekCap(currency, sWorld.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP));
+    return m_currencyMgr.GetWeekCap(currency, sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP));
 }
 
 void Player::SendCurrencies() const
 {
-    m_currencyMgr.SendAll(sWorld.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP), SessionSink());
+    m_currencyMgr.SendAll(sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP), SessionSink());
 }
 
 void Player::ModifyCurrencyCount(uint32 id, int32 count, bool modifyWeek, bool modifySeason, bool ignoreMultipliers)
@@ -127,7 +127,7 @@ void Player::_LoadCurrencies(QueryResult* result)
 
     if (result)
     {
-        uint32 conquestWeekCap = sWorld.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP);
+        uint32 conquestWeekCap = sGameConfig.getConfig(CONFIG_UINT32_CURRENCY_CONQUEST_POINTS_DEFAULT_WEEK_CAP);
 
         do
         {

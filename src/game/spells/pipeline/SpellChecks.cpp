@@ -54,7 +54,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
@@ -124,7 +124,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         }
 
     if (m_caster->GetTypeId() == TYPEID_PLAYER && !((Player*)m_caster)->isGameMaster() &&
-        sWorld.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK))
+        sGameConfig.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK))
     {
         if (m_spellInfo->HasAttribute(SPELL_ATTR_OUTDOORS_ONLY) &&
             !m_caster->GetTerrain()->IsOutdoors(m_caster->Where().X(), m_caster->Where().Y(), m_caster->Where().Z()))
@@ -1273,7 +1273,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     bool canFailAtMax = skillId != SKILL_HERBALISM && skillId != SKILL_MINING;
 
                     // chance for failure in orange gather / lockpick (gathering skill can't fail at maxskill)
-                    if ((canFailAtMax || skillValue < sWorld.GetConfigMaxSkillValue()) && reqSkillValue > irand(skillValue - 25, skillValue + 37))
+                    if ((canFailAtMax || skillValue < sGameConfig.GetConfigMaxSkillValue()) && reqSkillValue > irand(skillValue - 25, skillValue + 37))
                     {
                         return SPELL_FAILED_TRY_AGAIN;
                     }

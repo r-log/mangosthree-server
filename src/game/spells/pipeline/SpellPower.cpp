@@ -53,7 +53,7 @@
 #include "Opcodes.h"
 #include "Log.h"
 #include "UpdateMask.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
 #include "Player.h"
@@ -397,7 +397,7 @@ void Spell::TakeRunePower(bool hit)
                 modOwner->ApplySpellMod(m_spellInfo->ID, SPELLMOD_COST, rp);
             }
 
-            rp = int32(sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_RUNICPOWER_INCOME) * rp);
+            rp = int32(sGameConfig.getConfig(CONFIG_FLOAT_RATE_POWER_RUNICPOWER_INCOME) * rp);
             rp += m_caster->GetTotalAuraModifier(SPELL_AURA_MOD_RUNIC_POWER_REGEN) * rp / 100;
             if (rp > 0)
             {

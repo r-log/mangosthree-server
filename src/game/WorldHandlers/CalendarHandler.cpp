@@ -37,7 +37,7 @@
 #include "CharacterCache.h"
 #include "ObjectMgr.h"
 #include "SocialMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "ArenaTeam.h"
@@ -656,7 +656,7 @@ void WorldSession::FinishCalendarEventInvite(Player* player, CalendarInviteReque
         return;
     }
 
-    if (player->GetTeam() != request.inviteeTeam && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CALENDAR))
+    if (player->GetTeam() != request.inviteeTeam && !sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CALENDAR))
     {
         sCalendarMgr.SendCalendarCommandResult(player, CALENDAR_ERROR_NOT_ALLIED);
         return;

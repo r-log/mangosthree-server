@@ -30,7 +30,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -115,7 +115,7 @@ bool Player::IsVisibleInGridForPlayer(Player* pl) const
         if (Corpse* corpse = pl->GetCorpse())
         {
             // 20 - aggro distance for same level, 25 - max additional distance if player level less that creature level
-            if (InReach(*corpse, *this, (20 + 25) * sWorld.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO)))
+            if (InReach(*corpse, *this, (20 + 25) * sGameConfig.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO)))
             {
                 return true;
             }

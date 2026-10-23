@@ -38,7 +38,7 @@
 #include "Log.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "AchievementMgr.h"
 #include "Player.h"
@@ -156,7 +156,7 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recv_data)
     }
 
     // can't group with
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GROUP) && GetPlayer()->GetTeam() != player->GetTeam())
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GROUP) && GetPlayer()->GetTeam() != player->GetTeam())
     {
         SendPartyResult(PARTY_OP_INVITE, membername, ERR_PLAYER_WRONG_FACTION);
         return;
@@ -181,7 +181,7 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recv_data)
         group = GetPlayer()->GetOriginalGroup();
     }
 
-    if (group && group->isRaidGroup() && !player->GetAllowLowLevelRaid() && (player->getLevel() < sWorld.getConfig(CONFIG_UINT32_MIN_LEVEL_FOR_RAID)))
+    if (group && group->isRaidGroup() && !player->GetAllowLowLevelRaid() && (player->getLevel() < sGameConfig.getConfig(CONFIG_UINT32_MIN_LEVEL_FOR_RAID)))
     {
         SendPartyResult(PARTY_OP_INVITE, "", ERR_RAID_DISALLOWED_BY_LEVEL);
         return;

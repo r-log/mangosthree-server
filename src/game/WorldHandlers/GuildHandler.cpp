@@ -34,7 +34,7 @@
 #include <cstring>
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "Log.h"
 #include "OpcodeTable.h"
@@ -103,7 +103,7 @@ void WorldSession::HandleGuildInviteOpcode(WorldPacket& recvPacket)
     }
 
     // not let enemies sign guild charter
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && player->GetTeam() != GetPlayer()->GetTeam())
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && player->GetTeam() != GetPlayer()->GetTeam())
     {
         SendGuildCommandResult(GUILD_INVITE_S, Invitedname, ERR_GUILD_NOT_ALLIED);
         return;
@@ -237,7 +237,7 @@ void WorldSession::HandleGuildRemoveOpcode(WorldPacket& recvPacket)
     }
 
     // do not delete guilds that level are higher than undeletable
-    if (guild->GetMemberSize() == 1 && guild->GetLevel() >= sWorld.getConfig(CONGIG_UINT32_GUILD_UNDELETABLE_LEVEL))
+    if (guild->GetMemberSize() == 1 && guild->GetLevel() >= sGameConfig.getConfig(CONGIG_UINT32_GUILD_UNDELETABLE_LEVEL))
     {
         SendGuildCommandResult(GUILD_INVITE_S, "", ERR_GUILD_UNDELETABLE_DUE_TO_LEVEL);
         return;
@@ -276,7 +276,7 @@ void WorldSession::HandleGuildAcceptOpcode(WorldPacket& /*recvPacket*/)
     }
 
     // not let enemies sign guild charter
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && player->GetTeam() != sObjectMgr.GetPlayerTeamByGUID(guild->GetLeaderGuid()))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) && player->GetTeam() != sObjectMgr.GetPlayerTeamByGUID(guild->GetLeaderGuid()))
     {
         return;
     }
@@ -631,7 +631,7 @@ void WorldSession::HandleGuildLeaveOpcode(WorldPacket& /*recvPacket*/)
     }
 
     // do not delete guilds that level are higher than undeletable
-    if (guild->GetMemberSize() == 1 && guild->GetLevel() >= sWorld.getConfig(CONGIG_UINT32_GUILD_UNDELETABLE_LEVEL))
+    if (guild->GetMemberSize() == 1 && guild->GetLevel() >= sGameConfig.getConfig(CONGIG_UINT32_GUILD_UNDELETABLE_LEVEL))
     {
         SendGuildCommandResult(GUILD_INVITE_S, "", ERR_GUILD_UNDELETABLE_DUE_TO_LEVEL);
         return;
@@ -684,7 +684,7 @@ void WorldSession::HandleGuildDisbandOpcode(WorldPacket& /*recvPacket*/)
     }
 
     // do not delete guilds that level are higher than undeletable
-    if (guild->GetMemberSize() == 1 && guild->GetLevel() >= sWorld.getConfig(CONGIG_UINT32_GUILD_UNDELETABLE_LEVEL))
+    if (guild->GetMemberSize() == 1 && guild->GetLevel() >= sGameConfig.getConfig(CONGIG_UINT32_GUILD_UNDELETABLE_LEVEL))
     {
         SendGuildCommandResult(GUILD_INVITE_S, "", ERR_GUILD_UNDELETABLE_DUE_TO_LEVEL);
         return;
@@ -1254,7 +1254,7 @@ void WorldSession::HandleGuildBankDepositMoney(WorldPacket& recv_data)
     CharacterDatabase.CommitTransaction();
 
     // logging money
-    if (_player->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+    if (_player->GetSession()->GetSecurity() > SEC_PLAYER && sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
     {
         sLog.outCommand(_player->GetSession()->GetAccountId(), "GM %s (Account: %u) deposit money (Amount: %u) to guild bank (Guild ID %u)",
                         _player->GetName(), _player->GetSession()->GetAccountId(), money, GuildId);
