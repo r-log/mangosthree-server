@@ -36,7 +36,7 @@
 #include "ObjectGuid.h"
 
 class SocialMgr;
-class Field;
+struct SocialRow;
 
 enum FriendStatus
 {
@@ -159,7 +159,7 @@ typedef std::function<void(FriendStatusFact const&)> FriendStatusSink;
  * one is an INSERT; removing a flag keeps the entry while another flag is left (an UPDATE) and
  * deletes it with the last one (a DELETE); a note is set only on a listed character, cut to 48
  * characters; the login rows are taken one at a time (LoadRow) under the same two limits. The
- * statements go to the character database asynchronously. It reports the contact list as a
+ * statements go through `SocialRepository`, queued on the character database. It reports the contact list as a
  * ContactListFact; the friend status fact and the online-visibility verdict below are free
  * functions in this file.
  *
@@ -215,11 +215,11 @@ class PlayerSocial
          *
          * A row over its limit is skipped. The owner's loop keeps the two counters across the rows.
          *
-         * @param fields        The row.
+         * @param row           The row, as the repository read it.
          * @param friendCounter The friend rows taken so far.
          * @param ignoreCounter The ignore rows taken so far.
          */
-        void LoadRow(Field* fields, uint32& friendCounter, uint32& ignoreCounter);
+        void LoadRow(SocialRow const& row, uint32& friendCounter, uint32& ignoreCounter);
     private:
         PlayerSocialMap m_playerSocialMap;
         uint32 m_playerLowGuid;
