@@ -45,6 +45,7 @@
 #include "Policies/Singleton.h"
 #include "SharedDefines.h"
 #include "data/GameConfig.h"
+#include "WorldGameTime.h"
 
 #include <map>
 #include <set>
@@ -222,10 +223,8 @@ class World
 
         /// When server started?
         time_t const& GetStartTime() const { return m_startTime; }
-        /// What time is it?
-        time_t const& GetGameTime() const { return m_gameTime; }
         /// Uptime (in secs)
-        uint32 GetUptime() const { return uint32(m_gameTime - m_startTime); }
+        uint32 GetUptime() const { return uint32(WorldGameTime::Get() - m_startTime); }
         /// Next daily quests reset time
         time_t GetNextDailyQuestsResetTime() const { return m_NextDailyQuestReset; }
         time_t GetNextWeeklyQuestsResetTime() const { return m_NextWeeklyQuestReset; }
@@ -381,7 +380,6 @@ class World
         uint32 m_ShutdownMask;
 
         time_t m_startTime;
-        time_t m_gameTime;
         IntervalTimer m_timers[WUPDATE_COUNT];
         uint32 mail_timer;
         uint32 mail_timer_expires;

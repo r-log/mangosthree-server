@@ -32,7 +32,8 @@
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
 #include "QuestDef.h"
@@ -62,9 +63,9 @@
 
 void Player::SaveToDB()
 {
-    // we should assure this: ASSERT((m_nextSave != sWorld.getConfig(CONFIG_UINT32_INTERVAL_SAVE)));
+    // we should assure this: ASSERT((m_nextSave != sGameConfig.getConfig(CONFIG_UINT32_INTERVAL_SAVE)));
     // delay auto save at any saves (manual, in code, or autosave)
-    m_nextSave = sWorld.getConfig(CONFIG_UINT32_INTERVAL_SAVE);
+    m_nextSave = sGameConfig.getConfig(CONFIG_UINT32_INTERVAL_SAVE);
 
     // lets allow only players in world to be saved
     if (IsBeingTeleportedFar())
@@ -280,7 +281,7 @@ void Player::SaveToDB()
 
     _SaveBGData();
     _SaveInventory();
-    m_questStatusMgr.SaveStatus(GetGUIDLow(), sWorld.GetGameTime());
+    m_questStatusMgr.SaveStatus(GetGUIDLow(), WorldGameTime::Get());
     _SaveDailyQuestStatus();
     m_questStatusMgr.SaveWeekly(GetGUIDLow());
     m_questStatusMgr.SaveMonthly(GetGUIDLow());
@@ -302,7 +303,7 @@ void Player::SaveToDB()
 
     // check if stats should only be saved on logout
     // save stats can be out of transaction
-    if (m_session->isLogingOut() || !sWorld.getConfig(CONFIG_BOOL_STATS_SAVE_ONLY_ON_LOGOUT))
+    if (m_session->isLogingOut() || !sGameConfig.getConfig(CONFIG_BOOL_STATS_SAVE_ONLY_ON_LOGOUT))
     {
         _SaveStats();
     }
@@ -857,7 +858,7 @@ void Player::_SaveSpells()
 void Player::_SaveStats()
 {
     // check if stat saving is enabled and if char level is high enough
-    if (!sWorld.getConfig(CONFIG_UINT32_MIN_LEVEL_STAT_SAVE) || getLevel() < sWorld.getConfig(CONFIG_UINT32_MIN_LEVEL_STAT_SAVE))
+    if (!sGameConfig.getConfig(CONFIG_UINT32_MIN_LEVEL_STAT_SAVE) || getLevel() < sGameConfig.getConfig(CONFIG_UINT32_MIN_LEVEL_STAT_SAVE))
     {
         return;
     }

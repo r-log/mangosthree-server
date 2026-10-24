@@ -63,7 +63,8 @@
 #include "ObjectMgr.h"
 #include "ProgressBar.h"
 #include "ArenaTeam.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "GameEventMgr.h"
 #include "DisableMgr.h"
@@ -88,7 +89,7 @@ BattleGroundMgr::BattleGroundMgr() : m_AutoDistributionTimeChecker(0), m_highest
     {
         m_BattleGrounds[i].clear();
     }
-    m_NextRatingDiscardUpdate = sWorld.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER);
+    m_NextRatingDiscardUpdate = sGameConfig.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER);
     m_Testing = false;
 }
 
@@ -155,7 +156,7 @@ void BattleGroundMgr::Update(uint32 diff)
     }
 
     // if rating difference counts, maybe force-update queues
-    if (sWorld.getConfig(CONFIG_UINT32_ARENA_MAX_RATING_DIFFERENCE) && sWorld.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER))
+    if (sGameConfig.getConfig(CONFIG_UINT32_ARENA_MAX_RATING_DIFFERENCE) && sGameConfig.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER))
     {
         // it's time to force update
         if (m_NextRatingDiscardUpdate < diff)
@@ -172,7 +173,7 @@ void BattleGroundMgr::Update(uint32 diff)
                 }
             }
 
-            m_NextRatingDiscardUpdate = sWorld.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER);
+            m_NextRatingDiscardUpdate = sGameConfig.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER);
         }
         else
         {
@@ -1151,7 +1152,7 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
 
         float startMaxDist = fields[7].GetFloat();
         // sLog.outDetail("Creating battleground %s, %u-%u", bl->Name_lang[sWorld.GetDBClang()], MinLvl, MaxLvl);
-        if (!CreateBattleGround(bgTypeID, IsArena, MinPlayersPerTeam, MaxPlayersPerTeam, bl->MinLevel, bl->MaxLevel, bl->Name_lang[sWorld.GetDefaultDbcLocale()], bl->MapID[0], AStartLoc[0], AStartLoc[1], AStartLoc[2], AStartLoc[3], HStartLoc[0], HStartLoc[1], HStartLoc[2], HStartLoc[3], startMaxDist))
+        if (!CreateBattleGround(bgTypeID, IsArena, MinPlayersPerTeam, MaxPlayersPerTeam, bl->MinLevel, bl->MaxLevel, bl->Name_lang[sGameConfig.GetDefaultDbcLocale()], bl->MapID[0], AStartLoc[0], AStartLoc[1], AStartLoc[2], AStartLoc[3], HStartLoc[0], HStartLoc[1], HStartLoc[2], HStartLoc[3], startMaxDist))
         {
             continue;
         }
@@ -1168,14 +1169,14 @@ void BattleGroundMgr::CreateInitialBattleGrounds()
 
 void BattleGroundMgr::InitAutomaticArenaPointDistribution()
 {
-    if (sWorld.getConfig(CONFIG_BOOL_ARENA_AUTO_DISTRIBUTE_POINTS))
+    if (sGameConfig.getConfig(CONFIG_BOOL_ARENA_AUTO_DISTRIBUTE_POINTS))
     {
         DEBUG_LOG("Initializing Automatic Arena Point Distribution");
         QueryResult* result = CharacterDatabase.Query("SELECT `NextArenaPointDistributionTime` FROM `saved_variables`");
         if (!result)
         {
             DEBUG_LOG("Battleground: Next arena point distribution time not found in SavedVariables, reseting it now.");
-            m_NextAutoDistributionTime = time_t(sWorld.GetGameTime() + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sWorld.getConfig(CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS));
+            m_NextAutoDistributionTime = time_t(WorldGameTime::Get() + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sGameConfig.getConfig(CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS));
             CharacterDatabase.PExecute("INSERT INTO `saved_variables` (`NextArenaPointDistributionTime`) VALUES ('" UI64FMTD "')", uint64(m_NextAutoDistributionTime));
         }
         else

@@ -151,8 +151,8 @@ World::World(): mail_timer(0), mail_timer_expires(0), m_NextMonthlyQuestReset(0)
     m_allowMovement = true;
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
-    m_gameTime = time(NULL);
-    m_startTime = m_gameTime;
+    WorldGameTime::Set(time(NULL));
+    m_startTime = WorldGameTime::Get();
     m_maxActiveSessionCount = 0;
     m_maxQueuedSessionCount = 0;
     m_NextCurrencyReset = 0;
@@ -697,8 +697,8 @@ void World::SetInitialWorldSettings()
 
     ///- Initialize game time and timers
     sLog.outString("Initialize game time and timers");
-    m_gameTime = time(NULL);
-    m_startTime = m_gameTime;
+    WorldGameTime::Set(time(NULL));
+    m_startTime = WorldGameTime::Get();
 
     tm local;
     time_t curr;
@@ -743,7 +743,7 @@ void World::SetInitialWorldSettings()
     // to set mailtimer to return mails every day between 4 and 5 am
     // mailtimer is increased when updating auctions
     // one second is 1000 -(tested on win system)
-    std::tm ltm = safe_localtime(m_gameTime);
+    std::tm ltm = safe_localtime(WorldGameTime::Get());
     mail_timer = uint32((((ltm.tm_hour + 20) % 24) * HOUR * IN_MILLISECONDS) / m_timers[WUPDATE_AUCTIONS].GetInterval());
     // 1440
     mail_timer_expires = uint32((DAY * IN_MILLISECONDS) / (m_timers[WUPDATE_AUCTIONS].GetInterval()));
@@ -995,25 +995,25 @@ void World::Update(uint32 diff)
     sMassMailMgr.Update();
 
     /// Handle daily quests and dungeon reset time
-    if (m_gameTime > m_NextDailyQuestReset)
+    if (WorldGameTime::Get() > m_NextDailyQuestReset)
     {
         ResetDailyQuests();
     }
 
     /// Handle weekly quests reset time
-    if (m_gameTime > m_NextWeeklyQuestReset)
+    if (WorldGameTime::Get() > m_NextWeeklyQuestReset)
     {
         ResetWeeklyQuests();
     }
 
     /// Handle monthly quests reset time
-    if (m_gameTime > m_NextMonthlyQuestReset)
+    if (WorldGameTime::Get() > m_NextMonthlyQuestReset)
     {
         ResetMonthlyQuests();
     }
 
     /// Handle weekly currency cap reset time
-    if (m_gameTime > m_NextCurrencyReset)
+    if (WorldGameTime::Get() > m_NextCurrencyReset)
     {
         ResetCurrencyWeekCounts();
     }
@@ -1063,7 +1063,7 @@ void World::Update(uint32 diff)
     /// <li> Update uptime table
     if (m_timers[WUPDATE_UPTIME].Passed())
     {
-        uint32 tmpDiff = uint32(m_gameTime - m_startTime);
+        uint32 tmpDiff = uint32(WorldGameTime::Get() - m_startTime);
         uint32 maxClientsNum = GetMaxActiveSessionCount();
 
         m_timers[WUPDATE_UPTIME].Reset();
@@ -1461,8 +1461,8 @@ void World::_UpdateGameTime()
     time_t thisTime = WorldClock::NowUnix();
     /// The seconds step back once when a harness run ends; the step is taken
     /// as no time passed, rather than underflowing to a huge elapsed value.
-    const uint32 elapsed = thisTime > m_gameTime ? uint32(thisTime - m_gameTime) : 0;
-    m_gameTime = thisTime;
+    const uint32 elapsed = thisTime > WorldGameTime::Get() ? uint32(thisTime - WorldGameTime::Get()) : 0;
+    WorldGameTime::Set(thisTime);
 
     ///- if there is a shutdown timer
     if (!m_stopEvent && m_ShutdownTimer > 0 && elapsed > 0)
@@ -1834,7 +1834,7 @@ void World::SetMonthlyQuestResetTime(bool initialize)
 
         if (!result)
         {
-            m_NextMonthlyQuestReset = m_gameTime;
+            m_NextMonthlyQuestReset = WorldGameTime::Get();
         }
         else
         {
@@ -1852,8 +1852,8 @@ void World::SetMonthlyQuestResetTime(bool initialize)
         delete result;
     }
 
-    // computed from m_gameTime, the clock Update compares the reset against
-    m_NextMonthlyQuestReset = NextMonthlyQuestReset(m_gameTime, m_NextMonthlyQuestReset, initialize);
+    // computed from the world game time, the clock Update compares the reset against
+    m_NextMonthlyQuestReset = NextMonthlyQuestReset(WorldGameTime::Get(), m_NextMonthlyQuestReset, initialize);
 
     // Row must exist for this to work. Currently row is added by InitDailyQuestResetTime(), called before this function
     CharacterDatabase.PExecute("UPDATE `saved_variables` SET `NextMonthlyQuestResetTime` = '" UI64FMTD "'", uint64(m_NextMonthlyQuestReset));

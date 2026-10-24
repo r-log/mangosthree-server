@@ -30,7 +30,8 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -661,7 +662,7 @@ void Player::removeSpell(uint32 spell_id, bool disabled, bool learn_low_rank, bo
     if (sSpellMgr.IsPrimaryProfessionFirstRankSpell(spell_id))
     {
         uint32 freeProfs = GetFreePrimaryProfessionPoints() + 1;
-        if (freeProfs <= sWorld.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL))
+        if (freeProfs <= sGameConfig.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL))
         {
             SetFreePrimaryProfessions(freeProfs);
         }
@@ -818,7 +819,7 @@ void Player::removeSpell(uint32 spell_id, bool disabled, bool learn_low_rank, bo
     }
 
     // for talents and normal spell unlearn that allow offhand use for some weapons
-    if (sWorld.getConfig(CONFIG_BOOL_OFFHAND_CHECK_AT_TALENTS_RESET))
+    if (sGameConfig.getConfig(CONFIG_BOOL_OFFHAND_CHECK_AT_TALENTS_RESET))
     {
         AutoUnequipOffhandIfNeed();
     }
@@ -861,7 +862,7 @@ bool Player::resetTalents(bool no_cost, bool all_specs)
 
     if (!no_cost)
     {
-        cost = m_talentMgr.ResetTalentsCost(sWorld.GetGameTime());
+        cost = m_talentMgr.ResetTalentsCost(WorldGameTime::Get());
 
         if (GetMoney() < cost)
         {

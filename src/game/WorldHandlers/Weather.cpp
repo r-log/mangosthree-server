@@ -31,7 +31,8 @@
 #include "Player.h"
 #include "ProgressBar.h"
 #include "Map.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "Log.h"
 #include "Util.h"
@@ -46,7 +47,7 @@ Weather::Weather(uint32 zone, WeatherZoneChances const* weatherChances) :
     m_weatherChances(weatherChances),
     m_isPermanentWeather(false)
 {
-    m_timer.SetInterval(sWorld.getConfig(CONFIG_UINT32_INTERVAL_CHANGEWEATHER));
+    m_timer.SetInterval(sGameConfig.getConfig(CONFIG_UINT32_INTERVAL_CHANGEWEATHER));
 
     DETAIL_FILTER_LOG(LOG_FILTER_WEATHER, "WORLD: Starting weather system for zone %u (change every %u minutes).", m_zone, (m_timer.GetInterval() / (MINUTE * IN_MILLISECONDS)));
 }
@@ -107,7 +108,7 @@ bool Weather::ReGenerate()
 
     // 78 days between January 1st and March 20nd; 365/4=91 days by season
     // season source http://aa.usno.navy.mil/data/docs/EarthSeasons.html
-    time_t gtime = sWorld.GetGameTime();
+    time_t gtime = WorldGameTime::Get();
     struct tm ltime;
     ltime = safe_localtime(gtime);
     uint32 season = ((ltime.tm_yday - 78 + 365) / 91) % 4;

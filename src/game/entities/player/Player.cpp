@@ -36,6 +36,7 @@
 #include "Opcodes.h"
 #include "spells/data/SpellMgr.h"
 #include "World.h"
+#include "WorldGameTime.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "UpdateMask.h"
@@ -4235,7 +4236,7 @@ void Player::SendTalentWipeConfirm(ObjectGuid guid)
 {
     WorldPacket data(MSG_TALENT_WIPE_CONFIRM, (8 + 4));
     data << ObjectGuid(guid);
-    data << uint32(m_talentMgr.ResetTalentsCost(sWorld.GetGameTime()));
+    data << uint32(m_talentMgr.ResetTalentsCost(WorldGameTime::Get()));
     GetSession()->SendPacket(&data);
 }
 
@@ -4826,7 +4827,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
     m_achievementMgr->SendAllAchievementData();
 
     data.Initialize(SMSG_LOGIN_SETTIMESPEED, 4 + 4 + 4);
-    data << uint32(secsToTimeBitFields(sWorld.GetGameTime()));
+    data << uint32(secsToTimeBitFields(WorldGameTime::Get()));
     data << (float)0.01666667f;                             // game speed
     data << uint32(0);                                      // added in 3.1.2
     GetSession()->SendPacket(&data);

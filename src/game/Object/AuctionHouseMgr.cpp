@@ -42,7 +42,8 @@
 #include "ObjectGuid.h"
 #include "AchievementMgr.h"
 #include "Player.h"
-#include "World.h"
+#include "WorldGameTime.h"
+#include "data/GameConfig.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Mail.h"
@@ -81,7 +82,7 @@ AuctionHouseMgr::~AuctionHouseMgr()
  */
 AuctionHouseObject* AuctionHouseMgr::GetAuctionsMap(AuctionHouseEntry const* house)
 {
-    if (sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
+    if (sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
     {
         return &mAuctions[AUCTION_HOUSE_NEUTRAL];
     }
@@ -111,14 +112,14 @@ uint64 AuctionHouseMgr::GetAuctionDeposit(AuctionHouseEntry const* entry, uint32
 
     deposit = deposit * entry->DepositRate * 3.0f / 100.0f;
 
-    float min_deposit = float(sWorld.getConfig(CONFIG_UINT32_AUCTION_DEPOSIT_MIN));
+    float min_deposit = float(sGameConfig.getConfig(CONFIG_UINT32_AUCTION_DEPOSIT_MIN));
 
     if (deposit < min_deposit)
     {
         deposit = min_deposit;
     }
 
-    return uint64(deposit * sWorld.getConfig(CONFIG_FLOAT_RATE_AUCTION_DEPOSIT));
+    return uint64(deposit * sGameConfig.getConfig(CONFIG_FLOAT_RATE_AUCTION_DEPOSIT));
 }
 
 namespace
@@ -182,7 +183,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
     Player* auction_owner = sObjectMgr.GetPlayer(ownerGuid);
 
     // data for gm.log
-    if (sWorld.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
+    if (sGameConfig.getConfig(CONFIG_BOOL_GM_LOG_TRADE))
     {
         if (bidder)
         {
@@ -677,7 +678,7 @@ AuctionHouseEntry const* AuctionHouseMgr::GetAuctionHouseEntry(Unit* unit)
 {
     uint32 houseid = 1;                                     // dwarf auction house (used for normal cut/etc percents)
 
-    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
+    if (!sGameConfig.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
     {
         if (unit->GetTypeId() == TYPEID_UNIT)
         {
@@ -749,7 +750,7 @@ AuctionHouseEntry const* AuctionHouseMgr::GetAuctionHouseEntry(Unit* unit)
  */
 void AuctionHouseObject::Update()
 {
-    time_t curTime = sWorld.GetGameTime();
+    time_t curTime = WorldGameTime::Get();
     ///- Handle expired auctions
     for (AuctionEntryMap::iterator itr = AuctionsMap.begin(); itr != AuctionsMap.end();)
     {
@@ -1218,7 +1219,7 @@ void AuctionHouseObject::BuildListPendingSales(WorldPacket& data, Player* player
  */
 AuctionEntry* AuctionHouseObject::AddAuction(AuctionHouseEntry const* auctionHouseEntry, Item* newItem, uint32 etime, uint64 bid, uint64 buyout, uint64 deposit, Player* pl /*= NULL*/)
 {
-    uint32 auction_time = uint32(etime * sWorld.getConfig(CONFIG_FLOAT_RATE_AUCTION_TIME));
+    uint32 auction_time = uint32(etime * sGameConfig.getConfig(CONFIG_FLOAT_RATE_AUCTION_TIME));
 
     AuctionEntry* AH = new AuctionEntry;
     AH->Id = sObjectMgr.GenerateAuctionID();
@@ -1307,7 +1308,7 @@ bool AuctionEntry::BuildAuctionInfo(WorldPacket& data) const
  */
 uint64 AuctionEntry::GetAuctionCut() const
 {
-    return uint64(auctionHouseEntry->ConsignmentRate * bid * sWorld.getConfig(CONFIG_FLOAT_RATE_AUCTION_CUT) / 100.0f);
+    return uint64(auctionHouseEntry->ConsignmentRate * bid * sGameConfig.getConfig(CONFIG_FLOAT_RATE_AUCTION_CUT) / 100.0f);
 }
 
 /// the sum of outbid is (1% from current bid)*5, if bid is very small, it is 1c
