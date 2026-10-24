@@ -71,6 +71,12 @@ OutdoorPvPMgr::~OutdoorPvPMgr()
     }
 }
 
+void OutdoorPvPMgr::SendDefenseMessage(uint32 zoneId, int32 textId) const
+{
+    MANGOS_ASSERT(m_defenseMessage);
+    m_defenseMessage(zoneId, textId);
+}
+
 #define LOAD_OPVP_ZONE(a)                                           \
 if (sGameConfig.getConfig(CONFIG_BOOL_OUTDOORPVP_##a##_ENABLED) && !DisableMgr::IsDisabledFor(DISABLE_TYPE_OUTDOORPVP, OPVP_ID_##a))     \
     {                                                               \

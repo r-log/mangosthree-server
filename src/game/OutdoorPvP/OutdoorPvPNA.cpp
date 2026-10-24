@@ -26,7 +26,6 @@
 #include <list>
 #include "OutdoorPvPNA.h"
 #include "WorldPacket.h"
-#include "World.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -211,7 +210,7 @@ void OutdoorPvPNA::HandleCreatureDeath(Creature* creature)
         m_zoneMapState = m_zoneOwner == ALLIANCE ? WORLD_STATE_NA_HALAA_NEUTRAL_A : WORLD_STATE_NA_HALAA_NEUTRAL_H;
         SendUpdateWorldState(m_zoneMapState, WORLD_STATE_ADD);
 
-        sWorld.SendDefenseMessage(ZONE_ID_NAGRAND, LANG_OPVP_NA_DEFENSELESS);
+        sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_NAGRAND, LANG_OPVP_NA_DEFENSELESS);
     }
 }
 
@@ -345,11 +344,11 @@ bool OutdoorPvPNA::HandleEvent(uint32 eventId, GameObject* go)
             break;
         case EVENT_HALAA_BANNER_PROGRESS_ALLIANCE:
             SetBannerVisual(go, CAPTURE_ARTKIT_ALLIANCE, CAPTURE_ANIM_ALLIANCE);
-            sWorld.SendDefenseMessage(ZONE_ID_NAGRAND, LANG_OPVP_NA_PROGRESS_A);
+            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_NAGRAND, LANG_OPVP_NA_PROGRESS_A);
             break;
         case EVENT_HALAA_BANNER_PROGRESS_HORDE:
             SetBannerVisual(go, CAPTURE_ARTKIT_HORDE, CAPTURE_ANIM_HORDE);
-            sWorld.SendDefenseMessage(ZONE_ID_NAGRAND, LANG_OPVP_NA_PROGRESS_H);
+            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_NAGRAND, LANG_OPVP_NA_PROGRESS_H);
             break;
     }
 
@@ -391,7 +390,7 @@ void OutdoorPvPNA::ProcessCaptureEvent(GameObject* go, Team team)
     SendUpdateWorldState(WORLD_STATE_NA_GUARDS_LEFT, m_guardsLeft);
 
     BuffTeam(m_zoneOwner, SPELL_STRENGTH_HALAANI);
-    sWorld.SendDefenseMessage(ZONE_ID_NAGRAND, m_zoneOwner == ALLIANCE ? LANG_OPVP_NA_CAPTURE_A : LANG_OPVP_NA_CAPTURE_H);
+    sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_NAGRAND, m_zoneOwner == ALLIANCE ? LANG_OPVP_NA_CAPTURE_A : LANG_OPVP_NA_CAPTURE_H);
 }
 
 // Handle the gameobjects spawn/despawn depending on the controller faction

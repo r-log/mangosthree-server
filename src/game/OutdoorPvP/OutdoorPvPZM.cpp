@@ -25,7 +25,6 @@
 
 #include "OutdoorPvPZM.h"
 #include "WorldPacket.h"
-#include "World.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -202,7 +201,7 @@ bool OutdoorPvPZM::HandleEvent(uint32 eventId, GameObject* go)
                     {
                         if (zangarmarshTowerEvents[i][j].defenseMessage)
                         {
-                            sWorld.SendDefenseMessage(ZONE_ID_ZANGARMARSH, zangarmarshTowerEvents[i][j].defenseMessage);
+                            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_ZANGARMARSH, zangarmarshTowerEvents[i][j].defenseMessage);
                         }
 
                         return ProcessCaptureEvent(go, i, zangarmarshTowerEvents[i][j].team, zangarmarshTowerEvents[i][j].worldState, zangarmarshTowerEvents[i][j].mapState);
@@ -230,7 +229,7 @@ bool OutdoorPvPZM::ProcessCaptureEvent(GameObject* go, uint32 towerId, Team team
         if (m_towersAlliance == MAX_ZM_TOWERS)
         {
             // Send this defense message before updating scout state as this sends another
-            sWorld.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_BOTH_BEACONS_A);
+            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_BOTH_BEACONS_A);
 
             // only add flag to scouts if team does not have captured graveyard already
             if (m_graveyardOwner != ALLIANCE)
@@ -248,7 +247,7 @@ bool OutdoorPvPZM::ProcessCaptureEvent(GameObject* go, uint32 towerId, Team team
         if (m_towersHorde == MAX_ZM_TOWERS)
         {
             // Send this defense message before updating scout state as this sends another
-            sWorld.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_BOTH_BEACONS_H);
+            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_BOTH_BEACONS_H);
 
             // only add flag to scouts if team does not already have captured graveyard
             if (m_graveyardOwner != HORDE)
@@ -314,7 +313,7 @@ void OutdoorPvPZM::UpdateScoutState(Team team, bool spawned)
 
         if (spawned)
         {
-            sWorld.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_SPAWN_FIELD_SCOUT_A);
+            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_SPAWN_FIELD_SCOUT_A);
         }
     }
     else
@@ -325,7 +324,7 @@ void OutdoorPvPZM::UpdateScoutState(Team team, bool spawned)
 
         if (spawned)
         {
-            sWorld.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_SPAWN_FIELD_SCOUT_H);
+            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_SPAWN_FIELD_SCOUT_H);
         }
     }
 }
@@ -386,7 +385,7 @@ bool OutdoorPvPZM::HandleGameObjectUse(Player* player, GameObject* go)
         player->RemoveAurasDueToSpell(SPELL_BATTLE_STANDARD_ALLIANCE);
 
         // send defense message
-        sWorld.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_GRAVEYARD_A);
+        sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_GRAVEYARD_A);
     }
     else
     {
@@ -403,7 +402,7 @@ bool OutdoorPvPZM::HandleGameObjectUse(Player* player, GameObject* go)
         player->RemoveAurasDueToSpell(SPELL_BATTLE_STANDARD_HORDE);
 
         // send defense message
-        sWorld.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_GRAVEYARD_H);
+        sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_ZANGARMARSH, LANG_OPVP_ZM_CAPTURE_GRAVEYARD_H);
     }
 
     // change the graveyard link

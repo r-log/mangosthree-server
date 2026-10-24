@@ -63,6 +63,7 @@ set(SRC_GRP_TESTS
     PlaguelandsTowerCountTest.cpp
     TeamBuffQueueTest.cpp
     CapturePointSliderStoreTest.cpp
+    PvpBroadcastTest.cpp
     AfterMapPhaseQueueTest.cpp
     MapPhaseTest.cpp
     TestSeamTest.cpp

@@ -26,7 +26,6 @@
 #include <list>
 #include "OutdoorPvPHP.h"
 #include "WorldPacket.h"
-#include "World.h"
 #include "BattleGround.h"
 #include "Object.h"
 #include "Creature.h"
@@ -201,7 +200,7 @@ bool OutdoorPvPHP::HandleEvent(uint32 eventId, GameObject* go)
                     {
                         if (hellfireTowerEvents[i][j].defenseMessage)
                         {
-                            sWorld.SendDefenseMessage(ZONE_ID_HELLFIRE_PENINSULA, hellfireTowerEvents[i][j].defenseMessage);
+                            sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_HELLFIRE_PENINSULA, hellfireTowerEvents[i][j].defenseMessage);
                         }
 
                         return ProcessCaptureEvent(go, i, hellfireTowerEvents[i][j].team, hellfireTowerEvents[i][j].worldState, hellfireTowerEvents[i][j].towerArtKit, hellfireTowerEvents[i][j].towerAnim);

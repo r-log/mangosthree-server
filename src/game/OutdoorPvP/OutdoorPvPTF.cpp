@@ -26,7 +26,6 @@
 #include <list>
 #include "OutdoorPvPTF.h"
 #include "WorldPacket.h"
-#include "World.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "Object.h"
@@ -168,7 +167,7 @@ bool OutdoorPvPTF::HandleEvent(uint32 eventId, GameObject* go)
                     // prevent processing if the owner did not change (happens if progress event is called after contest event)
                     if (terokkarTowerEvents[i][j].team != m_towerOwner[i])
                     {
-                        sWorld.SendDefenseMessage(ZONE_ID_TEROKKAR_FOREST, terokkarTowerEvents[i][j].defenseMessage);
+                        sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_TEROKKAR_FOREST, terokkarTowerEvents[i][j].defenseMessage);
 
                         return ProcessCaptureEvent(go, i, terokkarTowerEvents[i][j].team, terokkarTowerEvents[i][j].worldState);
                     }
@@ -268,7 +267,7 @@ void OutdoorPvPTF::LockZone(GameObject* go, uint32 towerId, Team team, uint32 ne
     // lock the towers
     LockTowers(go);
 
-    sWorld.SendDefenseMessage(ZONE_ID_TEROKKAR_FOREST, team == ALLIANCE ? LANG_OPVP_TF_CAPTURE_ALL_TOWERS_A : LANG_OPVP_TF_CAPTURE_ALL_TOWERS_H);
+    sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_TEROKKAR_FOREST, team == ALLIANCE ? LANG_OPVP_TF_CAPTURE_ALL_TOWERS_A : LANG_OPVP_TF_CAPTURE_ALL_TOWERS_H);
 
     // remove tower states when zone has been captured and locked
     for (uint8 i = 0; i < MAX_TF_TOWERS; ++i)

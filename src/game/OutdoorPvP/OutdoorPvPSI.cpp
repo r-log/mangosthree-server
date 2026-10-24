@@ -25,7 +25,6 @@
 
 #include "OutdoorPvPSI.h"
 #include "WorldPacket.h"
-#include "World.h"
 #include "BattleGround.h"
 #include "ObjectMgr.h"
 #include "GameObject.h"
@@ -105,7 +104,7 @@ bool OutdoorPvPSI::HandleAreaTrigger(Player* player, uint32 triggerId)
                 BuffTeam(ALLIANCE, SPELL_CENARION_FAVOR);
 
                 // Send defense message
-                sWorld.SendDefenseMessage(ZONE_ID_SILITHUS, LANG_OPVP_SI_CAPTURE_A);
+                sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_SILITHUS, LANG_OPVP_SI_CAPTURE_A);
             }
 
             // give quest credit if necessary
@@ -139,7 +138,7 @@ bool OutdoorPvPSI::HandleAreaTrigger(Player* player, uint32 triggerId)
                 BuffTeam(HORDE, SPELL_CENARION_FAVOR);
 
                 // Send defense message
-                sWorld.SendDefenseMessage(ZONE_ID_SILITHUS, LANG_OPVP_SI_CAPTURE_H);
+                sOutdoorPvPMgr.SendDefenseMessage(ZONE_ID_SILITHUS, LANG_OPVP_SI_CAPTURE_H);
             }
 
             // give quest credit if necessary

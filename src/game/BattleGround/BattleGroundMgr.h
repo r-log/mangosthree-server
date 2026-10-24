@@ -68,6 +68,8 @@
 
 #include <mutex>
 #include <atomic>
+#include <cstdarg>
+#include <functional>
 
 /**
  * @brief Container for storing battleground instances.
@@ -428,6 +430,11 @@ class BGQueueRemoveEvent : public BasicEvent
         BattleGroundTypeId m_BgTypeId; /**< The battleground type id. */
         BattleGroundQueueTypeId m_BgQueueTypeId; /**< The battleground queue type id. */
 };
+
+/// Where a battleground announcement goes: the text `textId`, formatted with `args` in each player's
+/// locale, to every player in the world. The world installs it at startup, before the battlegrounds
+/// are created.
+typedef std::function<void(int32 textId, va_list* args)> WorldTextSink;
 
 /**
  * @brief Class for managing battlegrounds.
@@ -799,6 +806,21 @@ class BattleGroundMgr
          * @return bool True if it is a battleground weekend, false otherwise.
          */
         static bool IsBGWeekend(BattleGroundTypeId bgTypeId);
+
+        /**
+         * @brief Sets where a battleground announcement goes.
+         *
+         * @param sink The world's text to every player, installed once at startup.
+         */
+        void SetWorldTextSink(WorldTextSink const& sink) { m_worldText = sink; }
+
+        /**
+         * @brief Sends the text `textId`, formatted with the arguments that follow, through the
+         * installed callback.
+         *
+         * @param textId The text ID.
+         */
+        void SendWorldText(int32 textId, ...) const;
     private:
         // A SchedulerLock member lived here (a plain thread mutex); every
         // call site that would have acquired it was already commented out,
@@ -827,6 +849,7 @@ class BattleGroundMgr
         std::atomic<uint64> m_highestPvPStatsId;
         bool   m_ArenaTesting;
         bool   m_Testing; /**< Flag indicating if testing mode is enabled. */
+        WorldTextSink m_worldText; /**< Where a battleground announcement goes. */
 };
 
 #define sBattleGroundMgr MaNGOS::Singleton<BattleGroundMgr>::Instance()

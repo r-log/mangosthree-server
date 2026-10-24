@@ -42,7 +42,7 @@
 #include "BattleGroundRB.h"
 #include "ObjectMgr.h"
 #include "ProgressBar.h"
-#include "World.h"
+#include "data/GameConfig.h"
 #include "GameEventMgr.h"
 #include "DisableMgr.h"
 #include "GameTime.h"
@@ -188,11 +188,11 @@ void BattleGroundMgr::ToggleTesting()
     m_Testing = !m_Testing;
     if (m_Testing)
     {
-        sWorld.SendWorldText(LANG_DEBUG_BG_ON);
+        SendWorldText(LANG_DEBUG_BG_ON);
     }
     else
     {
-        sWorld.SendWorldText(LANG_DEBUG_BG_OFF);
+        SendWorldText(LANG_DEBUG_BG_OFF);
     }
 }
 
@@ -201,11 +201,11 @@ void BattleGroundMgr::ToggleArenaTesting()
     m_ArenaTesting = !m_ArenaTesting;
     if (m_ArenaTesting)
     {
-        sWorld.SendWorldText(LANG_DEBUG_ARENA_ON);
+        SendWorldText(LANG_DEBUG_ARENA_ON);
     }
     else
     {
-        sWorld.SendWorldText(LANG_DEBUG_ARENA_OFF);
+        SendWorldText(LANG_DEBUG_ARENA_OFF);
     }
 }
 
@@ -244,7 +244,7 @@ void BattleGroundMgr::ScheduleQueueUpdate(uint32 arenaRating, ArenaType arenaTyp
 uint32 BattleGroundMgr::GetMaxRatingDifference() const
 {
     // this is for stupid people who can't use brain and set max rating difference to 0
-    uint32 diff = sWorld.getConfig(CONFIG_UINT32_ARENA_MAX_RATING_DIFFERENCE);
+    uint32 diff = sGameConfig.getConfig(CONFIG_UINT32_ARENA_MAX_RATING_DIFFERENCE);
     if (diff == 0)
     {
         diff = 5000;
@@ -254,7 +254,7 @@ uint32 BattleGroundMgr::GetMaxRatingDifference() const
 
 uint32 BattleGroundMgr::GetRatingDiscardTimer() const
 {
-    return sWorld.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER);
+    return sGameConfig.getConfig(CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER);
 }
 
 /**
@@ -267,7 +267,7 @@ uint32 BattleGroundMgr::GetRatingDiscardTimer() const
  */
 uint32 BattleGroundMgr::GetPrematureFinishTime() const
 {
-    return sWorld.getConfig(CONFIG_UINT32_BATTLEGROUND_PREMATURE_FINISH_TIMER);
+    return sGameConfig.getConfig(CONFIG_UINT32_BATTLEGROUND_PREMATURE_FINISH_TIMER);
 }
 
 /**

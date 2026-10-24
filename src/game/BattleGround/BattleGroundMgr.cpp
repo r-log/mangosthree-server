@@ -103,6 +103,15 @@ BattleGroundMgr::~BattleGroundMgr()
     DeleteAllBattleGrounds();
 }
 
+void BattleGroundMgr::SendWorldText(int32 textId, ...) const
+{
+    MANGOS_ASSERT(m_worldText);
+    va_list ap;
+    va_start(ap, textId);
+    m_worldText(textId, &ap);
+    va_end(ap);
+}
+
 /**
  * @brief Deletes all battleground instances.
  *
