@@ -64,6 +64,7 @@
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "session/packets/entities/CurrencyPackets.h"
+#include "persistence/characters/inventory/CurrencyRepository.h"
 
 #include <algorithm>
 #include <map>
@@ -243,7 +244,7 @@ namespace
         }
     }
 
-    FakeRow CurrencyRow(uint32 id, uint32 total, uint32 week, uint32 season, uint32 flags)
+    FakeRow CurrencyFakeRow(uint32 id, uint32 total, uint32 week, uint32 season, uint32 flags)
     {
         FakeRow row;
         row.push_back(std::to_string(id));
@@ -258,9 +259,9 @@ namespace
     /// config's conquest cap.
     void Load(CurrencyMgr& mgr, uint32 id, uint32 total, uint32 week, uint32 season, uint32 flags = 0)
     {
-        FakeQueryResult result(FakeRows{ CurrencyRow(id, total, week, season, flags) });
+        FakeQueryResult result(FakeRows{ CurrencyFakeRow(id, total, week, season, flags) });
         REQUIRE(result.NextRow());
-        mgr.LoadRow(result.Fetch(), kConquestCap, ObjectGuid(HIGHGUID_PLAYER, kGuid));
+        mgr.LoadRow(CurrencyRepository::ReadRow(result.Fetch()), kConquestCap, ObjectGuid(HIGHGUID_PLAYER, kGuid));
     }
 
     std::string InsertSql(uint32 id, uint32 total, uint32 week, uint32 season, uint32 flags)
@@ -809,15 +810,15 @@ TEST(CurrencyMgr_LoadRowValidAndInvalid)
 
     CurrencyMgr mgr;
     FakeQueryResult result(FakeRows{
-        CurrencyRow(kPlain, 123, 45, 67, 255),
-        CurrencyRow(kUnknown, 1, 2, 3, 4),
-        CurrencyRow(kCapped, 5000, 1500, 99, 4),
-        CurrencyRow(CURRENCY_CONQUEST_POINTS, 100, 3000, 7, 0),
+        CurrencyFakeRow(kPlain, 123, 45, 67, 255),
+        CurrencyFakeRow(kUnknown, 1, 2, 3, 4),
+        CurrencyFakeRow(kCapped, 5000, 1500, 99, 4),
+        CurrencyFakeRow(CURRENCY_CONQUEST_POINTS, 100, 3000, 7, 0),
     });
     REQUIRE(result.NextRow());
     do
     {
-        mgr.LoadRow(result.Fetch(), kConquestCap, ObjectGuid(HIGHGUID_PLAYER, kGuid));
+        mgr.LoadRow(CurrencyRepository::ReadRow(result.Fetch()), kConquestCap, ObjectGuid(HIGHGUID_PLAYER, kGuid));
     }
     while (result.NextRow());
     CharacterDatabase.ExecuteQueuedForTest();
@@ -874,4 +875,40 @@ TEST(CurrencyMgr_SaveStreamPerState)
           "INSERT INTO `character_currencies` (`guid`, `id`, `totalCount`, `weekCount`, `seasonCount`, `flags`) VALUES ('42', '395', '9', '7', '2', '0')") != got.end());
 
     CheckEvents(SaveSorted(mgr, async), {}, __LINE__);
+}
+
+// The repository on its own: a login row read into its five values (the id through the 16-bit
+// getter, the flags through the 8-bit one, as the load always read them); the owner's UPDATE and
+// INSERT of a row; the DELETE of every character's row of an id, queued, no blocking call.
+TEST(CurrencyRepository_ReadRowAndStatements)
+{
+    FakeQueryResult result(FakeRows{ CurrencyFakeRow(392, 1500, 300, 4000, 12) });
+    REQUIRE(result.NextRow());
+    CurrencyRow row = CurrencyRepository::ReadRow(result.Fetch());
+    CHECK_EQ(row.id, 392u);
+    CHECK_EQ(row.totalCount, 1500u);
+    CHECK_EQ(row.weekCount, 300u);
+    CHECK_EQ(row.seasonCount, 4000u);
+    CHECK_EQ(uint32(row.flags), 12u);
+
+    TickGuard::ResetViolations();
+    FakeConnection query(CharacterDatabase);
+    FakeConnection async(CharacterDatabase);
+    SqlResultQueue results;
+    AttachedFakes attached(CharacterDatabase, &query, &async, &results, /*asyncWrites*/ true);
+
+    {
+        TickGuard::Scope scope;
+        CurrencyRepository::Update(kGuid, row);
+        CurrencyRepository::Insert(kGuid, row);
+        CurrencyRepository::DeleteEveryRowOf(9999);
+        CHECK_EQ(TickGuard::Violations(), 0u);
+    }
+    CharacterDatabase.ExecuteQueuedForTest();
+    CheckEvents(async.executed, {
+        UpdateSql(392, 1500, 300, 4000, 12),
+        InsertSql(392, 1500, 300, 4000, 12),
+        "DELETE FROM `character_currencies` WHERE `id` = '9999'",
+    }, __LINE__);
+    CHECK_EQ(query.executed.size(), size_t(0));
 }

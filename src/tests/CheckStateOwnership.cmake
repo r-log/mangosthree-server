@@ -418,8 +418,8 @@ state_row(currency
     TABLES  character_currencies
     TYPES   CurrencyMgr)
 
-state_allow(currency src/game/entities/player/inventory/CurrencyMgr.cpp
-    WHY "the owner: loads the rows one at a time (the row's columns in a comment, the invalid-row DELETE) and saves them; its four client notices leave as facts"
+state_allow(currency src/game/persistence/characters/inventory/CurrencyRepository.cpp
+    WHY "the owner's repository: reads a login row (its columns in a comment) and writes the rows the owner hands it, and the invalid-row DELETE"
     NAMES character_currencies)
 state_allow(currency src/game/entities/player/inventory/CurrencyMgr.h
     WHY "the owner's header: the flags' doc comment names the table"

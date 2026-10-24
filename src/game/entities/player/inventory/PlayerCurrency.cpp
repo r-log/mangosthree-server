@@ -43,6 +43,7 @@
 #include "data/GameConfig.h"
 #include "WorldSession.h"
 #include "Database/DatabaseEnv.h"                           // QueryResult: the login loop fetches and advances it
+#include "persistence/characters/inventory/CurrencyRepository.h"
 
 namespace
 {
@@ -134,7 +135,7 @@ void Player::_LoadCurrencies(QueryResult* result)
 
         do
         {
-            m_currencyMgr.LoadRow(result->Fetch(), conquestWeekCap, GetObjectGuid());
+            m_currencyMgr.LoadRow(CurrencyRepository::ReadRow(result->Fetch()), conquestWeekCap, GetObjectGuid());
         }
         while (result->NextRow());
     }
