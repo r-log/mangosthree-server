@@ -25,7 +25,6 @@
 
 #include "Platform/Define.h"
 #include "UpdateMask.h"
-#include "Opcodes.h"
 #include "World.h"
 #include "ObjectLookup.h"
 #include "Database/DatabaseEnv.h"

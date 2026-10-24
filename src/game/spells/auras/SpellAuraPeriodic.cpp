@@ -46,9 +46,7 @@
 #include <cmath>
 #include "Platform/Define.h"
 #include "Database/DatabaseEnv.h"
-#include "WorldPacket.h"
 #include "Log.h"
-#include "UpdateMask.h"
 #include "World.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
@@ -60,17 +58,11 @@
 #include "Policies/Singleton.h"
 #include "Totem.h"
 #include "Creature.h"
-#include "Formulas.h"
 #include "BattleGround/BattleGround.h"
-#include "OutdoorPvP/OutdoorPvP.h"
-#include "CreatureAI.h"
 #include "ScriptMgr.h"
 #include "Util.h"
 #include "GridNotifiersImpl.h"
-#include "Vehicle.h"
-#include "CellImpl.h"
 #include "Language.h"
-#include "MapManager.h"
 #include "spells/handlers/AuraPeriodicHandlers.h"
 
 #define NULL_AURA_SLOT 0xFF

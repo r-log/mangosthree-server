@@ -25,7 +25,6 @@
 
 #include "spells/handlers/SpellEffectHealPowerHandlers.h"
 #include "spells/handlers/SpellHandlerRegistry.h"
-#include "Object/Creature.h"
 #include "entities/player/Player.h"
 #include "Server/SharedDefines.h"
 

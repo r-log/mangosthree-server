@@ -34,12 +34,9 @@
 #include "Unit.h"
 #include "spells/pipeline/Spell.h"
 #include "spells/auras/SpellAuras.h"
-#include "Totem.h"
 #include "Creature.h"
-#include "Formulas.h"
 #include "CreatureAI.h"
 #include "Util.h"
-#include "ObjectLookup.h"
 #include "spells/handlers/UnitAuraProcHandlerHandlers.h"
 
 pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =

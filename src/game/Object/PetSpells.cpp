@@ -32,7 +32,6 @@
 #include "WorldPacket.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"
-#include "Formulas.h"
 #include "spells/auras/SpellAuras.h"
 #include "CreatureAI.h"
 #include "Unit.h"

@@ -39,7 +39,6 @@
 #include "Auth/Sha1.h"
 #include "UpdateData.h"
 #include "LootMgr.h"
-#include "Chat.h"
 #include "zlib.h"
 #include "Object.h"
 #include "BattleGround/BattleGround.h"

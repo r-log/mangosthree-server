@@ -42,10 +42,8 @@
 #include "UpdateMask.h"
 #include "ObjectMgr.h"
 #include "spells/pipeline/Spell.h"
-#include "spells/auras/SpellAuras.h"
 #include "AchievementMgr.h"
 #include "DBCStores.h"
-#include "MapManager.h"
 #include "movement/MoveSplineInit.h"
 #include "MotionMaster.h"
 

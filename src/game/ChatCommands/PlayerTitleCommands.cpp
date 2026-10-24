@@ -27,7 +27,6 @@
 #include <string>
 #include "Chat.h"
 #include "Language.h"
-#include "World.h"
 #include "Player.h"
 #include "DBCStores.h"
 

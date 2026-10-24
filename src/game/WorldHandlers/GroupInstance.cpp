@@ -25,7 +25,6 @@
 
 #include "Platform/Define.h"
 #include <set>
-#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Player.h"

@@ -58,7 +58,6 @@
 #include "WorldSession.h"
 #include "Opcodes.h"
 #include "Log.h"
-#include "UpdateMask.h"
 #include "data/GameConfig.h"
 #include "ObjectMgr.h"
 #include "spells/data/SpellMgr.h"

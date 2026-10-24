@@ -41,7 +41,6 @@
 #include "movement/MoveSplineInit.h"
 #include "Map.h"
 #include "ObjectLookup.h"
-#include "CreatureAISelector.h"
 #include "Creature.h"
 #include "CreatureLinkingMgr.h"
 #include "Pet.h"
